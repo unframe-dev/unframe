@@ -83357,6 +83357,568 @@ export const unframe = ($root.unframe = (() => {
       return LocalPreviewInitialState;
     })();
 
+    preview.LocalPreviewPlaybackState = (function () {
+      /**
+       * Properties of a LocalPreviewPlaybackState.
+       * @typedef {Object} unframe.preview.LocalPreviewPlaybackState.$Properties
+       * @property {string|null} [requestId] LocalPreviewPlaybackState requestId
+       * @property {number|Long|null} [sequence] LocalPreviewPlaybackState sequence
+       * @property {Array.<unframe.realtime.NodeRuntimeState.$Properties>|null} [nodeStates] LocalPreviewPlaybackState nodeStates
+       * @property {Array.<unframe.realtime.SurfaceRuntimeState.$Properties>|null} [surfaceStates] LocalPreviewPlaybackState surfaceStates
+       * @property {Array.<unframe.realtime.RuntimeRunSnapshot.$Properties>|null} [activeRuns] LocalPreviewPlaybackState activeRuns
+       * @property {unframe.realtime.RuntimeClockSnapshot.$Properties|null} [clock] LocalPreviewPlaybackState clock
+       * @property {string|null} [currentGroupId] LocalPreviewPlaybackState currentGroupId
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a LocalPreviewPlaybackState.
+       * @memberof unframe.preview
+       * @interface ILocalPreviewPlaybackState
+       * @augments unframe.preview.LocalPreviewPlaybackState.$Properties
+       * @deprecated Use unframe.preview.LocalPreviewPlaybackState.$Properties instead.
+       */
+
+      /**
+       * Shape of a LocalPreviewPlaybackState.
+       * @typedef {{
+       *   requestId?: string|null;
+       *   sequence?: number|Long|null;
+       *   nodeStates?: Array.<unframe.realtime.NodeRuntimeState.$Shape>|null;
+       *   surfaceStates?: Array.<unframe.realtime.SurfaceRuntimeState.$Shape>|null;
+       *   activeRuns?: Array.<unframe.realtime.RuntimeRunSnapshot.$Shape>|null;
+       *   clock?: unframe.realtime.RuntimeClockSnapshot.$Shape|null;
+       *   currentGroupId?: string|null;
+       *   $unknowns?: Array.<Uint8Array>;
+       * }} unframe.preview.LocalPreviewPlaybackState.$Shape
+       */
+
+      /**
+       * Constructs a new LocalPreviewPlaybackState.
+       * @memberof unframe.preview
+       * @classdesc Represents a LocalPreviewPlaybackState.
+       * @constructor
+       * @param {unframe.preview.LocalPreviewPlaybackState.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const LocalPreviewPlaybackState = function LocalPreviewPlaybackState(properties) {
+        this.nodeStates = [];
+        this.surfaceStates = [];
+        this.activeRuns = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * LocalPreviewPlaybackState requestId.
+       * @member {string} requestId
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.requestId = "";
+
+      /**
+       * LocalPreviewPlaybackState sequence.
+       * @member {number|Long} sequence
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.sequence = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * LocalPreviewPlaybackState nodeStates.
+       * @member {Array.<unframe.realtime.NodeRuntimeState.$Properties>} nodeStates
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.nodeStates = $util.emptyArray;
+
+      /**
+       * LocalPreviewPlaybackState surfaceStates.
+       * @member {Array.<unframe.realtime.SurfaceRuntimeState.$Properties>} surfaceStates
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.surfaceStates = $util.emptyArray;
+
+      /**
+       * LocalPreviewPlaybackState activeRuns.
+       * @member {Array.<unframe.realtime.RuntimeRunSnapshot.$Properties>} activeRuns
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.activeRuns = $util.emptyArray;
+
+      /**
+       * LocalPreviewPlaybackState clock.
+       * @member {unframe.realtime.RuntimeClockSnapshot.$Properties|null|undefined} clock
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.clock = null;
+
+      /**
+       * LocalPreviewPlaybackState currentGroupId.
+       * @member {string} currentGroupId
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.currentGroupId = "";
+
+      /**
+       * Creates a new LocalPreviewPlaybackState instance using the specified properties.
+       * @function create
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @static
+       * @param {unframe.preview.LocalPreviewPlaybackState.$Properties=} [properties] Properties to set
+       * @returns {unframe.preview.LocalPreviewPlaybackState} LocalPreviewPlaybackState instance
+       * @type {{
+       *   (properties: unframe.preview.LocalPreviewPlaybackState.$Shape): unframe.preview.LocalPreviewPlaybackState & unframe.preview.LocalPreviewPlaybackState.$Shape;
+       *   (properties?: unframe.preview.LocalPreviewPlaybackState.$Properties): unframe.preview.LocalPreviewPlaybackState;
+       * }}
+       */
+      LocalPreviewPlaybackState.create = function (properties) {
+        return new LocalPreviewPlaybackState(properties);
+      };
+
+      /**
+       * Encodes the specified LocalPreviewPlaybackState message. Does not implicitly {@link unframe.preview.LocalPreviewPlaybackState.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @static
+       * @param {unframe.preview.LocalPreviewPlaybackState.$Properties} message LocalPreviewPlaybackState message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewPlaybackState.encode = function LocalPreviewPlaybackState$encode(
+        message,
+        writer,
+      ) {
+        if (!writer) writer = $Writer.create();
+        if (message.requestId != null && $Object.hasOwnProperty.call(message, "requestId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.requestId);
+        if (message.sequence != null && $Object.hasOwnProperty.call(message, "sequence"))
+          writer.uint32(/* id 2, wireType 0 =*/ 16).uint64(message.sequence);
+        if (message.nodeStates != null && message.nodeStates.length)
+          for (let i = 0; i < message.nodeStates.length; ++i)
+            $root.unframe.realtime.NodeRuntimeState.encode(
+              message.nodeStates[i],
+              writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+            ).ldelim();
+        if (message.surfaceStates != null && message.surfaceStates.length)
+          for (let i = 0; i < message.surfaceStates.length; ++i)
+            $root.unframe.realtime.SurfaceRuntimeState.encode(
+              message.surfaceStates[i],
+              writer.uint32(/* id 4, wireType 2 =*/ 34).fork(),
+            ).ldelim();
+        if (message.activeRuns != null && message.activeRuns.length)
+          for (let i = 0; i < message.activeRuns.length; ++i)
+            $root.unframe.realtime.RuntimeRunSnapshot.encode(
+              message.activeRuns[i],
+              writer.uint32(/* id 5, wireType 2 =*/ 42).fork(),
+            ).ldelim();
+        if (message.clock != null && $Object.hasOwnProperty.call(message, "clock"))
+          $root.unframe.realtime.RuntimeClockSnapshot.encode(
+            message.clock,
+            writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
+          ).ldelim();
+        if (
+          message.currentGroupId != null &&
+          $Object.hasOwnProperty.call(message, "currentGroupId")
+        )
+          writer.uint32(/* id 7, wireType 2 =*/ 58).string(message.currentGroupId);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified LocalPreviewPlaybackState message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewPlaybackState.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @static
+       * @param {unframe.preview.LocalPreviewPlaybackState.$Properties} message LocalPreviewPlaybackState message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewPlaybackState.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a LocalPreviewPlaybackState message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewPlaybackState & unframe.preview.LocalPreviewPlaybackState.$Shape} LocalPreviewPlaybackState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewPlaybackState.decode = function LocalPreviewPlaybackState$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.requestId = reader.string();
+              break;
+            }
+            case 2: {
+              message.sequence = reader.uint64();
+              break;
+            }
+            case 3: {
+              if (!(message.nodeStates && message.nodeStates.length)) message.nodeStates = [];
+              message.nodeStates.push(
+                $root.unframe.realtime.NodeRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 4: {
+              if (!(message.surfaceStates && message.surfaceStates.length))
+                message.surfaceStates = [];
+              message.surfaceStates.push(
+                $root.unframe.realtime.SurfaceRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 5: {
+              if (!(message.activeRuns && message.activeRuns.length)) message.activeRuns = [];
+              message.activeRuns.push(
+                $root.unframe.realtime.RuntimeRunSnapshot.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 6: {
+              message.clock = $root.unframe.realtime.RuntimeClockSnapshot.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 7: {
+              message.currentGroupId = reader.string();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a LocalPreviewPlaybackState message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewPlaybackState & unframe.preview.LocalPreviewPlaybackState.$Shape} LocalPreviewPlaybackState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewPlaybackState.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a LocalPreviewPlaybackState message.
+       * @function verify
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      LocalPreviewPlaybackState.verify = function LocalPreviewPlaybackState$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.requestId != null && message.hasOwnProperty("requestId"))
+          if (!$util.isString(message.requestId)) return "requestId: string expected";
+        if (message.sequence != null && message.hasOwnProperty("sequence"))
+          if (
+            !$util.isInteger(message.sequence) &&
+            !(
+              message.sequence &&
+              $util.isInteger(message.sequence.low) &&
+              $util.isInteger(message.sequence.high)
+            )
+          )
+            return "sequence: integer|Long expected";
+        if (message.nodeStates != null && message.hasOwnProperty("nodeStates")) {
+          if (!$Array.isArray(message.nodeStates)) return "nodeStates: array expected";
+          for (let i = 0; i < message.nodeStates.length; ++i) {
+            let error = $root.unframe.realtime.NodeRuntimeState.verify(
+              message.nodeStates[i],
+              long + 1,
+            );
+            if (error) return "nodeStates." + error;
+          }
+        }
+        if (message.surfaceStates != null && message.hasOwnProperty("surfaceStates")) {
+          if (!$Array.isArray(message.surfaceStates)) return "surfaceStates: array expected";
+          for (let i = 0; i < message.surfaceStates.length; ++i) {
+            let error = $root.unframe.realtime.SurfaceRuntimeState.verify(
+              message.surfaceStates[i],
+              long + 1,
+            );
+            if (error) return "surfaceStates." + error;
+          }
+        }
+        if (message.activeRuns != null && message.hasOwnProperty("activeRuns")) {
+          if (!$Array.isArray(message.activeRuns)) return "activeRuns: array expected";
+          for (let i = 0; i < message.activeRuns.length; ++i) {
+            let error = $root.unframe.realtime.RuntimeRunSnapshot.verify(
+              message.activeRuns[i],
+              long + 1,
+            );
+            if (error) return "activeRuns." + error;
+          }
+        }
+        if (message.clock != null && message.hasOwnProperty("clock")) {
+          let error = $root.unframe.realtime.RuntimeClockSnapshot.verify(message.clock, long + 1);
+          if (error) return "clock." + error;
+        }
+        if (message.currentGroupId != null && message.hasOwnProperty("currentGroupId"))
+          if (!$util.isString(message.currentGroupId)) return "currentGroupId: string expected";
+        return null;
+      };
+
+      /**
+       * Creates a LocalPreviewPlaybackState message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.preview.LocalPreviewPlaybackState} LocalPreviewPlaybackState
+       */
+      LocalPreviewPlaybackState.fromObject = function LocalPreviewPlaybackState$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.requestId != null) message.requestId = $String(object.requestId);
+        if (object.sequence != null)
+          if ($util.Long)
+            (message.sequence = $util.Long.fromValue(object.sequence)).unsigned = true;
+          else if (typeof object.sequence === "string")
+            message.sequence = $parseInt(object.sequence, 10);
+          else if (typeof object.sequence === "number") message.sequence = object.sequence;
+          else if (typeof object.sequence === "object")
+            message.sequence = new $util.LongBits(
+              object.sequence.low >>> 0,
+              object.sequence.high >>> 0,
+            ).toNumber(true);
+        if (object.nodeStates) {
+          if (!$Array.isArray(object.nodeStates))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewPlaybackState.nodeStates: array expected",
+            );
+          message.nodeStates = [];
+          for (let i = 0; i < object.nodeStates.length; ++i) {
+            if (typeof object.nodeStates[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewPlaybackState.nodeStates: object expected",
+              );
+            message.nodeStates[i] = $root.unframe.realtime.NodeRuntimeState.fromObject(
+              object.nodeStates[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.surfaceStates) {
+          if (!$Array.isArray(object.surfaceStates))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewPlaybackState.surfaceStates: array expected",
+            );
+          message.surfaceStates = [];
+          for (let i = 0; i < object.surfaceStates.length; ++i) {
+            if (typeof object.surfaceStates[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewPlaybackState.surfaceStates: object expected",
+              );
+            message.surfaceStates[i] = $root.unframe.realtime.SurfaceRuntimeState.fromObject(
+              object.surfaceStates[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.activeRuns) {
+          if (!$Array.isArray(object.activeRuns))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewPlaybackState.activeRuns: array expected",
+            );
+          message.activeRuns = [];
+          for (let i = 0; i < object.activeRuns.length; ++i) {
+            if (typeof object.activeRuns[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewPlaybackState.activeRuns: object expected",
+              );
+            message.activeRuns[i] = $root.unframe.realtime.RuntimeRunSnapshot.fromObject(
+              object.activeRuns[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.clock != null) {
+          if (typeof object.clock !== "object")
+            throw $TypeError(".unframe.preview.LocalPreviewPlaybackState.clock: object expected");
+          message.clock = $root.unframe.realtime.RuntimeClockSnapshot.fromObject(
+            object.clock,
+            long + 1,
+          );
+        }
+        if (object.currentGroupId != null) message.currentGroupId = $String(object.currentGroupId);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a LocalPreviewPlaybackState message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @static
+       * @param {unframe.preview.LocalPreviewPlaybackState} message LocalPreviewPlaybackState
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      LocalPreviewPlaybackState.toObject = function LocalPreviewPlaybackState$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) {
+          object.nodeStates = [];
+          object.surfaceStates = [];
+          object.activeRuns = [];
+        }
+        if (options.defaults) {
+          object.requestId = "";
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.sequence =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.sequence = options.longs === $String ? "0" : 0;
+          object.clock = null;
+          object.currentGroupId = "";
+        }
+        if (message.requestId != null && message.hasOwnProperty("requestId"))
+          object.requestId = message.requestId;
+        if (message.sequence != null && message.hasOwnProperty("sequence"))
+          if (typeof message.sequence === "number")
+            object.sequence =
+              options.longs === $String ? $String(message.sequence) : message.sequence;
+          else
+            object.sequence =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.sequence)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.sequence.low >>> 0,
+                      message.sequence.high >>> 0,
+                    ).toNumber(true)
+                  : message.sequence;
+        if (message.nodeStates && message.nodeStates.length) {
+          object.nodeStates = [];
+          for (let j = 0; j < message.nodeStates.length; ++j)
+            object.nodeStates[j] = $root.unframe.realtime.NodeRuntimeState.toObject(
+              message.nodeStates[j],
+              options,
+            );
+        }
+        if (message.surfaceStates && message.surfaceStates.length) {
+          object.surfaceStates = [];
+          for (let j = 0; j < message.surfaceStates.length; ++j)
+            object.surfaceStates[j] = $root.unframe.realtime.SurfaceRuntimeState.toObject(
+              message.surfaceStates[j],
+              options,
+            );
+        }
+        if (message.activeRuns && message.activeRuns.length) {
+          object.activeRuns = [];
+          for (let j = 0; j < message.activeRuns.length; ++j)
+            object.activeRuns[j] = $root.unframe.realtime.RuntimeRunSnapshot.toObject(
+              message.activeRuns[j],
+              options,
+            );
+        }
+        if (message.clock != null && message.hasOwnProperty("clock"))
+          object.clock = $root.unframe.realtime.RuntimeClockSnapshot.toObject(
+            message.clock,
+            options,
+          );
+        if (message.currentGroupId != null && message.hasOwnProperty("currentGroupId"))
+          object.currentGroupId = message.currentGroupId;
+        return object;
+      };
+
+      /**
+       * Converts this LocalPreviewPlaybackState to JSON.
+       * @function toJSON
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      LocalPreviewPlaybackState.prototype.toJSON = function () {
+        return LocalPreviewPlaybackState.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for LocalPreviewPlaybackState
+       * @function getTypeUrl
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      LocalPreviewPlaybackState.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.preview.LocalPreviewPlaybackState";
+      };
+
+      return LocalPreviewPlaybackState;
+    })();
+
     preview.LocalPreviewAsset = (function () {
       /**
        * Properties of a LocalPreviewAsset.

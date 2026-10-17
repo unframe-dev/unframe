@@ -287,6 +287,100 @@ func (x *LocalPreviewInitialState) GetSurfaceStates() []*realtime.SurfaceRuntime
 	return nil
 }
 
+// A complete playback view for the committed Preview request. Sequence increases
+// across resets; only the logical runtime clock may restart at zero.
+type LocalPreviewPlaybackState struct {
+	state          protoimpl.MessageState          `protogen:"open.v1"`
+	RequestId      string                          `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Sequence       uint64                          `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	NodeStates     []*realtime.NodeRuntimeState    `protobuf:"bytes,3,rep,name=node_states,json=nodeStates,proto3" json:"node_states,omitempty"`
+	SurfaceStates  []*realtime.SurfaceRuntimeState `protobuf:"bytes,4,rep,name=surface_states,json=surfaceStates,proto3" json:"surface_states,omitempty"`
+	ActiveRuns     []*realtime.RuntimeRunSnapshot  `protobuf:"bytes,5,rep,name=active_runs,json=activeRuns,proto3" json:"active_runs,omitempty"`
+	Clock          *realtime.RuntimeClockSnapshot  `protobuf:"bytes,6,opt,name=clock,proto3" json:"clock,omitempty"`
+	CurrentGroupId string                          `protobuf:"bytes,7,opt,name=current_group_id,json=currentGroupId,proto3" json:"current_group_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *LocalPreviewPlaybackState) Reset() {
+	*x = LocalPreviewPlaybackState{}
+	mi := &file_unframe_preview_preview_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LocalPreviewPlaybackState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LocalPreviewPlaybackState) ProtoMessage() {}
+
+func (x *LocalPreviewPlaybackState) ProtoReflect() protoreflect.Message {
+	mi := &file_unframe_preview_preview_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LocalPreviewPlaybackState.ProtoReflect.Descriptor instead.
+func (*LocalPreviewPlaybackState) Descriptor() ([]byte, []int) {
+	return file_unframe_preview_preview_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *LocalPreviewPlaybackState) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *LocalPreviewPlaybackState) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *LocalPreviewPlaybackState) GetNodeStates() []*realtime.NodeRuntimeState {
+	if x != nil {
+		return x.NodeStates
+	}
+	return nil
+}
+
+func (x *LocalPreviewPlaybackState) GetSurfaceStates() []*realtime.SurfaceRuntimeState {
+	if x != nil {
+		return x.SurfaceStates
+	}
+	return nil
+}
+
+func (x *LocalPreviewPlaybackState) GetActiveRuns() []*realtime.RuntimeRunSnapshot {
+	if x != nil {
+		return x.ActiveRuns
+	}
+	return nil
+}
+
+func (x *LocalPreviewPlaybackState) GetClock() *realtime.RuntimeClockSnapshot {
+	if x != nil {
+		return x.Clock
+	}
+	return nil
+}
+
+func (x *LocalPreviewPlaybackState) GetCurrentGroupId() string {
+	if x != nil {
+		return x.CurrentGroupId
+	}
+	return ""
+}
+
 type LocalPreviewAsset struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
@@ -297,7 +391,7 @@ type LocalPreviewAsset struct {
 
 func (x *LocalPreviewAsset) Reset() {
 	*x = LocalPreviewAsset{}
-	mi := &file_unframe_preview_preview_proto_msgTypes[3]
+	mi := &file_unframe_preview_preview_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -309,7 +403,7 @@ func (x *LocalPreviewAsset) String() string {
 func (*LocalPreviewAsset) ProtoMessage() {}
 
 func (x *LocalPreviewAsset) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_preview_preview_proto_msgTypes[3]
+	mi := &file_unframe_preview_preview_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -322,7 +416,7 @@ func (x *LocalPreviewAsset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocalPreviewAsset.ProtoReflect.Descriptor instead.
 func (*LocalPreviewAsset) Descriptor() ([]byte, []int) {
-	return file_unframe_preview_preview_proto_rawDescGZIP(), []int{3}
+	return file_unframe_preview_preview_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *LocalPreviewAsset) GetAssetId() string {
@@ -370,7 +464,18 @@ const file_unframe_preview_preview_proto_rawDesc = "" +
 	"\x18LocalPreviewInitialState\x12C\n" +
 	"\vnode_states\x18\x01 \x03(\v2\".unframe.realtime.NodeRuntimeStateR\n" +
 	"nodeStates\x12L\n" +
-	"\x0esurface_states\x18\x02 \x03(\v2%.unframe.realtime.SurfaceRuntimeStateR\rsurfaceStates\"L\n" +
+	"\x0esurface_states\x18\x02 \x03(\v2%.unframe.realtime.SurfaceRuntimeStateR\rsurfaceStates\"\x98\x03\n" +
+	"\x19LocalPreviewPlaybackState\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1a\n" +
+	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12C\n" +
+	"\vnode_states\x18\x03 \x03(\v2\".unframe.realtime.NodeRuntimeStateR\n" +
+	"nodeStates\x12L\n" +
+	"\x0esurface_states\x18\x04 \x03(\v2%.unframe.realtime.SurfaceRuntimeStateR\rsurfaceStates\x12E\n" +
+	"\vactive_runs\x18\x05 \x03(\v2$.unframe.realtime.RuntimeRunSnapshotR\n" +
+	"activeRuns\x12<\n" +
+	"\x05clock\x18\x06 \x01(\v2&.unframe.realtime.RuntimeClockSnapshotR\x05clock\x12(\n" +
+	"\x10current_group_id\x18\a \x01(\tR\x0ecurrentGroupId\"L\n" +
 	"\x11LocalPreviewAsset\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1c\n" +
 	"\treference\x18\x02 \x01(\tR\treferenceBQZOgithub.com/unframe-dev/unframe/app/server/realtime/internal/gen/preview;previewb\x06proto3"
@@ -387,38 +492,45 @@ func file_unframe_preview_preview_proto_rawDescGZIP() []byte {
 	return file_unframe_preview_preview_proto_rawDescData
 }
 
-var file_unframe_preview_preview_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_unframe_preview_preview_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_unframe_preview_preview_proto_goTypes = []any{
 	(*LocalPreviewEnvelope)(nil),                 // 0: unframe.preview.LocalPreviewEnvelope
 	(*LocalPreviewProjection)(nil),               // 1: unframe.preview.LocalPreviewProjection
 	(*LocalPreviewInitialState)(nil),             // 2: unframe.preview.LocalPreviewInitialState
-	(*LocalPreviewAsset)(nil),                    // 3: unframe.preview.LocalPreviewAsset
-	(*delivery.DeliveredRenderSurface)(nil),      // 4: unframe.delivery.DeliveredRenderSurface
-	(*delivery.ProjectedSemanticSurface)(nil),    // 5: unframe.delivery.ProjectedSemanticSurface
-	(*delivery.LocalOverlayDefinition)(nil),      // 6: unframe.delivery.LocalOverlayDefinition
-	(presentation.RuntimeCapability)(0),          // 7: unframe.presentation.RuntimeCapability
-	(*presentation.ProjectedRuntimeCatalog)(nil), // 8: unframe.presentation.ProjectedRuntimeCatalog
-	(*delivery.TextureResidencyPlan)(nil),        // 9: unframe.delivery.TextureResidencyPlan
-	(*realtime.NodeRuntimeState)(nil),            // 10: unframe.realtime.NodeRuntimeState
-	(*realtime.SurfaceRuntimeState)(nil),         // 11: unframe.realtime.SurfaceRuntimeState
+	(*LocalPreviewPlaybackState)(nil),            // 3: unframe.preview.LocalPreviewPlaybackState
+	(*LocalPreviewAsset)(nil),                    // 4: unframe.preview.LocalPreviewAsset
+	(*delivery.DeliveredRenderSurface)(nil),      // 5: unframe.delivery.DeliveredRenderSurface
+	(*delivery.ProjectedSemanticSurface)(nil),    // 6: unframe.delivery.ProjectedSemanticSurface
+	(*delivery.LocalOverlayDefinition)(nil),      // 7: unframe.delivery.LocalOverlayDefinition
+	(presentation.RuntimeCapability)(0),          // 8: unframe.presentation.RuntimeCapability
+	(*presentation.ProjectedRuntimeCatalog)(nil), // 9: unframe.presentation.ProjectedRuntimeCatalog
+	(*delivery.TextureResidencyPlan)(nil),        // 10: unframe.delivery.TextureResidencyPlan
+	(*realtime.NodeRuntimeState)(nil),            // 11: unframe.realtime.NodeRuntimeState
+	(*realtime.SurfaceRuntimeState)(nil),         // 12: unframe.realtime.SurfaceRuntimeState
+	(*realtime.RuntimeRunSnapshot)(nil),          // 13: unframe.realtime.RuntimeRunSnapshot
+	(*realtime.RuntimeClockSnapshot)(nil),        // 14: unframe.realtime.RuntimeClockSnapshot
 }
 var file_unframe_preview_preview_proto_depIdxs = []int32{
 	1,  // 0: unframe.preview.LocalPreviewEnvelope.projection:type_name -> unframe.preview.LocalPreviewProjection
 	2,  // 1: unframe.preview.LocalPreviewEnvelope.initial_state:type_name -> unframe.preview.LocalPreviewInitialState
-	3,  // 2: unframe.preview.LocalPreviewEnvelope.assets:type_name -> unframe.preview.LocalPreviewAsset
-	4,  // 3: unframe.preview.LocalPreviewProjection.render_surfaces:type_name -> unframe.delivery.DeliveredRenderSurface
-	5,  // 4: unframe.preview.LocalPreviewProjection.semantic_surfaces:type_name -> unframe.delivery.ProjectedSemanticSurface
-	6,  // 5: unframe.preview.LocalPreviewProjection.local_overlays:type_name -> unframe.delivery.LocalOverlayDefinition
-	7,  // 6: unframe.preview.LocalPreviewProjection.required_runtime_capabilities:type_name -> unframe.presentation.RuntimeCapability
-	8,  // 7: unframe.preview.LocalPreviewProjection.runtime_catalog:type_name -> unframe.presentation.ProjectedRuntimeCatalog
-	9,  // 8: unframe.preview.LocalPreviewProjection.texture_residency:type_name -> unframe.delivery.TextureResidencyPlan
-	10, // 9: unframe.preview.LocalPreviewInitialState.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	11, // 10: unframe.preview.LocalPreviewInitialState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	4,  // 2: unframe.preview.LocalPreviewEnvelope.assets:type_name -> unframe.preview.LocalPreviewAsset
+	5,  // 3: unframe.preview.LocalPreviewProjection.render_surfaces:type_name -> unframe.delivery.DeliveredRenderSurface
+	6,  // 4: unframe.preview.LocalPreviewProjection.semantic_surfaces:type_name -> unframe.delivery.ProjectedSemanticSurface
+	7,  // 5: unframe.preview.LocalPreviewProjection.local_overlays:type_name -> unframe.delivery.LocalOverlayDefinition
+	8,  // 6: unframe.preview.LocalPreviewProjection.required_runtime_capabilities:type_name -> unframe.presentation.RuntimeCapability
+	9,  // 7: unframe.preview.LocalPreviewProjection.runtime_catalog:type_name -> unframe.presentation.ProjectedRuntimeCatalog
+	10, // 8: unframe.preview.LocalPreviewProjection.texture_residency:type_name -> unframe.delivery.TextureResidencyPlan
+	11, // 9: unframe.preview.LocalPreviewInitialState.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	12, // 10: unframe.preview.LocalPreviewInitialState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	11, // 11: unframe.preview.LocalPreviewPlaybackState.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	12, // 12: unframe.preview.LocalPreviewPlaybackState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	13, // 13: unframe.preview.LocalPreviewPlaybackState.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
+	14, // 14: unframe.preview.LocalPreviewPlaybackState.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_unframe_preview_preview_proto_init() }
@@ -433,7 +545,7 @@ func file_unframe_preview_preview_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_unframe_preview_preview_proto_rawDesc), len(file_unframe_preview_preview_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

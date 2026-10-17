@@ -36,6 +36,56 @@ const setup = async (development = false) => {
   return { host, service, previews };
 };
 describe("local author HTTP boundary", () => {
+  it("protects playback and rejects client state, clocks, and malformed input commands", async () => {
+    const { host } = await setup();
+    const headers = {
+      authorization: `Bearer ${host.token}`,
+      "content-type": "application/json",
+      origin: host.origin,
+    };
+    const body = JSON.stringify({ requestId: "a".repeat(32), command: "poll" });
+    const post = (requestBody: string, requestHeaders = headers) =>
+      fetch(`${host.origin}/api/preview-playback`, {
+        method: "POST",
+        headers: requestHeaders,
+        body: requestBody,
+      });
+    expect((await post(body, { ...headers, authorization: "" })).status).toBe(401);
+    expect((await post(body, { ...headers, origin: "https://elsewhere.invalid" })).status).toBe(
+      403,
+    );
+    expect((await post(body)).status).toBe(409);
+    expect(
+      (
+        await post(
+          JSON.stringify({ requestId: "a".repeat(32), command: "play", runtimeTimeMs: 1000 }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await post(JSON.stringify({ requestId: "a".repeat(32), command: "input" }))).status,
+    ).toBe(400);
+    expect(
+      (
+        await post(
+          JSON.stringify({
+            requestId: "a".repeat(32),
+            command: "input",
+            cueId: "continue",
+            state: {},
+          }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await post(
+          JSON.stringify({ requestId: "a".repeat(32), command: "poll", cueId: "continue" }),
+        )
+      ).status,
+    ).toBe(400);
+  });
+
   it("does not start a delayed Preview after a later display invalidation", async () => {
     const { host, service, previews } = await setup();
     let entered!: () => void;

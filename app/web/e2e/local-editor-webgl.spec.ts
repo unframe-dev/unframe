@@ -129,6 +129,51 @@ for (const kind of ["structured", "opaque"] as const)
       expect(pixels(dev).varied, JSON.stringify(errors)).toBeGreaterThan(500);
       expect(assetsFetched.length).toBeGreaterThan(0);
       await Promise.all(assetChecks);
+      if (kind === "structured") {
+        await expect(page.getByText("Group: main / Step: start")).toBeVisible();
+        const input = page
+          .getByRole("group", { name: "Preview 再生" })
+          .getByRole("button", { name: "continue", exact: true });
+        await expect(input).toBeDisabled();
+        await page.getByRole("button", { name: "再生", exact: true }).click();
+        await expect(input).toBeEnabled();
+        await input.click();
+        await expect(page.getByText("Group: main / Step: done")).toBeVisible();
+        await page.getByRole("button", { name: "一時停止", exact: true }).click();
+        await expect(page.getByRole("button", { name: "再生", exact: true })).toBeEnabled();
+        await expect(page.getByText("Group: main / Step: done")).toBeVisible();
+        const paused = await canvas.screenshot({
+          path: testInfo.outputPath("structured-paused.png"),
+        });
+        await expect
+          .poll(async () => pixels(await canvas.screenshot()).image.data)
+          .toEqual(pixels(paused).image.data);
+        await page.getByRole("button", { name: "再生", exact: true }).click();
+        await expect(page.getByText("Group: main / Step: finished")).toBeVisible();
+        const faded = await canvas.screenshot({
+          path: testInfo.outputPath("structured-faded.png"),
+        });
+        const beforeFade = pixels(paused).image;
+        const afterFade = pixels(faded).image;
+        let changed = 0;
+        for (let i = 0; i < beforeFade.data.length; i += 4)
+          if (
+            beforeFade.data[i] !== afterFade.data[i] ||
+            beforeFade.data[i + 1] !== afterFade.data[i + 1] ||
+            beforeFade.data[i + 2] !== afterFade.data[i + 2]
+          )
+            changed++;
+        expect(changed).toBeGreaterThan(500);
+        await testInfo.attach("structured-faded", { body: faded, contentType: "image/png" });
+        await page.getByRole("button", { name: "一時停止", exact: true }).click();
+        await expect(page.getByRole("button", { name: "再生", exact: true })).toBeEnabled();
+        await page.getByRole("button", { name: "リセット", exact: true }).click();
+        await expect(page.getByText("Group: main / Step: start")).toBeVisible();
+        await expect(input).toBeDisabled();
+        await expect
+          .poll(async () => pixels(await canvas.screenshot()).varied)
+          .toBeGreaterThan(500);
+      }
       if (kind === "opaque") {
         expect(pixels(dev).greenAspect).toBeGreaterThan(2.3);
         expect(pixels(dev).greenAspect).toBeLessThan(2.7);

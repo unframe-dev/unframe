@@ -21,6 +21,7 @@ const setup = () => ({
     confirmDisplay: vi.fn(async () => {}),
   },
   driver: {
+    playback: vi.fn(async () => {}),
     prepare: vi.fn(async () => "build"),
     commit: vi.fn(async () => "build"),
     discard: vi.fn(async () => {}),

@@ -86,6 +86,123 @@ const deferred = <T>() => {
 };
 
 describe("fixed local Preview service", () => {
+  it("starts committed playback paused and binds commands to the display request", async () => {
+    let now = 100;
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => generation(),
+      now: () => now,
+    });
+    await service.load({ requestId: requestA, channel: "dist" });
+    expect(() => service.playback({ requestId: requestA, command: "poll" })).toThrow();
+    service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    now = 1100;
+    expect(service.playback({ requestId: requestA, command: "poll" }).state.clock).toEqual({
+      runtimeTimeMs: "0",
+      paused: { reason: 8 },
+    });
+    service.playback({ requestId: requestA, command: "play" });
+    now = 1600;
+    expect(service.playback({ requestId: requestA, command: "pause" }).state.clock).toEqual({
+      runtimeTimeMs: "500",
+      paused: { reason: 8 },
+    });
+    now = 10000;
+    expect(
+      service.playback({ requestId: requestA, command: "poll" }).state.clock?.runtimeTimeMs,
+    ).toBe("500");
+    expect(() => service.playback({ requestId: requestB, command: "play" })).toThrow();
+    service.invalidate();
+    expect(() => service.playback({ requestId: requestA, command: "play" })).toThrow();
+  });
+
+  it("invalidates playback on a replacement load and close", async () => {
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => generation(),
+    });
+    await service.load({ requestId: requestA, channel: "dist" });
+    service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    await service.load({ requestId: requestB, channel: "dist" });
+    expect(() => service.playback({ requestId: requestA, command: "play" })).toThrow(
+      "current committed",
+    );
+    expect(() => service.playback({ requestId: requestB, command: "play" })).toThrow(
+      "current committed",
+    );
+    service.committed({ requestId: requestB, buildIdentity: "build-a" });
+    service.close();
+    expect(() => service.playback({ requestId: requestB, command: "reset" })).toThrow(
+      "current committed",
+    );
+  });
+
+  it("keeps timeline runs outside the delivered catalog private while advancing their completion", async () => {
+    const source = generation();
+    const { definition, renderBundle, buildManifest } = source.artifacts;
+    definition.scene.nodes["node-baked"]!.audience = { kind: "role", role: "viewer" };
+    definition.flow.timelines.hidden = {
+      id: "hidden",
+      owner: { kind: "presentation" },
+      durationMilliseconds: 1000,
+      tracks: [
+        {
+          target: { nodeId: "node-baked", property: "opacity" },
+          keyframes: [
+            { timeMilliseconds: 0, value: 1, easingToNext: "linear" },
+            { timeMilliseconds: 1000, value: 0.5 },
+          ],
+        },
+      ],
+    };
+    definition.flow.groups.intro!.steps.start!.cues = [
+      {
+        id: "start-hidden",
+        priority: 0,
+        order: 0,
+        trigger: { kind: "logicalInput", action: "start", actor: { kind: "presenter" } },
+        firePolicy: { kind: "oncePerStepEntry" },
+        actions: [
+          {
+            kind: "timeline.play",
+            timelineId: "hidden",
+            completion: "nonBlocking",
+            conflict: "reject",
+          },
+        ],
+        next: { kind: "stay" },
+      },
+      {
+        id: "complete-hidden",
+        priority: 0,
+        order: 1,
+        trigger: { kind: "timelineCompleted", timelineId: "hidden" },
+        firePolicy: { kind: "oncePerStepEntry" },
+        actions: [],
+        next: { kind: "end" },
+      },
+    ];
+    renderBundle.definitionHash = hashCanonicalJsonPayload(definition);
+    buildManifest.definitionHash = renderBundle.definitionHash;
+    buildManifest.renderBundleHash = hashCanonicalJsonPayload(renderBundle);
+    let now = 0;
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => source,
+      now: () => now,
+    });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    expect(envelope.projection?.runtimeCatalog?.timelines).toEqual([]);
+    service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    service.playback({ requestId: requestA, command: "play" });
+    const started = service.playback({
+      requestId: requestA,
+      command: "input",
+      cueId: "start-hidden",
+    });
+    expect(started.state.activeRuns).toEqual([]);
+    expect(started.state.nodeStates).toEqual([]);
+    now = 1000;
+    expect(service.playback({ requestId: requestA, command: "poll" }).ended).toBe(true);
+  });
+
   it("prepares an unpublished envelope and opaque selected asset references without a display receipt", async () => {
     const selected: string[] = [];
     const source = generation();
@@ -126,6 +243,9 @@ describe("fixed local Preview service", () => {
     const controller = new AbortController();
     await service.load({ requestId: requestA, channel: "dist" }, controller.signal);
     controller.abort();
+    expect(() => service.playback({ requestId: requestA, command: "poll" })).toThrow(
+      "current committed",
+    );
     expect(() => service.committed({ requestId: requestA, buildIdentity: "build-a" })).toThrow(
       "does not match",
     );

@@ -361,7 +361,7 @@ namespace Unframe.Unity.PresentationRuntime
             target.Add(id, value); error = null; return true;
         }
 
-        private static bool TryValidateTimeline(ProjectedTimelineDefinition timeline, Dictionary<string, ProjectedNodeDefinition> knownNodes, out string error)
+        internal static bool TryValidateTimeline(ProjectedTimelineDefinition timeline, Dictionary<string, ProjectedNodeDefinition> knownNodes, out string error)
         {
             if (timeline.DurationMs == 0 || timeline.Owner == null || timeline.Owner.ScopeCase == ResourceOwner.ScopeOneofCase.None || timeline.Tracks.Count == 0)
             {
@@ -488,7 +488,7 @@ namespace Unframe.Unity.PresentationRuntime
                 && (value.W != 0 ? value.W > 0 : value.X != 0 ? value.X > 0 : value.Y != 0 ? value.Y > 0 : value.Z > 0);
         }
 
-        private static bool IsSupportedEasing(Easing easing) { return easing == Easing.Linear || easing == Easing.CubicIn || easing == Easing.CubicOut || easing == Easing.CubicInOut; }
+        internal static bool IsSupportedEasing(Easing easing) { return easing == Easing.Linear || easing == Easing.CubicIn || easing == Easing.CubicOut || easing == Easing.CubicInOut; }
 
         internal static bool IsId(string value) { if (String.IsNullOrEmpty(value) || value.Length > 128 || !IsAsciiAlphaNumeric(value[0])) return false; for (int i = 1; i < value.Length; i++) { char c = value[i]; if (!IsAsciiAlphaNumeric(c) && c != '.' && c != '_' && c != ':' && c != '/' && c != '-') return false; } return true; }
 

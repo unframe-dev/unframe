@@ -6,6 +6,24 @@ import {
   getPresentationWireType,
 } from "../src/presentation/wire";
 
+test("Preview playback carries ordered state and the shared runtime clock without a session envelope", () => {
+  const name = "unframe.preview.LocalPreviewPlaybackState";
+  const input = {
+    requestId: "b".repeat(32),
+    sequence: "9007199254740993",
+    nodeStates: [],
+    surfaceStates: [],
+    activeRuns: [],
+    clock: { runtimeTimeMs: "500", paused: {} },
+    currentGroupId: "main",
+  };
+  assert.deepEqual(decodeWireMessage(name, encodeWireMessage(name, input)), input);
+  assert.throws(
+    () => encodeWireMessage(name, { ...input, sessionId: "invented" }),
+    /not a wire field/,
+  );
+});
+
 test("Preview reuses the catalog and state messages without a publication or session envelope", () => {
   const type = getPresentationWireType("unframe.preview.LocalPreviewEnvelope");
   assert.deepEqual(

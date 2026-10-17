@@ -96,7 +96,7 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
-        public void Update(double nowSeconds)
+        public void Update(double nowSeconds, bool retainTerminalPose = false)
         {
             for (int index = active.Count - 1; index >= 0; index--)
             {
@@ -113,7 +113,7 @@ namespace Unframe.Unity.PresentationRuntime
                         }
                     }
 
-                    active.RemoveAt(index);
+                    if (!retainTerminalPose) active.RemoveAt(index);
                 }
             }
         }

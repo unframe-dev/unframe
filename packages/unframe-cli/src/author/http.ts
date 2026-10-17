@@ -8,7 +8,11 @@ import {
   randomIdSchema,
   type AuthorService,
 } from "./contract.js";
-import { previewCommittedRequestSchema, type LocalPreviewService } from "./preview-contract.js";
+import {
+  previewCommittedRequestSchema,
+  previewPlaybackCommandSchema,
+  type LocalPreviewService,
+} from "./preview-contract.js";
 import { createPublicationAuth, type PublicationAuth } from "./publication-auth.js";
 import type { LocalPublicationService } from "./publication.js";
 
@@ -161,6 +165,8 @@ export const startAuthorHost = async ({
         const revision = expectedRevision(request);
         const parsed = buildRequestSchema.safeParse(await jsonBody(request));
         if (!parsed.success) throw invalid();
+        ++previewOperation;
+        previews.invalidate();
         const job = await service.build(
           revision,
           parsed.data.requestId,
@@ -216,6 +222,12 @@ export const startAuthorHost = async ({
         } finally {
           response.off("close", aborted);
         }
+        return;
+      }
+      if (path === "/api/preview-playback" && request.method === "POST") {
+        const parsed = previewPlaybackCommandSchema.safeParse(await jsonBody(request));
+        if (!parsed.success) throw invalid();
+        sendJson(response, 200, previews.playback(parsed.data));
         return;
       }
       if (path === "/api/preview-display" && request.method === "POST") {

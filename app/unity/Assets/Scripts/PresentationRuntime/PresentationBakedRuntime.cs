@@ -17,11 +17,10 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         private readonly PresentationNodeHierarchy hierarchy = new PresentationNodeHierarchy();
         private readonly PresentationNodeStateApplier stateApplier = new PresentationNodeStateApplier();
+        private readonly PresentationPlaybackPlayer playback = new PresentationPlaybackPlayer();
         private PresentationTextureResidency textures;
         private PresentationBakedSurfaceRenderer surfaceRenderer;
         private PresentationRealtimeConnection connection;
-        private readonly PresentationTimelinePlayer timelines = new PresentationTimelinePlayer();
-        private readonly Dictionary<string, string> activeTimelineRuns = new Dictionary<string, string>();
         private RuntimeClockSnapshot clock;
         private double clockReceivedAt;
         private CancellationTokenSource lifetime;
@@ -131,8 +130,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 connection?.Dispose();
                 connection = null;
-                timelines.Clear();
-                activeTimelineRuns.Clear();
+                playback.Clear();
                 clock = null;
                 surfaceRenderer?.Dispose();
                 surfaceRenderer = null;
@@ -191,13 +189,11 @@ namespace Unframe.Unity.PresentationRuntime
                 clock = latest;
                 clockReceivedAt = Time.realtimeSinceStartupAsDouble;
             }
-            stateApplier.Apply(store, hierarchy);
-            if (!SyncTimelines(out string error) || !surfaceRenderer.TryRefresh(store, textures, RuntimeTimeMs(), out error))
+            if (!playback.TryRefresh(store, hierarchy, surfaceRenderer, textures, RuntimeTimeMs(), out string error))
             {
                 LastError = error;
                 lifetime.Cancel();
             }
-            else timelines.Update(RuntimeTimeMs() / 1000d);
         }
 
         private void HandleDisconnected()
@@ -215,37 +211,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         internal static double SampleRuntimeTimeMs(RuntimeClockSnapshot clock, double receivedAt, double now)
         {
-            if (clock == null) return 0;
-            return clock.RuntimeTimeMs + (clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running
-                ? Math.Max(0, now - receivedAt) * 1000d : 0d);
-        }
-
-        private bool SyncTimelines(out string error)
-        {
-            var present = new HashSet<string>();
-            foreach (RuntimeRunSnapshot run in store.ActiveRuns)
-            {
-                if (run.RunCase != RuntimeRunSnapshot.RunOneofCase.Timeline) continue;
-                string timelineId = run.Timeline.TimelineId;
-                string runId = run.RunId.AssignmentEpoch + ":" + run.RunId.RunSequence;
-                present.Add(timelineId);
-                if (activeTimelineRuns.TryGetValue(timelineId, out string existing) && existing == runId) continue;
-                if (!store.TryGetTimeline(timelineId, out var definition))
-                {
-                    error = "active timeline definition is absent";
-                    return false;
-                }
-                if (!timelines.TryStart(definition, hierarchy, run.StartedAtRuntimeTimeMs / 1000d, out error)) return false;
-                activeTimelineRuns[timelineId] = runId;
-            }
-            foreach (string timelineId in new List<string>(activeTimelineRuns.Keys))
-            {
-                if (present.Contains(timelineId)) continue;
-                timelines.Stop(timelineId);
-                activeTimelineRuns.Remove(timelineId);
-            }
-            error = null;
-            return true;
+            return PresentationPlaybackPlayer.SampleRuntimeTimeMs(clock, receivedAt, now);
         }
 
         public Task SendAsync(ControlClientItem command, CancellationToken token)
@@ -277,14 +243,12 @@ namespace Unframe.Unity.PresentationRuntime
             if (connection != null && !connection.SessionReady) HandleDisconnected();
             if (connection != null && connection.SessionReady && ResidentReady)
             {
-                stateApplier.ApplyAnchors(store, hierarchy);
                 double runtimeTime = RuntimeTimeMs();
-                if (!surfaceRenderer.TryRefresh(store, textures, runtimeTime, out string error))
+                if (!playback.TryUpdate(store, hierarchy, surfaceRenderer, textures, runtimeTime, out string error))
                 {
                     LastError = error;
                     lifetime.Cancel();
                 }
-                else timelines.Update(runtimeTime / 1000d);
             }
             if (connection != null && !ResidentReady)
             {

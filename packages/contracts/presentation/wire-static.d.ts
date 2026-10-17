@@ -36467,6 +36467,186 @@ export namespace unframe {
     }
 
     /**
+     * Properties of a LocalPreviewPlaybackState.
+     * @deprecated Use unframe.preview.LocalPreviewPlaybackState.$Properties instead.
+     */
+    interface ILocalPreviewPlaybackState
+      extends unframe.preview.LocalPreviewPlaybackState.$Properties {}
+
+    /** Represents a LocalPreviewPlaybackState. */
+    class LocalPreviewPlaybackState {
+      /**
+       * Constructs a new LocalPreviewPlaybackState.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.preview.LocalPreviewPlaybackState.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** LocalPreviewPlaybackState requestId. */
+      requestId: string;
+
+      /** LocalPreviewPlaybackState sequence. */
+      sequence: number | Long;
+
+      /** LocalPreviewPlaybackState nodeStates. */
+      nodeStates: unframe.realtime.NodeRuntimeState.$Properties[];
+
+      /** LocalPreviewPlaybackState surfaceStates. */
+      surfaceStates: unframe.realtime.SurfaceRuntimeState.$Properties[];
+
+      /** LocalPreviewPlaybackState activeRuns. */
+      activeRuns: unframe.realtime.RuntimeRunSnapshot.$Properties[];
+
+      /** LocalPreviewPlaybackState clock. */
+      clock?: unframe.realtime.RuntimeClockSnapshot.$Properties | null;
+
+      /** LocalPreviewPlaybackState currentGroupId. */
+      currentGroupId: string;
+
+      /**
+       * Creates a new LocalPreviewPlaybackState instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns LocalPreviewPlaybackState instance
+       */
+      static create(
+        properties: unframe.preview.LocalPreviewPlaybackState.$Shape,
+      ): unframe.preview.LocalPreviewPlaybackState &
+        unframe.preview.LocalPreviewPlaybackState.$Shape;
+      static create(
+        properties?: unframe.preview.LocalPreviewPlaybackState.$Properties,
+      ): unframe.preview.LocalPreviewPlaybackState;
+
+      /**
+       * Encodes the specified LocalPreviewPlaybackState message. Does not implicitly {@link unframe.preview.LocalPreviewPlaybackState.verify|verify} messages.
+       * @param message LocalPreviewPlaybackState message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.preview.LocalPreviewPlaybackState.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified LocalPreviewPlaybackState message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewPlaybackState.verify|verify} messages.
+       * @param message LocalPreviewPlaybackState message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.preview.LocalPreviewPlaybackState.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a LocalPreviewPlaybackState message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewPlaybackState & unframe.preview.LocalPreviewPlaybackState.$Shape} LocalPreviewPlaybackState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.preview.LocalPreviewPlaybackState &
+        unframe.preview.LocalPreviewPlaybackState.$Shape;
+
+      /**
+       * Decodes a LocalPreviewPlaybackState message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewPlaybackState & unframe.preview.LocalPreviewPlaybackState.$Shape} LocalPreviewPlaybackState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.preview.LocalPreviewPlaybackState &
+        unframe.preview.LocalPreviewPlaybackState.$Shape;
+
+      /**
+       * Verifies a LocalPreviewPlaybackState message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a LocalPreviewPlaybackState message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns LocalPreviewPlaybackState
+       */
+      static fromObject(object: { [k: string]: any }): unframe.preview.LocalPreviewPlaybackState;
+
+      /**
+       * Creates a plain object from a LocalPreviewPlaybackState message. Also converts values to other types if specified.
+       * @param message LocalPreviewPlaybackState
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.preview.LocalPreviewPlaybackState,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this LocalPreviewPlaybackState to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for LocalPreviewPlaybackState
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace LocalPreviewPlaybackState {
+      /** Properties of a LocalPreviewPlaybackState. */
+      interface $Properties {
+        /** LocalPreviewPlaybackState requestId */
+        requestId?: string | null;
+
+        /** LocalPreviewPlaybackState sequence */
+        sequence?: number | Long | null;
+
+        /** LocalPreviewPlaybackState nodeStates */
+        nodeStates?: unframe.realtime.NodeRuntimeState.$Properties[] | null;
+
+        /** LocalPreviewPlaybackState surfaceStates */
+        surfaceStates?: unframe.realtime.SurfaceRuntimeState.$Properties[] | null;
+
+        /** LocalPreviewPlaybackState activeRuns */
+        activeRuns?: unframe.realtime.RuntimeRunSnapshot.$Properties[] | null;
+
+        /** LocalPreviewPlaybackState clock */
+        clock?: unframe.realtime.RuntimeClockSnapshot.$Properties | null;
+
+        /** LocalPreviewPlaybackState currentGroupId */
+        currentGroupId?: string | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a LocalPreviewPlaybackState. */
+      type $Shape = {
+        requestId?: string | null;
+        sequence?: number | Long | null;
+        nodeStates?: unframe.realtime.NodeRuntimeState.$Shape[] | null;
+        surfaceStates?: unframe.realtime.SurfaceRuntimeState.$Shape[] | null;
+        activeRuns?: unframe.realtime.RuntimeRunSnapshot.$Shape[] | null;
+        clock?: unframe.realtime.RuntimeClockSnapshot.$Shape | null;
+        currentGroupId?: string | null;
+        $unknowns?: Uint8Array[];
+      };
+    }
+
+    /**
      * Properties of a LocalPreviewAsset.
      * @deprecated Use unframe.preview.LocalPreviewAsset.$Properties instead.
      */

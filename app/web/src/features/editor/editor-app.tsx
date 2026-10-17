@@ -6,6 +6,7 @@ import type {
   EditCommand,
   ProjectSnapshot,
   Transform,
+  PreviewPlaybackResponse,
 } from "@unframe/unframe-cli/author-contract";
 import { EditorApiError, type EditorApi } from "./api";
 import "./editor.css";
@@ -15,6 +16,7 @@ import {
   type PreviewDriver,
   type PreviewMode,
 } from "./model/preview-session";
+import { createPreviewPlayback } from "./model/preview-playback";
 import { PublicationPanel, type DisplayReceipt } from "./publication-panel";
 
 type HistoryEntry = { forward: EditCommand; inverse: EditCommand; revision: string };
@@ -53,6 +55,8 @@ export function EditorApp({
   const [redoStack, setRedoStack] = useState<HistoryEntry[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const playback = useRef<ReturnType<typeof createPreviewPlayback> | null>(null);
+  const [playbackState, setPlaybackState] = useState<PreviewPlaybackResponse | null>(null);
   const session = useRef<ReturnType<typeof createPreviewSession> | null>(null);
   const [mode, setMode] = useState<PreviewMode>("dev");
   const [loaded, setLoaded] = useState<LoadedPreview | null>(null);
@@ -106,6 +110,16 @@ export function EditorApp({
   useEffect(() => {
     if (!canvas.current) return;
     const driver = createDriver(canvas.current);
+    const playbackController = createPreviewPlayback({
+      api,
+      driver,
+      onState: setPlaybackState,
+      onError: (error) => {
+        setPlaybackState(null);
+        note(`再生失敗: ${errorText(error)}`);
+      },
+    });
+    playback.current = playbackController;
     const controller = createPreviewSession({
       api,
       driver,
@@ -139,6 +153,7 @@ export function EditorApp({
       onJob: setJob,
       onLoaded: (next) => {
         setLoaded(next);
+        playbackController.load(next.requestId);
         setReceipt(
           next.mode === "dist"
             ? { requestId: next.requestId, buildIdentity: next.buildIdentity }
@@ -146,13 +161,19 @@ export function EditorApp({
         );
       },
       onInvalidated: () => {
-        if (mounted.current) setReceipt(null);
+        playbackController.invalidate();
+        if (mounted.current) {
+          setReceipt(null);
+          setPlaybackState(null);
+        }
       },
       onError: (error) => note(`Preview 失敗: ${errorText(error)}`),
     });
     session.current = controller;
     return () => {
       session.current = null;
+      playback.current = null;
+      playbackController.close();
       controller.close();
       void driver.close().catch(() => undefined);
     };
@@ -553,6 +574,46 @@ export function EditorApp({
         {loaded?.mode === "dev" && loaded.sourceRevision !== project?.revision && (
           <p>保存済み内容と現在の表示が異なります</p>
         )}
+        <div role="group" aria-label="Preview 再生">
+          <button
+            disabled={!playbackState || playbackState.ended || !!playbackState.state.clock?.running}
+            onClick={() => playback.current?.command("play")}
+          >
+            再生
+          </button>
+          <button
+            disabled={!playbackState?.state.clock?.running}
+            onClick={() => playback.current?.command("pause")}
+          >
+            一時停止
+          </button>
+          <button disabled={!playbackState} onClick={() => playback.current?.command("reset")}>
+            リセット
+          </button>
+          {playbackState && (
+            <>
+              <p>
+                Group: {playbackState.groupId} / Step: {playbackState.stepId}
+              </p>
+              {playbackState.ended ? (
+                <p>再生終了</p>
+              ) : (
+                <>
+                  {!playbackState.state.clock?.running && <p>再生してから入力を選んでください</p>}
+                  {playbackState.inputs.map((item) => (
+                    <button
+                      key={item.cueId}
+                      disabled={!playbackState.state.clock?.running}
+                      onClick={() => playback.current?.command("input", item.cueId)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </div>
         <canvas id="unity-preview-canvas" ref={canvas} aria-label="Unity Preview" tabIndex={0} />
         {job && <p>build: {job.status}</p>}
       </section>

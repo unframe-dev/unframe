@@ -50,16 +50,24 @@ namespace Unframe.Preview {
             "bFByZXZpZXdJbml0aWFsU3RhdGUSNwoLbm9kZV9zdGF0ZXMYASADKAsyIi51",
             "bmZyYW1lLnJlYWx0aW1lLk5vZGVSdW50aW1lU3RhdGUSPQoOc3VyZmFjZV9z",
             "dGF0ZXMYAiADKAsyJS51bmZyYW1lLnJlYWx0aW1lLlN1cmZhY2VSdW50aW1l",
-            "U3RhdGUiOAoRTG9jYWxQcmV2aWV3QXNzZXQSEAoIYXNzZXRfaWQYASABKAkS",
-            "EQoJcmVmZXJlbmNlGAIgASgJQlFaT2dpdGh1Yi5jb20vdW5mcmFtZS1kZXYv",
-            "dW5mcmFtZS9hcHAvc2VydmVyL3JlYWx0aW1lL2ludGVybmFsL2dlbi9wcmV2",
-            "aWV3O3ByZXZpZXdiBnByb3RvMw=="));
+            "U3RhdGUixQIKGUxvY2FsUHJldmlld1BsYXliYWNrU3RhdGUSEgoKcmVxdWVz",
+            "dF9pZBgBIAEoCRIQCghzZXF1ZW5jZRgCIAEoBBI3Cgtub2RlX3N0YXRlcxgD",
+            "IAMoCzIiLnVuZnJhbWUucmVhbHRpbWUuTm9kZVJ1bnRpbWVTdGF0ZRI9Cg5z",
+            "dXJmYWNlX3N0YXRlcxgEIAMoCzIlLnVuZnJhbWUucmVhbHRpbWUuU3VyZmFj",
+            "ZVJ1bnRpbWVTdGF0ZRI5CgthY3RpdmVfcnVucxgFIAMoCzIkLnVuZnJhbWUu",
+            "cmVhbHRpbWUuUnVudGltZVJ1blNuYXBzaG90EjUKBWNsb2NrGAYgASgLMiYu",
+            "dW5mcmFtZS5yZWFsdGltZS5SdW50aW1lQ2xvY2tTbmFwc2hvdBIYChBjdXJy",
+            "ZW50X2dyb3VwX2lkGAcgASgJIjgKEUxvY2FsUHJldmlld0Fzc2V0EhAKCGFz",
+            "c2V0X2lkGAEgASgJEhEKCXJlZmVyZW5jZRgCIAEoCUJRWk9naXRodWIuY29t",
+            "L3VuZnJhbWUtZGV2L3VuZnJhbWUvYXBwL3NlcnZlci9yZWFsdGltZS9pbnRl",
+            "cm5hbC9nZW4vcHJldmlldztwcmV2aWV3YgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Unframe.Presentation.RuntimeReflection.Descriptor, global::Unframe.Delivery.DeliveryReflection.Descriptor, global::Unframe.Realtime.RealtimeReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewEnvelope), global::Unframe.Preview.LocalPreviewEnvelope.Parser, new[]{ "SchemaVersion", "RequestId", "SourceRevision", "BuildManifest", "AssetSet", "Projection", "InitialState", "Assets" }, new[]{ "SourceRevision" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewProjection), global::Unframe.Preview.LocalPreviewProjection.Parser, new[]{ "VisibleNodeIds", "VisibleSurfaceIds", "VisibleVariableIds", "RenderSurfaces", "SemanticSurfaces", "LocalOverlays", "RequiredRuntimeCapabilities", "RuntimeCatalog", "TextureResidency" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewInitialState), global::Unframe.Preview.LocalPreviewInitialState.Parser, new[]{ "NodeStates", "SurfaceStates" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewPlaybackState), global::Unframe.Preview.LocalPreviewPlaybackState.Parser, new[]{ "RequestId", "Sequence", "NodeStates", "SurfaceStates", "ActiveRuns", "Clock", "CurrentGroupId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewAsset), global::Unframe.Preview.LocalPreviewAsset.Parser, new[]{ "AssetId", "Reference" }, null, null, null, null)
           }));
     }
@@ -1202,6 +1210,406 @@ namespace Unframe.Preview {
 
   }
 
+  /// <summary>
+  /// A complete playback view for the committed Preview request. Sequence increases
+  /// across resets; only the logical runtime clock may restart at zero.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class LocalPreviewPlaybackState : pb::IMessage<LocalPreviewPlaybackState>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<LocalPreviewPlaybackState> _parser = new pb::MessageParser<LocalPreviewPlaybackState>(() => new LocalPreviewPlaybackState());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<LocalPreviewPlaybackState> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Unframe.Preview.PreviewReflection.Descriptor.MessageTypes[3]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LocalPreviewPlaybackState() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LocalPreviewPlaybackState(LocalPreviewPlaybackState other) : this() {
+      requestId_ = other.requestId_;
+      sequence_ = other.sequence_;
+      nodeStates_ = other.nodeStates_.Clone();
+      surfaceStates_ = other.surfaceStates_.Clone();
+      activeRuns_ = other.activeRuns_.Clone();
+      clock_ = other.clock_ != null ? other.clock_.Clone() : null;
+      currentGroupId_ = other.currentGroupId_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LocalPreviewPlaybackState Clone() {
+      return new LocalPreviewPlaybackState(this);
+    }
+
+    /// <summary>Field number for the "request_id" field.</summary>
+    public const int RequestIdFieldNumber = 1;
+    private string requestId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string RequestId {
+      get { return requestId_; }
+      set {
+        requestId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "sequence" field.</summary>
+    public const int SequenceFieldNumber = 2;
+    private ulong sequence_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong Sequence {
+      get { return sequence_; }
+      set {
+        sequence_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "node_states" field.</summary>
+    public const int NodeStatesFieldNumber = 3;
+    private static readonly pb::FieldCodec<global::Unframe.Realtime.NodeRuntimeState> _repeated_nodeStates_codec
+        = pb::FieldCodec.ForMessage(26, global::Unframe.Realtime.NodeRuntimeState.Parser);
+    private readonly pbc::RepeatedField<global::Unframe.Realtime.NodeRuntimeState> nodeStates_ = new pbc::RepeatedField<global::Unframe.Realtime.NodeRuntimeState>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Unframe.Realtime.NodeRuntimeState> NodeStates {
+      get { return nodeStates_; }
+    }
+
+    /// <summary>Field number for the "surface_states" field.</summary>
+    public const int SurfaceStatesFieldNumber = 4;
+    private static readonly pb::FieldCodec<global::Unframe.Realtime.SurfaceRuntimeState> _repeated_surfaceStates_codec
+        = pb::FieldCodec.ForMessage(34, global::Unframe.Realtime.SurfaceRuntimeState.Parser);
+    private readonly pbc::RepeatedField<global::Unframe.Realtime.SurfaceRuntimeState> surfaceStates_ = new pbc::RepeatedField<global::Unframe.Realtime.SurfaceRuntimeState>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Unframe.Realtime.SurfaceRuntimeState> SurfaceStates {
+      get { return surfaceStates_; }
+    }
+
+    /// <summary>Field number for the "active_runs" field.</summary>
+    public const int ActiveRunsFieldNumber = 5;
+    private static readonly pb::FieldCodec<global::Unframe.Realtime.RuntimeRunSnapshot> _repeated_activeRuns_codec
+        = pb::FieldCodec.ForMessage(42, global::Unframe.Realtime.RuntimeRunSnapshot.Parser);
+    private readonly pbc::RepeatedField<global::Unframe.Realtime.RuntimeRunSnapshot> activeRuns_ = new pbc::RepeatedField<global::Unframe.Realtime.RuntimeRunSnapshot>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Unframe.Realtime.RuntimeRunSnapshot> ActiveRuns {
+      get { return activeRuns_; }
+    }
+
+    /// <summary>Field number for the "clock" field.</summary>
+    public const int ClockFieldNumber = 6;
+    private global::Unframe.Realtime.RuntimeClockSnapshot clock_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Unframe.Realtime.RuntimeClockSnapshot Clock {
+      get { return clock_; }
+      set {
+        clock_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "current_group_id" field.</summary>
+    public const int CurrentGroupIdFieldNumber = 7;
+    private string currentGroupId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string CurrentGroupId {
+      get { return currentGroupId_; }
+      set {
+        currentGroupId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as LocalPreviewPlaybackState);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(LocalPreviewPlaybackState other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (RequestId != other.RequestId) return false;
+      if (Sequence != other.Sequence) return false;
+      if(!nodeStates_.Equals(other.nodeStates_)) return false;
+      if(!surfaceStates_.Equals(other.surfaceStates_)) return false;
+      if(!activeRuns_.Equals(other.activeRuns_)) return false;
+      if (!object.Equals(Clock, other.Clock)) return false;
+      if (CurrentGroupId != other.CurrentGroupId) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (RequestId.Length != 0) hash ^= RequestId.GetHashCode();
+      if (Sequence != 0UL) hash ^= Sequence.GetHashCode();
+      hash ^= nodeStates_.GetHashCode();
+      hash ^= surfaceStates_.GetHashCode();
+      hash ^= activeRuns_.GetHashCode();
+      if (clock_ != null) hash ^= Clock.GetHashCode();
+      if (CurrentGroupId.Length != 0) hash ^= CurrentGroupId.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (RequestId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (Sequence != 0UL) {
+        output.WriteRawTag(16);
+        output.WriteUInt64(Sequence);
+      }
+      nodeStates_.WriteTo(output, _repeated_nodeStates_codec);
+      surfaceStates_.WriteTo(output, _repeated_surfaceStates_codec);
+      activeRuns_.WriteTo(output, _repeated_activeRuns_codec);
+      if (clock_ != null) {
+        output.WriteRawTag(50);
+        output.WriteMessage(Clock);
+      }
+      if (CurrentGroupId.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteString(CurrentGroupId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (RequestId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(RequestId);
+      }
+      if (Sequence != 0UL) {
+        output.WriteRawTag(16);
+        output.WriteUInt64(Sequence);
+      }
+      nodeStates_.WriteTo(ref output, _repeated_nodeStates_codec);
+      surfaceStates_.WriteTo(ref output, _repeated_surfaceStates_codec);
+      activeRuns_.WriteTo(ref output, _repeated_activeRuns_codec);
+      if (clock_ != null) {
+        output.WriteRawTag(50);
+        output.WriteMessage(Clock);
+      }
+      if (CurrentGroupId.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteString(CurrentGroupId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (RequestId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(RequestId);
+      }
+      if (Sequence != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Sequence);
+      }
+      size += nodeStates_.CalculateSize(_repeated_nodeStates_codec);
+      size += surfaceStates_.CalculateSize(_repeated_surfaceStates_codec);
+      size += activeRuns_.CalculateSize(_repeated_activeRuns_codec);
+      if (clock_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Clock);
+      }
+      if (CurrentGroupId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(CurrentGroupId);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(LocalPreviewPlaybackState other) {
+      if (other == null) {
+        return;
+      }
+      if (other.RequestId.Length != 0) {
+        RequestId = other.RequestId;
+      }
+      if (other.Sequence != 0UL) {
+        Sequence = other.Sequence;
+      }
+      nodeStates_.Add(other.nodeStates_);
+      surfaceStates_.Add(other.surfaceStates_);
+      activeRuns_.Add(other.activeRuns_);
+      if (other.clock_ != null) {
+        if (clock_ == null) {
+          Clock = new global::Unframe.Realtime.RuntimeClockSnapshot();
+        }
+        Clock.MergeFrom(other.Clock);
+      }
+      if (other.CurrentGroupId.Length != 0) {
+        CurrentGroupId = other.CurrentGroupId;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 16: {
+            Sequence = input.ReadUInt64();
+            break;
+          }
+          case 26: {
+            nodeStates_.AddEntriesFrom(input, _repeated_nodeStates_codec);
+            break;
+          }
+          case 34: {
+            surfaceStates_.AddEntriesFrom(input, _repeated_surfaceStates_codec);
+            break;
+          }
+          case 42: {
+            activeRuns_.AddEntriesFrom(input, _repeated_activeRuns_codec);
+            break;
+          }
+          case 50: {
+            if (clock_ == null) {
+              Clock = new global::Unframe.Realtime.RuntimeClockSnapshot();
+            }
+            input.ReadMessage(Clock);
+            break;
+          }
+          case 58: {
+            CurrentGroupId = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            RequestId = input.ReadString();
+            break;
+          }
+          case 16: {
+            Sequence = input.ReadUInt64();
+            break;
+          }
+          case 26: {
+            nodeStates_.AddEntriesFrom(ref input, _repeated_nodeStates_codec);
+            break;
+          }
+          case 34: {
+            surfaceStates_.AddEntriesFrom(ref input, _repeated_surfaceStates_codec);
+            break;
+          }
+          case 42: {
+            activeRuns_.AddEntriesFrom(ref input, _repeated_activeRuns_codec);
+            break;
+          }
+          case 50: {
+            if (clock_ == null) {
+              Clock = new global::Unframe.Realtime.RuntimeClockSnapshot();
+            }
+            input.ReadMessage(Clock);
+            break;
+          }
+          case 58: {
+            CurrentGroupId = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class LocalPreviewAsset : pb::IMessage<LocalPreviewAsset>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -1217,7 +1625,7 @@ namespace Unframe.Preview {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Preview.PreviewReflection.Descriptor.MessageTypes[3]; }
+      get { return global::Unframe.Preview.PreviewReflection.Descriptor.MessageTypes[4]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
