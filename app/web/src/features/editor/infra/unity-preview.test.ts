@@ -43,3 +43,42 @@ it("keeps one Unity instance and configures the token only on its platform bound
   await driver.close();
   expect(instance.Quit).toHaveBeenCalledTimes(1);
 });
+
+it("waits for the matching playback sequence before acknowledging a Unity update", async () => {
+  const instance = { SendMessage: vi.fn(), Quit: vi.fn(async () => {}) };
+  vi.stubGlobal(
+    "createUnityInstance",
+    vi.fn(async () => instance),
+  );
+  const driver = createUnityPreviewDriver(document.createElement("canvas"), "a".repeat(64));
+  const state = {
+    requestId: "one",
+    sequence: "9007199254740993",
+    clock: { runtimeTimeMs: "10", running: {} },
+  };
+  let acknowledged = false;
+  const delivered = driver.playback(state).then(() => {
+    acknowledged = true;
+  });
+  await expect.poll(() => instance.SendMessage.mock.calls.length).toBe(2);
+  expect(instance.SendMessage).toHaveBeenCalledWith(
+    "UnframePreview",
+    "Playback",
+    JSON.stringify(state),
+  );
+  window.dispatchEvent(
+    new CustomEvent("unframe-preview", {
+      detail: { kind: "playback", requestId: "one", sequence: "9007199254740992" },
+    }),
+  );
+  await Promise.resolve();
+  expect(acknowledged).toBe(false);
+  window.dispatchEvent(
+    new CustomEvent("unframe-preview", {
+      detail: { kind: "playback", requestId: "one", sequence: state.sequence },
+    }),
+  );
+  await delivered;
+  expect(acknowledged).toBe(true);
+  await driver.close();
+});

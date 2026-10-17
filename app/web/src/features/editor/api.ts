@@ -1,5 +1,7 @@
 import type {
   BuildJob,
+  PreviewPlaybackCommand,
+  PreviewPlaybackResponse,
   PatchRequest,
   ProjectSnapshot,
   SavedCommand,
@@ -75,6 +77,8 @@ export function createEditorApi(token: string) {
         | { requestId: string; channel: "dist" }
         | { requestId: string; channel: "dev"; buildId: string },
     ) => request<LocalPreviewEnvelopeWire>("/api/previews", write("POST", undefined, body)),
+    playback: (body: PreviewPlaybackCommand) =>
+      request<PreviewPlaybackResponse>("/api/preview-playback", write("POST", undefined, body)),
     confirmDisplay: (requestId: string, buildIdentity: string) =>
       request<void>("/api/preview-display", write("POST", undefined, { requestId, buildIdentity })),
     invalidateDisplay: () => request<void>("/api/preview-display", write("DELETE")),

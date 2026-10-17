@@ -39,10 +39,12 @@ const apiFor = (project: ProjectSnapshot): EditorApi => ({
   publish: vi.fn(),
   distBuild: vi.fn(),
   preview: vi.fn(),
+  playback: vi.fn(),
   confirmDisplay: vi.fn(),
   invalidateDisplay: vi.fn(async () => {}),
 });
 const createDriver = () => ({
+  playback: vi.fn(async () => {}),
   prepare: vi.fn(async () => "build"),
   commit: vi.fn(async () => "build"),
   discard: vi.fn(async () => {}),
@@ -343,4 +345,52 @@ it("keeps an HTTP 500 save response pending for the same-command retry", async (
   await user.click(screen.getByRole("button", { name: /^保存$/ }));
   await screen.findByText(/保存結果未確認/);
   expect(screen.getByRole("button", { name: /同じ内容で再送/ })).toBeInTheDocument();
+});
+
+it("offers paused playback and enables the current step input only after playing", async () => {
+  const api = apiFor(snapshot());
+  vi.mocked(api.build).mockResolvedValue({
+    buildId: "b1",
+    revision: "r1",
+    channel: "dev",
+    generationId: null,
+    status: "succeeded",
+    diagnostics: [],
+    artifacts: [],
+  });
+  vi.mocked(api.preview).mockResolvedValue({
+    requestId: "request",
+    buildManifest: JSON.stringify({ buildId: "build" }),
+  });
+  const paused = {
+    state: {
+      requestId: "request",
+      sequence: "1",
+      clock: { runtimeTimeMs: "0", paused: { reason: 8 } },
+    },
+    inputs: [{ cueId: "cue-next", label: "Continue" }],
+    groupId: "intro",
+    stepId: "welcome",
+    ended: false,
+  };
+  vi.mocked(api.playback).mockImplementation(async (command) =>
+    command.command === "play" || command.command === "input"
+      ? { ...paused, state: { ...paused.state, clock: { runtimeTimeMs: "100", running: {} } } }
+      : paused,
+  );
+  const user = userEvent.setup();
+  const rendered = render(<EditorApp api={api} createDriver={createDriver} />);
+  await screen.findByText("Group: intro / Step: welcome");
+  expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "再生" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await waitFor(() =>
+    expect(api.playback).toHaveBeenCalledWith({
+      requestId: "request",
+      command: "input",
+      cueId: "cue-next",
+    }),
+  );
+  rendered.unmount();
 });

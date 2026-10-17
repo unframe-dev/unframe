@@ -80,3 +80,33 @@ describe("author API", () => {
     );
   });
 });
+
+it("posts the chosen cue to the authenticated playback endpoint", async () => {
+  const response = {
+    state: { requestId: "one", sequence: "2" },
+    inputs: [],
+    groupId: "intro",
+    stepId: "next",
+    ended: false,
+  };
+  const fetcher = vi.fn(async () => Response.json(response));
+  vi.stubGlobal("fetch", fetcher);
+  await expect(
+    createEditorApi("a".repeat(64)).playback({
+      requestId: "one",
+      command: "input",
+      cueId: "continue",
+    }),
+  ).resolves.toEqual(response);
+  expect(fetcher).toHaveBeenCalledWith(
+    "/api/preview-playback",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ requestId: "one", command: "input", cueId: "continue" }),
+      headers: expect.objectContaining({
+        Authorization: `Bearer ${"a".repeat(64)}`,
+        "Content-Type": "application/json",
+      }),
+    }),
+  );
+});

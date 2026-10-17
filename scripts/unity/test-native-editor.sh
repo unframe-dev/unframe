@@ -2,9 +2,10 @@
 set -euo pipefail
 root="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
 mode="${1:-e2e}"
-case "$mode" in unit|regression|e2e|showcase) ;; *) echo "Expected unit, regression, e2e or showcase." >&2; exit 1 ;; esac
+case "$mode" in unit|regression|playback|e2e|showcase) ;; *) echo "Expected unit, regression, playback, e2e or showcase." >&2; exit 1 ;; esac
 project="$root/.unframe/native-editor/project"
 if [[ "$mode" == regression ]]; then project="$root/.unframe/native-editor-regression/project"; fi
+if [[ "$mode" == playback ]]; then project="$root/.unframe/native-editor-playback/project"; fi
 assets="$project/Assets"
 mkdir -p "$assets" "$project/Packages" "$project/ProjectSettings" "$root/.unframe/local-editor-e2e/logs"
 rm -rf "$assets/Unframe" "$assets/Tests"
@@ -58,7 +59,14 @@ plugins = [p.name for p in (project / 'Assets/Unframe/Plugins').glob('*.dll')]
 }, indent=2))
 PY
 cp "$root/app/unity/ProjectSettings/ProjectVersion.txt" "$project/ProjectSettings/"
-if [[ "$mode" == unit ]]; then
+if [[ "$mode" == playback ]]; then
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTestFixture.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewPlaybackEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTransactionEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/UnframePreviewBridgeEditModeTests.cs" "$assets/Tests/Editor/"
+  filter='PresentationPreviewPlaybackEditModeTests|PresentationPreviewTransactionEditModeTests|UnframePreviewBridgeEditModeTests'
+  graphics=(-nographics)
+elif [[ "$mode" == unit ]]; then
   filter='PresentationNativeRuntimeFixtureEditModeTests|PresentationNativeHandlerFactoryEditModeTests|PresentationBakedRuntimeDownloadEditModeTests'
   graphics=(-nographics)
 elif [[ "$mode" == regression ]]; then

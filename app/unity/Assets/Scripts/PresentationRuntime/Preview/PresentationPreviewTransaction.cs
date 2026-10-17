@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Unframe.Delivery;
 using Unframe.Preview;
+using Unframe.Realtime;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime
@@ -28,6 +29,10 @@ namespace Unframe.Unity.PresentationRuntime
             internal readonly PresentationNodeHierarchy Hierarchy = new PresentationNodeHierarchy();
             internal readonly PresentationTextureResidency Textures = new PresentationTextureResidency();
             internal PresentationBakedSurfaceRenderer Renderer;
+            internal readonly PresentationPlaybackPlayer Playback = new PresentationPlaybackPlayer();
+            internal RuntimeClockSnapshot Clock;
+            internal double ClockReceivedAt;
+            internal ulong Sequence;
             internal bool Prepared;
             private bool disposed;
 
@@ -43,6 +48,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (disposed) return;
                 disposed = true;
                 Root.SetActive(false);
+                Playback.Clear();
                 Renderer?.Dispose();
                 Hierarchy.Clear();
                 Textures.Dispose();
@@ -60,6 +66,7 @@ namespace Unframe.Unity.PresentationRuntime
         private string latestRequestId;
         private readonly HashSet<string> requests = new HashSet<string>(StringComparer.Ordinal);
         private bool disposed;
+        private string playbackRequestId;
 
         public PresentationPreviewTransaction(Transform root)
         {
@@ -128,8 +135,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!next.Hierarchy.TryReplace(input, next.Root.transform, out error)) throw new InvalidOperationException(error);
                 next.Renderer = new PresentationBakedSurfaceRenderer();
                 if (!next.Renderer.TryBuild(input, next.Hierarchy, out error)) throw new InvalidOperationException(error);
-                new PresentationNodeStateApplier().Apply(input, next.Hierarchy);
-                if (!next.Renderer.TryRefresh(input, next.Textures, 0, out error)) throw new InvalidOperationException(error);
+                if (!next.Playback.TryRefresh(input, next.Hierarchy, next.Renderer, next.Textures, 0, out error)) throw new InvalidOperationException(error);
                 next.Prepared = true;
                 return input.RequestId;
             }
@@ -158,10 +164,37 @@ namespace Unframe.Unity.PresentationRuntime
             if (old != null) old.Root.SetActive(false);
             next.Root.SetActive(true);
             current = next;
+            playbackRequestId = next.Input.RequestId;
             candidate = null;
             latestRequestId = null;
             old?.Dispose();
             return next.Input.BuildIdentity;
+        }
+
+        public bool TryPlayback(LocalPreviewPlaybackState state, double now, out string error)
+        {
+            CheckAccess();
+            error = "preview.playback-request-mismatch";
+            if (current == null || state == null || state.RequestId != playbackRequestId) return false;
+            error = "preview.playback-sequence-stale";
+            if (state.Sequence == 0 || state.Sequence <= current.Sequence) return false;
+            error = "asset_residency_lost";
+            if (!current.Textures.IsReady(current.Input.TextureBindings)) return false;
+            if (!PresentationPreviewPlaybackValidation.TryApply(current.Input, state, out error)) return false;
+            current.Sequence = state.Sequence;
+            current.Clock = state.Clock.Clone();
+            current.ClockReceivedAt = now;
+            return current.Playback.TryRefresh(current.Input, current.Hierarchy, current.Renderer, current.Textures,
+                current.Clock.RuntimeTimeMs, out error);
+        }
+
+        public bool TryUpdate(double now, out string error)
+        {
+            CheckAccess();
+            error = null;
+            if (current == null || playbackRequestId == null) return true;
+            double time = PresentationPlaybackPlayer.SampleRuntimeTimeMs(current.Clock, current.ClockReceivedAt, now);
+            return current.Playback.TryUpdate(current.Input, current.Hierarchy, current.Renderer, current.Textures, time, out error);
         }
 
         public bool Discard(string requestId)
@@ -176,6 +209,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             CheckAccess();
             generation++;
+            playbackRequestId = null;
             latestRequestId = null;
             cancellation?.Cancel();
             cancellation = null;

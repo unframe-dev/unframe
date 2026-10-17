@@ -87,6 +87,8 @@ nix run .#local-editor-e2e -- --showcase
 
 `unity-preview` は共有 Runtime の描画・Preview 部分から `.unframe/unity-preview/project` を生成し、WebGL player を `.unframe/unity-preview/UnframePreview` に出力します。生成 Assets は再構成し、Library／build cache は再利用します。build log は `.unframe/unity-preview/logs/build.log` です。
 
+共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。
+
 `local-editor-e2e` は生成済み WebGL player と固定 Browser の provision を必要とします。Chromium 実行ファイルは `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` で指定できます。現在の既定値は host の `/etc/profiles/per-user/t4ko/bin/google-chrome` です。Opaque capture の namespace／delegated cgroup 要件も満たしてください。
 
 試験は `.unframe/unity-preview/e2e/<run>` に隔離した D1／R2、実行専用 CA・証明書、ログ・結果を作り、ローカル Control Plane、Realtime、承認用 Web と Host を起動します。実 WebGL Dist commit、device 承認、固定 Dist 公開と hash、権限・PublicationFence 拒否、HTTPS 素材と実 Snapshot／StateReady を用いる native Unity 描画を検査します。実行 directory は秘密情報を含むため共有・commit しないでください。

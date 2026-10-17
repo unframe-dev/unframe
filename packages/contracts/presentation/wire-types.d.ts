@@ -803,6 +803,16 @@ export interface LocalPreviewInitialStateWire {
   surfaceStates?: SurfaceRuntimeStateWire[];
 }
 
+export interface LocalPreviewPlaybackStateWire {
+  requestId?: string;
+  sequence?: string;
+  nodeStates?: NodeRuntimeStateWire[];
+  surfaceStates?: SurfaceRuntimeStateWire[];
+  activeRuns?: RuntimeRunSnapshotWire[];
+  clock?: RuntimeClockSnapshotWire;
+  currentGroupId?: string;
+}
+
 export interface LocalPreviewProjectionWire {
   visibleNodeIds?: string[];
   visibleSurfaceIds?: string[];

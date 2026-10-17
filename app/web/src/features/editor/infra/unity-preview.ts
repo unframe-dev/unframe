@@ -6,7 +6,8 @@ type UnityInstance = {
   Quit(): Promise<void>;
 };
 type Notification = {
-  kind: "prepared" | "committed" | "failed";
+  kind: "prepared" | "committed" | "playback" | "failed";
+  sequence?: string;
   requestId: string;
   buildIdentity?: string;
   message?: string;
@@ -32,6 +33,7 @@ export function createUnityPreviewDriver(
     {
       kind: Notification["kind"];
       preparedIdentity?: string;
+      sequence?: string;
       resolve(identity: string): void;
       reject(error: Error): void;
     }
@@ -46,6 +48,11 @@ export function createUnityPreviewDriver(
     if (notification.kind === "failed")
       waiter.reject(new Error(notification.message || "Unity Preview failed."));
     else if (notification.kind === waiter.kind) {
+      if (notification.kind === "playback") {
+        if (typeof notification.sequence === "string" && notification.sequence === waiter.sequence)
+          waiter.resolve(notification.sequence);
+        return;
+      }
       const identity =
         notification.buildIdentity ||
         (notification.kind === "prepared" ? waiter.preparedIdentity : undefined);
@@ -93,6 +100,7 @@ export function createUnityPreviewDriver(
     value: string,
     kind: Notification["kind"],
     preparedIdentity?: string,
+    sequence?: string,
   ) {
     await ready;
     return new Promise<string>((resolve, reject) => {
@@ -105,6 +113,7 @@ export function createUnityPreviewDriver(
       const timer = setTimeout(() => finish(new Error("Unity Preview response timed out.")), 60000);
       waiters.set(requestId, {
         kind,
+        ...(sequence ? { sequence } : {}),
         ...(preparedIdentity ? { preparedIdentity } : {}),
         resolve: (identity) => finish(undefined, identity),
         reject: (error) => finish(error),
@@ -115,6 +124,18 @@ export function createUnityPreviewDriver(
     });
   }
   return {
+    playback: async (state) => {
+      if (!state.requestId || !state.sequence)
+        throw new Error("Preview playback identity is missing.");
+      await exchange(
+        state.requestId,
+        "Playback",
+        JSON.stringify(state),
+        "playback",
+        undefined,
+        state.sequence,
+      );
+    },
     prepare: (envelope: LocalPreviewEnvelopeWire) => {
       if (!envelope.requestId) return Promise.reject(new Error("Preview request ID is missing."));
       const manifest = JSON.parse(envelope.buildManifest ?? "null") as { buildId?: unknown } | null;

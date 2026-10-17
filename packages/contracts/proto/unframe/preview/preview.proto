@@ -39,6 +39,18 @@ message LocalPreviewInitialState {
   repeated unframe.realtime.SurfaceRuntimeState surface_states = 2;
 }
 
+// A complete playback view for the committed Preview request. Sequence increases
+// across resets; only the logical runtime clock may restart at zero.
+message LocalPreviewPlaybackState {
+  string request_id = 1;
+  uint64 sequence = 2;
+  repeated unframe.realtime.NodeRuntimeState node_states = 3;
+  repeated unframe.realtime.SurfaceRuntimeState surface_states = 4;
+  repeated unframe.realtime.RuntimeRunSnapshot active_runs = 5;
+  unframe.realtime.RuntimeClockSnapshot clock = 6;
+  string current_group_id = 7;
+}
+
 message LocalPreviewAsset {
   string asset_id = 1;
   string reference = 2;

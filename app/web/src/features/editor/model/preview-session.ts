@@ -1,8 +1,13 @@
-import type { BuildJob, LocalPreviewEnvelopeWire } from "@unframe/unframe-cli/author-contract";
+import type {
+  BuildJob,
+  LocalPreviewEnvelopeWire,
+  PreviewPlaybackResponse,
+} from "@unframe/unframe-cli/author-contract";
 import type { EditorApi } from "../api";
 
 export type PreviewMode = "dev" | "dist";
 export type PreviewDriver = {
+  playback(state: PreviewPlaybackResponse["state"]): Promise<void>;
   prepare(envelope: LocalPreviewEnvelopeWire): Promise<string>;
   commit(requestId: string): Promise<string>;
   discard(requestId: string): Promise<void>;
