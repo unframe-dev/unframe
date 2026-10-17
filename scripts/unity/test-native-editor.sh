@@ -33,31 +33,7 @@ fi
 cat > "$assets/Unframe/UnframeNativeRuntime.asmdef" <<'JSON'
 {"name":"UnframeNativeRuntime","references":["Cysharp.Net.Http.YetAnotherHttpHandler"]}
 JSON
-python3 - "$root" "$project" "$mode" <<'PY'
-import json, pathlib, sys
-root, project = map(pathlib.Path, sys.argv[1:3])
-mode = sys.argv[3]
-source = json.loads((root / 'app/unity/Packages/manifest.json').read_text())
-dependencies = {
-  'com.cysharp.yetanotherhttphandler': source['dependencies']['com.cysharp.yetanotherhttphandler'],
-  'com.unity.render-pipelines.universal': source['dependencies']['com.unity.render-pipelines.universal'],
-  'com.unity.test-framework': source['dependencies']['com.unity.test-framework'],
-  'com.unity.nuget.newtonsoft-json': source['dependencies']['com.unity.nuget.newtonsoft-json'],
-  'com.unity.modules.jsonserialize': '1.0.0',
-  'com.unity.modules.animation': '1.0.0',
-  'com.unity.modules.imageconversion': '1.0.0',
-  'com.unity.modules.physics': '1.0.0',
-  'com.unity.modules.xr': '1.0.0',
-  'com.unity.modules.unitywebrequest': '1.0.0',
-}
-(project / 'Packages/manifest.json').write_text(json.dumps({'dependencies': dependencies}, indent=2))
-plugins = [p.name for p in (project / 'Assets/Unframe/Plugins').glob('*.dll')]
-(project / 'Assets/Tests/Editor/UnframeNativeTests.asmdef').write_text(json.dumps({
-  'name': 'UnframeNativeTests', 'references': ['UnframeNativeRuntime', 'Cysharp.Net.Http.YetAnotherHttpHandler', 'Unity.RenderPipelines.Universal.Runtime', 'Unity.RenderPipelines.Core.Runtime'],
-  'includePlatforms': ['Editor'], 'optionalUnityReferences': ['TestAssemblies'],
-  'overrideReferences': True, 'precompiledReferences': ['nunit.framework.dll', 'Newtonsoft.Json.dll', *plugins],
-}, indent=2))
-PY
+bun "$root/scripts/unity/prepare-native-editor.ts" "$root" "$project"
 cp "$root/app/unity/ProjectSettings/ProjectVersion.txt" "$project/ProjectSettings/"
 if [[ "$mode" == playback ]]; then
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTestFixture.cs" "$assets/Tests/Editor/"
