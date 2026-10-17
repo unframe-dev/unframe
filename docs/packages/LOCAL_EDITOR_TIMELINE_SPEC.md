@@ -2,8 +2,6 @@
 
 Status: 実装スコープ確定。読み取り専用の構造・時間関係の可視化を対象とする。
 
-実装・検証の進め方は [実装計画](../plans/local-editor-timeline-implementation-plan.md) を参照。
-
 ## 目的と範囲
 
 プレゼンテーション作者が、保存済み Source の Step・Cue・アニメーションの関係を Local Editor で確認できるようにする。[Local Editor の既存契約](./LOCAL_EDITOR_DESIGN.md) を前提とする。
