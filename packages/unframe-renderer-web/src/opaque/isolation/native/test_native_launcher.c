@@ -1,7 +1,9 @@
 #define UNFRAME_DARWIN_LAUNCHER_TEST
 #define proc_pidinfo test_proc_pidinfo
+#define execve test_execve
 #include "darwin-launcher.c"
 #undef proc_pidinfo
+#undef execve
 #include <sys/resource.h>
 #include <limits.h>
 
@@ -19,10 +21,63 @@ int test_proc_pidinfo(int pid, int flavor, uint64_t arg, void *buffer,
   return actual(pid, flavor, arg, buffer, buffer_size);
 }
 
+static pid_t launch_parent;
+static int browser_applications;
+static const uint8_t launch_policy[] = {1, 2, 3, 4};
+
+static int launch_apply(Profile *profile) {
+  if (profile->size != sizeof(launch_policy) ||
+      memcmp(profile->data, launch_policy, sizeof(launch_policy)))
+    return -1;
+  if (getpid() != launch_parent) {
+    const char marker[] = "writer-policy-applied\n";
+    return write(STDERR_FILENO, marker, sizeof(marker) - 1) < 0 ? -1 : 0;
+  }
+  // Model macOS 15 rejecting a second application in the browser process.
+  return ++browser_applications == 1 ? 0 : -1;
+}
+
+int test_execve(const char *path, char *const argv[], char *const envp[]) {
+  if (!launch_parent || strcmp(path, "/snapshot/browser") ||
+      strcmp(envp[0], "HOME=/snapshot/scratch") ||
+      strcmp(envp[1], "TMPDIR=/snapshot/scratch") || envp[2])
+    _exit(1);
+  if (!argv[1] || strncmp(argv[1], "--seatbelt-client=", 18) || argv[2])
+    _exit(1);
+  Slice wire = receive_policy(atoi(argv[1] + 18));
+  uint64_t mode = integer(&wire);
+  Slice received = bytestring(&wire);
+  if (mode != 1 || wire.offset != wire.size ||
+      received.size != sizeof(launch_policy) ||
+      memcmp(received.data, launch_policy, sizeof(launch_policy)))
+    _exit(1);
+  Profile profile = {.data = launch_policy, .size = sizeof(launch_policy)};
+  _exit(launch_apply(&profile) == 0 && browser_applications == 1 ? 0 : 1);
+}
+
 int main(int argc, char **argv) {
   if (argc != 2)
     return 1;
   const char *test = argv[1];
+  const struct { const char *name; int role; } launches[] = {
+      {"launch-root-single-policy", ROOT},
+      {"launch-renderer-single-policy", RENDERER},
+      {"launch-gpu-single-policy", GPU},
+      {"launch-network-single-policy", NETWORK}};
+  for (size_t i = 0; i < ARRAY_COUNT(launches); ++i) {
+    if (strcmp(test, launches[i].name))
+      continue;
+    launch_parent = getpid();
+    Sandbox api = {.apply = launch_apply};
+    Profile policy = {.data = launch_policy, .size = sizeof(launch_policy)};
+    char *arguments[] = {"/snapshot/helper", NULL, NULL};
+    Arguments args = {.role = launches[i].role, .argv = arguments, .argc = 1};
+    Registry registry = {0};
+    registry.field[7] = "/snapshot/browser";
+    registry.field[13] = "/snapshot/scratch";
+    launch(&api, &policy, &args, &registry);
+  }
+
   if (!strcmp(test, "handle-size-max")) {
     handle("1,r,2,3,8388608");
     return 0;
@@ -212,6 +267,27 @@ int main(int argc, char **argv) {
   registry.field[1] = "worker";
   registry.field[7] = "/chrome";
   registry.field[13] = "/scratch";
+  if (!strcmp(test, "original-user-home")) {
+    struct passwd *pw = getpwuid(getuid());
+    if (!pw || !pw->pw_dir || pw->pw_dir[0] != '/')
+      return 2;
+    char *home = copy(pw->pw_dir);
+    registry.field[2] = "1";
+    for (int role = RENDERER; role <= NETWORK; ++role) {
+      Parameter params[15];
+      size_t count = expected_parameters(params, role, &registry, "/helper");
+      int found = 0;
+      for (size_t i = 0; i < count; ++i)
+        if (!strcmp(params[i].key, "USER_HOMEDIR_AS_LITERAL")) {
+          found = 1;
+          if (strcmp(params[i].value, home))
+            return 1;
+        }
+      if (!found)
+        return 1;
+    }
+    return 0;
+  }
   if (!strcmp(test, "renderer-propagated") ||
       !strcmp(test, "child-color-invalid") ||
       !strcmp(test, "child-blink-invalid") ||

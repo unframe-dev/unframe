@@ -36,6 +36,10 @@ int main(int argc, char **argv) {
             error ? error : "unknown");
     return 5;
   }
+  const char *home_file = getenv("UNFRAME_TEST_HOME_FILE");
+  if (!home_file || !denied(open(home_file, O_RDONLY)) ||
+      !denied(open(home_file, O_WRONLY | O_TRUNC)))
+    return 11;
   const char *paths[] = {"/etc/passwd",
                          "/Library/Preferences/.GlobalPreferences.plist"};
   for (size_t i = 0; i < sizeof(paths) / sizeof(paths[0]); ++i) {
@@ -62,6 +66,6 @@ int main(int argc, char **argv) {
   char *environment[] = {NULL};
   if (!denied(execve("/bin/sh", shell, environment)))
     return 10;
-  puts("compiled; host reads, root dirfd, TCP and shell exec denied");
+  puts("compiled; host reads, home reads/writes, root dirfd, TCP and shell exec denied");
   return 0;
 }

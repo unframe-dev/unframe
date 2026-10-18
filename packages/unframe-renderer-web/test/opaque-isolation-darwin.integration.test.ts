@@ -1,4 +1,5 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import type { Writable } from "node:stream";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -114,6 +115,59 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
         }
         throw error;
       } finally {
+        rmSync(input.root, { recursive: true, force: true });
+      }
+    });
+
+    it.each([
+      ["EOF", Buffer.alloc(0)],
+      ["invalid serialization", Buffer.from("0100000000000000ff", "hex")],
+      ["invalid compiled policy", Buffer.from("0300000000000000010100", "hex")],
+    ])("rejects %s at the pinned Chromium seatbelt entry point", async (_name, payload) => {
+      const input = fixture("");
+      const browser = spawn(
+        input.browserPath,
+        [
+          "--headless",
+          "--disable-gpu",
+          "--no-first-run",
+          "--dump-dom",
+          "about:blank",
+          "--seatbelt-client=3",
+        ],
+        {
+          env: { HOME: input.root, TMPDIR: input.root },
+          stdio: ["ignore", "pipe", "pipe", "pipe"],
+        },
+      );
+      let output = "",
+        diagnostic = "",
+        timedOut = false;
+      browser.stdout?.on("data", (chunk: Buffer) => {
+        output = (output + chunk.toString()).slice(0, 8192);
+      });
+      browser.stderr?.on("data", (chunk: Buffer) => {
+        diagnostic = (diagnostic + chunk.toString()).slice(0, 8192);
+      });
+      const timer = setTimeout(() => {
+        timedOut = true;
+        browser.kill("SIGKILL");
+      }, 10000);
+      try {
+        const closed = new Promise<number | null>((resolve, reject) => {
+          browser.once("error", reject);
+          browser.once("close", resolve);
+        });
+        const policy = browser.stdio[3] as Writable;
+        policy.on("error", () => {});
+        policy.end(payload);
+        const code = await closed;
+        expect(timedOut, diagnostic).toBe(false);
+        expect(code, diagnostic).not.toBe(0);
+        expect(output, diagnostic).toBe("");
+      } finally {
+        clearTimeout(timer);
+        browser.kill("SIGKILL");
         rmSync(input.root, { recursive: true, force: true });
       }
     });

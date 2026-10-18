@@ -962,8 +962,12 @@ static size_t expected_parameters(Parameter *params, int role,
       params[i].value = "";
     else if (!strcmp(key, "OS_VERSION"))
       params[i].value = copy(os);
-    else if (!strcmp(key, "USER_HOMEDIR_AS_LITERAL"))
-      params[i].value = r->field[13];
+    else if (!strcmp(key, "USER_HOMEDIR_AS_LITERAL")) {
+      struct passwd *pw = getpwuid(getuid());
+      if (!pw || !pw->pw_dir || !canonical_path(pw->pw_dir))
+        fail("OS user home");
+      params[i].value = copy(pw->pw_dir);
+    }
     else if (!strcmp(key, "NETWORK_SERVICE_STORAGE_PATHS_COUNT"))
       params[i].value = "0";
     else if (!strncmp(key, "DARWIN_USER_", 12)) {
@@ -1103,8 +1107,9 @@ static void launch(Sandbox *api, Profile *policy, Arguments *a, Registry *r) {
   int keep[6] = {
       STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO, descriptors[0], 3, 4};
   close_except(keep, a->pipe ? 6 : 4);
-  if (api->apply(policy))
-    fail("strict preapply");
+  // macOS 15 forbids sandbox reinitialization. The pinned headless entry point
+  // CHECKs SeatbeltExecServer application before content startup for every role;
+  // the worker receives capture input only after the ready barrier.
   alarm(0);
   execve(r->field[7], a->argv, environment);
   fail("Chromium exec");

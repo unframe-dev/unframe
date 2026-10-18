@@ -34,6 +34,11 @@ test("native launcher boundary harness", { skip: process.platform !== "darwin" }
     );
     assert.equal(build.status, 0, build.stderr);
     const valid = [
+      "original-user-home",
+      "launch-root-single-policy",
+      "launch-renderer-single-policy",
+      "launch-gpu-single-policy",
+      "launch-network-single-policy",
       "decimal-valid",
       "utf8",
       "root-valid",
@@ -92,6 +97,8 @@ test("native launcher boundary harness", { skip: process.platform !== "darwin" }
         await t.test(name, () => {
           const run = spawnSync(binary, [name], { encoding: "utf8", timeout: 5000 });
           assert.equal(run.status, expected, run.stderr);
+          if (name.startsWith("launch-"))
+            assert.ok(run.stderr.includes("writer-policy-applied"), run.stderr);
         });
   } finally {
     rmSync(root, { recursive: true, force: true });

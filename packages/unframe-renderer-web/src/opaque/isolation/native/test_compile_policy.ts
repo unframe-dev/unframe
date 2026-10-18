@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -224,7 +224,7 @@ test("native profiles compile and deny host files", { skip: process.platform !==
       LOG_FILE_PATH: "",
       ODME_USER_DIR_ACCESS: "FALSE",
       OS_VERSION: String(osVersion),
-      USER_HOMEDIR_AS_LITERAL: "/snapshot/home",
+      USER_HOMEDIR_AS_LITERAL: homedir(),
       NETWORK_SERVICE_STORAGE_PATHS_COUNT: "0",
       NETWORK_USER_DIR_ACCESS: "FALSE",
     };
@@ -246,15 +246,27 @@ test("native profiles compile and deny host files", { skip: process.platform !==
     );
     assert.equal(build.status, 0, build.stderr);
     const result = compiler.prepare(config());
-    for (const role of ["root", "renderer", "gpu", "network"] as const) {
-      const source = join(root, role + ".sb");
-      writeFileSync(source, result[role]);
-      const run = spawnSync(binary, [source, ...Object.entries(params).sort().flat()], {
-        encoding: "utf8",
-        timeout: 10000,
-      });
-      assert.equal(run.status, 0, run.stderr);
-      assert.ok(run.stdout.includes("host reads, root dirfd, TCP and shell exec denied"));
+    const homeRoot = mkdtempSync(join(homedir(), ".unframe-policy-test-"));
+    const deniedHomeFile = join(homeRoot, "secret");
+    writeFileSync(deniedHomeFile, "must-not-read-or-write");
+    try {
+      for (const role of ["root", "renderer", "gpu", "network"] as const) {
+        const source = join(root, role + ".sb");
+        writeFileSync(source, result[role]);
+        const run = spawnSync(binary, [source, ...Object.entries(params).sort().flat()], {
+          encoding: "utf8",
+          timeout: 10000,
+          env: { ...process.env, UNFRAME_TEST_HOME_FILE: deniedHomeFile },
+        });
+        assert.equal(run.status, 0, run.stderr);
+        assert.ok(
+          run.stdout.includes(
+            "host reads, home reads/writes, root dirfd, TCP and shell exec denied",
+          ),
+        );
+      }
+    } finally {
+      rmSync(homeRoot, { recursive: true, force: true });
     }
   }),
 );
