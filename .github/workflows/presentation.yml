@@ -15,7 +15,7 @@ jobs:
       matrix:
         runner: [ubuntu-latest, macos-15]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
