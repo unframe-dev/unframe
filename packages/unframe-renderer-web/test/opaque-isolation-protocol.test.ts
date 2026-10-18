@@ -76,3 +76,14 @@ it("rejects non-object protocol messages with a capture error", async () => {
     code: "opaque-capture-failed",
   });
 });
+
+it.each([
+  ["process.exit(7)", "code=7 signal=null"],
+  ["process.kill(process.pid, 'SIGTERM')", "code=null signal=SIGTERM"],
+])("reports worker termination before a result (%s)", async (source, diagnostic) => {
+  const child = spawn(process.execPath, ["-e", source]);
+  await expect(workerProtocol(child, () => {}, {})).rejects.toMatchObject({
+    code: "opaque-isolation-unavailable",
+    message: expect.stringContaining(diagnostic),
+  });
+});

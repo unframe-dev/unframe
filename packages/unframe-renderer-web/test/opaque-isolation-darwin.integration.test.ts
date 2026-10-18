@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -79,19 +80,39 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
       const input = fixture(`
       const browser=spawn(process.env.UNFRAME_BROWSER_EXECUTABLE,['--headless','--disable-gpu','--no-first-run','--dump-dom','about:blank'],{stdio:['ignore','ignore','pipe']});
       let diagnostic=''; browser.stderr.on('data',chunk=>{
-        if(diagnostic.length<8192) diagnostic+=chunk.toString();
-        if(chunk.toString().includes('unframe-darwin-opaque:')) console.log(JSON.stringify({type:'error',code:'chromium-sandbox-unavailable: '+diagnostic}));
+        diagnostic=(diagnostic+chunk.toString()).slice(0,8192);
       });
       const launchTimer=setTimeout(()=>browser.kill('SIGKILL'),10000);
-      const code=await new Promise((resolve,reject)=>{browser.once('error',reject);browser.once('exit',resolve)});
+      const {code,signal}=await new Promise((resolve,reject)=>{browser.once('error',reject);browser.once('close',(code,signal)=>resolve({code,signal}))});
       clearTimeout(launchTimer);
-      if(code!==0) { console.log(JSON.stringify({type:'error',code:'chromium-sandbox-unavailable: '+diagnostic})); break; }
+      if(code!==0) { console.log(JSON.stringify({type:'error',code:'chromium-sandbox-unavailable: pid='+browser.pid+' code='+code+' signal='+signal+' stderr='+diagnostic})); break; }
       console.log(JSON.stringify({type:'ready'}));
     `);
       try {
-        await expect(
-          runIsolatedOpaqueWorker({ ...input, input: { chromium: true } }),
-        ).resolves.toEqual({ chromium: true });
+        const result = await runIsolatedOpaqueWorker({ ...input, input: { chromium: true } });
+        expect(result).toEqual({ chromium: true });
+      } catch (error) {
+        const match =
+          error instanceof Error
+            ? /chromium-sandbox-unavailable: pid=(\d+) code=/.exec(error.message)
+            : null;
+        const pid = Number(match?.[1]);
+        if (Number.isSafeInteger(pid) && pid > 1 && pid <= 2147483647) {
+          try {
+            const predicate = `processID == ${pid} OR ((process == "kernel" OR process == "sandboxd" OR senderImagePath CONTAINS "/Sandbox" OR subsystem == "com.apple.sandbox.reporting") AND (eventMessage CONTAINS "(${pid})" OR eventMessage CONTAINS "[${pid}]" OR eventMessage CONTAINS "p=${pid}[" OR eventMessage MATCHES ".*pid ${pid}([^0-9].*|$)"))`;
+            const diagnostic = spawnSync(
+              "/usr/bin/log",
+              ["show", "--last", "2m", "--style", "compact", "--predicate", predicate],
+              { encoding: "utf8", timeout: 5000, maxBuffer: 128 * 1024 },
+            );
+            console.error(
+              `Chromium OS diagnostic pid=${pid} status=${diagnostic.status} signal=${diagnostic.signal}\n${diagnostic.stdout?.slice(-8192) ?? ""}`,
+            );
+          } catch {
+            // OS diagnostics must not replace the browser startup failure.
+          }
+        }
+        throw error;
       } finally {
         rmSync(input.root, { recursive: true, force: true });
       }

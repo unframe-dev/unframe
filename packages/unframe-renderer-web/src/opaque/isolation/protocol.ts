@@ -89,11 +89,11 @@ export const workerProtocol = (
     });
     if (signal?.aborted) onAbort();
     child.once("error", (error) => fail(error));
-    child.once("exit", () =>
+    child.once("exit", (code, signal) =>
       fail(
         new OpaqueIsolationError(
           phase === "result" ? "opaque-capture-failed" : "opaque-isolation-unavailable",
-          "worker exited before result",
+          `worker exited before result: code=${code} signal=${signal}`,
         ),
       ),
     );
