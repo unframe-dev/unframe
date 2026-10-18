@@ -96,7 +96,7 @@ describe("atomic artifact publication", () => {
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
   });
 
-  it("keeps the pointer rename inside its owned parent after the last identity check", async () => {
+  it("rejects publication when the visible parent changes during pointer rename", async () => {
     const directory = await project();
     const outside = await project();
     const id = "2".repeat(32);
@@ -115,15 +115,42 @@ describe("atomic artifact publication", () => {
         return originalRename.call(this, path, target);
       },
     );
-    await publishAtomicArtifacts({
+    const result = await publishAtomicArtifacts({
       projectDirectory: directory,
       channel: "dev",
       generationId: () => id,
       artifacts: artifacts(),
     });
+    expect(result).toMatchObject({ ok: false, family: "io", detail: { stage: "replace-dist" } });
     expect(await readdir(outside)).toEqual([`.current-${id}`, "current"]);
     expect(await readlink(join(outside, "current"))).toBe("outside-output");
   });
+
+  it.each(["dev", "dist"] as const)(
+    "rejects publication when the visible %s pointer is replaced during rename",
+    async (channel) => {
+      const directory = await project();
+      const pointerName = channel === "dev" ? "current" : "dist";
+      const pointerPath = join(directory, channel === "dev" ? ".unframe/preview/current" : "dist");
+      const originalRename = NativeFilesystem.prototype.rename;
+      vi.spyOn(NativeFilesystem.prototype, "rename").mockImplementation(
+        async function (this: NativeFilesystem, path, target) {
+          await originalRename.call(this, path, target);
+          if (target.endsWith(`/${pointerName}`)) {
+            await unlink(pointerPath);
+            await symlink("user-output", pointerPath);
+          }
+        },
+      );
+      const result = await publishAtomicArtifacts({
+        projectDirectory: directory,
+        channel,
+        artifacts: artifacts(),
+      });
+      expect(result).toMatchObject({ ok: false, family: "io", detail: { stage: "replace-dist" } });
+      expect(await readlink(pointerPath)).toBe("user-output");
+    },
+  );
 
   it.each(["dev", "dist"] as const)(
     "keeps the last %s generation on stale or cancelled updates",

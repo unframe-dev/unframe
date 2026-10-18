@@ -440,6 +440,22 @@ export const publishAtomicArtifacts = async ({
     if (cancelled(signal)) cancel();
     await rename(createdTemporaryLink.entry, pointerEntry).catch(fail);
     temporaryLink = undefined;
+    const publishedGeneration = staging;
+    staging = undefined;
+    await requireSameDirectory(project);
+    await requireSameDirectory(unframe);
+    await requireSameDirectory(outputParent);
+    await requireSameDirectory(generations);
+    await requireSameDirectory(publishedGeneration);
+    if (
+      !(await unchangedDist({
+        ...createdTemporaryLink,
+        path: pointerPath,
+        entry: pointerPath,
+        target: `${targetPrefix}/${id}`,
+      }))
+    )
+      fail();
     return { ok: true, generationId: id };
   } catch (error) {
     await cleanupStaging(staging);

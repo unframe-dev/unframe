@@ -90,11 +90,28 @@ const checkDeclarationProjectUnchecked = (
 
   // Declaration API owns the detailed Authoring contracts; this schema owns the public envelope.
   const project = parsedProject.data as unknown as CompilerDeclarationProject;
-  if (Array.isArray(project.presentation.scene))
+  if (Array.isArray(project.presentation.scene)) {
+    if (
+      !isPresentationDeclaration({
+        ...project.presentation,
+        scene: { spatial: [], components: [] },
+      })
+    )
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic(
+            "compiler-invalid-declaration",
+            ["presentation"],
+            "React Presentation header is invalid.",
+          ),
+        ],
+      };
     return resolveOpaqueProject(
       project as Parameters<typeof resolveOpaqueProject>[0],
       cloned.value,
     );
+  }
   const sceneEnvelope = structuredSceneEnvelopeSchema.safeParse(project.presentation.scene);
   if (!sceneEnvelope.success)
     return {

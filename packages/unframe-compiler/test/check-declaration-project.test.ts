@@ -144,6 +144,19 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it.each([
+    { scene: [] },
+    { ...presentation(), scene: [], operations: null },
+    { ...presentation(), scene: [], flow: null },
+  ])("rejects malformed React Presentation headers as declarations: %j", (presentation) => {
+    expect(
+      checkDeclarationProject({ presentation, themes: [], components: [], assets: {} }),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "compiler-invalid-declaration", path: ["presentation"] }],
+    });
+  });
+
   it.each(["\ud800", "\udc00"])(
     "rejects a lone surrogate in lock metadata as input: %j",
     (text) => {
@@ -2385,6 +2398,23 @@ describe("checkDeclarationProject", () => {
 });
 
 describe("compileDeclarationProject", () => {
+  it("returns an input diagnostic for a React Presentation with a missing header", async () => {
+    await expect(
+      compileDeclarationProject(
+        {
+          presentation: { scene: [] },
+          themes: [],
+          components: [],
+          assets: {},
+        },
+        {},
+      ),
+    ).resolves.toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "compiler-invalid-declaration", path: ["presentation"] }],
+    });
+  });
+
   it.each(["\ud800", "\udc00"])(
     "keeps lone-surrogate metadata on the input diagnostic boundary: %j",
     async (text) => {
