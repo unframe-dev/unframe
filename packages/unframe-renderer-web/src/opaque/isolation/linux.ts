@@ -1,3 +1,4 @@
+import { cgroupFor, verifyMembership } from "./linux-processes.js";
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
@@ -44,14 +45,6 @@ const storeRootForExecutable = (path: string): string => {
   const match = /^\/nix\/store\/[^/]+/.exec(real);
   if (!match) throw unavailable("isolation executable is not pinned in the Nix store");
   return match[0];
-};
-
-const cgroupFor = (pid: number): string => {
-  const entry = readFileSync(`/proc/${pid}/cgroup`, "utf8")
-    .split("\n")
-    .find((line) => line.startsWith("0::"));
-  if (!entry) throw unavailable("cgroup v2 membership is unavailable");
-  return entry.slice(3);
 };
 
 const readWordSet = (path: string): Set<string> =>
@@ -169,34 +162,6 @@ const sandboxArguments = (
   for (const [source, destination] of mounts) args.push("--ro-bind", source, destination);
   args.push("--", nodePath, "/worker/worker.mjs");
   return args;
-};
-
-const descendants = (pid: number): number[] => {
-  const seen = new Set<number>();
-  const pending = [pid];
-  while (pending.length > 0) {
-    const current = pending.pop()!;
-    if (seen.has(current)) continue;
-    seen.add(current);
-    try {
-      const children = readFileSync(`/proc/${current}/task/${current}/children`, "utf8")
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .map(Number);
-      pending.push(...children);
-    } catch {
-      throw unavailable("worker disappeared during cgroup verification");
-    }
-  }
-  return [...seen];
-};
-
-const verifyMembership = (pid: number, group: string): void => {
-  for (const descendant of descendants(pid)) {
-    if (cgroupFor(descendant) !== group)
-      throw unavailable("a browser descendant escaped the resource cgroup");
-  }
 };
 
 export const runLinuxOpaqueWorker = async (
