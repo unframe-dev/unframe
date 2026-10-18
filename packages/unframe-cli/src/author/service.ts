@@ -19,6 +19,8 @@ import { hashDependencyGraph, type UnframeLock } from "../filesystem/lock.js";
 import { prepareProjectSource, StylePreparationError } from "../filesystem/prepare-project.js";
 import { styleDiagnostics } from "../application/style-diagnostics.js";
 import { readRegularFile } from "../filesystem/path-policy.js";
+import { AuthorArtifactCache } from "./artifact-cache.js";
+import { readBuildGeneration } from "../filesystem/read-build-generation.js";
 import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
 import {
@@ -38,7 +40,6 @@ import {
 } from "./save-transaction.js";
 
 const encoder = new TextEncoder();
-const decoder = new TextDecoder("utf-8", { fatal: true });
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const randomId = () => randomBytes(16).toString("hex");
 const diagnostic = (
@@ -282,56 +283,32 @@ const readPublishedArtifacts = async (
   generationId: string,
   instanceIds: readonly string[],
   channel: "dev" | "dist" = "dev",
+  maxBytes = 256 * 1024 * 1024,
 ) => {
   if (!/^[0-9a-f]{32}$/.test(generationId))
     fail(500, "author-output-unsafe", "Build output is not a managed generation.");
-  const generation = join(
-    directory,
-    channel === "dev" ? ".unframe/preview/generations" : ".unframe/generations",
-    generationId,
-  );
-  const readOutput = async (path: string) => {
-    const bytes = await readRegularFile(path);
-    if (!bytes) fail(500, "author-output-unsafe", "Build output is not a stable regular file.");
-    return bytes;
-  };
-  const bundle = JSON.parse(
-    decoder.decode(await readOutput(join(generation, "render-bundle.json"))),
-  ) as {
-    surfaces: Record<
-      string,
-      {
-        renderSurfaces: Record<
-          string,
-          {
-            artifacts: Record<string, { states: Record<string, { texture: { assetId: string } }> }>;
-          }
-        >;
-      }
-    >;
-  };
-  const assetSet = JSON.parse(
-    decoder.decode(await readOutput(join(generation, "asset-set.json"))),
-  ) as {
-    assets: Record<string, { mediaType: string }>;
-  };
+  const generation = await readBuildGeneration(directory, { channel, generationId });
+  const bundle = generation.artifacts.renderBundle;
+  const assetSet = generation.artifacts.assetSet;
   const catalog: BuildJob["artifacts"] = [];
   const catalogKeys = new Set<string>();
   const assets = new Map<string, { bytes: Uint8Array; mediaType: string }>();
+  let totalBytes = 0;
   for (const instanceId of instanceIds) {
     const surface = bundle.surfaces[surfaceIdFor(instanceId)];
     if (!surface) continue;
     for (const renderSurface of Object.values(surface.renderSurfaces))
-      for (const artifact of Object.values(renderSurface.artifacts))
+      for (const artifact of Object.values(renderSurface.artifacts)) {
+        if (artifact.kind !== "baked-web") continue;
         for (const [stateId, state] of Object.entries(artifact.states)) {
           const assetId = state.texture.assetId;
           const mediaType = assetSet.assets[assetId]?.mediaType;
           if (mediaType !== "image/png") continue;
           if (!assets.has(assetId)) {
-            const bytes = await readOutput(
-              join(generation, "assets", encodeURIComponent(assetId) + ".png"),
-            );
-            assets.set(assetId, { bytes: new Uint8Array(bytes), mediaType });
+            totalBytes += assetSet.assets[assetId]!.encodedSizeBytes;
+            if (totalBytes > maxBytes)
+              throw new RangeError("Author artifact byte budget exceeded.");
+            assets.set(assetId, await generation.readAsset(assetId));
           }
           const key = JSON.stringify([instanceId, stateId, assetId]);
           if (!catalogKeys.has(key)) {
@@ -339,6 +316,7 @@ const readPublishedArtifacts = async (
             catalog.push({ assetId, mediaType, instanceId, stateId });
           }
         }
+      }
   }
   return { catalog, assets };
 };
@@ -348,6 +326,7 @@ export const createAuthorService = async (
   options: {
     run?: (input: RunPresentationCliInput) => ReturnType<typeof runPresentationCli>;
     readPublishedArtifacts?: typeof readPublishedArtifacts;
+    artifactRetention?: { maxGenerations?: number; maxBytes?: number };
   } = {},
 ): Promise<AuthorService> => {
   await prepareAuthorStorage(directory);
@@ -364,19 +343,19 @@ export const createAuthorService = async (
   }
   const run = options.run ?? runPresentationCli;
   const readPublished = options.readPublishedArtifacts ?? readPublishedArtifacts;
-  const jobs = new Map<
+  const jobs = new Map<string, BuildJob>();
+  const active = new Map<
     string,
-    {
-      job: BuildJob;
-      controller: AbortController;
-      assets: Map<string, { bytes: Uint8Array; mediaType: string }>;
-      promise: Promise<void> | undefined;
-    }
+    { controller: AbortController; promise: Promise<void> | undefined }
   >();
   const requests = new Map<
     string,
     { revision: string; buildId: string; channel: "dev" | "dist" }
   >();
+  const artifacts = new AuthorArtifactCache(
+    options.artifactRetention?.maxGenerations,
+    options.artifactRetention?.maxBytes,
+  );
   let closed = false;
   const withSource = async <T>(
     callback: () => Promise<T>,
@@ -527,9 +506,7 @@ export const createAuthorService = async (
             fail(412, "author-revision-mismatch", "Project inputs changed during save.");
           throw error;
         }
-        for (const item of jobs.values())
-          if (item.job.status === "queued" || item.job.status === "running")
-            item.controller.abort();
+        for (const item of active.values()) item.controller.abort();
         return saved;
       }, true),
     build: async (revision, requestId, channel = "dev") => {
@@ -546,14 +523,9 @@ export const createAuthorService = async (
                 "author-request-id-conflict",
                 "Build request ID was used for another revision.",
               );
-            return getJob(existing.buildId).job;
+            return getJob(existing.buildId);
           }
-          if (
-            [...jobs.values()].some(
-              ({ job }) => job.status === "queued" || job.status === "running",
-            )
-          )
-            fail(409, "author-build-busy", "Another build is running.");
+          if (active.size > 0) fail(409, "author-build-busy", "Another build is running.");
           const refreshed =
             channel === "dev"
               ? await refreshLocalProjectLock(directory, {
@@ -586,12 +558,11 @@ export const createAuthorService = async (
             artifacts: [],
           };
           const record = {
-            job,
             controller,
-            assets: new Map<string, { bytes: Uint8Array; mediaType: string }>(),
             promise: undefined as Promise<void> | undefined,
           };
-          jobs.set(buildId, record);
+          jobs.set(buildId, job);
+          active.set(buildId, record);
           requests.set(requestId, { revision, buildId, channel });
           start = () => {
             record.promise = (async () => {
@@ -645,6 +616,7 @@ export const createAuthorService = async (
                   result.generationId,
                   current.snapshot.instances.map(({ instanceId }) => instanceId),
                   channel,
+                  options.artifactRetention?.maxBytes,
                 );
                 if (controller.signal.aborted) {
                   job.status = "cancelled";
@@ -665,10 +637,10 @@ export const createAuthorService = async (
                   job.status = controller.signal.aborted ? "cancelled" : "stale";
                   return;
                 }
+                artifacts.put(channel, result.generationId, published.assets);
                 job.artifacts = published.catalog;
                 job.diagnostics = buildWarnings(result.stdout);
                 job.generationId = result.generationId;
-                record.assets = published.assets;
                 job.status = "succeeded";
               } catch (error) {
                 job.status = controller.signal.aborted ? "cancelled" : "failed";
@@ -680,7 +652,9 @@ export const createAuthorService = async (
                     ),
                   ];
               }
-            })();
+            })().finally(() => {
+              active.delete(buildId);
+            });
           };
           return job;
         },
@@ -690,25 +664,27 @@ export const createAuthorService = async (
       start?.();
       return response;
     },
-    job: async (id) => getJob(id).job,
+    job: async (id) => getJob(id),
     cancel: async (id) => {
-      const record = getJob(id);
-      if (record.job.status === "queued" || record.job.status === "running")
-        record.controller.abort();
-      return record.job;
+      const job = getJob(id);
+      active.get(id)?.controller.abort();
+      return job;
     },
     artifact: async (id, assetId) => {
-      const record = getJob(id);
-      if (record.job.status !== "succeeded")
+      const job = getJob(id);
+      if (job.status !== "succeeded")
         fail(404, "author-asset-not-found", "Build asset was not found.");
-      const value = record.assets.get(assetId);
+      const value = job.generationId
+        ? artifacts.get(job.channel, job.generationId, assetId)
+        : undefined;
       if (!value) fail(404, "author-asset-not-found", "Build asset was not found.");
       return { bytes: value.bytes.slice(), mediaType: value.mediaType };
     },
     close: async () => {
       closed = true;
-      for (const item of jobs.values()) item.controller.abort();
-      await Promise.all([...jobs.values()].map((item) => item.promise));
+      for (const item of active.values()) item.controller.abort();
+      await Promise.all([...active.values()].map((item) => item.promise));
+      artifacts.clear();
     },
   };
 };

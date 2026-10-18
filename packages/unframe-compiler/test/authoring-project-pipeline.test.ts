@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/unframe-assets";
 import {
@@ -14,6 +14,41 @@ import {
   computeFrozenComponentInputs,
   type DeclarationProjectAssemblyCarrier,
 } from "../src/index.js";
+
+const faults = vi.hoisted(() => ({
+  typechecker: undefined as unknown,
+  hash: undefined as unknown,
+  hashMarker: "",
+}));
+vi.mock("typescript", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("typescript")>();
+  return {
+    ...actual,
+    createProgram: (...args: unknown[]) => {
+      if (faults.typechecker !== undefined) throw faults.typechecker;
+      return Reflect.apply(actual.createProgram, actual, args);
+    },
+  };
+});
+vi.mock("@noble/hashes/sha2.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@noble/hashes/sha2.js")>();
+  return {
+    ...actual,
+    sha256: Object.assign((...args: Parameters<typeof actual.sha256>) => {
+      if (
+        faults.hash !== undefined &&
+        new TextDecoder().decode(args[0]).includes(faults.hashMarker)
+      )
+        throw faults.hash;
+      return actual.sha256(...args);
+    }, actual.sha256),
+  };
+});
+afterEach(() => {
+  faults.typechecker = undefined;
+  faults.hash = undefined;
+  faults.hashMarker = "";
+});
 
 const builders = [
   "definePresentation",
@@ -214,6 +249,66 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
 };
 
 describe("Authoring source to compiler pipeline", () => {
+  it("exposes a Compiler API failure as a source internal error", () => {
+    const cause = new Error("private Compiler API source");
+    faults.typechecker = cause;
+    expect(() => checkAuthoringProject(virtualProject())).toThrow(
+      expect.objectContaining({
+        code: "compiler-internal-error",
+        stage: "source",
+        cause,
+        message: "Compiler failed during source.",
+      }),
+    );
+  });
+
+  it("preserves the source stage through the authoring compile boundary", async () => {
+    const cause = new Error("private Compiler API source");
+    faults.typechecker = cause;
+    await expect(compileAuthoringProject(virtualProject(), {}, {})).rejects.toMatchObject({
+      code: "compiler-internal-error",
+      stage: "source",
+      cause,
+      message: "Compiler failed during source.",
+    });
+  });
+
+  it("exposes an unexpected assembly hash failure without publishing its cause", async () => {
+    const supplied = carrier();
+    const componentLocks = supplied.componentLocks.map((lock) => ({
+      ...lock,
+      origin:
+        lock.origin.kind === "local"
+          ? { ...lock.origin, sourceHash: "assembly-fault-trigger" }
+          : lock.origin,
+    }));
+    const cause = new Error("private assembly hash failure");
+    faults.hash = cause;
+    faults.hashMarker = "assembly-fault-trigger";
+    await expect(
+      compileAuthoringProject(virtualProject(), { ...supplied, componentLocks }, {}),
+    ).rejects.toMatchObject({
+      code: "compiler-internal-error",
+      stage: "assembly",
+      cause,
+      message: "Compiler failed during assembly.",
+    });
+  });
+
+  it("preserves a frozen-input internal failure without returning its cause as a diagnostic", async () => {
+    const supplied = carrier();
+    const source = virtualProject();
+    const cause = new Error("private frozen source content");
+    faults.hash = cause;
+    faults.hashMarker = "defineComponentManifest";
+    await expect(compileAuthoringProject(source, supplied, {})).rejects.toMatchObject({
+      code: "compiler-internal-error",
+      stage: "frozen-input",
+      cause,
+      message: "Compiler failed during frozen-input.",
+    });
+  });
+
   it("check success returns a checked Definition without invoking a renderer", () => {
     const result = checkAuthoringProjectAssembly(virtualProject(), carrier());
 
@@ -302,25 +397,27 @@ describe("Authoring source to compiler pipeline", () => {
     }
   });
 
-  it("maps a hostile renderer identity exception to a stable compile diagnostic", async () => {
+  it("exposes an unexpected renderer identity failure to the host without publishing its contents", async () => {
     const renderer = makeRenderer();
+    const cause = new Error("private renderer identity");
     const hostileIdentity = new Proxy(renderer.identity, {
       get: () => {
-        throw new Error("renderer identity getter must not escape");
+        throw cause;
       },
     });
-
-    const result = await compileAuthoringProject(
-      virtualProject(),
-      carrier(),
-      options({ ...renderer, identity: hostileIdentity }),
-    );
-
-    expect(result.valid).toBe(false);
-    if (!result.valid) {
-      expect(result.phase).toBe("compile");
-      expect(diagnosticCodes(result)).toContain("compiler-invalid-input");
-    }
+    await expect(
+      compileAuthoringProject(
+        virtualProject(),
+        carrier(),
+        options({ ...renderer, identity: hostileIdentity }),
+      ),
+    ).rejects.toMatchObject({
+      name: "CompilerInternalError",
+      code: "compiler-internal-error",
+      stage: "renderer-validation",
+      cause,
+      message: "Compiler failed during renderer-validation.",
+    });
   });
 
   it("fails closed for hostile source, carrier, and options without executing accessors", async () => {

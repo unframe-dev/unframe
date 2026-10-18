@@ -6,7 +6,15 @@ type UnknownRecord = Record<string, unknown>;
 export const safePlainClone = (input: unknown): ValidationResult<unknown> => {
   const ancestors = new WeakSet<object>();
   const walk = (value: unknown, path: readonly (string | number)[]): unknown => {
-    if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      if (value.isWellFormed()) return value;
+      throw diagnostic(
+        "compiler-invalid-input",
+        path,
+        "Input strings must contain well-formed Unicode.",
+      );
+    }
+    if (value === null || typeof value === "boolean") return value;
     if (typeof value === "number") {
       if (Number.isFinite(value)) return value;
       throw diagnostic("compiler-invalid-input", path, "Input must contain finite JSON numbers.");
@@ -75,6 +83,12 @@ export const safePlainClone = (input: unknown): ValidationResult<unknown> => {
         );
       const cloned = Object.create(null) as UnknownRecord;
       for (const key of Object.keys(value).sort()) {
+        if (!key.isWellFormed())
+          throw diagnostic(
+            "compiler-invalid-input",
+            path,
+            "Input keys must contain well-formed Unicode.",
+          );
         const descriptor = Object.getOwnPropertyDescriptor(value, key);
         if (!descriptor || descriptor.get !== undefined || descriptor.set !== undefined)
           throw diagnostic(

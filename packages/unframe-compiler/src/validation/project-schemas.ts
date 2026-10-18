@@ -27,6 +27,7 @@ const opaqueLockSchema = z.strictObject({
   manifestHash: nonEmptyStringSchema,
   rendererInputHash: nonEmptyStringSchema,
 });
+export const structuredSceneEnvelopeSchema = z.object({ components: z.array(plainRecordSchema) });
 export const declarationProjectEnvelopeSchema = z
   .object({
     presentation: plainRecordSchema,

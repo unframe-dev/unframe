@@ -1,3 +1,4 @@
+import { withNativeFilesystem } from "./native-filesystem.js";
 import {
   authoringPackageRoots,
   hasPostcssConfig,
@@ -28,7 +29,7 @@ import { hashDependencyGraph, type UnframeLock } from "./lock.js";
 
 const execute = promisify(execFile);
 
-export const updateProjectLock = async (
+const updateProjectLockWithinScope = async (
   directory: string,
   operation: "refresh" | "update",
   recreate: boolean,
@@ -222,3 +223,6 @@ export const updateProjectLock = async (
     }
   }
 };
+
+export const updateProjectLock: typeof updateProjectLockWithinScope = (...args) =>
+  withNativeFilesystem(() => updateProjectLockWithinScope(...args));

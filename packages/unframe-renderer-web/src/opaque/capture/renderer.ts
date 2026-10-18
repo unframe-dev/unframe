@@ -6,7 +6,8 @@ import {
   type RawSurfaceCapture,
 } from "@unframe/unframe-renderer-api";
 import type { WebRendererConfig } from "../../public-types.js";
-import { createWebRendererConfigHash } from "../../config/config-environment.js";
+import { snapshotConfig, configHashFromSnapshot } from "../../config/config-environment.js";
+import { opaqueRenderProgramSchema, type OpaqueProgramSnapshot } from "./program-schema.js";
 import { hash } from "../../config/config-environment.js";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
 import { originalPositionFor, sourceContentFor, TraceMap } from "@jridgewell/trace-mapping";
@@ -41,7 +42,7 @@ const failure = (code: string, path: readonly (string | number)[] = []): Rendere
   diagnostics: [{ code, message: "Opaque capture failed.", path }],
 });
 const mappedSourcePath = (
-  program: OpaqueRenderProgram,
+  program: OpaqueProgramSnapshot,
   generated: { line: number; column: number },
 ) => {
   if (!program.debugSourceMap || !program.debugSourcePaths) return [];
@@ -132,6 +133,10 @@ export const createOpaqueBakedWebRenderer = (options: {
   readonly config: WebRendererConfig;
   readonly capture: (request: OpaqueCaptureRequest) => Promise<OpaqueCaptureResult>;
 }): RendererPlugin => {
+  const config = snapshotConfig(options.config);
+  const configHash = config ? configHashFromSnapshot(config) : undefined;
+  const programsSnapshot = opaqueRenderProgramSchema.array().safeParse(options.programs);
+  const capture = options.capture;
   const identity = {
     id: "baked-web",
     version: "3",
@@ -156,12 +161,13 @@ export const createOpaqueBakedWebRenderer = (options: {
       const input = prepared.value;
       if (input.context.locale !== "ja-JP" || input.context.timezone !== "Asia/Tokyo")
         return failure("opaque-environment-unsupported");
-      if (input.context.rendererConfigHash !== createWebRendererConfigHash(options.config))
+      if (!configHash || input.context.rendererConfigHash !== configHash)
         return failure("opaque-config-mismatch");
       if (input.entry.kind !== "opaque" || input.surface.content.kind !== "opaque")
         return failure("opaque-input-unsupported");
       const entry = input.entry;
-      const programs = options.programs.filter(
+      if (!programsSnapshot.success) return failure("opaque-entry-invalid");
+      const programs = programsSnapshot.data.filter(
         (p) => p.entryId === entry.entryId && p.moduleHash === entry.moduleHash,
       );
       const program = programs[0];
@@ -206,7 +212,7 @@ export const createOpaqueBakedWebRenderer = (options: {
               buttonBindings[key] =
                 node.stateEnabled && state.enabledInteractionIds.includes(node.interactionId);
           }
-          const result = await options.capture({
+          const result = await capture({
             javascript: program.javascript,
             stylesheets: program.stylesheets,
             assets: program.assets,

@@ -1,3 +1,4 @@
+import { withNativeFilesystem } from "./native-filesystem.js";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { mkdir, open, rename, unlink } from "node:fs/promises";
@@ -27,7 +28,7 @@ type RefreshResult =
     };
 
 /** Refresh local closure hashes without installing or replacing the locked package snapshot. */
-export const refreshLocalProjectLock = async (
+const refreshLocalProjectLockWithinScope = async (
   requestedDirectory: string,
   options: {
     expectedRevision?: string;
@@ -172,3 +173,6 @@ export const refreshLocalProjectLock = async (
     }
   }
 };
+
+export const refreshLocalProjectLock: typeof refreshLocalProjectLockWithinScope = (...args) =>
+  withNativeFilesystem(() => refreshLocalProjectLockWithinScope(...args));

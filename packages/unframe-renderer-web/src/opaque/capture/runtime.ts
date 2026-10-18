@@ -1,3 +1,4 @@
+import { assertWorkerIsolationAvailable } from "@unframe/unframe-worker-host";
 import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -6,10 +7,7 @@ import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import { chromium } from "playwright-core";
 import * as z from "zod";
-import {
-  runIsolatedOpaqueWorker,
-  assertOpaqueIsolationAvailable,
-} from "../isolation/run-isolated-opaque-worker.js";
+import { runIsolatedOpaqueWorker } from "../isolation/run-isolated-opaque-worker.js";
 import { snapshotOpaqueRuntimeDirectory } from "./runtime-snapshot.js";
 import { hash } from "../../config/config-environment.js";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
@@ -53,7 +51,7 @@ const resultSchema = z.discriminatedUnion("ok", [
 ]);
 
 export const openOpaqueCaptureRuntime = async (options: { readonly signal?: AbortSignal } = {}) => {
-  assertOpaqueIsolationAvailable();
+  assertWorkerIsolationAvailable({ nodePath: process.env.UNFRAME_OPAQUE_NODE ?? process.execPath });
   const closureFile = process.env.UNFRAME_OPAQUE_RUNTIME_CLOSURE;
   if (!closureFile)
     throw Object.assign(new Error("Pinned runtime closure is missing."), {

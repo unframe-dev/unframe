@@ -3,28 +3,9 @@ import type { CDPSession } from "playwright-core";
 import { decodeFontAsset, type FontCoverage } from "../../rendering/font-assets.js";
 import type { OpaqueCaptureRequest } from "./types.js";
 
-type Face = { family: string; weight: string; style: string; sources: readonly string[] };
+import { inspectFontFaces, type Face } from "./inspect-font-faces.js";
 
-const inspectFaces = `(() => {
-  const faces = [];
-  const visit = rules => {
-    for (const rule of rules) {
-      if (rule instanceof CSSImportRule) visit(rule.styleSheet.cssRules);
-      if (!(rule instanceof CSSFontFaceRule)) continue;
-      const src = rule.style.getPropertyValue('src');
-      const sources = [...src.matchAll(/url\\(\\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\\s*\\)/gi)]
-        .map(match => new URL(match[1] ?? match[2] ?? match[3], rule.parentStyleSheet.href ?? document.baseURI).href);
-      faces.push({family:rule.style.getPropertyValue('font-family').trim().replace(/^["']|["']$/g,''),
-        weight:rule.style.getPropertyValue('font-weight').trim() || 'normal',
-        style:rule.style.getPropertyValue('font-style').trim() || 'normal',
-        sources, validSource: sources.length > 0 && !/local\\s*\\(/i.test(src) &&
-          (src.match(/url\\s*\\(/gi) ?? []).length === sources.length});
-    }
-  };
-  for (const sheet of document.styleSheets) visit(sheet.cssRules);
-  return {faces, registered:[...document.fonts].map(face=>({family:face.family.replace(/^["']|["']$/g,''),
-    weight:face.weight,style:face.style,status:face.status}))};
-})()`;
+const inspectFaces = `(${inspectFontFaces.toString()})()`;
 
 const fontNames = (bytes: Uint8Array): readonly string[] => {
   try {

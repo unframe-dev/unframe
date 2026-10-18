@@ -6,11 +6,61 @@ import {
   validatePresentationArtifacts,
   verifyBuildIntegrity,
 } from "@unframe/unframe-core";
+import { safePlainClone } from "../validation/safe-plain-clone.js";
 import type { CheckedDeclarationProject, CompiledDeclarationProject } from "../api/types.js";
 
 export type CompilerBuildCache = {
   get(key: string): unknown | Promise<unknown>;
   set(key: string, value: CompiledDeclarationProject): void | Promise<void>;
+};
+
+const snapshotCacheEntry = (entry: unknown): CompiledDeclarationProject | undefined => {
+  if (
+    typeof entry !== "object" ||
+    entry === null ||
+    (Object.getPrototypeOf(entry) !== Object.prototype && Object.getPrototypeOf(entry) !== null)
+  )
+    return undefined;
+  if (Object.getOwnPropertySymbols(entry).length) return undefined;
+  const metadata: Record<string, unknown> = {};
+  let assets: unknown;
+  for (const key of Object.getOwnPropertyNames(entry)) {
+    const descriptor = Object.getOwnPropertyDescriptor(entry, key);
+    if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) return undefined;
+    if (key === "assets") assets = descriptor.value;
+    else Object.defineProperty(metadata, key, { value: descriptor.value, enumerable: true });
+  }
+  const cloned = safePlainClone(metadata);
+  if (
+    !cloned.valid ||
+    typeof assets !== "object" ||
+    assets === null ||
+    (Object.getPrototypeOf(assets) !== Object.prototype &&
+      Object.getPrototypeOf(assets) !== null) ||
+    Object.getOwnPropertySymbols(assets).length
+  )
+    return undefined;
+  const bytes: Record<string, Uint8Array> = Object.create(null);
+  const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
+  for (const key of Object.getOwnPropertyNames(assets)) {
+    const descriptor = Object.getOwnPropertyDescriptor(assets, key);
+    if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) return undefined;
+    const value = descriptor.value;
+    if (!(value instanceof Uint8Array)) return undefined;
+    // Byte payloads are opaque views. Intrinsic accessors ignore caller-owned properties and methods.
+    const buffer = Object.getOwnPropertyDescriptor(typedArrayPrototype, "buffer")!.get!.call(value);
+    if (!(buffer instanceof ArrayBuffer)) return undefined;
+    const offset = Object.getOwnPropertyDescriptor(typedArrayPrototype, "byteOffset")!.get!.call(
+      value,
+    );
+    const length = Object.getOwnPropertyDescriptor(typedArrayPrototype, "byteLength")!.get!.call(
+      value,
+    );
+    const copy = new Uint8Array(length);
+    Uint8Array.prototype.set.call(copy, new Uint8Array(buffer, offset, length));
+    bytes[key] = copy;
+  }
+  return { ...(cloned.value as Omit<CompiledDeclarationProject, "assets">), assets: bytes };
 };
 
 export const readCachedBuild = async (
@@ -31,8 +81,8 @@ export const readCachedBuild = async (
 ): Promise<CompiledDeclarationProject | undefined> => {
   try {
     const entry = await cache.get(key);
-    if (typeof entry !== "object" || entry === null) return undefined;
-    const value = structuredClone(entry) as CompiledDeclarationProject;
+    const value = snapshotCacheEntry(entry);
+    if (!value) return undefined;
     if (
       value.sourceHash !== checked.sourceHash ||
       value.definitionHash !== checked.definitionHash ||

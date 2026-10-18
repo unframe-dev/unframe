@@ -2,6 +2,23 @@ import { describe, expect, it } from "vitest";
 import { watchPresentationProject } from "../src/application/watch-project.js";
 
 describe("watchPresentationProject", () => {
+  it("does not start a build when aborted while waiting for a snapshot", async () => {
+    const controller = new AbortController();
+    const built: string[] = [];
+    await watchPresentationProject({
+      directory: "/project",
+      signal: controller.signal,
+      snapshot: async () => {
+        controller.abort();
+        return "saved";
+      },
+      build: async () => {
+        built.push("started");
+        return { exitCode: 0, stdout: "", stderr: "" };
+      },
+    });
+    expect(built).toEqual([]);
+  });
   it("tracks a Dev refresh without rebuilding its own lock change and still observes external saves", async () => {
     const controller = new AbortController();
     const revisions = ["saved", "refreshed", "external"];

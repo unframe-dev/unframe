@@ -1,9 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { constants } from "node:fs";
-import { mkdir, open, readdir, rename, rm, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
 import * as z from "zod";
 import type { CompilerBuildCache, CompiledDeclarationProject } from "@unframe/unframe-compiler";
+import { NativeFilesystem, type NativeDirectory } from "./native-filesystem.js";
 import { projectDirectory } from "./path-policy.js";
 import { parseStrictJson } from "./strict-json.js";
 
@@ -25,44 +24,9 @@ const assetSetSchema = z.object({
 });
 const checksum = (bytes: Uint8Array) =>
   `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-const anchor = (handle: FileHandle) => `/proc/self/fd/${handle.fd}`;
-const directory = (path: string) =>
-  open(path, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+const anchor = (handle: NativeDirectory) => handle.anchor;
 
-const read = async (path: string, limit: number): Promise<Uint8Array> => {
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-  try {
-    const stat = await handle.stat();
-    if (!stat.isFile() || stat.size > limit) throw new Error("Invalid cache file");
-    const bytes = new Uint8Array(stat.size);
-    let offset = 0;
-    while (offset < bytes.length) {
-      const result = await handle.read(bytes, offset, bytes.length - offset, offset);
-      if (result.bytesRead === 0) throw new Error("Cache file shrank during read");
-      offset += result.bytesRead;
-    }
-    const probe = await handle.read(new Uint8Array(1), 0, 1, offset);
-    if (probe.bytesRead !== 0) throw new Error("Cache file grew during read");
-    return bytes;
-  } finally {
-    await handle.close();
-  }
-};
-const write = async (path: string, bytes: Uint8Array) => {
-  const handle = await open(
-    path,
-    constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
-    0o600,
-  );
-  try {
-    await handle.writeFile(bytes);
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-};
-
-/** Linux project cache, independent of Release and Delivery output. */
+/** Project cache, independent of Release and Delivery output. */
 export const createFilesystemBuildCache = (
   root: string,
   options: {
@@ -76,35 +40,34 @@ export const createFilesystemBuildCache = (
     throw new TypeError("Invalid cache entry limit");
   const withRoot = async <T>(
     create: boolean,
-    action: (base: string) => Promise<T>,
+    action: (base: string, filesystem: NativeFilesystem) => Promise<T>,
   ): Promise<T | undefined> => {
-    const handles: FileHandle[] = [];
+    await using filesystem = new NativeFilesystem();
+    const directory = (path: string) => filesystem.directory(path);
     try {
       if (options.signal?.aborted || !(await projectDirectory(root))) return undefined;
       let handle = await directory(root);
-      handles.push(handle);
       for (const name of [".unframe", "cache", "builds-v1"]) {
         const child = join(anchor(handle), name);
         if (create)
-          await mkdir(child, { mode: 0o700 }).catch((error: unknown) => {
+          await filesystem.mkdir(child).catch((error: unknown) => {
             if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
           });
         handle = await directory(child);
-        handles.push(handle);
       }
-      return await action(anchor(handle));
+      return await action(anchor(handle), filesystem);
     } catch {
       return undefined;
-    } finally {
-      await Promise.allSettled(handles.reverse().map((handle) => handle.close()));
     }
   };
   return {
     async get(key) {
       if (!keyPattern.test(key)) return undefined;
-      return withRoot(false, async (base) => {
-        const entry = await directory(join(base, key.slice(7)));
-        try {
+      return withRoot(false, async (base, filesystem) => {
+        const directory = (path: string) => filesystem.directory(path);
+        const read = (path: string, limit: number) => filesystem.read(path, limit);
+        await using entry = await directory(join(base, key.slice(7)));
+        {
           const parsed = parseStrictJson(
             await read(join(anchor(entry), "entry.json"), 64 * 1024 * 1024),
           );
@@ -130,21 +93,21 @@ export const createFilesystemBuildCache = (
             assets[id] = bytes;
           }
           return { ...metadata.data.value, assets };
-        } finally {
-          await entry.close();
         }
       });
     },
     async set(key, value: CompiledDeclarationProject) {
       if (!keyPattern.test(key)) return;
-      await withRoot(true, async (base) => {
+      await withRoot(true, async (base, filesystem) => {
+        const directory = (path: string) => filesystem.directory(path);
+        const write = (path: string, bytes: Uint8Array) => filesystem.write(path, bytes);
+        const rename = (path: string, target: string) => filesystem.rename(path, target);
         const name = `.staging-${randomUUID()}`;
         const staging = join(base, name);
-        await mkdir(staging, { mode: 0o700 });
+        await filesystem.mkdir(staging);
         const discarded = join(base, `.discarded-${randomUUID()}`);
-        let handle: FileHandle | undefined;
         try {
-          handle = await directory(staging);
+          await using handle = await directory(staging);
           const snapshot = structuredClone(value);
           const { assets, ...metadata } = snapshot;
           const descriptors = assetSetSchema.parse(snapshot.assetSet).assets;
@@ -172,7 +135,6 @@ export const createFilesystemBuildCache = (
           if (options.signal?.aborted) return;
           await handle.sync();
           await handle.close();
-          handle = undefined;
           await rename(join(base, key.slice(7)), discarded).catch((error: unknown) => {
             if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
           });
@@ -181,7 +143,7 @@ export const createFilesystemBuildCache = (
             if (!["EEXIST", "ENOTEMPTY"].includes((error as NodeJS.ErrnoException).code ?? ""))
               throw error;
           });
-          const entries = await readdir(base, { withFileTypes: true });
+          const entries = await filesystem.readdir(base);
           const completed = entries.filter(
             (entry) => entry.isDirectory() && digest.test(entry.name),
           );
@@ -190,25 +152,17 @@ export const createFilesystemBuildCache = (
               completed
                 .filter((entry) => entry.name !== key.slice(7))
                 .map(async (item) => {
-                  const owned = await directory(join(base, item.name));
-                  try {
-                    return { name: item.name, time: (await owned.stat()).mtimeMs };
-                  } finally {
-                    await owned.close();
-                  }
+                  await using owned = await directory(join(base, item.name));
+                  return { name: item.name, time: (await owned.stat()).mtimeMs };
                 }),
             );
             ranked.sort((a, b) => a.time - b.time || a.name.localeCompare(b.name));
             for (const stale of ranked.slice(0, completed.length - maxEntries))
-              await rm(join(base, stale.name), { recursive: true, force: true });
+              await filesystem.rm(join(base, stale.name));
           }
         } finally {
-          try {
-            await handle?.close();
-          } finally {
-            await rm(staging, { recursive: true, force: true });
-            await rm(discarded, { recursive: true, force: true });
-          }
+          await filesystem.rm(staging);
+          await filesystem.rm(discarded);
         }
       });
     },

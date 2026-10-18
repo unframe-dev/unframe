@@ -44,8 +44,7 @@ type Container =
     };
 
 const validateString = (value: string): void => {
-  // Unicode mode matches surrogate code points only when they are not paired.
-  if (/\p{Surrogate}/u.test(value)) fail("cli-lock-json-lone-surrogate");
+  if (!value.isWellFormed()) fail("cli-lock-json-lone-surrogate");
 };
 
 const parseSource = (source: string): StrictJsonValue => {

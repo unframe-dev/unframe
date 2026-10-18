@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it, vi } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
-import { runIsolatedOpaqueWorker } from "@unframe/unframe-renderer-web/isolation";
+import { runIsolatedWorker } from "@unframe/unframe-worker-host";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
@@ -15,9 +15,9 @@ import {
   withNodeTransformSources,
 } from "../src/styles/node-snapshot.js";
 
-vi.mock("@unframe/unframe-renderer-web/isolation", async (original) => ({
-  ...(await original<typeof import("@unframe/unframe-renderer-web/isolation")>()),
-  runIsolatedOpaqueWorker: vi.fn(),
+vi.mock("@unframe/unframe-worker-host", async (original) => ({
+  ...(await original<typeof import("@unframe/unframe-worker-host")>()),
+  runIsolatedWorker: vi.fn(),
 }));
 const directories: string[] = [];
 afterEach(async () => {
@@ -47,7 +47,7 @@ const fixture = async () => {
   await writeFile(join(directory, "postcss.config.mjs"), "export default { plugins: [] };");
   await writeFile(join(directory, "theme.css"), "main { color: red; }");
   const found = await discoverPresentationProjectFiles(directory);
-  assert(found.ok);
+  assert(found.ok, JSON.stringify(found));
   const loaded = loadUnframeLock(found.lockBytes);
   assert(loaded.ok);
   const snapshot = await snapshotNodeTransformInputs(directory, {
@@ -85,7 +85,7 @@ it.each([
       plugin: "fixture",
       message: "Invalid stylesheet",
     };
-    vi.mocked(runIsolatedOpaqueWorker).mockResolvedValue({ ok: false, diagnostics: [detail] });
+    vi.mocked(runIsolatedWorker).mockResolvedValue({ ok: false, diagnostics: [detail] });
     expect(await updateProjectLock(directory, operation, false)).toMatchObject({
       ok: false,
       code: "cli-style-transform-failed",
@@ -104,7 +104,7 @@ it.each([
 
 it("retains lock failures without source diagnostics in CLI JSON", async () => {
   const directory = await fixture();
-  vi.mocked(runIsolatedOpaqueWorker).mockRejectedValue(new Error("Worker unavailable"));
+  vi.mocked(runIsolatedWorker).mockRejectedValue(new Error("Worker unavailable"));
   const result = await runPresentationCli({
     args: ["lock", "refresh", directory, "--format", "json"],
   });

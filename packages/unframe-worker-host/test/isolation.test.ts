@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { runIsolatedOpaqueWorker } from "../src/opaque/isolation/run-isolated-opaque-worker.js";
+import { runIsolatedWorker } from "../src/index.js";
 
-describe("opaque worker isolation", () => {
+describe("worker isolation", () => {
   it("rejects capture before loading a worker when the configured cgroup root is outside the delegation", async () => {
     await expect(
-      runIsolatedOpaqueWorker(
+      runIsolatedWorker(
         {
           workerPath: "/does-not-exist/worker.mjs",
-          browserPath: "/does-not-exist/chrome-headless-shell",
           runtimePaths: [],
           input: {},
         },
