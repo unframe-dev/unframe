@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { satisfies } from "semver";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { mkdtemp, readFile, rm, writeFile, realpath } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../platform/temporary-directory.js";
 import { join, relative } from "node:path";
 import { probeNodeRuntime } from "./runtime.js";
 import {
@@ -47,11 +47,11 @@ export const runStyleWorker = async (
   for (const entry of options.entries)
     if (!snapshot.sourceFiles.some((file) => file.path === entry) || !/\.css$/i.test(entry))
       throw new Error("Style entry is outside the source snapshot");
-  const directory = await mkdtemp(join(tmpdir(), "unframe-style-worker-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-style-worker-"));
   try {
     const placed = await materializeNodeTransformSnapshot(snapshot, directory);
     if (!placed.adapterPath) throw new Error("Style adapter is missing from locked snapshot");
-    const adapterPath = `/worker/${relative(directory, placed.adapterPath).split("\\").join("/")}`;
+    const adapterPath = `./${relative(directory, placed.adapterPath).split("\\").join("/")}`;
     const workerPath = join(directory, "worker.mjs");
     const workerSource = await readFile(new URL("./style-worker.ts", import.meta.url), "utf8");
     const worker = transpileModule(workerSource, {

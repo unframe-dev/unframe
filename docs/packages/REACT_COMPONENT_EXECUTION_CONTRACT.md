@@ -128,7 +128,7 @@ React JSX と Structured JSX は別の TypeScript Program で検査する。静�
 
 ## 2. Editor host と通信
 
-初期 host は `unframe author <absolute-project-directory>` で起動する Linux ローカル process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Web の UI は `app/web`、process / filesystem は CLI、pure command と patch は Compiler が所有する。API 型はこのローカル境界の所有 package に置き、Control Plane の公開 API や Realtime wire を変更しない。
+host は `unframe author <absolute-project-directory>` で起動する Linux / macOS arm64 の native process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。対応範囲と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Web の UI は `app/web`、process / filesystem は CLI、pure command と patch は Compiler が所有する。API 型はこのローカル境界の所有 package に置き、Control Plane の公開 API や Realtime wire を変更しない。
 
 loopback IPv4 のランダム port に bind し、期待する `Host` を完全一致で検査する。起動時の 256-bit session token を起動 URL の fragment で Editor に渡し、Editor は取得後すぐ URL から除去してメモリだけに保持する。API / artifact の読み取りも `Authorization: Bearer` を必須とする。token を query、cookie、永続 storage、ログへ保存しない。state-changing request は同一 Origin と JSON content type を必須とし、CORS は許可しない。host 再起動で token は失効する。
 
@@ -183,7 +183,7 @@ receipt と異常 transaction は自動期限切れにしない。正常 transac
 
 初期実依存 fixture は repo の pnpm lock で固定した `@base-ui/react` の Button と通常 CSS とする。utility CSS / preprocessor 設定の自動実行は含めない。CSS `url()` / `@import` は固定 asset map に解決し、未解決 URL を拒否する。画像 asset は PNG / JPEG / static WebP、font は TTF / OTF に限定し、signature と mediaType、decode 上限を検証する。外部 SVG、animated image、woff / woff2 はこの profile では拒否する。
 
-Browser の request は予約 origin `https://unframe.invalid/` の固定 asset map にだけ [route.fulfill](https://playwright.dev/docs/api/class-route#route-fulfill) で bytes を返す。実 DNS / HTTP へ転送しない。初期 document、JS、CSS、font、画像も同じ map に含め、page の service worker、worker、WebSocket、download、popup、外部 navigation を拒否する。route 制御だけを network isolation とせず、後述の OS namespace でも外部接続を遮断する。
+Browser の request は予約 origin `https://unframe.invalid/` の固定 asset map にだけ [route.fulfill](https://playwright.dev/docs/api/class-route#route-fulfill) で bytes を返す。実 DNS / HTTP へ転送しない。初期 document、JS、CSS、font、画像も同じ map に含め、page の service worker、worker、WebSocket、download、popup、外部 navigation を拒否する。route 制御だけを network isolation とせず、後述の native sandbox でも外部接続を遮断する。
 
 ### 描画完了と binding
 
@@ -197,15 +197,19 @@ mount / 資産待機後に別 animation frame で二回 capture し、binding �
 
 ### 隔離と終了
 
-Opaque 実行の最初の対応 host は Linux とする。A2 で toolchain に固定した [bubblewrap](https://github.com/containers/bubblewrap) を追加し、user / mount / PID / IPC / network namespace、`--unshare-ipc`、`--new-session`、`--die-with-parent` を使う。Chromium sandbox も有効なままにする。Browser worker へは pinned executable / runtime closure と worker / Browser snapshot を読み取り専用 mount し、private tmpfs と必要最小限の `/proc`・device を与える。capture input は後述の継承 pipe で渡す。home、project root、credentials、D-Bus / desktop socket、host network / IPC を渡さない。bubblewrap 自体に完成した保護 policy があるとは扱わず、この mount / IPC policy を実装・試験する。
+隔離 adapter は Linux と macOS arm64 を選択する。Linux は toolchain に固定した [bubblewrap](https://github.com/containers/bubblewrap) で user / mount / PID / IPC / network namespace、`--unshare-ipc`、`--new-session`、`--die-with-parent` を使う。Browser worker へは pinned executable / runtime closure と worker / Browser snapshot を読み取り専用 mount し、private tmpfs と必要最小限の `/proc`・device を与える。macOS は Seatbelt の default-deny profile で許可 runtime / snapshot の読み取りと private scratch の書き込みを与え、起動前に filesystem / network deny probe を行う。両 OS で Chromium sandbox を有効なままにし、home、project root、credentials、Editor token、外部 network を渡さない。macOS の非推奨 API 依存と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。
 
-host と worker は継承 pipe で通信し、Browser の任意 JS に host filesystem / API callback を公開しない。worker process group の lifecycle を host が所有する。初期 profile は一 State の mount〜capture 30 秒、build 全体 120 秒、正常 close の猶予 2 秒とする。これは初期の停止上限であり、性能目標ではない。cancel / deadline / worker crash では TERM、猶予後 KILL で子 process を回収する。
+host と worker は継承 pipe で通信し、Browser の任意 JS に host filesystem / API callback を公開しない。worker process group の lifecycle を host が所有する。初期 profile は一 State の mount〜capture 30 秒、build 全体 120 秒、回収確認の猶予 2 秒とする。これは初期の停止上限であり、性能目標ではない。cancel / deadline / worker crash では OS adapter が process を停止する。Linux は TERM と cgroup kill、macOS は process group への KILL を使う。
 
-hard memory / process limit は `memory.max = 1 GiB`、`pids.max = 128` に設定した cgroup v2 で worker 全体へ適用する。host は起動前に cgroup を作成・設定し、trusted bootstrap だけを起動して所属を確認する。bootstrap は host の許可 barrier を待ち、所属確認後にだけ Chromium を起動する。descendant の所属も検証してから未信頼 bundle を渡す。所属・制限の設定失敗は child を回収して拒否し、制限前に user module を load しない。
+Linux の hard memory / process limit は `memory.max = 1 GiB`、`pids.max = 128` に設定した cgroup v2 で worker 全体へ適用する。host は起動前に cgroup を作成・設定し、trusted bootstrap だけを起動して所属を確認する。bootstrap は host の許可 barrier を待ち、所属確認後にだけ Chromium を起動する。descendant の所属も検証してから未信頼 bundle を渡す。所属・制限の設定失敗は child を回収して拒否し、制限前に user module を load しない。
 
-既存 Compiler の texture / output / accounted peak budget は別に維持する。必要な user namespace / cgroup delegation がない host は `opaque-isolation-unavailable` で実行前に拒否し、弱い sandbox や sandbox 無効の Chromium へ fallback しない。A2 の Nix 環境 / CI はこの profile が使える専用実行条件を用意し、通常 unit test には権限を要求しない。起動 recipe と Chromium の両立、memory / pids 上限、timeout / cancel と子 process 回収は隔離 integration test で検証する。
+macOS の profile は OS runtime の `/System/Library`・`/usr/lib` と必要な device の読み取り、`sysctl-read`、`com.apple.system.logger` と `com.apple.system.notification_center` の Mach lookup も許可する。書き込みは private scratch と `/dev/null` に限定する。
 
-worker とその依存、Chromium と付属ファイルは private directory へ snapshot し、regular file の全 bytes と pinned Nix runtime closure を実行環境 hash に含める。symlink / special file は拒否する。DOM の観測は user script と別の Chromium isolated world から行う。
+macOS は process group の RSS 合計と process 数を50 ms間隔で監視し、1 GiB / 128 process を超えたら停止する。これは hard subtree limit ではなく、一時的な超過や group を離れた process の計測・回収を保証しない。Linux は cgroup 全体の終了、macOS は監視対象 group の終了を確認し、回収失敗なら成功結果を返さない。未信頼入力は両 OS とも worker の ready を検証してから渡す。
+
+既存 Compiler の texture / output / accounted peak budget は別に維持する。必要な native isolation capability がない host は `opaque-isolation-unavailable` で実行前に拒否し、sandbox 無効の Chromium へ fallback しない。Nix 環境 / CI は OS 別の profile が使える実行条件を用意し、通常 unit test には権限を要求しない。起動 recipe と Chromium の両立、OS 別の資源制限、timeout / cancel と process 回収は native integration test で検証する。
+
+worker とその依存、Chromium と付属ファイルは private directory へ snapshot し、regular file の全 bytes、OS / CPU / runtime / font / 隔離 profile の識別と pinned Nix runtime closure を実行環境 hash に含める。runtime snapshot に限り、root 内へ解決する相対 symlink は維持して target bytes とともに hash する。外部参照、絶対 symlink、循環、special file は拒否する。Authoring input の symlink 拒否は維持する。DOM の観測は user script と別の Chromium isolated world から行う。
 
 capture 成功後は raw RGBA を既存 encoder と Core integrity へ渡す。入力不正、binding、font、timeout、cancel、資源上限、隔離 unavailable は区別した diagnostic を返し、成功済み `dist` を変更しない。
 
@@ -215,6 +219,6 @@ capture 成功後は raw RGBA を既存 encoder と Core integrity へ渡す。�
 - state 別 missing / duplicate binding、禁止 asset URL、font decode 失敗、表示更新の継続、無限 loop、メモリ超過、cancel を区別して終了する。
 - journal の各 fsync / rename 前後で crash させ、協調 reader に mixed Source / lock を返さない。外部編集を検出した recovery は bytes を上書きしない。
 - command の応答喪失と同一 ID 再送、異なる body 再送、古い ETag、host restart、build 後の新 revision を扱う。
-- Browser が Source、秘密情報、host network / IPC / local Editor token にアクセスできない。隔離 capability 欠落は capture 前に失敗する。cgroup barrier 前に user code が動かず、全 descendant に制限が及ぶことを確認する。
+- Browser が Source、秘密情報、外部 network / local Editor token にアクセスできない。隔離 capability 欠落は capture 前に失敗する。Linux は cgroup barrier と descendant の制限、macOS は deny probe と group 監視、両 OS で入力解放前の ready 検証を確認する。
 
 これらは A1〜A5 の実装試験であり、文書化や型試作の成功だけでは合格扱いにしない。

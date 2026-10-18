@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import {
   chromium,
   type BrowserContext as PlaywrightBrowserContext,
@@ -10,7 +12,10 @@ import type {
   BrowserCaptureRequest,
   BrowserRgbaCapture,
   FixedBrowserSession,
+  FixedBrowserEnvironment,
 } from "../public-types.js";
+import { browserPlatformSchema } from "../validation/schemas.js";
+import { nativeBrowserPlatform, managedHeadlessShell } from "./runtime-environment.js";
 import { hash } from "../config/config-environment.js";
 
 type BrowserContextOptions = {
@@ -58,6 +63,8 @@ type LaunchedBrowser = {
 };
 
 export type BrowserDriver = {
+  readonly platform: FixedBrowserEnvironment["platform"];
+  readonly probeFont?: Uint8Array;
   launch(options: BrowserLaunchOptions): Promise<LaunchedBrowser>;
   decodePng(bytes: Uint8Array): {
     readonly width: number;
@@ -198,9 +205,20 @@ const decodePng = (bytes: Uint8Array) => {
   return { width: decoded.width, height: decoded.height, data: Uint8Array.from(decoded.data) };
 };
 
-const playwrightDriver: BrowserDriver = {
+const readPinnedProbeFont = async () => {
+  const path = process.env.UNFRAME_PRESENTATION_FONT;
+  if (!path) throw new Error("Pinned presentation probe font is required.");
+  return new Uint8Array(await readFile(path));
+};
+
+const playwrightDriver = async (): Promise<BrowserDriver> => ({
+  platform: await nativeBrowserPlatform(),
+  probeFont: await readPinnedProbeFont(),
   launch: async (options) => {
-    const browser = await chromium.launch(options);
+    const browser = await chromium.launch({
+      ...options,
+      executablePath: managedHeadlessShell(chromium.executablePath()).executablePath,
+    });
     return {
       version: () => browser.version(),
       newContext: async (contextOptions) => contextFor(await browser.newContext(contextOptions)),
@@ -208,7 +226,7 @@ const playwrightDriver: BrowserDriver = {
     };
   },
   decodePng,
-};
+});
 
 const FONT_PROBE_DOCUMENT = `<!doctype html><html><head><style>html,body{margin:0;background:#fff;color:#000;font-family:"${FONT_PROFILE}";font-size:32px;line-height:1}body{width:256px;height:64px;overflow:hidden}</style></head><body>あいう漢字ＡＢＣ123</body></html>`;
 const screenshotOptions = Object.freeze({
@@ -234,14 +252,25 @@ const fontFingerprintFor = async (browser: LaunchedBrowser, driver: BrowserDrive
     await context.addInitScript(initScript);
     await context.route("**/*", async () => undefined);
     const page = await context.newPage();
-    await page.setContent(FONT_PROBE_DOCUMENT, { waitUntil: "load" });
-    await page.evaluate();
+    const fontFace = driver.probeFont
+      ? `<style>@font-face{font-family:"${FONT_PROFILE}";src:url(data:font/otf;base64,${Buffer.from(driver.probeFont).toString("base64")})}</style>`
+      : "";
+    await page.setContent(FONT_PROBE_DOCUMENT.replace("</head>", `${fontFace}</head>`), {
+      waitUntil: "load",
+    });
+    await page.evaluate(driver.probeFont ? 1 : undefined);
     const png = await page.screenshot(screenshotOptions);
     preflightPng(png);
     const decoded = driver.decodePng(png);
     if (decoded.width !== 256 || decoded.height !== 64 || decoded.data.byteLength !== 256 * 64 * 4)
       throw new TypeError("Fixed Browser font probe must produce the complete baseline RGBA.");
-    return hash({ fontProfile: FONT_PROFILE, rgba: Array.from(decoded.data) });
+    return hash({
+      fontProfile: FONT_PROFILE,
+      fontBytes: driver.probeFont
+        ? createHash("sha256").update(driver.probeFont).digest("hex")
+        : undefined,
+      rgba: Array.from(decoded.data),
+    });
   } finally {
     await context.close();
   }
@@ -307,6 +336,7 @@ const abortable = async <T>(promise: Promise<T>, signal: AbortSignal): Promise<T
 export const createPlaywrightFixedBrowserFactory =
   (driver: BrowserDriver) =>
   async (options: { readonly signal?: AbortSignal } = {}): Promise<FixedBrowserSession> => {
+    const platform = Object.freeze(browserPlatformSchema.parse(driver.platform));
     const launch = driver.launch({
       headless: true,
       chromiumSandbox: true,
@@ -333,6 +363,7 @@ export const createPlaywrightFixedBrowserFactory =
       throw error;
     }
     const environment = Object.freeze({
+      platform,
       browser: Object.freeze({
         id: "playwright-chromium",
         version: browser.version(),
@@ -352,6 +383,7 @@ export const createPlaywrightFixedBrowserFactory =
       implementationHash: hash({
         adapter: "playwright-fixed-browser",
         browser: environment.browser,
+        platform,
         locale: environment.locale,
         timezone: environment.timezone,
         fixedTimeMs: FIXED_TIME_MS,
@@ -394,6 +426,7 @@ export const createPlaywrightFixedBrowserFactory =
       const externalSignal = captureOptions?.signal;
       if (
         !hasFixedEnvironment(request, fontFingerprint) ||
+        hash(request.environment.platform) !== hash(platform) ||
         request.environment.browser.version !== environment.browser.version ||
         !hasPixelTarget(request.pixelTarget) ||
         !Number.isSafeInteger(request.fontFaceCount) ||
@@ -465,6 +498,7 @@ export const createPlaywrightFixedBrowserFactory =
     return Object.freeze({ identity, environment, capture, close });
   };
 
-export const openPlaywrightFixedBrowser = createPlaywrightFixedBrowserFactory(playwrightDriver);
+export const openPlaywrightFixedBrowser = async (options?: { readonly signal?: AbortSignal }) =>
+  createPlaywrightFixedBrowserFactory(await playwrightDriver())(options);
 
 export { initScript as fixedBrowserInitScript };

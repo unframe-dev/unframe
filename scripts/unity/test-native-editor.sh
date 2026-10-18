@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
+# shellcheck source=../lib/native-host.sh
+source "$root/scripts/lib/native-host.sh"
+host="$(native_host)"
 mode="${1:-e2e}"
 case "$mode" in unit|regression|e2e|showcase) ;; *) echo "Expected unit, regression, e2e or showcase." >&2; exit 1 ;; esac
 project="$root/.unframe/native-editor/project"
@@ -28,30 +31,28 @@ fi
 cat > "$assets/Unframe/UnframeNativeRuntime.asmdef" <<'JSON'
 {"name":"UnframeNativeRuntime","references":["Cysharp.Net.Http.YetAnotherHttpHandler"]}
 JSON
-python3 - "$root" "$project" "$mode" <<'PY'
-import json, pathlib, sys
-root, project = map(pathlib.Path, sys.argv[1:3])
-mode = sys.argv[3]
-source = json.loads((root / 'app/unity/Packages/manifest.json').read_text())
-dependencies = {
-  'com.cysharp.yetanotherhttphandler': source['dependencies']['com.cysharp.yetanotherhttphandler'],
-  'com.unity.render-pipelines.universal': source['dependencies']['com.unity.render-pipelines.universal'],
-  'com.unity.test-framework': source['dependencies']['com.unity.test-framework'],
-  'com.unity.nuget.newtonsoft-json': source['dependencies']['com.unity.nuget.newtonsoft-json'],
-  'com.unity.modules.jsonserialize': '1.0.0',
-  'com.unity.modules.animation': '1.0.0',
-  'com.unity.modules.imageconversion': '1.0.0',
-  'com.unity.modules.physics': '1.0.0',
-  'com.unity.modules.unitywebrequest': '1.0.0',
+node --input-type=module - "$root" "$project" <<'JS'
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const [root, project] = process.argv.slice(2);
+const source = JSON.parse(readFileSync(join(root, 'app/unity/Packages/manifest.json'), 'utf8'));
+const dependencies = {};
+for (const name of ['com.cysharp.yetanotherhttphandler', 'com.unity.render-pipelines.universal', 'com.unity.test-framework', 'com.unity.nuget.newtonsoft-json']) {
+  if (!Object.hasOwn(source.dependencies, name)) throw new Error(`Missing Unity package dependency: ${name}`);
+  dependencies[name] = source.dependencies[name];
 }
-(project / 'Packages/manifest.json').write_text(json.dumps({'dependencies': dependencies}, indent=2))
-plugins = [p.name for p in (project / 'Assets/Unframe/Plugins').glob('*.dll')]
-(project / 'Assets/Tests/Editor/UnframeNativeTests.asmdef').write_text(json.dumps({
-  'name': 'UnframeNativeTests', 'references': ['UnframeNativeRuntime', 'Cysharp.Net.Http.YetAnotherHttpHandler', 'Unity.RenderPipelines.Universal.Runtime', 'Unity.RenderPipelines.Core.Runtime'],
-  'includePlatforms': ['Editor'], 'optionalUnityReferences': ['TestAssemblies'],
-  'overrideReferences': True, 'precompiledReferences': ['nunit.framework.dll', 'Newtonsoft.Json.dll', *plugins],
-}, indent=2))
-PY
+for (const name of ['jsonserialize', 'animation', 'imageconversion', 'physics', 'unitywebrequest']) {
+  dependencies[`com.unity.modules.${name}`] = '1.0.0';
+}
+writeFileSync(join(project, 'Packages/manifest.json'), JSON.stringify({ dependencies }, null, 2));
+const plugins = readdirSync(join(project, 'Assets/Unframe/Plugins')).filter((name) => name.endsWith('.dll'));
+writeFileSync(join(project, 'Assets/Tests/Editor/UnframeNativeTests.asmdef'), JSON.stringify({
+  name: 'UnframeNativeTests',
+  references: ['UnframeNativeRuntime', 'Cysharp.Net.Http.YetAnotherHttpHandler', 'Unity.RenderPipelines.Universal.Runtime', 'Unity.RenderPipelines.Core.Runtime'],
+  includePlatforms: ['Editor'], optionalUnityReferences: ['TestAssemblies'],
+  overrideReferences: true, precompiledReferences: ['nunit.framework.dll', 'Newtonsoft.Json.dll', ...plugins],
+}, null, 2));
+JS
 cp "$root/app/unity/ProjectSettings/ProjectVersion.txt" "$project/ProjectSettings/"
 if [[ "$mode" == unit ]]; then
   filter='PresentationNativeHandlerFactoryEditModeTests|PresentationBakedRuntimeDownloadEditModeTests'
@@ -70,7 +71,11 @@ else
     done
     filter='PresentationNativeShowcaseVideoTests'
   fi
-  graphics=(-force-glcore)
+  if [[ "$host" == linux ]]; then
+    graphics=(-force-glcore)
+  else
+    graphics=()
+  fi
 fi
 exec nix run "$root#unity-editor" -- -batchmode "${graphics[@]}" -projectPath "$project" \
   -runTests -testPlatform EditMode -testFilter "$filter" \

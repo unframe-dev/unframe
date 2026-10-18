@@ -1,5 +1,5 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 
@@ -32,7 +32,7 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 import { readBoundedRegularFile } from "../src/filesystem/path-policy.js";
 
 it("rejects an inode that grows after fstat but before the bounded read", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-growth-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-growth-"));
   try {
     const path = join(directory, "race.bin");
     await writeFile(path, "base");

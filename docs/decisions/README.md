@@ -10,6 +10,7 @@
 - 静的 TypeScript / JSX: [Structured Authoring Contract](../packages/AUTHORING_CONTRACT.md)
 - 生成 consumer の命名と責務: [ADR-0024](./0024-canonical-presentation-contract-names.md)
 - Publication HTTP と Unity transport: [ADR-0025](./0025-m6-application-transport-boundaries.md)
+- Linux / macOS の native host と再現性: [ADR-0026](./0026-native-linux-macos-host-adapters.md)
 
 ADR-0009〜0011 は、ADR-0021 による Hit Region 境界の更新を本文へ反映済みのため保持する。Semantic Tree、座標、partition の残る規則は引き続き有効である。ADR-0017 の M3A 範囲も履歴上のスライス範囲として保持し、現行 Structured graph の拡張は ADR-0022 と Authoring Contract に従う。
 

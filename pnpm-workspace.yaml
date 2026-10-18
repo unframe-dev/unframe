@@ -1,9 +1,11 @@
 packages:
   - "app/*"
   - "app/server/control-plane"
+  - "app/unity/scripts"
   - "lp"
   - "packages/*"
   - "scripts/docs/notion-sync"
+  - "scripts/dev"
 
 # Vite+ catalog: vite / vitest を Vite+ バンドル版に固定し、ワークスペース全体で共有する
 catalog:

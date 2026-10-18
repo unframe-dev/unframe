@@ -4,7 +4,7 @@
 
 ## Local Editor の起動
 
-Linux、project 指定、固定 Browser の provision、利用可能な Unity Editor の WebGL module と license が必要です。`UNITY_EDITOR` は `ProjectVersion.txt` に対応する実行ファイルを指定できます。未指定時は Unity Hub の標準配置を探します。
+対象 host は Linux x86_64 と macOS arm64 です。native 隔離の保証差と実機検証結果は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。project 指定、固定 Browser の provision、利用可能な Unity Editor の WebGL module と license が必要です。`UNITY_EDITOR` は `ProjectVersion.txt` に対応する実行ファイルを指定できます。未指定時は OS ごとの Unity Hub 標準配置を探します。
 
 初回にリポジトリ root で依存関係、固定 Browser、Unity Preview player を準備します。
 
@@ -26,7 +26,7 @@ pnpm --filter @unframe/web dev:editor
 pnpm --filter @unframe/unframe-cli dev -- "$PWD/examples/local-editor-showcase"
 ```
 
-CLI が認証付きの Editor URL をブラウザで開きます。Web は HMR で画面の変更を反映し、API と Unity player の要求を CLI に proxy します。CLI の `dev` が固定 Browser のパス設定と Opaque capture の cgroup 準備を行うため、wrapper の手動指定や `build:editor` は不要です。ページ全体を再読み込みした場合は、CLI のターミナルで `r` + Enter を入力して認証付き Editor を開き直します。停止は各ターミナルで `Ctrl+C` です。
+CLI が認証付きの Editor URL をブラウザで開きます。Web は HMR で画面の変更を反映し、API と Unity player の要求を CLI に proxy します。CLI の `dev` が固定 Browser のパス設定と OS 別の起動準備を行うため、wrapper の手動指定や `build:editor` は不要です。ページ全体を再読み込みした場合は、CLI のターミナルで `r` + Enter を入力して認証付き Editor を開き直します。停止は各ターミナルで `Ctrl+C` です。
 
 Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dist Preview を順に確認します。WebGL Preview は初期 Group／State の静止表示が対象で、Step／Cue／Timeline の再生と本番 Realtime 接続は対象外です。
 

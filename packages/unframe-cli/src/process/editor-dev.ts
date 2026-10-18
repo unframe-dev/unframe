@@ -1,3 +1,4 @@
+import { nativeHost } from "../platform/host.js";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +10,7 @@ if (scoped) args.shift();
 if (args[0] === "--") args.shift();
 
 const run = async () => {
-  if (process.platform !== "linux") throw new Error("Local Editor development requires Linux.");
+  const host = nativeHost();
   if (args.length !== 1 || !args[0])
     throw new Error("Usage: pnpm --filter @unframe/unframe-cli dev -- <project-directory>");
   const directory = resolve(process.env["INIT_CWD"] ?? process.cwd(), args[0]);
@@ -19,6 +20,10 @@ const run = async () => {
   process.on("SIGINT", abort);
   process.on("SIGTERM", abort);
   try {
+    if (!host.cgroup) {
+      await runAuthorProcess(directory, controller.signal, true);
+      return;
+    }
     if (scoped) {
       if (!process.env["UNFRAME_OPAQUE_CGROUP_ROOT"])
         throw new Error("Opaque capture scope was not prepared.");
