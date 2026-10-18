@@ -1,5 +1,5 @@
 import { mkdtemp, rm, writeFile, readFile, cp } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it } from "vitest";
@@ -13,7 +13,7 @@ afterEach(async () => {
   );
 });
 it("prevents readers from observing a source save and leaves its revision unchanged after release", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-source-lease-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-lease-"));
   directories.push(directory);
   await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
     recursive: true,
@@ -36,14 +36,14 @@ it("prevents readers from observing a source save and leaves its revision unchan
   });
 });
 it("does not remove an existing lease", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-source-lease-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-lease-"));
   directories.push(directory);
   await writeFile(join(directory, ".unframe-source.lock"), "other writer");
   expect(await acquireSourceLock(directory)).toMatchObject({ ok: false });
   expect(await readFile(join(directory, ".unframe-source.lock"), "utf8")).toBe("other writer");
 });
 it("waits for a Host reader lease, then snapshots the released revision", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-source-wait-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-wait-"));
   directories.push(directory);
   await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
     recursive: true,
@@ -56,7 +56,7 @@ it("waits for a Host reader lease, then snapshots the released revision", async 
   expect(await waiting).toMatchObject({ ok: true });
 });
 it("bounds a Host lease wait and cancels it without removing the current owner's lease", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-source-wait-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-wait-"));
   directories.push(directory);
   const lease = await acquireSourceLock(directory);
   assert(lease.ok);
@@ -72,7 +72,7 @@ it("bounds a Host lease wait and cancels it without removing the current owner's
 });
 
 it("rejects a changed revision after the Host waited for a reader lease", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-source-wait-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-wait-"));
   directories.push(directory);
   await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
     recursive: true,

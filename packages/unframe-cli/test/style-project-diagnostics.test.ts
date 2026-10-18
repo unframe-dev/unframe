@@ -1,5 +1,5 @@
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it, vi } from "vitest";
@@ -40,8 +40,8 @@ const successful = (diagnostics: unknown[] = []) => ({
   diagnostics,
 });
 const fixture = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-style-diagnostics-"));
-  const adapter = await mkdtemp(join(tmpdir(), "unframe-style-adapter-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-style-diagnostics-"));
+  const adapter = await mkdtemp(join(temporaryDirectory(), "unframe-style-adapter-"));
   directories.push(directory, adapter);
   await cp(fileURLToPath(new URL("../../../examples/presentation", import.meta.url)), directory, {
     recursive: true,
@@ -204,6 +204,7 @@ const browserHost = {
   openFixedBrowser: async (): Promise<FixedBrowserSession> => ({
     identity: { id: "style-test-browser", implementationHash: "sha256:style-test" },
     environment: {
+      platform: { os: "linux", arch: "x64", fingerprint: "sha256:test-runtime" },
       browser: { id: "style-test-browser", version: "1", fontFingerprint: "sha256:fonts" },
       locale: "ja-JP",
       timezone: "Asia/Tokyo",

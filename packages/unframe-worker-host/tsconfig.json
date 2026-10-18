@@ -3,7 +3,8 @@
   "compilerOptions": {
     "noEmit": true,
     "noPropertyAccessFromIndexSignature": false,
-    "types": ["node"]
+    "types": ["node"],
+    "allowImportingTsExtensions": true
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

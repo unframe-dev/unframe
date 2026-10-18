@@ -39,6 +39,7 @@ export const copyRgba = (value: unknown): Uint8Array | undefined => {
 
 const environmentKeys = [
   "browser",
+  "platform",
   "clock",
   "colorSpace",
   "deviceScaleFactor",
@@ -48,6 +49,7 @@ const environmentKeys = [
   "random",
   "timezone",
 ] as const;
+const platformKeys = ["os", "arch", "fingerprint"] as const;
 const browserKeys = ["fontFingerprint", "id", "version"] as const;
 const adapterIdentityKeys = ["id", "implementationHash"] as const;
 
@@ -61,6 +63,11 @@ export const snapshotAdapterIdentity = (
 };
 
 export const normalizedEnvironment = (environment: FixedBrowserEnvironment) => ({
+  platform: {
+    os: environment.platform.os,
+    arch: environment.platform.arch,
+    fingerprint: environment.platform.fingerprint,
+  },
   browser: {
     id: environment.browser.id,
     version: environment.browser.version,
@@ -79,12 +86,14 @@ export const normalizedEnvironment = (environment: FixedBrowserEnvironment) => (
 export const snapshotEnvironment = (value: unknown): FixedBrowserEnvironment | undefined => {
   const record = snapshotStrictRecord(value, environmentKeys);
   const browser = record && snapshotStrictRecord(record.browser, browserKeys);
-  if (!record || !browser) return undefined;
-  const parsed = fixedBrowserEnvironmentSchema.safeParse({ ...record, browser });
+  const platform = record && snapshotStrictRecord(record.platform, platformKeys);
+  if (!record || !browser || !platform) return undefined;
+  const parsed = fixedBrowserEnvironmentSchema.safeParse({ ...record, browser, platform });
   if (!parsed.success) return undefined;
   return Object.freeze({
     ...parsed.data,
     browser: Object.freeze(parsed.data.browser),
+    platform: Object.freeze(parsed.data.platform),
   });
 };
 

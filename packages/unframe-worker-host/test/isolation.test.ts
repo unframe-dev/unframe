@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { runIsolatedWorker } from "../src/index.js";
+import { runLinuxWorker } from "../src/linux.js";
 
 describe("worker isolation", () => {
   it("rejects capture before loading a worker when the configured cgroup root is outside the delegation", async () => {
     await expect(
-      runIsolatedWorker(
+      runLinuxWorker(
         {
           workerPath: "/does-not-exist/worker.mjs",
           runtimePaths: [],

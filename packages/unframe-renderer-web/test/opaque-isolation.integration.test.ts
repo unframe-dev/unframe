@@ -44,7 +44,7 @@ const waitingWorker = `
   }
 `;
 
-describe("isolated opaque worker", () => {
+describe.skipIf(process.platform !== "linux")("isolated opaque worker", () => {
   it("reports an unavailable isolate when bootstrap exits before accepting input", async () => {
     const fixture = isolatedFixture("process.exit(1);");
     try {

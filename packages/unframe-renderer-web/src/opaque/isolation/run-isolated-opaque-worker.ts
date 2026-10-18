@@ -17,7 +17,12 @@ export const runIsolatedOpaqueWorker = (
       runtimePaths: input.runtimePaths,
       input: input.input,
       mounts: [{ source: dirname(input.browserPath), destination: "/browser" }],
-      environment: { UNFRAME_BROWSER_EXECUTABLE: `/browser/${basename(input.browserPath)}` },
+      environment: {
+        UNFRAME_BROWSER_EXECUTABLE:
+          process.platform === "darwin"
+            ? input.browserPath
+            : `/browser/${basename(input.browserPath)}`,
+      },
     },
     {
       ...options,

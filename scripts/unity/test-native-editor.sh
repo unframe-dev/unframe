@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
+# shellcheck source=../lib/native-host.sh
+source "$root/scripts/lib/native-host.sh"
+host="$(native_host)"
 mode="${1:-e2e}"
 case "$mode" in unit|regression|playback|e2e|showcase) ;; *) echo "Expected unit, regression, playback, e2e or showcase." >&2; exit 1 ;; esac
 project="$root/.unframe/native-editor/project"
@@ -59,7 +62,11 @@ else
     done
     filter='PresentationNativeShowcaseVideoTests'
   fi
-  graphics=(-force-glcore)
+  if [[ "$host" == linux ]]; then
+    graphics=(-force-glcore)
+  else
+    graphics=()
+  fi
 fi
 exec nix run "$root#unity-editor" -- -batchmode "${graphics[@]}" -projectPath "$project" \
   -runTests -testPlatform EditMode -testFilter "$filter" \

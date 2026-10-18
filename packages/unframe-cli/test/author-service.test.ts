@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
@@ -38,7 +38,7 @@ const component = [
   "});",
 ].join("\n");
 const createProject = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-author-service-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-service-"));
   temporary.push(directory);
   await cp(reference, directory, { recursive: true });
   const discovered = await discoverPresentationProjectFiles(directory);
@@ -185,7 +185,7 @@ describe("author service with frozen React source", () => {
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(beforeLock);
   }, 30000);
   it("builds compiler-valid source without Inspector metadata", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-author-readonly-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-readonly-"));
     temporary.push(directory);
     await cp(reference, directory, { recursive: true });
     const service = await createAuthorService(directory, {
@@ -684,7 +684,7 @@ describe("author service with frozen React source", () => {
   }, 30000);
 });
 it("waits for a short build lease before returning the polled project", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-lease-fixture-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-lease-fixture-"));
   temporary.push(directory);
   await cp(reference, directory, { recursive: true });
   const service = await createAuthorService(directory);
@@ -699,7 +699,7 @@ it("waits for a short build lease before returning the polled project", async ()
   expect(await pending).toMatchObject({ revision: before.revision });
 }, 30_000);
 it("does not register or start a build after closing while its source lease is pending", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-lease-fixture-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-lease-fixture-"));
   temporary.push(directory);
   await cp(reference, directory, { recursive: true });
   const run = vi.fn<typeof runPresentationCli>();

@@ -18,6 +18,8 @@ go run ./cmd/server
 
 標準 gRPC Health Checking service は process 起動だけでは `SERVING` になりません。composition root が local assignment lease と JWKS cache を期限付きで確認した後に application ready を公開し、稼働中も再評価して依存障害時または shutdown 開始時に `NOT_SERVING` へ戻します。assignment guard は期限後の command / reliable delivery を拒否しますが、`NOT_SERVING` 遷移時に既存の idle stream を閉じて Session Runtime を pause する lifecycle 接続は未実装です。`SIGINT` または `SIGTERM` を受け取ると、10秒を上限に graceful shutdown します。
 
+`SSL_CERT_FILE` に PEM 形式の CA 証明書ファイルを指定すると、macOS を含む各 OS で HTTP client の信頼ストアにシステム証明書と併せて読み込み、JWKS と Control Plane の HTTPS 通信に使用します。ホスト名と証明書の検証は維持します。未設定時は標準の HTTP client を使用し、指定ファイルが読めない場合や有効な証明書を含まない場合は起動を中止します。
+
 ## 構成
 
 - `cmd/server`: listener と signal handling を組み立てる composition root

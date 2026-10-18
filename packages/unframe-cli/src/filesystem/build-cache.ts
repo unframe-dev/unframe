@@ -1,8 +1,11 @@
+import { nativeHost } from "../platform/host.js";
 import { createHash, randomUUID } from "node:crypto";
+import { constants } from "node:fs";
+import { mkdir, open, readdir, rename, rm, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
 import * as z from "zod";
 import type { CompilerBuildCache, CompiledDeclarationProject } from "@unframe/unframe-compiler";
-import { NativeFilesystem, type NativeDirectory } from "./native-filesystem.js";
+import { createPosixCacheSession, PosixCacheUnavailableError } from "./posix-cache.js";
 import { projectDirectory } from "./path-policy.js";
 import { parseStrictJson } from "./strict-json.js";
 
@@ -24,15 +27,57 @@ const assetSetSchema = z.object({
 });
 const checksum = (bytes: Uint8Array) =>
   `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-const anchor = (handle: NativeDirectory) => handle.anchor;
+type CacheHandle = {
+  fd: number;
+  close: () => Promise<unknown>;
+  sync: () => Promise<unknown>;
+  stat: () => Promise<{ mtimeMs: number }>;
+};
+const directory = (path: string) =>
+  open(path, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
 
-/** Project cache, independent of Release and Delivery output. */
+const read = async (path: string, limit: number): Promise<Uint8Array> => {
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.size > limit) throw new Error("Invalid cache file");
+    const bytes = new Uint8Array(stat.size);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const result = await handle.read(bytes, offset, bytes.length - offset, offset);
+      if (result.bytesRead === 0) throw new Error("Cache file shrank during read");
+      offset += result.bytesRead;
+    }
+    const probe = await handle.read(new Uint8Array(1), 0, 1, offset);
+    if (probe.bytesRead !== 0) throw new Error("Cache file grew during read");
+    return bytes;
+  } finally {
+    await handle.close();
+  }
+};
+const write = async (path: string, bytes: Uint8Array) => {
+  const handle = await open(
+    path,
+    constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
+    0o600,
+  );
+  try {
+    await handle.writeFile(bytes);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+};
+
+/** POSIX project cache, independent of Release and Delivery output. */
 export const createFilesystemBuildCache = (
   root: string,
   options: {
     readonly signal?: AbortSignal;
     readonly maxEntries?: number;
     readonly onStaged?: () => void | Promise<void>;
+    readonly onError?: (error: unknown) => void;
+    readonly backend?: "linux" | "posix";
   } = {},
 ): CompilerBuildCache => {
   const maxEntries = options.maxEntries ?? 16;
@@ -40,34 +85,79 @@ export const createFilesystemBuildCache = (
     throw new TypeError("Invalid cache entry limit");
   const withRoot = async <T>(
     create: boolean,
-    action: (base: string, filesystem: NativeFilesystem) => Promise<T>,
+    action: (
+      base: string,
+      io: {
+        directory: (path: string) => Promise<CacheHandle>;
+        anchor: (handle: { fd: number }) => string;
+        read: typeof read;
+        write: (path: string, bytes: Uint8Array) => Promise<unknown>;
+        mkdir: (
+          path: string,
+          options?: { mode?: number; recursive?: boolean; force?: boolean },
+        ) => Promise<unknown>;
+        rename: (path: string, target: string) => Promise<unknown>;
+        rm: (
+          path: string,
+          options?: { mode?: number; recursive?: boolean; force?: boolean },
+        ) => Promise<unknown>;
+        readdir: (
+          path: string,
+          options?: unknown,
+        ) => Promise<Array<{ name: string; isDirectory: () => boolean }>>;
+      },
+    ) => Promise<T>,
   ): Promise<T | undefined> => {
-    await using filesystem = new NativeFilesystem();
-    const directory = (path: string) => filesystem.directory(path);
+    if (options.signal?.aborted || !(await projectDirectory(root))) return undefined;
+    const portable =
+      (options.backend ?? (nativeHost().os === "darwin" ? "posix" : "linux")) === "posix"
+        ? createPosixCacheSession()
+        : undefined;
+    const handles: Array<
+      FileHandle | Awaited<ReturnType<NonNullable<typeof portable>["directory"]>>
+    > = [];
+    const directoryOpen = portable?.directory ?? directory;
+    const anchored = (handle: { fd: number }) =>
+      portable ? `/fd/${handle.fd}` : `/proc/self/fd/${handle.fd}`;
     try {
-      if (options.signal?.aborted || !(await projectDirectory(root))) return undefined;
-      let handle = await directory(root);
+      let handle = await directoryOpen(root);
+      handles.push(handle);
       for (const name of [".unframe", "cache", "builds-v1"]) {
-        const child = join(anchor(handle), name);
+        const child = join(anchored(handle), name);
         if (create)
-          await filesystem.mkdir(child).catch((error: unknown) => {
-            if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-          });
-        handle = await directory(child);
+          await (portable ? portable.mkdir(child) : mkdir(child, { mode: 0o700 })).catch(
+            (error: unknown) => {
+              if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+            },
+          );
+        handle = await directoryOpen(child);
+        handles.push(handle);
       }
-      return await action(anchor(handle), filesystem);
-    } catch {
+      return await action(anchored(handle), {
+        directory: directoryOpen,
+        anchor: anchored,
+        read: portable?.read ?? read,
+        write: portable?.write ?? write,
+        mkdir: portable?.mkdir ?? mkdir,
+        rename: portable?.rename ?? rename,
+        rm: portable?.rm ?? rm,
+        readdir: portable?.readdir ?? ((path) => readdir(path, { withFileTypes: true })),
+      });
+    } catch (error) {
+      options.onError?.(error);
+      if (error instanceof PosixCacheUnavailableError) throw error;
       return undefined;
+    } finally {
+      await Promise.allSettled(handles.reverse().map((handle) => handle.close()));
+      await portable?.close();
     }
   };
   return {
     async get(key) {
       if (!keyPattern.test(key)) return undefined;
-      return withRoot(false, async (base, filesystem) => {
-        const directory = (path: string) => filesystem.directory(path);
-        const read = (path: string, limit: number) => filesystem.read(path, limit);
-        await using entry = await directory(join(base, key.slice(7)));
-        {
+      return withRoot(false, async (base, { directory, anchor, read }) => {
+        const entry = await directory(join(base, key.slice(7)));
+        try {
           const parsed = parseStrictJson(
             await read(join(anchor(entry), "entry.json"), 64 * 1024 * 1024),
           );
@@ -93,78 +183,90 @@ export const createFilesystemBuildCache = (
             assets[id] = bytes;
           }
           return { ...metadata.data.value, assets };
+        } finally {
+          await entry.close();
         }
       });
     },
     async set(key, value: CompiledDeclarationProject) {
       if (!keyPattern.test(key)) return;
-      await withRoot(true, async (base, filesystem) => {
-        const directory = (path: string) => filesystem.directory(path);
-        const write = (path: string, bytes: Uint8Array) => filesystem.write(path, bytes);
-        const rename = (path: string, target: string) => filesystem.rename(path, target);
-        const name = `.staging-${randomUUID()}`;
-        const staging = join(base, name);
-        await filesystem.mkdir(staging);
-        const discarded = join(base, `.discarded-${randomUUID()}`);
-        try {
-          await using handle = await directory(staging);
-          const snapshot = structuredClone(value);
-          const { assets, ...metadata } = snapshot;
-          const descriptors = assetSetSchema.parse(snapshot.assetSet).assets;
-          const written = new Set<string>();
-          let total = 0;
-          for (const [id, descriptor] of Object.entries(descriptors)) {
-            const bytes = assets[id];
-            if (
-              !(bytes instanceof Uint8Array) ||
-              bytes.length !== descriptor.encodedSizeBytes ||
-              checksum(bytes) !== descriptor.checksum
-            )
-              throw new Error("Cache checksum mismatch");
-            if (written.has(descriptor.checksum)) continue;
-            written.add(descriptor.checksum);
-            total += bytes.length;
-            if (total > MAX_BYTES || options.signal?.aborted)
-              throw new Error("Cache write cancelled or oversized");
-            await write(join(anchor(handle), `${descriptor.checksum.slice(7)}.bin`), bytes);
-          }
-          const json = new TextEncoder().encode(JSON.stringify({ version: 1, value: metadata }));
-          if (json.length > 64 * 1024 * 1024) throw new Error("Cache metadata exceeded limit");
-          await write(join(anchor(handle), "entry.json"), json);
-          await options.onStaged?.();
-          if (options.signal?.aborted) return;
-          await handle.sync();
-          await handle.close();
-          await rename(join(base, key.slice(7)), discarded).catch((error: unknown) => {
-            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-          });
-          // Concurrent writers may already have published this immutable key.
-          await rename(staging, join(base, key.slice(7))).catch((error: unknown) => {
-            if (!["EEXIST", "ENOTEMPTY"].includes((error as NodeJS.ErrnoException).code ?? ""))
-              throw error;
-          });
-          const entries = await filesystem.readdir(base);
-          const completed = entries.filter(
-            (entry) => entry.isDirectory() && digest.test(entry.name),
-          );
-          if (completed.length > maxEntries) {
-            const ranked = await Promise.all(
-              completed
-                .filter((entry) => entry.name !== key.slice(7))
-                .map(async (item) => {
-                  await using owned = await directory(join(base, item.name));
-                  return { name: item.name, time: (await owned.stat()).mtimeMs };
-                }),
+      await withRoot(
+        true,
+        async (base, { directory, anchor, write, mkdir, rename, rm, readdir }) => {
+          const name = `.staging-${randomUUID()}`;
+          const staging = join(base, name);
+          await mkdir(staging, { mode: 0o700 });
+          const discarded = join(base, `.discarded-${randomUUID()}`);
+          let handle: CacheHandle | undefined;
+          try {
+            handle = await directory(staging);
+            const snapshot = structuredClone(value);
+            const { assets, ...metadata } = snapshot;
+            const descriptors = assetSetSchema.parse(snapshot.assetSet).assets;
+            const written = new Set<string>();
+            let total = 0;
+            for (const [id, descriptor] of Object.entries(descriptors)) {
+              const bytes = assets[id];
+              if (
+                !(bytes instanceof Uint8Array) ||
+                bytes.length !== descriptor.encodedSizeBytes ||
+                checksum(bytes) !== descriptor.checksum
+              )
+                throw new Error("Cache checksum mismatch");
+              if (written.has(descriptor.checksum)) continue;
+              written.add(descriptor.checksum);
+              total += bytes.length;
+              if (total > MAX_BYTES || options.signal?.aborted)
+                throw new Error("Cache write cancelled or oversized");
+              await write(join(anchor(handle), `${descriptor.checksum.slice(7)}.bin`), bytes);
+            }
+            const json = new TextEncoder().encode(JSON.stringify({ version: 1, value: metadata }));
+            if (json.length > 64 * 1024 * 1024) throw new Error("Cache metadata exceeded limit");
+            await write(join(anchor(handle), "entry.json"), json);
+            await options.onStaged?.();
+            if (options.signal?.aborted) return;
+            await handle.sync();
+            await handle.close();
+            handle = undefined;
+            await rename(join(base, key.slice(7)), discarded).catch((error: unknown) => {
+              if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+            });
+            // Concurrent writers may already have published this immutable key.
+            await rename(staging, join(base, key.slice(7))).catch((error: unknown) => {
+              if (!["EEXIST", "ENOTEMPTY"].includes((error as NodeJS.ErrnoException).code ?? ""))
+                throw error;
+            });
+            const entries = await readdir(base, { withFileTypes: true });
+            const completed = entries.filter(
+              (entry) => entry.isDirectory() && digest.test(entry.name),
             );
-            ranked.sort((a, b) => a.time - b.time || a.name.localeCompare(b.name));
-            for (const stale of ranked.slice(0, completed.length - maxEntries))
-              await filesystem.rm(join(base, stale.name));
+            if (completed.length > maxEntries) {
+              const ranked = await Promise.all(
+                completed
+                  .filter((entry) => entry.name !== key.slice(7))
+                  .map(async (item) => {
+                    const owned = await directory(join(base, item.name));
+                    try {
+                      return { name: item.name, time: (await owned.stat()).mtimeMs };
+                    } finally {
+                      await owned.close();
+                    }
+                  }),
+              );
+              ranked.sort((a, b) => a.time - b.time || a.name.localeCompare(b.name));
+              for (const stale of ranked.slice(0, completed.length - maxEntries))
+                await rm(join(base, stale.name), { recursive: true, force: true });
+            }
+          } finally {
+            try {
+              await handle?.close();
+            } finally {
+              await rm(staging, { recursive: true, force: true });
+              await rm(discarded, { recursive: true, force: true });
+            }
           }
-        } finally {
-          await filesystem.rm(staging);
-          await filesystem.rm(discarded);
-        }
-      });
+        },
+      );
     },
   };
 };

@@ -1,5 +1,5 @@
 import { mkdtemp, rm, unlink, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import definition from "../../contracts/presentation/fixtures/presentation-definition.json";
@@ -16,7 +16,7 @@ afterEach(async () => {
   );
 });
 const createBuild = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-fixed-generation-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-fixed-generation-"));
   directories.push(directory);
   const encoder = new TextEncoder();
   await publishAtomicArtifacts({

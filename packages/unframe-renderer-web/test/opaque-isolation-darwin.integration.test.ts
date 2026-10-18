@@ -1,0 +1,203 @@
+import { spawn, spawnSync } from "node:child_process";
+import type { Writable } from "node:stream";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { chromium } from "playwright-core";
+import { managedHeadlessShell } from "../src/browser/runtime-environment.js";
+import { runIsolatedOpaqueWorker } from "../src/opaque/isolation/run-isolated-opaque-worker.js";
+
+// This suite deliberately requires native Seatbelt and a pinned Chromium; mocks cannot validate either.
+describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
+  "Darwin native isolation",
+  () => {
+    const fixture = (body: string, captured = "message.input") => {
+      const root = mkdtempSync(join(tmpdir(), "unframe-darwin-test-"));
+      const directory = join(root, "worker");
+      mkdirSync(directory);
+      const workerPath = join(directory, "worker.mjs");
+      writeFileSync(
+        workerPath,
+        `
+      import {createInterface} from 'node:readline';
+      import {spawn} from 'node:child_process';
+      let descendant;
+      console.log(JSON.stringify({type:'bootstrap'}));
+      for await (const line of createInterface({input:process.stdin})) {
+        const message=JSON.parse(line);
+        if(message.type==='launch') { ${body} }
+        if(message.type==='capture') { console.log(JSON.stringify({type:'result',value:${captured}})); process.stdin.destroy(); break; }
+      }
+    `,
+      );
+      return {
+        root,
+        workerPath,
+        browserPath: managedHeadlessShell(chromium.executablePath()).executablePath,
+        runtimePaths: readFileSync(process.env.UNFRAME_OPAQUE_RUNTIME_CLOSURE!, "utf8")
+          .trim()
+          .split("\n"),
+      };
+    };
+
+    it.each([1, 2, 3])("runs the deny probe and crosses both protocol barriers (%i)", async () => {
+      const input = fixture(`console.log(JSON.stringify({type:'ready'}));`);
+      try {
+        await expect(
+          runIsolatedOpaqueWorker({ ...input, input: { native: true } }),
+        ).resolves.toEqual({ native: true });
+      } finally {
+        rmSync(input.root, { recursive: true, force: true });
+      }
+    });
+
+    it("accounts for and cleans up a detached native descendant", async () => {
+      const input = fixture(
+        `
+        descendant=spawn(process.execPath,["-e","setTimeout(()=>{},10000)"],{detached:true,stdio:"ignore"});
+        await new Promise((resolve,reject)=>{descendant.once("spawn",resolve);descendant.once("error",reject)});
+        console.log(JSON.stringify({type:"ready"}));
+      `,
+        "{pid:descendant.pid}",
+      );
+      let pid: number | undefined;
+      try {
+        const result = (await runIsolatedOpaqueWorker({ ...input, input: {} })) as { pid: number };
+        pid = result.pid;
+        expect(Number.isSafeInteger(pid)).toBe(true);
+        expect(() => process.kill(pid!, 0)).toThrow();
+      } finally {
+        if (pid) {
+          try {
+            process.kill(-pid, "SIGKILL");
+          } catch {}
+        }
+        rmSync(input.root, { recursive: true, force: true });
+      }
+    });
+
+    it("requires Chromium to start with its own sandbox enabled", async () => {
+      const input = fixture(`
+      const browser=spawn(process.env.UNFRAME_BROWSER_EXECUTABLE,['--headless','--disable-gpu','--no-first-run','--dump-dom','about:blank'],{stdio:['ignore','ignore','pipe']});
+      let diagnostic=''; browser.stderr.on('data',chunk=>{
+        diagnostic=(diagnostic+chunk.toString()).slice(0,8192);
+      });
+      const launchTimer=setTimeout(()=>browser.kill('SIGKILL'),10000);
+      const {code,signal}=await new Promise((resolve,reject)=>{browser.once('error',reject);browser.once('close',(code,signal)=>resolve({code,signal}))});
+      clearTimeout(launchTimer);
+      if(code!==0) { console.log(JSON.stringify({type:'error',code:'chromium-sandbox-unavailable: pid='+browser.pid+' code='+code+' signal='+signal+' stderr='+diagnostic})); break; }
+      console.log(JSON.stringify({type:'ready'}));
+    `);
+      try {
+        const result = await runIsolatedOpaqueWorker({ ...input, input: { chromium: true } });
+        expect(result).toEqual({ chromium: true });
+      } catch (error) {
+        const match =
+          error instanceof Error
+            ? /chromium-sandbox-unavailable: pid=(\d+) code=/.exec(error.message)
+            : null;
+        const pid = Number(match?.[1]);
+        if (Number.isSafeInteger(pid) && pid > 1 && pid <= 2147483647) {
+          try {
+            const predicate = `processID == ${pid} OR ((process == "kernel" OR process == "sandboxd" OR senderImagePath CONTAINS "/Sandbox" OR subsystem == "com.apple.sandbox.reporting") AND (eventMessage CONTAINS "(${pid})" OR eventMessage CONTAINS "[${pid}]" OR eventMessage CONTAINS "p=${pid}[" OR eventMessage MATCHES ".*pid ${pid}([^0-9].*|$)"))`;
+            const diagnostic = spawnSync(
+              "/usr/bin/log",
+              ["show", "--last", "2m", "--style", "compact", "--predicate", predicate],
+              { encoding: "utf8", timeout: 5000, maxBuffer: 128 * 1024 },
+            );
+            console.error(
+              `Chromium OS diagnostic pid=${pid} status=${diagnostic.status} signal=${diagnostic.signal}\n${diagnostic.stdout?.slice(-8192) ?? ""}`,
+            );
+          } catch {
+            // OS diagnostics must not replace the browser startup failure.
+          }
+        }
+        throw error;
+      } finally {
+        rmSync(input.root, { recursive: true, force: true });
+      }
+    });
+
+    it.each([
+      ["EOF", Buffer.alloc(0)],
+      ["invalid serialization", Buffer.from("0100000000000000ff", "hex")],
+      ["invalid compiled policy", Buffer.from("0300000000000000010100", "hex")],
+    ])("rejects %s at the pinned Chromium seatbelt entry point", async (_name, payload) => {
+      const input = fixture("");
+      const browser = spawn(
+        input.browserPath,
+        [
+          "--headless",
+          "--disable-gpu",
+          "--no-first-run",
+          "--dump-dom",
+          "about:blank",
+          "--seatbelt-client=3",
+        ],
+        {
+          env: { HOME: input.root, TMPDIR: input.root },
+          stdio: ["ignore", "pipe", "pipe", "pipe"],
+        },
+      );
+      let output = "",
+        diagnostic = "",
+        timedOut = false;
+      browser.stdout?.on("data", (chunk: Buffer) => {
+        output = (output + chunk.toString()).slice(0, 8192);
+      });
+      browser.stderr?.on("data", (chunk: Buffer) => {
+        diagnostic = (diagnostic + chunk.toString()).slice(0, 8192);
+      });
+      const timer = setTimeout(() => {
+        timedOut = true;
+        browser.kill("SIGKILL");
+      }, 10000);
+      try {
+        const closed = new Promise<number | null>((resolve, reject) => {
+          browser.once("error", reject);
+          browser.once("close", resolve);
+        });
+        const policy = browser.stdio[3] as Writable;
+        policy.on("error", () => {});
+        policy.end(payload);
+        const code = await closed;
+        expect(timedOut, diagnostic).toBe(false);
+        expect(code, diagnostic).not.toBe(0);
+        expect(output, diagnostic).toBe("");
+      } finally {
+        clearTimeout(timer);
+        browser.kill("SIGKILL");
+        rmSync(input.root, { recursive: true, force: true });
+      }
+    });
+
+    it("recovers a stalled native worker after cancellation", async () => {
+      const input = fixture(`await new Promise(()=>{});`);
+      const controller = new AbortController();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const capture = runIsolatedOpaqueWorker(
+          { ...input, input: {} },
+          { signal: controller.signal },
+        );
+        timer = setTimeout(() => controller.abort(), 300);
+        await expect(capture).rejects.toMatchObject({ code: "opaque-capture-cancelled" });
+      } finally {
+        if (timer) clearTimeout(timer);
+        rmSync(input.root, { recursive: true, force: true });
+      }
+    });
+
+    it("kills a stalled native worker at the deadline", async () => {
+      const input = fixture(`await new Promise(()=>{});`);
+      try {
+        await expect(
+          runIsolatedOpaqueWorker({ ...input, input: {} }, { deadlineMs: 300 }),
+        ).rejects.toMatchObject({ code: "opaque-capture-timeout" });
+      } finally {
+        rmSync(input.root, { recursive: true, force: true });
+      }
+    });
+  },
+);

@@ -1,0 +1,11 @@
+{
+  "version": "151.0.7922.34",
+  "upstream": "https://chromium.googlesource.com/chromium/src/+/refs/tags/151.0.7922.34/sandbox/policy/mac/",
+  "license": "LICENSE",
+  "sha256": {
+    "common": "f5dc4129ade7d9e8ed5f53f19bb7f7594057cb69c82881e9615cbd4434a27e23",
+    "renderer": "43643636106bf2c497c849deae87981935a8b8137b5e5af6824b79ed34b53f4a",
+    "gpu": "28fad81d85942f09282d18948b482ebdd96fbce74f80f4cd3d7b725027ff2d5b",
+    "network": "ba07080bbb294ec05e680e687665fa35195ff3353ccec4b11c368dfebc1ae619"
+  }
+}
