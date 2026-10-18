@@ -10,6 +10,7 @@
     "build": "vp build",
     "check": "tsc --noEmit",
     "test": "vp test run",
+    "pretest:e2e": "bash ../../scripts/build-cli-filesystem.sh",
     "test:e2e": "playwright test",
     "preview": "vp preview",
     "cf:dev": "wrangler dev",
