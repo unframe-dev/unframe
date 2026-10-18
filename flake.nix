@@ -24,7 +24,7 @@
         toolchain = [
           (pkgs.callPackage ./packages/config/bun.nix { })
           pkgs.nodejs_22
-          pkgs.pnpm
+          (pkgs.pnpm.override { nodejs-slim = pkgs.nodejs-slim_22; })
           pkgs.go
           pkgs.golangci-lint
           pkgs.protobuf
