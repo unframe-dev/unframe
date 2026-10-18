@@ -4,7 +4,8 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "noPropertyAccessFromIndexSignature": false,
-    "types": ["node"]
+    "types": ["node"],
+    "lib": ["ES2024", "ESNext.Disposable", "DOM", "DOM.Iterable"]
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

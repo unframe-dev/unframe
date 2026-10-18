@@ -33,10 +33,10 @@ MonoBehaviour:
   meshRendererLayer: 21
   overlayDepth: 10
   useOverlay: 1
-  inspectedDataEnabled: 
+  inspectedDataEnabled:
   inspectedDataAssets: []
   useCustomIntegrationConfig: 0
-  customIntegrationConfigClassName: 
+  customIntegrationConfigClassName:
   hierarchyViewShowsPrivateMembers: 0
   clickButton: 8193
   toggleFollowTranslationButton: 0

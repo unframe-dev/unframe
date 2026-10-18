@@ -16,12 +16,12 @@ import {
   snapshotNodeTransformInputs,
   withNodeTransformSources,
 } from "../src/styles/node-snapshot.js";
-import { runIsolatedOpaqueWorker } from "@unframe/unframe-renderer-web/isolation";
+import { runIsolatedWorker } from "@unframe/unframe-worker-host";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
 
-vi.mock("@unframe/unframe-renderer-web/isolation", async (original) => ({
-  ...(await original<typeof import("@unframe/unframe-renderer-web/isolation")>()),
-  runIsolatedOpaqueWorker: vi.fn(),
+vi.mock("@unframe/unframe-worker-host", async (original) => ({
+  ...(await original<typeof import("@unframe/unframe-worker-host")>()),
+  runIsolatedWorker: vi.fn(),
 }));
 const directories: string[] = [];
 const services: AuthorService[] = [];
@@ -47,7 +47,7 @@ const fixture = async () => {
     recursive: true,
   });
   const original = await discoverPresentationProjectFiles(directory);
-  assert(original.ok);
+  assert(original.ok, JSON.stringify(original));
   const originalLock = loadUnframeLock(original.lockBytes);
   assert(originalLock.ok);
   const checked = checkAuthoringProject({
@@ -90,7 +90,7 @@ const fixture = async () => {
   await writeFile(join(directory, "postcss.config.mjs"), "export default {plugins:[]};");
   await writeFile(join(directory, "theme.CSS"), "@tailwind utilities;");
   const found = await discoverPresentationProjectFiles(directory);
-  assert(found.ok);
+  assert(found.ok, JSON.stringify(found));
   const loaded = loadUnframeLock(found.lockBytes);
   assert(loaded.ok);
   const snapshot = await snapshotNodeTransformInputs(directory, {
@@ -107,7 +107,7 @@ const fixture = async () => {
   };
   next.dependencyGraphHash = hashDependencyGraph(next);
   await writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(next) + "\n");
-  vi.mocked(runIsolatedOpaqueWorker).mockResolvedValue(successful());
+  vi.mocked(runIsolatedWorker).mockResolvedValue(successful());
   const styled = await runPresentationCli({ args: ["lock", "refresh", directory] });
   expect(styled.exitCode, styled.stderr).toBe(0);
   return directory;
@@ -140,7 +140,7 @@ it("reports style worker failures without fabricated source locations", async ()
   const directory = await fixture();
   const service = await createAuthorService(directory);
   services.push(service);
-  vi.mocked(runIsolatedOpaqueWorker).mockRejectedValue(new Error("Worker unavailable"));
+  vi.mocked(runIsolatedWorker).mockRejectedValue(new Error("Worker unavailable"));
   const snapshot = await service.project();
   expect(snapshot.irHash).toBeNull();
   expect(snapshot.diagnostics).toEqual([
@@ -157,7 +157,7 @@ it.each(["config", "transform"] as const)(
     const before = await service.project();
     const lock = await readFile(join(directory, "unframe.lock"));
     await writeFile(join(directory, "postcss.config.mjs"), "throw new Error('invalid config');");
-    vi.mocked(runIsolatedOpaqueWorker).mockResolvedValue({
+    vi.mocked(runIsolatedWorker).mockResolvedValue({
       ok: false,
       diagnostics: [
         {
@@ -223,9 +223,9 @@ const browserHost = {
 };
 it("retains successful style diagnostics in the prepared project", async () => {
   const directory = await fixture();
-  vi.mocked(runIsolatedOpaqueWorker).mockResolvedValue(successful([warning]));
+  vi.mocked(runIsolatedWorker).mockResolvedValue(successful([warning]));
   const found = await discoverPresentationProjectFiles(directory);
-  assert(found.ok);
+  assert(found.ok, JSON.stringify(found));
   const loaded = loadUnframeLock(found.lockBytes);
   assert(loaded.ok);
   const prepared = await prepareProjectSource(found, loaded.value.lock);
@@ -236,7 +236,7 @@ it.each(["check", "build"])(
   "surfaces style warnings through CLI %s without compiler-only metadata",
   async (command) => {
     const directory = await fixture();
-    vi.mocked(runIsolatedOpaqueWorker).mockResolvedValue(successful([warning]));
+    vi.mocked(runIsolatedWorker).mockResolvedValue(successful([warning]));
     const result = await runPresentationCli({
       args: [command, directory, "--format", "json"],
       host: browserHost,
@@ -254,7 +254,7 @@ it.each(["check", "build"])(
 
 it("surfaces style warnings once in Author snapshots and completed build jobs", async () => {
   const directory = await fixture();
-  vi.mocked(runIsolatedOpaqueWorker).mockResolvedValue(successful([warning]));
+  vi.mocked(runIsolatedWorker).mockResolvedValue(successful([warning]));
   const service = await createAuthorService(directory, {
     run: (input) => runPresentationCli({ ...input, host: { ...input.host, ...browserHost } }),
   });
@@ -280,7 +280,7 @@ it("prepares a directly imported uppercase CSS entry", async () => {
   const directory = await fixture();
   const entry = join(directory, "presentation.unframe.tsx");
   await writeFile(entry, 'import "./theme.CSS";\n' + (await readFile(entry, "utf8")));
-  vi.mocked(runIsolatedOpaqueWorker).mockImplementation(async (request) => {
+  vi.mocked(runIsolatedWorker).mockImplementation(async (request) => {
     const { entries } = request.input as { entries: string[] };
     return {
       ...successful(),
@@ -288,7 +288,7 @@ it("prepares a directly imported uppercase CSS entry", async () => {
     };
   });
   const found = await discoverPresentationProjectFiles(directory);
-  assert(found.ok);
+  assert(found.ok, JSON.stringify(found));
   const loaded = loadUnframeLock(found.lockBytes);
   assert(loaded.ok);
   const prepared = await prepareProjectSource(found, loaded.value.lock, { refresh: true });

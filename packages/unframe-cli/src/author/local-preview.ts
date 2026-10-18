@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import type { LocalPreviewEnvelopeWire } from "@unframe/contracts/presentation";
 import {
   buildRuntimeProjection,
@@ -10,9 +11,11 @@ import {
 } from "@unframe/unframe-core";
 import { readBuildGeneration } from "../filesystem/read-build-generation.js";
 import { AuthorError, randomIdSchema } from "./contract.js";
+import { createLocalPlayback } from "./local-playback.js";
 import { previewCapability } from "./preview-capability.js";
 import {
   previewCommittedRequestSchema,
+  previewPlaybackCommandSchema,
   previewLoadRequestSchema,
   type LocalPreviewService,
   type PinnedPreviewDist,
@@ -70,11 +73,12 @@ type Candidate = {
   artifacts: BuildArtifacts;
   assets: Map<string, PreviewAsset>;
   references: Map<string, string>;
+  playback: ReturnType<typeof createLocalPlayback>;
 };
 
 export const createLocalPreviewService = (
   directory: string,
-  options: { readGeneration?: typeof readBuildGeneration } = {},
+  options: { readGeneration?: typeof readBuildGeneration; now?: () => number } = {},
 ): LocalPreviewService => {
   const readGeneration = options.readGeneration ?? readBuildGeneration;
   let epoch = 0;
@@ -213,6 +217,16 @@ export const createLocalPreviewService = (
         artifacts,
         assets,
         references,
+        playback: createLocalPlayback({
+          requestId: input.requestId,
+          definition: artifacts.definition,
+          visibleNodeIds: visibleNodes,
+          visibleSurfaceIds: visibleSurfaces,
+          visibleTimelineIds: new Set(
+            (projection.runtimeCatalog?.timelines ?? []).map((timeline) => timeline.timelineId!),
+          ),
+          now: options.now ?? (() => performance.now()),
+        }),
       };
       return envelope;
     },
@@ -230,6 +244,17 @@ export const createLocalPreviewService = (
           "Preview commit does not match the current prepared build.",
         );
       displayed = candidate;
+    },
+    playback(raw) {
+      const input = parseRequest(previewPlaybackCommandSchema.safeParse(raw));
+      if (
+        closed ||
+        !displayed ||
+        displayed !== candidate ||
+        displayed.requestId !== input.requestId
+      )
+        fail(409, "preview-stale", "Playback requires the current committed Preview.");
+      return displayed.playback(input);
     },
     async asset(requestId, reference) {
       parseRequest(randomIdSchema.safeParse(requestId));

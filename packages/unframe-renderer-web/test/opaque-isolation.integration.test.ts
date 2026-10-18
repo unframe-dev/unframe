@@ -153,7 +153,7 @@ describe.skipIf(process.platform !== "linux")("isolated opaque worker", () => {
       setTimeout(() => controller.abort(), 150);
       await expect(capture).rejects.toMatchObject({ code: "opaque-capture-cancelled" });
       const groupRoot = process.env.UNFRAME_OPAQUE_CGROUP_ROOT!;
-      expect(readdirSync(groupRoot).filter((name) => name.startsWith("unframe-opaque-"))).toEqual(
+      expect(readdirSync(groupRoot).filter((name) => name.startsWith("unframe-worker-"))).toEqual(
         [],
       );
     } finally {

@@ -1,3 +1,4 @@
+import { CompilerInternalError } from "./compiler-internal-error.js";
 import { collectAuthoringDeclarations } from "../project/collect-authoring-declarations.js";
 import {
   pairAuthoringDeclarations,
@@ -25,21 +26,6 @@ export type CheckAuthoringProjectResult =
     }
   | { readonly valid: false; readonly diagnostics: readonly AuthoringProjectDiagnostic[] };
 
-const invalidInput = (): CheckAuthoringProjectResult => ({
-  valid: false,
-  diagnostics: [
-    {
-      code: "compiler-invalid-input",
-      fileName: "",
-      message: "Project input cannot be inspected safely.",
-      start: 0,
-      end: 0,
-      line: 1,
-      column: 1,
-    },
-  ],
-});
-
 /** Checks only virtual Authoring source and returns its plain declaration catalog. */
 export const checkAuthoringProject = (input: unknown): CheckAuthoringProjectResult => {
   try {
@@ -56,7 +42,7 @@ export const checkAuthoringProject = (input: unknown): CheckAuthoringProjectResu
     return paired.ok
       ? { valid: true, value: paired.catalog, diagnostics: [] }
       : { valid: false, diagnostics: paired.diagnostics };
-  } catch {
-    return invalidInput();
+  } catch (cause) {
+    throw new CompilerInternalError("source", cause);
   }
 };

@@ -23,18 +23,7 @@ const reject = (path: readonly (string | number)[], message: string): never => {
 };
 
 const assertValidUnicode = (value: string, path: readonly (string | number)[]) => {
-  for (let index = 0; index < value.length; index += 1) {
-    const codeUnit = value.charCodeAt(index);
-    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
-      if (index + 1 >= value.length) reject(path, "Lone Unicode surrogates are not JSON values.");
-      const next = value.charCodeAt(index + 1);
-      if (next < 0xdc00 || next > 0xdfff)
-        reject(path, "Lone Unicode surrogates are not JSON values.");
-      index += 1;
-    } else if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
-      reject(path, "Lone Unicode surrogates are not JSON values.");
-    }
-  }
+  if (!value.isWellFormed()) reject(path, "Lone Unicode surrogates are not JSON values.");
 };
 
 const arrayIndex = (key: string): number | undefined => {

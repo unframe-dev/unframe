@@ -108,6 +108,7 @@ public sealed class PresentationNativeShowcaseVideoTests
         host = new PresentationRuntimeHost(Path.Combine(cacheDirectory, "sessions.json"), cache);
         var root = new GameObject("Showcase Runtime");
         var runtime = root.AddComponent<PresentationBakedRuntime>();
+        Transform presentation = PresentationNativeRuntimeFixture.Configure(runtime);
         var connection = new PresentationControlPlaneConnection(new Uri(Required("UNFRAME_E2E_CONTROL_PLANE_ORIGIN")),
             Required("UNFRAME_E2E_SESSION_ID"), _ => Task.FromResult(bearer), host,
             () => new YetAnotherHttpHandler { RootCertificates = ca, Http2Only = false },
@@ -166,9 +167,9 @@ public sealed class PresentationNativeShowcaseVideoTests
             camera.farClipPlane = 20000;
             camera.aspect = 1280f / 720f;
             var framing = cameraObject.AddComponent<PresentationPreviewCamera>();
-            framing.Frame(root.transform);
+            framing.Frame(presentation);
             framing.enabled = false;
-            Bounds bounds = VisibleBounds(root);
+            Bounds bounds = VisibleBounds(presentation.gameObject);
             float tangent = Mathf.Tan(camera.fieldOfView * Mathf.Deg2Rad / 2);
             float distance = Mathf.Max(0.5f, Mathf.Max(bounds.extents.y / tangent, bounds.extents.x / (tangent * camera.aspect)) * 1.12f);
             target = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);
@@ -247,7 +248,7 @@ public sealed class PresentationNativeShowcaseVideoTests
                     }
                     else Assert.That(Time.realtimeSinceStartup, Is.LessThan(pendingDeadline), "Showcase command did not produce the required Step/Cue/Timeline/state.");
                 }
-                bounds = VisibleBounds(root);
+                bounds = VisibleBounds(presentation.gameObject);
                 MoveCamera(camera, bounds, distance, movieTime - cameraResetTime);
                 ReadViewportBounds(camera, bounds, out Vector2 viewportMinimum, out Vector2 viewportMaximum);
                 Assert.That(viewportMinimum.x, Is.GreaterThanOrEqualTo(0.025f));
@@ -274,7 +275,7 @@ public sealed class PresentationNativeShowcaseVideoTests
                 result.frames++;
                 Assert.That(store.TryGetNodeState(flow.nodeId, out var node), Is.True);
                 Assert.That(store.TryGetSurfaceState(flow.surfaceId, out var surface), Is.True);
-                float renderedOpacity = RenderedOpacity(root);
+                float renderedOpacity = RenderedOpacity(presentation.gameObject);
                 result.minimumRenderedOpacity = Mathf.Min(result.minimumRenderedOpacity, renderedOpacity);
                 result.maximumRenderedOpacity = Mathf.Max(result.maximumRenderedOpacity, renderedOpacity);
                 if (result.acceptedCommands.Count > 0)

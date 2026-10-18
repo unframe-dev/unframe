@@ -43,6 +43,8 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
+        public void SetHierarchyRoot(Transform root) => hierarchyRoot = root;
+
         public void SetDeliveryFixture(TextAsset fixture)
         {
             deliveryFixture = fixture;

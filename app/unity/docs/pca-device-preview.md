@@ -1,6 +1,6 @@
 # PCA 実機映像プレビュー
 
-`Assets/Scenes/PassthroughCameraDeviceTest.unity` は MRUK の `PassthroughCameraAccess` から左カメラの GPU テクスチャを取得して、ヘッドセット内のパネルへ表示します。カメラの許可状態、受信フレーム数、実際の解像度、カメラ FPS、撮影時刻を確認できます。OpenCV for Unity による ArUco ID・四隅検出も接続しています。検出テストは [ArUco 実機手順](aruco-marker-detection.md) を参照してください。ID 0・黒い一辺20cmのマーカーから位置・向きを推定し、安定した原点を確定するとPCA取得・検出を停止します。端末間同期は未実装です。
+`Assets/Scenes/ArucoPresentationTest.unity` は MRUK の `PassthroughCameraAccess` から左カメラの GPU テクスチャを取得して、ヘッドセット内のパネルへ表示します。カメラの許可状態、受信フレーム数、実際の解像度、カメラ FPS、撮影時刻を確認できます。OpenCV for Unity による ArUco ID・四隅検出も接続しています。検出テストは [ArUco 実機手順](aruco-marker-detection.md) を参照してください。ID 0・黒い一辺20cmのマーカーから位置・向きを推定し、安定した原点を確定するとPCA取得・検出を停止します。端末間同期は未実装です。
 
 ## 環境と接続
 
@@ -22,12 +22,12 @@ adb devices -l
 
 ## ビルドと起動
 
-1. `Unframe > PCA > Open Device Test Scene` を選ぶ。
-2. `Unframe > PCA > Build and Run on Quest` を選ぶ。
+1. `Unframe > ArUco > Open Presentation Test Scene` を選ぶ。
+2. `Unframe > ArUco > Build and Run Presentation on Quest` を選ぶ。
 3. ヘッドセット内でこのアプリのカメラアクセスを許可する。
 4. パネルが `LIVE` になり、頭を動かすとカメラ映像も変わり、フレーム数と撮影時刻が増えることを確認する。
 
-`Unframe > PCA > Build Device Test APK` は APK の生成だけを行います。出力は `app/unity/Builds/PCA/unframe-pca-preview.apk`、アプリ ID は `dev.unframe.pca.preview`、アプリ名は `Unframe PCA Preview` です。ビルドにはこのテストシーンだけを渡します。ビルド後に元の application ID とアプリ名を復元します。APK 出力は Git 管理から除外されます。
+`Unframe > ArUco > Build Presentation Test APK` は APK の生成だけを行います。出力は `app/unity/Builds/PCA/unframe-aruco-presentation.apk`、アプリ ID は `dev.unframe.pca.presentation`、アプリ名は `Unframe PCA Preview` です。ビルドにはこのテストシーンだけを渡します。ビルド後に元の application ID とアプリ名を復元します。APK 出力は Git 管理から除外されます。
 
 ローカルの `DevAgentSettings.asset` がある状態で通常の Android Build を実行すると、APK へ Meta DevAgent の接続設定が混入しないようビルドを中断します。専用メニューからのビルドは、設定アセットを一時退避して APK から除外し、ビルド後に復元します。設定アセットがない場合と Android 以外のビルドにはこの制限は適用されません。
 
@@ -41,7 +41,7 @@ MRUK の Project Validation には Scene Support を `Required` にする提案�
 
 ## 操作と確認項目
 
-- **A / X**: カメラ権限を再確認・再要求する。拒否後にダイアログが再表示されない場合は、Quest のアプリ設定でカメラアクセスを許可してから使う。
+- **A / X**: 未校正時はカメラ権限を再確認・再要求する。校正後はAでローカルeventを進め、Xで先頭へ戻す。拒否後にダイアログが再表示されない場合は、Quest のアプリ設定でカメラアクセスを許可してから使う。
 - **B / Y**: 許可されたカメラを再起動する。
 - **WAITING**: 許可済みで最初のフレームを待っている。
 - **LIVE**: 新しい撮影時刻のフレームを受信している。
@@ -58,10 +58,30 @@ MRUK の Project Validation には Scene Support を `Required` にする提案�
 
 ```sh
 mkdir -p ./pca-diagnostics
-adb pull /sdcard/Android/data/dev.unframe.pca.preview/files/ArucoDiagnostics ./pca-diagnostics
+adb pull /sdcard/Android/data/dev.unframe.pca.presentation/files/ArucoDiagnostics ./pca-diagnostics
 adb logcat -d -s Unity > ./pca-diagnostics/unity-logcat.txt
 ```
 
 画面が黒い場合は、`LIVE` とフレーム数の増加があるかを先に確認します。`WAITING` / `STALLED` の場合は映像取得、`CAMERA PERMISSION REQUIRED` の場合は権限、`LIVE` で映像だけ黒い場合はレンダリングを調べます。
 
 参考: [Meta PCA 導入ガイド](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation/)、[Meta の公式サンプル](https://github.com/oculus-samples/Unity-PassthroughCameraApiSamples)。
+
+## 診断ビルドの軽量化
+
+OpenCV for Unity の導入後は、一度 `Unframe > PCA > Prepare Fast Builds (Exclude OpenCV Samples)` を実行し、スクリプトのコンパイルが終わるのを待ちます。Examples のコード・Resources とサンプル StreamingAssets を、`Assets` 外の `LocalOnly/OpenCVForUnitySamples/` へ移します。OpenCV の本体と必要な native plugin は維持します。この保存先も Git 対象外で、有料アセットを配布しません。
+
+元のサンプルを使うときは `Restore OpenCV Samples` で戻せます。元の場所と保存先の両方にファイルがある場合は上書きせず停止します。再インポートしたサンプルと保存済みサンプルを確認してから準備をやり直してください。ローカルMRと通信プレゼンの builder は、サンプルが `Assets` 内に残っている間は案内付きでビルドを拒否します。
+
+CLIではEditorを閉じ、以下を実行してから専用APKをビルドします。
+
+```sh
+Unity -batchmode -quit -projectPath app/unity -buildTarget Android \
+  -executeMethod OpenCvSampleBuildPreparation.PrepareSamples \
+  -logFile /tmp/unframe-fast-build-prepare.log
+```
+
+専用ビルド中だけ IL2CPP code generation を `OptimizeSize`（コードサイズとビルド時間を優先）に設定し、終了時はアプリID・製品名・APK/AAB設定とともに復元します。C++ compiler configuration は変更しません。設定を切り替える初回はC++の再生成が必要なので、最初の一回は短縮しない場合があります。このモードではgenericコードの実行性能が変わる可能性があり、製品の最終性能評価には通常設定も使用してください。
+
+Presentation Runtime と生成契約コードは `Unframe.Unity.PresentationRuntime` アセンブリへ分離しています。PCA側の変更で生成契約コードのC#コンパイルまでやり直す範囲を減らします。この分離は、プレゼン機能を専用ビルドから必ず除外するものではありません。
+
+`Library/Bee` は増分ビルドのキャッシュです。毎回削除したり、Clean Buildを繰り返したりせず、同じ設定での2回目以降を比較してください。サンプル除外後の実際の短縮時間はAPKビルドで計測が必要です。

@@ -15,6 +15,7 @@ namespace Unframe.Unity.PresentationRuntime
         public string requestId;
         public string buildIdentity;
         public string message;
+        public string sequence;
     }
 
     public sealed class UnframePreview : MonoBehaviour
@@ -93,6 +94,32 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
+        public void Playback(string json)
+        {
+            string requestId = null;
+            try
+            {
+                EnsureTransaction();
+                LocalPreviewPlaybackState state = JsonParser.Default.Parse<LocalPreviewPlaybackState>(json);
+                requestId = state.RequestId;
+                if (!transaction.TryPlayback(state, Time.realtimeSinceStartupAsDouble, out string error))
+                    throw new InvalidOperationException(error);
+                Emit("playback", requestId, null, null, state.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch (Exception exception)
+            {
+                Emit("failed", requestId, null, exception is InvalidOperationException ? exception.Message : "preview.playback-input-invalid");
+            }
+        }
+        private void Update()
+        {
+            if (transaction != null && !transaction.TryUpdate(Time.realtimeSinceStartupAsDouble, out string error))
+            {
+                Invalidate("");
+                Emit("failed", null, null, error);
+            }
+        }
+
         public void Discard(string requestId)
         {
             if (transaction != null && transaction.Discard(requestId)) { generation++; latestRequest = null; }
@@ -103,9 +130,9 @@ namespace Unframe.Unity.PresentationRuntime
             latestRequest = null;
             transaction?.Invalidate();
         }
-        private void Emit(string kind, string requestId, string identity, string message)
+        private void Emit(string kind, string requestId, string identity, string message, string sequence = null)
         {
-            var notification = new PresentationPreviewEvent { kind = kind, requestId = requestId, buildIdentity = identity, message = message };
+            var notification = new PresentationPreviewEvent { kind = kind, requestId = requestId, buildIdentity = identity, message = message, sequence = sequence };
             Notification?.Invoke(notification);
 #if UNITY_WEBGL && !UNITY_EDITOR
             UnframePreviewNotify(JsonUtility.ToJson(notification));

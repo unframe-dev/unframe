@@ -2,12 +2,49 @@ using System.Collections;
 using System.Collections.Generic;
 using Google.Protobuf;
 using NUnit.Framework;
+using Unframe.Preview;
+using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 using UnityEngine.TestTools;
 
 public sealed class UnframePreviewBridgeEditModeTests
 {
+    [UnityTest]
+    public IEnumerator PlaybackAcknowledgesTheExactSequenceAndRejectsUpdatesAfterInvalidation()
+    {
+        var root = new GameObject("UnframePreview");
+        try
+        {
+            var bridge = root.AddComponent<UnframePreview>();
+            var events = new List<PresentationPreviewEvent>();
+            bridge.Notification += events.Add;
+            bridge.Configure("{\"token\":\"preview-token\"}");
+            var input = PresentationPreviewTestFixture.Create();
+            bridge.Prepare(JsonFormatter.Default.Format(input));
+            while (events.Count == 0) yield return null;
+            bridge.Commit(input.RequestId);
+            var state = new LocalPreviewPlaybackState
+            {
+                RequestId = input.RequestId,
+                Sequence = 9007199254740993UL,
+                CurrentGroupId = "group:first",
+                NodeStates = { input.InitialState.NodeStates },
+                SurfaceStates = { input.InitialState.SurfaceStates },
+                Clock = new RuntimeClockSnapshot { Paused = new Paused() },
+            };
+            bridge.Playback(JsonFormatter.Default.Format(state));
+            Assert.That(events[2].kind, Is.EqualTo("playback"));
+            Assert.That(events[2].requestId, Is.EqualTo(input.RequestId));
+            Assert.That(events[2].sequence, Is.EqualTo("9007199254740993"));
+            bridge.Invalidate(""); state.Sequence++;
+            bridge.Playback(JsonFormatter.Default.Format(state));
+            Assert.That(events[3].kind, Is.EqualTo("failed"));
+            Assert.That(events[3].message, Is.EqualTo("preview.playback-request-mismatch"));
+        }
+        finally { Object.DestroyImmediate(root); }
+    }
+
     [UnityTest]
     public IEnumerator PrepareAndExplicitCommitNotifyTheMatchingIdentityWhileInvalidInputKeepsTheScene()
     {

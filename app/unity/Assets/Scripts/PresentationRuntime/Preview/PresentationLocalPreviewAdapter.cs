@@ -13,8 +13,9 @@ namespace Unframe.Unity.PresentationRuntime
     {
         private readonly LocalPreviewEnvelope envelope;
         private readonly Dictionary<string, ProjectedSurfaceDefinition> surfaces;
-        private readonly Dictionary<string, NodeRuntimeState> nodeStates;
-        private readonly Dictionary<string, SurfaceRuntimeState> surfaceStates;
+        private Dictionary<string, NodeRuntimeState> nodeStates;
+        private Dictionary<string, SurfaceRuntimeState> surfaceStates;
+        private List<RuntimeRunSnapshot> activeRuns = new List<RuntimeRunSnapshot>();
         internal readonly Dictionary<string, AssetAccessBinding> Assets;
         internal readonly Dictionary<string, string> References;
 
@@ -40,7 +41,14 @@ namespace Unframe.Unity.PresentationRuntime
         public IEnumerable<ProjectedSemanticSurface> SemanticSurfaces { get { return envelope.Projection.SemanticSurfaces; } }
         public IEnumerable<TextureResidencyBinding> TextureBindings { get { return envelope.Projection.TextureResidency.Textures; } }
         public Pose StageOrigin { get { return new Pose { Position = new Vector3(), Rotation = new Quaternion { W = 1 } }; } }
-        public IEnumerable<RuntimeRunSnapshot> ActiveRuns { get { return Array.Empty<RuntimeRunSnapshot>(); } }
+        public IEnumerable<RuntimeRunSnapshot> ActiveRuns { get { return activeRuns; } }
+        internal void ReplacePlayback(Dictionary<string, NodeRuntimeState> nodes,
+            Dictionary<string, SurfaceRuntimeState> states, List<RuntimeRunSnapshot> runs)
+        {
+            nodeStates = nodes;
+            surfaceStates = states;
+            activeRuns = runs;
+        }
         public bool TryGetSurface(string id, out ProjectedSurfaceDefinition value) { return surfaces.TryGetValue(id, out value); }
         public bool TryGetNodeState(string id, out NodeRuntimeState value) { return nodeStates.TryGetValue(id, out value); }
         public bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { return surfaceStates.TryGetValue(id, out value); }
@@ -110,6 +118,10 @@ namespace Unframe.Unity.PresentationRuntime
                 foreach (ProjectedNodeDefinition node in nodes.Values)
                     if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Surface && !surfaces.ContainsKey(node.Surface.SemanticSurfaceId)) return false;
                 if (!SameIds(projection.VisibleNodeIds, nodes.Keys) || !SameIds(projection.VisibleSurfaceIds, surfaces.Keys)) return false;
+                var timelineIds = new HashSet<string>();
+                foreach (ProjectedTimelineDefinition timeline in projection.RuntimeCatalog.Timelines)
+                    if (!PresentationDeliveryCatalog.IsId(timeline.TimelineId) || !timelineIds.Add(timeline.TimelineId) || !ValidOwner(timeline.Owner)
+                        || !PresentationDeliveryCatalog.TryValidateTimeline(timeline, nodes, out error)) return false;
                 var variables = new HashSet<string>();
                 foreach (ProjectedVariableDefinition variable in projection.RuntimeCatalog.Variables)
                     if (!PresentationDeliveryCatalog.IsId(variable.VariableId) || !variables.Add(variable.VariableId) || !ValidOwner(variable.Owner)) return false;
@@ -236,7 +248,7 @@ namespace Unframe.Unity.PresentationRuntime
             group = owner.Group.GroupId;
             return true;
         }
-        private static bool ValidState(NodeRuntimeState state)
+        internal static bool ValidState(NodeRuntimeState state)
         {
             Unframe.Presentation.Transform t = state.Transform;
             return t != null && PresentationDeliveryCatalog.IsCanonicalFinite(state.Opacity) && state.Opacity >= 0 && state.Opacity <= 1

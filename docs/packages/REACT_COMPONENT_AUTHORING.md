@@ -331,4 +331,4 @@ Base UI Button と固定 React / CSS / image / font の組合せを実 Browser �
 
 固定 Dist の公開と Delivery／Realtime／native Unity 接続は [Local Editor の検証](./LOCAL_EDITOR_DESIGN.md#5-検証と残る実証) で扱う。実サービス E2E と Quest 実機確認の完了は本書では主張しない。React 内部の GUI 編集、共有元の一括変更、Opaque 内部の自動分割、描画 cache、`init` と remote registry も提供しない。SDK の一般配布は未検証であり、reference の手製 SDK 型 snapshot を package 配布の証明にしない。
 
-A0〜A5 の実装経緯は [歴史的な計画](../plans/pr111-react-authoring-acceptance.md) に残す。現行の入力・保存・隔離契約は [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md) を正本とする。
+現行の入力・保存・隔離契約は [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md) を正本とする。

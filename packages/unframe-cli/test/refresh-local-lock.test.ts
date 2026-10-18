@@ -17,7 +17,10 @@ it("preserves lock and Dist when a new PostCSS config needs a frozen Node depend
   directories.push(directory);
   await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
     recursive: true,
-    filter: (path) => !path.endsWith("/.unframe") && !path.endsWith("/dist"),
+    filter: (path) =>
+      !path.endsWith("/.unframe") &&
+      !path.endsWith("/dist") &&
+      !path.endsWith("/.unframe-source.lock"),
   });
   await mkdir(join(directory, "dist"));
   await writeFile(join(directory, "dist/build-manifest.json"), "fixed Dist generation\n");

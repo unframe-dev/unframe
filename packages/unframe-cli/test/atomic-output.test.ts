@@ -2,10 +2,10 @@ import {
   lstat,
   mkdir,
   mkdtemp,
-  open,
   readFile,
   readdir,
   readlink,
+  rename,
   rm,
   symlink,
   unlink,
@@ -15,6 +15,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { NativeFilesystem } from "../src/filesystem/native-filesystem.js";
 import { publishAtomicArtifacts } from "../src/filesystem/atomic-output.js";
 
 const directories: string[] = [];
@@ -45,6 +46,112 @@ afterEach(async () => {
 });
 
 describe("atomic artifact publication", () => {
+  it("creates output directories inside the owned parent when its visible path is replaced", async () => {
+    const directory = await project();
+    const outside = await project();
+    const originalMkdir = NativeFilesystem.prototype.mkdir;
+    let replaced = false;
+    vi.spyOn(NativeFilesystem.prototype, "mkdir").mockImplementation(
+      async function (this: NativeFilesystem, path) {
+        if (!replaced && path.endsWith("/generations")) {
+          replaced = true;
+          const unframe = join(directory, ".unframe");
+          await rename(unframe, `${unframe}-owned`);
+          await symlink(outside, unframe);
+        }
+        return originalMkdir.call(this, path);
+      },
+    );
+    expect(
+      await publishAtomicArtifacts({ projectDirectory: directory, artifacts: artifacts() }),
+    ).toMatchObject({ ok: false, family: "io" });
+    expect(await readdir(outside)).toEqual([]);
+  });
+
+  it("keeps artifact writes pinned when a parent is replaced after the identity check", async () => {
+    const directory = await project();
+    const outside = await project();
+    const generations = join(directory, ".unframe/generations");
+    const id = "1".repeat(32);
+    await mkdir(join(outside, `.staging-${id}`, "assets"), { recursive: true });
+    const originalWrite = NativeFilesystem.prototype.write;
+    let replaced = false;
+    vi.spyOn(NativeFilesystem.prototype, "write").mockImplementation(
+      async function (this: NativeFilesystem, path, bytes) {
+        if (!replaced) {
+          replaced = true;
+          await rename(generations, `${generations}-owned`);
+          await symlink(outside, generations);
+        }
+        return originalWrite.call(this, path, bytes);
+      },
+    );
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      generationId: () => id,
+      artifacts: artifacts(),
+    });
+    expect(result).toMatchObject({ ok: false, family: "io" });
+    expect(await readdir(join(outside, `.staging-${id}`))).toEqual(["assets"]);
+    await expect(lstat(join(directory, "dist"))).rejects.toThrow();
+  });
+
+  it("rejects publication when the visible parent changes during pointer rename", async () => {
+    const directory = await project();
+    const outside = await project();
+    const id = "2".repeat(32);
+    const originalRename = NativeFilesystem.prototype.rename;
+    let swapped = false;
+    vi.spyOn(NativeFilesystem.prototype, "rename").mockImplementation(
+      async function (this: NativeFilesystem, path, target) {
+        if (!swapped && target.endsWith("/current")) {
+          swapped = true;
+          const preview = join(directory, ".unframe/preview");
+          await rename(preview, `${preview}-owned`);
+          await symlink(outside, preview);
+          await symlink("outside-output", join(outside, "current"));
+          await symlink("outside-temporary", join(outside, `.current-${id}`));
+        }
+        return originalRename.call(this, path, target);
+      },
+    );
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      channel: "dev",
+      generationId: () => id,
+      artifacts: artifacts(),
+    });
+    expect(result).toMatchObject({ ok: false, family: "io", detail: { stage: "replace-dist" } });
+    expect(await readdir(outside)).toEqual([`.current-${id}`, "current"]);
+    expect(await readlink(join(outside, "current"))).toBe("outside-output");
+  });
+
+  it.each(["dev", "dist"] as const)(
+    "rejects publication when the visible %s pointer is replaced during rename",
+    async (channel) => {
+      const directory = await project();
+      const pointerName = channel === "dev" ? "current" : "dist";
+      const pointerPath = join(directory, channel === "dev" ? ".unframe/preview/current" : "dist");
+      const originalRename = NativeFilesystem.prototype.rename;
+      vi.spyOn(NativeFilesystem.prototype, "rename").mockImplementation(
+        async function (this: NativeFilesystem, path, target) {
+          await originalRename.call(this, path, target);
+          if (target.endsWith(`/${pointerName}`)) {
+            await unlink(pointerPath);
+            await symlink("user-output", pointerPath);
+          }
+        },
+      );
+      const result = await publishAtomicArtifacts({
+        projectDirectory: directory,
+        channel,
+        artifacts: artifacts(),
+      });
+      expect(result).toMatchObject({ ok: false, family: "io", detail: { stage: "replace-dist" } });
+      expect(await readlink(pointerPath)).toBe("user-output");
+    },
+  );
+
   it.each(["dev", "dist"] as const)(
     "keeps the last %s generation on stale or cancelled updates",
     async (channel) => {
@@ -611,11 +718,8 @@ describe("atomic artifact publication", () => {
 
   it("identifies the file operation when synchronization fails", async () => {
     const directory = await project();
-    const probe = await open(join(directory, "probe"), "w");
-    const handlePrototype = Object.getPrototypeOf(probe) as { sync: () => Promise<void> };
-    await probe.close();
-    vi.spyOn(handlePrototype, "sync").mockRejectedValueOnce(
-      Object.assign(new Error("bad file descriptor"), { code: "EBADF" }),
+    vi.spyOn(NativeFilesystem.prototype, "write").mockRejectedValueOnce(
+      Object.assign(new Error("bad file descriptor"), { code: "EBADF", operation: "sync" }),
     );
 
     await expect(

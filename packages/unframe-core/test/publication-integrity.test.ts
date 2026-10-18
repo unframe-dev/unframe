@@ -57,7 +57,7 @@ const expectDiagnostic = (result: ReturnType<typeof verifyPublicationIntegrity>,
   }
 };
 
-const canonicalHash = (value: JsonRecord): string => {
+const canonicalHash = (value: unknown): string => {
   const canonical = canonicalize(value);
   if (canonical === undefined) throw new TypeError("Expected a canonical publication payload.");
   return `sha256:${createHash("sha256").update(canonical, "utf8").digest("hex")}`;
@@ -70,6 +70,19 @@ const publicationHashWithoutSelf = (publication: JsonRecord): string => {
 };
 
 describe("verifyPublicationIntegrity", () => {
+  it.each(["\ud800", "\udc00", "a\ud800b", "a\udc00b"])(
+    "rejects malformed Unicode %j in canonical payloads",
+    (value) => {
+      expect(() => hashCanonicalJsonPayload(value)).toThrow(TypeError);
+      const input = makeFixture();
+      recordAt(input.definition, "metadata").title = value;
+      expectDiagnostic(verifyPublicationIntegrity(input), "canonical.invalid");
+    },
+  );
+
+  it("preserves valid Unicode surrogate pairs in canonical payloads", () => {
+    expect(hashCanonicalJsonPayload("\ud83d\ude00")).toBe(canonicalHash("😀"));
+  });
   it("rejects a trailing lone high surrogate in the generic canonical JSON helper", () => {
     expect(() => hashCanonicalJsonPayload("invalid\ud800")).toThrow(TypeError);
   });

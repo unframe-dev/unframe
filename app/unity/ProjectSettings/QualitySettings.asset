@@ -62,7 +62,7 @@ QualitySettings:
     - Standalone
   - serializedVersion: 5
     name: PC
-    pixelLightCount: 2
+    pixelLightCount: 1
     shadows: 2
     shadowResolution: 1
     shadowProjection: 1
@@ -75,8 +75,8 @@ QualitySettings:
     skinWeights: 4
     globalTextureMipmapLimit: 0
     textureMipmapLimitSettings: []
-    anisotropicTextures: 2
-    antiAliasing: 0
+    anisotropicTextures: 1
+    antiAliasing: 4
     softParticles: 0
     softVegetation: 1
     realtimeReflectionProbes: 0

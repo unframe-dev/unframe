@@ -12,10 +12,10 @@ describe("publishPresentation", () => {
       presentationId: "presentation",
       controlPlaneUrl: "http://example.com/",
       bearerToken: "secret",
-      fetch: (() => {
+      fetch: () => {
         requested = true;
         throw new Error("unexpected request");
-      }) as typeof fetch,
+      },
     });
     expect(result).toEqual({ ok: false, code: "cli-publish-origin-invalid" });
     expect(requested).toBe(false);
@@ -37,10 +37,10 @@ describe("publishPresentation", () => {
         presentationId: "presentation",
         controlPlaneUrl: "http://127.0.0.1:8787/",
         bearerToken: "secret",
-        fetch: (() => {
+        fetch: () => {
           requested = true;
           throw new Error("unexpected request");
-        }) as typeof fetch,
+        },
       });
       expect(result).toEqual({ ok: false, code: "cli-publish-build-invalid" });
       expect(requested).toBe(false);
@@ -70,10 +70,10 @@ describe("publishPresentation", () => {
         presentationId: "presentation",
         controlPlaneUrl: "http://127.0.0.1:8787/",
         bearerToken: "secret",
-        fetch: (() => {
+        fetch: () => {
           requested = true;
           throw new Error("unexpected request");
-        }) as typeof fetch,
+        },
       });
       expect(result.ok).toBe(false);
       expect(requested).toBe(false);

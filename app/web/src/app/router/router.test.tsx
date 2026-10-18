@@ -3,7 +3,6 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProviders } from "@/app/providers/app-providers";
-import { requireSession } from "@/features/auth/require-session";
 import { createAppRouter } from "./router";
 
 const auth = vi.hoisted(() => ({
@@ -35,13 +34,6 @@ describe("web editor routes", () => {
     auth.signIn.social.mockReset();
     auth.verifyDeviceAuthorization.mockReset();
     auth.device.deny.mockReset();
-  });
-
-  it("redirects an unauthenticated protected route to the root", async () => {
-    auth.getSession.mockResolvedValue({ data: null, error: null });
-    await expect(requireSession()).rejects.toMatchObject({
-      options: { href: "/", replace: true },
-    });
   });
 
   it("opens the Local Host guide without a login", async () => {

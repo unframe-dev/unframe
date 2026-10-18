@@ -1,3 +1,5 @@
+import { cssDependencies } from "../syntax/css-dependencies.js";
+import { CompilerInternalError } from "../api/compiler-internal-error.js";
 import * as ts from "typescript";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -14,6 +16,18 @@ import {
   hashThemeDeclaration,
 } from "./declaration-hashes.js";
 
+class FrozenInputError extends Error {}
+
+const frozenCssImports = (source: string): string[] => {
+  try {
+    return cssDependencies(source).map(({ specifier }) => specifier);
+  } catch (cause) {
+    if (cause instanceof SyntaxError)
+      throw new FrozenInputError("CSS dependencies could not be parsed.");
+    throw cause;
+  }
+};
+
 const hashText = (text: string) => `sha256:${bytesToHex(sha256(new TextEncoder().encode(text)))}`;
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const packageName = (specifier: string) =>
@@ -21,14 +35,14 @@ const packageName = (specifier: string) =>
 const relativePath = (from: string, specifier: string) => {
   const segments = from.split("/").slice(0, -1);
   if (!specifier.startsWith(".") || specifier.includes("\\") || specifier.includes("\0"))
-    throw new Error("Only relative local imports are supported.");
+    throw new FrozenInputError("Only relative local imports are supported.");
   for (const segment of specifier.split("/")) {
     if (segment === ".") continue;
     if (segment === "..") {
-      if (!segments.length) throw new Error("Local import escapes project root.");
+      if (!segments.length) throw new FrozenInputError("Local import escapes project root.");
       segments.pop();
     } else if (segment) segments.push(segment);
-    else throw new Error("Invalid local import path.");
+    else throw new FrozenInputError("Invalid local import path.");
   }
   return segments.join("/");
 };
@@ -40,7 +54,7 @@ const imports = (file: ts.SourceFile, runtimeOnly: boolean): string[] => {
       (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
         (ts.isIdentifier(node.expression) && node.expression.text === "require"))
     )
-      throw new Error("Component input graph must use static imports.");
+      throw new FrozenInputError("Component input graph must use static imports.");
     ts.forEachChild(node, checkDynamic);
   };
   checkDynamic(file);
@@ -82,33 +96,31 @@ const fileClosure = (
         Object.hasOwn(source.files, candidate) || Object.hasOwn(source.rawFiles, candidate),
     );
     if (resolved === undefined)
-      throw new Error(`Local import must resolve exactly once: ${from}: ${specifier}`);
+      throw new FrozenInputError(`Local import must resolve exactly once: ${from}: ${specifier}`);
     return resolved;
   };
   const visit = (path: string): void => {
     if (paths.has(path)) return;
     const file = source.files[path];
     const raw = source.rawFiles[path];
-    if (!file && !raw) throw new Error(`Component input is missing: ${path}`);
+    if (!file && !raw) throw new FrozenInputError(`Component input is missing: ${path}`);
     paths.add(path);
     const references = file
       ? imports(file, runtimeOnly)
       : raw?.mediaType === "text/javascript" && raw.encoding === "utf8"
         ? imports(ts.createSourceFile(path, raw.data, ts.ScriptTarget.ES2022, true), runtimeOnly)
         : raw?.mediaType === "text/css" && raw.encoding === "utf8"
-          ? [
-              ...(
-                source.preparedStyles?.stylesheets.find((sheet) => sheet.entry === path)?.css ??
-                raw.data
-              ).matchAll(/(?:@import\s+["']([^"']+)["']|url\(\s*["']?([^"')\s]+)["']?\s*\))/g),
-            ].map((match) => match[1] ?? match[2]!)
+          ? frozenCssImports(
+              source.preparedStyles?.stylesheets.find((sheet) => sheet.entry === path)?.css ??
+                raw.data,
+            )
           : [];
     for (const specifier of references) {
       if (raw?.mediaType === "text/css" && specifier.startsWith("#")) continue;
       if (specifier.startsWith(".")) visit(resolve(path, specifier));
       else if (raw?.mediaType === "text/css") {
         if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(specifier))
-          throw new Error("CSS assets must use local relative references.");
+          throw new FrozenInputError("CSS assets must use local relative references.");
         visit(resolve(path, `./${specifier}`));
       } else bare.add(specifier);
     }
@@ -132,7 +144,7 @@ const runtimeGraph = (
   const visit = (key: string): void => {
     if (reached.has(key)) return;
     const pkg = packages.get(key);
-    if (!pkg) throw new Error("Runtime package is not locked.");
+    if (!pkg) throw new FrozenInputError("Runtime package is not locked.");
     reached.add(key);
     pkg.dependencies
       .filter((edge) => edge.usage === "runtime")
@@ -144,13 +156,13 @@ const runtimeGraph = (
     const pkg = edge && packages.get(edge.packageKey);
     const subpath = specifier === name ? "." : `.${specifier.slice(name.length)}`;
     if (!pkg?.exports.some((entry) => entry.subpath === subpath && entry.runtimeImport !== null))
-      throw new Error(`Runtime import export is not locked: ${specifier}`);
+      throw new FrozenInputError(`Runtime import export is not locked: ${specifier}`);
   }
   const roots = [...new Set(specifiers.map(packageName))].sort(compare).map((specifier) => {
     const edge = dependencies.find(
       (edge) => edge.usage === "runtime" && edge.specifier === specifier,
     );
-    if (!edge) throw new Error(`Runtime dependency is not locked: ${specifier}`);
+    if (!edge) throw new FrozenInputError(`Runtime dependency is not locked: ${specifier}`);
     visit(edge.packageKey);
     return edge;
   });
@@ -176,17 +188,17 @@ export const computeFrozenComponentInputs = (
   componentLocks: readonly DeclarationProjectComponentLock[];
   themeHashes: readonly { themeId: string; hash: string }[];
 }> => {
-  const parsed = parseAuthoringProject(input);
-  if (!parsed.ok)
-    return {
-      valid: false,
-      diagnostics: parsed.diagnostics.map((d) => ({
-        code: d.code,
-        message: d.message,
-        path: [d.fileName],
-      })),
-    };
   try {
+    const parsed = parseAuthoringProject(input);
+    if (!parsed.ok)
+      return {
+        valid: false,
+        diagnostics: parsed.diagnostics.map((d) => ({
+          code: d.code,
+          message: d.message,
+          path: [d.fileName],
+        })),
+      };
     const source = parsed.value;
     const componentLocks: DeclarationProjectComponentLock[] = catalog.components.map(
       (component) => {
@@ -208,13 +220,13 @@ export const computeFrozenComponentInputs = (
             })),
         );
         if (packageOrigin.length > 1)
-          throw new Error("Component package origin must name exactly one export.");
+          throw new FrozenInputError("Component package origin must name exactly one export.");
         if (source.files[entryFile] && packageOrigin.length)
-          throw new Error(
+          throw new FrozenInputError(
             "Component origin is ambiguous between local source and a package export.",
           );
         if (!source.files[entryFile] && packageOrigin.length === 0)
-          throw new Error(
+          throw new FrozenInputError(
             "Component origins outside local source require an explicit package export.",
           );
         const origin =
@@ -298,16 +310,15 @@ export const computeFrozenComponentInputs = (
       diagnostics: [],
     };
   } catch (error) {
+    if (!(error instanceof FrozenInputError))
+      throw new CompilerInternalError("frozen-input", error);
     return {
       valid: false,
       diagnostics: [
         {
           code: "compiler-frozen-input-invalid",
           path: [],
-          message:
-            error instanceof Error
-              ? error.message
-              : "Frozen Component inputs could not be resolved.",
+          message: error.message,
         },
       ],
     };

@@ -32,7 +32,7 @@ Bun は `packages/config/bun.nix` で 1.4.2 に固定しています。1.3.13 �
 
 `packages/contracts/` は Control Plane OpenAPI、Realtime Protocol Buffers、Presentation artifact schema の共有境界です。`nix run .#presentation` は実装済みの `packages/unframe-*` packageを検証した後、repository-local Fixed Browser で `examples/presentation` の check と実 build を2回行います。Definition、RenderBundle、PNG asset set の relative path と SHA-256 manifest が一致することまで確認します。source of truth と生成手順は、対応する component 実装と合わせて定義します。
 
-Apple Silicon で C# consumer を生成・検査するには Rosetta 2 が必要です。固定した `Grpc.Tools 2.76.0` は macOS の x64 plugin のみを配布しています。未導入の場合は `softwareupdate --install-rosetta` でライセンスを確認してインストールしてください。
+Apple Silicon で C# consumer を生成・検査するには Rosetta 2 が必要です。固定した `Grpc.Tools 2.76.0` は macOS の x64 plugin のみを配布しています。未導入の場合は `softwareupdate --install-rosetta` でライセンスを確認してインストールしてください。platform 判定は `scripts/lib/grpc-tools.sh` で共有し、`bash scripts/contracts/test-grpc-tools.sh` で単独検証できます。
 
 Presentation v2 の Unity C# bindings は `packages/contracts/proto/` の正本から `protoc` で生成します。Unity 側に置く `.proto` コピーと生成 C# の drift は次で確認でき、正本更新後は引数を省略して生成・同期します。
 
@@ -42,6 +42,8 @@ nix run .#unity-proto
 ```
 
 `nix run .#check` と Unity CI はこの drift check を含みます。
+
+Presentation 品質ゲートは一時ディレクトリを実パスへ正規化し、macOS の `/tmp` などの symlink を fixture の project root に持ち込まないようにします。
 
 Fixed Browser の実機captureをローカルで試す前には、次を明示的に実行します。package 単体の unit test は Browser を起動しません。`nix run .#presentation` と、それを含む `nix run .#check` は provision 済み Browser を使います。
 
@@ -63,7 +65,7 @@ Opaque React capture は Linux では user namespace と memory / pids controlle
 nix develop --command scripts/ci/opaque-capture.sh
 ```
 
-通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。Linux では delegated scope を作り、macOS では native adapter を直接使用します。Opaque integration は通常の package unit test から分離しています。GitHub Actions の AppArmor 許可は Linux の専用 step の executable path に限定します。
+通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。Linux では delegated scope を作り、macOS では native adapter を直接使用します。Opaque integration は通常の package unit test から分離しています。GitHub Actions では Linux / macOS ともに通常の品質チェックと Opaque 受入テストを独立した job（各上限45分）で並列実行し、両方の成功を集約 CI で必須とします。GitHub Actions の AppArmor 許可は Linux の専用 step の executable path に限定します。
 
 PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と依存も固定します。OS を切り替えた場合は、移行先の同じ隔離 profile 内で `pnpm --filter @unframe/unframe-cli run presentation lock update <absolute-project-directory>` を実行します。`lock refresh` では runtime を切り替えません。
 
@@ -81,6 +83,8 @@ nix run .#local-editor-e2e -- --showcase
 `unity-editor` は Linux で `steam-run` を介し、macOS では native Editor を直接起動します。`UNITY_EDITOR` で実行ファイルを指定でき、未指定時は `app/unity/ProjectSettings/ProjectVersion.txt` の OS 別 Unity Hub 配置を使います。対応する Unity version のインストール、license と WebGL module は利用者が用意します。
 
 `unity-preview` は共有 Runtime の描画・Preview 部分から `.unframe/unity-preview/project` を生成し、WebGL player を `.unframe/unity-preview/UnframePreview` に出力します。生成 Assets は再構成し、Library／build cache は再利用します。build log は `.unframe/unity-preview/logs/build.log` です。
+
+共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。
 
 `local-editor-e2e` は生成済み WebGL player と固定 Browser の provision を必要とします。Chromium 実行ファイルは既定で renderer の managed headless shell を使用し、`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` で明示指定できます。OS 別の Opaque capture の隔離要件も満たしてください。
 

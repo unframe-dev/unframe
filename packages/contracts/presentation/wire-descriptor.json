@@ -5125,6 +5125,41 @@
                 }
               }
             },
+            "LocalPreviewPlaybackState": {
+              "fields": {
+                "requestId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "sequence": {
+                  "type": "uint64",
+                  "id": 2
+                },
+                "nodeStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.NodeRuntimeState",
+                  "id": 3
+                },
+                "surfaceStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.SurfaceRuntimeState",
+                  "id": 4
+                },
+                "activeRuns": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.RuntimeRunSnapshot",
+                  "id": 5
+                },
+                "clock": {
+                  "type": "unframe.realtime.RuntimeClockSnapshot",
+                  "id": 6
+                },
+                "currentGroupId": {
+                  "type": "string",
+                  "id": 7
+                }
+              }
+            },
             "LocalPreviewAsset": {
               "fields": {
                 "assetId": {

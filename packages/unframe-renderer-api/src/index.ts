@@ -5,7 +5,11 @@ export {
   validateRendererBuildInput,
 } from "./boundary/renderer-plugin.js";
 
-export { defineRendererPlugin, validateRendererPlugin } from "./boundary/plugin-validation.js";
+export {
+  defineRendererPlugin,
+  prepareRendererPlugin,
+  validateRendererPlugin,
+} from "./boundary/plugin-validation.js";
 
 export { executeRendererPlugin, runRendererConformance } from "./execution/plugin-execution.js";
 

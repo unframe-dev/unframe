@@ -69,7 +69,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (previousRenderer != null)
                 {
                     visible = previousRenderer.enabled;
-                    opacity = GetRendererOpacity(previousRenderer);
+                    opacity = previousRenderer.GetComponent<PresentationVisualOpacity>()?.Opacity ?? 1f;
                 }
                 else if (store.TryGetNodeState(entry.Key, out Unframe.Realtime.NodeRuntimeState state))
                 {
@@ -84,7 +84,7 @@ namespace Unframe.Unity.PresentationRuntime
 
                 surface.TextObjects.Clear();
                 int index = 0;
-                foreach (string text in ResolveLiteralText(store, surface.SemanticSurfaceId))
+                foreach (NativeUiText text in ResolveLiteralText(store, surface.SemanticSurfaceId))
                 {
                     GameObject textObject = CreateText(surface.Root, text, index++);
                     textObject.GetComponent<Renderer>().enabled = visible;
@@ -92,19 +92,6 @@ namespace Unframe.Unity.PresentationRuntime
                     surface.TextObjects.Add(textObject);
                 }
             }
-        }
-
-        private static float GetRendererOpacity(Renderer renderer)
-        {
-            Material material = renderer.sharedMaterial;
-            if (material == null)
-            {
-                return 1f;
-            }
-
-            string property = material.HasProperty("_BaseColor") ? "_BaseColor"
-                : material.HasProperty("_Color") ? "_Color" : null;
-            return property == null ? 1f : material.GetColor(property).a;
         }
 
         public void Clear()
@@ -136,13 +123,13 @@ namespace Unframe.Unity.PresentationRuntime
             SurfacePlaceholder surface = new SurfacePlaceholder { SemanticSurfaceId = semanticSurfaceId, Root = root.transform };
             surfaces.Add(nodeId, surface);
             int index = 0;
-            foreach (string text in ResolveLiteralText(store, semanticSurfaceId))
+            foreach (NativeUiText text in ResolveLiteralText(store, semanticSurfaceId))
             {
                 surface.TextObjects.Add(CreateText(root.transform, text, index++));
             }
         }
 
-        private static IEnumerable<string> ResolveLiteralText(PresentationRuntimeDataStore store, string semanticSurfaceId)
+        private static IEnumerable<NativeUiText> ResolveLiteralText(PresentationRuntimeDataStore store, string semanticSurfaceId)
         {
             foreach (DeliveredRenderSurface surface in store.Delivery.ProjectionProfile.RenderSurfaces)
             {
@@ -166,7 +153,7 @@ namespace Unframe.Unity.PresentationRuntime
                             && node.Text.Value != null
                             && node.Text.Value.SourceCase == NativeTextValue.SourceOneofCase.Literal)
                         {
-                            yield return node.Text.Value.Literal.Value;
+                            yield return node.Text;
                         }
                     }
                 }
@@ -216,7 +203,7 @@ namespace Unframe.Unity.PresentationRuntime
                 scale = UnityEngine.Vector3.one * diameter;
             }
 
-            CreatePrimitive(parent, "Shape Placeholder", type, scale);
+            CreatePrimitive(parent, "Shape Placeholder", type, scale, shape.Material);
         }
 
         private void CreateCube(UnityEngine.Transform parent, string name, UnityEngine.Vector3 scale)
@@ -224,27 +211,34 @@ namespace Unframe.Unity.PresentationRuntime
             CreatePrimitive(parent, name, PrimitiveType.Cube, scale);
         }
 
-        private void CreatePrimitive(UnityEngine.Transform parent, string name, PrimitiveType type, UnityEngine.Vector3 scale)
+        private void CreatePrimitive(UnityEngine.Transform parent, string name, PrimitiveType type, UnityEngine.Vector3 scale,
+            UnlitShapeMaterial material = null)
         {
             GameObject nodeObject = GameObject.CreatePrimitive(type);
             nodeObject.name = name;
             nodeObject.transform.SetParent(parent, false);
             nodeObject.transform.localScale = scale;
             RemoveCollider(nodeObject);
+            Color color = material == null ? Color.white : PresentationUnlitMaterial.FromSrgba(
+                material.Color.Red, material.Color.Green, material.Color.Blue, material.Color.Alpha);
+            PresentationUnlitMaterial.Assign(nodeObject.GetComponent<Renderer>(), color,
+                doubleSided: material != null && material.DoubleSided);
         }
 
-        private static GameObject CreateText(UnityEngine.Transform parent, string value, int index)
+        private static GameObject CreateText(UnityEngine.Transform parent, NativeUiText value, int index)
         {
             GameObject textObject = new GameObject("Text " + index);
             textObject.transform.SetParent(parent, false);
             textObject.transform.localPosition = new UnityEngine.Vector3(0f, 0.35f - index * 0.35f, -0.06f);
             TextMesh text = textObject.AddComponent<TextMesh>();
-            text.text = value;
+            text.text = value.Value.Literal.Value;
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = 64;
             text.characterSize = 0.07f;
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
+            Color color = PresentationUnlitMaterial.FromSrgba(value.Color.Red, value.Color.Green, value.Color.Blue, value.Color.Alpha);
+            PresentationUnlitMaterial.Assign(text.GetComponent<Renderer>(), color, text.font.material.mainTexture, doubleSided: true);
             return textObject;
         }
 

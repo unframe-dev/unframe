@@ -245,7 +245,7 @@ namespace Unframe.Unity.PresentationRuntime
                 return false;
             }
 
-            if (reliableEvent.Sequence != LastReliableSequence + 1)
+            if (LastReliableSequence == ulong.MaxValue || reliableEvent.Sequence != LastReliableSequence + 1)
             {
                 error = "realtime.event sequence is not contiguous; request a snapshot or replay.";
                 return false;

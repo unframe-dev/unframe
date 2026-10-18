@@ -60,6 +60,17 @@
                 "y": 1.6,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -154,6 +165,17 @@
                 "y": 1.8,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -171,6 +193,17 @@
                 "y": 1.8,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -199,6 +232,17 @@
                 "y": 0.72,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -216,6 +260,17 @@
                 "y": 0.72,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -233,6 +288,17 @@
                 "y": 0.72,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -250,6 +316,17 @@
                 "y": 0.72,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -267,6 +344,17 @@
                 "y": 0.72,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -284,6 +372,17 @@
                 "y": 0.72,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -301,6 +400,17 @@
                 "y": 0.72,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -318,6 +428,17 @@
                 "y": 0.72,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -390,6 +511,17 @@
                 "y": 1.1,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -407,6 +539,17 @@
                 "y": 1.1,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -424,6 +567,17 @@
                 "y": 1.1,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -441,6 +595,17 @@
                 "y": 1.1,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -469,6 +634,17 @@
                 "y": 1.8,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -486,6 +662,17 @@
                 "y": 0.8,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -503,6 +690,17 @@
                 "y": 0.8,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -520,6 +718,17 @@
                 "y": 0.8,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         },
@@ -537,6 +746,17 @@
                 "y": 0.8,
                 "z": 0.06
               }
+            },
+            "material": {
+              "color": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "doubleSided": false,
+              "castsShadows": false,
+              "receivesShadows": false
             }
           }
         }
@@ -3065,6 +3285,12 @@
                       "literal": {
                         "value": "仮テキスト：挨拶"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3101,6 +3327,12 @@
                       "literal": {
                         "value": "仮テキスト：自己紹介"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3137,6 +3369,12 @@
                       "literal": {
                         "value": "仮テキスト：概要紹介"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3173,6 +3411,12 @@
                       "literal": {
                         "value": "仮テキスト：テキストのみ"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3209,6 +3453,12 @@
                       "literal": {
                         "value": "仮テキスト：プロジェクトの始まり"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3245,6 +3495,12 @@
                       "literal": {
                         "value": "仮テキスト：課題の提示"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3281,6 +3537,12 @@
                       "literal": {
                         "value": "仮テキスト：結果"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3317,6 +3579,12 @@
                       "literal": {
                         "value": "仮テキスト：長い説明文"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3353,6 +3621,12 @@
                       "literal": {
                         "value": "仮\nテ\nキ\nス\nト"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3389,6 +3663,12 @@
                       "literal": {
                         "value": "仮\nテ\nキ\nス\nト"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3425,6 +3705,12 @@
                       "literal": {
                         "value": "仮\nテ\nキ\nス\nト"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3461,6 +3747,12 @@
                       "literal": {
                         "value": "仮\nテ\nキ\nス\nト"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }
@@ -3497,6 +3789,12 @@
                       "literal": {
                         "value": "仮テキスト：追加テキスト"
                       }
+                    },
+                    "color": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1,
+                      "alpha": 1
                     }
                   }
                 }

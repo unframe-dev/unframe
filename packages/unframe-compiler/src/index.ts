@@ -50,3 +50,5 @@ export {
 } from "./editing/react-scene-source.js";
 
 export type { PreparedStyles } from "./project/parse-authoring-project.js";
+
+export { CompilerInternalError, type CompilerStage } from "./api/compiler-internal-error.js";

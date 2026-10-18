@@ -21,5 +21,6 @@ the source contract and run the generation task instead.
 `PresentationContractJsonFixtureLoader` accepts protobuf JSON directly. A local
 Delivery fixture is a `DeliveryManifest` JSON object using the protobuf JSON
 mapping: lower-camel field names, named enum values, and quoted `uint64` values.
-Unknown fields are rejected. Assign a `.json` TextAsset to
-`LocalPresentationFixtureSource` to load a fixture without a network source.
+Unknown fields are rejected. `LocalPresentationFixtureRunner` loads the local
+Delivery, snapshot, and Control fixtures from `Resources/PresentationFixtures/`
+and renders them without a network source.

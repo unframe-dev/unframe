@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, writeFile, readdir } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -122,16 +122,32 @@ it("denies host filesystem, source writes, host secrets and network connections"
 }, 60_000);
 it("terminates unbounded project config at the host deadline", async () => {
   const snapshot = await fixture("while(true) {} export default {plugins:[]};");
+  const before = (await readdir(temporaryDirectory())).filter((name) =>
+    name.startsWith("unframe-style-worker-"),
+  );
   await expect(
     runStyleWorker(snapshot, { entries: ["input.css"], deadlineMs: 500 }),
   ).rejects.toMatchObject({ code: "opaque-capture-timeout" });
+  expect(
+    (await readdir(temporaryDirectory())).filter((name) =>
+      name.startsWith("unframe-style-worker-"),
+    ),
+  ).toEqual(before);
 }, 60_000);
 it("terminates project config on cancellation", async () => {
   const snapshot = await fixture("while(true) {} export default {plugins:[]};");
+  const before = (await readdir(temporaryDirectory())).filter((name) =>
+    name.startsWith("unframe-style-worker-"),
+  );
   const controller = new AbortController();
   const running = runStyleWorker(snapshot, { entries: ["input.css"], signal: controller.signal });
   setTimeout(() => controller.abort(), 500);
   await expect(running).rejects.toMatchObject({ code: "opaque-capture-cancelled" });
+  expect(
+    (await readdir(temporaryDirectory())).filter((name) =>
+      name.startsWith("unframe-style-worker-"),
+    ),
+  ).toEqual(before);
 }, 60_000);
 it("rejects a changed locked runtime before loading project config", async () => {
   const snapshot = await fixture("export default {plugins:[]};");
@@ -145,9 +161,17 @@ it("rejects a changed locked runtime before loading project config", async () =>
 }, 60_000);
 it("reports abnormal config process termination", async () => {
   const snapshot = await fixture("process.exit(12); export default {plugins:[]};");
+  const before = (await readdir(temporaryDirectory())).filter((name) =>
+    name.startsWith("unframe-style-worker-"),
+  );
   await expect(runStyleWorker(snapshot, { entries: ["input.css"] })).rejects.toMatchObject({
     code: "opaque-capture-failed",
   });
+  expect(
+    (await readdir(temporaryDirectory())).filter((name) =>
+      name.startsWith("unframe-style-worker-"),
+    ),
+  ).toEqual(before);
 }, 60_000);
 it("bounds output produced by project config", async () => {
   const snapshot = await fixture(

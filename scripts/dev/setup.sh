@@ -8,5 +8,8 @@ source "${DIR}/../lib/paths.sh"
 log "pnpm 依存をインストール"
 pnpm install
 
+log "CLI filesystem helper をビルド"
+bash "${DIR}/../build-cli-filesystem.sh"
+
 log "git hooks を有効化"
 "${DIR}/install-hooks.sh"

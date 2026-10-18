@@ -580,13 +580,13 @@ importers:
     dependencies:
       '@opentui/core':
         specifier: 0.4.5
-        version: 0.4.5(typescript@5.9.3)(web-tree-sitter@0.25.10)
+        version: 0.4.5(typescript@6.0.3)(web-tree-sitter@0.25.10)
       '@opentui/keymap':
         specifier: 0.4.5
-        version: 0.4.5(@opentui/solid@0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@5.9.3)(web-tree-sitter@0.25.10))(react@19.2.8)(solid-js@1.9.12)(typescript@5.9.3)(web-tree-sitter@0.25.10)
+        version: 0.4.5(@opentui/solid@0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@6.0.3)(web-tree-sitter@0.25.10))(react@19.2.8)(solid-js@1.9.12)(typescript@6.0.3)(web-tree-sitter@0.25.10)
       '@opentui/solid':
         specifier: 0.4.5
-        version: 0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@5.9.3)(web-tree-sitter@0.25.10)
+        version: 0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@6.0.3)(web-tree-sitter@0.25.10)
       '@unframe/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -602,6 +602,9 @@ importers:
       '@unframe/unframe-tailwind':
         specifier: workspace:*
         version: link:../unframe-tailwind
+      '@unframe/unframe-worker-host':
+        specifier: workspace:*
+        version: link:../unframe-worker-host
       canonicalize:
         specifier: 3.0.0
         version: 3.0.0
@@ -618,8 +621,8 @@ importers:
         specifier: 14.0.0
         version: 14.0.0
       typescript:
-        specifier: 5.9.3
-        version: 5.9.3
+        specifier: 6.0.3
+        version: 6.0.3
       validate-npm-package-name:
         specifier: 8.0.0
         version: 8.0.0
@@ -647,10 +650,10 @@ importers:
         version: link:../unframe-components
       vite-plus:
         specifier: 'catalog:'
-        version: 0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(svelte@5.57.1)(tsx@4.23.15)(typescript@5.9.3)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)
+        version: 0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
-        version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(tsx@4.23.15)(typescript@5.9.3)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)'
+        version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(tsx@4.23.15)(typescript@6.0.3)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)'
 
   packages/unframe-compiler:
     dependencies:
@@ -669,6 +672,9 @@ importers:
       '@unframe/unframe-renderer-api':
         specifier: workspace:*
         version: link:../unframe-renderer-api
+      css-tree:
+        specifier: 3.2.1
+        version: 3.2.1
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -676,6 +682,9 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
+      '@types/css-tree':
+        specifier: ^3.2.0
+        version: 3.2.0
       '@unframe/unframe-components':
         specifier: workspace:*
         version: link:../unframe-components
@@ -766,6 +775,9 @@ importers:
       '@unframe/unframe-renderer-api':
         specifier: workspace:*
         version: link:../unframe-renderer-api
+      '@unframe/unframe-worker-host':
+        specifier: workspace:*
+        version: link:../unframe-worker-host
       playwright-core:
         specifier: 1.62.1
         version: 1.62.1
@@ -849,6 +861,21 @@ importers:
       vite-plus:
         specifier: 'catalog:'
         version: 0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)
+
+  packages/unframe-worker-host:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.0
+      typescript:
+        specifier: ^7.0.0
+        version: 7.0.2
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(svelte@5.57.1)(tsx@4.23.15)(typescript@7.0.2)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(tsx@4.23.15)(typescript@7.0.2)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)'
 
   scripts/dev:
     devDependencies:
@@ -3231,6 +3258,9 @@ packages:
   '@types/cookie@0.6.0':
     resolution: {integrity: sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA==}
 
+  '@types/css-tree@3.2.0':
+    resolution: {integrity: sha512-J5KXmk6BFIepOT7280FdFyNs4c5fh0Uee0otjKEvzchrRs38Ii9qminqc4ds0L19X8Zd/rT+brR9jkBthygjWw==}
+
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
@@ -3667,145 +3697,123 @@ packages:
     resolution: {integrity: sha512-yo96Oef12WzqnphInfz/eexVse3+kWgfGS5g2S3rFS3dcGn1ENW9xLFDZUP9rh+yP76DOq38wBoFi1+I9+6qBg==}
     cpu: [arm64]
     os: [darwin]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-darwin-x64@0.5.48':
     resolution: {integrity: sha512-aRCTw0EZC4bVosmw//0OMYP5tGWFE0Cu5yUBFkUbhXx/iBzvORcJ2xPNlOp/vtCCo9Ys4vp8b0DigJV6uOVb2g==}
     cpu: [x64]
     os: [darwin]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-freebsd-x64@0.5.48':
     resolution: {integrity: sha512-CA0AQAEApDkbw51PdLWMtKPJ41/7rvXsS3SJs+phG7fHJI+MuFzWuLbkucZfZoEOiDscmcsfYIdgL8BsfuyKKQ==}
     cpu: [x64]
     os: [freebsd]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm-gnu@0.5.48':
     resolution: {integrity: sha512-DuSQlk8bH4gpmW3/00P0NLagAcMv8jOxjT40cQmxKRkktr+SUOALCfkT89tdDq3qtY95NR2GXOZ7AjNh7KKqCw==}
     cpu: [arm]
     os: [linux]
     libc: [glibc]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm-musl@0.5.48':
     resolution: {integrity: sha512-bxj4Ee+wlaJcWJwft2ReJXWw5sfl1qavDz6+dlRdU1xfTEtjPSNiAWhiCHnJR0R4Ygd57DnzSQmAVGvFv6RcGw==}
     cpu: [arm]
     os: [linux]
     libc: [musl]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm64-gnu@0.5.48':
     resolution: {integrity: sha512-mk5JVWh+0JOe5ue8k17kbYX8uGBoKt3ZqoCyxNh4nYAAcX7+X1tFUiU7jbjctu4vHeejCBFSTdQ021+V31cUCQ==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm64-musl@0.5.48':
     resolution: {integrity: sha512-4q3vkrNghbllyxOm2KesFLxCPKHF7r3JyQ7BWZccY1j2Y05yKoIFhoWCqIuQ2W/dpte9RI0+OVfwyxnrKg6fkA==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-x64-gnu@0.5.48':
     resolution: {integrity: sha512-csd4M1EVrGaohM8acM6gq1zpUA/Rwe2ulUMBKUcwQXm/k6n7cq1A++qdew78SOVb4do3JH1WE+WFwoGQAcWc1w==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-x64-musl@0.5.48':
     resolution: {integrity: sha512-KcDuEOT+GFoVKdvAWOv1v9iYjwnmvMZlO+j1Rw+5PYdeFLGWGzv/DD11y4SAAdwXIFcil4T0hibeIaF82WStMg==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-win32-arm64@0.5.48':
     resolution: {integrity: sha512-HI8qNrI8dWM5BuqIMKsqornRvTNFrE6sm5zToIJ9YIa9zt5+29P7fJ7Nr39EVf6dAWSb6q7JSpScJnRsQ+FgZA==}
     cpu: [arm64]
     os: [win32]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-win32-x64@0.5.48':
     resolution: {integrity: sha512-X5YWJLO6EfBZpeBqO0AYESnUizbpFDWArcvVD61w0PEWQ3CaFRLnbQXs+kpM4ZZfGMfIE22zfA08QSY67q7TNQ==}
     cpu: [x64]
     os: [win32]
-    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-parser/binding-darwin-arm64@0.5.48':
     resolution: {integrity: sha512-If8mb7HH3vqghJ2NNZ8SuHfhsnjVzOxJpB8xcNOXS5WjYrs2mUhHIh5KOIvK13hDOzh0htGeGK3A6MsiEqE7HQ==}
     cpu: [arm64]
     os: [darwin]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-darwin-x64@0.5.48':
     resolution: {integrity: sha512-EimvPXfspzxf1K11eB6tCW5oiQEXB8g84T2wP1TwzQagdDKo33bkmmVF0B32vTIpXnk/Ifu5IB61izZ1MylljA==}
     cpu: [x64]
     os: [darwin]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-freebsd-x64@0.5.48':
     resolution: {integrity: sha512-0GcUMrumLHheThY9r5Tp46gaZYzn0irWPS1Zba6WY+vVQfhUtzGiWgXxI6tuXX0N32kEaaEVRpkKctvo6Kx3aQ==}
     cpu: [x64]
     os: [freebsd]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm-gnu@0.5.48':
     resolution: {integrity: sha512-8S5T5wjCC73dmmpQeZ49aYsSunIUM3D4Fc6rdK96c+Ayg/p3FmeSPF3xuLZHejcTmqJIIvnbfPlUF+rB6DITjQ==}
     cpu: [arm]
     os: [linux]
     libc: [glibc]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm-musl@0.5.48':
     resolution: {integrity: sha512-tTmbxvnUHcK2/crS9547vk2SMmsajH1yqJ8ltXhIuHJgqR1v+d9n9KT+kSayo/5CS76LegeYxhMFjEivBH2hFA==}
     cpu: [arm]
     os: [linux]
     libc: [musl]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm64-gnu@0.5.48':
     resolution: {integrity: sha512-KGYCBMqI2zfwyhgq5tpPVNe7jpUeYTBm8DhjdS+zqWNumde/PEC170QE5RHxcOAlsirIDeIUk0jqx+r/axoFSw==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm64-musl@0.5.48':
     resolution: {integrity: sha512-2wTSMsCSXLTc2lZUjMAuU5X4cje55u205WJqfV5NWNF6j9pW/tXyxr15dJeekj8ziLqBXzIsj4DbRh4sY/WcjA==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-x64-gnu@0.5.48':
     resolution: {integrity: sha512-d/6v9UnGglVu1WC2JQyv/5aWSi5fXZeGSlidCfmHp4+N65N1GDKUnFtys5MK5eAPeAjTgSHGGtOc/yCcKTlv3A==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-x64-musl@0.5.48':
     resolution: {integrity: sha512-gX19gw6u4ApPy7SYMPKfFlEkrtj6WlORvrTKK3sBQqjyV+8+mUAkQgxXNjHw4RnOiAmVYg7TOlZcg8d+Qqod9A==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-win32-arm64@0.5.48':
     resolution: {integrity: sha512-w6cQQLbqj3Jcom5Q7ifm103NUOQ9d+Cb4VU5lkrZDjMnwVJ9Hzzg1vCQR7miJuF44vhCXldbme5UryE3giEKlA==}
     cpu: [arm64]
     os: [win32]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-win32-x64@0.5.48':
     resolution: {integrity: sha512-4gO0HmG7fzFxrw1rs0dUdnnaY9YgennjETqDWrTSp7x9fmTUOAoN4VsMfP7YyliQeG1WJJHc55O+rOhmsLppow==}
     cpu: [x64]
     os: [win32]
-    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-toolchain/types@0.5.43':
     resolution: {integrity: sha512-kSpvPntnXw5+lYjO71ffBEnQ5ycQ74KGIYknh0TS4xeyCuBkOqxyJumxZkMhLBBUCLjDAbx2+Icnr3Zh4ftjpQ==}
@@ -4919,6 +4927,7 @@ packages:
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
+    hasBin: true
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -5090,6 +5099,7 @@ packages:
 
   oxlint-tsgolint@7.0.2001:
     resolution: {integrity: sha512-KjK/XLcXr1DSyonKhsuFqJRiuKqcyG9j3LJ8nkOsrLzGvodBPqzHOKauy10asLMDI0sUpvb+1sxlzff3udZvfg==}
+    hasBin: true
 
   oxlint@1.79.0:
     resolution: {integrity: sha512-hVJ9hq9m2unPS+Of4eJJgCPdIeCC+3DHEUX3tkmrPJr3OK2hz7PhXwgC+ZP71ZcYu8cCDEtQrqLxWNvxBppBVg==}
@@ -5158,6 +5168,7 @@ packages:
 
   pixelmatch@7.2.0:
     resolution: {integrity: sha512-xhcb4yHu9sM/G7foGzoLtXYcC0zHEaOXXjRKhGup0fw78Nf2Tkiapv4EQyMzrbcmQPsllAI7DbFY2UT7PlI9Pg==}
+    hasBin: true
 
   pkg-types@2.3.1:
     resolution: {integrity: sha512-y+ichcgc2LrADuhLNAx8DFjVfgz91pRxfZdI3UDhxHvcVEZsenLO+7XaU5vOp0u/7V/wZ+plyuQxtrDlZJ+yeg==}
@@ -5432,10 +5443,6 @@ packages:
 
   solid-js@1.9.12:
     resolution: {integrity: sha512-QzKaSJq2/iDrWR1As6MHZQ8fQkdOBf8GReYb7L5iKwMGceg7HxDcaOHk0at66tNgn9U2U7dXo8ZZpLIAmGMzgw==}
-
-  source-map-js@1.2.1:
-    resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
-    engines: {node: '>=0.10.0'}
 
   source-map-js@1.2.2:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
@@ -7117,9 +7124,9 @@ snapshots:
   '@opentui/core-win32-x64@0.4.5':
     optional: true
 
-  '@opentui/core@0.4.5(typescript@5.9.3)(web-tree-sitter@0.25.10)':
+  '@opentui/core@0.4.5(typescript@6.0.3)(web-tree-sitter@0.25.10)':
     dependencies:
-      bun-ffi-structs: 0.2.4(typescript@5.9.3)
+      bun-ffi-structs: 0.2.4(typescript@6.0.3)
       diff: 9.0.0
       marked: 17.0.1
       string-width: 7.2.0
@@ -7137,22 +7144,22 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@opentui/keymap@0.4.5(@opentui/solid@0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@5.9.3)(web-tree-sitter@0.25.10))(react@19.2.8)(solid-js@1.9.12)(typescript@5.9.3)(web-tree-sitter@0.25.10)':
+  '@opentui/keymap@0.4.5(@opentui/solid@0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@6.0.3)(web-tree-sitter@0.25.10))(react@19.2.8)(solid-js@1.9.12)(typescript@6.0.3)(web-tree-sitter@0.25.10)':
     dependencies:
-      '@opentui/core': 0.4.5(typescript@5.9.3)(web-tree-sitter@0.25.10)
+      '@opentui/core': 0.4.5(typescript@6.0.3)(web-tree-sitter@0.25.10)
     optionalDependencies:
-      '@opentui/solid': 0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@5.9.3)(web-tree-sitter@0.25.10)
+      '@opentui/solid': 0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@6.0.3)(web-tree-sitter@0.25.10)
       react: 19.2.8
       solid-js: 1.9.12
     transitivePeerDependencies:
       - typescript
       - web-tree-sitter
 
-  '@opentui/solid@0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@5.9.3)(web-tree-sitter@0.25.10)':
+  '@opentui/solid@0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@6.0.3)(web-tree-sitter@0.25.10)':
     dependencies:
       '@babel/core': 7.28.0(supports-color@10.2.2)
       '@babel/preset-typescript': 7.27.1(@babel/core@7.28.0(supports-color@10.2.2))
-      '@opentui/core': 0.4.5(typescript@5.9.3)(web-tree-sitter@0.25.10)
+      '@opentui/core': 0.4.5(typescript@6.0.3)(web-tree-sitter@0.25.10)
       babel-plugin-module-resolver: 5.0.2
       babel-preset-solid: 1.9.12(@babel/core@7.28.0(supports-color@10.2.2))(solid-js@1.9.12)
       entities: 7.0.1
@@ -7567,7 +7574,7 @@ snapshots:
       jiti: 2.7.0
       lightningcss: 1.31.1
       magic-string: 0.30.21
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
       tailwindcss: 4.2.1
 
   '@tailwindcss/node@4.3.3':
@@ -7577,7 +7584,7 @@ snapshots:
       jiti: 2.7.0
       lightningcss: 1.32.0
       magic-string: 0.30.21
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
       tailwindcss: 4.3.3
 
   '@tailwindcss/oxide-android-arm64@4.2.1':
@@ -7796,6 +7803,8 @@ snapshots:
       assertion-error: 2.0.1
 
   '@types/cookie@0.6.0': {}
+
+  '@types/css-tree@3.2.0': {}
 
   '@types/deep-eql@4.0.2': {}
 
@@ -8020,21 +8029,6 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
-  '@voidzero-dev/vite-plus-core@0.1.24(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@5.9.3)(yaml@2.9.0)':
-    dependencies:
-      '@oxc-project/runtime': 0.133.0
-      '@oxc-project/types': 0.133.0
-      lightningcss: 1.33.0
-      postcss: 8.5.29
-    optionalDependencies:
-      '@types/node': 24.19.0
-      esbuild: 0.28.2
-      fsevents: 2.3.3
-      jiti: 2.7.0
-      tsx: 4.23.15
-      typescript: 5.9.3
-      yaml: 2.9.0
-
   '@voidzero-dev/vite-plus-core@0.1.24(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)':
     dependencies:
       '@oxc-project/runtime': 0.133.0
@@ -8157,47 +8151,6 @@ snapshots:
 
   '@voidzero-dev/vite-plus-linux-x64-musl@0.3.0':
     optional: true
-
-  '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(tsx@4.23.15)(typescript@5.9.3)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)':
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@types/chai': 5.2.3
-      '@voidzero-dev/vite-plus-core': 0.1.24(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@5.9.3)(yaml@2.9.0)
-      es-module-lexer: 1.7.0
-      obug: 2.1.4
-      pixelmatch: 7.2.0
-      pngjs: 7.0.0
-      sirv: 3.0.2
-      std-env: 4.2.0
-      tinybench: 2.9.0
-      tinyexec: 1.3.0
-      tinyglobby: 0.2.17
-      vite: 8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0)
-      ws: 8.21.0
-    optionalDependencies:
-      '@types/node': 24.19.0
-      jsdom: 30.1.1(@noble/hashes@2.3.0)
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@tsdown/css'
-      - '@tsdown/exe'
-      - '@vitejs/devtools'
-      - bufferutil
-      - esbuild
-      - jiti
-      - less
-      - publint
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - typescript
-      - unplugin-unused
-      - unrun
-      - utf-8-validate
-      - yaml
 
   '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(tsx@4.23.15)(typescript@6.0.3)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)':
     dependencies:
@@ -8643,9 +8596,9 @@ snapshots:
       ieee754: 1.2.1
     optional: true
 
-  bun-ffi-structs@0.2.4(typescript@5.9.3):
+  bun-ffi-structs@0.2.4(typescript@6.0.3):
     dependencies:
-      typescript: 5.9.3
+      typescript: 6.0.3
 
   bundle-name@4.1.0:
     dependencies:
@@ -9710,7 +9663,7 @@ snapshots:
     dependencies:
       nanoid: 3.3.12
       picocolors: 1.1.1
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   postcss@8.5.29:
     dependencies:
@@ -10026,8 +9979,6 @@ snapshots:
       csstype: 3.2.3
       seroval: 1.5.6
       seroval-plugins: 1.5.6(seroval@1.5.6)
-
-  source-map-js@1.2.1: {}
 
   source-map-js@1.2.2: {}
 

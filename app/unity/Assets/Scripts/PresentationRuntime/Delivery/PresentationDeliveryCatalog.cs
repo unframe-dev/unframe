@@ -129,6 +129,14 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     return Fail("delivery node is incomplete.", out error);
                 }
+                if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Shape)
+                {
+                    UnlitShapeMaterial material = node.Shape.Material;
+                    if (material == null || material.Color == null || material.CastsShadows || material.ReceivesShadows
+                        || !IsUnitInterval(material.Color.Red) || !IsUnitInterval(material.Color.Green)
+                        || !IsUnitInterval(material.Color.Blue) || !IsUnitInterval(material.Color.Alpha))
+                        return Fail("delivery shape material is invalid.", out error);
+                }
             }
 
             foreach (ProjectedNodeDefinition node in catalog.Nodes)
@@ -311,6 +319,10 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!IsId(id) || !nodeIds.Add(id)) return Fail("delivery native UI artifact node is invalid.", out error);
                 if (node.NodeCase == NativeUiNode.NodeOneofCase.Text)
                 {
+                    Unframe.Delivery.SrgbaColor color = node.Text.Color;
+                    if (color == null || !IsUnitInterval(color.Red) || !IsUnitInterval(color.Green)
+                        || !IsUnitInterval(color.Blue) || !IsUnitInterval(color.Alpha))
+                        return Fail("delivery native UI text color is invalid.", out error);
                     if (node.Text.Value == null || node.Text.Value.SourceCase != NativeTextValue.SourceOneofCase.Literal)
                         return Fail("delivery native UI text source is unsupported by the local renderer.", out error);
 
@@ -349,7 +361,7 @@ namespace Unframe.Unity.PresentationRuntime
             target.Add(id, value); error = null; return true;
         }
 
-        private static bool TryValidateTimeline(ProjectedTimelineDefinition timeline, Dictionary<string, ProjectedNodeDefinition> knownNodes, out string error)
+        internal static bool TryValidateTimeline(ProjectedTimelineDefinition timeline, Dictionary<string, ProjectedNodeDefinition> knownNodes, out string error)
         {
             if (timeline.DurationMs == 0 || timeline.Owner == null || timeline.Owner.ScopeCase == ResourceOwner.ScopeOneofCase.None || timeline.Tracks.Count == 0)
             {
@@ -463,6 +475,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         internal static bool IsFinite(double value) { return !Double.IsNaN(value) && !Double.IsInfinity(value); }
 
+        private static bool IsUnitInterval(double value) => IsFinite(value) && value >= 0 && value <= 1;
+
         internal static bool IsCanonicalFinite(double value) { return IsFinite(value) && (value != 0 || BitConverter.DoubleToInt64Bits(value) == 0); }
 
         internal static bool IsCanonicalUnitQuaternion(Quaternion value)
@@ -474,7 +488,7 @@ namespace Unframe.Unity.PresentationRuntime
                 && (value.W != 0 ? value.W > 0 : value.X != 0 ? value.X > 0 : value.Y != 0 ? value.Y > 0 : value.Z > 0);
         }
 
-        private static bool IsSupportedEasing(Easing easing) { return easing == Easing.Linear || easing == Easing.CubicIn || easing == Easing.CubicOut || easing == Easing.CubicInOut; }
+        internal static bool IsSupportedEasing(Easing easing) { return easing == Easing.Linear || easing == Easing.CubicIn || easing == Easing.CubicOut || easing == Easing.CubicInOut; }
 
         internal static bool IsId(string value) { if (String.IsNullOrEmpty(value) || value.Length > 128 || !IsAsciiAlphaNumeric(value[0])) return false; for (int i = 1; i < value.Length; i++) { char c = value[i]; if (!IsAsciiAlphaNumeric(c) && c != '.' && c != '_' && c != ':' && c != '/' && c != '-') return false; } return true; }
 

@@ -31,10 +31,12 @@ if [ "$host" = linux ] && [ -z "${UNFRAME_OPAQUE_CGROUP_ROOT:-}" ]; then
   exec "${repo_root}/scripts/dev/opaque-capture-scope.sh" "${repo_root}/scripts/ci/opaque-capture.sh"
 fi
 
+bash "${repo_root}/scripts/build-cli-filesystem.sh"
+
 pnpm --dir "${repo_root}" --filter @unframe/unframe-tailwind run build
 
 pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web run typecheck
-node --test "${repo_root}"/packages/unframe-renderer-web/src/opaque/isolation/native/test_*.ts
+node --test "${repo_root}"/packages/unframe-worker-host/src/native/test_*.ts
 
 pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web exec vp test run --maxWorkers=1 --testTimeout=60000 \
   test/opaque-isolation.integration.test.ts test/opaque-isolation-darwin.integration.test.ts \

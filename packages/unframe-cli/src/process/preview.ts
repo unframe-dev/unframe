@@ -103,6 +103,16 @@ export const runPreviewProcess = async (
     };
   const { names, images } = loaded;
   const html = `<!doctype html><html lang="ja"><meta charset="utf-8"><title>Unframe Preview</title><style>body{margin:0;background:#16191d;color:#f4f4f5;font:16px system-ui;padding:2rem}main{display:grid;gap:2rem;justify-items:center}img{max-width:min(100%,1200px);height:auto;box-shadow:0 1rem 3rem #0008}</style><h1>Unframe Preview</h1><main>${names.map((name) => `<figure><img src="/assets/${encodeURIComponent(name)}" alt="${escapeHtml(name)}"><figcaption>${escapeHtml(name)}</figcaption></figure>`).join("")}</main></html>`;
+  await using preview = await startPreviewServer(html, images);
+  announce(preview.origin);
+  await new Promise<void>((resolve) => {
+    if (signal.aborted) resolve();
+    else signal.addEventListener("abort", () => resolve(), { once: true });
+  });
+  return { exitCode: 130, stdout: "", stderr: "$: cancel/cli-cancelled: Preview was stopped.\n" };
+};
+
+export const startPreviewServer = async (html: string, images: ReadonlyMap<string, Uint8Array>) => {
   const server = createServer((request, response) => {
     const url = request.url ?? "";
     if (url === "/") {
@@ -122,20 +132,22 @@ export const runPreviewProcess = async (
     response.writeHead(200, { "content-type": "image/png", "cache-control": "no-store" });
     response.end(bytes);
   });
-  try {
-    await new Promise<void>((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(0, "127.0.0.1", resolve);
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
     });
-    const address = server.address();
-    if (!address || typeof address === "string") throw new Error("Invalid preview address");
-    announce(`http://127.0.0.1:${address.port}/`);
-    await new Promise<void>((resolve) => {
-      if (signal.aborted) resolve();
-      else signal.addEventListener("abort", () => resolve(), { once: true });
-    });
-    return { exitCode: 130, stdout: "", stderr: "$: cancel/cli-cancelled: Preview was stopped.\n" };
-  } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  }
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Invalid preview address");
+  let closing: Promise<void> | undefined;
+  return {
+    origin: `http://127.0.0.1:${address.port}/`,
+    [Symbol.asyncDispose]: () =>
+      (closing ??= new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+        server.closeAllConnections();
+      })),
+  };
 };

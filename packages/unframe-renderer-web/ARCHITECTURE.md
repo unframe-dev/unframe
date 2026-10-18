@@ -44,7 +44,7 @@ Compiler が決定した Render Surface partition を build input として受�
 - injected `FixedBrowserAdapter` の identity / fixed environment を snapshot した Structured build
 - absolute root `Frame` と任意深度の静的 `Frame` / `Text` / `Image` / `Shape` graph の HTML/CSS/SVG lower、state capture、raw RGBA ownership transfer
 - locked virtual package からの Opaque TS/TSX/JS/JSX/JSON bundle と CSS/asset emit
-- native isolation adapter 内の Chromium で全宣言 State を capture。明示 binding と decoded RGBA の二回一致を同じ環境内で検証
+- `@unframe/unframe-worker-host` の native isolation adapter 内の Chromium で全宣言 State を capture。明示 binding と decoded RGBA の二回一致を同じ環境内で検証
 - Compiler が自動 partition と入力検証を行い、各 capture を `unframe-assets` へ encode / checksum 委譲して RenderBundle を組み立てる。現行 Opaque subset は Surface 全体を一つの partition とする
 
 ### Target

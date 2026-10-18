@@ -2,11 +2,13 @@
 
 [ADR-0025](../decisions/0025-local-editor-unity-preview.md) に基づく Source 編集、Dev／Dist generation、Unity Preview、表示済み Dist の公開経路の実装契約。想定読者は CLI、Core、Web、Unity の実装担当者。実ブラウザー・native Unity・実サービスの E2E は別途検証し、その成功を本書だけから判断しない。
 
+保存済み Step・Cue・アニメーションの閲覧範囲は [読み取り専用 Timeline 仕様](./LOCAL_EDITOR_TIMELINE_SPEC.md) を参照。
+
 ## 1. 目標と初期範囲
 
 保存済みのローカル project を Dev Preview で確認し、明示 build で生成した同じ `dist` を Dist Preview・Control Plane 公開・本番読み込みに使用する。
 
-初期 Preview は Structured／Opaque Source から生成した canonical baked-web Surface、Stage／container 配下の配置、初期 Group／State の静止表示、カメラの視点操作を扱う。表示の初期値は Core の既存初期化規則から導出する。公開後の本番読み込み E2E は native Unity Editor で実 Realtime Snapshot を受け取る。Cue 発火、Timeline 再生、WebGL の本番 Realtime 接続、Quest 実機は後続の検証とする。初期 Preview の未対応描画入力である Model、video、native-ui、tracking anchor などは load error にする。
+Preview は Structured／Opaque Source から生成した canonical baked-web Surface、Stage／container 配下の配置、Step／Cue／Timeline、Surface の遷移、カメラの視点操作を扱う。表示の初期値とローカル進行は Core の既存規則から導出する。公開後の本番読み込み E2E は native Unity Editor で実 Realtime Snapshot を受け取る。WebGL の本番 Realtime 接続、Quest 実機は別の検証対象とする。未対応描画入力である Model、video、native-ui、tracking anchor などは load error にする。
 
 Web UI は Local Host の project 読み込み、Props／Transform の保存、診断表示を扱う。Inspector 編集は対応する React scene に限る。編集用 metadata を得られない Source も Compiler の検証を通れば build・表示でき、UI は閲覧と診断を提供する。その他の Source は外部 editor で保存して Dev Preview に反映する。Unity 上の選択・Gizmo・Component 配置は拡張目標であり、初期の完了条件に含めない。
 
@@ -38,7 +40,7 @@ Definition + RenderBundle + AssetSet + BuildManifest + assets
 | `app/unity/`             | Preview／Delivery 入力 Adapter、共通 hierarchy・描画・素材管理、WebGL／Quest platform Adapter                        |
 | Control Plane            | upload された build の公開整合性、認可、Delivery projection。Source や Dev generation は受け取らない                 |
 
-`PresentationRuntimeDataStore` は Delivery／Snapshot の検証を所有する。描画参照は `IPresentationRenderView` を介し、Preview／Delivery Adapter が共通 hierarchy・renderer を使う。本番 Adapter の fence 検証は維持する。
+`PresentationRuntimeDataStore` は Delivery／Snapshot の検証を所有する。描画参照は `IPresentationRenderView` を介し、Preview／Delivery Adapter が共通 hierarchy・renderer・`PresentationPlaybackPlayer` を使う。ノード状態反映、Timeline の同期・補間、Surface 遷移の評価、再生時計のサンプリングを共通化し、通信・素材取得・Quest 校正・Preview の表示交換は各 Adapter が所有する。本番 Adapter の fence 検証は維持する。
 
 ### Web features の統合
 
@@ -81,7 +83,13 @@ Delivery は従来どおり `verifyPublicationIntegrity` を通し、共通結�
 
 Delivery は描画 catalog・素材・fence を提供し、本番の Node／Surface の現在状態は割り当て済み Runtime Core の `ConnectionSnapshot` から取得する。本番 Adapter は Session／Publication／profile／assignment fence と Snapshot の sequence を検証してから共通 renderer に状態を渡す。復旧・進行済み Snapshot を Definition の宣言初期値へ戻さない。
 
-初期 role は presenter、capability は Web Preview の実装済み機能を表す固定 profile とする。初期 Group と Surface State は Definition の宣言値を使い、Node の active／visible／opacity／local Transform を Core の初期化規則に従って生成する。初期化は assignment epoch に依存しない pure 処理として抽出し、Cue／timer は進行させない。catalog に含まれても初期表示状態に存在しない Group-owned ノードは inactive とする。
+role は presenter、capability は Web Preview の実装済み機能を表す固定 profile とする。初期 Group と Surface State は Definition の宣言値を使い、Node の active／visible／opacity／local Transform を Core の初期化規則に従って生成する。読み込み直後は一時停止し、再生操作まで Cue／timer は進行させない。catalog に含まれても現在の表示状態に存在しない Group-owned ノードは inactive とする。
+
+### ローカル再生
+
+Local Host は commit 済み request ごとに Core の Cue state と単調時計を持つ。`POST /api/preview-playback` は `requestId` と `command`（`poll`／`play`／`pause`／`reset`／`input`）を受け、`input` のみ現在実行可能な `cueId` を指定する。任意の状態や時刻は受け付けない。入力候補と guard・競合・完了・timer の評価は Core に委譲する。既存の Bearer／Origin 検証を適用し、古い request と実行不能な入力は `409` で拒否する。
+
+応答は `LocalPreviewPlaybackState`（request、sequence、現在の Group、Node／Surface 状態、ActiveRuns、RuntimeClock）と現在の Group／Step・入力候補・終了状態を返す。Web は約100ms間隔で直列に取得し、Unity の `Playback` acknowledgement を待つ。Unity は catalog と sequence を検証して状態を適用し、共通プレイヤーを毎 frame 更新する。reset は時刻をゼロに戻し、run の識別子を更新するが sequence は戻さない。新しい load・invalidate・終了で再生要求を無効化し、古い応答を破棄する。再生状態は Source や Dist へ保存しない。
 
 ### Local Preview Adapter
 
@@ -141,6 +149,8 @@ revision は config・Source・lock の bytes を含む。refresh は開始時�
 
 `local-editor-e2e` は隔離したローカル D1／R2、Control Plane、Realtime、承認用 Web、Local Host を起動し、実 WebGL の Dist commit、device 承認、公開 hash、Delivery／素材取得、Snapshot／StateReady を経由する native Unity Editor 描画を検査する。素材と Realtime は実行ごとのローカル CA を用いる HTTPS 経路で接続する。fixture のアカウント／session は試験が準備する。クラウドへの deploy や本番 upload は行わない。
 
-2026-10-07 に実 WebGL の Structured／Opaque Dev・Dist 描画、contain／alpha、Transform 保存後の画素変化を確認した。証拠は `.unframe/actual-webgl-evidence/` の画像と `pixel-evidence.json`。復旧 Snapshot の進行状態保持と Publication／profile／assignment 不一致の拒否は実 Editor fixture で検証した。同日にローカル実 D1／R2・Control Plane・Realtime の E2E も成功し、device 承認、固定 Dist 公開、Delivery／HTTPS 素材、Snapshot／StateReady、native Unity の実画素まで確認した。結果は `.unframe/unity-preview/e2e/20261007T160533-371594/result.json`、native の画像は同 directory の `native.png`。Quest 実機、Cue／Timeline 再生、WebGL の本番 Realtime 接続、入力・性能の実機確認は別の検証対象。
+2026-10-07 に実 WebGL の Structured／Opaque Dev・Dist 描画、contain／alpha、Transform 保存後の画素変化を確認した。証拠は `.unframe/actual-webgl-evidence/` の画像と `pixel-evidence.json`。復旧 Snapshot の進行状態保持と Publication／profile／assignment 不一致の拒否は実 Editor fixture で検証した。同日にローカル実 D1／R2・Control Plane・Realtime の E2E も成功し、device 承認、固定 Dist 公開、Delivery／HTTPS 素材、Snapshot／StateReady、native Unity の実画素まで確認した。結果は `.unframe/unity-preview/e2e/20261007T160533-371594/result.json`、native の画像は同 directory の `native.png`。当日の E2E はローカル Preview の Cue／Timeline 再生を検証していない。Quest 実機、WebGL の本番 Realtime 接続、入力・性能の実機確認は別の検証対象。
 
 実行前提・生成物・ログの位置は [scripts README](../../scripts/README.md#local-editor-と-unity) を参照する。公開時認証の取り消し・期限切れでも保存と Preview は継続できる。Source のみ更新した後の固定 Dist 公開と、権限のない ID 再利用・古い PublicationFence の拒否も E2E の対象である。
+
+2026-10-18 に `examples/presentation` の実 WebGL Preview で、`continue` 入力、フェード途中の一時停止・再開、`finished` への進行、リセット、Dev／Dist の表示を確認した。画像は `.unframe/actual-webgl-evidence/structured-paused.png` と `structured-faded.png`。共通再生・Preview の EditMode テスト10件も成功した。この確認は本番 Realtime 接続と Quest 実機を含まない。

@@ -4,7 +4,15 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
-import { canonicalizeJsonPayload } from "@unframe/unframe-core";
+import {
+  canonicalizeJsonPayload,
+  hashCanonicalJsonPayload,
+  verifyBuildIntegrity,
+} from "@unframe/unframe-core";
+import definitionFixture from "../../contracts/presentation/fixtures/presentation-definition.json";
+import bundleFixture from "../../contracts/presentation/fixtures/render-bundle.json";
+import assetSetFixture from "../../contracts/presentation/fixtures/asset-set-manifest.json";
+import manifestFixture from "../../contracts/presentation/fixtures/build-manifest.json";
 import { checkAuthoringProject } from "@unframe/unframe-compiler";
 import { acquireSourceLock } from "../src/filesystem/source-lock.js";
 import { createAuthorService } from "../src/author/service.js";
@@ -100,6 +108,63 @@ const setTitle = (snapshot: ProjectSnapshot, value: string, character: string) =
 });
 
 describe("author service with frozen React source", () => {
+  it("keeps request replay and job history after evicting older image bytes", async () => {
+    const directory = await createProject();
+    let builds = 0;
+    const service = await createAuthorService(directory, {
+      run: async () => ({
+        exitCode: 0,
+        stdout: "",
+        stderr: "",
+        generationId: (++builds).toString(16).padStart(32, "0"),
+      }),
+      readPublishedArtifacts: async () => ({
+        catalog: [
+          { assetId: "image", mediaType: "image/png", instanceId: "hero-one", stateId: "default" },
+        ],
+        assets: new Map([["image", { bytes: new Uint8Array([builds]), mediaType: "image/png" }]]),
+      }),
+    });
+    services.push(service);
+    const snapshot = await service.project();
+    const first = await service.build(snapshot.revision, commandId("a"), "dist");
+    await expect
+      .poll(async () => (await service.job(first.buildId)).status, { timeout: 20_000 })
+      .toBe("succeeded");
+    const second = await service.build(snapshot.revision, commandId("b"), "dist");
+    await expect
+      .poll(async () => (await service.job(second.buildId)).status, { timeout: 20_000 })
+      .toBe("succeeded");
+    const third = await service.build(snapshot.revision, commandId("c"), "dist");
+    await expect
+      .poll(async () => (await service.job(third.buildId)).status, { timeout: 20_000 })
+      .toBe("succeeded");
+    expect(await service.build(snapshot.revision, commandId("a"), "dist")).toMatchObject({
+      buildId: first.buildId,
+      status: "succeeded",
+    });
+    expect(builds).toBe(3);
+    await expect(service.artifact(first.buildId, "image")).rejects.toMatchObject({ status: 404 });
+    expect((await service.artifact(third.buildId, "image")).bytes).toEqual(new Uint8Array([3]));
+  }, 60_000);
+  it("rejects incomplete build artifacts before publishing the display catalog", async () => {
+    const directory = await createProject();
+    const generationId = "f".repeat(32);
+    const generation = join(directory, ".unframe/preview/generations", generationId);
+    await mkdir(generation, { recursive: true });
+    await writeFile(join(generation, "render-bundle.json"), '{"surfaces":{}}');
+    await writeFile(join(generation, "asset-set.json"), '{"assets":{}}');
+    const service = await createAuthorService(directory, {
+      run: async () => ({ exitCode: 0, stdout: "", stderr: "", generationId }),
+    });
+    services.push(service);
+    const snapshot = await service.project();
+    const created = await service.build(snapshot.revision, commandId("f"));
+    await expect
+      .poll(async () => (await service.job(created.buildId)).status, { timeout: 20_000 })
+      .toBe("failed");
+    expect((await service.job(created.buildId)).artifacts).toEqual([]);
+  }, 30_000);
   it("builds explicit Dist without refreshing saved local inputs", async () => {
     const directory = await createProject();
     let builtChannel: string | undefined;
@@ -472,28 +537,50 @@ describe("author service with frozen React source", () => {
         expect(host?.channel).toBe("dev");
         const generation = join(directory, ".unframe", "preview", "generations", generationId);
         await mkdir(join(generation, "assets"), { recursive: true });
-        const surface = () => ({
-          renderSurfaces: {
-            render: {
-              artifacts: { artifact: { states: { default: { texture: { assetId } } } } },
-            },
+        const checksum = "sha256:" + createHash("sha256").update(bytes).digest("hex");
+        const surface = (instanceId: string) => {
+          const fixture = structuredClone(bundleFixture.surfaces.baked);
+          fixture.semanticSurfaceId = surfaceId(instanceId);
+          fixture.renderSurfaces["render-baked"].semanticSurfaceId = surfaceId(instanceId);
+          const texture =
+            fixture.renderSurfaces["render-baked"].artifacts["artifact-baked"].states.default
+              .texture;
+          Object.assign(texture, { assetId, checksum, encodedSizeBytes: bytes.byteLength });
+          return fixture;
+        };
+        const bundle = {
+          ...bundleFixture,
+          surfaces: {
+            ...bundleFixture.surfaces,
+            [surfaceId("hero-one")]: surface("hero-one"),
+            [surfaceId("hero-two")]: surface("hero-two"),
           },
+        };
+        const assetSet = {
+          ...assetSetFixture,
+          assets: {
+            ...assetSetFixture.assets,
+            [assetId]: { checksum, mediaType: "image/png", encodedSizeBytes: bytes.byteLength },
+          },
+        };
+        const buildManifest = {
+          ...manifestFixture,
+          renderBundleHash: hashCanonicalJsonPayload(bundle),
+          assetSetHash: hashCanonicalJsonPayload(assetSet),
+        };
+        const integrity = verifyBuildIntegrity({
+          definition: definitionFixture,
+          renderBundle: bundle,
+          assetSet,
+          buildManifest,
         });
-        await writeFile(
-          join(generation, "render-bundle.json"),
-          JSON.stringify({
-            surfaces: {
-              [surfaceId("hero-one")]: surface(),
-              [surfaceId("hero-two")]: surface(),
-            },
-          }),
-        );
-        await writeFile(
-          join(generation, "asset-set.json"),
-          JSON.stringify({
-            assets: { [assetId]: { mediaType: "image/png" } },
-          }),
-        );
+        assert(integrity.valid, JSON.stringify(integrity.diagnostics));
+        await Promise.all([
+          writeFile(join(generation, "definition.json"), JSON.stringify(definitionFixture)),
+          writeFile(join(generation, "render-bundle.json"), JSON.stringify(bundle)),
+          writeFile(join(generation, "asset-set.json"), JSON.stringify(assetSet)),
+          writeFile(join(generation, "build-manifest.json"), JSON.stringify(buildManifest)),
+        ]);
         await writeFile(join(generation, "assets", assetId + ".png"), bytes);
         await symlink(
           "generations/" + "e".repeat(32),
