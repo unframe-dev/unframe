@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import type { ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
@@ -40,45 +40,6 @@ it("connects a Timeline action to its track without carrying focus into another 
   expect(screen.getByRole("group", { name: "Timeline focus" })).toHaveFocus();
   await user.click(screen.getByRole("button", { name: "Cue other" }));
   expect(screen.getByRole("group", { name: "Timeline focus" })).not.toHaveFocus();
-});
-
-it("opens the initial Group with keyboard-selectable Steps and Cues and exposes all action details", async () => {
-  const project = definition();
-  const cue = project.flow.groups.intro!.steps.start!.cues[0]!;
-  cue.guard = {
-    kind: "compare",
-    left: { kind: "variable", variableId: "counter" },
-    operator: "gte",
-    right: 2,
-  };
-  cue.trigger = { kind: "timer", afterMilliseconds: 500 };
-  cue.actions.push({
-    kind: "surface.setState",
-    surfaceId: "baked",
-    stateId: "default",
-    transition: {
-      kind: "crossfade",
-      durationMilliseconds: 700,
-      easing: "cubicOut",
-      completion: "blocking",
-    },
-  });
-  render(<TimelinePanel definition={project} revision="saved-42" />);
-  expect(screen.getByText("定義の保存 revision: saved-42")).toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: "Cue wave" })).not.toBeInTheDocument();
-  const user = userEvent.setup();
-  screen.getByRole("button", { name: "Step start" }).focus();
-  await user.keyboard("{Enter}");
-  screen.getByRole("button", { name: "Cue wave" }).focus();
-  await user.keyboard(" ");
-  expect(screen.getByRole("heading", { name: "Cue wave" })).toBeInTheDocument();
-  expect(screen.getByText("Step 開始から 500 ms")).toBeInTheDocument();
-  expect(screen.getByText("条件付き（成立は未確定）")).toBeInTheDocument();
-  const actions = screen.getByRole("list", { name: "Actions" });
-  expect(within(actions).getByText("modelClip.play")).toBeInTheDocument();
-  expect(within(actions).getByText("surface.setState")).toBeInTheDocument();
-  expect(within(actions).getByText("700 ms")).toBeInTheDocument();
-  expect(screen.getByText("この Cue に timeline.play はありません。")).toBeInTheDocument();
 });
 
 it("preserves selected IDs on saved updates and clears deleted Cues, Steps, Groups and unavailable definitions", async () => {
@@ -158,65 +119,9 @@ it("allows first load after null and treats Groups and Cue-less Steps as normal 
   expect(screen.getByText("Group は定義されていません。")).toBeInTheDocument();
 });
 
-it("shows every transition including Group initial Steps, cycles, stay and end without hiding unreachable nodes", () => {
-  const project = definition();
-  const cue = project.flow.groups.intro!.steps.start!.cues[0]!;
-  project.flow.groups.intro!.steps.start!.cues = [
-    { ...cue, id: "branch", next: { kind: "step", stepId: "branch" } },
-    { ...cue, id: "leave", next: { kind: "group", groupId: "other" } },
-    { ...cue, id: "stay", next: { kind: "stay" } },
-    { ...cue, id: "end", next: { kind: "end" } },
-  ];
-  project.flow.groups.intro!.steps.branch = {
-    id: "branch",
-    cues: [{ ...cue, id: "back", next: { kind: "step", stepId: "start" } }],
-  };
-  project.flow.groups.intro!.steps.isolated = { id: "isolated", cues: [] };
-  project.flow.groups.other = {
-    id: "other",
-    initialStepId: "entry",
-    steps: { entry: { id: "entry", cues: [] } },
-  };
-  render(<TimelinePanel definition={project} />);
-  expect(screen.getByRole("button", { name: "Step start" })).toHaveAccessibleDescription(
-    "初期 Step",
-  );
-  expect(screen.getByRole("button", { name: "Step isolated" })).toHaveAccessibleDescription(
-    "初期 Step から到達不可",
-  );
-  const transitions = screen.getByRole("list", { name: "Cue の遷移" });
-  expect(
-    within(transitions).getByText("start → Group other / 初期 Step entry / Cue leave"),
-  ).toBeInTheDocument();
-  expect(
-    within(transitions).getByText("start → stay / Step start に留まる / Cue stay"),
-  ).toBeInTheDocument();
-  expect(within(transitions).getByText("start → end / 終了 / Cue end")).toBeInTheDocument();
-  expect(within(transitions).getByText("branch → Step start / Cue back")).toBeInTheDocument();
-  expect(
-    screen
-      .getByRole("group", { name: "intro の Step と遷移" })
-      .querySelectorAll("path[marker-end]"),
-  ).toHaveLength(5);
-});
-
-it("shows sorted candidate Cues without selecting one automatically", async () => {
-  const project = definition();
-  const cue = project.flow.groups.intro!.steps.start!.cues[0]!;
-  project.flow.groups.intro!.steps.start!.cues = [
-    { ...cue, id: "z", priority: 1, order: 1 },
-    { ...cue, id: "a", priority: 1, order: 1 },
-    { ...cue, id: "last", priority: 0, order: 0 },
-    { ...cue, id: "first", priority: 1, order: 0 },
-  ];
-  render(<TimelinePanel definition={project} />);
+it("waits for explicit Cue selection after selecting a Step", async () => {
+  render(<TimelinePanel definition={definition()} />);
   await userEvent.setup().click(screen.getByRole("button", { name: "Step start" }));
-  const cues = within(screen.getByRole("region", { name: "Cue 一覧" })).getAllByRole("button");
-  expect(cues.map((button) => button.getAttribute("aria-label"))).toEqual([
-    "Cue first",
-    "Cue a",
-    "Cue z",
-    "Cue last",
-  ]);
-  expect(cues.every((button) => button.getAttribute("aria-pressed") === "false")).toBe(true);
+  expect(screen.getByRole("button", { name: "Cue wave" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.queryByRole("region", { name: "Cue 詳細" })).not.toBeInTheDocument();
 });

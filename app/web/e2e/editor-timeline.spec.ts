@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import type { ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
 
-test("inspects the compiled showcase flow without changing Source, builds or Preview", async ({
+test("inspects showcase flow and nested conditions without changing Source, builds or Preview", async ({
   page,
 }, testInfo) => {
   const { stdout } = await promisify(execFile)(
@@ -13,6 +13,41 @@ test("inspects the compiled showcase flow without changing Source, builds or Pre
     { maxBuffer: 8 * 1024 * 1024 },
   );
   const snapshot = JSON.parse(stdout) as ProjectSnapshot;
+  const coverCue = Object.values(snapshot.definition!.flow.groups)
+    .flatMap((group) => Object.values(group.steps))
+    .flatMap((step) => step.cues)
+    .find((cue) => cue.id === "next-cover")!;
+  coverCue.guard = {
+    kind: "all",
+    guards: [
+      {
+        kind: "compare",
+        left: { kind: "nodeField", nodeId: "showcase-node", field: "active" },
+        operator: "eq",
+        right: true,
+      },
+      {
+        kind: "any",
+        guards: [
+          {
+            kind: "compare",
+            left: { kind: "nodeField", nodeId: "showcase-node", field: "visible" },
+            operator: "eq",
+            right: true,
+          },
+          {
+            kind: "not",
+            guard: {
+              kind: "compare",
+              left: { kind: "nodeField", nodeId: "showcase-node", field: "opacity" },
+              operator: "lt",
+              right: 0.7,
+            },
+          },
+        ],
+      },
+    ],
+  };
   const writes: string[] = [];
   await page.route("**/unity-preview/Build/UnframePreview.loader.js", (route) =>
     route.fulfill({
@@ -78,6 +113,18 @@ test("inspects the compiled showcase flow without changing Source, builds or Pre
   await page.keyboard.press("Enter");
   await panel.getByRole("button", { name: "Cue next-cover", exact: true }).focus();
   await page.keyboard.press("Space");
+  const cueDetails = panel.getByRole("region", { name: "Cue 詳細", exact: true });
+  for (const text of [
+    "条件付き（成立は未確定）",
+    "すべて満たす",
+    "いずれかを満たす",
+    "次の条件を満たさない",
+    "Node showcase-node の有効（active） ＝（等しい） true（真）",
+    "Node showcase-node の表示（visible） ＝（等しい） true（真）",
+    "Node showcase-node の不透明度（opacity） ＜（より小さい） 0.7",
+  ]) {
+    await expect(cueDetails.getByText(text, { exact: true })).toBeVisible();
+  }
   const actions = panel.getByRole("list", { name: "Actions" });
   await expect(actions).toContainText("surface.setState");
   await expect(actions).toContainText("showcase:problem");

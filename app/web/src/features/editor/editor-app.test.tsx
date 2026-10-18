@@ -55,42 +55,17 @@ const createDriver = () => ({
 afterEach(() => vi.restoreAllMocks());
 
 describe("Source Editor", () => {
-  it("shows saved Timeline definitions without an Instance selection and refreshes them", async () => {
+  it("clears the Timeline definition when reloading an invalid Source", async () => {
     const definition = structuredClone(definitionFixture) as unknown as NonNullable<
       ProjectSnapshot["definition"]
     >;
-    definition.flow.timelines = {
-      entrance: {
-        id: "entrance",
-        owner: { kind: "group", groupId: "intro" },
-        durationMilliseconds: 1200,
-        tracks: [
-          {
-            target: { nodeId: "node-baked", property: "opacity" },
-            keyframes: [
-              { timeMilliseconds: 0, value: 0, easingToNext: "cubicOut" },
-              { timeMilliseconds: 1200, value: 1 },
-            ],
-          },
-        ],
-      },
-    };
-    definition.flow.groups.intro!.steps.start!.cues[0]!.actions.push({
-      kind: "timeline.play",
-      timelineId: "entrance",
-      completion: "nonBlocking",
-      conflict: "reject",
-    });
     const project = { ...snapshot(), definition };
     const api = apiFor(project);
     const user = userEvent.setup();
     render(<EditorApp api={api} createDriver={createDriver} />);
     const panel = await screen.findByRole("region", { name: "Timelines" });
     await waitFor(() => expect(panel).toHaveTextContent("保存 revision: r1"));
-    await user.click(await within(panel).findByRole("button", { name: "Step start" }));
-    await user.click(within(panel).getByRole("button", { name: "Cue wave" }));
-    expect(panel).toHaveTextContent("entrance");
-    expect(panel).toHaveTextContent("opacity");
+    expect(await within(panel).findByRole("button", { name: "Step start" })).toBeInTheDocument();
     vi.mocked(api.project).mockResolvedValue({
       ...project,
       revision: "r2",
@@ -98,16 +73,14 @@ describe("Source Editor", () => {
       diagnostics: [{ code: "invalid-flow", message: "Flow is invalid" }],
     });
     await user.click(screen.getByRole("button", { name: "再読込" }));
-    await waitFor(() =>
-      expect(screen.getByRole("region", { name: "Timelines" })).not.toHaveTextContent("entrance"),
-    );
+    await within(panel).findByText("定義を検証できません。既存の Diagnostics を確認してください。");
+    expect(within(panel).queryByRole("button", { name: "Step start" })).not.toBeInTheDocument();
     expect(panel).toHaveTextContent("保存 revision: r2");
     expect(
       within(screen.getByRole("complementary", { name: "Diagnostics" })).getByText(
         /Flow is invalid/,
       ),
     ).toBeInTheDocument();
-    expect(api.patch).not.toHaveBeenCalled();
   });
 
   it("defers external Dev changes while an explicit Dist build owns the Host", async () => {
@@ -346,29 +319,35 @@ describe("Source Editor", () => {
       ),
     );
   });
-  it("retries the exact command after an unknown response and blocks new saves until resolved", async () => {
-    const api = apiFor(snapshot());
-    vi.mocked(api.patch)
-      .mockRejectedValueOnce(new TypeError("connection lost"))
-      .mockResolvedValueOnce({ revision: "r2", sourceHash: "s2", irHash: "i2", commandId: "c" });
-    const user = userEvent.setup();
-    render(<EditorApp api={api} createDriver={createDriver} />);
-    await user.click(await screen.findByRole("button", { name: "alpha" }));
-    await user.clear(screen.getByLabelText("title"));
-    await user.type(screen.getByLabelText("title"), "first");
-    await user.click(screen.getByRole("button", { name: /^保存$/ }));
-    await screen.findByText(/保存結果未確認/);
-    expect(screen.getByRole("button", { name: /^保存$/ })).toBeDisabled();
-    expect(api.project).toHaveBeenCalledTimes(1);
-    await user.click(screen.getByRole("button", { name: "再読込" }));
-    expect(screen.getByRole("button", { name: /同じ内容で再送/ })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /同じ内容で再送/ }));
-    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2));
-    expect(vi.mocked(api.patch).mock.calls[1]).toEqual(vi.mocked(api.patch).mock.calls[0]);
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /同じ内容で再送/ })).not.toBeInTheDocument(),
-    );
-  });
+  it.each([
+    ["connection loss", new TypeError("connection lost")],
+    ["HTTP 500", new EditorApiError(500, "editor-io-failed", "I/O failed.")],
+  ])(
+    "retries the exact command after %s and blocks new saves until resolved",
+    async (_label, error) => {
+      const api = apiFor(snapshot());
+      vi.mocked(api.patch)
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce({ revision: "r2", sourceHash: "s2", irHash: "i2", commandId: "c" });
+      const user = userEvent.setup();
+      render(<EditorApp api={api} createDriver={createDriver} />);
+      await user.click(await screen.findByRole("button", { name: "alpha" }));
+      await user.clear(screen.getByLabelText("title"));
+      await user.type(screen.getByLabelText("title"), "first");
+      await user.click(screen.getByRole("button", { name: /^保存$/ }));
+      await screen.findByText(/保存結果未確認/);
+      expect(screen.getByRole("button", { name: /^保存$/ })).toBeDisabled();
+      expect(api.project).toHaveBeenCalledTimes(1);
+      await user.click(screen.getByRole("button", { name: "再読込" }));
+      expect(screen.getByRole("button", { name: /同じ内容で再送/ })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /同じ内容で再送/ }));
+      await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(api.patch).mock.calls[1]).toEqual(vi.mocked(api.patch).mock.calls[0]);
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: /同じ内容で再送/ })).not.toBeInTheDocument(),
+      );
+    },
+  );
 
   it.each([
     [412, "editor-revision-mismatch"],
@@ -386,21 +365,6 @@ describe("Source Editor", () => {
     expect(screen.queryByRole("button", { name: /同じ内容で再送/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^保存$/ })).toBeEnabled();
   });
-});
-
-it("keeps an HTTP 500 save response pending for the same-command retry", async () => {
-  const api = apiFor(snapshot());
-  vi.mocked(api.patch).mockRejectedValueOnce(
-    new EditorApiError(500, "editor-io-failed", "I/O failed."),
-  );
-  const user = userEvent.setup();
-  render(<EditorApp api={api} createDriver={createDriver} />);
-  await user.click(await screen.findByRole("button", { name: "alpha" }));
-  await user.clear(screen.getByLabelText("title"));
-  await user.type(screen.getByLabelText("title"), "new");
-  await user.click(screen.getByRole("button", { name: /^保存$/ }));
-  await screen.findByText(/保存結果未確認/);
-  expect(screen.getByRole("button", { name: /同じ内容で再送/ })).toBeInTheDocument();
 });
 
 it("offers paused playback and enables the current step input only after playing", async () => {

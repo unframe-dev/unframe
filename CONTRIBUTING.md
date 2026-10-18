@@ -138,6 +138,15 @@ generated-file notice を保持します。C# generator は未接続のため、
 | `lp/`                  | package script、`svelte-check`、静的 build | ページ追加に合わせて拡張                    |
 | `app/unity/`           | Unity Test Framework の EditMode           | Unity Editor で実行                         |
 
+TypeScript のテストは公開境界、重要な分岐、失敗モードを変更リスクに見合う粒度で検証します。
+
+- 純粋な変換・状態遷移・失敗時の方針は、既存の関数・model の境界を通して `.test.ts` で検証します。
+- UI の主要な操作経路と配線は E2E で確認します。同じ振る舞いを複数層で網羅せず、各層が守る失敗モードを分けます。
+- `.test.tsx` は標準で追加せず、React の更新・イベント・ライフサイクルに依存し、ほかの検証では十分に守れない回帰に限ります。
+- 静的な文言・画像・属性、単純なクリック配線だけの component test は原則追加しません。DOM 構造や固定ピクセル値より、利用者から観測できる振る舞いを検証します。
+- `.test.ts` へ移すためだけに hook・interface・状態管理層を追加しません。拡張子だけを変える移動も行いません。
+- test double は外部サービスや高コストな依存の境界に置き、必要な統合確認で補います。
+
 `nix run .#check` は現在、Control Plane、Presentation packages、Realtime、LP、Web
 の検証を実行します。Presentation gate は共有 `packages/config` の hook fixture と設定
 check も実行します。現在は Unity Editor テストを実行しません。ドキュメント link
