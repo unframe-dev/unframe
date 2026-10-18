@@ -28,6 +28,29 @@ const pngHashes = async (root: string, output = "dist") =>
       .map(async (name) => digest(await readFile(join(root, output, "assets", name)))),
   );
 
+const assertPrivateSourceExcluded = async (path: string, sentinel: string) => {
+  const bytes = await readFile(path);
+  expect(bytes.includes(Buffer.from(sentinel))).toBe(false);
+  expect(bytes.includes(Buffer.from(Buffer.from(`TOKEN=${sentinel}`).toString("base64")))).toBe(
+    false,
+  );
+};
+const lockSummary = async (directory: string) => {
+  const loaded = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
+  assert(loaded.ok);
+  assert(loaded.value.lock.styleTransform);
+  assert(loaded.value.lock.styleSourceIdentity);
+  const packagesHash = digest(Buffer.from(canonicalizeJsonPayload(loaded.value.lock.packages)));
+  const transformHash = digest(
+    Buffer.from(canonicalizeJsonPayload(loaded.value.lock.styleTransform)),
+  );
+  return {
+    sourceIdentityHash: digest(Buffer.from(loaded.value.lock.styleSourceIdentity)),
+    packagesHash,
+    transformHash,
+  };
+};
+
 it("locks project-owned Tailwind with an uppercase CSS entry, captures reproducibly, invalidates all inputs, and preserves Dist on failure", async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-tailwind-project-"));
   const staging = await mkdtemp(join(temporaryDirectory(), "unframe-sdk-package-"));
@@ -159,11 +182,7 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
     const privateSentinel = "dummy-private-source-sentinel";
     await writeFile(join(directory, ".env"), `TOKEN=${privateSentinel}`);
     await invoke(directory, "lock", "update");
-    const serializedLock = await readFile(join(directory, "unframe.lock"), "utf8");
-    expect(serializedLock).not.toContain(privateSentinel);
-    expect(serializedLock).not.toContain(
-      Buffer.from(`TOKEN=${privateSentinel}`).toString("base64"),
-    );
+    await assertPrivateSourceExcluded(join(directory, "unframe.lock"), privateSentinel);
     await rm(join(directory, "node_modules"), { recursive: true, force: true });
     await invoke(directory, "check");
     await invoke(directory, "build");
@@ -172,17 +191,16 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
     await rm(join(directory, ".unframe/cache"), { recursive: true, force: true });
     await invoke(directory, "build");
     expect(await pngHashes(directory)).toEqual(first);
-    const oldLock = await readFile(join(directory, "unframe.lock"), "utf8");
+    const oldLock = digest(await readFile(join(directory, "unframe.lock")));
     await writeFile(join(directory, "candidate.html"), '<div class="rotate-12"></div>');
     const stale = await runPresentationCli({ args: ["check", directory] });
     expect(stale.exitCode).toBe(1);
     expect(stale.stderr).toContain("cli-style-source-changed");
     await invoke(directory, "lock", "refresh");
-    expect(await readFile(join(directory, "unframe.lock"), "utf8")).not.toBe(oldLock);
+    expect(digest(await readFile(join(directory, "unframe.lock")))).not.toBe(oldLock);
     await rm(join(directory, "candidate.html"));
     await invoke(directory, "lock", "refresh");
-    const beforeDev = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
-    assert(beforeDev.ok);
+    const beforeDev = await lockSummary(directory);
     await writeFile(join(directory, "colors.json"), '"#a00000"');
     const dev = await runPresentationCli({
       args: ["build", directory],
@@ -192,13 +210,10 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
     const devImages = await pngHashes(directory, ".unframe/preview/current");
     expect(devImages).not.toEqual(first);
     expect(await pngHashes(directory)).toEqual(first);
-    const afterDev = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
-    assert(afterDev.ok);
-    expect(afterDev.value.lock.styleSourceIdentity).not.toBe(
-      beforeDev.value.lock.styleSourceIdentity,
-    );
-    expect(afterDev.value.lock.packages).toEqual(beforeDev.value.lock.packages);
-    expect(afterDev.value.lock.styleTransform).toEqual(beforeDev.value.lock.styleTransform);
+    const afterDev = await lockSummary(directory);
+    expect(afterDev.sourceIdentityHash).not.toBe(beforeDev.sourceIdentityHash);
+    expect(afterDev.packagesHash).toBe(beforeDev.packagesHash);
+    expect(afterDev.transformHash).toBe(beforeDev.transformHash);
     await invoke(directory, "build");
     const changed = await pngHashes(directory);
     expect(changed).toEqual(devImages);
@@ -222,7 +237,7 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
         await (await fetch(new URL(asset, origin))).arrayBuffer(),
       );
       expect(changed).toContain(digest(previewBytes));
-      const beforeFailure = await readFile(join(directory, "unframe.lock"));
+      const beforeFailure = digest(await readFile(join(directory, "unframe.lock")));
       await writeFile(join(directory, "postcss.config.mjs"), 'throw new Error("config failure");');
       const devFailure = await runPresentationCli({
         args: ["build", directory],
@@ -230,7 +245,7 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
       });
       expect(devFailure.exitCode).toBe(1);
       expect(devFailure.stderr).toContain("config failure");
-      expect((await readFile(join(directory, "unframe.lock"))).equals(beforeFailure)).toBe(true);
+      expect(digest(await readFile(join(directory, "unframe.lock")))).toBe(beforeFailure);
       expect(await pngHashes(directory, ".unframe/preview/current")).toEqual(devImages);
       const failure = await runPresentationCli({ args: ["lock", "refresh", directory] });
       expect(failure.exitCode).toBe(1);
