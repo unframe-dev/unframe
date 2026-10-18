@@ -11,21 +11,21 @@
     "@tailwindcss/postcss": "4.3.3",
     "jiti": "2.7.0",
     "path-is-inside": "1.0.2",
-    "postcss": "8.5.29",
+    "postcss": "8.5.30",
     "postcss-load-config": "6.0.1",
     "tailwindcss": "4.3.3",
-    "tailwindcss-older": "npm:tailwindcss@4.2.1",
-    "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.2.1",
-    "zod": "4.4.3"
+    "tailwindcss-older": "npm:tailwindcss@4.3.3",
+    "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.3.3",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
     "@types/path-is-inside": "1.0.3",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   },
   "engines": {
-    "node": "24.13.0",
-    "pnpm": "11.14.0"
+    "node": "24.22.0",
+    "pnpm": "12.14.0"
   },
-  "packageManager": "pnpm@11.14.0"
+  "packageManager": "pnpm@12.14.0"
 }
