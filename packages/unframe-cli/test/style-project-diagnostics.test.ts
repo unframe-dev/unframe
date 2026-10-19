@@ -45,6 +45,10 @@ const fixture = async () => {
   directories.push(directory, adapter);
   await cp(fileURLToPath(new URL("../../../examples/presentation", import.meta.url)), directory, {
     recursive: true,
+    filter: (path) =>
+      !path.endsWith("/.unframe") &&
+      !path.endsWith("/dist") &&
+      !path.endsWith("/.unframe-source.lock"),
   });
   const original = await discoverPresentationProjectFiles(directory);
   assert(original.ok, JSON.stringify(original));
