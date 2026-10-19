@@ -5,6 +5,7 @@ using UnityEngine;
 public sealed class ArucoPresentationCalibration : MonoBehaviour
 {
     [SerializeField] private ArucoOriginAlignment alignment;
+    public PassthroughCameraDevicePreview CameraPreview => alignment != null ? alignment.GetComponent<PassthroughCameraDevicePreview>() : null;
     [SerializeField] private Transform questTrackingOrigin;
     private ArucoOriginAlignment subscribedAlignment;
     private Pose capturedTrackingFrame;
