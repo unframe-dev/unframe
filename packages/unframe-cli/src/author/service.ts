@@ -23,7 +23,10 @@ import { AuthorArtifactCache } from "./artifact-cache.js";
 import { readBuildGeneration } from "../filesystem/read-build-generation.js";
 import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
-import { resolveProjectSourceAssets } from "../filesystem/source-assets.js";
+import {
+  createSourceAssetAssemblyCarrier,
+  resolveDevProjectSourceAssets,
+} from "../filesystem/source-assets.js";
 import {
   AuthorError,
   type AuthorDiagnostic,
@@ -205,16 +208,12 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
     loaded.value.assemblyCarrier.componentLocks,
   );
   const catalog = checkAuthoringProject(source);
-  const sourceAssets = await resolveProjectSourceAssets(
-    loaded.value.lock.assets,
-    found.assetSources,
-    found.localFiles,
-  );
+  const sourceAssets = await resolveDevProjectSourceAssets(found.assetSources, found.localFiles);
   const checked =
     frozen.length === 0 && sourceAssets.ok
       ? checkAuthoringProjectAssembly(
           source,
-          loaded.value.assemblyCarrier,
+          createSourceAssetAssemblyCarrier(loaded.value.assemblyCarrier, sourceAssets.value.assets),
           sourceAssets.value.sourceAssetBytes,
         )
       : undefined;
@@ -482,15 +481,14 @@ export const createAuthorService = async (
         const lockBytes = encoder.encode(canonicalizeJsonPayload(nextLock) + "\n");
         const loaded = loadUnframeLock(lockBytes);
         if (!loaded.ok) fail(422, loaded.diagnostic.code, loaded.diagnostic.message);
-        const sourceAssets = await resolveProjectSourceAssets(
-          loaded.value.lock.assets,
+        const sourceAssets = await resolveDevProjectSourceAssets(
           current.found.assetSources,
           current.found.localFiles,
         );
         if (!sourceAssets.ok) fail(422, sourceAssets.code, sourceAssets.message);
         const checked = checkAuthoringProjectAssembly(
           source,
-          loaded.value.assemblyCarrier,
+          createSourceAssetAssemblyCarrier(loaded.value.assemblyCarrier, sourceAssets.value.assets),
           sourceAssets.value.sourceAssetBytes,
         );
         if (!checked.valid)

@@ -9,16 +9,19 @@ source "${DIR}/../lib/paths.sh"
 
 manifest() {
   local dist="$1/dist"
-  test -L "${dist}"
-  test -f "${dist}/definition.json"
-  test -f "${dist}/render-bundle.json"
-  test -f "${dist}/asset-set.json"
-  test -f "${dist}/build-manifest.json"
-  test -d "${dist}/assets"
-  find "${dist}/assets" -type f -name '*.png' -print -quit | grep -q .
+  test -d "${dist}" || return 1
+  test ! -L "${dist}" || return 1
+  test -f "${dist}/definition.json" || return 1
+  test -f "${dist}/render-bundle.json" || return 1
+  test -f "${dist}/asset-set.json" || return 1
+  test -f "${dist}/build-manifest.json" || return 1
+  test -f "${dist}/build-receipt.json" || return 1
+  test -d "${dist}/assets" || return 1
+  find "${dist}/assets" -type f -name '*.png' -print -quit | grep -q . || return 1
   (
     cd "${dist}"
-    find . -type f -printf '%P\0' | LC_ALL=C sort -z | xargs -0r sha256sum
+    # receipt の generation ID はビルドごとに変わるため、配布内容だけを比較する。
+    find . -type f ! -path './build-receipt.json' -printf '%P\0' | LC_ALL=C sort -z | xargs -0r sha256sum
   )
 }
 

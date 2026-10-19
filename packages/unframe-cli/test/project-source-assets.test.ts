@@ -31,7 +31,7 @@ it("initializes the registered asset files together with the project source", as
   expect(checked.exitCode, checked.stderr).toBe(0);
 });
 
-it("keeps changed source bytes frozen through Check and Dev build until an explicit lock refresh", async () => {
+it("keeps changed source bytes frozen for Dist while Author follows local assets", async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-source-assets-"));
   directories.push(directory);
   await copyProjectFixture(
@@ -46,8 +46,8 @@ it("keeps changed source bytes frozen through Check and Dev build until an expli
   const service = await createAuthorService(directory);
   try {
     const snapshot = await service.project();
-    expect(snapshot.irHash).toBeNull();
-    expect(snapshot.diagnostics).toContainEqual(
+    expect(snapshot.irHash).not.toBeNull();
+    expect(snapshot.diagnostics).not.toContainEqual(
       expect.objectContaining({ code: "cli-source-asset-hash-mismatch" }),
     );
   } finally {
@@ -56,10 +56,10 @@ it("keeps changed source bytes frozen through Check and Dev build until an expli
   const openFixedBrowser = vi.fn(async () => {
     throw new Error("source validation must run first");
   });
-  for (const channel of [undefined, "dev"] as const) {
+  for (const command of ["check", "build"] as const) {
     const result = await runPresentationCli({
-      args: [channel ? "build" : "check", directory],
-      host: { ...(channel ? { channel } : {}), openFixedBrowser },
+      args: [command, directory],
+      host: { openFixedBrowser },
     });
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("cli-source-asset-hash-mismatch");
@@ -72,3 +72,25 @@ it("keeps changed source bytes frozen through Check and Dev build until an expli
   const checked = await runPresentationCli({ args: ["check", directory] });
   expect(checked.exitCode, checked.stderr).toBe(0);
 }, 30_000);
+
+it("rejects invalid local asset bytes in Dev without updating the frozen lock", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "unframe-invalid-dev-asset-"));
+  directories.push(directory);
+  await copyProjectFixture(
+    fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
+    directory,
+  );
+  const lock = await readFile(join(directory, "unframe.lock"));
+  await writeFile(join(directory, "assets/reference-font.ttf"), Uint8Array.of(1, 2, 3, 4));
+  const openFixedBrowser = vi.fn(async () => {
+    throw new Error("invalid assets must fail before capture");
+  });
+  const result = await runPresentationCli({
+    args: ["build", directory],
+    host: { channel: "dev", openFixedBrowser },
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.stderr).toContain("compiler-invalid-asset");
+  expect(openFixedBrowser).not.toHaveBeenCalled();
+  expect(await readFile(join(directory, "unframe.lock"))).toEqual(lock);
+});

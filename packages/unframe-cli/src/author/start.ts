@@ -7,7 +7,10 @@ import { fileURLToPath } from "node:url";
 import { readRegularFile } from "../filesystem/path-policy.js";
 import { startAuthorHost } from "./http.js";
 import { createAuthorService } from "./service.js";
-import { createLocalPreviewService } from "./local-preview.js";
+import { createDistPreviewService, createLocalPreviewService } from "./local-preview.js";
+import { readDistBuild } from "../filesystem/read-dist-build.js";
+import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
+import type { AuthorService } from "./contract.js";
 import { createPublicationAuth, type PublicationTarget } from "./publication-auth.js";
 import { createLocalPublicationService } from "./publication.js";
 
@@ -51,6 +54,91 @@ export const loadUnityPreviewAssets = async (directory: string) => {
     assets.set(`/unity-preview/Build/${name}`, { bytes, mediaType: mediaTypes[extname(name)]! });
   }
   return assets;
+};
+
+export const startDistPreviewHost = async (
+  directory: string,
+  options: { assets?: ReadonlyMap<string, { bytes: Uint8Array; mediaType: string }> } = {},
+) => {
+  await readDistBuild(directory);
+  const assets =
+    options.assets ??
+    (await loadAuthorAssets(
+      fileURLToPath(new URL("../../../../app/web/dist-editor/", import.meta.url)),
+    ));
+  const files = new Map(assets);
+  const page = files.get("/");
+  if (page) files.set("/dist-preview", page);
+  if (!options.assets)
+    for (const [path, asset] of await loadUnityPreviewAssets(
+      fileURLToPath(new URL("../../../../.unframe/unity-preview/UnframePreview/", import.meta.url)),
+    ))
+      files.set(path, asset);
+  const source: Pick<AuthorService, "project"> = {
+    async project() {
+      const { artifacts } = await readDistBuild(directory);
+      return {
+        revision: hashCanonicalJsonPayload(artifacts.buildManifest),
+        sourceHash: artifacts.renderBundle.sourceHash,
+        irHash: artifacts.buildManifest.definitionHash,
+        definition: artifacts.definition,
+        instances: [],
+        diagnostics: [],
+      };
+    },
+  };
+  const previews = createDistPreviewService(directory);
+  try {
+    return await startAuthorHost({ service: source, previews, assets: files });
+  } catch (error) {
+    previews.close();
+    throw error;
+  }
+};
+
+export const runDistPreviewProcess = async (
+  directory: string,
+  signal: AbortSignal,
+  announce: (origin: string) => void,
+) => {
+  const host = await startDistPreviewHost(directory);
+  return runEditorHost(host, signal, `${host.origin}/dist-preview#token=${host.token}`, () => {
+    announce(`${host.origin}/dist-preview`);
+  });
+};
+
+const runEditorHost = async (
+  host: Awaited<ReturnType<typeof startAuthorHost>>,
+  signal: AbortSignal,
+  browserUrl: string,
+  announce: () => void,
+) => {
+  const open = async () => {
+    try {
+      await promisify(execFile)("xdg-open", [browserUrl], { timeout: 10_000, signal });
+    } catch {
+      if (!signal.aborted)
+        process.stderr.write(
+          "Could not open the browser. Enter r to retry opening the authenticated Preview.\n",
+        );
+    }
+  };
+  const terminal = process.stdin.isTTY ? createInterface({ input: process.stdin }) : undefined;
+  terminal?.on("line", (line) => {
+    if (line.trim() === "r") void open();
+  });
+  try {
+    if (signal.aborted) return;
+    const stopped = new Promise<void>((resolve) =>
+      signal.addEventListener("abort", () => resolve(), { once: true }),
+    );
+    announce();
+    await open();
+    await stopped;
+  } finally {
+    terminal?.close();
+    await host.close();
+  }
 };
 
 export const runAuthorProcess = async (
@@ -119,32 +207,9 @@ export const runAuthorProcess = async (
   const browserUrl = development
     ? `http://127.0.0.1:5174/editor.html#token=${host.token}`
     : `${host.origin}/#token=${host.token}`;
-  const open = async () => {
-    try {
-      await promisify(execFile)("xdg-open", [browserUrl], { timeout: 10_000, signal });
-    } catch {
-      if (!signal.aborted)
-        process.stderr.write(
-          "Could not open the browser. Enter r to retry opening the authenticated Editor.\n",
-        );
-    }
-  };
-  const terminal = process.stdin.isTTY ? createInterface({ input: process.stdin }) : undefined;
-  terminal?.on("line", (line) => {
-    if (line.trim() === "r") void open();
-  });
-  try {
-    if (signal.aborted) return;
-    const stopped = new Promise<void>((resolve) => {
-      signal.addEventListener("abort", () => resolve(), { once: true });
-    });
+  await runEditorHost(host, signal, browserUrl, () => {
     process.stdout.write(
       `Local author API: ${host.origin}\nEditor: ${development ? "http://127.0.0.1:5174/editor.html" : host.origin}\nProject: ${directory}\nEnter r to reopen the authenticated Editor. Stop with Ctrl+C.\n`,
     );
-    await open();
-    await stopped;
-  } finally {
-    terminal?.close();
-    await host.close();
-  }
+  });
 };

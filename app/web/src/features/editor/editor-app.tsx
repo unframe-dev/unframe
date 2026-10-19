@@ -41,9 +41,11 @@ const terminal = (status: BuildJob["status"]) =>
 export function EditorApp({
   api,
   createDriver,
+  readOnly = false,
 }: {
   api: EditorApi;
   createDriver: (canvas: HTMLCanvasElement) => PreviewDriver & { close(): Promise<void> };
+  readOnly?: boolean;
 }) {
   const [project, setProject] = useState<ProjectSnapshot | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -59,12 +61,12 @@ export function EditorApp({
   const playback = useRef<ReturnType<typeof createPreviewPlayback> | null>(null);
   const [playbackState, setPlaybackState] = useState<PreviewPlaybackResponse | null>(null);
   const session = useRef<ReturnType<typeof createPreviewSession> | null>(null);
-  const [mode, setMode] = useState<PreviewMode>("dev");
+  const [mode, setMode] = useState<PreviewMode>(readOnly ? "dist" : "dev");
   const [loaded, setLoaded] = useState<LoadedPreview | null>(null);
   const [receipt, setReceipt] = useState<DisplayReceipt | null>(null);
   const [buildingRevision, setBuildingRevision] = useState<string | null>(null);
   const ownRefresh = useRef<string | null>(null);
-  const modeRef = useRef(mode);
+  const modeRef = useRef<PreviewMode | null>(null);
   const latestRevision = useRef<string | null>(null);
   const draftOwner = useRef("");
   const mounted = useRef(true);
@@ -387,172 +389,191 @@ export function EditorApp({
   return (
     <main className="editor-shell">
       <header>
-        <h1>Unframe Editor</h1>
+        <h1>{readOnly ? "Unframe Dist Preview" : "Unframe Editor"}</h1>
         <button disabled={busy} onClick={() => void reload()}>
           再読込
         </button>
-        <button
-          disabled={busy || !!pendingSave || !undo || undo.revision !== project?.revision}
-          onClick={() => undo && void saveWithAction(undo.inverse, { kind: "undo", entry: undo })}
-        >
-          Undo
-        </button>
-        <button
-          disabled={busy || !!pendingSave || !redo || redo.revision !== project?.revision}
-          onClick={() => redo && void saveWithAction(redo.forward, { kind: "redo", entry: redo })}
-        >
-          Redo
-        </button>
-        <button
-          disabled={busy || !!pendingSave || !project || (job !== null && !terminal(job.status))}
-          onClick={() => void buildDist()}
-        >
-          本番 build
-        </button>
-        <span>保存 revision: {project?.revision ?? "読込中"}</span>
-        {pendingSave && (
-          <button disabled={busy} onClick={() => void attemptSave(pendingSave)}>
-            同じ内容で再送
-          </button>
+        {!readOnly && (
+          <>
+            <button
+              disabled={busy || !!pendingSave || !undo || undo.revision !== project?.revision}
+              onClick={() =>
+                undo && void saveWithAction(undo.inverse, { kind: "undo", entry: undo })
+              }
+            >
+              Undo
+            </button>
+            <button
+              disabled={busy || !!pendingSave || !redo || redo.revision !== project?.revision}
+              onClick={() =>
+                redo && void saveWithAction(redo.forward, { kind: "redo", entry: redo })
+              }
+            >
+              Redo
+            </button>
+            <button
+              disabled={
+                busy || !!pendingSave || !project || (job !== null && !terminal(job.status))
+              }
+              onClick={() => void buildDist()}
+            >
+              本番 build
+            </button>
+            <span>保存 revision: {project?.revision ?? "読込中"}</span>
+            {pendingSave && (
+              <button disabled={busy} onClick={() => void attemptSave(pendingSave)}>
+                同じ内容で再送
+              </button>
+            )}
+          </>
         )}
       </header>
-      <nav aria-label="Instance 一覧">
-        <h2>Instances</h2>
-        {project?.instances.map((instance) => (
-          <button
-            key={instance.instanceId}
-            type="button"
-            aria-current={instance.instanceId === selectedId ? "true" : undefined}
-            onClick={() => setSelectedId(instance.instanceId)}
-          >
-            {instance.instanceId}
-          </button>
-        ))}
-      </nav>
-      <section className="editor-inspector" aria-label="Inspector">
-        <h2>Inspector</h2>
-        {draft ? (
-          <>
-            <p>{draft.instanceId}</p>
-            <h3>公開 props</h3>
-            {Object.entries(draft.props).map(([id, prop]) => (
-              <div className="editor-field" key={id}>
-                <label htmlFor={`prop-${id}`}>{id}</label>
-                {prop.type === "boolean" ? (
-                  <input
-                    id={`prop-${id}`}
-                    type="checkbox"
-                    checked={Boolean(prop.value)}
-                    disabled={!prop.editable || busy || !!pendingSave}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        props: { ...draft.props, [id]: { ...prop, value: event.target.checked } },
-                      })
-                    }
-                  />
-                ) : prop.editor?.kind === "text" ? (
-                  <textarea
-                    id={`prop-${id}`}
-                    value={String(prop.value)}
-                    disabled={!prop.editable || busy || !!pendingSave}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        props: { ...draft.props, [id]: { ...prop, value: event.target.value } },
-                      })
-                    }
-                  />
-                ) : (
-                  <input
-                    id={`prop-${id}`}
-                    type={prop.type === "number" ? "number" : "text"}
-                    value={String(prop.value)}
-                    disabled={!prop.editable || busy || !!pendingSave}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        props: {
-                          ...draft.props,
-                          [id]: {
-                            ...prop,
-                            value:
-                              prop.type === "number"
-                                ? event.target.valueAsNumber
-                                : event.target.value,
-                          },
-                        },
-                      })
-                    }
-                  />
-                )}
+      {!readOnly && (
+        <>
+          <nav aria-label="Instance 一覧">
+            <h2>Instances</h2>
+            {project?.instances.map((instance) => (
+              <button
+                key={instance.instanceId}
+                type="button"
+                aria-current={instance.instanceId === selectedId ? "true" : undefined}
+                onClick={() => setSelectedId(instance.instanceId)}
+              >
+                {instance.instanceId}
+              </button>
+            ))}
+          </nav>
+          <section className="editor-inspector" aria-label="Inspector">
+            <h2>Inspector</h2>
+            {draft ? (
+              <>
+                <p>{draft.instanceId}</p>
+                <h3>公開 props</h3>
+                {Object.entries(draft.props).map(([id, prop]) => (
+                  <div className="editor-field" key={id}>
+                    <label htmlFor={`prop-${id}`}>{id}</label>
+                    {prop.type === "boolean" ? (
+                      <input
+                        id={`prop-${id}`}
+                        type="checkbox"
+                        checked={Boolean(prop.value)}
+                        disabled={!prop.editable || busy || !!pendingSave}
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            props: {
+                              ...draft.props,
+                              [id]: { ...prop, value: event.target.checked },
+                            },
+                          })
+                        }
+                      />
+                    ) : prop.editor?.kind === "text" ? (
+                      <textarea
+                        id={`prop-${id}`}
+                        value={String(prop.value)}
+                        disabled={!prop.editable || busy || !!pendingSave}
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            props: { ...draft.props, [id]: { ...prop, value: event.target.value } },
+                          })
+                        }
+                      />
+                    ) : (
+                      <input
+                        id={`prop-${id}`}
+                        type={prop.type === "number" ? "number" : "text"}
+                        value={String(prop.value)}
+                        disabled={!prop.editable || busy || !!pendingSave}
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            props: {
+                              ...draft.props,
+                              [id]: {
+                                ...prop,
+                                value:
+                                  prop.type === "number"
+                                    ? event.target.valueAsNumber
+                                    : event.target.value,
+                              },
+                            },
+                          })
+                        }
+                      />
+                    )}
+                    <button
+                      disabled={
+                        !prop.editable ||
+                        busy ||
+                        !!pendingSave ||
+                        !project?.irHash ||
+                        Object.is(prop.value, selected?.props[id]?.value)
+                      }
+                      onClick={() => void saveProp(id)}
+                    >
+                      保存
+                    </button>
+                    {!prop.editable && <small>readonly</small>}
+                  </div>
+                ))}
+                <h3>3D Transform</h3>
+                {(["position", "rotation", "scale"] as const).map((key) => (
+                  <fieldset key={key} disabled={!draft.transformEditable || busy || !!pendingSave}>
+                    <legend>{key}</legend>
+                    {draft.transform[key].map((value, index) => (
+                      <label key={index}>
+                        {["x", "y", "z", "w"][index]}
+                        <input
+                          type="number"
+                          step="any"
+                          value={Number.isNaN(value) ? "" : value}
+                          onChange={(event) => {
+                            const vector = [...draft.transform[key]];
+                            vector[index] = event.target.valueAsNumber;
+                            setDraft({
+                              ...draft,
+                              transform: { ...draft.transform, [key]: vector } as Transform,
+                            });
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </fieldset>
+                ))}
                 <button
                   disabled={
-                    !prop.editable ||
+                    !draft.transformEditable ||
                     busy ||
                     !!pendingSave ||
                     !project?.irHash ||
-                    Object.is(prop.value, selected?.props[id]?.value)
+                    JSON.stringify(draft.transform) === JSON.stringify(selected?.transform)
                   }
-                  onClick={() => void saveProp(id)}
+                  onClick={() => void saveTransform()}
                 >
-                  保存
+                  Transform を保存
                 </button>
-                {!prop.editable && <small>readonly</small>}
-              </div>
-            ))}
-            <h3>3D Transform</h3>
-            {(["position", "rotation", "scale"] as const).map((key) => (
-              <fieldset key={key} disabled={!draft.transformEditable || busy || !!pendingSave}>
-                <legend>{key}</legend>
-                {draft.transform[key].map((value, index) => (
-                  <label key={index}>
-                    {["x", "y", "z", "w"][index]}
-                    <input
-                      type="number"
-                      step="any"
-                      value={Number.isNaN(value) ? "" : value}
-                      onChange={(event) => {
-                        const vector = [...draft.transform[key]];
-                        vector[index] = event.target.valueAsNumber;
-                        setDraft({
-                          ...draft,
-                          transform: { ...draft.transform, [key]: vector } as Transform,
-                        });
-                      }}
-                    />
-                  </label>
-                ))}
-              </fieldset>
-            ))}
-            <button
-              disabled={
-                !draft.transformEditable ||
-                busy ||
-                !!pendingSave ||
-                !project?.irHash ||
-                JSON.stringify(draft.transform) === JSON.stringify(selected?.transform)
-              }
-              onClick={() => void saveTransform()}
-            >
-              Transform を保存
-            </button>
-            {!draft.transformEditable && <small> readonly</small>}
-          </>
-        ) : (
-          <p>
-            {project?.instances.length
-              ? "Instance を選択してください"
-              : "Inspector 編集に対応しない Source です。外部 editor で保存してください。"}
-          </p>
-        )}
-      </section>
+                {!draft.transformEditable && <small> readonly</small>}
+              </>
+            ) : (
+              <p>
+                {project?.instances.length
+                  ? "Instance を選択してください"
+                  : "Inspector 編集に対応しない Source です。外部 editor で保存してください。"}
+              </p>
+            )}
+          </section>
+        </>
+      )}
       <section className="editor-preview" aria-label="Preview">
         <h2>Preview</h2>
         <div role="group" aria-label="Preview mode">
-          <button aria-pressed={mode === "dev"} onClick={() => setMode("dev")}>
-            Dev Preview
-          </button>
+          {!readOnly && (
+            <button aria-pressed={mode === "dev"} onClick={() => setMode("dev")}>
+              Dev Preview
+            </button>
+          )}
           <button aria-pressed={mode === "dist"} onClick={() => setMode("dist")}>
             Dist Preview
           </button>
@@ -562,11 +583,16 @@ export function EditorApp({
           >
             Preview を再読込
           </button>
-          <button disabled={!job || terminal(job.status)} onClick={() => session.current?.cancel()}>
-            build 中止
-          </button>
+          {!readOnly && (
+            <button
+              disabled={!job || terminal(job.status)}
+              onClick={() => session.current?.cancel()}
+            >
+              build 中止
+            </button>
+          )}
         </div>
-        <p>build 入力 revision: {buildingRevision ?? "なし"}</p>
+        {!readOnly && <p>build 入力 revision: {buildingRevision ?? "なし"}</p>}
         <p>表示 build identity: {loaded?.buildIdentity ?? "なし"}</p>
         <p>
           表示 mode: {loaded?.mode ?? "なし"} / 表示 revision:{" "}
@@ -622,7 +648,7 @@ export function EditorApp({
         {job && <p>build: {job.status}</p>}
       </section>
       <TimelinePanel definition={project?.definition ?? null} revision={project?.revision} />
-      <PublicationPanel api={api} receipt={mode === "dist" ? receipt : null} />
+      {!readOnly && <PublicationPanel api={api} receipt={mode === "dist" ? receipt : null} />}
       <aside aria-label="Diagnostics">
         <h2>Diagnostics</h2>
         {project?.diagnostics.map((item, index) => (

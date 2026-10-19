@@ -530,14 +530,11 @@ describe("fixed local Preview service", () => {
       await service.load({ requestId: requestA, channel: "dist" });
       service.committed({ requestId: requestA, buildIdentity: "build-a" });
       const pinned = await service.pinDisplayedDist(requestA);
-      const assetPath = join(directory, ".unframe/generations", generationA, "assets/image.png");
+      const assetPath = join(directory, "dist/assets/image.png");
       await writeFile(assetPath, new Uint8Array(64));
       await expect(service.pinDisplayedDist(requestA)).rejects.toThrow();
       expect(await pinned.readAsset("image")).toEqual(sourceAssets.image);
-      await writeFile(
-        join(directory, ".unframe/generations", generationA, "build-manifest.json"),
-        "{}",
-      );
+      await writeFile(join(directory, "dist/build-manifest.json"), "{}");
       expect(pinned.artifacts.buildManifest.buildId).toBe("build-a");
     } finally {
       service.close();

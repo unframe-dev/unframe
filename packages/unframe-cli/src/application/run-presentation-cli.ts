@@ -24,7 +24,11 @@ import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
 import { updateProjectLock } from "../filesystem/update-lock.js";
-import { resolveProjectSourceAssets } from "../filesystem/source-assets.js";
+import {
+  createSourceAssetAssemblyCarrier,
+  resolveDevProjectSourceAssets,
+  resolveProjectSourceAssets,
+} from "../filesystem/source-assets.js";
 import { createVideoValidator } from "../media/video-validator.js";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
 import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
@@ -73,7 +77,7 @@ const limits = Object.freeze({
   maxOutputBytes: 65 * 1024 * 1024,
 });
 const usage =
-  "Usage: unframe-cli init|check|build|test <absolute-project-directory> [--format text|json]\n       unframe-cli dev|preview|author <absolute-project-directory>\n       unframe-cli publish <absolute-project-directory> <presentation-id> <control-plane-origin>\n       unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]";
+  "Usage: unframe-cli init|check|build|test <absolute-project-directory> [--format text|json]\n       unframe-cli dev|author <absolute-project-directory>\n       unframe-cli preview <absolute-dist-directory>\n       unframe-cli publish <absolute-dist-directory> <presentation-id> <control-plane-origin>\n       unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]";
 const rendererDiagnosticCodes = new Set([
   "unsupported-structured-tree",
   "invalid-render-scale",
@@ -466,15 +470,21 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         "unframe.lock",
       ]),
     ]);
-  const sourceAssets = await resolveProjectSourceAssets(
-    lock.value.lock.assets,
-    discovered.assetSources,
-    discovered.localFiles,
-  );
+  const sourceAssets = await (host.channel === "dev"
+    ? resolveDevProjectSourceAssets(discovered.assetSources, discovered.localFiles)
+    : resolveProjectSourceAssets(
+        lock.value.lock.assets,
+        discovered.assetSources,
+        discovered.localFiles,
+      ));
   if (!sourceAssets.ok)
     return output(1, command, format, [
       diagnostic("semantic", sourceAssets.code, sourceAssets.message, [sourceAssets.path]),
     ]);
+  const assemblyCarrier =
+    host.channel === "dev"
+      ? createSourceAssetAssemblyCarrier(lock.value.assemblyCarrier, sourceAssets.value.assets)
+      : lock.value.assemblyCarrier;
   const pinnedRenderers = lock.value.lock.rendererPlugins;
   if (
     pinnedRenderers.some(
@@ -536,7 +546,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   const source = prepared.source;
   const checked = checkAuthoringProjectAssembly(
     source,
-    lock.value.assemblyCarrier,
+    assemblyCarrier,
     sourceAssets.value.sourceAssetBytes,
   );
   if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
@@ -610,7 +620,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
       if (opaque) {
         const prepared = await prepareOpaqueRenderer(
           source,
-          lock.value.assemblyCarrier,
+          assemblyCarrier,
           host.signal,
           context.webRendererConfig,
           sourceAssets.value.sourceAssetBytes,
@@ -671,7 +681,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         ]);
       const compiled = await compileAuthoringProject(
         source,
-        lock.value.assemblyCarrier,
+        assemblyCarrier,
         {
           compiler: context.compiler,
           locale: context.locale,

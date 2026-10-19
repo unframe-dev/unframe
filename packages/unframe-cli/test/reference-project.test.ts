@@ -252,7 +252,7 @@ describe("reference Authoring Project", () => {
       host: { openFixedBrowser: async () => fakeBrowser().session, buildContext },
     });
     expect(dist.exitCode, dist.stderr).toBe(0);
-    const distLink = await readlink(join(directory, "dist"));
+    const distInode = (await lstat(join(directory, "dist"))).ino;
     const distManifest = await readFile(join(directory, "dist", "build-manifest.json"));
     const path = join(directory, "reference-surface.structure.tsx");
     await writeFile(path, (await readFile(path, "utf8")) + "\n// saved change\n");
@@ -277,12 +277,66 @@ describe("reference Authoring Project", () => {
       sourceRevision: refreshed.revision,
       generationId: dev.generationId,
     });
-    expect(await readlink(join(directory, "dist"))).toBe(distLink);
+    expect((await lstat(join(directory, "dist"))).ino).toBe(distInode);
     expect(await readFile(join(directory, "dist", "build-manifest.json"))).toEqual(distManifest);
     expect(await readlink(join(directory, ".unframe", "preview", "current"))).toMatch(
       /^generations\/[0-9a-f]{32}$/,
     );
   }, 30000);
+  it("builds the latest local asset bytes into Dev while retaining frozen lock and Dist", async () => {
+    const directory = await projectCopy();
+    const dist = await runPresentationCli({
+      args: ["build", directory],
+      host: { openFixedBrowser: async () => fakeBrowser().session, buildContext },
+    });
+    expect(dist.exitCode, dist.stderr).toBe(0);
+    const distInode = (await lstat(join(directory, "dist"))).ino;
+    const distManifest = await readFile(join(directory, "dist/build-manifest.json"));
+    const distFont = await readFile(join(directory, "dist/assets/reference-font.ttf"));
+    const lockBefore = await readFile(join(directory, "unframe.lock"));
+    const fontPath = join(directory, "assets/reference-font.ttf");
+    const changed = Buffer.from(distFont);
+    changed[changed.length - 1]! ^= 1;
+    await writeFile(fontPath, changed);
+
+    const dev = await runPresentationCli({
+      args: ["build", directory],
+      host: { channel: "dev", openFixedBrowser: async () => fakeBrowser().session, buildContext },
+    });
+    expect(dev.exitCode, dev.stderr).toBe(0);
+    expect(
+      await readFile(join(directory, ".unframe/preview/current/assets/reference-font.ttf")),
+    ).toEqual(changed);
+    expect(await readFile(join(directory, "unframe.lock"))).toEqual(lockBefore);
+    expect((await lstat(join(directory, "dist"))).ino).toBe(distInode);
+    expect(await readFile(join(directory, "dist/build-manifest.json"))).toEqual(distManifest);
+    expect(await readFile(join(directory, "dist/assets/reference-font.ttf"))).toEqual(distFont);
+    const check = await runPresentationCli({ args: ["check", directory] });
+    expect(check.exitCode).toBe(1);
+    expect(check.stderr).toContain("cli-source-asset-hash-mismatch");
+
+    const devLink = await readlink(join(directory, ".unframe/preview/current"));
+    const stale = await runPresentationCli({
+      args: ["build", directory],
+      host: {
+        channel: "dev",
+        openFixedBrowser: async () =>
+          fakeBrowser({
+            duringCapture: async () => {
+              await writeFile(fontPath, distFont);
+            },
+          }).session,
+        buildContext,
+      },
+    });
+    expect(stale.exitCode, stale.stderr).toBe(3);
+    expect(stale.stderr).toContain("cli-output-stale");
+    expect(await readlink(join(directory, ".unframe/preview/current"))).toBe(devLink);
+    expect(
+      await readFile(join(directory, ".unframe/preview/current/assets/reference-font.ttf")),
+    ).toEqual(changed);
+    expect(await readFile(join(directory, "unframe.lock"))).toEqual(lockBefore);
+  }, 30_000);
   it("keeps canonical definitions identical while recording distinct source inputs", async () => {
     const directory = await projectCopy();
     const { checked, source, loaded, discovered } = await checkedProject(directory);
@@ -508,8 +562,7 @@ describe("reference Authoring Project", () => {
     expect(firstResult.exitCode).toBe(0);
     const firstDefinition = await readFile(join(directory, "dist", "definition.json"));
     const firstBundle = await readFile(join(directory, "dist", "render-bundle.json"));
-    const firstTarget = await readlink(join(directory, "dist"));
-    expect(firstTarget).toMatch(/^\.unframe\/generations\/[0-9a-f]{32}$/u);
+    expect((await lstat(join(directory, "dist"))).isDirectory()).toBe(true);
     const assetNames = await readdir(join(directory, "dist", "assets"));
     expect(assetNames).toHaveLength(5);
     expect(assetNames).toContain("reference-font.ttf");
@@ -798,7 +851,7 @@ describe("reference Authoring Project", () => {
       });
       expect(initial.stderr).toBe("");
       expect(initial.exitCode).toBe(0);
-      const previous = await readlink(join(directory, "dist"));
+      const previous = (await lstat(join(directory, "dist"))).ino;
       const path = join(directory, name);
       const original = await readFile(path);
       const browser = fakeBrowser({
@@ -814,7 +867,7 @@ describe("reference Authoring Project", () => {
       expect(diagnostics(stale)).toContainEqual(
         expect.objectContaining({ code: "cli-output-stale" }),
       );
-      expect(await readlink(join(directory, "dist"))).toBe(previous);
+      expect((await lstat(join(directory, "dist"))).ino).toBe(previous);
       expect(await readFile(path)).toEqual(Buffer.concat([original, Buffer.from("\n")]));
     },
     30_000,
@@ -831,7 +884,7 @@ describe("reference Authoring Project", () => {
         })
       ).exitCode,
     ).toBe(0);
-    const previousTarget = await readlink(join(directory, "dist"));
+    const previousInode = (await lstat(join(directory, "dist"))).ino;
 
     const failing = fakeBrowser({ failCapture: true });
     const renderer = await runPresentationCli({
@@ -840,10 +893,10 @@ describe("reference Authoring Project", () => {
     });
     expect(renderer.exitCode).toBe(1);
     expect(diagnostics(renderer).map((item) => item.family)).toContain("renderer");
-    expect(await readlink(join(directory, "dist"))).toBe(previousTarget);
+    expect((await lstat(join(directory, "dist"))).ino).toBe(previousInode);
     expect(failing.observed.close).toBe(1);
 
-    await rm(join(directory, "dist"));
+    await rm(join(directory, "dist"), { recursive: true });
     await writeFile(join(directory, "dist"), "unmanaged output");
     const io = await runPresentationCli({
       args: ["build", directory, "--format", "json"],

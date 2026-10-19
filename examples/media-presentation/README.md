@@ -19,3 +19,14 @@ Local Editor の CLI 起動先を `examples/media-presentation` にして「再�
 - **Host Timeline**: 操作用 Surface の opacity を600msで `1 → 0.4 → 1` と変化させます。
 
 自然終了の Cue は `clipFinished` / `videoFinished` Variable を true にします。Local Editor のリセットで初期状態へ戻せます。CLI build の成功と Unity の実描画・音声確認は別の検証です。
+
+Dev Previewは最新のローカル素材へ追従し、lockの素材pinと既存Distを変更しません。Dist buildはlockとの一致を要求するため、素材を確定したら上記の`lock refresh`を実行します。
+
+ビルド後は通常ディレクトリの`dist`だけを別の場所へコピーして利用できます。Previewは再ビルドせず、CLIに用意されたWeb UIとUnity playerで表示します。
+
+```bash
+cp -R examples/media-presentation/dist /tmp/unframe-media-dist
+nix develop --command pnpm --filter @unframe/unframe-cli run presentation preview /tmp/unframe-media-dist
+```
+
+公開には`UNFRAME_ACCESS_TOKEN`を設定し、`presentation publish /tmp/unframe-media-dist <presentation-id> <control-plane-origin>`を使います。元のAuthoring projectと、その中の`.unframe`は不要です。

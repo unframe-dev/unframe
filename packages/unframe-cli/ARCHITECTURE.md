@@ -22,7 +22,7 @@ runPresentationCli
 ├─ M1 filesystem host: explicit root + config / lock, materialize virtual project
 ├─ check: unframe-compiler.checkAuthoringProjectAssembly（Browserなし）
 └─ build: exclusive project build lock + compiler + unframe-renderer-web
-   └─ managed staging + atomic dist symlink replacement
+   └─ managed staging + atomic Dist directory replacement
 ```
 
 実装は package の public entrypoint だけを import する。Compiler / Renderer の内部 module を deep import
@@ -82,7 +82,7 @@ Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer
 
 Prop / Variant の default を省略によって採用した場合、`check` と `build` は exit code `0` のまま warning を返す。成功 JSON の `warnings` は Instance ID、Prop / Variant 名、default 値、path を保持する。text 形式は成功を stdout、warning を stderr に出す。`build` の事前検証と compile で同じ warning を二重表示しない。default と同じ値を明示した場合は warning を出さない。
 
-`unframe.config.ts`の`assets`はlogical Asset IDから`{ path, mediaType }`へのdata-only登録であり、pathはproject内のregular fileを指す。lock v3のassetは`id`、`path`、`mediaType`、`hash`、`size`を持つ。bytesはfilesystem snapshotからCompilerの独立入力へ渡し、lockやdeclaration projectのJSONへ埋め込まない。登録済み素材は一ファイル64 MiB、合計256 MiBまで読み込み、Compilerは画像16 MiB・フォント/GLB64 MiBの上限と実bytesのhash/size/signatureも検証する。素材改変や登録変更はCheck・Author・Dev buildで拒否し、明示的な`lock refresh`/`lock update`でのみ採用する。Devの自動refreshは素材の固定を保持する。GLBはCompilerの静的Model変換へ渡し、配布GLBをlogical Asset IDのままatomic出力する。MP4は隔離validatorで検証し、Video artifactと配布MP4へ接続する。raster sizeはCLI optionではなくADR-0012の長辺2048 policyから導出する。
+`unframe.config.ts`の`assets`はlogical Asset IDから`{ path, mediaType }`へのdata-only登録であり、pathはproject内のregular fileを指す。lock v3のassetは`id`、`path`、`mediaType`、`hash`、`size`を持つ。bytesはfilesystem snapshotからCompilerの独立入力へ渡し、lockやdeclaration projectのJSONへ埋め込まない。登録済み素材は一ファイル64 MiB、合計256 MiBまで読み込み、Compilerは画像16 MiB・フォント/GLB64 MiBの上限と実bytesのhash/size/signatureも検証する。CheckとDist buildは素材・登録・変換条件がlockと異なる場合に拒否し、明示的な`lock refresh`/`lock update`で採用する。AuthorとDev buildは最新素材を取り込み、そのhashと変換条件をDev用snapshotへ固定する。Devはlockの素材pinと既存Distを更新しない。GLBはCompilerの静的Model変換へ渡し、配布GLBをlogical Asset IDのままatomic出力する。MP4は隔離validatorで検証し、Video artifactと配布MP4へ接続する。raster sizeはCLI optionではなくADR-0012の長辺2048 policyから導出する。
 
 ## 3. Artifact boundary
 
@@ -94,9 +94,9 @@ build の成功時だけ、CLI は次の deterministic な全ファイルを辞�
 - `build-manifest.json`
 - `assets/<percent-encoded asset id>.<png|jpg|ttf|otf|glb|mp4>`
 
-filesystem host は root 固定の `dist` に対し complete artifact set を `.unframe/generations/<generation-id>` に閉じ、成功時だけ validated
-relative target の managed `dist` symlink を atomic replacement する。失敗または cancel では previous `dist` を維持し、今回の
-staging を公開しない。local BuildManifest の `sourceDraftRevision` は `0` とし、publication と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
+filesystem host はcomplete artifact setを内部generationへ固定し、`build-receipt.json`を含む通常ディレクトリとして`dist`へ公開する。receiptはgeneration IDとbuild manifest bytesのhashを持つ。既存Distの置換は同一親FD配下のディレクトリ交換で原子的に行い、公開前後のbytesとidentityを検証する。失敗またはcancelではprevious Distを保持する。
+
+`dist`は元素材・Source・lock・`.unframe`への参照を持たず、そのディレクトリだけを別の場所へコピーできる。`preview <absolute-dist-directory>`は再ビルドせず共通Unity playerで表示し、編集・build APIを提供しない。`publish <absolute-dist-directory> <presentation-id> <control-plane-origin>`は同じDistの全素材bytesをhash・サイズで検証してから送信する。Preview用Web UIとUnity playerはCLI側の実行環境に必要である。local BuildManifest の `sourceDraftRevision` は `0` とし、publication と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
 discovery / read / write I/O は exit code `3` とする。
 
 ## 4. Interactive TUI boundary
@@ -126,7 +126,7 @@ Node.js の両方を提供する。
 
 build は config・Source・lock の bytes から revision を固定し、dist 置換前に再検査する。
 変更を検出した場合は `cli-output-stale` を返し、成功済み dist を保持して未公開 generation を回収する。
-build lease と一時 dist link は revision に含めない。これは外部編集の検出であり、非協調 editor との
+build lease と検証済みの一時Distディレクトリはrevisionに含めない。これは外部編集の検出であり、非協調 editor との
 原子的な保存を保証しない。ローカル Author host は source lease と journal により Source / lock の保存と recovery を行う。
 
 `pnpm presentation check|build <project>` は Bun process entry である。この entrypoint だけが単一の
@@ -170,6 +170,6 @@ Opaque preview には既存の固定 Browser と cgroup / namespace 実行環境
 
 ### Model / Video source tools
 
-登録GLBはCompilerの固定transform identity、MP4は`UNFRAME_FFMPEG_PATH` / `UNFRAME_FFPROBE_PATH`と`UNFRAME_MEDIA_RUNTIME_CLOSURE`が指定するNix tool・worker hashをsource lockへ束縛する。tool更新後は明示的な`lock refresh`が必要となる。MP4 workerは既存worker hostでreadonly input、network隔離、時間・出力・memory上限を適用し、全decode、AVC SPS、stream/packet/frameの検査結果をAssetsへ渡す。拡張子だけのadmissionや自動transcodeは行わない。
+登録GLBはCompilerの固定transform identity、MP4は`UNFRAME_FFMPEG_PATH` / `UNFRAME_FFPROBE_PATH`と`UNFRAME_MEDIA_RUNTIME_CLOSURE`が指定するNix tool・worker hashをsource lockへ束縛する。Distのtool更新後は明示的な`lock refresh`が必要となる。Devは最新tool identityをsnapshotへ記録する。MP4 workerは既存worker hostでreadonly input、network隔離、時間・出力・memory上限を適用し、全decode、AVC SPS、stream/packet/frameの検査結果をAssetsへ渡す。拡張子だけのadmissionや自動transcodeは行わない。
 
 PreviewはModel/Video residencyと初期・再生stateを共通Unity playerへ渡す。Control PlaneとNative Runtimeは`unity-media-v1`を使用する。Local Editorは同じfeature/budgetでprofile IDだけを`local-web-preview`とする。これらの上限はadmission設定でありQuest実機の性能測定結果を表さない。

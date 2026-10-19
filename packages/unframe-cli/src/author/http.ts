@@ -60,13 +60,22 @@ export const startAuthorHost = async ({
   publication,
   development = false,
 }: {
-  service: AuthorService;
+  service: AuthorService | Pick<AuthorService, "project">;
   previews: LocalPreviewService;
   assets: ReadonlyMap<string, Asset>;
   auth?: PublicationAuth;
   publication?: LocalPublicationService;
   development?: boolean;
 }) => {
+  const authorService = (): AuthorService => {
+    if (!("build" in service))
+      throw new AuthorError(
+        409,
+        "preview-dist-read-only",
+        "Dist Preview cannot edit or rebuild source.",
+      );
+    return service;
+  };
   const token = randomBytes(32).toString("hex");
   let origin = "";
   let authority = "";
@@ -153,21 +162,23 @@ export const startAuthorHost = async ({
         return;
       }
       if (path === "/api/project" && request.method === "PATCH") {
+        const author = authorService();
         const revision = expectedRevision(request);
         const parsed = patchRequestSchema.safeParse(await jsonBody(request));
         if (!parsed.success) throw invalid();
-        const saved = await service.patch(revision, parsed.data);
+        const saved = await author.patch(revision, parsed.data);
         response.setHeader("etag", `"${saved.revision}"`);
         sendJson(response, 200, saved);
         return;
       }
       if ((path === "/api/builds" || path === "/api/dist-builds") && request.method === "POST") {
+        const author = authorService();
         const revision = expectedRevision(request);
         const parsed = buildRequestSchema.safeParse(await jsonBody(request));
         if (!parsed.success) throw invalid();
         ++previewOperation;
         previews.invalidate();
-        const job = await service.build(
+        const job = await author.build(
           revision,
           parsed.data.requestId,
           path === "/api/dist-builds" ? "dist" : "dev",
@@ -185,7 +196,7 @@ export const startAuthorHost = async ({
         let generationId: string | undefined;
         let sourceRevision: string | undefined;
         if (input.channel === "dev") {
-          const job = await service.job(input.buildId);
+          const job = await authorService().job(input.buildId);
           if (job.channel !== "dev" || job.status !== "succeeded" || !job.generationId)
             throw new AuthorError(
               409,
@@ -262,14 +273,14 @@ export const startAuthorHost = async ({
       if (match && randomIdSchema.safeParse(match[1]).success) {
         const buildId = match[1]!;
         if (!match[2] && request.method === "GET") {
-          sendJson(response, 200, await service.job(buildId));
+          sendJson(response, 200, await authorService().job(buildId));
           return;
         }
         if (match[2] === "cancellation" && request.method === "PUT") {
           const body = await jsonBody(request);
           if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length)
             throw invalid();
-          sendJson(response, 200, await service.cancel(buildId));
+          sendJson(response, 200, await authorService().cancel(buildId));
           return;
         }
         if (match[3] && request.method === "GET") {
@@ -279,7 +290,7 @@ export const startAuthorHost = async ({
           } catch {
             throw invalid();
           }
-          const asset = await service.artifact(buildId, assetId);
+          const asset = await authorService().artifact(buildId, assetId);
           response.writeHead(200, {
             "content-type": asset.mediaType,
             "content-length": asset.bytes.byteLength,
@@ -330,7 +341,7 @@ export const startAuthorHost = async ({
       auth.close();
       publication?.close();
       previews.close();
-      await service.close();
+      if ("close" in service) await service.close();
       await new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
         server.closeAllConnections();

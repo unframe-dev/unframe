@@ -30,7 +30,7 @@ export const presentationTuiCommands: readonly PresentationTuiCommand[] = Object
   Object.freeze({
     id: "preview",
     label: "Preview presentation",
-    description: "Build and open a local artifact preview.",
+    description: "Open the built Dist in Unity Preview.",
   }),
   Object.freeze({
     id: "author",

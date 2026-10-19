@@ -16,7 +16,12 @@ export const initPresentationProject = async (
   if (await lstat(directory).catch(() => undefined))
     return { ok: false, code: "cli-init-target-exists" };
   const names = (await readdir(template, { withFileTypes: true }))
-    .filter((entry) => entry.isFile())
+    .filter(
+      (entry) =>
+        entry.isFile() &&
+        entry.name !== ".unframe-source.lock" &&
+        entry.name !== ".unframe-build.lock",
+    )
     .map((entry) => entry.name)
     .sort();
   try {

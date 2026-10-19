@@ -1,7 +1,9 @@
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { join, relative } from "node:path";
 import { createHash } from "node:crypto";
-import { lstat, readlink } from "node:fs/promises";
+import { lstat } from "node:fs/promises";
+import { buildManifestBytesHash, buildReceiptSchema } from "./build-receipt.js";
+import { parseStrictJson } from "./strict-json.js";
 import type { LocalFileSnapshot } from "./frozen-local-files.js";
 import { acquireSourceLock } from "./source-lock.js";
 import { loadProjectConfig, type ProjectConfig } from "./load-config.js";
@@ -87,11 +89,22 @@ const scanAuthoringSources = async (
         continue;
       if (directory === root && /^\.dist-[0-9a-f]{32}$/.test(name)) {
         const stat = await lstat(path).catch(() => undefined);
-        if (
-          stat?.isSymbolicLink() &&
-          (await readlink(path).catch(() => undefined)) === `.unframe/generations/${name.slice(6)}`
-        )
-          continue;
+        if (stat?.isDirectory()) {
+          const receiptBytes = await readBoundedRegularFile(join(path, "build-receipt.json"), 1024);
+          const manifest = await readBoundedRegularFile(
+            join(path, "build-manifest.json"),
+            8 * 1024 * 1024,
+          );
+          const parsed = receiptBytes ? parseStrictJson(receiptBytes) : undefined;
+          const receipt = parsed?.ok ? buildReceiptSchema.safeParse(parsed.value) : undefined;
+          // After an atomic exchange this directory holds the previous Dist generation.
+          if (
+            receipt?.success &&
+            manifest &&
+            receipt.data.buildManifestHash === buildManifestBytesHash(manifest)
+          )
+            continue;
+        }
       }
 
       const nestedNames = await readDirectoryNames(path);

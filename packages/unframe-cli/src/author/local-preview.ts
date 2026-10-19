@@ -11,6 +11,7 @@ import {
   type BuildArtifacts,
 } from "@unframe/unframe-core";
 import { readBuildGeneration } from "../filesystem/read-build-generation.js";
+import { readDistBuild } from "../filesystem/read-dist-build.js";
 import { AuthorError, randomIdSchema } from "./contract.js";
 import { projectPlaybackResourcesWire } from "./playback-wire.js";
 import { createLocalPlayback } from "./local-playback.js";
@@ -77,6 +78,15 @@ type Candidate = {
   references: Map<string, string>;
   playback: ReturnType<typeof createLocalPlayback>;
 };
+
+export const createDistPreviewService = (directory: string): LocalPreviewService =>
+  createLocalPreviewService(directory, {
+    readGeneration: async (dist, input) => {
+      if (input.channel !== "dist")
+        fail(409, "preview-dist-only", "A copied Dist supports Dist Preview only.");
+      return readDistBuild(dist);
+    },
+  });
 
 export const createLocalPreviewService = (
   directory: string,

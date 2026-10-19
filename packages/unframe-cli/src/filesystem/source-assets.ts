@@ -2,7 +2,10 @@ import { digestBytes } from "./package-snapshot.js";
 import type { ProjectConfig } from "./load-config.js";
 import type { LocalFileSnapshot } from "./frozen-local-files.js";
 import type { LockedSourceAsset } from "./lock.js";
-import { MODEL_BUILD_IDENTITY } from "@unframe/unframe-compiler";
+import {
+  MODEL_BUILD_IDENTITY,
+  type DeclarationProjectAssemblyCarrier,
+} from "@unframe/unframe-compiler";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import { createVideoValidator } from "../media/video-validator.js";
 
@@ -102,3 +105,32 @@ export const resolveProjectSourceAssets = async (
     return failure("cli-source-asset-transform-unavailable", "unframe.lock");
   }
 };
+
+export const resolveDevProjectSourceAssets = async (
+  sources: ProjectConfig["assets"],
+  files: readonly LocalFileSnapshot[],
+): Promise<SourceAssetsResult> => {
+  try {
+    return lockSourceAssets(sources, files, await projectVideoTransformIdentity(sources));
+  } catch {
+    return failure("cli-source-asset-transform-unavailable", "unframe.config.ts");
+  }
+};
+
+export const createSourceAssetAssemblyCarrier = (
+  carrier: DeclarationProjectAssemblyCarrier,
+  assets: readonly LockedSourceAsset[],
+): DeclarationProjectAssemblyCarrier => ({
+  ...carrier,
+  assets: Object.fromEntries(
+    assets.map((asset) => [
+      asset.id,
+      {
+        id: asset.id,
+        mediaType: asset.mediaType,
+        checksum: asset.hash,
+        encodedSizeBytes: asset.size,
+      },
+    ]),
+  ),
+});

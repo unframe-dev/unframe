@@ -183,6 +183,10 @@ publication を持たない。Definition/Bundle から参照されない編集�
 など allowlist 外の素材を拒否する。`assetSetHash` は manifest の RFC 8785 JCS bytes から外側で
 計算する。
 
+## ローカル配布ディレクトリ
+
+CLIのDistは4つのJSON artifact、`assets/`の配布bytes、`build-receipt.json`からなる通常ディレクトリであり、元プロジェクトから切り離してPreview・publishできる。receiptはローカルgeneration IDとbuild manifest bytesのhashを照合するための情報で、Control Planeのartifact契約には含めない。素材の解決にはAsset IDとmedia typeを用い、元プロジェクトのpathやlockを必要としない。欠落・サイズ・checksumの不一致では表示準備またはpublishを停止する。
+
 ## 検証順序と diagnostic
 
 consumer は次の順に検証し、違反時は publish/admission を停止する。複数 diagnostic は artifact 名、

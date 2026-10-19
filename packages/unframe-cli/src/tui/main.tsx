@@ -1,6 +1,7 @@
 import { runPresentationTui } from "./run.js";
 import { runPresentationProcess } from "../process/run-presentation-process.js";
 import type { PresentationTuiCommandId } from "./model.js";
+import { join } from "node:path";
 
 const command = await new Promise<PresentationTuiCommandId | undefined>((resolve) => {
   void runPresentationTui({ onCommandSelected: resolve, onQuit: () => resolve(undefined) }).catch(
@@ -10,7 +11,12 @@ const command = await new Promise<PresentationTuiCommandId | undefined>((resolve
 if (command) {
   await runPresentationProcess({
     process: {
-      argv: [process.argv[0]!, process.argv[1]!, command, process.cwd()],
+      argv: [
+        process.argv[0]!,
+        process.argv[1]!,
+        command,
+        command === "preview" ? join(process.cwd(), "dist") : process.cwd(),
+      ],
       env: process.env,
       stdout: process.stdout,
       stderr: process.stderr,
