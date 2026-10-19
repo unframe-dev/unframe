@@ -23,8 +23,12 @@ public sealed class PresentationMediaStateEditModeTests
             Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
             Cause = new RuntimeRunCause { CueId = "cue:media", CauseEventId = "event:media" },
             Completion = RunCompletion.NonBlocking,
-            Media = new MediaRunSnapshot { SurfaceId = surface, Playback = new PlaybackClock
-            { Playing = new PlayingClock { PositionAtReferenceMs = 25 } } },
+            Media = new MediaRunSnapshot
+            {
+                SurfaceId = surface,
+                Playback = new PlaybackClock
+                { Playing = new PlayingClock { PositionAtReferenceMs = 25 } }
+            },
         };
         Assert.That(store.TryReceiveControl(Event(snapshot, 1, new ProjectedReliableEvent
         { MediaStarted = new MediaStarted { SurfaceId = surface, RunId = run.RunId.Clone(), Run = run, Playback = run.Media.Playback.Clone() } }), out error), Is.True, error);

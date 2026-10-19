@@ -71,13 +71,30 @@ public sealed class PresentationRichDeliveryBudgetTests
         manifest.AssetAccess.Clear();
         manifest.AssetAccess.Add(new AssetAccessBinding { AssetId = "font", Checksum = "font-checksum", MediaType = "font/ttf", EncodedSizeBytes = 10 });
         manifest.CapabilityProfile.Renderers.NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1, Features = { NativeUiFeature.Clip } };
-        manifest.CapabilityProfile.Limits.NativeUi = new NativeUiLimits { TierId = "native", MaxNodesPerArtifact = 2, MaxTextNodesPerArtifact = 1,
-            MaxTreeDepth = 2, MaxCodePointsPerText = 16, MaxFontAssets = 1, MaxGlyphs = 16 };
-        manifest.Residency.NativeUi = new NativeUiResidencyPlan { BudgetTierId = "native", MaximumNodesPerArtifact = 2, MaximumTextNodesPerArtifact = 1,
-            MaximumTreeDepth = 2, MaximumCodePointsPerText = 16, FontAssetCount = 1, FontAssetIds = { "font" } };
+        manifest.CapabilityProfile.Limits.NativeUi = new NativeUiLimits
+        {
+            TierId = "native",
+            MaxNodesPerArtifact = 2,
+            MaxTextNodesPerArtifact = 1,
+            MaxTreeDepth = 2,
+            MaxCodePointsPerText = 16,
+            MaxFontAssets = 1,
+            MaxGlyphs = 16
+        };
+        manifest.Residency.NativeUi = new NativeUiResidencyPlan
+        {
+            BudgetTierId = "native",
+            MaximumNodesPerArtifact = 2,
+            MaximumTextNodesPerArtifact = 1,
+            MaximumTreeDepth = 2,
+            MaximumCodePointsPerText = 16,
+            FontAssetCount = 1,
+            FontAssetIds = { "font" }
+        };
         manifest.ProjectionProfile.RenderSurfaces.Add(new DeliveredRenderSurface
         {
-            RendererKind = RendererKind.NativeUi, ArtifactContractVersion = 1,
+            RendererKind = RendererKind.NativeUi,
+            ArtifactContractVersion = 1,
             Artifacts = { new DeliveredArtifact { NativeUi = new NativeUiArtifact
             {
                 ContractVersion = 1, RootNodeId = "root", RequiredFeatures = { NativeUiFeature.Clip },
@@ -106,8 +123,14 @@ public sealed class PresentationRichDeliveryBudgetTests
     {
         var artifact = new VideoArtifact
         {
-            ArtifactId = "video:one", ContractVersion = 1, VideoAssetId = "video", Checksum = "checksum", EncodedSizeBytes = 10,
-            PixelSize = new PixelSize { Width = 1, Height = 1 }, Codec = VideoCodec.H264, DurationMs = 1000,
+            ArtifactId = "video:one",
+            ContractVersion = 1,
+            VideoAssetId = "video",
+            Checksum = "checksum",
+            EncodedSizeBytes = 10,
+            PixelSize = new PixelSize { Width = 1, Height = 1 },
+            Codec = VideoCodec.H264,
+            DurationMs = 1000,
         };
         var second = artifact.Clone();
         second.ArtifactId = "video:two";
@@ -122,14 +145,27 @@ public sealed class PresentationRichDeliveryBudgetTests
                     new DeliveredRenderSurface { RendererKind = RendererKind.Video, ArtifactContractVersion = 1, Artifacts = { new DeliveredArtifact { Video = second } } },
                 },
             },
-            CapabilityProfile = new CapabilityProfile { Renderers = new RendererCapabilities { Video = new VideoCapability { Supported = true, ContractVersion = 1, Features = { VideoFeature.H264 } } }, Limits = new CapabilityLimits { Video = new VideoLimits
-            { TierId = "video-test", MaxWidth = 1, MaxHeight = 1, MaxPixels = 1, MaxConcurrentDecoders = 2, MaxDecodedFrameBytes = 8, MaxEncodedBytes = 10 } } },
-            AssetAccess = { new AssetAccessBinding { AssetId = "video", Checksum = "checksum", MediaType = "video/mp4", EncodedSizeBytes = 10 } },
-            Residency = new ResidencyPlan { Video = new VideoResidencyPlan
+            CapabilityProfile = new CapabilityProfile
             {
-                BudgetTierId = "video-test", MaximumConcurrentDecoders = 2, MaximumDecodedFrameBytes = 8, TotalEncodedBytes = 10,
-                Videos = { new VideoResidencyBinding { AssetId = "video", Checksum = "checksum", EncodedSizeBytes = 10, DecodedFrameBytes = 4 } },
-            } },
+                Renderers = new RendererCapabilities { Video = new VideoCapability { Supported = true, ContractVersion = 1, Features = { VideoFeature.H264 } } },
+                Limits = new CapabilityLimits
+                {
+                    Video = new VideoLimits
+                    { TierId = "video-test", MaxWidth = 1, MaxHeight = 1, MaxPixels = 1, MaxConcurrentDecoders = 2, MaxDecodedFrameBytes = 8, MaxEncodedBytes = 10 }
+                }
+            },
+            AssetAccess = { new AssetAccessBinding { AssetId = "video", Checksum = "checksum", MediaType = "video/mp4", EncodedSizeBytes = 10 } },
+            Residency = new ResidencyPlan
+            {
+                Video = new VideoResidencyPlan
+                {
+                    BudgetTierId = "video-test",
+                    MaximumConcurrentDecoders = 2,
+                    MaximumDecodedFrameBytes = 8,
+                    TotalEncodedBytes = 10,
+                    Videos = { new VideoResidencyBinding { AssetId = "video", Checksum = "checksum", EncodedSizeBytes = 10, DecodedFrameBytes = 4 } },
+                }
+            },
         };
     }
 }

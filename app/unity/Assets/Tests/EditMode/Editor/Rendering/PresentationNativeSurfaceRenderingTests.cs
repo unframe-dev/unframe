@@ -51,11 +51,15 @@ public sealed class PresentationNativeSurfaceRenderingTests
             fontChecksum = "sha256:" + System.BitConverter.ToString(sha.ComputeHash(fontBytes)).Replace("-", "").ToLowerInvariant();
         delivery.AssetAccess.Add(new AssetAccessBinding
         {
-            AssetId = "font", Checksum = fontChecksum, MediaType = "font/ttf", EncodedSizeBytes = (ulong)fontBytes.Length,
+            AssetId = "font",
+            Checksum = fontChecksum,
+            MediaType = "font/ttf",
+            EncodedSizeBytes = (ulong)fontBytes.Length,
         });
         delivery.Residency.NativeUi = new NativeUiResidencyPlan
         {
-            FontAssetCount = 1, FontAssetIds = { "font" },
+            FontAssetCount = 1,
+            FontAssetIds = { "font" },
             Glyphs =
             {
                 new GlyphResidencyKey { FontChecksum = fontChecksum, UnicodeScalar = '1' },
@@ -75,7 +79,9 @@ public sealed class PresentationNativeSurfaceRenderingTests
         surface.PhysicalSizeMeters = new Unframe.Presentation.Vector2 { X = 1, Y = 1 };
         var render = new DeliveredRenderSurface
         {
-            RenderSurfaceId = "native-test", SemanticSurfaceId = surface.SurfaceId, RendererKind = RendererKind.NativeUi,
+            RenderSurfaceId = "native-test",
+            SemanticSurfaceId = surface.SurfaceId,
+            RendererKind = RendererKind.NativeUi,
             LogicalBounds = new LogicalBounds { Width = 100, Height = 100 },
             StateBindings = { new DeliveredStateBinding { StateId = "state:text-greeting", Artifact = new ArtifactStateBinding { ArtifactId = "text" } } },
             Artifacts = { new DeliveredArtifact { NativeUi = new NativeUiArtifact
@@ -124,10 +130,12 @@ public sealed class PresentationNativeSurfaceRenderingTests
                     {
                         ReliableEvent = new ProjectedReliableEvent
                         {
-                            Sequence = 1, EventId = "event:change-text-opacity",
+                            Sequence = 1,
+                            EventId = "event:change-text-opacity",
                             Fence = new RuntimeProjectionFence
                             {
-                                SessionId = delivery.SessionId, Publication = delivery.Publication.Clone(),
+                                SessionId = delivery.SessionId,
+                                Publication = delivery.Publication.Clone(),
                                 AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch,
                                 ProjectionProfileId = delivery.ProjectionProfile.ProjectionProfileId,
                             },

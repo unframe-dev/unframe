@@ -50,10 +50,16 @@ public sealed class PresentationModelImportEditModeTests
             { ModelNodeId = "node:cube", Active = new ModelClipActive { RunId = runId.Clone() } });
             snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ActiveRuns.Add(new RuntimeRunSnapshot
             {
-                RunId = runId, Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
-                Cause = new RuntimeRunCause { CueId = "cue:wave", CauseEventId = "event:wave" }, Completion = RunCompletion.NonBlocking,
-                ModelClip = new ModelClipRunSnapshot { ModelNodeId = "node:cube", Single = new ClipPlayback
-                { ClipId = "wave", Speed = 1, Playback = new PlaybackClock { Playing = new PlayingClock() } } },
+                RunId = runId,
+                Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
+                Cause = new RuntimeRunCause { CueId = "cue:wave", CauseEventId = "event:wave" },
+                Completion = RunCompletion.NonBlocking,
+                ModelClip = new ModelClipRunSnapshot
+                {
+                    ModelNodeId = "node:cube",
+                    Single = new ClipPlayback
+                    { ClipId = "wave", Speed = 1, Playback = new PlaybackClock { Playing = new PlayingClock() } }
+                },
             });
             Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
             Assert.That(renderer.TryRefresh(store, 500, out error), Is.True, error);
@@ -94,17 +100,40 @@ public sealed class PresentationModelImportEditModeTests
             out DeliveryManifest manifest, out string error), Is.True, error);
         string checksum;
         using (var sha = SHA256.Create()) checksum = "sha256:" + BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
-        manifest.CapabilityProfile.Model = new ModelCapability { Supported = true, ContractVersion = 1,
-            Formats = { ModelFormat.GltfBinary }, Features = { ModelFeature.Animation } };
-        manifest.CapabilityProfile.Limits = new CapabilityLimits { Model = new ModelLimits
-        { TierId = "model-test", MaxAssets = 1, MaxInstances = 1, MaxEncodedBytes = 10000, MaxNodes = 1, MaxPrimitives = 1, MaxVertices = 3, MaxTriangles = 1, MaxAnimationClipsPerAsset = 1 } };
-        manifest.AssetAccess[0] = new AssetAccessBinding { AssetId = "asset:storyboard-cube", Checksum = checksum,
-            EncodedSizeBytes = (ulong)bytes.Length, MediaType = "model/gltf-binary", Url = "https://example.com/model.glb", ExpiresAtUnixMs = ulong.MaxValue };
-        manifest.Residency.Models = new ModelResidencyPlan { BudgetTierId = "model-test", ModelInstanceCount = 1,
-            TotalEncodedBytes = (ulong)bytes.Length, TotalNodes = 1, TotalPrimitives = 1, TotalVertices = 3, TotalTriangles = 1,
+        manifest.CapabilityProfile.Model = new ModelCapability
+        {
+            Supported = true,
+            ContractVersion = 1,
+            Formats = { ModelFormat.GltfBinary },
+            Features = { ModelFeature.Animation }
+        };
+        manifest.CapabilityProfile.Limits = new CapabilityLimits
+        {
+            Model = new ModelLimits
+            { TierId = "model-test", MaxAssets = 1, MaxInstances = 1, MaxEncodedBytes = 10000, MaxNodes = 1, MaxPrimitives = 1, MaxVertices = 3, MaxTriangles = 1, MaxAnimationClipsPerAsset = 1 }
+        };
+        manifest.AssetAccess[0] = new AssetAccessBinding
+        {
+            AssetId = "asset:storyboard-cube",
+            Checksum = checksum,
+            EncodedSizeBytes = (ulong)bytes.Length,
+            MediaType = "model/gltf-binary",
+            Url = "https://example.com/model.glb",
+            ExpiresAtUnixMs = ulong.MaxValue
+        };
+        manifest.Residency.Models = new ModelResidencyPlan
+        {
+            BudgetTierId = "model-test",
+            ModelInstanceCount = 1,
+            TotalEncodedBytes = (ulong)bytes.Length,
+            TotalNodes = 1,
+            TotalPrimitives = 1,
+            TotalVertices = 3,
+            TotalTriangles = 1,
             Models = { new ModelResidencyBinding { AssetId = "asset:storyboard-cube", Checksum = checksum, Format = ModelFormat.GltfBinary,
             EncodedSizeBytes = (ulong)bytes.Length, NodeCount = 1, PrimitiveCount = 1, VertexCount = 3, TriangleCount = 1, AnimationClipCount = 1,
-            RequiredFeatures = { ModelFeature.Animation } } } };
+            RequiredFeatures = { ModelFeature.Animation } } }
+        };
         manifest.ProjectionProfile.RuntimeCatalog.ModelClips.Add(new ProjectedModelClipDefinition
         { ModelNodeId = "node:cube", ModelAssetId = "asset:storyboard-cube", ClipId = "wave", SourceAnimationIndex = 0, DurationMs = 1000 });
         return manifest;

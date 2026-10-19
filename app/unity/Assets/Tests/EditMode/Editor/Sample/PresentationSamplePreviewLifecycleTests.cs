@@ -51,9 +51,14 @@ public sealed class PresentationSamplePreviewLifecycleTests
         string path = Path.Combine(directory, "connection.json");
         File.WriteAllText(path, JsonUtility.ToJson(new Descriptor
         {
-            version = 1, controlPlaneOrigin = "https://localhost:18443", sessionId = "sample-session",
-            credential = "never-show-this-token", caFile = caFile,
-            expiresAt = DateTimeOffset.UtcNow.AddHours(-1).ToString("O"), presentationId = "presentation", buildId = "build",
+            version = 1,
+            controlPlaneOrigin = "https://localhost:18443",
+            sessionId = "sample-session",
+            credential = "never-show-this-token",
+            caFile = caFile,
+            expiresAt = DateTimeOffset.UtcNow.AddHours(-1).ToString("O"),
+            presentationId = "presentation",
+            buildId = "build",
         }));
         var settings = PresentationSampleConnectionSettings.Load(path, DateTimeOffset.UtcNow.AddHours(-2));
         var owner = new GameObject("Preview lifecycle test");

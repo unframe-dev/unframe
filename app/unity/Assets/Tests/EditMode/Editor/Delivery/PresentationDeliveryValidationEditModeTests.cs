@@ -19,9 +19,13 @@ public sealed class PresentationDeliveryValidationEditModeTests
         DeliveryManifest delivery = CreateFixture();
         var guide = new ProjectedMotionGuideDefinition
         {
-            GroupId = "main", StepId = "start", CueId = "move",
-            Preset = (MotionGuidePreset)1, Hand = (MotionGuideHand)1,
-            MinimumDistanceMeters = .2, WindowMs = 1000,
+            GroupId = "main",
+            StepId = "start",
+            CueId = "move",
+            Preset = (MotionGuidePreset)1,
+            Hand = (MotionGuideHand)1,
+            MinimumDistanceMeters = .2,
+            WindowMs = 1000,
         };
         delivery.ProjectionProfile.RuntimeCatalog.MotionGuides.Add(guide);
         switch (invalid)
@@ -43,9 +47,13 @@ public sealed class PresentationDeliveryValidationEditModeTests
         DeliveryManifest delivery = CreateFixture();
         delivery.ProjectionProfile.RuntimeCatalog.MotionGuides.Add(new ProjectedMotionGuideDefinition
         {
-            GroupId = "main", StepId = "start", CueId = "move",
-            Preset = (MotionGuidePreset)7, Hand = (MotionGuideHand)4,
-            MinimumDistanceMeters = .2, WindowMs = 1000,
+            GroupId = "main",
+            StepId = "start",
+            CueId = "move",
+            Preset = (MotionGuidePreset)7,
+            Hand = (MotionGuideHand)4,
+            MinimumDistanceMeters = .2,
+            WindowMs = 1000,
         });
         AssertAccepted(delivery);
     }

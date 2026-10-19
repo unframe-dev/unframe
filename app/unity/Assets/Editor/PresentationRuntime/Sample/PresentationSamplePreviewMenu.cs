@@ -52,7 +52,9 @@ namespace Unframe.Unity.PresentationRuntime.Editor
             {
                 scenes = EditorSceneManager.GetSceneManagerSetup().Select(scene => new SavedScene
                 {
-                    path = scene.path, isLoaded = scene.isLoaded, isActive = scene.isActive,
+                    path = scene.path,
+                    isLoaded = scene.isLoaded,
+                    isActive = scene.isActive,
                 }).ToArray(),
             }));
             SessionState.SetBool(RestoreKey, true);
@@ -87,7 +89,9 @@ namespace Unframe.Unity.PresentationRuntime.Editor
                     var document = JsonUtility.FromJson<SceneSetupDocument>(File.ReadAllText(SceneSetupPath));
                     SceneSetup[] scenes = document?.scenes?.Where(scene => !string.IsNullOrEmpty(scene.path)).Select(scene => new SceneSetup
                     {
-                        path = scene.path, isLoaded = scene.isLoaded, isActive = scene.isActive,
+                        path = scene.path,
+                        isLoaded = scene.isLoaded,
+                        isActive = scene.isActive,
                     }).ToArray();
                     if (scenes != null && scenes.Length > 0)
                     {
