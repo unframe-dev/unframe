@@ -144,49 +144,68 @@ namespace Unframe.Presentation {
             "FQoNbW9kZWxfbm9kZV9pZBgBIAEoCRIWCg5tb2RlbF9hc3NldF9pZBgCIAEo",
             "CRIPCgdjbGlwX2lkGAMgASgJEh4KFnNvdXJjZV9hbmltYXRpb25faW5kZXgY",
             "BCABKA0SEwoLZHVyYXRpb25fbXMYBSABKAQSMgoFb3duZXIYBiABKAsyIy51",
-            "bmZyYW1lLnByZXNlbnRhdGlvbi5SZXNvdXJjZU93bmVyIpIDChdQcm9qZWN0",
-            "ZWRSdW50aW1lQ2F0YWxvZxIgChhjYXRhbG9nX2NvbnRyYWN0X3ZlcnNpb24Y",
-            "ASABKA0SPAoFbm9kZXMYAiADKAsyLS51bmZyYW1lLnByZXNlbnRhdGlvbi5Q",
-            "cm9qZWN0ZWROb2RlRGVmaW5pdGlvbhJCCghzdXJmYWNlcxgDIAMoCzIwLnVu",
-            "ZnJhbWUucHJlc2VudGF0aW9uLlByb2plY3RlZFN1cmZhY2VEZWZpbml0aW9u",
-            "EkQKCXZhcmlhYmxlcxgEIAMoCzIxLnVuZnJhbWUucHJlc2VudGF0aW9uLlBy",
-            "b2plY3RlZFZhcmlhYmxlRGVmaW5pdGlvbhJECgl0aW1lbGluZXMYBSADKAsy",
-            "MS51bmZyYW1lLnByZXNlbnRhdGlvbi5Qcm9qZWN0ZWRUaW1lbGluZURlZmlu",
-            "aXRpb24SRwoLbW9kZWxfY2xpcHMYBiADKAsyMi51bmZyYW1lLnByZXNlbnRh",
-            "dGlvbi5Qcm9qZWN0ZWRNb2RlbENsaXBEZWZpbml0aW9uKmAKC1Nlc3Npb25S",
-            "b2xlEhwKGFNFU1NJT05fUk9MRV9VTlNQRUNJRklFRBAAEhoKFlNFU1NJT05f",
-            "Uk9MRV9QUkVTRU5URVIQARIXChNTRVNTSU9OX1JPTEVfVklFV0VSEAIqnAIK",
-            "EVJ1bnRpbWVDYXBhYmlsaXR5EiIKHlJVTlRJTUVfQ0FQQUJJTElUWV9VTlNQ",
-            "RUNJRklFRBAAEigKJFJVTlRJTUVfQ0FQQUJJTElUWV9SVU5USU1FX1RSQU5T",
-            "UE9SVBABEiMKH1JVTlRJTUVfQ0FQQUJJTElUWV9USU1FTElORV9SVU4QAhIp",
-            "CiVSVU5USU1FX0NBUEFCSUxJVFlfU1VSRkFDRV9UUkFOU0lUSU9OEAMSJQoh",
-            "UlVOVElNRV9DQVBBQklMSVRZX1ZJREVPX1BMQVlCQUNLEAQSIQodUlVOVElN",
-            "RV9DQVBBQklMSVRZX01PREVMX0NMSVAQBRIfChtSVU5USU1FX0NBUEFCSUxJ",
-            "VFlfVFJBQ0tJTkcQBiqIAQoKU2NhbGFyVHlwZRIbChdTQ0FMQVJfVFlQRV9V",
-            "TlNQRUNJRklFRBAAEhYKElNDQUxBUl9UWVBFX1NUUklORxABEhYKElNDQUxB",
-            "Ul9UWVBFX05VTUJFUhACEhcKE1NDQUxBUl9UWVBFX0JPT0xFQU4QAxIUChBT",
-            "Q0FMQVJfVFlQRV9OVUxMEAQqdwoGRWFzaW5nEhYKEkVBU0lOR19VTlNQRUNJ",
-            "RklFRBAAEhEKDUVBU0lOR19MSU5FQVIQARITCg9FQVNJTkdfQ1VCSUNfSU4Q",
-            "AhIUChBFQVNJTkdfQ1VCSUNfT1VUEAMSFwoTRUFTSU5HX0NVQklDX0lOX09V",
-            "VBAEKm0KDVJ1bkNvbXBsZXRpb24SHgoaUlVOX0NPTVBMRVRJT05fVU5TUEVD",
-            "SUZJRUQQABIbChdSVU5fQ09NUExFVElPTl9CTE9DS0lORxABEh8KG1JVTl9D",
-            "T01QTEVUSU9OX05PTl9CTE9DS0lORxACKs8BChBUaW1lbGluZVByb3BlcnR5",
-            "EiEKHVRJTUVMSU5FX1BST1BFUlRZX1VOU1BFQ0lGSUVEEAASHQoZVElNRUxJ",
-            "TkVfUFJPUEVSVFlfT1BBQ0lUWRABEigKJFRJTUVMSU5FX1BST1BFUlRZX1RS",
-            "QU5TRk9STV9QT1NJVElPThACEigKJFRJTUVMSU5FX1BST1BFUlRZX1RSQU5T",
-            "Rk9STV9ST1RBVElPThADEiUKIVRJTUVMSU5FX1BST1BFUlRZX1RSQU5TRk9S",
-            "TV9TQ0FMRRAEKpgBCgxBbmNob3JUYXJnZXQSHQoZQU5DSE9SX1RBUkdFVF9V",
-            "TlNQRUNJRklFRBAAEhYKEkFOQ0hPUl9UQVJHRVRfSEVBRBABEhsKF0FOQ0hP",
-            "Ul9UQVJHRVRfTEVGVF9IQU5EEAISHAoYQU5DSE9SX1RBUkdFVF9SSUdIVF9I",
-            "QU5EEAMSFgoSQU5DSE9SX1RBUkdFVF9CT0RZEAQqcgoKU3VyZmFjZUZpdBIb",
-            "ChdTVVJGQUNFX0ZJVF9VTlNQRUNJRklFRBAAEhcKE1NVUkZBQ0VfRklUX0NP",
-            "TlRBSU4QARIVChFTVVJGQUNFX0ZJVF9DT1ZFUhACEhcKE1NVUkZBQ0VfRklU",
-            "X1NUUkVUQ0gQA0JbWllnaXRodWIuY29tL3VuZnJhbWUtZGV2L3VuZnJhbWUv",
-            "YXBwL3NlcnZlci9yZWFsdGltZS9pbnRlcm5hbC9nZW4vcHJlc2VudGF0aW9u",
-            "O3ByZXNlbnRhdGlvbmIGcHJvdG8z"));
+            "bmZyYW1lLnByZXNlbnRhdGlvbi5SZXNvdXJjZU93bmVyIvUBCh5Qcm9qZWN0",
+            "ZWRNb3Rpb25HdWlkZURlZmluaXRpb24SEAoIZ3JvdXBfaWQYASABKAkSDwoH",
+            "c3RlcF9pZBgCIAEoCRIOCgZjdWVfaWQYAyABKAkSNwoGcHJlc2V0GAQgASgO",
+            "MicudW5mcmFtZS5wcmVzZW50YXRpb24uTW90aW9uR3VpZGVQcmVzZXQSMwoE",
+            "aGFuZBgFIAEoDjIlLnVuZnJhbWUucHJlc2VudGF0aW9uLk1vdGlvbkd1aWRl",
+            "SGFuZBIfChdtaW5pbXVtX2Rpc3RhbmNlX21ldGVycxgGIAEoARIRCgl3aW5k",
+            "b3dfbXMYByABKAQi3wMKF1Byb2plY3RlZFJ1bnRpbWVDYXRhbG9nEiAKGGNh",
+            "dGFsb2dfY29udHJhY3RfdmVyc2lvbhgBIAEoDRI8CgVub2RlcxgCIAMoCzIt",
+            "LnVuZnJhbWUucHJlc2VudGF0aW9uLlByb2plY3RlZE5vZGVEZWZpbml0aW9u",
+            "EkIKCHN1cmZhY2VzGAMgAygLMjAudW5mcmFtZS5wcmVzZW50YXRpb24uUHJv",
+            "amVjdGVkU3VyZmFjZURlZmluaXRpb24SRAoJdmFyaWFibGVzGAQgAygLMjEu",
+            "dW5mcmFtZS5wcmVzZW50YXRpb24uUHJvamVjdGVkVmFyaWFibGVEZWZpbml0",
+            "aW9uEkQKCXRpbWVsaW5lcxgFIAMoCzIxLnVuZnJhbWUucHJlc2VudGF0aW9u",
+            "LlByb2plY3RlZFRpbWVsaW5lRGVmaW5pdGlvbhJHCgttb2RlbF9jbGlwcxgG",
+            "IAMoCzIyLnVuZnJhbWUucHJlc2VudGF0aW9uLlByb2plY3RlZE1vZGVsQ2xp",
+            "cERlZmluaXRpb24SSwoNbW90aW9uX2d1aWRlcxgHIAMoCzI0LnVuZnJhbWUu",
+            "cHJlc2VudGF0aW9uLlByb2plY3RlZE1vdGlvbkd1aWRlRGVmaW5pdGlvbipg",
+            "CgtTZXNzaW9uUm9sZRIcChhTRVNTSU9OX1JPTEVfVU5TUEVDSUZJRUQQABIa",
+            "ChZTRVNTSU9OX1JPTEVfUFJFU0VOVEVSEAESFwoTU0VTU0lPTl9ST0xFX1ZJ",
+            "RVdFUhACKpwCChFSdW50aW1lQ2FwYWJpbGl0eRIiCh5SVU5USU1FX0NBUEFC",
+            "SUxJVFlfVU5TUEVDSUZJRUQQABIoCiRSVU5USU1FX0NBUEFCSUxJVFlfUlVO",
+            "VElNRV9UUkFOU1BPUlQQARIjCh9SVU5USU1FX0NBUEFCSUxJVFlfVElNRUxJ",
+            "TkVfUlVOEAISKQolUlVOVElNRV9DQVBBQklMSVRZX1NVUkZBQ0VfVFJBTlNJ",
+            "VElPThADEiUKIVJVTlRJTUVfQ0FQQUJJTElUWV9WSURFT19QTEFZQkFDSxAE",
+            "EiEKHVJVTlRJTUVfQ0FQQUJJTElUWV9NT0RFTF9DTElQEAUSHwobUlVOVElN",
+            "RV9DQVBBQklMSVRZX1RSQUNLSU5HEAYqiAEKClNjYWxhclR5cGUSGwoXU0NB",
+            "TEFSX1RZUEVfVU5TUEVDSUZJRUQQABIWChJTQ0FMQVJfVFlQRV9TVFJJTkcQ",
+            "ARIWChJTQ0FMQVJfVFlQRV9OVU1CRVIQAhIXChNTQ0FMQVJfVFlQRV9CT09M",
+            "RUFOEAMSFAoQU0NBTEFSX1RZUEVfTlVMTBAEKncKBkVhc2luZxIWChJFQVNJ",
+            "TkdfVU5TUEVDSUZJRUQQABIRCg1FQVNJTkdfTElORUFSEAESEwoPRUFTSU5H",
+            "X0NVQklDX0lOEAISFAoQRUFTSU5HX0NVQklDX09VVBADEhcKE0VBU0lOR19D",
+            "VUJJQ19JTl9PVVQQBCptCg1SdW5Db21wbGV0aW9uEh4KGlJVTl9DT01QTEVU",
+            "SU9OX1VOU1BFQ0lGSUVEEAASGwoXUlVOX0NPTVBMRVRJT05fQkxPQ0tJTkcQ",
+            "ARIfChtSVU5fQ09NUExFVElPTl9OT05fQkxPQ0tJTkcQAirPAQoQVGltZWxp",
+            "bmVQcm9wZXJ0eRIhCh1USU1FTElORV9QUk9QRVJUWV9VTlNQRUNJRklFRBAA",
+            "Eh0KGVRJTUVMSU5FX1BST1BFUlRZX09QQUNJVFkQARIoCiRUSU1FTElORV9Q",
+            "Uk9QRVJUWV9UUkFOU0ZPUk1fUE9TSVRJT04QAhIoCiRUSU1FTElORV9QUk9Q",
+            "RVJUWV9UUkFOU0ZPUk1fUk9UQVRJT04QAxIlCiFUSU1FTElORV9QUk9QRVJU",
+            "WV9UUkFOU0ZPUk1fU0NBTEUQBCqYAQoMQW5jaG9yVGFyZ2V0Eh0KGUFOQ0hP",
+            "Ul9UQVJHRVRfVU5TUEVDSUZJRUQQABIWChJBTkNIT1JfVEFSR0VUX0hFQUQQ",
+            "ARIbChdBTkNIT1JfVEFSR0VUX0xFRlRfSEFORBACEhwKGEFOQ0hPUl9UQVJH",
+            "RVRfUklHSFRfSEFORBADEhYKEkFOQ0hPUl9UQVJHRVRfQk9EWRAEKnIKClN1",
+            "cmZhY2VGaXQSGwoXU1VSRkFDRV9GSVRfVU5TUEVDSUZJRUQQABIXChNTVVJG",
+            "QUNFX0ZJVF9DT05UQUlOEAESFQoRU1VSRkFDRV9GSVRfQ09WRVIQAhIXChNT",
+            "VVJGQUNFX0ZJVF9TVFJFVENIEAMq3wIKEU1vdGlvbkd1aWRlUHJlc2V0EiMK",
+            "H01PVElPTl9HVUlERV9QUkVTRVRfVU5TUEVDSUZJRUQQABIiCh5NT1RJT05f",
+            "R1VJREVfUFJFU0VUX1NXSVBFX0xFRlQQARIjCh9NT1RJT05fR1VJREVfUFJF",
+            "U0VUX1NXSVBFX1JJR0hUEAISIgoeTU9USU9OX0dVSURFX1BSRVNFVF9TV0lQ",
+            "RV9ET1dOEAMSIAocTU9USU9OX0dVSURFX1BSRVNFVF9TV0lQRV9VUBAEEiQK",
+            "IE1PVElPTl9HVUlERV9QUkVTRVRfUFVTSF9GT1JXQVJEEAUSJQohTU9USU9O",
+            "X0dVSURFX1BSRVNFVF9QVUxMX0JBQ0tXQVJEEAYSJAogTU9USU9OX0dVSURF",
+            "X1BSRVNFVF9TUFJFQURfSEFORFMQBxIjCh9NT1RJT05fR1VJREVfUFJFU0VU",
+            "X0NMT1NFX0hBTkRTEAgqpwEKD01vdGlvbkd1aWRlSGFuZBIhCh1NT1RJT05f",
+            "R1VJREVfSEFORF9VTlNQRUNJRklFRBAAEhwKGE1PVElPTl9HVUlERV9IQU5E",
+            "X0VJVEhFUhABEhoKFk1PVElPTl9HVUlERV9IQU5EX0xFRlQQAhIbChdNT1RJ",
+            "T05fR1VJREVfSEFORF9SSUdIVBADEhoKFk1PVElPTl9HVUlERV9IQU5EX0JP",
+            "VEgQBEJbWllnaXRodWIuY29tL3VuZnJhbWUtZGV2L3VuZnJhbWUvYXBwL3Nl",
+            "cnZlci9yZWFsdGltZS9pbnRlcm5hbC9nZW4vcHJlc2VudGF0aW9uO3ByZXNl",
+            "bnRhdGlvbmIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Unframe.Presentation.SessionRole), typeof(global::Unframe.Presentation.RuntimeCapability), typeof(global::Unframe.Presentation.ScalarType), typeof(global::Unframe.Presentation.Easing), typeof(global::Unframe.Presentation.RunCompletion), typeof(global::Unframe.Presentation.TimelineProperty), typeof(global::Unframe.Presentation.AnchorTarget), typeof(global::Unframe.Presentation.SurfaceFit), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Unframe.Presentation.SessionRole), typeof(global::Unframe.Presentation.RuntimeCapability), typeof(global::Unframe.Presentation.ScalarType), typeof(global::Unframe.Presentation.Easing), typeof(global::Unframe.Presentation.RunCompletion), typeof(global::Unframe.Presentation.TimelineProperty), typeof(global::Unframe.Presentation.AnchorTarget), typeof(global::Unframe.Presentation.SurfaceFit), typeof(global::Unframe.Presentation.MotionGuidePreset), typeof(global::Unframe.Presentation.MotionGuideHand), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.PublicationFence), global::Unframe.Presentation.PublicationFence.Parser, new[]{ "PresentationId", "PublicationEpoch", "PublicationManifestHash" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectionInstance), global::Unframe.Presentation.ProjectionInstance.Parser, new[]{ "ProjectionProfileId", "ParticipantId", "AssignmentEpoch" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.RuntimeProjectionFence), global::Unframe.Presentation.RuntimeProjectionFence.Parser, new[]{ "SessionId", "Publication", "AssignmentEpoch", "ProjectionProfileId", "PresentationOriginVersion" }, null, null, null, null),
@@ -233,7 +252,8 @@ namespace Unframe.Presentation {
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedNodeDefinition), global::Unframe.Presentation.ProjectedNodeDefinition.Parser, new[]{ "NodeId", "Parent", "Order", "Owner", "Container", "Surface", "Model", "Shape", "Light" }, new[]{ "Node" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedSurfaceDefinition), global::Unframe.Presentation.ProjectedSurfaceDefinition.Parser, new[]{ "SurfaceId", "HostNodeId", "ReachableStateIds", "HasVideo", "PhysicalSizeMeters", "LogicalSize", "Fit", "Owner" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedModelClipDefinition), global::Unframe.Presentation.ProjectedModelClipDefinition.Parser, new[]{ "ModelNodeId", "ModelAssetId", "ClipId", "SourceAnimationIndex", "DurationMs", "Owner" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedRuntimeCatalog), global::Unframe.Presentation.ProjectedRuntimeCatalog.Parser, new[]{ "CatalogContractVersion", "Nodes", "Surfaces", "Variables", "Timelines", "ModelClips" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedMotionGuideDefinition), global::Unframe.Presentation.ProjectedMotionGuideDefinition.Parser, new[]{ "GroupId", "StepId", "CueId", "Preset", "Hand", "MinimumDistanceMeters", "WindowMs" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedRuntimeCatalog), global::Unframe.Presentation.ProjectedRuntimeCatalog.Parser, new[]{ "CatalogContractVersion", "Nodes", "Surfaces", "Variables", "Timelines", "ModelClips", "MotionGuides" }, null, null, null, null)
           }));
     }
     #endregion
@@ -299,6 +319,26 @@ namespace Unframe.Presentation {
     [pbr::OriginalName("SURFACE_FIT_CONTAIN")] Contain = 1,
     [pbr::OriginalName("SURFACE_FIT_COVER")] Cover = 2,
     [pbr::OriginalName("SURFACE_FIT_STRETCH")] Stretch = 3,
+  }
+
+  public enum MotionGuidePreset {
+    [pbr::OriginalName("MOTION_GUIDE_PRESET_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("MOTION_GUIDE_PRESET_SWIPE_LEFT")] SwipeLeft = 1,
+    [pbr::OriginalName("MOTION_GUIDE_PRESET_SWIPE_RIGHT")] SwipeRight = 2,
+    [pbr::OriginalName("MOTION_GUIDE_PRESET_SWIPE_DOWN")] SwipeDown = 3,
+    [pbr::OriginalName("MOTION_GUIDE_PRESET_SWIPE_UP")] SwipeUp = 4,
+    [pbr::OriginalName("MOTION_GUIDE_PRESET_PUSH_FORWARD")] PushForward = 5,
+    [pbr::OriginalName("MOTION_GUIDE_PRESET_PULL_BACKWARD")] PullBackward = 6,
+    [pbr::OriginalName("MOTION_GUIDE_PRESET_SPREAD_HANDS")] SpreadHands = 7,
+    [pbr::OriginalName("MOTION_GUIDE_PRESET_CLOSE_HANDS")] CloseHands = 8,
+  }
+
+  public enum MotionGuideHand {
+    [pbr::OriginalName("MOTION_GUIDE_HAND_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("MOTION_GUIDE_HAND_EITHER")] Either = 1,
+    [pbr::OriginalName("MOTION_GUIDE_HAND_LEFT")] Left = 2,
+    [pbr::OriginalName("MOTION_GUIDE_HAND_RIGHT")] Right = 3,
+    [pbr::OriginalName("MOTION_GUIDE_HAND_BOTH")] Both = 4,
   }
 
   #endregion
@@ -13203,6 +13243,430 @@ namespace Unframe.Presentation {
 
   }
 
+  /// <summary>
+  /// Presenter-only candidates for the active group and step. This metadata does
+  /// not assert guard eligibility or authorize local Cue execution.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class ProjectedMotionGuideDefinition : pb::IMessage<ProjectedMotionGuideDefinition>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<ProjectedMotionGuideDefinition> _parser = new pb::MessageParser<ProjectedMotionGuideDefinition>(() => new ProjectedMotionGuideDefinition());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<ProjectedMotionGuideDefinition> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Unframe.Presentation.RuntimeReflection.Descriptor.MessageTypes[46]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ProjectedMotionGuideDefinition() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ProjectedMotionGuideDefinition(ProjectedMotionGuideDefinition other) : this() {
+      groupId_ = other.groupId_;
+      stepId_ = other.stepId_;
+      cueId_ = other.cueId_;
+      preset_ = other.preset_;
+      hand_ = other.hand_;
+      minimumDistanceMeters_ = other.minimumDistanceMeters_;
+      windowMs_ = other.windowMs_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ProjectedMotionGuideDefinition Clone() {
+      return new ProjectedMotionGuideDefinition(this);
+    }
+
+    /// <summary>Field number for the "group_id" field.</summary>
+    public const int GroupIdFieldNumber = 1;
+    private string groupId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string GroupId {
+      get { return groupId_; }
+      set {
+        groupId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "step_id" field.</summary>
+    public const int StepIdFieldNumber = 2;
+    private string stepId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string StepId {
+      get { return stepId_; }
+      set {
+        stepId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "cue_id" field.</summary>
+    public const int CueIdFieldNumber = 3;
+    private string cueId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string CueId {
+      get { return cueId_; }
+      set {
+        cueId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "preset" field.</summary>
+    public const int PresetFieldNumber = 4;
+    private global::Unframe.Presentation.MotionGuidePreset preset_ = global::Unframe.Presentation.MotionGuidePreset.Unspecified;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Unframe.Presentation.MotionGuidePreset Preset {
+      get { return preset_; }
+      set {
+        preset_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "hand" field.</summary>
+    public const int HandFieldNumber = 5;
+    private global::Unframe.Presentation.MotionGuideHand hand_ = global::Unframe.Presentation.MotionGuideHand.Unspecified;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Unframe.Presentation.MotionGuideHand Hand {
+      get { return hand_; }
+      set {
+        hand_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "minimum_distance_meters" field.</summary>
+    public const int MinimumDistanceMetersFieldNumber = 6;
+    private double minimumDistanceMeters_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double MinimumDistanceMeters {
+      get { return minimumDistanceMeters_; }
+      set {
+        minimumDistanceMeters_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "window_ms" field.</summary>
+    public const int WindowMsFieldNumber = 7;
+    private ulong windowMs_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong WindowMs {
+      get { return windowMs_; }
+      set {
+        windowMs_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as ProjectedMotionGuideDefinition);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(ProjectedMotionGuideDefinition other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (GroupId != other.GroupId) return false;
+      if (StepId != other.StepId) return false;
+      if (CueId != other.CueId) return false;
+      if (Preset != other.Preset) return false;
+      if (Hand != other.Hand) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(MinimumDistanceMeters, other.MinimumDistanceMeters)) return false;
+      if (WindowMs != other.WindowMs) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (GroupId.Length != 0) hash ^= GroupId.GetHashCode();
+      if (StepId.Length != 0) hash ^= StepId.GetHashCode();
+      if (CueId.Length != 0) hash ^= CueId.GetHashCode();
+      if (Preset != global::Unframe.Presentation.MotionGuidePreset.Unspecified) hash ^= Preset.GetHashCode();
+      if (Hand != global::Unframe.Presentation.MotionGuideHand.Unspecified) hash ^= Hand.GetHashCode();
+      if (MinimumDistanceMeters != 0D) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(MinimumDistanceMeters);
+      if (WindowMs != 0UL) hash ^= WindowMs.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (GroupId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(GroupId);
+      }
+      if (StepId.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(StepId);
+      }
+      if (CueId.Length != 0) {
+        output.WriteRawTag(26);
+        output.WriteString(CueId);
+      }
+      if (Preset != global::Unframe.Presentation.MotionGuidePreset.Unspecified) {
+        output.WriteRawTag(32);
+        output.WriteEnum((int) Preset);
+      }
+      if (Hand != global::Unframe.Presentation.MotionGuideHand.Unspecified) {
+        output.WriteRawTag(40);
+        output.WriteEnum((int) Hand);
+      }
+      if (MinimumDistanceMeters != 0D) {
+        output.WriteRawTag(49);
+        output.WriteDouble(MinimumDistanceMeters);
+      }
+      if (WindowMs != 0UL) {
+        output.WriteRawTag(56);
+        output.WriteUInt64(WindowMs);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (GroupId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(GroupId);
+      }
+      if (StepId.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(StepId);
+      }
+      if (CueId.Length != 0) {
+        output.WriteRawTag(26);
+        output.WriteString(CueId);
+      }
+      if (Preset != global::Unframe.Presentation.MotionGuidePreset.Unspecified) {
+        output.WriteRawTag(32);
+        output.WriteEnum((int) Preset);
+      }
+      if (Hand != global::Unframe.Presentation.MotionGuideHand.Unspecified) {
+        output.WriteRawTag(40);
+        output.WriteEnum((int) Hand);
+      }
+      if (MinimumDistanceMeters != 0D) {
+        output.WriteRawTag(49);
+        output.WriteDouble(MinimumDistanceMeters);
+      }
+      if (WindowMs != 0UL) {
+        output.WriteRawTag(56);
+        output.WriteUInt64(WindowMs);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (GroupId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(GroupId);
+      }
+      if (StepId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(StepId);
+      }
+      if (CueId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(CueId);
+      }
+      if (Preset != global::Unframe.Presentation.MotionGuidePreset.Unspecified) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Preset);
+      }
+      if (Hand != global::Unframe.Presentation.MotionGuideHand.Unspecified) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Hand);
+      }
+      if (MinimumDistanceMeters != 0D) {
+        size += 1 + 8;
+      }
+      if (WindowMs != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(WindowMs);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(ProjectedMotionGuideDefinition other) {
+      if (other == null) {
+        return;
+      }
+      if (other.GroupId.Length != 0) {
+        GroupId = other.GroupId;
+      }
+      if (other.StepId.Length != 0) {
+        StepId = other.StepId;
+      }
+      if (other.CueId.Length != 0) {
+        CueId = other.CueId;
+      }
+      if (other.Preset != global::Unframe.Presentation.MotionGuidePreset.Unspecified) {
+        Preset = other.Preset;
+      }
+      if (other.Hand != global::Unframe.Presentation.MotionGuideHand.Unspecified) {
+        Hand = other.Hand;
+      }
+      if (other.MinimumDistanceMeters != 0D) {
+        MinimumDistanceMeters = other.MinimumDistanceMeters;
+      }
+      if (other.WindowMs != 0UL) {
+        WindowMs = other.WindowMs;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            GroupId = input.ReadString();
+            break;
+          }
+          case 18: {
+            StepId = input.ReadString();
+            break;
+          }
+          case 26: {
+            CueId = input.ReadString();
+            break;
+          }
+          case 32: {
+            Preset = (global::Unframe.Presentation.MotionGuidePreset) input.ReadEnum();
+            break;
+          }
+          case 40: {
+            Hand = (global::Unframe.Presentation.MotionGuideHand) input.ReadEnum();
+            break;
+          }
+          case 49: {
+            MinimumDistanceMeters = input.ReadDouble();
+            break;
+          }
+          case 56: {
+            WindowMs = input.ReadUInt64();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            GroupId = input.ReadString();
+            break;
+          }
+          case 18: {
+            StepId = input.ReadString();
+            break;
+          }
+          case 26: {
+            CueId = input.ReadString();
+            break;
+          }
+          case 32: {
+            Preset = (global::Unframe.Presentation.MotionGuidePreset) input.ReadEnum();
+            break;
+          }
+          case 40: {
+            Hand = (global::Unframe.Presentation.MotionGuideHand) input.ReadEnum();
+            break;
+          }
+          case 49: {
+            MinimumDistanceMeters = input.ReadDouble();
+            break;
+          }
+          case 56: {
+            WindowMs = input.ReadUInt64();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ProjectedRuntimeCatalog : pb::IMessage<ProjectedRuntimeCatalog>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -13218,7 +13682,7 @@ namespace Unframe.Presentation {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Presentation.RuntimeReflection.Descriptor.MessageTypes[46]; }
+      get { return global::Unframe.Presentation.RuntimeReflection.Descriptor.MessageTypes[47]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -13244,6 +13708,7 @@ namespace Unframe.Presentation {
       variables_ = other.variables_.Clone();
       timelines_ = other.timelines_.Clone();
       modelClips_ = other.modelClips_.Clone();
+      motionGuides_ = other.motionGuides_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -13320,6 +13785,17 @@ namespace Unframe.Presentation {
       get { return modelClips_; }
     }
 
+    /// <summary>Field number for the "motion_guides" field.</summary>
+    public const int MotionGuidesFieldNumber = 7;
+    private static readonly pb::FieldCodec<global::Unframe.Presentation.ProjectedMotionGuideDefinition> _repeated_motionGuides_codec
+        = pb::FieldCodec.ForMessage(58, global::Unframe.Presentation.ProjectedMotionGuideDefinition.Parser);
+    private readonly pbc::RepeatedField<global::Unframe.Presentation.ProjectedMotionGuideDefinition> motionGuides_ = new pbc::RepeatedField<global::Unframe.Presentation.ProjectedMotionGuideDefinition>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Unframe.Presentation.ProjectedMotionGuideDefinition> MotionGuides {
+      get { return motionGuides_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -13341,6 +13817,7 @@ namespace Unframe.Presentation {
       if(!variables_.Equals(other.variables_)) return false;
       if(!timelines_.Equals(other.timelines_)) return false;
       if(!modelClips_.Equals(other.modelClips_)) return false;
+      if(!motionGuides_.Equals(other.motionGuides_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -13354,6 +13831,7 @@ namespace Unframe.Presentation {
       hash ^= variables_.GetHashCode();
       hash ^= timelines_.GetHashCode();
       hash ^= modelClips_.GetHashCode();
+      hash ^= motionGuides_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -13381,6 +13859,7 @@ namespace Unframe.Presentation {
       variables_.WriteTo(output, _repeated_variables_codec);
       timelines_.WriteTo(output, _repeated_timelines_codec);
       modelClips_.WriteTo(output, _repeated_modelClips_codec);
+      motionGuides_.WriteTo(output, _repeated_motionGuides_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -13400,6 +13879,7 @@ namespace Unframe.Presentation {
       variables_.WriteTo(ref output, _repeated_variables_codec);
       timelines_.WriteTo(ref output, _repeated_timelines_codec);
       modelClips_.WriteTo(ref output, _repeated_modelClips_codec);
+      motionGuides_.WriteTo(ref output, _repeated_motionGuides_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -13418,6 +13898,7 @@ namespace Unframe.Presentation {
       size += variables_.CalculateSize(_repeated_variables_codec);
       size += timelines_.CalculateSize(_repeated_timelines_codec);
       size += modelClips_.CalculateSize(_repeated_modelClips_codec);
+      size += motionGuides_.CalculateSize(_repeated_motionGuides_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -13438,6 +13919,7 @@ namespace Unframe.Presentation {
       variables_.Add(other.variables_);
       timelines_.Add(other.timelines_);
       modelClips_.Add(other.modelClips_);
+      motionGuides_.Add(other.motionGuides_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -13481,6 +13963,10 @@ namespace Unframe.Presentation {
             modelClips_.AddEntriesFrom(input, _repeated_modelClips_codec);
             break;
           }
+          case 58: {
+            motionGuides_.AddEntriesFrom(input, _repeated_motionGuides_codec);
+            break;
+          }
         }
       }
     #endif
@@ -13522,6 +14008,10 @@ namespace Unframe.Presentation {
           }
           case 50: {
             modelClips_.AddEntriesFrom(ref input, _repeated_modelClips_codec);
+            break;
+          }
+          case 58: {
+            motionGuides_.AddEntriesFrom(ref input, _repeated_motionGuides_codec);
             break;
           }
         }

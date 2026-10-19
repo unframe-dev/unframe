@@ -17,6 +17,12 @@ places a separate Frame-root badge Component inside the card. Both Instances ret
 the generated content and share one Surface. The badge semantic node is an additional Surface root. A click button has enabled and disabled States; the disabled State changes its visual and semantic text. Its Output supplies a fixed scalar payload to the Cue Guard and Action; clicking it changes the Surface State. A later timer Cue advances a Step with no Action. The headline demonstrates style precedence: Named
 Style size 56, inline 64, Variant 68, and Part override 72.
 
+The start Step also accepts a `motionPreset` Cue: move either hand left by at least 0.2 m within
+750 ms. It plays the same fade and moves to the same done Step as the button. This Cue uses the
+`complete` Action with a literal value because a tracking motion does not carry the button Output's
+fixed payload. The production Presenter projection carries this as a 3D guide candidate; Viewer
+projections contain no motion guides. Motion recognition and Cue execution remain server-owned.
+
 The fixture explicitly supplies its defaulted Props and Variant. Omitting `offset`, `showCard`, or
 `tone` uses the manifest default and emits a warning; `title` and the badge's `label` are required.
 

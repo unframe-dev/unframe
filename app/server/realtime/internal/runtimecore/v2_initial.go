@@ -99,6 +99,7 @@ type v2Cue struct {
 		Edge                  string  `json:"edge"`
 		DwellMilliseconds     uint64  `json:"dwellMilliseconds"`
 		HysteresisMeters      float64 `json:"hysteresisMeters"`
+		Preset                string  `json:"preset"`
 		MinimumDistanceMeters float64 `json:"minimumDistanceMeters"`
 		WindowMilliseconds    uint64  `json:"windowMilliseconds"`
 		Subject               struct {

@@ -7003,6 +7003,227 @@ export namespace unframe {
       };
     }
 
+    /** MotionGuidePreset enum. */
+    enum MotionGuidePreset {
+      /** MOTION_GUIDE_PRESET_UNSPECIFIED value */
+      MOTION_GUIDE_PRESET_UNSPECIFIED = 0,
+
+      /** MOTION_GUIDE_PRESET_SWIPE_LEFT value */
+      MOTION_GUIDE_PRESET_SWIPE_LEFT = 1,
+
+      /** MOTION_GUIDE_PRESET_SWIPE_RIGHT value */
+      MOTION_GUIDE_PRESET_SWIPE_RIGHT = 2,
+
+      /** MOTION_GUIDE_PRESET_SWIPE_DOWN value */
+      MOTION_GUIDE_PRESET_SWIPE_DOWN = 3,
+
+      /** MOTION_GUIDE_PRESET_SWIPE_UP value */
+      MOTION_GUIDE_PRESET_SWIPE_UP = 4,
+
+      /** MOTION_GUIDE_PRESET_PUSH_FORWARD value */
+      MOTION_GUIDE_PRESET_PUSH_FORWARD = 5,
+
+      /** MOTION_GUIDE_PRESET_PULL_BACKWARD value */
+      MOTION_GUIDE_PRESET_PULL_BACKWARD = 6,
+
+      /** MOTION_GUIDE_PRESET_SPREAD_HANDS value */
+      MOTION_GUIDE_PRESET_SPREAD_HANDS = 7,
+
+      /** MOTION_GUIDE_PRESET_CLOSE_HANDS value */
+      MOTION_GUIDE_PRESET_CLOSE_HANDS = 8,
+    }
+
+    /** MotionGuideHand enum. */
+    enum MotionGuideHand {
+      /** MOTION_GUIDE_HAND_UNSPECIFIED value */
+      MOTION_GUIDE_HAND_UNSPECIFIED = 0,
+
+      /** MOTION_GUIDE_HAND_EITHER value */
+      MOTION_GUIDE_HAND_EITHER = 1,
+
+      /** MOTION_GUIDE_HAND_LEFT value */
+      MOTION_GUIDE_HAND_LEFT = 2,
+
+      /** MOTION_GUIDE_HAND_RIGHT value */
+      MOTION_GUIDE_HAND_RIGHT = 3,
+
+      /** MOTION_GUIDE_HAND_BOTH value */
+      MOTION_GUIDE_HAND_BOTH = 4,
+    }
+
+    /**
+     * Properties of a ProjectedMotionGuideDefinition.
+     * @deprecated Use unframe.presentation.ProjectedMotionGuideDefinition.$Properties instead.
+     */
+    interface IProjectedMotionGuideDefinition
+      extends unframe.presentation.ProjectedMotionGuideDefinition.$Properties {}
+
+    /** Represents a ProjectedMotionGuideDefinition. */
+    class ProjectedMotionGuideDefinition {
+      /**
+       * Constructs a new ProjectedMotionGuideDefinition.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.presentation.ProjectedMotionGuideDefinition.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** ProjectedMotionGuideDefinition groupId. */
+      groupId: string;
+
+      /** ProjectedMotionGuideDefinition stepId. */
+      stepId: string;
+
+      /** ProjectedMotionGuideDefinition cueId. */
+      cueId: string;
+
+      /** ProjectedMotionGuideDefinition preset. */
+      preset: unframe.presentation.MotionGuidePreset;
+
+      /** ProjectedMotionGuideDefinition hand. */
+      hand: unframe.presentation.MotionGuideHand;
+
+      /** ProjectedMotionGuideDefinition minimumDistanceMeters. */
+      minimumDistanceMeters: number;
+
+      /** ProjectedMotionGuideDefinition windowMs. */
+      windowMs: number | Long;
+
+      /**
+       * Creates a new ProjectedMotionGuideDefinition instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns ProjectedMotionGuideDefinition instance
+       */
+      static create(
+        properties: unframe.presentation.ProjectedMotionGuideDefinition.$Shape,
+      ): unframe.presentation.ProjectedMotionGuideDefinition &
+        unframe.presentation.ProjectedMotionGuideDefinition.$Shape;
+      static create(
+        properties?: unframe.presentation.ProjectedMotionGuideDefinition.$Properties,
+      ): unframe.presentation.ProjectedMotionGuideDefinition;
+
+      /**
+       * Encodes the specified ProjectedMotionGuideDefinition message. Does not implicitly {@link unframe.presentation.ProjectedMotionGuideDefinition.verify|verify} messages.
+       * @param message ProjectedMotionGuideDefinition message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.presentation.ProjectedMotionGuideDefinition.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified ProjectedMotionGuideDefinition message, length delimited. Does not implicitly {@link unframe.presentation.ProjectedMotionGuideDefinition.verify|verify} messages.
+       * @param message ProjectedMotionGuideDefinition message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.presentation.ProjectedMotionGuideDefinition.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a ProjectedMotionGuideDefinition message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.presentation.ProjectedMotionGuideDefinition & unframe.presentation.ProjectedMotionGuideDefinition.$Shape} ProjectedMotionGuideDefinition
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.presentation.ProjectedMotionGuideDefinition &
+        unframe.presentation.ProjectedMotionGuideDefinition.$Shape;
+
+      /**
+       * Decodes a ProjectedMotionGuideDefinition message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.presentation.ProjectedMotionGuideDefinition & unframe.presentation.ProjectedMotionGuideDefinition.$Shape} ProjectedMotionGuideDefinition
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.presentation.ProjectedMotionGuideDefinition &
+        unframe.presentation.ProjectedMotionGuideDefinition.$Shape;
+
+      /**
+       * Verifies a ProjectedMotionGuideDefinition message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a ProjectedMotionGuideDefinition message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns ProjectedMotionGuideDefinition
+       */
+      static fromObject(object: {
+        [k: string]: any;
+      }): unframe.presentation.ProjectedMotionGuideDefinition;
+
+      /**
+       * Creates a plain object from a ProjectedMotionGuideDefinition message. Also converts values to other types if specified.
+       * @param message ProjectedMotionGuideDefinition
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.presentation.ProjectedMotionGuideDefinition,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this ProjectedMotionGuideDefinition to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for ProjectedMotionGuideDefinition
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace ProjectedMotionGuideDefinition {
+      /** Properties of a ProjectedMotionGuideDefinition. */
+      interface $Properties {
+        /** ProjectedMotionGuideDefinition groupId */
+        groupId?: string | null;
+
+        /** ProjectedMotionGuideDefinition stepId */
+        stepId?: string | null;
+
+        /** ProjectedMotionGuideDefinition cueId */
+        cueId?: string | null;
+
+        /** ProjectedMotionGuideDefinition preset */
+        preset?: unframe.presentation.MotionGuidePreset | null;
+
+        /** ProjectedMotionGuideDefinition hand */
+        hand?: unframe.presentation.MotionGuideHand | null;
+
+        /** ProjectedMotionGuideDefinition minimumDistanceMeters */
+        minimumDistanceMeters?: number | null;
+
+        /** ProjectedMotionGuideDefinition windowMs */
+        windowMs?: number | Long | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a ProjectedMotionGuideDefinition. */
+      type $Shape = unframe.presentation.ProjectedMotionGuideDefinition.$Properties;
+    }
+
     /**
      * Properties of a ProjectedRuntimeCatalog.
      * @deprecated Use unframe.presentation.ProjectedRuntimeCatalog.$Properties instead.
@@ -7038,6 +7259,9 @@ export namespace unframe {
 
       /** ProjectedRuntimeCatalog modelClips. */
       modelClips: unframe.presentation.ProjectedModelClipDefinition.$Properties[];
+
+      /** ProjectedRuntimeCatalog motionGuides. */
+      motionGuides: unframe.presentation.ProjectedMotionGuideDefinition.$Properties[];
 
       /**
        * Creates a new ProjectedRuntimeCatalog instance using the specified properties.
@@ -7160,6 +7384,9 @@ export namespace unframe {
         /** ProjectedRuntimeCatalog modelClips */
         modelClips?: unframe.presentation.ProjectedModelClipDefinition.$Properties[] | null;
 
+        /** ProjectedRuntimeCatalog motionGuides */
+        motionGuides?: unframe.presentation.ProjectedMotionGuideDefinition.$Properties[] | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
@@ -7172,6 +7399,7 @@ export namespace unframe {
         variables?: unframe.presentation.ProjectedVariableDefinition.$Shape[] | null;
         timelines?: unframe.presentation.ProjectedTimelineDefinition.$Shape[] | null;
         modelClips?: unframe.presentation.ProjectedModelClipDefinition.$Shape[] | null;
+        motionGuides?: unframe.presentation.ProjectedMotionGuideDefinition.$Shape[] | null;
         $unknowns?: Uint8Array[];
       };
     }

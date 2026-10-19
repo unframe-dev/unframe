@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import capabilityFixture from "../../contracts/presentation/fixtures/capability-profile.json";
 import { standardComponents } from "@unframe/unframe-components";
 import type {
   ComponentManifest,
@@ -14,6 +15,7 @@ import {
 import {
   type SemanticSurface,
   canonicalizePresentationDefinition,
+  buildRuntimeProjection,
   validatePresentationDefinition,
 } from "@unframe/unframe-core";
 import { compileCheckedDeclarationProject } from "../src/api/compile-declaration-project.js";
@@ -144,6 +146,55 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("compiles authored motion presets into presenter guide metadata", () => {
+    const input = project();
+    input.presentation.flow.groups.group!.steps.step!.cues = [
+      {
+        id: "spread",
+        trigger: {
+          kind: "motionPreset",
+          preset: "spreadHands",
+          hand: "bothHands",
+          minimumDistanceMeters: 0.3,
+          windowMilliseconds: 1000,
+        },
+        actions: [],
+      },
+    ];
+    const result = checkDeclarationProject(input);
+    expect(result.valid, JSON.stringify(result.diagnostics)).toBe(true);
+    if (!result.valid) throw new Error(JSON.stringify(result.diagnostics));
+    expect(result.value.definition.flow.groups.group!.steps.step!.cues[0]!.trigger).toEqual({
+      kind: "motion",
+      actor: { kind: "system", source: "tracking" },
+      preset: "spreadHands",
+      subject: { kind: "anchor", owner: { kind: "presenter" }, target: "bothHands" },
+      minimumDistanceMeters: 0.3,
+      windowMilliseconds: 1000,
+    });
+  });
+
+  it.each([
+    {
+      preset: "spreadHands",
+      hand: "leftHand",
+      minimumDistanceMeters: 0.2,
+      windowMilliseconds: 500,
+    },
+    { preset: "swipeLeft", hand: "bothHands", minimumDistanceMeters: 0.2, windowMilliseconds: 500 },
+    { preset: "swipeLeft", hand: "eitherHand", minimumDistanceMeters: 0, windowMilliseconds: 500 },
+    { preset: "swipeLeft", hand: "eitherHand", minimumDistanceMeters: 0.2, windowMilliseconds: 0 },
+  ])("rejects malformed authored motion presets: %j", (trigger) => {
+    const input = project();
+    const malformed = structuredClone(input) as unknown as {
+      presentation: { flow: { groups: { group: { steps: { step: { cues: unknown[] } } } } } };
+    };
+    malformed.presentation.flow.groups.group.steps.step.cues = [
+      { id: "motion", trigger: { kind: "motionPreset", ...trigger }, actions: [] },
+    ];
+    expect(checkDeclarationProject(malformed).valid).toBe(false);
+  });
+
   it.each([
     { scene: [] },
     { ...presentation(), scene: [], operations: null },
@@ -2487,6 +2538,48 @@ describe("compileDeclarationProject", () => {
     rendererConfigHash: "sha256:config",
     renderers: [renderer],
     encodeLimits: PNG_ABSOLUTE_LIMITS,
+  });
+
+  it("carries compiled motion presets into the production presenter projection", async () => {
+    const input = project();
+    input.presentation.flow.groups.group!.steps.step!.cues = [
+      {
+        id: "swipe",
+        trigger: {
+          kind: "motionPreset",
+          preset: "swipeUp",
+          hand: "rightHand",
+          minimumDistanceMeters: 0.2,
+          windowMilliseconds: 800,
+        },
+        actions: [],
+      },
+    ];
+    const result = await compileDeclarationProject(input, options());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) throw new Error("Expected compiled motion presentation.");
+    const compiled = result.value;
+    const projection = buildRuntimeProjection(
+      {
+        definition: compiled.definition,
+        renderBundle: compiled.renderBundle,
+        assetSet: compiled.assetSet,
+        buildManifest: compiled.buildManifest,
+        capability: capabilityFixture as Parameters<typeof buildRuntimeProjection>[0]["capability"],
+      },
+      "presenter",
+    );
+    expect(projection.projection.runtimeCatalog?.motionGuides).toEqual([
+      {
+        groupId: "group",
+        stepId: "step",
+        cueId: "swipe",
+        preset: 4,
+        hand: 3,
+        minimumDistanceMeters: 0.2,
+        windowMs: "800",
+      },
+    ]);
   });
 
   it("passes verified image bytes to the selected renderer", async () => {

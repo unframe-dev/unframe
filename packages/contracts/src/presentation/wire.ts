@@ -186,6 +186,28 @@ function validateObject(type: WireMessageType, value: Record<string, unknown>, d
       }
     }
   }
+  if (type.fullName === ".unframe.presentation.ProjectedMotionGuideDefinition") {
+    const preset = value["preset"];
+    const hand = value["hand"];
+    const distance = value["minimumDistanceMeters"];
+    const window = value["windowMs"];
+    const validId = (name: string) =>
+      typeof value[name] === "string" && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/u.test(value[name]);
+    if (
+      !validId("groupId") ||
+      !validId("stepId") ||
+      !validId("cueId") ||
+      typeof preset !== "number" ||
+      typeof hand !== "number" ||
+      preset >= 7 !== (hand === 4) ||
+      typeof distance !== "number" ||
+      distance <= 0 ||
+      typeof window !== "string" ||
+      BigInt(window) <= 0n ||
+      BigInt(window) > BigInt(Number.MAX_SAFE_INTEGER)
+    )
+      throw new TypeError("Invalid motion guide metadata");
+  }
 }
 
 export function encodeWireMessage(typeName: string, value: object): Uint8Array {

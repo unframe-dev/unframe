@@ -812,6 +812,60 @@
                 }
               }
             },
+            "MotionGuidePreset": {
+              "values": {
+                "MOTION_GUIDE_PRESET_UNSPECIFIED": 0,
+                "MOTION_GUIDE_PRESET_SWIPE_LEFT": 1,
+                "MOTION_GUIDE_PRESET_SWIPE_RIGHT": 2,
+                "MOTION_GUIDE_PRESET_SWIPE_DOWN": 3,
+                "MOTION_GUIDE_PRESET_SWIPE_UP": 4,
+                "MOTION_GUIDE_PRESET_PUSH_FORWARD": 5,
+                "MOTION_GUIDE_PRESET_PULL_BACKWARD": 6,
+                "MOTION_GUIDE_PRESET_SPREAD_HANDS": 7,
+                "MOTION_GUIDE_PRESET_CLOSE_HANDS": 8
+              }
+            },
+            "MotionGuideHand": {
+              "values": {
+                "MOTION_GUIDE_HAND_UNSPECIFIED": 0,
+                "MOTION_GUIDE_HAND_EITHER": 1,
+                "MOTION_GUIDE_HAND_LEFT": 2,
+                "MOTION_GUIDE_HAND_RIGHT": 3,
+                "MOTION_GUIDE_HAND_BOTH": 4
+              }
+            },
+            "ProjectedMotionGuideDefinition": {
+              "fields": {
+                "groupId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "stepId": {
+                  "type": "string",
+                  "id": 2
+                },
+                "cueId": {
+                  "type": "string",
+                  "id": 3
+                },
+                "preset": {
+                  "type": "MotionGuidePreset",
+                  "id": 4
+                },
+                "hand": {
+                  "type": "MotionGuideHand",
+                  "id": 5
+                },
+                "minimumDistanceMeters": {
+                  "type": "double",
+                  "id": 6
+                },
+                "windowMs": {
+                  "type": "uint64",
+                  "id": 7
+                }
+              }
+            },
             "ProjectedRuntimeCatalog": {
               "fields": {
                 "catalogContractVersion": {
@@ -842,6 +896,11 @@
                   "rule": "repeated",
                   "type": "ProjectedModelClipDefinition",
                   "id": 6
+                },
+                "motionGuides": {
+                  "rule": "repeated",
+                  "type": "ProjectedMotionGuideDefinition",
+                  "id": 7
                 }
               }
             }

@@ -80,14 +80,17 @@ describe("Host device authorization", () => {
       controlPlaneUrl: "https://api.example.com",
       webOrigin: "https://web.example.com",
       clientId: "editor",
-      fetch: (async () =>
-        Response.json({
-          device_code: "secret",
-          user_code: "code",
-          expires_in: 60,
-          interval: 1,
-          verification_uri_complete: "https://evil.example.com/device?user_code=code",
-        })) as typeof fetch,
+      fetch: Object.assign(
+        async () =>
+          Response.json({
+            device_code: "secret",
+            user_code: "code",
+            expires_in: 60,
+            interval: 1,
+            verification_uri_complete: "https://evil.example.com/device?user_code=code",
+          }),
+        { preconnect: () => {} },
+      ),
     });
     await expect(unsafe.start()).rejects.toThrow();
     expect(await unsafe.status()).toEqual({ status: "signed-out" });

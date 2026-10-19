@@ -178,6 +178,12 @@ const checkDeclarationProjectUnchecked = (
                     .map((cue, index) => ({ ...cue, order: cue.order ?? index }))
                     .filter((cue) => {
                       if (cue.trigger.kind === "event") return !react;
+                      if (cue.trigger.kind === "motionPreset") {
+                        const belongsToReact = cue.actions.some((action) =>
+                          reactIds.has(action.componentInstanceId),
+                        );
+                        return belongsToReact === react;
+                      }
                       const outputTrigger = cue.trigger;
                       const belongsToReact = reactIds.has(outputTrigger.componentInstanceId);
                       if (
@@ -200,12 +206,15 @@ const checkDeclarationProjectUnchecked = (
         for (const cue of step.cues) {
           const trigger = cue.trigger;
           if (
-            trigger.kind === "component.output" &&
-            cue.actions.some(
-              (action) =>
-                reactIds.has(action.componentInstanceId) !==
-                reactIds.has(trigger.componentInstanceId),
-            )
+            (trigger.kind === "component.output" &&
+              cue.actions.some(
+                (action) =>
+                  reactIds.has(action.componentInstanceId) !==
+                  reactIds.has(trigger.componentInstanceId),
+              )) ||
+            (trigger.kind === "motionPreset" &&
+              cue.actions.some((action) => reactIds.has(action.componentInstanceId)) &&
+              cue.actions.some((action) => !reactIds.has(action.componentInstanceId)))
           )
             return {
               valid: false,

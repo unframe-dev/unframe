@@ -111,3 +111,22 @@ Component migration metadata と自動変換は後続へ延期する。Action / 
 ## Implementation prerequisite
 
 Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition は Compiler が具体的な v2 値へ解決する。Runtime Text と media renderer の未対応制限を baked-web の境界で維持する。
+
+## 発表者のモーション操作候補
+
+Presentation Cue の trigger は、Component Output / event に加えて次を指定できます。
+
+```ts
+trigger: {
+  kind: "motionPreset",
+  preset: "swipeLeft",
+  hand: "eitherHand",
+  minimumDistanceMeters: 0.2,
+  windowMilliseconds: 750,
+}
+```
+
+片手 preset は `swipeLeft` / `swipeRight` / `swipeDown` / `swipeUp` / `pushForward` / `pullBackward`、
+対象は `eitherHand` / `leftHand` / `rightHand` です。`spreadHands` / `closeHands` は `bothHands` を指定します。
+最小移動距離は正の有限値、判定時間は正の安全整数です。Structured と React の両方で canonical tracking motion trigger に変換します。
+Presenter Delivery の motion guide metadata に投影されます。これは操作候補の案内であり、ガードの成立や操作の完了を保証しません。

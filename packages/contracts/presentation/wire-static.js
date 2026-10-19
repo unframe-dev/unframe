@@ -14116,6 +14116,570 @@ export const unframe = ($root.unframe = (() => {
       return ProjectedModelClipDefinition;
     })();
 
+    /**
+     * MotionGuidePreset enum.
+     * @name unframe.presentation.MotionGuidePreset
+     * @enum {number}
+     * @property {number} MOTION_GUIDE_PRESET_UNSPECIFIED=0 MOTION_GUIDE_PRESET_UNSPECIFIED value
+     * @property {number} MOTION_GUIDE_PRESET_SWIPE_LEFT=1 MOTION_GUIDE_PRESET_SWIPE_LEFT value
+     * @property {number} MOTION_GUIDE_PRESET_SWIPE_RIGHT=2 MOTION_GUIDE_PRESET_SWIPE_RIGHT value
+     * @property {number} MOTION_GUIDE_PRESET_SWIPE_DOWN=3 MOTION_GUIDE_PRESET_SWIPE_DOWN value
+     * @property {number} MOTION_GUIDE_PRESET_SWIPE_UP=4 MOTION_GUIDE_PRESET_SWIPE_UP value
+     * @property {number} MOTION_GUIDE_PRESET_PUSH_FORWARD=5 MOTION_GUIDE_PRESET_PUSH_FORWARD value
+     * @property {number} MOTION_GUIDE_PRESET_PULL_BACKWARD=6 MOTION_GUIDE_PRESET_PULL_BACKWARD value
+     * @property {number} MOTION_GUIDE_PRESET_SPREAD_HANDS=7 MOTION_GUIDE_PRESET_SPREAD_HANDS value
+     * @property {number} MOTION_GUIDE_PRESET_CLOSE_HANDS=8 MOTION_GUIDE_PRESET_CLOSE_HANDS value
+     */
+    presentation.MotionGuidePreset = (function () {
+      const valuesById = $Object.create(null),
+        values = $Object.create(valuesById);
+      values[(valuesById[0] = "MOTION_GUIDE_PRESET_UNSPECIFIED")] = 0;
+      values[(valuesById[1] = "MOTION_GUIDE_PRESET_SWIPE_LEFT")] = 1;
+      values[(valuesById[2] = "MOTION_GUIDE_PRESET_SWIPE_RIGHT")] = 2;
+      values[(valuesById[3] = "MOTION_GUIDE_PRESET_SWIPE_DOWN")] = 3;
+      values[(valuesById[4] = "MOTION_GUIDE_PRESET_SWIPE_UP")] = 4;
+      values[(valuesById[5] = "MOTION_GUIDE_PRESET_PUSH_FORWARD")] = 5;
+      values[(valuesById[6] = "MOTION_GUIDE_PRESET_PULL_BACKWARD")] = 6;
+      values[(valuesById[7] = "MOTION_GUIDE_PRESET_SPREAD_HANDS")] = 7;
+      values[(valuesById[8] = "MOTION_GUIDE_PRESET_CLOSE_HANDS")] = 8;
+      return values;
+    })();
+
+    /**
+     * MotionGuideHand enum.
+     * @name unframe.presentation.MotionGuideHand
+     * @enum {number}
+     * @property {number} MOTION_GUIDE_HAND_UNSPECIFIED=0 MOTION_GUIDE_HAND_UNSPECIFIED value
+     * @property {number} MOTION_GUIDE_HAND_EITHER=1 MOTION_GUIDE_HAND_EITHER value
+     * @property {number} MOTION_GUIDE_HAND_LEFT=2 MOTION_GUIDE_HAND_LEFT value
+     * @property {number} MOTION_GUIDE_HAND_RIGHT=3 MOTION_GUIDE_HAND_RIGHT value
+     * @property {number} MOTION_GUIDE_HAND_BOTH=4 MOTION_GUIDE_HAND_BOTH value
+     */
+    presentation.MotionGuideHand = (function () {
+      const valuesById = $Object.create(null),
+        values = $Object.create(valuesById);
+      values[(valuesById[0] = "MOTION_GUIDE_HAND_UNSPECIFIED")] = 0;
+      values[(valuesById[1] = "MOTION_GUIDE_HAND_EITHER")] = 1;
+      values[(valuesById[2] = "MOTION_GUIDE_HAND_LEFT")] = 2;
+      values[(valuesById[3] = "MOTION_GUIDE_HAND_RIGHT")] = 3;
+      values[(valuesById[4] = "MOTION_GUIDE_HAND_BOTH")] = 4;
+      return values;
+    })();
+
+    presentation.ProjectedMotionGuideDefinition = (function () {
+      /**
+       * Properties of a ProjectedMotionGuideDefinition.
+       * @typedef {Object} unframe.presentation.ProjectedMotionGuideDefinition.$Properties
+       * @property {string|null} [groupId] ProjectedMotionGuideDefinition groupId
+       * @property {string|null} [stepId] ProjectedMotionGuideDefinition stepId
+       * @property {string|null} [cueId] ProjectedMotionGuideDefinition cueId
+       * @property {unframe.presentation.MotionGuidePreset|null} [preset] ProjectedMotionGuideDefinition preset
+       * @property {unframe.presentation.MotionGuideHand|null} [hand] ProjectedMotionGuideDefinition hand
+       * @property {number|null} [minimumDistanceMeters] ProjectedMotionGuideDefinition minimumDistanceMeters
+       * @property {number|Long|null} [windowMs] ProjectedMotionGuideDefinition windowMs
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a ProjectedMotionGuideDefinition.
+       * @memberof unframe.presentation
+       * @interface IProjectedMotionGuideDefinition
+       * @augments unframe.presentation.ProjectedMotionGuideDefinition.$Properties
+       * @deprecated Use unframe.presentation.ProjectedMotionGuideDefinition.$Properties instead.
+       */
+
+      /**
+       * Shape of a ProjectedMotionGuideDefinition.
+       * @typedef {unframe.presentation.ProjectedMotionGuideDefinition.$Properties} unframe.presentation.ProjectedMotionGuideDefinition.$Shape
+       */
+
+      /**
+       * Constructs a new ProjectedMotionGuideDefinition.
+       * @memberof unframe.presentation
+       * @classdesc Represents a ProjectedMotionGuideDefinition.
+       * @constructor
+       * @param {unframe.presentation.ProjectedMotionGuideDefinition.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const ProjectedMotionGuideDefinition = function ProjectedMotionGuideDefinition(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * ProjectedMotionGuideDefinition groupId.
+       * @member {string} groupId
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @instance
+       */
+      ProjectedMotionGuideDefinition.prototype.groupId = "";
+
+      /**
+       * ProjectedMotionGuideDefinition stepId.
+       * @member {string} stepId
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @instance
+       */
+      ProjectedMotionGuideDefinition.prototype.stepId = "";
+
+      /**
+       * ProjectedMotionGuideDefinition cueId.
+       * @member {string} cueId
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @instance
+       */
+      ProjectedMotionGuideDefinition.prototype.cueId = "";
+
+      /**
+       * ProjectedMotionGuideDefinition preset.
+       * @member {unframe.presentation.MotionGuidePreset} preset
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @instance
+       */
+      ProjectedMotionGuideDefinition.prototype.preset = 0;
+
+      /**
+       * ProjectedMotionGuideDefinition hand.
+       * @member {unframe.presentation.MotionGuideHand} hand
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @instance
+       */
+      ProjectedMotionGuideDefinition.prototype.hand = 0;
+
+      /**
+       * ProjectedMotionGuideDefinition minimumDistanceMeters.
+       * @member {number} minimumDistanceMeters
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @instance
+       */
+      ProjectedMotionGuideDefinition.prototype.minimumDistanceMeters = 0;
+
+      /**
+       * ProjectedMotionGuideDefinition windowMs.
+       * @member {number|Long} windowMs
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @instance
+       */
+      ProjectedMotionGuideDefinition.prototype.windowMs = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * Creates a new ProjectedMotionGuideDefinition instance using the specified properties.
+       * @function create
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @static
+       * @param {unframe.presentation.ProjectedMotionGuideDefinition.$Properties=} [properties] Properties to set
+       * @returns {unframe.presentation.ProjectedMotionGuideDefinition} ProjectedMotionGuideDefinition instance
+       * @type {{
+       *   (properties: unframe.presentation.ProjectedMotionGuideDefinition.$Shape): unframe.presentation.ProjectedMotionGuideDefinition & unframe.presentation.ProjectedMotionGuideDefinition.$Shape;
+       *   (properties?: unframe.presentation.ProjectedMotionGuideDefinition.$Properties): unframe.presentation.ProjectedMotionGuideDefinition;
+       * }}
+       */
+      ProjectedMotionGuideDefinition.create = function (properties) {
+        return new ProjectedMotionGuideDefinition(properties);
+      };
+
+      /**
+       * Encodes the specified ProjectedMotionGuideDefinition message. Does not implicitly {@link unframe.presentation.ProjectedMotionGuideDefinition.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @static
+       * @param {unframe.presentation.ProjectedMotionGuideDefinition.$Properties} message ProjectedMotionGuideDefinition message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      ProjectedMotionGuideDefinition.encode = function ProjectedMotionGuideDefinition$encode(
+        message,
+        writer,
+      ) {
+        if (!writer) writer = $Writer.create();
+        if (message.groupId != null && $Object.hasOwnProperty.call(message, "groupId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.groupId);
+        if (message.stepId != null && $Object.hasOwnProperty.call(message, "stepId"))
+          writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.stepId);
+        if (message.cueId != null && $Object.hasOwnProperty.call(message, "cueId"))
+          writer.uint32(/* id 3, wireType 2 =*/ 26).string(message.cueId);
+        if (message.preset != null && $Object.hasOwnProperty.call(message, "preset"))
+          writer.uint32(/* id 4, wireType 0 =*/ 32).int32(message.preset);
+        if (message.hand != null && $Object.hasOwnProperty.call(message, "hand"))
+          writer.uint32(/* id 5, wireType 0 =*/ 40).int32(message.hand);
+        if (
+          message.minimumDistanceMeters != null &&
+          $Object.hasOwnProperty.call(message, "minimumDistanceMeters")
+        )
+          writer.uint32(/* id 6, wireType 1 =*/ 49).double(message.minimumDistanceMeters);
+        if (message.windowMs != null && $Object.hasOwnProperty.call(message, "windowMs"))
+          writer.uint32(/* id 7, wireType 0 =*/ 56).uint64(message.windowMs);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified ProjectedMotionGuideDefinition message, length delimited. Does not implicitly {@link unframe.presentation.ProjectedMotionGuideDefinition.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @static
+       * @param {unframe.presentation.ProjectedMotionGuideDefinition.$Properties} message ProjectedMotionGuideDefinition message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      ProjectedMotionGuideDefinition.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a ProjectedMotionGuideDefinition message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.presentation.ProjectedMotionGuideDefinition & unframe.presentation.ProjectedMotionGuideDefinition.$Shape} ProjectedMotionGuideDefinition
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      ProjectedMotionGuideDefinition.decode = function ProjectedMotionGuideDefinition$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.groupId = reader.string();
+              break;
+            }
+            case 2: {
+              message.stepId = reader.string();
+              break;
+            }
+            case 3: {
+              message.cueId = reader.string();
+              break;
+            }
+            case 4: {
+              message.preset = reader.int32();
+              break;
+            }
+            case 5: {
+              message.hand = reader.int32();
+              break;
+            }
+            case 6: {
+              message.minimumDistanceMeters = reader.double();
+              break;
+            }
+            case 7: {
+              message.windowMs = reader.uint64();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a ProjectedMotionGuideDefinition message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.presentation.ProjectedMotionGuideDefinition & unframe.presentation.ProjectedMotionGuideDefinition.$Shape} ProjectedMotionGuideDefinition
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      ProjectedMotionGuideDefinition.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a ProjectedMotionGuideDefinition message.
+       * @function verify
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      ProjectedMotionGuideDefinition.verify = function ProjectedMotionGuideDefinition$verify(
+        message,
+        long,
+      ) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          if (!$util.isString(message.groupId)) return "groupId: string expected";
+        if (message.stepId != null && message.hasOwnProperty("stepId"))
+          if (!$util.isString(message.stepId)) return "stepId: string expected";
+        if (message.cueId != null && message.hasOwnProperty("cueId"))
+          if (!$util.isString(message.cueId)) return "cueId: string expected";
+        if (message.preset != null && message.hasOwnProperty("preset"))
+          switch (message.preset) {
+            default:
+              return "preset: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+              break;
+          }
+        if (message.hand != null && message.hasOwnProperty("hand"))
+          switch (message.hand) {
+            default:
+              return "hand: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+              break;
+          }
+        if (
+          message.minimumDistanceMeters != null &&
+          message.hasOwnProperty("minimumDistanceMeters")
+        )
+          if (typeof message.minimumDistanceMeters !== "number")
+            return "minimumDistanceMeters: number expected";
+        if (message.windowMs != null && message.hasOwnProperty("windowMs"))
+          if (
+            !$util.isInteger(message.windowMs) &&
+            !(
+              message.windowMs &&
+              $util.isInteger(message.windowMs.low) &&
+              $util.isInteger(message.windowMs.high)
+            )
+          )
+            return "windowMs: integer|Long expected";
+        return null;
+      };
+
+      /**
+       * Creates a ProjectedMotionGuideDefinition message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.presentation.ProjectedMotionGuideDefinition} ProjectedMotionGuideDefinition
+       */
+      ProjectedMotionGuideDefinition.fromObject =
+        function ProjectedMotionGuideDefinition$fromObject(object, long) {
+          if (object instanceof this.ctor) return object;
+          if (long === $undefined) long = 0;
+          if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+          let message = new this.ctor();
+          if (object.groupId != null) message.groupId = $String(object.groupId);
+          if (object.stepId != null) message.stepId = $String(object.stepId);
+          if (object.cueId != null) message.cueId = $String(object.cueId);
+          switch (object.preset) {
+            default:
+              if (typeof object.preset === "number") {
+                message.preset = object.preset;
+                break;
+              }
+              break;
+            case "MOTION_GUIDE_PRESET_UNSPECIFIED":
+            case 0:
+              message.preset = 0;
+              break;
+            case "MOTION_GUIDE_PRESET_SWIPE_LEFT":
+            case 1:
+              message.preset = 1;
+              break;
+            case "MOTION_GUIDE_PRESET_SWIPE_RIGHT":
+            case 2:
+              message.preset = 2;
+              break;
+            case "MOTION_GUIDE_PRESET_SWIPE_DOWN":
+            case 3:
+              message.preset = 3;
+              break;
+            case "MOTION_GUIDE_PRESET_SWIPE_UP":
+            case 4:
+              message.preset = 4;
+              break;
+            case "MOTION_GUIDE_PRESET_PUSH_FORWARD":
+            case 5:
+              message.preset = 5;
+              break;
+            case "MOTION_GUIDE_PRESET_PULL_BACKWARD":
+            case 6:
+              message.preset = 6;
+              break;
+            case "MOTION_GUIDE_PRESET_SPREAD_HANDS":
+            case 7:
+              message.preset = 7;
+              break;
+            case "MOTION_GUIDE_PRESET_CLOSE_HANDS":
+            case 8:
+              message.preset = 8;
+              break;
+          }
+          switch (object.hand) {
+            default:
+              if (typeof object.hand === "number") {
+                message.hand = object.hand;
+                break;
+              }
+              break;
+            case "MOTION_GUIDE_HAND_UNSPECIFIED":
+            case 0:
+              message.hand = 0;
+              break;
+            case "MOTION_GUIDE_HAND_EITHER":
+            case 1:
+              message.hand = 1;
+              break;
+            case "MOTION_GUIDE_HAND_LEFT":
+            case 2:
+              message.hand = 2;
+              break;
+            case "MOTION_GUIDE_HAND_RIGHT":
+            case 3:
+              message.hand = 3;
+              break;
+            case "MOTION_GUIDE_HAND_BOTH":
+            case 4:
+              message.hand = 4;
+              break;
+          }
+          if (object.minimumDistanceMeters != null)
+            message.minimumDistanceMeters = $Number(object.minimumDistanceMeters);
+          if (object.windowMs != null)
+            if ($util.Long)
+              (message.windowMs = $util.Long.fromValue(object.windowMs)).unsigned = true;
+            else if (typeof object.windowMs === "string")
+              message.windowMs = $parseInt(object.windowMs, 10);
+            else if (typeof object.windowMs === "number") message.windowMs = object.windowMs;
+            else if (typeof object.windowMs === "object")
+              message.windowMs = new $util.LongBits(
+                object.windowMs.low >>> 0,
+                object.windowMs.high >>> 0,
+              ).toNumber(true);
+          return message;
+        };
+
+      /**
+       * Creates a plain object from a ProjectedMotionGuideDefinition message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @static
+       * @param {unframe.presentation.ProjectedMotionGuideDefinition} message ProjectedMotionGuideDefinition
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      ProjectedMotionGuideDefinition.toObject = function ProjectedMotionGuideDefinition$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.groupId = "";
+          object.stepId = "";
+          object.cueId = "";
+          object.preset = options.enums === $String ? "MOTION_GUIDE_PRESET_UNSPECIFIED" : 0;
+          object.hand = options.enums === $String ? "MOTION_GUIDE_HAND_UNSPECIFIED" : 0;
+          object.minimumDistanceMeters = 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.windowMs =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.windowMs = options.longs === $String ? "0" : 0;
+        }
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          object.groupId = message.groupId;
+        if (message.stepId != null && message.hasOwnProperty("stepId"))
+          object.stepId = message.stepId;
+        if (message.cueId != null && message.hasOwnProperty("cueId")) object.cueId = message.cueId;
+        if (message.preset != null && message.hasOwnProperty("preset"))
+          object.preset =
+            options.enums === $String
+              ? $root.unframe.presentation.MotionGuidePreset[message.preset] === $undefined
+                ? message.preset
+                : $root.unframe.presentation.MotionGuidePreset[message.preset]
+              : message.preset;
+        if (message.hand != null && message.hasOwnProperty("hand"))
+          object.hand =
+            options.enums === $String
+              ? $root.unframe.presentation.MotionGuideHand[message.hand] === $undefined
+                ? message.hand
+                : $root.unframe.presentation.MotionGuideHand[message.hand]
+              : message.hand;
+        if (
+          message.minimumDistanceMeters != null &&
+          message.hasOwnProperty("minimumDistanceMeters")
+        )
+          object.minimumDistanceMeters =
+            options.json && !$isFinite(message.minimumDistanceMeters)
+              ? $String(message.minimumDistanceMeters)
+              : message.minimumDistanceMeters;
+        if (message.windowMs != null && message.hasOwnProperty("windowMs"))
+          if (typeof message.windowMs === "number")
+            object.windowMs =
+              options.longs === $String ? $String(message.windowMs) : message.windowMs;
+          else
+            object.windowMs =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.windowMs)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.windowMs.low >>> 0,
+                      message.windowMs.high >>> 0,
+                    ).toNumber(true)
+                  : message.windowMs;
+        return object;
+      };
+
+      /**
+       * Converts this ProjectedMotionGuideDefinition to JSON.
+       * @function toJSON
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      ProjectedMotionGuideDefinition.prototype.toJSON = function () {
+        return ProjectedMotionGuideDefinition.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for ProjectedMotionGuideDefinition
+       * @function getTypeUrl
+       * @memberof unframe.presentation.ProjectedMotionGuideDefinition
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      ProjectedMotionGuideDefinition.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.presentation.ProjectedMotionGuideDefinition";
+      };
+
+      return ProjectedMotionGuideDefinition;
+    })();
+
     presentation.ProjectedRuntimeCatalog = (function () {
       /**
        * Properties of a ProjectedRuntimeCatalog.
@@ -14126,6 +14690,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.presentation.ProjectedVariableDefinition.$Properties>|null} [variables] ProjectedRuntimeCatalog variables
        * @property {Array.<unframe.presentation.ProjectedTimelineDefinition.$Properties>|null} [timelines] ProjectedRuntimeCatalog timelines
        * @property {Array.<unframe.presentation.ProjectedModelClipDefinition.$Properties>|null} [modelClips] ProjectedRuntimeCatalog modelClips
+       * @property {Array.<unframe.presentation.ProjectedMotionGuideDefinition.$Properties>|null} [motionGuides] ProjectedRuntimeCatalog motionGuides
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -14146,6 +14711,7 @@ export const unframe = ($root.unframe = (() => {
        *   variables?: Array.<unframe.presentation.ProjectedVariableDefinition.$Shape>|null;
        *   timelines?: Array.<unframe.presentation.ProjectedTimelineDefinition.$Shape>|null;
        *   modelClips?: Array.<unframe.presentation.ProjectedModelClipDefinition.$Shape>|null;
+       *   motionGuides?: Array.<unframe.presentation.ProjectedMotionGuideDefinition.$Shape>|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.presentation.ProjectedRuntimeCatalog.$Shape
        */
@@ -14164,6 +14730,7 @@ export const unframe = ($root.unframe = (() => {
         this.variables = [];
         this.timelines = [];
         this.modelClips = [];
+        this.motionGuides = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -14217,6 +14784,14 @@ export const unframe = ($root.unframe = (() => {
        * @instance
        */
       ProjectedRuntimeCatalog.prototype.modelClips = $util.emptyArray;
+
+      /**
+       * ProjectedRuntimeCatalog motionGuides.
+       * @member {Array.<unframe.presentation.ProjectedMotionGuideDefinition.$Properties>} motionGuides
+       * @memberof unframe.presentation.ProjectedRuntimeCatalog
+       * @instance
+       */
+      ProjectedRuntimeCatalog.prototype.motionGuides = $util.emptyArray;
 
       /**
        * Creates a new ProjectedRuntimeCatalog instance using the specified properties.
@@ -14279,6 +14854,12 @@ export const unframe = ($root.unframe = (() => {
             $root.unframe.presentation.ProjectedModelClipDefinition.encode(
               message.modelClips[i],
               writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
+            ).ldelim();
+        if (message.motionGuides != null && message.motionGuides.length)
+          for (let i = 0; i < message.motionGuides.length; ++i)
+            $root.unframe.presentation.ProjectedMotionGuideDefinition.encode(
+              message.motionGuides[i],
+              writer.uint32(/* id 7, wireType 2 =*/ 58).fork(),
             ).ldelim();
         return writer;
       };
@@ -14386,6 +14967,18 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 7: {
+              if (!(message.motionGuides && message.motionGuides.length)) message.motionGuides = [];
+              message.motionGuides.push(
+                $root.unframe.presentation.ProjectedMotionGuideDefinition.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -14475,6 +15068,16 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
             if (error) return "modelClips." + error;
+          }
+        }
+        if (message.motionGuides != null && message.hasOwnProperty("motionGuides")) {
+          if (!$Array.isArray(message.motionGuides)) return "motionGuides: array expected";
+          for (let i = 0; i < message.motionGuides.length; ++i) {
+            let error = $root.unframe.presentation.ProjectedMotionGuideDefinition.verify(
+              message.motionGuides[i],
+              long + 1,
+            );
+            if (error) return "motionGuides." + error;
           }
         }
         return null;
@@ -14584,6 +15187,24 @@ export const unframe = ($root.unframe = (() => {
               );
           }
         }
+        if (object.motionGuides) {
+          if (!$Array.isArray(object.motionGuides))
+            throw $TypeError(
+              ".unframe.presentation.ProjectedRuntimeCatalog.motionGuides: array expected",
+            );
+          message.motionGuides = [];
+          for (let i = 0; i < object.motionGuides.length; ++i) {
+            if (typeof object.motionGuides[i] !== "object")
+              throw $TypeError(
+                ".unframe.presentation.ProjectedRuntimeCatalog.motionGuides: object expected",
+              );
+            message.motionGuides[i] =
+              $root.unframe.presentation.ProjectedMotionGuideDefinition.fromObject(
+                object.motionGuides[i],
+                long + 1,
+              );
+          }
+        }
         return message;
       };
 
@@ -14608,6 +15229,7 @@ export const unframe = ($root.unframe = (() => {
           object.variables = [];
           object.timelines = [];
           object.modelClips = [];
+          object.motionGuides = [];
         }
         if (options.defaults) object.catalogContractVersion = 0;
         if (
@@ -14654,6 +15276,15 @@ export const unframe = ($root.unframe = (() => {
               message.modelClips[j],
               options,
             );
+        }
+        if (message.motionGuides && message.motionGuides.length) {
+          object.motionGuides = [];
+          for (let j = 0; j < message.motionGuides.length; ++j)
+            object.motionGuides[j] =
+              $root.unframe.presentation.ProjectedMotionGuideDefinition.toObject(
+                message.motionGuides[j],
+                options,
+              );
         }
         return object;
       };

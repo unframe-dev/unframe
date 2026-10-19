@@ -223,6 +223,7 @@ const runtimeCatalog = (
   definition: PresentationDefinition,
   bundle: RenderBundle,
   selection: DeliverySelection,
+  role: "presenter" | "viewer",
 ) => {
   const visibleNodes = new Set(selection.visibleNodeIds);
   const visibleSurfaces = new Set(selection.visibleSurfaceIds);
@@ -363,7 +364,50 @@ const runtimeCatalog = (
     surfaces.some((surface) => !visibleSurfaces.has(surface.surfaceId))
   )
     throw new Error("Invalid runtime catalog closure.");
-  return { catalogContractVersion: 2, nodes, surfaces, variables, timelines, modelClips };
+  const motionGuides =
+    role === "viewer"
+      ? []
+      : pairs(definition.flow.groups).flatMap(([groupId, group]) =>
+          pairs(group.steps).flatMap(([stepId, step]) =>
+            [...step.cues]
+              .sort((left, right) => byId(left.id, right.id))
+              .flatMap((cue) => {
+                const trigger = cue.trigger;
+                if (trigger.kind !== "motion" || !("preset" in trigger)) return [];
+                return [
+                  {
+                    groupId,
+                    stepId,
+                    cueId: cue.id,
+                    preset: {
+                      swipeLeft: 1,
+                      swipeRight: 2,
+                      swipeDown: 3,
+                      swipeUp: 4,
+                      pushForward: 5,
+                      pullBackward: 6,
+                      spreadHands: 7,
+                      closeHands: 8,
+                    }[trigger.preset],
+                    hand: { eitherHand: 1, leftHand: 2, rightHand: 3, bothHands: 4 }[
+                      trigger.subject.target
+                    ],
+                    minimumDistanceMeters: trigger.minimumDistanceMeters,
+                    windowMs: toUInt64(trigger.windowMilliseconds),
+                  },
+                ];
+              }),
+          ),
+        );
+  return {
+    catalogContractVersion: 2,
+    nodes,
+    surfaces,
+    variables,
+    timelines,
+    modelClips,
+    motionGuides,
+  };
 };
 
 export type RuntimeProjection = Omit<
@@ -455,7 +499,7 @@ const buildProjection = (
       }),
     };
   });
-  const catalog = runtimeCatalog(definition, bundle, selection);
+  const catalog = runtimeCatalog(definition, bundle, selection, role);
   const capabilities = [1];
   if (catalog.timelines.length) capabilities.push(2);
   if (semanticSurfaces.some((surface) => surface.states.length > 1)) capabilities.push(3);

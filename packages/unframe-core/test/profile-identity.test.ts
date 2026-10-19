@@ -22,6 +22,7 @@ const descriptor = {
   requiredRuntimeCapabilities: [1],
   runtimeCatalog: {
     catalogContractVersion: 2,
+    motionGuides: [],
     nodes: [],
     surfaces: [],
     variables: [],

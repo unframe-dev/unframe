@@ -132,3 +132,30 @@ func TestNilMarkerDoesNotSupplyRequiredOneof(t *testing.T) {
 		}
 	}
 }
+
+func TestMotionGuideMetadataRejectsInvalidHandsRangesAndDuplicateKeys(t *testing.T) {
+	guide := &presentationv2.ProjectedMotionGuideDefinition{GroupId: "group", StepId: "step", CueId: "cue", Preset: presentationv2.MotionGuidePreset_MOTION_GUIDE_PRESET_SWIPE_LEFT, Hand: presentationv2.MotionGuideHand_MOTION_GUIDE_HAND_EITHER, MinimumDistanceMeters: 0.2, WindowMs: 750}
+	if err := ValidateMessage(guide); err != nil {
+		t.Fatalf("valid guide rejected: %v", err)
+	}
+	for _, mutate := range []func(*presentationv2.ProjectedMotionGuideDefinition){
+		func(g *presentationv2.ProjectedMotionGuideDefinition) { g.MinimumDistanceMeters = 0 },
+		func(g *presentationv2.ProjectedMotionGuideDefinition) { g.WindowMs = 0 },
+		func(g *presentationv2.ProjectedMotionGuideDefinition) { g.WindowMs = 9007199254740992 },
+		func(g *presentationv2.ProjectedMotionGuideDefinition) {
+			g.Hand = presentationv2.MotionGuideHand_MOTION_GUIDE_HAND_BOTH
+		},
+		func(g *presentationv2.ProjectedMotionGuideDefinition) {
+			g.Preset = presentationv2.MotionGuidePreset_MOTION_GUIDE_PRESET_SPREAD_HANDS
+		},
+	} {
+		invalid := proto.Clone(guide).(*presentationv2.ProjectedMotionGuideDefinition)
+		mutate(invalid)
+		if err := ValidateMessage(invalid); err == nil {
+			t.Fatal("invalid motion guide admitted")
+		}
+	}
+	if err := ValidateMessage(&presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2, MotionGuides: []*presentationv2.ProjectedMotionGuideDefinition{guide, guide}}); err == nil {
+		t.Fatal("duplicate motion guide admitted")
+	}
+}

@@ -91,6 +91,53 @@ const project = (scene: ReturnType<typeof item>[]) => ({
 });
 
 describe("Opaque React lowering", () => {
+  it("lowers a presentation motion preset without a Component Output", () => {
+    const input = project([item("hero")]);
+    const result = checkDeclarationProject({
+      ...input,
+      presentation: {
+        ...input.presentation,
+        flow: {
+          ...input.presentation.flow,
+          groups: {
+            main: {
+              id: "main",
+              initialStepId: "first",
+              steps: {
+                first: {
+                  id: "first",
+                  cues: [
+                    {
+                      id: "pull",
+                      trigger: {
+                        kind: "motionPreset",
+                        preset: "pullBackward",
+                        hand: "leftHand",
+                        minimumDistanceMeters: 0.15,
+                        windowMilliseconds: 900,
+                      },
+                      actions: [],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) throw new Error("Expected valid motion preset.");
+    expect(result.value.definition.flow.groups.main!.steps.first!.cues[0]!.trigger).toEqual({
+      kind: "motion",
+      actor: { kind: "system", source: "tracking" },
+      preset: "pullBackward",
+      subject: { kind: "anchor", owner: { kind: "presenter" }, target: "leftHand" },
+      minimumDistanceMeters: 0.15,
+      windowMilliseconds: 900,
+    });
+  });
+
   it("lowers finite State, button Interaction and Output-to-Action Cue", () => {
     const finiteMetadata = validateStaticComponentMetadata({
       ...metadata,

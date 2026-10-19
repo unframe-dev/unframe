@@ -390,20 +390,21 @@ export const resolveOpaqueProject = (
           "cues",
           index,
         ] as const;
-        if (cue.trigger.kind !== "component.output") {
+        if (cue.trigger.kind !== "component.output" && cue.trigger.kind !== "motionPreset") {
           diagnostics.push(
             diagnostic(
               "compiler-opaque-cue-trigger-invalid",
               path,
-              "React Cues require a declared Component Output.",
+              "React Cues require a declared Component Output or motion preset.",
             ),
           );
           continue;
         }
         const outputTrigger = cue.trigger;
-        const triggerInstance = presentation.scene.find(
-          (item) => item.id === outputTrigger.componentInstanceId,
-        );
+        const triggerInstance =
+          outputTrigger.kind === "component.output"
+            ? presentation.scene.find((item) => item.id === outputTrigger.componentInstanceId)
+            : undefined;
         const triggerComponent =
           triggerInstance &&
           project.components.find(
@@ -411,8 +412,14 @@ export const resolveOpaqueProject = (
               candidate.manifest.componentId === triggerInstance.component.id &&
               candidate.manifest.version === triggerInstance.component.version,
           );
-        const output = triggerComponent?.manifest.outputs[outputTrigger.outputId];
-        if (!triggerInstance || !output || output.producer.kind !== "surfaceInteraction") {
+        const output =
+          outputTrigger.kind === "component.output"
+            ? triggerComponent?.manifest.outputs[outputTrigger.outputId]
+            : undefined;
+        if (
+          outputTrigger.kind === "component.output" &&
+          (!triggerInstance || !output || output.producer.kind !== "surfaceInteraction")
+        ) {
           diagnostics.push(
             diagnostic(
               "compiler-output-not-found",
@@ -484,18 +491,34 @@ export const resolveOpaqueProject = (
           id: cue.id,
           priority: cue.priority ?? 0,
           order: cue.order ?? index,
-          trigger: {
-            kind: "surfaceInteraction",
-            actor: { kind: "presenter" },
-            surfaceId: reactResourceId("surface", triggerInstance.id),
-            interactionId: reactResourceId(
-              "interaction",
-              triggerInstance.id,
-              output.producer.interactionId,
-            ),
-          },
+          trigger:
+            outputTrigger.kind === "motionPreset"
+              ? ({
+                  kind: "motion",
+                  actor: { kind: "system", source: "tracking" },
+                  preset: outputTrigger.preset,
+                  subject: {
+                    kind: "anchor",
+                    owner: { kind: "presenter" },
+                    target: outputTrigger.hand,
+                  },
+                  minimumDistanceMeters: outputTrigger.minimumDistanceMeters,
+                  windowMilliseconds: outputTrigger.windowMilliseconds,
+                } as (typeof cues)[number]["trigger"])
+              : {
+                  kind: "surfaceInteraction",
+                  actor: { kind: "presenter" },
+                  surfaceId: reactResourceId("surface", triggerInstance!.id),
+                  interactionId: reactResourceId(
+                    "interaction",
+                    triggerInstance!.id,
+                    output!.producer.kind === "surfaceInteraction"
+                      ? output!.producer.interactionId
+                      : "",
+                  ),
+                },
           fixedPayload: Object.fromEntries(
-            Object.entries(output.payload).map(([key, field]) => [key, field.value]),
+            Object.entries(output?.payload ?? {}).map(([key, field]) => [key, field.value]),
           ),
           firePolicy: cue.firePolicy ?? { kind: "oncePerStepEntry" },
           actions,

@@ -300,13 +300,11 @@ describe("React frozen CLI path", () => {
       }),
     );
     await mkdir(join(directory, "vendor"));
-    await promisify(execFile)("tar", [
-      "-czf",
-      join(directory, "vendor/authoring.tgz"),
-      "-C",
-      staging,
-      "package",
-    ]);
+    await promisify(execFile)(
+      "tar",
+      ["-czf", join(directory, "vendor/authoring.tgz"), "-C", staging, "package"],
+      { env: { ...process.env, COPYFILE_DISABLE: "1" } },
+    );
     await writeFile(
       join(directory, "package.json"),
       JSON.stringify({ private: true, dependencies: { [sdk.name]: "file:vendor/authoring.tgz" } }),
