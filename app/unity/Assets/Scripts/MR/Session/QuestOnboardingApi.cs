@@ -71,7 +71,8 @@ public sealed class QuestOnboardingApi : IDisposable
         this.clientId = clientId;
         client = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false })
         {
-            Timeout = TimeSpan.FromSeconds(30), MaxResponseContentBufferSize = 4 * 1024 * 1024
+            Timeout = TimeSpan.FromSeconds(30),
+            MaxResponseContentBufferSize = 4 * 1024 * 1024
         };
     }
 
