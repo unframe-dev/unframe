@@ -168,6 +168,18 @@ it.each<{ trigger: FlowCue["trigger"]; title: string; details: string[] }>([
     trigger: {
       kind: "motion",
       actor: { kind: "system", source: "tracking" },
+      subject: { kind: "anchor", owner: { kind: "presenter" }, target: "bothHands" },
+      preset: "spreadHands",
+      minimumDistanceMeters: 0.5,
+      windowMilliseconds: 1000,
+    },
+    title: "移動を検出",
+    details: ["発表者（presenter）の両手（bothHands）", "0.5 m", "1000 ms"],
+  },
+  {
+    trigger: {
+      kind: "motion",
+      actor: { kind: "system", source: "tracking" },
       subject: { kind: "participant", owner: { kind: "presenter" } },
       minimumDistanceMeters: 0.5,
       windowMilliseconds: 1000,
