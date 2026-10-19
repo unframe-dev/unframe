@@ -1,97 +1,38 @@
-# Unframe パッケージのリファクタリング対象
+# Unframe パッケージのリファクタリング残件
 
-- 状態: 実施対象を整理済み。実装は未着手。
-- 対象: `packages/unframe-*` の全9パッケージ、直接関係する実行スクリプト、`docs/packages/` とパッケージ内文書。
-- 調査基準: 2026-10-18 の `origin/main`、`997a44bc8498e97a07976e4f9ff2fe31ae6b328e`。
+- 状態: 実装の残件、文書の整合性修正、契約・実装の不一致に関する仕様判断を整理。
+- 対象: `docs/packages/`、`packages/unframe-*` 内の文書、関連する実行手順と契約・実装。
+- 照合基準: 2026-10-20 の HEAD、`4009d4be7d5c252e0173ce479f3adda66bd8701f`。
 
-TypeScript を中心に維持し、入力の固定、検証境界、資源の寿命、構文解析と実行基盤の責務を整理する。以下を今後の実装対象とし、現行仕様と実装済み機能の説明には使わない。
+以下は未完の作業だけを扱う。規範的な契約と実装の不一致は、文書を現状へ合わせるだけで解消せず、仕様判断と必要な実装変更を行う。
 
-## 言語と実行依存
+## 実装の残件
 
-### Unity テストスクリプトの Python を置換する
+### 残る低水準ファイル操作を統一する
 
-- 対象: [test-native-editor.sh](../../scripts/unity/test-native-editor.sh) の埋め込み Python。
-- `Packages/manifest.json` とテスト用 `.asmdef` の生成を TypeScript または shell へ置き換え、この経路の Python 実行依存を除く。構造化 JSON の読込・生成は TypeScript を第一候補とし、起動とファイル配置は shell に残す。
-- 確認: 元 manifest から選ぶ依存、固定 Unity module、DLL 一覧、asmdef の参照が意味的に一致すること。各 mode のプロジェクト準備とテスト起動を維持する。
+- 対象: [build-cache.ts](../../packages/unframe-cli/src/filesystem/build-cache.ts)、[save-transaction.ts](../../packages/unframe-cli/src/author/save-transaction.ts)、[posix-cache.ts](../../packages/unframe-cli/src/filesystem/posix-cache.ts)、[C helper](../../packages/unframe-cli/src/filesystem/posix-cache-helper.c)、[Go adapter](../../packages/unframe-cli/src/filesystem/native-filesystem.ts)。
+- Build cache と Author の保存 transaction は Linux で Node.js の FD 操作、macOS で C helper を使う。path 検査や成果物公開などには Go helper がある。重複する directory FD・相対ファイル操作・symlink 非追跡・同期・解放の所有を C または Go の一方へ揃える。schema、checksum、cache key、保持方針は TypeScript に残す。
+- 確認: Linux / macOS それぞれで、symlink・親ディレクトリ差替え、部分書込、取消・異常終了時の解放、破損 cache の miss と既存 cache の再利用、保存 transaction の回復を検証する。採用する helper の生成・配布経路と [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)・[ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) の保証範囲を揃える。
 
-### 低水準ファイル操作を C または Go の薄い層へ統一する
+### Author の job 履歴と request ID の保持を制限する
 
-- 対象: CLI の [build-cache.ts](../../packages/unframe-cli/src/filesystem/build-cache.ts)、[atomic-output.ts](../../packages/unframe-cli/src/filesystem/atomic-output.ts)、[path-policy.ts](../../packages/unframe-cli/src/filesystem/path-policy.ts)。
-- directory FD、相対ファイル操作、symlink 非追跡、atomic rename、同期・解放など、OS 操作を所有する層を C または Go の一方に統一する。使用言語と呼出方式は実装前に決める。
-- 別言語の層はできるだけ薄くし、schema、checksum、cache key、保持方針、成果物の意味検証は TypeScript に残す。FD の寿命と必要な操作単位を同じ層で所有する。
-- 確認: symlink・親ディレクトリ差替え、部分書込、異常終了時の解放、既存の失敗時動作。保証範囲は [CLI filesystem contract](../decisions/0013-local-compiler-project-filesystem-contract.md) と照合し、言語変更だけで保証が強まるとは扱わない。
+- 対象: [Author service](../../packages/unframe-cli/src/author/service.ts) の `jobs` と `requests`。
+- 完了済み job と request ID の保持件数または期限、期限切れ後の照会・再送動作を決める。再送から参照する job が先に失われないよう、両者の寿命を揃える。
+- 確認: 連続ビルド後の保持量、実行中 job、保持期間内の同一 request ID の再送と異なる内容の競合、期限切れ後の扱い。PNG 成果物 cache の容量・世代数制限とは分けて検証する。
 
-## 優先して改善する実装
+### Unity テストプロジェクトの mode 別受け入れを確認する
 
-### Renderer の生成時入力を固定する
+- [test-native-editor.sh](../../scripts/unity/test-native-editor.sh) の `unit/regression/playback/e2e/showcase` について、生成 manifest、固定 Unity module、DLL 一覧、asmdef の参照を含むプロジェクト準備と Editor 起動の証跡を確認し、不足する mode だけ検証する。設定生成の単体テストと、ADR-0026 に記載された WebGL build・native E2E の成功だけで、全 mode の確認済みとは扱わない。
 
-- 対象: [Opaque renderer](../../packages/unframe-renderer-web/src/opaque/capture/renderer.ts)、[combined-renderer.ts](../../packages/unframe-renderer-web/src/rendering/combined-renderer.ts)。
-- factory 境界で config、programs、child identity と関数参照を固定し、以後は検証済み snapshot を使う。Structured renderer の既存境界と整合させる。
-- 確認: 生成後に呼出元が入力や child method を変更しても、固定した fingerprint と対応判定・描画処理が食い違わないこと。
+## 契約と実装の不一致を解消する
 
-### CSS の独自解析と Browser 内の宣言走査を整理する
+- **Core の validation 保証**: [Core Architecture](../../packages/unframe-core/ARCHITECTURE.md) 87–89行は全公開 validator に `ValidationResult<T>`、stable code/path、snapshot 後の Zod 検証を保証している。[Runtime projection](../../packages/unframe-core/src/runtime/projection.ts) の `validateRuntimeVisibilitySelection` と `validateM3dCueRuntimeSnapshot` は入力を直接 `safeParse` へ渡し、これらと `validateCanonicalRuntimeSnapshot` は `string[]` を返す。Canonical validator は snapshot を実施する。現状の保証範囲をまず明記し、API を統一する場合は別途戻り値・呼出元・accessor 境界の回帰テストを含む実装変更として扱う。監査では accessor 実行の再現テストを行っていない。
+- **Snapshot catch-up**: [Runtime contract](../packages/CONTRACT_RUNTIME.md) 135行は初回を含む3回・合計250 ms を規定し、[gRPC service](../../app/server/realtime/internal/transport/grpc/v2_service.go) もこの limit を広告する。一方、確認した送信経路には Snapshot の cut を取り直す retry がなく、遅い subscriber は queue 上限で失敗する。規範を実装するか、契約と広告値を変更するか判断し、競合・上限・timeout のテストで一致を確認する。
+- **Assignment failure reason**: [Runtime contract](../packages/CONTRACT_RUNTIME.md) 284行の `runtime_assignment_unavailable` に対応する経路が監査では見つからなかった。[assignment mapping](../../app/server/realtime/internal/transport/grpc/assignment.go) を起点に到達不能と inactive の区別を再確認し、予約された契約か未実装の error mapping かを決める。現時点では確定した誤記として削除しない。
 
-- 対象: [prepare-locked-opaque-bundle-input.ts](../../packages/unframe-compiler/src/semantic/prepare-locked-opaque-bundle-input.ts)、[fonts.ts](../../packages/unframe-renderer-web/src/opaque/capture/fonts.ts)。
-- 正規表現による CSS 依存抽出を PostCSS AST と値 parser などの構文解析へ置き換える。URL の許可方針は別に保持する。
-- フォント宣言は CSSOM の grouping と条件の有効性を扱う。長い埋め込み Browser JavaScript は型検査できる TS module への分離対象とする。
-- 確認: コメント・content 文字列を依存と誤認しないこと、大小文字・escape を扱うこと。`@layer`、有効／無効な `@media`・`@supports` 内の `@font-face` は実 Browser fixture で確認する。grouping の問題は現在、CSSOM stub での確認に留まる。
+## ドキュメントの整合性を修正する
 
-### 成果物とキャッシュの検証境界を揃える
-
-- 対象: [Author service](../../packages/unframe-cli/src/author/service.ts)、[Compiler cache](../../packages/unframe-compiler/src/cache/build-cache.ts)。
-- Author の成果物読込は `JSON.parse` 後の型 assertion に依存せず、既存の generation 読込・integrity・asset checksum／サイズ検証を再利用する。表示用カタログへの変換は検証後に行う。
-- cache adapter の `unknown` は、getter を実行する可能性がある `structuredClone` の前に安全に取り込む。JSON metadata と byte buffer の扱いを区別する。
-- 確認: JSON 不正、checksum／サイズ不一致、enumerable getter、破損 cache、正当な byte entry。accessor を実行せず、破損 cache は miss として処理できること。
-
-### 長寿命の状態と終了処理を整理する
-
-- 対象: [Author service](../../packages/unframe-cli/src/author/service.ts)、[watch-project.ts](../../packages/unframe-cli/src/application/watch-project.ts)、[preview.ts](../../packages/unframe-cli/src/process/preview.ts)。
-- job 履歴、request ID の再送契約、PNG 全バイトを持つ成果物キャッシュの寿命を分離する。表示中の generation を維持しつつ、保持容量または世代数に上限を設ける。
-- snapshot 待機中に abort された場合、新しい build を開始しない。Preview の終了では受付停止と既存接続の終了を扱う。
-- 確認: 連続ビルド時の保持量、現行画像と古い request の扱い、snapshot 待機中の abort、未完了 HTTP 接続を残した停止。
-
-### 汎用 worker host を Web Renderer から分離する
-
-- 対象: [run-style-worker.ts](../../packages/unframe-cli/src/styles/run-style-worker.ts)、[run-isolated-opaque-worker.ts](../../packages/unframe-renderer-web/src/opaque/isolation/run-isolated-opaque-worker.ts)。
-- process 起動、mount、資源制限、終了確認の共通責務を、Style と capture が使う worker host へ分離する。Browser の配置・起動は Renderer 側に残す。
-- Style が `browserPath` に worker 自身を渡す契約を解消する。この分離は TypeScript で行い、低水準ファイル操作の別言語化とは分けて扱う。
-- 確認: Browser を要求しない Style 実行と、既存の隔離・資源制限・取消・capture integration。
-
-### 入力不正と内部障害を区別する
-
-- 対象: [compile-declaration-project.ts](../../packages/unframe-compiler/src/api/compile-declaration-project.ts)、[compile-authoring-project.ts](../../packages/unframe-compiler/src/api/compile-authoring-project.ts)。
-- unsafe な入力検査の catch を境界へ限定し、内部例外を一律に `compiler-invalid-input` に変換しない。内部障害の code、処理段階、原因を host が観測できるようにする。
-- 確認: malformed input と内部処理の失敗を区別できること。公開診断に機密や source 内容を無条件に出さないこと。
-
-## 言語機能と TypeScript バージョン
-
-### await using を資源管理へ適用する
-
-- ファイル handle と一時領域の取得・解放を対象に、`await using` の採用箇所を決める。Bun／Node、TS の lib 設定、transpile／bundle 経路の対応を確認する。
-- 確認: 通常終了、例外、取消での解放とその順序。解放を待つ処理が scope の外へ漏れず、既存の失敗診断を損なわないこと。
-- 仕様: [TypeScript の explicit resource management](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html)。
-
-### lone surrogate の手書き検査を標準 API へ置換する
-
-- 対象: CLI の [load-config.ts](../../packages/unframe-cli/src/filesystem/load-config.ts)、Core の [canonical-json.ts](../../packages/unframe-core/src/canonicalization/canonical-json.ts) と [plain-json.ts](../../packages/unframe-core/src/publication/plain-json.ts) など、文字列の well-formedness 検査。
-- 対応 runtime と型定義を揃え、`String.prototype.isWellFormed()` を利用する。不正文字列を拒否する契約は維持し、`toWellFormed()` による補正へ変更しない。
-- 確認: 正常な surrogate pair、孤立した high／low surrogate、既存の診断と canonicalization 結果。
-- 仕様: [ECMAScript isWellFormed](https://tc39.es/ecma262/multipage/text-processing.html#sec-string.prototype.iswellformed)。
-
-### TypeScript の更新方針を用途別に整理する
-
-- 調査時点は CLI が 5.9.3、Compiler／Tailwind が 6.0.3、その他の型検査が 7.0.2。
-- 型検査用ツールと組込み Compiler API を区別し、互換性を確認して更新・統一できる範囲を決める。一律の 7.x 更新は前提にしない。
-- 確認: AST 解析、module resolution、authoring 型診断、Style worker の transpile、Tailwind の Node 実行。同じ入力の成果物と診断への影響を確認する。
-- 資料: [TypeScript Compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API)。
-
-## ドキュメントのリファクタリング
-
-### 監査範囲と判断基準
-
-`docs/packages/` の全11文書と、`packages/unframe-*` 内の全11 Markdown（1,187行）、フォントライセンスを、上記 commit の実装・公開 API・package manifest・生成スクリプト・既存テストと照合した。以下の行番号は監査時点の位置であり、修正時は節と記述でも照合する。
-
-文書修正は未着手。実装済みの範囲、未実装の目標、過去の測定・実装記録を区別する。規範的な契約と実装の不一致は、文書を現状へ合わせるだけで解消せず、仕様判断が必要な項目として残す。既存テストはソースを確認したもので、この文書監査では再実行していない。
+実装済みの範囲、未実装の目標、過去の測定・実装記録を区別する。表の行番号は照合時点の目安とし、修正時は節と記述でも確認する。
 
 ### 実行手順と公開 API を訂正する
 
@@ -129,35 +70,26 @@ TypeScript を中心に維持し、入力の固定、検証境界、資源の寿
 | [ARCHITECTURE](../packages/ARCHITECTURE.md) 2197行                                                                                                        | semantic override の `null` による削除を tableLabel のみに限定しない。language も nullable / deletion 対象である。                                                                                                                                                                                                       | [semantics schema](../../packages/contracts/src/presentation/semantics.ts)、[materialize](../../packages/unframe-core/src/semantic-tree/materialize.ts)                                                                                        |
 | [CLI Architecture](../../packages/unframe-cli/ARCHITECTURE.md) 37行                                                                                       | build lease の `process-local` を訂正する。project root の排他的ファイル作成によってプロセス間でも競合を防ぐ。                                                                                                                                                                                                           | [build lock](../../packages/unframe-cli/src/filesystem/build-lock.ts)                                                                                                                                                                          |
 
-### 文書修正だけで閉じない項目
-
-- **Core の validation 保証**: [Core Architecture](../../packages/unframe-core/ARCHITECTURE.md) 87–89行は全公開 validator に `ValidationResult<T>`、stable code/path、snapshot 後の Zod 検証を保証している。[Runtime projection](../../packages/unframe-core/src/runtime/projection.ts) の `validateRuntimeVisibilitySelection` と `validateM3dCueRuntimeSnapshot` は入力を直接 `safeParse` へ渡し、これらと `validateCanonicalRuntimeSnapshot` は `string[]` を返す。Canonical validator は snapshot を実施する。現状の保証範囲をまず明記し、API を統一する場合は別途戻り値・呼出元・accessor 境界の回帰テストを含む実装変更として扱う。監査では accessor 実行の再現テストを行っていない。
-- **Snapshot catch-up**: [Runtime contract](../packages/CONTRACT_RUNTIME.md) 135行は初回を含む3回・合計250 ms を規定し、[gRPC service](../../app/server/realtime/internal/transport/grpc/v2_service.go) もこの limit を広告する。一方、確認した送信経路には Snapshot の cut を取り直す retry がなく、遅い subscriber は queue 上限で失敗する。規範を実装するか、契約と広告値を変更するか判断し、競合・上限・timeout のテストで一致を確認する。
-- **Assignment failure reason**: [Runtime contract](../packages/CONTRACT_RUNTIME.md) 284行の `runtime_assignment_unavailable` に対応する経路が監査では見つからなかった。[assignment mapping](../../app/server/realtime/internal/transport/grpc/assignment.go) を起点に到達不能と inactive の区別を再確認し、予約された契約か未実装の error mapping かを決める。現時点では確定した誤記として削除しない。
-
-### 要限定の表現と、変更不要と判断した範囲
+### Current と Target の説明を限定する
 
 - [Core](../../packages/unframe-core/ARCHITECTURE.md) の Target extensions は、実装済み projection/snapshot subset と残る目標を分ける。Target という見出しだけを誤りとしない。
 - [Authoring](../../packages/unframe-authoring/ARCHITECTURE.md) の lock 形式 Deferred と [Components](../../packages/unframe-components/ARCHITECTURE.md) の「Compiler / Renderer の対応 contract 実装後」は、ローカル lock v2・既存 Compiler 処理と、外部配布・標準 Component の検証範囲を分けて明確化する。Components 自身が resolution や lowering を所有するようには変更しない。
 - [DESIGN](../packages/DESIGN.md) の Target tree にある `docs/presentation/`、`scripts/presentation/` と、現在の `docs/packages/`、`scripts/ci/`、`unframe-tailwind` の配置を区別する。将来の配置案を未実装という理由だけで誤記にしない。Browser capture が未確定とする箇所は、現在の固定 Browser と残る platform 別検証を分ける。
-- Compiler の Role が Structured 境界を説明していること、CLI が Cue 実行器と生成済み State 画像を説明していることは、React/Opaque や再生機能を否定する記述とは判定しない。Node API 非依存の test を掲げる validation strategy も、既存 test の存在を保証する記述とは扱わない。
-- `docs/packages/` の AUTHORING_CONTRACT、CONTRACT_ARTIFACTS、DATA_MODEL、LOCAL_EDITOR_DESIGN、LOCAL_EDITOR_TIMELINE_SPEC には、この監査で確定した乖離はない。パッケージ内の型試作 README、font fixture の説明・出力 hash、Assets の PNG/resize の主要契約、Tailwind の設定互換性・隔離の説明も照合した。全機能の実行受入れを意味しない。
 
-### 計画文書の整理状況
+### 実行基盤の所有境界と準備手順を揃える
 
-完遂済みとして `automatic-surface-partition-plan.md`、`local-editor-timeline-implementation-plan.md`、`react-state-capture-acceptance.md`、`tailwind-package-plan.md` を削除し、現行文書と実験 README の参照を整理済み。削除した計画を現行仕様の根拠として再導入しない。
+- [CLI Architecture](../../packages/unframe-cli/ARCHITECTURE.md) と [scripts README](../../scripts/README.md) に、native filesystem helper の生成と利用経路を反映する。package script の hook と、直接テスト・consumer を起動する経路の準備を区別する。Build cache の helper 統一に伴う説明は、上記の実装変更と同時に更新する。
+- [Renderer Web Architecture](../../packages/unframe-renderer-web/ARCHITECTURE.md) と CLI の説明で、[worker host](../../packages/unframe-worker-host/src/index.ts) が Style / capture 共通の隔離・資源制限・終了確認を所有し、Browser の配置・起動は Renderer 側に残ることを揃える。OS ごとの保証と検証範囲は ADR-0026 に従う。
 
-PR111 の歴史的な計画も削除済み。[M6 の未完了事項](./presentation-packages-implementation-plan.md) には、Quest 実機の受け入れ検証と `pauseTimeout` の仕様・実装だけを残す。
-
-### 対応順と完了条件
+## 対応順と完了条件
 
 1. 実行できないコマンド、config、public API、Hit Region と validation の保証範囲を先に訂正する。
 2. 機能の現在地・責務・契約の正本を `docs/packages/` と owning package の文書で同時に揃え、重複する型全文や過去の状態説明を整理する。
-3. catch-up、error mapping、validation API 統一の要否を判断し、必要な実装変更を個別に検証する。判断前に規範契約を現在の制限へ弱めない。
+3. 実装の残件と、catch-up、error mapping、validation API 統一の要否を判断し、必要な実装変更を個別に検証する。判断前に規範契約を現在の制限へ弱めない。
 4. 文書間のリンクと code/schema/script の参照を検査し、担当外の `docs-reviewer` に内容を確認してもらう。
 
 完了には、実行手順が実在する script と引数に一致すること、Current/Target/過去の測定が判別できること、各確定指摘に対応箇所があること、未解決の仕様差分が明示されていることを必要とする。実装や生成 schema の複製を増やさず、意味・利用方法・所有境界に必要な説明を残す。
 
-監査時は `docs/packages/` とパッケージ内文書のローカルリンク・アンカーの参照先を確認した。フォント fixture の SHA-256 も記載値と一致した。更新後も再検査し、削除済み計画への参照を残さない。
+実装変更は対象限定の回帰テストで確認する。CLI のテストを package script を介さず直接実行する場合は、先に `bash scripts/build-cli-filesystem.sh` で native helper を生成する。
 
-実装リファクタリングは対象限定の回帰テストで振る舞いを固定して進める。worker host と native 層の所有境界、実行依存が変わる場合は owning package と実行手順も更新する。包括的な品質ゲートはコミット依頼時にまとめて実行し、実 Browser・OS 固有操作・Unity Editor の検証結果は単体テストと区別する。
+文書更新後は Markdown の整形とローカルリンク・アンカーを検査し、削除済み計画への参照を残さない。包括的な品質ゲートはコミット依頼時にまとめて実行し、実 Browser・OS 固有操作・Unity Editor の検証結果は単体テストと区別する。Quest 実機の受け入れ検証と `pauseTimeout` は [M6 の未完了事項](./presentation-packages-implementation-plan.md) で扱い、この計画へ重複させない。
