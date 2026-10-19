@@ -1,3 +1,4 @@
+import type { CompilerSourceAssetBytes } from "./types.js";
 import { z } from "zod";
 import type {
   ComponentManifest,
@@ -128,10 +129,16 @@ const componentLockSchema = z.union([
 const assetCarrierSchema = z
   .object({
     id: nonEmptyStringSchema,
-    mediaType: z.enum(["font/ttf", "font/otf", "image/png", "image/jpeg"]),
+    mediaType: z.enum([
+      "font/ttf",
+      "font/otf",
+      "image/png",
+      "image/jpeg",
+      "model/gltf-binary",
+      "video/mp4",
+    ]),
     checksum: nonEmptyStringSchema,
     encodedSizeBytes: z.int().nonnegative(),
-    dataBase64: z.string(),
   })
   .strict();
 const assemblyInputSchema = z
@@ -366,6 +373,7 @@ const duplicateDiagnostics = <T>(
 /** Assembles source-free compiler declarations from a checked Authoring catalog and explicit carriers. */
 export const assembleDeclarationProjectValidated = (
   input: unknown,
+  sourceAssetBytes: CompilerSourceAssetBytes = {},
 ): ValidationResult<{
   project: CompilerDeclarationProject;
   checked: CheckedDeclarationProject;
@@ -567,7 +575,7 @@ export const assembleDeclarationProjectValidated = (
       value.assets as CompilerDeclarationProject["assets"],
     ) as CompilerDeclarationProject["assets"],
   };
-  const checked = checkDeclarationProject(project);
+  const checked = checkDeclarationProject(project, sourceAssetBytes);
   return checked.valid
     ? { valid: true as const, value: { project, checked: checked.value }, diagnostics: [] as const }
     : checked;
@@ -575,7 +583,8 @@ export const assembleDeclarationProjectValidated = (
 
 export const assembleDeclarationProject = (
   input: unknown,
+  sourceAssetBytes: CompilerSourceAssetBytes = {},
 ): ValidationResult<CompilerDeclarationProject> => {
-  const result = assembleDeclarationProjectValidated(input);
+  const result = assembleDeclarationProjectValidated(input, sourceAssetBytes);
   return result.valid ? { valid: true, value: result.value.project, diagnostics: [] } : result;
 };

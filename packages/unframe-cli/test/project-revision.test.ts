@@ -1,4 +1,5 @@
-import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { copyProjectFixture } from "./project-fixture.js";
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,9 +11,10 @@ const directories: string[] = [];
 const copyProject = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-revision-"));
   directories.push(directory);
-  await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
-    recursive: true,
-  });
+  await copyProjectFixture(
+    fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
+    directory,
+  );
   return directory;
 };
 afterEach(async () => {

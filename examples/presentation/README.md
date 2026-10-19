@@ -20,6 +20,8 @@ Style size 56, inline 64, Variant 68, and Part override 72.
 The fixture explicitly supplies its defaulted Props and Variant. Omitting `offset`, `showCard`, or
 `tone` uses the manifest default and emits a warning; `title` and the badge's `label` are required.
 
+The `reference-font` source is registered in `unframe.config.ts` and stored in `assets/reference-font.ttf`; its license is in `FONT-LICENSE.txt`. After changing a registered asset, run `lock refresh` explicitly before building.
+
 From the repository root, `check` validates the static Authoring Source without starting a Browser.
 `build` uses the provisioned Fixed Browser and atomically publishes `definition.json`,
 `render-bundle.json`, `asset-set.json`, `build-manifest.json`, and PNG/Font assets through the managed `dist` symlink.

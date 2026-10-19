@@ -581,6 +581,9 @@ importers:
       '@unframe/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@unframe/unframe-assets':
+        specifier: workspace:*
+        version: link:../unframe-assets
       '@unframe/unframe-compiler':
         specifier: workspace:*
         version: link:../unframe-compiler

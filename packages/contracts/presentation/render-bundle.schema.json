@@ -933,6 +933,10 @@
                             "minimum": 1,
                             "maximum": 9007199254740991
                           },
+                          "fit": {
+                            "type": "string",
+                            "enum": ["contain", "cover", "stretch"]
+                          },
                           "loop": {
                             "type": "boolean"
                           },
@@ -972,6 +976,7 @@
                           "mediaType",
                           "codec",
                           "durationMilliseconds",
+                          "fit",
                           "loop",
                           "alpha",
                           "audio",

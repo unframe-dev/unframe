@@ -99,18 +99,53 @@ export const validatePresentationArtifacts = (
 
   const definitionSurfaces = definitionResult.value.scene.surfaces;
   const bundleSurfaces = bundleResult.value.surfaces;
+  for (const [nodeId, node] of Object.entries(definitionResult.value.scene.nodes))
+    if (node.kind === "model" && !Object.hasOwn(bundleResult.value.models, node.assetId))
+      diagnostics.push(
+        diagnostic(
+          "reference.invalid",
+          `/scene/nodes/${pathSegment(nodeId)}/assetId`,
+          "Model Node must reference a compiled model entry.",
+        ),
+      );
+  const validateClipReference = (nodeId: string, clipId: string, path: string) => {
+    const node = definitionResult.value.scene.nodes[nodeId];
+    const model = node?.kind === "model" ? bundleResult.value.models[node.assetId] : undefined;
+    if (model && !Object.hasOwn(model.clips, clipId))
+      diagnostics.push(
+        diagnostic(
+          "reference.invalid",
+          path,
+          "Model clip must reference a clip in its compiled Model Asset.",
+        ),
+      );
+  };
   const mediaSurfaceIds = new Set<string>();
-  for (const group of Object.values(definitionResult.value.flow.groups))
-    for (const step of Object.values(group.steps))
-      for (const cue of step.cues) {
+  for (const [groupId, group] of Object.entries(definitionResult.value.flow.groups))
+    for (const [stepId, step] of Object.entries(group.steps))
+      for (const [cueIndex, cue] of step.cues.entries()) {
+        const cuePath = `/flow/groups/${pathSegment(groupId)}/steps/${pathSegment(stepId)}/cues/${cueIndex}`;
         if (cue.trigger.kind === "mediaCompleted") mediaSurfaceIds.add(cue.trigger.surfaceId);
-        for (const action of cue.actions)
+        if (cue.trigger.kind === "modelClipCompleted")
+          validateClipReference(
+            cue.trigger.nodeId,
+            cue.trigger.clipId,
+            `${cuePath}/trigger/clipId`,
+          );
+        for (const [actionIndex, action] of cue.actions.entries()) {
+          if (action.kind === "modelClip.play")
+            validateClipReference(
+              action.nodeId,
+              action.clipId,
+              `${cuePath}/actions/${actionIndex}/clipId`,
+            );
           if (
             action.kind === "media.play" ||
             action.kind === "media.pause" ||
             action.kind === "media.seek"
           )
             mediaSurfaceIds.add(action.surfaceId);
+        }
       }
   if (!sameSet(Object.keys(definitionSurfaces), Object.keys(bundleSurfaces)))
     diagnostics.push(

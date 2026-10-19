@@ -273,10 +273,10 @@ describe("M3C Cue invariants", () => {
     expect(codes(definition)).toEqual([]);
   });
 
-  it("rejects unsupported media producers and actions explicitly", () => {
+  it("rejects media producers and actions on a Surface without Video", () => {
     const { definition, cue } = fixture();
     cue.trigger = { kind: "mediaCompleted", surfaceId: "baked" };
     cue.actions = [{ kind: "media.play", surfaceId: "baked" }];
-    expect(codes(definition)).toContain("feature.unsupported");
+    expect(codes(definition)).toContain("behavior.invalid");
   });
 });

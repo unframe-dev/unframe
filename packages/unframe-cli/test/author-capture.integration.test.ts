@@ -1,3 +1,5 @@
+import { copyProjectFixture } from "./project-fixture.js";
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
@@ -82,7 +84,7 @@ const installFrozenGraph = async (directory: string) => {
 const createProject = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-author-capture-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);
   const loaded = loadUnframeLock(discovered.lockBytes);
@@ -94,6 +96,7 @@ const createProject = async () => {
     ...loaded.value.virtualSource,
   });
   assert(initial.valid);
+  await clearSourceAssetRegistration(directory, "presentation.unframe.tsx");
   const graph = await installFrozenGraph(directory);
   const sdkPackage = loaded.value.lock.packages.find(
     (pkg) => pkg.name === "@unframe/unframe-authoring",

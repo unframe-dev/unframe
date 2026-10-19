@@ -557,7 +557,7 @@ Generic renderer は Structure に宣言されていない Semantic Node、State
 
 authoring mode は Component version ごとに一つに固定し、renderer ごとに Structured / Opaque を切り替えない。Structured と Opaque の変更は公開 authoring contract の破壊的変更として Component version を更新する。migration metadata と自動変換の具体契約は M3A より後に定義する。
 
-Component lock v2 は Component ID / version、local file closure または package key / subpath の origin と Manifest hash を固定する。Structured では Structure hash、Opaque では rendererInputHash も固定する。ローカル Component に package version を補わない。正確な hash 入力は React Component 実行契約0節に従う。
+Component lock v3 は Component ID / version、local file closure または package key / subpath の origin と Manifest hash を固定する。Structured では Structure hash、Opaque では rendererInputHash も固定する。ローカル Component に package version を補わない。正確な hash 入力は React Component 実行契約0節に従う。
 
 Component Structure の共通 DSL 制約、parse / typecheck、static AST lowering は 6.1〜6.3 に従う。具体的な Primitive node union と property schema は Component contract で定義する。
 
@@ -582,7 +582,7 @@ Opaque Manifest は Action / Output lowering に必要な公開 Runtime target �
 
 Opaque renderer は Manifest の binding key に concrete geometry や artifact を対応付けるが、宣言済み target の意味や ID を変更できない。Compiler は Opaque Action / Output template の local target を `semantics` から解決し、参照先の欠落、ID や binding key の重複、必須 binding の未結合、renderer が追加した未宣言 binding を build error とする。
 
-Opaque の lock v2 は origin、Manifest hash と rendererInputHash を固定する。rendererInputHash は抽出 renderer、local 描画依存、runtime package graph、固定 tool identity から計算する。capture artifact の生成とその provenance は A2 で接続する。
+Opaque の lock v3 は origin、Manifest hash と rendererInputHash を固定する。rendererInputHash は抽出 renderer、local 描画依存、runtime package graph、固定 tool identity から計算する。capture artifact の生成とその provenance は A2 で接続する。
 
 Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure は、GUI の source mapping と意味論的 round-trip を成立させるため、静的解析できる制限付き DSL とする。Local Compiler は import、symbol、型を解決した検証済み AST から Declaration Graph へ直接 lower し、これらの source を JavaScript として実行しない。
 
@@ -2436,7 +2436,7 @@ Authoring では各 text と各 Surface State が Font Asset または Theme Fon
 
 ### 14.4 Video Artifact
 
-Video Artifact は Asset ID、checksum、duration、loop、alpha、audio、codec capability を保持する。Compiler は `loop` が対応する Video content nodeのState別effective値と一致し、`duration` が参照 Asset の実測 metadata と一致することを検証する。同じSurfaceの全Stateとvariantに対応するVideo artifactは同じdurationを持つ。現行Authoring/CompilerはVideo生成とAsset実測duration検証を未実装である。Runtime は admitted artifact の duration と現在StateのVideo content loop semantics を使い、codec capability や renderer acknowledgement によって `mediaCompleted` の時刻と有無を変えない。`audio` は Video file 内に audio track があることを示し、独立した Audio Asset や音声再生 state を参照しない。
+Video Artifact は Asset ID、checksum、duration、loop、fit、alpha、audio、codec capability を保持する。Compiler は `loop` が対応する Video content nodeのState別effective値と一致し、`duration` が参照 Asset の実測 metadata と一致することを検証する。同じSurfaceの全Stateとvariantに対応するVideo artifactは同じdurationを持つ。現行Authoring/CompilerはVideo生成と隔離FFmpeg worker経由のAsset実測duration検証を実装している。Runtime は admitted artifact の duration と現在StateのVideo content loop semantics を使い、codec capability や renderer acknowledgement によって `mediaCompleted` の時刻と有無を変えない。`audio` は Video file 内に audio track があることを示し、独立した Audio Asset や音声再生 state を参照しない。
 
 ### 14.5 Texture budget と residency
 
@@ -2501,7 +2501,7 @@ Unity Runtime
 
 Static lowering が参照できる入力は、Authoring Source、lock された Component package、Theme、Asset metadata、Compiler configuration に限定する。同じ source、lockfile、compiler version、configuration から同じ Declaration Graph と PresentationDefinition JSON を生成する。Opaque renderer artifact の Browser 実行は別の隔離境界とし、その capability と再現性は Rendering / Delivery contract で固定する。
 
-Local process は POSIX filesystem に限定し、明示された absolute project directory を root とする。同じ root の `unframe.config.ts` と `unframe.lock` を読み、上方探索はしない。config は非実行の data-only `export default { entryFile }`、lock v2 は local file hash と self-contained package bytes / graph を固定する。通常 check / build は node_modules / network を参照しない。`check` は React Component の公開契約・renderer 抽出と canonical Opaque Surface への変換までを検証する。build は Fixed Browser を使用し、Opaque Surface の capture は隔離 worker で実行する。成果物は `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と画像・Font assets であり、管理された `dist` を atomic replacement する。lock の明示更新と filesystem 規則は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、React 抽出境界は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。
+Local process は POSIX filesystem に限定し、明示された absolute project directory を root とする。同じ root の `unframe.config.ts` と `unframe.lock` を読み、上方探索はしない。configは`entryFile`と任意の`assets`登録を持つ非実行のdata-only default exportであり、lock v3はsource Assetのpath/hash/size、local file hashとself-contained package bytes / graphを固定する。通常 check / build は node_modules / network を参照しない。`check` は React Component の公開契約・renderer 抽出と canonical Opaque Surface への変換までを検証する。build は Fixed Browser を使用し、Opaque Surface の capture は隔離 worker で実行する。成果物は `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と画像・Font・GLB・MP4 assets であり、管理された `dist` を atomic replacement する。lock の明示更新と filesystem 規則は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、React 抽出境界は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。
 
 ### Control Plane
 
@@ -2586,8 +2586,10 @@ dist/
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
 - 現行 Web Editor は Slide ベースの PoC model を使用しており、target PresentationDefinitionへ未接続である。
 - Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
-- Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から v2 Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
+- Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から v2 Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font / GLB / MP4 bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
 - M3A の静的 Authoring subset では、型付き Theme token、Named Style、Props / Variants / Parts、Slot を使う Frame / Text composition と static lowering が実装済みである。
+
+- Model clipとVideoのAuthoring / Compiler / Local Coreを実装し、通常RuntimeとLocal Editorの共通Unity consumerがcanonical state / Run / logical clockから描画・再生する。
 
 ### Target（目標。初期contract subsetの一部だけが現行実装）
 
@@ -2600,7 +2602,6 @@ dist/
 - Component Manifest と package format
 - Structured / Opaque authoring mode
 - Spatial Tree / Surface Tree のcanonical schema（Stage、SurfaceNode、Frame / Text、State、baked-web Render Intentの初期subsetはJSON Schema Draft 2020-12として実装済み）
-- Model Asset 内蔵 animation clip の限定再生（v2 contract と Go Runtime actor は実装済み。Unity は Run state を検証するが、Model 描画 consumer は未実装）
 - Frame Layout、Theme、Token、Named Style
 - Surface Render Intent
 - RenderBundle（baked-web artifactの初期subsetは実装済み）

@@ -13,6 +13,8 @@ const analyze = (sourceText: string) => {
       data: `
 export const defineComponentStructure = (value: any): any => value;
 export const Surface = (props: any): any => props;
+export const Video = (props: any): any => props;
+export const Model = (props: any): any => props;
 export const Frame = (props: any): any => props;
 export const Text = (props: any): any => props;
 export const Slot = (props: any): any => props;
@@ -181,5 +183,36 @@ export default defineComponentStructure({ id: "s", componentId: "c", root, partB
     expect(normalizedBuilders).toMatchObject({ ok: true });
     if (!normalizedJsx.ok || !normalizedBuilders.ok) return;
     expect(normalizedJsx.value).toEqual(normalizedBuilders.value);
+  });
+});
+
+it("lowers JSX Model as a Component root", () => {
+  const analyzed = analyze(
+    'import {defineComponentStructure, Model} from "@unframe/unframe-authoring"; export default defineComponentStructure({id:"structure", componentId:"model-component", partBindings:{}, variantStyles:{}, timelines:[], root:<Model id="model" asset={{kind:"asset-ref",assetId:"mesh"}} />});',
+  );
+  const lowered = lowerAuthoringDeclarationFile(analyzed);
+  expect(lowered.ok).toBe(true);
+  if (!lowered.ok) throw new Error(JSON.stringify(lowered.diagnostics));
+  expect(normalizeDeclarationGraph(lowered.graph)).toMatchObject({
+    ok: true,
+    value: { root: { kind: "model", id: "model", asset: { kind: "asset-ref", assetId: "mesh" } } },
+  });
+});
+
+it("lowers JSX Video as Frame content without executing tags", () => {
+  const analyzed = analyze(
+    'import {defineComponentStructure,Frame,Video} from "@unframe/unframe-authoring"; export default defineComponentStructure({id:"structure",componentId:"video",partBindings:{},variantStyles:{},timelines:[],root:<Frame id="frame" layout={{kind:"absolute",x:0,y:0,width:10,height:10}}><Video id="movie" asset={{kind:"asset-ref",assetId:"movie"}} loop={false} /></Frame>});',
+  );
+  const lowered = lowerAuthoringDeclarationFile(analyzed);
+  expect(lowered.ok).toBe(true);
+  if (!lowered.ok) throw new Error(JSON.stringify(lowered.diagnostics));
+  expect(normalizeDeclarationGraph(lowered.graph)).toMatchObject({
+    ok: true,
+    value: {
+      root: {
+        kind: "frame",
+        children: [{ kind: "video", asset: { kind: "asset-ref", assetId: "movie" }, loop: false }],
+      },
+    },
   });
 });

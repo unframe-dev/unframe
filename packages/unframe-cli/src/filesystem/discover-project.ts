@@ -4,11 +4,12 @@ import { createHash } from "node:crypto";
 import { lstat, readlink } from "node:fs/promises";
 import type { LocalFileSnapshot } from "./frozen-local-files.js";
 import { acquireSourceLock } from "./source-lock.js";
-import { loadProjectConfig } from "./load-config.js";
+import { loadProjectConfig, type ProjectConfig } from "./load-config.js";
 import {
   projectDirectory,
   readDirectoryNames,
   readRegularFile,
+  readBoundedRegularFile,
   rootRelativePosix,
 } from "./path-policy.js";
 
@@ -20,6 +21,7 @@ type ProjectFailureCode =
   | "cli-project-discovery-invalid-directory"
   | "cli-project-discovery-missing-files"
   | "cli-config-invalid"
+  | "cli-source-asset-missing"
   | "cli-project-discovery-invalid-entry-file"
   | "cli-project-discovery-source-scan-failed";
 
@@ -30,6 +32,7 @@ export type DiscoveredProjectFiles =
       readonly ok: true;
       readonly projectDirectory: string;
       readonly entryFile: string;
+      readonly assetSources: ProjectConfig["assets"];
       readonly revision: string;
       readonly lockBytes: Uint8Array;
       readonly files: readonly ProjectSourceFile[];
@@ -61,11 +64,14 @@ const sourceFailure = () =>
 
 const scanAuthoringSources = async (
   root: string,
+  assetSources: ProjectConfig["assets"],
 ): Promise<
   { files: readonly ProjectSourceFile[]; localFiles: readonly LocalFileSnapshot[] } | undefined
 > => {
   const localFiles: LocalFileSnapshot[] = [];
   const files: ProjectSourceFile[] = [];
+  const assetPaths = new Set(Object.values(assetSources).map((source) => source.path));
+  let assetBytes = 0;
 
   const scan = async (directory: string): Promise<boolean> => {
     const names = await readDirectoryNames(directory);
@@ -94,8 +100,14 @@ const scanAuthoringSources = async (
         continue;
       }
 
-      const bytes = await readRegularFile(path);
+      const bytes = assetPaths.has(relativeName)
+        ? await readBoundedRegularFile(
+            path,
+            Math.min(64 * 1024 * 1024, 256 * 1024 * 1024 - assetBytes),
+          )
+        : await readRegularFile(path);
       if (!bytes) return false;
+      if (assetPaths.has(relativeName)) assetBytes += bytes.byteLength;
       if (relativeName !== "unframe.lock" && relativeName !== "unframe.config.ts")
         localFiles.push({ path: relativeName, bytes });
       if (!sourceFileName(name) || relativeName === "unframe.config.ts") continue;
@@ -131,20 +143,27 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
       "cli-project-discovery-missing-files",
       "Project root must contain regular unframe.config.ts and unframe.lock files.",
     );
-  const entryFile = loadProjectConfig(config);
-  if (!entryFile)
+  const projectConfig = loadProjectConfig(config);
+  if (!projectConfig)
     return failure(
       "cli-config-invalid",
       "Project config must be a data-only default export with entryFile.",
     );
+  const { entryFile, assets: assetSources } = projectConfig;
   const entryPath = rootRelativePosix(root, entryFile);
   if (!entryPath || !(await readRegularFile(entryPath)))
     return failure(
       "cli-project-discovery-invalid-entry-file",
       "Project entryFile must name a regular non-symbolic-link file within the project root.",
     );
-  const snapshot = await scanAuthoringSources(root);
+  const snapshot = await scanAuthoringSources(root, assetSources);
   if (!snapshot) return sourceFailure();
+  const paths = new Set(snapshot.localFiles.map((file) => file.path));
+  if (Object.values(assetSources).some((source) => !paths.has(source.path)))
+    return failure(
+      "cli-source-asset-missing",
+      "Every registered source Asset must exist in the project snapshot.",
+    );
   if (!snapshot.files.some((file) => file.fileName === entryFile))
     return failure(
       "cli-project-discovery-invalid-entry-file",
@@ -168,6 +187,7 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
     ok: true,
     projectDirectory: root,
     entryFile,
+    assetSources,
     revision,
     lockBytes: lock.slice(),
     ...snapshot,

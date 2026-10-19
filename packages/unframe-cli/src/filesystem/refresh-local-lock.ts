@@ -17,6 +17,7 @@ import { projectDirectory, readDirectoryNames, readRegularFile } from "./path-po
 import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { prepareProjectSource, StylePreparationError } from "./prepare-project.js";
+import { resolveProjectSourceAssets } from "./source-assets.js";
 
 type RefreshResult =
   | { ok: true; revision: string }
@@ -60,6 +61,12 @@ const refreshLocalProjectLockWithinScope = async (
     if (!config) return failure("cli-lock-refresh-failed", "Project config could not be read.");
     const loaded = loadUnframeLock(found.lockBytes);
     if (!loaded.ok) return failure(loaded.diagnostic.code, loaded.diagnostic.message);
+    const sourceAssets = await resolveProjectSourceAssets(
+      loaded.value.lock.assets,
+      found.assetSources,
+      found.localFiles,
+    );
+    if (!sourceAssets.ok) return failure(sourceAssets.code, sourceAssets.message);
     const prepared = await prepareProjectSource(found, loaded.value.lock, {
       refresh: true,
       ...(options.signal ? { signal: options.signal } : {}),
@@ -92,7 +99,11 @@ const refreshLocalProjectLockWithinScope = async (
     const bytes = new TextEncoder().encode(canonicalizeJsonPayload(next) + "\n");
     const validated = loadUnframeLock(bytes);
     if (!validated.ok) return failure(validated.diagnostic.code, validated.diagnostic.message);
-    const checked = checkAuthoringProjectAssembly(source, validated.value.assemblyCarrier);
+    const checked = checkAuthoringProjectAssembly(
+      source,
+      validated.value.assemblyCarrier,
+      sourceAssets.value.sourceAssetBytes,
+    );
     if (!checked.valid)
       return failure(
         "cli-lock-assembly-invalid",

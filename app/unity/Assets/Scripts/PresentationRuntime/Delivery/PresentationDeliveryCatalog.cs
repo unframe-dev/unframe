@@ -115,6 +115,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 if (required != RuntimeCapability.TimelineRun && required != RuntimeCapability.RuntimeTransport
                     && required != RuntimeCapability.SurfaceTransition && required != RuntimeCapability.Tracking
+                    && required != RuntimeCapability.ModelClip && required != RuntimeCapability.VideoPlayback
                     || !requiredCapabilities.Add(required))
                 {
                     return Fail("delivery capability is unsupported or duplicated.", out error);
@@ -244,6 +245,11 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!TryAdd(renderSurfaces, render == null ? null : render.RenderSurfaceId, render, "render surface", out error)) return false;
                 if (!IsId(render.SemanticSurfaceId) || !semanticSurfaces.ContainsKey(render.SemanticSurfaceId))
                     return Fail("delivery render surface references an unknown semantic surface.", out error);
+                if (render.RendererKind == RendererKind.Video)
+                {
+                    if (!TryValidateVideoSurface(render, surfaces[render.SemanticSurfaceId], assets, renderers?.Video, out error)) return false;
+                    continue;
+                }
                 bool baked = render.RendererKind == RendererKind.BakedWeb;
                 if (render.ArtifactContractVersion == 0 || renderers == null
                     || (baked ? renderers.BakedWeb == null || !renderers.BakedWeb.Supported
@@ -496,6 +502,33 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static bool Fail(string message, out string error) { error = message; return false; }
 
+        private static bool TryValidateVideoSurface(DeliveredRenderSurface render, ProjectedSurfaceDefinition surface,
+            Dictionary<string, AssetAccessBinding> assets, VideoCapability capability, out string error)
+        {
+            error = "delivery video artifact is invalid";
+            if (capability == null || !capability.Supported || capability.ContractVersion != 1 || render.ArtifactContractVersion != 1
+                || render.LogicalBounds == null || !IsCanonicalFinite(render.LogicalBounds.X) || !IsCanonicalFinite(render.LogicalBounds.Y)
+                || !IsCanonicalFinite(render.LogicalBounds.Width) || !IsCanonicalFinite(render.LogicalBounds.Height) || render.LogicalBounds.X < 0 || render.LogicalBounds.Y < 0
+                || render.LogicalBounds.Width <= 0 || render.LogicalBounds.Height <= 0
+                || render.LogicalBounds.X + render.LogicalBounds.Width > surface.LogicalSize.X || render.LogicalBounds.Y + render.LogicalBounds.Height > surface.LogicalSize.Y) return false;
+            var artifacts = new HashSet<string>();
+            foreach (var delivered in render.Artifacts)
+            {
+                var video = delivered.Video;
+                if (video == null || video.ContractVersion != 1 || !IsId(video.ArtifactId) || !artifacts.Add(video.ArtifactId) || !assets.TryGetValue(video.VideoAssetId, out var asset)
+                    || asset.MediaType != "video/mp4" || video.Checksum != asset.Checksum || video.EncodedSizeBytes != asset.EncodedSizeBytes
+                    || video.Fit != SurfaceFit.Contain && video.Fit != SurfaceFit.Cover && video.Fit != SurfaceFit.Stretch
+                    || video.Codec != VideoCodec.H264 || video.PixelSize == null || video.PixelSize.Width == 0 || video.PixelSize.Height == 0 || video.DurationMs == 0 || video.HasAlpha) return false;
+                var features = new HashSet<VideoFeature>(); foreach (var feature in video.RequiredFeatures)
+                    if (feature == VideoFeature.Unspecified || !capability.Features.Contains(feature) || !features.Add(feature)) return false;
+            }
+            var ids = new HashSet<string>(); foreach (var binding in render.StateBindings)
+                if (!ids.Add(binding.StateId) || !surface.ReachableStateIds.Contains(binding.StateId)
+                    || binding.BindingCase != DeliveredStateBinding.BindingOneofCase.Empty && (binding.BindingCase != DeliveredStateBinding.BindingOneofCase.Artifact
+                        || !artifacts.Contains(binding.Artifact.ArtifactId))) return false;
+            if (ids.Count != surface.ReachableStateIds.Count) return false;
+            error = null; return true;
+        }
         private static string ModelClipKey(string modelNodeId, string clipId) { return modelNodeId + "\n" + clipId; }
 
         private static void Replace<T>(Dictionary<string, T> target, Dictionary<string, T> source) { target.Clear(); foreach (KeyValuePair<string, T> pair in source) target.Add(pair.Key, pair.Value); }

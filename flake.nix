@@ -38,6 +38,7 @@
           pkgs.git-lfs
           pkgs.coreutils
           pkgs.bash
+          pkgs.ffmpeg
         ]
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.bubblewrap
@@ -97,7 +98,23 @@
             pkgs.stdenv.cc.cc
           ];
         };
-        nixLdEnvironment = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+        mediaRuntimeClosure = pkgs.closureInfo {
+          rootPaths = [
+            pkgs.nodejs_22
+            pkgs.bash
+            pkgs.ffmpeg
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.nix-ld
+            pkgs.glibc
+          ];
+        };
+        nixLdEnvironment = {
+          UNFRAME_FFMPEG_PATH = "${pkgs.ffmpeg}/bin/ffmpeg";
+          UNFRAME_FFPROBE_PATH = "${pkgs.ffmpeg}/bin/ffprobe";
+          UNFRAME_MEDIA_RUNTIME_CLOSURE = "${mediaRuntimeClosure}/store-paths";
+        }
+        // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
           NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
             [

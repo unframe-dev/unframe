@@ -46,6 +46,23 @@ afterEach(async () => {
 });
 
 describe("atomic artifact publication", () => {
+  it("publishes GLB bytes under an encoded logical Asset ID", async () => {
+    const directory = await project();
+    const bytes = Uint8Array.of(0x67, 0x6c, 0x54, 0x46);
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: {
+        ...artifacts(),
+        assets: [{ assetId: "models/chair", mediaType: "model/gltf-binary", bytes }],
+      },
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(
+      new Uint8Array(await readFile(join(directory, "dist/assets/models%2Fchair.glb"))),
+    ).toEqual(bytes);
+  });
+
   it("creates output directories inside the owned parent when its visible path is replaced", async () => {
     const directory = await project();
     const outside = await project();

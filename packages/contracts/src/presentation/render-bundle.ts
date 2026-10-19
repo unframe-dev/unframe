@@ -131,6 +131,7 @@ const videoArtifactSchema = z.strictObject({
   mediaType: z.literal("video/mp4"),
   codec: z.enum(["h264", "vp9", "av1"]),
   durationMilliseconds: positiveSafeUIntSchema,
+  fit: z.enum(["contain", "cover", "stretch"]),
   loop: z.boolean(),
   alpha: z.boolean(),
   audio: z.boolean(),

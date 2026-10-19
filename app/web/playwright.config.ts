@@ -32,7 +32,11 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
-          args: ["--enable-unsafe-swiftshader", "--use-angle=swiftshader-webgl"],
+          args: [
+            "--enable-unsafe-swiftshader",
+            "--use-angle=swiftshader-webgl",
+            "--autoplay-policy=document-user-activation-required",
+          ],
           ...(executablePath ? { executablePath } : {}),
         },
       },

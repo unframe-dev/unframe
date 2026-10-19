@@ -1,36 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 
-const MAX_SOURCE_ASSET_BYTES = 64 * 1024 * 1024;
-
-export const decodeCanonicalBase64 = (
-  value: string,
-  maxBytes = MAX_SOURCE_ASSET_BYTES,
-): Uint8Array | undefined => {
-  if (
-    !Number.isSafeInteger(maxBytes) ||
-    maxBytes < 0 ||
-    maxBytes > MAX_SOURCE_ASSET_BYTES ||
-    value.length > Math.ceil(maxBytes / 3) * 4
-  )
-    return undefined;
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value))
-    return undefined;
-  const decodedLength =
-    (value.length / 4) * 3 - (value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0);
-  if (decodedLength > maxBytes) return undefined;
-  try {
-    const decoded = atob(value);
-    const bytes = Uint8Array.from(decoded, (character) => character.charCodeAt(0));
-    let encoded = "";
-    for (let offset = 0; offset < bytes.length; offset += 0x8000)
-      encoded += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-    return btoa(encoded) === value ? bytes : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
 export const checksumBytes = (bytes: Uint8Array) => `sha256:${bytesToHex(sha256(bytes))}`;
 
 export const hasValidFontSignature = (bytes: Uint8Array, mediaType: string) =>
@@ -52,3 +22,30 @@ export const hasValidImageSignature = (bytes: Uint8Array, mediaType: string) =>
       bytes[0] === 0xff &&
       bytes[1] === 0xd8 &&
       bytes[2] === 0xff;
+
+export const encodeSourceAssetBase64 = (bytes: Uint8Array): string => {
+  let encoded = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000)
+    encoded += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  return btoa(encoded);
+};
+
+export const hasValidModelHeader = (bytes: Uint8Array): boolean => {
+  if (bytes.length < 20) return false;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return (
+    view.getUint32(0, true) === 0x46546c67 &&
+    view.getUint32(4, true) === 2 &&
+    view.getUint32(8, true) === bytes.length &&
+    view.getUint32(16, true) === 0x4e4f534a &&
+    view.getUint32(12, true) <= bytes.length - 20
+  );
+};
+
+export const hasValidVideoHeader = (bytes: Uint8Array): boolean =>
+  bytes.length >= 12 &&
+  new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0, false) >= 8 &&
+  bytes[4] === 0x66 &&
+  bytes[5] === 0x74 &&
+  bytes[6] === 0x79 &&
+  bytes[7] === 0x70;

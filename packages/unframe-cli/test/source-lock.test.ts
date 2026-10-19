@@ -1,4 +1,5 @@
-import { mkdtemp, rm, writeFile, readFile, cp } from "node:fs/promises";
+import { copyProjectFixture } from "./project-fixture.js";
+import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,9 +16,10 @@ afterEach(async () => {
 it("prevents readers from observing a source save and leaves its revision unchanged after release", async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-source-lease-"));
   directories.push(directory);
-  await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
-    recursive: true,
-  });
+  await copyProjectFixture(
+    fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
+    directory,
+  );
   const before = await discoverPresentationProjectFiles(directory);
   assert(before.ok);
   const acquired = await acquireSourceLock(directory);
@@ -45,9 +47,10 @@ it("does not remove an existing lease", async () => {
 it("waits for a Host reader lease, then snapshots the released revision", async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-source-wait-"));
   directories.push(directory);
-  await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
-    recursive: true,
-  });
+  await copyProjectFixture(
+    fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
+    directory,
+  );
   const lease = await acquireSourceLock(directory);
   assert(lease.ok);
   const waiting = discoverPresentationProjectFiles(directory, { waitTimeoutMs: 5000 });
@@ -74,9 +77,10 @@ it("bounds a Host lease wait and cancels it without removing the current owner's
 it("rejects a changed revision after the Host waited for a reader lease", async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-source-wait-"));
   directories.push(directory);
-  await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
-    recursive: true,
-  });
+  await copyProjectFixture(
+    fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
+    directory,
+  );
   const before = await discoverPresentationProjectFiles(directory);
   assert(before.ok);
   const lease = await acquireSourceLock(directory);

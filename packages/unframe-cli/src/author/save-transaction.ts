@@ -216,7 +216,7 @@ const removePrivateDirectory = async (path: string) => {
 const jsonBytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 const selectedEntryFile = async (root: string) => {
   const config = await readRegularFile(join(root, "unframe.config.ts"));
-  const entryFile = config ? loadProjectConfig(config) : undefined;
+  const entryFile = config ? loadProjectConfig(config)?.entryFile : undefined;
   if (!entryFile || !rootRelativePosix(root, entryFile))
     throw new Error("Author project entry is invalid.");
   return entryFile;

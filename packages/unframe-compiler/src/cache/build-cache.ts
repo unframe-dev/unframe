@@ -1,3 +1,4 @@
+import { MODEL_COMPILER_LIMITS } from "../api/compile-model-assets.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import {
@@ -117,10 +118,36 @@ export const readCachedBuild = async (
     }
     if (Object.keys(value.assets).length !== Object.keys(value.assetSet.assets).length)
       return undefined;
+    const expectedModelIds = Object.entries(checked.assetSet.assets)
+      .filter(([, asset]) => asset.mediaType === "model/gltf-binary")
+      .map(([id]) => id)
+      .sort();
+    if (
+      canonicalizeJsonPayload(Object.keys(value.renderBundle.models).sort()) !==
+      canonicalizeJsonPayload(expectedModelIds)
+    )
+      return undefined;
+    for (const id of expectedModelIds) {
+      const model = value.renderBundle.models[id];
+      if (
+        !model ||
+        model.assetId !== id ||
+        model.encodedSizeBytes > MODEL_COMPILER_LIMITS.maxOutputBytes ||
+        model.nodeCount > MODEL_COMPILER_LIMITS.maxNodes ||
+        model.primitiveCount > MODEL_COMPILER_LIMITS.maxPrimitives ||
+        model.vertexCount > MODEL_COMPILER_LIMITS.maxVertices ||
+        model.triangleCount > MODEL_COMPILER_LIMITS.maxTriangles ||
+        model.maxBonesPerSkin > MODEL_COMPILER_LIMITS.maxBonesPerSkin ||
+        model.maxMorphTargetsPerPrimitive > MODEL_COMPILER_LIMITS.maxMorphTargetsPerPrimitive ||
+        model.animationClipCount > MODEL_COMPILER_LIMITS.maxAnimationClips
+      )
+        return undefined;
+    }
     for (const [assetId, descriptor] of Object.entries(checked.assetSet.assets))
       if (
+        descriptor.mediaType !== "model/gltf-binary" &&
         canonicalizeJsonPayload(value.assetSet.assets[assetId]) !==
-        canonicalizeJsonPayload(descriptor)
+          canonicalizeJsonPayload(descriptor)
       )
         return undefined;
     if (!validatePresentationArtifacts(checked.definition, value.renderBundle).valid)

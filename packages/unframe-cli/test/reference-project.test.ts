@@ -1,5 +1,5 @@
+import { copyProjectFixture } from "./project-fixture.js";
 import {
-  cp,
   lstat,
   mkdtemp,
   readFile,
@@ -28,6 +28,8 @@ import { discoverPresentationProjectFiles } from "../src/filesystem/discover-pro
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import { refreshLocalProjectLock } from "../src/filesystem/refresh-local-lock.js";
 import { acquireBuildLock } from "../src/filesystem/build-lock.js";
+import { lockSourceAssets } from "../src/filesystem/source-assets.js";
+import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const referenceDirectory = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -38,11 +40,7 @@ const temporaryDirectories: string[] = [];
 const projectCopy = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-reference-project-"));
   temporaryDirectories.push(directory);
-  await cp(referenceDirectory, directory, {
-    recursive: true,
-    filter: (path) =>
-      path !== join(referenceDirectory, ".unframe") && path !== join(referenceDirectory, "dist"),
-  });
+  await copyProjectFixture(referenceDirectory, directory);
   return directory;
 };
 
@@ -287,7 +285,7 @@ describe("reference Authoring Project", () => {
   }, 30000);
   it("keeps canonical definitions identical while recording distinct source inputs", async () => {
     const directory = await projectCopy();
-    const { checked, source, loaded } = await checkedProject(directory);
+    const { checked, source, loaded, discovered } = await checkedProject(directory);
     const declarations = [
       { ...checked.value.presentation, builder: "definePresentation" },
       ...checked.value.themes.map((theme) => ({ ...theme, builder: "defineTheme" })),
@@ -306,15 +304,24 @@ describe("reference Authoring Project", () => {
         sourceText: `import { ${builder} } from "@unframe/unframe-authoring";\nexport default ${builder}(${JSON.stringify(value)});\n`,
       })),
     };
-    const composed = checkAuthoringProjectAssembly(source, loaded.value.assemblyCarrier);
+    const sourceAssetBytes = sourceAssetBytesFor(discovered, loaded.value.lock.assets);
+    const composed = checkAuthoringProjectAssembly(
+      source,
+      loaded.value.assemblyCarrier,
+      sourceAssetBytes,
+    );
     const literalCatalog = checkAuthoringProject(literal);
     assert(literalCatalog.valid);
     const inputs = computeFrozenComponentInputs(literal, literalCatalog.value);
     assert(inputs.valid);
-    const direct = checkAuthoringProjectAssembly(literal, {
-      ...loaded.value.assemblyCarrier,
-      ...inputs.value,
-    });
+    const direct = checkAuthoringProjectAssembly(
+      literal,
+      {
+        ...loaded.value.assemblyCarrier,
+        ...inputs.value,
+      },
+      sourceAssetBytes,
+    );
     expect(composed.valid ? [] : composed.diagnostics).toEqual([]);
     expect(direct.valid ? [] : direct.diagnostics).toEqual([]);
     if (!composed.valid || !direct.valid) return;
@@ -419,16 +426,20 @@ describe("reference Authoring Project", () => {
 
   it("reports malformed font tables as a renderer error without capturing", async () => {
     const directory = await projectCopy();
-    const path = join(directory, "unframe.lock");
-    const lock = JSON.parse(await readFile(path, "utf8"));
-    lock.assets[lock.assets.findIndex((asset: { id: string }) => asset.id === "reference-font")] = {
-      id: "reference-font",
-      mediaType: "font/ttf",
-      dataBase64: "AAEAAAAAAAAAAAAA",
-      size: 12,
-      hash: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
-    };
-    await writeFile(path, canonicalizeJsonPayload(lock) + "\n");
+    await writeFile(
+      join(directory, "assets/reference-font.ttf"),
+      Buffer.from("AAEAAAAAAAAAAAAA", "base64"),
+    );
+    const discovered = await discoverPresentationProjectFiles(directory);
+    assert(discovered.ok);
+    const loaded = loadUnframeLock(discovered.lockBytes);
+    assert(loaded.ok);
+    const updatedAssets = lockSourceAssets(discovered.assetSources, discovered.localFiles);
+    assert(updatedAssets.ok);
+    await writeFile(
+      join(directory, "unframe.lock"),
+      canonicalizeJsonPayload({ ...loaded.value.lock, assets: updatedAssets.value.assets }) + "\n",
+    );
     const browser = fakeBrowser();
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
@@ -443,11 +454,10 @@ describe("reference Authoring Project", () => {
   });
   it("rejects corrupted font source bytes before opening a Browser", async () => {
     const directory = await projectCopy();
-    const lockPath = join(directory, "unframe.lock");
-    const lock = JSON.parse(await readFile(lockPath, "utf8"));
-    lock.assets.find((asset: { id: string }) => asset.id === "reference-font").dataBase64 =
-      "AAEAAAAAAAAAAAAA";
-    await writeFile(lockPath, canonicalizeJsonPayload(lock) + "\n");
+    await writeFile(
+      join(directory, "assets/reference-font.ttf"),
+      Buffer.from("AAEAAAAAAAAAAAAA", "base64"),
+    );
     let calls = 0;
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
@@ -609,10 +619,11 @@ describe("reference Authoring Project", () => {
     const sourceLock = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
     expect(
       (await readFile(join(directory, "dist/assets/reference-font.ttf"))).equals(
-        Buffer.from(
-          sourceLock.assets.find((asset: { id: string }) => asset.id === "reference-font")
-            .dataBase64,
-          "base64",
+        await readFile(
+          join(
+            directory,
+            sourceLock.assets.find((asset: { id: string }) => asset.id === "reference-font").path,
+          ),
         ),
       ),
     ).toBe(true);

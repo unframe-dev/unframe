@@ -130,7 +130,8 @@ Native UI は group と単一行 text だけを持つ。一つの root から全
 glyph closure、font fallback、semantic text、truncate は Architecture §14.3 に従う。使用 feature
 と `requiredFeatures` を完全一致させる。
 
-Video は一つの Video Asset、duration、loop、codec、alpha、file 内 audio track の有無を持つ。
+Video は一つの Video Asset、duration、loop、fit、codec、alpha、file 内 audio track の有無を持つ。
+fitはcontain / cover / stretchを必須とし、containは枠内へ縦横比を保って配置、coverは枠を満たしてUVを切り抜き、stretchは枠全体へ伸縮する。
 独立 Audio Asset、Action、State、capability は持たない。codec feature は一つだけとし、
 `alpha`/`audio` は対応 track が実在する場合だけ要求する。v2 の基本 Delivery profile が admit
 するのは H.264、alpha なしだけとし、同 profile は VP9、AV1、alpha を supported と申告しない。
@@ -141,6 +142,12 @@ interlace、10/12 bit、4:2:2、4:4:4を拒否する。音声 track は任意で
 AAC-LC（MPEG-4 Audio Object Type 2）、48 kHz、mono または stereo に限定する。Compiler は MP4
 container と各 elementary stream を parse してこの値を検証し、file extension や codec 名だけで
 判定しない。
+
+MP4のdurationはedit list適用後のpacket endから音声discard paddingを除いて有理数で算出し、stream/containerと一致させた後にミリ秒へ切り上げる。DTSとdecoded frame PTSは各trackで単調増加し、B-frameによるpacket PTSの並べ替えは許可する。
+
+Modelはimport前にGLBのencoded/accessor展開bytesを各64 MiB、JSONを4 MiB / 100万token / depth64、Node階層を256に制限する。全meshのdecoded geometryには `Σ(vertices × (160 + morphTargets × 48) + indices × 4) ≤ 64 MiB` の絶対上限を適用する。animation曲線もchannelごとにkey数×curve成分数×64 bytesを合計して64 MiBまでとする。weightsの成分数はmorph幅×primitive数、targetNamesはmorph幅と一致させる。selected sceneのdescriptorに含まれないresourceもimporterのallocation検査から除外しない。
+
+Modelのvertex属性はPOSITION / NORMAL / TANGENT / COLOR_0 / JOINTS_0 / WEIGHTS_0 / TEXCOORD_0..7に限定し、material textureはTEXCOORD_0を使用する。追加influence・color set・UV set、materialの別UV選択は黙って切り捨てず診断する。
 
 Model は自己完結した `model/gltf-binary` とする。material は glTF 2.0 PBR metallic-roughness または
 unlit、alpha は opaque/mask/blend に限定し、`alphaCutoff` は mask の場合だけ存在させる。

@@ -81,7 +81,7 @@ export const startAuthorHost = async ({
     response.setHeader("referrer-policy", "no-referrer");
     response.setHeader(
       "content-security-policy",
-      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
+      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
     );
     void (async () => {
       if (request.headers.host !== authority)

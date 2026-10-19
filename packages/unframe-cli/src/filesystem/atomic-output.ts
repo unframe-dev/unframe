@@ -227,6 +227,8 @@ const atomicFilesystem = (filesystem: NativeFilesystem) => {
         ["image/jpeg", "jpg"],
         ["font/ttf", "ttf"],
         ["font/otf", "otf"],
+        ["model/gltf-binary", "glb"],
+        ["video/mp4", "mp4"],
       ]).get(asset.mediaType);
       if (!extension) fail();
       const path = `assets/${encodedAssetId}.${extension}`;

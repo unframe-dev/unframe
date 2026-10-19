@@ -10,6 +10,9 @@ export type {
 } from "./model/transform-glb.js";
 export { MODEL_ABSOLUTE_LIMITS } from "./model/input.js";
 export { MODEL_STRUCTURE_LIMITS } from "./model/structure.js";
+export { VIDEO_VALIDATION_IDENTITY } from "./video/types.js";
+export type { VideoMetadata } from "./video/types.js";
+export { validateMp4Inspection } from "./video/validate-mp4-inspection.js";
 
 export type {
   EncodedTextureArtifact,

@@ -31,8 +31,8 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
     public async Task DeliveryRequestPinsCapabilityAndUsesAFreshProcessCredential()
     {
         DeliveryManifest manifest = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        manifest.CapabilityProfile.CapabilityProfileId = "quest-baked-web-v1";
-        manifest.ProjectionProfile.Key.CapabilityProfileId = "quest-baked-web-v1";
+        manifest.CapabilityProfile.CapabilityProfileId = "unity-media-v1";
+        manifest.ProjectionProfile.Key.CapabilityProfileId = "unity-media-v1";
         string session = manifest.SessionId;
         int credentials = 0;
         Worker worker = new Worker
@@ -43,7 +43,7 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
                 Assert.That(request.RequestUri.AbsolutePath, Is.EqualTo("/sessions/" + Uri.EscapeDataString(session) + "/delivery"));
                 Assert.That(request.Headers.Authorization.Scheme, Is.EqualTo("Bearer"));
                 Assert.That(request.Headers.Authorization.Parameter, Is.EqualTo("credential-" + credentials));
-                Assert.That(request.Content.ReadAsStringAsync().GetAwaiter().GetResult(), Is.EqualTo("{\"capabilityProfileId\":\"quest-baked-web-v1\"}"));
+                Assert.That(request.Content.ReadAsStringAsync().GetAwaiter().GetResult(), Is.EqualTo("{\"capabilityProfileId\":\"unity-media-v1\"}"));
                 ByteArrayContent content = new ByteArrayContent(manifest.ToByteArray());
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-protobuf");
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };

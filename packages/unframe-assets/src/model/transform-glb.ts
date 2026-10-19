@@ -6,7 +6,12 @@ import { validateBytes } from "./gltf-validator.js";
 import { z } from "zod";
 import type { RenderBundle, ValidationResult } from "@unframe/unframe-core";
 import { snapshotModelInput } from "./input.js";
-import { checkModelStructure } from "./structure.js";
+import {
+  checkModelAnimationAllocation,
+  checkModelAttributes,
+  checkModelStructure,
+  MODEL_STRUCTURE_LIMITS,
+} from "./structure.js";
 
 export type ModelLimits = {
   maxInputBytes: number;
@@ -34,8 +39,9 @@ export type TransformedModel = {
 };
 export const MODEL_TRANSFORM_IDENTITY = Object.freeze({
   transformerId: "unframe-glb",
-  version: "1",
-  fingerprint: "gltf-transform-4.5.1-validator-dev3.10-root-tr-v1",
+  version: "2",
+  fingerprint:
+    "gltf-transform-4.5.1-validator-dev3.10-unity-media-geometry160-morph48-curves64-uv0-v2",
 });
 
 const invalid = (
@@ -189,6 +195,16 @@ export const transformGlb = async (input: unknown): Promise<ValidationResult<Tra
     .registerExtensions([KHRMaterialsUnlit])
     .setLogger(new Logger(Logger.Verbosity.SILENT));
   const source = request.bytes;
+  if (
+    source.length >= 20 &&
+    new DataView(source.buffer, source.byteOffset, source.length).getUint32(12, true) >
+      MODEL_STRUCTURE_LIMITS.maxJsonBytes
+  )
+    return invalid(
+      "model-budget-exceeded",
+      ["bytes", "json"],
+      "GLB JSON exceeds the chunk byte limit.",
+    );
   let document: Document;
   let decodedAccessorBytes = 0;
   try {
@@ -224,11 +240,72 @@ export const transformGlb = async (input: unknown): Promise<ValidationResult<Tra
           "Decoded accessors exceed their allocation budget.",
         );
     }
+    const attributeIssue = checkModelAttributes(json);
+    if (attributeIssue) return { valid: false, diagnostics: [attributeIssue] };
+    const animationIssue = checkModelAnimationAllocation(json);
+    if (animationIssue) return { valid: false, diagnostics: [animationIssue] };
+    let geometryBytes = 0,
+      wholePrimitives = 0,
+      wholeVertices = 0,
+      wholeTriangles = 0;
+    for (const mesh of json.meshes ?? [])
+      for (const primitive of mesh.primitives) {
+        const vertices = json.accessors?.[primitive.attributes.POSITION!]?.count ?? 0;
+        const sourceIndices =
+          primitive.indices === undefined
+            ? vertices
+            : (json.accessors?.[primitive.indices]?.count ?? 0);
+        const indices =
+          primitive.mode === 5 || primitive.mode === 6
+            ? Math.max(0, sourceIndices - 2) * 3
+            : sourceIndices;
+        const targets = primitive.targets?.length ?? 0;
+        geometryBytes += vertices * (160 + targets * 48) + indices * 4;
+        wholePrimitives++;
+        wholeVertices += vertices;
+        wholeTriangles += indices / 3;
+        if (!Number.isSafeInteger(geometryBytes) || geometryBytes > 64 * 1024 * 1024)
+          return invalid(
+            "model-budget-exceeded",
+            ["bytes", "geometry"],
+            "Decoded geometry exceeds the absolute allocation budget.",
+          );
+      }
     const report = validationReportSchema.parse(
       await validateBytes(source, { format: "glb", maxIssues: 64, writeTimestamp: false }),
     );
     if (report.issues.numErrors || report.issues.truncated)
       return invalid("model-invalid-glb", ["bytes"], "GLB failed glTF specification validation.");
+    for (const [field, count] of [
+      ["maxPrimitives", wholePrimitives],
+      ["maxVertices", wholeVertices],
+      ["maxTriangles", wholeTriangles],
+    ] as const)
+      if (count > request.limits[field])
+        return invalid(
+          "model-budget-exceeded",
+          ["limits", field],
+          "Whole GLB meshes exceed their allocation budget.",
+        );
+    if (
+      json.meshes?.some((mesh) =>
+        mesh.primitives.some(
+          (primitive) =>
+            (primitive.targets?.length ?? 0) > request.limits.maxMorphTargetsPerPrimitive,
+        ),
+      )
+    )
+      return invalid(
+        "model-budget-exceeded",
+        ["limits", "maxMorphTargetsPerPrimitive"],
+        "Whole GLB meshes exceed their morph budget.",
+      );
+    if (json.skins?.some((skin) => skin.joints.length > request.limits.maxBonesPerSkin))
+      return invalid(
+        "model-budget-exceeded",
+        ["bytes", "skins"],
+        "Whole GLB skins exceed their bone budget.",
+      );
     if (hasUnknownExtension(json))
       return invalid(
         "model-extension-unsupported",
@@ -255,6 +332,39 @@ export const transformGlb = async (input: unknown): Promise<ValidationResult<Tra
   if (!scene)
     return invalid("model-scene-required", ["bytes", "scene"], "GLB must select a default scene.");
   const roots = new Set(scene.listChildren());
+  for (const accessor of document.getRoot().listAccessors()) accessor.setSparse(false);
+  for (const mesh of document.getRoot().listMeshes()) {
+    for (const primitive of mesh.listPrimitives()) {
+      const mode = primitive.getMode();
+      if (mode !== 5 && mode !== 6) continue;
+      const indices = primitive.getIndices();
+      const count = indices?.getCount() ?? primitive.getAttribute("POSITION")?.getCount() ?? 0;
+      const triangleCount = Math.max(0, count - 2);
+      const byteCount = triangleCount * 3 * 4;
+      if (
+        triangleCount > request.limits.maxTriangles ||
+        byteCount + decodedAccessorBytes > request.limits.maxDecodedAccessorBytes
+      )
+        return invalid(
+          "model-budget-exceeded",
+          ["limits", "maxDecodedAccessorBytes"],
+          "Triangulated indices exceed their allocation budget.",
+        );
+      const array = new Uint32Array(triangleCount * 3);
+      const at = (index: number) => indices?.getScalar(index) ?? index;
+      for (let index = 2; index < count; index++) {
+        const offset = (index - 2) * 3;
+        array[offset] = at(mode === 6 ? 0 : index % 2 === 0 ? index - 2 : index - 1);
+        array[offset + 1] = at(mode === 6 ? index - 1 : index % 2 === 0 ? index - 1 : index - 2);
+        array[offset + 2] = at(index);
+      }
+      const buffer = primitive.getAttribute("POSITION")!.getBuffer();
+      primitive
+        .setIndices(document.createAccessor().setType("SCALAR").setArray(array).setBuffer(buffer))
+        .setMode(4);
+      decodedAccessorBytes += byteCount;
+    }
+  }
   const reachable = new Set<ReturnType<Document["createNode"]>>();
   scene.traverse((node) => reachable.add(node));
   for (const animation of document.getRoot().listAnimations()) {

@@ -99,11 +99,6 @@ export const runtimeRunSnapshotSchema = z.discriminatedUnion("kind", [
     completion: z.enum(["blocking", "nonBlocking"]),
   }),
 ]);
-const m3dRunSchema = z.discriminatedUnion("kind", [
-  runtimeRunSnapshotSchema.options[0],
-  runtimeRunSnapshotSchema.options[1],
-]);
-
 const pendingNextSchema = z.union([
   z.strictObject({ kind: z.literal("stay") }),
   z.strictObject({ kind: z.literal("end") }),
@@ -218,12 +213,7 @@ const runtimeResources = {
   variables: z.record(idSchema, scalarSchema),
   activeRuns: z.array(runtimeRunSnapshotSchema),
 };
-const m3dRuntimeResources = {
-  ...runtimeResources,
-  mediaStates: z.strictObject({}),
-  modelClipStates: z.strictObject({}),
-  activeRuns: z.array(m3dRunSchema),
-};
+const m3dRuntimeResources = runtimeResources;
 
 export const m3dCueRuntimeSnapshotSchema = z.strictObject({
   schemaVersion: z.literal(2),

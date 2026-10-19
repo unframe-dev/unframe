@@ -235,6 +235,7 @@
               "encodedSizeBytes": 64,
               "codec": "h264",
               "durationMilliseconds": 1000,
+              "fit": "stretch",
               "loop": false,
               "alpha": false,
               "audio": false,

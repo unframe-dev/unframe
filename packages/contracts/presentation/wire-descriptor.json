@@ -1744,6 +1744,10 @@
                 "hasAlpha": {
                   "type": "bool",
                   "id": 15
+                },
+                "fit": {
+                  "type": "unframe.presentation.SurfaceFit",
+                  "id": 16
                 }
               },
               "reserved": [
@@ -5108,6 +5112,14 @@
                 "textureResidency": {
                   "type": "unframe.delivery.TextureResidencyPlan",
                   "id": 9
+                },
+                "modelResidency": {
+                  "type": "unframe.delivery.ModelResidencyPlan",
+                  "id": 10
+                },
+                "videoResidency": {
+                  "type": "unframe.delivery.VideoResidencyPlan",
+                  "id": 11
                 }
               }
             },
@@ -5122,6 +5134,16 @@
                   "rule": "repeated",
                   "type": "unframe.realtime.SurfaceRuntimeState",
                   "id": 2
+                },
+                "mediaStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.MediaRuntimeState",
+                  "id": 3
+                },
+                "modelClipStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.ModelClipRuntimeState",
+                  "id": 4
                 }
               }
             },
@@ -5157,6 +5179,16 @@
                 "currentGroupId": {
                   "type": "string",
                   "id": 7
+                },
+                "mediaStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.MediaRuntimeState",
+                  "id": 8
+                },
+                "modelClipStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.ModelClipRuntimeState",
+                  "id": 9
                 }
               }
             },

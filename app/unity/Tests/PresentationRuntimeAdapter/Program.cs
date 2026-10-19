@@ -211,13 +211,15 @@ static class Program
     private static void CheckFullSnapshotCut()
     {
         var store = new PresentationRuntimeDataStore();
-        Require(store.TryReceiveDelivery(LoadDelivery(), out string error), error);
+        DeliveryManifest delivery = LoadDelivery();
         ControlServerItem snapshot = LoadSnapshot();
+        AddVideoFixture(delivery, snapshot);
+        Require(store.TryReceiveDelivery(delivery, out string error), error);
         ParticipantRuntimeView view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
         view.Clock = new RuntimeClockSnapshot { RuntimeTimeMs = 42, Running = new Running() };
         view.Progression = new ProgressionRuntimeState { CurrentGroupId = "group:local", GroupEntryEpoch = 1, CurrentStepId = "step:local", StepEntryEpoch = 1, Stable = new StableProgression() };
         view.PresentationOrigin = new PresentationOrigin { Version = 0, Pose = new Pose { Position = new Vector3(), Rotation = new Quaternion { W = 1 } } };
-        view.MediaStates.Add(new MediaRuntimeState { SurfaceId = "semantic-surface:text-greeting", Stopped = new MediaStoppedState { HeldPositionMs = 12 } });
+        view.MediaStates[0].Stopped.HeldPositionMs = 12;
         view.ActiveRuns.Add(new RuntimeRunSnapshot
         {
             RunId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 1 },
@@ -228,6 +230,8 @@ static class Program
         });
 
         Require(store.TryReceiveControl(snapshot.ToByteArray(), out error), error);
+        Require(store.TryGetMediaState("surface:adapter-video", out MediaRuntimeState media) && media.Stopped.HeldPositionMs == 12, "snapshot Media state was lost");
+        Require(store.TryGetModelClipState("node:cube", out ModelClipRuntimeState model) && model.StateCase == ModelClipRuntimeState.StateOneofCase.DefaultPose, "snapshot Model default pose was lost");
         Require(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope retained)
             && retained.Equals(snapshot.ConnectionSnapshot), "full snapshot cut was lost");
         retained.Snapshot.RuntimeView.Clock.RuntimeTimeMs = 99;
@@ -244,8 +248,10 @@ static class Program
     private static void CheckRunStateClosure()
     {
         var store = new PresentationRuntimeDataStore();
-        Require(store.TryReceiveDelivery(LoadDelivery(), out string error), error);
+        DeliveryManifest delivery = LoadDelivery();
         ControlServerItem snapshot = LoadSnapshot();
+        AddVideoFixture(delivery, snapshot);
+        Require(store.TryReceiveDelivery(delivery, out string error), error);
         RuntimeRunId runId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 1 };
         var run = new RuntimeRunSnapshot
         {
@@ -255,20 +261,21 @@ static class Program
             Completion = RunCompletion.NonBlocking,
             Media = new MediaRunSnapshot
             {
-                SurfaceId = "semantic-surface:text-greeting",
+                SurfaceId = "surface:adapter-video",
                 Playback = new PlaybackClock { Paused = new PausedClock { PositionMs = 12 } },
             },
         };
         ParticipantRuntimeView view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
         view.ActiveRuns.Add(run);
-        view.MediaStates.Add(new MediaRuntimeState
-        {
-            SurfaceId = run.Media.SurfaceId,
-            Stopped = new MediaStoppedState { HeldPositionMs = 12 },
-        });
+        view.MediaStates[0].Stopped.HeldPositionMs = 12;
         Require(!store.TryReceiveControl(snapshot.ToByteArray(), out _), "stopped media state accepted an active Run");
         view.MediaStates[0].Active = new MediaActive { RunId = runId.Clone(), Playback = run.Media.Playback.Clone() };
         Require(store.TryReceiveControl(snapshot.ToByteArray(), out error), error);
+
+        ControlServerItem nonVideo = snapshot.Clone();
+        nonVideo.ConnectionSnapshot.Snapshot.RuntimeView.ActiveRuns[0].Media.SurfaceId = "semantic-surface:text-greeting";
+        nonVideo.ConnectionSnapshot.Snapshot.RuntimeView.MediaStates[0].SurfaceId = "semantic-surface:text-greeting";
+        Require(!store.TryReceiveControl(nonVideo.ToByteArray(), out _), "a text Surface accepted Media playback state");
 
         ControlServerItem missingClock = snapshot.Clone();
         missingClock.ConnectionSnapshot.Snapshot.RuntimeView.Clock = null;
@@ -306,11 +313,8 @@ static class Program
             Completion = RunCompletion.NonBlocking,
             ModelClip = new ModelClipRunSnapshot { ModelNodeId = "node:cube", Single = playback },
         });
-        snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState
-        {
-            ModelNodeId = "node:cube",
-            Active = new ModelClipActive { RunId = runId.Clone() },
-        });
+        foreach (ModelClipRuntimeState state in snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates)
+            if (state.ModelNodeId == "node:cube") state.Active = new ModelClipActive { RunId = runId.Clone() };
         Require(!store.TryReceiveControl(snapshot.ToByteArray(), out _), "non-loop raw position beyond duration was accepted");
         playback.Loop = true;
         Require(store.TryReceiveControl(snapshot.ToByteArray(), out error), error);
@@ -340,6 +344,37 @@ static class Program
         Require(!store.TryReceiveControl(snapshot.ToByteArray(), out _), "crossfade at its transition deadline was accepted");
     }
 
+    private static void AddVideoFixture(DeliveryManifest delivery, ControlServerItem snapshot)
+    {
+        const string nodeId = "node:adapter-video", surfaceId = "surface:adapter-video", stateId = "state:adapter-video";
+        const string renderId = "render:adapter-video", artifactId = "artifact:adapter-video", assetId = "asset:adapter-video";
+        string checksum = "sha256:" + new string('e', 64);
+        ResourceOwner owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        ProjectedRuntimeCatalog catalog = delivery.ProjectionProfile.RuntimeCatalog;
+        catalog.Nodes.Add(new ProjectedNodeDefinition { NodeId = nodeId, Owner = owner.Clone(), Parent = new SpatialParent { Stage = new StageParent() }, Surface = new SurfaceNode { SemanticSurfaceId = surfaceId } });
+        catalog.Surfaces.Add(new ProjectedSurfaceDefinition { SurfaceId = surfaceId, HostNodeId = nodeId, Owner = owner.Clone(), ReachableStateIds = { stateId }, HasVideo = true, LogicalSize = new Vector2 { X = 100, Y = 100 }, PhysicalSizeMeters = new Vector2 { X = 1, Y = 1 }, Fit = SurfaceFit.Contain });
+        delivery.ProjectionProfile.VisibleNodeIds.Add(nodeId);
+        delivery.ProjectionProfile.VisibleSurfaceIds.Add(surfaceId);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.VideoPlayback);
+        delivery.ProjectionProfile.SemanticSurfaces.Add(new ProjectedSemanticSurface { SemanticSurfaceId = surfaceId, RenderSurfaceIds = { renderId }, States = { new SurfaceSemanticState { StateId = stateId, SemanticTree = new ProjectedSemanticTree() } } });
+        delivery.ProjectionProfile.RenderSurfaces.Add(new DeliveredRenderSurface {
+            RenderSurfaceId = renderId, SemanticSurfaceId = surfaceId, RendererKind = RendererKind.Video, ArtifactContractVersion = 1,
+            LogicalBounds = new LogicalBounds { Width = 100, Height = 100 },
+            StateBindings = { new DeliveredStateBinding { StateId = stateId, Artifact = new ArtifactStateBinding { ArtifactId = artifactId } } },
+            Artifacts = { new DeliveredArtifact { Video = new VideoArtifact { ArtifactId = artifactId, ContractVersion = 1, RequiredFeatures = { VideoFeature.H264 }, VideoAssetId = assetId, Checksum = checksum, EncodedSizeBytes = 64, Codec = VideoCodec.H264, DurationMs = 100, PixelSize = new PixelSize { Width = 100, Height = 100 }, Fit = SurfaceFit.Contain } } },
+        });
+        delivery.AssetAccess.Add(new AssetAccessBinding { AssetId = assetId, Checksum = checksum, EncodedSizeBytes = 64, MediaType = "video/mp4", Url = "https://assets.example/adapter-video.mp4", ExpiresAtUnixMs = 10000 });
+        delivery.CapabilityProfile.Renderers.Video = new VideoCapability { Supported = true, ContractVersion = 1, Features = { VideoFeature.H264 } };
+        if (delivery.CapabilityProfile.Limits == null) delivery.CapabilityProfile.Limits = new CapabilityLimits();
+        delivery.CapabilityProfile.Limits.Video = new VideoLimits { TierId = "adapter-video", MaxWidth = 100, MaxHeight = 100, MaxPixels = 10000, MaxConcurrentDecoders = 1, MaxEncodedBytes = 64, MaxDecodedFrameBytes = 40000 };
+        delivery.Residency.Video = new VideoResidencyPlan { BudgetTierId = "adapter-video", Videos = { new VideoResidencyBinding { AssetId = assetId, Checksum = checksum, EncodedSizeBytes = 64, DecodedFrameBytes = 40000 } }, TotalEncodedBytes = 64, MaximumConcurrentDecoders = 1, MaximumDecodedFrameBytes = 40000 };
+        delivery.Residency.TotalSelectedEncodedBytes += 64;
+        ParticipantRuntimeView view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
+        view.NodeStates.Add(new NodeRuntimeState { NodeId = nodeId, Active = true, Visible = true, Opacity = 1, Transform = new Transform { Position = new Vector3(), Rotation = new Quaternion { W = 1 }, Scale = new Vector3 { X = 1, Y = 1, Z = 1 } } });
+        view.SurfaceStates.Add(new SurfaceRuntimeState { SurfaceId = surfaceId, StateId = stateId });
+        view.MediaStates.Add(new MediaRuntimeState { SurfaceId = surfaceId, Stopped = new MediaStoppedState() });
+    }
+
     private static DeliveryManifest LoadDelivery()
     {
         string json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "LocalDelivery.json"));
@@ -351,6 +386,9 @@ static class Program
     {
         string json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "LocalSnapshot.json"));
         Require(PresentationContractJsonFixtureLoader.TryParseControlItem(json, out ControlServerItem snapshot, out string error), error);
+        foreach (ProjectedNodeDefinition node in LoadDelivery().ProjectionProfile.RuntimeCatalog.Nodes)
+            if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model)
+                snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState { ModelNodeId = node.NodeId, DefaultPose = new DefaultModelPose() });
         return snapshot;
     }
 

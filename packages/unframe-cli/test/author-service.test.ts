@@ -1,5 +1,6 @@
+import { copyProjectFixture } from "./project-fixture.js";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +21,7 @@ import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import type { AuthorService, ProjectSnapshot } from "../src/author/contract.js";
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
 const services: AuthorService[] = [];
@@ -40,7 +42,7 @@ const component = [
 const createProject = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-author-service-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);
   const loaded = loadUnframeLock(discovered.lockBytes);
@@ -64,6 +66,7 @@ const createProject = async () => {
       variables: {},
     },
   };
+  await clearSourceAssetRegistration(directory, discovered.entryFile);
   await writeFile(
     join(directory, "unframe.lock"),
     canonicalizeJsonPayload({ ...loaded.value.lock, assets: [] }) + "\n",
@@ -187,7 +190,7 @@ describe("author service with frozen React source", () => {
   it("builds compiler-valid source without Inspector metadata", async () => {
     const directory = await mkdtemp(join(tmpdir(), "unframe-author-readonly-"));
     temporary.push(directory);
-    await cp(reference, directory, { recursive: true });
+    await copyProjectFixture(reference, directory);
     const service = await createAuthorService(directory, {
       run: async () => ({ exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) }),
       readPublishedArtifacts: async () => ({ catalog: [], assets: new Map() }),
@@ -686,7 +689,7 @@ describe("author service with frozen React source", () => {
 it("waits for a short build lease before returning the polled project", async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-lease-fixture-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const service = await createAuthorService(directory);
   services.push(service);
   const before = await service.project();
@@ -701,7 +704,7 @@ it("waits for a short build lease before returning the polled project", async ()
 it("does not register or start a build after closing while its source lease is pending", async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-lease-fixture-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const run = vi.fn<typeof runPresentationCli>();
   const service = await createAuthorService(directory, { run });
   services.push(service);

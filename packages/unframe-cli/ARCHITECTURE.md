@@ -49,7 +49,7 @@ root export は native module を import しない。OpenTUI の Zig core を必
 または `pnpm tui` を使う。これにより Node / Vitest 上の headless check と build は native TUI lifecycle から
 独立する。
 
-lock v2 は self-contained package bytes と local file hash を検証する。`refresh` は固定依存 graph を保持し、`update` はスクリプト無効の frozen pnpm install 後に snapshot を取り直す。`--recreate` は v1 を読み替えず Source から新規生成し、失敗時は旧 lock を保持する。workspace / link dependency は未対応で、root-relative tarball と registry locator を対象とする。
+lock v3 は self-contained package bytes、local file hash、source Assetのpath/hash/sizeを検証する。`refresh` は固定依存 graph を保持し、`update` はスクリプト無効の frozen pnpm install 後に snapshot を取り直す。`--recreate` は旧schemaを読み替えずSourceから新規生成し、失敗時は旧 lock を保持する。workspace / link dependency は未対応で、root-relative tarball と registry locator を対象とする。
 
 ## 2. Command contract
 
@@ -68,7 +68,7 @@ author <absolute-project-directory>
 ```
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
-`build` は Opaque Surface の locked renderer を閉じた bundle にして Linux の隔離 worker で capture する。namespace / cgroup が利用できなければ `opaque-isolation-unavailable` を返す。成功後だけ既存の atomic publish へ進む。Structured は同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
+`build` は Opaque Surface の locked renderer を閉じた bundle にして Linux の隔離 worker で capture する。namespace / cgroup が利用できなければ `opaque-isolation-unavailable` を返す。成功後だけ既存の atomic publish へ進む。Structured Surfaceを含むbuildは同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
 project root の検証後、Browser を起動する前に `.unframe-build.lock` を `O_CREAT|O_EXCL|O_NOFOLLOW` で取得する。
 同一 project の concurrent build は I/O diagnostic で終了し、output を公開しない。lock は保持した inode が path 上で同一の
 ときだけ finally で削除する。crash 後の stale lock は fail-closed とし、稼働中 build がないことを確認した operator だけが除去する。
@@ -82,7 +82,7 @@ Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer
 
 Prop / Variant の default を省略によって採用した場合、`check` と `build` は exit code `0` のまま warning を返す。成功 JSON の `warnings` は Instance ID、Prop / Variant 名、default 値、path を保持する。text 形式は成功を stdout、warning を stderr に出す。`build` の事前検証と compile で同じ warning を二重表示しない。default と同じ値を明示した場合は warning を出さない。
 
-`unframe.lock` v2 の asset は `id`、`mediaType`、`hash`、`size`、canonical `dataBase64` を持ち、loader が Compiler の asset carrier へ変換する。現行 compile の source asset は `font/ttf` / `font/otf` に限定する。Compiler が bytes と参照を検証し、出力 AssetSet には descriptor だけを残す。raster size は CLI option ではなく ADR-0012 の長辺 2048 policy から導出する。
+`unframe.config.ts`の`assets`はlogical Asset IDから`{ path, mediaType }`へのdata-only登録であり、pathはproject内のregular fileを指す。lock v3のassetは`id`、`path`、`mediaType`、`hash`、`size`を持つ。bytesはfilesystem snapshotからCompilerの独立入力へ渡し、lockやdeclaration projectのJSONへ埋め込まない。登録済み素材は一ファイル64 MiB、合計256 MiBまで読み込み、Compilerは画像16 MiB・フォント/GLB64 MiBの上限と実bytesのhash/size/signatureも検証する。素材改変や登録変更はCheck・Author・Dev buildで拒否し、明示的な`lock refresh`/`lock update`でのみ採用する。Devの自動refreshは素材の固定を保持する。GLBはCompilerの静的Model変換へ渡し、配布GLBをlogical Asset IDのままatomic出力する。MP4は隔離validatorで検証し、Video artifactと配布MP4へ接続する。raster sizeはCLI optionではなくADR-0012の長辺2048 policyから導出する。
 
 ## 3. Artifact boundary
 
@@ -92,7 +92,7 @@ build の成功時だけ、CLI は次の deterministic な全ファイルを辞�
 - `render-bundle.json`
 - `asset-set.json`
 - `build-manifest.json`
-- `assets/<percent-encoded asset id>.<png|ttf|otf>`
+- `assets/<percent-encoded asset id>.<png|jpg|ttf|otf|glb|mp4>`
 
 filesystem host は root 固定の `dist` に対し complete artifact set を `.unframe/generations/<generation-id>` に閉じ、成功時だけ validated
 relative target の managed `dist` symlink を atomic replacement する。失敗または cancel では previous `dist` を維持し、今回の
@@ -139,7 +139,7 @@ build lease と一時 dist link は revision に含めない。これは外部�
 
 ## Local build cache
 
-`build` は Compiler の検証済みキャッシュ境界を `.unframe/cache/builds-v1` に接続する。key は Source / Asset bytes、Compiler / Renderer / Browser / font identity と build context / encode policy を含む。hit でも全成果物と binary checksum を Compiler が再検証し、cache failure / corruption は再 capture へ戻す。Browser identity を現在環境から取得するため、hit でも Browser session は開閉する。
+`build` は Compiler の検証済みキャッシュ境界を `.unframe/cache/builds-v1` に接続する。key は Source / Asset bytes、Compiler / Renderer / Browser / font identity と build context / encode policy を含む。hit でも全成果物と binary checksum を Compiler が再検証し、cache failure / corruption は再 capture へ戻す。SurfaceのbuildはBrowser identityを現在環境から取得するため、hitでもBrowser sessionを開閉する。ModelだけのbuildはBrowserを起動しない。
 
 Linux の directory FD に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。詳細は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md) に従う。
 
@@ -151,7 +151,7 @@ Linux の directory FD に保存先を固定し、symlink を拒否する。entr
 - remote build cache
 - Windows / case-insensitive filesystem support
 
-`init`、`dev`、`test`、`preview`、`publish`、watch と TUI / headless command の接続は実装済みである。renderer は host の固定 registry 内で `unframe.lock` の pin を解決し、publish の credential は process 外へ保存しない。
+`init`、`dev`、`test`、`preview`、`publish`、watch と TUI / headless command の接続は実装済みである。`init` はテンプレートの登録素材も相対パスを保ってコピーする。renderer は host の固定 registry 内で `unframe.lock` の pin を解決し、publish の credential は process 外へ保存しない。
 
 これらを追加する場合も、Compiler rule、Renderer implementation、durable publication state の所有権はこの
 package に移さない。
@@ -167,3 +167,9 @@ Opaque preview には既存の固定 Browser と cgroup / namespace 実行環境
 公開 scalar Props と host Transform を編集し、保存後に build を要求する。共有値・props spread は対象 Instance の局所 override として保存し、同一 session の Undo / Redo と継承への復帰を提供する。有限 State preview は Core の既存 Cue 実行器を使い、宣言済み操作と生成済み State 画像を接続する。React 内部の CSS 編集は提供しない。
 保存 revision と成功した preview revision を区別し、capture 失敗でも保存済み Source と以前の preview を保持する。
 認証・保存・回復規則は [実装契約](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) を参照。
+
+### Model / Video source tools
+
+登録GLBはCompilerの固定transform identity、MP4は`UNFRAME_FFMPEG_PATH` / `UNFRAME_FFPROBE_PATH`と`UNFRAME_MEDIA_RUNTIME_CLOSURE`が指定するNix tool・worker hashをsource lockへ束縛する。tool更新後は明示的な`lock refresh`が必要となる。MP4 workerは既存worker hostでreadonly input、network隔離、時間・出力・memory上限を適用し、全decode、AVC SPS、stream/packet/frameの検査結果をAssetsへ渡す。拡張子だけのadmissionや自動transcodeは行わない。
+
+PreviewはModel/Video residencyと初期・再生stateを共通Unity playerへ渡す。Control PlaneとNative Runtimeは`unity-media-v1`を使用する。Local Editorは同じfeature/budgetでprofile IDだけを`local-web-preview`とする。これらの上限はadmission設定でありQuest実機の性能測定結果を表さない。

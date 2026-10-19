@@ -2,6 +2,7 @@ import {
   assembleAuthoringProject,
   prepareLockedOpaqueBundleInput,
   reactResourceId,
+  type CompilerSourceAssetBytes,
 } from "@unframe/unframe-compiler";
 import {
   bundleOpaqueRenderer,
@@ -30,8 +31,9 @@ export const prepareOpaqueRenderer = async (
   carrier: unknown,
   signal: AbortSignal | undefined,
   config: WebRendererConfig,
+  sourceAssetBytes: CompilerSourceAssetBytes = {},
 ) => {
-  const assembled = assembleAuthoringProject(source, carrier);
+  const assembled = assembleAuthoringProject(source, carrier, sourceAssetBytes);
   if (!assembled.valid)
     throw new OpaquePreparationFailure(
       assembled.diagnostics.map((item) => ({

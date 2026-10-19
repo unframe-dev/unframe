@@ -45,11 +45,6 @@ export const validateRenderBundle = (
     );
   validateRecordIds(diagnostics, bundle.surfaces, "/surfaces", "semanticSurfaceId");
   validateRecordIds(diagnostics, bundle.models, "/models", "assetId");
-  if (!options.fullDelivery && Object.keys(bundle.models).length > 0)
-    diagnostics.push(
-      diagnostic("feature.unsupported", "/models", "Native 3D artifacts are deferred beyond M3A."),
-    );
-
   const globalRenderSurfaceIds = new Map<string, string>();
   const globalArtifactIds = new Map<string, string>();
   let textureBindings = 0;
@@ -180,12 +175,12 @@ export const validateRenderBundle = (
           );
         else globalArtifactIds.set(artifactId, artifactPath);
         if (artifact.kind !== "baked-web") {
-          if (!options.fullDelivery)
+          if (!options.fullDelivery && artifact.kind !== "video")
             diagnostics.push(
               diagnostic(
                 "feature.unsupported",
                 `${artifactPath}/kind`,
-                "M3A accepts baked-web artifacts only.",
+                "Native UI artifacts require full-delivery validation.",
               ),
             );
           continue;
@@ -288,7 +283,8 @@ export const validateRenderBundle = (
             if (
               !artifact ||
               (!options.fullDelivery &&
-                (artifact.kind !== "baked-web" || !Object.hasOwn(artifact.states, stateId))) ||
+                artifact.kind !== "video" &&
+                artifact.kind !== "baked-web") ||
               (artifact.kind === "baked-web" && !Object.hasOwn(artifact.states, stateId))
             )
               diagnostics.push(

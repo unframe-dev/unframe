@@ -578,7 +578,10 @@ export function EditorApp({
         <div role="group" aria-label="Preview 再生">
           <button
             disabled={!playbackState || playbackState.ended || !!playbackState.state.clock?.running}
-            onClick={() => playback.current?.command("play")}
+            onClick={() => {
+              (window as Window & { unframeVideoActivate?: () => void }).unframeVideoActivate?.();
+              playback.current?.command("play");
+            }}
           >
             再生
           </button>

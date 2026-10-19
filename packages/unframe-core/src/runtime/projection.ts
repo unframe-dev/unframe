@@ -153,10 +153,14 @@ export const validateM3dCueRuntimeSnapshot = (
       .map((variable) => variable.id),
   );
   const expectedMedia = sorted(
-    expectedSurfaces.filter(
-      (id) =>
-        definition.scene.surfaces[id]?.renderIntent.internalAnimation.kind === "precomputed-video",
-    ),
+    expectedSurfaces.filter((id) => {
+      const surface = definition.scene.surfaces[id];
+      return (
+        surface?.renderIntent.internalAnimation.kind === "precomputed-video" ||
+        (surface?.content.kind === "structured" &&
+          Object.values(surface.content.nodes).some((node) => node.kind === "video"))
+      );
+    }),
   );
   const expectedModels = sorted(
     expectedNodes.filter((id) => definition.scene.nodes[id]?.kind === "model"),
@@ -273,11 +277,7 @@ export const validateM3dCueRuntimeSnapshot = (
         issues.push("Runtime Run deadline has passed.");
     }
     if (run.kind === "media") {
-      const surface = definition.scene.surfaces[run.surfaceId];
-      if (
-        !expectedMedia.includes(run.surfaceId) ||
-        surface?.renderIntent.internalAnimation.kind !== "precomputed-video"
-      )
+      if (!expectedMedia.includes(run.surfaceId))
         issues.push("Media Runtime Run references an inactive or non-video Surface.");
       else if (
         run.playback.kind === "playing" &&
@@ -542,7 +542,10 @@ export const validateCanonicalRuntimeSnapshot = (
       else if (at >= run.phase.transition.durationMilliseconds)
         issues.push(`Model crossfade ${run.modelNodeId} deadline has passed.`);
     }
-    if (run.completion === "blocking" && clips.some((clip) => clip.loop))
+    if (
+      run.completion === "blocking" &&
+      (run.phase.kind === "single" ? run.phase.clip.loop : run.phase.transition.to.loop)
+    )
       issues.push("Looping Model Run cannot block progression.");
   }
   return issues;
@@ -591,8 +594,8 @@ export const createM3dCueRuntimeSnapshot = (
     },
     surfaceStates,
     nodeStates: state.nodes,
-    mediaStates: {},
-    modelClipStates: {},
+    mediaStates: state.mediaStates,
+    modelClipStates: state.modelClipStates,
     variables: state.variables,
     activeRuns: state.activeRuns,
     presentationOrigin: metadata.presentationOrigin,
@@ -620,7 +623,11 @@ export const projectM3dCueParticipantRuntimeView = (
   ];
   if (errors.length) throw new Error(errors.join(" "));
   const visibleRuns = snapshot.activeRuns.filter(
-    (run) => run.kind === "timeline" || profile.visibleSurfaceIds.includes(run.surfaceId),
+    (run) =>
+      run.kind === "timeline" ||
+      (run.kind === "modelClip"
+        ? profile.visibleNodeIds.includes(run.modelNodeId)
+        : profile.visibleSurfaceIds.includes(run.surfaceId)),
   );
   const visibleRunIds = new Set(
     visibleRuns.map((run) => `${run.runId.assignmentEpoch}:${run.runId.runSequence}`),

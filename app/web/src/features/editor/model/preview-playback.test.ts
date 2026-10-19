@@ -114,3 +114,25 @@ it("suppresses a Unity acknowledgement that arrives after the session closes", a
   expect(input.onState).not.toHaveBeenCalled();
   expect(input.api.playback).toHaveBeenCalledTimes(1);
 });
+
+it("pauses the clock after browser activation refusal and allows a later user play", async () => {
+  vi.useFakeTimers();
+  const input = setup();
+  const controller = createPreviewPlayback(input);
+  controller.load("one");
+  await vi.advanceTimersByTimeAsync(0);
+  input.driver.playback.mockRejectedValueOnce(new Error("video-user-activation-required"));
+  controller.command("play");
+  await vi.advanceTimersByTimeAsync(0);
+  expect(input.api.playback.mock.calls.map(([value]) => value.command)).toEqual([
+    "poll",
+    "play",
+    "pause",
+  ]);
+  expect(input.onState).toHaveBeenCalledTimes(2);
+  expect(input.onError).toHaveBeenCalledWith(new Error("video-user-activation-required"));
+  controller.command("play");
+  await vi.advanceTimersByTimeAsync(0);
+  expect(input.api.playback.mock.calls.at(-1)?.[0].command).toBe("play");
+  controller.close();
+});

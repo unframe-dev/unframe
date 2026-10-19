@@ -43,6 +43,14 @@ export type DeliverySelection = {
     maximumConcurrentDecoders: number;
     maximumDecodedFrameBytes: number;
     models: { assetId: string; checksum: string }[];
+    modelTotals: {
+      instanceCount: number;
+      encodedBytes: number;
+      nodeCount: number;
+      primitiveCount: number;
+      vertexCount: number;
+      triangleCount: number;
+    };
     glyphs: { fontChecksum: string; unicodeScalar: number }[];
     fontAssetIds: string[];
     maximumNativeNodes: number;
@@ -88,7 +96,7 @@ const compatible = (artifact: Artifact, capability: CapabilityProfile): boolean 
   );
 };
 const requireAcceptedRendererTier = (kind: Artifact["kind"]) => {
-  if (kind === "native-ui" || kind === "video")
+  if (kind === "native-ui")
     throw new Error(
       `delivery-artifact-unavailable: ${kind} has no accepted Delivery renderer tier.`,
     );
@@ -142,6 +150,7 @@ export const selectDeliveryArtifactsParsed = (
     DeliverySelection["residency"]["videos"][number] & { encodedSizeBytes: number }
   >();
   const modelByChecksum = new Map<string, RenderBundle["models"][string]>();
+  const selectedModelIds = new Set<string>();
   const checksumMetadata = new Map<string, string>();
   const assertSameChecksumMetadata = (checksum: string, data: Record<string, unknown>) => {
     const identity = hashCanonicalJsonPayload(data);
@@ -246,7 +255,9 @@ export const selectDeliveryArtifactsParsed = (
           assertSameChecksumMetadata(
             artifact.checksum,
             Object.fromEntries(
-              Object.entries(artifact).filter(([key]) => key !== "id" && key !== "assetId"),
+              Object.entries(artifact).filter(
+                ([key]) => !["id", "assetId", "loop", "fit"].includes(key),
+              ),
             ),
           );
           const videoEntry = {
@@ -330,6 +341,7 @@ export const selectDeliveryArtifactsParsed = (
       `Model Asset ${node.assetId} requires unsupported features.`,
     );
     addAsset(node.assetId, model.checksum, model.encodedSizeBytes, "model/gltf-binary");
+    selectedModelIds.add(node.assetId);
     assertSameChecksumMetadata(
       model.checksum,
       Object.fromEntries(Object.entries(model).filter(([key]) => key !== "assetId")),
@@ -342,9 +354,10 @@ export const selectDeliveryArtifactsParsed = (
     compareText(a.assetId, b.assetId),
   );
   const videos = [...videoByChecksum.values()].sort((a, b) => compareText(a.assetId, b.assetId));
-  const models = [...modelByChecksum.values()]
-    .map((model) => ({ assetId: model.assetId, checksum: model.checksum }))
-    .sort((a, b) => compareText(a.assetId, b.assetId));
+  const models = sorted(selectedModelIds).map((assetId) => ({
+    assetId,
+    checksum: bundle.models[assetId]!.checksum,
+  }));
   const sum = (values: number[], label: string) =>
     values.reduce((total, value) => checkedAdd(total, value, label), 0);
   const totalTextureGpuBytes = sum(
@@ -365,28 +378,44 @@ export const selectDeliveryArtifactsParsed = (
   );
   within(maximumTextureLoadCpuBytes, 268_435_456, "Texture baseline load CPU bytes");
   const modelValues = [...modelByChecksum.values()];
+  const modelInstances = visibility.visibleNodeIds.flatMap((id) => {
+    const node = definition.scene.nodes[id];
+    return node?.kind === "model" ? [bundle.models[node.assetId]!] : [];
+  });
+  const modelTotals = {
+    instanceCount: modelInstances.length,
+    encodedBytes: sum(
+      modelValues.map((model) => model.encodedSizeBytes),
+      "Model encodedSizeBytes",
+    ),
+    nodeCount: sum(
+      modelInstances.map((model) => model.nodeCount),
+      "Model nodeCount",
+    ),
+    primitiveCount: sum(
+      modelInstances.map((model) => model.primitiveCount),
+      "Model primitiveCount",
+    ),
+    vertexCount: sum(
+      modelInstances.map((model) => model.vertexCount),
+      "Model vertexCount",
+    ),
+    triangleCount: sum(
+      modelInstances.map((model) => model.triangleCount),
+      "Model triangleCount",
+    ),
+  };
   const modelLimit = capability.limits.model;
   within(modelValues.length, modelLimit.maxAssets, "Model Assets");
-  within(
-    visibility.visibleNodeIds.filter((id) => definition.scene.nodes[id]?.kind === "model").length,
-    modelLimit.maxInstances,
-    "Model instances",
-  );
+  within(modelTotals.instanceCount, modelLimit.maxInstances, "Model instances");
+  within(modelTotals.encodedBytes, modelLimit.maxEncodedBytes, "Model encodedSizeBytes");
   for (const [field, limit] of [
-    ["encodedSizeBytes", modelLimit.maxEncodedBytes],
     ["nodeCount", modelLimit.maxNodes],
     ["primitiveCount", modelLimit.maxPrimitives],
     ["vertexCount", modelLimit.maxVertices],
     ["triangleCount", modelLimit.maxTriangles],
   ] as const)
-    within(
-      sum(
-        modelValues.map((model) => model[field]),
-        `Model ${field}`,
-      ),
-      limit,
-      `Model ${field}`,
-    );
+    within(modelTotals[field], limit, `Model ${field}`);
   for (const model of modelValues) {
     within(model.maxBonesPerSkin, modelLimit.maxBonesPerSkin, "Model bones per skin");
     within(
@@ -501,6 +530,7 @@ export const selectDeliveryArtifactsParsed = (
       maximumConcurrentDecoders,
       maximumDecodedFrameBytes,
       models,
+      modelTotals,
       glyphs,
       fontAssetIds: sorted(fontIds),
       totalSelectedEncodedBytes,

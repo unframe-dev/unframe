@@ -189,6 +189,11 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(store.TryValidateRuntimeOwnership(out _), Is.False);
         foreach (ProjectedVariableDefinition variable in catalog.Variables)
             snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables.Add(new VariableState { VariableId = variable.VariableId, Value = new ScalarValue { StringValue = "value" } });
+        foreach (ProjectedNodeDefinition node in catalog.Nodes)
+            if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model)
+                snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState { ModelNodeId = node.NodeId, DefaultPose = new DefaultModelPose() });
+        foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces)
+            if (surface.HasVideo) snapshot.ConnectionSnapshot.Snapshot.RuntimeView.MediaStates.Add(new MediaRuntimeState { SurfaceId = surface.SurfaceId, Stopped = new MediaStoppedState() });
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
         Assert.That(store.TryValidateRuntimeOwnership(out error), Is.True, error);
         VariableState firstVariable = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables[0];

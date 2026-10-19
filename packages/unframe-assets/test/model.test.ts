@@ -2,6 +2,7 @@ import { Document, NodeIO, type GLTF } from "@gltf-transform/core";
 import { KHRMaterialsUnlit } from "@gltf-transform/extensions";
 import { assert, describe, expect, it } from "vitest";
 import { transformGlb } from "../src/index.js";
+import { checkModelAttributes, checkModelAnimationAllocation } from "../src/model/structure.js";
 
 const limits = {
   maxInputBytes: 1024 * 1024,
@@ -82,6 +83,217 @@ const alterGlb = (source: Uint8Array, change: (json: GLTF.IGLTF) => void) => {
 };
 
 describe("GLB build transformation", () => {
+  it.each(["JOINTS_1", "WEIGHTS_1", "COLOR_1"])("diagnoses unsupported %s attributes", (name) => {
+    expect(
+      checkModelAttributes({
+        asset: { version: "2.0" },
+        meshes: [{ primitives: [{ attributes: { POSITION: 0, [name]: 1 } }] }],
+      }),
+    ).toMatchObject({ code: "model-feature-unsupported", path: ["bytes", "attributes"] });
+  });
+  it("rejects material UV channel selection outside TEXCOORD_0", () => {
+    expect(
+      checkModelAttributes({
+        asset: { version: "2.0" },
+        materials: [{ normalTexture: { index: 0, texCoord: 1 } }],
+      }),
+    ).toMatchObject({ code: "model-feature-unsupported", path: ["bytes", "materials"] });
+    expect(
+      checkModelAttributes({
+        asset: { version: "2.0" },
+        materials: [{ normalTexture: { index: 0, texCoord: 0 } }],
+      }),
+    ).toBeUndefined();
+  });
+  it("diagnoses a UV set outside the Unity importer profile rather than dropping it", async () => {
+    const { document } = await fixture();
+    const uv = document
+      .createAccessor()
+      .setType("VEC2")
+      .setArray(new Float32Array(6))
+      .setBuffer(document.getRoot().listBuffers()[0]!);
+    for (let index = 0; index <= 8; index++)
+      document
+        .getRoot()
+        .listMeshes()[0]!
+        .listPrimitives()[0]!
+        .setAttribute(`TEXCOORD_${index}`, uv);
+    const result = await transformGlb({
+      sourceId: "uv",
+      bytes: await new NodeIO().writeBinary(document),
+      limits,
+    });
+    expect(result).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "model-feature-unsupported", path: ["bytes", "attributes"] }],
+    });
+  });
+  it("counts morph curves per primitive and rejects a mismatched target name width", () => {
+    const json: GLTF.IGLTF = {
+      asset: { version: "2.0" },
+      accessors: [{ type: "SCALAR", componentType: 5126, count: 100_000 }],
+      nodes: [{ mesh: 0 }],
+      meshes: [
+        {
+          primitives: [
+            { attributes: {}, targets: [{}, {}] },
+            { attributes: {}, targets: [{}, {}] },
+            { attributes: {}, targets: [{}, {}] },
+            { attributes: {}, targets: [{}, {}] },
+          ],
+        },
+      ],
+      animations: [
+        {
+          samplers: [{ input: 0, output: 0 }],
+          channels: [
+            { sampler: 0, target: { node: 0, path: "weights" } },
+            { sampler: 0, target: { node: 0, path: "weights" } },
+          ],
+        },
+      ],
+    };
+    expect(checkModelAnimationAllocation(json)).toMatchObject({
+      code: "model-budget-exceeded",
+      path: ["bytes", "animationCurves"],
+    });
+    json.meshes![0]!.extras = { targetNames: ["only-one"] };
+    expect(checkModelAnimationAllocation(json)).toMatchObject({
+      code: "model-invalid-glb",
+      path: ["bytes", "meshes"],
+    });
+  });
+
+  it("bounds animation curve fan-out even when channels share one small sampler", async () => {
+    const { document, root, animation } = await fixture();
+    animation.dispose();
+    const buffer = document.getRoot().listBuffers()[0]!,
+      mesh = document.getRoot().listMeshes()[0]!;
+    const times = document
+      .createAccessor()
+      .setType("SCALAR")
+      .setArray(Float32Array.from({ length: 1000 }, (_, i) => i / 100))
+      .setBuffer(buffer);
+    const values = document
+      .createAccessor()
+      .setType("VEC3")
+      .setArray(new Float32Array(3000))
+      .setBuffer(buffer);
+    const sampler = document
+      .createAnimationSampler()
+      .setInput(times)
+      .setOutput(values)
+      .setInterpolation("STEP");
+    const clip = document.createAnimation("fanout").addSampler(sampler);
+    for (let i = 0; i < 400; i++) {
+      const node = document.createNode(`animated-${i}`).setMesh(mesh);
+      root.addChild(node);
+      clip.addChannel(
+        document
+          .createAnimationChannel()
+          .setSampler(sampler)
+          .setTargetNode(node)
+          .setTargetPath("translation"),
+      );
+    }
+    const result = await transformGlb({
+      sourceId: "fanout",
+      bytes: await new NodeIO().writeBinary(document),
+      limits: {
+        ...limits,
+        maxNodes: 1000,
+        maxPrimitives: 1000,
+        maxVertices: 10000,
+        maxTriangles: 1000,
+      },
+    });
+    expect(result).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "model-budget-exceeded", path: ["bytes", "animationCurves"] }],
+    });
+  });
+  it("bounds decoded geometry amplification across all meshes before import", async () => {
+    const { document } = await fixture();
+    const buffer = document.getRoot().listBuffers()[0]!;
+    const positions = document
+      .createAccessor()
+      .setType("VEC3")
+      .setArray(new Float32Array(40_002 * 3))
+      .setBuffer(buffer);
+    const primitive = document.createPrimitive().setAttribute("POSITION", positions);
+    for (let index = 0; index < 50; index++)
+      primitive.addTarget(document.createPrimitiveTarget().setAttribute("POSITION", positions));
+    document.createMesh("unused-amplification").addPrimitive(primitive);
+    const result = await transformGlb({
+      sourceId: "geometry",
+      bytes: await new NodeIO().writeBinary(document),
+      limits: { ...limits, maxVertices: 100_000, maxMorphTargetsPerPrimitive: 64 },
+    });
+    expect(result).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "model-budget-exceeded", path: ["bytes", "geometry"] }],
+    });
+  });
+  it("writes sparse source accessors as dense deployment accessors", async () => {
+    const { document } = await fixture();
+    document
+      .getRoot()
+      .listMeshes()[0]!
+      .listPrimitives()[0]!
+      .getAttribute("POSITION")!
+      .setSparse(true);
+    const source = await new NodeIO().writeBinary(document);
+    const sourceJson = (await new NodeIO().binaryToJSON(source)).json;
+    expect(sourceJson.accessors?.some((accessor) => accessor.sparse !== undefined)).toBe(true);
+    const result = await transformGlb({ sourceId: "sparse", bytes: source, limits });
+    assert.isTrue(result.valid);
+    const outputJson = (await new NodeIO().binaryToJSON(result.value.bytes)).json;
+    expect(outputJson.accessors?.every((accessor) => accessor.sparse === undefined)).toBe(true);
+  });
+  it.each([5, 6])("normalizes primitive mode %s to indexed triangles", async (mode) => {
+    const { document } = await fixture();
+    document
+      .getRoot()
+      .listMeshes()[0]!
+      .listPrimitives()[0]!
+      .setMode(mode as 5 | 6);
+    document
+      .getRoot()
+      .listMeshes()[0]!
+      .listPrimitives()[0]!
+      .getAttribute("POSITION")!
+      .setArray(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0]));
+    const result = await transformGlb({
+      sourceId: "triangles",
+      bytes: await new NodeIO().writeBinary(document),
+      limits,
+    });
+    assert.isTrue(result.valid);
+    const output = await new NodeIO().readBinary(result.value.bytes);
+    const primitive = output.getRoot().listMeshes()[0]!.listPrimitives()[0]!;
+    expect(primitive.getMode()).toBe(4);
+    expect([...primitive.getIndices()!.getArray()!]).toEqual(
+      mode === 5 ? [0, 1, 2, 2, 1, 3] : [0, 1, 2, 0, 2, 3],
+    );
+    expect(result.value.descriptor.triangleCount).toBe(2);
+  });
+
+  it("bounds JSON chunk bytes before parsing the GLB document", async () => {
+    const { document } = await fixture();
+    const source = alterGlb(await new NodeIO().writeBinary(document), (json) => {
+      json.asset.extras = { padding: "x".repeat(4 * 1024 * 1024) };
+    });
+    expect(
+      await transformGlb({
+        sourceId: "large-json",
+        bytes: source,
+        limits: { ...limits, maxInputBytes: 8 * 1024 * 1024 },
+      }),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "model-budget-exceeded", path: ["bytes", "json"] }],
+    });
+  });
   it("rejects deeply nested JSON before third-party validation", async () => {
     const { document } = await fixture();
     const source = alterGlb(await new NodeIO().writeBinary(document), (json) => {

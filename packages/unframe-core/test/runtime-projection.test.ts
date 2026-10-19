@@ -237,7 +237,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     ).toEqual([]);
   });
   it("creates a validated portable snapshot from CueState", () => {
-    const state = createCueState(definition, 1);
+    const state = createCueState(definition, 1, renderBundleFixture as never);
     const generated = createM3dCueRuntimeSnapshot(definition, state, {
       reliableSequence: 0,
       lastIngressSequence: 0,
@@ -245,7 +245,11 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       presentationOrigin: snapshot.presentationOrigin,
       recentEventIds: [],
     });
-    expect(generated).toEqual(snapshot);
+    expect(generated).toEqual({
+      ...snapshot,
+      mediaStates: { video: { kind: "stopped", heldPositionMilliseconds: 0 } },
+      modelClipStates: { model: { kind: "defaultPose" } },
+    });
   });
 
   it("accepts the portable snapshot and rejects inactive or unknown resources", () => {
@@ -332,7 +336,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       "Runtime Run deadline has passed.",
     );
     running.clock.runtimeTimeMilliseconds = 0;
-    const state = createCueState(secondStateDefinition, 1);
+    const state = createCueState(secondStateDefinition, 1, renderBundleFixture as never);
     state.lastRunSequence = 1;
     state.activeRuns = structuredClone(running.activeRuns).filter(
       (run): run is Extract<typeof run, { kind: "timeline" | "surfaceTransition" }> =>

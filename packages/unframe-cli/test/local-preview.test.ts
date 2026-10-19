@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -544,13 +544,31 @@ describe("fixed local Preview service", () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
-  it("reports unsupported model rendering before loading any of its assets", async () => {
+  it("includes verified H264 Video residency and initial Media state without treating playback as tracking", async () => {
     const source = generation();
-    source.artifacts.definition.scene.nodes.model =
-      presentationDefinitionSchema.parse(definitionFixture).scene.nodes.model!;
-    source.artifacts.renderBundle.models = renderBundleSchema.parse(bundleFixture).models;
-    source.artifacts.assetSet.assets["model-asset"] =
-      assetSetManifestSchema.parse(assetSetFixture).assets["model-asset"]!;
+    const definition = presentationDefinitionSchema.parse(definitionFixture);
+    source.artifacts.definition.scene.nodes["node-video"] = definition.scene.nodes["node-video"]!;
+    source.artifacts.definition.scene.surfaces.video = definition.scene.surfaces.video!;
+    source.artifacts.renderBundle.surfaces.video =
+      renderBundleSchema.parse(bundleFixture).surfaces.video!;
+    source.artifacts.assetSet.assets["video-asset"] =
+      assetSetManifestSchema.parse(assetSetFixture).assets["video-asset"]!;
+    const videoBytes = Uint8Array.from(
+      await readFile(
+        new URL("../../../examples/media-presentation/assets/video.mp4", import.meta.url),
+      ),
+    );
+    const videoHash = `sha256:${createHash("sha256").update(videoBytes).digest("hex")}`;
+    source.artifacts.assetSet.assets["video-asset"]!.checksum = videoHash;
+    source.artifacts.assetSet.assets["video-asset"]!.encodedSizeBytes = videoBytes.byteLength;
+    const render = source.artifacts.renderBundle.surfaces.video!.renderSurfaces["render-video"]!;
+    const artifact = render.artifacts["artifact-video"]!;
+    if (artifact.kind !== "video") throw new Error("Expected Video fixture.");
+    artifact.checksum = videoHash;
+    artifact.encodedSizeBytes = videoBytes.byteLength;
+    const readAsset = source.readAsset;
+    source.readAsset = async (id) =>
+      id === "video-asset" ? { bytes: videoBytes, mediaType: "video/mp4" } : readAsset(id);
     source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
       source.artifacts.definition,
     );
@@ -562,8 +580,57 @@ describe("fixed local Preview service", () => {
       source.artifacts.assetSet,
     );
     const service = createLocalPreviewService("/project", { readGeneration: async () => source });
-    await expect(service.load({ requestId: requestA, channel: "dist" })).rejects.toMatchObject({
-      code: "preview-rendering-unsupported",
+    const loaded = await service.load({ requestId: requestA, channel: "dist" });
+    expect(loaded.projection?.requiredRuntimeCapabilities).toContain(4);
+    expect(loaded.projection?.videoResidency?.videos).toMatchObject([
+      {
+        assetId: "video-asset",
+        checksum: videoHash,
+        encodedSizeBytes: String(videoBytes.byteLength),
+      },
+    ]);
+    expect(loaded.initialState?.mediaStates).toEqual([
+      { surfaceId: "video", stopped: { heldPositionMs: 0 } },
+    ]);
+    const binding = loaded.assets!.find((asset) => asset.assetId === "video-asset")!;
+    expect(await service.asset(requestA, binding.reference!)).toEqual({
+      bytes: videoBytes,
+      mediaType: "video/mp4",
     });
+    service.close();
+  });
+
+  it("includes verified Model residency and initial clip state in the Preview envelope", async () => {
+    const source = generation();
+    source.artifacts.definition.scene.nodes.model =
+      presentationDefinitionSchema.parse(definitionFixture).scene.nodes.model!;
+    source.artifacts.renderBundle.models = renderBundleSchema.parse(bundleFixture).models;
+    source.artifacts.assetSet.assets["model-asset"] =
+      assetSetManifestSchema.parse(assetSetFixture).assets["model-asset"]!;
+    const modelBytes = new Uint8Array(64).fill(45);
+    const modelHash = `sha256:${createHash("sha256").update(modelBytes).digest("hex")}`;
+    source.artifacts.assetSet.assets["model-asset"]!.checksum = modelHash;
+    source.artifacts.renderBundle.models["model-asset"]!.checksum = modelHash;
+    const readAsset = source.readAsset;
+    source.readAsset = async (id) =>
+      id === "model-asset" ? { bytes: modelBytes, mediaType: "model/gltf-binary" } : readAsset(id);
+    source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+      source.artifacts.definition,
+    );
+    source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+    source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+      source.artifacts.renderBundle,
+    );
+    source.artifacts.buildManifest.assetSetHash = hashCanonicalJsonPayload(
+      source.artifacts.assetSet,
+    );
+    const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+    const loaded = await service.load({ requestId: requestA, channel: "dist" });
+    expect(loaded.projection?.modelResidency?.models).toEqual([
+      expect.objectContaining({ assetId: "model-asset", checksum: modelHash }),
+    ]);
+    expect(loaded.initialState?.modelClipStates).toEqual([
+      expect.objectContaining({ modelNodeId: "model", defaultPose: {} }),
+    ]);
   });
 });

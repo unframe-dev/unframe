@@ -24,6 +24,8 @@ import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
 import { updateProjectLock } from "../filesystem/update-lock.js";
+import { resolveProjectSourceAssets } from "../filesystem/source-assets.js";
+import { createVideoValidator } from "../media/video-validator.js";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
 import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
@@ -464,6 +466,15 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         "unframe.lock",
       ]),
     ]);
+  const sourceAssets = await resolveProjectSourceAssets(
+    lock.value.lock.assets,
+    discovered.assetSources,
+    discovered.localFiles,
+  );
+  if (!sourceAssets.ok)
+    return output(1, command, format, [
+      diagnostic("semantic", sourceAssets.code, sourceAssets.message, [sourceAssets.path]),
+    ]);
   const pinnedRenderers = lock.value.lock.rendererPlugins;
   if (
     pinnedRenderers.some(
@@ -523,7 +534,11 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     );
   }
   const source = prepared.source;
-  const checked = checkAuthoringProjectAssembly(source, lock.value.assemblyCarrier);
+  const checked = checkAuthoringProjectAssembly(
+    source,
+    lock.value.assemblyCarrier,
+    sourceAssets.value.sourceAssetBytes,
+  );
   if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
   if (command === "check")
     return output(
@@ -598,12 +613,12 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
           lock.value.assemblyCarrier,
           host.signal,
           context.webRendererConfig,
+          sourceAssets.value.sourceAssetBytes,
         );
         sessions.push(prepared);
         renderer = prepared.renderer;
       }
       if (
-        !opaque ||
         Object.values(checked.value.definition.scene.surfaces).some(
           (surface) => surface.content.kind === "structured",
         )
@@ -638,8 +653,8 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         const structured = createBakedWebRenderer({ adapter, config: context.webRendererConfig });
         renderer = renderer ? combineBakedWebRenderers(structured, renderer) : structured;
       }
-      if (!renderer) throw new BrowserProvisionFailure();
       if (
+        renderer &&
         !pinnedRenderers.some(
           (item) =>
             item.id === renderer.identity.id &&
@@ -663,9 +678,15 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
           timezone: context.timezone,
           colorScheme: context.colorScheme,
           rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
-          renderers: [renderer],
+          renderers: renderer ? [renderer] : [],
           encodeLimits: limits,
+          ...(Object.values(checked.value.assetSet.assets).some(
+            (asset) => asset.mediaType === "video/mp4",
+          )
+            ? { videoValidator: await createVideoValidator(host.signal) }
+            : {}),
         },
+        sourceAssets.value.sourceAssetBytes,
         createFilesystemBuildCache(
           discovered.projectDirectory,
           host.signal ? { signal: host.signal } : {},

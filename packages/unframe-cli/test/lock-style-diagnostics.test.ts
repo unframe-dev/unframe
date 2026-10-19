@@ -1,4 +1,5 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyProjectFixture } from "./project-fixture.js";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,9 +31,10 @@ const fixture = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-lock-style-diagnostics-"));
   const adapter = await mkdtemp(join(tmpdir(), "unframe-lock-style-adapter-"));
   directories.push(directory, adapter);
-  await cp(fileURLToPath(new URL("../../../examples/presentation", import.meta.url)), directory, {
-    recursive: true,
-  });
+  await copyProjectFixture(
+    fileURLToPath(new URL("../../../examples/presentation", import.meta.url)),
+    directory,
+  );
   for (const root of [directory, adapter]) {
     await writeFile(
       join(root, "package.json"),

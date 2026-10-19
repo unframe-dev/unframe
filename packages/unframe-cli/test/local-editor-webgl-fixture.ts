@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { copyProjectFixture } from "./project-fixture.js";
 import { createRequire } from "node:module";
 import { cp, mkdtemp, readFile, readdir, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -99,7 +100,7 @@ const installFrozenGraph = async (directory: string) => {
 
 export const createWebglCaptureProject = async (kind: "opaque" | "structured" = "opaque") => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-author-capture-"));
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   if (kind === "structured") return directory;
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);

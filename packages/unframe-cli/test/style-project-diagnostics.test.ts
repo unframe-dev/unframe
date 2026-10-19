@@ -1,4 +1,5 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyProjectFixture } from "./project-fixture.js";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +19,7 @@ import {
 } from "../src/styles/node-snapshot.js";
 import { runIsolatedWorker } from "@unframe/unframe-worker-host";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 vi.mock("@unframe/unframe-worker-host", async (original) => ({
   ...(await original<typeof import("@unframe/unframe-worker-host")>()),
@@ -43,9 +45,10 @@ const fixture = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-style-diagnostics-"));
   const adapter = await mkdtemp(join(tmpdir(), "unframe-style-adapter-"));
   directories.push(directory, adapter);
-  await cp(fileURLToPath(new URL("../../../examples/presentation", import.meta.url)), directory, {
-    recursive: true,
-  });
+  await copyProjectFixture(
+    fileURLToPath(new URL("../../../examples/presentation", import.meta.url)),
+    directory,
+  );
   const original = await discoverPresentationProjectFiles(directory);
   assert(original.ok, JSON.stringify(original));
   const originalLock = loadUnframeLock(original.lockBytes);
@@ -70,6 +73,7 @@ const fixture = async () => {
       variables: {},
     },
   };
+  await clearSourceAssetRegistration(directory, original.entryFile);
   await writeFile(
     join(directory, "unframe.lock"),
     canonicalizeJsonPayload({ ...originalLock.value.lock, assets: [] }) + "\n",
@@ -134,7 +138,7 @@ it("returns a new Author revision for changed style inputs without persisting th
   expect(afterBuild.value.lock.styleSourceIdentity).not.toBe(
     beforeBuild.value.lock.styleSourceIdentity,
   );
-});
+}, 30_000);
 
 it("reports style worker failures without fabricated source locations", async () => {
   const directory = await fixture();

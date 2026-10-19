@@ -34,13 +34,13 @@ namespace Unframe.Unity.PresentationRuntime
             if (view == null || view.Catalog == null || hierarchy == null || hierarchy.Registry == null) return false;
             foreach (DeliveredRenderSurface surface in view.RenderSurfaces)
             {
+                if (surface.RendererKind == RendererKind.Video) continue;
                 if (surface.RendererKind != RendererKind.BakedWeb || !view.TryGetSurface(surface.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
                     || semantic.PhysicalSizeMeters == null || semantic.LogicalSize == null || semantic.PhysicalSizeMeters.X <= 0 || semantic.PhysicalSizeMeters.Y <= 0
                     || semantic.LogicalSize.X <= 0 || semantic.LogicalSize.Y <= 0
                     || !hierarchy.Registry.TryGet(semantic.HostNodeId, out GameObject host)) { Clear(); return false; }
-                GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                GameObject quad = CreateQuad();
                 quad.name = surface.RenderSurfaceId;
-                PresentationTextureResidency.Destroy(quad.GetComponent<Collider>());
                 quad.transform.SetParent(host.transform, false);
                 LogicalBounds bounds = surface.LogicalBounds;
                 double fitX = semantic.PhysicalSizeMeters.X / semantic.LogicalSize.X;
@@ -167,9 +167,25 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (Partition partition in partitions) if (partition.Renderer != null) partition.Renderer.enabled = false;
         }
 
+        internal static GameObject CreateQuad()
+        {
+            var quad = new GameObject("Surface", typeof(MeshFilter), typeof(MeshRenderer));
+            var mesh = new Mesh { name = "Presentation surface" };
+            mesh.vertices = new[] { new UnityEngine.Vector3(-.5f, -.5f, 0), new UnityEngine.Vector3(.5f, -.5f, 0), new UnityEngine.Vector3(-.5f, .5f, 0), new UnityEngine.Vector3(.5f, .5f, 0) };
+            mesh.uv = new[] { new UnityEngine.Vector2(0, 0), new UnityEngine.Vector2(1, 0), new UnityEngine.Vector2(0, 1), new UnityEngine.Vector2(1, 1) };
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            quad.GetComponent<MeshFilter>().sharedMesh = mesh;
+            return quad;
+        }
+
         private void Clear()
         {
-            foreach (Partition partition in partitions) PresentationTextureResidency.Destroy(partition.Object);
+            foreach (Partition partition in partitions)
+            {
+                if (partition.Object != null) PresentationTextureResidency.Destroy(partition.Object.GetComponent<MeshFilter>().sharedMesh);
+                PresentationTextureResidency.Destroy(partition.Object);
+            }
             partitions.Clear();
         }
 
