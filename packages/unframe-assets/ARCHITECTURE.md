@@ -1,6 +1,6 @@
 # Presentation Assets Architecture
 
-- **Status**: Memory-only RGBA resize and PNG encoder implemented
+- **Status**: Memory-only RGBA resize、PNG encoder、GLB build transformationを実装済み
 - **Scope**: Compiler build 中の deterministic asset transformation
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -19,9 +19,9 @@ Asset の upload、ownership、delivery URL、Unity runtime cache はこの pack
 
 ## 2. Owned pipeline
 
-現在は memory-only RGBA resize、PNG encode、checksum、portable descriptor と固定 provenance を所有する。Baked Web v1 の format、resolution、byte式、aggregate budget は [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md) に従う。Compiler は pixelTarget で直接 capture するため、通常 build は resize を行わず PNG encode だけを呼ぶ。
+現在は memory-only RGBA resize、PNG encode、GLB検証・変換、checksum、portable descriptor と固定 provenance を所有する。Baked Web v1 の format、resolution、byte式、aggregate budget は [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md) に従う。Compiler は pixelTarget で直接 capture するため、通常 build は resize を行わず PNG encode だけを呼ぶ。GLB変換は公開APIを実装した段階で、Authoring/Compilerからの接続は未実装である。
 
-font subset、video / model 変換と、それらに必要な temporary workspace は具体 consumer 確定後の adapter に残す。mipmap / GPU compression は v1 の対象外である。cache storage は Compiler / CLI、upload / Delivery は別の所有境界とする。
+font subset、video検証と、それらに必要なtemporary workspaceは具体consumer確定後のadapterに残す。mipmap / GPU compression は v1 の対象外である。cache storage は Compiler / CLI、upload / Delivery は別の所有境界とする。
 
 ```text
 declared input + transform request + toolchain provenance
@@ -90,11 +90,19 @@ Callerはwidth、height、pixel数、input byte数、output byte数の上限を�
 
 返却された`bytes`はcallerが所有し、別のencode結果や入力bufferとは共有しない。callerはchecksum検証後のbytesを変更できるが、descriptor/checksumを永続化または後段へ渡した後は変更してはならない。mutable/untrustedなbytesを受け取る永続化・Delivery境界はdescriptorのchecksumを再検証する。
 
-mipmap、temporary workspace、font / video / model変換、cache、Surface State binding、RenderBundle組み立て、upload / Deliveryは実装しない。
+mipmap、temporary workspace、font / video変換、cache、Surface State binding、RenderBundle組み立て、upload / Deliveryは実装しない。
+
+### GLB build transformation
+
+`transformGlb`はsource ID、GLB bytes、明示された制限を受け取り、変換後bytes、Model descriptor、source checksumと固定provenanceを返す。glTF Transform 4.5.1とKhronos Validator 2.0.0-dev.3.10を使い、自己完結したglTF core/`KHR_materials_unlit`、埋め込みPNG/JPEGを検証する。ファイル・ネットワークを読まない。明示default sceneが必要で、現時点のgeometryはTRIANGLESだけを扱い、line/point/strip/fanは診断で拒否する。
+
+選択scene rootのtranslation/rotation channelと、選択sceneに到達しないNodeのchannelを除去する。scaleと内部姿勢は保持し、空になったclipを除く。配布GLBを再検証・再読込してclip/material index、duration、feature、負荷を確定する。clip IDは配布animation順の`clip-N`、material IDは配布material順の`material-N`となる。
+
+入力はgetterを実行せずsnapshotし、bytesとlimitsを非同期処理前に固定する。caller制限に加え、入力・出力はそれぞれ64 MiB、展開する全accessor配列のbyte合計は64 MiBを絶対上限とする。compact/sparse accessorを展開する前にcount・要素型・component sizeから合計を検査する。再帰する外部validatorの前にJSON nestingを64、Node階層を256までに制限し、Node graphを反復走査する。これはtransformerの総peak memoryを64 MiBに抑える保証ではない。descriptorのchecksum/asset IDは配布bytesのSHA-256で、返却bytesは呼出元が所有する。
 
 ## 9. Deferred decisions
 
 - 新しい consumer が必要とする texture format / resolution policy（現行 v1 policy は Compiler / Core に実装済み）
 - font resolver と subset toolchain
-- video / model adapter の初期範囲
+- video adapterとGLB変換のCompiler接続
 - cross-platform reproducibility と container / Nix boundary

@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-19",
+  "environment": {
+    "platform": "linux",
+    "unity": "6000.3.22f1",
+    "gltfFast": "6.20.0",
+    "urp": "17.3.0",
+    "browser": "149.0.7827.55",
+    "webgl": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "fixture": {
+    "source": {
+      "sha256": "sha256:f506402827bb5602b07dcb701d183a3b6ebd4fb21e6ef26d51325b3d1b8440a5",
+      "encodedBytes": 3204
+    },
+    "imported": {
+      "sha256": "sha256:dd6bdf2bb0d592e6e23f2b4e7d72b64f399bed0777b94e25d7554dfe414edaee",
+      "encodedBytes": 3096,
+      "checksumVerifiedInPlayer": false
+    },
+    "note": "Historical fixture before the morph POSITION bounds correction. Hashes come from retained fixture bytes; the ordinary player did not emit a checksum.",
+    "passed": true,
+    "assertionCount": 21,
+    "pixels": {
+      "opaque": [1, 0.725, 0.549, 1],
+      "nodeOpacityHalf": [0.4, 0.29, 0.22, 0.4]
+    },
+    "errorCount": 0
+  },
+  "compiled": {
+    "transformRuntime": "bun 1.4.2",
+    "source": {
+      "sha256": "sha256:ad3b46f857598340269627faecf868cebd429b145b6ba7bc78713d9602a9b5ab",
+      "encodedBytes": 3232
+    },
+    "imported": {
+      "sha256": "sha256:c41c9e5e528d51f45f87350bfb664bf1cfead1aef4b073509be38bf4ac8d69bb",
+      "encodedBytes": 2888,
+      "checksumVerifiedInPlayer": true
+    },
+    "passed": true,
+    "assertionCount": 21,
+    "pixels": {
+      "opaque": [1, 0.725, 0.549, 1],
+      "nodeOpacityHalf": [0.4, 0.29, 0.22, 0.4]
+    },
+    "errorCount": 0
+  },
+  "unverified": [
+    "Quest, Android IL2CPP, macOS and physical GPU rendering",
+    "Textures, unlit and mask/blend source materials, alpha cutoff opacity and transparent sorting",
+    "Resource limits, long-running replacement/disposal and complete shader variant coverage",
+    "Canonical state/logical clock integration and full production model playback lifecycle"
+  ]
+}

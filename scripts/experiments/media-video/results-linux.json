@@ -1,0 +1,154 @@
+{
+  "measuredAt": "2026-10-19",
+  "scope": "Real Unity WebGL VideoPlayer, headless WebGL2/SwiftShader, Linux x86_64",
+  "unity": "6000.3.22f1",
+  "browser": "149.0.7827.55",
+  "playwrightCore": "1.62.1",
+  "ffmpeg": "8.1.2",
+  "fixture": {
+    "size": 282256,
+    "sha256": "c680a9ea08919f4da4189d6d88da18394408f4bf965648aed45928dc0c53fb64"
+  },
+  "passed": true,
+  "unauthorizedStatus": 401,
+  "integrityRejections": ["size mismatch", "checksum mismatch"],
+  "prepared": {
+    "kind": "prepared",
+    "detail": "",
+    "time": 0,
+    "prepared": true,
+    "playing": false,
+    "audioTracks": 1,
+    "frame": -1,
+    "pixelHash": 0
+  },
+  "beforeActivation": {
+    "activation": false,
+    "plays": ["NotAllowedError"],
+    "media": [
+      {
+        "paused": true,
+        "time": 0,
+        "muted": false
+      },
+      {
+        "paused": true,
+        "time": 0,
+        "muted": false
+      }
+    ]
+  },
+  "afterActivation": {
+    "plays": ["NotAllowedError", "resolved"],
+    "audioContextState": "running",
+    "audioRmsMax": 0.06320932186554758,
+    "media": [
+      {
+        "paused": true,
+        "time": 0,
+        "muted": false,
+        "volume": 1,
+        "decodedAudioBytes": 0,
+        "decodedVideoBytes": 0
+      },
+      {
+        "paused": false,
+        "time": 2.957604,
+        "muted": false,
+        "volume": 1,
+        "decodedAudioBytes": 41018,
+        "decodedVideoBytes": 111838
+      }
+    ]
+  },
+  "paused": {
+    "kind": "sample",
+    "detail": "",
+    "time": 2.9166666666666665,
+    "prepared": true,
+    "playing": false,
+    "audioTracks": 1,
+    "frame": 70,
+    "pixelHash": -1811961431
+  },
+  "seeks": [
+    {
+      "target": 1.25,
+      "mediaTime": 1.25,
+      "completionMs": 104,
+      "observed": 1.25,
+      "error": 0,
+      "elapsedMs": 410,
+      "pixelHash": 817876055
+    },
+    {
+      "target": 4.1,
+      "mediaTime": 4.099999,
+      "completionMs": 102,
+      "observed": 4.083333333333333,
+      "error": 0.016666666666666607,
+      "elapsedMs": 404,
+      "pixelHash": 1411173574
+    },
+    {
+      "target": 2.05,
+      "mediaTime": 2.049999,
+      "completionMs": 101,
+      "observed": 2.0416666666666665,
+      "error": 0.008333333333333304,
+      "elapsedMs": 404,
+      "pixelHash": -702016093
+    }
+  ],
+  "playingTextureHashCount": 7,
+  "disposedMedia": [
+    {
+      "paused": true,
+      "src": ""
+    },
+    {
+      "paused": true,
+      "src": "http://127.0.0.1:5188/"
+    }
+  ],
+  "revoked": true,
+  "invalidDecode": [
+    {
+      "kind": "verified",
+      "size": 19,
+      "sha256": "a2789d37d6b64c7fd4837bc493a01b276ac117923f16ae98b53b4bd4b48cfb0a"
+    },
+    {
+      "kind": "error",
+      "detail": "VideoPlayer cannot play url: blob:… Cannot read file.",
+      "time": 0,
+      "prepared": false,
+      "playing": false,
+      "audioTracks": 0,
+      "frame": -1,
+      "pixelHash": 0
+    }
+  ],
+  "invalidDispose": [
+    {
+      "kind": "disposed",
+      "detail": "",
+      "time": 0,
+      "prepared": false,
+      "playing": false,
+      "audioTracks": 0,
+      "frame": -1,
+      "pixelHash": 0
+    },
+    {
+      "kind": "revoked"
+    }
+  ],
+  "limitations": [
+    "150ms seek assertion is provisional, not a product or cross-browser guarantee",
+    "seek callback may precede rendered texture; sampled after additional 300ms",
+    "audio RMS measures decoded Web Audio signal; headless speaker output not verified",
+    "no native/Quest/macOS/Safari/Firefox/GPU hardware/real Delivery authorization validation",
+    "no memory reclamation, decoder budget, cancellation race or long-duration drift measurements"
+  ]
+}
