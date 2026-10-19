@@ -2,10 +2,15 @@
   "extends": "../../packages/config/tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "erasableSyntaxOnly": true,
     "types": ["node"]
   },
-  "include": ["*.ts"]
+  "include": [
+    "*.ts",
+    "../presentation-sample/lifecycle.mts",
+    "../presentation-sample/lifecycle.test.mts"
+  ]
 }

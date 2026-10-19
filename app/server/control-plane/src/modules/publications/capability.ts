@@ -61,8 +61,77 @@ const bakedWebQuestProfile = capabilityProfileSchema.parse({
   localOverlaySupported: false,
 });
 
+const presentationQuestProfile = capabilityProfileSchema.parse({
+  ...bakedWebQuestProfile,
+  capabilityProfileId: "quest-presentation-v2",
+  renderers: {
+    ...bakedWebQuestProfile.renderers,
+    nativeUi: {
+      supported: true,
+      contractVersion: 1,
+      features: ["clip"],
+    },
+    video: { supported: true, contractVersion: 1, features: ["audio", "h264"] },
+  },
+  model: {
+    supported: true,
+    contractVersion: 1,
+    formats: ["model/gltf-binary"],
+    features: [
+      "animation",
+      "skin",
+      "morphTargets",
+      "alphaBlend",
+      "alphaMask",
+      "pbrMetallicRoughness",
+      "unlit",
+    ],
+  },
+  limits: {
+    ...bakedWebQuestProfile.limits,
+    texture: {
+      ...bakedWebQuestProfile.limits.texture,
+      tierId: "quest-presentation-v2",
+      maxSerialLoadCpuBytes: 67108864,
+    },
+    nativeUi: {
+      tierId: "quest-presentation-v2",
+      maxNodesPerArtifact: 1024,
+      maxTreeDepth: 32,
+      maxTextNodesPerArtifact: 256,
+      maxCodePointsPerText: 4096,
+      maxGlyphs: 8192,
+      maxFontAssets: 8,
+    },
+    video: {
+      tierId: "quest-presentation-v2",
+      maxWidth: 1920,
+      maxHeight: 1080,
+      maxPixels: 2073600,
+      maxConcurrentDecoders: 1,
+      maxEncodedBytes: 67108864,
+      maxDecodedFrameBytes: 8294400,
+    },
+    model: {
+      tierId: "quest-presentation-v2",
+      maxAssets: 16,
+      maxInstances: 32,
+      maxEncodedBytes: 67108864,
+      maxNodes: 4096,
+      maxPrimitives: 2048,
+      maxVertices: 1000000,
+      maxTriangles: 1000000,
+      maxBonesPerSkin: 128,
+      maxMorphTargetsPerPrimitive: 8,
+      maxAnimationClipsPerAsset: 32,
+    },
+  },
+});
+
 export const normalizedCapability = (profileId: string): CapabilityProfile => {
-  if (profileId !== bakedWebQuestProfile.capabilityProfileId)
-    throw new RangeError("Unsupported device capability profile");
-  return structuredClone(bakedWebQuestProfile);
+  const profile = [bakedWebQuestProfile, presentationQuestProfile].find(
+    (candidate) => candidate.capabilityProfileId === profileId,
+  );
+  if (!profile) throw new RangeError("Unsupported device capability profile");
+  return structuredClone(profile);
 };

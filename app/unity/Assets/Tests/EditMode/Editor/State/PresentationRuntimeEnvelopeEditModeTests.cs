@@ -8,6 +8,52 @@ using UnityEngine;
 
 public sealed class PresentationRuntimeEnvelopeEditModeTests
 {
+    [TestCase("accepted", "accepted")]
+    [TestCase("rejected", "rejected:InputUnavailable")]
+    [TestCase("no-op", "no-op:AlreadyPaused")]
+    public void LatestCommandOutcomeIsCorrelatedSafeAndDoesNotChangePlayback(string kind, string expected)
+    {
+        var store = CreateLoadedStore(out _, out var snapshot);
+        Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
+        var clock = store.RuntimeClock.Clone();
+        store.TrackCommand("current");
+        var outcome = new CommandOutcome { ClientEventId = "current" };
+        if (kind == "accepted") outcome.Accepted = new CommandAccepted();
+        else if (kind == "rejected") outcome.Rejected = new CommandRejected { Reason = CommandRejectionReason.InputUnavailable };
+        else outcome.NoOp = new CommandNoOp { Reason = CommandNoOpReason.AlreadyPaused };
+        Assert.That(store.TryReceiveControl(new ControlServerItem { CommandOutcome = outcome }.ToByteArray(), out error), Is.True, error);
+        Assert.That(store.LastCommandOutcomeCode, Is.EqualTo(expected));
+        Assert.That(store.RuntimeClock, Is.EqualTo(clock));
+        outcome.ClientEventId = "unrelated";
+        outcome.Rejected = new CommandRejected { Reason = CommandRejectionReason.InteractionUnavailable };
+        Assert.That(store.TryReceiveControl(new ControlServerItem { CommandOutcome = outcome }, out error), Is.True, error);
+        Assert.That(store.LastCommandOutcomeCode, Is.EqualTo(expected));
+        store.TrackCommand("next");
+        Assert.That(store.LastCommandOutcomeCode, Is.Null);
+        outcome.ClientEventId = "current";
+        Assert.That(store.TryReceiveControl(new ControlServerItem { CommandOutcome = outcome }, out error), Is.True, error);
+        Assert.That(store.LastCommandOutcomeCode, Is.Null);
+    }
+
+    [Test]
+    public void SnapshotReconnectClearsCommandResultsAndIgnoresOldReplies()
+    {
+        var store = CreateLoadedStore(out _, out var snapshot);
+        Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
+        store.TrackCommand("previous-connection");
+        var item = new ControlServerItem
+        {
+            CommandOutcome = new CommandOutcome
+            { ClientEventId = "previous-connection", Rejected = new CommandRejected { Reason = CommandRejectionReason.InputUnavailable } }
+        };
+        Assert.That(store.TryReceiveControl(item, out error), Is.True, error);
+        Assert.That(store.LastCommandOutcomeCode, Is.Not.Null);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.LastCommandOutcomeCode, Is.Null);
+        Assert.That(store.TryReceiveControl(item, out error), Is.True, error);
+        Assert.That(store.LastCommandOutcomeCode, Is.Null);
+    }
+
     [Test]
     public void BinaryPayloadsReceiveDeliverySnapshotAndStateFrame()
     {
@@ -494,9 +540,9 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
     private static PresentationRuntimeDataStore CreateLoadedStore(out DeliveryManifest delivery, out ControlServerItem snapshot)
     {
         Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(
-            Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text, out delivery, out string error), Is.True, error);
+            PresentationTestFixtures.Load("LocalDelivery").text, out delivery, out string error), Is.True, error);
         Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(
-            Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text, out snapshot, out error), Is.True, error);
+            PresentationTestFixtures.Load("LocalSnapshot").text, out snapshot, out error), Is.True, error);
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
         return store;

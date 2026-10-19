@@ -11,6 +11,9 @@ export const createNativeEditorConfiguration = (source: unknown, plugins: readon
         "com.unity.render-pipelines.universal": z.string().min(1),
         "com.unity.test-framework": z.string().min(1),
         "com.unity.nuget.newtonsoft-json": z.string().min(1),
+        "com.unity.cloud.gltfast": z.string().min(1),
+        "com.unity.ugui": z.string().min(1),
+        "com.unity.inputsystem": z.string().min(1),
       }),
     })
     .parse(source);
@@ -23,6 +26,8 @@ export const createNativeEditorConfiguration = (source: unknown, plugins: readon
         "com.unity.modules.imageconversion": "1.0.0",
         "com.unity.modules.physics": "1.0.0",
         "com.unity.modules.xr": "1.0.0",
+        "com.unity.modules.video": "1.0.0",
+        "com.unity.modules.audio": "1.0.0",
         "com.unity.modules.unitywebrequest": "1.0.0",
       },
     },
@@ -33,6 +38,8 @@ export const createNativeEditorConfiguration = (source: unknown, plugins: readon
         "Cysharp.Net.Http.YetAnotherHttpHandler",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.RenderPipelines.Core.Runtime",
+        "Unity.ugui",
+        "Unity.TextMeshPro",
       ],
       includePlatforms: ["Editor"],
       optionalUnityReferences: ["TestAssemblies"],

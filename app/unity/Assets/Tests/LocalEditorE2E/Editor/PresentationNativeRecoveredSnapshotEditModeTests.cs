@@ -75,9 +75,9 @@ public sealed class PresentationNativeRecoveredSnapshotEditModeTests
 
     private static PresentationRuntimeDataStore Load(out DeliveryManifest delivery, out ControlServerItem snapshot)
     {
-        Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text,
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,
             out delivery, out string error), Is.True, error);
-        Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text,
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(PresentationTestFixtures.Load("LocalSnapshot").text,
             out snapshot, out error), Is.True, error);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);

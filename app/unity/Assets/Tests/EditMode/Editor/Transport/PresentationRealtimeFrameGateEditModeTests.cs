@@ -13,8 +13,8 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void ResumeWithoutSnapshotAcceptsContiguousReplayAndAcknowledgesItsEndCut()
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
-        var replay = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/Control/01-opening-greeting-in").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
+        var replay = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("Control/01-opening-greeting-in").text);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
@@ -35,7 +35,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void EmptyReplayAcknowledgesThePriorReliableCut()
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
@@ -54,8 +54,8 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void HiddenGapMarkerThenVisibleReplayAcknowledgesTheVisibleEventCut()
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
-        var replay = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/Control/01-opening-greeting-in").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
+        var replay = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("Control/01-opening-greeting-in").text);
         replay.ReliableEvent.Sequence = 2;
         var marker = new ControlServerItem
         {
@@ -89,7 +89,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void InvalidReplayMarkersDoNotAdvanceTheCursor(string invalid)
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var marker = new ControlServerItem
         {
             ProjectionAdvance = new ProjectionAdvance
@@ -118,7 +118,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void AReplayMarkerCannotEndAtTheStateNonceWithoutAVisibleEvent()
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var marker = new ControlServerItem
         {
             ProjectionAdvance = new ProjectionAdvance
@@ -144,8 +144,8 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void ReplayGapIsRejectedWithoutAdvancingTheAppliedCursor()
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
-        var replay = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/Control/01-opening-greeting-in").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
+        var replay = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("Control/01-opening-greeting-in").text);
         replay.ReliableEvent.Sequence += 1;
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
@@ -163,7 +163,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void StateReadyAcknowledgesTheSnapshotCutWhileLiveEventsContinue()
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
@@ -194,11 +194,11 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void KeyframesOmitTimelineOwnedFieldsAndPreserveTheirCanonicalBase(string eventName)
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
-        var started = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/Control/" + eventName).text);
+        var started = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("Control/" + eventName).text);
         started.ReliableEvent.Sequence = 1;
         Assert.That(store.TryReceiveControl(started, out error), Is.True, error);
         Assert.That(store.TryGetTimeline(started.ReliableEvent.TimelineStarted.TimelineId, out ProjectedTimelineDefinition timeline), Is.True);
@@ -221,7 +221,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void DeltaTransformUpdatesOnlyPresentComponents(string component)
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
@@ -257,7 +257,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void InvalidPartialTransformsDoNotApplyOtherFields(string invalid)
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
@@ -294,13 +294,13 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void NetworkFramesRejectIncompleteKeyframesAndTimelineOwnedProperties(bool timeline)
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
         if (timeline)
         {
-            var started = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/Control/01-opening-greeting-in").text);
+            var started = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("Control/01-opening-greeting-in").text);
             Assert.That(store.TryReceiveControl(started, out error), Is.True, error);
         }
         using (var textures = new PresentationTextureResidency())
@@ -320,7 +320,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
         Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(
-            Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text, out ControlServerItem snapshot, out string error), Is.True, error);
+            PresentationTestFixtures.Load("LocalSnapshot").text, out ControlServerItem snapshot, out string error), Is.True, error);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
@@ -344,7 +344,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     public void NewStateStreamAcceptsRestartedSequenceAfterControlReplay()
     {
         DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var replay = new ControlServerItem
         {
             ReliableEvent = new ProjectedReliableEvent
@@ -388,7 +388,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     [TestCase("snapshot-reset")]
     public void ReadinessRequiresCurrentKeyframeAndClosesOnResynchronization(string reason)
     {
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(PresentationTextureResidencyEditModeTests.BakedDelivery(), out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
@@ -425,7 +425,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
         var frame = new ElementStateFrame { Fence = fence.Clone(), FrameSequence = sequence, BaseReliableSequence = baseReliable, Kind = kind };
         if (kind == StateFrameKind.Keyframe)
         {
-            var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+            var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
             foreach (NodeRuntimeState node in snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates.OrderBy(node => node.NodeId, System.StringComparer.Ordinal))
                 frame.Elements.Add(new ElementStatePatch
                 {

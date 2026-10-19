@@ -30,7 +30,7 @@ public sealed class PresentationRuntimeHostEditModeTests
             host.PrepareDelivery(delivery);
             AssetAccessBinding asset = delivery.AssetAccess.Single(item => item.AssetId == "asset:texture");
             Assert.That(cache.TryReserveSession(PresentationRuntimeHost.ConsumerToken(delivery.SessionId, delivery.ProjectionInstance.ParticipantId),
-                new[] { asset }, out var lease, out string error), Is.True, error);
+                delivery.AssetAccess, out var lease, out string error), Is.True, error);
             lease.Dispose();
             string persisted = File.ReadAllText(RegistryPath);
             Assert.That(persisted, Does.Contain(asset.Checksum));
@@ -59,8 +59,8 @@ public sealed class PresentationRuntimeHostEditModeTests
         using (PresentationRuntimeHost host = new PresentationRuntimeHost(RegistryPath, restarted))
         {
             Assert.That(host.SelectionCount, Is.EqualTo(2));
-            Assert.That(restarted.TryReserveSession(firstToken, new[] { asset }, out var firstLease, out string firstError), Is.True, firstError);
-            Assert.That(restarted.TryReserveSession(secondToken, new[] { asset }, out var secondLease, out string secondError), Is.True, secondError);
+            Assert.That(restarted.TryReserveSession(firstToken, first.AssetAccess, out var firstLease, out string firstError), Is.True, firstError);
+            Assert.That(restarted.TryReserveSession(secondToken, second.AssetAccess, out var secondLease, out string secondError), Is.True, secondError);
             firstLease.Dispose();
             secondLease.Dispose();
             host.RemoveConfirmedSelection(first.SessionId, first.ProjectionInstance.ParticipantId);

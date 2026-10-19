@@ -15,6 +15,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly PresentationDeliveryCatalog delivery;
         private readonly Dictionary<string, NodeRuntimeState> nodeStates = new Dictionary<string, NodeRuntimeState>();
         private readonly Dictionary<string, SurfaceRuntimeState> surfaceStates = new Dictionary<string, SurfaceRuntimeState>();
+        private readonly Dictionary<string, MediaRuntimeState> mediaStates = new Dictionary<string, MediaRuntimeState>();
         private readonly Dictionary<string, VariableState> variableStates = new Dictionary<string, VariableState>();
         private readonly Dictionary<string, ModelClipRuntimeState> modelClipStates = new Dictionary<string, ModelClipRuntimeState>();
         private readonly Dictionary<string, AnchorSampleState> anchorSamples = new Dictionary<string, AnchorSampleState>();
@@ -52,17 +53,59 @@ namespace Unframe.Unity.PresentationRuntime
             get { List<RuntimeRunSnapshot> result = new List<RuntimeRunSnapshot>(); foreach (RuntimeRunSnapshot run in activeRuns.Values) result.Add(run.Clone()); return result; }
         }
 
+        private string latestCommandEventId;
+        internal string LastCommandOutcomeCode { get; private set; }
+
+        internal void TrackCommand(string clientEventId)
+        {
+            if (string.IsNullOrWhiteSpace(clientEventId)) throw new ArgumentException("A command event identifier is required.");
+            latestCommandEventId = clientEventId;
+            LastCommandOutcomeCode = null;
+        }
+
+        internal void ClearCommandOutcome(string expectedClientEventId = null)
+        {
+            if (expectedClientEventId != null && expectedClientEventId != latestCommandEventId) return;
+            latestCommandEventId = null;
+            LastCommandOutcomeCode = null;
+        }
+
+        private bool TryApplyCommandOutcome(CommandOutcome outcome, out string error)
+        {
+            error = null;
+            if (outcome == null || string.IsNullOrWhiteSpace(outcome.ClientEventId) || outcome.ResultCase == CommandOutcome.ResultOneofCase.None)
+            {
+                error = "realtime.command_outcome is incomplete.";
+                return false;
+            }
+            if (outcome.ClientEventId != latestCommandEventId) return true;
+            switch (outcome.ResultCase)
+            {
+                case CommandOutcome.ResultOneofCase.Accepted: LastCommandOutcomeCode = "accepted"; break;
+                case CommandOutcome.ResultOneofCase.Rejected:
+                    LastCommandOutcomeCode = "rejected:" + (Enum.IsDefined(typeof(CommandRejectionReason), outcome.Rejected.Reason) ? outcome.Rejected.Reason.ToString() : "Unspecified");
+                    break;
+                case CommandOutcome.ResultOneofCase.NoOp:
+                    LastCommandOutcomeCode = "no-op:" + (Enum.IsDefined(typeof(CommandNoOpReason), outcome.NoOp.Reason) ? outcome.NoOp.Reason.ToString() : "Unspecified");
+                    break;
+            }
+            return true;
+        }
+
         internal void ResetStateStream()
         {
+            ClearCommandOutcome();
             LastStateFrameSequence = 0;
             anchorSamples.Clear();
         }
 
         internal void Reset()
         {
+            ClearCommandOutcome();
             nodeStates.Clear();
             surfaceStates.Clear();
             variableStates.Clear();
+            mediaStates.Clear();
             modelClipStates.Clear();
             anchorSamples.Clear();
             LastReliableSequence = 0;
@@ -100,6 +143,8 @@ namespace Unframe.Unity.PresentationRuntime
 
             switch (item.ItemCase)
             {
+                case ControlServerItem.ItemOneofCase.CommandOutcome:
+                    return TryApplyCommandOutcome(item.CommandOutcome, out error);
                 case ControlServerItem.ItemOneofCase.ConnectionSnapshot:
                     return TryApplySnapshot(item.ConnectionSnapshot, out error);
                 case ControlServerItem.ItemOneofCase.ReliableEvent:
@@ -152,6 +197,7 @@ namespace Unframe.Unity.PresentationRuntime
         internal void InvalidateAnchorSamples() { anchorSamples.Clear(); }
         internal bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { return surfaceStates.TryGetValue(id, out value); }
         internal bool TryGetVariableState(string id, out VariableState value) { return variableStates.TryGetValue(id, out value); }
+        internal bool TryGetMediaState(string surfaceId, out MediaRuntimeState value) { return mediaStates.TryGetValue(surfaceId, out value); }
         internal bool TryGetModelClipState(string modelNodeId, out ModelClipRuntimeState value) { return modelClipStates.TryGetValue(modelNodeId, out value); }
         internal bool TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot)
         {
@@ -196,12 +242,15 @@ namespace Unframe.Unity.PresentationRuntime
                 return false;
             }
 
+            mediaStates.Clear();
+            foreach (MediaRuntimeState media in view.MediaStates) mediaStates.Add(media.SurfaceId, media.Clone());
             LastReliableSequence = envelope.ReliableSequence;
             LastStateFrameSequence = 0;
             anchorSamples.Clear();
             presentationOriginVersion = envelope.Fence.PresentationOriginVersion;
             presentationOrigin = view.PresentationOrigin?.Clone();
             Replace(participants, presence);
+            ClearCommandOutcome();
             hasSnapshot = true;
             lastConnectionSnapshot = envelope.Clone();
             clock = view.Clock.Clone();
@@ -371,6 +420,26 @@ namespace Unframe.Unity.PresentationRuntime
                 case ProjectedReliableEvent.PayloadOneofCase.VariableChanged:
                     if (!TrySetVariableState(reliableEvent.VariableChanged.State, out error)) return false;
                     break;
+                case ProjectedReliableEvent.PayloadOneofCase.MediaStarted:
+                case ProjectedReliableEvent.PayloadOneofCase.MediaPaused:
+                case ProjectedReliableEvent.PayloadOneofCase.MediaResumed:
+                case ProjectedReliableEvent.PayloadOneofCase.MediaSeeked:
+                case ProjectedReliableEvent.PayloadOneofCase.MediaCompleted:
+                case ProjectedReliableEvent.PayloadOneofCase.MediaStopped:
+                case ProjectedReliableEvent.PayloadOneofCase.MediaCanceled:
+                case ProjectedReliableEvent.PayloadOneofCase.MediaStoppedSeeked:
+                    if (!TryApplyMediaEvent(reliableEvent, out error)) return false;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipStarted:
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipPaused:
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipResumed:
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipStopped:
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipCompleted:
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipCrossfadeStarted:
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipCrossfadeCompleted:
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipCanceled:
+                    if (!TryApplyModelClipEvent(reliableEvent, out error)) return false;
+                    break;
                 case ProjectedReliableEvent.PayloadOneofCase.TimelineStarted:
                     TimelineStarted started = reliableEvent.TimelineStarted;
                     if (!IsValidRunId(started.RunId) || activeRuns.ContainsKey(RunKey(started.RunId)) || !delivery.ContainsTimeline(started.TimelineId)
@@ -409,6 +478,180 @@ namespace Unframe.Unity.PresentationRuntime
 
             LastReliableSequence = reliableEvent.Sequence;
             clock.RuntimeTimeMs = reliableEvent.OccurredAtRuntimeTimeMs;
+            error = null;
+            return true;
+        }
+
+        private bool TryApplyModelClipEvent(ProjectedReliableEvent message, out string error)
+        {
+            error = "realtime model clip event is inconsistent with the active Run.";
+            string nodeId;
+            RuntimeRunId runId;
+            RuntimeRunSnapshot incoming = null;
+            ModelClipRuntimeState terminal = null;
+            bool starts = false;
+            switch (message.PayloadCase)
+            {
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipStarted:
+                    var start = message.ModelClipStarted;
+                    nodeId = start.ModelNodeId; runId = start.RunId; incoming = start.Run; starts = true;
+                    if (incoming?.ModelClip?.Single == null || !incoming.ModelClip.Single.Equals(start.Playback)) return false;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipCrossfadeStarted:
+                    var fade = message.ModelClipCrossfadeStarted;
+                    nodeId = fade.ModelNodeId; runId = fade.RunId; incoming = fade.Run; starts = true;
+                    if (incoming?.ModelClip?.Crossfade == null || !incoming.ModelClip.Crossfade.Equals(fade.Crossfade)) return false;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipPaused:
+                    nodeId = message.ModelClipPaused.ModelNodeId; runId = message.ModelClipPaused.RunId; incoming = message.ModelClipPaused.Run;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipResumed:
+                    nodeId = message.ModelClipResumed.ModelNodeId; runId = message.ModelClipResumed.RunId; incoming = message.ModelClipResumed.Run;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipCrossfadeCompleted:
+                    var complete = message.ModelClipCrossfadeCompleted;
+                    nodeId = complete.ModelNodeId; runId = complete.RunId; incoming = complete.Run;
+                    if (incoming?.ModelClip?.Single == null || !incoming.ModelClip.Single.Equals(complete.Playback)) return false;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipStopped:
+                    var stop = message.ModelClipStopped;
+                    nodeId = stop.ModelNodeId; runId = stop.RunId;
+                    terminal = new ModelClipRuntimeState { ModelNodeId = nodeId };
+                    if (stop.Clip != null) terminal.HeldClip = stop.Clip.Clone();
+                    else if (stop.Blend != null) terminal.HeldBlend = stop.Blend.Clone();
+                    else return false;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipCompleted:
+                    nodeId = message.ModelClipCompleted.ModelNodeId; runId = message.ModelClipCompleted.RunId;
+                    if (message.ModelClipCompleted.HeldPose == null) return false;
+                    terminal = new ModelClipRuntimeState { ModelNodeId = nodeId, HeldClip = message.ModelClipCompleted.HeldPose.Clone() };
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ModelClipCanceled:
+                    nodeId = message.ModelClipCanceled.ModelNodeId; runId = message.ModelClipCanceled.RunId;
+                    if (message.ModelClipCanceled.Reason == ModelClipCancelReason.Unspecified || !Enum.IsDefined(typeof(ModelClipCancelReason), message.ModelClipCanceled.Reason)) return false;
+                    terminal = new ModelClipRuntimeState { ModelNodeId = nodeId, DefaultPose = new DefaultModelPose() };
+                    break;
+                default: return false;
+            }
+            if (!IsModelNode(nodeId) || !IsValidRunId(runId)) return false;
+            modelClipStates.TryGetValue(nodeId, out ModelClipRuntimeState previous);
+            RuntimeRunSnapshot current = null;
+            if (previous?.Active != null) activeRuns.TryGetValue(RunKey(previous.Active.RunId), out current);
+            if (!starts && (current?.ModelClip?.ModelNodeId != nodeId || !current.RunId.Equals(runId))) return false;
+            if (incoming != null)
+            {
+                if (incoming.RunId == null || !incoming.RunId.Equals(runId) || incoming.ModelClip?.ModelNodeId != nodeId || !ValidRunOwner(incoming.Owner)
+                    || incoming.Cause == null || !PresentationDeliveryCatalog.IsId(incoming.Cause.CueId) || !PresentationDeliveryCatalog.IsId(incoming.Cause.CauseEventId)
+                    || incoming.Completion != RunCompletion.Blocking && incoming.Completion != RunCompletion.NonBlocking
+                    || !IsValidModelClipRun(incoming.ModelClip, message.OccurredAtRuntimeTimeMs)
+                    || starts && (activeRuns.ContainsKey(RunKey(runId)) || incoming.StartedAtRuntimeTimeMs != message.OccurredAtRuntimeTimeMs)
+                    || !starts && (incoming.StartedAtRuntimeTimeMs != current.StartedAtRuntimeTimeMs || !incoming.Owner.Equals(current.Owner)
+                        || !incoming.Cause.Equals(current.Cause) || incoming.Completion != current.Completion)) return false;
+            }
+            else if (!IsValidHeldModelState(terminal)) return false;
+            if (current != null) activeRuns.Remove(RunKey(current.RunId));
+            if (incoming != null)
+            {
+                activeRuns[RunKey(runId)] = incoming.Clone();
+                modelClipStates[nodeId] = new ModelClipRuntimeState { ModelNodeId = nodeId, Active = new ModelClipActive { RunId = runId.Clone() } };
+            }
+            else modelClipStates[nodeId] = terminal;
+            error = null;
+            return true;
+        }
+
+        private bool IsValidHeldModelState(ModelClipRuntimeState state)
+        {
+            if (state == null || !IsModelNode(state.ModelNodeId)) return false;
+            if (state.DefaultPose != null) return true;
+            if (state.HeldClip != null) return IsValidHeldModelPose(state.ModelNodeId, state.HeldClip);
+            return state.HeldBlend != null && IsValidHeldModelPose(state.ModelNodeId, state.HeldBlend.From)
+                && IsValidHeldModelPose(state.ModelNodeId, state.HeldBlend.To)
+                && PresentationDeliveryCatalog.IsFinite(state.HeldBlend.ToWeight) && state.HeldBlend.ToWeight >= 0 && state.HeldBlend.ToWeight <= 1;
+        }
+        private bool IsValidHeldModelPose(string nodeId, ClipHeldPose pose)
+        {
+            return pose != null && delivery.TryGetModelClip(nodeId, pose.ClipId, out ProjectedModelClipDefinition clip)
+                && PresentationDeliveryCatalog.IsFinite(pose.PositionMs) && pose.PositionMs >= 0 && pose.PositionMs <= clip.DurationMs;
+        }
+
+        private bool TryApplyMediaEvent(ProjectedReliableEvent message, out string error)
+        {
+            error = "realtime media event is inconsistent with the active Run.";
+            string surfaceId;
+            RuntimeRunId runId;
+            RuntimeRunSnapshot incoming = null;
+            PlaybackClock playback = null;
+            double held = 0;
+            bool started = message.PayloadCase == ProjectedReliableEvent.PayloadOneofCase.MediaStarted;
+            bool terminal = false;
+            switch (message.PayloadCase)
+            {
+                case ProjectedReliableEvent.PayloadOneofCase.MediaStarted:
+                    surfaceId = message.MediaStarted.SurfaceId; runId = message.MediaStarted.RunId;
+                    incoming = message.MediaStarted.Run; playback = message.MediaStarted.Playback;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.MediaPaused:
+                    surfaceId = message.MediaPaused.SurfaceId; runId = message.MediaPaused.RunId; incoming = message.MediaPaused.Run;
+                    playback = new PlaybackClock { Paused = new PausedClock { PositionMs = message.MediaPaused.PositionMs } };
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.MediaResumed:
+                    surfaceId = message.MediaResumed.SurfaceId; runId = message.MediaResumed.RunId; incoming = message.MediaResumed.Run;
+                    playback = new PlaybackClock { Playing = message.MediaResumed.Playback?.Clone() };
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.MediaSeeked:
+                    surfaceId = message.MediaSeeked.SurfaceId; runId = message.MediaSeeked.RunId; incoming = message.MediaSeeked.Run;
+                    playback = message.MediaSeeked.Playback;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.MediaCompleted:
+                    surfaceId = message.MediaCompleted.SurfaceId; runId = message.MediaCompleted.RunId; held = message.MediaCompleted.HeldPositionMs; terminal = true;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.MediaStopped:
+                    surfaceId = message.MediaStopped.SurfaceId; runId = message.MediaStopped.RunId; held = message.MediaStopped.HeldPositionMs; terminal = true;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.MediaCanceled:
+                    surfaceId = message.MediaCanceled.SurfaceId; runId = message.MediaCanceled.RunId; terminal = true;
+                    if (message.MediaCanceled.Reason == MediaCancelReason.Unspecified || !Enum.IsDefined(typeof(MediaCancelReason), message.MediaCanceled.Reason)) return false;
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.MediaStoppedSeeked:
+                    surfaceId = message.MediaStoppedSeeked.SurfaceId; held = message.MediaStoppedSeeked.HeldPositionMs;
+                    if (!delivery.ContainsSurface(surfaceId) || !mediaStates.TryGetValue(surfaceId, out MediaRuntimeState stopped)
+                        || stopped.StateCase != MediaRuntimeState.StateOneofCase.Stopped || !PresentationDeliveryCatalog.IsFinite(held) || held < 0) return false;
+                    mediaStates[surfaceId] = new MediaRuntimeState { SurfaceId = surfaceId, Stopped = new MediaStoppedState { HeldPositionMs = held } };
+                    error = null;
+                    return true;
+                default: return false;
+            }
+            if (!delivery.ContainsSurface(surfaceId) || !IsValidRunId(runId)) return false;
+            string key = RunKey(runId);
+            bool exists = activeRuns.TryGetValue(key, out RuntimeRunSnapshot existing);
+            if (started)
+            {
+                if (exists || !mediaStates.TryGetValue(surfaceId, out MediaRuntimeState stopped) || stopped.StateCase != MediaRuntimeState.StateOneofCase.Stopped) return false;
+            }
+            else if (!exists || existing.RunCase != RuntimeRunSnapshot.RunOneofCase.Media || existing.Media.SurfaceId != surfaceId
+                || !mediaStates.TryGetValue(surfaceId, out MediaRuntimeState active) || active.StateCase != MediaRuntimeState.StateOneofCase.Active || !runId.Equals(active.Active.RunId)) return false;
+            if (terminal)
+            {
+                if (!PresentationDeliveryCatalog.IsFinite(held) || held < 0) return false;
+                activeRuns.Remove(key);
+                if (message.PayloadCase == ProjectedReliableEvent.PayloadOneofCase.MediaCanceled) mediaStates.Remove(surfaceId);
+                else mediaStates[surfaceId] = new MediaRuntimeState { SurfaceId = surfaceId, Stopped = new MediaStoppedState { HeldPositionMs = held } };
+            }
+            else
+            {
+                if (incoming == null || incoming.RunCase != RuntimeRunSnapshot.RunOneofCase.Media || !runId.Equals(incoming.RunId)
+                    || incoming.Media.SurfaceId != surfaceId || !IsValidPlaybackClock(playback, message.OccurredAtRuntimeTimeMs)
+                    || !playback.Equals(incoming.Media.Playback) || !ValidRunOwner(incoming.Owner)
+                    || incoming.Cause == null || !PresentationDeliveryCatalog.IsId(incoming.Cause.CueId) || !PresentationDeliveryCatalog.IsId(incoming.Cause.CauseEventId)
+                    || incoming.Completion != RunCompletion.Blocking && incoming.Completion != RunCompletion.NonBlocking
+                    || incoming.StartedAtRuntimeTimeMs > message.OccurredAtRuntimeTimeMs
+                    || started && incoming.StartedAtRuntimeTimeMs != message.OccurredAtRuntimeTimeMs
+                    || !started && (incoming.StartedAtRuntimeTimeMs != existing.StartedAtRuntimeTimeMs || !incoming.Owner.Equals(existing.Owner)
+                        || !incoming.Cause.Equals(existing.Cause) || incoming.Completion != existing.Completion)) return false;
+                activeRuns[key] = incoming.Clone();
+                mediaStates[surfaceId] = new MediaRuntimeState { SurfaceId = surfaceId, Active = new MediaActive { RunId = runId.Clone(), Playback = playback.Clone() } };
+            }
             error = null;
             return true;
         }
@@ -740,7 +983,7 @@ namespace Unframe.Unity.PresentationRuntime
                     return FailSnapshotReference(out error);
                 bool hasRun = modelRuns.TryGetValue(state.ModelNodeId, out RuntimeRunSnapshot run);
                 if (hasRun && (state.StateCase != ModelClipRuntimeState.StateOneofCase.Active || !run.RunId.Equals(state.Active.RunId))
-                    || !hasRun && state.StateCase == ModelClipRuntimeState.StateOneofCase.Active)
+                    || !hasRun && !IsValidHeldModelState(state))
                     return FailSnapshotReference(out error);
                 modelRuns.Remove(state.ModelNodeId);
             }
@@ -902,15 +1145,14 @@ namespace Unframe.Unity.PresentationRuntime
         private void RemoveGroupState(string groupId)
         {
             ProjectedRuntimeCatalog catalog = delivery.Delivery.ProjectionProfile.RuntimeCatalog;
-            foreach (ProjectedNodeDefinition node in catalog.Nodes) if (IsGroupOwner(node.Owner, groupId)) nodeStates.Remove(node.NodeId);
-            foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces) if (IsGroupOwner(surface.Owner, groupId)) surfaceStates.Remove(surface.SurfaceId);
+            foreach (ProjectedNodeDefinition node in catalog.Nodes) if (IsGroupOwner(node.Owner, groupId)) { nodeStates.Remove(node.NodeId); modelClipStates.Remove(node.NodeId); }
+            foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces) if (IsGroupOwner(surface.Owner, groupId)) { surfaceStates.Remove(surface.SurfaceId); mediaStates.Remove(surface.SurfaceId); }
             foreach (ProjectedVariableDefinition variable in catalog.Variables) if (IsGroupOwner(variable.Owner, groupId)) variableStates.Remove(variable.VariableId);
         }
 
         private bool TryApplyGroupInitialization(GroupRuntimeInitialization initialization, string groupId, out string error)
         {
             error = "realtime group initialization references invalid runtime state.";
-            if (initialization.MediaStates.Count != 0 || initialization.ModelClipStates.Count != 0) return false;
             ProjectedRuntimeCatalog catalog = delivery.Delivery.ProjectionProfile.RuntimeCatalog;
             HashSet<string> nodes = new HashSet<string>(), surfaces = new HashSet<string>(), variables = new HashSet<string>();
             foreach (ProjectedNodeDefinition node in catalog.Nodes) if (IsGroupOwner(node.Owner, groupId)) nodes.Add(node.NodeId);
@@ -936,6 +1178,21 @@ namespace Unframe.Unity.PresentationRuntime
                 previous = variable.VariableId;
             }
             if (nodes.Count != 0 || surfaces.Count != 0 || variables.Count != 0) return false;
+            var mediaIds = new HashSet<string>();
+            foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces)
+                if (surface.HasVideo && IsGroupOwner(surface.Owner, groupId)) mediaIds.Add(surface.SurfaceId);
+            foreach (MediaRuntimeState media in initialization.MediaStates)
+                if (media == null || !mediaIds.Remove(media.SurfaceId) || media.StateCase != MediaRuntimeState.StateOneofCase.Stopped
+                    || !PresentationDeliveryCatalog.IsFinite(media.Stopped.HeldPositionMs) || media.Stopped.HeldPositionMs < 0) return false;
+            if (mediaIds.Count != 0) return false;
+            var modelIds = new HashSet<string>();
+            foreach (ProjectedNodeDefinition node in catalog.Nodes)
+                if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model && IsGroupOwner(node.Owner, groupId)) modelIds.Add(node.NodeId);
+            foreach (ModelClipRuntimeState model in initialization.ModelClipStates)
+                if (!IsValidHeldModelState(model) || !modelIds.Remove(model.ModelNodeId)) return false;
+            if (modelIds.Count != 0) return false;
+            foreach (ModelClipRuntimeState model in initialization.ModelClipStates) modelClipStates[model.ModelNodeId] = model.Clone();
+            foreach (MediaRuntimeState media in initialization.MediaStates) mediaStates[media.SurfaceId] = media.Clone();
             foreach (NodeRuntimeState node in initialization.NodeStates) nodeStates[node.NodeId] = node.Clone();
             foreach (SurfaceRuntimeState surface in initialization.SurfaceStates) surfaceStates[surface.SurfaceId] = surface.Clone();
             foreach (VariableState variable in initialization.Variables) variableStates[variable.VariableId] = variable.Clone();

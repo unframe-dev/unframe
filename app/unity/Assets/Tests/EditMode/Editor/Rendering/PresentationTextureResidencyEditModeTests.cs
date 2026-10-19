@@ -125,7 +125,7 @@ public sealed class PresentationTextureResidencyEditModeTests
 
     internal static DeliveryManifest BakedDelivery()
     {
-        DeliveryManifest manifest = JsonParser.Default.Parse<DeliveryManifest>(Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text);
+        DeliveryManifest manifest = JsonParser.Default.Parse<DeliveryManifest>(PresentationTestFixtures.Load("LocalDelivery").text);
         DeliveredRenderSurface surface = manifest.ProjectionProfile.RenderSurfaces[0];
         surface.RendererKind = RendererKind.BakedWeb;
         surface.LogicalBounds = new LogicalBounds { Width = 1, Height = 1 };
@@ -139,6 +139,12 @@ public sealed class PresentationTextureResidencyEditModeTests
         manifest.CapabilityProfile.Renderers.BakedWeb = new TextureCapability { Supported = true, ContractVersion = 1 };
         manifest.CapabilityProfile.Renderers.BakedWeb.Features.Add(baked.RequiredFeatures);
         manifest.CapabilityProfile.Limits = new CapabilityLimits { Texture = new TextureLimits { TierId = "test", MaxTextureWidth = 2048, MaxTextureHeight = 2048, MaxTexturePixels = 4194304, MaxTextureBindings = 256, MaxGpuBytes = 67108864, MaxSerialLoadCpuBytes = 67108864, MaxEncodedCacheBytes = 67108864, EncodedCacheReserveBytes = 1024 } };
+        foreach (AssetAccessBinding asset in manifest.AssetAccess)
+        {
+            asset.Checksum = "sha256:" + new string('a', 64);
+            asset.EncodedSizeBytes = 1;
+            asset.MediaType = "model/gltf-binary";
+        }
         manifest.AssetAccess.Add(Access("asset:texture"));
         manifest.Residency.Textures = new TextureResidencyPlan { BudgetTierId = "test", TotalDecodedGpuBytes = 4, MaximumPeakLoadCpuBytes = 94 };
         manifest.Residency.Textures.Textures.Add(Binding("asset:texture"));

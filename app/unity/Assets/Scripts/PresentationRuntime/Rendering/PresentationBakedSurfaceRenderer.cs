@@ -4,6 +4,7 @@ using Unframe.Delivery;
 using Unframe.Presentation;
 using Unframe.Realtime;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Unframe.Unity.PresentationRuntime
 {
@@ -17,6 +18,7 @@ namespace Unframe.Unity.PresentationRuntime
             internal GameObject Object;
         }
         private readonly List<Partition> partitions = new List<Partition>();
+        private readonly List<SortingGroup> sortingGroups = new List<SortingGroup>();
         private readonly Material material;
         private readonly MaterialPropertyBlock properties = new MaterialPropertyBlock();
 
@@ -32,12 +34,37 @@ namespace Unframe.Unity.PresentationRuntime
             Clear();
             error = "baked surface cannot be rendered.";
             if (view == null || view.Catalog == null || hierarchy == null || hierarchy.Registry == null) return false;
+            var distinctLayers = new Dictionary<string, SortedSet<uint>>();
             foreach (DeliveredRenderSurface surface in view.RenderSurfaces)
             {
-                if (surface.RendererKind != RendererKind.BakedWeb || !view.TryGetSurface(surface.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
+                if (surface.RendererKind != RendererKind.BakedWeb) continue;
+                if (!distinctLayers.TryGetValue(surface.SemanticSurfaceId, out SortedSet<uint> layers))
+                {
+                    layers = new SortedSet<uint>();
+                    distinctLayers.Add(surface.SemanticSurfaceId, layers);
+                }
+                layers.Add(surface.Layer);
+            }
+            var layersBySurface = new Dictionary<string, List<uint>>();
+            foreach (KeyValuePair<string, SortedSet<uint>> layers in distinctLayers)
+            {
+                // Unity uses signed 16-bit sorting orders; contract layers are uint32.
+                if (layers.Value.Count > 65536) { error = "baked surface has too many distinct layers."; return false; }
+                layersBySurface.Add(layers.Key, new List<uint>(layers.Value));
+            }
+            foreach (DeliveredRenderSurface surface in view.RenderSurfaces)
+            {
+                if (surface.RendererKind != RendererKind.BakedWeb) continue;
+                if (!view.TryGetSurface(surface.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
                     || semantic.PhysicalSizeMeters == null || semantic.LogicalSize == null || semantic.PhysicalSizeMeters.X <= 0 || semantic.PhysicalSizeMeters.Y <= 0
                     || semantic.LogicalSize.X <= 0 || semantic.LogicalSize.Y <= 0
                     || !hierarchy.Registry.TryGet(semantic.HostNodeId, out GameObject host)) { Clear(); return false; }
+                if (host.GetComponent<SortingGroup>() == null)
+                {
+                    // Each surface host is a spatial leaf. Group distance orders physical surfaces,
+                    // while child orders composite partitions independently of their off-center bounds.
+                    sortingGroups.Add(host.AddComponent<SortingGroup>());
+                }
                 GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
                 quad.name = surface.RenderSurfaceId;
                 PresentationTextureResidency.Destroy(quad.GetComponent<Collider>());
@@ -49,8 +76,9 @@ namespace Unframe.Unity.PresentationRuntime
                 if (semantic.Fit == SurfaceFit.Cover) fitX = fitY = Math.Max(fitX, fitY);
                 quad.transform.localScale = new UnityEngine.Vector3((float)(bounds.Width * fitX), (float)(bounds.Height * fitY), 1);
                 quad.transform.localPosition = new UnityEngine.Vector3((float)((bounds.X + bounds.Width / 2 - semantic.LogicalSize.X / 2) * fitX),
-                    (float)((semantic.LogicalSize.Y / 2 - bounds.Y - bounds.Height / 2) * fitY), -(float)surface.Layer * 0.0001f);
+                    (float)((semantic.LogicalSize.Y / 2 - bounds.Y - bounds.Height / 2) * fitY), 0);
                 MeshRenderer renderer = quad.GetComponent<MeshRenderer>();
+                renderer.sortingOrder = layersBySurface[surface.SemanticSurfaceId].BinarySearch(surface.Layer) - 32768;
                 renderer.sharedMaterial = material;
                 renderer.enabled = false;
                 partitions.Add(new Partition { Surface = surface, HostNodeId = semantic.HostNodeId, Renderer = renderer, Object = quad });
@@ -176,6 +204,9 @@ namespace Unframe.Unity.PresentationRuntime
         public void Dispose()
         {
             Clear();
+            // Keep groups alive across TryBuild: Destroy is deferred during play.
+            foreach (SortingGroup group in sortingGroups) PresentationTextureResidency.Destroy(group);
+            sortingGroups.Clear();
             PresentationTextureResidency.Destroy(material);
         }
     }

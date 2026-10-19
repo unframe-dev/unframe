@@ -7,6 +7,49 @@ using UnityEngine;
 
 public sealed class PresentationDeliveryValidationEditModeTests
 {
+    [TestCase("viewer")]
+    [TestCase("unknown-preset")]
+    [TestCase("wrong-hand")]
+    [TestCase("distance")]
+    [TestCase("unrepresentable-distance")]
+    [TestCase("window")]
+    [TestCase("duplicate")]
+    public void MotionGuideMetadataIsValidatedBeforeUse(string invalid)
+    {
+        DeliveryManifest delivery = CreateFixture();
+        var guide = new ProjectedMotionGuideDefinition
+        {
+            GroupId = "main", StepId = "start", CueId = "move",
+            Preset = (MotionGuidePreset)1, Hand = (MotionGuideHand)1,
+            MinimumDistanceMeters = .2, WindowMs = 1000,
+        };
+        delivery.ProjectionProfile.RuntimeCatalog.MotionGuides.Add(guide);
+        switch (invalid)
+        {
+            case "viewer": delivery.ProjectionProfile.Key.Role = SessionRole.Viewer; break;
+            case "unknown-preset": guide.Preset = (MotionGuidePreset)999; break;
+            case "wrong-hand": guide.Hand = (MotionGuideHand)4; break;
+            case "distance": guide.MinimumDistanceMeters = double.NaN; break;
+            case "unrepresentable-distance": guide.MinimumDistanceMeters = double.MaxValue; break;
+            case "window": guide.WindowMs = 0; break;
+            case "duplicate": delivery.ProjectionProfile.RuntimeCatalog.MotionGuides.Add(guide.Clone()); break;
+        }
+        Assert.That(new PresentationRuntimeDataStore().TryReceiveDelivery(delivery, out _), Is.False);
+    }
+
+    [Test]
+    public void PresenterCanReceiveMotionGuideMetadata()
+    {
+        DeliveryManifest delivery = CreateFixture();
+        delivery.ProjectionProfile.RuntimeCatalog.MotionGuides.Add(new ProjectedMotionGuideDefinition
+        {
+            GroupId = "main", StepId = "start", CueId = "move",
+            Preset = (MotionGuidePreset)7, Hand = (MotionGuideHand)4,
+            MinimumDistanceMeters = .2, WindowMs = 1000,
+        });
+        AssertAccepted(delivery);
+    }
+
     [Test]
     public void LocalFixture_HasACompleteDeliveryGraph()
     {
@@ -47,8 +90,6 @@ public sealed class PresentationDeliveryValidationEditModeTests
     }
 
     [TestCase(RuntimeCapability.Unspecified)]
-    [TestCase(RuntimeCapability.VideoPlayback)]
-    [TestCase(RuntimeCapability.ModelClip)]
     [TestCase((RuntimeCapability)999)]
     public void Delivery_RejectsUnsupportedRequiredRuntimeCapability(RuntimeCapability capability)
     {
@@ -102,7 +143,7 @@ public sealed class PresentationDeliveryValidationEditModeTests
     public void Delivery_RejectsNativeUiFeatureThatPlaceholderCannotRender()
     {
         DeliveryManifest delivery = CreateFixture();
-        delivery.ProjectionProfile.RenderSurfaces[0].Artifacts[0].NativeUi.RequiredFeatures.Add(NativeUiFeature.Clip);
+        delivery.ProjectionProfile.RenderSurfaces[0].Artifacts[0].NativeUi.RequiredFeatures.Add(NativeUiFeature.Ellipsis);
         AssertRejected(delivery, "native UI feature");
     }
 
@@ -112,7 +153,7 @@ public sealed class PresentationDeliveryValidationEditModeTests
         DeliveryManifest delivery = CreateFixture();
         NativeUiText text = delivery.ProjectionProfile.RenderSurfaces[0].Artifacts[0].NativeUi.Nodes[0].Text;
         text.Value = new NativeTextValue { StringVariable = new StringVariableText { VariableId = "variable:local-title" } };
-        AssertRejected(delivery, "native UI text");
+        AssertRejected(delivery, "native UI");
     }
 
     [TestCase("missing material")]
@@ -155,7 +196,7 @@ public sealed class PresentationDeliveryValidationEditModeTests
 
     private static DeliveryManifest CreateFixture()
     {
-        TextAsset fixture = Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery");
+        TextAsset fixture = PresentationTestFixtures.Load("LocalDelivery");
         Assert.That(fixture, Is.Not.Null);
         return JsonParser.Default.Parse<DeliveryManifest>(fixture.text);
     }

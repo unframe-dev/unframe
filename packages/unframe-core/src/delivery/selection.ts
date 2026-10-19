@@ -87,13 +87,6 @@ const compatible = (artifact: Artifact, capability: CapabilityProfile): boolean 
     (renderer.features as string[]).includes(feature),
   );
 };
-const requireAcceptedRendererTier = (kind: Artifact["kind"]) => {
-  if (kind === "native-ui" || kind === "video")
-    throw new Error(
-      `delivery-artifact-unavailable: ${kind} has no accepted Delivery renderer tier.`,
-    );
-};
-
 const requiredCodePoints = (value: Artifact & { kind: "native-ui" }, maximumGlyphs: number) => {
   const points = new Map<string, Set<number>>();
   const add = (textId: string, source: Iterable<number>) => {
@@ -198,7 +191,6 @@ export const selectDeliveryArtifactsParsed = (
           .map((id) => render.artifacts[id])
           .find((candidate) => candidate && compatible(candidate, capability));
         requireCondition(artifact, `No compatible artifact for ${renderSurfaceId}/${stateId}.`);
-        requireAcceptedRendererTier(artifact.kind);
         if (rendererKind !== null && rendererKind !== artifact.kind)
           throw new Error(`Render Surface ${renderSurfaceId} changes renderer kind across States.`);
         rendererKind = artifact.kind;

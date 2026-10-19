@@ -30,6 +30,7 @@ build/
 .pnpm/
 .unframe/
 /examples/local-editor-showcase/dist
+/examples/presentation/dist
 .unframe/unity-preview/
 .unframe/local-editor-e2e/
 .unframe/native-editor/

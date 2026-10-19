@@ -118,10 +118,10 @@ describe("Delivery artifact selection and admission", () => {
     expect(() => buildRuntimeProjection(limited, "presenter")).toThrow(
       "Texture GPU bytes exceeds capability limit",
     );
-    const { publishedPresentation: _publication, ...unsupported } = source;
-    expect(() => selectBuildArtifacts(unsupported, "presenter")).toThrow(
-      "delivery-artifact-unavailable",
-    );
+    const { publishedPresentation: _publication, ...unsupported } = structuredClone(source);
+    unsupported.capability.renderers.nativeUi.supported = false;
+    unsupported.capability.renderers.nativeUi.features = [];
+    expect(() => selectBuildArtifacts(unsupported, "presenter")).toThrow("No compatible artifact");
   });
 
   it("rejects hash-consistent invalid Surface geometry for unpublished projection", () => {
@@ -166,9 +166,36 @@ describe("Delivery artifact selection and admission", () => {
     expect(() =>
       selectDeliveryArtifacts({ ...baselineSource(), capability: limited }, "presenter"),
     ).not.toThrow();
-    expect(() => selectDeliveryArtifacts(source, "presenter")).toThrow(
-      "delivery-artifact-unavailable",
+    expect(() => selectDeliveryArtifacts({ ...source, capability: limited }, "presenter")).toThrow(
+      "No compatible artifact",
     );
+  });
+
+  it("selects native UI, model and video assets without changing their renderer contracts", () => {
+    const selection = selectDeliveryArtifacts(source, "presenter");
+    expect(selection.renderSurfaces.map((surface) => surface.rendererKind)).toEqual([
+      "baked-web",
+      "native-ui",
+      "video",
+    ]);
+    expect(selection.assets.map((asset) => asset.assetId)).toEqual([
+      "font",
+      "model-asset",
+      "texture",
+      "video-asset",
+    ]);
+    expect(selection.visibleVariableIds).toEqual(["counter"]);
+    expect(selection.residency.maximumConcurrentDecoders).toBe(1);
+    expect(selection.residency.fontAssetIds).toEqual(["font"]);
+  });
+
+  it("enforces native UI and video resource budgets before delivery", () => {
+    const native = structuredClone(source);
+    native.capability.limits.nativeUi.maxNodesPerArtifact = 1;
+    expect(() => selectDeliveryArtifacts(native, "presenter")).toThrow("Native UI");
+    const video = structuredClone(source);
+    video.capability.limits.video.maxEncodedBytes = 1;
+    expect(() => selectDeliveryArtifacts(video, "presenter")).toThrow("Video");
   });
 
   it("enforces selected texture GPU and serial CPU budgets", () => {
@@ -259,6 +286,84 @@ describe("Delivery artifact selection and admission", () => {
     expect(
       ((decoded.runtimeCatalog as Record<string, unknown>).modelClips as unknown[]).length,
     ).toBe(1);
+  });
+
+  it("projects motion guide candidates for presenters only and preserves hand semantics on the wire", () => {
+    const input = baselineSource((current) => {
+      const cue = current.definition.flow.groups.intro!.steps.start!.cues[0]!;
+      current.definition.flow.groups.intro!.steps.start!.cues = [
+        {
+          ...cue,
+          id: "swipe",
+          trigger: {
+            kind: "motion",
+            actor: { kind: "system", source: "tracking" },
+            preset: "swipeLeft",
+            subject: { kind: "anchor", owner: { kind: "presenter" }, target: "eitherHand" },
+            minimumDistanceMeters: 0.2,
+            windowMilliseconds: 750,
+          },
+        },
+        {
+          ...cue,
+          id: "spread",
+          order: 1,
+          trigger: {
+            kind: "motion",
+            actor: { kind: "system", source: "tracking" },
+            preset: "spreadHands",
+            subject: { kind: "anchor", owner: { kind: "presenter" }, target: "bothHands" },
+            minimumDistanceMeters: 0.35,
+            windowMilliseconds: 1200,
+          },
+        },
+        {
+          ...cue,
+          id: "generic",
+          order: 2,
+          trigger: {
+            kind: "motion",
+            actor: { kind: "system", source: "tracking" },
+            subject: { kind: "participant", owner: { kind: "presenter" } },
+            minimumDistanceMeters: 0.1,
+            windowMilliseconds: 500,
+          },
+        },
+      ];
+    });
+    const presenter = buildProjectionProfile(input, "presenter").profile;
+    const guides = presenter.runtimeCatalog?.motionGuides;
+    expect(guides).toEqual([
+      {
+        groupId: "intro",
+        stepId: "start",
+        cueId: "spread",
+        preset: 7,
+        hand: 4,
+        minimumDistanceMeters: 0.35,
+        windowMs: "1200",
+      },
+      {
+        groupId: "intro",
+        stepId: "start",
+        cueId: "swipe",
+        preset: 1,
+        hand: 1,
+        minimumDistanceMeters: 0.2,
+        windowMs: "750",
+      },
+    ]);
+    expect(buildProjectionProfile(input, "viewer").profile.runtimeCatalog?.motionGuides).toEqual(
+      [],
+    );
+    const decoded = decodeWireMessage(
+      "unframe.delivery.ProjectionProfileDescriptor",
+      encodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", presenter),
+    );
+    expect((decoded.runtimeCatalog as Record<string, unknown>).motionGuides).toEqual(guides);
+    const withoutGuides = structuredClone(presenter);
+    withoutGuides.runtimeCatalog!.motionGuides = [];
+    expect(calculateProjectionProfileId(withoutGuides)).not.toBe(presenter.projectionProfileId);
   });
 
   it("builds a participant manifest with exact selected access bindings", () => {

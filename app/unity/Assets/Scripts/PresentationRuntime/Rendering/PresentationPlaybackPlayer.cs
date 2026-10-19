@@ -6,12 +6,27 @@ namespace Unframe.Unity.PresentationRuntime
 {
     public sealed class PresentationPlaybackPlayer
     {
+        public delegate bool RendererRefresh(double runtimeTimeMs, out string error);
+
         private readonly PresentationNodeStateApplier states = new PresentationNodeStateApplier();
         private readonly PresentationTimelinePlayer timelines = new PresentationTimelinePlayer();
         private readonly Dictionary<string, string> runs = new Dictionary<string, string>();
 
         public bool TryRefresh(IPresentationRenderView view, PresentationNodeHierarchy hierarchy,
             PresentationBakedSurfaceRenderer renderer, PresentationTextureResidency textures, double runtimeTimeMs, out string error)
+        {
+            if (!TryRefreshState(view, hierarchy, out error)) return false;
+            return TryUpdate(view, hierarchy, renderer, textures, runtimeTimeMs, out error);
+        }
+
+        public bool TryRefresh(IPresentationRenderView view, PresentationNodeHierarchy hierarchy,
+            RendererRefresh refreshRenderer, double runtimeTimeMs, out string error)
+        {
+            if (!TryRefreshState(view, hierarchy, out error)) return false;
+            return TryUpdate(view, hierarchy, refreshRenderer, runtimeTimeMs, out error);
+        }
+
+        private bool TryRefreshState(IPresentationRenderView view, PresentationNodeHierarchy hierarchy, out string error)
         {
             states.Apply(view, hierarchy);
             var present = new HashSet<string>();
@@ -35,7 +50,8 @@ namespace Unframe.Unity.PresentationRuntime
                 timelines.Stop(id);
                 runs.Remove(id);
             }
-            return TryUpdate(view, hierarchy, renderer, textures, runtimeTimeMs, out error);
+            error = null;
+            return true;
         }
 
         public bool TryUpdate(IPresentationRenderView view, PresentationNodeHierarchy hierarchy,
@@ -43,9 +59,24 @@ namespace Unframe.Unity.PresentationRuntime
         {
             states.ApplyAnchors(view, hierarchy);
             if (!renderer.TryRefresh(view, textures, runtimeTimeMs, out error)) return false;
-            timelines.Update(runtimeTimeMs / 1000d, retainTerminalPose: true);
+            UpdateTimelines(runtimeTimeMs);
             return true;
         }
+
+        public bool TryUpdate(IPresentationRenderView view, PresentationNodeHierarchy hierarchy,
+            RendererRefresh refreshRenderer, double runtimeTimeMs, out string error)
+        {
+            states.ApplyAnchors(view, hierarchy);
+            if (!refreshRenderer(runtimeTimeMs, out error)) return false;
+            UpdateTimelines(runtimeTimeMs);
+            return true;
+        }
+
+        private void UpdateTimelines(double runtimeTimeMs)
+        {
+            timelines.Update(runtimeTimeMs / 1000d, retainTerminalPose: true);
+        }
+
         public static double SampleRuntimeTimeMs(RuntimeClockSnapshot clock, double receivedAt, double now)
         {
             if (clock == null) return 0;

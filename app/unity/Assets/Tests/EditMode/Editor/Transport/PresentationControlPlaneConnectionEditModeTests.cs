@@ -20,6 +20,26 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
         }
     }
 
+    [TestCase(HttpStatusCode.Unauthorized, "authentication-required")]
+    [TestCase(HttpStatusCode.Forbidden, "session-access-denied")]
+    [TestCase(HttpStatusCode.NotFound, "session-not-found")]
+    [TestCase(HttpStatusCode.ServiceUnavailable, "service-unavailable")]
+    public void HttpFailuresExposeSafeActionableCodes(HttpStatusCode status, string code)
+    {
+        var worker = new Worker
+        {
+            Respond = _ => new HttpResponseMessage(status)
+            { Content = new StringContent("secret credential and signed URL") }
+        };
+        using (var client = new HttpClient(worker))
+        {
+            var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session", _ => Task.FromResult("private-token"));
+            var error = Assert.ThrowsAsync<PresentationConnectionException>(() => connection.LoadDeliveryAsync(client, CancellationToken.None));
+            Assert.That(error.ErrorCode, Is.EqualTo(code));
+            Assert.That(error.ToString(), Does.Not.Contain("secret").And.Not.Contain("private-token"));
+        }
+    }
+
     [Test]
     public void ControlPlaneConnectionRejectsAnInsecureOrigin()
     {
@@ -31,8 +51,8 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
     public async Task DeliveryRequestPinsCapabilityAndUsesAFreshProcessCredential()
     {
         DeliveryManifest manifest = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        manifest.CapabilityProfile.CapabilityProfileId = "quest-baked-web-v1";
-        manifest.ProjectionProfile.Key.CapabilityProfileId = "quest-baked-web-v1";
+        manifest.CapabilityProfile.CapabilityProfileId = "quest-presentation-v2";
+        manifest.ProjectionProfile.Key.CapabilityProfileId = "quest-presentation-v2";
         string session = manifest.SessionId;
         int credentials = 0;
         Worker worker = new Worker
@@ -43,7 +63,7 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
                 Assert.That(request.RequestUri.AbsolutePath, Is.EqualTo("/sessions/" + Uri.EscapeDataString(session) + "/delivery"));
                 Assert.That(request.Headers.Authorization.Scheme, Is.EqualTo("Bearer"));
                 Assert.That(request.Headers.Authorization.Parameter, Is.EqualTo("credential-" + credentials));
-                Assert.That(request.Content.ReadAsStringAsync().GetAwaiter().GetResult(), Is.EqualTo("{\"capabilityProfileId\":\"quest-baked-web-v1\"}"));
+                Assert.That(request.Content.ReadAsStringAsync().GetAwaiter().GetResult(), Is.EqualTo("{\"capabilityProfileId\":\"quest-presentation-v2\"}"));
                 ByteArrayContent content = new ByteArrayContent(manifest.ToByteArray());
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-protobuf");
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };

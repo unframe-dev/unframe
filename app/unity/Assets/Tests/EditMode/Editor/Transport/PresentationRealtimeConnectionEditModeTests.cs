@@ -152,7 +152,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             variable.Type = Unframe.Presentation.ScalarType.String;
         }
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         if (paused) snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Clock.Paused = new Unframe.Realtime.Paused { Reason = PauseReason.ExplicitPause };
         foreach (var variable in catalog.Variables)
             snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables.Add(new Unframe.Realtime.VariableState { VariableId = variable.VariableId, Value = new Unframe.Presentation.ScalarValue { StringValue = "value" } });

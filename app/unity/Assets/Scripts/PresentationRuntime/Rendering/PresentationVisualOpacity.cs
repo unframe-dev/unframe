@@ -20,6 +20,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public static void Apply(GameObject root, float opacity)
         {
+            foreach (CanvasGroup canvas in root.GetComponentsInChildren<CanvasGroup>(true)) canvas.alpha = Mathf.Clamp01(opacity);
             foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
             {
                 PresentationVisualOpacity controller = renderer.GetComponent<PresentationVisualOpacity>();
