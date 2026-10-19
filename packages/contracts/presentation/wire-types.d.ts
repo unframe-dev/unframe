@@ -567,6 +567,16 @@ export interface ProjectedModelClipDefinitionWire {
   owner?: ResourceOwnerWire;
 }
 
+export interface ProjectedMotionGuideDefinitionWire {
+  groupId?: string;
+  stepId?: string;
+  cueId?: string;
+  preset?: number;
+  hand?: number;
+  minimumDistanceMeters?: number;
+  windowMs?: string;
+}
+
 export interface ProjectedNodeDefinitionWireFields {
   nodeId?: string;
   parent?: SpatialParentWire;
@@ -589,6 +599,7 @@ export interface ProjectedRuntimeCatalogWire {
   variables?: ProjectedVariableDefinitionWire[];
   timelines?: ProjectedTimelineDefinitionWire[];
   modelClips?: ProjectedModelClipDefinitionWire[];
+  motionGuides?: ProjectedMotionGuideDefinitionWire[];
 }
 
 export interface ProjectedSurfaceDefinitionWire {

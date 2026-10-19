@@ -16,6 +16,8 @@ const keyedEntry = (parent: string, field: string, item: unknown): string | numb
   if (!isRecord(item)) return undefined;
   if (field === "renderSurfaces")
     return `${String(item["semanticSurfaceId"])}\u0000${String(item["layer"] ?? 0).padStart(10, "0")}`;
+  if (field === "motionGuides")
+    return `${String(item["groupId"])}\u0000${String(item["stepId"])}\u0000${String(item["cueId"])}`;
   if (field === "modelClips")
     return `${String(item["modelNodeId"])}\u0000${String(item["clipId"])}`;
   if (field === "nodes" && parent.endsWith(".ProjectedSemanticTree"))
@@ -143,6 +145,7 @@ const identityObject = (type: WireType, input: unknown, path: string): Record<st
           "variables",
           "timelines",
           "modelClips",
+          "motionGuides",
           "artifacts",
         ].includes(field.name)
       ) {

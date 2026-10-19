@@ -105,7 +105,8 @@ func collectionKey(field protoreflect.FieldDescriptor, value protoreflect.Value)
 		"MediaRuntimeState": {"surface_id"}, "ProjectedNodeDefinition": {"node_id"},
 		"ProjectedSurfaceDefinition": {"surface_id"}, "ProjectedVariableDefinition": {"variable_id"},
 		"ProjectedTimelineDefinition": {"timeline_id"}, "ProjectedModelClipDefinition": {"model_node_id", "clip_id"},
-		"AssetAccessBinding": {"asset_id"}, "TextureResidencyBinding": {"asset_id"},
+		"ProjectedMotionGuideDefinition": {"group_id", "step_id", "cue_id"},
+		"AssetAccessBinding":             {"asset_id"}, "TextureResidencyBinding": {"asset_id"},
 		"ModelResidencyBinding": {"asset_id"}, "VideoResidencyBinding": {"asset_id"},
 		"RuntimeParticipantHistory": {"participant_id"}, "ProjectedParticipantPresence": {"participant_id"}, "ArmedTimer": {"cue_id"}, "CueCooldown": {"cue_id"},
 	}
@@ -216,6 +217,11 @@ func validateKnownMessage(message protoreflect.Message, path string, partialTran
 		}
 	case "CanonicalRuntimeSnapshot", "ConnectionSnapshotEnvelope", "DurableCheckpointEnvelope", "CapabilityProfile":
 		if get("schema_version").Uint() != 2 {
+			return invalid()
+		}
+	case "ProjectedMotionGuideDefinition":
+		preset, hand := get("preset").Enum(), get("hand").Enum()
+		if get("minimum_distance_meters").Float() <= 0 || get("window_ms").Uint() == 0 || get("window_ms").Uint() > 9007199254740991 || (preset >= 7) != (hand == 4) {
 			return invalid()
 		}
 	case "ProjectedRuntimeCatalog":

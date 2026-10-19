@@ -54,6 +54,15 @@ export default defineComponentManifest({
       preconditions: [],
       effects: [{ kind: "playTimeline", timelineId: "fade", completion: "nonBlocking" }],
     },
+    complete: {
+      kind: "action",
+      inputs: {},
+      preconditions: [],
+      effects: [
+        { kind: "setSurfaceState", surfaceId: "reference-surface-root", stateId: "inactive" },
+        { kind: "setVariable", variableId: "continued", value: { kind: "literal", value: true } },
+      ],
+    },
     deactivate: {
       kind: "action",
       inputs: {},

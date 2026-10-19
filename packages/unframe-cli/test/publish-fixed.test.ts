@@ -136,10 +136,13 @@ describe("fixed build publication", () => {
       controlPlaneUrl: "http://127.0.0.1:8787",
       bearerToken: "private",
       expectedPublicationFence: null,
-      fetch: (async () => {
-        sent = true;
-        throw new Error();
-      }) as typeof fetch,
+      fetch: Object.assign(
+        async () => {
+          sent = true;
+          throw new Error();
+        },
+        { preconnect: () => {} },
+      ),
     });
     expect(result.ok).toBe(false);
     expect(sent).toBe(false);

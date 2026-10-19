@@ -871,7 +871,29 @@ const componentStructureSchema = z.union([
     baseSemanticTree: baseSemanticTreeSchema,
   }),
 ]);
+const motionPresetFields = {
+  kind: z.literal("motionPreset"),
+  minimumDistanceMeters: z.number().finite().positive(),
+  windowMilliseconds: positiveSafeIntegerSchema,
+};
 const cueTriggerSchema = z.union([
+  z.strictObject({
+    ...motionPresetFields,
+    preset: z.enum([
+      "swipeLeft",
+      "swipeRight",
+      "swipeDown",
+      "swipeUp",
+      "pushForward",
+      "pullBackward",
+    ]),
+    hand: z.enum(["eitherHand", "leftHand", "rightHand"]),
+  }),
+  z.strictObject({
+    ...motionPresetFields,
+    preset: z.enum(["spreadHands", "closeHands"]),
+    hand: z.literal("bothHands"),
+  }),
   z.strictObject({ kind: z.literal("event"), event: idSchema }),
   z.strictObject({
     kind: z.literal("component.output"),

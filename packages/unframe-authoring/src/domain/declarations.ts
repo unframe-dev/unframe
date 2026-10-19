@@ -610,7 +610,21 @@ export type ComponentOutputReference = {
   componentInstanceId: string;
   outputId: string;
 };
-export type CueTrigger = { kind: "event"; event: string } | ComponentOutputReference;
+export type MotionPresetTrigger = {
+  kind: "motionPreset";
+  minimumDistanceMeters: number;
+  windowMilliseconds: number;
+} & (
+  | {
+      preset: "swipeLeft" | "swipeRight" | "swipeDown" | "swipeUp" | "pushForward" | "pullBackward";
+      hand: "eitherHand" | "leftHand" | "rightHand";
+    }
+  | { preset: "spreadHands" | "closeHands"; hand: "bothHands" }
+);
+export type CueTrigger =
+  | { kind: "event"; event: string }
+  | ComponentOutputReference
+  | MotionPresetTrigger;
 export type CueGuard =
   | { kind: "all"; guards: readonly CueGuard[] }
   | { kind: "any"; guards: readonly CueGuard[] }
