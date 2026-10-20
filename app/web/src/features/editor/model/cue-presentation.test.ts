@@ -203,6 +203,37 @@ it.each<{ trigger: FlowCue["trigger"]; title: string; details: string[] }>([
   expect(presentation.rows.map(([, value]) => value)).toEqual(expect.arrayContaining(details));
 });
 
+it.each([
+  ["swipeLeft", "左へスワイプ（swipeLeft）"],
+  ["swipeRight", "右へスワイプ（swipeRight）"],
+  ["swipeDown", "下へスワイプ（swipeDown）"],
+  ["swipeUp", "上へスワイプ（swipeUp）"],
+  ["pushForward", "前へ押す（pushForward）"],
+  ["pullBackward", "手前へ引く（pullBackward）"],
+  ["spreadHands", "両手を広げる（spreadHands）"],
+  ["closeHands", "両手を閉じる（closeHands）"],
+] as const)("shows motion preset %s", (preset, expected) => {
+  const motion = {
+    kind: "motion",
+    actor: { kind: "system", source: "tracking" },
+    minimumDistanceMeters: 0.5,
+    windowMilliseconds: 1000,
+  } as const;
+  const presentation =
+    preset === "spreadHands" || preset === "closeHands"
+      ? triggerPresentation({
+          ...motion,
+          preset,
+          subject: { kind: "anchor", owner: { kind: "presenter" }, target: "bothHands" },
+        })
+      : triggerPresentation({
+          ...motion,
+          preset,
+          subject: { kind: "anchor", owner: { kind: "presenter" }, target: "rightHand" },
+        });
+  expect(presentation.rows).toContainEqual(["動作", expected]);
+});
+
 it("preserves false literals, references and transforms in Node updates", () => {
   const presentation = actionPresentation({
     kind: "node.patch",
