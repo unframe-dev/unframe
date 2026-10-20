@@ -164,7 +164,9 @@ namespace Unframe.Unity.PresentationRuntime
                     Button("Permission", "カメラを許可 / 再確認", 0, -30, 820, () => { calibration?.CameraPreview?.RetryCameraPermission(); Draw(); }, false);
                     Button("Aligned", "位置合わせを確認して次へ", 0, -140, 820, () =>
                     {
-                        if (calibration?.Calibration?.IsValid != true || entry?.SessionReady != true) { message = "位置合わせとサーバーの準備完了を待っています"; Draw(); return; }
+                        if (!QuestOnboardingStart.CanAdvance(flow.Role, calibration?.Calibration?.IsValid == true,
+                            entry?.ControlReady == true, entry?.SessionReady == true))
+                        { message = "位置合わせとサーバーの準備完了を待っています"; Draw(); return; }
                         flow.GoTo(QuestOnboardingPage.Ready); Draw();
                     });
                     break;
@@ -176,11 +178,16 @@ namespace Unframe.Unity.PresentationRuntime
                         if (flow.IsDebugPreview) { ResetFlow(); return; }
                         Run(async token =>
                         {
-                            if (entry?.SessionReady != true || calibration?.Calibration?.IsValid != true) throw new InvalidOperationException("not-ready");
+                            if (!QuestOnboardingStart.CanAdvance(flow.Role, calibration?.Calibration?.IsValid == true,
+                                entry?.ControlReady == true, entry?.SessionReady == true)) throw new InvalidOperationException("not-ready");
                             if (flow.Role == QuestOnboardingRole.Presenter)
                             {
-                                if (!sessionStarted) { await api.StartSessionAsync(room.SessionId, token); sessionStarted = true; }
-                                if (entry.PlaybackStatus == "Paused") await entry.ResumeAsync();
+                                await QuestOnboardingStart.BeginPresenterAsync(async () =>
+                                {
+                                    if (!sessionStarted) { await api.StartSessionAsync(room.SessionId, token); sessionStarted = true; }
+                                }, () => entry.SessionReady, () => entry.ControlReady,
+                                    () => entry.ConnectionStage == PresentationConnectionStage.Failed,
+                                    () => entry.PlaybackStatus, () => entry.ResumeAsync(), TimeSpan.FromSeconds(30), token);
                             }
                             token.ThrowIfCancellationRequested(); IsComplete = true; panel.SetActive(false); Completed?.Invoke();
                         });

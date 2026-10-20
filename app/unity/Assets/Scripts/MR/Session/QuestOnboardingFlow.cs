@@ -1,7 +1,40 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Unframe.Unity.PresentationRuntime
 {
     public enum QuestOnboardingRole { None, Presenter, Audience }
     public enum QuestOnboardingPage { Role, Authentication, RoomCode, Presentations, Preparation, Join, Calibration, Ready }
+
+    public static class QuestOnboardingStart
+    {
+        public static bool CanAdvance(QuestOnboardingRole role, bool calibrated, bool controlReady, bool sessionReady) =>
+            calibrated && (role == QuestOnboardingRole.Presenter ? controlReady : sessionReady);
+
+        public static async Task BeginPresenterAsync(Func<Task> start, Func<bool> sessionReady,
+            Func<bool> controlReady, Func<bool> connectionFailed, Func<string> playbackStatus,
+            Func<Task> resume, TimeSpan timeout, CancellationToken token)
+        {
+            await start();
+            DateTime deadline = DateTime.UtcNow.Add(timeout);
+            bool resumeRequested = false;
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                if (!resumeRequested && controlReady() && playbackStatus() == "Paused")
+                {
+                    await resume();
+                    resumeRequested = true;
+                }
+                if (sessionReady()) break;
+                if (connectionFailed() || DateTime.UtcNow >= deadline)
+                    throw new InvalidOperationException("presentation-not-ready");
+                await Task.Delay(100, token);
+            }
+            token.ThrowIfCancellationRequested();
+        }
+    }
 
     public sealed class QuestOnboardingFlow
     {
