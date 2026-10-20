@@ -26,9 +26,24 @@ namespace Unframe.Unity.PresentationRuntime
     {
         private static ulong CapturedAtMs() { return (ulong)(Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency * 1000); }
 
+        public static ControlClientItem CreateRuntimeControl(RuntimeControlKind kind, ulong presentationOriginVersion)
+        {
+            if (kind != RuntimeControlKind.Pause && kind != RuntimeControlKind.Resume && kind != RuntimeControlKind.End)
+                throw new ArgumentException("A supported runtime control and current origin are required.");
+            return new ControlClientItem
+            {
+                RuntimeControl = new RuntimeControlCommand
+                {
+                    ClientEventId = Guid.NewGuid().ToString("N"),
+                    Kind = kind,
+                    PresentationOriginVersion = presentationOriginVersion,
+                },
+            };
+        }
+
         public static ControlClientItem CreateLogical(string logicalEventName, ulong presentationOriginVersion)
         {
-            if (String.IsNullOrWhiteSpace(logicalEventName) || presentationOriginVersion == 0)
+            if (String.IsNullOrWhiteSpace(logicalEventName))
                 throw new ArgumentException("A logical event and current presentation origin are required.");
             return new ControlClientItem
             {
@@ -44,7 +59,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public static ControlClientItem CreateSurfaceInteraction(string surfaceId, string interactionId, ulong presentationOriginVersion)
         {
-            if (String.IsNullOrWhiteSpace(surfaceId) || String.IsNullOrWhiteSpace(interactionId) || presentationOriginVersion == 0)
+            if (String.IsNullOrWhiteSpace(surfaceId) || String.IsNullOrWhiteSpace(interactionId))
                 throw new ArgumentException("A picked surface, interaction, and current origin are required.");
             return new ControlClientItem
             {

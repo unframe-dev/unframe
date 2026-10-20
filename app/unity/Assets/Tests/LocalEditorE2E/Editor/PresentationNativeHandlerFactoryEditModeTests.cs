@@ -43,7 +43,8 @@ public sealed class PresentationNativeHandlerFactoryEditModeTests
                 Task run = connection.RunAsync(runtime, CancellationToken.None);
                 while (!run.IsCompleted) yield return null;
                 Assert.That(run.IsFaulted, Is.True);
-                Assert.That(run.Exception.InnerException, Is.InstanceOf<InvalidOperationException>());
+                Assert.That(run.Exception.InnerException, Is.TypeOf<PresentationConnectionException>());
+                Assert.That(((PresentationConnectionException)run.Exception.InnerException).ErrorCode, Is.EqualTo("authentication-required"));
                 Assert.That(handler.Sends, Is.EqualTo(1));
                 Assert.That(handler.Released, Is.True);
                 Assert.That(runtime.Delivery, Is.Null);

@@ -18,6 +18,66 @@ using Quaternion = UnityEngine.Quaternion;
 
 public sealed class QuestPresentationEntryEditModeTests
 {
+    [TestCase(RuntimeControlKind.Pause)]
+    [TestCase(RuntimeControlKind.Resume)]
+    [TestCase(RuntimeControlKind.End)]
+    public void RuntimeControlsCarryFreshEventIdsAndAuthoritativeOrigin(RuntimeControlKind kind)
+    {
+        var command = QuestPresentationInput.CreateRuntimeControl(kind, 17).RuntimeControl;
+        var second = QuestPresentationInput.CreateRuntimeControl(kind, 17).RuntimeControl;
+        Assert.That(command.Kind, Is.EqualTo(kind));
+        Assert.That(command.PresentationOriginVersion, Is.EqualTo(17));
+        Assert.That(command.ClientEventId, Is.Not.Empty.And.Not.EqualTo(second.ClientEventId));
+        Assert.That(QuestPresentationInput.CreateRuntimeControl(kind, 0).RuntimeControl.PresentationOriginVersion, Is.Zero);
+        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateRuntimeControl(RuntimeControlKind.Unspecified, 17));
+    }
+
+    [Test]
+    public async Task UnconfiguredEntryExposesNoReadyStateOrPermittedCommands()
+    {
+        var host = new GameObject("Unconfigured production entry");
+        try
+        {
+            var entry = host.AddComponent<QuestPresentationEntry>();
+            Assert.That(entry.ConnectionStage, Is.EqualTo(PresentationConnectionStage.NotConfigured));
+            Assert.That(entry.IsRunning || entry.AssetsReady || entry.ControlReady || entry.SessionReady || entry.IsPresenter, Is.False);
+            Assert.That(entry.CanControlPresentation || entry.CanAdvance, Is.False);
+            Assert.That(entry.PlaybackStatus, Is.EqualTo("Unknown"));
+            Assert.That(entry.LastErrorCode, Is.Null);
+            await entry.ResumeAsync();
+            await entry.PauseAsync();
+            await entry.EndAsync();
+            await entry.AdvanceAsync();
+            Assert.That(entry.LastErrorCode, Is.EqualTo("command-unavailable"));
+            Assert.That(entry.PlaybackStatus, Is.EqualTo("Unknown"));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(host); }
+    }
+
+    [Test]
+    public async Task FailedCredentialsExposeStableCodeAndCanRetry()
+    {
+        var host = new GameObject("Failed credentials");
+        try
+        {
+            var entry = host.AddComponent<QuestPresentationEntry>();
+            var settings = new SerializedObject(entry);
+            settings.FindProperty("questTrackingOrigin").objectReferenceValue = host.transform;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            entry.Configure(new System.Uri("https://api.example.com/"), "session",
+                _ => Task.FromException<string>(new System.Exception("secret bearer signed url")), new PresentationCalibrationState(), null);
+            await entry.StopAsync();
+            Assert.That(entry.ConnectionStage, Is.EqualTo(PresentationConnectionStage.Failed));
+            Assert.That(entry.LastErrorCode, Is.EqualTo("credential-unavailable"));
+            Assert.That(entry.Summary, Does.Not.Contain("secret"));
+            entry.Configure(new System.Uri("https://api.example.com/"), "session",
+                _ => Task.FromResult(""), new PresentationCalibrationState(), null);
+            await entry.StopAsync();
+            Assert.That(entry.LastErrorCode, Is.EqualTo("credential-unavailable"));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(host); }
+    }
+
     [Test]
     public void TrackingFrameUsesOnlyAvailableTargetsAndCanonicalQuestLocalCoordinates()
     {
@@ -53,7 +113,8 @@ public sealed class QuestPresentationEntryEditModeTests
     public void LogicalInputRequiresExplicitNameAndCurrentOrigin()
     {
         Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("", 1));
-        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("advance", 0));
+        Assert.That(QuestPresentationInput.CreateLogical("advance", 0).LogicalInput.PresentationOriginVersion, Is.Zero);
+        Assert.That(QuestPresentationInput.CreateSurfaceInteraction("surface", "button", 0).SurfaceInteraction.PresentationOriginVersion, Is.Zero);
 
         var command = QuestPresentationInput.CreateLogical("advance", 7);
         Assert.That(command.ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.LogicalInput));
@@ -129,7 +190,7 @@ public sealed class QuestPresentationEntryEditModeTests
     }
 
     [Test]
-    public void QuestSceneWiresRuntimeAndBodyWithoutReplacingTheLocalFixtureScene()
+    public void QuestSceneWiresProductionRuntimeAndBodyTracking()
     {
         Scene scene = EditorSceneManager.OpenScene("Assets/Scenes/QuestPresentationScene.unity", OpenSceneMode.Additive);
         try
@@ -141,7 +202,6 @@ public sealed class QuestPresentationEntryEditModeTests
             SerializedObject serialized = new SerializedObject(entry);
             Assert.That(serialized.FindProperty("runtime").objectReferenceValue, Is.SameAs(entry.GetComponent<PresentationBakedRuntime>()));
             Assert.That(serialized.FindProperty("questTrackingOrigin").objectReferenceValue, Is.Not.Null);
-            Assert.That(scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<LocalPresentationFixtureRunner>(true)), Is.Empty);
         }
         finally { EditorSceneManager.CloseScene(scene, true); }
     }

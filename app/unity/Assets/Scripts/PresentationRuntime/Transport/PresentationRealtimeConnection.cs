@@ -28,6 +28,7 @@ namespace Unframe.Unity.PresentationRuntime
         private sealed class SnapshotResyncRequiredException : Exception { }
         private readonly PresentationRuntimeDataStore store;
         private readonly PresentationTextureResidency textures;
+        private readonly Func<bool> additionalResidency;
         private readonly SemaphoreSlim writes = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim stateWrites = new SemaphoreSlim(1, 1);
         private ulong trackingFrameSequence;
@@ -49,10 +50,11 @@ namespace Unframe.Unity.PresentationRuntime
         public event Action RuntimeChanged;
         public event Action Disconnected;
 
-        public PresentationRealtimeConnection(PresentationRuntimeDataStore store, PresentationTextureResidency textures)
+        public PresentationRealtimeConnection(PresentationRuntimeDataStore store, PresentationTextureResidency textures, Func<bool> additionalResidency = null)
         {
             this.store = store ?? throw new ArgumentNullException(nameof(store));
             this.textures = textures ?? throw new ArgumentNullException(nameof(textures));
+            this.additionalResidency = additionalResidency;
         }
 
         public async Task RunAsync(Uri endpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken, string certFingerprint = null, Func<YetAnotherHttpHandler> handlerFactory = null)
@@ -480,7 +482,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void RequireResidency()
         {
-            if (store.Delivery == null || store.Delivery.Residency.Textures == null || !textures.IsReady(store.Delivery.Residency.Textures.Textures))
+            if (store.Delivery == null || store.Delivery.Residency.Textures == null || !textures.IsReady(store.Delivery.Residency.Textures.Textures)
+                || additionalResidency != null && !additionalResidency())
             {
                 ControlReady = false;
                 SessionReady = false;

@@ -63,6 +63,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static void ApplyVisibility(GameObject nodeObject, bool visible)
         {
+            foreach (Canvas canvas in nodeObject.GetComponentsInChildren<Canvas>(true)) canvas.enabled = visible;
             foreach (Renderer renderer in nodeObject.GetComponentsInChildren<Renderer>(true))
             {
                 renderer.enabled = visible;

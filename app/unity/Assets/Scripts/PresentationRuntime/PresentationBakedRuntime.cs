@@ -18,8 +18,8 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly PresentationNodeHierarchy hierarchy = new PresentationNodeHierarchy();
         private readonly PresentationNodeStateApplier stateApplier = new PresentationNodeStateApplier();
         private readonly PresentationPlaybackPlayer playback = new PresentationPlaybackPlayer();
-        private PresentationTextureResidency textures;
-        private PresentationBakedSurfaceRenderer surfaceRenderer;
+        private PresentationSceneRenderer sceneRenderer;
+        private PresentationPlaybackPlayer.RendererRefresh refreshRenderer;
         private PresentationRealtimeConnection connection;
         private RuntimeClockSnapshot clock;
         private double clockReceivedAt;
@@ -28,6 +28,7 @@ namespace Unframe.Unity.PresentationRuntime
         private Transform questTrackingOrigin;
         private Transform presentationSpace;
         public Transform PresentationSpace => presentationSpace;
+        public PresentationRuntimeDataStore DataStore => store;
         public bool CalibrationReady => calibration != null && calibration.IsValid
             && PresentationCalibrationMath.TryWorldFromPresentation(calibration.PresentationFromQuestLocal, questTrackingOrigin, out _, out _);
         public string CalibrationError { get; private set; }
@@ -65,13 +66,16 @@ namespace Unframe.Unity.PresentationRuntime
             presentationSpace.gameObject.SetActive(isActiveAndEnabled && SessionReady);
         }
         public bool DownloadReady { get; private set; }
-        public bool ResidentReady { get { return textures != null && store.Delivery != null && store.Delivery.Residency.Textures != null && textures.IsReady(store.Delivery.Residency.Textures.Textures); } }
+        public bool ResidentReady { get { return sceneRenderer != null && sceneRenderer.IsReady(store); } }
         public bool ControlReady { get { return DownloadReady && ResidentReady && connection != null && connection.ControlReady; } }
         public bool SessionReady { get { return DownloadReady && ResidentReady && connection != null && connection.SessionReady; } }
         public ulong PresentationOriginVersion { get { return ControlReady ? store.PresentationOrigin?.Version ?? 0 : 0; } }
         public bool CanSendRuntimeControl { get { return ControlReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
         public bool CanSendInput { get { return CalibrationReady && SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
         public bool CanSendTracking { get { return CanSendInput; } }
+        public bool IsPresenter => store.Delivery?.ProjectionProfile?.Key?.Role == SessionRole.Presenter;
+        public string LastCommandOutcomeCode => ControlReady ? store.LastCommandOutcomeCode : null;
+        public string PlaybackStatus => ControlReady && store.RuntimeClock != null ? store.RuntimeClock.StatusCase.ToString() : "Unknown";
         public string LastError { get; private set; }
         public DeliveryManifest Delivery { get { return store.Delivery?.Clone(); } }
         public bool TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot) { return store.TryGetLastConnectionSnapshot(out snapshot); }
@@ -87,43 +91,27 @@ namespace Unframe.Unity.PresentationRuntime
             lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             try
             {
-                if (!store.TryReceiveDelivery(manifest, out string error) || !SupportsDelivery()) throw new InvalidOperationException(error ?? "delivery renderer is unsupported");
-                textures = new PresentationTextureResidency();
-                var selectedAssets = new List<AssetAccessBinding>();
-                foreach (TextureResidencyBinding binding in store.Delivery.Residency.Textures.Textures)
-                {
-                    if (!store.TryGetAsset(binding.AssetId, out AssetAccessBinding access)) throw new InvalidOperationException("asset access binding is absent");
-                    selectedAssets.Add(access);
-                }
+                if (!store.TryReceiveDelivery(manifest, out string error)) throw new InvalidOperationException(error);
+                if (!hierarchy.TryReplace(store, presentationSpace, out error)) throw new InvalidOperationException(error);
+                sceneRenderer = new PresentationSceneRenderer();
+                refreshRenderer = (double time, out string renderError) => sceneRenderer.TryRefresh(store, time, out renderError);
+                var selectedAssets = new List<AssetAccessBinding>(store.Delivery.AssetAccess);
                 string consumerToken = PresentationRuntimeHost.ConsumerToken(store.Delivery.SessionId, store.Delivery.ProjectionInstance.ParticipantId);
                 if (!(encodedCache ?? PresentationEncodedAssetCache.Shared).TryReserveSession(consumerToken, selectedAssets, out PresentationEncodedAssetCache.Lease lease, out error))
                     throw new InvalidOperationException(error);
                 using (lease)
                 using (HttpClient client = new HttpClient(httpHandlerFactory == null ? new HttpClientHandler { AllowAutoRedirect = false } : httpHandlerFactory()) { Timeout = TimeSpan.FromSeconds(30) })
-                {
-                    foreach (TextureResidencyBinding binding in store.Delivery.Residency.Textures.Textures)
-                    {
-                        lifetime.Token.ThrowIfCancellationRequested();
-                        if (!store.TryGetAsset(binding.AssetId, out AssetAccessBinding access)) throw new InvalidOperationException("asset access binding is absent");
-                        byte[] bytes = await lease.GetAsync(access, (asset, token) => DownloadAsync(client, asset, token), lifetime.Token);
-                        if (!textures.TryLoad(binding, access, bytes, out error)) throw new InvalidOperationException(error);
-                    }
-                }
+                    await sceneRenderer.LoadAsync(store, hierarchy,
+                        (asset, token) => lease.GetAsync(asset, (binding, cancellation) => PresentationAssetDownloader.DownloadAsync(client, binding, cancellation), token), lifetime.Token);
                 DownloadReady = true;
-                if (!ResidentReady) throw new InvalidOperationException("asset-texture-residency-failed");
-                if (!hierarchy.TryReplace(store, presentationSpace, out error)) throw new InvalidOperationException(error);
-                surfaceRenderer = new PresentationBakedSurfaceRenderer();
-                if (!surfaceRenderer.TryBuild(store, hierarchy, out error)) throw new InvalidOperationException(error);
-                connection = new PresentationRealtimeConnection(store, textures);
+                connection = new PresentationRealtimeConnection(store, sceneRenderer.Textures, () => ResidentReady);
                 connection.RuntimeChanged += Refresh;
                 connection.Disconnected += HandleDisconnected;
                 await connection.RunAsync(realtimeEndpoint, bearerProvider, lifetime.Token, certFingerprint, realtimeHandlerFactory);
             }
             catch (Exception exception)
             {
-                LastError = exception is OperationCanceledException ? "cancelled" : exception is Grpc.Core.RpcException rpc ? rpc.Status.Detail
-                    : exception is PresentationDeliveryReloadRequiredException ? "delivery-reload-required"
-                    : exception is InvalidOperationException ? exception.Message : "presentation runtime resource failure";
+                LastError = exception is OperationCanceledException && lifetime.IsCancellationRequested ? "cancelled" : PresentationConnectionErrors.FromException(exception);
                 throw;
             }
             finally
@@ -132,51 +120,14 @@ namespace Unframe.Unity.PresentationRuntime
                 connection = null;
                 playback.Clear();
                 clock = null;
-                surfaceRenderer?.Dispose();
-                surfaceRenderer = null;
+                sceneRenderer?.Dispose();
+                sceneRenderer = null;
+                refreshRenderer = null;
                 hierarchy.Clear();
-                textures?.Dispose();
-                textures = null;
                 DownloadReady = false;
                 RefreshCalibration();
                 lifetime.Dispose();
                 lifetime = null;
-            }
-        }
-
-        private bool SupportsDelivery()
-        {
-            if (store.Delivery.Residency.Textures == null || store.Delivery.ProjectionProfile.LocalOverlays.Count != 0) return false;
-            foreach (DeliveredRenderSurface surface in store.Delivery.ProjectionProfile.RenderSurfaces) if (surface.RendererKind != RendererKind.BakedWeb) return false;
-            foreach (Unframe.Presentation.ProjectedNodeDefinition node in store.Nodes)
-                if (node.NodeCase == Unframe.Presentation.ProjectedNodeDefinition.NodeOneofCase.Model) return false;
-            return true;
-        }
-
-        private static async Task<byte[]> DownloadAsync(HttpClient client, AssetAccessBinding access, CancellationToken token)
-        {
-            if (!Uri.TryCreate(access.Url, UriKind.Absolute, out Uri url) || url.Scheme != "https"
-                || !string.IsNullOrEmpty(url.UserInfo) || access.ExpiresAtUnixMs <= (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                || access.EncodedSizeBytes == 0 || access.EncodedSizeBytes > 17 * 1024 * 1024) throw new InvalidOperationException("asset-download-access-invalid");
-            using (HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token))
-            {
-                if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType != access.MediaType
-                    || response.Content.Headers.ContentLength.HasValue && response.Content.Headers.ContentLength.Value != (long)access.EncodedSizeBytes)
-                    throw new InvalidOperationException("asset-download-metadata-mismatch");
-                byte[] bytes = new byte[(int)access.EncodedSizeBytes];
-                using (System.IO.Stream stream = await response.Content.ReadAsStreamAsync())
-                {
-                    int offset = 0;
-                    while (offset < bytes.Length)
-                    {
-                        int read = await stream.ReadAsync(bytes, offset, bytes.Length - offset, token);
-                        if (read == 0) throw new InvalidOperationException("asset-download-incomplete");
-                        offset += read;
-                    }
-                    byte[] excess = new byte[1];
-                    if (await stream.ReadAsync(excess, 0, 1, token) != 0) throw new InvalidOperationException("asset-download-size-mismatch");
-                }
-                return bytes;
             }
         }
 
@@ -189,7 +140,7 @@ namespace Unframe.Unity.PresentationRuntime
                 clock = latest;
                 clockReceivedAt = Time.realtimeSinceStartupAsDouble;
             }
-            if (!playback.TryRefresh(store, hierarchy, surfaceRenderer, textures, RuntimeTimeMs(), out string error))
+            if (!playback.TryRefresh(store, hierarchy, refreshRenderer, RuntimeTimeMs(), out string error))
             {
                 LastError = error;
                 lifetime.Cancel();
@@ -198,9 +149,10 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void HandleDisconnected()
         {
+            store.ClearCommandOutcome();
             store.InvalidateAnchorSamples();
             stateApplier.ApplyAnchors(store, hierarchy);
-            surfaceRenderer?.Disable();
+            sceneRenderer?.Disable();
             RefreshCalibration();
         }
 
@@ -218,7 +170,15 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (command == null || !(command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl ? CanSendRuntimeControl : CanSendInput))
                 throw new InvalidOperationException("Runtime commands require a ready Presenter connection.");
-            return connection.SendAsync(command, token);
+            string clientEventId = command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId;
+            store.TrackCommand(clientEventId);
+            return SendTrackedCommandAsync(command, clientEventId, token);
+        }
+
+        private async Task SendTrackedCommandAsync(ControlClientItem command, string clientEventId, CancellationToken token)
+        {
+            try { await connection.SendAsync(command, token); }
+            catch { store.ClearCommandOutcome(clientEventId); throw; }
         }
 
         public Task SendTrackingAsync(TrackingFrame frame, CancellationToken token)
@@ -233,8 +193,8 @@ namespace Unframe.Unity.PresentationRuntime
         {
             surfaceId = null;
             interactionId = null;
-            return CanSendInput && surfaceRenderer != null
-                && surfaceRenderer.TryPickInteraction(ray, store, textures, out surfaceId, out interactionId);
+            return CanSendInput && sceneRenderer != null
+                && sceneRenderer.TryPickInteraction(ray, store, out surfaceId, out interactionId);
         }
 
         private void Update()
@@ -244,7 +204,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (connection != null && connection.SessionReady && ResidentReady)
             {
                 double runtimeTime = RuntimeTimeMs();
-                if (!playback.TryUpdate(store, hierarchy, surfaceRenderer, textures, runtimeTime, out string error))
+                if (!playback.TryUpdate(store, hierarchy, refreshRenderer, runtimeTime, out string error))
                 {
                     LastError = error;
                     lifetime.Cancel();
@@ -253,7 +213,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (connection != null && !ResidentReady)
             {
                 LastError = "asset_residency_lost";
-                surfaceRenderer.Disable();
+                sceneRenderer.Disable();
                 connection.Dispose();
             }
         }
