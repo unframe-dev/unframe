@@ -142,6 +142,38 @@ func TestV2PausedStateWaitsForResumeKeyframe(t *testing.T) {
 	}
 }
 
+func TestV2PeriodicKeyframesRecoverAfterClientDropsAheadFrame(t *testing.T) {
+	c := newV2LifecycleConnection(t, false, nil)
+	select {
+	case <-c.stateOutput:
+	case <-time.After(time.Second):
+		t.Fatal("initial keyframe timed out")
+	}
+	c.runtimeControl(t, "pause", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE)
+	c.runtimeControl(t, "resume", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME)
+	cut := c.service.runtime.Snapshot().ReliableSequence
+	deadline := time.After(1500 * time.Millisecond)
+	for {
+		select {
+		case item := <-c.stateOutput:
+			if frame := item.GetStateFrame(); frame != nil && frame.BaseReliableSequence >= cut {
+				// Independent streams can deliver State before the client applies Control.
+				select {
+				case next := <-c.stateOutput:
+					if next.GetStateFrame().GetBaseReliableSequence() < cut {
+						t.Fatal("replacement keyframe predates the reliable change")
+					}
+					return
+				case <-time.After(400 * time.Millisecond):
+					t.Fatal("no replacement keyframe after the client dropped an ahead frame")
+				}
+			}
+		case <-deadline:
+			t.Fatal("fresh keyframe timed out after a reliable change")
+		}
+	}
+}
+
 func TestV2StateWaitsForVisibleReliableSendCompletion(t *testing.T) {
 	blocked := make(chan struct{})
 	gate := make(chan struct{})

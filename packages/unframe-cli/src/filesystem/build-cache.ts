@@ -1,11 +1,8 @@
-import { nativeHost } from "../platform/host.js";
 import { createHash, randomUUID } from "node:crypto";
-import { constants } from "node:fs";
-import { mkdir, open, readdir, rename, rm, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
 import * as z from "zod";
 import type { CompilerBuildCache, CompiledDeclarationProject } from "@unframe/unframe-compiler";
-import { createPosixCacheSession, PosixCacheUnavailableError } from "./posix-cache.js";
+import { NativeFilesystem, NativeDirectory } from "./native-filesystem.js";
 import { projectDirectory } from "./path-policy.js";
 import { parseStrictJson } from "./strict-json.js";
 
@@ -27,48 +24,7 @@ const assetSetSchema = z.object({
 });
 const checksum = (bytes: Uint8Array) =>
   `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-type CacheHandle = {
-  fd: number;
-  close: () => Promise<unknown>;
-  sync: () => Promise<unknown>;
-  stat: () => Promise<{ mtimeMs: number }>;
-};
-const directory = (path: string) =>
-  open(path, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
-
-const read = async (path: string, limit: number): Promise<Uint8Array> => {
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-  try {
-    const stat = await handle.stat();
-    if (!stat.isFile() || stat.size > limit) throw new Error("Invalid cache file");
-    const bytes = new Uint8Array(stat.size);
-    let offset = 0;
-    while (offset < bytes.length) {
-      const result = await handle.read(bytes, offset, bytes.length - offset, offset);
-      if (result.bytesRead === 0) throw new Error("Cache file shrank during read");
-      offset += result.bytesRead;
-    }
-    const probe = await handle.read(new Uint8Array(1), 0, 1, offset);
-    if (probe.bytesRead !== 0) throw new Error("Cache file grew during read");
-    return bytes;
-  } finally {
-    await handle.close();
-  }
-};
-const write = async (path: string, bytes: Uint8Array) => {
-  const handle = await open(
-    path,
-    constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
-    0o600,
-  );
-  try {
-    await handle.writeFile(bytes);
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-};
-
+type CacheHandle = NativeDirectory;
 /** POSIX project cache, independent of Release and Delivery output. */
 export const createFilesystemBuildCache = (
   root: string,
@@ -77,7 +33,6 @@ export const createFilesystemBuildCache = (
     readonly maxEntries?: number;
     readonly onStaged?: () => void | Promise<void>;
     readonly onError?: (error: unknown) => void;
-    readonly backend?: "linux" | "posix";
   } = {},
 ): CompilerBuildCache => {
   const maxEntries = options.maxEntries ?? 16;
@@ -89,8 +44,8 @@ export const createFilesystemBuildCache = (
       base: string,
       io: {
         directory: (path: string) => Promise<CacheHandle>;
-        anchor: (handle: { fd: number }) => string;
-        read: typeof read;
+        anchor: (handle: NativeDirectory) => string;
+        read: (path: string, limit: number) => Promise<Uint8Array>;
         write: (path: string, bytes: Uint8Array) => Promise<unknown>;
         mkdir: (
           path: string,
@@ -109,47 +64,38 @@ export const createFilesystemBuildCache = (
     ) => Promise<T>,
   ): Promise<T | undefined> => {
     if (options.signal?.aborted || !(await projectDirectory(root))) return undefined;
-    const portable =
-      (options.backend ?? (nativeHost().os === "darwin" ? "posix" : "linux")) === "posix"
-        ? createPosixCacheSession()
-        : undefined;
-    const handles: Array<
-      FileHandle | Awaited<ReturnType<NonNullable<typeof portable>["directory"]>>
-    > = [];
-    const directoryOpen = portable?.directory ?? directory;
-    const anchored = (handle: { fd: number }) =>
-      portable ? `/fd/${handle.fd}` : `/proc/self/fd/${handle.fd}`;
+    await using filesystem = new NativeFilesystem();
+    const handles: NativeDirectory[] = [];
+    const directoryOpen = (path: string) => filesystem.directory(path);
+    const anchored = (handle: NativeDirectory) => handle.anchor;
     try {
       let handle = await directoryOpen(root);
       handles.push(handle);
       for (const name of [".unframe", "cache", "builds-v1"]) {
         const child = join(anchored(handle), name);
         if (create)
-          await (portable ? portable.mkdir(child) : mkdir(child, { mode: 0o700 })).catch(
-            (error: unknown) => {
-              if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-            },
-          );
+          await filesystem.mkdir(child).catch((error: unknown) => {
+            if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+          });
         handle = await directoryOpen(child);
         handles.push(handle);
       }
       return await action(anchored(handle), {
         directory: directoryOpen,
         anchor: anchored,
-        read: portable?.read ?? read,
-        write: portable?.write ?? write,
-        mkdir: portable?.mkdir ?? mkdir,
-        rename: portable?.rename ?? rename,
-        rm: portable?.rm ?? rm,
-        readdir: portable?.readdir ?? ((path) => readdir(path, { withFileTypes: true })),
+        read: (path, limit) => filesystem.read(path, limit),
+        write: (path, bytes) => filesystem.write(path, bytes),
+        mkdir: (path, options) => filesystem.mkdir(path, options),
+        rename: (path, target) => filesystem.rename(path, target),
+        rm: (path) => filesystem.rm(path),
+        readdir: (path) => filesystem.readdir(path),
       });
     } catch (error) {
       options.onError?.(error);
-      if (error instanceof PosixCacheUnavailableError) throw error;
+      if ((error as NodeJS.ErrnoException).code === "EIO") throw error;
       return undefined;
     } finally {
       await Promise.allSettled(handles.reverse().map((handle) => handle.close()));
-      await portable?.close();
     }
   };
   return {

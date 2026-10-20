@@ -23,7 +23,7 @@ M1のfixed script environmentはcall / construct両方の`Date`、`performance.n
 
 Structured path は Presentation v2 の absolute root `Frame` と、任意深度の `Frame` / literal `Text` / `Image` / `Shape` graph を deterministic な HTML/CSS/SVG に lower する。Core の `resolveStructuredLayout` が absolute / Stack / Grid と State override を Surface logical 座標へ解決し、Renderer と Compiler の partition・Hit Region が同じ幾何を使う。各 Frame の background、border、clip、visible、opacity と、Text の全 style field を反映し、children 順を維持する。Image は明示バイナリを checksum・寸法・decode で検証した data URI とし、Shape の paint は placement 内へ clip する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。Runtime Text と Video は拒否する。Theme / Props / Slots / Variants / Parts は Compiler が concrete tree へ解決し、renderer は Authoring 宣言を再解決しない。
 
-renderer config は CSS やfont familyを受け取らず、document backgroundの`[r, g, b, a]` 0–255 byteだけを持つ。Fontは入力`fontAssets`のcanonical base64、SHA-256、TTF/OTF signature、Unicode `cmap` format 4/12を検証し、全literal code pointがprimaryまたは明示fallbackのglyphへ解決できる場合だけdata URIの`@font-face`を生成する。Browser adapterは全faceの`FontFace.load()`と`document.fonts.ready`を待ち、失敗をcapture failureにする。CSS family列にhost fontやgeneric familyを追加しない。
+公開 renderer config は空の strict object である。背景は Frame に指定し、`documentBackground`、任意 CSS、font family の config field は受け取らない。Fontは入力`fontAssets`のcanonical base64、SHA-256、TTF/OTF signature、Unicode `cmap` format 4/12を検証し、全literal code pointがprimaryまたは明示fallbackのglyphへ解決できる場合だけdata URIの`@font-face`を生成する。Browser adapterは全faceの`FontFace.load()`と`document.fonts.ready`を待ち、失敗をcapture failureにする。CSS family列にhost fontやgeneric familyを追加しない。
 
 build は Renderer API が prepared snapshot として返した input だけを以後の処理に使用し、呼出元の input object を再読しない。
 
@@ -35,7 +35,7 @@ Compiler が決定した Render Surface partition を build input として受�
 
 ### Target / Deferred
 
-設計上は renderer が `unframe-core` と `unframe-assets` を直接利用する target である。一方、現在は Renderer API の型境界だけに直接依存し、Core validation・Assets encode は Compiler 経由で行う。
+Renderer は Core の共有 layout と Renderer API を直接利用する。Assets encode / checksum は Compiler 経由で行う。worker-host が Style / capture 共通の OS 別隔離・資源制限・終了確認を所有し、Browser の配置と起動は Renderer が所有する。
 
 ## 2. Owned pipeline
 
@@ -105,7 +105,7 @@ Runtime Text、Video と Model の Structured lower は未実装である。
 
 ## 6. Dependency rules
 
-`unframe-renderer-web` は `unframe-renderer-api`、hash utility、Zod 4、固定versionの`rolldown`、`playwright-core`、`pngjs`に直接依存する。Playwrightはmanaged headless shellのhost lifecycleだけ、pngjsはpreflight済みscreenshotのRGBA decodeだけを担当する。font fingerprintはcaller入力ではなく固定Noto glyph baselineのactual RGBA bytesから導出する。ZodはOpaque locked module input、renderer config、Browser identity / environment、capture metadataのruntime validationを所有する。Opaque source bundleはRolldownのprogrammatic APIと固定内部pluginだけを使用し、callerから任意pluginを受け取らない。raw RGBA encode / checksum は Compiler 経由で `unframe-assets` に委譲し、`unframe-core` は Renderer API の型境界を通して参照する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
+`unframe-renderer-web` は `unframe-core`、`unframe-renderer-api`、`unframe-worker-host`、hash utility、Zod 4、固定versionの`rolldown`、`playwright-core`、`pngjs`に直接依存する。Playwrightはmanaged headless shellのhost lifecycleだけ、pngjsはpreflight済みscreenshotのRGBA decodeだけを担当する。font fingerprintはcaller入力ではなく固定Noto glyph baselineのactual RGBA bytesから導出する。ZodはOpaque locked module input、renderer config、Browser identity / environment、capture metadataのruntime validationを所有する。Opaque source bundleはRolldownのprogrammatic APIと固定内部pluginだけを使用し、callerから任意pluginを受け取らない。raw RGBA encode / checksum は Compiler 経由で `unframe-assets` に委譲し、Core の `resolveStructuredLayout` を直接利用する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
 
 ## 7. Isolation boundary
 
@@ -117,7 +117,7 @@ Adapter とOpaque bundle inputのown data descriptorをproperty value accessな�
 
 Browser process / isolate は semantic Compiler process と分離可能な adapter とする。Opaque code の failure、timeout、resource exhaustion を renderer diagnostic へ変換し、Compiler host を暗黙に汚染しない。
 
-Capability はallowlistとする。現行bundle境界はlocked virtual package内の相対module、`react`、`react/jsx-runtime`、固定`@unframe/renderer-runtime`、package内CSS/assetsだけを許可する。`node:*`、絶対path、network import、任意bare import、`react-dom`、`node_modules`、PostCSS/Tailwind/Vite/Rolldown config、caller pluginは拒否する。React DOMは将来のBrowser hostが所有する。Embedded Browser runtimeを生成する機能は持たない。
+Capability は allowlist とする。build-time bootstrap は固定 lock の `react-dom/client` と `react-dom` を使う。作者の相対 import と bare import は固定 package graph の resolver で解決し、host node_modules / network へ fallback しない。CLI は React / React DOM とその型を graph の root に含める。`node:*`、絶対 path、network import、未固定 package、dynamic import、caller の Rolldown / Vite plugin は拒否する。project 所有の PostCSS / Tailwind config は CLI が別の隔離 Style worker で処理し、Renderer には変換済み CSS を渡す。Browser runtime は端末へ配信しない。
 
 ## 8. Validation strategy
 

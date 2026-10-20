@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestBoundedReadRejectsGrowthAndShrink(t *testing.T) {
@@ -115,24 +116,62 @@ func TestCloseReleasesEveryOwnedDirectory(t *testing.T) {
 	}
 }
 
-func TestRenameRejectsDifferentDirectoryRoots(t *testing.T) {
+func TestRenameUsesPinnedSourceAndDestinationDirectories(t *testing.T) {
+	base := t.TempDir()
 	s := &server{handles: make(map[int]*directory)}
 	defer s.close()
-	for i := 0; i < 2; i++ {
-		if _, err := s.execute(request{Op: "openDirectory", Path: t.TempDir()}); err != nil {
+	for _, name := range []string{"source", "destination"} {
+		path := filepath.Join(base, name)
+		if err := os.Mkdir(path, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.execute(request{Op: "openDirectory", Path: path}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := s.execute(request{Op: "write", Path: "@fd:1/source", Bytes: []byte("owned")}); err != nil {
+	if _, err := s.execute(request{Op: "write", Path: "@fd:1/asset", Bytes: []byte("owned")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.execute(request{Op: "rename", Path: "@fd:1/source", Target: "@fd:2/target"}); !errors.Is(err, syscall.EXDEV) {
-		t.Fatalf("expected EXDEV, got %v", err)
+	for _, name := range []string{"source", "destination"} {
+		path := filepath.Join(base, name)
+		if err := os.Rename(path, path+"-moved"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(t.TempDir(), path); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if _, err := s.execute(request{Op: "rename", Path: "@fd:1/source", Target: "@fd:1/target"}); err != nil {
+	if _, err := s.execute(request{Op: "rename", Path: "@fd:1/asset", Target: "@fd:2/asset"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.execute(request{Op: "lstat", Path: "@fd:1/target"}); err != nil {
+	bytes, err := os.ReadFile(filepath.Join(base, "destination-moved", "asset"))
+	if err != nil || string(bytes) != "owned" {
+		t.Fatalf("lost pinned destination: %q %v", bytes, err)
+	}
+	if _, err := s.execute(request{Op: "rename", Path: "@fd:2/nested/asset", Target: "@fd:1/asset"}); !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("accepted intermediate path: %v", err)
+	}
+}
+
+func TestReadRejectsFifoWithoutWaitingForWriter(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fifo")
+	if err := syscall.Mkfifo(path, 0600); err != nil {
 		t.Fatal(err)
+	}
+	s := &server{handles: make(map[int]*directory)}
+	defer s.close()
+	finished := make(chan error, 1)
+	go func() { _, err := s.execute(request{Op: "read", Path: path, Limit: 10}); finished <- err }()
+	select {
+	case err := <-finished:
+		if err == nil {
+			t.Fatal("accepted FIFO")
+		}
+	case <-time.After(250 * time.Millisecond):
+		file, _ := os.OpenFile(path, os.O_RDWR|syscall.O_NONBLOCK, 0)
+		if file != nil {
+			defer file.Close()
+		}
+		t.Fatal("read waited for a FIFO writer")
 	}
 }

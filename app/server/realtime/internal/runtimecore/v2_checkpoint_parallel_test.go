@@ -136,7 +136,7 @@ func TestV2CompletionCallbackKeepsPreviousCutReadable(t *testing.T) {
 			}
 			read := make(chan subscription, 1)
 			go func() {
-				cut, _, sub, unsubscribe := core.SnapshotPresenceAndSubscribe()
+				cut, _, sub, unsubscribe, _ := core.SnapshotPresenceAndSubscribe()
 				read <- subscription{cut: cut, sub: sub, unsubscribe: unsubscribe}
 			}()
 			var observed subscription

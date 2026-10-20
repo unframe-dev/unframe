@@ -69,6 +69,12 @@ nix develop --command scripts/ci/opaque-capture.sh
 
 PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と依存も固定します。OS を切り替えた場合は、移行先の同じ隔離 profile 内で `pnpm --filter @unframe/unframe-cli run presentation lock update <absolute-project-directory>` を実行します。`lock refresh` では runtime を切り替えません。
 
+## Native helper と worker の準備
+
+CLI の path 検査、成果物公開、build cache、Source 保存 transaction は Go 製 native filesystem helper を使用します。repository root で `bash scripts/build-cli-filesystem.sh` を実行すると `packages/unframe-cli/.cache/filesystem-helper` を生成します。native 専用 Go module の依存は `packages/unframe-cli/native/go.mod` と `go.sum` で固定します。CLI の pnpm `presentation` / `dev` / `tui` / `test` / `test:tui` は hook で生成します。`vp test` の直接実行や headless API の直接利用など hook を通らない consumer は、先に同 script を実行してください。
+
+Style / capture 共通の OS 別隔離・資源制限・終了確認は `unframe-worker-host` が所有し、Browser の配置と起動は Renderer、固定 Node graph の配置と Style 変換の準備は CLI が所有します。Linux / macOS の保証差と実機検証範囲は ADR-0026 を参照してください。
+
 ## Local Editor と Unity
 
 Local Editor の開発は、Web の `dev:editor` と CLI の `dev` を別ターミナルで起動します。CLI の起動入口が OS 別の隔離経路と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Web README](../app/web/README.md#local-editor-の起動) を参照してください。

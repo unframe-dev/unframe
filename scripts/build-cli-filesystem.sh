@@ -5,6 +5,6 @@ output="${repo_root}/packages/unframe-cli/.cache/filesystem-helper"
 mkdir -p "$(dirname "${output}")"
 staging="$(mktemp "${output}.XXXXXX")"
 trap 'rm -f -- "${staging}"' EXIT
-CGO_ENABLED=0 go build -trimpath -o "${staging}" "${repo_root}/packages/unframe-cli/native/filesystem.go"
+CGO_ENABLED=0 go -C "${repo_root}/packages/unframe-cli/native" build -trimpath -o "${staging}" .
 chmod 755 "${staging}"
 mv -f -- "${staging}" "${output}"

@@ -59,7 +59,7 @@ CLI は compiler orchestration の利用者向け entrypoint とし、compile lo
 
 ### 2.5 Current と Target を混在させない
 
-本書に記載する新規 directory は Target layout であり、現在すべて存在することを意味しない。既存の Control Plane schema、Web Editor PoC、Unity importer、Realtime foundation は、それぞれの移行境界が設計されるまで維持する。
+本書に記載する新規 directory は Target layout であり、現在すべて存在することを意味しない。既存の Control Plane Draft schema と Local Editor の canonical Definition は別の編集境界である。Current の入口は `docs/packages/`、品質ゲートは `scripts/ci/` にあり、下の `docs/presentation/` / `scripts/presentation/` は配置案である。現行 package には Style 変換の `unframe-tailwind` と共通隔離の `unframe-worker-host` もある。
 
 ### 2.6 Initial dependency baseline
 
@@ -70,7 +70,7 @@ CLI は compiler orchestration の利用者向け entrypoint とし、compile lo
 - caller-owned object、plugin output、host callbackをZodへ直接渡さない。accessor、Proxy、sparse array、symbol、cycle、prototype、typed-array ownershipを扱うdescriptor-safe snapshot / copyを先に行い、再構築したdataだけをZodへ渡す。この安全化処理と、参照解決、重複、tree cycle、byte arithmetic、determinism、複数artifact間の一致などのalgorithmic semantic invariantは手書きで保持できるが、Zodが表現するlocal shape validationとは分離する。
 - semantic canonicalization は RFC 8785 実装の `canonicalize`、content hash は `@noble/hashes` を使う。Presentation 固有の set 正規化は Core が直列化前に行う。
 - Authoring TS / TSX の構文解析は固定 version の classic TypeScript Compiler API を直接使う。`ts-morph` と TypeScript 7 `unstable/sync` は初期の pure parser boundary に追加しない。
-- Opaque renderer source の bundle は Rolldown の programmatic API と固定内部 plugin を使う。任意 plugin、Node API、network import、package 外参照は受け入れず、Browser execution / capture の具体方式は別に決める。
+- Opaque renderer source の bundle は Rolldown の programmatic API と固定内部 plugin を使う。任意 plugin、Node API、network import、package 外参照は受け入れず、Browser execution / capture は固定 Browser と OS 別 worker-host に接続済みであり、追加の platform 別検証は ADR-0026 に従う。
 - user-facing TUI は Bun runtime、`@opentui/core`、`@opentui/solid`、`@opentui/keymap`、Solid を使う。pnpm は package manager と lockfile 管理を継続し、headless API は native TUI import から分離する。
 - Control Plane HTTP API は現行どおり Hono / OpenAPIHono を application boundary とする。Presentation package から Hono へ依存しない。
 
@@ -264,7 +264,7 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 - Unity rendering
 - Native UI、Video renderer の実装
 
-この package は `unframe-core`、`unframe-renderer-api`、`unframe-assets`に依存する。Capture結果のresize、encode、checksumは`unframe-assets`へ委譲する。Compilerからはpluginとして注入され、Compilerへimplementationを逆流させない。
+この package は `unframe-core`、`unframe-renderer-api`、`unframe-worker-host` に依存する。capture 結果の encode / checksum は Compiler 経由で `unframe-assets` へ委譲し、通常 build は指定 pixelTarget へ直接 capture して resize を行わない。Compilerからはpluginとして注入され、Compilerへimplementationを逆流させない。
 
 Native UI と Video renderer は、実装開始時にそれぞれ独立 package として追加する。`unframe-renderer-web` に仮実装を置かない。`embedded-web`、WebView、任意の Runtime HTML / JavaScript renderer package は追加しない。
 
@@ -348,9 +348,9 @@ Authoring Projectを操作する利用者向け executable と、automation 向�
 - renderer artifact generation
 - durable PublishedPresentation state、publicationEpoch、active-use lock
 
-CLIは`unframe-compiler`と、既定で有効にするconcrete rendererに依存する。TUI adapter は Bun と OpenTUI stack に閉じ、headless root export から Zig native core を読み込まない。CLIからpackage内部の非公開moduleをimportしない。
+CLI は Compiler、既定 Web Renderer、Core、Contracts、Tailwind、worker-host の公開 API に依存する。CLI は project の固定 Node graph と Style 変換の準備、Tailwind は PostCSS 処理、worker-host は Style / capture 共通の隔離・資源制限・終了確認を所有する。Browser の配置と起動は Web Renderer に残す。TUI adapter は Bun と OpenTUI stack に閉じ、headless root export から Zig native core を読み込まない。CLIからpackage内部の非公開moduleをimportしない。
 
-Current implementation は filesystem host と Fixed Browser を接続した `check` / `build` process entry、atomic output、および command selection 用の TUI shell を持つ。TUI と process command の接続、publish、preview は未実装である。
+Current implementation は headless `init` / `check` / `build` / `test` / `lock` と process `author` / `dev` / `preview` / `publish` を持ち、TUI から process command に接続する。lock v2、Source patch、固定 Browser の Opaque 隔離 capture、build cache と atomic output、Local Editor と Unity Preview の Dev / Dist 経路を実装済みである。
 
 ## 5. Contract and generated artifact ownership
 
@@ -360,15 +360,15 @@ Current implementation は filesystem host と Fixed Browser を接続した `ch
 
 ```text
 packages/contracts/
-├─ src/presentation/v2/       Zod schema と導出型
-├─ presentation/v2/           生成 schema / descriptor / fixtures
+├─ src/presentation/          手書き Zod schema と推論型
+├─ presentation/              生成 JSON Schema / descriptor / fixtures
 └─ proto/unframe/
-   ├─ presentation/v2/runtime.proto
-   ├─ delivery/v2/delivery.proto
-   └─ realtime/v2/realtime.proto
+   ├─ presentation/runtime.proto
+   ├─ delivery/delivery.proto
+   └─ realtime/realtime.proto
 ```
 
-- PresentationDefinitionとRenderBundleのserialized shapeは`packages/contracts/src/presentation/v2/`をsource of truthとする。
+- PresentationDefinitionとRenderBundleのserialized shapeは`packages/contracts/src/presentation/`をsource of truthとする。
 - `unframe-core`はcontractから生成または導出したTypeScript modelを使用し、serialized fieldを独自に再定義しない。
 - `unframe-core`は、portable structural schemaだけでは表せないreference validation、semantic invariant、canonicalizationを所有する。
 - DeliveryManifest、Reliable Event、ConnectionSnapshotEnvelope、DurableCheckpointEnvelope、State Streamなどのwire sourceは`packages/contracts/proto/`に置く。CanonicalRuntimeSnapshot は renderer、participant、connection、transport、serialization format から独立した semantic model とし、用途別 envelope の内側へ encode する。
@@ -376,13 +376,13 @@ packages/contracts/
 - generated fileは手編集しない。
 - source schemaとgenerated artifactのdriftをCIで検証する。
 - schemaから生成したfixtureをGo、C#、TypeScript consumerのconformance testで共有する。
-- Go Protobufは`app/server/realtime/internal/gen/`、C# artifactは`packages/api-client-csharp/`へ生成する。
+- Go Protobuf は `app/server/realtime/internal/gen/`、独立 C# client artifact は `packages/api-client-csharp/` に生成する。Unity 用は同じ正本から [`generate-unity-proto.sh`](../../scripts/contracts/generate-unity-proto.sh) が `.proto` コピーと `app/unity/Assets/Scripts/PresentationRuntime/Generated/` を直接生成し、drift を検査する。
 
-依存方向は`packages/contracts`から生成されたTypeScript contractを`unframe-core`が利用する向きに固定する。`packages/contracts`のgeneratorは`unframe-core`をimportしない。これによりserialized contractとsemantic implementationの循環したsource of truthを避ける。
+依存方向は `packages/contracts` の手書き Zod schema と推論型を `unframe-core` が利用する向きに固定する。JSON Schema / descriptor は生成物であり、Protobuf 由来の wire 型とは区別する。`packages/contracts`のgeneratorは`unframe-core`をimportしない。これによりserialized contractとsemantic implementationの循環したsource of truthを避ける。
 
 ### 5.2 `packages/api-client-csharp`
 
-OpenAPIとProtocol Buffersから生成したC# artifactを所有する。Unity固有のGameObject adapter、renderer、cacheは含めない。Unityはgenerated model / clientを参照し、その外側にUnity-owned adapterを実装する。
+OpenAPIとProtocol Buffersから生成したC# artifactを所有する。Unity固有のGameObject adapter、renderer、cacheは含めない。Unity の Presentation wire bindings は同一 Protobuf 正本から Unity へ直接生成する。独立 client package を Unity へコピーする経路ではない。Unity-owned adapter はその外側に実装する。
 
 ## 6. Application-owned responsibilities
 
@@ -395,11 +395,11 @@ OpenAPIとProtocol Buffersから生成したC# artifactを所有する。Unity�
 - Compiler diagnosticsとpreviewの表示
 - Draft保存、revision conflict、build / publish UI
 
-Web EditorはCompiler Core、Opaque rendererのBrowser実行環境、renderer artifact generationを所有しない。Node-only Compilerをbrowser bundleへ直接取り込まず、worker、local process、またはserviceとの接続方式をWeb architectureで決める。
+Web EditorはCompiler Core、Opaque rendererのBrowser実行環境、renderer artifact generationを所有しない。Node-only Compiler を browser bundle へ取り込まず、現行 Local Editor は native CLI Author host の認証付き HTTP API と接続する。
 
 ### 6.2 `app/server/control-plane`
 
-Targetとして次のapplication moduleを追加する。
+次の application module は実装済みである。waiting expiry / owner cancel を含む全 publication policy の目標と現在の保証は各 module の仕様・テストで区別する。
 
 - `presentation-builds`: Compiler成果物のreceipt、schema/hash/Asset検証
 - `publications`: Definition、RenderBundle、Asset Set、contract versionを束ねる単一のPublishedPresentation、publicationEpoch、非終了Session中のpublish lock
@@ -446,23 +446,24 @@ Contract generationは次の一方向とする。
 
 ```text
 packages/contracts source
-├─ generate → TypeScript contract → unframe-core / Control Plane
-├─ generate → Go contract         → Realtime
-└─ generate → C# contract         → packages/api-client-csharp → Unity
+├─ handwritten Zod / inferred TypeScript → unframe-core / Control Plane
+├─ generate → JSON Schema / descriptor / fixtures
+├─ Protobuf → Go contract         → Realtime
+├─ Protobuf → C# contract         → packages/api-client-csharp
+└─ Protobuf → Unity C# bindings   → Unity Generated/
 ```
 
 TypeScript packageのruntime / build dependencyは次のとおりとする。
 
 ```text
-unframe-core ──────────────→ generated TypeScript presentation contract
+unframe-core ──────────────→ Contracts Zod schema / inferred TypeScript
 unframe-authoring ────────→ unframe-core
 unframe-components ───────→ unframe-authoring
 unframe-components ───────→ unframe-core
 unframe-renderer-api ─────→ unframe-core
 unframe-assets ────────────→ unframe-core
 unframe-renderer-web ──────→ unframe-renderer-api
-unframe-renderer-web ──────→ unframe-assets
-unframe-renderer-web ──────→ unframe-core
+unframe-renderer-web ──────→ unframe-core / unframe-worker-host
 
 unframe-compiler ──────────→ unframe-core
 unframe-compiler ──────────→ unframe-authoring
@@ -471,6 +472,7 @@ unframe-compiler ──────────→ unframe-assets
 
 unframe-cli ───────────────→ unframe-compiler
 unframe-cli ───────────────→ unframe-renderer-web
+unframe-cli ───────────────→ unframe-core / Contracts / unframe-tailwind / unframe-worker-host
 unframe-cli ───────────────→ Control Plane API client adapter
 unframe-cli TUI ───────────→ Bun / OpenTUI core / Solid / keymap
 
@@ -526,15 +528,15 @@ presentation/
 ├─ assets/
 ├─ unframe.config.ts
 ├─ unframe.lock
-├─ .unframe-cache/
+├─ .unframe/          # build cache / generations / Author state
 └─ dist/
 ```
 
 この`presentation/`は利用者のproject root例であり、Unframe monorepoのimplementation package rootには使用しない。Repository内のreference projectは`examples/presentation/`に置く。
 
-- `.unframe-cache/`は再生成可能でversion control対象外とする。
+- `.unframe/cache/` は再生成可能な build cache である。`.unframe/authoring/` の receipt / journal は保存・回復状態であり、cache と同じ規則で削除しない。
 - `dist/`はCompiler outputでありAuthoring Sourceではない。
-- `unframe.lock`の正確な形式とpackage manager連携はAuthoring architectureで決める。
+- `unframe.lock` v2 の形式と package manager 連携は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v2-と生成-id) と CLI が所有する。
 - reference projectはproduction用の隠れたdefault contractにせず、公開fixtureとして検証する。
 
 ## 10. Documentation hierarchy
@@ -603,22 +605,16 @@ Directoryとpackageは次の順序で実装を開始する。
 
 最初のmilestoneは、手書きのreference Authoring Projectから、CLIを通じてcanonical PresentationDefinition JSONと一つのbaked-web Surfaceを含むRenderBundleをdeterministicに生成することとする。Publish、Realtime、Unity、GUI editingはこのmilestoneの完了条件に含めない。
 
-2026-09-15 時点で M1 の static Authoring Source から Fixed Browser capture、Definition / RenderBundle / PNG の atomic output までの経路は実装済みである。Opaque renderer は bundle まで、CLI の TUI は command selection までであり、publish、preview、完全な Opaque execution は未実装である。
+2026-09-15 時点の初期 milestone は static Source から Fixed Browser capture と atomic output までを対象とした。現行は Opaque 隔離 execution、lock v2、Source patch、Local Editor、Dev / Dist Unity Preview、publish、Delivery / Realtime 接続と wire / Unity C# generation まで進んでいる。Quest 実機受け入れはこの実装済み範囲から分けて検証する。
 
 ## 12. Deferred decisions
 
 次は各packageの`ARCHITECTURE.md`または別ADRで決める。
 
 - Cue、Theme、Token、Named Styleを含む完全版Semantic contractのschema設計
-- Lossless Syntax Treeとsource patchingの実装
-- Opaque renderer bundleを実行するBrowser process / isolateとruntime capability
-- Component package distributionと`unframe.lock`の形式
+- Component package の外部配布と更新方針
 - Compiler plugin discoveryとversion negotiation
-- Browser capture processの分離方法
 - Native UI、Video renderer packageの追加時期
-- CLIのlocal preview runtime
-- Web EditorからLocal Compilerを呼ぶexecution topology
-- PublicationFence、Delivery、Runtime Protobufの具体schema
-- generated C# artifactをUnityへ組み込む方法
+- platform ごとの追加 visual baseline と実機受け入れ
 
 これらを決める際も、本書のownershipと禁止依存を変更する場合は、先に本書と必要なADRを更新する。

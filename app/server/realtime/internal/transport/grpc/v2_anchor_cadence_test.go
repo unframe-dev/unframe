@@ -139,7 +139,7 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 		}
 	}
 	withoutAnchorAt := time.Now()
-	if next, err := state.Recv(); err != nil || time.Since(withoutAnchorAt) < 750*time.Millisecond || len(next.GetStateFrame().GetAnchorBindings()) != 0 {
-		t.Fatalf("non-anchor cadence did not return to one second: frame=%#v elapsed=%v err=%v", next, time.Since(withoutAnchorAt), err)
+	if next, err := state.Recv(); err != nil || time.Since(withoutAnchorAt) >= 400*time.Millisecond || len(next.GetStateFrame().GetAnchorBindings()) != 0 {
+		t.Fatalf("keyframe cadence slowed after leaving the anchor: frame=%#v elapsed=%v err=%v", next, time.Since(withoutAnchorAt), err)
 	}
 }

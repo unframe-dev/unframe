@@ -12,6 +12,7 @@ import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { runPreviewProcess } from "../src/process/preview.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -55,7 +56,7 @@ it("locks project-owned Tailwind with an uppercase CSS entry, captures reproduci
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-tailwind-project-"));
   const staging = await mkdtemp(join(temporaryDirectory(), "unframe-sdk-package-"));
   try {
-    await cp(join(repository, "examples/presentation"), directory, { recursive: true });
+    await copyProjectFixture(join(repository, "examples/presentation"), directory);
     const found = await discoverPresentationProjectFiles(directory);
     assert(found.ok);
     const loaded = loadUnframeLock(found.lockBytes);
