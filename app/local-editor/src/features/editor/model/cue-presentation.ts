@@ -192,16 +192,6 @@ function subjectLabel(subject: Extract<Trigger, { kind: "motion" }>["subject"]):
       return unreachable(subject);
   }
 }
-const motionPresetLabels = {
-  swipeLeft: "左へスワイプ（swipeLeft）",
-  swipeRight: "右へスワイプ（swipeRight）",
-  swipeDown: "下へスワイプ（swipeDown）",
-  swipeUp: "上へスワイプ（swipeUp）",
-  pushForward: "前へ押す（pushForward）",
-  pullBackward: "手前へ引く（pullBackward）",
-  spreadHands: "両手を広げる（spreadHands）",
-  closeHands: "両手を閉じる（closeHands）",
-} as const;
 export function triggerPresentation(trigger: Trigger): { title: string; rows: DetailRow[] } {
   switch (trigger.kind) {
     case "logicalInput":
@@ -251,9 +241,6 @@ export function triggerPresentation(trigger: Trigger): { title: string; rows: De
         rows: [
           ["発信者", actorLabel(trigger.actor)],
           ["追跡対象", subjectLabel(trigger.subject)],
-          ...("preset" in trigger
-            ? ([["動作", motionPresetLabels[trigger.preset]]] satisfies DetailRow[])
-            : []),
           ["最小移動距離", `${trigger.minimumDistanceMeters} m`],
           ["検出期間", `${trigger.windowMilliseconds} ms`],
         ],
