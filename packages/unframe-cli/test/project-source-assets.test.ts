@@ -1,6 +1,6 @@
 import { copyProjectFixture } from "./project-fixture.js";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, expect, it, vi } from "vitest";
@@ -15,7 +15,7 @@ afterEach(async () => {
 });
 
 it("initializes the registered asset files together with the project source", async () => {
-  const parent = await mkdtemp(join(tmpdir(), "unframe-source-assets-init-"));
+  const parent = await mkdtemp(join(temporaryDirectory(), "unframe-source-assets-init-"));
   directories.push(parent);
   const directory = join(parent, "created");
   const initialized = await runPresentationCli({ args: ["init", directory] });
@@ -32,7 +32,7 @@ it("initializes the registered asset files together with the project source", as
 });
 
 it("keeps changed source bytes frozen for Dist while Author follows local assets", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-source-assets-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-assets-"));
   directories.push(directory);
   await copyProjectFixture(
     fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
@@ -74,7 +74,7 @@ it("keeps changed source bytes frozen for Dist while Author follows local assets
 }, 30_000);
 
 it("rejects invalid local asset bytes in Dev without updating the frozen lock", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-invalid-dev-asset-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-invalid-dev-asset-"));
   directories.push(directory);
   await copyProjectFixture(
     fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),

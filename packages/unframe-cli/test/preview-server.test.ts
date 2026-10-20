@@ -1,14 +1,14 @@
 import { connect } from "node:net";
 import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { startDistPreviewHost } from "../src/author/start.js";
 import { writePortableBuild } from "./helpers/portable-dist.js";
 
 it("stops accepting requests and closes incomplete HTTP connections", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-preview-close-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-preview-close-"));
   await writePortableBuild(directory);
   const server = await startDistPreviewHost(join(directory, "dist"), { assets: new Map() });
   const url = new URL(server.origin);

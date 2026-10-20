@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -510,7 +510,7 @@ describe("fixed local Preview service", () => {
   });
 
   it("pins real managed Dist bytes so later disk changes cannot alter accepted publication", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-local-preview-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-local-preview-"));
     const service = createLocalPreviewService(directory);
     try {
       const encoder = new TextEncoder();

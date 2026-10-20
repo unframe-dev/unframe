@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, assert, expect, it } from "vitest";
 import { acquireSourceLock } from "../src/filesystem/source-lock.js";
@@ -13,8 +13,8 @@ afterEach(async () => {
 });
 
 it("copies project inputs without inheriting another project's leases or output", async () => {
-  const source = await mkdtemp(join(tmpdir(), "unframe-fixture-source-"));
-  const target = await mkdtemp(join(tmpdir(), "unframe-fixture-target-"));
+  const source = await mkdtemp(join(temporaryDirectory(), "unframe-fixture-source-"));
+  const target = await mkdtemp(join(temporaryDirectory(), "unframe-fixture-target-"));
   directories.push(source, target);
   await writeFile(join(source, "unframe.lock"), "frozen source lock");
   await writeFile(join(source, ".unframe-build.lock"), "active build lease");

@@ -104,7 +104,13 @@ func main() {
 		slog.Error("load realtime server configuration", "error", err)
 		os.Exit(1)
 	}
-	verifier, err := auth.NewBearerTokenVerifier(auth.BearerTokenVerifierConfig{Issuer: config.issuer, Audience: config.audience, JWKSURL: config.jwksURL})
+	httpClient, err := newHTTPClient(os.Getenv("SSL_CERT_FILE"))
+	if err != nil {
+		slog.Error("configure realtime HTTPS trust", "error", err)
+		os.Exit(1)
+	}
+	defer httpClient.CloseIdleConnections()
+	verifier, err := auth.NewBearerTokenVerifier(auth.BearerTokenVerifierConfig{Issuer: config.issuer, Audience: config.audience, JWKSURL: config.jwksURL, HTTPClient: httpClient})
 	if err != nil {
 		slog.Error("create realtime token verifier", "error", err)
 		os.Exit(1)
@@ -119,7 +125,7 @@ func main() {
 		slog.Error("create realtime runtime core", "error", err)
 		os.Exit(1)
 	}
-	persistence := persistencehttp.NewClient(persistencehttp.Config{BaseURL: config.controlPlaneURL, ServiceIdentity: config.serviceIdentity})
+	persistence := persistencehttp.NewClient(persistencehttp.Config{BaseURL: config.controlPlaneURL, ServiceIdentity: config.serviceIdentity, HTTPClient: httpClient})
 	bootstrapRequest := persistencehttp.BootstrapRequest{SessionID: config.assignment.SessionID, RuntimeID: config.assignment.RuntimeID, RuntimeKind: config.assignment.RuntimeKind, AssignmentEpoch: config.assignment.AssignmentEpoch, PresentationRevision: config.assignment.PresentationRevision}
 	bootstrap, err := loadV2Bootstrap(ctx, persistence, guard, bootstrapRequest)
 	if err != nil {

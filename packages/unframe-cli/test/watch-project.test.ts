@@ -1,5 +1,5 @@
 import { mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
@@ -17,7 +17,7 @@ import { watchPresentationProject } from "../src/application/watch-project.js";
 
 describe("watchPresentationProject", () => {
   it("writes default watch builds into Dev and preserves existing Dist contents", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-watch-dev-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-watch-dev-"));
     directories.push(directory);
     await copyProjectFixture(
       fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),

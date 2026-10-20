@@ -12,7 +12,7 @@
       nixpkgs,
       flake-utils,
     }:
-    flake-utils.lib.eachDefaultSystem (
+    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-darwin" ] (
       system:
       let
         pkgs = import nixpkgs {
@@ -24,7 +24,7 @@
         toolchain = [
           (pkgs.callPackage ./packages/config/bun.nix { })
           pkgs.nodejs_22
-          pkgs.pnpm
+          (pkgs.pnpm.override { nodejs-slim = pkgs.nodejs-slim_22; })
           pkgs.go
           pkgs.golangci-lint
           pkgs.protobuf
@@ -33,16 +33,19 @@
           pkgs.dotnet-sdk_8
           pkgs.openapi-generator-cli
           pkgs.buf
-          pkgs.powershell
           pkgs.git
           pkgs.git-lfs
           pkgs.coreutils
+          pkgs.findutils
+          pkgs.gnugrep
+          pkgs.gnused
           pkgs.bash
           pkgs.ffmpeg
         ]
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.bubblewrap
           pkgs.systemd
+          pkgs.xdg-utils
         ];
 
         # Vite+ の管理ランタイムは NixOS 用にパッチされていないため、
@@ -72,27 +75,83 @@
           pkgs.fontconfig
           pkgs.noto-fonts-cjk-sans
         ];
+        presentationFonts =
+          pkgs.runCommand "unframe-presentation-fonts"
+            {
+              font = pkgs.fetchurl {
+                url = "https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf";
+                sha256 = "68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5";
+              };
+              license = pkgs.fetchurl {
+                url = "https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/LICENSE";
+                sha256 = "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2";
+              };
+            }
+            ''
+              mkdir -p "$out/share/fonts/opentype/unframe"
+              cp "$font" "$out/share/fonts/opentype/unframe/NotoSansCJKjp-Regular.otf"
+              mkdir -p "$out/share/licenses/unframe-presentation-fonts"
+              cp "$license" "$out/share/licenses/unframe-presentation-fonts/LICENSE"
+            '';
         presentationFontconfig = pkgs.writeText "unframe-presentation-fontconfig.conf" ''
           <?xml version="1.0"?>
           <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
           <fontconfig>
-            <dir>${pkgs.noto-fonts-cjk-sans}/share/fonts</dir>
+            <dir>${presentationFonts}/share/fonts</dir>
           </fontconfig>
         '';
+        posixCacheHelper = pkgs.stdenv.mkDerivation {
+          pname = "unframe-posix-cache-helper";
+          version = "1";
+          src = ./packages/unframe-cli/src/filesystem/posix-cache-helper.c;
+          dontUnpack = true;
+          buildPhase = ''
+            $CC -std=c11 -O2 -Wall -Wextra -Werror "$src" -o unframe-posix-cache-helper
+          '';
+          installPhase = ''
+            mkdir -p "$out/bin"
+            cp unframe-posix-cache-helper "$out/bin/"
+          '';
+        };
+        darwinOpaqueLauncher = pkgs.stdenv.mkDerivation {
+          pname = "unframe-darwin-opaque";
+          version = "4";
+          src = ./packages/unframe-worker-host/src/native;
+          nativeBuildInputs = [ pkgs.nodejs_22 ];
+          dontFixup = true;
+          buildPhase = ''
+            node compile-policy.ts package --out policies --header darwin-policy-hashes.h
+            $CC -std=c11 -O2 -Wall -Wextra darwin-launcher.c -o unframe-darwin-opaque -lsandbox -framework CoreFoundation
+          '';
+          installPhase = ''
+            mkdir -p "$out/bin" "$out/share/unframe-darwin-opaque"
+            cp unframe-darwin-opaque "$out/bin/"
+            cp compile-policy.ts "$out/share/unframe-darwin-opaque/"
+            cp -R chromium "$out/share/unframe-darwin-opaque/"
+            cp policies/*.sb "$out/share/unframe-darwin-opaque/"
+            /usr/bin/codesign --force --sign - --options runtime,library,restrict "$out/bin/unframe-darwin-opaque"
+            /usr/bin/codesign --verify --strict "$out/bin/unframe-darwin-opaque"
+          '';
+        };
         opaqueRuntimeClosure = pkgs.closureInfo {
           rootPaths = [
             pkgs.nodejs_22
             pkgs.bash
-            pkgs.nix-ld
-            pkgs.glibc
             presentationFontconfig
           ]
-          ++ chromiumRuntime;
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.nix-ld
+            pkgs.glibc
+          ]
+          ++ chromiumRuntime
+          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ darwinOpaqueLauncher ];
         };
         styleRuntimeClosure = pkgs.closureInfo {
           rootPaths = [
             pkgs.nodejs_24
             pkgs.bash
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
             pkgs.nix-ld
             pkgs.glibc
             pkgs.stdenv.cc.cc
@@ -109,10 +168,23 @@
             pkgs.glibc
           ];
         };
-        nixLdEnvironment = {
+        runtimeEnvironment = {
           UNFRAME_FFMPEG_PATH = "${pkgs.ffmpeg}/bin/ffmpeg";
           UNFRAME_FFPROBE_PATH = "${pkgs.ffmpeg}/bin/ffprobe";
           UNFRAME_MEDIA_RUNTIME_CLOSURE = "${mediaRuntimeClosure}/store-paths";
+          FONTCONFIG_FILE = presentationFontconfig;
+          UNFRAME_PRESENTATION_FONT_DIRECTORY = "${presentationFonts}/share/fonts";
+          UNFRAME_PRESENTATION_FONT = "${presentationFonts}/share/fonts/opentype/unframe/NotoSansCJKjp-Regular.otf";
+          UNFRAME_BASH_PATH = "${pkgs.bash}/bin/bash";
+          UNFRAME_STYLE_NODE = "${pkgs.nodejs_24}/bin/node";
+          UNFRAME_STYLE_RUNTIME_CLOSURE = "${styleRuntimeClosure}/store-paths";
+          UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
+          UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";
+          UNFRAME_DARWIN_POLICY_NODE = "${pkgs.nodejs_22}/bin/node";
+          UNFRAME_POSIX_HELPER = "${posixCacheHelper}/bin/unframe-posix-cache-helper";
+        }
+        // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+          UNFRAME_DARWIN_OPAQUE_LAUNCHER = "${darwinOpaqueLauncher}/bin/unframe-darwin-opaque";
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
@@ -123,14 +195,8 @@
             ]
             ++ chromiumRuntime
           );
-          FONTCONFIG_FILE = presentationFontconfig;
           UNFRAME_BWRAP_PATH = "${pkgs.bubblewrap}/bin/bwrap";
-          UNFRAME_BASH_PATH = "${pkgs.bash}/bin/bash";
-          UNFRAME_STYLE_NODE = "${pkgs.nodejs_24}/bin/node";
-          UNFRAME_STYLE_RUNTIME_CLOSURE = "${styleRuntimeClosure}/store-paths";
-          UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
           UNFRAME_NIX_LD_SHIM = "${pkgs.nix-ld}/bin/nix-ld";
-          UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";
         };
 
         # scripts/ の実処理を flake app としてラップする。
@@ -149,10 +215,10 @@
                 ${pkgs.lib.concatStringsSep "\n" (
                   pkgs.lib.mapAttrsToList (
                     variable: value: "export ${variable}=${pkgs.lib.escapeShellArg value}"
-                  ) nixLdEnvironment
+                  ) runtimeEnvironment
                 )}
                 root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
-                exec "''${root}/scripts/${script}" "$@"
+                exec "''${root}/scripts/dev/native-env.sh" "''${root}/scripts/${script}" "$@"
               '';
             };
           in
@@ -160,37 +226,46 @@
             type = "app";
             program = "${wrapper}/bin/unframe-${name}";
           };
-        unityRuntime = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-          unity-editor =
-            let
-              runtime =
-                (pkgs.steam.override {
-                  extraPkgs = p: [
-                    p.gtk3
-                    p.atk
-                    p.at-spi2-atk
-                    p.pango
-                    p.cairo
-                    p.gdk-pixbuf
-                  ];
-                }).run;
-              wrapper = pkgs.writeShellApplication {
-                name = "unframe-unity-editor";
-                runtimeInputs = [
-                  runtime
-                  pkgs.git
-                ];
-                text = ''
-                  root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
-                  exec steam-run "''${root}/scripts/unity/editor.sh" "$@"
-                '';
-              };
-            in
+        unityRuntime =
+          if pkgs.stdenv.isDarwin then
             {
-              type = "app";
-              program = "${wrapper}/bin/unframe-unity-editor";
+              unity-editor = mkApp {
+                name = "unity-editor";
+                script = "unity/editor.sh";
+              };
+            }
+          else
+            {
+              unity-editor =
+                let
+                  runtime =
+                    (pkgs.steam.override {
+                      extraPkgs = p: [
+                        p.gtk3
+                        p.atk
+                        p.at-spi2-atk
+                        p.pango
+                        p.cairo
+                        p.gdk-pixbuf
+                      ];
+                    }).run;
+                  wrapper = pkgs.writeShellApplication {
+                    name = "unframe-unity-editor";
+                    runtimeInputs = [
+                      runtime
+                      pkgs.git
+                    ];
+                    text = ''
+                      root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
+                      exec steam-run "''${root}/scripts/unity/editor.sh" "$@"
+                    '';
+                  };
+                in
+                {
+                  type = "app";
+                  program = "${wrapper}/bin/unframe-unity-editor";
+                };
             };
-        };
       in
       {
         devShells.default = pkgs.mkShell (
@@ -202,9 +277,13 @@
               if [ -n "''${root}" ] && [ -x "''${root}/scripts/dev/install-hooks.sh" ]; then
                 "''${root}/scripts/dev/install-hooks.sh" || true
               fi
+              if [ -n "''${root}" ] && [ -f "''${root}/scripts/lib/native-host.sh" ]; then
+                source "''${root}/scripts/lib/native-host.sh"
+                configure_native_environment
+              fi
             '';
           }
-          // nixLdEnvironment
+          // runtimeEnvironment
         );
 
         # 手動で叩く操作。実体は scripts/ にある。

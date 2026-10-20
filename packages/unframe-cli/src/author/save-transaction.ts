@@ -4,6 +4,7 @@ import { lstat, mkdir, open, readdir, rename, rm, unlink, type FileHandle } from
 import { basename, dirname, isAbsolute, join, parse } from "node:path";
 import { projectDirectory, readRegularFile, rootRelativePosix } from "../filesystem/path-policy.js";
 import { loadProjectConfig } from "../filesystem/load-config.js";
+import { createPosixCacheSession, type PosixFileStat } from "../filesystem/posix-cache.js";
 import type { SavedCommand } from "./contract.js";
 
 const idPattern = /^[0-9a-f]{32}$/;
@@ -17,7 +18,86 @@ const storageNames = [
   ".unframe/authoring/receipts",
 ];
 
-const anchoredParent = async (path: string) => {
+type PosixSession = ReturnType<typeof createPosixCacheSession>;
+const directoryStat = (value: PosixFileStat) => ({
+  ...value,
+  isDirectory: () => (value.mode & 0o170000) === 0o040000,
+  isSymbolicLink: () => (value.mode & 0o170000) === 0o120000,
+});
+
+const anchoredPosixParent = async (path: string, shared?: PosixSession) => {
+  if (!isAbsolute(path) || basename(path) === "." || basename(path) === "..")
+    throw new Error("Author path is invalid.");
+  const helper = shared ?? createPosixCacheSession();
+  const handles: Awaited<ReturnType<PosixSession["directory"]>>[] = [];
+  const parent = dirname(path);
+  const root = parse(parent).root;
+  const identities: { path: string; dev: number; ino: number }[] = [];
+  try {
+    let handle = await helper.directory(root);
+    handles.push(handle);
+    identities.push({ path: root, ...(await handle.stat()) });
+    let currentPath = root;
+    for (const segment of parent.slice(root.length).split("/").filter(Boolean)) {
+      if (segment === "." || segment === "..") throw new Error("Author path is invalid.");
+      currentPath = join(currentPath, segment);
+      const next = `/fd/${handle.fd}/${segment}`;
+      const before = directoryStat(await helper.lstat(next));
+      if (!before.isDirectory() || before.isSymbolicLink())
+        throw new Error("Author parent directory is unsafe.");
+      const opened = await helper.directory(next);
+      handles.push(opened);
+      const stat = directoryStat(await opened.stat());
+      if (!stat.isDirectory() || stat.dev !== before.dev || stat.ino !== before.ino)
+        throw new Error("Author parent directory changed.");
+      if (
+        currentPath.includes("/.unframe/authoring") &&
+        (stat.uid !== process.getuid?.() ||
+          (stat.mode & 0o777) !== 0o700 ||
+          before.uid !== process.getuid?.() ||
+          (before.mode & 0o777) !== 0o700)
+      )
+        throw new Error("Author storage permissions are unsafe.");
+      identities.push({ path: currentPath, dev: stat.dev, ino: stat.ino });
+      handle = opened;
+    }
+    const verify = async () => {
+      for (const ancestor of identities) {
+        const current = await lstat(ancestor.path);
+        if (
+          !current.isDirectory() ||
+          current.isSymbolicLink() ||
+          current.dev !== ancestor.dev ||
+          current.ino !== ancestor.ino
+        )
+          throw new Error("Author parent directory changed.");
+        if (
+          ancestor.path.includes("/.unframe/authoring") &&
+          (current.uid !== process.getuid?.() || (current.mode & 0o777) !== 0o700)
+        )
+          throw new Error("Author storage permissions are unsafe.");
+      }
+    };
+    await verify();
+    return {
+      path: `/fd/${handle.fd}/${basename(path)}`,
+      helper,
+      verify,
+      sync: () => handle.sync(),
+      close: async () => {
+        for (const item of handles.reverse()) await item.close();
+        if (!shared) await helper.close();
+      },
+    };
+  } catch (error) {
+    for (const item of handles.reverse()) await item.close().catch(() => undefined);
+    if (!shared) await helper.close();
+    throw error;
+  }
+};
+
+const anchoredParent = async (path: string, shared?: PosixSession) => {
+  if (process.platform === "darwin") return anchoredPosixParent(path, shared);
   if (!isAbsolute(path) || basename(path) === "." || basename(path) === "..")
     throw new Error("Author path is invalid.");
   const parent = dirname(path);
@@ -88,6 +168,7 @@ const anchoredParent = async (path: string) => {
     await verify();
     return {
       path: "/proc/self/fd/" + handle.fd + "/" + basename(path),
+      helper: undefined,
       verify,
       sync: async () => {
         await handle.sync();
@@ -113,10 +194,9 @@ const safeDirectory = async (path: string, privateDirectory: boolean) => {
 const syncDirectory = async (path: string) => {
   const parent = await anchoredParent(path);
   try {
-    const handle = await open(
-      parent.path,
-      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
-    );
+    const handle = parent.helper
+      ? await parent.helper.directory(parent.path)
+      : await open(parent.path, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
     try {
       await handle.sync();
     } finally {
@@ -131,6 +211,12 @@ const syncDirectory = async (path: string) => {
 const writeNew = async (path: string, bytes: Uint8Array, mode = 0o600) => {
   const parent = await anchoredParent(path);
   try {
+    if (parent.helper) {
+      await parent.helper.write(parent.path, bytes, mode);
+      await parent.verify();
+      await parent.sync();
+      return;
+    }
     const handle = await open(
       parent.path,
       constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
@@ -153,6 +239,14 @@ const writeAtomic = async (path: string, bytes: Uint8Array, mode = 0o600) => {
   const parent = await anchoredParent(path);
   const temporary = parent.path + "." + randomUUID() + ".tmp";
   try {
+    if (parent.helper) {
+      await parent.helper.write(temporary, bytes, mode);
+      await parent.verify();
+      await parent.helper.rename(temporary, parent.path);
+      await parent.verify();
+      await parent.sync();
+      return;
+    }
     const handle = await open(
       temporary,
       constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
@@ -169,7 +263,9 @@ const writeAtomic = async (path: string, bytes: Uint8Array, mode = 0o600) => {
     await parent.verify();
     await parent.sync();
   } finally {
-    await unlink(temporary).catch(() => undefined);
+    await (parent.helper ? parent.helper.unlink(temporary) : unlink(temporary)).catch(
+      () => undefined,
+    );
     await parent.close();
   }
 };
@@ -177,11 +273,13 @@ const writeAtomic = async (path: string, bytes: Uint8Array, mode = 0o600) => {
 const moveDirectory = async (from: string, to: string) => {
   const source = await anchoredParent(from);
   try {
-    const destination = await anchoredParent(to);
+    const destination = await anchoredParent(to, source.helper);
     try {
       await source.verify();
       await destination.verify();
-      await rename(source.path, destination.path);
+      await (source.helper
+        ? source.helper.rename(source.path, destination.path)
+        : rename(source.path, destination.path));
       await source.verify();
       await destination.verify();
       await source.sync();
@@ -197,7 +295,9 @@ const moveDirectory = async (from: string, to: string) => {
 const removePrivateDirectory = async (path: string) => {
   const parent = await anchoredParent(path);
   try {
-    const stat = await lstat(parent.path);
+    const stat = parent.helper
+      ? directoryStat(await parent.helper.lstat(parent.path))
+      : await lstat(parent.path);
     if (
       !stat.isDirectory() ||
       stat.isSymbolicLink() ||
@@ -205,7 +305,7 @@ const removePrivateDirectory = async (path: string) => {
       (stat.mode & 0o777) !== 0o700
     )
       throw new Error("Author transaction directory is unsafe.");
-    await rm(parent.path, { recursive: true });
+    await (parent.helper ? parent.helper.rm(parent.path) : rm(parent.path, { recursive: true }));
     await parent.verify();
     await parent.sync();
   } finally {
@@ -229,7 +329,11 @@ export const prepareAuthorStorage = async (root: string) => {
     const path = join(root, name);
     const parent = await anchoredParent(path);
     try {
-      await mkdir(parent.path, { mode: index === 0 ? 0o755 : 0o700 }).catch((error: unknown) => {
+      await (
+        parent.helper
+          ? parent.helper.mkdir(parent.path, { mode: index === 0 ? 0o755 : 0o700 })
+          : mkdir(parent.path, { mode: index === 0 ? 0o755 : 0o700 })
+      ).catch((error: unknown) => {
         if (
           !(
             typeof error === "object" &&
@@ -450,7 +554,9 @@ export const commitAuthorPair = async (input: {
   };
   const stageParent = await anchoredParent(stagedPath);
   try {
-    await mkdir(stageParent.path, { mode: 0o700 });
+    await (stageParent.helper
+      ? stageParent.helper.mkdir(stageParent.path)
+      : mkdir(stageParent.path, { mode: 0o700 }));
     await stageParent.verify();
   } finally {
     await stageParent.close();

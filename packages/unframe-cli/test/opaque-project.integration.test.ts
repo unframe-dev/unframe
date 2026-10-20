@@ -4,7 +4,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
@@ -97,7 +97,7 @@ const installFrozenGraph = async (directory: string) => {
 };
 
 const createProject = async (mixed = false) => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-opaque-integration-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-opaque-integration-"));
   temporary.push(directory);
   await copyProjectFixture(reference, directory);
   const { loaded, presentation: initial } = await fromReference(directory);
@@ -249,7 +249,12 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   const second = await runPresentationCli({ args: ["build", directory] });
   const secondDuration = performance.now() - secondStarted;
   expect(second.exitCode, second.stderr).toBe(0);
-  expect(distHashes(await distBytes(directory))).toEqual(distHashes(bytes));
+  // The receipt identifies each publication generation rather than deterministic build content.
+  const buildContent = (files: [string, Uint8Array][]) =>
+    files.filter(([path]) => path !== "build-receipt.json");
+  expect(distHashes(buildContent(await distBytes(directory)))).toEqual(
+    distHashes(buildContent(bytes)),
+  );
   console.info(
     `Opaque Base UI build durations: ${Math.round(firstDuration)} ms, ${Math.round(secondDuration)} ms`,
   );

@@ -14,7 +14,14 @@ export const createBakedWebRendererOptionsSchema = z.strictObject({
   config: z.unknown(),
 });
 
+export const browserPlatformSchema = z.strictObject({
+  os: z.enum(["linux", "darwin"]),
+  arch: z.enum(["x64", "arm64"]),
+  fingerprint: nonEmptyStringSchema,
+});
+
 export const fixedBrowserEnvironmentSchema = z.strictObject({
+  platform: browserPlatformSchema,
   browser: z.strictObject({
     id: nonEmptyStringSchema,
     version: nonEmptyStringSchema,

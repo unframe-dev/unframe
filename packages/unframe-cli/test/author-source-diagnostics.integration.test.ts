@@ -3,7 +3,7 @@ import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
@@ -156,7 +156,7 @@ const installFrozenGraph = async (directory: string, extended: boolean) => {
 };
 
 const createProject = async (extended: boolean) => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-opaque-integration-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-opaque-integration-"));
   temporary.push(directory);
   await copyProjectFixture(reference, directory);
   const { loaded, presentation: initial } = await fromReference(directory);

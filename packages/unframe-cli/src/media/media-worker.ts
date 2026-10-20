@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline";
 import { spawn } from "node:child_process";
+import { isAbsolute } from "node:path";
 
 const run = (executable: string, args: string[], headers?: Record<string, Set<number>>) =>
   new Promise<string>((resolve, reject) => {
@@ -64,13 +65,15 @@ const lines = createInterface({ input: process.stdin });
 const send = (value: unknown) => process.stdout.write(`${JSON.stringify(value)}\n`);
 send({ type: "bootstrap" });
 for await (const line of lines) {
-  const message = JSON.parse(line) as { type: string };
+  const message = JSON.parse(line) as { type: string; input?: { sourcePath?: unknown } };
   if (message.type === "launch") send({ type: "ready" });
   else if (message.type === "capture") {
     try {
       const probe = process.env.UNFRAME_FFPROBE_PATH!;
       const ffmpeg = process.env.UNFRAME_FFMPEG_PATH!;
-      const source = "/input/source.mp4";
+      const source = message.input?.sourcePath;
+      if (typeof source !== "string" || !isAbsolute(source) || source.includes("\0"))
+        throw new Error("video-invalid-source");
       const probeJson = await run(probe, [
         "-v",
         "error",

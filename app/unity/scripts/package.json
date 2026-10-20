@@ -1,0 +1,17 @@
+{
+  "name": "@unframe/unity-scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --test sync-runtime-dependencies.test.ts",
+    "sync-runtime": "node sync-runtime-dependencies.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/yauzl": "3.4.0",
+    "typescript": "^7.0.0",
+    "yauzl": "3.4.0",
+    "zod": "4.6.5"
+  }
+}

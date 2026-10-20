@@ -1,7 +1,7 @@
 import { copyProjectFixture } from "./project-fixture.js";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
@@ -40,7 +40,7 @@ const component = [
   "});",
 ].join("\n");
 const createProject = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-author-service-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-service-"));
   temporary.push(directory);
   await copyProjectFixture(reference, directory);
   const discovered = await discoverPresentationProjectFiles(directory);
@@ -188,7 +188,7 @@ describe("author service with frozen React source", () => {
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(beforeLock);
   }, 30000);
   it("builds compiler-valid source without Inspector metadata", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-author-readonly-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-readonly-"));
     temporary.push(directory);
     await copyProjectFixture(reference, directory);
     const service = await createAuthorService(directory, {
@@ -671,23 +671,34 @@ describe("author service with frozen React source", () => {
   }, 30000);
   it("rejects a completed generation when Source changes while its artifacts are read", async () => {
     const directory = await createProject();
+    let sourceChanged!: () => void;
+    const changed = new Promise<void>((resolve) => {
+      sourceChanged = resolve;
+    });
     const service = await createAuthorService(directory, {
       run: async () => ({ exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) }),
       readPublishedArtifacts: async () => {
         const path = join(directory, "Hero.component.tsx");
         await writeFile(path, component + "\n// newer external save\n");
+        sourceChanged();
         return { catalog: [], assets: new Map() };
       },
     });
     services.push(service);
     const snapshot = await service.project();
     const created = await service.build(snapshot.revision, commandId("5"));
-    await expect.poll(async () => (await service.job(created.buildId)).status).toBe("stale");
-    expect((await service.job(created.buildId)).generationId).toBeNull();
+    await changed;
+    await expect
+      .poll(async () => (await service.job(created.buildId)).status, { timeout: 10_000 })
+      .not.toBe("running");
+    expect(await service.job(created.buildId)).toMatchObject({
+      status: "stale",
+      generationId: null,
+    });
   }, 30000);
 });
 it("waits for a short build lease before returning the polled project", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-lease-fixture-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-lease-fixture-"));
   temporary.push(directory);
   await copyProjectFixture(reference, directory);
   const service = await createAuthorService(directory);
@@ -702,7 +713,7 @@ it("waits for a short build lease before returning the polled project", async ()
   expect(await pending).toMatchObject({ revision: before.revision });
 }, 30_000);
 it("does not register or start a build after closing while its source lease is pending", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-lease-fixture-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-lease-fixture-"));
   temporary.push(directory);
   await copyProjectFixture(reference, directory);
   const run = vi.fn<typeof runPresentationCli>();

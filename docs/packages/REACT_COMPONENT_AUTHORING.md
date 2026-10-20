@@ -6,7 +6,7 @@
 - **Implementation contract**: [Lock・抽出・編集・capture](./REACT_COMPONENT_EXECUTION_CONTRACT.md)
 - **Scope**: 一ファイルの React Component → 一 import 配置 → 静的 baked-web → Editor 編集・保存 → 有限 State
 
-本書は、Web の UI ライブラリを使う Component の作者向け API と、ローカル Authoring の提供範囲を示す。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v3 の frozen check と Linux の隔離 Browser capture を接続している。Opaque build は namespace / cgroup の実行条件が欠ける場合に拒否する。ローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redoに対応する。Unity Preview は宣言初期 State の静止表示を扱う。受け入れ範囲と導入条件は6節を参照する。
+本書は、Web の UI ライブラリを使う Component の作者向け API と、ローカル Authoring の提供範囲を示す。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v3 の frozen check と native 隔離 Browser capture を接続している。必要な隔離 capability が欠ける場合は拒否する。Linux / macOS arm64 の機構と保証差、macOS の実機検証待ちは [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。ローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redoに対応する。Unity Preview は宣言初期 State の静止表示を扱う。受け入れ範囲と導入条件は6節を参照する。
 
 Surface の Structured / Opaque 表現と Renderer の binding 検証の境界は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) と [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md#a1-の前提契約canonical-surface) に従う。
 
@@ -295,7 +295,7 @@ Source patch、再度の静的検証、local lock 再生成を成功させてか
 
 描画は保存後に実行する。capture 失敗でも検証済み Source は保持し、最後に成功した Unity Preview を古い revision として表示する。保存済み revision と表示中の artifact revision を混同しない。Undo / Redo は同じ session の保存済み編集を逆 patch として扱い、最新 hash を検証し、外部編集があれば履歴を破棄する。
 
-実行場所は Linux ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Web、patch と検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
+実行場所は native ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Web、patch と検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
 
 ## 6. 受け入れ検証と導入条件
 
@@ -319,7 +319,7 @@ nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command scripts/ci/opaque-capture.sh
 ```
 
-隔離実行には cgroup v2 の memory / pids controller と systemd user manager の delegation、user namespace、Chromium sandbox が必要である。条件を満たさない場合は拒否し、弱い実行環境へ fallback しない。Browser 試験は共有 host の並列負荷で timeout することがあるため、計測時は `vp test run --maxWorkers=1 --reporter=verbose --silent=false` で対象 fixture を単独実行する。
+隔離実行には Linux では cgroup v2 の memory / pids controller と systemd user manager の delegation、user namespace、macOS arm64 では Seatbelt と process group 監視が必要である。両 OS で Chromium sandbox を有効にする。保証差と macOS の実機検証待ちは [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従い、条件を満たさない場合は拒否する。Browser 試験は共有 host の並列負荷で timeout することがあるため、計測時は `vp test run --maxWorkers=1 --reporter=verbose --silent=false` で対象 fixture を単独実行する。
 
 Base UI Button と固定 React / CSS / image / font の組合せを実 Browser で検証している。UI ライブラリ全体の互換性は保証しない。任意の Vite / PostCSS / Tailwind 設定や host node_modules を描画依存の解決に利用しない。参照 PNG は、見出し・button・画像を目視し、文字欠落と配置の破綻がないことを確認する。
 

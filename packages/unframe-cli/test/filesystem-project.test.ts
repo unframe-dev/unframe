@@ -1,7 +1,7 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { mkdtemp, mkdir, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -13,7 +13,7 @@ const directories: string[] = [];
 const links: string[] = [];
 
 const project = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-project-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-project-"));
   directories.push(directory);
   await writeFile(join(directory, "unframe.lock"), "{}", "utf8");
   await writeFile(join(directory, "presentation.unframe.tsx"), "export default {}", "utf8");
@@ -317,7 +317,7 @@ describe("filesystem project discovery", () => {
       code: "cli-project-discovery-invalid-directory",
     });
     const linkedParent = `${directory}-tmp-link`;
-    await symlink(tmpdir(), linkedParent);
+    await symlink(temporaryDirectory(), linkedParent);
     links.push(linkedParent);
     await expect(
       discoverPresentationProjectFiles(join(linkedParent, basename(directory))),
@@ -341,7 +341,7 @@ describe("filesystem project discovery", () => {
   });
 
   it("failure diagnosticにhost pathやerror textを含めない", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-project-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-project-"));
     directories.push(directory);
     await expect(discoverPresentationProjectFiles(directory)).resolves.toEqual({
       ok: false,

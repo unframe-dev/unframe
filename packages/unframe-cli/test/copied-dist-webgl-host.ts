@@ -1,12 +1,12 @@
 import { cp, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { runPresentationCli } from "../src/index.js";
 import { startDistPreviewHost } from "../src/author/start.js";
 import { copyProjectFixture } from "./project-fixture.js";
 
-const source = await mkdtemp(join(tmpdir(), "unframe-dist-source-"));
-const destination = await mkdtemp(join(tmpdir(), "unframe-dist-copy-"));
+const source = await mkdtemp(join(temporaryDirectory(), "unframe-dist-source-"));
+const destination = await mkdtemp(join(temporaryDirectory(), "unframe-dist-copy-"));
 let host: Awaited<ReturnType<typeof startDistPreviewHost>> | undefined;
 try {
   await copyProjectFixture(join(process.cwd(), "examples/media-presentation"), source);

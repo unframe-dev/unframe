@@ -20,6 +20,7 @@ const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => 
 export const config = {} as const satisfies WebRendererConfig;
 
 export const environment = {
+  platform: { os: "linux", arch: "x64", fingerprint: "sha256:test-runtime" },
   browser: { id: "test-browser", version: "1", fontFingerprint: "sha256:fonts" },
   locale: "ja-JP",
   timezone: "Asia/Tokyo",

@@ -68,7 +68,7 @@ author <absolute-project-directory>
 ```
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
-`build` は Opaque Surface の locked renderer を閉じた bundle にして Linux の隔離 worker で capture する。namespace / cgroup が利用できなければ `opaque-isolation-unavailable` を返す。成功後だけ既存の atomic publish へ進む。Structured Surfaceを含むbuildは同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
+`build` は Opaque Surface の locked renderer を閉じた bundle にして OS 別の native worker で capture する。Linux は namespace / cgroup、macOS arm64 は Seatbelt と process group の監視を使う。必要な隔離 capability が利用できなければ `opaque-isolation-unavailable` を返す。保証差と検証状態は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従い、成功後だけ既存の atomic publish へ進む。Structured Surface を含む build は同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
 project root の検証後、Browser を起動する前に `.unframe-build.lock` を `O_CREAT|O_EXCL|O_NOFOLLOW` で取得する。
 同一 project の concurrent build は I/O diagnostic で終了し、output を公開しない。lock は保持した inode が path 上で同一の
 ときだけ finally で削除する。crash 後の stale lock は fail-closed とし、稼働中 build がないことを確認した operator だけが除去する。
@@ -141,7 +141,7 @@ build lease と検証済みの一時Distディレクトリはrevisionに含め�
 
 `build` は Compiler の検証済みキャッシュ境界を `.unframe/cache/builds-v1` に接続する。key は Source / Asset bytes、Compiler / Renderer / Browser / font identity と build context / encode policy を含む。hit でも全成果物と binary checksum を Compiler が再検証し、cache failure / corruption は再 capture へ戻す。SurfaceのbuildはBrowser identityを現在環境から取得するため、hitでもBrowser sessionを開閉する。ModelだけのbuildはBrowserを起動しない。
 
-Linux の directory FD に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。詳細は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md) に従う。
+Linux の directory FD と macOS の C 製 dirfd helper に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。保存規則は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md)、OS 別の境界は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。
 
 ## 7. Deferred
 
@@ -149,7 +149,7 @@ Linux の directory FD に保存先を固定し、symlink を拒否する。entr
 
 - remote package registry、任意外部 renderer plugin の自動 discovery、distribution update
 - remote build cache
-- Windows / case-insensitive filesystem support
+- Windows / Intel Mac support
 
 `init`、`dev`、`test`、`preview`、`publish`、watch と TUI / headless command の接続は実装済みである。`init` はテンプレートの登録素材も相対パスを保ってコピーする。renderer は host の固定 registry 内で `unframe.lock` の pin を解決し、publish の credential は process 外へ保存しない。
 
@@ -158,10 +158,10 @@ package に移さない。
 
 ## 8. Local Author host
 
-`author` は Linux の loopback に Web Inspector を配信し、`xdg-open` で起動 URL を開く。token 付き URL はログに出さず、origin だけを表示する。
+`author` は native host の loopback に Web Inspector を配信し、Linux は `xdg-open`、macOS arm64 は `open` で起動 URL を開く。token 付き URL はログに出さず、origin だけを表示する。
 先に repository root で `pnpm --filter @unframe/web build:author` を実行する。
 起動は `pnpm --filter @unframe/unframe-cli presentation author /absolute/project`。
-Opaque preview には既存の固定 Browser と cgroup / namespace 実行環境が必要である。
+Opaque preview には既存の固定 Browser と OS 別の隔離実行環境が必要である。
 
 `src/author/contract.ts` がローカル HTTP 境界、Compiler が Source patch、`app/web` が画面を所有する。
 公開 scalar Props と host Transform を編集し、保存後に build を要求する。共有値・props spread は対象 Instance の局所 override として保存し、同一 session の Undo / Redo と継承への復帰を提供する。有限 State preview は Core の既存 Cue 実行器を使い、宣言済み操作と生成済み State 画像を接続する。React 内部の CSS 編集は提供しない。

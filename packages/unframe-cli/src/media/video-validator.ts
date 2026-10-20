@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../platform/temporary-directory.js";
+import { nativeHost } from "../platform/host.js";
 import { join } from "node:path";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { z } from "zod";
@@ -22,6 +23,7 @@ const resultSchema = z.object({
 export const createVideoValidator = async (
   signal?: AbortSignal,
 ): Promise<CompilerVideoValidator> => {
+  const host = nativeHost();
   const ffmpeg = await realpath(process.env.UNFRAME_FFMPEG_PATH ?? "");
   const ffprobe = await realpath(process.env.UNFRAME_FFPROBE_PATH ?? "");
   const nodePath = await realpath(process.env.UNFRAME_OPAQUE_NODE ?? process.execPath);
@@ -78,7 +80,7 @@ export const createVideoValidator = async (
           ],
         };
       await using temporary = {
-        path: await mkdtemp(join(tmpdir(), "unframe-media-")),
+        path: await mkdtemp(join(temporaryDirectory(), "unframe-media-")),
         async [Symbol.asyncDispose]() {
           await rm(this.path, { recursive: true, force: true });
         },
@@ -94,7 +96,7 @@ export const createVideoValidator = async (
             runtimePaths,
             mounts: [{ source, destination: "/input/source.mp4" }],
             environment: { UNFRAME_FFMPEG_PATH: ffmpeg, UNFRAME_FFPROBE_PATH: ffprobe },
-            input: {},
+            input: { sourcePath: host.os === "linux" ? "/input/source.mp4" : source },
           },
           { nodePath, deadlineMs: 120_000, ...(signal ? { signal } : {}) },
         );

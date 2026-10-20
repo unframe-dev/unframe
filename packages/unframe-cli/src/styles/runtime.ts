@@ -8,7 +8,7 @@ export const probeNodeRuntime = (nodePath: string) =>
         nodePath,
         [
           "-e",
-          "const h=process.report.getReport().header; process.stdout.write(JSON.stringify({version:process.version,platform:process.platform,arch:process.arch,libc:h.glibcVersionRuntime || 'non-glibc'}))",
+          "const h=process.report.getReport().header; process.stdout.write(JSON.stringify({version:process.version,platform:process.platform,arch:process.arch,libc:process.platform === 'linux' ? (h.glibcVersionRuntime || 'non-glibc') : 'not-applicable'}))",
         ],
         { env: {}, maxBuffer: 1024 * 1024 },
       ).toString(),

@@ -1,5 +1,5 @@
 import { cp, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { assert, expect, it } from "vitest";
 import { createDistPreviewService } from "../src/author/local-preview.js";
@@ -7,8 +7,8 @@ import { startDistPreviewHost } from "../src/author/start.js";
 import { writePortableBuild } from "./helpers/portable-dist.js";
 
 it("prepares copied Dist media and pins publication without the source project", async () => {
-  const source = await mkdtemp(join(tmpdir(), "unframe-preview-source-"));
-  const destination = await mkdtemp(join(tmpdir(), "unframe-preview-copy-"));
+  const source = await mkdtemp(join(temporaryDirectory(), "unframe-preview-source-"));
+  const destination = await mkdtemp(join(temporaryDirectory(), "unframe-preview-copy-"));
   try {
     const { artifacts, assets } = await writePortableBuild(source);
     const directory = join(destination, "dist");
@@ -45,8 +45,8 @@ it("prepares copied Dist media and pins publication without the source project",
 });
 
 it("serves copied Dist through the authenticated Unity Preview API without authoring routes", async () => {
-  const source = await mkdtemp(join(tmpdir(), "unframe-preview-source-"));
-  const destination = await mkdtemp(join(tmpdir(), "unframe-preview-copy-"));
+  const source = await mkdtemp(join(temporaryDirectory(), "unframe-preview-source-"));
+  const destination = await mkdtemp(join(temporaryDirectory(), "unframe-preview-copy-"));
   try {
     const { artifacts } = await writePortableBuild(source);
     const directory = join(destination, "dist");

@@ -3,7 +3,7 @@ import filesystem from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 
 import { runPresentationCli } from "../src/index.js";
@@ -11,7 +11,7 @@ import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 
 describe("runPresentationCli", () => {
   it("ignores transient runtime leases when initializing from the template", async () => {
-    const parent = await mkdtemp(join(tmpdir(), "unframe-init-lease-"));
+    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-init-lease-"));
     const directory = join(parent, "project");
     const readdir = filesystem.readdir;
     const listing = vi.spyOn(filesystem, "readdir").mockImplementationOnce(async (path) => {
@@ -44,7 +44,7 @@ describe("runPresentationCli", () => {
     expect(result.stderr).toContain("cli-invalid-host");
   });
   it("initializes a project that check can read and refuses to overwrite it", async () => {
-    const parent = await mkdtemp(join(tmpdir(), "unframe-init-"));
+    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-init-"));
     const directory = join(parent, "project");
     try {
       expect((await runPresentationCli({ args: ["init", directory] })).exitCode).toBe(0);
@@ -57,7 +57,7 @@ describe("runPresentationCli", () => {
     }
   });
   it("persists a distinct local presentation identity in Source before any build", async () => {
-    const parent = await mkdtemp(join(tmpdir(), "unframe-identities-"));
+    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-identities-"));
     try {
       const first = join(parent, "first");
       const second = join(parent, "second");
@@ -76,7 +76,7 @@ describe("runPresentationCli", () => {
   });
 
   it("rejects renderer plugins that the explicit bundled registry does not provide", async () => {
-    const parent = await mkdtemp(join(tmpdir(), "unframe-plugin-"));
+    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-plugin-"));
     const directory = join(parent, "project");
     try {
       expect((await runPresentationCli({ args: ["init", directory] })).exitCode).toBe(0);

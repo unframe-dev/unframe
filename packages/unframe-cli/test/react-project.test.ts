@@ -2,7 +2,7 @@ import { copyProjectFixture } from "./project-fixture.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
@@ -39,7 +39,7 @@ export const Hero = defineComponent({
   render: ({texts}: {texts: {title: string}}) => { throw texts.title; },
 });`;
 const createProject = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-react-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-react-"));
   temporary.push(directory);
   await copyProjectFixture(reference, directory);
   const discovery = await discoverPresentationProjectFiles(directory);
@@ -216,6 +216,7 @@ describe("React frozen CLI path", () => {
     expect(checked.stderr).toBe("");
     expect(checked.stdout).toBe("check: ok\n");
     vi.stubEnv("UNFRAME_BWRAP_PATH", "");
+    vi.stubEnv("UNFRAME_OPAQUE_NODE", "");
     let opened = false;
     const built = await runPresentationCli({
       args: ["build", directory],
@@ -274,7 +275,7 @@ describe("React frozen CLI path", () => {
     assert(old.ok);
     const sdk = old.value.lock.packages.find((pkg) => pkg.name === "@unframe/unframe-authoring");
     assert(sdk);
-    const staging = await mkdtemp(join(tmpdir(), "unframe-sdk-"));
+    const staging = await mkdtemp(join(temporaryDirectory(), "unframe-sdk-"));
     temporary.push(staging);
     await mkdir(join(staging, "package"));
     for (const file of sdk.files) {

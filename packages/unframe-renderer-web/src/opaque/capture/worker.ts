@@ -16,7 +16,6 @@ try {
   browser = await chromium.launch({
     executablePath: process.env.UNFRAME_BROWSER_EXECUTABLE!,
     headless: true,
-    args: ["--force-color-profile=srgb"],
     chromiumSandbox: true,
     handleSIGINT: false,
     handleSIGTERM: false,

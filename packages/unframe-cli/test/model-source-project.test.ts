@@ -1,7 +1,7 @@
 import { copyProjectFixture } from "./project-fixture.js";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, expect, it, vi } from "vitest";
@@ -55,7 +55,7 @@ const triangleGlb = () => {
 };
 
 const createModelProject = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-model-source-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-model-source-"));
   directories.push(directory);
   await copyProjectFixture(
     fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),

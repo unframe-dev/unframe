@@ -8,9 +8,10 @@ import {
   rename,
   rm,
   symlink,
+  unlink,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -21,7 +22,7 @@ const directories: string[] = [];
 const encoder = new TextEncoder();
 
 const project = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-atomic-output-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-atomic-output-"));
   directories.push(directory);
   return directory;
 };
@@ -864,4 +865,30 @@ describe("atomic artifact publication", () => {
     expect(await readdir(join(directory, ".unframe/generations"))).toEqual([]);
     expect(await readdir(directory)).toEqual([".unframe", "dist"]);
   });
+});
+
+it("keeps the previous generation when asset names alias on the native filesystem", async () => {
+  const directory = await project();
+  await writeFile(join(directory, "A"), "probe", { flag: "wx" });
+  const aliases = await lstat(join(directory, "a")).then(
+    () => true,
+    () => false,
+  );
+  await unlink(join(directory, "A"));
+  await publishAtomicArtifacts({ projectDirectory: directory, artifacts: artifacts() });
+  const previous = await readFile(join(directory, "dist/build-receipt.json"), "utf8");
+  const value = artifacts("replacement");
+  value.assets = [
+    { assetId: "A", mediaType: "image/png", bytes: encoder.encode("one") },
+    { assetId: "a", mediaType: "image/png", bytes: encoder.encode("two") },
+  ];
+  const result = await publishAtomicArtifacts({ projectDirectory: directory, artifacts: value });
+  if (aliases) {
+    expect(result).toMatchObject({ ok: false, code: "cli-output-io" });
+    expect(await readFile(join(directory, "dist/build-receipt.json"), "utf8")).toBe(previous);
+  } else {
+    expect(result).toMatchObject({ ok: true });
+    expect(await readFile(join(directory, "dist/assets/A.png"), "utf8")).toBe("one");
+    expect(await readFile(join(directory, "dist/assets/a.png"), "utf8")).toBe("two");
+  }
 });

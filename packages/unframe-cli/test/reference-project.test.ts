@@ -9,7 +9,7 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it } from "vitest";
@@ -38,7 +38,7 @@ const referenceDirectory = join(
 const temporaryDirectories: string[] = [];
 
 const projectCopy = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-reference-project-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-reference-project-"));
   temporaryDirectories.push(directory);
   await copyProjectFixture(referenceDirectory, directory);
   return directory;
@@ -143,6 +143,7 @@ const fakeBrowser = (
       implementationHash: `sha256:fake-browser:${Boolean(configuration.failCapture)}:${Boolean(configuration.duringCapture)}`,
     },
     environment: {
+      platform: { os: "linux", arch: "x64", fingerprint: "sha256:test-runtime" },
       browser: { id: "reference-fake-browser", version: "1", fontFingerprint: "sha256:fonts" },
       locale: "ja-JP",
       timezone: "Asia/Tokyo",

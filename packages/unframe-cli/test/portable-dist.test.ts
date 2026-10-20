@@ -1,10 +1,21 @@
-import { cp, lstat, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import {
+  cp,
+  lstat,
+  mkdtemp,
+  open,
+  readFile,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import { writePortableBuild } from "./helpers/portable-dist.js";
 import { readDistBuild } from "../src/filesystem/read-dist-build.js";
+import { createDistPreviewService } from "../src/author/local-preview.js";
 import { publishPresentation } from "../src/application/publish.js";
 
 const directories: string[] = [];
@@ -13,17 +24,18 @@ afterEach(async () => {
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
   );
 });
-const temporaryDirectory = async () => {
-  const path = await mkdtemp(join(tmpdir(), "unframe-portable-dist-"));
+const createTemporaryDirectory = async () => {
+  const path = await mkdtemp(join(temporaryDirectory(), "unframe-portable-dist-"));
   directories.push(path);
   return path;
 };
 
 const portableBuild = async () => {
-  const project = await temporaryDirectory();
+  const project = await createTemporaryDirectory();
   const { artifacts, assets } = await writePortableBuild(project);
-  const copied = join(await temporaryDirectory(), "release");
+  const copied = join(await createTemporaryDirectory(), "release");
   await cp(join(project, "dist"), copied, { recursive: true });
+  await writeFile(join(copied, "assets/unlisted.png"), "private unregistered image");
   await rm(project, { recursive: true, force: true });
   return { copied, artifacts, assets };
 };
@@ -35,6 +47,7 @@ describe("portable Dist", () => {
     const fixed = await readDistBuild(copied);
     expect(fixed.generationId).toBe("a".repeat(32));
     expect(fixed.artifacts).toEqual(artifacts);
+    await expect(fixed.readAsset("unlisted")).rejects.toThrow(/asset/);
     for (const asset of assets)
       expect(await fixed.readAsset(asset.assetId)).toEqual({
         bytes: asset.bytes,
@@ -130,6 +143,24 @@ describe("portable Dist", () => {
     },
   );
 
+  it("rejects an oversized sparse PNG before preparing a Preview candidate", async () => {
+    const { copied } = await portableBuild();
+    const file = await open(join(copied, "assets/texture.png"), "w");
+    try {
+      await file.truncate(512 * 1024 * 1024);
+    } finally {
+      await file.close();
+    }
+    const preview = createDistPreviewService(copied);
+    try {
+      await expect(preview.load({ channel: "dist", requestId: "c".repeat(32) })).rejects.toThrow(
+        /asset integrity/,
+      );
+    } finally {
+      preview.close();
+    }
+  });
+
   it("rejects a receipt detached from its build manifest", async () => {
     const { copied } = await portableBuild();
     const receipt = join(copied, "build-receipt.json");
@@ -151,7 +182,7 @@ describe("portable Dist", () => {
 
   it("rejects symlinked Dist roots and unknown asset paths", async () => {
     const { copied } = await portableBuild();
-    const alias = join(await temporaryDirectory(), "alias");
+    const alias = join(await createTemporaryDirectory(), "alias");
     await symlink(copied, alias);
     await expect(readDistBuild(alias)).rejects.toThrow(/Unsafe/);
     const fixed = await readDistBuild(copied);

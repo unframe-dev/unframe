@@ -1,3 +1,4 @@
+import { nativeHost } from "../platform/host.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createInterface } from "node:readline";
@@ -101,21 +102,33 @@ export const runDistPreviewProcess = async (
   signal: AbortSignal,
   announce: (origin: string) => void,
 ) => {
+  const hostPlatform = nativeHost();
+  if (!directory.startsWith("/")) throw new Error("Preview requires an absolute Dist directory.");
   const host = await startDistPreviewHost(directory);
-  return runEditorHost(host, signal, `${host.origin}/dist-preview#token=${host.token}`, () => {
-    announce(`${host.origin}/dist-preview`);
-  });
+  return runEditorHost(
+    host,
+    signal,
+    `${host.origin}/dist-preview#token=${host.token}`,
+    hostPlatform.browserCommand,
+    () => {
+      announce(`${host.origin}/dist-preview`);
+    },
+  );
 };
 
 const runEditorHost = async (
   host: Awaited<ReturnType<typeof startAuthorHost>>,
   signal: AbortSignal,
   browserUrl: string,
+  browserCommand: string,
   announce: () => void,
 ) => {
   const open = async () => {
     try {
-      await promisify(execFile)("xdg-open", [browserUrl], { timeout: 10_000, signal });
+      await promisify(execFile)(browserCommand, [browserUrl], {
+        timeout: 10_000,
+        signal,
+      });
     } catch {
       if (!signal.aborted)
         process.stderr.write(
@@ -146,8 +159,8 @@ export const runAuthorProcess = async (
   signal: AbortSignal,
   development = false,
 ): Promise<void> => {
-  if (process.platform !== "linux" || !directory.startsWith("/"))
-    throw new Error("Author requires Linux and an absolute project directory.");
+  const hostPlatform = nativeHost();
+  if (!directory.startsWith("/")) throw new Error("Author requires an absolute project directory.");
   if (development) {
     try {
       const response = await fetch("http://127.0.0.1:5174/editor.html", {
@@ -207,7 +220,7 @@ export const runAuthorProcess = async (
   const browserUrl = development
     ? `http://127.0.0.1:5174/editor.html#token=${host.token}`
     : `${host.origin}/#token=${host.token}`;
-  await runEditorHost(host, signal, browserUrl, () => {
+  await runEditorHost(host, signal, browserUrl, hostPlatform.browserCommand, () => {
     process.stdout.write(
       `Local author API: ${host.origin}\nEditor: ${development ? "http://127.0.0.1:5174/editor.html" : host.origin}\nProject: ${directory}\nEnter r to reopen the authenticated Editor. Stop with Ctrl+C.\n`,
     );

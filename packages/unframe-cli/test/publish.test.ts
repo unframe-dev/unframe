@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { encodeBuildReceipt } from "../src/filesystem/build-receipt.js";
 import { publishPresentation } from "../src/application/publish.js";
@@ -23,7 +23,7 @@ describe("publishPresentation", () => {
   });
 
   it("rejects invalid local artifacts without sending the bearer token", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-publish-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-publish-"));
     try {
       const id = "a".repeat(32);
       const generation = directory;
@@ -53,7 +53,7 @@ describe("publishPresentation", () => {
   });
 
   it("rejects an oversized sparse build artifact before any authenticated request", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-publish-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-publish-"));
     try {
       const id = "a".repeat(32);
       const generation = directory;

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { runPresentationCli } from "../src/index.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { copyProjectFixture } from "./project-fixture.js";
@@ -11,7 +11,7 @@ import { loadAuthorAssets, loadUnityPreviewAssets } from "../src/author/start.js
 const repository = process.cwd();
 const directory =
   process.env["UNFRAME_WEBGL_FIXTURE"] === "media"
-    ? await mkdtemp(join(tmpdir(), "unframe-media-webgl-"))
+    ? await mkdtemp(join(temporaryDirectory(), "unframe-media-webgl-"))
     : await createWebglCaptureProject(
         process.env["UNFRAME_WEBGL_FIXTURE"] === "structured" ? "structured" : "opaque",
       );
