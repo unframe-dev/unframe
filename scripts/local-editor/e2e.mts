@@ -25,7 +25,7 @@ import {
   loadUnityPreviewAssets,
 } from "../../packages/unframe-cli/src/author/start.js";
 
-import { chromium, expect, type Browser } from "../../app/web/e2e/local-editor-browser.js";
+import { chromium, expect, type Browser } from "../../app/local-editor/e2e/local-editor-browser.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const state = process.env["UNFRAME_E2E_STATE"];
@@ -107,8 +107,11 @@ async function start(
     stdio: ["ignore", log.fd, log.fd],
   });
   children.push(child);
-  await log.close();
-  child.on("error", (error) => console.error(`${label}: ${error.message}`));
+  const spawned = new Promise<void>((resolve, reject) => {
+    child.once("spawn", resolve);
+    child.once("error", reject);
+  });
+  await Promise.all([spawned, log.close()]);
   return child;
 }
 async function waitFor(
@@ -307,11 +310,11 @@ ${web} {
   } else {
     assert.equal((await runPresentationCli({ args: ["init", project] })).exitCode, 0);
   }
-  await execute("pnpm", ["--filter", "@unframe/web", "build:editor"]);
+  await execute("pnpm", ["--filter", "@unframe/local-editor", "build"]);
   const target = { controlPlaneUrl: cp, webOrigin: web, clientId: workerVars.DEVICE_CLIENT_ID };
   const auth = createPublicationAuth(target);
   const previews = createLocalPreviewService(project);
-  const assets = await loadAuthorAssets(join(root, "app/web/dist-editor"));
+  const assets = await loadAuthorAssets(join(root, "app/local-editor/dist"));
   for (const [path, asset] of await loadUnityPreviewAssets(
     join(root, ".unframe/unity-preview/UnframePreview"),
   ))
@@ -411,7 +414,7 @@ ${web} {
     bearer,
   );
   assert.equal(publicationResponse.status, 200);
-  const publication = await publicationResponse.json();
+  let publication = await publicationResponse.json();
   for (const field of ["buildId", "definitionHash", "renderBundleHash", "assetSetHash"] as const)
     assert.equal(publication[field], fixed.artifacts.buildManifest[field]);
   assert.equal(
@@ -441,9 +444,91 @@ ${web} {
   console.log(
     "Local R2 publication hashes, local ID reuse, authorization and stale fence verified.",
   );
-  const created = await remote("/sessions", bearer, { presentationId });
-  assert.equal(created.status, 201);
+  await approval.goto(`${web}/home`);
+  const publishedCard = approval.getByRole("article").filter({ hasText: presentationId });
+  await expect(
+    publishedCard.getByText(`Build ID: ${publication.buildId}`, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    publishedCard.getByText(`Publication epoch: ${publication.publicationEpoch}`, { exact: true }),
+  ).toBeVisible();
+  const firstPublication = publication;
+  await editor.getByRole("button", { name: "Dev Preview", exact: true }).click();
+  await editor.getByRole("button", { name: "本番 build", exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (await readBuildGeneration(project, { channel: "dist" })).artifacts.buildManifest.buildId,
+      { timeout: 180000 },
+    )
+    .not.toBe(firstPublication.buildId);
+  await editor.getByRole("button", { name: "Dist Preview", exact: true }).click();
+  await expect(publish).toBeEnabled({ timeout: 90000 });
+  const republishedResponse = editor.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/publications" &&
+      response.request().method() === "POST",
+  );
+  await publish.click();
+  assert.equal((await republishedResponse).status(), 201);
+  const republished = await remote(
+    `/presentations/${encodeURIComponent(presentationId)}/publication`,
+    bearer,
+  );
+  assert.equal(republished.status, 200);
+  publication = await republished.json();
+  const updatedBuild = (await readBuildGeneration(project, { channel: "dist" })).artifacts
+    .buildManifest;
+  assert.notEqual(publication.buildId, firstPublication.buildId);
+  assert.equal(publication.publicationEpoch, firstPublication.publicationEpoch + 1);
+  for (const field of ["buildId", "definitionHash", "renderBundleHash", "assetSetHash"] as const)
+    assert.equal(publication[field], updatedBuild[field]);
+  await approval.getByRole("button", { name: "公開情報を再取得", exact: true }).click();
+  await expect(
+    publishedCard.getByText(`Build ID: ${publication.buildId}`, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    publishedCard.getByText(`Publication epoch: ${publication.publicationEpoch}`, { exact: true }),
+  ).toBeVisible();
+  await publishedCard.getByRole("link", { name: "公開済み Dist の詳細", exact: true }).click();
+  for (const hash of [
+    publication.publicationManifestHash,
+    publication.definitionHash,
+    publication.renderBundleHash,
+    publication.assetSetHash,
+  ])
+    await expect(approval.getByText(hash, { exact: true })).toBeVisible();
+  await approval
+    .getByRole("link", { name: "この Presentation でルームを作成", exact: true })
+    .click();
+  const createdResponse = approval.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/sessions" && response.request().method() === "POST",
+  );
+  await approval.getByRole("button", { name: "ルームを作成", exact: true }).click();
+  const created = await createdResponse;
+  assert.equal(created.status(), 201);
   const { session } = await created.json();
+  const fence = {
+    presentationId,
+    publicationEpoch: publication.publicationEpoch,
+    publicationManifestHash: publication.publicationManifestHash,
+  };
+  assert.deepEqual(session.publicationFence, fence);
+  const result = approval.getByRole("region", { name: "ルーム作成結果", exact: true });
+  await expect(result.getByText(session.id, { exact: true })).toBeVisible();
+  await expect(result.getByText("Waiting", { exact: true })).toBeVisible();
+  await expect(result.getByText(fence.publicationManifestHash, { exact: true })).toBeVisible();
+  await expect(result.locator("strong")).not.toBeEmpty();
+  await approval.getByRole("link", { name: "ルームの詳細", exact: true }).click();
+  await approval.reload();
+  await expect(approval.getByText(session.id, { exact: true })).toBeVisible();
+  await expect(approval.locator("strong")).toHaveCount(0);
+  await expect(approval.getByText(fence.publicationManifestHash, { exact: true })).toBeVisible();
+  await expect(approval.getByText(String(fence.publicationEpoch), { exact: true })).toBeVisible();
+  console.log(
+    "Web publication inspection and room creation verified against the saved publication fence.",
+  );
   const runtimeId = randomUUID();
   const expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
   const assigned = await remote(`/sessions/${session.id}/runtime-assignment`, bearer, {
@@ -457,6 +542,7 @@ ${web} {
   const assignment = await assigned.json();
   await execute("go", ["build", "-o", join(state, "realtime"), "./cmd/server"], {
     cwd: join(root, "app/server/realtime"),
+    env: { ...process.env, CGO_ENABLED: "0" },
   });
   await start(join(state, "realtime"), [], "realtime", {
     ...process.env,
@@ -577,6 +663,14 @@ ${web} {
     JSON.stringify(
       {
         publication,
+        session: {
+          id: session.id,
+          presentationId: session.presentationId,
+          publicationFence: session.publicationFence,
+        },
+        webPublicationInspection: true,
+        webRepublicationRefresh: true,
+        webRoomCreation: true,
         native,
         sourceAdvancedAfterDist: true,
         deviceApproval: true,

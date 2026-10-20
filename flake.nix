@@ -309,6 +309,10 @@
             name = "realtime";
             script = "ci/realtime.sh";
           };
+          local-editor = mkApp {
+            name = "local-editor";
+            script = "ci/local-editor.sh";
+          };
           web = mkApp {
             name = "web";
             script = "ci/web.sh";

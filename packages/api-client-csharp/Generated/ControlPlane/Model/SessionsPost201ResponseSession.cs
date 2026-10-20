@@ -40,9 +40,10 @@ namespace Unframe.ControlPlane.Model
         /// <param name="participantCount">participantCount</param>
         /// <param name="maxParticipants">maxParticipants</param>
         /// <param name="createdAt">createdAt</param>
+        /// <param name="publicationFence">publicationFence</param>
         /// <param name="endedAt">endedAt</param>
         [JsonConstructor]
-        public SessionsPost201ResponseSession(string id, string presentationId, string presenterId, StateEnum state, int participantCount, MaxParticipantsEnum maxParticipants, DateTime createdAt, DateTime? endedAt = default)
+        public SessionsPost201ResponseSession(string id, string presentationId, string presenterId, StateEnum state, int participantCount, MaxParticipantsEnum maxParticipants, DateTime createdAt, SessionsPost201ResponseSessionPublicationFence? publicationFence = default, DateTime? endedAt = default)
         {
             Id = id;
             PresentationId = presentationId;
@@ -51,6 +52,7 @@ namespace Unframe.ControlPlane.Model
             ParticipantCount = participantCount;
             MaxParticipants = maxParticipants;
             CreatedAt = createdAt;
+            PublicationFence = publicationFence;
             EndedAt = endedAt;
             OnCreated();
         }
@@ -232,6 +234,12 @@ namespace Unframe.ControlPlane.Model
         public DateTime CreatedAt { get; set; }
 
         /// <summary>
+        /// Gets or Sets PublicationFence
+        /// </summary>
+        [JsonPropertyName("publicationFence")]
+        public SessionsPost201ResponseSessionPublicationFence? PublicationFence { get; set; }
+
+        /// <summary>
         /// Gets or Sets EndedAt
         /// </summary>
         [JsonPropertyName("endedAt")]
@@ -252,6 +260,7 @@ namespace Unframe.ControlPlane.Model
             sb.Append("  ParticipantCount: ").Append(ParticipantCount).Append("\n");
             sb.Append("  MaxParticipants: ").Append(MaxParticipants).Append("\n");
             sb.Append("  CreatedAt: ").Append(CreatedAt).Append("\n");
+            sb.Append("  PublicationFence: ").Append(PublicationFence).Append("\n");
             sb.Append("  EndedAt: ").Append(EndedAt).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
@@ -319,6 +328,7 @@ namespace Unframe.ControlPlane.Model
             Option<int?> participantCount = default;
             Option<SessionsPost201ResponseSession.MaxParticipantsEnum?> maxParticipants = default;
             Option<DateTime?> createdAt = default;
+            Option<SessionsPost201ResponseSessionPublicationFence?> publicationFence = default;
             Option<DateTime?> endedAt = default;
 
             while (utf8JsonReader.Read())
@@ -359,6 +369,9 @@ namespace Unframe.ControlPlane.Model
                         case "createdAt":
                             createdAt = new Option<DateTime?>(JsonSerializer.Deserialize<DateTime>(ref utf8JsonReader, jsonSerializerOptions));
                             break;
+                        case "publicationFence":
+                            publicationFence = new Option<SessionsPost201ResponseSessionPublicationFence?>(JsonSerializer.Deserialize<SessionsPost201ResponseSessionPublicationFence>(ref utf8JsonReader, jsonSerializerOptions));
+                            break;
                         case "endedAt":
                             endedAt = new Option<DateTime?>(JsonSerializer.Deserialize<DateTime?>(ref utf8JsonReader, jsonSerializerOptions));
                             break;
@@ -389,6 +402,9 @@ namespace Unframe.ControlPlane.Model
             if (!createdAt.IsSet)
                 throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(createdAt));
 
+            if (!publicationFence.IsSet)
+                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(publicationFence));
+
             if (!endedAt.IsSet)
                 throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(endedAt));
 
@@ -413,7 +429,7 @@ namespace Unframe.ControlPlane.Model
             if (createdAt.IsSet && createdAt.Value == null)
                 throw new ArgumentNullException(nameof(createdAt), "Property is not nullable for class SessionsPost201ResponseSession.");
 
-            return new SessionsPost201ResponseSession(id.Value!, presentationId.Value!, presenterId.Value!, state.Value!.Value!, participantCount.Value!.Value!, maxParticipants.Value!.Value!, createdAt.Value!.Value!, endedAt.Value!);
+            return new SessionsPost201ResponseSession(id.Value!, presentationId.Value!, presenterId.Value!, state.Value!.Value!, participantCount.Value!.Value!, maxParticipants.Value!.Value!, createdAt.Value!.Value!, publicationFence.Value!, endedAt.Value!);
         }
 
         /// <summary>
@@ -463,6 +479,13 @@ namespace Unframe.ControlPlane.Model
 
             writer.WriteString("createdAt", sessionsPost201ResponseSession.CreatedAt.ToString(CreatedAtFormat));
 
+            if (sessionsPost201ResponseSession.PublicationFence != null)
+            {
+                writer.WritePropertyName("publicationFence");
+                JsonSerializer.Serialize(writer, sessionsPost201ResponseSession.PublicationFence, jsonSerializerOptions);
+            }
+            else
+                writer.WriteNull("publicationFence");
             if (sessionsPost201ResponseSession.EndedAt != null)
                 writer.WriteString("endedAt", sessionsPost201ResponseSession.EndedAt.Value.ToString(EndedAtFormat));
             else

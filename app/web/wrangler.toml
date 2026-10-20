@@ -1,5 +1,6 @@
 "$schema" = "./node_modules/wrangler/config-schema.json"
 
+# Kept in sync with infra variables.tf editor_worker_name.
 name = "unframe-web-editor"
 main = "./worker/index.ts"
 compatibility_date = "2026-07-14"

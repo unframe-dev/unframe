@@ -1,6 +1,6 @@
 name: Web
 
-# app/web (React 動的編集エディタ) の品質ゲート。ci.yml から呼ばれる reusable workflow。
+# app/web (React management SPA) の品質ゲート。ci.yml から呼ばれる reusable workflow。
 # unit/build gate と Playwright E2E を分けて実行する。
 on:
   workflow_call:

@@ -5,19 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "dev:editor": "vp dev --config vite.editor.config.ts",
     "dev:e2e": "vp dev --mode e2e --host 127.0.0.1 --port 4173",
     "build": "vp build",
     "check": "tsc --noEmit",
     "test": "vp test run",
-    "pretest:e2e": "bash ../../scripts/build-cli-filesystem.sh",
     "test:e2e": "playwright test",
     "preview": "vp preview",
     "cf:dev": "wrangler dev",
     "cf:types": "wrangler types --include-runtime=false --env-interface CloudflareBindings",
     "cf:deploy": "wrangler deploy",
-    "cf:deploy:dry-run": "wrangler deploy --dry-run",
-    "build:editor": "vp build --config vite.editor.config.ts && mv dist-editor/editor.html dist-editor/index.html"
+    "cf:deploy:dry-run": "wrangler deploy --dry-run"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -26,8 +23,7 @@
     "@tanstack/react-query": "5.102.3",
     "@tanstack/react-router": "1.170.32",
     "@unframe/api-client-typescript": "workspace:*",
-    "@unframe/unframe-cli": "workspace:*",
-    "@unframe/unframe-core": "workspace:*",
+    "@unframe/contracts": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react": "^19.2.7",

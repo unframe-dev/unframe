@@ -13,7 +13,7 @@ const addUser = async (id: string) => {
     .run();
 };
 
-const pinPublication = async (sessionId: string, presentationId: string, userId: string) => {
+const publish = async (presentationId: string) => {
   await env.DB.batch([
     env.DB.prepare(
       "INSERT INTO presentation_builds (presentation_id, build_id, target_revision, artifacts, created_at) VALUES (?, 'test-build', 1, '{}', '2026')",
@@ -24,6 +24,11 @@ const pinPublication = async (sessionId: string, presentationId: string, userId:
       presentationId,
       JSON.stringify({ ...publishedPresentation, presentationId, publicationEpoch: 1 }),
     ),
+  ]);
+};
+
+const pinPublication = async (sessionId: string, presentationId: string, userId: string) => {
+  await env.DB.batch([
     env.DB.prepare("UPDATE presentation_sessions SET publication_epoch = 1 WHERE id = ?").bind(
       sessionId,
     ),
@@ -34,7 +39,7 @@ const pinPublication = async (sessionId: string, presentationId: string, userId:
 };
 
 describe("session HTTP lifecycle", () => {
-  it("keeps unpublished sessions Waiting and refuses bootstrap even with an active Cloud assignment", async () => {
+  it("rejects an unpublished presentation without leaving a session or participant", async () => {
     const suffix = crypto.randomUUID();
     const userId = `owner-${suffix}`;
     const presentationId = `presentation-${suffix}`;
@@ -52,12 +57,6 @@ describe("session HTTP lifecycle", () => {
     const app = createApp({
       identityProvider: async () => ({ userId, globalRole: "user" }),
       sessionNow: () => new Date("2026-08-18T00:00:00.000Z"),
-      credentials: {
-        issue: async () => ({
-          token: "unpublished-token",
-          expiresAt: Date.parse("2026-08-21T00:00:00.000Z"),
-        }),
-      },
     });
     const post = (path: string, body = {}) =>
       app.fetch(
@@ -69,22 +68,78 @@ describe("session HTTP lifecycle", () => {
         runtimeEnvironment(),
       );
     const created = await post("/sessions", { presentationId });
-    expect(created.status).toBe(201);
-    const { session } = await created.json<{ session: { id: string; state: string } }>();
-    expect(session.state).toBe("Waiting");
-    await env.DB.prepare(
-      "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES (?, ?, 'Cloud', 'https://runtime.example.com', 1, 1, '2026-08-17T00:00:00.000Z', '2026-08-21T00:00:00.000Z')",
+    expect(created.status).toBe(409);
+    await expect(created.json()).resolves.toEqual({
+      error: { code: "conflict", message: "conflict" },
+    });
+    const sessions = await env.DB.prepare(
+      "SELECT id FROM presentation_sessions WHERE presentation_id = ?",
     )
-      .bind(session.id, `runtime-${suffix}`)
+      .bind(presentationId)
+      .all();
+    expect(sessions.results).toEqual([]);
+    const participants = await env.DB.prepare(
+      "SELECT session_id FROM session_participants WHERE user_id = ?",
+    )
+      .bind(userId)
+      .all();
+    expect(participants.results).toEqual([]);
+  });
+  it("reads a legacy unpublished session with a null fence and enforces authentication and membership", async () => {
+    const suffix = crypto.randomUUID();
+    const userId = `owner-${suffix}`;
+    const outsider = `other-${suffix}`;
+    const presentationId = `presentation-${suffix}`;
+    const sessionId = `session-${suffix}`;
+    await Promise.all([addUser(userId), addUser(outsider)]);
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO presentations (id, owner_id, revision, definition, created_at, updated_at) VALUES (?, ?, 1, '{}', '2026', '2026')",
+      ).bind(presentationId, userId),
+      env.DB.prepare(
+        "INSERT INTO presentation_members (presentation_id, user_id, role) VALUES (?, ?, 'owner')",
+      ).bind(presentationId, userId),
+      env.DB.prepare(
+        "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, participant_count, max_participants, created_at) VALUES (?, ?, ?, ?, 'Waiting', 1, 50, '2026-01-01T00:00:00.000Z')",
+      ).bind(sessionId, presentationId, userId, `hash-${suffix}`),
+      env.DB.prepare(
+        "INSERT INTO session_participants (session_id, user_id, role, joined_at) VALUES (?, ?, 'presenter', '2026')",
+      ).bind(sessionId, userId),
+    ]);
+    const app = createApp({
+      identityProvider: async (context) => {
+        const id = context.req.header("x-test-user");
+        return id ? { userId: id, globalRole: "user" } : undefined;
+      },
+    });
+    const request = (path: string, id?: string, body?: unknown) =>
+      app.fetch(
+        new Request(`https://api.example.com${path}`, {
+          method: body === undefined ? "GET" : "POST",
+          headers: { "content-type": "application/json", ...(id ? { "x-test-user": id } : {}) },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        }),
+        runtimeEnvironment(),
+      );
+    expect((await request("/sessions", undefined, { presentationId })).status).toBe(401);
+    expect((await request("/sessions", outsider, { presentationId })).status).toBe(403);
+    expect((await request("/sessions", userId, { presentationId: "missing" })).status).toBe(404);
+    const legacy = await request(`/sessions/${sessionId}`, userId);
+    expect(legacy.status).toBe(200);
+    await expect(legacy.json()).resolves.toMatchObject({ id: sessionId, publicationFence: null });
+    expect((await request(`/sessions/${sessionId}`, outsider)).status).toBe(403);
+    await env.DB.prepare(
+      "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES (?, ?, 'Cloud', 'https://runtime.example.com', 1, 1, '2026-08-17T00:00:00.000Z', '2099-08-21T00:00:00.000Z')",
+    )
+      .bind(sessionId, `runtime-${suffix}`)
       .run();
-    expect((await post(`/sessions/${session.id}/start`)).status).toBe(409);
-    const bootstrap = await post(`/sessions/${session.id}/bootstrap`);
-    expect(bootstrap.status).toBe(409);
-    await expect(bootstrap.text()).resolves.not.toContain("unpublished-token");
-    await expect(new D1SessionRepository(env.DB).findById(session.id)).resolves.toMatchObject({
+    expect((await request(`/sessions/${sessionId}/start`, userId, {})).status).toBe(409);
+    expect((await request(`/sessions/${sessionId}/bootstrap`, userId, {})).status).toBe(409);
+    await expect(new D1SessionRepository(env.DB).findById(sessionId)).resolves.toMatchObject({
       state: "Waiting",
     });
   });
+
   it("creates, joins, bootstraps, and makes credentials subordinate to Ended", async () => {
     const suffix = crypto.randomUUID();
     const ownerId = `owner-${suffix}`;
@@ -135,6 +190,7 @@ describe("session HTTP lifecycle", () => {
         runtimeEnvironment(),
       );
 
+    await publish(presentationId);
     const created = await request("/sessions", ownerId, { presentationId });
     expect(created.status).toBe(201);
     const creation = await created.json<{
@@ -142,6 +198,21 @@ describe("session HTTP lifecycle", () => {
       joinCode: string;
     }>();
     expect(creation.joinCode).toBe("WXYZ-2345");
+    expect(creation.session).toMatchObject({
+      publicationFence: {
+        presentationId,
+        publicationEpoch: 1,
+        publicationManifestHash: publishedPresentation.publicationManifestHash,
+      },
+    });
+    const retrieved = await request(`/sessions/${creation.session.id}`, ownerId);
+    await expect(retrieved.json()).resolves.toMatchObject({
+      publicationFence: {
+        presentationId,
+        publicationEpoch: 1,
+        publicationManifestHash: publishedPresentation.publicationManifestHash,
+      },
+    });
     expect(creation.session).not.toHaveProperty("joinCodeHash");
 
     expect(
@@ -247,6 +318,7 @@ describe("session HTTP lifecycle", () => {
         }),
         runtimeEnvironment(),
       );
+    await publish(presentationId);
     const created = await request("/sessions", { presentationId });
     expect(created.status).toBe(201);
     const creation = await created.json<{ session: { id: string } }>();
@@ -307,6 +379,7 @@ describe("session HTTP lifecycle", () => {
         "INSERT INTO session_participants (session_id, user_id, role, joined_at) VALUES (?, ?, 'presenter', ?)",
       ).bind(sessionId, ownerId, now.toISOString()),
     ]);
+    await publish(presentationId);
     await pinPublication(sessionId, presentationId, ownerId);
     const app = createApp({
       identityProvider: async () => ({ userId: ownerId, globalRole: "user" }),

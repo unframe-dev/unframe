@@ -91,7 +91,7 @@ test("inspects showcase flow and nested conditions without changing Source, buil
     if (path === "/api/preview-display") return route.fulfill({ status: 204 });
     return route.abort();
   });
-  await page.goto(`/editor.html#token=${"a".repeat(64)}`);
+  await page.goto(`/#token=${"a".repeat(64)}`);
   await expect(page.getByText("表示 build identity: showcase-build")).toBeVisible();
   const beforeWrites = [...writes];
   const beforeMessages = await page.evaluate(() => Reflect.get(window, "timelinePreviewMessages"));

@@ -1,5 +1,6 @@
 import {
   Outlet,
+  redirect,
   createRootRoute,
   createRoute,
   createRouter,
@@ -7,11 +8,12 @@ import {
 } from "@tanstack/react-router";
 import { z } from "zod";
 import { requireSession } from "@/features/auth/require-session";
-import { LocalHostGuide } from "@/features/editor/local-host-guide";
+import { PresentationPage } from "@/features/presentations/presentation-page";
+import { RoomPage, RoomsPage } from "@/features/rooms/rooms-page";
 import { DeviceAuthorizationPage } from "@/features/device/device-authorization-page";
 import { HomePage } from "@/features/presentations/home-page";
 import { ApplicationShell } from "@/app/shell/application-shell";
-import { DevicesPage, RoomsPage } from "@/app/shell/application-placeholder-pages";
+import { DevicesPage } from "@/app/shell/application-placeholder-pages";
 import { LoginPage, RecoverPage, ResetPage, SignupPage } from "@/features/auth/auth-pages";
 import { ProfilePage, SecurityPage } from "@/features/settings/settings-pages";
 import publicModuleStyles from "@/shared/layouts/public-pages.module.css";
@@ -100,7 +102,20 @@ const devicesRoute = createRoute({
 const roomsRoute = createRoute({
   getParentRoute: () => applicationRoute,
   path: "rooms",
-  component: RoomsPage,
+  validateSearch: z.object({ presentationId: z.string().catch("") }),
+  component: () => <RoomsPage presentationId={roomsRoute.useSearch().presentationId} />,
+});
+const presentationRoute = createRoute({
+  getParentRoute: () => applicationRoute,
+  path: "presentations/$presentationId",
+  component: () => (
+    <PresentationPage presentationId={presentationRoute.useParams().presentationId} />
+  ),
+});
+const roomRoute = createRoute({
+  getParentRoute: () => applicationRoute,
+  path: "rooms/$sessionId",
+  component: () => <RoomPage sessionId={roomRoute.useParams().sessionId} />,
 });
 const profileRoute = createRoute({
   getParentRoute: () => applicationRoute,
@@ -115,7 +130,9 @@ const securityRoute = createRoute({
 const editorRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "editor",
-  component: LocalHostGuide,
+  beforeLoad: () => {
+    throw redirect({ to: "/home" });
+  },
 });
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -124,7 +141,15 @@ const routeTree = rootRoute.addChildren([
   resetRoute,
   deviceRoute,
   editorRoute,
-  applicationRoute.addChildren([homeRoute, devicesRoute, roomsRoute, profileRoute, securityRoute]),
+  applicationRoute.addChildren([
+    homeRoute,
+    devicesRoute,
+    roomsRoute,
+    presentationRoute,
+    roomRoute,
+    profileRoute,
+    securityRoute,
+  ]),
 ]);
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({

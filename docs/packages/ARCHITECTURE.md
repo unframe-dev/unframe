@@ -2581,10 +2581,10 @@ dist/
 - Control Plane の `PresentationDefinition` は JSON/OpenAPI 契約である。
 - 現行 Definition は metadata、stage、asset references、Group、Element、Anchored Element Group、Step、Cue、Trigger、Action、Transition を持つ。
 - Control Plane は Definition 全体を revision 条件付きで原子的に保存する。
-- 現行 Session は `presentationId` を持つが PublicationFence を保存せず、RuntimeAssignment は mutable な Presentation revision を fence に使用している。
+- Session は公開済み Presentation から作成し、その時点の publication epoch を保存する。API は保存 epoch に対応する `publicationFence` を返し、既存の公開版なし Session だけ `null` とする。
 - 現行 Session は有限の waiting expiry と Presentation owner による第三者作成 Waiting Session の cancel を持たない。
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
-- 現行 Web Editor は Slide ベースの PoC model を使用しており、target PresentationDefinitionへ未接続である。
+- 管理 Web は公開済み Dist の確認とルーム作成を担当し、Source 編集と Unity Preview は `app/local-editor` と CLI Host が所有する。
 - Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
 - Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から v2 Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
 - M3A の静的 Authoring subset では、型付き Theme token、Named Style、Props / Variants / Parts、Slot を使う Frame / Text composition と static lowering が実装済みである。

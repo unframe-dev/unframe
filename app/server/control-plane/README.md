@@ -20,7 +20,7 @@ Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 Realtime Backend の JWT / scope 検証、assignment fencing と Unity の v2 Delivery / bootstrap 接続は実装済みです。Control Plane の Session 終了を既存 Realtime 接続へ反映する Cloud Agent と、Web の旧 CRUD 定義の v2 移行は後続作業です。
 R2 objectを孤児化させないため、Asset metadataが残るPresentationは削除できません。先に各Assetの削除APIを完了させてください。
 
-未公開 Presentation の Session は Waiting として作成できますが、start / bootstrap は 409 を返します。先に Session を終了し、v2 build を公開してから Session を作り直してください。既存 v1 Venue Edge は assignment / renew / bootstrap の対象にならず、v2 で再登録が必要です。v1 データを v2 として読み替えません。
+Session の新規作成には公開済み Dist が必要です。公開版の確認と epoch の固定は D1 の同じ原子的処理で行い、未公開の場合は 409 を返して Session／participant を残しません。作成・取得 response の `publicationFence` は保存 epoch の manifest から返します。既存の未公開 Session だけ `publicationFence: null` となり、start / bootstrap は 409 を返します。この場合は先に Session を終了し、v2 build を公開してから作り直してください。既存 v1 Venue Edge は assignment / renew / bootstrap の対象にならず、v2 で再登録が必要です。v1 データを v2 として読み替えません。
 
 ## Setup
 

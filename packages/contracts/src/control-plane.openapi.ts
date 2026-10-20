@@ -2181,6 +2181,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             session: {
+                                publicationFence: {
+                                    presentationId: string;
+                                    publicationEpoch: number;
+                                    publicationManifestHash: string;
+                                } | null;
                                 id: string;
                                 presentationId: string;
                                 presenterId: string;
@@ -2254,6 +2259,20 @@ export interface paths {
                         };
                     };
                 };
+                /** @description No published presentation */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
         };
         delete?: never;
@@ -2293,6 +2312,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            publicationFence: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                            } | null;
                             id: string;
                             presentationId: string;
                             presenterId: string;
@@ -2411,6 +2435,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            publicationFence: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                            } | null;
                             id: string;
                             presentationId: string;
                             presenterId: string;
@@ -2519,6 +2548,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            publicationFence: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                            } | null;
                             id: string;
                             presentationId: string;
                             presenterId: string;
@@ -2639,6 +2673,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            publicationFence: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                            } | null;
                             id: string;
                             presentationId: string;
                             presenterId: string;
