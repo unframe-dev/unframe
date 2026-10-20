@@ -71,7 +71,8 @@ namespace Unframe.Unity.PresentationRuntime
                     long stride = Number(view, "byteStride", 0);
                     if (stride != 0 && (stride < 4 || stride > 252 || stride % 4 != 0)) return false;
                 }
-                foreach (var material in Array(root, "materials")) foreach (var descendant in ((JObject)material).Descendants())
+                foreach (var material in Array(root, "materials"))
+                    foreach (var descendant in ((JObject)material).Descendants())
                         if (descendant is JProperty property && (property.Name == "baseColorTexture" || property.Name == "metallicRoughnessTexture" || property.Name == "normalTexture"
                             || property.Name == "occlusionTexture" || property.Name == "emissiveTexture") && Number(property.Value, "texCoord", 0) != 0) return false;
                 long decoded = 0;
@@ -104,12 +105,14 @@ namespace Unframe.Unity.PresentationRuntime
                 }
                 JArray nodes = Array(root, "nodes"), meshes = Array(root, "meshes"), skins = Array(root, "skins"), animations = Array(root, "animations");
                 ulong meshPrimitives = 0, meshVertices = 0, meshTriangles = 0; long geometryBytes = 0;
-                foreach (var mesh in meshes) foreach (var primitive in Array(mesh, "primitives"))
+                foreach (var mesh in meshes)
+                    foreach (var primitive in Array(mesh, "primitives"))
                     {
                         if (Number(primitive, "mode", 4) != 4) return false;
                         foreach (var attribute in ((JObject)primitive["attributes"]).Properties())
                             if (!SupportedAttribute(attribute.Name)) return false;
-                        foreach (var target in Array(primitive, "targets")) foreach (var attribute in ((JObject)target).Properties())
+                        foreach (var target in Array(primitive, "targets"))
+                            foreach (var attribute in ((JObject)target).Properties())
                                 if (attribute.Name != "POSITION" && attribute.Name != "NORMAL" && attribute.Name != "TANGENT") return false;
                         long count = Number(At(accessors, Number(primitive["attributes"], "POSITION")), "count");
                         long indices = primitive["indices"] == null ? count : Number(At(accessors, Number(primitive, "indices")), "count");
@@ -133,7 +136,8 @@ namespace Unframe.Unity.PresentationRuntime
                 if ((ulong)selected.Count != binding.NodeCount) return false;
                 var sceneRoots = new HashSet<int>(); foreach (var node in Array(At(scenes, Number(root, "scene")), "nodes")) sceneRoots.Add((int)(long)node);
                 long animationBytes = 0;
-                foreach (var animation in animations) foreach (var channel in Array(animation, "channels"))
+                foreach (var animation in animations)
+                    foreach (var channel in Array(animation, "channels"))
                     {
                         var target = channel["target"]; string path = (string)target?["path"];
                         int targetIndex = checked((int)Number(target, "node")); JToken targetNode = At(nodes, targetIndex);
@@ -181,7 +185,8 @@ namespace Unframe.Unity.PresentationRuntime
                 if ((ulong)primitives != binding.PrimitiveCount || (ulong)vertices != binding.VertexCount || (ulong)triangles != binding.TriangleCount
                     || (ulong)bones != binding.MaximumBonesPerSkin || (ulong)morphs != binding.MaximumMorphTargetsPerPrimitive) return false;
                 var parents = new int[nodes.Count]; for (int i = 0; i < parents.Length; i++) parents[i] = -1;
-                for (int i = 0; i < nodes.Count; i++) foreach (JToken child in Array(nodes[i], "children"))
+                for (int i = 0; i < nodes.Count; i++)
+                    foreach (JToken child in Array(nodes[i], "children"))
                     { int c = checked((int)(long)child); if (c < 0 || c >= nodes.Count || parents[c] != -1) return false; parents[c] = i; }
                 for (int i = 0; i < nodes.Count; i++) { int depth = 0; for (int p = i; p != -1; p = parents[p]) if (++depth > 256) return false; }
 

@@ -121,7 +121,8 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 chroma = bits.Ue(); Require(chroma == 1); Require(bits.Ue() == 0 && bits.Ue() == 0); bits.Read(1);
                 if (bits.Read(1) != 0)
-                    for (int i = 0; i < 8; i++) if (bits.Read(1) != 0)
+                    for (int i = 0; i < 8; i++)
+                        if (bits.Read(1) != 0)
                         { int last = 8, next = 8; for (int j = 0; j < (i < 6 ? 16 : 64); j++) { if (next != 0) { int delta = bits.Se(); Require(delta >= -128 && delta <= 127); next = (last + delta + 256) % 256; } if (next != 0) last = next; } }
             }
             Require(bits.Ue() <= 12); int order = bits.Ue(); Require(order <= 2);

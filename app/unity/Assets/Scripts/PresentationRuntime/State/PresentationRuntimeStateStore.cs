@@ -596,7 +596,8 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (!PresentationDeliveryCatalog.IsFinite(position) || position < 0 || !delivery.TryGetSurface(surfaceId, out ProjectedSurfaceDefinition surface) || !surface.HasVideo) return false;
             foreach (DeliveredRenderSurface render in delivery.Delivery.ProjectionProfile.RenderSurfaces)
-                if (render.SemanticSurfaceId == surfaceId) foreach (DeliveredArtifact artifact in render.Artifacts)
+                if (render.SemanticSurfaceId == surfaceId)
+                    foreach (DeliveredArtifact artifact in render.Artifacts)
                         if (artifact.Video != null && position > artifact.Video.DurationMs) return false;
             return true;
         }
