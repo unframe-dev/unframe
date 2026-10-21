@@ -85,13 +85,22 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 	}
 	claim := assignmentClaim(identity)
 	var sendMu sync.Mutex
-	sendRaw := func(item *realtimev2.ControlServerItem) error {
+	sendRawChecked := func(item *realtimev2.ControlServerItem, beforeSend func() error) error {
 		if proto.Size(item) > 1<<20 {
 			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 		}
-		_, err := v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) { return s.assignments.ReliableDeliveryDeadline(claim) }, func() (struct{}, error) { return struct{}{}, stream.Send(item) })
+		_, err := v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) { return s.assignments.ReliableDeliveryDeadline(claim) }, func() (struct{}, error) {
+			if beforeSend != nil {
+				if err := beforeSend(); err != nil {
+					return struct{}{}, err
+				}
+			}
+			return struct{}{}, stream.Send(item)
+		})
 		return err
 	}
+	sendRaw := func(item *realtimev2.ControlServerItem) error { return sendRawChecked(item, nil) }
+
 	send := func(item *realtimev2.ControlServerItem) error {
 		sendMu.Lock()
 		defer sendMu.Unlock()
@@ -163,55 +172,105 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		_ = s.runtime.LeaveParticipant(leaveCtx, identity)
 	}()
 	faultGeneration := s.runtime.FaultGeneration()
-	snapshot, presence, events, unsubscribe := s.runtime.SnapshotPresenceAndSubscribe()
-	defer unsubscribe()
-	var enabledLogicalInputs []string
-	if identity.Role == session.RolePresenter {
-		enabledLogicalInputs = s.runtime.EnabledLogicalInputs(snapshot)
-	}
-	view, err := runtimecore.ProjectV2Snapshot(snapshot, profile, identity.AssignmentEpoch, enabledLogicalInputs)
-	if err != nil {
-		return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
-	}
-	fence := &presentationv2.RuntimeProjectionFence{SessionId: identity.SessionID, Publication: &presentationv2.PublicationFence{PresentationId: s.bootstrap.Publication.PresentationID, PublicationEpoch: s.bootstrap.Publication.PublicationEpoch, PublicationManifestHash: s.bootstrap.Publication.PublicationManifestHash}, AssignmentEpoch: identity.AssignmentEpoch, ProjectionProfileId: profile.ProjectionProfileId, PresentationOriginVersion: snapshot.PresentationOrigin.Version}
+	var snapshot *realtimev2.CanonicalRuntimeSnapshot
+	var fence *presentationv2.RuntimeProjectionFence
 	instance := &presentationv2.ProjectionInstance{ProjectionProfileId: profile.ProjectionProfileId, ParticipantId: identity.ParticipantID, AssignmentEpoch: identity.AssignmentEpoch}
-	cut := &realtimev2.ConnectionSnapshotEnvelope{SchemaVersion: 2, ConnectionId: connectionID, Fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), ProjectionInstance: proto.Clone(instance).(*presentationv2.ProjectionInstance), PresenceAtCut: presence, ReliableSequence: snapshot.ReliableSequence, Snapshot: &realtimev2.ProjectedRuntimeSnapshot{ProjectionProfileId: profile.ProjectionProfileId, AssignmentEpoch: identity.AssignmentEpoch, ReliableSequence: snapshot.ReliableSequence, RuntimeView: view}}
+	connected := &realtimev2.ControlConnected{ProtocolVersion: "v2", ProgressionContractVersion: 1, RequiredCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, ProjectionInstance: instance, Limits: v2ProtocolLimits()}
+	if handshake.Resume == nil {
+		if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_Connected{Connected: connected}}); err != nil {
+			return err
+		}
+	}
+	var cut *realtimev2.ConnectionSnapshotEnvelope
+	var control *v2Control
 	var resumed []*realtimev2.ProjectedReliableEvent
-	if resume := handshake.Resume; resume != nil {
-		if !proto.Equal(resume.Fence, fence) {
-			return s.resync(send, snapshot.ReliableSequence, v2FenceResyncReason(resume.Fence, fence))
-		}
-		resumed, err = s.runtime.ReplayThrough(resume.AppliedReliableSequence, snapshot.ReliableSequence)
-		if err != nil {
-			return s.resync(send, snapshot.ReliableSequence, realtimev2.ResyncReason_RESYNC_REASON_REPLAY_RANGE_UNAVAILABLE)
-		}
-	} else if _, err := protocolv2.NewConnectionCursor(cut, fence, profile.RuntimeCatalog); err != nil {
-		return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
-	}
-	control := &v2Control{identity: identity, profile: profile, fence: fence, ready: make(chan struct{}), stateDetached: make(chan struct{}, 1), done: make(chan struct{}), snapshotCut: snapshot.ReliableSequence, originCut: snapshot.PresentationOrigin.Version, faultGeneration: faultGeneration}
-	initialCursor := snapshot.ReliableSequence
-	if handshake.Resume != nil {
-		initialCursor = handshake.Resume.AppliedReliableSequence
-	}
-	control.observedSequence.Store(initialCursor)
-	control.deliveredSequence.Store(initialCursor)
-	s.mu.Lock()
-	s.controls[connectionID] = control
-	s.mu.Unlock()
-	defer func() {
+	var lastVisible, observed uint64
+	var resyncReason realtimev2.ResyncReason
+	resyncRequired := errors.New("snapshot catch-up requires resync")
+
+	closeControl := func(remember bool) {
 		s.mu.Lock()
 		close(control.done)
 		delete(s.controls, connectionID)
-		s.evictResumeRecords(time.Now())
-		s.resumeRecords[connectionID] = v2ResumeRecord{participantID: identity.ParticipantID, profileID: profile.ProjectionProfileId, fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), expiresAt: time.Now().Add(15 * time.Minute), faultGeneration: faultGeneration}
+		if remember {
+			s.evictResumeRecords(time.Now())
+			s.resumeRecords[connectionID] = v2ResumeRecord{participantID: identity.ParticipantID, profileID: profile.ProjectionProfileId, fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), expiresAt: time.Now().Add(15 * time.Minute), faultGeneration: faultGeneration}
+		}
 		s.mu.Unlock()
 		s.nonces.Revoke(connectionID)
-	}()
-	lastVisible := snapshot.ReliableSequence
-	if handshake.Resume != nil {
-		lastVisible = handshake.Resume.AppliedReliableSequence
 	}
-	observed := lastVisible
+
+	events, unsubscribe, err := s.prepareSnapshotCatchUp(stream.Context(), time.Now, func(candidate *realtimev2.CanonicalRuntimeSnapshot, presence *realtimev2.ProjectedPresenceState) error {
+		snapshot = candidate
+		var enabledLogicalInputs []string
+		if identity.Role == session.RolePresenter {
+			enabledLogicalInputs = s.runtime.EnabledLogicalInputs(snapshot)
+		}
+		view, err := runtimecore.ProjectV2Snapshot(snapshot, profile, identity.AssignmentEpoch, enabledLogicalInputs)
+		if err != nil {
+			return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
+		}
+		fence = &presentationv2.RuntimeProjectionFence{SessionId: identity.SessionID, Publication: &presentationv2.PublicationFence{PresentationId: s.bootstrap.Publication.PresentationID, PublicationEpoch: s.bootstrap.Publication.PublicationEpoch, PublicationManifestHash: s.bootstrap.Publication.PublicationManifestHash}, AssignmentEpoch: identity.AssignmentEpoch, ProjectionProfileId: profile.ProjectionProfileId, PresentationOriginVersion: snapshot.PresentationOrigin.Version}
+		cut = &realtimev2.ConnectionSnapshotEnvelope{SchemaVersion: 2, ConnectionId: connectionID, Fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), ProjectionInstance: proto.Clone(instance).(*presentationv2.ProjectionInstance), PresenceAtCut: presence, ReliableSequence: snapshot.ReliableSequence, Snapshot: &realtimev2.ProjectedRuntimeSnapshot{ProjectionProfileId: profile.ProjectionProfileId, AssignmentEpoch: identity.AssignmentEpoch, ReliableSequence: snapshot.ReliableSequence, RuntimeView: view}}
+		if handshake.Resume == nil {
+			if _, err := protocolv2.NewConnectionCursor(cut, fence, profile.RuntimeCatalog); err != nil {
+				return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
+			}
+		}
+		if _, err := proto.Marshal(cut); err != nil {
+			return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
+		}
+		return nil
+	}, func(begin func() error) error {
+		if resume := handshake.Resume; resume != nil {
+			if !proto.Equal(resume.Fence, fence) {
+				resyncReason = v2FenceResyncReason(resume.Fence, fence)
+				return resyncRequired
+			}
+			resumed, err = s.runtime.ReplayThrough(resume.AppliedReliableSequence, snapshot.ReliableSequence)
+			if err != nil {
+				resyncReason = realtimev2.ResyncReason_RESYNC_REASON_REPLAY_RANGE_UNAVAILABLE
+				return resyncRequired
+			}
+		}
+		control = &v2Control{identity: identity, profile: profile, fence: fence, ready: make(chan struct{}), stateDetached: make(chan struct{}, 1), done: make(chan struct{}), snapshotCut: snapshot.ReliableSequence, originCut: snapshot.PresentationOrigin.Version, faultGeneration: faultGeneration}
+		initialCursor := snapshot.ReliableSequence
+		if handshake.Resume != nil {
+			initialCursor = handshake.Resume.AppliedReliableSequence
+		}
+		control.observedSequence.Store(initialCursor)
+		control.deliveredSequence.Store(initialCursor)
+		s.mu.Lock()
+		s.controls[connectionID] = control
+		s.mu.Unlock()
+		lastVisible = initialCursor
+		observed = initialCursor
+		sendInitial := func(item *realtimev2.ControlServerItem) error {
+			sendMu.Lock()
+			defer sendMu.Unlock()
+			return sendRawChecked(item, begin)
+		}
+		var sendErr error
+		if handshake.Resume != nil {
+			sendErr = sendInitial(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_Connected{Connected: connected}})
+		} else {
+			sendErr = sendInitial(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_ConnectionSnapshot{ConnectionSnapshot: cut}})
+		}
+		if sendErr != nil {
+			closeControl(!errors.Is(sendErr, errV2SnapshotCatchUpRetry))
+		}
+		return sendErr
+	})
+	if errors.Is(err, resyncRequired) {
+		return s.resync(send, snapshot.ReliableSequence, resyncReason)
+	}
+	if err != nil {
+		return err
+	}
+	defer unsubscribe()
+
+	defer closeControl(true)
+
 	sendProjected := func(event *realtimev2.ProjectedReliableEvent) error {
 		sendMu.Lock()
 		defer sendMu.Unlock()
@@ -246,15 +305,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		control.observedSequence.Store(observed)
 		return nil
 	}
-	connected := &realtimev2.ControlConnected{ProtocolVersion: "v2", ProgressionContractVersion: 1, RequiredCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, ProjectionInstance: instance, Limits: v2ProtocolLimits()}
-	if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_Connected{Connected: connected}}); err != nil {
-		return err
-	}
-	if handshake.Resume == nil {
-		if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_ConnectionSnapshot{ConnectionSnapshot: cut}}); err != nil {
-			return err
-		}
-	} else {
+	if handshake.Resume != nil {
 		for _, event := range resumed {
 			if err := sendProjected(event); err != nil {
 				return err
@@ -262,6 +313,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		}
 		control.snapshotCut = control.deliveredSequence.Load()
 	}
+
 	issueNonce := func() error {
 		nonce, err := s.nonces.Issue(connectionID, identity.ParticipantID)
 		if err != nil {
@@ -593,10 +645,9 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 		})
 		return err
 	}
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
 	sequence := uint64(1)
-	cadence := time.Second
 	for {
 		select {
 		case <-control.done:
@@ -625,14 +676,6 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 		}
 		if err := send(outbound); err != nil {
 			return err
-		}
-		nextCadence := time.Second
-		if len(frame.AnchorBindings) != 0 {
-			nextCadence = 50 * time.Millisecond
-		}
-		if nextCadence != cadence {
-			ticker.Reset(nextCadence)
-			cadence = nextCadence
 		}
 		sequence++
 		if err := waitTick(ticker.C); err != nil {
@@ -802,7 +845,7 @@ func setV2ReasonTrailer(stream grpcgo.ServerStream, err error) {
 		reason = "assignment_lease_expired"
 	case "realtime assignment is not active":
 		reason = "assignment_inactive"
-	case "message_invalid", "message_limit_exceeded", "state_nonce_invalid", "protocol_incompatible", "publication_fence_mismatch", "presentation_origin_mismatch", "state_ready_fence_mismatch", "idempotency_key_reused", "presenter_required", "runtime_snapshot_invalid", "runtime_projection_unavailable", "runtime_persistence_unavailable", "participant_already_connected", "reliable_subscriber_slow", "state_rate_exceeded", "internal_error":
+	case "message_invalid", "message_limit_exceeded", "state_nonce_invalid", "protocol_incompatible", "publication_fence_mismatch", "presentation_origin_mismatch", "state_ready_fence_mismatch", "idempotency_key_reused", "presenter_required", "runtime_snapshot_invalid", "runtime_projection_unavailable", "runtime_assignment_unavailable", "snapshot_catch_up_exhausted", "runtime_persistence_unavailable", "participant_already_connected", "reliable_subscriber_slow", "state_rate_exceeded", "internal_error":
 		reason = status.Convert(err).Message()
 	case "private_runtime_fault":
 		reason = "runtime_snapshot_required"

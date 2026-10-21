@@ -473,7 +473,7 @@ func TestV2SessionPresenceIsAtomicWithConnectionCutAndPresenterPause(t *testing.
 	if err := core.JoinParticipant(context.Background(), identity); err != nil {
 		t.Fatal(err)
 	}
-	cut, presence, _, disconnect := core.SnapshotPresenceAndSubscribe()
+	cut, presence, _, disconnect, _ := core.SnapshotPresenceAndSubscribe()
 	defer disconnect()
 	if cut.ReliableSequence != 1 || len(presence.Participants) != 1 || !presence.Participants[0].Connected {
 		t.Fatalf("cut=%#v presence=%#v", cut, presence)

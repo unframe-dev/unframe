@@ -34,7 +34,7 @@ src/
 ├─ application/
 │  ├─ types.ts                          # headless host / result contract
 │  └─ run-presentation-cli.ts      # check / build orchestration
-├─ filesystem/build-lock.ts              # process-local build exclusion lease
+├─ filesystem/build-lock.ts              # cross-process project build exclusion lease
 ├─ process/
 │  ├─ main.ts                           # Bun executable entrypoint
 │  └─ run-presentation-process.ts       # SIGINT/SIGTERM owner
@@ -60,11 +60,21 @@ snapshot と explicit validation で boundary validation する。host の callb
 invocation と Compiler / Renderer の cross-boundary semantic diagnostics は、この構造検査の後に扱う。
 
 ```text
+init <absolute-project-directory> [--format text|json]
 check <absolute-project-directory> [--format text|json]
+test <absolute-project-directory> [--format text|json]
 build <absolute-project-directory> [--format text|json]
 lock refresh <absolute-project-directory> [--format text|json]
 lock update <absolute-project-directory> [--recreate] [--format text|json]
+```
+
+process entrypoint は上記を headless API へ委譲し、次の command を追加する。
+
+```text
 author <absolute-project-directory>
+dev <absolute-project-directory>
+preview <absolute-project-directory>
+publish <absolute-project-directory> <presentation-id> <control-plane-origin>
 ```
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
@@ -117,7 +127,7 @@ filesystem host と Browser process は headless process が所有する。
 
 ## 5. Dependency rules
 
-headless application は `unframe-compiler` と `unframe-renderer-web` にだけ依存する。TUI adapter だけが
+headless application は Compiler / Web Renderer のほか、Core、Contracts、Tailwind、worker-host の公開 API を利用する。project の固定 Node graph と Style 変換の準備・起動は CLI、PostCSS 変換は Tailwind、Style / capture 共通の隔離・資源制限・終了確認は worker-host が所有する。Browser の配置と起動は Web Renderer に残す。TUI adapter だけが
 OpenTUI stack に依存する。`unframe-components` は fixture の devDependency であり、CLI runtime の project
 discovery / component registry ではない。依存 version は pnpm lockfile で固定し、repository toolchain は Bun と
 Node.js の両方を提供する。
@@ -141,7 +151,9 @@ build lease と一時 dist link は revision に含めない。これは外部�
 
 `build` は Compiler の検証済みキャッシュ境界を `.unframe/cache/builds-v1` に接続する。key は Source / Asset bytes、Compiler / Renderer / Browser / font identity と build context / encode policy を含む。hit でも全成果物と binary checksum を Compiler が再検証し、cache failure / corruption は再 capture へ戻す。Browser identity を現在環境から取得するため、hit でも Browser session は開閉する。
 
-Linux の directory FD と macOS の C 製 dirfd helper に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。保存規則は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md)、OS 別の境界は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。
+Linux / macOS ともに Go 製 native filesystem helper の directory FD に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。保存規則は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md)、OS 別の境界は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。
+
+native filesystem helper は [`scripts/build-cli-filesystem.sh`](../../scripts/build-cli-filesystem.sh) で `packages/unframe-cli/.cache/filesystem-helper` に生成する。依存は native 専用 Go module に固定する。CLI の `presentation` / `dev` / `tui` / `test` / `test:tui` の pnpm hook は生成を行う。`vp test` の直接実行、headless API の直接利用など hook を通らない consumer は、repository root で先に同 script を実行する。Source 保存 transaction もこの helper の FD 操作を使い、schema、checksum、cache key、保持方針は TypeScript が所有する。
 
 ## 7. Deferred
 

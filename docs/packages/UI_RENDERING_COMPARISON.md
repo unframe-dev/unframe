@@ -22,12 +22,12 @@ Issue #73 と #76 から確定した入力を PoC profile として記録し、I
 
 ## 2. 採用方式と現在地
 
-| 方式        | 適用範囲                           | 現在地                                                                   |
-| ----------- | ---------------------------------- | ------------------------------------------------------------------------ |
-| Native 3D   | Model、空間配置、移動、回転、拡縮  | Unity target。Presentation Runtime とは未接続                            |
-| `baked-web` | 静的 UI、少数の有限 Surface State  | Local Compiler の初期 subset を実装済み。Delivery / Unity は未接続       |
-| `native-ui` | Timer、Counter、短い動的 Text      | portable contract / Unity adapter / 固有 budget は未実装                 |
-| `video`     | 入力非依存で事前確定できる連続映像 | artifact / Unity adapter / decoder budget は未実装。v1 Delivery は非対応 |
+| 方式        | 適用範囲                           | 現在地                                                                                                       |
+| ----------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Native 3D   | Model、空間配置、移動、回転、拡縮  | Model contract / Runtime Run は実装済み。Unity の接続描画 consumer は未実装                                  |
+| `baked-web` | 静的 UI、少数の有限 Surface State  | Compiler、Delivery artifact 選択、Unity Baked Runtime consumer を実装済み。Quest 実機受け入れは別途          |
+| `native-ui` | Timer、Counter、短い動的 Text      | portable plan / binding schema は実装済み。現行 Delivery は拒否し、接続 Unity adapter / 固有 budget は未実装 |
+| `video`     | 入力非依存で事前確定できる連続映像 | artifact schema は実装済み。生成 / 接続 Unity adapter / decoder budget は未実装。現行 Delivery は拒否        |
 
 `embedded-web`、WebView、Unity Runtime で任意の HTML / CSS / JavaScript / WebAssembly を実行する方式は対象外であり、検証候補に含めない。`baked-web` の Opaque TS / React / CSS は固定した build-time Browser 内だけで実行し、生成済み Texture を配信する。
 

@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 type request struct {
@@ -23,6 +25,7 @@ type request struct {
 	Bytes    []byte `json:"bytes"`
 	Limit    int64  `json:"limit"`
 	Expected *int64 `json:"expected"`
+	Mode     uint32 `json:"mode"`
 }
 type response struct {
 	ID        int    `json:"id"`
@@ -36,6 +39,8 @@ type metadata struct {
 	Size    int64  `json:"size"`
 	MtimeMs int64  `json:"mtimeMs"`
 	Kind    string `json:"kind"`
+	Uid     uint32 `json:"uid"`
+	Mode    uint32 `json:"mode"`
 }
 
 func statValue(s fs.FileInfo) metadata {
@@ -48,7 +53,7 @@ func statValue(s fs.FileInfo) metadata {
 	} else if s.Mode().IsRegular() {
 		kind = "file"
 	}
-	return metadata{uint64(raw.Dev), uint64(raw.Ino), s.Size(), s.ModTime().UnixMilli(), kind}
+	return metadata{uint64(raw.Dev), uint64(raw.Ino), s.Size(), s.ModTime().UnixMilli(), kind, raw.Uid, uint32(raw.Mode)}
 }
 func same(a, b fs.FileInfo) bool {
 	x, y := statValue(a), statValue(b)
@@ -147,7 +152,7 @@ func checkedOperation(r request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	flags := os.O_RDONLY | syscall.O_NOFOLLOW
+	flags := os.O_RDONLY | syscall.O_NOFOLLOW | syscall.O_NONBLOCK
 	if directory {
 		flags |= syscall.O_DIRECTORY
 	}
@@ -211,7 +216,7 @@ func (s *server) scoped(path string) (*os.Root, string, error) {
 	}
 	parts := strings.SplitN(strings.TrimPrefix(path, "@fd:"), "/", 2)
 	id, err := strconv.Atoi(parts[0])
-	if err != nil {
+	if err != nil || id < 1 || strconv.Itoa(id) != parts[0] {
 		return nil, "", invalid
 	}
 	d := s.handles[id]
@@ -231,6 +236,16 @@ func openFile(root *os.Root, path string, flags int, mode fs.FileMode) (*os.File
 	return os.OpenFile(path, flags, mode)
 }
 func (s *server) execute(r request) (any, error) {
+	if r.Mode == 0 {
+		r.Mode = 0600
+		if r.Op == "mkdir" {
+			r.Mode = 0700
+		}
+	}
+	if r.Mode & ^uint32(0777) != 0 {
+		return nil, invalid
+	}
+
 	if r.Op == "readChecked" || r.Op == "directoryChecked" || r.Op == "listChecked" {
 		return checkedOperation(r)
 	}
@@ -320,7 +335,7 @@ func (s *server) execute(r request) (any, error) {
 		s.handles[s.next] = &directory{file, anchored}
 		return map[string]any{"id": s.next, "stat": statValue(opened)}, nil
 	case "read":
-		file, err := openFile(root, path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+		file, err := openFile(root, path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -331,7 +346,7 @@ func (s *server) execute(r request) (any, error) {
 		}
 		return bytes, file.Close()
 	case "write":
-		file, err := openFile(root, path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+		file, err := openFile(root, path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, fs.FileMode(r.Mode))
 		if err != nil {
 			return nil, &operationError{"open", err}
 		}
@@ -382,9 +397,9 @@ func (s *server) execute(r request) (any, error) {
 		return statValue(stat), nil
 	case "mkdir":
 		if root != nil {
-			err = root.Mkdir(path, 0700)
+			err = root.Mkdir(path, fs.FileMode(r.Mode))
 		} else {
-			err = os.Mkdir(path, 0700)
+			err = os.Mkdir(path, fs.FileMode(r.Mode))
 		}
 		return true, err
 	case "remove":
@@ -419,7 +434,25 @@ func (s *server) execute(r request) (any, error) {
 			return nil, err
 		}
 		if root != targetRoot {
-			return nil, syscall.EXDEV
+			if root == nil || targetRoot == nil {
+				return nil, syscall.EXDEV
+			}
+			if path == "." || path == ".." || target == "." || target == ".." || strings.Contains(path, "/") || strings.Contains(target, "/") {
+				return nil, invalid
+			}
+			var sourceDirectory, targetDirectory *directory
+			for _, candidate := range s.handles {
+				if candidate.root == root {
+					sourceDirectory = candidate
+				}
+				if candidate.root == targetRoot {
+					targetDirectory = candidate
+				}
+			}
+			if sourceDirectory == nil || targetDirectory == nil {
+				return nil, syscall.EBADF
+			}
+			return true, unix.Renameat(int(sourceDirectory.file.Fd()), path, int(targetDirectory.file.Fd()), target)
 		}
 		if root != nil {
 			err = root.Rename(path, target)

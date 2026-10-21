@@ -5,6 +5,8 @@ import { createInterface } from "node:readline";
 import * as z from "zod";
 
 const metadataSchema = z.object({
+  uid: z.number().int().nonnegative(),
+  mode: z.number().int().nonnegative(),
   dev: z.number(),
   ino: z.number(),
   size: z.number(),
@@ -18,6 +20,8 @@ const responseSchema = z.object({
   operation: z.string().optional(),
 });
 export class NativeStats {
+  readonly uid: number;
+  readonly mode: number;
   readonly dev: number;
   readonly ino: number;
   readonly size: number;
@@ -25,6 +29,8 @@ export class NativeStats {
   private readonly kind: string;
   constructor(value: unknown) {
     const metadata = metadataSchema.parse(value);
+    this.uid = metadata.uid;
+    this.mode = metadata.mode;
     this.dev = metadata.dev;
     this.ino = metadata.ino;
     this.size = metadata.size;
@@ -77,8 +83,9 @@ export class NativeFilesystem {
   >();
   private next = 0;
   private ended = false;
-  constructor() {
-    const executable = fileURLToPath(new URL("../../.cache/filesystem-helper", import.meta.url));
+  constructor(
+    executable = fileURLToPath(new URL("../../.cache/filesystem-helper", import.meta.url)),
+  ) {
     this.child = spawn(executable, [], { stdio: "pipe" });
     this.child.stderr.resume();
     const lines = createInterface({ input: this.child.stdout });
@@ -86,6 +93,7 @@ export class NativeFilesystem {
       try {
         const response = responseSchema.parse(JSON.parse(line));
         const pending = this.pending.get(response.id);
+        if (!pending) throw new Error("Unexpected filesystem response");
         this.pending.delete(response.id);
         if (response.code)
           pending?.reject(
@@ -112,6 +120,10 @@ export class NativeFilesystem {
       });
     });
     this.child.stdin.on("error", () => this.fail());
+    this.child.stdout.on("end", () => {
+      this.fail();
+      this.child.kill();
+    });
   }
   private fail() {
     this.ended = true;
@@ -146,8 +158,8 @@ export class NativeFilesystem {
   async lstat(path: string) {
     return new NativeStats(await this.request("lstat", { path }));
   }
-  async mkdir(path: string) {
-    await this.request("mkdir", { path });
+  async mkdir(path: string, options?: { mode?: number }) {
+    await this.request("mkdir", { path, mode: options?.mode ?? 0o700 });
   }
   async rm(path: string) {
     await this.request("remove", { path });
@@ -167,8 +179,8 @@ export class NativeFilesystem {
   async read(path: string, limit: number) {
     return this.bytes(await this.request("read", { path, limit }));
   }
-  async write(path: string, bytes: Uint8Array) {
-    await this.request("write", { path, bytes: Buffer.from(bytes).toString("base64") });
+  async write(path: string, bytes: Uint8Array, mode = 0o600) {
+    await this.request("write", { path, mode, bytes: Buffer.from(bytes).toString("base64") });
   }
   async readdir(path: string) {
     return z
@@ -195,11 +207,14 @@ export class NativeFilesystem {
     return new Uint8Array(Buffer.from(z.string().parse(value), "base64"));
   }
   async [Symbol.asyncDispose]() {
-    if (!this.ended) {
-      await this.request("closeAll").catch(() => undefined);
-      this.child.stdin.end();
+    this.fail();
+    this.child.stdin.end();
+    const timer = setTimeout(() => this.child.kill("SIGKILL"), 1_000);
+    try {
+      await this.completion;
+    } finally {
+      clearTimeout(timer);
     }
-    await this.completion;
   }
 }
 

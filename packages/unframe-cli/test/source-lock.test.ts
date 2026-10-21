@@ -1,4 +1,5 @@
-import { mkdtemp, rm, writeFile, readFile, cp } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,6 +7,7 @@ import { afterEach, assert, expect, it } from "vitest";
 import { runPresentationCli } from "../src/index.js";
 import { acquireSourceLock } from "../src/filesystem/source-lock.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+const reference = fileURLToPath(new URL("../../../examples/presentation", import.meta.url));
 const directories: string[] = [];
 afterEach(async () => {
   await Promise.all(
@@ -15,9 +17,7 @@ afterEach(async () => {
 it("prevents readers from observing a source save and leaves its revision unchanged after release", async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-lease-"));
   directories.push(directory);
-  await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
-    recursive: true,
-  });
+  await copyProjectFixture(reference, directory);
   const before = await discoverPresentationProjectFiles(directory);
   assert(before.ok);
   const acquired = await acquireSourceLock(directory);
@@ -45,9 +45,7 @@ it("does not remove an existing lease", async () => {
 it("waits for a Host reader lease, then snapshots the released revision", async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-wait-"));
   directories.push(directory);
-  await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
-    recursive: true,
-  });
+  await copyProjectFixture(reference, directory);
   const lease = await acquireSourceLock(directory);
   assert(lease.ok);
   const waiting = discoverPresentationProjectFiles(directory, { waitTimeoutMs: 5000 });
@@ -74,9 +72,7 @@ it("bounds a Host lease wait and cancels it without removing the current owner's
 it("rejects a changed revision after the Host waited for a reader lease", async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-wait-"));
   directories.push(directory);
-  await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
-    recursive: true,
-  });
+  await copyProjectFixture(reference, directory);
   const before = await discoverPresentationProjectFiles(directory);
   assert(before.ok);
   const lease = await acquireSourceLock(directory);

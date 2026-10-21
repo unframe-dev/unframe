@@ -327,8 +327,12 @@ export const createAuthorService = async (
     run?: (input: RunPresentationCliInput) => ReturnType<typeof runPresentationCli>;
     readPublishedArtifacts?: typeof readPublishedArtifacts;
     artifactRetention?: { maxGenerations?: number; maxBytes?: number };
+    maxCompletedJobs?: number;
   } = {},
 ): Promise<AuthorService> => {
+  const maxCompletedJobs = options.maxCompletedJobs ?? 64;
+  if (!Number.isSafeInteger(maxCompletedJobs) || maxCompletedJobs < 1)
+    throw new TypeError("Invalid completed job limit");
   await prepareAuthorStorage(directory);
   const initial = await acquireSourceLock(directory, { allowRecovery: true });
   if (!initial.ok) fail(409, initial.code, "Project source is busy or requires recovery.");
@@ -352,6 +356,15 @@ export const createAuthorService = async (
     string,
     { revision: string; buildId: string; channel: "dev" | "dist" }
   >();
+  const completed: { buildId: string; requestId: string }[] = [];
+  const retainCompleted = (buildId: string, requestId: string) => {
+    completed.push({ buildId, requestId });
+    while (completed.length > maxCompletedJobs) {
+      const stale = completed.shift()!;
+      jobs.delete(stale.buildId);
+      requests.delete(stale.requestId);
+    }
+  };
   const artifacts = new AuthorArtifactCache(
     options.artifactRetention?.maxGenerations,
     options.artifactRetention?.maxBytes,
@@ -654,6 +667,7 @@ export const createAuthorService = async (
               }
             })().finally(() => {
               active.delete(buildId);
+              retainCompleted(buildId, requestId);
             });
           };
           return job;

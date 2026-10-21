@@ -16,6 +16,7 @@ import { discoverPresentationProjectFiles } from "../src/filesystem/discover-pro
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
 import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -82,7 +83,7 @@ const installFrozenGraph = async (directory: string) => {
 const createProject = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-capture-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);
   const loaded = loadUnframeLock(discovered.lockBytes);

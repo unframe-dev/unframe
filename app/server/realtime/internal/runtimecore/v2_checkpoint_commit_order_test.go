@@ -73,7 +73,7 @@ func TestV2CheckpointCallbackDoesNotBlockCommittedCutReaders(t *testing.T) {
 	}
 	reads := make(chan readCut, 1)
 	go func() {
-		cut, presence, sub, unsubscribe := core.SnapshotPresenceAndSubscribe()
+		cut, presence, sub, unsubscribe, _ := core.SnapshotPresenceAndSubscribe()
 		anchors, anchorErr := core.ProjectedAnchorBindings(nil, 1)
 		log, replayErr := core.ReplayThrough(0, 0)
 		result := readCut{sequence: cut.ReliableSequence, presence: len(presence.Participants), anchors: len(anchors), replay: len(log), sub: sub, closeSub: unsubscribe, err: errors.Join(anchorErr, replayErr)}

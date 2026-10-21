@@ -7,7 +7,7 @@
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
   - Progression semantic wire contract: Accepted（v2 Protobuf。consumer の実装・検証範囲は [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md) と [Unity README](../../app/unity/README.md) を参照）
-  - コンパイル後の構造・配信・Runtime: Presentation v2。Authoring / build host の実装設計は後続
+  - コンパイル後の構造・配信・Runtime: Presentation v2。現行 Authoring / build host は [CLI Architecture](../../packages/unframe-cli/ARCHITECTURE.md) を参照
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
   - [Local Editor: Unity Preview の設計と実装計画](./LOCAL_EDITOR_DESIGN.md)
@@ -22,7 +22,7 @@
   - [Repository Architecture](../../ARCHITECTURE.md)
   - [Server Architecture](../../app/server/ARCHITECTURE.md)
 
-具体的なデータ構造と実行規則は [Presentation v2 データ契約](./DATA_MODEL.md) を正本とする。本書の旧型例と異なる場合は v2 を優先する。
+具体的なデータ構造と実行規則は [Presentation v2 データ契約](./DATA_MODEL.md) を正本とする。serialized field は [Contracts の手書き Zod schema](../../packages/contracts/src/presentation/index.ts) と推論型を正本とする。本書に残る概念図・型例は責務の説明であり、コピー可能な現行 API 定義ではない。
 
 ## 1. この文書の位置付け
 
@@ -162,7 +162,7 @@ PresentationDefinition
 
 `scene.nodes` は空間配置、owner、audience、初期 transform / 表示状態、`scene.surfaces` は内容ツリー、意味情報、State、Interaction、Render Intent を保持する。`flow.timelines` は Timeline catalog を保持し、実行中の Run、現在時刻、現在値を含めない。完全な構造境界は [ADR-0015](../decisions/0015-presentation-definition-artifact-boundaries.md) を正本とする。
 
-素材の使用箇所は `assetId` だけを参照する。checksum、media type、encoded size を持つ素材 descriptor は、Definition と RenderBundle から独立した immutable な `AssetSetManifest` に置く。Compiler は Definition、RenderBundle、AssetSetManifest、素材実体の参照完全性を検証し、Control Plane はそれぞれの hash を PublishedPresentation に固定する。現行 M1 の `definition.assets` と出力 layout にこの分離が実装済みとは扱わない。独立音声用 descriptor は持たず、Video 内の audio track は Video asset の一部として検証する。
+素材の使用箇所は `assetId` だけを参照する。checksum、media type、encoded size を持つ素材 descriptor は、Definition と RenderBundle から独立した immutable な `AssetSetManifest` に置く。Compiler は Definition、RenderBundle、AssetSetManifest、素材実体の参照完全性を検証し、Control Plane はそれぞれの hash を PublishedPresentation に固定する。現行 CLI は分離済みの `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と素材 bytes を一つの generation に公開する。独立音声用 descriptor は持たず、Video 内の audio track は Video asset の一部として検証する。
 
 エンコード方式自体は意味モデルの一部ではないが、現行 Local Compiler は v2 PresentationDefinition JSON を canonical に生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。M1 local outputでの file name は `definition.json` であり、後続の full Delivery target の layout と混同しない。
 
@@ -348,17 +348,7 @@ Session 中に変化する状態であり、PresentationDefinition や RenderBun
 
 Session に割り当てられた Cloud または Venue Edge の Runtime Core が唯一の authority であり、すべての participant に共通する canonical state を保持する。
 
-```ts
-type SharedRuntimeState = {
-  progression: ProgressionRuntimeState;
-  nodeStates: Record<NodeId, NodeRuntimeState>;
-  surfaceStates: Record<SurfaceId, SurfaceRuntimeState>;
-  mediaStates: Record<SurfaceId, MediaRuntimeState>;
-  variables: Record<VariableId, Scalar>;
-  activeRuns: RuntimeRunSnapshot[];
-  presentationOrigin: PresentationOrigin;
-};
-```
+serialized state の正本は [runtime projection schema](../../packages/contracts/src/presentation/runtime-projection.ts) とする。canonical snapshot は pause-aware `clock`、progression、node / surface / media / model clip state、variables、active Runs、Presentation Origin と sequence metadata を持つ。初期 Cue subset の snapshot と完全な canonical snapshot の保証範囲を区別する。
 
 Progression、確定した resource state、Presentation Origin は Snapshot / Reliable Event へ反映する。Connection presence、Presenter Anchor sample、tracking-derived edge memory、Timeline の frame 間補間値は Runtime Core が生成する ephemeral runtime state とし、durable restore 対象へ含めない。Presence は authenticated connection registry から、tracking state は復旧後の新しい Tracking Frame から再構築する。
 
@@ -553,7 +543,7 @@ Manifest は Component の公開契約と Structure entry を所有する。Comp
 
 v1 の Structured Component は Component 固有の React、CSS、DOM renderer entry を持たない。Compiler が Component Structure を renderer-independent な Primitive graph へ lower し、`baked-web` や将来の `native-ui` などの generic renderer がその graph を描画する。Structured Component の見た目は Structure、型付き Theme Token、Named Style、Primitive property で表現する。Component 固有の任意 React / CSS が必要な場合は Opaque Component とする。
 
-Generic renderer は Structure に宣言されていない Semantic Node、State、Interaction、Action、Output を追加できない。Semantic Tree と Hit Region の意味は Structure から生成し、renderer は pixel layout や region bounds などの concrete geometry だけを解決する。renderer output から Structured Component の意味や編集構造を逆推論しない。
+Generic renderer は Structure に宣言されていない Semantic Node、State、Interaction、Action、Output を追加できない。Semantic Tree と Hit Region の意味は Structure から生成し、Structured の geometry は Core の共有 layout を Compiler と Renderer が使い、Hit Region は Compiler が生成する。Opaque の有効な semantic button binding は Renderer が DOM geometry を計測し、`hitRegionsByState` を返して Compiler が検証する。renderer output から Structured Component の意味や編集構造を逆推論しない。
 
 authoring mode は Component version ごとに一つに固定し、renderer ごとに Structured / Opaque を切り替えない。Structured と Opaque の変更は公開 authoring contract の破壊的変更として Component version を更新する。migration metadata と自動変換の具体契約は M3A より後に定義する。
 
@@ -582,7 +572,7 @@ Opaque Manifest は Action / Output lowering に必要な公開 Runtime target �
 
 Opaque renderer は Manifest の binding key に concrete geometry や artifact を対応付けるが、宣言済み target の意味や ID を変更できない。Compiler は Opaque Action / Output template の local target を `semantics` から解決し、参照先の欠落、ID や binding key の重複、必須 binding の未結合、renderer が追加した未宣言 binding を build error とする。
 
-Opaque の lock v2 は origin、Manifest hash と rendererInputHash を固定する。rendererInputHash は抽出 renderer、local 描画依存、runtime package graph、固定 tool identity から計算する。capture artifact の生成とその provenance は A2 で接続する。
+Opaque の lock v2 は origin、Manifest hash と rendererInputHash を固定する。rendererInputHash は抽出 renderer、local 描画依存、runtime package graph、固定 tool identity から計算する。capture artifact の生成と provenance は現行の隔離 Browser capture に接続済みである。
 
 Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure は、GUI の source mapping と意味論的 round-trip を成立させるため、静的解析できる制限付き DSL とする。Local Compiler は import、symbol、型を解決した検証済み AST から Declaration Graph へ直接 lower し、これらの source を JavaScript として実行しない。
 
@@ -763,7 +753,7 @@ Compiler は source と lockfile を解決した後、Lossless Syntax Tree を�
 
 Normalization は少なくとも、stable ID の一意性、参照整合性、Component contract、source range との対応、context ごとの許可 node、静的 topology を検証する。unsupported syntax、未解決または許可されていない import / call、計算された ID、AST と Declaration Graph の対応欠落は build error とする。具体的な parser、TypeScript API、AST patch library は implementation design で選択できるが、この静的 lowering contract を変更してはならない。
 
-Opaque renderer はこの pipeline に入れず、通常の module bundling で renderer artifact を生成する。artifact を Layout / capture のために実行する場合は renderer 専用の隔離された Browser environment を使用する。Browser capability、module resolution、cache invalidation、Font / Locale を含む再現性は Rendering / Delivery follow-up で固定する。
+Opaque renderer はこの pipeline に入れず、通常の module bundling で renderer artifact を生成する。artifact を Layout / capture のために実行する場合は renderer 専用の隔離された Browser environment を使用する。Browser capability、固定 lock の module resolution、cache invalidation、Font / Locale は [Renderer Web Architecture](../../packages/unframe-renderer-web/ARCHITECTURE.md) と [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。platform ごとの再現性の追加検証は ADR-0026 に従う。
 
 ### 6.4 GUI / Code round-trip
 
@@ -1018,7 +1008,7 @@ Compiler は次の invariant を検証する。
 一つの Semantic Surface は描画に必要な Render Surface へ lower し、全 State で描画がなければ 0 件とする。Native UI、Baked Web、Video はいずれも Render Surface の renderer artifact として扱い、Semantic Surface と並列の意味 identity を作らない。
 
 ```ts
-// Target M3 portable shape. Current generated schema remains the M1 subset.
+// 概念上の関係。serialized field は Contracts の schema を正本とする。
 type RenderSurface = {
   id: RenderSurfaceId;
   semanticSurfaceId: SemanticSurfaceId;
@@ -1211,29 +1201,9 @@ Semantic Surface
 
 Semantic Surface は具体的な renderer ではなく、必要な実行特性と renderer preference を持つ。
 
-```ts
-type SurfaceRenderIntent = {
-  updateModel:
-    | { kind: "static" }
-    | { kind: "finite-state"; stateIds: SurfaceStateId[] }
-    | {
-        kind: "continuous";
-        source: "timeline" | "runtime-data" | "user-input";
-        maximumUpdateRateHz?: number;
-      };
+正確な vocabulary は [Definition schema](../../packages/contracts/src/presentation/definition.ts) の `renderIntentSchema` を正本とする。更新特性、interaction、内部 animation、renderer preference、fallback policy を持ち、Compiler / Renderer は対応する subset を検証する。
 
-  interaction:
-    { kind: "none" } | { kind: "regions"; events: LogicalEventName[] } | { kind: "native-input" };
-
-  internalAnimation:
-    { kind: "none" } | { kind: "precomputed"; durationSeconds: number } | { kind: "runtime" };
-
-  rendererPreference: "auto" | "baked-web" | "native-ui" | "video";
-  fallbackPolicy: "reject" | "degrade";
-};
-```
-
-click `InteractionDefinition`とAuthoring `InteractionDeclaration`はrequired `hitPriority: UInt32`を持つ。これはoverlap時のhit-test winnerを決めるsemantic authorityであり、Compilerがrenderer plan / Hit Regionへcopyする。rendererやDeliveryはpriorityを生成・変更せず、未指定値へ暗黙defaultを置かない。M3のschema移行で現行declarationへbreakingに追加する。
+click `InteractionDefinition`とAuthoring `InteractionDeclaration`はrequired `hitPriority: UInt32`を持つ。これはoverlap時のhit-test winnerを決めるsemantic authorityであり、Compilerがrenderer plan / Hit Regionへcopyする。rendererやDeliveryはpriorityを生成・変更せず、未指定値へ暗黙defaultを置かない。現行 schema と Compiler はこの必須値を検証する。
 
 Renderer の基本選択規則は次のとおりとする。
 
@@ -1996,7 +1966,7 @@ process recoveryではschema、session、runtime、assignment epoch、Publicatio
 
 Durable recoveryにはSnapshotの`reliableSequence = S`以降を埋めるcontiguousなReliable Event log、または後続eventをすべて含む新しいcheckpointが必要である。復元不能なgapがある場合、古いSnapshotへ黙ってrollbackして実行を再開せず、Pausedのままsession failureとして扱う。
 
-現行RealtimeにはcheckpointのHTTP callback clientとbufferがあるが、canonical mutationの永続化、最新checkpointの取得、Connection Resume / replayはsession / transportのlifecycleへ未接続である。後続実装では各mutationの全canonical checkpointをControl Planeへ保存してからeventを公開し、復旧時に最新checkpointを取得する。process再起動後の過去event logは保持せず、保持範囲外のConnection Resumeには新しいSnapshotを要求する設計である。
+現行 Realtime 起動は `ConfigureDurability` で checkpoint callback を接続し、bootstrap の checkpoint を `RestoreCheckpoint` で復元する。Connection Resume / replay は Runtime session と gRPC transport に接続済みである。process 再起動後の過去 event log は保持せず、保持範囲外の Connection Resume には新しい Snapshot を要求する。詳細な上限と失敗理由は [Runtime contract](./CONTRACT_RUNTIME.md) を正本とする。
 
 Timelineのtick履歴はreplayせず、logical runtime timeとactive Runから現在値を再計算する。Projected Runtime SnapshotはCanonicalRuntimeSnapshotから生成する派生物であり、durable recoveryの入力に使用しない。
 
@@ -2194,7 +2164,7 @@ Semantic Tree は検索、翻訳、読み上げ、caption、presenter notes、Ag
 
 `SemanticTreeDefinition` と `CompletedSemanticTree` は空 Tree を許可する。空でない tree は tree 内で一意な stable Node ID、存在する parent、循環しない親子関係、roleごとのrequired parent / children、同じ parent 内で一意な `order` を持つ。`parentId === null` の Node は `rootNodeIds` に一度だけ含め、root以外のNodeは一つのparentを持ち、すべてのNodeはいずれかのrootから到達可能とする。materializerの戻り値自体がrootとsiblingを`Node.order`昇順に並べ、canonical serializationだけに並べ替えを委ねない。`interactionId`はbuttonだけが持ち、同じSemantic SurfaceのInteractionを参照する。text-bearing roleはnon-empty `text`を持ち、dynamic Native UI textがある場合はempty / unavailable時のaccessibility fallbackとして使う。bindingの正本は選択された`NativeUIArtifact`内でそのNodeを一意に参照するtext Nodeであり、独立したsemantic binding fieldは作らない。
 
-`SurfaceStateDefinition.semanticOverrides` は ordered な override layers である。Compiler は `baseSemanticTree` に layers を順に適用して State ごとの完成 Tree を materializeし、buttonの`stateEnabled`をStateのenabled Interaction集合から導出して、`RenderBundle.semanticsByState`には`CompletedSemanticTree`だけを格納する。DeliveryはSession roleからprojected `enabled`を導出し、viewerのInteraction ID / Hit Regionを配信前に除外する。差分や適用処理をRuntimeへ配信しない。overrideはbase Treeに存在するNodeとroleが許すpropertyだけを参照でき、全layerを通じて同じNode/propertyを重複して変更できない。fieldが存在しない場合だけbase値を保持し、requiredなtext / altは削除できず、optionalなtable labelだけを`null`で削除できる。`included: false`は対象Nodeとすべてのdescendantを派生 Completed Tree から除外するが、Definition の基底 Node は維持する。required list / table structureを壊したり、除外されたNodeのdescendantを個別に再includeしたりできない。State 間の基底 Node ID / role / parent / order / interaction変更はbuild errorとする。
+`SurfaceStateDefinition.semanticOverrides` は ordered な override layers である。Compiler は `baseSemanticTree` に layers を順に適用して State ごとの完成 Tree を materializeし、buttonの`stateEnabled`をStateのenabled Interaction集合から導出して、`RenderBundle.semanticsByState`には`CompletedSemanticTree`だけを格納する。DeliveryはSession roleからprojected `enabled`を導出し、viewerのInteraction ID / Hit Regionを配信前に除外する。差分や適用処理をRuntimeへ配信しない。overrideはbase Treeに存在するNodeとroleが許すpropertyだけを参照でき、全layerを通じて同じNode/propertyを重複して変更できない。fieldが存在しない場合だけbase値を保持し、requiredなtext / altは削除できず、optional な table label と language は `null` で削除できる。`included: false`は対象Nodeとすべてのdescendantを派生 Completed Tree から除外するが、Definition の基底 Node は維持する。required list / table structureを壊したり、除外されたNodeのdescendantを個別に再includeしたりできない。State 間の基底 Node ID / role / parent / order / interaction変更はbuild errorとする。
 
 Structured Component の Semantic Tree は Component Structure の semantic Primitive から生成し、Opaque Component は Manifest の `semantics` から生成する。Structured Frame / Text の Hit Region は Compiler が Surface 全体の layout から解決する（[ADR-0021](../decisions/0021-surface-interaction-geometry.md)）。renderer は指定された partition を描画し、DOM、React tree、CSS、Texture、実行結果から意味を抽出・補完しない。
 
@@ -2223,50 +2193,7 @@ Hit region は Semantic Surface State ごとに解決し、bounds は Render Sur
 
 ## 14. RenderBundle
 
-```ts
-type NormalizedTextureBuildPolicyV1 = {
-  policyVersion: 1;
-  resolutionPolicyVersion: 1;
-  policyHash: ContentHash;
-  longEdgePixels: UInt32;
-  maxStatesPerRenderSurface: UInt32;
-  maxRenderSurfacesPerSemanticSurface: UInt32;
-  maxRenderSurfacesPerBundle: UInt32;
-  maxTextureBindings: UInt32;
-  maxTextureWidth: UInt32;
-  maxTextureHeight: UInt32;
-  maxTexturePixels: UInt32;
-  maxRenderedPixels: UInt64;
-  maxSurfaceCaptureBytes: UInt64;
-  maxBuildOutputBytes: UInt64;
-  maxBuildAccountedPeakBytes: UInt64;
-  rendererConcurrency: 1;
-};
-
-type RenderBundle = {
-  schemaVersion: 1;
-  bundleId: string;
-  sourceHash: string;
-  definitionHash: string;
-
-  compiler: {
-    name: string;
-    version: string;
-    environmentHash: string;
-  };
-
-  buildContext: {
-    locale: string;
-    timezone: string;
-    colorScheme: "light" | "dark";
-    themeId: ThemeId;
-    themeHash: string;
-    textureBuildPolicy: NormalizedTextureBuildPolicyV1;
-  };
-
-  surfaces: Record<SemanticSurfaceId, CompiledSemanticSurface>;
-};
-```
+RenderBundle と texture build policy の正本は [RenderBundle schema](../../packages/contracts/src/presentation/render-bundle.ts) とする。現行 `schemaVersion` は `2` で、Surface artifact と model artifact を含む。JSON の非負整数は [common schema](../../packages/contracts/src/presentation/common.ts) の safe integer 上限を守り、Protobuf の `uint64` と同じ全範囲を JavaScript number に格納できるとは扱わない。
 
 `NormalizedTextureBuildPolicyV1`はADR-0012のresolution policy version、budget policy version、long edge、State / Surface / binding count、texture dimension / pixels、rendered pixels、capture bytes、output bytes、accounted peak bytes、renderer concurrencyの正規化済み実値を持つ。`policyHash` fieldを除いたcanonical payloadのhashを`textureBuildPolicy.policyHash`として保持し、RenderBundle hashとCompiler cache keyの入力にする。wall-time、host RSS、abortはavailability guardであり、このportable objectやartifact identityへ含めない。callerが上限を縮小した場合も実際に使用した値を記録し、default値へ丸めない。per-texture pixel countは`UInt32`、`maxRenderedPixels`を含むaggregate pixel countは`UInt64`とする。
 
@@ -2329,100 +2256,7 @@ BakedWebArtifact
 
 Native UI Artifact は v1 では `group` と一行 `text` だけからなる portable UI tree とする。`group` は hierarchy、clip、解決済み bounds を持つ。`text` は解決済み bounds、単一行のalign / color / overflow、Font Asset、文字列値を持つ。editable field、native input、scroll、rich text、progress bar、任意 animation は v1 に含めない。
 
-```ts
-type NativeTextValue =
-  | { kind: "literal"; value: string }
-  | {
-      kind: "variable";
-      variableId: VariableId;
-      expectedType: "string";
-      format: {
-        kind: "string";
-        allowedCodePointRanges: Array<[number, number]>;
-      };
-    }
-  | {
-      kind: "variable";
-      variableId: VariableId;
-      expectedType: "boolean";
-      format: { kind: "boolean"; trueLabel: string; falseLabel: string };
-    }
-  | {
-      kind: "variable";
-      variableId: VariableId;
-      expectedType: "number";
-      format: NumberFormat;
-    }
-  | {
-      kind: "stepTimerRemaining";
-      groupId: GroupId;
-      stepId: StepId;
-      cueId: CueId;
-      durationMilliseconds: number;
-      whenStepInactive: "empty" | "zero";
-      format: TimerFormat;
-    };
-
-type NumberFormat = { kind: "number"; fractionDigits: 0 | 1 | 2 | 3 };
-type TimerFormat = "mm:ss" | "hh:mm:ss";
-type NativeUIFeature = "clip" | "ellipsis" | "explicitFontFallback";
-
-type NativeUIRect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  coordinateSpace: "renderSurfaceLogical";
-};
-
-type SRGBAColor = {
-  red: number;
-  green: number;
-  blue: number;
-  alpha: number;
-};
-
-type ResolvedFontFace = {
-  assetId: AssetId;
-  supportedCodePointRanges: Array<[number, number]>;
-};
-
-type ResolvedFont = {
-  primary: ResolvedFontFace;
-  fallbacks: ResolvedFontFace[];
-};
-
-type NativeUIArtifact = {
-  kind: "native-ui";
-  contractVersion: 1;
-  requiredFeatures: NativeUIFeature[];
-  rootNodeId: NativeUINodeId;
-  nodes: Record<NativeUINodeId, NativeUINode>;
-};
-
-type NativeUINode =
-  | {
-      kind: "group";
-      id: NativeUINodeId;
-      bounds: NativeUIRect;
-      clip: boolean;
-      children: NativeUINodeId[];
-    }
-  | {
-      kind: "text";
-      id: NativeUINodeId;
-      bounds: NativeUIRect;
-      semanticNodeId: SemanticNodeId;
-      value: NativeTextValue;
-      font: ResolvedFont;
-      color: SRGBAColor;
-      fontSize: number;
-      lineHeight: number;
-      align: "start" | "center" | "end";
-      overflow: "clip" | "ellipsis";
-      maxCodePoints: number;
-    };
-```
+plan / Node / value / format の正本は [RenderBundle schema](../../packages/contracts/src/presentation/render-bundle.ts) とする。text value は `literal` / `variableString` / `variableBoolean` / `variableNumber` / `stepTimerRemaining` の discriminated union であり、binding 種別ごとの field を使う。この portable contract の存在は現行 Delivery / Unity 接続での Native UI 対応を意味しない。
 
 `NativeUIArtifact` は State ごとの完全 plan である。`rootNodeId` と全 child reference は `nodes` 内に存在し、一つの root から全 Node が一度だけ到達可能で、cycle、複数 parent、child order の重複を許可しない。bounds は Render Surface の logical coordinate で表し、全値は有限、size は非負とする。sRGB RGBA の各 channel は `0..1` とする。text の `fontSize` と `lineHeight` は有限かつ正、`maxCodePoints` は正の整数とする。Node 数、tree depth、text数、glyph数、文字列の Unicode code point 数は artifact contract と target capability が定める上限以下でなければならない。`clip` を使う plan は `clip`、`ellipsis` を使う plan は `ellipsis`、fallback font を持つ plan は `explicitFontFallback` を必ず `requiredFeatures` に含める。未知の required feature や contract version は fail closed とする。
 
@@ -2578,14 +2412,13 @@ dist/
 
 ### Current
 
-- Control Plane の `PresentationDefinition` は JSON/OpenAPI 契約である。
-- 現行 Definition は metadata、stage、asset references、Group、Element、Anchored Element Group、Step、Cue、Trigger、Action、Transition を持つ。
+- Control Plane の既存 Draft schema は Group / Element / Anchored Element Group 等を持つ JSON/OpenAPI 契約で、Local Editor の canonical Definition と別の編集モデルである。
 - Control Plane は Definition 全体を revision 条件付きで原子的に保存する。
-- Session は公開済み Presentation から作成し、その時点の publication epoch を保存する。API は保存 epoch に対応する `publicationFence` を返し、既存の公開版なし Session だけ `null` とする。
+- Session は公開済み Presentation から作成し、その時点の publication epoch を保存する。API は保存 epoch に対応する `publicationFence` を返し、既存の公開版なし Session だけ `null` とする。Delivery / bootstrap では PublicationFence と projection / assignment の整合を検証する。
 - 現行 Session は有限の waiting expiry と Presentation owner による第三者作成 Waiting Session の cancel を持たない。
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
-- 管理 Web は公開済み Dist の確認とルーム作成を担当し、Source 編集と Unity Preview は `app/local-editor` と CLI Host が所有する。
-- Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
+- 管理 Web は公開済み Dist の確認とルーム作成を担当する。Source 編集と Unity Preview は `app/local-editor` と CLI Author host が所有し、canonical Definition の読み取り、公開 Props / Transform 編集と Cue / Timer / Timeline のローカル Unity Preview を提供する。
+- Unity の Baked Runtime は Delivery、素材取得、Snapshot / Reliable Event、Timeline / State 表示を接続する。Native UI / Model / Video の接続描画と Quest 実機受け入れはこの成功範囲に含めない。
 - Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から v2 Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
 - M3A の静的 Authoring subset では、型付き Theme token、Named Style、Props / Variants / Parts、Slot を使う Frame / Text composition と static lowering が実装済みである。
 

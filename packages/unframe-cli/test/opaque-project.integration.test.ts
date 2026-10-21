@@ -19,6 +19,7 @@ import { discoverPresentationProjectFiles } from "../src/filesystem/discover-pro
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
 import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -97,7 +98,7 @@ const installFrozenGraph = async (directory: string) => {
 const createProject = async (mixed = false) => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-opaque-integration-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const { loaded, presentation: initial } = await fromReference(directory);
   const graph = await installFrozenGraph(directory);
   const sdkPackage = loaded.packages.find((pkg) => pkg.name === "@unframe/unframe-authoring");

@@ -16,6 +16,7 @@ import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "../src/author/contract.js";
 import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
 import { snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -156,7 +157,7 @@ const installFrozenGraph = async (directory: string, extended: boolean) => {
 const createProject = async (extended: boolean) => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-opaque-integration-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const { loaded, presentation: initial } = await fromReference(directory);
   const graph = await installFrozenGraph(directory, extended);
   const sdkPackage = loaded.packages.find((pkg) => pkg.name === "@unframe/unframe-authoring");
