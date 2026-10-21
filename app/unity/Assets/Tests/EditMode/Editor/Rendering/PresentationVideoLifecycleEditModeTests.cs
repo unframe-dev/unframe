@@ -189,6 +189,43 @@ public sealed class PresentationVideoLifecycleEditModeTests
             Assert.That(decoders[1].Playing, Is.False); Assert.That(decoders[1].Seconds, Is.EqualTo(1.25));
             Assert.That(playback.TryUpdate(view, hierarchy, renderer, textures, 1500, out error, true), Is.True, error);
             Assert.That(decoders[1].Playing, Is.True); Assert.That(decoders[1].Seconds, Is.EqualTo(1.5));
+            var runtimeHost = new GameObject("Realtime disconnect");
+            var runtime = runtimeHost.AddComponent<PresentationBakedRuntime>();
+            var fields = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(PresentationBakedRuntime).GetField("videos", fields).SetValue(runtime, videos);
+            typeof(PresentationBakedRuntime).GetField("presentationSpace", fields).SetValue(runtime, root.transform);
+            typeof(PresentationBakedRuntime).GetField("clock", fields).SetValue(runtime,
+                new RuntimeClockSnapshot { RuntimeTimeMs = 1500, Running = new Running() });
+            var model = new GameObject("Model content"); model.transform.SetParent(root.transform, false);
+            try
+            {
+                typeof(PresentationBakedRuntime).GetMethod("HandleDisconnected", fields).Invoke(runtime, null);
+                Assert.That(decoders[1].Playing, Is.False, "disconnect must stop the independent decoder and audio");
+                Assert.That(root.activeSelf, Is.False);
+                Assert.That(model.activeInHierarchy, Is.False);
+                Assert.That(typeof(PresentationBakedRuntime).GetField("clock", fields).GetValue(runtime), Is.Null,
+                    "the next snapshot must establish a fresh local clock reference even if its value is unchanged");
+                Assert.That(decoders[1].Disposed, Is.False);
+                root.SetActive(true);
+                Assert.That(playback.TryUpdate(view, hierarchy, renderer, textures, 1750, out error, true), Is.True, error);
+                Assert.That(decoders[1].Playing, Is.True);
+                Assert.That(decoders[1].Seconds, Is.EqualTo(1.75));
+                Assert.That(model.activeInHierarchy, Is.True);
+                using (var reconnecting = new PresentationRealtimeConnection(new PresentationRuntimeDataStore(), textures))
+                {
+                    typeof(PresentationBakedRuntime).GetField("connection", fields).SetValue(runtime, reconnecting);
+                    typeof(PresentationBakedRuntime).GetMethod("Refresh", fields).Invoke(runtime, null);
+                    Assert.That(decoders[1].Playing, Is.False, "control updates cannot restart playback before a fresh state keyframe");
+                    Assert.That(root.activeSelf, Is.False);
+                    typeof(PresentationBakedRuntime).GetField("connection", fields).SetValue(runtime, null);
+                }
+            }
+            finally
+            {
+                typeof(PresentationBakedRuntime).GetField("presentationSpace", fields).SetValue(runtime, null);
+                UnityEngine.Object.DestroyImmediate(runtimeHost);
+                UnityEngine.Object.DestroyImmediate(model);
+            }
             view.MediaPlaying = false;
         }
         view.Current = 2; Assert.That(videos.TryUpdate(view, 0, out error), Is.True, error);

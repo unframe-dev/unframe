@@ -215,6 +215,11 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void Refresh()
         {
+            if (connection != null && !connection.SessionReady)
+            {
+                HandleDisconnected();
+                return;
+            }
             RefreshCalibration();
             RuntimeClockSnapshot latest = store.RuntimeClock;
             if (latest != null && (clock == null || latest.RuntimeTimeMs != clock.RuntimeTimeMs || latest.StatusCase != clock.StatusCase))
@@ -231,6 +236,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void HandleDisconnected()
         {
+            videos?.Pause();
+            clock = null;
             store.InvalidateAnchorSamples();
             stateApplier.ApplyAnchors(store, hierarchy);
             surfaceRenderer?.Disable();
