@@ -364,6 +364,12 @@ const scalarType = (value: unknown) => (value === null ? "null" : typeof value);
 const compareId = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 const runIdEquals = (a: RuntimeRunId, b: RuntimeRunId) =>
   a.assignmentEpoch === b.assignmentEpoch && a.runSequence === b.runSequence;
+const completionOrder: Record<RuntimeRun["kind"], number> = {
+  surfaceTransition: 0,
+  timeline: 1,
+  media: 2,
+  modelClip: 3,
+};
 const runTarget = (run: RuntimeRun | PendingRun) =>
   run.kind === "timeline"
     ? `timeline:${run.timelineId}`
@@ -853,6 +859,7 @@ export const advanceCueClock = (
       .sort(
         (a, b) =>
           a.deadline - b.deadline ||
+          completionOrder[a.run.kind] - completionOrder[b.run.kind] ||
           compareId(runTarget(a.run), runTarget(b.run)) ||
           a.run.runId.runSequence - b.run.runId.runSequence,
       )[0];
