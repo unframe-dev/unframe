@@ -4,7 +4,7 @@
   "presentationId": "demo",
   "sourceDraftRevision": 1,
   "definitionHash": "sha256:86adc688b680f1a55dfc54bb3d04ef757dae7a7275c9079e6a5c8cb25f8e5763",
-  "renderBundleHash": "sha256:69c14c9d3eb99f39ed83036355c2b8956c58494aaf138ee7970d95334f65ccab",
+  "renderBundleHash": "sha256:10fb5aeee4475843b3a2160c38adf3062ead1c3640a71dc671fd5e1fc2ecd2b4",
   "assetSetHash": "sha256:204a4e2ca13609d961ffb7bbb69646c240286a4242bf0650e725890c78a9e7b8",
   "contractVersions": {
     "definition": 2,
@@ -16,5 +16,5 @@
     "projection": 1
   },
   "publicationEpoch": 1,
-  "publicationManifestHash": "sha256:fea49d29fa26c1b777a4e0043d65734467b8d0b1cd92fc6e3c7e8bab9e3e5917"
+  "publicationManifestHash": "sha256:7bf26c03fae7f2c1b72a97fb169b124478b0a0ca8e886c45230a33e5a50efda3"
 }

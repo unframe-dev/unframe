@@ -285,6 +285,7 @@
       "maxBonesPerSkin": 0,
       "maxMorphTargetsPerPrimitive": 0,
       "animationClipCount": 1,
+      "textures": [],
       "materials": {
         "basic": {
           "sourceMaterialIndex": 0,

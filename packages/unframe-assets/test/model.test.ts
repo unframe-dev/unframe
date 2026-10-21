@@ -82,6 +82,124 @@ const alterGlb = (source: Uint8Array, change: (json: GLTF.IGLTF) => void) => {
   return output;
 };
 
+describe("embedded model texture admission", () => {
+  it("counts sampler variants of the same embedded image from the distributed GLB", async () => {
+    const { document } = await fixture();
+    document
+      .getRoot()
+      .listMeshes()[0]!
+      .listPrimitives()[0]!
+      .setAttribute(
+        "TEXCOORD_0",
+        document
+          .createAccessor()
+          .setType("VEC2")
+          .setArray(new Float32Array(6))
+          .setBuffer(document.getRoot().listBuffers()[0]!),
+      );
+    const texture = document
+      .createTexture()
+      .setMimeType("image/png")
+      .setImage(
+        Uint8Array.from(
+          Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==",
+            "base64",
+          ),
+        ),
+      );
+    const material = document.getRoot().listMaterials()[0]!;
+    material.setBaseColorTexture(texture).setEmissiveTexture(texture);
+    material.getEmissiveTextureInfo()!.setWrapS(33071);
+    const result = await transformGlb({
+      sourceId: "variants",
+      bytes: await new NodeIO().writeBinary(document),
+      limits,
+    });
+    assert.isTrue(result.valid);
+    const output = (await new NodeIO().binaryToJSON(result.value.bytes)).json;
+    expect(output.images).toHaveLength(1);
+    expect(output.textures).toHaveLength(2);
+    expect(result.value.descriptor.textures).toEqual([{ pixelSize: [1, 1], bindingCount: 4 }]);
+  });
+  it.each([2049, 4096])(
+    "rejects embedded texture width %s beyond the Unity import baseline",
+    async (width) => {
+      const { document } = await fixture();
+      document
+        .getRoot()
+        .listMeshes()[0]!
+        .listPrimitives()[0]!
+        .setAttribute(
+          "TEXCOORD_0",
+          document
+            .createAccessor()
+            .setType("VEC2")
+            .setArray(new Float32Array(6))
+            .setBuffer(document.getRoot().listBuffers()[0]!),
+        );
+      const png = Uint8Array.from(
+        Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      );
+      new DataView(png.buffer).setUint32(16, width);
+      document
+        .getRoot()
+        .listMaterials()[0]!
+        .setBaseColorTexture(document.createTexture().setImage(png).setMimeType("image/png"));
+      const result = await transformGlb({
+        sourceId: "wide",
+        bytes: await new NodeIO().writeBinary(document),
+        limits,
+      });
+      expect(result).toMatchObject({
+        valid: false,
+        diagnostics: [{ code: "model-budget-exceeded", path: ["bytes", "textures"] }],
+      });
+    },
+  );
+  it.each([1, 2048])(
+    "measures embedded texture width %s at the Unity import boundary",
+    async (width) => {
+      const { document } = await fixture();
+      document
+        .getRoot()
+        .listMeshes()[0]!
+        .listPrimitives()[0]!
+        .setAttribute(
+          "TEXCOORD_0",
+          document
+            .createAccessor()
+            .setType("VEC2")
+            .setArray(new Float32Array(6))
+            .setBuffer(document.getRoot().listBuffers()[0]!),
+        );
+      const png = Uint8Array.from(
+        Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      );
+      new DataView(png.buffer).setUint32(16, width);
+      document
+        .getRoot()
+        .listMaterials()[0]!
+        .setBaseColorTexture(document.createTexture().setImage(png).setMimeType("image/png"));
+      const result = await transformGlb({
+        sourceId: "wide",
+        bytes: await new NodeIO().writeBinary(document),
+        limits,
+      });
+      assert.isTrue(result.valid);
+      expect(result.value.descriptor.textures).toEqual([
+        { pixelSize: [width, 1], bindingCount: 2 },
+      ]);
+    },
+  );
+});
+
 describe("GLB build transformation", () => {
   it.each(["JOINTS_1", "WEIGHTS_1", "COLOR_1"])("diagnoses unsupported %s attributes", (name) => {
     expect(

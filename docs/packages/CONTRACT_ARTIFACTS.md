@@ -164,6 +164,7 @@ GLB は glTF 2.0 core と `KHR_materials_unlit` だけを許可する。`extensi
 `extensionsUsed` の各要素はこの allowlist 内で重複なしとし、UTF-16 code unit 昇順にする。
 Draco/Meshopt 圧縮、texture transform、clearcoat、transmission、lights、vendor extension は v2 で
 受理しない。buffer と image は GLB 内に埋め込み、image media type は PNG または JPEG とする。
+埋め込み画像は各辺2048、モデルごとの合計16 Mi pixelsまでとする。Bundleの`models[].textures`は画像のpixelSizeと、同じimageを参照するglTF texture数（最低1）の2倍をbindingCountとして保持する。配布判定では異なるモデルchecksumごとにRGBA32 GPU bytesとbindingsを計上し、Baked Web textureと合算して端末上限を検査する。
 
 Model の node/primitive/vertex/triangle 数、skin ごとの最大 bone 数、primitive ごとの最大 morph
 target 数、animation clip 数は、配布する GLB の default scene から到達する object を一度だけ数え、

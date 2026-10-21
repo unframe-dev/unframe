@@ -188,6 +188,12 @@ const compiledModelSchema = z.strictObject({
   maxBonesPerSkin: safeUIntSchema,
   maxMorphTargetsPerPrimitive: safeUIntSchema,
   animationClipCount: safeUIntSchema,
+  textures: z.array(
+    z.strictObject({
+      pixelSize: z.tuple([positiveSafeUIntSchema, positiveSafeUIntSchema]),
+      bindingCount: positiveSafeUIntSchema.multipleOf(2),
+    }),
+  ),
   requiredFeatures: z.array(
     z.enum([
       "alphaBlend",

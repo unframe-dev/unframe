@@ -1,4 +1,12 @@
-import { Accessor, Logger, NodeIO, type Document } from "@gltf-transform/core";
+import {
+  Accessor,
+  ImageUtils,
+  GLB_BUFFER,
+  Logger,
+  NodeIO,
+  type JSONDocument,
+  type Document,
+} from "@gltf-transform/core";
 import { KHRMaterialsUnlit } from "@gltf-transform/extensions";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -39,9 +47,9 @@ export type TransformedModel = {
 };
 export const MODEL_TRANSFORM_IDENTITY = Object.freeze({
   transformerId: "unframe-glb",
-  version: "2",
+  version: "3",
   fingerprint:
-    "gltf-transform-4.5.1-validator-dev3.10-unity-media-geometry160-morph48-curves64-uv0-v2",
+    "gltf-transform-4.5.1-validator-dev3.10-unity-media-geometry160-morph48-curves64-uv0-textures2048-v3",
 });
 
 const invalid = (
@@ -81,7 +89,55 @@ const hasUnknownExtension = (input: unknown): boolean => {
   });
 };
 
-const describeModel = (document: Document, bytes: Uint8Array): TransformedModel["descriptor"] => {
+const embeddedTextures = ({
+  json,
+  resources,
+}: JSONDocument): TransformedModel["descriptor"]["textures"] => {
+  let pixels = 0;
+  const variants = new Map<number, number>();
+  for (const texture of json.textures ?? []) {
+    if (texture.source !== undefined)
+      variants.set(texture.source, (variants.get(texture.source) ?? 0) + 1);
+  }
+  return (json.images ?? []).map((image, imageIndex) => {
+    const view = json.bufferViews?.[image.bufferView!];
+    const buffer = resources[GLB_BUFFER];
+    if (
+      !view ||
+      !buffer ||
+      image.uri !== undefined ||
+      !["image/png", "image/jpeg"].includes(image.mimeType ?? "")
+    )
+      throw new ModelRejection(
+        "model-resource-unsupported",
+        "Model images require embedded PNG/JPEG bytes.",
+      );
+    const start = view.byteOffset ?? 0;
+    const imageBytes = buffer.subarray(start, start + view.byteLength);
+    if (ImageUtils.getMimeType(imageBytes) !== image.mimeType)
+      throw new ModelRejection(
+        "model-invalid-glb",
+        "Model image bytes do not match their media type.",
+      );
+    const size = ImageUtils.getSize(imageBytes, image.mimeType!);
+    if (!size || size.some((value) => !Number.isSafeInteger(value) || value <= 0))
+      throw new ModelRejection("model-invalid-glb", "Model image dimensions are invalid.");
+    const bindingCount = Math.max(1, variants.get(imageIndex) ?? 0) * 2;
+    pixels += size[0] * size[1];
+    if (size[0] > 2048 || size[1] > 2048 || pixels > 16 * 1024 * 1024)
+      throw new ModelRejection(
+        "model-budget-exceeded",
+        "Model textures exceed the Unity import baseline.",
+      );
+    return { pixelSize: size, bindingCount };
+  });
+};
+
+const describeModel = (
+  document: Document,
+  bytes: Uint8Array,
+  textures: TransformedModel["descriptor"]["textures"],
+): TransformedModel["descriptor"] => {
   const root = document.getRoot();
   const scene = root.getDefaultScene();
   if (!scene) throw new ModelRejection("model-scene-required", "GLB must select a default scene.");
@@ -169,6 +225,7 @@ const describeModel = (document: Document, bytes: Uint8Array): TransformedModel[
     maxBonesPerSkin,
     maxMorphTargetsPerPrimitive,
     animationClipCount: Object.keys(clips).length,
+    textures,
     requiredFeatures: [...features].sort(),
     rootMotion: "removed",
     materials,
@@ -210,6 +267,7 @@ export const transformGlb = async (input: unknown): Promise<ValidationResult<Tra
   try {
     const parsed = await io.binaryToJSON(source);
     const json = parsed.json;
+    embeddedTextures(parsed);
     const structureIssue = checkModelStructure(json);
     if (structureIssue) return { valid: false, diagnostics: [structureIssue] };
     if (
@@ -325,7 +383,9 @@ export const transformGlb = async (input: unknown): Promise<ValidationResult<Tra
         "All buffers and PNG/JPEG images must be embedded in GLB buffer views.",
       );
     document = await io.readJSON(parsed);
-  } catch {
+  } catch (error) {
+    if (error instanceof ModelRejection)
+      return invalid(error.code, ["bytes", "textures"], error.message);
     return invalid("model-invalid-glb", ["bytes"], "Expected a self-contained glTF 2.0 binary.");
   }
   const scene = document.getRoot().getDefaultScene();
@@ -396,7 +456,11 @@ export const transformGlb = async (input: unknown): Promise<ValidationResult<Tra
     );
   let descriptor: TransformedModel["descriptor"];
   try {
-    descriptor = describeModel(await io.readBinary(bytes), bytes);
+    descriptor = describeModel(
+      await io.readBinary(bytes),
+      bytes,
+      embeddedTextures(await io.binaryToJSON(bytes)),
+    );
   } catch (error) {
     if (error instanceof ModelRejection) return invalid(error.code, ["bytes"], error.message);
     throw error;

@@ -368,9 +368,55 @@ export const selectDeliveryArtifactsParsed = (
     0,
     ...textures.map((texture) => texture.peakLoadCpuBytes),
   );
-  within(textures.length, capability.limits.texture.maxTextureBindings, "Texture bindings");
-  within(totalTextureGpuBytes, capability.limits.texture.maxGpuBytes, "Texture GPU bytes");
-  within(totalTextureGpuBytes, 268_435_456, "Texture baseline GPU bytes");
+  for (const model of modelByChecksum.values())
+    within(
+      sum(
+        model.textures.map((texture) =>
+          checkedMultiply(texture.pixelSize[0], texture.pixelSize[1], "Model texture pixels"),
+        ),
+        "Model texture pixels",
+      ),
+      16 * 1024 * 1024,
+      "Model texture baseline pixels",
+    );
+  const embeddedModelTextures = [...modelByChecksum.values()].flatMap((model) => model.textures);
+  let modelTextureGpuBytes = 0,
+    modelTextureBindings = 0;
+  for (const texture of embeddedModelTextures) {
+    const [width, height] = texture.pixelSize;
+    const pixels = checkedMultiply(width, height, "Model texture pixels");
+    within(width, 2048, "Model texture baseline width");
+    within(height, 2048, "Model texture baseline height");
+    within(width, capability.limits.texture.maxTextureWidth, "Model texture width");
+    within(height, capability.limits.texture.maxTextureHeight, "Model texture height");
+    within(pixels, capability.limits.texture.maxTexturePixels, "Model texture pixels");
+    modelTextureBindings = checkedAdd(
+      modelTextureBindings,
+      texture.bindingCount,
+      "Model texture bindings",
+    );
+    modelTextureGpuBytes = checkedAdd(
+      modelTextureGpuBytes,
+      checkedMultiply(
+        checkedMultiply(pixels, 4, "Model texture GPU bytes"),
+        texture.bindingCount,
+        "Model texture GPU bytes",
+      ),
+      "Model texture GPU bytes",
+    );
+  }
+  const combinedGpuBytes = checkedAdd(
+    totalTextureGpuBytes,
+    modelTextureGpuBytes,
+    "Texture GPU bytes",
+  );
+  within(
+    checkedAdd(textures.length, modelTextureBindings, "Texture bindings"),
+    capability.limits.texture.maxTextureBindings,
+    "Texture bindings",
+  );
+  within(combinedGpuBytes, capability.limits.texture.maxGpuBytes, "Texture GPU bytes");
+  within(combinedGpuBytes, 268_435_456, "Texture baseline GPU bytes");
   within(
     maximumTextureLoadCpuBytes,
     capability.limits.texture.maxSerialLoadCpuBytes,

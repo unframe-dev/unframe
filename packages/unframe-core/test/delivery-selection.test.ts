@@ -59,6 +59,73 @@ const baselineSource = (change?: (current: typeof source) => void) => {
 };
 
 describe("Delivery artifact selection and admission", () => {
+  it.each(["maxGpuBytes", "maxTextureBindings"] as const)(
+    "counts embedded model textures with baked textures against %s",
+    (limit) => {
+      const input = baselineSource((current) => {
+        current.renderBundle.models["model-asset"]!.textures = [
+          { pixelSize: [2, 2], bindingCount: 2 },
+        ];
+        current.capability.limits.texture[limit] = limit === "maxGpuBytes" ? 16_777_232 : 2;
+      });
+      expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow();
+    },
+  );
+  it("admits embedded and baked textures exactly at the combined budgets", () => {
+    const input = baselineSource((current) => {
+      current.renderBundle.models["model-asset"]!.textures = [
+        { pixelSize: [2, 2], bindingCount: 2 },
+      ];
+      current.capability.limits.texture.maxGpuBytes = 16_777_248;
+      current.capability.limits.texture.maxTextureBindings = 3;
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).not.toThrow();
+  });
+  it("counts textures from distinct models together", () => {
+    const input = baselineSource((current) => {
+      const model = current.renderBundle.models["model-asset"]!;
+      model.textures = [{ pixelSize: [2, 2], bindingCount: 2 }];
+      const node = current.definition.scene.nodes.model!;
+      assert(node.kind === "model");
+      current.definition.scene.nodes["model-second"] = {
+        ...structuredClone(node),
+        id: "model-second",
+        order: 5,
+        assetId: "model-second",
+      };
+      current.renderBundle.models["model-second"] = {
+        ...structuredClone(model),
+        assetId: "model-second",
+        checksum: `sha256:${"f".repeat(64)}`,
+      };
+      current.assetSet.assets["model-second"] = {
+        ...structuredClone(current.assetSet.assets["model-asset"]!),
+        checksum: `sha256:${"f".repeat(64)}`,
+      };
+      current.capability.limits.texture.maxTextureBindings = 4;
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(/Texture bindings/);
+  });
+
+  it("checks embedded model dimensions against the device profile", () => {
+    const input = baselineSource((current) => {
+      current.renderBundle.models["model-asset"]!.textures = [
+        { pixelSize: [2048, 1], bindingCount: 2 },
+      ];
+      current.capability.limits.texture.maxTextureHeight = 1024;
+      current.renderBundle.models["model-asset"]!.textures[0]!.pixelSize = [1, 2048];
+      for (const surface of Object.values(current.renderBundle.surfaces))
+        for (const render of Object.values(surface.renderSurfaces))
+          for (const artifact of Object.values(render.artifacts))
+            if (artifact.kind === "baked-web")
+              for (const state of Object.values(artifact.states)) {
+                state.texture.pixelSize = [2048, 1];
+                state.texture.gpuBytes = 8192;
+              }
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(/Model texture height/);
+  });
+
   it("builds the identical render and runtime projection without publication identity", () => {
     const { publishedPresentation: _, ...input } = baselineSource();
     const {
