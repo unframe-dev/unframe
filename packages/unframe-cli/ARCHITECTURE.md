@@ -159,11 +159,11 @@ package に移さない。
 ## 8. Local Author host
 
 `author` は native host の loopback に Web Inspector を配信し、Linux は `xdg-open`、macOS arm64 は `open` で起動 URL を開く。token 付き URL はログに出さず、origin だけを表示する。
-先に repository root で `pnpm --filter @unframe/web build:author` を実行する。
+先に repository root で `pnpm --filter @unframe/local-editor build` を実行する。
 起動は `pnpm --filter @unframe/unframe-cli presentation author /absolute/project`。
 Opaque preview には既存の固定 Browser と OS 別の隔離実行環境が必要である。
 
-`src/author/contract.ts` がローカル HTTP 境界、Compiler が Source patch、`app/web` が画面を所有する。
+`src/author/contract.ts` がローカル HTTP 境界、Compiler が Source patch、`app/local-editor` が画面を所有する。
 公開 scalar Props と host Transform を編集し、保存後に build を要求する。共有値・props spread は対象 Instance の局所 override として保存し、同一 session の Undo / Redo と継承への復帰を提供する。有限 State preview は Core の既存 Cue 実行器を使い、宣言済み操作と生成済み State 画像を接続する。React 内部の CSS 編集は提供しない。
 保存 revision と成功した preview revision を区別し、capture 失敗でも保存済み Source と以前の preview を保持する。
 認証・保存・回復規則は [実装契約](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) を参照。

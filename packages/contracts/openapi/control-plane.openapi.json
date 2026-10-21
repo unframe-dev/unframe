@@ -8407,6 +8407,31 @@
                     "session": {
                       "type": "object",
                       "properties": {
+                        "publicationFence": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "presentationId": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                            },
+                            "publicationEpoch": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            },
+                            "publicationManifestHash": {
+                              "type": "string",
+                              "pattern": "^sha256:[0-9a-f]{64}$"
+                            }
+                          },
+                          "required": [
+                            "presentationId",
+                            "publicationEpoch",
+                            "publicationManifestHash"
+                          ],
+                          "additionalProperties": false
+                        },
                         "id": {
                           "type": "string"
                         },
@@ -8446,6 +8471,7 @@
                         }
                       },
                       "required": [
+                        "publicationFence",
                         "id",
                         "presentationId",
                         "presenterId",
@@ -8588,6 +8614,36 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "No published presentation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -8630,6 +8686,31 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "publicationFence": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "presentationId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                        },
+                        "publicationEpoch": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "publicationManifestHash": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        }
+                      },
+                      "required": [
+                        "presentationId",
+                        "publicationEpoch",
+                        "publicationManifestHash"
+                      ],
+                      "additionalProperties": false
+                    },
                     "id": {
                       "type": "string"
                     },
@@ -8669,6 +8750,7 @@
                     }
                   },
                   "required": [
+                    "publicationFence",
                     "id",
                     "presentationId",
                     "presenterId",
@@ -8866,6 +8948,31 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "publicationFence": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "presentationId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                        },
+                        "publicationEpoch": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "publicationManifestHash": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        }
+                      },
+                      "required": [
+                        "presentationId",
+                        "publicationEpoch",
+                        "publicationManifestHash"
+                      ],
+                      "additionalProperties": false
+                    },
                     "id": {
                       "type": "string"
                     },
@@ -8905,6 +9012,7 @@
                     }
                   },
                   "required": [
+                    "publicationFence",
                     "id",
                     "presentationId",
                     "presenterId",
@@ -9072,6 +9180,31 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "publicationFence": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "presentationId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                        },
+                        "publicationEpoch": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "publicationManifestHash": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        }
+                      },
+                      "required": [
+                        "presentationId",
+                        "publicationEpoch",
+                        "publicationManifestHash"
+                      ],
+                      "additionalProperties": false
+                    },
                     "id": {
                       "type": "string"
                     },
@@ -9111,6 +9244,7 @@
                     }
                   },
                   "required": [
+                    "publicationFence",
                     "id",
                     "presentationId",
                     "presenterId",
@@ -9308,6 +9442,31 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "publicationFence": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "presentationId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                        },
+                        "publicationEpoch": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "publicationManifestHash": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        }
+                      },
+                      "required": [
+                        "presentationId",
+                        "publicationEpoch",
+                        "publicationManifestHash"
+                      ],
+                      "additionalProperties": false
+                    },
                     "id": {
                       "type": "string"
                     },
@@ -9347,6 +9506,7 @@
                     }
                   },
                   "required": [
+                    "publicationFence",
                     "id",
                     "presentationId",
                     "presenterId",

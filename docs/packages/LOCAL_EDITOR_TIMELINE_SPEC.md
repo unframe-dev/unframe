@@ -11,7 +11,7 @@ Status: 実装スコープ確定。読み取り専用の構造・時間関係の
 ## 入力と責務
 
 - 既存 Local Author API の `ProjectSnapshot.definition` に含まれる、検証済み `PresentationDefinition.flow` を使用する。Web 側で Authoring Source を再 parse しない。
-- `app/web/src/features/editor/` に表示モデルへの純粋な変換処理と表示コンポーネントを置く。選択・展開・ズームなどの UI 状態は変換処理から分離する。
+- `app/local-editor/src/features/editor/` に表示モデルへの純粋な変換処理と表示コンポーネントを置く。選択・展開・ズームなどの UI 状態は変換処理から分離する。
 - 定義・保存は既存 Host／Compiler が所有する。初期表示のための新しい保存 API や Runtime は追加しない。
 
 ## 表示と操作

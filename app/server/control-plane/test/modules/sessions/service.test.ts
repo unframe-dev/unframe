@@ -6,6 +6,7 @@ import type {
 } from "../../../src/presentation/repository";
 import type {
   JoinResult,
+  SessionCreateRecord,
   SessionParticipant,
   SessionRecord,
   SessionRepository,
@@ -31,9 +32,19 @@ class FakeSessions implements SessionRepository {
   attempts: Array<{ codeHash: string; userId: string; ipAddress: string; attemptedAt: number }> =
     [];
 
-  async create(record: SessionRecord, presenter: SessionParticipant) {
+  async create(input: SessionCreateRecord, presenter: SessionParticipant) {
+    const record = {
+      ...input,
+      publicationEpoch: 1,
+      publicationFence: {
+        presentationId: input.presentationId,
+        publicationEpoch: 1,
+        publicationManifestHash: `sha256:${"a".repeat(64)}`,
+      },
+    };
     this.records.set(record.id, record);
     this.participants.set(`${presenter.sessionId}:${presenter.userId}`, presenter);
+    return record;
   }
   async findById(id: string) {
     return this.records.get(id) ?? null;

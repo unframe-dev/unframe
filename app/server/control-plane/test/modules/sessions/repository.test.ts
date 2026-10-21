@@ -1,6 +1,8 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
+import publishedPresentation from "../../../../../../packages/contracts/presentation/fixtures/published-presentation.json";
+
 import { D1SessionRepository } from "../../../src/modules/sessions/repository";
 
 const addUser = async (id: string) => {
@@ -17,6 +19,17 @@ const addPresentation = async (id: string, ownerId: string) => {
   )
     .bind(id, ownerId, 1, '{"groups":[],"assets":[]}', "2026-01-01", "2026-01-01")
     .run();
+  await env.DB.batch([
+    env.DB.prepare(
+      "INSERT INTO presentation_builds (presentation_id, build_id, target_revision, artifacts, created_at) VALUES (?, 'test-build', 1, '{}', '2026')",
+    ).bind(id),
+    env.DB.prepare(
+      "INSERT INTO presentation_publications (presentation_id, epoch, build_id, manifest, published_at) VALUES (?, 1, 'test-build', ?, '2026')",
+    ).bind(
+      id,
+      JSON.stringify({ ...publishedPresentation, presentationId: id, publicationEpoch: 1 }),
+    ),
+  ]);
 };
 
 describe("D1SessionRepository", () => {
@@ -27,15 +40,20 @@ describe("D1SessionRepository", () => {
     const sessionId = `session-${suffix}`;
     await addUser(ownerId);
     await addPresentation(presentationId, ownerId);
-    await env.DB.batch([
-      env.DB.prepare(
-        "INSERT INTO presentation_builds (presentation_id, build_id, target_revision, artifacts, created_at) VALUES (?, ?, 1, '{}', '2026')",
-      ).bind(presentationId, `build-${suffix}`),
-      env.DB.prepare(
-        "INSERT INTO presentation_publications (presentation_id, epoch, build_id, manifest, published_at) VALUES (?, 1, ?, '{}', '2026')",
-      ).bind(presentationId, `build-${suffix}`),
-    ]);
-    await new D1SessionRepository(env.DB).create(
+    await env.DB.prepare(
+      "INSERT INTO presentation_publications (presentation_id, epoch, build_id, manifest, published_at) VALUES (?, 2, 'test-build', ?, '2026')",
+    )
+      .bind(
+        presentationId,
+        JSON.stringify({
+          ...publishedPresentation,
+          presentationId,
+          publicationEpoch: 2,
+          publicationManifestHash: `sha256:${"b".repeat(64)}`,
+        }),
+      )
+      .run();
+    const created = await new D1SessionRepository(env.DB).create(
       {
         id: sessionId,
         presentationId,
@@ -54,7 +72,28 @@ describe("D1SessionRepository", () => {
     )
       .bind(sessionId)
       .first<{ epoch: number }>();
-    expect(pinned?.epoch).toBe(1);
+    expect(pinned?.epoch).toBe(2);
+    expect(created?.publicationFence).toEqual({
+      presentationId,
+      publicationEpoch: 2,
+      publicationManifestHash: `sha256:${"b".repeat(64)}`,
+    });
+    await env.DB.prepare(
+      "INSERT INTO presentation_publications (presentation_id, epoch, build_id, manifest, published_at) VALUES (?, 3, 'test-build', ?, '2026')",
+    )
+      .bind(
+        presentationId,
+        JSON.stringify({ ...publishedPresentation, presentationId, publicationEpoch: 3 }),
+      )
+      .run();
+    await expect(new D1SessionRepository(env.DB).findById(sessionId)).resolves.toMatchObject({
+      publicationEpoch: 2,
+      publicationFence: {
+        presentationId,
+        publicationEpoch: 2,
+        publicationManifestHash: `sha256:${"b".repeat(64)}`,
+      },
+    });
   });
   it("persists only a join-code hash and its presenter participant", async () => {
     const suffix = crypto.randomUUID();

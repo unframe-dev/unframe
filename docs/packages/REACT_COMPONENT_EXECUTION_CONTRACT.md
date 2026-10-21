@@ -128,7 +128,7 @@ React JSX と Structured JSX は別の TypeScript Program で検査する。静�
 
 ## 2. Editor host と通信
 
-host は `unframe author <absolute-project-directory>` で起動する Linux / macOS arm64 の native process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。対応範囲と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Web の UI は `app/web`、process / filesystem は CLI、pure command と patch は Compiler が所有する。API 型はこのローカル境界の所有 package に置き、Control Plane の公開 API や Realtime wire を変更しない。
+host は `unframe author <absolute-project-directory>` で起動する Linux / macOS arm64 の native process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。対応範囲と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Local Editor の UI は `app/local-editor`、process / filesystem は CLI、pure command と patch は Compiler が所有する。API 型はこのローカル境界の所有 package に置き、Control Plane の公開 API や Realtime wire を変更しない。
 
 loopback IPv4 のランダム port に bind し、期待する `Host` を完全一致で検査する。起動時の 256-bit session token を起動 URL の fragment で Editor に渡し、Editor は取得後すぐ URL から除去してメモリだけに保持する。API / artifact の読み取りも `Authorization: Bearer` を必須とする。token を query、cookie、永続 storage、ログへ保存しない。state-changing request は同一 Origin と JSON content type を必須とし、CORS は許可しない。host 再起動で token は失効する。
 

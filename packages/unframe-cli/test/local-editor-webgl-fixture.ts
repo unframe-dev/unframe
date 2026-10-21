@@ -28,7 +28,7 @@ const installFrozenGraph = async (directory: string) => {
       }
     >;
   };
-  const web = lock.importers["app/web"]!;
+  const web = lock.importers["app/local-editor"]!;
   const runtimeNames = ["react", "react-dom"];
   const typeNames = ["@types/react", "@types/react-dom"];
   const dependencies = Object.fromEntries(
@@ -77,7 +77,7 @@ const installFrozenGraph = async (directory: string) => {
     }),
   );
   await writeFile(join(directory, "pnpm-lock.yaml"), stringify(lock));
-  const require = createRequire(join(repository, "app/web/package.json"));
+  const require = createRequire(join(repository, "app/local-editor/package.json"));
   const roots = new Map<string, string>();
   for (const name of [...runtimeNames, ...typeNames])
     roots.set(name, dirname(require.resolve(`${name}/package.json`)));

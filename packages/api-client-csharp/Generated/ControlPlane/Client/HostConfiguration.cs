@@ -109,12 +109,12 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPost201ResponseContractVersionsJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPostRequestJsonConverter());
-            _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFenceJsonConverter());
             _jsonOptions.Converters.Add(new SessionsIdBootstrapPost200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new SessionsIdBootstrapPost200ResponsePublicationFenceJsonConverter());
             _jsonOptions.Converters.Add(new SessionsJoinPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new SessionsPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new SessionsPost201ResponseSessionJsonConverter());
+            _jsonOptions.Converters.Add(new SessionsPost201ResponseSessionPublicationFenceJsonConverter());
             _jsonOptions.Converters.Add(new SessionsPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new SessionsSessionIdDeliveryPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new SessionsSessionIdRuntimeAssignmentGet200ResponseJsonConverter());

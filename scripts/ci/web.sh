@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# app/web (React 動的編集エディタ) の品質処理。
+# app/web (React management SPA) の品質処理。
 #   check (既定): check / test / build
 #   fix         : vp fmt (format)
 # 現行は app/web 未実装のため package.json が無ければスキップする (ADR-0004 follow-up)。
