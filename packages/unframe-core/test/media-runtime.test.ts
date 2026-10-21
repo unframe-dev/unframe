@@ -56,6 +56,80 @@ describe("canonical media and model playback", () => {
     const { definition } = setup();
     expect(() => createCueState(definition, 1)).toThrow(/RenderBundle/);
   });
+  it.each([1e-300, Number.MIN_VALUE])(
+    "rejects an unrepresentable model deadline at speed %s atomically",
+    (speed) => {
+      const { state, fire } = setup();
+      const result = fire(state, [
+        { kind: "media.play", surfaceId: "video" },
+        { ...play, speed },
+      ]);
+      expect(result.outcome).toEqual({
+        kind: "rejected",
+        cueId: "playback",
+        reason: "invalidActionValue",
+      });
+      expect(result.state).toBe(state);
+      expect(state.lastRunSequence).toBe(0);
+      expect(state.activeRuns).toEqual([]);
+    },
+  );
+  it("rejects a crossfade whose target clip deadline overflows before replacing its source", () => {
+    const { state, fire } = setup();
+    const started = fire(state, [play]).state;
+    const result = fire(started, [
+      {
+        ...play,
+        speed: 1e-300,
+        transition: { kind: "crossfade", durationMilliseconds: 100, easing: "linear" },
+      },
+    ]);
+    expect(result.outcome).toEqual({
+      kind: "rejected",
+      cueId: "playback",
+      reason: "invalidActionValue",
+    });
+    expect(result.state).toBe(started);
+    expect(started.lastRunSequence).toBe(1);
+    expect(started.activeRuns[0]).toMatchObject({ phase: { kind: "single" } });
+  });
+  it("accounts for elapsed runtime when checking the model deadline", () => {
+    const { definition, state, fire } = setup();
+    const current = advanceCueClock(definition, state, Number.MAX_SAFE_INTEGER - 999).state;
+    const result = fire(current, [{ ...play, speed: 1 }]);
+    expect(result.outcome).toMatchObject({ kind: "rejected", reason: "invalidActionValue" });
+    expect(result.state).toBe(current);
+    const accepted = fire(current, [{ ...play, speed: 2 }]);
+    expect(accepted.outcome.kind).toBe("accepted");
+  });
+  it("rejects resuming a model when its rebased deadline overflows", () => {
+    const { definition, state, fire } = setup();
+    let current = fire(state, [{ ...play, speed: 1 }]).state;
+    current = fire(current, [{ kind: "modelClip.pause", nodeId: "model" }]).state;
+    current = advanceCueClock(definition, current, Number.MAX_SAFE_INTEGER - 999).state;
+    const result = fire(current, [{ kind: "modelClip.resume", nodeId: "model" }]);
+    expect(result.outcome).toMatchObject({ kind: "rejected", reason: "invalidActionValue" });
+    expect(result.state).toBe(current);
+    expect(current.activeRuns[0]).toMatchObject({
+      phase: { clip: { playback: { kind: "paused" } } },
+    });
+  });
+  it("rejects resuming a crossfade when its rebased fade deadline overflows", () => {
+    const { definition, state, fire } = setup();
+    let current = fire(state, [{ ...play, loop: true }]).state;
+    current = fire(current, [
+      {
+        ...play,
+        loop: true,
+        transition: { kind: "crossfade", durationMilliseconds: 100, easing: "linear" },
+      },
+    ]).state;
+    current = fire(current, [{ kind: "modelClip.pause", nodeId: "model" }]).state;
+    current = advanceCueClock(definition, current, Number.MAX_SAFE_INTEGER - 99).state;
+    const result = fire(current, [{ kind: "modelClip.resume", nodeId: "model" }]);
+    expect(result.outcome).toMatchObject({ kind: "rejected", reason: "invalidActionValue" });
+    expect(result.state).toBe(current);
+  });
   it("pauses and resumes a speed-adjusted model without changing its Run ID", () => {
     const { definition, state, fire } = setup();
     const started = fire(state, [play]);

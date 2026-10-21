@@ -118,15 +118,22 @@ const held = (state: CueState, id: string, clip: Clip): Held => ({
     state.runtimeTimeMilliseconds,
   ),
 });
+const deadlineValue = (clock: Clock, duration: number, speed = 1): number =>
+  clock.kind === "paused"
+    ? Infinity
+    : clock.referenceRuntimeTimeMilliseconds +
+      Math.ceil(Math.max(0, duration - clock.positionAtReferenceMilliseconds) / speed);
 const deadline = (clock: Clock, duration: number, speed = 1): number => {
-  if (clock.kind === "paused") return Infinity;
-  const result =
-    clock.referenceRuntimeTimeMilliseconds +
-    Math.ceil(Math.max(0, duration - clock.positionAtReferenceMilliseconds) / speed);
+  const result = deadlineValue(clock, duration, speed);
+  if (clock.kind === "paused") return result;
   if (!Number.isSafeInteger(result))
     throw new RangeError("Logical playback deadline exceeds the safe integer range.");
   return result;
 };
+const hasSafeClipDeadline = (clip: Clip, duration: number): boolean =>
+  clip.loop ||
+  clip.playback.kind === "paused" ||
+  Number.isSafeInteger(deadlineValue(clip.playback, duration, clip.speed));
 export const playbackDeadline = (state: CueState, run: ModelRun | MediaRun): number => {
   if (run.kind === "media") {
     const spec = state.playbackCatalog.media[run.surfaceId]![state.surfaces[run.surfaceId]!]!;
@@ -302,12 +309,21 @@ export const applyPlaybackAction = (
     const rebaseClip = (clip: Clip) => {
       clip.playback = rebase(clip.playback, position(clip, durations[clip.clipId]!, now));
     };
-    if (run.phase.kind === "single") rebaseClip(run.phase.clip);
-    else {
+    if (run.phase.kind === "single") {
+      rebaseClip(run.phase.clip);
+      if (!hasSafeClipDeadline(run.phase.clip, durations[run.phase.clip.clipId]!))
+        return "invalidActionValue";
+    } else {
       const fade = run.phase.transition;
       if (!fade.fromIsHeld) rebaseClip(fade.from);
       rebaseClip(fade.to);
       fade.transitionClock = rebase(fade.transitionClock, rawPosition(fade.transitionClock, now));
+      if (
+        !hasSafeClipDeadline(fade.to, durations[fade.to.clipId]!) ||
+        (fade.transitionClock.kind === "playing" &&
+          !Number.isSafeInteger(deadlineValue(fade.transitionClock, fade.durationMilliseconds)))
+      )
+        return "invalidActionValue";
     }
     return;
   }
@@ -326,8 +342,11 @@ export const applyPlaybackAction = (
     speed: action.speed,
     loop: action.loop,
   };
+  if (!hasSafeClipDeadline(clip, durations[clip.clipId]!)) return "invalidActionValue";
   let phase: ModelRun["phase"] = { kind: "single", clip };
   if (action.transition.kind === "crossfade") {
+    if (!Number.isSafeInteger(now + action.transition.durationMilliseconds))
+      return "invalidActionValue";
     if (current.kind === "defaultPose" || current.kind === "heldBlend") return "conflict";
     const from =
       current.kind === "heldClip"
