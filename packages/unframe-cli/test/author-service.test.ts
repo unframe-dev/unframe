@@ -1,6 +1,6 @@
-import { copyProjectFixture } from "./project-fixture.js";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -111,6 +111,49 @@ const setTitle = (snapshot: ProjectSnapshot, value: string, character: string) =
 });
 
 describe("author service with frozen React source", () => {
+  it("evicts completed jobs and request IDs together while protecting active work", async () => {
+    const directory = await createProject();
+    let release: (() => void) | undefined;
+    let block = false;
+    const run = vi.fn(async () => {
+      if (block)
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      return { exitCode: 1 as const, stdout: "", stderr: "failed" };
+    });
+    const service = await createAuthorService(directory, { run, maxCompletedJobs: 1 });
+    services.push(service);
+    const snapshot = await service.project();
+    const first = await service.build(snapshot.revision, commandId("a"), "dist");
+    await expect.poll(async () => (await service.job(first.buildId)).status).toBe("failed");
+    expect((await service.build(snapshot.revision, commandId("a"), "dist")).buildId).toBe(
+      first.buildId,
+    );
+    await expect(
+      service.build(snapshot.revision + "x", commandId("a"), "dist"),
+    ).rejects.toMatchObject({ code: "author-request-id-conflict" });
+    block = true;
+    const active = await service.build(snapshot.revision, commandId("b"), "dist");
+    await expect.poll(() => release).toBeDefined();
+    expect((await service.build(snapshot.revision, commandId("b"), "dist")).buildId).toBe(
+      active.buildId,
+    );
+    expect((await service.job(first.buildId)).status).toBe("failed");
+    assert(release);
+    release();
+    await expect.poll(async () => (await service.job(active.buildId)).status).toBe("failed");
+    await expect(service.job(first.buildId)).rejects.toMatchObject({ status: 404 });
+    await expect(
+      service.build(snapshot.revision + "x", commandId("a"), "dist"),
+    ).rejects.toMatchObject({ code: "author-revision-mismatch" });
+    block = false;
+    const repeated = await service.build(snapshot.revision, commandId("a"), "dist");
+    expect(repeated.buildId).not.toBe(first.buildId);
+    await expect.poll(async () => (await service.job(repeated.buildId)).status).toBe("failed");
+    await expect(service.job(active.buildId)).rejects.toMatchObject({ status: 404 });
+    expect(run).toHaveBeenCalledTimes(3);
+  }, 60_000);
   it("keeps request replay and job history after evicting older image bytes", async () => {
     const directory = await createProject();
     let builds = 0;

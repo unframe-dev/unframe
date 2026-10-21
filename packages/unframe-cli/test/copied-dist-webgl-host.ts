@@ -3,7 +3,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { runPresentationCli } from "../src/index.js";
 import { startDistPreviewHost } from "../src/author/start.js";
-import { copyProjectFixture } from "./project-fixture.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const source = await mkdtemp(join(temporaryDirectory(), "unframe-dist-source-"));
 const destination = await mkdtemp(join(temporaryDirectory(), "unframe-dist-copy-"));

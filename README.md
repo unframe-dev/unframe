@@ -1,13 +1,13 @@
 # Unframe
 
-Unframe は、MR（Mixed Reality）空間で利用するプレゼンテーションを Web で作成し、Unity アプリケーションで表示するためのプラットフォームです。
+Unframe は、MR（Mixed Reality）空間で利用するプレゼンテーションをローカル Source から作成し、Unity アプリケーションで表示するためのプラットフォームです。
 
 ## プロダクト概要
 
 3D モデルや画像、テキストをプレゼンテーションの要素として MR 空間へ配置し、発表者の位置移動、身体動作、コントローラー入力に応じて表示・移動・変形させます。一つの MR 空間の中で発表内容を段階的に展開することを目指します。
 
 ```text
-Web Editor
+Local Editor / CLI
     │ プレゼンテーションを作成・編集
     ▼
 Control Plane
@@ -23,7 +23,8 @@ MR デバイス上でプレゼンテーションを表示
 
 | コンポーネント              | 役割                                                   | 技術                                             |
 | --------------------------- | ------------------------------------------------------ | ------------------------------------------------ |
-| Web Editor（WIP）           | プレゼンテーションの作成・編集                         | React 19                                         |
+| Web（WIP）                  | 認証、公開済み Dist の確認、ルーム作成                 | React 19                                         |
+| Local Editor（WIP）         | Source 編集、build、Unity Preview、CLI 経由の公開      | React 19 / CLI                                   |
 | Control Plane（WIP）        | 認証・認可、durable resource、asset、session bootstrap | Cloudflare Workers / TypeScript / Hono / D1 / R2 |
 | Realtime Backend（WIP）     | session 中の低遅延状態同期                             | Go / gRPC / container                            |
 | Unity MR Application（WIP） | MR 表示と realtime session 参加                        | Unity / C#                                       |
@@ -35,13 +36,14 @@ MR デバイス上でプレゼンテーションを表示
 
 ## 現在のステータス
 
-`app/` 配下のアプリケーションと `lp/` は WIP です。Control Plane は認証、Presentation / Asset API、Session lifecycle と Realtime bootstrap を実装しています。Realtime Backend は認証付き gRPC 接続と page-change の in-memory fan-out を実装していますが、replay / resume や完全な Runtime 同期は未実装です。Web Editor は認証画面と fixture を使う 3D Editor を持ち、Presentation のサーバー永続化と asset upload は未接続です。Unity はローカル JSON importer と presentation element loader を実装しています。変換 pipeline と background job は未実装です。
+`app/` 配下のアプリケーションと `lp/` は WIP です。Control Plane は認証、Presentation / Asset API、Session lifecycle と Realtime bootstrap を実装しています。Realtime Backend は認証付き gRPC 接続と page-change の in-memory fan-out を実装していますが、replay / resume や完全な Runtime 同期は未実装です。Web は認証・公開済み Dist の確認・ルーム作成を担当し、Local Editor はローカル Source の編集・Unity Preview と CLI 経由の公開を担当します。Unity はローカル JSON importer と presentation element loader を実装しています。変換 pipeline と background job は未実装です。
 
 ## リポジトリ
 
 ```text
 app/
-├── web/       React ベースの Web Editor
+├── web/       認証・公開済み Dist 確認・ルーム作成
+├── local-editor/ ローカル Source 編集・Unity Preview
 ├── server/    Control Plane / Realtime Backend
 └── unity/     Unity ベースの MR Application
 

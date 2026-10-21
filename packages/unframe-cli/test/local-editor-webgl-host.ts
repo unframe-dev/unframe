@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { runPresentationCli } from "../src/index.js";
 import { mkdtemp, rm } from "node:fs/promises";
-import { copyProjectFixture } from "./project-fixture.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import { createWebglCaptureProject } from "./local-editor-webgl-fixture.js";
 import { createAuthorService } from "../src/author/service.js";
 import { startAuthorHost } from "../src/author/http.js";
@@ -22,7 +22,7 @@ if (process.env["UNFRAME_WEBGL_FIXTURE"] === "media") {
 }
 const service = await createAuthorService(directory);
 const previews = createLocalPreviewService(directory);
-const assets = await loadAuthorAssets(join(repository, "app/web/dist-editor"));
+const assets = await loadAuthorAssets(join(repository, "app/local-editor/dist"));
 for (const [path, asset] of await loadUnityPreviewAssets(
   join(repository, ".unframe/unity-preview/UnframePreview"),
 ))

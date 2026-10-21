@@ -1,4 +1,4 @@
-import { copyProjectFixture } from "./project-fixture.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import {
   lstat,
   mkdtemp,
@@ -529,9 +529,10 @@ describe("reference Authoring Project", () => {
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
   });
   it("checks without reading or launching a Browser", async () => {
+    const directory = await projectCopy();
     let browserReads = 0;
     const result = await runPresentationCli({
-      args: ["check", referenceDirectory, "--format", "json"],
+      args: ["check", directory, "--format", "json"],
       host: {
         openFixedBrowser: async () => {
           browserReads += 1;

@@ -98,7 +98,9 @@ func (s *V2Session) LeaveParticipant(ctx context.Context, identity session.Ident
 	return nil
 }
 
-func (s *V2Session) SnapshotPresenceAndSubscribe() (*realtimev2.CanonicalRuntimeSnapshot, *realtimev2.ProjectedPresenceState, <-chan *realtimev2.ProjectedReliableEvent, func()) {
+// SnapshotPresenceAndSubscribe also reports whether preparation overflowed the
+// queue, without consuming events or racing the session producer.
+func (s *V2Session) SnapshotPresenceAndSubscribe() (*realtimev2.CanonicalRuntimeSnapshot, *realtimev2.ProjectedPresenceState, <-chan *realtimev2.ProjectedReliableEvent, func(), func() bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stream := make(chan *realtimev2.ProjectedReliableEvent, 1024)
@@ -122,7 +124,13 @@ func (s *V2Session) SnapshotPresenceAndSubscribe() (*realtimev2.CanonicalRuntime
 			}
 		})
 	}
-	return snapshot, presence, stream, closeSubscription
+	active := func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		_, found := s.subscribers[stream]
+		return found
+	}
+	return snapshot, presence, stream, closeSubscription, active
 }
 
 func v2SessionRole(role session.Role) presentationv2.SessionRole {

@@ -83,7 +83,14 @@ export const validateRuntimeVisibilitySelection = (
   definition: PresentationDefinition,
   input: unknown,
 ): string[] => {
-  const parsed = runtimeVisibilitySelectionSchema.safeParse(input);
+  const frozenDefinition = snapshotPlainJson(definition);
+  const frozenInput = snapshotPlainJson(input);
+  if (!frozenDefinition.valid || !frozenInput.valid)
+    return ["Runtime visibility inputs must be plain JSON data properties."];
+  const parsedDefinition = presentationDefinitionSchema.safeParse(frozenDefinition.value);
+  if (!parsedDefinition.success) return parsedDefinition.error.issues.map((issue) => issue.message);
+  definition = parsedDefinition.data;
+  const parsed = runtimeVisibilitySelectionSchema.safeParse(frozenInput.value);
   if (!parsed.success) return parsed.error.issues.map((issue) => issue.message);
   try {
     const expected = visibleResources(definition, parsed.data.role);
@@ -115,10 +122,17 @@ export const validateM3dCueRuntimeSnapshot = (
   assignmentEpoch: number,
   complete = false,
 ): string[] => {
-  const parsed = canonicalRuntimeSnapshotSchema.safeParse(input);
+  const frozenDefinition = snapshotPlainJson(definition);
+  const frozenInput = snapshotPlainJson(input);
+  if (!frozenDefinition.valid || !frozenInput.valid)
+    return ["Runtime snapshot inputs must be plain JSON data properties."];
+  const parsedDefinition = presentationDefinitionSchema.safeParse(frozenDefinition.value);
+  if (!parsedDefinition.success) return parsedDefinition.error.issues.map((issue) => issue.message);
+  definition = parsedDefinition.data;
+  const parsed = canonicalRuntimeSnapshotSchema.safeParse(frozenInput.value);
   if (!parsed.success) return parsed.error.issues.map((issue) => issue.message);
   if (!complete) {
-    const subset = m3dCueRuntimeSnapshotSchema.safeParse(input);
+    const subset = m3dCueRuntimeSnapshotSchema.safeParse(frozenInput.value);
     if (!subset.success) return subset.error.issues.map((issue) => issue.message);
   }
   const snapshot = parsed.data;

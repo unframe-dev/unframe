@@ -1,4 +1,4 @@
-import { copyProjectFixture } from "./project-fixture.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";

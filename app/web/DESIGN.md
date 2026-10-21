@@ -2,21 +2,21 @@
 
 ## Purpose
 
-`app/web` は、ユーザーが空間プレゼンテーションを管理・編集するための作業環境です。ブランドとプロダクトの価値を伝える LP とは役割を分けつつ、色、タイポグラフィ、言葉の温度は [`lp/DESIGN.md`](../../lp/DESIGN.md) と一貫させます。
+`app/web` は、ユーザーが空間プレゼンテーションを管理するための作業環境です。ブランドとプロダクトの価値を伝える LP とは役割を分けつつ、色、タイポグラフィ、言葉の温度は [`lp/DESIGN.md`](../../lp/DESIGN.md) と一貫させます。
 
-| Surface           | Responsibility                                          |
-| ----------------- | ------------------------------------------------------- |
-| LP / Site         | ブランド、価値、ニュース、ドキュメントを伝える          |
-| Web Application   | 認証、Presentation 管理、編集、アカウント設定を提供する |
-| Unity Application | Presentation の実行、Session、Realtime 操作を提供する   |
+| Surface           | Responsibility                                                 |
+| ----------------- | -------------------------------------------------------------- |
+| LP / Site         | ブランド、価値、ニュース、ドキュメントを伝える                 |
+| Web Application   | 認証、公開済み Dist 確認、ルーム作成、アカウント設定を提供する |
+| Unity Application | Presentation の実行、Session、Realtime 操作を提供する          |
 
-Web の責務と技術境界は [`ARCHITECTURE.md`](./ARCHITECTURE.md) を正本とします。この文書は画面全体に共通する視覚・操作方針を定義し、Editor 固有の情報設計は確定させません。
+Web の責務と技術境界は [`ARCHITECTURE.md`](./ARCHITECTURE.md) を正本とします。この文書は画面全体に共通する視覚・操作方針を定義し、ローカル Source 編集は [Local Editor](../local-editor/README.md) が担当します。
 
 ## Design Principles
 
 ### 作業を最短距離にする
 
-Home は marketing page ではなく、次に開く Presentation を選ぶ workspace です。認証画面は本人確認を、Settings はアカウント管理を、Editor は制作を主目的とし、各画面の主要 action を一つに絞ります。
+Home は marketing page ではなく、次に開く Presentation を選ぶ workspace です。認証画面は本人確認を、Settings はアカウント管理を、Rooms はルーム作成を主目的とし、各画面の主要 action を一つに絞ります。
 
 ### 状態を隠さない
 
@@ -30,30 +30,28 @@ LP より高い情報密度を許容しますが、機能を常時並べませ�
 
 未実装の保存、共有、変換、公開を利用可能な action として表示しません。機能を無効なボタンで予告するのではなく、利用できる段階で導入します。
 
-### PoC を設計制約にしない
-
-現行の Slide fixture と `localStorage` persistence は移行中の fixture adapter です。これらのデータ構造と保存フローとの互換性を新しい UI の要件にしません。
-
 ## Information Architecture
 
 ### Routes
 
-| Route                      | Purpose                | Authentication |
-| -------------------------- | ---------------------- | -------------- |
-| `/login/`                  | ログイン               | Public         |
-| `/signup/`                 | アカウント作成         | Public         |
-| `/recover/*`               | アカウント復旧         | Public         |
-| `/device/`                 | Device Authorization   | Public         |
-| `/home/`                   | Presentation 一覧      | Required       |
-| `/editor/:presentationId/` | Presentation 編集      | Required       |
-| `/settings/profile/`       | プロフィール設定       | Required       |
-| `/settings/security/`      | 認証・セキュリティ設定 | Required       |
+| Route                             | Purpose                | Authentication |
+| --------------------------------- | ---------------------- | -------------- |
+| `/login/`                         | ログイン               | Public         |
+| `/signup/`                        | アカウント作成         | Public         |
+| `/recover/*`                      | アカウント復旧         | Public         |
+| `/device/`                        | Device Authorization   | Public         |
+| `/home/`                          | Presentation 一覧      | Required       |
+| `/presentations/:presentationId/` | 公開済み Dist の詳細   | Required       |
+| `/rooms/`                         | ルーム作成             | Required       |
+| `/rooms/:sessionId/`              | 作成したルームの詳細   | Required       |
+| `/settings/profile/`              | プロフィール設定       | Required       |
+| `/settings/security/`             | 認証・セキュリティ設定 | Required       |
 
 本番の `/` は LP が所有します。認証必須 route で session が確認できない場合は `/login/` ではなく `/` へ戻します。ログイン後に元の route へ戻す導線は、認証画面の実装時に安全な return URL の契約として設計します。
 
 ### Global Navigation
 
-認証後の共通 navigation は、少なくとも Home、Profile、Security、Logout への経路を提供します。Editor では制作領域を優先し、サイト全体の navigation を常時大きく表示しません。
+認証後の共通 navigation は、少なくとも Home、Profile、Security、Logout への経路を提供します。公開確認とルーム作成への導線を提供します。
 
 モバイルでは desktop navigation を縮小表示せず、menu や drawer に置き換えます。現在地は見た目だけでなく、見出しと accessible name でも識別できるようにします。
 
@@ -71,8 +69,8 @@ Login、Signup、Recovery は一つの目的に集中した狭い layout とし�
 
 Home は Presentation 一覧を主役にします。
 
-- 最近更新した Presentation を優先する
-- タイトル、更新日時、所有・編集権限、必要な状態を一覧で比較できるようにする
+- Presentation 名・ID、公開 build ID と epoch を一覧で比較できるようにする
+- 未公開と取得エラーを区別し、再取得を用意する
 - 新規作成、検索、絞り込みは実 API とともに導入する
 - empty state には空である理由と、実行可能な次の action を置く
 - marketing Hero や架空の利用実績で一覧を置き換えない
@@ -81,18 +79,9 @@ Home は Presentation 一覧を主役にします。
 
 Profile と Security は URL と見出しを分けます。保存単位、未保存状態、成功、再認証が必要な操作を明示し、security action を一般的な profile form に混ぜません。
 
-### Editor
+### Rooms
 
-Editor の Group / Step / Cue の用語、navigation、空間配置と進行設計の関係、Asset panel、preview は未決定です。次回の Editor 設計で、Control Plane の `PresentationDefinition` と Unity Runtime の対応を確認して決定します。
-
-現時点で共通方針として固定するのは次だけです。
-
-- 3D Viewport を制作の主要 surface とする
-- Canvas 以外にも対象を選択・編集できる経路を設ける
-- drag 中の一時状態と保存対象の Definition を区別する
-- Undo / Redo、保存、revision conflict の状態を隠さない
-- Asset URL や runtime session state を編集データとして見せない
-- desktop の3ペイン構成や Web preview routeを、PoCだけを根拠に固定しない
+公開済み Presentation を選び、作成時の最新公開版を使うことを確認して作成します。結果は Session ID、Waiting 状態、保存された publication fence と作成直後の Join Code を示します。応答不明の場合は重複作成を避け、再送を促しません。参加、Runtime 配置、発表の運営操作は対象外です。
 
 ## Visual Language
 
@@ -102,17 +91,17 @@ LP の neutral background、濃い foreground、細い line、Blue / Purple / Re
 
 ### Color Tokens
 
-| Token          | Value     | Usage                       |
-| -------------- | --------- | --------------------------- |
-| `background`   | `#f7f7f5` | ページの基底                |
-| `foreground`   | `#15171d` | 主要文字                    |
-| `muted`        | `#747780` | 補助文字、metadata          |
-| `line`         | `#dedfe2` | panel、input、list の境界   |
-| `night`        | `#0b0e14` | 3D Viewport                 |
-| `night-soft`   | `#11151d` | Viewport の補助面、fallback |
-| `brand-blue`   | `#7187f5` | primary、selection、focus   |
-| `brand-purple` | `#9a80d0` | secondary accent            |
-| `brand-red`    | `#df7b80` | error、危険な操作           |
+| Token          | Value     | Usage                     |
+| -------------- | --------- | ------------------------- |
+| `background`   | `#f7f7f5` | ページの基底              |
+| `foreground`   | `#15171d` | 主要文字                  |
+| `muted`        | `#747780` | 補助文字、metadata        |
+| `line`         | `#dedfe2` | panel、input、list の境界 |
+| `night`        | `#111318` | 濃い背景面                |
+| `night-soft`   | `#242731` | 濃い面の補助、fallback    |
+| `brand-blue`   | `#7187f5` | primary、selection、focus |
+| `brand-purple` | `#9a80d0` | secondary accent          |
+| `brand-red`    | `#df7b80` | error、危険な操作         |
 
 値の Web 側の正本は `src/styles.css` の CSS custom properties とします。LP の token を package として共有せず、変更時に両アプリの意図を確認して同期します。
 
@@ -137,7 +126,7 @@ LP の neutral background、濃い foreground、細い line、Blue / Purple / Re
 
 ### Motion
 
-motion は状態変化と空間関係の理解に使います。装飾のための常時 animation は避け、`prefers-reduced-motion` では不要な transition と camera animation を停止します。
+motion は状態変化と空間関係の理解に使います。装飾のための常時 animation は避け、`prefers-reduced-motion` では不要な transition を停止します。
 
 ## Component System
 
@@ -148,18 +137,15 @@ motion は状態変化と空間関係の理解に使います。装飾のため�
 - route 固有の component を汎用 primitive に昇格させない
 - LP の Svelte component を React 用 abstraction へ移植しない
 
-一般 control は shadcn/ui を使いますが、Three.js scene object、TransformControls、camera controls には適用しません。icon-only button は accessible name と tooltip を持ち、装飾 icon は assistive technology から隠します。
+一般 control は shadcn/ui を使います。icon-only button は accessible name と tooltip を持ち、装飾 icon は assistive technology から隠します。
 
 ## Responsive Behavior
 
 - mobile first で主要 action と content の順序を決める
 - desktop layout を単に縦積みするのではなく、作業の優先順位に応じて navigation と inspector を切り替える
 - touch target は原則 `44px` 四方以上とする
-- viewport の最小操作領域を守り、panel のために Canvas を極端に縮めない
 - panel を閉じても selection や未確定 input を意図せず失わない
 - `320px`、`375px`、`768px`、`1024px`、`1440px` で確認する
-
-Editor の breakpoint と panel behavior は Editor 設計時に決定します。
 
 ## Accessibility
 
@@ -169,7 +155,6 @@ Editor の breakpoint と panel behavior は Editor 設計時に決定します�
 - 通常文字は `4.5:1`、大きな文字と UI 境界は `3:1` を最低基準にする
 - loading、saving、selected、error を色だけで伝えない
 - dialog、menu、drawer は Escape、focus 移動、focus 復帰を扱う
-- Canvas を唯一の操作経路にしない
 - `forced-colors` でも focus、selection、control の境界を認識可能にする
 
 ## Prohibited Patterns
@@ -179,9 +164,8 @@ Editor の breakpoint と panel behavior は Editor 設計時に決定します�
 - 実装されていない機能を有効な CTA として見せる
 - `#` だけの link、処理のない button、存在しない anchor を置く
 - status、focus、selection、error を色だけで伝える
-- 署名 URL、Object URL、Three.js object、runtime state を Definition に保存する
-- PoC の Slide schema を新 Editor の互換要件にする
-- Session や Realtime の操作を Web Editor に追加する
+- Join Code を URL、ログ、永続ストレージに保存する
+- ローカル filesystem や Realtime の進行操作を管理 Web に追加する
 
 ## Validation
 

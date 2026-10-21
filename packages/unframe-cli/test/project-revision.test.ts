@@ -1,4 +1,4 @@
-import { copyProjectFixture } from "./project-fixture.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
@@ -8,14 +8,12 @@ import { afterEach, assert, expect, it } from "vitest";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 
+const reference = fileURLToPath(new URL("../../../examples/presentation", import.meta.url));
 const directories: string[] = [];
 const copyProject = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-revision-"));
   directories.push(directory);
-  await copyProjectFixture(
-    fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
-    directory,
-  );
+  await copyProjectFixture(reference, directory);
   return directory;
 };
 afterEach(async () => {

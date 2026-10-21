@@ -1,4 +1,3 @@
-import { copyProjectFixture } from "./project-fixture.js";
 import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -18,6 +17,7 @@ import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "../src/author/contract.js";
 import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
 import { snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");

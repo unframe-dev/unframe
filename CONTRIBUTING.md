@@ -8,17 +8,18 @@
 
 Unframe は次のコンポーネントからなるモノレポです。
 
-| パス                          | 役割                                     |
-| ----------------------------- | ---------------------------------------- |
-| `app/web/`                    | React 19 Web Editor（WIP）               |
-| `app/server/`                 | Control Plane / Realtime Backend（WIP）  |
-| `app/server/realtime/`        | Go / gRPC Realtime Backend（WIP）        |
-| `app/unity/`                  | Unity MR Application（WIP）              |
-| `lp/`                         | SvelteKit Landing Page（WIP）            |
-| `packages/contracts/`         | 将来の API / protocol contract 境界      |
-| `packages/api-client-csharp/` | C# client の成果物置き場（現在は未接続） |
-| `packages/config/`            | 共有 TypeScript、Vite+、Git hook 設定    |
-| `scripts/`                    | 開発、生成、CI、ドキュメント同期の実処理 |
+| パス                          | 役割                                       |
+| ----------------------------- | ------------------------------------------ |
+| `app/web/`                    | React 19 管理 Web（WIP）                   |
+| `app/local-editor/`           | ローカル Source 編集・Unity Preview（WIP） |
+| `app/server/`                 | Control Plane / Realtime Backend（WIP）    |
+| `app/server/realtime/`        | Go / gRPC Realtime Backend（WIP）          |
+| `app/unity/`                  | Unity MR Application（WIP）                |
+| `lp/`                         | SvelteKit Landing Page（WIP）              |
+| `packages/contracts/`         | 将来の API / protocol contract 境界        |
+| `packages/api-client-csharp/` | C# client の成果物置き場（現在は未接続）   |
+| `packages/config/`            | 共有 TypeScript、Vite+、Git hook 設定      |
+| `scripts/`                    | 開発、生成、CI、ドキュメント同期の実処理   |
 
 旧 Go/Huma/Turso/R2 HTTP backend は削除済みです。Control Plane と Realtime は
 それぞれの component 内で runtime、依存関係、テスト、運用手順を完結させます。Realtime
@@ -48,7 +49,7 @@ assignment fencing、page-change の in-memory fan-out を実装しています�
 
 アプリケーション固有のコードは、それを所有するディレクトリに置きます。
 
-- React 固有のコードは `app/web/` に置く。
+- 管理 Web は `app/web/`、ローカル Source Editor は `app/local-editor/` に置く。
 - Control Plane は `app/server/control-plane/`、Realtime Go backend は
   `app/server/realtime/` に置く。
 - Unity / C# のコードは `app/unity/` に置く。
@@ -207,18 +208,19 @@ commit message の入力形式は次のとおりです。
 
 scope は主な変更対象に合わせます。
 
-| scope       | 対象                                             |
-| ----------- | ------------------------------------------------ |
-| `web`       | `app/web/`                                       |
-| `server`    | `app/server/`                                    |
-| `realtime`  | `app/server/realtime/`                           |
-| `unity`     | `app/unity/`                                     |
-| `lp`        | `lp/`                                            |
-| `contracts` | `packages/contracts/` と `packages/api-client-*` |
-| `config`    | `packages/config/`                               |
-| `scripts`   | `scripts/`                                       |
-| `docs`      | `docs/`                                          |
-| `repo`      | repository 全体の設定                            |
+| scope          | 対象                                             |
+| -------------- | ------------------------------------------------ |
+| `web`          | `app/web/`                                       |
+| `local-editor` | `app/local-editor/`                              |
+| `server`       | `app/server/`                                    |
+| `realtime`     | `app/server/realtime/`                           |
+| `unity`        | `app/unity/`                                     |
+| `lp`           | `lp/`                                            |
+| `contracts`    | `packages/contracts/` と `packages/api-client-*` |
+| `config`       | `packages/config/`                               |
+| `scripts`      | `scripts/`                                       |
+| `docs`         | `docs/`                                          |
+| `repo`         | repository 全体の設定                            |
 
 対応する type は `feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、
 `ci`、`chore`、`remove`、`deploy`、`init` です。gitmoji は手動で付けず、hook に任せます。

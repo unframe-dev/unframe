@@ -24,6 +24,38 @@ const definition = structuredClone(definitionFixture) as unknown as Presentation
 const snapshot = m3dCueRuntimeSnapshotSchema.parse(snapshotFixture);
 
 describe("M3D Runtime projection and canonical snapshot", () => {
+  it.each([
+    ["snapshot", "definition"],
+    ["snapshot", "input"],
+    ["visibility", "definition"],
+    ["visibility", "input"],
+  ])("rejects %s validator %s accessors without executing them", (validator, target) => {
+    let reads = 0;
+    const unsafeDefinition = structuredClone(definition);
+    const unsafeInput = structuredClone(
+      validator === "snapshot" ? snapshotFixture : visibilityFixture,
+    );
+    Object.defineProperty(
+      target === "definition" ? unsafeDefinition : unsafeInput,
+      "schemaVersion",
+      {
+        enumerable: true,
+        get() {
+          reads++;
+          throw new Error("getter executed");
+        },
+      },
+    );
+    const value = target === "definition" ? unsafeDefinition : definition;
+    const input =
+      target === "input" ? unsafeInput : validator === "snapshot" ? snapshot : visibilityFixture;
+    const errors =
+      validator === "snapshot"
+        ? validateM3dCueRuntimeSnapshot(value, input, 1)
+        : validateRuntimeVisibilitySelection(value, input);
+    expect(errors).not.toEqual([]);
+    expect(reads).toBe(0);
+  });
   it.each([false, true])("uses current State loop %s for an over-duration playback", (loop) => {
     const currentDefinition = structuredClone(definition);
     const surface = currentDefinition.scene.surfaces.video!;

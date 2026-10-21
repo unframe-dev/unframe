@@ -40,7 +40,7 @@ func TestV2LeaveFailureReleasesPresence(t *testing.T) {
 	if err := s.LeaveParticipant(context.Background(), id); err == nil {
 		t.Fatal("expected persistence failure")
 	}
-	_, presence, _, closeSub := s.SnapshotPresenceAndSubscribe()
+	_, presence, _, closeSub, _ := s.SnapshotPresenceAndSubscribe()
 	defer closeSub()
 	if len(presence.Participants) != 0 {
 		t.Fatal("disconnected participant still present")

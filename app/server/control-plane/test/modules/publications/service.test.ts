@@ -19,6 +19,7 @@ import {
 } from "@unframe/unframe-core";
 import { renderBundleSchema } from "@unframe/contracts/presentation";
 import { PublicationError, PublicationService } from "../../../src/modules/publications/service";
+import { D1SessionRepository } from "../../../src/modules/sessions/repository";
 import { createApp } from "../../../src/app";
 import { runtimeEnvironment } from "../../runtime-environment";
 
@@ -301,6 +302,65 @@ describe("publication service", () => {
     const rejected = results.find((result) => result.status === "rejected");
     expect(rejected).toMatchObject({ status: "rejected", reason: { code: "conflict" } });
     await expect(service.latest(owner, "demo")).resolves.toMatchObject({ publicationEpoch: 2 });
+  });
+
+  it("pins the latest publication atomically when creating a session races with publication", async () => {
+    const service = new PublicationService(env.DB, env.ASSETS);
+    const sessions = new D1SessionRepository(env.DB);
+    const { copy, bytes } = await publishable();
+    await service.createBuild(owner, "demo", upload(copy));
+    for (const [id, descriptor] of Object.entries(copy.assetSet.assets))
+      await service.uploadAsset(
+        owner,
+        "demo",
+        copy.buildManifest.buildId,
+        id,
+        bytes[id]!,
+        descriptor.mediaType,
+      );
+    const first = await service.publish(owner, "demo", copy.buildManifest.buildId, null);
+    const sessionId = crypto.randomUUID();
+    const [creation, publication] = await Promise.allSettled([
+      sessions.create(
+        {
+          id: sessionId,
+          presentationId: "demo",
+          presenterId: owner.userId,
+          joinCodeHash: sessionId,
+          state: "Waiting",
+          participantCount: 1,
+          maxParticipants: 50,
+          createdAt: "2026",
+          endedAt: null,
+        },
+        { sessionId, userId: owner.userId, role: "presenter", joinedAt: "2026" },
+      ),
+      service.publish(owner, "demo", copy.buildManifest.buildId, {
+        presentationId: "demo",
+        publicationEpoch: first.publicationEpoch,
+        publicationManifestHash: first.publicationManifestHash,
+      }),
+    ]);
+    expect(creation).toMatchObject({ status: "fulfilled", value: { id: sessionId } });
+    const latest = await service.latest(owner, "demo");
+    await expect(sessions.findById(sessionId)).resolves.toMatchObject({
+      publicationFence: {
+        presentationId: "demo",
+        publicationEpoch: latest.publicationEpoch,
+        publicationManifestHash: latest.publicationManifestHash,
+      },
+    });
+    expect([
+      { status: "fulfilled", value: expect.objectContaining({ publicationEpoch: 2 }) },
+      { status: "rejected", reason: expect.objectContaining({ code: "conflict" }) },
+    ]).toContainEqual(publication);
+    await expect(
+      service.publish(owner, "demo", copy.buildManifest.buildId, {
+        presentationId: "demo",
+        publicationEpoch: latest.publicationEpoch,
+        publicationManifestHash: latest.publicationManifestHash,
+      }),
+    ).rejects.toMatchObject({ code: "conflict" });
   });
 
   it("publishes verified R2 bytes atomically and refuses updates during active use", async () => {

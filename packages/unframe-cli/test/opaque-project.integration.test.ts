@@ -1,4 +1,3 @@
-import { copyProjectFixture } from "./project-fixture.js";
 import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -21,6 +20,7 @@ import { discoverPresentationProjectFiles } from "../src/filesystem/discover-pro
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
 import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");

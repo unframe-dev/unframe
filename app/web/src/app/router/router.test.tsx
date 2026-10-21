@@ -1,5 +1,5 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProviders } from "@/app/providers/app-providers";
@@ -11,7 +11,8 @@ const auth = vi.hoisted(() => ({
   verifyDeviceAuthorization: vi.fn(),
   device: { deny: vi.fn() },
 }));
-vi.mock("@unframe/api-client-typescript", () => ({
+vi.mock("@unframe/api-client-typescript", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@unframe/api-client-typescript")>()),
   createControlPlaneAuthClient: vi.fn(() => auth),
 }));
 
@@ -26,7 +27,7 @@ async function renderRoute(path: string) {
   return router;
 }
 
-describe("web editor routes", () => {
+describe("web management routes", () => {
   beforeEach(() => {
     localStorage.clear();
     auth.getSession.mockClear();
@@ -36,13 +37,10 @@ describe("web editor routes", () => {
     auth.device.deny.mockReset();
   });
 
-  it("opens the Local Host guide without a login", async () => {
+  it("requires login when opening the former editor route", async () => {
     auth.getSession.mockResolvedValue({ data: null, error: null });
-    await renderRoute("/editor");
-    expect(
-      await screen.findByRole("heading", { name: "ローカル project を開く" }),
-    ).toBeInTheDocument();
-    expect(auth.getSession).not.toHaveBeenCalled();
+    const router = await renderRoute("/editor");
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
   });
 
   it("keeps the device URL and code in the Google sign-in callback", async () => {

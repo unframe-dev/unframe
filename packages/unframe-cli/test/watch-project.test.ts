@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
-import { copyProjectFixture } from "./project-fixture.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import type { PresentationCliResult } from "../src/application/types.js";
 
 const directories: string[] = [];

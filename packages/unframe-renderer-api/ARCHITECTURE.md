@@ -53,9 +53,9 @@ conformance harness も、identity / capabilities / method reference を一度�
 prepared input だけを `support` / `build` へ渡す。Concrete renderer が同じ境界を直接利用する場合も、
 返された prepared input を以後の唯一の入力とする。
 
-現行出力は encode 前の RGBA capture、resolved geometry、diagnostics、provenance とする。Raw bytesの所有権はbuild resultとともにcallerへ移り、Rendererは返却後にbufferを変更しない。RendererはPresentationDefinitionの意味を書き換えず、Asset ID、portable `HitRegion`、最終RenderBundle bindingも決定しない。
+現行出力は encode 前の RGBA capture、resolved geometry、diagnostics、provenance とする。Raw bytesの所有権はbuild resultとともにcallerへ移り、Rendererは返却後にbufferを変更しない。Renderer は PresentationDefinition の意味を書き換えず、Asset ID と最終 RenderBundle binding は Compiler が決定する。Opaque は明示 semantic button binding の測定 geometry から `hitRegionsByState` を返し、Compiler が意味・参照・completeness を検証する。
 
-Surface Partition の authority は Compiler にあり、Renderer API は [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md) で確定した一つの plan だけを処理する。Structured plan の `ownership` は exactly-once ownership の `ownedContentNodeIds` と複製可能な `contextNodeIds` を分離する。Opaque plan は `ownership.bindingKeys` が Surface 全体の `content.bindings` と一致することを要求する。Opaque の静的 capture は専用 Web renderer が担当する。Structured の Hit Region は Compiler が Surface 全体の layout から解決し、partition の描画 bounds で切り取らない。現行 Opaque subset は Interaction を扱わない。API は別 partition を探索、merge、reorder しない。
+Surface Partition の authority は Compiler にあり、Renderer API は [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md) で確定した一つの plan だけを処理する。Structured plan の `ownership` は exactly-once ownership の `ownedContentNodeIds` と複製可能な `contextNodeIds` を分離する。Opaque plan は `ownership.bindingKeys` が Surface 全体の `content.bindings` と一致することを要求する。Opaque の静的 capture は専用 Web renderer が担当する。Structured の Hit Region は Compiler が Surface 全体の layout から解決し、partition の描画 bounds で切り取らない。Opaque の有効な semantic button binding は click region に対応する。API は別 partition を探索、merge、reorder しない。
 
 ## 4. Invariants
 
@@ -65,7 +65,7 @@ Surface Partition の authority は Compiler にあり、Renderer API は [ADR-0
 - `support` 判定と `build` 結果が同じ capability contract に従う。実行境界と conformance は snapshot 済みの宣言 capabilities を基準に判定し、Structured と Opaque の対応範囲を混同しない。通常実行中の asset / Browser / 資源制限の失敗は、対応可否の不一致に置き換えず renderer diagnostic として返す。
 - 検証した input / plugin と実行する input / plugin を同じ prepared snapshot に固定する。
 - plan、Surface、完成 Semantic Tree の state 集合が完全一致する。
-- Hit Region は Renderer の出力に含めず、Compiler / Core が Surface 全体の completeness を検証する。
+- Structured の Hit Region は Compiler が共有 layout から生成する。Opaque は Renderer の `hitRegionsByState` を Compiler / Core が意味・Surface 全体の completeness と照合する。
 - renderer output から Semantic Tree の意味を推測しない。
 - RenderSurfaceId は build-local であり、canonical progression contract へ漏らさない。
 - deterministic と宣言する plugin は同じ明示入力から同じ raw bytes、geometry、metadata を生成する。
@@ -111,7 +111,7 @@ Conformance harness は renderer implementation の process topology を固定�
 
 現行 Renderer は capture State の未 encode RGBA を返し、empty State の capture は生成しない。PNG encode、checksum、Asset ID、最終的なRenderBundle artifact / state bindingは`unframe-assets`とCompilerが所有する。Rendererがplan、完成Semantic Tree、入力hashを変更することを許可しない。
 
-`unframe-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を `environmentHash` の入力に含めている。Compiler は host 注入 registry を発見範囲とし、重複 ID と未対応 contract version を build 前に拒否する。全候補 identity / capabilities とこの fingerprint は Compiler build cache key に結合され、変更時の失効を integration fixture で検証する。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
+`unframe-core` が Contracts の手書き Zod schema と推論型から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を `environmentHash` の入力に含めている。Compiler は host 注入 registry を発見範囲とし、重複 ID と未対応 contract version を build 前に拒否する。全候補 identity / capabilities とこの fingerprint は Compiler build cache key に結合され、変更時の失効を integration fixture で検証する。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
 
 Theme、Props、Slots、Variants、Parts の宣言はRenderer入力に含めずCompilerがconcrete treeへ解決する。State別の静的 visual override を受理する。Runtime Text と Video は受理しない。
 

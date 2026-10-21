@@ -22,7 +22,7 @@
     "prepresentation": "bash ../../scripts/build-cli-filesystem.sh",
     "pretui": "bash ../../scripts/build-cli-filesystem.sh",
     "pretest:tui": "bash ../../scripts/build-cli-filesystem.sh",
-    "test:native": "go test native/*.go && go vet native/*.go"
+    "test:native": "go -C native test ./... && go -C native vet ./..."
   },
   "dependencies": {
     "@opentui/core": "0.4.5",

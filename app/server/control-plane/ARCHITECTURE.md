@@ -213,7 +213,7 @@ Control Plane は active assignment / revision の fencing、checkpoint の重�
 
 ### 6.5 Publication と Delivery
 
-Current は、認証済み publisher から canonical JSON の Definition / RenderBundle / AssetSet / BuildManifest を受け取り、参照 Asset bytes を個別に upload する。Publication 確定時に artifact と R2 bytes を再検証し、Presentation revision、expected publication epoch、active Session を D1 で fencing する。確定後の Publication は immutable で、Session は開始時に選んだ publication epoch を固定する。
+Current は、認証済み publisher から canonical JSON の Definition / RenderBundle / AssetSet / BuildManifest を受け取り、参照 Asset bytes を個別に upload する。Publication 確定時に artifact と R2 bytes を再検証し、Presentation revision、expected publication epoch、active Session を D1 で fencing する。確定後の Publication は immutable で、Session は作成時の最新 publication epoch を原子的に固定する。未公開の新規作成は 409 を返し、Session resource の `publicationFence` は保存 epoch に対応する manifest から返す。
 
 Session participant は `POST /sessions/{sessionId}/delivery` に device の `capabilityProfileId` を渡す。Control Plane は membership、role、固定 Publication、active assignment を確認し、role と capability で選んだ projection、期限付き HTTPS Asset access を生成済み Protobuf `DeliveryManifest` として返す。発行後にも publication epoch と assignment epoch / runtime ID を再確認し、変更された場合は失敗させる。Delivery は bootstrap と別の response であり、Unity は両者の PublicationFence、assignment、projection を照合する。
 

@@ -6,7 +6,7 @@
 - **Implementation contract**: [Lock・抽出・編集・capture](./REACT_COMPONENT_EXECUTION_CONTRACT.md)
 - **Scope**: 一ファイルの React Component → 一 import 配置 → 静的 baked-web → Editor 編集・保存 → 有限 State
 
-本書は、Web の UI ライブラリを使う Component の作者向け API と、ローカル Authoring の提供範囲を示す。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v3 の frozen check と native 隔離 Browser capture を接続している。必要な隔離 capability が欠ける場合は拒否する。Linux / macOS arm64 の機構と保証差、macOS の実機検証待ちは [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。ローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redoに対応する。Unity Preview は宣言初期 State の静止表示を扱う。受け入れ範囲と導入条件は6節を参照する。
+本書は、Web の UI ライブラリを使う Component の作者向け API と、ローカル Authoring の提供範囲を示す。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v3 の frozen check と native 隔離 Browser capture を接続している。必要な隔離 capability が欠ける場合は拒否する。Linux / macOS arm64 の機構と保証差、macOS の実機検証待ちは [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。ローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redoに対応する。Unity Preview は Core の Cue / Timer / Timeline を使うローカル再生と play / pause / reset に対応する。受け入れ範囲と導入条件は6節を参照する。
 
 Surface の Structured / Opaque 表現と Renderer の binding 検証の境界は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) と [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md#a1-の前提契約canonical-surface) に従う。
 
@@ -14,7 +14,7 @@ Surface の Structured / Opaque 表現と Renderer の binding 検証の境界�
 
 Component 作者は公開契約と見た目を一ファイルで定義し、Presentation 作者は Component を一つ import して Props、3D 配置、Flow を記述する。Manifest、renderer entry、内部 Runtime ID、lock を配置のたびに手で結ばない。CSS・画像・描画 helper を別ファイルへ分けることは許す。
 
-現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/web/src/features/editor/editor-app.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
+現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/local-editor/src/features/editor/editor-app.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
 
 ## 2. 作者向け API の三例
 
@@ -272,9 +272,9 @@ host の初期値は `active: true`、`visible: true`、`opacity: 1`、name は 
 
 lock v3はOpaque / local originとsource Assetのpath/hash/sizeを固定する。旧schemaからの暗黙変換や互換fallbackは提供せず、Source を更新して lock を明示再生成する。既存 Structured の宣言と canonical 出力の意味は維持する。
 
-固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。通常 CSS の import と url 依存を固定 bundle に含める。CSS preprocessor / utility CSS の build plugin が必要な場合は、固定した変換経路を明示的に追加するまで非対応とする。実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
+固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。通常 CSS の import と url 依存を固定 bundle に含める。PostCSS 8 / Tailwind 4 は project 所有 config / plugin と固定 Node graph を使い、CLI の隔離 Style worker で実行する。設定・依存固定・対応範囲は [Tailwind README](../../packages/unframe-tailwind/README.md) を参照する。Component の意味抽出は引き続き非実行であり、config / plugin の実行と区別する。実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
 
-入力 lock に capture checksum を含めない。生成 PNG 等の checksum は AssetSet / BuildManifest に記録し、source・renderer・環境との整合は既存 build integrity で検証する。Manifest の意味 hash と renderer source hash を区別し、CSS だけの変更でも描画依存と成果物が更新されるようにする。位置だけを変えた場合、Definition 等の hash は変わり得るが、同じ描画条件の PNG bytes は変わらない。capture cache の実装は初期完了条件に含めない。
+入力 lock に capture checksum を含めない。生成 PNG 等の checksum は AssetSet / BuildManifest に記録し、source・renderer・環境との整合は既存 build integrity で検証する。Manifest の意味 hash と renderer source hash を区別し、CSS だけの変更でも描画依存と成果物が更新されるようにする。位置だけを変えた場合、Definition 等の hash は変わり得るが、同じ描画条件の PNG bytes は変わらない。現行 CLI は build 全体の cache を持ち、hit でも全成果物と checksum を再検証する。State ごとの細粒度 capture cache は未実装である。
 
 ## 5. Editor の保存契約
 
@@ -295,7 +295,7 @@ Source patch、再度の静的検証、local lock 再生成を成功させてか
 
 描画は保存後に実行する。capture 失敗でも検証済み Source は保持し、最後に成功した Unity Preview を古い revision として表示する。保存済み revision と表示中の artifact revision を混同しない。Undo / Redo は同じ session の保存済み編集を逆 patch として扱い、最新 hash を検証し、外部編集があれば履歴を破棄する。
 
-実行場所は native ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Web、patch と検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
+実行場所は native ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Local Editor、patch と検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
 
 ## 6. 受け入れ検証と導入条件
 
@@ -310,7 +310,7 @@ React Component の抽出・capture・Source 保存の検証範囲を以下に�
 | 編集往復             | 二 Instance の局所編集、共有元・対象外 Source・コメントの保持、Undo / Redo、保存競合・再送・recovery      | Compiler / CLI / Web の Source 編集・Author テスト                                                                               |
 | 編集 metadata と診断 | `editableText` の textarea、診断の種類・path・元 Source 位置、抽出 render / helper の描画例外             | Compiler の型位置テスト、Renderer の位置写像テスト、CLI の `author-source-diagnostics.integration.test.ts`、Web の Author テスト |
 | 鮮度と失敗           | 保存後の新 PNG、capture 失敗・build 中 cancel・外部 Source 変更で成功済み dist を保持                     | CLI の `author-capture.integration.test.ts` / revision テスト                                                                    |
-| 有限 State 成果物    | 宣言済み State の画像と Interaction / Output → Cue → Action の参照を生成・検証する                        | Compiler / CLI の混在 build。Local Preview は初期 State の静止表示                                                               |
+| 有限 State 成果物    | 宣言済み State の画像と Interaction / Output → Cue → Action の参照を生成・検証する                        | Compiler / CLI の混在 build、`local-playback.test.ts`。Local Preview は Cue / Timer / Timeline と play / pause / reset に対応    |
 
 Browser の受け入れ試験は以下で再現する。依存 install / lock refresh を含む試験全体の時間を、個別 build の時間と混同しない。
 
@@ -321,14 +321,14 @@ nix develop --command scripts/ci/opaque-capture.sh
 
 隔離実行には Linux では cgroup v2 の memory / pids controller と systemd user manager の delegation、user namespace、macOS arm64 では Seatbelt と process group 監視が必要である。両 OS で Chromium sandbox を有効にする。保証差と macOS の実機検証待ちは [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従い、条件を満たさない場合は拒否する。Browser 試験は共有 host の並列負荷で timeout することがあるため、計測時は `vp test run --maxWorkers=1 --reporter=verbose --silent=false` で対象 fixture を単独実行する。
 
-Base UI Button と固定 React / CSS / image / font の組合せを実 Browser で検証している。UI ライブラリ全体の互換性は保証しない。任意の Vite / PostCSS / Tailwind 設定や host node_modules を描画依存の解決に利用しない。参照 PNG は、見出し・button・画像を目視し、文字欠落と配置の破綻がないことを確認する。
+Base UI Button と固定 React / CSS / image / font の組合せを実 Browser で検証している。UI ライブラリ全体の互換性は保証しない。Vite 設定や host node_modules への fallback は利用しない。PostCSS / Tailwind は固定 lock と project 所有 config を隔離 Style worker に渡す。参照 PNG は、見出し・button・画像を目視し、文字欠落と配置の破綻がないことを確認する。
 
-2026-10-01 の単独測定では、Base UI fixture の初回 build は **17,282 ms**、同一入力の反復 build は **13,794 ms**、Author の保存開始から新しい PNG artifact の取得までは **25,936 ms** だった。保存の測定は snapshot 更新と capture を含み、画像の HTTP 転送・decode・画面描画は含まない。反復 build も毎回 capture し、描画 cache は使わない。
+2026-10-01 の単独測定では、Base UI fixture の初回 build は **17,282 ms**、同一入力の反復 build は **13,794 ms**、Author の保存開始から新しい PNG artifact の取得までは **25,936 ms** だった。保存の測定は snapshot 更新と capture を含み、画像の HTTP 転送・decode・画面描画は含まない。この測定時の反復 build は毎回 capture し、描画 cache を使っていない。後から実装された build cache の現在性能を示す値ではない。
 
 測定環境は Linux 7.2.8 / x86_64、Intel Core i7-14700F（28 logical CPU）、約49 GB RAM、固定 Bun 1.4.2、Rolldown 1.1.5、Playwright 1.62.1 の managed Chromium headless shell revision 1234 である。この fixture と環境では、個別 build **30秒以内**、保存から PNG artifact 取得 **60秒以内**をローカル導入の確認基準とする。各一回の測定から定めた作業上の基準であり、任意入力や他 host の性能保証ではない。時間の閾値を回帰テストに組み込まず、環境・入力を固定した単独測定で確認する。生成 PNG（2048×1152）は、見出し・button の文字と画像の配置を目視確認した。
 
 ## 7. 対象外
 
-固定 Dist の公開と Delivery／Realtime／native Unity 接続は [Local Editor の検証](./LOCAL_EDITOR_DESIGN.md#5-検証と残る実証) で扱う。実サービス E2E と Quest 実機確認の完了は本書では主張しない。React 内部の GUI 編集、共有元の一括変更、Opaque 内部の自動分割、描画 cache、`init` と remote registry も提供しない。SDK の一般配布は未検証であり、reference の手製 SDK 型 snapshot を package 配布の証明にしない。
+固定 Dist の公開と Delivery／Realtime／native Unity 接続は [Local Editor の検証](./LOCAL_EDITOR_DESIGN.md#5-検証と残る実証) で扱う。実サービス E2E と Quest 実機確認の完了は本書では主張しない。React 内部の GUI 編集、共有元の一括変更、Opaque 内部の自動分割、State ごとの細粒度 capture cache と remote registry は提供しない。CLI の `init` と build 全体の cache は実装済みである。SDK の一般配布は未検証であり、reference の手製 SDK 型 snapshot を package 配布の証明にしない。
 
 現行の入力・保存・隔離契約は [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md) を正本とする。

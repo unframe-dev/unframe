@@ -92,6 +92,8 @@ network availability と registry の mutable state が同一入力の再現性�
 
 ## Follow-ups
 
+cache と Author の保存 transaction を含む低水準ファイル操作は Go 製 filesystem helper に集約する。directory handle、相対 I/O、symlink 非追跡、同期と解放は helper が、schema、checksum、cache key と保持方針は TypeScript が所有する。helper の生成先と利用経路は CLI Architecture と scripts README に従う。
+
 macOS arm64 と APFS の実 filesystem による名前同一性の検証は [ADR-0026](./0026-native-linux-macos-host-adapters.md) で拡張する。入力 symlink 拒否と atomic publication の規則は維持する。
 
 - [ ] M3 以降で package distribution、migration metadata、より広い authoring DSL を contract と実装で接続する。

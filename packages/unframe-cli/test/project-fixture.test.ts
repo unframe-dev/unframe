@@ -3,7 +3,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, assert, expect, it } from "vitest";
 import { acquireSourceLock } from "../src/filesystem/source-lock.js";
-import { copyProjectFixture } from "./project-fixture.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const directories: string[] = [];
 afterEach(async () => {
