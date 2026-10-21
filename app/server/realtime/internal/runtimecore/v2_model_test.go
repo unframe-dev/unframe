@@ -238,3 +238,101 @@ func TestV2ModelRejectsMalformedActiveRunWithoutPanic(t *testing.T) {
 		}
 	}
 }
+
+func TestV2ModelRejectsUnrepresentablePlayDeadlinesAtomically(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		speed float64
+		fade  uint64
+		now   uint64
+	}{
+		{"tiny speed", 1e-300, 0, 0}, {"clock overflow", 1, 0, math.MaxUint64 - 50}, {"fade target", 1e-300, 20, 0}, {"fade clock", 2, 100, math.MaxUint64 - 50},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			state := modelTestState()
+			if tc.fade != 0 {
+				state.State = &realtimev2.ModelClipRuntimeState_HeldClip{HeldClip: &realtimev2.ClipHeldPose{ClipId: "idle"}}
+			}
+			before := modelCloneState(state)
+			command := v2ModelCommand{Kind: "modelClip.play", NodeID: "model", ClipID: "walk", Speed: tc.speed, Completion: presentationv2.RunCompletion_RUN_COMPLETION_NON_BLOCKING, TransitionKind: "immediate"}
+			if tc.fade != 0 {
+				command.TransitionKind = "crossfade"
+				command.DurationMs = tc.fade
+				command.Easing = presentationv2.Easing_EASING_LINEAR
+			}
+			result, err := evaluateV2ModelAction(state, nil, command, map[string]uint64{"walk": 100, "idle": 100}, tc.now, modelTestRunID(1), modelTestOwner(), modelTestCause())
+			if err != nil || result.Rejection != realtimev2.CueRejectionReason_CUE_REJECTION_REASON_RESOLVED_VALUE_INVALID || result.Run != nil || result.RemovedRunID != nil || len(result.Events) != 0 || !proto.Equal(result.State, before) || !proto.Equal(state, before) {
+				t.Fatalf("result=%v error=%v", result, err)
+			}
+		})
+	}
+}
+
+func TestV2ModelResumeRejectsUnrepresentableDeadlineAtomically(t *testing.T) {
+	durations := map[string]uint64{"walk": 100}
+	start, err := evaluateV2ModelAction(modelTestState(), nil, v2ModelCommand{Kind: "modelClip.play", NodeID: "model", ClipID: "walk", Speed: 1, Completion: presentationv2.RunCompletion_RUN_COMPLETION_NON_BLOCKING, TransitionKind: "immediate"}, durations, 0, modelTestRunID(1), modelTestOwner(), modelTestCause())
+	if err != nil {
+		t.Fatal(err)
+	}
+	paused, err := evaluateV2ModelAction(start.State, start.Run, v2ModelCommand{Kind: "modelClip.pause", NodeID: "model"}, durations, 0, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := modelCloneRun(paused.Run)
+	result, err := evaluateV2ModelAction(paused.State, paused.Run, v2ModelCommand{Kind: "modelClip.resume", NodeID: "model"}, durations, math.MaxUint64-50, nil, nil, nil)
+	if err != nil || result.Rejection != realtimev2.CueRejectionReason_CUE_REJECTION_REASON_RESOLVED_VALUE_INVALID || len(result.Events) != 0 || !proto.Equal(result.Run, before) || !proto.Equal(paused.Run, before) {
+		t.Fatalf("result=%v error=%v", result, err)
+	}
+}
+
+func TestV2ModelExtremeLoopSpeedRetainsFinitePosition(t *testing.T) {
+	durations := map[string]uint64{"walk": 100}
+	start, err := evaluateV2ModelAction(modelTestState(), nil, v2ModelCommand{Kind: "modelClip.play", NodeID: "model", ClipID: "walk", Speed: math.MaxFloat64, Loop: true, Completion: presentationv2.RunCompletion_RUN_COMPLETION_NON_BLOCKING, TransitionKind: "immediate"}, durations, 0, modelTestRunID(1), modelTestOwner(), modelTestCause())
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopped, err := evaluateV2ModelAction(start.State, start.Run, v2ModelCommand{Kind: "modelClip.stop", NodeID: "model"}, durations, 2, nil, nil, nil)
+	if err != nil || stopped.State.GetHeldClip() == nil || stopped.State.GetHeldClip().PositionMs != 36 {
+		t.Fatalf("result=%v error=%v", stopped, err)
+	}
+}
+
+func TestV2ModelAcceptsRepresentableUint64Deadline(t *testing.T) {
+	const now = uint64(1 << 54)
+	durations := map[string]uint64{"walk": 100}
+	started, err := evaluateV2ModelAction(modelTestState(), nil, v2ModelCommand{Kind: "modelClip.play", NodeID: "model", ClipID: "walk", Speed: 1, Completion: presentationv2.RunCompletion_RUN_COMPLETION_NON_BLOCKING, TransitionKind: "immediate"}, durations, now, modelTestRunID(1), modelTestOwner(), modelTestCause())
+	if err != nil || started.Rejection != 0 {
+		t.Fatalf("start=%v error=%v", started, err)
+	}
+	deadline, due, err := nextV2ModelDeadline(started.Run, durations, now)
+	if err != nil || !due || deadline != now+100 {
+		t.Fatalf("deadline=%d due=%v error=%v", deadline, due, err)
+	}
+}
+
+func TestV2ModelCrossfadeResumeRejectsUnrepresentableDeadlines(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		speed float64
+		fade  uint64
+	}{{"target", 1, 20}, {"fade", 2, 100}} {
+		t.Run(tc.name, func(t *testing.T) {
+			durations := map[string]uint64{"walk": 100, "idle": 100}
+			state := modelTestState()
+			state.State = &realtimev2.ModelClipRuntimeState_HeldClip{HeldClip: &realtimev2.ClipHeldPose{ClipId: "idle"}}
+			start, err := evaluateV2ModelAction(state, nil, v2ModelCommand{Kind: "modelClip.play", NodeID: "model", ClipID: "walk", Speed: tc.speed, Completion: presentationv2.RunCompletion_RUN_COMPLETION_NON_BLOCKING, TransitionKind: "crossfade", DurationMs: tc.fade, Easing: presentationv2.Easing_EASING_LINEAR}, durations, 0, modelTestRunID(1), modelTestOwner(), modelTestCause())
+			if err != nil {
+				t.Fatal(err)
+			}
+			paused, err := evaluateV2ModelAction(start.State, start.Run, v2ModelCommand{Kind: "modelClip.pause", NodeID: "model"}, durations, 0, nil, nil, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := modelCloneRun(paused.Run)
+			result, err := evaluateV2ModelAction(paused.State, paused.Run, v2ModelCommand{Kind: "modelClip.resume", NodeID: "model"}, durations, math.MaxUint64-50, nil, nil, nil)
+			if err != nil || result.Rejection != realtimev2.CueRejectionReason_CUE_REJECTION_REASON_RESOLVED_VALUE_INVALID || len(result.Events) != 0 || !proto.Equal(result.Run, before) || !proto.Equal(paused.Run, before) {
+				t.Fatalf("result=%v error=%v", result, err)
+			}
+		})
+	}
+}
