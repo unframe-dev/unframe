@@ -23,7 +23,7 @@ React `.component.tsx` の Props・semantics・render 分離は [React Component
 
 Model用Manifestのprops / slots / parts / variants / states、StructureのpartBindings / variantStyles / timelinesは空に限定する。actions / outputsにはモデル再生を宣言できる。`playModelClip`はnodeId、clipId、speed、loop、completion、transition、conflictを受け取り、`pauseModelClip` / `resumeModelClip` / `stopModelClip`はnodeIdを受け取る。`modelClipCompleted({ nodeId, clipId })`をOutput producerに使える。clip IDは変換後GLBの`clip-N`で、存在しない参照はbuild errorとなる。baked-web rendererの宣言とThemeは不要である。
 
-`video` / JSX `Video`はFrame内の独立partitionとなり、登録済みMP4へのconstant Asset reference、loop、layout、style.fitを持つ。fitはcontain / cover / stretchを維持する。tintとborderは既定値に限定し、非対応の装飾・重なり・clipは診断する。Stateでloopやfitを変更できる。再生Actionは`playMedia({ surfaceId })` / `pauseMedia({ surfaceId })` / `seekMedia({ surfaceId, positionSeconds })`、完了Outputは`mediaCompleted(surfaceId)`を使う。media対象SurfaceはVideoをちょうど一つ持ち、全Stateでdurationが一致する。
+`video` / JSX `Video`はFrame内の独立partitionとなり、登録済みMP4へのconstant Asset reference、loop、layout、style.fitを持つ。fitはcontain / cover / stretchを維持する。tintとborderは既定値に限定し、非対応の装飾・重なり・clipは診断する。Stateでloopやfitを変更できる。再生Actionは`playMedia({ surfaceId })` / `pauseMedia({ surfaceId })` / `seekMedia({ surfaceId, positionSeconds })`、完了Outputは`mediaCompleted(surfaceId)`を使う。media対象SurfaceはVideoをちょうど一つ持ち、全Stateでdurationが一致する。Videoを含むSurfaceのState切替はcutのみ対応し、crossfadeはCompilerが診断する。
 
 CompilerはGLB変換とMP4検証を通し、logical Asset IDを保ったDefinition / RenderBundle / AssetSetと配布bytesを生成する。source bytesと変換後bytesのchecksumを区別する。Local Editorと通常Unity Runtimeは同じ再生consumerへcanonical state / Run / logical clockを渡し、decoder callbackでCueを進めない。登録方法と操作例は[media example](../../examples/media-presentation/README.md)を参照する。
 

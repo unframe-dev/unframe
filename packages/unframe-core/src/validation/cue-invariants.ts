@@ -208,6 +208,16 @@ export const validateCueInvariants = (
               const surface = target(surfaces, action.surfaceId, `${suffix}/surfaceId`);
               if (surface && !Object.hasOwn(surface.states, action.stateId))
                 issue("reference.invalid", `${suffix}/stateId`, "Surface State does not exist.");
+              if (
+                action.transition?.kind === "crossfade" &&
+                surface?.content.kind === "structured" &&
+                Object.values(surface.content.nodes).some((node) => node.kind === "video")
+              )
+                issue(
+                  "feature.unsupported",
+                  `${suffix}/transition`,
+                  "Video Surfaces support cut State transitions only.",
+                );
               const stateClaim = `surface:${action.surfaceId}:state`;
               const repeatedState = claims.has(stateClaim);
               claim(stateClaim, suffix);
