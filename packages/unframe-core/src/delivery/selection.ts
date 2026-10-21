@@ -463,6 +463,11 @@ export const selectDeliveryArtifactsParsed = (
   ] as const)
     within(modelTotals[field], limit, `Model ${field}`);
   for (const model of modelValues) {
+    within(
+      model.peakLoadCpuBytes,
+      capability.limits.texture.maxSerialLoadCpuBytes,
+      "Model load CPU bytes",
+    );
     within(model.maxBonesPerSkin, modelLimit.maxBonesPerSkin, "Model bones per skin");
     within(
       model.maxMorphTargetsPerPrimitive,

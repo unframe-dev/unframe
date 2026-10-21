@@ -285,6 +285,7 @@
       "maxBonesPerSkin": 0,
       "maxMorphTargetsPerPrimitive": 0,
       "animationClipCount": 1,
+      "peakLoadCpuBytes": 2048,
       "textures": [],
       "materials": {
         "basic": {

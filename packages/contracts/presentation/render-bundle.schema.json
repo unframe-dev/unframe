@@ -1630,6 +1630,11 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
+          "peakLoadCpuBytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
           "assetId": {
             "type": "string",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
@@ -1796,6 +1801,7 @@
           }
         },
         "required": [
+          "peakLoadCpuBytes",
           "assetId",
           "mediaType",
           "checksum",

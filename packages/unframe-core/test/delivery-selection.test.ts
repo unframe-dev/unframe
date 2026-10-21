@@ -59,6 +59,21 @@ const baselineSource = (change?: (current: typeof source) => void) => {
 };
 
 describe("Delivery artifact selection and admission", () => {
+  it.each([67_108_864, 67_126_671])("rejects model import CPU above %s bytes", (limit) => {
+    const input = baselineSource((current) => {
+      Object.assign(current.renderBundle.models["model-asset"]!, { peakLoadCpuBytes: 67_126_672 });
+      current.capability.limits.texture.maxSerialLoadCpuBytes = limit;
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(/Model load CPU bytes/);
+  });
+  it("admits model import CPU exactly at its serial budget", () => {
+    const input = baselineSource((current) => {
+      Object.assign(current.renderBundle.models["model-asset"]!, { peakLoadCpuBytes: 67_126_672 });
+      current.capability.limits.texture.maxSerialLoadCpuBytes = 67_126_672;
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).not.toThrow();
+  });
+
   it.each(["maxGpuBytes", "maxTextureBindings"] as const)(
     "counts embedded model textures with baked textures against %s",
     (limit) => {
@@ -392,6 +407,18 @@ describe("Model instance resource budgets", () => {
       }
       change?.(current);
     });
+
+  it.each([false, true])(
+    "imports shared Model bytes once for serial CPU budget (alias %s)",
+    (alias) => {
+      const input = withTwoInstances(alias, (current) => {
+        for (const model of Object.values(current.renderBundle.models))
+          model.peakLoadCpuBytes = 67_126_672;
+        current.capability.limits.texture.maxSerialLoadCpuBytes = 67_126_672;
+      });
+      expect(() => selectDeliveryArtifacts(input, "presenter")).not.toThrow();
+    },
+  );
 
   it.each([
     ["maxNodes", "nodeCount"],

@@ -1,7 +1,7 @@
 import { Document, NodeIO, type GLTF } from "@gltf-transform/core";
 import { KHRMaterialsUnlit } from "@gltf-transform/extensions";
 import { assert, describe, expect, it } from "vitest";
-import { transformGlb } from "../src/index.js";
+import { encodeRgbaToPng, transformGlb } from "../src/index.js";
 import { checkModelAttributes, checkModelAnimationAllocation } from "../src/model/structure.js";
 
 const limits = {
@@ -83,6 +83,49 @@ const alterGlb = (source: Uint8Array, change: (json: GLTF.IGLTF) => void) => {
 };
 
 describe("embedded model texture admission", () => {
+  it("describes the full Unity import CPU allocation for a real 2048 PNG GLB", async () => {
+    const { document } = await fixture();
+    for (const animation of document.getRoot().listAnimations()) animation.dispose();
+    const texture = encodeRgbaToPng({
+      sourceId: "large",
+      rgba: new Uint8Array(2048 * 2048 * 4),
+      pixelSize: [2048, 2048],
+      colorSpace: "srgb",
+      alphaMode: "straight",
+      limits: {
+        maxWidth: 2048,
+        maxHeight: 2048,
+        maxPixels: 2048 * 2048,
+        maxInputBytes: 2048 * 2048 * 4,
+        maxOutputBytes: 20 * 1024 * 1024,
+      },
+    });
+    assert.isTrue(texture.valid);
+    const uv = document
+      .createAccessor()
+      .setType("VEC2")
+      .setArray(new Float32Array(6))
+      .setBuffer(document.getRoot().listBuffers()[0]!);
+    document.getRoot().listMeshes()[0]!.listPrimitives()[0]!.setAttribute("TEXCOORD_0", uv);
+    document
+      .getRoot()
+      .listMaterials()[0]!
+      .setBaseColorTexture(
+        document.createTexture().setMimeType("image/png").setImage(texture.value.bytes),
+      );
+    const result = await transformGlb({
+      sourceId: "large",
+      bytes: await new NodeIO().writeBinary(document),
+      limits: { ...limits, maxInputBytes: 20 * 1024 * 1024, maxOutputBytes: 20 * 1024 * 1024 },
+    });
+    assert.isTrue(result.valid);
+    // Unused animation accessors remain in the distributed GLB and are imported too.
+    expect(result.value.descriptor.peakLoadCpuBytes).toBe(
+      result.value.bytes.length + 92 + 492 + 33_554_432 + 33_554_432,
+    );
+    expect(result.value.descriptor.peakLoadCpuBytes).toBeGreaterThan(64 * 1024 * 1024);
+  });
+
   it("counts sampler variants of the same embedded image from the distributed GLB", async () => {
     const { document } = await fixture();
     document
@@ -478,6 +521,7 @@ describe("GLB build transformation", () => {
       assetId: result.value.descriptor.checksum,
       mediaType: "model/gltf-binary",
       encodedSizeBytes: result.value.bytes.byteLength,
+      peakLoadCpuBytes: result.value.bytes.byteLength + 68 + 492 + 384,
       nodeCount: 2,
       primitiveCount: 1,
       vertexCount: 3,
@@ -781,6 +825,7 @@ describe("GLB build transformation", () => {
     });
     assert.isTrue(result.valid);
     expect(result.value.descriptor).toMatchObject({
+      peakLoadCpuBytes: result.value.bytes.length + 200 + 636 + 384,
       maxBonesPerSkin: 1,
       maxMorphTargetsPerPrimitive: 1,
       requiredFeatures: ["animation", "morphTargets", "pbrMetallicRoughness", "skin"],

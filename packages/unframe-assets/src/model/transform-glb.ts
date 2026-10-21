@@ -47,9 +47,9 @@ export type TransformedModel = {
 };
 export const MODEL_TRANSFORM_IDENTITY = Object.freeze({
   transformerId: "unframe-glb",
-  version: "3",
+  version: "4",
   fingerprint:
-    "gltf-transform-4.5.1-validator-dev3.10-unity-media-geometry160-morph48-curves64-uv0-textures2048-v3",
+    "gltf-transform-4.5.1-validator-dev3.10-unity-media-geometry160-morph48-curves64-uv0-textures2048-cpu-v4",
 });
 
 const invalid = (
@@ -133,10 +133,49 @@ const embeddedTextures = ({
   });
 };
 
+// Match the allocations guarded by Unity PresentationModelPreflight before glTFast import.
+const modelLoadCpuBytes = (
+  { json }: JSONDocument,
+  encodedBytes: number,
+  textures: TransformedModel["descriptor"]["textures"],
+): number => {
+  let total = encodedBytes;
+  for (const accessor of json.accessors ?? [])
+    total +=
+      accessor.count *
+      Accessor.getElementSize(accessor.type) *
+      Math.max(4, Accessor.getComponentSize(accessor.componentType));
+  for (const mesh of json.meshes ?? [])
+    for (const primitive of mesh.primitives) {
+      const vertices = json.accessors![primitive.attributes.POSITION!]!.count;
+      const indices =
+        primitive.indices === undefined ? vertices : json.accessors![primitive.indices]!.count;
+      total += vertices * (160 + (primitive.targets?.length ?? 0) * 48) + indices * 4;
+    }
+  for (const animation of json.animations ?? [])
+    for (const channel of animation.channels) {
+      const sampler = animation.samplers[channel.sampler]!;
+      const keys = json.accessors![sampler.input]!.count;
+      const path = channel.target.path;
+      let width = path === "rotation" ? 4 : 3;
+      if (path === "weights") {
+        const mesh = json.meshes![json.nodes![channel.target.node!]!.mesh!]!;
+        width = (mesh.primitives[0]!.targets?.length ?? 0) * mesh.primitives.length;
+      }
+      total += keys * width * 64;
+    }
+  for (const texture of textures)
+    total += texture.pixelSize[0] * texture.pixelSize[1] * (4 * texture.bindingCount + 8);
+  if (!Number.isSafeInteger(total))
+    throw new ModelRejection("model-budget-exceeded", "Model load CPU allocation is unsafe.");
+  return total;
+};
+
 const describeModel = (
   document: Document,
   bytes: Uint8Array,
   textures: TransformedModel["descriptor"]["textures"],
+  peakLoadCpuBytes: number,
 ): TransformedModel["descriptor"] => {
   const root = document.getRoot();
   const scene = root.getDefaultScene();
@@ -218,6 +257,7 @@ const describeModel = (
     mediaType: "model/gltf-binary",
     checksum,
     encodedSizeBytes: bytes.byteLength,
+    peakLoadCpuBytes,
     nodeCount,
     primitiveCount,
     vertexCount,
@@ -455,11 +495,15 @@ export const transformGlb = async (input: unknown): Promise<ValidationResult<Tra
       "Transformed GLB failed specification validation.",
     );
   let descriptor: TransformedModel["descriptor"];
+
   try {
+    const output = await io.binaryToJSON(bytes);
+    const textures = embeddedTextures(output);
     descriptor = describeModel(
       await io.readBinary(bytes),
       bytes,
-      embeddedTextures(await io.binaryToJSON(bytes)),
+      textures,
+      modelLoadCpuBytes(output, bytes.byteLength, textures),
     );
   } catch (error) {
     if (error instanceof ModelRejection) return invalid(error.code, ["bytes"], error.message);

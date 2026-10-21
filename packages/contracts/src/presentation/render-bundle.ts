@@ -177,6 +177,7 @@ const compiledSurfaceSchema = z.strictObject({
   interactionsByState: z.record(idSchema, z.array(regionSchema)),
 });
 const compiledModelSchema = z.strictObject({
+  peakLoadCpuBytes: positiveSafeUIntSchema,
   assetId: idSchema,
   mediaType: z.literal("model/gltf-binary"),
   checksum: contentHashSchema,
