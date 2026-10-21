@@ -11,12 +11,12 @@
 - browser activationなしの再生拒否、エラー表示、利用者の再生クリックによる復帰を確認した。旧Video elementは切替後に停止し、未準備状態へ戻る。
 - 対象packageのテスト・型・lint、契約生成drift、Unity Editorの追加・既存描画回帰47件、純粋C# adapter、Nix flake checkが通過した。Preview無効化時のdecoder停止はTransaction回帰テストで確認した。
 
-実WebGLの受け入れテストは[`local-editor-media-webgl.spec.ts`](../../app/web/e2e/local-editor-media-webgl.spec.ts)。生成済みUnity PreviewとWeb editor、導入済みH.264/AAC対応Chromium、Fixed Browser、隔離capture scopeが必要となる。
+実WebGLの受け入れテストは[`local-editor-media-webgl.spec.ts`](../../app/local-editor/e2e/local-editor-media-webgl.spec.ts)。生成済みUnity PreviewとLocal Editor、導入済みH.264/AAC対応Chromium、Fixed Browser、隔離capture scopeが必要となる。
 
 ```bash
 nix develop --command env UNFRAME_REAL_WEBGL=1 \
   PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \
-  scripts/dev/opaque-capture-scope.sh pnpm --filter @unframe/web test:e2e \
+  scripts/dev/opaque-capture-scope.sh pnpm --filter @unframe/local-editor test:e2e \
   e2e/local-editor-media-webgl.spec.ts --project chromium
 ```
 
