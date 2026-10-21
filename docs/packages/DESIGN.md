@@ -47,7 +47,7 @@ TypeScript 内では、Web、Compiler、Control Plane が pure な Presentation 
 
 ### 2.3 Concrete runtime から contract を逆流させない
 
-- Web Editor の UI state を Semantic Authoring IR の正本にしない。
+- Local Editor の UI state を Semantic Authoring IR の正本にしない。
 - Compiler の cache や Browser object を PresentationDefinition に入れない。
 - Control Plane の D1 / R2 representation を Presentation contract にしない。
 - Realtime の Go implementation detail を Runtime wire contract にしない。
@@ -81,7 +81,7 @@ CLI は compiler orchestration の利用者向け entrypoint とし、compile lo
 ```text
 unframe/
 ├─ app/
-│  ├─ web/
+│  ├─ local-editor/
 │  │  └─ src/features/editor/                 # GUI authoring integration
 │  ├─ server/
 │  │  ├─ control-plane/
@@ -187,11 +187,11 @@ Presentation の pure TypeScript semantic core を所有する。
 - Opaque renderer source の bundle と実行
 - renderer artifact の生成
 - project filesystem と cache
-- Web Editor UI
+- Local Editor UI
 - Control Plane persistence
 - Runtime progression evaluation
 
-この package は `unframe-core` に依存する。Compiler、Web Editor、Component package が利用するが、Compiler やWeb Editorへ逆依存しない。
+この package は `unframe-core` に依存する。Compiler、Local Editor、Component package が利用するが、Compiler やLocal Editorへ逆依存しない。
 
 ### 4.3 `packages/unframe-components`
 
@@ -321,7 +321,7 @@ Authoring Project から PresentationDefinition と RenderBundle を生成する
 - user-facing command parsing
 - Control Planeへのpublish
 - concrete renderer implementation
-- Web Editor UI
+- Local Editor UI
 - Runtime progression evaluation
 
 Compiler は `unframe-core`、`unframe-authoring`、`unframe-renderer-api`、`unframe-assets`と固定 version の TypeScript に依存する。concrete renderer はhostから注入する。
@@ -386,7 +386,7 @@ OpenAPIとProtocol Buffersから生成したC# artifactを所有する。Unity�
 
 ## 6. Application-owned responsibilities
 
-### 6.1 `app/web/src/features/editor`
+### 6.1 `app/local-editor/src/features/editor`
 
 - Semantic Authoring IRのGUI projection
 - Semantic Command、selection、history、temporary interaction state
@@ -395,7 +395,7 @@ OpenAPIとProtocol Buffersから生成したC# artifactを所有する。Unity�
 - Compiler diagnosticsとpreviewの表示
 - Draft保存、revision conflict、build / publish UI
 
-Web EditorはCompiler Core、Opaque rendererのBrowser実行環境、renderer artifact generationを所有しない。Node-only Compiler を browser bundle へ取り込まず、現行 Local Editor は native CLI Author host の認証付き HTTP API と接続する。
+Local EditorはCompiler Core、Opaque rendererのBrowser実行環境、renderer artifact generationを所有しない。Node-only Compiler を browser bundle へ取り込まず、現行 Local Editor は native CLI Author host の認証付き HTTP API と接続する。
 
 ### 6.2 `app/server/control-plane`
 
@@ -476,7 +476,7 @@ unframe-cli ───────────────→ unframe-core / Cont
 unframe-cli ───────────────→ Control Plane API client adapter
 unframe-cli TUI ───────────→ Bun / OpenTUI core / Solid / keymap
 
-Web Editor ─────────────────────→ unframe-core / unframe-authoring
+Local Editor ─────────────────────→ unframe-core / unframe-authoring
 Control Plane ──────────────────→ unframe-core / generated contracts
 Realtime ───────────────────────→ generated Go contracts
 Unity ──────────────────────────→ generated C# contracts
@@ -486,10 +486,10 @@ Unity ────────────────────────�
 
 - `unframe-core`からAuthoring、Compiler、Renderer、CLIへの依存
 - `packages/contracts`のgeneratorから`unframe-core`への依存
-- `unframe-authoring`からCompiler、Web Editorへの依存
+- `unframe-authoring`からCompiler、Local Editorへの依存
 - `unframe-compiler`からconcrete rendererへのhard dependency
 - concrete renderer間の依存
-- Web EditorからCompiler内部moduleへの依存
+- Local EditorからCompiler内部moduleへの依存
 - Control PlaneからCompiler、Authoring SDK、rendererへの依存
 - RealtimeからTypeScript packageへの依存
 - UnityからAuthoring Source、React、CSSへの依存
@@ -572,7 +572,7 @@ packages/unframe-renderer-web/ARCHITECTURE.md
 packages/unframe-assets/ARCHITECTURE.md
 packages/unframe-compiler/ARCHITECTURE.md
 packages/unframe-cli/ARCHITECTURE.md
-app/web/ARCHITECTURE.md
+app/local-editor/README.md
 app/server/control-plane/ARCHITECTURE.md
 app/server/realtime/ARCHITECTURE.md
 app/server/integration/ARCHITECTURE.md
@@ -601,7 +601,7 @@ Directoryとpackageは次の順序で実装を開始する。
 12. Control Plane Build / Publication / Delivery
 13. Realtime Progression / Runtime protocol
 14. Unity Presentation Runtime
-15. Web Editor integration
+15. Local Editor integration
 
 最初のmilestoneは、手書きのreference Authoring Projectから、CLIを通じてcanonical PresentationDefinition JSONと一つのbaked-web Surfaceを含むRenderBundleをdeterministicに生成することとする。Publish、Realtime、Unity、GUI editingはこのmilestoneの完了条件に含めない。
 

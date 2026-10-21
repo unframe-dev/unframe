@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
+  await page.route("**/presentations", (route) => route.fulfill({ json: { presentations: [] } }));
   await page.route("**/api/auth/get-session", (route) =>
     route.fulfill({
       contentType: "application/json",
@@ -33,7 +34,7 @@ test("public authentication routes and account menu are accessible", async ({ pa
   await expect(page.getByRole("heading", { name: "Create an account." })).toBeVisible();
   await page.goto("/home");
   const desktopMenu = page.getByRole("button", { name: "アカウントメニュー" });
-  const projectGuide = page.getByRole("heading", { name: "ローカル project を開く" });
+  const projectGuide = page.getByRole("heading", { name: "公開済み Dist" });
   await expect(desktopMenu).toBeVisible();
   await expect(projectGuide).toBeVisible();
   const mainNavigation = page.getByRole("navigation", {

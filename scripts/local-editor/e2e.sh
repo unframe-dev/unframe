@@ -19,7 +19,12 @@ openssl x509 -req -in "$state/server.csr" -CA "$state/ca.pem" -CAkey "$state/ca-
   -CAcreateserial -out "$state/server.pem" -days 2 -extfile "$state/server.ext" > /dev/null 2>&1
 export UNFRAME_E2E_STATE="$state"
 export NODE_EXTRA_CA_CERTS="$state/ca.pem"
-export SSL_CERT_FILE="$state/ca.pem"
+# Retain public registry trust when Unity resolves packages in a fresh project.
+system_ca="/etc/ssl/certs/ca-certificates.crt"
+if [[ "$(uname -s)" == Darwin ]]; then system_ca="/etc/ssl/cert.pem"; fi
+ca_bundle="${SSL_CERT_FILE:-${NIX_SSL_CERT_FILE:-${system_ca}}}"
+cat "$ca_bundle" "$state/ca.pem" > "$state/trust.pem"
+export SSL_CERT_FILE="$state/trust.pem"
 export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$root/.cache/playwright}"
 cd "$root"
 exec "$root/scripts/dev/opaque-capture-scope.sh" pnpm --filter @unframe/contracts exec tsx ../../scripts/local-editor/e2e.mts "$@"

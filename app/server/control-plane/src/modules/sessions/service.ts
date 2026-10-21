@@ -1,12 +1,20 @@
 import type { Identity } from "../../presentation/service";
 import type { PresentationRepository } from "../../presentation/repository";
 import { joinCodeSchema } from "./schema";
-import type { SessionParticipant, SessionRecord, SessionRepository } from "./repository";
+import type {
+  SessionCreateRecord,
+  SessionParticipant,
+  SessionRecord,
+  SessionRepository,
+} from "./repository";
 
 const maximumParticipants = 50 as const;
 const joinWindowMs = 5 * 60 * 1000;
 
-export type SessionResource = Omit<SessionRecord, "joinCodeHash" | "maxParticipants"> & {
+export type SessionResource = Omit<
+  SessionRecord,
+  "joinCodeHash" | "maxParticipants" | "publicationEpoch"
+> & {
   maxParticipants: typeof maximumParticipants;
 };
 
@@ -42,7 +50,7 @@ export class SessionService {
       throw new SessionError("invalid_join_code");
     }
     const timestamp = this.now().toISOString();
-    const record: SessionRecord = {
+    const record: SessionCreateRecord = {
       id: this.id(),
       presentationId,
       presenterId: identity.userId,
@@ -59,8 +67,9 @@ export class SessionService {
       role: "presenter",
       joinedAt: timestamp,
     };
-    await this.sessions.create(record, presenter);
-    return { session: resource(record), joinCode };
+    const created = await this.sessions.create(record, presenter);
+    if (!created) throw new SessionError("conflict");
+    return { session: resource(created), joinCode };
   }
 
   async get(identity: Identity, id: string) {
@@ -134,6 +143,7 @@ export class SessionService {
 
 const resource = ({
   joinCodeHash: _joinCodeHash,
+  publicationEpoch: _publicationEpoch,
   maxParticipants,
   ...record
 }: SessionRecord): SessionResource => {

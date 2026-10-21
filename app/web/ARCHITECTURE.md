@@ -1,111 +1,31 @@
 # Unframe Web Architecture
 
-`app/web` は、Control Plane を通じて空間プレゼンテーションを管理・編集する React SPA です。この文書は Web の責務、ルート、通信、状態、UI 基盤を定義します。Editor 内部の Group / Step / Cue 操作モデルと画面構成は、別途設計してから追記します。
+`app/web` は Control Plane の公開情報を確認し、ルームを作成する React SPA です。Source の編集と公開操作は [Local Editor](../local-editor/README.md) と CLI が所有します。
 
-## Responsibilities
-
-Web は次を担当します。
-
-- Better Auth によるブラウザ認証とアカウント設定
-- Presentation の一覧、作成、取得、編集、保存
-- Asset の upload、状態確認、preview、download
-- Presentation Definition のブラウザ内編集
-- Session の作成、Join Code の表示、participant / device readiness の確認
-- Session の Runtime 配置選択、開始、pause、終了
-- Presenter 切断時の状況確認と、権限を持つ operator による再開または終了
-
-Web は Realtime Backend の高頻度 stream へ直接接続せず、Pose、input、canonical Runtime State の操作を担当しません。Session の運営操作は Control Plane API を通じて行い、発表中の低遅延な進行操作は Unity Presenter が担当します。
-
-## Routes
-
-本番の `/` は LP が所有します。認証が必要な Web route で session を確認できない場合は、SPA 内の仮画面へ遷移せず `/` を外部 URL として読み直します。
+## 責務と通信
 
 ```text
-/login/
-/signup/
-/recover/*
-/device/
-
-/home/
-/editor/:presentationId/
-/sessions/
-/sessions/:sessionId/
-/settings/profile/
-/settings/security/
+React feature → TanStack Query → @unframe/api-client-typescript → Hono RPC → Control Plane
 ```
 
-`/device/` は Device Authorization の公開 route です。`/home/`、`/editor/:presentationId/`、`/sessions/*`、`/settings/*` は認証必須です。
+- Better Auth client による認証・アカウント設定と device 承認。
+- Presentation 一覧と最新 publication の取得。公開情報のない状態と認証・権限・通信エラーを区別する。
+- 公開済み Presentation の Session 作成と結果表示。Session は「ルーム」と表示するが、既存の Session を永続化し、別の Room リソースは作らない。
 
-## API Boundaries
+Worker は `ASSETS.fetch` で SPA を配信します。ブラウザーから localhost の filesystem API を操作せず、CLI、Compiler、Unity player を通常 Web に組み込みません。
 
-```text
-React route / feature
-  -> TanStack Query
-  -> @unframe/api-client-typescript
-  -> Hono RPC
-  -> Control Plane
-```
+## 状態と公開版
 
-Presentation、Asset、Session、delivery などの product API は Hono RPC を使用します。route component から product API へ直接 `fetch()` しません。Better Auth の endpoint は Better Auth client、R2 の署名付き upload / download は Control Plane が返す request 情報に従う直接 `fetch()` を使用します。
+サーバーの Presentation、publication、Session は TanStack Query で取得し、画面選択とフォーム入力は component が保持します。publication の参照は表示範囲に限定します。
 
-OpenAPI artifact は外部契約と Unity / C# のために維持しますが、Web の product API client として生成 OpenAPI client は使用しません。
+Session 作成は `{ presentationId }` を送り、Control Plane が作成時の最新公開版を原子的に固定します。結果には保存された `publicationFence` を表示し、選択時の値で代替しません。公開版のない新規 Session は `409 conflict` になります。旧 Session に公開固定値がない場合は `null` です。
 
-## State Ownership
+Join Code は作成応答だけで受け取り、メモリだけに保持します。URL、ログ、ブラウザー永続ストレージには保存しません。応答不明の作成は自動再送しません。
 
-| State                                           | Owner                                |
-| ----------------------------------------------- | ------------------------------------ |
-| Presentation resource、revision、Asset metadata | TanStack Query                       |
-| Session、participant、device readiness          | TanStack Query                       |
-| 編集中の Definition と Undo / Redo              | Editor draft state                   |
-| selection、tool、panel、drag 中の値             | Zustand または component local state |
-| 3D object、camera、pointer の一時状態           | React Three Fiber / Three.js         |
-| form input と validation                        | React Hook Form / Zod                |
+## 配信と UI
 
-保存は Control Plane の revision 条件付き aggregate update に従います。POC の Slide schema と `localStorage` persistence は target contract ではなく、移行中の fixture adapter としてのみ扱います。これらとの後方互換性を理由に Group / Step / Cue の設計を制約しません。
+`/home`、`/rooms`、`/devices`、`/settings/*` は認証必須、`/device` は公開承認 route です。本番の `/` は LP が所有します。未認証の application route は LP の `/` へ外部遷移します。
 
-## UI Foundation
+UI は Tailwind CSS v4、Base UI と `@phosphor-icons/react` を使います。`@base-ui/react` の import は `src/shared/ui/` に限定し、`src/app/` は composition、`src/features/` は機能、`src/shared/` は共通 primitives を所有します。
 
-- Tailwind CSS v4
-- shadcn/ui の Base UI variant
-- `@phosphor-icons/react`
-- LP と同じ background、foreground、line、night、Blue / Purple / Red のブランド色
-
-shadcn/ui component は必要なものだけ source として追加し、アプリ側で所有します。別の一般 icon library を混在させません。Editor は LP の色とタイポグラフィを共有しますが、巨大見出し、広い marketing spacing、常設の波形を制作画面へ持ち込みません。
-
-`@base-ui/react` の import は `src/shared/ui/` に限定する。`src/app/` は起動と composition のみを持ち、route UI とそのロジックは `src/features/<feature>/` に置く。現行 Editor POC の model、browser persistence、3D canvas も `src/features/editor/` が所有する。
-
-## Domain Boundary
-
-Control Plane の `PresentationDefinition` が永続契約の正本です。Web 独自の Slide document を外部契約にしません。
-
-```text
-Presentation
-└─ Group
-   ├─ Element / Anchored Element Group
-   └─ Step
-      └─ Cue
-         ├─ Trigger
-         ├─ Actions / Transition
-         └─ Next
-```
-
-Editor 内部では、永続 DTO と編集しやすい projection を分けても構いません。ただし変換境界と contract test を設け、URL、R2 object key、runtime session state を Definition へ混入させません。
-
-## Deferred Editor Design
-
-次は Editor 設計で決定します。
-
-- Group / Step / Cue のユーザー向け名称
-- 空間配置と進行設計を同一画面に置くか、mode を分けるか
-- Web preview の範囲と URL
-- command 粒度、autosave、revision conflict の回復
-- Element / Asset / Anchor / Zone の navigation と inspector
-
-## Local Author Inspector
-
-`author.html` / `features/author/` はローカル CLI host 用の独立 entry である。
-`pnpm --filter @unframe/web build:author` が `dist-author/` に静的 assets を生成し、CLI が同一 origin で配信する。
-公開 Props の直接 literal と host Transform を編集し、Source 保存後の build と PNG preview を扱う。
-この画面は Control Plane や既存 fixture Editor の browser persistence を使用しない。
-HTTP 型は CLI の公開入口 `@unframe/unframe-cli/author-contract`、Source patch は Compiler が所有する。
-起動 token は fragment から取得して直ちに URL から除去し、メモリに保持する。
+ルーム参加、Runtime 配置、発表開始・停止、ブラウザーでの Source 編集やアップロードは対象外です。

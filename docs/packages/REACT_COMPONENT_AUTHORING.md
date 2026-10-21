@@ -14,7 +14,7 @@ Surface の Structured / Opaque 表現と Renderer の binding 検証の境界�
 
 Component 作者は公開契約と見た目を一ファイルで定義し、Presentation 作者は Component を一つ import して Props、3D 配置、Flow を記述する。Manifest、renderer entry、内部 Runtime ID、lock を配置のたびに手で結ばない。CSS・画像・描画 helper を別ファイルへ分けることは許す。
 
-現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/web/src/features/editor/editor-app.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
+現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/local-editor/src/features/editor/editor-app.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
 
 ## 2. 作者向け API の三例
 
@@ -295,7 +295,7 @@ Source patch、再度の静的検証、local lock 再生成を成功させてか
 
 描画は保存後に実行する。capture 失敗でも検証済み Source は保持し、最後に成功した Unity Preview を古い revision として表示する。保存済み revision と表示中の artifact revision を混同しない。Undo / Redo は同じ session の保存済み編集を逆 patch として扱い、最新 hash を検証し、外部編集があれば履歴を破棄する。
 
-実行場所は native ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Web、patch と検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
+実行場所は native ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Local Editor、patch と検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
 
 ## 6. 受け入れ検証と導入条件
 

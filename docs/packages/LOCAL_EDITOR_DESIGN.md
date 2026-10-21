@@ -36,17 +36,17 @@ Definition + RenderBundle + AssetSet + BuildManifest + assets
 | `packages/contracts/`    | canonical artifact・描画に再利用する生成 message の正本。必要な Preview の cross-application schema もここに定義する |
 | `packages/unframe-core/` | build 検証、publication 非依存の role／capability 選択、Runtime catalog・初期表示状態の導出                          |
 | `packages/unframe-cli/`  | project filesystem、保存、出力 channel、generation 固定、Local Author HTTP API                                       |
-| `app/web/`               | Dev／Dist 選択、保存・build・表示 revision の提示、Unity instance と要求の lifecycle                                 |
+| `app/local-editor/`      | Dev／Dist 選択、保存・build・表示 revision の提示、Unity instance と要求の lifecycle                                 |
 | `app/unity/`             | Preview／Delivery 入力 Adapter、共通 hierarchy・描画・素材管理、WebGL／Quest platform Adapter                        |
 | Control Plane            | upload された build の公開整合性、認可、Delivery projection。Source や Dev generation は受け取らない                 |
 
 `PresentationRuntimeDataStore` は Delivery／Snapshot の検証を所有する。描画参照は `IPresentationRenderView` を介し、Preview／Delivery Adapter が共通 hierarchy・renderer・`PresentationPlaybackPlayer` を使う。ノード状態反映、Timeline の同期・補間、Surface 遷移の評価、再生時計のサンプリングを共通化し、通信・素材取得・Quest 校正・Preview の表示交換は各 Adapter が所有する。本番 Adapter の fence 検証は維持する。
 
-### Web features の統合
+### Local Editor と管理 Web
 
-`app/web/src/features/editor/` が Source Inspector、保存・Undo／Redo、診断、Dev／Dist 選択、Unity lifecycle、公開 UI を所有する。`editor.html` から `dist-editor` を生成し、Local Host が同一 origin で配信する。旧 Author entry、Slide／Element 文書、localStorage 文書保存、React 3D viewport は編集経路から撤去した。
+`app/local-editor/src/features/editor/` が Source Inspector、保存・Undo／Redo、診断、Dev／Dist 選択、Unity lifecycle、公開 UI を所有する。`index.html` から `dist` を生成し、Local Host が同一 origin で配信する。旧 Author entry、Slide／Element 文書、localStorage 文書保存、React 3D viewport は編集経路から撤去した。
 
-対象は CLI 起動時に指定した project であり、ブラウザーから任意 filesystem path を開く API はない。Web の `/editor/$presentationId` は Local Host 起動の案内を表示する。Home の mock 一覧はローカル project の正本ではない。認証・device 承認・account settings は Web application に保持し、ローカル Editor の起動・保存・Preview はログインなしで利用する。
+対象は CLI 起動時に指定した project であり、ブラウザーから任意 filesystem path を開く API はない。管理 Web は認証・device 承認・account settings、公開済み Dist の確認とルーム作成を担当する。ローカル Editor の起動・保存・Preview はログインなしで利用する。
 
 認証・device 承認・account settings は CP が信頼する設定済み `WEB_ORIGIN` で配信する。Local Host は設定済み CP と client ID に対して既存 device authorization を開始・poll し、公開用 bearer credential を取得する。Editor は同一 origin の Host API で認証状態と承認用 `user_code`・URLを扱い、CP へ cookie 付きで直接接続しない。CP credential と `device_code` は Host のメモリーだけに保持し、Web UI・localStorage・project・ログへ渡さない。Host 終了・認証期限切れ時は再認証する。CP の verification URI と承認画面の router path を揃え、Google login など承認画面の認証も信頼済み origin 内で完結させる。
 
