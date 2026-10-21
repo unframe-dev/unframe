@@ -106,13 +106,23 @@ const rawPosition = (clock: Clock, now: number, speed = 1) =>
     ? clock.positionMilliseconds
     : clock.positionAtReferenceMilliseconds +
       (now - clock.referenceRuntimeTimeMilliseconds) * speed;
-const position = (clip: Clip, duration: number, now: number) =>
-  clip.loop
-    ? rawPosition(clip.playback, now, clip.speed) % duration
-    : Math.min(duration, rawPosition(clip.playback, now, clip.speed));
+export const modelClipPosition = (clip: Clip, duration: number, now: number) => {
+  const raw = rawPosition(clip.playback, now, clip.speed);
+  if (!clip.loop) return Math.min(duration, raw);
+  if (raw === Infinity && clip.playback.kind === "playing") {
+    // Logical clock deltas are integer milliseconds, so speed can be reduced before multiplication.
+    const elapsed = now - clip.playback.referenceRuntimeTimeMilliseconds;
+    return (
+      ((clip.playback.positionAtReferenceMilliseconds % duration) +
+        ((elapsed * (clip.speed % duration)) % duration)) %
+      duration
+    );
+  }
+  return raw % duration;
+};
 const held = (state: CueState, id: string, clip: Clip): Held => ({
   clipId: clip.clipId,
-  positionMilliseconds: position(
+  positionMilliseconds: modelClipPosition(
     clip,
     state.playbackCatalog.models[id]![clip.clipId]!,
     state.runtimeTimeMilliseconds,
@@ -307,7 +317,7 @@ export const applyPlaybackAction = (
     const rebase = (clock: Clock, pos: number): Clock =>
       (clock.kind === "paused") === pause ? clock : pause ? paused(pos) : playing(pos, now);
     const rebaseClip = (clip: Clip) => {
-      clip.playback = rebase(clip.playback, position(clip, durations[clip.clipId]!, now));
+      clip.playback = rebase(clip.playback, modelClipPosition(clip, durations[clip.clipId]!, now));
     };
     if (run.phase.kind === "single") {
       rebaseClip(run.phase.clip);

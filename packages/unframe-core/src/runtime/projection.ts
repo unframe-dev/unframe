@@ -11,6 +11,7 @@ import {
   renderBundleSchema,
 } from "@unframe/contracts/presentation";
 import type { CueState } from "./cue-executor.js";
+import { modelClipPosition } from "./media-runtime.js";
 import { snapshotPlainJson } from "../publication/plain-json.js";
 import { hasCanonicalQuaternionSign, isUnitQuaternion } from "../validation/shared.js";
 
@@ -528,7 +529,9 @@ export const validateCanonicalRuntimeSnapshot = (
       const entry = model.clips[clip.clipId];
       if (!entry) issues.push(`Model Run ${run.modelNodeId} references an unknown clip.`);
       else {
-        const at = position(clip.playback, clip.speed);
+        const at = clip.loop
+          ? modelClipPosition(clip, entry.durationMilliseconds, runtimeTime)
+          : position(clip.playback, clip.speed);
         if (!Number.isFinite(at))
           issues.push(`Model Run ${run.modelNodeId} computed position must be finite.`);
         else if (run.phase.kind === "single" && !clip.loop && at >= entry.durationMilliseconds)

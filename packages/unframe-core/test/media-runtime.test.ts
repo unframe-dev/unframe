@@ -264,6 +264,49 @@ describe("model crossfades and Run fences", () => {
 });
 
 describe("clock authority and resource lifecycle", () => {
+  it("keeps an active high-speed loop snapshot valid after position multiplication overflows", () => {
+    const { definition, bundle, state, fire } = setup();
+    const started = fire(state, [{ ...play, speed: Number.MAX_VALUE, loop: true }]);
+    const advanced = advanceCueClock(definition, started.state, 2).state;
+    const snapshot = createM3dCueRuntimeSnapshot(definition, advanced, {
+      reliableSequence: 0,
+      lastIngressSequence: 0,
+      lifecycle: { kind: "running" },
+      presentationOrigin: { version: 0, pose: { position: [0, 0, 0], rotation: [0, 0, 0, 1] } },
+      recentEventIds: [],
+    });
+    expect(validateCanonicalRuntimeSnapshot(definition, bundle, snapshot, 9)).toEqual([]);
+  });
+  it("holds a finite loop position when speed times elapsed time overflows", () => {
+    const { definition, state, fire } = setup();
+    const started = fire(state, [{ ...play, speed: Number.MAX_VALUE, loop: true }]);
+    expect(started.outcome.kind).toBe("accepted");
+    const advanced = advanceCueClock(definition, started.state, 2).state;
+    const stopped = fire(advanced, [{ kind: "modelClip.stop", nodeId: "model" }]);
+    expect(stopped.outcome.kind).toBe("accepted");
+    expect(stopped.state.modelClipStates.model).toEqual({
+      kind: "heldClip",
+      clip: { clipId: "wave", positionMilliseconds: 736 },
+    });
+  });
+  it("pauses and resumes a finite loop position after playback multiplication overflows", () => {
+    const { definition, state, fire } = setup();
+    const started = fire(state, [{ ...play, speed: Number.MAX_VALUE, loop: true }]);
+    const advanced = advanceCueClock(definition, started.state, 2).state;
+    const paused = fire(advanced, [{ kind: "modelClip.pause", nodeId: "model" }]);
+    expect(paused.outcome.kind).toBe("accepted");
+    expect(paused.state.activeRuns[0]).toMatchObject({
+      phase: { clip: { playback: { kind: "paused", positionMilliseconds: 736 } } },
+    });
+    const waiting = advanceCueClock(definition, paused.state, 100).state;
+    const resumed = fire(waiting, [{ kind: "modelClip.resume", nodeId: "model" }]);
+    const later = advanceCueClock(definition, resumed.state, 102).state;
+    const stopped = fire(later, [{ kind: "modelClip.stop", nodeId: "model" }]);
+    expect(stopped.state.modelClipStates.model).toEqual({
+      kind: "heldClip",
+      clip: { clipId: "wave", positionMilliseconds: 472 },
+    });
+  });
   it("ignores decoder completion input and emits completion from the logical deadline", () => {
     const { definition, state, fire } = setup();
     let current = fire(state, [{ kind: "media.play", surfaceId: "video" }]).state;

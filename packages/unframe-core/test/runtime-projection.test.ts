@@ -146,7 +146,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     expect(accessed).toBe(false);
   });
 
-  it("rejects computed Model positions that overflow while allowing finite loop positions", () => {
+  it("accepts wrapped loop positions and rejects overflowing or expired finite clips", () => {
     const full = structuredClone(snapshot) as CanonicalRuntimeSnapshot;
     full.clock.runtimeTimeMilliseconds = 2;
     full.lastAllocatedRunSequence = 1;
@@ -194,9 +194,12 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     run.phase.clip.speed = 1e308;
     expect(
       validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, full, 1),
+    ).toEqual([]);
+    run.phase.clip.loop = false;
+    expect(
+      validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, full, 1),
     ).toContain("Model Run model computed position must be finite.");
     run.phase.clip.speed = 1;
-    run.phase.clip.loop = false;
     if (run.phase.clip.playback.kind !== "playing")
       throw new TypeError("Expected a playing Model clip.");
     run.phase.clip.playback.positionAtReferenceMilliseconds = 998;
