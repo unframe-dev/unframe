@@ -184,6 +184,71 @@ test("creates one room, displays the server fixed publication, and never persist
   await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
 });
 
+test("clears the one-time room result when navigating to the room chooser", async ({ page }) => {
+  await published(page);
+  await page.route("**/sessions", (route) =>
+    route.fulfill({ status: 201, json: { session: room, joinCode: "ABCD-EFGH" } }),
+  );
+  await page.goto(`/rooms?presentationId=${presentation.id}`);
+  await page.getByRole("button", { name: "ルームを作成", exact: true }).click();
+  await expect(page.getByText("ABCD-EFGH", { exact: true })).toBeVisible();
+
+  await page
+    .getByRole("navigation", { name: "メインナビゲーション" })
+    .getByRole("link", { name: "ルーム", exact: true })
+    .click();
+
+  await expect(page).toHaveURL(/\/rooms(?:\?presentationId=)?$/);
+  await expect(page.getByRole("region", { name: "ルーム作成結果" })).toHaveCount(0);
+  await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "選択した Presentation" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "この公開版からルームを作成" })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/presentationId=presentation-1/);
+  await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "ルームを作成", exact: true })).toBeEnabled();
+});
+
+test("isolates a pending room creation from the room chooser after navigation", async ({
+  page,
+}) => {
+  await published(page);
+  let releaseResponse!: () => void;
+  const responseReady = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+  let requests = 0;
+  await page.route("**/sessions", async (route) => {
+    requests++;
+    if (requests === 1) await responseReady;
+    await route.fulfill({
+      status: 201,
+      json: { session: room, joinCode: requests === 1 ? "OLD-CODE" : "NEW-CODE" },
+    });
+  });
+  await page.goto(`/rooms?presentationId=${presentation.id}`);
+  await page.getByRole("button", { name: "この公開版からルームを作成" }).click();
+  await page.getByRole("button", { name: "ルームを作成", exact: true }).click();
+  await expect(page.getByRole("button", { name: "作成しています…" })).toBeDisabled();
+  await page
+    .getByRole("navigation", { name: "メインナビゲーション" })
+    .getByRole("link", { name: "ルーム", exact: true })
+    .click();
+  await expect(page.getByRole("region", { name: "選択した Presentation" })).toHaveCount(0);
+  await page.getByRole("button", { name: "この公開版からルームを作成" }).click();
+  const create = page.getByRole("button", { name: "ルームを作成", exact: true });
+  await expect(create).toBeEnabled();
+
+  const oldResponse = page.waitForResponse("**/sessions");
+  releaseResponse();
+  await oldResponse;
+  await create.click();
+  await expect(page.getByText("NEW-CODE", { exact: true })).toBeVisible();
+  await expect(page.getByText("OLD-CODE", { exact: true })).toHaveCount(0);
+  expect(requests).toBe(2);
+});
+
 for (const status of [401, 403, 409]) {
   test(`shows room creation HTTP ${status} without claiming success`, async ({ page }) => {
     await published(page);

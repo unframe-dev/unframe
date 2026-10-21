@@ -103,7 +103,10 @@ const roomsRoute = createRoute({
   getParentRoute: () => applicationRoute,
   path: "rooms",
   validateSearch: z.object({ presentationId: z.string().catch("") }),
-  component: () => <RoomsPage presentationId={roomsRoute.useSearch().presentationId} />,
+  component: () => {
+    const { presentationId } = roomsRoute.useSearch();
+    return <RoomsPage key={presentationId} presentationId={presentationId} />;
+  },
 });
 const presentationRoute = createRoute({
   getParentRoute: () => applicationRoute,
