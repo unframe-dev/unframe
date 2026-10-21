@@ -20,6 +20,8 @@ static class Program
                 return 0;
             }
             Require(args.Length == 0, "Expected at most one Delivery protobuf path.");
+            VideoPreflightChecks.Run();
+            ModelPlaybackChecks.Run();
             CheckPreviewAdmission();
             CheckPreviewAdapter();
             CheckRenderView();

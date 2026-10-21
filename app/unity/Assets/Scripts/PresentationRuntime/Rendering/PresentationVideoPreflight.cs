@@ -12,6 +12,11 @@ namespace Unframe.Unity.PresentationRuntime
         {
             internal byte[] Bytes; internal VideoArtifact Artifact; internal int Boxes, VideoTracks, AudioTracks, Samples, SpsCount;
             internal bool HasMovie, HasData, VideoDuration; internal uint MovieTimescale;
+            internal ulong MovieDuration; internal readonly List<Track> Tracks = new List<Track>();
+        }
+        private sealed class Track
+        {
+            internal bool HasHeader, HasEdits; internal ulong Duration, EditDuration;
         }
         public static bool TryValidate(byte[] bytes, VideoArtifact artifact, out string error)
         {
@@ -25,14 +30,29 @@ namespace Unframe.Unity.PresentationRuntime
                 Boxes(inspection, 0, bytes.Length, 0);
                 if (!inspection.HasMovie || !inspection.HasData || inspection.VideoTracks != 1 || inspection.AudioTracks != (artifact.HasAudio ? 1 : 0)
                     || !inspection.VideoDuration || inspection.Samples != 1 || inspection.SpsCount == 0) return false;
+                Require(ValidateDurations(inspection));
                 error = null; return true;
             }
             catch (Exception exception) when (exception is ArgumentException || exception is OverflowException || exception is IndexOutOfRangeException || exception is EndOfStreamException) { return false; }
         }
+        private static bool ValidateDurations(Inspection scan)
+        {
+            Require(scan.MovieTimescale > 0 && scan.MovieDuration > 0);
+            Require(decimal.Ceiling((decimal)scan.MovieDuration * 1000 / scan.MovieTimescale) == scan.Artifact.DurationMs);
+            ulong longest = 0;
+            foreach (Track track in scan.Tracks)
+            {
+                Require(track.HasHeader && track.Duration > 0 && track.Duration <= scan.MovieDuration);
+                Require(!track.HasEdits || track.EditDuration == track.Duration);
+                longest = Math.Max(longest, track.Duration);
+            }
+            return longest == scan.MovieDuration;
+        }
+        private static ulong U64(byte[] bytes, int p) => (ulong)U32(bytes, p) << 32 | U32(bytes, p + 4);
         private static uint U32(byte[] bytes, int p) => (uint)bytes[p] << 24 | (uint)bytes[p + 1] << 16 | (uint)bytes[p + 2] << 8 | bytes[p + 3];
         private static int U16(byte[] bytes, int p) => bytes[p] * 256 + bytes[p + 1];
         private static void Require(bool condition) { if (!condition) throw new ArgumentException("Invalid MP4 header."); }
-        private static void Boxes(Inspection scan, int start, int end, int depth)
+        private static void Boxes(Inspection scan, int start, int end, int depth, Track track = null)
         {
             Require(depth <= 12); byte[] bytes = scan.Bytes;
             for (int p = start; p < end;)
@@ -45,12 +65,30 @@ namespace Unframe.Unity.PresentationRuntime
                 switch (type)
                 {
                     case 0x6d6f6f76: Require(!scan.HasMovie); scan.HasMovie = true; Boxes(scan, payload, next, depth + 1); break;
-                    case 0x7472616b: case 0x6d646961: case 0x6d696e66: case 0x7374626c: Boxes(scan, payload, next, depth + 1); break;
+                    case 0x7472616b:
+                        Require(track == null && scan.Tracks.Count < 2); var child = new Track(); scan.Tracks.Add(child);
+                        Boxes(scan, payload, next, depth + 1, child); break;
+                    case 0x65647473: case 0x6d646961: case 0x6d696e66: case 0x7374626c: Boxes(scan, payload, next, depth + 1, track); break;
+                    case 0x656c7374:
+                        Require(track != null && !track.HasEdits && next - payload >= 8 && bytes[payload] <= 1);
+                        int entrySize = bytes[payload] == 1 ? 20 : 12; uint entries = U32(bytes, payload + 4);
+                        Require(entries > 0 && entries <= 1024 && (long)entries * entrySize == next - payload - 8);
+                        for (int i = 0; i < entries; i++)
+                        {
+                            int entry = payload + 8 + i * entrySize;
+                            ulong segment = entrySize == 20 ? U64(bytes, entry) : U32(bytes, entry);
+                            ulong mediaTime = entrySize == 20 ? U64(bytes, entry + 8) : U32(bytes, entry + 4);
+                            Require(mediaTime == (entrySize == 20 ? ulong.MaxValue : uint.MaxValue) || mediaTime <= (entrySize == 20 ? (ulong)long.MaxValue : (ulong)int.MaxValue));
+                            Require(U32(bytes, entry + entrySize - 4) == 65536);
+                            track.EditDuration = checked(track.EditDuration + segment);
+                        }
+                        track.HasEdits = true; break;
                     case 0x6d646174: scan.HasData = true; break;
                     case 0x6d766864:
                         Require(next - payload >= 20 && bytes[payload] <= 1);
-                        int timeOffset = bytes[payload] == 1 ? 20 : 12; Require(next - payload >= timeOffset + 4);
-                        scan.MovieTimescale = U32(bytes, payload + timeOffset); Require(scan.MovieTimescale > 0); break;
+                        int timeOffset = bytes[payload] == 1 ? 20 : 12; Require(next - payload >= timeOffset + (bytes[payload] == 1 ? 12 : 8) && scan.MovieTimescale == 0);
+                        scan.MovieTimescale = U32(bytes, payload + timeOffset); Require(scan.MovieTimescale > 0);
+                        scan.MovieDuration = bytes[payload] == 1 ? U64(bytes, payload + timeOffset + 4) : U32(bytes, payload + timeOffset + 4); break;
                     case 0x68646c72:
                         Require(next - payload >= 12); uint handler = U32(bytes, payload + 8);
                         if (handler == 0x76696465) scan.VideoTracks++;
@@ -66,12 +104,13 @@ namespace Unframe.Unity.PresentationRuntime
                     case 0x61766343:
                         Avc(scan, payload, next); break;
                     case 0x746b6864:
-                        Require(next - payload >= 84); uint width = U32(bytes, next - 8), height = U32(bytes, next - 4);
+                        Require(track != null && !track.HasHeader && next - payload >= 84 && bytes[payload] <= 1);
+                        Require(next - payload >= (bytes[payload] == 1 ? 96 : 84));
+                        track.Duration = bytes[payload] == 0 ? U32(bytes, payload + 20) : U64(bytes, payload + 28); track.HasHeader = true;
+                        uint width = U32(bytes, next - 8), height = U32(bytes, next - 4);
                         if (width != 0 || height != 0)
                         {
-                            Require(width == scan.Artifact.PixelSize.Width * 65536u && height == scan.Artifact.PixelSize.Height * 65536u && scan.MovieTimescale > 0 && bytes[payload] <= 1);
-                            ulong duration = bytes[payload] == 0 ? U32(bytes, payload + 20) : ((ulong)U32(bytes, payload + 28) << 32 | U32(bytes, payload + 32));
-                            Require(Math.Abs((decimal)duration * 1000 / scan.MovieTimescale - scan.Artifact.DurationMs) <= 1);
+                            Require(width == scan.Artifact.PixelSize.Width * 65536u && height == scan.Artifact.PixelSize.Height * 65536u);
                             scan.VideoDuration = true;
                         }
                         break;

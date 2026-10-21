@@ -20,6 +20,8 @@
 
 `PresentationBakedRuntime` とLocal Previewは同じ `PresentationPlaybackPlayer` を使い、Baked Web PNG、GLB Model、H.264/AAC MP4 Videoを描画します。Modelはchecksum・実構造・accessorとmeshの展開量・埋込画像の寸法をimport前に検査し、glTFast 6.20.0で各ModelNodeの下へ生成します。ModelClipのpause、loop、crossfade、停止後の姿勢とTimelineはauthoritative Runtime clockから再構成します。Native UIとLocal Overlayはこの経路では受け付けません。
 
+Videoのdurationは音声tailを含むmovie全体の提示時間です。MP4 preflightは`mvhd`の時間をミリ秒へ切り上げてArtifactと照合し、各`tkhd`がmovie内に収まり最長trackがmovie尺と一致すること、`elst`があればsegment尺の合計がtrack尺と一致することを確認します。映像より長い音声、短い音声、音声なしを受け付けます。
+
 Videoは検証済みbytesをNativeでは所有する一時ファイル、WebGLではBlob URLへ渡し、Prepare後も寸法・音声trackを照合します。decoderの完了通知では進行を変更しません。WebGLの音声付きPlayはLocal Editorのクリックでuser activationを取得し、拒否時は素材を破棄せず再操作を要求します。候補の失敗・取消・置換とsession終了時にはimporter、生成物、decoder、RenderTexture、一時ファイル・URLを解放します。
 
 Runtime shaderの組合せは `Resources/PresentationModelShaders` に保存しています。glTFastの更新時はUnityの `Unframe > Generate Model Shader Materials` で再生成し、実WebGL表示を確認してください。managed dependencyの再現・checksum検査は [Plugins README](Assets/Plugins/README.md) を参照してください。

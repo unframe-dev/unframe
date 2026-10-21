@@ -90,11 +90,8 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private static double ClipTime(IPresentationRenderView view, string node, ClipPlayback clip, double time)
         {
-            double position = clip.Playback.ClockCase == PlaybackClock.ClockOneofCase.Playing
-                ? clip.Playback.Playing.PositionAtReferenceMs + System.Math.Max(0, time - clip.Playback.Playing.ReferenceRuntimeTimeMs) * clip.Speed
-                : ClockPosition(clip.Playback, time);
             double duration = 0; foreach (var c in view.Catalog.ModelClips) if (c.ModelNodeId == node && c.ClipId == clip.ClipId) duration = c.DurationMs;
-            return (duration > 0 ? clip.Loop ? position % duration : System.Math.Min(duration, position) : position) / 1000d;
+            return PresentationModelPlaybackMath.PositionMilliseconds(clip, duration, time) / 1000d;
         }
         private static float Ease(float p, Unframe.Presentation.Easing easing)
         {

@@ -160,7 +160,7 @@ public class PresentationModelRuntimeEditModeTests
         Assert.That(PresentationVideoPreflight.TryValidate(new byte[100], artifact, out _), Is.False);
         artifact.PixelSize.Width = 320; artifact.PixelSize.Height = 180;
         artifact.DurationMs = 1;
-        Assert.That(PresentationVideoPreflight.TryValidate(bytes, artifact, out _), Is.False, "track duration must match the artifact");
+        Assert.That(PresentationVideoPreflight.TryValidate(bytes, artifact, out _), Is.False, "movie duration must match the artifact");
         artifact.DurationMs = 6000;
         byte[] cropped = (byte[])bytes.Clone();
         int avc = Tag(cropped, "avc1");
