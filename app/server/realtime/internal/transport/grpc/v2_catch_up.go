@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
@@ -9,9 +10,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var errV2SnapshotCatchUpRetry = errors.New("snapshot catch-up preparation expired")
+
 // Preparation is discarded before sending any snapshot when its subscriber
 // overflows. Once delivery begins, the normal slow-subscriber policy applies.
-func (s *V2Service) prepareSnapshotCatchUp(ctx context.Context, now func() time.Time, prepare func(*realtimev2.CanonicalRuntimeSnapshot, *realtimev2.ProjectedPresenceState) error) (<-chan *realtimev2.ProjectedReliableEvent, func(), error) {
+func (s *V2Service) prepareSnapshotCatchUp(ctx context.Context, now func() time.Time, prepare func(*realtimev2.CanonicalRuntimeSnapshot, *realtimev2.ProjectedPresenceState) error, start func(func() error) error) (<-chan *realtimev2.ProjectedReliableEvent, func(), error) {
 	limits := v2ProtocolLimits()
 	deadline := now().Add(time.Duration(limits.SnapshotCatchUpTotalBudgetMs) * time.Millisecond)
 	for attempt := uint32(0); attempt < limits.SnapshotCatchUpMaxAttempts; attempt++ {
@@ -30,10 +33,31 @@ func (s *V2Service) prepareSnapshotCatchUp(ctx context.Context, now func() time.
 			unsubscribe()
 			return nil, nil, err
 		}
-		if now().Before(deadline) && active() {
+		begin := func() error {
+			subscriberActive := active()
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if !subscriberActive || !now().Before(deadline) {
+				return errV2SnapshotCatchUpRetry
+			}
+			return nil
+		}
+		if err := begin(); err != nil {
+			unsubscribe()
+			if errors.Is(err, errV2SnapshotCatchUpRetry) {
+				continue
+			}
+			return nil, nil, err
+		}
+		err := start(begin)
+		if err == nil {
 			return events, unsubscribe, nil
 		}
 		unsubscribe()
+		if !errors.Is(err, errV2SnapshotCatchUpRetry) {
+			return nil, nil, err
+		}
 	}
 	return nil, nil, status.Error(codes.ResourceExhausted, "snapshot_catch_up_exhausted")
 }
