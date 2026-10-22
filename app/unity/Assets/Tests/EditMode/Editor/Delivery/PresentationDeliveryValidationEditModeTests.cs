@@ -14,6 +14,29 @@ public sealed class PresentationDeliveryValidationEditModeTests
     }
 
     [Test]
+    public void Delivery_RejectsMissingVideoResidencyEvenWithoutVideoSurfaces()
+    {
+        DeliveryManifest delivery = CreateFixture();
+        delivery.Residency.Video = null;
+        AssertRejected(delivery, "video residency");
+    }
+
+    [TestCase("binding")]
+    [TestCase("encoded")]
+    [TestCase("decoders")]
+    [TestCase("frames")]
+    public void Delivery_RejectsNonemptyVideoResidencyWithoutVideoSurfaces(string field)
+    {
+        DeliveryManifest delivery = CreateFixture();
+        delivery.Residency.Video = new VideoResidencyPlan();
+        if (field == "binding") delivery.Residency.Video.Videos.Add(new VideoResidencyBinding { AssetId = "asset:absent" });
+        else if (field == "encoded") delivery.Residency.Video.TotalEncodedBytes = 1;
+        else if (field == "decoders") delivery.Residency.Video.MaximumConcurrentDecoders = 1;
+        else delivery.Residency.Video.MaximumDecodedFrameBytes = 1;
+        AssertRejected(delivery, "video residency");
+    }
+
+    [Test]
     public void Delivery_RejectsMismatchedProfilePublication()
     {
         DeliveryManifest delivery = CreateFixture();

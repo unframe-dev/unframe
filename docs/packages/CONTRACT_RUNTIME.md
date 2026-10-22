@@ -100,7 +100,7 @@ Viewerのbuttonは`interaction_enabled=false`かつ`interaction_id` absentであ
 
 ### 3.3 Residency admission
 
-Residency entryの集合はselected asset集合の対応kindと一致する。集計はchecked unsigned arithmeticで行う。
+Residency entryの集合はselected asset集合の対応kindと一致する。Video planは動画がない場合も空のplanを必須とし、Delivery受け入れ時に対応Assetと予算集計を検証する。集計はchecked unsigned arithmeticで行う。
 
 - Texture GPU chargeはunique checksumごとの`decoded_gpu_bytes`のsum、CPU chargeは`peak_load_cpu_bytes`のmax。
 - Model bindingはselected Asset IDごとに保持する。assets数とencoded bytesはunique checksum、nodes / primitives / vertices / trianglesはvisible ModelNodeごとのdescriptorをinstance展開して合計する。instance countはvisible ModelNode数、bone/morph/clipは上記のper-container最大値を使う。

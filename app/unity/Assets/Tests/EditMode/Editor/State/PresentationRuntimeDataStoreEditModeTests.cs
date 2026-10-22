@@ -2070,7 +2070,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
                 RuntimeCatalog = catalog,
             },
             ProjectionInstance = new ProjectionInstance { ProjectionProfileId = "profile:quest", ParticipantId = "participant:quest", AssignmentEpoch = 7 },
-            Residency = new ResidencyPlan { Models = new ModelResidencyPlan() },
+            Residency = new ResidencyPlan { Models = new ModelResidencyPlan(), Video = new VideoResidencyPlan() },
         };
         delivery.AssetAccess.Add(new AssetAccessBinding { AssetId = "asset:model" });
         delivery.Residency.Models.Models.Add(new ModelResidencyBinding { AssetId = "asset:model" });

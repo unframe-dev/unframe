@@ -22,6 +22,7 @@ static class Program
             Require(args.Length == 0, "Expected at most one Delivery protobuf path.");
             VideoPreflightChecks.Run();
             ModelPlaybackChecks.Run();
+            CheckVideoResidencyAdmission();
             CheckPreviewAdmission();
             CheckPreviewAdapter();
             CheckRenderView();
@@ -38,6 +39,87 @@ static class Program
             Console.Error.WriteLine(exception);
             return 1;
         }
+    }
+
+    private static void CheckVideoResidencyAdmission()
+    {
+        DeliveryManifest delivery = LoadDelivery();
+        delivery.Residency.Video = null;
+        Require(!new PresentationRuntimeDataStore().TryReceiveDelivery(delivery, out _), "delivery accepted a missing video residency plan");
+        foreach (Action<VideoResidencyPlan> mutate in new Action<VideoResidencyPlan>[]
+        {
+            p => p.Videos.Add(new VideoResidencyBinding { AssetId = "asset:unknown" }),
+            p => p.TotalEncodedBytes = 1,
+            p => p.MaximumConcurrentDecoders = 1,
+            p => p.MaximumDecodedFrameBytes = 1,
+        })
+        {
+            delivery = LoadDelivery();
+            mutate(delivery.Residency.Video);
+            Require(!new PresentationRuntimeDataStore().TryReceiveDelivery(delivery, out _), "delivery without videos accepted a nonempty video residency plan");
+        }
+        delivery = LoadDelivery();
+        AddVideoFixture(delivery, LoadSnapshot());
+        Require(new PresentationRuntimeDataStore().TryReceiveDelivery(delivery, out string error), error);
+        var mutations = new (string Name, Action<DeliveryManifest> Apply)[]
+        {
+            ("missing video plan", d => d.Residency.Video = null),
+            ("missing video binding", d => d.Residency.Video.Videos.Clear()),
+            ("duplicate video binding", d => d.Residency.Video.Videos.Add(d.Residency.Video.Videos[0].Clone())),
+            ("unknown video asset", d => d.Residency.Video.Videos[0].AssetId = "asset:unknown"),
+            ("wrong checksum", d => d.Residency.Video.Videos[0].Checksum = "sha256:" + new string('f', 64)),
+            ("wrong encoded size", d => d.Residency.Video.Videos[0].EncodedSizeBytes++),
+            ("wrong decoded size", d => d.Residency.Video.Videos[0].DecodedFrameBytes++),
+            ("wrong tier", d => d.Residency.Video.BudgetTierId = "another-tier"),
+            ("wrong encoded total", d => d.Residency.Video.TotalEncodedBytes++),
+            ("wrong decoder total", d => d.Residency.Video.MaximumConcurrentDecoders = 0),
+            ("wrong frame total", d => d.Residency.Video.MaximumDecodedFrameBytes = 0),
+            ("missing limits", d => d.CapabilityProfile.Limits.Video = null),
+            ("width limit", d => d.CapabilityProfile.Limits.Video.MaxWidth = 99),
+            ("height limit", d => d.CapabilityProfile.Limits.Video.MaxHeight = 99),
+            ("pixel limit", d => d.CapabilityProfile.Limits.Video.MaxPixels = 9999),
+            ("encoded budget", d => d.CapabilityProfile.Limits.Video.MaxEncodedBytes = 63),
+            ("decoder budget", d => d.CapabilityProfile.Limits.Video.MaxConcurrentDecoders = 0),
+            ("frame budget", d => d.CapabilityProfile.Limits.Video.MaxDecodedFrameBytes = 39999),
+        };
+        foreach (var mutation in mutations)
+        {
+            DeliveryManifest invalid = delivery.Clone();
+            mutation.Apply(invalid);
+            Require(!new PresentationRuntimeDataStore().TryReceiveDelivery(invalid, out error), "delivery accepted " + mutation.Name);
+            Require(error.Contains("video"), "video residency failure lost its diagnostic: " + error);
+        }
+
+        DeliveryManifest mismatched = delivery.Clone();
+        var videoRender = mismatched.ProjectionProfile.RenderSurfaces[mismatched.ProjectionProfile.RenderSurfaces.Count - 1];
+        VideoArtifact conflict = videoRender.Artifacts[0].Video.Clone();
+        conflict.ArtifactId = "artifact:conflicting-video";
+        conflict.DurationMs++;
+        videoRender.Artifacts.Add(new DeliveredArtifact { Video = conflict });
+        Require(!new PresentationRuntimeDataStore().TryReceiveDelivery(mismatched, out error), "delivery accepted conflicting metadata for shared video bytes");
+
+        DeliveryManifest overflow = delivery.Clone();
+        VideoArtifact oversized = overflow.ProjectionProfile.RenderSurfaces[overflow.ProjectionProfile.RenderSurfaces.Count - 1].Artifacts[0].Video;
+        oversized.PixelSize.Width = uint.MaxValue;
+        oversized.PixelSize.Height = uint.MaxValue;
+        overflow.CapabilityProfile.Limits.Video.MaxWidth = uint.MaxValue;
+        overflow.CapabilityProfile.Limits.Video.MaxHeight = uint.MaxValue;
+        overflow.CapabilityProfile.Limits.Video.MaxPixels = ulong.MaxValue;
+        Require(!new PresentationRuntimeDataStore().TryReceiveDelivery(overflow, out error), "delivery accepted overflowing video frame bytes");
+
+        DeliveryManifest groups = LoadDelivery();
+        AddVideoFixture(groups, LoadSnapshot(), "-a", "group:a");
+        AddVideoFixture(groups, LoadSnapshot(), "-b", "group:b");
+        Require(new PresentationRuntimeDataStore().TryReceiveDelivery(groups, out error), "separate groups must share one decoder budget: " + error);
+        groups.Residency.Video.MaximumConcurrentDecoders = 2;
+        Require(!new PresentationRuntimeDataStore().TryReceiveDelivery(groups, out error), "delivery accepted a wrong cross-group decoder total");
+        groups.Residency.Video.MaximumConcurrentDecoders = 1;
+        var firstVideoNode = groups.ProjectionProfile.RuntimeCatalog.Nodes[groups.ProjectionProfile.RuntimeCatalog.Nodes.Count - 2];
+        firstVideoNode.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        groups.Residency.Video.MaximumConcurrentDecoders = groups.CapabilityProfile.Limits.Video.MaxConcurrentDecoders = 2;
+        groups.Residency.Video.MaximumDecodedFrameBytes = groups.CapabilityProfile.Limits.Video.MaxDecodedFrameBytes = 80000;
+        Require(new PresentationRuntimeDataStore().TryReceiveDelivery(groups, out error), "persistent video must join each group budget: " + error);
+
     }
 
     private static void CheckPreviewAdmission()
@@ -346,18 +428,20 @@ static class Program
         Require(!store.TryReceiveControl(snapshot.ToByteArray(), out _), "crossfade at its transition deadline was accepted");
     }
 
-    private static void AddVideoFixture(DeliveryManifest delivery, ControlServerItem snapshot)
+    private static void AddVideoFixture(DeliveryManifest delivery, ControlServerItem snapshot, string suffix = "", string groupId = null)
     {
-        const string nodeId = "node:adapter-video", surfaceId = "surface:adapter-video", stateId = "state:adapter-video";
-        const string renderId = "render:adapter-video", artifactId = "artifact:adapter-video", assetId = "asset:adapter-video";
+        string nodeId = "node:adapter-video" + suffix, surfaceId = "surface:adapter-video" + suffix, stateId = "state:adapter-video" + suffix;
+        string renderId = "render:adapter-video" + suffix, artifactId = "artifact:adapter-video" + suffix, assetId = "asset:adapter-video" + suffix;
         string checksum = "sha256:" + new string('e', 64);
-        ResourceOwner owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        ResourceOwner owner = groupId == null ? new ResourceOwner { Presentation = new PresentationResourceOwner() }
+            : new ResourceOwner { Group = new GroupResourceOwner { GroupId = groupId } };
         ProjectedRuntimeCatalog catalog = delivery.ProjectionProfile.RuntimeCatalog;
         catalog.Nodes.Add(new ProjectedNodeDefinition { NodeId = nodeId, Owner = owner.Clone(), Parent = new SpatialParent { Stage = new StageParent() }, Surface = new SurfaceNode { SemanticSurfaceId = surfaceId } });
         catalog.Surfaces.Add(new ProjectedSurfaceDefinition { SurfaceId = surfaceId, HostNodeId = nodeId, Owner = owner.Clone(), ReachableStateIds = { stateId }, HasVideo = true, LogicalSize = new Vector2 { X = 100, Y = 100 }, PhysicalSizeMeters = new Vector2 { X = 1, Y = 1 }, Fit = SurfaceFit.Contain });
         delivery.ProjectionProfile.VisibleNodeIds.Add(nodeId);
         delivery.ProjectionProfile.VisibleSurfaceIds.Add(surfaceId);
-        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.VideoPlayback);
+        if (!delivery.ProjectionProfile.RequiredRuntimeCapabilities.Contains(RuntimeCapability.VideoPlayback))
+            delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.VideoPlayback);
         delivery.ProjectionProfile.SemanticSurfaces.Add(new ProjectedSemanticSurface { SemanticSurfaceId = surfaceId, RenderSurfaceIds = { renderId }, States = { new SurfaceSemanticState { StateId = stateId, SemanticTree = new ProjectedSemanticTree() } } });
         delivery.ProjectionProfile.RenderSurfaces.Add(new DeliveredRenderSurface {
             RenderSurfaceId = renderId, SemanticSurfaceId = surfaceId, RendererKind = RendererKind.Video, ArtifactContractVersion = 1,

@@ -195,6 +195,7 @@ namespace Unframe.Unity.PresentationRuntime
 
             if (!TryValidateRenderGraph(profile.RenderSurfaces, profile.SemanticSurfaces, capability.Renderers, next.Surfaces, next.Assets, out error)) return false;
             if (!PresentationBakedDeliveryValidation.TryValidate(manifest, out error)) return false;
+            if (!TryValidateVideoResidency(manifest, next, out error)) return false;
 
             foreach (ProjectedTimelineDefinition timeline in catalog.Timelines)
             {
@@ -529,6 +530,96 @@ namespace Unframe.Unity.PresentationRuntime
             if (ids.Count != surface.ReachableStateIds.Count) return false;
             error = null; return true;
         }
+        private static bool TryValidateVideoResidency(DeliveryManifest manifest, DeliveryIndexes indexes, out string error)
+        {
+            error = "delivery video residency or artifact metadata is inconsistent.";
+            VideoResidencyPlan plan = manifest.Residency.Video;
+            if (plan == null) return false;
+            VideoLimits limits = manifest.CapabilityProfile.Limits?.Video;
+            var selected = new Dictionary<string, VideoArtifact>();
+            var groupDecoders = new Dictionary<string, ulong>();
+            var groupFrames = new Dictionary<string, ulong>();
+            ulong persistentDecoders = 0, persistentFrames = 0;
+            try
+            {
+                foreach (DeliveredRenderSurface surface in manifest.ProjectionProfile.RenderSurfaces)
+                {
+                    if (surface.RendererKind != RendererKind.Video) continue;
+                    if (limits == null) return false;
+                    ulong maximumFrame = 0;
+                    foreach (DeliveredArtifact delivered in surface.Artifacts)
+                    {
+                        VideoArtifact video = delivered.Video;
+                        ulong width = video.PixelSize.Width, height = video.PixelSize.Height;
+                        ulong pixels = checked(width * height);
+                        ulong frame = checked(pixels * 4);
+                        if (!IsContentHash(video.Checksum) || video.EncodedSizeBytes == 0
+                            || width > limits.MaxWidth || height > limits.MaxHeight || pixels > limits.MaxPixels) return false;
+                        if (selected.TryGetValue(video.Checksum, out VideoArtifact previous))
+                        {
+                            if (previous.EncodedSizeBytes != video.EncodedSizeBytes || !previous.PixelSize.Equals(video.PixelSize)
+                                || previous.Codec != video.Codec || previous.DurationMs != video.DurationMs
+                                || previous.HasAudio != video.HasAudio || previous.HasAlpha != video.HasAlpha) return false;
+                        }
+                        else selected.Add(video.Checksum, video);
+                        maximumFrame = Math.Max(maximumFrame, frame);
+                    }
+                    if (maximumFrame == 0) continue;
+                    ProjectedSurfaceDefinition semantic = indexes.Surfaces[surface.SemanticSurfaceId];
+                    ResourceOwner owner = indexes.Nodes[semantic.HostNodeId].Owner;
+                    if (owner == null || owner.ScopeCase == ResourceOwner.ScopeOneofCase.None) return false;
+                    if (owner.ScopeCase == ResourceOwner.ScopeOneofCase.Group)
+                    {
+                        string group = owner.Group.GroupId;
+                        if (!IsId(group)) return false;
+                        groupDecoders.TryGetValue(group, out ulong count);
+                        groupFrames.TryGetValue(group, out ulong bytes);
+                        groupDecoders[group] = checked(count + 1);
+                        groupFrames[group] = checked(bytes + maximumFrame);
+                    }
+                    else
+                    {
+                        persistentDecoders = checked(persistentDecoders + 1);
+                        persistentFrames = checked(persistentFrames + maximumFrame);
+                    }
+                }
+                if (selected.Count == 0)
+                {
+                    if (plan.Videos.Count != 0 || plan.TotalEncodedBytes != 0 || plan.MaximumConcurrentDecoders != 0
+                        || plan.MaximumDecodedFrameBytes != 0) return false;
+                    error = null;
+                    return true;
+                }
+                if (!IsId(limits.TierId) || plan.BudgetTierId != limits.TierId || plan.Videos.Count != selected.Count) return false;
+                var seen = new HashSet<string>();
+                ulong encoded = 0;
+                foreach (VideoResidencyBinding binding in plan.Videos)
+                {
+                    if (!seen.Add(binding.Checksum) || !selected.TryGetValue(binding.Checksum, out VideoArtifact video)
+                        || !indexes.Assets.TryGetValue(binding.AssetId, out AssetAccessBinding access)
+                        || access.Checksum != binding.Checksum || access.MediaType != "video/mp4"
+                        || access.EncodedSizeBytes != video.EncodedSizeBytes || binding.EncodedSizeBytes != video.EncodedSizeBytes
+                        || binding.DecodedFrameBytes != checked((ulong)video.PixelSize.Width * video.PixelSize.Height * 4)) return false;
+                    encoded = checked(encoded + binding.EncodedSizeBytes);
+                }
+                ulong decoders = persistentDecoders, frames = persistentFrames;
+                foreach (string group in groupDecoders.Keys)
+                {
+                    decoders = Math.Max(decoders, checked(persistentDecoders + groupDecoders[group]));
+                    frames = Math.Max(frames, checked(persistentFrames + groupFrames[group]));
+                }
+                if (plan.TotalEncodedBytes != encoded || encoded > limits.MaxEncodedBytes
+                    || plan.MaximumConcurrentDecoders != decoders || decoders > limits.MaxConcurrentDecoders
+                    || plan.MaximumDecodedFrameBytes != frames || frames > limits.MaxDecodedFrameBytes) return false;
+            }
+            catch (OverflowException)
+            {
+                return false;
+            }
+            error = null;
+            return true;
+        }
+
         private static string ModelClipKey(string modelNodeId, string clipId) { return modelNodeId + "\n" + clipId; }
 
         private static void Replace<T>(Dictionary<string, T> target, Dictionary<string, T> source) { target.Clear(); foreach (KeyValuePair<string, T> pair in source) target.Add(pair.Key, pair.Value); }
