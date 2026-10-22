@@ -3,7 +3,7 @@
 - 更新日: 2026-10-22
 - 状態: 位置保持PoCはユーザー承認により完了。Webアプリの製品機能はこれから実装する。
 - 所有アプリ: `app/audience/`。編集用の`app/web/`と分離する。
-- 統合先: `webXR/audience`。`webXR/tracking-poc`は取り込み済み。現状保存のDraft PRは[#167](https://github.com/unframe-dev/unframe/pull/167)。2026-10-22に最新main（`a5f57c04`）を取り込み、競合を解消した。新しい実装は更新済み統合ブランチから作業ブランチを分ける。
+- 統合先: `webXR/audience`。`webXR/tracking-poc`は取り込み済み。現状保存のDraft PRは[#167](https://github.com/unframe-dev/unframe/pull/167)。2026-10-22に最新main（最終取得時点`5219fa91`）を取り込み、競合を解消した。新しい実装は更新済み統合ブランチから作業ブランチを分ける。
 
 ## 引き継ぐ構成
 
@@ -105,3 +105,15 @@ Deliveryで選択したprofileを同じ参加者のまま途中変更する経�
 - `nix run .#check`: CLIで2件失敗し中断（412件成功・2件失敗）。`react-project.test.ts`の凍結アーカイブ復元は前回同様のUTF-8エラー。`reference-project.test.ts`のlocal closure更新は一時`.unframe-source.lock`のENOENTであり、同じテストの単発再実行は成功した。CLIソースはmainと同一で、この統合で修正していない。全体ゲート成功とは扱わない。
 
 カメラ実機の再測定、管理Web／Local Editorの独立したE2E、Unity Editorテストは今回実行していない。追跡コードの変更はなく、対応する代替検証は上記の個別ゲートと差分の同一性確認で行った。
+
+### 作業中に更新されたmainの追加取り込み
+
+最終確認でmainにPR #163（動画・3Dモデルの素材・Authoring・Runtime対応）が追加されていたため、`5219fa91`も追加で取り込んだ。追加分は競合なくマージできた。統合コミットは`f4664ce9`（`a5f57c04`の競合解消）と`bb87b14e`（`5219fa91`の追加取り込み）。
+
+追加後もmainのBackend・共有契約・Web・Local Editor・Unity・Runtime・CLIはmainと同一、Audienceの実装と`flake.lock`は取り込み前と同一である。main由来のUnity生成資産の空白形式は変更せず、PRの差分検証は最新main基準で成功した。
+
+追加後の`nix run .#audience`（111テスト）、`nix run .#web`（25テスト）、`nix run .#local-editor`（92テスト）は型検査・テスト・ビルドまで成功。`nix run .#realtime`もvet・lint・test・build・race成功。追加分の依存インストールは固定ロックで成功した。`flake.nix`／`flake.lock`は最初の統合検証後に変化していない。
+
+追加mainでの`nix run .#check`はCLIで3件失敗した（484件成功・3件失敗）。凍結アーカイブ再作成のUTF-8エラー1件と、`source-assets.test.ts`の動画metadata／transform identity取得の5秒タイムアウト2件。全体ゲートは失敗として記録し、成功した個別ゲートで代替検証した。これらのCLIコードは最新mainと同一であり、他アプリの修正は行っていない。
+
+共通設定のAudience独自差分は、Audience用CI／Nixコマンド・共通チェック呼出し・パス定義・依存追加・vendor／生成コードのformat/lint除外である。他アプリのruntimeや共有契約への独自変更はない。共通CIにはAudienceの検証が追加されるため、その結果も集約CIの成功条件となる。
