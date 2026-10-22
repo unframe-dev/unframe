@@ -1,0 +1,22 @@
+{
+  "boardId": "audience-poc-v1",
+  "revision": 2,
+  "cellRegion": "black border; outer white quiet zone excluded",
+  "families": {
+    "tag36h11": [
+      {
+        "id": 0,
+        "rows": [
+          "00000000",
+          "01101010",
+          "00111010",
+          "00110000",
+          "01010000",
+          "00101100",
+          "00001000",
+          "00000000"
+        ]
+      }
+    ]
+  }
+}
