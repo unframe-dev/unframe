@@ -37,9 +37,7 @@ export const initializePlaybackCatalog = (
         ? Object.values(surface.content.nodes).filter((node) => node.kind === "video")
         : [];
     const needsCatalog =
-      videos.length > 0 ||
-      surface.renderIntent.internalAnimation.kind === "precomputed-video" ||
-      surface.renderIntent.rendererPreference === "video";
+      videos.length > 0 || surface.renderIntent.internalAnimation.kind === "precomputed-video";
     if (!needsCatalog) continue;
     const compiled = bundle?.surfaces[id];
     if (!compiled) throw new Error(`RenderBundle Video catalog is required for ${id}.`);
@@ -271,6 +269,12 @@ export const applyPlaybackAction = (
       if (run?.playback.kind === "playing") return;
       clock = playing(pos, now);
     }
+    if (
+      !spec.loop &&
+      clock.kind === "playing" &&
+      !Number.isSafeInteger(deadlineValue(clock, spec.durationMilliseconds))
+    )
+      return "invalidActionValue";
     if (!run) {
       const host = definition.scene.nodes[definition.scene.surfaces[id]!.hostNodeId]!;
       run = {
