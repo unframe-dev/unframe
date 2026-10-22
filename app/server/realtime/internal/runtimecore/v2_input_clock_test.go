@@ -83,7 +83,11 @@ func TestV2InputRechecksStatusAfterDueTimer(t *testing.T) {
 			}
 			s.lastTick = time.Now().Add(-20 * time.Millisecond)
 			out, events, err := s.LogicalInput(session.Identity{ParticipantID: "p", Role: session.RolePresenter}, v3TestLogicalInput(s, &realtimev2.LogicalInputCommand{ClientEventId: "next", LogicalEventName: "next"}))
-			if err != nil || out.GetRejected().GetReason() != realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT {
+			expectedReason := realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT
+			if tc.paused {
+				expectedReason = realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED
+			}
+			if err != nil || out.GetRejected().GetReason() != expectedReason {
 				t.Fatalf("status after drain: outcome=%v events=%v err=%v", out, events, err)
 			}
 			if len(events) == 0 || tc.paused && s.snapshot.Clock.GetPaused() == nil || tc.terminating && s.snapshot.Clock.GetTerminating() == nil || tc.transitioning && s.snapshot.Progression.GetTransitioning() == nil {

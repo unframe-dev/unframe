@@ -273,7 +273,7 @@ public sealed class PresentationRuntimePlaybackStateEditModeTests
 
     private static DeliveryManifest CreateDelivery()
     {
-        ProjectedRuntimeCatalog catalog = new ProjectedRuntimeCatalog { CatalogContractVersion = 2 };
+        ProjectedRuntimeCatalog catalog = new ProjectedRuntimeCatalog { CatalogContractVersion = 3 };
         catalog.Nodes.Add(new ProjectedNodeDefinition
         {
             NodeId = "node:model",
@@ -310,8 +310,8 @@ public sealed class PresentationRuntimePlaybackStateEditModeTests
 
         DeliveryManifest delivery = new DeliveryManifest
         {
-            SchemaVersion = 2,
-            DeliveryContractVersion = 2,
+            SchemaVersion = 3,
+            DeliveryContractVersion = 3,
             SessionId = "session:main",
             Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
             DefinitionHash = "sha256:" + new string('b', 64),
@@ -319,9 +319,9 @@ public sealed class PresentationRuntimePlaybackStateEditModeTests
             AssetSetHash = "sha256:" + new string('d', 64),
             CapabilityProfile = new CapabilityProfile
             {
-                SchemaVersion = 2,
+                SchemaVersion = 3,
                 CapabilityProfileId = "capability:quest",
-                ContractVersions = new ContractVersions { Delivery = 2, Runtime = 2, Progression = 1, Projection = 1 },
+                ContractVersions = new ContractVersions { Delivery = 3, Runtime = 3, Progression = 2, Projection = 2 },
                 Renderers = new RendererCapabilities { NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1 } },
             },
             ProjectionProfile = new ProjectionProfileDescriptor
@@ -330,7 +330,7 @@ public sealed class PresentationRuntimePlaybackStateEditModeTests
                 Key = new ProjectionProfileKey
                 {
                     Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
-                    ProjectionContractVersion = 1,
+                    ProjectionContractVersion = 2,
                     Role = SessionRole.Presenter,
                     CapabilityProfileId = "capability:quest",
                 },
@@ -370,7 +370,7 @@ public sealed class PresentationRuntimePlaybackStateEditModeTests
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         ConnectionSnapshotEnvelope snapshot = new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 2,
+            SchemaVersion = 3,
             Fence = CreateFence(delivery),
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             Snapshot = new ProjectedRuntimeSnapshot

@@ -71,6 +71,7 @@ func (s *V2Session) PauseLeaseExpired() {
 	if s.snapshot.Clock.GetRunning() == nil {
 		return
 	}
+	_ = s.freezeV3Anchors(time.Now())
 	s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_ASSIGNMENT_LEASE_EXPIRED}}
 	s.lastTick = time.Now()
 }

@@ -7,9 +7,9 @@ namespace Unframe.Unity.PresentationRuntime
 {
     internal sealed class PresentationDeliveryCatalog
     {
-        private const uint DeliverySchemaVersion = 2;
-        private const uint DeliveryContractVersion = 2;
-        private const uint RuntimeCatalogContractVersion = 2;
+        private const uint DeliverySchemaVersion = 3;
+        private const uint DeliveryContractVersion = 3;
+        private const uint RuntimeCatalogContractVersion = 3;
 
         private readonly Dictionary<string, ProjectedNodeDefinition> nodes = new Dictionary<string, ProjectedNodeDefinition>();
         private readonly Dictionary<string, ProjectedSurfaceDefinition> surfaces = new Dictionary<string, ProjectedSurfaceDefinition>();
@@ -92,7 +92,7 @@ namespace Unframe.Unity.PresentationRuntime
             ContractVersions versions = capability.ContractVersions;
             if (capability.SchemaVersion != DeliverySchemaVersion || !IsId(capability.CapabilityProfileId) || versions == null
                 || versions.Delivery != DeliveryContractVersion || versions.Runtime != RuntimeCatalogContractVersion
-                || versions.Progression != 1 || versions.Projection != 1)
+                || versions.Progression != 2 || versions.Projection != 2)
             {
                 return Fail("delivery capability profile is incompatible.", out error);
             }

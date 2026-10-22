@@ -451,6 +451,13 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 }
 
 func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
+	s.pruneV3FrozenAnchors()
+	var prepareErr error
+	events, prepareErr = s.prepareV3Pause(previous, events)
+	if prepareErr != nil {
+		s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
+		return prepareErr
+	}
 	if err := s.ensureV3CutSynchronization(previous); err != nil {
 		s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
 		return err

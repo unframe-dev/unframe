@@ -81,6 +81,10 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 		if err := s.validateV2Resume(ctx); err != nil {
 			return nil, nil, err
 		}
+		if _, err := s.releaseFreshV3Anchors(time.Now()); err != nil {
+			s.snapshot = previous
+			return nil, nil, err
+		}
 		s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}
 		status = &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Running{Running: &realtimev2.Running{}}}
 	case realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RECALIBRATE:

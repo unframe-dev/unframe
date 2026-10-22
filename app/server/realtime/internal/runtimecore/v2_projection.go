@@ -36,10 +36,18 @@ func ProjectV2Snapshot(snapshot *realtimev2.CanonicalRuntimeSnapshot, profile *d
 		PresentationOrigin:   proto.Clone(snapshot.PresentationOrigin).(*realtimev2.PresentationOrigin),
 		EnabledLogicalInputs: append([]string(nil), enabledLogicalInputs...),
 	}
+	if profile.GetKey().GetRole() != presentationv2.SessionRole_SESSION_ROLE_PRESENTER {
+		view.EnabledLogicalInputs = nil
+	}
 	sort.Strings(view.EnabledLogicalInputs)
 	for _, node := range snapshot.NodeStates {
 		if nodes[node.NodeId] {
 			view.NodeStates = append(view.NodeStates, proto.Clone(node).(*realtimev2.NodeRuntimeState))
+		}
+	}
+	for _, frozen := range snapshot.FrozenAnchors {
+		if nodes[frozen.NodeId] {
+			view.FrozenAnchors = append(view.FrozenAnchors, proto.Clone(frozen).(*realtimev2.FrozenAnchorDisplayState))
 		}
 	}
 	for _, surface := range snapshot.SurfaceStates {

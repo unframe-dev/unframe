@@ -776,7 +776,10 @@ func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.E
 	for _, node := range view.NodeStates {
 		frame.Elements = append(frame.Elements, &realtimev2.ElementStatePatch{ElementId: node.NodeId, Node: v2KeyframeNodePatch(node, owned[node.NodeId])})
 	}
-	frame.AnchorBindings, err = s.runtime.ProjectedAnchorBindings(view.NodeStates, nowMs)
+	frame.AnchorBindings, err = s.runtime.ProjectedAnchorBindingsAtCut(view.NodeStates, nowMs, snapshot.ReliableSequence)
+	if errors.Is(err, runtimecore.ErrV3StateCutChanged) {
+		return nil, errV2StatePending
+	}
 	if err != nil {
 		return nil, status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 	}

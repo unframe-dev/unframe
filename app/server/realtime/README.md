@@ -39,7 +39,7 @@ Control / State は participant projection、Snapshot / replay、入力と Cue /
 
 [Presenter authority v3](../../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) の入力受付・復旧を実装しています。Logical / Surface / Gesture / Zone は入力文脈と command epoch を検証し、認識済み Gesture / Zone の Cue を評価します。Pose は最新値と Anchor 投影に使い、server で Gesture / Zone を再認識しません。pause / resume / 再校正 / Step 入場・再接続では入力同期を要求し、Presenter の ACK を checkpoint に保存してから通常入力を再開します。
 
-Outcome は共有状態と同じ checkpoint に保存し、同じ ID・内容の再送へ保存済み結果を返します。時間や件数だけでは削除せず、容量上限前の同期 ACK と command epoch 更新で整理します。Control Plane の保存・bootstrap 境界も v3 と容量上限を検証します。凍結 Anchor 表示、到達済み Step の一括復元、Unity / TypeScript consumer の接続は[移行計画の工程3以降](../../../docs/plans/presenter-recognition-runtime-authority-refactor.md)に残り、consumer 全体の一括切替は未完了です。
+Outcome は共有状態と同じ checkpoint に保存し、同じ ID・内容の再送へ保存済み結果を返します。時間や件数だけでは削除せず、容量上限前の同期 ACK と command epoch 更新で整理します。Control Plane の保存・bootstrap 境界も v3 と容量上限を検証します。pause の有効な Anchor 表示を checkpoint と一括 Reliable 更新に保存し、途中参加・復旧でも凍結表示を維持します。resume 後は有効な Pose の解除を保存してから追従を再開し、それまでは凍結表示を期限で消しません。Unity の描画 adapter は対応しましたが、到達済み Step の一括復元と入力・認識の consumer 接続は[移行計画の工程4以降](../../../docs/plans/presenter-recognition-runtime-authority-refactor.md)に残り、一括切替は未完了です。
 
 接続の session、participant、role、Runtime ID / kind、assignment epoch、Presentation revision は message payload ではなく、認証 interceptor が検証して stream context へ設定した identity から取得します。gRPC server は JWT verifier、assignment guard、Realtime service なしでは構築できません。
 

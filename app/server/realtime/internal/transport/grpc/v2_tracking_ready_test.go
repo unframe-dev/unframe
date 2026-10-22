@@ -162,7 +162,7 @@ func runV2TrackingGateTest(t *testing.T, readyThenRevoke, receiveFirst bool) {
 			t.Fatal(err)
 		}
 		for _, event := range events {
-			if event.GetParticipantPresenceChanged() == nil && event.GetRuntimeStatusChanged().GetPaused() == nil {
+			if event.GetParticipantPresenceChanged() == nil && event.GetRuntimeViewReplaced().GetRuntimeView().GetClock().GetPaused() == nil {
 				t.Fatalf("revoked tracking produced a Runtime event: %v", event)
 			}
 		}

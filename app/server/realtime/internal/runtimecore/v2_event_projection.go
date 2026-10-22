@@ -33,6 +33,19 @@ func ProjectV2ReliableEvent(event *realtimev2.ProjectedReliableEvent, profile *d
 		*realtimev2.ProjectedReliableEvent_CueAccepted, *realtimev2.ProjectedReliableEvent_PresentationEnded,
 		*realtimev2.ProjectedReliableEvent_LogicalInputAccepted, *realtimev2.ProjectedReliableEvent_GestureInputAccepted, *realtimev2.ProjectedReliableEvent_ZoneInputAccepted, *realtimev2.ProjectedReliableEvent_ParticipantPresenceChanged:
 		visible = true
+	case *realtimev2.ProjectedReliableEvent_RuntimeViewReplaced:
+		source := payload.RuntimeViewReplaced.RuntimeView
+		if source == nil {
+			return nil, false
+		}
+		snapshot := &realtimev2.CanonicalRuntimeSnapshot{ReliableSequence: event.Sequence, Progression: source.Progression, Clock: source.Clock, PresentationOrigin: source.PresentationOrigin, NodeStates: source.NodeStates, SurfaceStates: source.SurfaceStates, MediaStates: source.MediaStates, ModelClipStates: source.ModelClipStates, Variables: source.Variables, ActiveRuns: source.ActiveRuns, FrozenAnchors: source.FrozenAnchors}
+		view, err := ProjectV2Snapshot(snapshot, profile, source.AssignmentEpoch, source.EnabledLogicalInputs)
+		if err != nil {
+			return nil, false
+		}
+		clone := proto.Clone(event).(*realtimev2.ProjectedReliableEvent)
+		clone.Payload = &realtimev2.ProjectedReliableEvent_RuntimeViewReplaced{RuntimeViewReplaced: &realtimev2.RuntimeViewReplaced{RuntimeView: view}}
+		return clone, true
 	case *realtimev2.ProjectedReliableEvent_GroupEntered:
 		clone := proto.Clone(event).(*realtimev2.ProjectedReliableEvent)
 		initial := clone.GetGroupEntered().Initialization

@@ -309,7 +309,7 @@ func TestV2TimerDrainStopsAtSameDeadlineMicrostepLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	cut := core.Snapshot()
-	if len(events) != 1025 || cut.Clock.GetPaused() == nil || cut.Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED || cut.Clock.RuntimeTimeMs != 1 || events[len(events)-1].GetRuntimeStatusChanged() == nil {
+	if len(events) != 1025 || cut.Clock.GetPaused() == nil || cut.Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED || cut.Clock.RuntimeTimeMs != 1 || events[len(events)-1].GetRuntimeViewReplaced() == nil {
 		t.Fatalf("same-deadline events=%d cut=%#v", len(events), cut)
 	}
 }

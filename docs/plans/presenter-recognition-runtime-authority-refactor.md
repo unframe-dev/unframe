@@ -1,6 +1,6 @@
 # Presenter 認識・Runtime authority 移行計画
 
-- 状態: 工程1の契約・生成物を更新済み。工程2の Runtime 入力受付・同期・復旧と保存境界を実装し、関連テスト・race・lint・生成 drift 検査を完了。工程3〜6は未着手。
+- 状態: 工程1・2を実装済み。工程3の Runtime 凍結表示と Unity adapter を実装し、Go と対象 dotnet 検証を実施。Unity EditMode は licensing 初期化失敗で未実行。工程4〜6は未着手。
 - 計画の起点: `815ca9886ca8304d4164c067e2a66b7221ec458b`（2026-10-22、文書変更のみ）。実装基準は `origin/main` の `5219fa91` と rebase 後の #160（`af24157b`）。文書固有の変更は `22980438` に載せ替えた。
 - 仕様の正本: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md)、[進行意味論](../packages/ARCHITECTURE.md#12-v1-presentation-progression-の意味論)、[データ契約](../packages/DATA_MODEL.md)、[配信・実行契約](../packages/CONTRACT_RUNTIME.md)。
 
@@ -78,6 +78,10 @@ JSON Schema、descriptor、静的 codec / wire types、fixture、Go / C# consume
 - pause 中と resume 後の fresh Pose 待ちでは凍結表示を維持する。新しい有効 Pose で追従を再開した後は通常の freshness 規則に戻す。raw Pose 履歴は永続化しない。
 
 完了条件は、pause 中の途中参加・replay・process recovery が同じ凍結表示へ収束し、Pose の経年だけで消えないこと。resume の fresh Pose 有無、pause 前からの unavailable、projection の不可視対象を検証する。
+
+工程3では、有効な Anchor の許可成分だけを pause の checkpoint に保存し、`RuntimeViewReplaced` で可視範囲の共有表示を一括配信する。途中参加・replay・process recovery でも凍結状態を保持し、resume 後は有効な Pose による解除を checkpoint に保存してから通常の freshness に戻す。State 生成時の cut と Reliable 適用後の下限を照合し、古い frame が新しい共有表示を上書きしないようにした。Unity は Snapshot / frozen keyframe と一括置換を適用し、共有再生には pause-aware logical clock を使う。raw Pose は永続化しない。
+
+検証は Realtime の protocol / runtimecore / gRPC / checkpoint adapter / composition root の対象 test・race、Go vet / lint、Unity の `dotnet run --project app/unity/Tests/PresentationRuntimeAdapter/PresentationRuntimeAdapter.csproj -- pause`、C# format と追加 `.meta` の整合性で実施した。Unity Editor の対象 EditMode は Licensing Client の CoreCLR 初期化失敗（`0x8007000E`）でテストに到達していない。既存 dotnet harness 全体の ModelClip Snapshot 整合性エラーも未解消。Unity の入力同期・command epoch と必要 capability は工程5に残り、実接続は拒否する。Quest 実機と全体 test / build は未実施。
 
 ### 4. Step 開始履歴と一括復元を実装する
 

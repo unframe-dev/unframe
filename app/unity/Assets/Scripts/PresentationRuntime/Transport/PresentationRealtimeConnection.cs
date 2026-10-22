@@ -124,7 +124,7 @@ namespace Unframe.Unity.PresentationRuntime
                         Task stateLoop = null;
                         try
                         {
-                            ControlHandshake handshake = new ControlHandshake { ProtocolVersion = "v2", ProgressionContractVersion = store.Delivery.CapabilityProfile.ContractVersions.Progression };
+                            ControlHandshake handshake = new ControlHandshake { ProtocolVersion = "v3", ProgressionContractVersion = store.Delivery.CapabilityProfile.ContractVersions.Progression };
                             handshake.SupportedCapabilities.Add(store.Delivery.ProjectionProfile.RequiredRuntimeCapabilities);
                             bool resuming = connectionId != null && fence != null && hasSnapshot;
                             replayReadyCutAvailable = false;
@@ -145,7 +145,7 @@ namespace Unframe.Unity.PresentationRuntime
                                 ControlServerItem item = control.ResponseStream.Current;
                                 if (item.ItemCase == ControlServerItem.ItemOneofCase.Connected)
                                 {
-                                    if (connected || item.Connected.ProtocolVersion != "v2" || item.Connected.ConnectionId.Length == 0
+                                    if (connected || item.Connected.ProtocolVersion != "v3" || item.Connected.ConnectionId.Length == 0
                                         || !store.Delivery.ProjectionInstance.Equals(item.Connected.ProjectionInstance)
                                         || item.Connected.ProgressionContractVersion != handshake.ProgressionContractVersion)
                                         throw Failure("realtime connected projection mismatch");
@@ -170,7 +170,7 @@ namespace Unframe.Unity.PresentationRuntime
                                         throw Failure("realtime state nonce arrived before a snapshot or completed replay, or was duplicated");
                                     state = client.ConnectState(headers, cancellationToken: token);
                                     trackingFrameSequence = 0;
-                                    StateHandshake stateHandshake = new StateHandshake { ProtocolVersion = "v2", ProgressionContractVersion = handshake.ProgressionContractVersion, ConnectionId = connectionId, StateConnectionNonce = item.StateConnectionNonce.Nonce };
+                                    StateHandshake stateHandshake = new StateHandshake { ProtocolVersion = "v3", ProgressionContractVersion = handshake.ProgressionContractVersion, ConnectionId = connectionId, StateConnectionNonce = item.StateConnectionNonce.Nonce };
                                     stateHandshake.SupportedCapabilities.Add(handshake.SupportedCapabilities);
                                     await state.RequestStream.WriteAsync(new StateClientItem { Handshake = stateHandshake });
                                     stateLoop = RunStateAsync(token);

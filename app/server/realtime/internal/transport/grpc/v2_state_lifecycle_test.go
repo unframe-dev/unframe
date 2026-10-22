@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	"sync"
@@ -21,6 +22,11 @@ type v2LifecycleConnection struct {
 func newV2LifecycleConnection(t *testing.T, initiallyPaused bool, sendGate func(*realtimev2.ControlServerItem)) *v2LifecycleConnection {
 	t.Helper()
 	service, profile := newV2LeaseTestService(t, allowAllAssignment{})
+	return newV3LifecycleConnection(t, service, profile, initiallyPaused, sendGate)
+}
+
+func newV3LifecycleConnection(t *testing.T, service *V2Service, profile *deliveryv2.ProjectionProfileDescriptor, initiallyPaused bool, sendGate func(*realtimev2.ControlServerItem)) *v2LifecycleConnection {
+	t.Helper()
 	identity, err := service.identities.Resolve(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -245,7 +251,7 @@ func TestV2RunningStateFallsSilentUntilFreshResumeKeyframe(t *testing.T) {
 	for !paused {
 		select {
 		case item := <-c.controlOutput:
-			paused = item.GetReliableEvent().GetRuntimeStatusChanged().GetPaused() != nil
+			paused = item.GetReliableEvent().GetRuntimeViewReplaced().GetRuntimeView().GetClock().GetPaused() != nil
 		case <-time.After(time.Second):
 			t.Fatal("pause reliable event timed out")
 		}

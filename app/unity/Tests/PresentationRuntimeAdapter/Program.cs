@@ -12,6 +12,12 @@ static class Program
     {
         try
         {
+            if (args.Length == 1 && args[0] == "pause")
+            {
+                PresentationRuntimePauseEditModeTests.Run();
+                Console.WriteLine("Pause runtime checks passed.");
+                return 0;
+            }
             if (args.Length == 1)
             {
                 var store = new PresentationRuntimeDataStore();
