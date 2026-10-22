@@ -3,7 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import { randomUUID } from "node:crypto";
-import { projectDirectory } from "./path-policy.js";
+import { projectDirectory, readBoundedRegularFile } from "./path-policy.js";
+import { loadProjectConfig } from "./load-config.js";
 
 const template = fileURLToPath(new URL("../../../../examples/presentation/", import.meta.url));
 
@@ -15,7 +16,12 @@ export const initPresentationProject = async (
   if (await lstat(directory).catch(() => undefined))
     return { ok: false, code: "cli-init-target-exists" };
   const names = (await readdir(template, { withFileTypes: true }))
-    .filter((entry) => entry.isFile())
+    .filter(
+      (entry) =>
+        entry.isFile() &&
+        entry.name !== ".unframe-source.lock" &&
+        entry.name !== ".unframe-build.lock",
+    )
     .map((entry) => entry.name)
     .sort();
   try {
@@ -24,10 +30,39 @@ export const initPresentationProject = async (
     return { ok: false, code: "cli-init-create-failed" };
   }
   const copied: string[] = [];
+  const createdDirectories: string[] = [];
   try {
     for (const name of names) {
       await copyFile(join(template, name), join(directory, name));
       copied.push(name);
+    }
+    const configBytes = await readBoundedRegularFile(
+      join(template, "unframe.config.ts"),
+      1024 * 1024,
+    );
+    const config = configBytes ? loadProjectConfig(configBytes) : undefined;
+    if (!config) throw new Error("Template project config is invalid.");
+    let assetBytes = 0;
+    const assetPaths = [
+      ...new Set(Object.values(config.assets).map((source) => source.path)),
+    ].sort();
+    for (const path of assetPaths) {
+      const bytes = await readBoundedRegularFile(
+        join(template, path),
+        Math.min(64 * 1024 * 1024, 256 * 1024 * 1024 - assetBytes),
+      );
+      if (!bytes) throw new Error("Template asset is missing or exceeds its byte budget.");
+      assetBytes += bytes.byteLength;
+      if (copied.includes(path)) continue;
+      const parts = path.split("/");
+      for (let depth = 1; depth < parts.length; depth++) {
+        const relative = parts.slice(0, depth).join("/");
+        if (createdDirectories.includes(relative)) continue;
+        await mkdir(join(directory, relative), { mode: 0o700 });
+        createdDirectories.push(relative);
+      }
+      await writeFile(join(directory, path), bytes, { flag: "wx", mode: 0o600 });
+      copied.push(path);
     }
     const entryPath = join(directory, "presentation.unframe.tsx");
     const source = await readFile(entryPath, "utf8");
@@ -46,6 +81,8 @@ export const initPresentationProject = async (
   } catch {
     const { unlink } = await import("node:fs/promises");
     for (const name of copied) await unlink(join(directory, name)).catch(() => undefined);
+    for (const name of createdDirectories.reverse())
+      await rmdir(join(directory, name)).catch(() => undefined);
     await rmdir(directory).catch(() => undefined);
     return { ok: false, code: "cli-init-copy-failed" };
   }

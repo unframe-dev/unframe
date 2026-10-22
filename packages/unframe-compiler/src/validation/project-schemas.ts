@@ -71,6 +71,7 @@ export const compilerBuildOptionsSchema = z
     rendererConfigHash: nonEmptyStringSchema,
     renderers: z.array(z.unknown()),
     encodeLimits: z.object({}).passthrough(),
+    videoValidator: z.unknown().optional(),
   })
   .strict();
 export const diagnosticSchema = z.strictObject({

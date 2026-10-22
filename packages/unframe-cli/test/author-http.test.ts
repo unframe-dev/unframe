@@ -36,6 +36,11 @@ const setup = async (development = false) => {
   return { host, service, previews };
 };
 describe("local author HTTP boundary", () => {
+  it("allows verified Blob videos in the editor content security policy", async () => {
+    const { host } = await setup();
+    const response = await fetch(host.origin);
+    expect(response.headers.get("content-security-policy")).toContain("media-src 'self' blob:");
+  });
   it("protects playback and rejects client state, clocks, and malformed input commands", async () => {
     const { host } = await setup();
     const headers = {

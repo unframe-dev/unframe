@@ -4,6 +4,8 @@ import type {
   ComponentStructure,
   ContentNodeDeclaration,
   FrameDeclaration,
+  ModelDeclaration,
+  VideoDeclaration,
   PresentationDeclaration,
   SlotPlaceholderDeclaration,
   StringValueDeclaration,
@@ -15,6 +17,8 @@ declare const authoringElement: unique symbol;
 
 /** JSX erases tag-specific result types; the declaration boundary validates the resulting kind. */
 export type AuthoringElement = { readonly [authoringElement]: true };
+export type VideoProps = Omit<VideoDeclaration, "kind">;
+export type ModelProps = Omit<ModelDeclaration, "kind">;
 export type FrameChild = AuthoringElement | ContentNodeDeclaration | readonly FrameChild[];
 export type FrameProps = Omit<FrameDeclaration, "kind" | "children"> & {
   children?: FrameChild;

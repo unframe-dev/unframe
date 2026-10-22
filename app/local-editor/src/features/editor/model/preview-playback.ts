@@ -39,6 +39,9 @@ export function createPreviewPlayback(input: {
         ) {
           pending = pending.filter((command) => command.command !== "input");
           pending.unshift({ requestId: id, command: "poll" });
+        } else if (error instanceof Error && error.message === "video-user-activation-required") {
+          pending = [{ requestId: id, command: "pause" }];
+          input.onError(error);
         } else {
           requestId = undefined;
           pending = [];

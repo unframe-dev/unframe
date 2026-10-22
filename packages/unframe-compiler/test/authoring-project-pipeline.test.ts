@@ -1,3 +1,4 @@
+import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/unframe-assets";
@@ -163,7 +164,6 @@ const carrier = (): DeclarationProjectAssemblyCarrier => {
       "reference-font": {
         id: "reference-font",
         mediaType: "font/ttf",
-        dataBase64: "AAEAAAAAAAAAAAAA",
         encodedSizeBytes: 12,
         checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
       },
@@ -265,7 +265,9 @@ describe("Authoring source to compiler pipeline", () => {
   it("preserves the source stage through the authoring compile boundary", async () => {
     const cause = new Error("private Compiler API source");
     faults.typechecker = cause;
-    await expect(compileAuthoringProject(virtualProject(), {}, {})).rejects.toMatchObject({
+    await expect(
+      compileAuthoringProjectWithFixtureBytes(virtualProject(), {}, {}),
+    ).rejects.toMatchObject({
       code: "compiler-internal-error",
       stage: "source",
       cause,
@@ -286,7 +288,11 @@ describe("Authoring source to compiler pipeline", () => {
     faults.hash = cause;
     faults.hashMarker = "assembly-fault-trigger";
     await expect(
-      compileAuthoringProject(virtualProject(), { ...supplied, componentLocks }, {}),
+      compileAuthoringProjectWithFixtureBytes(
+        virtualProject(),
+        { ...supplied, componentLocks },
+        {},
+      ),
     ).rejects.toMatchObject({
       code: "compiler-internal-error",
       stage: "assembly",
@@ -301,7 +307,9 @@ describe("Authoring source to compiler pipeline", () => {
     const cause = new Error("private frozen source content");
     faults.hash = cause;
     faults.hashMarker = "defineComponentManifest";
-    await expect(compileAuthoringProject(source, supplied, {})).rejects.toMatchObject({
+    await expect(
+      compileAuthoringProjectWithFixtureBytes(source, supplied, {}),
+    ).rejects.toMatchObject({
       code: "compiler-internal-error",
       stage: "frozen-input",
       cause,
@@ -310,7 +318,7 @@ describe("Authoring source to compiler pipeline", () => {
   });
 
   it("check success returns a checked Definition without invoking a renderer", () => {
-    const result = checkAuthoringProjectAssembly(virtualProject(), carrier());
+    const result = checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(), carrier());
 
     expect(result.valid).toBe(true);
     if (!result.valid) return;
@@ -320,7 +328,7 @@ describe("Authoring source to compiler pipeline", () => {
 
   it("compile success invokes the callable renderer and emits PNG bytes", async () => {
     const calls = { count: 0 };
-    const result = await compileAuthoringProject(
+    const result = await compileAuthoringProjectWithFixtureBytes(
       virtualProject(),
       carrier(),
       options(makeRenderer(calls)),
@@ -342,7 +350,7 @@ describe("Authoring source to compiler pipeline", () => {
     const files = [...virtualProject().files];
     files[0] = { fileName: "entry.ts", sourceText: "const value = ;" };
 
-    const result = checkAuthoringProjectAssembly(virtualProject(files), carrier());
+    const result = checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(files), carrier());
 
     expect(result).toEqual({
       valid: false,
@@ -365,7 +373,10 @@ describe("Authoring source to compiler pipeline", () => {
   it("reports an absent explicit carrier at the assembly phase", () => {
     const missingThemeHash = { ...carrier(), themeHashes: [] };
 
-    const result = checkAuthoringProjectAssembly(virtualProject(), missingThemeHash);
+    const result = checkAuthoringProjectAssemblyWithFixtureBytes(
+      virtualProject(),
+      missingThemeHash,
+    );
 
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -384,7 +395,7 @@ describe("Authoring source to compiler pipeline", () => {
       }),
     };
 
-    const result = await compileAuthoringProject(
+    const result = await compileAuthoringProjectWithFixtureBytes(
       virtualProject(),
       carrier(),
       options(failingRenderer),
@@ -406,7 +417,7 @@ describe("Authoring source to compiler pipeline", () => {
       },
     });
     await expect(
-      compileAuthoringProject(
+      compileAuthoringProjectWithFixtureBytes(
         virtualProject(),
         carrier(),
         options({ ...renderer, identity: hostileIdentity }),
@@ -426,8 +437,8 @@ describe("Authoring source to compiler pipeline", () => {
         throw new Error("source ownKeys must not execute");
       },
     });
-    expect(() => checkAuthoringProjectAssembly(source, carrier())).not.toThrow();
-    const sourceResult = checkAuthoringProjectAssembly(source, carrier());
+    expect(() => checkAuthoringProjectAssemblyWithFixtureBytes(source, carrier())).not.toThrow();
+    const sourceResult = checkAuthoringProjectAssemblyWithFixtureBytes(source, carrier());
     expect(sourceResult.valid).toBe(false);
     if (!sourceResult.valid) expect(sourceResult.phase).toBe("source");
 
@@ -436,8 +447,13 @@ describe("Authoring source to compiler pipeline", () => {
         throw new Error("carrier ownKeys must not execute");
       },
     });
-    expect(() => checkAuthoringProjectAssembly(virtualProject(), hostileCarrier)).not.toThrow();
-    const carrierResult = checkAuthoringProjectAssembly(virtualProject(), hostileCarrier);
+    expect(() =>
+      checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(), hostileCarrier),
+    ).not.toThrow();
+    const carrierResult = checkAuthoringProjectAssemblyWithFixtureBytes(
+      virtualProject(),
+      hostileCarrier,
+    );
     expect(carrierResult.valid).toBe(false);
     if (!carrierResult.valid) {
       expect(carrierResult.phase).toBe("assembly");
@@ -453,23 +469,27 @@ describe("Authoring source to compiler pipeline", () => {
       },
     });
     expect(
-      await compileAuthoringProject(virtualProject(), carrier(), hostileOptions),
+      await compileAuthoringProjectWithFixtureBytes(virtualProject(), carrier(), hostileOptions),
     ).toMatchObject({ valid: false, phase: "compile" });
-    const result = await compileAuthoringProject(virtualProject(), carrier(), hostileOptions);
+    const result = await compileAuthoringProjectWithFixtureBytes(
+      virtualProject(),
+      carrier(),
+      hostileOptions,
+    );
     expect(result.valid).toBe(false);
     if (!result.valid) expect(diagnosticCodes(result)).toContain("compiler-invalid-options");
     expect(rendererState.count).toBe(0);
   });
 
   it("cannot use a catalog field to override the explicit carrier", () => {
-    const sourceResult = checkAuthoringProjectAssembly(virtualProject(), carrier());
+    const sourceResult = checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(), carrier());
     expect(sourceResult.valid).toBe(true);
 
     const forgedCarrier = {
       ...carrier(),
       catalog: { themes: [{ id: "forged", hash: "forged" }] },
     };
-    const result = checkAuthoringProjectAssembly(virtualProject(), forgedCarrier);
+    const result = checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(), forgedCarrier);
 
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -479,12 +499,12 @@ describe("Authoring source to compiler pipeline", () => {
   });
 
   it("is deterministic when source files are reversed", async () => {
-    const first = await compileAuthoringProject(
+    const first = await compileAuthoringProjectWithFixtureBytes(
       virtualProject(),
       carrier(),
       options(makeRenderer()),
     );
-    const second = await compileAuthoringProject(
+    const second = await compileAuthoringProjectWithFixtureBytes(
       virtualProject([...virtualProject().files].reverse()),
       carrier(),
       options(makeRenderer()),
@@ -503,3 +523,12 @@ describe("Authoring source to compiler pipeline", () => {
     }
   }, 15_000);
 });
+
+const checkAuthoringProjectAssemblyWithFixtureBytes = (source: unknown, input: unknown) =>
+  checkAuthoringProjectAssembly(source, input, fixtureSourceAssetBytes(input));
+const compileAuthoringProjectWithFixtureBytes = (
+  source: unknown,
+  input: unknown,
+  config: unknown,
+  cache?: import("../src/cache/build-cache.js").CompilerBuildCache,
+) => compileAuthoringProject(source, input, config, fixtureSourceAssetBytes(input), cache);

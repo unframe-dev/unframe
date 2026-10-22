@@ -1,5 +1,6 @@
 import type { NodeTransformSnapshot } from "../styles/node-snapshot.js";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
+import type { ProjectConfig } from "./load-config.js";
 
 export type ContentHash = `sha256:${string}`;
 export type LockedDependency = {
@@ -44,10 +45,18 @@ export type ComponentLock = {
   | { mode: "structured"; structureHash: ContentHash }
   | { mode: "opaque"; rendererInputHash: ContentHash }
 );
+export type LockedSourceAsset = {
+  id: string;
+  path: string;
+  mediaType: ProjectConfig["assets"][string]["mediaType"];
+  hash: ContentHash;
+  size: number;
+  transformIdentity?: ContentHash;
+};
 export type UnframeLock = {
   styleTransform?: NodeTransformSnapshot;
   styleSourceIdentity?: string;
-  schemaVersion: 2;
+  schemaVersion: 3;
   packageSnapshotProfile: "pnpm-lock9-locator-v1";
   resolutionProfile: "browser-import-production-types-v1";
   extractionProfile: "react-component-v1";
@@ -57,7 +66,7 @@ export type UnframeLock = {
   dependencyGraphHash: ContentHash;
   themeHashes: { themeId: string; hash: ContentHash }[];
   componentLocks: ComponentLock[];
-  assets: { id: string; mediaType: string; hash: ContentHash; size: number; dataBase64: string }[];
+  assets: LockedSourceAsset[];
   rendererPlugins: { id: string; version: string; contractVersion: string }[];
 };
 

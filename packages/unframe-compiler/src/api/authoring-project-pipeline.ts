@@ -1,3 +1,4 @@
+import type { CompilerSourceAssetBytes } from "./types.js";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import { computeFrozenComponentInputs } from "../semantic/frozen-component-inputs.js";
 import { checkAuthoringProject } from "./check-authoring-project.js";
@@ -12,6 +13,7 @@ import type {
 export const assembleAuthoringProject = (
   source: unknown,
   carrier: unknown,
+  sourceAssetBytes: CompilerSourceAssetBytes = {},
 ): AuthoringProjectPipelineResult<{
   project: CompilerDeclarationProject;
   checked: CheckedDeclarationProject;
@@ -61,10 +63,13 @@ export const assembleAuthoringProject = (
         },
       ],
     };
-  const assembled = assembleDeclarationProjectValidated({
-    ...(snapshot.value as object),
-    catalog: catalog.value,
-  });
+  const assembled = assembleDeclarationProjectValidated(
+    {
+      ...(snapshot.value as object),
+      catalog: catalog.value,
+    },
+    sourceAssetBytes,
+  );
   return assembled.valid
     ? { valid: true, value: { ...assembled.value, catalog: catalog.value }, diagnostics: [] }
     : { valid: false, phase: "assembly", diagnostics: assembled.diagnostics };

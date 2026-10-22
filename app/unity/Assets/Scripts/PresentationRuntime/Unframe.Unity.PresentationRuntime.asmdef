@@ -5,7 +5,8 @@
     "Unity.InputSystem",
     "Unity.XR.CoreUtils",
     "Unity.XR.OpenXR",
-    "Cysharp.Net.Http.YetAnotherHttpHandler"
+    "Cysharp.Net.Http.YetAnotherHttpHandler",
+    "glTFast"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -111,13 +111,21 @@ namespace Unframe.Unity.PresentationRuntime
                 Emit("failed", requestId, null, exception is InvalidOperationException ? exception.Message : "preview.playback-input-invalid");
             }
         }
+        private bool activationBlocked;
         private void Update()
         {
             if (transaction != null && !transaction.TryUpdate(Time.realtimeSinceStartupAsDouble, out string error))
             {
+                if (error == "video-user-activation-required")
+                {
+                    if (!activationBlocked) Emit("failed", transaction.LoadedRequestId, null, error);
+                    activationBlocked = true;
+                    return;
+                }
                 Invalidate("");
                 Emit("failed", null, null, error);
             }
+            activationBlocked = false;
         }
 
         public void Discard(string requestId)

@@ -285,3 +285,14 @@ test("required wire oneofs reject missing and unknown-only payloads", () => {
     }),
   );
 });
+
+test("Video fit uses field 16 and the shared SurfaceFit values", () => {
+  for (const fit of [1, 2, 3]) {
+    const encoded = encodeWireMessage("unframe.delivery.VideoArtifact", { fit });
+    assert.deepEqual([...encoded], [0x80, 0x01, fit]);
+    assert.deepEqual(decodeWireMessage("unframe.delivery.VideoArtifact", encoded), {
+      requiredFeatures: [],
+      fit,
+    });
+  }
+});

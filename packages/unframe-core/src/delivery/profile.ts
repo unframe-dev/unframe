@@ -1,3 +1,4 @@
+import { buildResidencyPlan } from "./residency.js";
 import type {
   PresentationDefinition,
   RenderBundle,
@@ -107,6 +108,7 @@ const artifactWire = (
         encodedSizeBytes: toUInt64(artifact.encodedSizeBytes),
         codec: artifact.codec === "h264" ? 1 : artifact.codec === "vp9" ? 2 : 3,
         hasAlpha: artifact.alpha,
+        fit: fit[artifact.fit],
       },
     };
   const font = (face: { assetId: string; supportedCodePointRanges: [number, number][] }) => ({
@@ -483,9 +485,15 @@ const requireRole = (role: "presenter" | "viewer") => {
 export const buildRuntimeProjection = (
   input: BuildSourceInput,
   role: "presenter" | "viewer",
-): { projection: RuntimeProjection; selection: DeliverySelection } => {
+): {
+  projection: RuntimeProjection;
+  selection: DeliverySelection;
+  residency: ReturnType<typeof buildResidencyPlan>;
+} => {
   requireRole(role);
-  return buildProjection(parseBuildInputs(input), role);
+  const parsed = parseBuildInputs(input);
+  const projected = buildProjection(parsed, role);
+  return { ...projected, residency: buildResidencyPlan(parsed, projected.selection) };
 };
 
 export const buildProjectionProfile = (

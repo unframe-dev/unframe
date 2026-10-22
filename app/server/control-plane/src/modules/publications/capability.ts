@@ -1,4 +1,8 @@
-import { capabilityProfileSchema, type CapabilityProfile } from "@unframe/contracts/presentation";
+import {
+  createUnityMediaCapabilityProfile,
+  capabilityProfileSchema,
+  type CapabilityProfile,
+} from "@unframe/contracts/presentation";
 
 const bakedWebQuestProfile = capabilityProfileSchema.parse({
   schemaVersion: 2,
@@ -62,6 +66,7 @@ const bakedWebQuestProfile = capabilityProfileSchema.parse({
 });
 
 export const normalizedCapability = (profileId: string): CapabilityProfile => {
+  if (profileId === "unity-media-v1") return createUnityMediaCapabilityProfile();
   if (profileId !== bakedWebQuestProfile.capabilityProfileId)
     throw new RangeError("Unsupported device capability profile");
   return structuredClone(bakedWebQuestProfile);

@@ -355,6 +355,7 @@ message VideoArtifact {
   uint64 encoded_size_bytes = 13;
   VideoCodec codec = 14;
   bool has_alpha = 15;
+  unframe.presentation.SurfaceFit fit = 16;
   reserved 7, 8, 10;
 }
 

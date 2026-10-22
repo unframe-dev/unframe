@@ -8,6 +8,7 @@ export const createNativeEditorConfiguration = (source: unknown, plugins: readon
     .object({
       dependencies: z.object({
         "com.cysharp.yetanotherhttphandler": z.string().min(1),
+        "com.unity.cloud.gltfast": z.string().min(1),
         "com.unity.render-pipelines.universal": z.string().min(1),
         "com.unity.test-framework": z.string().min(1),
         "com.unity.nuget.newtonsoft-json": z.string().min(1),
@@ -20,6 +21,8 @@ export const createNativeEditorConfiguration = (source: unknown, plugins: readon
         ...selected.dependencies,
         "com.unity.modules.jsonserialize": "1.0.0",
         "com.unity.modules.animation": "1.0.0",
+        "com.unity.modules.video": "1.0.0",
+        "com.unity.modules.audio": "1.0.0",
         "com.unity.modules.imageconversion": "1.0.0",
         "com.unity.modules.physics": "1.0.0",
         "com.unity.modules.xr": "1.0.0",
@@ -30,6 +33,7 @@ export const createNativeEditorConfiguration = (source: unknown, plugins: readon
       name: "UnframeNativeTests",
       references: [
         "UnframeNativeRuntime",
+        "glTFast",
         "Cysharp.Net.Http.YetAnotherHttpHandler",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.RenderPipelines.Core.Runtime",

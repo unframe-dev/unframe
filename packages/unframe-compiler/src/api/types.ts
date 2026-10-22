@@ -8,7 +8,7 @@ import type {
   ThemeDeclaration,
   SourceMetadata,
 } from "@unframe/unframe-authoring";
-import type { EncodeLimits } from "@unframe/unframe-assets";
+import type { EncodeLimits, VideoMetadata } from "@unframe/unframe-assets";
 import type { BuildArtifacts, PresentationDefinition, RenderBundle } from "@unframe/unframe-core";
 import type { Diagnostic } from "@unframe/unframe-core";
 import type { RendererPlugin } from "@unframe/unframe-renderer-api";
@@ -47,11 +47,17 @@ export type CompilerDeclarationProject = {
 };
 export type CompilerSourceAsset = {
   readonly id: string;
-  readonly mediaType: "font/ttf" | "font/otf" | "image/png" | "image/jpeg";
+  readonly mediaType:
+    | "font/ttf"
+    | "font/otf"
+    | "image/png"
+    | "image/jpeg"
+    | "model/gltf-binary"
+    | "video/mp4";
   readonly checksum: string;
   readonly encodedSizeBytes: number;
-  readonly dataBase64: string;
 };
+export type CompilerSourceAssetBytes = Readonly<Record<string, Uint8Array>>;
 export type DeclarationProjectThemeHash = {
   readonly themeId: string;
   readonly hash: string;
@@ -106,7 +112,17 @@ export type CheckedDeclarationProject = {
   assetSet: BuildArtifacts["assetSet"];
   warnings: readonly CompilerWarning[];
 };
+export type CompilerVideoValidator = {
+  readonly identity: import("@unframe/unframe-authoring").Json;
+  validate(input: {
+    readonly sourceId: string;
+    readonly bytes: Uint8Array;
+    readonly checksum: string;
+    readonly encodedSizeBytes: number;
+  }): Promise<import("@unframe/unframe-core").ValidationResult<VideoMetadata>>;
+};
 export type CompilerBuildOptions = {
+  readonly videoValidator?: CompilerVideoValidator;
   readonly compiler: {
     readonly name: string;
     readonly version: string;

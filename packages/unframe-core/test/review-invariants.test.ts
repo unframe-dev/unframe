@@ -115,7 +115,7 @@ describe("RenderBundle v2 semantic invariants", () => {
       expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain("artifact.invalid");
   });
 
-  it("rejects non-baked artifacts without presenting them as implemented", () => {
+  it("accepts a Video artifact in the default bundle validator", () => {
     const full = structuredClone(makeM3AArtifacts().renderBundle);
     const renderSurface = full.surfaces.baked!.renderSurfaces["render-baked"]!;
     const artifact = renderSurface.artifacts["artifact-baked"]!;
@@ -131,18 +131,14 @@ describe("RenderBundle v2 semantic invariants", () => {
       mediaType: "video/mp4",
       codec: "h264",
       durationMilliseconds: 1,
+      fit: "stretch",
       loop: false,
       alpha: false,
       audio: false,
       pixelSize: [1, 1],
     };
 
-    const result = validateRenderBundle(full);
-    expect(result.valid).toBe(false);
-    if (!result.valid)
-      expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
-        "feature.unsupported",
-      );
+    expect(validateRenderBundle(full)).toMatchObject({ valid: true });
   });
 
   it("detects definition hash drift across artifacts", () => {

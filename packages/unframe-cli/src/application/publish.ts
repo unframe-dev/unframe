@@ -9,7 +9,7 @@ import {
   verifyPublicationIntegrity,
   type BuildArtifacts,
 } from "@unframe/unframe-core";
-import { readBuildGeneration } from "../filesystem/read-build-generation.js";
+import { readDistBuild } from "../filesystem/read-dist-build.js";
 import { trustedOrigin } from "../author/publication-auth.js";
 
 export type PublicationFence = {
@@ -177,7 +177,7 @@ export async function publishPresentation(input: PublishInput): Promise<PublishR
     return failure("cli-publish-origin-invalid");
   }
   try {
-    const fixed = await readBuildGeneration(input.directory, { channel: "dist" });
+    const fixed = await readDistBuild(input.directory);
     if (fixed.artifacts.buildManifest.presentationId !== input.presentationId)
       return failure("cli-publish-presentation-id-mismatch");
     // Freeze every byte before the first authenticated request.

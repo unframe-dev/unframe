@@ -12,6 +12,7 @@ if (!token)
 else
   createRoot(target).render(
     <EditorApp
+      readOnly={location.pathname === "/dist-preview"}
       api={createEditorApi(token)}
       createDriver={(canvas) => createUnityPreviewDriver(canvas, token)}
     />,

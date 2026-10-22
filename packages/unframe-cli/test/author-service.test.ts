@@ -21,6 +21,7 @@ import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import type { AuthorService, ProjectSnapshot } from "../src/author/contract.js";
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
 const services: AuthorService[] = [];
@@ -65,6 +66,7 @@ const createProject = async () => {
       variables: {},
     },
   };
+  await clearSourceAssetRegistration(directory, discovered.entryFile);
   await writeFile(
     join(directory, "unframe.lock"),
     canonicalizeJsonPayload({ ...loaded.value.lock, assets: [] }) + "\n",
@@ -712,19 +714,30 @@ describe("author service with frozen React source", () => {
   }, 30000);
   it("rejects a completed generation when Source changes while its artifacts are read", async () => {
     const directory = await createProject();
+    let sourceChanged!: () => void;
+    const changed = new Promise<void>((resolve) => {
+      sourceChanged = resolve;
+    });
     const service = await createAuthorService(directory, {
       run: async () => ({ exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) }),
       readPublishedArtifacts: async () => {
         const path = join(directory, "Hero.component.tsx");
         await writeFile(path, component + "\n// newer external save\n");
+        sourceChanged();
         return { catalog: [], assets: new Map() };
       },
     });
     services.push(service);
     const snapshot = await service.project();
     const created = await service.build(snapshot.revision, commandId("5"));
-    await expect.poll(async () => (await service.job(created.buildId)).status).toBe("stale");
-    expect((await service.job(created.buildId)).generationId).toBeNull();
+    await changed;
+    await expect
+      .poll(async () => (await service.job(created.buildId)).status, { timeout: 10_000 })
+      .not.toBe("running");
+    expect(await service.job(created.buildId)).toMatchObject({
+      status: "stale",
+      generationId: null,
+    });
   }, 30000);
 });
 it("waits for a short build lease before returning the polled project", async () => {

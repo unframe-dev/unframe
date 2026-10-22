@@ -619,3 +619,13 @@ describe("publication service", () => {
     ).rejects.toMatchObject({ code: "conflict" } satisfies Partial<PublicationError>);
   });
 });
+
+it("normalizes the media-capable Unity profile independently of the baked-only profile", () => {
+  const media = normalizedCapability("unity-media-v1");
+  expect(media.model.supported).toBe(true);
+  expect(media.renderers.video).toMatchObject({ supported: true, features: ["h264", "audio"] });
+  media.model.features.length = 0;
+  expect(normalizedCapability("unity-media-v1").model.features).toContain("animation");
+  expect(normalizedCapability("quest-baked-web-v1").model.supported).toBe(false);
+  expect(() => normalizedCapability("unknown")).toThrow("Unsupported device capability profile");
+});

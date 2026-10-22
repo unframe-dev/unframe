@@ -2,10 +2,10 @@ import { randomBytes } from "node:crypto";
 import type { Stats } from "node:fs";
 import { constants as osConstants } from "node:os";
 import { join } from "node:path";
+import { buildManifestBytesHash, parseBuildReceipt, encodeBuildReceipt } from "./build-receipt.js";
 import { NativeFilesystem, type NativeDirectory } from "./native-filesystem.js";
 
 const GENERATION_ID = /^[0-9a-f]{32}$/;
-const MANAGED_DIST_TARGET = /^\.unframe\/generations\/([0-9a-f]{32})$/;
 const MANAGED_DEV_TARGET = /^generations\/([0-9a-f]{32})$/;
 
 export type OutputChannel = "dev" | "dist";
@@ -82,6 +82,8 @@ type LinkIdentity = {
   readonly entry: string;
 };
 type ManagedDist = LinkIdentity & { readonly target: string };
+type ManagedDirectory = DirectoryIdentity & { readonly receipt: Uint8Array };
+type ManagedOutput = ManagedDist | ManagedDirectory | AbsentDist;
 type AbsentDist = { readonly absent: true; readonly path: string; readonly entry: string };
 type RawLstat = (
   path: string,
@@ -205,6 +207,20 @@ const atomicFilesystem = (filesystem: NativeFilesystem) => {
     await requireSameDirectory(directory);
   };
 
+  const verifyFileArtifacts = async (
+    directory: DirectoryIdentity,
+    files: readonly FileArtifact[],
+  ) => {
+    await requireSameDirectory(directory);
+    for (const file of files) {
+      const bytes = await filesystem
+        .checkedRead(join(directory.path, file.path), file.bytes.byteLength, file.bytes.byteLength)
+        .catch(fail);
+      if (!Buffer.from(bytes).equals(file.bytes)) fail();
+    }
+    await requireSameDirectory(directory);
+  };
+
   const snapshotArtifacts = (artifacts: AtomicOutputArtifacts): readonly FileArtifact[] => {
     const output: FileArtifact[] = [
       { path: "definition.json", bytes: artifacts.definition.slice() },
@@ -227,6 +243,8 @@ const atomicFilesystem = (filesystem: NativeFilesystem) => {
         ["image/jpeg", "jpg"],
         ["font/ttf", "ttf"],
         ["font/otf", "otf"],
+        ["model/gltf-binary", "glb"],
+        ["video/mp4", "mp4"],
       ]).get(asset.mediaType);
       if (!extension) fail();
       const path = `assets/${encodedAssetId}.${extension}`;
@@ -243,12 +261,31 @@ const atomicFilesystem = (filesystem: NativeFilesystem) => {
     path: string,
     entry: string,
     generations: DirectoryIdentity,
-    targetPattern: RegExp,
+    targetPattern: RegExp | undefined,
     readLstat?: RawLstat,
-  ): Promise<ManagedDist | AbsentDist | false> => {
+  ): Promise<ManagedOutput | false> => {
     const dist = path;
     const stat = await optionalLstat(dist, readLstat ?? (() => lstat(entry)));
     if (!stat) return { path: dist, entry, absent: true };
+    if (!targetPattern) {
+      if (!stat.isDirectory() || stat.isSymbolicLink()) return false;
+      const directory = await captureDirectory(path, entry);
+      const receipt = await filesystem
+        .read(join(directory.handle.anchor, "build-receipt.json"), 1024)
+        .catch(() => undefined);
+      const manifest = await filesystem
+        .read(join(directory.handle.anchor, "build-manifest.json"), 8 * 1024 * 1024)
+        .catch(() => undefined);
+      if (!receipt || !manifest) return false;
+      try {
+        const parsed = parseBuildReceipt(receipt);
+        if (parsed.buildManifestHash !== buildManifestBytesHash(manifest)) return false;
+      } catch {
+        return false;
+      }
+      if (!(await sameDirectory(directory))) return false;
+      return { ...directory, receipt };
+    }
     if (!stat.isSymbolicLink()) return false;
     const target = await readlink(entry).catch(() => undefined);
     const match = target?.match(targetPattern);
@@ -258,13 +295,17 @@ const atomicFilesystem = (filesystem: NativeFilesystem) => {
     return { path: dist, entry, dev: stat.dev, ino: stat.ino, target: target ?? fail() };
   };
 
-  const unchangedDist = async (
-    expected: ManagedDist | AbsentDist,
-    readLstat?: RawLstat,
-  ): Promise<boolean> => {
+  const unchangedDist = async (expected: ManagedOutput, readLstat?: RawLstat): Promise<boolean> => {
     const path = expected.path;
     if ("absent" in expected)
       return !(await optionalLstat(path, readLstat ?? (() => lstat(expected.entry))));
+    if ("receipt" in expected) {
+      if (!(await sameDirectory(expected))) return false;
+      const receipt = await filesystem
+        .read(join(expected.handle.anchor, "build-receipt.json"), 1024)
+        .catch(() => undefined);
+      return receipt !== undefined && Buffer.from(receipt).equals(expected.receipt);
+    }
     const stat = await lstat(expected.entry).catch(() => undefined);
     if (!stat || !stat.isSymbolicLink() || stat.dev !== expected.dev || stat.ino !== expected.ino)
       return false;
@@ -294,6 +335,7 @@ const atomicFilesystem = (filesystem: NativeFilesystem) => {
     requireSameDirectory,
     writeExclusiveFile,
     snapshotArtifacts,
+    verifyFileArtifacts,
     existingDistIsManaged,
     verifyDirectoryPath,
     sameDirectory,
@@ -323,6 +365,7 @@ export const publishAtomicArtifacts = async ({
     requireSameDirectory,
     writeExclusiveFile,
     snapshotArtifacts,
+    verifyFileArtifacts,
     existingDistIsManaged,
     verifyDirectoryPath,
     sameDirectory,
@@ -333,6 +376,8 @@ export const publishAtomicArtifacts = async ({
   let stage: PublicationStage = "capture-project";
   let staging: DirectoryIdentity | undefined;
   let temporaryLink: LinkIdentity | undefined;
+  let distStaging: DirectoryIdentity | undefined;
+  let replacement: { next: DirectoryIdentity; previous?: DirectoryIdentity } | undefined;
   let project: DirectoryIdentity | undefined;
   let unframe: DirectoryIdentity | undefined;
   let preview: DirectoryIdentity | undefined;
@@ -344,7 +389,12 @@ export const publishAtomicArtifacts = async ({
     project = await captureDirectory(projectDirectory);
     const id = generationId();
     if (!GENERATION_ID.test(id)) fail();
-    const files = snapshotArtifacts(artifacts);
+    const files = [...snapshotArtifacts(artifacts)];
+    if (channel === "dist")
+      files.push({
+        path: "build-receipt.json",
+        bytes: encodeBuildReceipt(id, artifacts.buildManifest),
+      });
     stage = "prepare-output";
     unframe = await ensureDirectory(project, ".unframe");
     if (channel === "dev") preview = await ensureDirectory(unframe, "preview");
@@ -360,11 +410,11 @@ export const publishAtomicArtifacts = async ({
       pointerPath,
       pointerEntry,
       generations,
-      channel === "dev" ? MANAGED_DEV_TARGET : MANAGED_DIST_TARGET,
+      channel === "dev" ? MANAGED_DEV_TARGET : undefined,
       readLstat,
     );
     if (discoveredDist === false) return fail();
-    const previousDist: ManagedDist | AbsentDist = discoveredDist;
+    const previousDist = discoveredDist;
     if (cancelled(signal)) cancel();
 
     stage = "create-staging";
@@ -405,6 +455,68 @@ export const publishAtomicArtifacts = async ({
       !(await unchangedDist(previousDist, readLstat))
     )
       fail();
+
+    if (channel === "dist") {
+      distStaging = await createExclusiveDirectory(project, `.dist-${id}`);
+      const distAssets = await ensureDirectory(distStaging, "assets");
+      for (const file of files) {
+        if (cancelled(signal)) cancel();
+        await writeExclusiveFile(
+          file.path.startsWith("assets/") ? distAssets : distStaging,
+          file.path.replace(/^assets\//, ""),
+          file.bytes,
+        );
+      }
+      await testing?.onPhase?.("before-dist-replace");
+      if (cancelled(signal)) cancel();
+      stage = "replace-dist";
+      await requireSameDirectory(project);
+      await requireSameDirectory(unframe);
+      await requireSameDirectory(generations);
+      await requireSameDirectory(staging);
+      await requireSameDirectory(distStaging);
+      await verifyFileArtifacts(staging, files);
+      await verifyFileArtifacts(distStaging, files);
+      if (!(await unchangedDist(previousDist, readLstat))) fail();
+      if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
+      if (cancelled(signal)) cancel();
+      const next = distStaging;
+      if ("absent" in previousDist) {
+        await filesystem.renameNoReplace(next.entry, pointerEntry).catch(fail);
+        distStaging = undefined;
+        replacement = { next: { ...next, path: pointerPath, entry: pointerEntry } };
+      } else {
+        const previousDirectory = "receipt" in previousDist ? previousDist : fail();
+        await filesystem.exchange(next.entry, pointerEntry).catch(fail);
+        const expectedPrevious = { ...previousDirectory, path: next.path, entry: next.entry };
+        distStaging = undefined;
+        replacement = {
+          next: { ...next, path: pointerPath, entry: pointerEntry },
+          previous: expectedPrevious,
+        };
+        const previous = await captureDirectory(next.path, next.entry);
+        replacement = { ...replacement, previous };
+        if (previous.dev !== previousDirectory.dev || previous.ino !== previousDirectory.ino)
+          fail();
+        await requireSameDirectory(previous);
+        distStaging = previous;
+      }
+      const published = { ...next, path: pointerPath, entry: pointerEntry };
+      await requireSameDirectory(project);
+      await requireSameDirectory(unframe);
+      await requireSameDirectory(generations);
+      await requireSameDirectory(staging);
+      await requireSameDirectory(published);
+      await verifyFileArtifacts(published, files);
+      if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
+      if (cancelled(signal)) cancel();
+      if (distStaging) await requireSameDirectory(distStaging);
+      staging = undefined;
+      replacement = undefined;
+      await cleanupStaging(distStaging);
+      distStaging = undefined;
+      return { ok: true, generationId: id };
+    }
 
     stage = "create-dist-link";
     const temporaryPath = join(outputParent.path, `.${pointerName}-${id}`);
@@ -458,7 +570,23 @@ export const publishAtomicArtifacts = async ({
       fail();
     return { ok: true, generationId: id };
   } catch (error) {
+    if (replacement) {
+      const { next, previous } = replacement;
+      if (project && (await sameDirectory(project)) && (await sameDirectory(next))) {
+        if (previous && (await sameDirectory(previous))) {
+          try {
+            await filesystem.exchange(next.entry, previous.entry);
+            distStaging = { ...next, path: previous.path, entry: previous.entry };
+          } catch {
+            distStaging = undefined;
+          }
+        } else if (!previous) {
+          await cleanupStaging(next);
+        } else distStaging = undefined;
+      } else distStaging = undefined;
+    }
     await cleanupStaging(staging);
+    await cleanupStaging(distStaging);
     await cleanupTemporaryLink(temporaryLink);
     if (error instanceof PublicationCancelled)
       return { ok: false, family: "cancel", code: "cli-output-cancel" };

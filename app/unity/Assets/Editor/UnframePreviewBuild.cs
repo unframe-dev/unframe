@@ -26,6 +26,11 @@ public static class UnframePreviewBuild
         camera.nearClipPlane = 0.01f;
         camera.farClipPlane = 20000;
         cameraObject.AddComponent<PresentationPreviewCamera>().Frame(null);
+        var lightObject = new GameObject("Preview Light");
+        var light = lightObject.AddComponent<Light>();
+        light.type = LightType.Directional;
+        light.intensity = 1;
+        lightObject.transform.rotation = Quaternion.Euler(35, -30, 0);
         var renderer = ScriptableObject.CreateInstance<UniversalRendererData>();
         var pipeline = UniversalRenderPipelineAsset.Create(renderer);
         Directory.CreateDirectory("Assets/PreviewSettings");

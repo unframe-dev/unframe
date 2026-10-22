@@ -47,9 +47,14 @@ export const checkSlotComposition = (
         );
       continue;
     }
-    const slotIds = collectSlotIds(
-      entry.structure.root.kind === "surface" ? entry.structure.root.root : entry.structure.root,
-    );
+    const slotIds =
+      entry.structure.root.kind === "model"
+        ? []
+        : collectSlotIds(
+            entry.structure.root.kind === "surface"
+              ? entry.structure.root.root
+              : entry.structure.root,
+          );
     const declaredSlotIds = Object.keys(entry.manifest.slots);
     if (
       new Set(slotIds).size !== slotIds.length ||
@@ -153,13 +158,14 @@ export const checkSlotComposition = (
       );
     if (
       !nested &&
-      (instance.spatialNodeId === undefined || entry.structure.root.kind !== "surface")
+      (instance.spatialNodeId === undefined ||
+        (entry.structure.root.kind !== "surface" && entry.structure.root.kind !== "model"))
     )
       diagnostics.push(
         diagnostic(
           "compiler-top-level-component-invalid",
           ["presentation", "scene", "components", index],
-          "Top-level instances must reference a Spatial node and use a Surface-root Component.",
+          "Top-level instances must reference a Spatial node and use a Surface- or Model-root Component.",
         ),
       );
   }

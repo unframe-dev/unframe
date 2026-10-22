@@ -13,6 +13,53 @@ const diagnostics = (definition: JsonRecord) => {
 const cueOf = (definition: JsonRecord) => definition.flow.groups.intro.steps.start.cues[0];
 
 describe("Media Cue target admission", () => {
+  it("rejects crossfades on Video Surfaces before rendering", () => {
+    const definition = fixture();
+    cueOf(definition).actions = [
+      {
+        kind: "surface.setState",
+        surfaceId: "video",
+        stateId: "default",
+        transition: {
+          kind: "crossfade",
+          durationMilliseconds: 200,
+          easing: "linear",
+          completion: "blocking",
+        },
+      },
+    ];
+
+    expect(diagnostics(definition)).toEqual([
+      expect.objectContaining({
+        code: "feature.unsupported",
+        path: [
+          "flow",
+          "groups",
+          "intro",
+          "steps",
+          "start",
+          "cues",
+          "0",
+          "actions",
+          "0",
+          "transition",
+        ],
+      }),
+    ]);
+  });
+
+  it.each([{}, { transition: { kind: "cut" } }])(
+    "accepts Video State changes with transition %j",
+    (options) => {
+      const definition = fixture();
+      cueOf(definition).actions = [
+        { kind: "surface.setState", surfaceId: "video", stateId: "default", ...options },
+      ];
+
+      expect(diagnostics(definition)).toEqual([]);
+    },
+  );
+
   it.each(["media.play", "media.pause", "media.seek"])(
     "rejects surface.setState and %s on the same Surface in either order",
     (kind) => {

@@ -1,3 +1,4 @@
+import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
 import { describe, expect, it } from "vitest";
 import { standardComponents } from "@unframe/unframe-components";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
@@ -19,7 +20,6 @@ import {
 const referenceFont = {
   id: "reference-font",
   mediaType: "font/ttf" as const,
-  dataBase64: "AAEAAAAAAAAAAAAA",
   encodedSizeBytes: 12,
   checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
 };
@@ -197,13 +197,13 @@ const input = (includeAdditional = false): DeclarationProjectAssemblyInput => ({
 });
 
 const codes = (value: unknown) => {
-  const result = assembleDeclarationProject(value);
+  const result = assembleDeclarationProjectWithFixtureBytes(value);
   return result.valid ? [] : result.diagnostics.map((item) => item.code);
 };
 
 describe("assembleDeclarationProject", () => {
   it("assembles a plain canonical declaration envelope without source-map wrappers", () => {
-    const result = assembleDeclarationProject(input());
+    const result = assembleDeclarationProjectWithFixtureBytes(input());
     expect(result.valid).toBe(true);
     if (!result.valid) return;
     expect(result.value).toEqual({
@@ -241,7 +241,9 @@ describe("assembleDeclarationProject", () => {
       themeHashes: [...input(true).themeHashes].reverse(),
       componentLocks: [...input(true).componentLocks].reverse(),
     };
-    expect(assembleDeclarationProject(second)).toEqual(assembleDeclarationProject(first));
+    expect(assembleDeclarationProjectWithFixtureBytes(second)).toEqual(
+      assembleDeclarationProjectWithFixtureBytes(first),
+    );
   });
 
   it("hashes declaration semantics without admitting declaration locations as content", () => {
@@ -342,7 +344,7 @@ describe("assembleDeclarationProject", () => {
         )
         .reverse(),
     };
-    const result = assembleDeclarationProject(reordered);
+    const result = assembleDeclarationProjectWithFixtureBytes(reordered);
     expect(result.valid).toBe(false);
     if (!result.valid)
       expect(result.diagnostics.map(({ code, path }) => ({ code, path }))).toEqual([
@@ -487,8 +489,8 @@ describe("assembleDeclarationProject", () => {
         "asset-a": { ...referenceFont, id: "asset-a" },
       },
     };
-    const firstResult = assembleDeclarationProject(first);
-    const secondResult = assembleDeclarationProject(second);
+    const firstResult = assembleDeclarationProjectWithFixtureBytes(first);
+    const secondResult = assembleDeclarationProjectWithFixtureBytes(second);
     expect(firstResult.valid).toBe(true);
     expect(secondResult.valid).toBe(true);
     if (!firstResult.valid || !secondResult.valid) return;
@@ -566,7 +568,10 @@ describe("assembleDeclarationProject", () => {
       components: [{ structure: { fileName: string } }];
     };
     forgedCatalog.components[0].structure.fileName = "forged.structure.ts";
-    const result = assembleDeclarationProject({ ...input(), catalog: forgedCatalog });
+    const result = assembleDeclarationProjectWithFixtureBytes({
+      ...input(),
+      catalog: forgedCatalog,
+    });
     expect(result).toMatchObject({
       valid: false,
       diagnostics: [
@@ -634,7 +639,7 @@ describe("assembleDeclarationProject", () => {
       ],
       assets: { broken: { id: "", mediaType: "", checksum: "" } },
     };
-    const result = assembleDeclarationProject(malformed);
+    const result = assembleDeclarationProjectWithFixtureBytes(malformed);
     expect(result.valid).toBe(false);
     if (result.valid) return;
     expect(result.diagnostics.map(({ code, path }) => ({ code, path }))).toEqual([
@@ -745,7 +750,7 @@ export default defineComponentStructure({
     if (!checked.valid) return;
     const component = checked.value.components[0]!;
     if (!("structure" in component)) throw new Error("Expected structured Component");
-    const result = assembleDeclarationProject({
+    const result = assembleDeclarationProjectWithFixtureBytes({
       catalog: checked.value,
       themeHashes: [
         { themeId: "theme", hash: hashThemeDeclaration(checked.value.themes[0]!.value) },
@@ -763,3 +768,6 @@ export default defineComponentStructure({
     if (result.valid) expect(JSON.stringify(result.value)).not.toContain("sourceMap");
   });
 });
+
+const assembleDeclarationProjectWithFixtureBytes = (input: unknown) =>
+  assembleDeclarationProject(input, fixtureSourceAssetBytes(input));

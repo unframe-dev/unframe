@@ -32,11 +32,15 @@ message LocalPreviewProjection {
   repeated unframe.presentation.RuntimeCapability required_runtime_capabilities = 7;
   unframe.presentation.ProjectedRuntimeCatalog runtime_catalog = 8;
   unframe.delivery.TextureResidencyPlan texture_residency = 9;
+  unframe.delivery.ModelResidencyPlan model_residency = 10;
+  unframe.delivery.VideoResidencyPlan video_residency = 11;
 }
 
 message LocalPreviewInitialState {
   repeated unframe.realtime.NodeRuntimeState node_states = 1;
   repeated unframe.realtime.SurfaceRuntimeState surface_states = 2;
+  repeated unframe.realtime.MediaRuntimeState media_states = 3;
+  repeated unframe.realtime.ModelClipRuntimeState model_clip_states = 4;
 }
 
 // A complete playback view for the committed Preview request. Sequence increases
@@ -49,6 +53,8 @@ message LocalPreviewPlaybackState {
   repeated unframe.realtime.RuntimeRunSnapshot active_runs = 5;
   unframe.realtime.RuntimeClockSnapshot clock = 6;
   string current_group_id = 7;
+  repeated unframe.realtime.MediaRuntimeState media_states = 8;
+  repeated unframe.realtime.ModelClipRuntimeState model_clip_states = 9;
 }
 
 message LocalPreviewAsset {
