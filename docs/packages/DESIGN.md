@@ -9,6 +9,8 @@
   - [ADR-0014: Presentation の描画方式を限定する](../decisions/0014-presentation-rendering-scope.md)
   - [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md)
 
+[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・Pause・Step 開始状態復元は採用後の実装設計である。現行実装・Zod / Protobuf・生成物は未変更であり、以下の責務追加を実装済みとは扱わない。
+
 具体的な成果物・配信・Runtime のデータ契約は [Presentation v2](./DATA_MODEL.md) を正本とする。本書は実装配置と責務を説明する。
 
 Theme と Structured composition の M3A 範囲、解決順、拒否条件は [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。M3A は static `baked-web` の v2 縦断接続であり、Runtime / Delivery 接続や v1 互換出力は含めない。
@@ -145,7 +147,7 @@ Presentation の pure TypeScript semantic core を所有する。
 - ResourceOwner、lifetime参照規則、Group activation model
 - RuntimeActor、RuntimeSubject、TriggerActorSelector、Anchor owner の semantic model
 - ProjectionAudience、versioned ProjectionProfileKey / Descriptor、ProjectionInstance、ParticipantRuntimeView の semantic model
-- pause-aware logical runtime clock、StepExecutionSnapshot、RuntimeRunSnapshot、CanonicalRuntimeSnapshot の semantic model
+- pause-aware logical runtime clock、StepExecutionSnapshot、RuntimeRunSnapshot、CanonicalRuntimeSnapshot、入力世代 / outcome、凍結 Anchor 表示、到達済み Step の直近開始履歴の semantic model
 - reference validation、invariant validation、diagnostics
 - canonical serialization と hashing
 - schema version と pure migration
@@ -411,13 +413,15 @@ Control PlaneはAuthoring Source、TSX、React、renderer implementationを実�
 
 ### 6.3 `app/server/realtime`
 
-- `internal/session`: renderer-independentなGo progression、pause-aware logical clock、Step execution、Runtime Run、Shared Runtime State、Canonical Runtime Snapshot の immutable cut
-- `internal/protocol`: generated wire typeからvalidated core inputへのmapping、認証済み connection identity からの actor 解決
+- `internal/session`: renderer-independentなGo progression、pause-aware logical clock、Step execution、Runtime Run、Shared Runtime State、入力世代と重複排除 outcome、凍結 Anchor 表示、Step 開始履歴 / 復元、Canonical Runtime Snapshot の immutable cut
+- `internal/protocol`: generated wire typeからvalidated core inputへのmapping、認証済み connection identity からの actor 解決、Presenter 認識イベントの Step / 入場世代 / 入力世代の検証
 - `internal/runtimecore`: assignment、transport、session、persistence adapterのcomposition、Participant Runtime View生成、ConnectionSnapshotEnvelope / DurableCheckpointEnvelope の構築
 
 Realtime は client payload から actor、role、subject を受け取らず、認証済み connection と内部 evaluator から canonical event を構成する。System actor は Runtime 内部だけが生成し、participant identity と role の検証前に progression input として受理しない。session critical section は canonical state の更新、immutable cut、Reliable Event 購読登録だけを担い、participant projection、serialization、compression、hashing、network write、persistence callback は lock 外で immutable cut を入力に実行する。
 
-Connection presence は ConnectionSnapshotEnvelope にだけ含め、Raw Tracking Frame、Anchor sample、sample window、zone membership、hysteresis、edge detector state とともに durable restore 対象から除外する。DurableCheckpointEnvelope は assignment、PublicationFence、artifact hash、contract hash を fence し、CanonicalRuntimeSnapshot の serialized payload だけを永続化する。
+Connection presence は ConnectionSnapshotEnvelope にだけ含める。raw Pose sample / 履歴と client の認識内部状態は durable restore 対象から除外するが、Pause 時の凍結 Anchor 表示、到達済み `(groupId, stepId)` ごとの直近開始履歴、入力世代は共有状態として保存する。participant ごとの入力 ID・fingerprint・outcome は既存の RuntimeRecoveryMetadata に保持し、canonical state と同じ cut で永続化する。Step 開始履歴は inactive Group の実行状態と分離し、Viewer へ全履歴を配布しない。DurableCheckpointEnvelope は assignment、PublicationFence、artifact hash、contract hash を fence し、CanonicalRuntimeSnapshot と RuntimeRecoveryMetadata の serialized payload をそれぞれ保存する。
+
+Runtime は Gesture / Zone を再認識せず、認証済み Presenter の独立イベントを受理順に評価する。結果再送は現在の Step 判定より先に保存済み outcome を返し、上限前の状態同期・新世代確認・client 旧 queue 破棄を行ってから記録を整理する。Step 復元は paused で確定し、保存位置から Run を新 ID と必要な owner epoch へ rebase する。時計、配信連番、採番、重複排除、認証、校正は巻き戻さない。
 
 既存の`internal/session`と`internal/runtimecore`を拡張し、同じ責務のために新しいtop-level `progression` packageを並立させない。Go progressionはTypeScript implementationを移植して共有したことにせず、contract fixtureとconformance testにより、Compiler validation、Realtime evaluation、Unity consumerの意味を一致させる。
 
@@ -430,9 +434,13 @@ Connection presence は ConnectionSnapshotEnvelope にだけ含め、Raw Trackin
 - Projected Runtime Snapshot / Event / State Frameのprofile・assignment fence検証
 - ConnectionSnapshotEnvelopeだけを再接続入力として適用し、DurableCheckpointEnvelopeをclientへ配信しない
 - Timelineのlocal interpolation
-- device inputからLogical Eventへの変換
+- Presenter client 内の8種類 Gesture と腰位置による2m Zone 出入りの認識、device input から成立イベントへの変換
+- 認識開始時の Step / 入場世代 / server 入力世代への拘束、世代変更時の途中認識と旧 queue 破棄、Zone の無通知 seed
+- 認識とは独立した latest-wins Pose 送信、Pause の凍結表示と resume 後の fresh Pose 待ち
 - calibration、viewport、selection、personal annotation、Local Overlay stateのClient-local ownership
 - Realtime接続、reconnect、state convergence
+
+Gesture の閾値・時間窓・終了判定と Zone 境界の揺れ対策は client 内部の調整値に閉じる。Definition は Gesture 種類と Zone 中心を宣言し、client が Cue や共有状態を指定しない。server cooldown と同時認識 batch は持たない。詳細な座標基準・失効条件・復旧規則は ADR-0027 と [Presentation Architecture §12](./ARCHITECTURE.md#12-v1-presentation-progression-の意味論) に従う。
 
 Unity の配信・実行は v2 consumer に統一する。旧 `PresentationImport/` と v1 JSON サンプルは廃止し、互換 importer は設けない。
 

@@ -1,5 +1,13 @@
 # Unity presentation preview
 
+## 採用仕様と現行実装
+
+[ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) により、Presenter client の Gesture / Zone 認識、認識開始時の Step と server 入力世代、共有演出全体の pause、到達済み Step の直近開始状態への復元を採用しました。実装・Zod / Protobuf・生成物は未変更です。以下は現行実装とその検証手順であり、Runtime の motion / dwell 認識、Anchor の500 ms失効、再校正時のローカル処理は移行対象です。
+
+採用後は認識を端末に置き、Pose は追従演出用に分離します。pause の凍結 Anchor は server の Snapshot に従い、経年だけで非表示にせず、resume 後に有効な Pose を得るまで保持します。HMD 視点と操作 UI は継続します。再校正は server の入力世代更新と同期します。端末校正の無効化やアプリ休止と、Session の pause 操作を同一視しません。
+
+## 現行実装
+
 `Assets/Scripts/PresentationRuntime/` は `Delivery`（配信検証）、`State`（受信状態）、`Transport`（接続）、`Persistence`（選択・cache）、`Rendering`（描画）、`Animation`、`Fixtures`、`Quest` に分けています。`PresentationBakedRuntime` はこれらを接続する入口で、`Generated` は生成専用です。EditMode テストは `Assets/Tests/EditMode/Editor/` 内で同じ責務ごとに分け、Quest の build hook は `Assets/Editor/Quest/`、Animation と Fixtures の Inspector は `Assets/Editor/PresentationRuntime/` の対応するディレクトリに置きます。
 
 `Assets/Scenes/ArucoPresentationTest.unity` は `LocalPresentationFixtureRunner` だけを表示経路として使用します。Play 開始時に `Resources/PresentationFixtures/LocalDelivery.json` と `LocalSnapshot.json` を読み込み、最初の Reliable Event を適用します。Editor では Space または Enter で後続イベントを進められます。

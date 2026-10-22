@@ -124,7 +124,9 @@ Authoring SDK の個別 builder と declaration 全体の guard は local declar
 
 ## 発表者のモーション操作候補
 
-Presentation Cue の trigger は、Component Output / event に加えて次を指定できます。
+採用仕様は [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) に従う。Author は Gesture の種類だけを選択し、距離・速度・時間窓・左右の手は設定しない。Zone の幾何設定は中心位置だけとし、形状・寸法は一辺2mの軸平行な箱に固定する。Cue は通常 `oncePerStepEntry`、繰り返しが必要なものだけ `repeatable` とし、cooldown の authoring field は設けない。認識は Presenter、Guard / Cue / Action / Next の評価は Runtime が担う。
+
+以下は未移行の現行 SDK / Compiler の例である。新仕様の authoring API ではなく、実装更新時に閾値・手の指定を除去する。
 
 ```ts
 trigger: {

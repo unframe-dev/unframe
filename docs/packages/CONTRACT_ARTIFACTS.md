@@ -28,6 +28,8 @@ Projection 1 に固定し、該当 field は literal とする。
 
 ## Definition
 
+Gesture / Zone / Cue fire policy の採用仕様は [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) と [Data model](./DATA_MODEL.md) に従う。Gesture は種類のみ、Zone の幾何設定は中心位置のみとし、認識閾値・対象の手・可変 Zone size・server cooldown はユーザー設定から除く。現行 Zod、生成 JSON Schema と上記 version 値は未変更であり、この仕様への移行が完了した構造として扱わない。
+
 `scene.nodes` は `container | model | surface | shape | light` の完全 union とする。Model は一つの
 GLB Asset を参照し、SurfaceNode と SemanticSurface は一対一で対応する。Spatial TRS は local
 値で、meter、正規化済み `[x,y,z,w]` Quaternion、正の scale を使う。Hamilton 積と canonical

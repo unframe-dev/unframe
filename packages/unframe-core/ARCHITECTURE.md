@@ -77,6 +77,8 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 
 `createCueState`、`executeCueEvent`、`advanceCueClock`、`completeRuntimeRun`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋な実行器である。Cueの選択、Guard、Action batch、Step / Group entry、消費、cooldown、timer、Timeline / Surface transition Runを扱う。`createCueState`にはassignment epochが必要である。認証、接続、永続化、wire event は呼び出し側または後続段階の責務とする。
 
+この説明は現行実装を示す。[ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の採用後設計では cooldown を廃止し、Presenter の認識結果を入力として扱う。`oncePerStepEntry` / `repeatable` を維持し、到達済み Step の直近開始状態への復元、Timer の再設定、新しい Run / 入場世代への対応を追加する。実装と契約型は未移行である。
+
 `createM3dCueRuntimeSnapshot` と `validateM3dCueRuntimeSnapshot` は Cue 実行状態と明示的な sequence / clock metadata から現行 subset の portable snapshot を生成・検証する。`createRuntimeVisibilitySelection`、`validateRuntimeVisibilitySelection`、`projectM3dCueParticipantRuntimeView` は role別 resource closure と participant 向け View を扱う。`enabledLogicalInputs` は現在の状態で候補となる入力一覧であり、任意 payload / Guard / Action conflict を含む受理判定ではない。
 
 `selectDeliveryArtifacts`、`buildProjectionProfile`、`buildDeliveryManifest` は Definition / RenderBundle / AssetSet / BuildManifest / PublishedPresentation の整合性を検査し、role と CapabilityProfile に応じた artifact / Asset closure と予算を解決する。`calculateProjectionProfileId` は規範 mapping に従う profile identity を計算する。署名付き取得 URL は呼び出し側が渡し、Core は発行や認証を行わない。
