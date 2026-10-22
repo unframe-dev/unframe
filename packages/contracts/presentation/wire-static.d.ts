@@ -12761,6 +12761,9 @@ export namespace unframe {
       /** VideoArtifact hasAlpha. */
       hasAlpha: boolean;
 
+      /** VideoArtifact fit. */
+      fit: unframe.presentation.SurfaceFit;
+
       /**
        * Creates a new VideoArtifact instance using the specified properties.
        * @param [properties] Properties to set
@@ -12896,6 +12899,9 @@ export namespace unframe {
 
         /** VideoArtifact hasAlpha */
         hasAlpha?: boolean | null;
+
+        /** VideoArtifact fit */
+        fit?: unframe.presentation.SurfaceFit | null;
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
@@ -36182,6 +36188,12 @@ export namespace unframe {
       /** LocalPreviewProjection textureResidency. */
       textureResidency?: unframe.delivery.TextureResidencyPlan.$Properties | null;
 
+      /** LocalPreviewProjection modelResidency. */
+      modelResidency?: unframe.delivery.ModelResidencyPlan.$Properties | null;
+
+      /** LocalPreviewProjection videoResidency. */
+      videoResidency?: unframe.delivery.VideoResidencyPlan.$Properties | null;
+
       /**
        * Creates a new LocalPreviewProjection instance using the specified properties.
        * @param [properties] Properties to set
@@ -36309,6 +36321,12 @@ export namespace unframe {
         /** LocalPreviewProjection textureResidency */
         textureResidency?: unframe.delivery.TextureResidencyPlan.$Properties | null;
 
+        /** LocalPreviewProjection modelResidency */
+        modelResidency?: unframe.delivery.ModelResidencyPlan.$Properties | null;
+
+        /** LocalPreviewProjection videoResidency */
+        videoResidency?: unframe.delivery.VideoResidencyPlan.$Properties | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
@@ -36324,6 +36342,8 @@ export namespace unframe {
         requiredRuntimeCapabilities?: unframe.presentation.RuntimeCapability[] | null;
         runtimeCatalog?: unframe.presentation.ProjectedRuntimeCatalog.$Shape | null;
         textureResidency?: unframe.delivery.TextureResidencyPlan.$Shape | null;
+        modelResidency?: unframe.delivery.ModelResidencyPlan.$Shape | null;
+        videoResidency?: unframe.delivery.VideoResidencyPlan.$Shape | null;
         $unknowns?: Uint8Array[];
       };
     }
@@ -36351,6 +36371,12 @@ export namespace unframe {
 
       /** LocalPreviewInitialState surfaceStates. */
       surfaceStates: unframe.realtime.SurfaceRuntimeState.$Properties[];
+
+      /** LocalPreviewInitialState mediaStates. */
+      mediaStates: unframe.realtime.MediaRuntimeState.$Properties[];
+
+      /** LocalPreviewInitialState modelClipStates. */
+      modelClipStates: unframe.realtime.ModelClipRuntimeState.$Properties[];
 
       /**
        * Creates a new LocalPreviewInitialState instance using the specified properties.
@@ -36458,12 +36484,24 @@ export namespace unframe {
         /** LocalPreviewInitialState surfaceStates */
         surfaceStates?: unframe.realtime.SurfaceRuntimeState.$Properties[] | null;
 
+        /** LocalPreviewInitialState mediaStates */
+        mediaStates?: unframe.realtime.MediaRuntimeState.$Properties[] | null;
+
+        /** LocalPreviewInitialState modelClipStates */
+        modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Properties[] | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
 
       /** Shape of a LocalPreviewInitialState. */
-      type $Shape = unframe.preview.LocalPreviewInitialState.$Properties;
+      type $Shape = {
+        nodeStates?: unframe.realtime.NodeRuntimeState.$Shape[] | null;
+        surfaceStates?: unframe.realtime.SurfaceRuntimeState.$Shape[] | null;
+        mediaStates?: unframe.realtime.MediaRuntimeState.$Shape[] | null;
+        modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Shape[] | null;
+        $unknowns?: Uint8Array[];
+      };
     }
 
     /**
@@ -36504,6 +36542,12 @@ export namespace unframe {
 
       /** LocalPreviewPlaybackState currentGroupId. */
       currentGroupId: string;
+
+      /** LocalPreviewPlaybackState mediaStates. */
+      mediaStates: unframe.realtime.MediaRuntimeState.$Properties[];
+
+      /** LocalPreviewPlaybackState modelClipStates. */
+      modelClipStates: unframe.realtime.ModelClipRuntimeState.$Properties[];
 
       /**
        * Creates a new LocalPreviewPlaybackState instance using the specified properties.
@@ -36629,6 +36673,12 @@ export namespace unframe {
         /** LocalPreviewPlaybackState currentGroupId */
         currentGroupId?: string | null;
 
+        /** LocalPreviewPlaybackState mediaStates */
+        mediaStates?: unframe.realtime.MediaRuntimeState.$Properties[] | null;
+
+        /** LocalPreviewPlaybackState modelClipStates */
+        modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Properties[] | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
@@ -36642,6 +36692,8 @@ export namespace unframe {
         activeRuns?: unframe.realtime.RuntimeRunSnapshot.$Shape[] | null;
         clock?: unframe.realtime.RuntimeClockSnapshot.$Shape | null;
         currentGroupId?: string | null;
+        mediaStates?: unframe.realtime.MediaRuntimeState.$Shape[] | null;
+        modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Shape[] | null;
         $unknowns?: Uint8Array[];
       };
     }

@@ -1,0 +1,4 @@
+The source.glb fixture is an original synthetic model.
+Its original geometry, skin, morph target and animations are dedicated to the public domain under CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/
+No third-party model, texture or animation is included.

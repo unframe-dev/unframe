@@ -16,6 +16,8 @@ namespace Unframe.Unity.PresentationRuntime
         IEnumerable<ProjectedSemanticSurface> SemanticSurfaces { get; }
         Pose StageOrigin { get; }
         IEnumerable<RuntimeRunSnapshot> ActiveRuns { get; }
+        bool TryGetMediaState(string id, out MediaRuntimeState value);
+        bool TryGetModelClipState(string id, out ModelClipRuntimeState value);
         bool TryGetSurface(string id, out ProjectedSurfaceDefinition value);
         bool TryGetNodeState(string id, out NodeRuntimeState value);
         bool TryGetSurfaceState(string id, out SurfaceRuntimeState value);

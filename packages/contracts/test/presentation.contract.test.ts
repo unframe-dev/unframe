@@ -332,3 +332,16 @@ test("asset catalog excludes executable Web content and standalone audio", async
     assert.equal(assetSetManifestSchema.safeParse(invalid).success, false);
   }
 });
+
+test("Video artifacts require an explicit supported fit", async () => {
+  const bundle = await fixture("render-bundle");
+  const artifact = bundle.surfaces.video.renderSurfaces["render-video"].artifacts["artifact-video"];
+  for (const fit of ["contain", "cover", "stretch"]) {
+    artifact.fit = fit;
+    assert.equal(renderBundleSchema.safeParse(bundle).success, true);
+  }
+  for (const fit of [undefined, "fill"]) {
+    artifact.fit = fit;
+    assert.equal(renderBundleSchema.safeParse(bundle).success, false);
+  }
+});

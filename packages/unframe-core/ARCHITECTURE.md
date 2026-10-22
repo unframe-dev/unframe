@@ -22,7 +22,7 @@ Web、Compiler、Control Plane が同じ意味を利用できるようにする�
 ### Current
 
 - Contracts の手書き Zod schema と推論型から導出した PresentationDefinition / RenderBundle model
-- Stage、SurfaceNode、Frame / Text / Image / Shape、Surface State、baked-web artifactのsemantic invariant
+- Stage、SurfaceNode、静的 ModelNode、Frame / Text / Image / Shape、Surface State、baked-web artifactのsemantic invariant
 - Structured の Content Tree と Opaque の semantic binding を区別した Surface 検証（[ADR-0020](../../docs/decisions/0020-structured-and-opaque-surface-content.md)）
 - stable diagnostic codeとsemantic path
 - 配列順を保持するRFC 8785 canonical JSON、SHA-256 content hash
@@ -99,13 +99,13 @@ Runtime の `validateRuntimeVisibilitySelection`、`validateM3dCueRuntimeSnapsho
 
 現在の実装は、Record keyとID、Spatial / content / semantic tree、Surfaceの1:1関係、
 Group ownerとSpatial parent、Stateのcontent / semantic override、click Interaction、
-DefinitionとRenderBundleのsurface / state / Completed Semantic Tree対応を検証する。
+DefinitionとRenderBundleのsurface / state / Completed Semantic Tree対応、ModelNodeからcompiled Modelへの参照を検証する。
 Hit Regionのbounds、priority、canonical order、enabled buttonとの整合、全Stateのbindingと
-texture policy予算も検証する。Cueの参照・型・owner・actor・payload・Action競合を検証し、Surfaceのcut / crossfade、Variable、Nodeの即時Action、Timeline Action / Runを実行する。Timeline catalogではtarget / owner / audience、track、keyframe、easingを検証する。Media、Modelに依存する操作は`feature.unsupported`で拒否する。
+texture policy予算も検証する。Cueの参照・型・owner・actor・payload・Action競合を検証し、Surfaceのcut / crossfade、Variable、Nodeの即時Action、Timeline Action / Runを実行する。Timeline catalogではtarget / owner / audience、track、keyframe、easingを検証する。Mediaのplay / pause / seek、ModelClipのplay / pause / resume / stop、完了Cue、loop、保持姿勢、crossfadeをadmission済みRenderBundleの実行catalogとlogical clockから評価する。
 
 Render Surface は `partitionStrategyVersion: 1` と全 State の binding を持つ。非表示 State は `empty` とし、artifact は自身を参照する State の texture だけを保持する。全 State で空の partition、未参照 artifact、layer の欠落・重複を拒否する。描画が不要な Surface は partition を持たず、意味情報と Hit Region を保持できる（[ADR-0021](../../docs/decisions/0021-surface-interaction-geometry.md)）。encoded output budget は checksum ごとに一度だけ計上する。
 
-次はtarget全体でCoreが所有するinvariantである。初期schemaにまだ存在しないmodelの検証は未実装である。
+次はtarget全体でCoreが所有するinvariantである。
 
 - SurfaceNode と SemanticSurface は 1:1、SemanticSurface と RenderSurface は 1:0..N とする。
 - Runtime contract の Surface ID は SemanticSurfaceId とし、RenderSurfaceId を progression に含めない。
@@ -146,7 +146,7 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 
 ## 9. Deferred decisions
 
-- Native UI、Video、Model artifactのsemantic validation
+- Native UI rendererの実consumerへの接続
 - Spatial parent以外のResource lifetimeとProjectionAudienceの参照閉包
 - data constructor、normalize、pure migration API
 - migration support window

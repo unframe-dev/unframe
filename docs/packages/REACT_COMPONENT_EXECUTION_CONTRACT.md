@@ -24,9 +24,9 @@ React source / 実行可能 module は Compiler の描画用入力に留め、po
 
 共通モデルを変更しない場合、A1 の canonical lowering / CLI check 成功という完了条件を維持できない。別案は抽出・capture の隔離試作までに範囲を縮め、canonical / Editor 接続の前に再度設計することである。元の縦断検証目標に沿い、共通モデルまで拡張する方針を採用した。
 
-## 0. Lock v2 と生成 ID
+## 0. Lock v3 と生成 ID
 
-`unframe.lock` は self-contained な canonical JSON の v2 に変更する。Source 正本の local files は lock に複製せず、root-relative path と bytes hash で固定する。外部依存は文字列・binary とも bytes を lock に含める。概略型は次のとおりであり、unknown field、重複 key、不正 UTF-8 / base64、未参照の外部 package、欠けた参照は拒否する。
+`unframe.lock`はcanonical JSONのv3である。Source正本のlocal filesと登録したsource Assetはlockに複製せず、root-relative pathとbytes hashで固定し、Assetにはmedia typeとsizeも記録する。外部依存は文字列・binary とも bytes を lock に含める。概略型は次のとおりであり、unknown field、重複 key、不正 UTF-8 / base64、未参照の外部 package、欠けた参照は拒否する。
 
 ```ts
 type Hash = `sha256:${string}`;
@@ -61,7 +61,7 @@ type ComponentLock = {
   manifestHash: Hash;
 } & ({ mode: "structured"; structureHash: Hash } | { mode: "opaque"; rendererInputHash: Hash });
 type UnframeLock = {
-  schemaVersion: 2;
+  schemaVersion: 3;
   packageSnapshotProfile: "pnpm-lock9-locator-v1";
   resolutionProfile: "browser-import-production-types-v1";
   extractionProfile: "react-component-v1";
@@ -71,9 +71,11 @@ type UnframeLock = {
   dependencyGraphHash: Hash;
   themeHashes: { themeId: string; hash: Hash }[];
   componentLocks: ComponentLock[];
-  assets: { id: string; mediaType: string; hash: Hash; size: number; dataBase64: string }[];
+  assets: { id: string; path: string; mediaType: string; hash: Hash; size: number }[];
 };
 ```
+
+source Assetは非実行の`unframe.config.ts`の`assets: { [assetId]: { path, mediaType } }`で登録する。check/buildは登録とlockの一致、filesystem snapshotのsize/hashを検証し、Compilerへdescriptorとbytesを分離して渡す。素材の変更は明示的なlock更新を要求し、Dev buildの自動local hash更新では採用しない。旧schemaの暗黙読込は行わない。
 
 `Hash` は実検証で SHA-256 の小文字 hex 64 桁に限定する。file hash は decoded bytes、宣言・record の hash は既存 canonical serializer を使用する。path は ADR-0013 の root 内 regular file 規則を使う。package 内 path は package root 相対とする。file / export / dependency 配列はそれぞれ path / subpath / `(specifier,usage)`、package は key、Component は `(componentId,version)`、asset は id の code-unit 順とし、一意性を検査する。
 

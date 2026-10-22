@@ -1,14 +1,25 @@
 import { join } from "node:path";
-import { rm } from "node:fs/promises";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
+import { runPresentationCli } from "../src/index.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import { createWebglCaptureProject } from "./local-editor-webgl-fixture.js";
 import { createAuthorService } from "../src/author/service.js";
 import { startAuthorHost } from "../src/author/http.js";
 import { createLocalPreviewService } from "../src/author/local-preview.js";
 import { loadAuthorAssets, loadUnityPreviewAssets } from "../src/author/start.js";
 const repository = process.cwd();
-const directory = await createWebglCaptureProject(
-  process.env["UNFRAME_WEBGL_FIXTURE"] === "structured" ? "structured" : "opaque",
-);
+const directory =
+  process.env["UNFRAME_WEBGL_FIXTURE"] === "media"
+    ? await mkdtemp(join(temporaryDirectory(), "unframe-media-webgl-"))
+    : await createWebglCaptureProject(
+        process.env["UNFRAME_WEBGL_FIXTURE"] === "structured" ? "structured" : "opaque",
+      );
+if (process.env["UNFRAME_WEBGL_FIXTURE"] === "media") {
+  await copyProjectFixture(join(repository, "examples/media-presentation"), directory);
+  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
+  if (refreshed.exitCode) throw new Error(refreshed.stderr);
+}
 const service = await createAuthorService(directory);
 const previews = createLocalPreviewService(directory);
 const assets = await loadAuthorAssets(join(repository, "app/local-editor/dist"));

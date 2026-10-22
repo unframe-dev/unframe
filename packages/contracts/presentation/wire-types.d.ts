@@ -460,6 +460,7 @@ export interface VideoArtifactWire {
   encodedSizeBytes?: string;
   codec?: number;
   hasAlpha?: boolean;
+  fit?: number;
 }
 
 export interface VideoCapabilityWire {
@@ -801,6 +802,8 @@ export type LocalPreviewEnvelopeWire = LocalPreviewEnvelopeWireFields &
 export interface LocalPreviewInitialStateWire {
   nodeStates?: NodeRuntimeStateWire[];
   surfaceStates?: SurfaceRuntimeStateWire[];
+  mediaStates?: MediaRuntimeStateWire[];
+  modelClipStates?: ModelClipRuntimeStateWire[];
 }
 
 export interface LocalPreviewPlaybackStateWire {
@@ -811,6 +814,8 @@ export interface LocalPreviewPlaybackStateWire {
   activeRuns?: RuntimeRunSnapshotWire[];
   clock?: RuntimeClockSnapshotWire;
   currentGroupId?: string;
+  mediaStates?: MediaRuntimeStateWire[];
+  modelClipStates?: ModelClipRuntimeStateWire[];
 }
 
 export interface LocalPreviewProjectionWire {
@@ -823,6 +828,8 @@ export interface LocalPreviewProjectionWire {
   requiredRuntimeCapabilities?: number[];
   runtimeCatalog?: ProjectedRuntimeCatalogWire;
   textureResidency?: TextureResidencyPlanWire;
+  modelResidency?: ModelResidencyPlanWire;
+  videoResidency?: VideoResidencyPlanWire;
 }
 
 export interface AnchorBindingUnavailableWire {}

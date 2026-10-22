@@ -1,8 +1,10 @@
-import { ComponentInstance, Frame, Slot, Surface, Text } from "./api/jsx.js";
+import { ComponentInstance, Frame, Model, Video, Slot, Surface, Text } from "./api/jsx.js";
 import type {
   AuthoringElement,
   ComponentInstanceProps,
   FrameProps,
+  ModelProps,
+  VideoProps,
   SlotProps,
   SurfaceProps,
   TextProps,
@@ -13,6 +15,8 @@ export namespace JSX {
   export type ElementType =
     | typeof ComponentInstance
     | typeof Frame
+    | typeof Model
+    | typeof Video
     | typeof Slot
     | typeof Surface
     | typeof Text;
@@ -25,6 +29,8 @@ export namespace JSX {
 export const jsx = (tag: unknown, props: unknown, key?: unknown): AuthoringElement => {
   if (key !== undefined)
     throw new TypeError("Authoring JSX uses explicit declaration IDs instead of keys.");
+  if (tag === Video) return Video(props as VideoProps);
+  if (tag === Model) return Model(props as ModelProps);
   if (tag === Frame) return Frame(props as FrameProps);
   if (tag === Surface) return Surface(props as SurfaceProps);
   if (tag === Text) return Text(props as TextProps);

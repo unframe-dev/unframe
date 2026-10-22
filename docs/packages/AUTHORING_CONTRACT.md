@@ -1,12 +1,12 @@
 # Structured Authoring Contract
 
-- **Status**: Implemented for static baked-web; runtime features deferred
-- **Scope**: Static / finite-state `baked-web` Theme and Structured composition
+- **Status**: Baked-web / Model / Video builds and shared Unity playback implemented
+- **Scope**: Structured composition, Model roots, Video content, playback Actions and Outputs
 - **Related**: [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md), [Presentation v2](./DATA_MODEL.md), [Presentation Architecture](./ARCHITECTURE.md)
 
-この文書は M3A と M4 の Structured Authoring と compile-time 解決規則の正本である。公開 TypeScript 名、Zod field、diagnostic code などの実装詳細は、以下の意味を変えない範囲で実装時に確定する。
+この文書は Structured Authoring と compile-time 解決規則の正本である。公開 TypeScript 名、Zod field、diagnostic code などの実装詳細は、以下の意味を変えない範囲で実装時に確定する。
 
-React `.component.tsx` の Props・semantics・render 分離は [React Component 実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。本書の Structured composition / layout 規則はそのまま維持する。Component Instance は package lock を持たず、catalog と lock v2 が origin と宣言 hash を接続する。
+React `.component.tsx` の Props・semantics・render 分離は [React Component 実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。本書の Structured composition / layout 規則はそのまま維持する。Component Instance は package lock を持たず、catalog と lock v3 が origin と宣言 hash を接続する。
 
 ## M4 Structured graph
 
@@ -15,11 +15,21 @@ React `.component.tsx` の Props・semantics・render 分離は [React Component
 - `frame` / `text` に加えて `image` / `shape` builder を使う。Image は明示 Asset reference と fit / tint / border、Shape は rectangle / ellipse / line geometry と fill / stroke / strokeWidth を必須指定する。Named Style は Frame / Text に維持し、Image / Shape は inline style を使う。
 - 各 Node の `layout` は absolute / Stack / Grid placement。Frame の `flow` は子の Stack / Grid layout、省略時は absolute。root は absolute placement。親 flow と child placement の kind、Grid の cell / span、有限な正の resolved geometry を検証する。Stack / Grid の field は Presentation v2 schema に従う。
 - Core の共通 resolver が State 別 logical rect を計算し、Compiler の partition / Hit Region と Renderer が共有する。Browser intrinsic layout や DOM から意味・geometry を推測しない。
-- Image source は checksum 付き PNG / JPEG bytes に限定し、host path / network 読み込みを許可しない。Variable Text、Video / Model、Runtime HTML / JavaScript はこの拡張に含めない。
+- Image source は checksum 付き PNG / JPEG bytes に限定し、host path / network 読み込みを許可しない。Variable TextとRuntime HTML / JavaScriptは未対応である。
 
-## Scope and resolution
+## Model roots and Video content
 
-Structured 宣言を Presentation v2 と baked-web 成果物へ接続する。宣言 State ごとの visual override と、明示 Semantic Node に対応した click Interaction を扱う。State と Interaction の意味は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md)、[ADR-0021](../decisions/0021-surface-interaction-geometry.md) に従う。Native UI、Video / Model、Delivery / Unity 接続はこの Authoring 拡張に含めず、旧 v1 出力の互換経路は追加しない。
+`model({ id, asset })` / JSX `Model` を Structured Component のrootに指定できる。`asset`は登録済みGLBへのconstant `AssetReference`とし、PresentationのAsset参照にも含める。ModelはFrameの子やSlot内には置かず、既存のSpatial hostとComponent Instanceでトップレベルへ配置する。配置・owner・audience・TRS・opacityはhostからModelNodeへ継承し、内部GLBの姿勢と配置を分離する。
+
+Model用Manifestのprops / slots / parts / variants / states、StructureのpartBindings / variantStyles / timelinesは空に限定する。actions / outputsにはモデル再生を宣言できる。`playModelClip`はnodeId、clipId、speed、loop、completion、transition、conflictを受け取り、`pauseModelClip` / `resumeModelClip` / `stopModelClip`はnodeIdを受け取る。`modelClipCompleted({ nodeId, clipId })`をOutput producerに使える。clip IDは変換後GLBの`clip-N`で、存在しない参照はbuild errorとなる。baked-web rendererの宣言とThemeは不要である。
+
+`video` / JSX `Video`はFrame内の独立partitionとなり、登録済みMP4へのconstant Asset reference、loop、layout、style.fitを持つ。fitはcontain / cover / stretchを維持する。tintとborderは既定値に限定し、非対応の装飾・重なり・clipは診断する。Stateでloopやfitを変更できる。再生Actionは`playMedia({ surfaceId })` / `pauseMedia({ surfaceId })` / `seekMedia({ surfaceId, positionSeconds })`、完了Outputは`mediaCompleted(surfaceId)`を使う。media対象SurfaceはVideoをちょうど一つ持ち、全Stateでdurationが一致する。Videoを含むSurfaceのState切替はcutのみ対応し、crossfadeはCompilerが診断する。
+
+CompilerはGLB変換とMP4検証を通し、logical Asset IDを保ったDefinition / RenderBundle / AssetSetと配布bytesを生成する。source bytesと変換後bytesのchecksumを区別する。Local Editorと通常Unity Runtimeは同じ再生consumerへcanonical state / Run / logical clockを渡し、decoder callbackでCueを進めない。登録方法と操作例は[media example](../../examples/media-presentation/README.md)を参照する。
+
+## Baked-web scope and resolution
+
+Structured 宣言を Presentation v2 と baked-web 成果物へ接続する。宣言 State ごとの visual override と、明示 Semantic Node に対応した click Interaction を扱う。State と Interaction の意味は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md)、[ADR-0021](../decisions/0021-surface-interaction-geometry.md) に従う。Native UIは未対応である。旧 v1 出力の互換経路は追加しない。
 
 値の解決順は次のとおりとし、後段が同じ property を上書きする。配列は要素単位に merge せず全置換する。
 
@@ -72,7 +82,7 @@ Slot placeholder は同じ Component の Semantic Node ID を `semanticParentId`
 
 参照先が存在し配置可能であることを検証する。一つの Instance の配置先は一つだけとし、同じ Slot 内または別 Slot での重複、自己参照、循環参照を build error にする。同じ Component を複数箇所へ置く場合は別の Instance ID を使う。Slot の親子は同じ resource owner を持たなければならず、Compiler は owner を暗黙に変更しない。
 
-トップレベル Component は `Surface`、Slot 内 Component は `Frame` を root とする。Slot 内の別 `Surface` は拒否する。Slot 内 Instance は独立したトップレベル配置として描画せず、親 Component の配置先から相対配置して親と同じ Surface に展開する。Instance ID を維持し、内部 Node ID は Instance ID と Component 内の stable local Node ID から一意に導出する。
+トップレベルのbaked-web Component は `Surface`、Slot 内 Component は `Frame` を root とする。Slot 内の別 `Surface` は拒否する。Slot 内 Instance は独立したトップレベル配置として描画せず、親 Component の配置先から相対配置して親と同じ Surface に展開する。Instance ID を維持し、内部 Node ID は Instance ID と Component 内の stable local Node ID から一意に導出する。
 
 ## Variants
 
@@ -104,7 +114,7 @@ Text content、位置、寸法、primary font、font size、line height には�
 
 ## Version, lock, and deferred migration
 
-Component version、lock v2 の local / package origin と Theme / Manifest / Structure の hash 整合性を検証する。不適合な Props、Slots、Parts、Variants を含む package 更新は build error とし、暗黙に変換しない。
+Component version、lock v3 の local / package origin と Theme / Manifest / Structure の hash 整合性を検証する。不適合な Props、Slots、Parts、Variants を含む package 更新は build error とし、暗黙に変換しない。
 
 Component migration metadata と自動変換は後続へ延期する。Action / Output、Runtime transport、partition isolate はそれぞれの契約・ADR を正本とし、本書では再定義しない。
 

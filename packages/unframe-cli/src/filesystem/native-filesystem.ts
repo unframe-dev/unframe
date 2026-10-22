@@ -170,6 +170,14 @@ export class NativeFilesystem {
   async rename(path: string, target: string) {
     await this.request("rename", { path, target });
   }
+  /** Atomically swap two directory basenames under the same directory anchor. */
+  async exchange(path: string, target: string) {
+    await this.request("exchange", { path, target });
+  }
+  /** Atomically move a directory to an absent basename under the same anchor. */
+  async renameNoReplace(path: string, target: string) {
+    await this.request("renameNoReplace", { path, target });
+  }
   async symlink(target: string, path: string) {
     await this.request("symlink", { path, target });
   }

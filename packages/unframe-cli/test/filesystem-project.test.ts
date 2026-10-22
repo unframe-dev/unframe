@@ -33,6 +33,34 @@ afterEach(async () => {
 });
 
 describe("filesystem project discovery", () => {
+  it("keeps registered source bytes in the filesystem snapshot and rejects missing sources", async () => {
+    const directory = await project();
+    await mkdir(join(directory, "assets"));
+    const model = Uint8Array.of(0x67, 0x6c, 0x54, 0x46);
+    await writeFile(join(directory, "assets", "model.glb"), model);
+    await writeFile(
+      join(directory, "unframe.config.ts"),
+      `export default {
+      entryFile: "presentation.unframe.tsx",
+      assets: { model: { path: "assets/model.glb", mediaType: "model/gltf-binary" } },
+    };`,
+    );
+    const found = await discoverPresentationProjectFiles(directory);
+    expect(found).toMatchObject({
+      ok: true,
+      assetSources: { model: { path: "assets/model.glb", mediaType: "model/gltf-binary" } },
+    });
+    if (found.ok)
+      expect(found.localFiles.find((file) => file.path === "assets/model.glb")?.bytes).toEqual(
+        model,
+      );
+    await unlink(join(directory, "assets", "model.glb"));
+    await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
+      ok: false,
+      code: "cli-source-asset-missing",
+    });
+  });
+
   it("絶対rootだけからdata-only configを読み、entryをroot内regular fileへ限定する", async () => {
     const directory = await project();
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({

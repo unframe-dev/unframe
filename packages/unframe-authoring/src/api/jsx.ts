@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { snapshotDeclaration } from "../internal/declaration-validation.js";
-import { componentInstance, frame, slotPlaceholder, surface, text } from "./definitions.js";
+import {
+  componentInstance,
+  frame,
+  model,
+  video,
+  slotPlaceholder,
+  surface,
+  text,
+} from "./definitions.js";
 import type {
   FrameDeclaration,
   SurfaceDeclaration,
@@ -10,6 +18,8 @@ import type {
   AuthoringElement,
   ComponentInstanceProps,
   FrameProps,
+  ModelProps,
+  VideoProps,
   SlotProps,
   SurfaceProps,
   TextProps,
@@ -54,3 +64,7 @@ export const Slot = (props: SlotProps): AuthoringElement =>
   element(slotPlaceholder(snapshotProps(props)));
 export const ComponentInstance = (props: ComponentInstanceProps): AuthoringElement =>
   element(componentInstance(snapshotProps(props)));
+
+export const Model = (props: ModelProps): AuthoringElement => element(model(snapshotProps(props)));
+
+export const Video = (props: VideoProps): AuthoringElement => element(video(snapshotProps(props)));

@@ -191,7 +191,7 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (Asset asset in value.Assets)
             {
                 if (asset == null || !PresentationDeliveryCatalog.IsContentHash(asset.Checksum)
-                    || asset.EncodedSizeBytes == 0 || asset.MediaType != "image/png"
+                    || asset.EncodedSizeBytes == 0 || asset.MediaType != "image/png" && asset.MediaType != "model/gltf-binary" && asset.MediaType != "video/mp4"
                     || checksums.TryGetValue(asset.Checksum, out ulong previous) && previous != asset.EncodedSizeBytes)
                     throw new InvalidOperationException("session-selection-registry-invalid");
                 checksums[asset.Checksum] = asset.EncodedSizeBytes;

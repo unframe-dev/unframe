@@ -3244,19 +3244,20 @@ func (x *NativeUiArtifact) GetNodes() []*NativeUiNode {
 }
 
 type VideoArtifact struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	ArtifactId       string                 `protobuf:"bytes,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
-	ContractVersion  uint32                 `protobuf:"varint,2,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
-	RequiredFeatures []VideoFeature         `protobuf:"varint,3,rep,packed,name=required_features,json=requiredFeatures,proto3,enum=unframe.delivery.VideoFeature" json:"required_features,omitempty"`
-	VideoAssetId     string                 `protobuf:"bytes,4,opt,name=video_asset_id,json=videoAssetId,proto3" json:"video_asset_id,omitempty"`
-	Checksum         string                 `protobuf:"bytes,5,opt,name=checksum,proto3" json:"checksum,omitempty"`
-	PixelSize        *PixelSize             `protobuf:"bytes,6,opt,name=pixel_size,json=pixelSize,proto3" json:"pixel_size,omitempty"`
-	DurationMs       uint64                 `protobuf:"varint,9,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	Loop             bool                   `protobuf:"varint,11,opt,name=loop,proto3" json:"loop,omitempty"`
-	HasAudio         bool                   `protobuf:"varint,12,opt,name=has_audio,json=hasAudio,proto3" json:"has_audio,omitempty"`
-	EncodedSizeBytes uint64                 `protobuf:"varint,13,opt,name=encoded_size_bytes,json=encodedSizeBytes,proto3" json:"encoded_size_bytes,omitempty"`
-	Codec            VideoCodec             `protobuf:"varint,14,opt,name=codec,proto3,enum=unframe.delivery.VideoCodec" json:"codec,omitempty"`
-	HasAlpha         bool                   `protobuf:"varint,15,opt,name=has_alpha,json=hasAlpha,proto3" json:"has_alpha,omitempty"`
+	state            protoimpl.MessageState  `protogen:"open.v1"`
+	ArtifactId       string                  `protobuf:"bytes,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
+	ContractVersion  uint32                  `protobuf:"varint,2,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	RequiredFeatures []VideoFeature          `protobuf:"varint,3,rep,packed,name=required_features,json=requiredFeatures,proto3,enum=unframe.delivery.VideoFeature" json:"required_features,omitempty"`
+	VideoAssetId     string                  `protobuf:"bytes,4,opt,name=video_asset_id,json=videoAssetId,proto3" json:"video_asset_id,omitempty"`
+	Checksum         string                  `protobuf:"bytes,5,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	PixelSize        *PixelSize              `protobuf:"bytes,6,opt,name=pixel_size,json=pixelSize,proto3" json:"pixel_size,omitempty"`
+	DurationMs       uint64                  `protobuf:"varint,9,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Loop             bool                    `protobuf:"varint,11,opt,name=loop,proto3" json:"loop,omitempty"`
+	HasAudio         bool                    `protobuf:"varint,12,opt,name=has_audio,json=hasAudio,proto3" json:"has_audio,omitempty"`
+	EncodedSizeBytes uint64                  `protobuf:"varint,13,opt,name=encoded_size_bytes,json=encodedSizeBytes,proto3" json:"encoded_size_bytes,omitempty"`
+	Codec            VideoCodec              `protobuf:"varint,14,opt,name=codec,proto3,enum=unframe.delivery.VideoCodec" json:"codec,omitempty"`
+	HasAlpha         bool                    `protobuf:"varint,15,opt,name=has_alpha,json=hasAlpha,proto3" json:"has_alpha,omitempty"`
+	Fit              presentation.SurfaceFit `protobuf:"varint,16,opt,name=fit,proto3,enum=unframe.presentation.SurfaceFit" json:"fit,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -3373,6 +3374,13 @@ func (x *VideoArtifact) GetHasAlpha() bool {
 		return x.HasAlpha
 	}
 	return false
+}
+
+func (x *VideoArtifact) GetFit() presentation.SurfaceFit {
+	if x != nil {
+		return x.Fit
+	}
+	return presentation.SurfaceFit(0)
 }
 
 type DeliveredArtifact struct {
@@ -5301,7 +5309,7 @@ const file_unframe_delivery_delivery_proto_rawDesc = "" +
 	"\x11required_features\x18\x03 \x03(\x0e2!.unframe.delivery.NativeUiFeatureR\x10requiredFeatures\x12 \n" +
 	"\froot_node_id\x18\x04 \x01(\tR\n" +
 	"rootNodeId\x124\n" +
-	"\x05nodes\x18\x05 \x03(\v2\x1e.unframe.delivery.NativeUiNodeR\x05nodes\"\x89\x04\n" +
+	"\x05nodes\x18\x05 \x03(\v2\x1e.unframe.delivery.NativeUiNodeR\x05nodes\"\xbd\x04\n" +
 	"\rVideoArtifact\x12\x1f\n" +
 	"\vartifact_id\x18\x01 \x01(\tR\n" +
 	"artifactId\x12)\n" +
@@ -5317,7 +5325,8 @@ const file_unframe_delivery_delivery_proto_rawDesc = "" +
 	"\thas_audio\x18\f \x01(\bR\bhasAudio\x12,\n" +
 	"\x12encoded_size_bytes\x18\r \x01(\x04R\x10encodedSizeBytes\x122\n" +
 	"\x05codec\x18\x0e \x01(\x0e2\x1c.unframe.delivery.VideoCodecR\x05codec\x12\x1b\n" +
-	"\thas_alpha\x18\x0f \x01(\bR\bhasAlphaJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\n" +
+	"\thas_alpha\x18\x0f \x01(\bR\bhasAlpha\x122\n" +
+	"\x03fit\x18\x10 \x01(\x0e2 .unframe.presentation.SurfaceFitR\x03fitJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\n" +
 	"\x10\v\"\xde\x01\n" +
 	"\x11DeliveredArtifact\x12A\n" +
 	"\tbaked_web\x18\x01 \x01(\v2\".unframe.delivery.BakedWebArtifactH\x00R\bbakedWeb\x12A\n" +
@@ -5645,11 +5654,12 @@ var file_unframe_delivery_delivery_proto_goTypes = []any{
 	(*DeliveryManifest)(nil),                     // 68: unframe.delivery.DeliveryManifest
 	(*presentation.PublicationFence)(nil),        // 69: unframe.presentation.PublicationFence
 	(presentation.SessionRole)(0),                // 70: unframe.presentation.SessionRole
-	(presentation.AnchorTarget)(0),               // 71: unframe.presentation.AnchorTarget
-	(*presentation.Transform)(nil),               // 72: unframe.presentation.Transform
-	(presentation.RuntimeCapability)(0),          // 73: unframe.presentation.RuntimeCapability
-	(*presentation.ProjectedRuntimeCatalog)(nil), // 74: unframe.presentation.ProjectedRuntimeCatalog
-	(*presentation.ProjectionInstance)(nil),      // 75: unframe.presentation.ProjectionInstance
+	(presentation.SurfaceFit)(0),                 // 71: unframe.presentation.SurfaceFit
+	(presentation.AnchorTarget)(0),               // 72: unframe.presentation.AnchorTarget
+	(*presentation.Transform)(nil),               // 73: unframe.presentation.Transform
+	(presentation.RuntimeCapability)(0),          // 74: unframe.presentation.RuntimeCapability
+	(*presentation.ProjectedRuntimeCatalog)(nil), // 75: unframe.presentation.ProjectedRuntimeCatalog
+	(*presentation.ProjectionInstance)(nil),      // 76: unframe.presentation.ProjectionInstance
 }
 var file_unframe_delivery_delivery_proto_depIdxs = []int32{
 	1,  // 0: unframe.delivery.TextureCapability.features:type_name -> unframe.delivery.BakedWebFeature
@@ -5702,49 +5712,50 @@ var file_unframe_delivery_delivery_proto_depIdxs = []int32{
 	3,  // 47: unframe.delivery.VideoArtifact.required_features:type_name -> unframe.delivery.VideoFeature
 	27, // 48: unframe.delivery.VideoArtifact.pixel_size:type_name -> unframe.delivery.PixelSize
 	11, // 49: unframe.delivery.VideoArtifact.codec:type_name -> unframe.delivery.VideoCodec
-	33, // 50: unframe.delivery.DeliveredArtifact.baked_web:type_name -> unframe.delivery.BakedWebArtifact
-	47, // 51: unframe.delivery.DeliveredArtifact.native_ui:type_name -> unframe.delivery.NativeUiArtifact
-	48, // 52: unframe.delivery.DeliveredArtifact.video:type_name -> unframe.delivery.VideoArtifact
-	26, // 53: unframe.delivery.DeliveredRenderSurface.logical_bounds:type_name -> unframe.delivery.LogicalBounds
-	0,  // 54: unframe.delivery.DeliveredRenderSurface.renderer_kind:type_name -> unframe.delivery.RendererKind
-	30, // 55: unframe.delivery.DeliveredRenderSurface.state_bindings:type_name -> unframe.delivery.DeliveredStateBinding
-	49, // 56: unframe.delivery.DeliveredRenderSurface.artifacts:type_name -> unframe.delivery.DeliveredArtifact
-	12, // 57: unframe.delivery.ProjectedSemanticNode.role:type_name -> unframe.delivery.SemanticRole
-	51, // 58: unframe.delivery.ProjectedSemanticTree.nodes:type_name -> unframe.delivery.ProjectedSemanticNode
-	26, // 59: unframe.delivery.InteractiveRegion.normalized_bounds:type_name -> unframe.delivery.LogicalBounds
-	52, // 60: unframe.delivery.SurfaceSemanticState.semantic_tree:type_name -> unframe.delivery.ProjectedSemanticTree
-	53, // 61: unframe.delivery.SurfaceSemanticState.interactive_regions:type_name -> unframe.delivery.InteractiveRegion
-	54, // 62: unframe.delivery.ProjectedSemanticSurface.states:type_name -> unframe.delivery.SurfaceSemanticState
-	71, // 63: unframe.delivery.LocalOverlayDefinition.self_anchor:type_name -> unframe.presentation.AnchorTarget
-	72, // 64: unframe.delivery.LocalOverlayDefinition.transform:type_name -> unframe.presentation.Transform
-	25, // 65: unframe.delivery.ProjectionProfileDescriptor.key:type_name -> unframe.delivery.ProjectionProfileKey
-	50, // 66: unframe.delivery.ProjectionProfileDescriptor.render_surfaces:type_name -> unframe.delivery.DeliveredRenderSurface
-	55, // 67: unframe.delivery.ProjectionProfileDescriptor.semantic_surfaces:type_name -> unframe.delivery.ProjectedSemanticSurface
-	56, // 68: unframe.delivery.ProjectionProfileDescriptor.local_overlays:type_name -> unframe.delivery.LocalOverlayDefinition
-	73, // 69: unframe.delivery.ProjectionProfileDescriptor.required_runtime_capabilities:type_name -> unframe.presentation.RuntimeCapability
-	74, // 70: unframe.delivery.ProjectionProfileDescriptor.runtime_catalog:type_name -> unframe.presentation.ProjectedRuntimeCatalog
-	27, // 71: unframe.delivery.TextureResidencyBinding.pixel_size:type_name -> unframe.delivery.PixelSize
-	59, // 72: unframe.delivery.TextureResidencyPlan.textures:type_name -> unframe.delivery.TextureResidencyBinding
-	5,  // 73: unframe.delivery.ModelResidencyBinding.format:type_name -> unframe.delivery.ModelFormat
-	4,  // 74: unframe.delivery.ModelResidencyBinding.required_features:type_name -> unframe.delivery.ModelFeature
-	61, // 75: unframe.delivery.ModelResidencyPlan.models:type_name -> unframe.delivery.ModelResidencyBinding
-	64, // 76: unframe.delivery.NativeUiResidencyPlan.glyphs:type_name -> unframe.delivery.GlyphResidencyKey
-	65, // 77: unframe.delivery.VideoResidencyPlan.videos:type_name -> unframe.delivery.VideoResidencyBinding
-	60, // 78: unframe.delivery.ResidencyPlan.textures:type_name -> unframe.delivery.TextureResidencyPlan
-	62, // 79: unframe.delivery.ResidencyPlan.models:type_name -> unframe.delivery.ModelResidencyPlan
-	63, // 80: unframe.delivery.ResidencyPlan.native_ui:type_name -> unframe.delivery.NativeUiResidencyPlan
-	66, // 81: unframe.delivery.ResidencyPlan.video:type_name -> unframe.delivery.VideoResidencyPlan
-	69, // 82: unframe.delivery.DeliveryManifest.publication:type_name -> unframe.presentation.PublicationFence
-	24, // 83: unframe.delivery.DeliveryManifest.capability_profile:type_name -> unframe.delivery.CapabilityProfile
-	57, // 84: unframe.delivery.DeliveryManifest.projection_profile:type_name -> unframe.delivery.ProjectionProfileDescriptor
-	75, // 85: unframe.delivery.DeliveryManifest.projection_instance:type_name -> unframe.presentation.ProjectionInstance
-	58, // 86: unframe.delivery.DeliveryManifest.asset_access:type_name -> unframe.delivery.AssetAccessBinding
-	67, // 87: unframe.delivery.DeliveryManifest.residency:type_name -> unframe.delivery.ResidencyPlan
-	88, // [88:88] is the sub-list for method output_type
-	88, // [88:88] is the sub-list for method input_type
-	88, // [88:88] is the sub-list for extension type_name
-	88, // [88:88] is the sub-list for extension extendee
-	0,  // [0:88] is the sub-list for field type_name
+	71, // 50: unframe.delivery.VideoArtifact.fit:type_name -> unframe.presentation.SurfaceFit
+	33, // 51: unframe.delivery.DeliveredArtifact.baked_web:type_name -> unframe.delivery.BakedWebArtifact
+	47, // 52: unframe.delivery.DeliveredArtifact.native_ui:type_name -> unframe.delivery.NativeUiArtifact
+	48, // 53: unframe.delivery.DeliveredArtifact.video:type_name -> unframe.delivery.VideoArtifact
+	26, // 54: unframe.delivery.DeliveredRenderSurface.logical_bounds:type_name -> unframe.delivery.LogicalBounds
+	0,  // 55: unframe.delivery.DeliveredRenderSurface.renderer_kind:type_name -> unframe.delivery.RendererKind
+	30, // 56: unframe.delivery.DeliveredRenderSurface.state_bindings:type_name -> unframe.delivery.DeliveredStateBinding
+	49, // 57: unframe.delivery.DeliveredRenderSurface.artifacts:type_name -> unframe.delivery.DeliveredArtifact
+	12, // 58: unframe.delivery.ProjectedSemanticNode.role:type_name -> unframe.delivery.SemanticRole
+	51, // 59: unframe.delivery.ProjectedSemanticTree.nodes:type_name -> unframe.delivery.ProjectedSemanticNode
+	26, // 60: unframe.delivery.InteractiveRegion.normalized_bounds:type_name -> unframe.delivery.LogicalBounds
+	52, // 61: unframe.delivery.SurfaceSemanticState.semantic_tree:type_name -> unframe.delivery.ProjectedSemanticTree
+	53, // 62: unframe.delivery.SurfaceSemanticState.interactive_regions:type_name -> unframe.delivery.InteractiveRegion
+	54, // 63: unframe.delivery.ProjectedSemanticSurface.states:type_name -> unframe.delivery.SurfaceSemanticState
+	72, // 64: unframe.delivery.LocalOverlayDefinition.self_anchor:type_name -> unframe.presentation.AnchorTarget
+	73, // 65: unframe.delivery.LocalOverlayDefinition.transform:type_name -> unframe.presentation.Transform
+	25, // 66: unframe.delivery.ProjectionProfileDescriptor.key:type_name -> unframe.delivery.ProjectionProfileKey
+	50, // 67: unframe.delivery.ProjectionProfileDescriptor.render_surfaces:type_name -> unframe.delivery.DeliveredRenderSurface
+	55, // 68: unframe.delivery.ProjectionProfileDescriptor.semantic_surfaces:type_name -> unframe.delivery.ProjectedSemanticSurface
+	56, // 69: unframe.delivery.ProjectionProfileDescriptor.local_overlays:type_name -> unframe.delivery.LocalOverlayDefinition
+	74, // 70: unframe.delivery.ProjectionProfileDescriptor.required_runtime_capabilities:type_name -> unframe.presentation.RuntimeCapability
+	75, // 71: unframe.delivery.ProjectionProfileDescriptor.runtime_catalog:type_name -> unframe.presentation.ProjectedRuntimeCatalog
+	27, // 72: unframe.delivery.TextureResidencyBinding.pixel_size:type_name -> unframe.delivery.PixelSize
+	59, // 73: unframe.delivery.TextureResidencyPlan.textures:type_name -> unframe.delivery.TextureResidencyBinding
+	5,  // 74: unframe.delivery.ModelResidencyBinding.format:type_name -> unframe.delivery.ModelFormat
+	4,  // 75: unframe.delivery.ModelResidencyBinding.required_features:type_name -> unframe.delivery.ModelFeature
+	61, // 76: unframe.delivery.ModelResidencyPlan.models:type_name -> unframe.delivery.ModelResidencyBinding
+	64, // 77: unframe.delivery.NativeUiResidencyPlan.glyphs:type_name -> unframe.delivery.GlyphResidencyKey
+	65, // 78: unframe.delivery.VideoResidencyPlan.videos:type_name -> unframe.delivery.VideoResidencyBinding
+	60, // 79: unframe.delivery.ResidencyPlan.textures:type_name -> unframe.delivery.TextureResidencyPlan
+	62, // 80: unframe.delivery.ResidencyPlan.models:type_name -> unframe.delivery.ModelResidencyPlan
+	63, // 81: unframe.delivery.ResidencyPlan.native_ui:type_name -> unframe.delivery.NativeUiResidencyPlan
+	66, // 82: unframe.delivery.ResidencyPlan.video:type_name -> unframe.delivery.VideoResidencyPlan
+	69, // 83: unframe.delivery.DeliveryManifest.publication:type_name -> unframe.presentation.PublicationFence
+	24, // 84: unframe.delivery.DeliveryManifest.capability_profile:type_name -> unframe.delivery.CapabilityProfile
+	57, // 85: unframe.delivery.DeliveryManifest.projection_profile:type_name -> unframe.delivery.ProjectionProfileDescriptor
+	76, // 86: unframe.delivery.DeliveryManifest.projection_instance:type_name -> unframe.presentation.ProjectionInstance
+	58, // 87: unframe.delivery.DeliveryManifest.asset_access:type_name -> unframe.delivery.AssetAccessBinding
+	67, // 88: unframe.delivery.DeliveryManifest.residency:type_name -> unframe.delivery.ResidencyPlan
+	89, // [89:89] is the sub-list for method output_type
+	89, // [89:89] is the sub-list for method input_type
+	89, // [89:89] is the sub-list for extension type_name
+	89, // [89:89] is the sub-list for extension extendee
+	0,  // [0:89] is the sub-list for field type_name
 }
 
 func init() { file_unframe_delivery_delivery_proto_init() }

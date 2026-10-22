@@ -15,8 +15,10 @@ export type {
   CheckedDeclarationProject,
   CompiledDeclarationProject,
   CompilerBuildOptions,
+  CompilerVideoValidator,
   CompilerDeclarationProject,
   CompilerSourceAsset,
+  CompilerSourceAssetBytes,
   DeclarationProjectAssemblyInput,
   DeclarationProjectComponentLock,
   DeclarationProjectThemeHash,
@@ -52,3 +54,5 @@ export {
 export type { PreparedStyles } from "./project/parse-authoring-project.js";
 
 export { CompilerInternalError, type CompilerStage } from "./api/compiler-internal-error.js";
+
+export { MODEL_BUILD_IDENTITY } from "./api/compile-model-assets.js";

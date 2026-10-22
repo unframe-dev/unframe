@@ -148,7 +148,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             using (HttpRequestMessage request = await RequestAsync(HttpMethod.Post, "delivery", token))
             {
-                request.Content = new StringContent("{\"capabilityProfileId\":\"quest-baked-web-v1\"}", System.Text.Encoding.UTF8, "application/json");
+                request.Content = new StringContent("{\"capabilityProfileId\":\"unity-media-v1\"}", System.Text.Encoding.UTF8, "application/json");
                 using (HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token))
                 {
                     if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType != "application/x-protobuf")
@@ -156,7 +156,7 @@ namespace Unframe.Unity.PresentationRuntime
                     byte[] bytes = await ReadBoundedAsync(response.Content, 16 * 1024 * 1024, token);
                     DeliveryManifest delivery = DeliveryManifest.Parser.ParseFrom(bytes);
                     PresentationRuntimeDataStore validator = new PresentationRuntimeDataStore();
-                    if (delivery.SessionId != sessionId || delivery.CapabilityProfile?.CapabilityProfileId != "quest-baked-web-v1"
+                    if (delivery.SessionId != sessionId || delivery.CapabilityProfile?.CapabilityProfileId != "unity-media-v1"
                         || !validator.TryReceiveDelivery(delivery, out _))
                         throw new InvalidOperationException("Control Plane Delivery is incompatible.");
                     return delivery;

@@ -9,6 +9,67 @@ const vector = (value: readonly [number, number, number]) => ({
   y: value[1],
   z: value[2],
 });
+const runIdWire = (id: RuntimeRun["runId"]) => ({
+  assignmentEpoch: String(id.assignmentEpoch),
+  runSequence: String(id.runSequence),
+});
+type ModelRun = Extract<RuntimeRun, { kind: "modelClip" }>;
+type Clip = Extract<ModelRun["phase"], { kind: "single" }>["clip"];
+const clockWire = (clock: Clip["playback"]) =>
+  clock.kind === "playing"
+    ? {
+        playing: {
+          positionAtReferenceMs: clock.positionAtReferenceMilliseconds,
+          referenceRuntimeTimeMs: String(clock.referenceRuntimeTimeMilliseconds),
+        },
+      }
+    : { paused: { positionMs: clock.positionMilliseconds } };
+const heldWire = (clip: { clipId: string; positionMilliseconds: number }) => ({
+  clipId: clip.clipId,
+  positionMs: clip.positionMilliseconds,
+});
+const clipWire = (clip: Clip) => ({
+  clipId: clip.clipId,
+  playback: clockWire(clip.playback),
+  speed: clip.speed,
+  loop: clip.loop,
+});
+const easingWire = (value: Extract<RuntimeRun, { kind: "surfaceTransition" }>["easing"]) =>
+  ({ linear: 1, cubicIn: 2, cubicOut: 3, cubicInOut: 4 })[value];
+export const projectPlaybackResourcesWire = (
+  state: Pick<CueState, "mediaStates" | "modelClipStates">,
+  visibleNodeIds: ReadonlySet<string>,
+  visibleSurfaceIds: ReadonlySet<string>,
+) => ({
+  mediaStates: Object.entries(state.mediaStates)
+    .filter(([id]) => visibleSurfaceIds.has(id))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([surfaceId, value]) => ({
+      surfaceId,
+      ...(value.kind === "stopped"
+        ? { stopped: { heldPositionMs: value.heldPositionMilliseconds } }
+        : { active: { runId: runIdWire(value.runId), playback: clockWire(value.playback) } }),
+    })),
+  modelClipStates: Object.entries(state.modelClipStates)
+    .filter(([id]) => visibleNodeIds.has(id))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([modelNodeId, value]) => ({
+      modelNodeId,
+      ...(value.kind === "defaultPose"
+        ? { defaultPose: {} }
+        : value.kind === "heldClip"
+          ? { heldClip: heldWire(value.clip) }
+          : value.kind === "heldBlend"
+            ? {
+                heldBlend: {
+                  from: heldWire(value.from),
+                  to: heldWire(value.to),
+                  toWeight: value.toWeight,
+                },
+              }
+            : { active: { runId: runIdWire(value.runId) } }),
+    })),
+});
 const runWire = (run: RuntimeRun): RuntimeRunSnapshotWire => ({
   runId: {
     assignmentEpoch: String(run.runId.assignmentEpoch),
@@ -29,15 +90,35 @@ const runWire = (run: RuntimeRun): RuntimeRunSnapshotWire => ({
   startedAtRuntimeTimeMs: String(run.startedAtRuntimeTimeMilliseconds),
   ...(run.kind === "timeline"
     ? { timeline: { timelineId: run.timelineId } }
-    : {
-        surfaceTransition: {
-          surfaceId: run.surfaceId,
-          fromStateId: run.fromStateId,
-          toStateId: run.toStateId,
-          durationMs: String(run.durationMilliseconds),
-          easing: { linear: 1, cubicIn: 2, cubicOut: 3, cubicInOut: 4 }[run.easing],
-        },
-      }),
+    : run.kind === "media"
+      ? { media: { surfaceId: run.surfaceId, playback: clockWire(run.playback) } }
+      : run.kind === "modelClip"
+        ? {
+            modelClip: {
+              modelNodeId: run.modelNodeId,
+              ...(run.phase.kind === "single"
+                ? { single: clipWire(run.phase.clip) }
+                : {
+                    crossfade: {
+                      from: clipWire(run.phase.transition.from),
+                      to: clipWire(run.phase.transition.to),
+                      transitionClock: clockWire(run.phase.transition.transitionClock),
+                      durationMs: String(run.phase.transition.durationMilliseconds),
+                      easing: easingWire(run.phase.transition.easing),
+                      fromIsHeld: run.phase.transition.fromIsHeld,
+                    },
+                  }),
+            },
+          }
+        : {
+            surfaceTransition: {
+              surfaceId: run.surfaceId,
+              fromStateId: run.fromStateId,
+              toStateId: run.toStateId,
+              durationMs: String(run.durationMilliseconds),
+              easing: { linear: 1, cubicIn: 2, cubicOut: 3, cubicInOut: 4 }[run.easing],
+            },
+          }),
 });
 
 export const projectPlaybackWire = (
@@ -52,6 +133,7 @@ export const projectPlaybackWire = (
   requestId,
   sequence: String(sequence),
   currentGroupId: state.currentGroupId,
+  ...projectPlaybackResourcesWire(state, visibleNodeIds, visibleSurfaceIds),
   nodeStates: Object.entries(state.nodes)
     .filter(([nodeId]) => visibleNodeIds.has(nodeId))
     .sort(([a], [b]) => a.localeCompare(b))
@@ -95,7 +177,9 @@ export const projectPlaybackWire = (
     .filter((run) =>
       run.kind === "timeline"
         ? visibleTimelineIds.has(run.timelineId)
-        : visibleSurfaceIds.has(run.surfaceId),
+        : run.kind === "modelClip"
+          ? visibleNodeIds.has(run.modelNodeId)
+          : visibleSurfaceIds.has(run.surfaceId),
     )
     .map(runWire),
   clock: {

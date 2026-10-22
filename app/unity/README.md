@@ -12,13 +12,19 @@
 
 配信・実行は v2 契約のみを使用します。旧 JSON importer とサンプルは廃止し、v1 データの読み込み・変換、独立音声、ページ番号を直接指定する操作は提供しません。
 
-`PresentationControlPlaneConnection` は、HTTPS Control Plane origin、Session ID、更新可能な認証 token provider を受け取り、POST Deliveryで `quest-baked-web-v1` を固定します。POST bootstrapとpublication / assignment / projectionを照合して `PresentationBakedRuntime` へ渡し、再接続時はcredentialを更新します。publication / projectionの変更ではDeliveryを再取得します。credentialはSceneやassetへ保存しません。
+`PresentationControlPlaneConnection` は、HTTPS Control Plane origin、Session ID、更新可能な認証 token provider を受け取り、POST Deliveryで `unity-media-v1` を固定します。POST bootstrapとpublication / assignment / projectionを照合して `PresentationBakedRuntime` へ渡し、再接続時はcredentialを更新します。publication / projectionの変更ではDeliveryを再取得します。credentialはSceneやassetへ保存しません。
 
-`PresentationRuntimeHost` は起動時に保存済みの全 Session 選択を読み、encoded PNG cache の durable pin を復元します。Delivery の検証後に選択情報と pin を更新し、その cache を Runtime へ渡します。保存するのは publication / assignment の識別情報と Asset の checksum・サイズ・MIME です。署名付き URL と認証 credential は保存しません。保存データの破損や更新失敗では接続を停止します。
+`PresentationRuntimeHost` は起動時に保存済みの全 Session 選択を読み、encoded PNG・GLB・MP4 cache の durable pin を復元します。Delivery の検証後に選択情報と pin を更新し、その cache を Runtime へ渡します。保存するのは publication / assignment の識別情報と Asset の checksum・サイズ・MIME です。署名付き URL と認証 credential は保存しません。保存データの破損や更新失敗では接続を停止します。
 
 ローカルの Session 選択を取り消す場合は `PresentationControlPlaneConnection.CancelLocalSelectionAsync` を呼びます。実行中の接続と Asset 処理の終了を待ってから、その participant の選択情報と durable pin を削除します。通常の再接続やアプリ終了では選択を保持します。
 
-`PresentationBakedRuntime` はBaked Web PNGを検証して順番にRGBA32へuploadし、全selected textureのresidencyとControl / State同期が揃ってから入力を許可します。Surface crossfadeとTimelineはauthoritative Runtime clockで描画します。Native UI、Model、Video、Local Overlayはこの接続経路では受け付けません。managed dependencyの再現・checksum検査は [Plugins README](Assets/Plugins/README.md) を参照してください。
+`PresentationBakedRuntime` とLocal Previewは同じ `PresentationPlaybackPlayer` を使い、Baked Web PNG、GLB Model、H.264/AAC MP4 Videoを描画します。Modelはchecksum・実構造・accessorとmeshの展開量・埋込画像の寸法をimport前に検査し、glTFast 6.20.0で各ModelNodeの下へ生成します。ModelClipのpause、loop、crossfade、停止後の姿勢とTimelineはauthoritative Runtime clockから再構成します。Native UIとLocal Overlayはこの経路では受け付けません。
+
+Videoのdurationは音声tailを含むmovie全体の提示時間です。MP4 preflightは`mvhd`の時間をミリ秒へ切り上げてArtifactと照合し、各`tkhd`がmovie内に収まり最長trackがmovie尺と一致すること、`elst`があればsegment尺の合計がtrack尺と一致することを確認します。映像より長い音声、短い音声、音声なしを受け付けます。
+
+Videoは検証済みbytesをNativeでは所有する一時ファイル、WebGLではBlob URLへ渡し、Prepare後も寸法・音声trackを照合します。decoderの完了通知では進行を変更しません。WebGLの音声付きPlayはLocal Editorのクリックでuser activationを取得し、拒否時は素材を破棄せず再操作を要求します。候補の失敗・取消・置換とsession終了時にはimporter、生成物、decoder、RenderTexture、一時ファイル・URLを解放します。
+
+Runtime shaderの組合せは `Resources/PresentationModelShaders` に保存しています。glTFastの更新時はUnityの `Unframe > Generate Model Shader Materials` で再生成し、実WebGL表示を確認してください。managed dependencyの再現・checksum検査は [Plugins README](Assets/Plugins/README.md) を参照してください。
 
 `Assets/Scenes/QuestPresentationScene.unity` は単一OVRCameraRig、PCA、ArUco校正、Baked Runtime、接続入口、Body Pose source、状態UIを配線した端末用Sceneです。`Unframe/Open Quest Presentation Scene` で配線を生成します。`QuestPresentationSession.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogicalEventName)` へHTTPS origin、Session ID、要求ごとに更新できるcredential provider、必要ならlogical event名を渡します。共有校正はマーカーから取得し、未確定でも認証・素材ロードを始められます。選択を切り替える際は入口の `StopAsync` の完了を待ってから再設定します。これらの値はSceneに保存しません。端末で一時検証するときはAndroid launch Intentの `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential`、必要なら `unframe.advanceLogicalEvent` から同じ入口を起動できます。校正JSONは不要です。Intentのcredentialは一時検証用で、期限をまたぐ更新は呼び出し元のproviderから行います。credentialをコマンド履歴・ログ・repositoryへ記録しないでください。
 
@@ -51,3 +57,7 @@ ArUco を実機で使用する開発環境では、ライセンスを持つ Open
 同じシーンで OpenCV for Unity の ArUco 検出・姿勢推定を実行します。`DICT_4X4_50` の ID 0、黒い正方形の一辺20cmを使用します。安定した原点を確定すると立方体と XYZ 軸を表示し、PCA 取得・検出を停止します。B/Y で再測定できます。[印刷マーカーと原点合わせの実機手順](docs/aruco-marker-detection.md) を参照してください。
 
 端末の校正状態と通信Runtimeの接続方法は [Session校正](docs/session-calibration.md) を参照してください。
+
+## Model / Video authoring example
+
+[media-presentation](../../examples/media-presentation/README.md)をLocal Editorで開くと、同素材の2つのModel、音声付きVideoと操作Cueを使用できます。WebGLの音声開始はEditorの「再生」クリックでbrowser activationを取得します。再生拒否時はエラーを表示してLocalの時計を一時停止し、次の再生クリックで再試行できます。MP4 bytesは全選択素材を検証し、decoderとRenderTextureは現在Group / Surface Stateの動画だけを準備します。通常Runtimeは初回decoder準備をStateReady前に待ち、切替中は入力を止めてstate受信を続けます。GLB importer、VideoPlayer、RenderTexture、Blob URLはcandidateの破棄・表示切替・Runtime停止で解放します。Quest固有のGPU、decoder、音声出力は別の実機検証範囲です。

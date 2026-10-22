@@ -1,3 +1,4 @@
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -159,6 +160,7 @@ const createProject = async (extended: boolean) => {
   temporary.push(directory);
   await copyProjectFixture(reference, directory);
   const { loaded, presentation: initial } = await fromReference(directory);
+  await clearSourceAssetRegistration(directory, "presentation.unframe.tsx");
   const graph = await installFrozenGraph(directory, extended);
   const sdkPackage = loaded.packages.find((pkg) => pkg.name === "@unframe/unframe-authoring");
   assert(sdkPackage);

@@ -1,4 +1,4 @@
-import { mkdtemp, rm, unlink, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -39,16 +39,13 @@ describe("fixed build generation", () => {
   ] as const)("rejects an asset with mismatched %s", async (_kind, bytes) => {
     const directory = await createBuild();
     const fixed = await readBuildGeneration(directory, { channel: "dist" });
-    await writeFile(
-      join(directory, ".unframe/generations", fixed.generationId, "assets/texture.png"),
-      bytes,
-    );
+    await writeFile(join(directory, "dist/assets/texture.png"), bytes);
     await expect(fixed.readAsset("texture")).rejects.toThrow(/asset/);
   });
   it("pins verified artifacts even after the current pointer changes", async () => {
     const directory = await createBuild();
     const fixed = await readBuildGeneration(directory, { channel: "dist" });
-    await unlink(join(directory, "dist"));
+    await rm(join(directory, "dist"), { recursive: true, force: true });
     await symlink("user-output", join(directory, "dist"));
     expect(fixed.generationId).toBe("a".repeat(32));
     expect(fixed.artifacts).toEqual({ definition, renderBundle, assetSet, buildManifest });
@@ -56,7 +53,7 @@ describe("fixed build generation", () => {
   it("rejects canonical artifact hash drift", async () => {
     const directory = await createBuild();
     await writeFile(
-      join(directory, ".unframe/generations", "a".repeat(32), "build-manifest.json"),
+      join(directory, "dist/build-manifest.json"),
       JSON.stringify({ ...buildManifest, definitionHash: "sha256:" + "0".repeat(64) }),
     );
     await expect(readBuildGeneration(directory, { channel: "dist" })).rejects.toThrow(/integrity/);
@@ -71,10 +68,17 @@ describe("fixed build generation", () => {
     const directory = await createBuild();
     const fixed = await readBuildGeneration(directory, { channel: "dist" });
     await expect(fixed.readAsset("../../secret")).rejects.toThrow(/asset/);
-    await symlink(
-      "/etc/passwd",
-      join(directory, ".unframe/generations", fixed.generationId, "assets/texture.png"),
-    );
+    await symlink("/etc/passwd", join(directory, "dist/assets/texture.png"));
     await expect(fixed.readAsset("texture")).rejects.toThrow(/asset/);
+  });
+  it("rejects an internal generation whose receipt identity does not match its directory", async () => {
+    const directory = await createBuild();
+    const generation = join(directory, ".unframe/generations", "a".repeat(32));
+    const receipt = join(generation, "build-receipt.json");
+    const value = JSON.parse(await readFile(receipt, "utf8"));
+    await writeFile(receipt, JSON.stringify({ ...value, generationId: "b".repeat(32) }));
+    await expect(
+      readBuildGeneration(directory, { channel: "dist", generationId: "a".repeat(32) }),
+    ).rejects.toThrow(/receipt identity/);
   });
 });

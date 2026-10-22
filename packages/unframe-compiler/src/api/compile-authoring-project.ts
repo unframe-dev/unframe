@@ -1,3 +1,4 @@
+import type { CompilerSourceAssetBytes } from "./types.js";
 import { CompilerInternalError } from "./compiler-internal-error.js";
 import { compileCheckedDeclarationProject } from "./compile-declaration-project.js";
 import { assembleAuthoringProject } from "./authoring-project-pipeline.js";
@@ -8,11 +9,12 @@ export const compileAuthoringProject = async (
   source: unknown,
   carrier: unknown,
   options: unknown,
+  sourceAssetBytes: CompilerSourceAssetBytes = {},
   cache?: CompilerBuildCache,
 ): Promise<AuthoringProjectPipelineResult<CompiledDeclarationProject>> => {
   let assembled: ReturnType<typeof assembleAuthoringProject>;
   try {
-    assembled = assembleAuthoringProject(source, carrier);
+    assembled = assembleAuthoringProject(source, carrier, sourceAssetBytes);
   } catch (cause) {
     if (cause instanceof CompilerInternalError) throw cause;
     throw new CompilerInternalError("assembly", cause);
@@ -22,6 +24,7 @@ export const compileAuthoringProject = async (
     assembled.value.project,
     assembled.value.checked,
     options,
+    sourceAssetBytes,
     cache,
   );
   return compiled.valid

@@ -25,6 +25,8 @@ for file in PresentationCalibrationState PresentationCalibrationMath QuestPresen
 done
 find "$root/app/unity/Assets/Plugins" -maxdepth 1 -type f \( -name '*.dll' -o -name '*.dll.meta' \) -exec cp {} "$assets/Unframe/Plugins/" \;
 cp "$root/app/unity/Assets/Resources/BakedSurface.shader" "$assets/Unframe/Resources/"
+cp -R "$root/app/unity/Assets/Resources/PresentationModelShaders" "$assets/Unframe/Resources/"
+cp -R "$root/app/unity/Assets/Resources/PresentationMaterials" "$assets/Unframe/Resources/"
 cp -R "$root/app/unity/Assets/Resources/PresentationFixtures" "$assets/Unframe/Resources/"
 cp "$root/app/unity/Assets/Tests/LocalEditorE2E/Editor/"*.cs "$assets/Tests/Editor/"
 cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationBakedRuntimeDownloadEditModeTests.cs" "$assets/Tests/Editor/"
@@ -34,7 +36,7 @@ if [[ "$mode" == regression ]]; then
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationBakedRenderingEditModeTests.cs" "$assets/Tests/Editor/"
 fi
 cat > "$assets/Unframe/UnframeNativeRuntime.asmdef" <<'JSON'
-{"name":"UnframeNativeRuntime","references":["Cysharp.Net.Http.YetAnotherHttpHandler"]}
+{"name":"UnframeNativeRuntime","references":["Cysharp.Net.Http.YetAnotherHttpHandler","glTFast"]}
 JSON
 bun "$root/scripts/unity/prepare-native-editor.ts" "$root" "$project"
 cp "$root/app/unity/ProjectSettings/ProjectVersion.txt" "$project/ProjectSettings/"
@@ -43,7 +45,12 @@ if [[ "$mode" == playback ]]; then
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewPlaybackEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTransactionEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/UnframePreviewBridgeEditModeTests.cs" "$assets/Tests/Editor/"
-  filter='PresentationPreviewPlaybackEditModeTests|PresentationPreviewTransactionEditModeTests|UnframePreviewBridgeEditModeTests'
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Transport/PresentationControlPlaneConnectionEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationTextureResidencyEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationVideoLifecycleEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationModelRuntimeEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationBakedRenderingEditModeTests.cs" "$assets/Tests/Editor/"
+  filter='PresentationBakedRuntimeDownloadEditModeTests|PresentationBakedRenderingEditModeTests|PresentationTextureResidencyEditModeTests|PresentationVideoLifecycleEditModeTests|PresentationControlPlaneConnectionEditModeTests|PresentationModelRuntimeEditModeTests|PresentationPreviewPlaybackEditModeTests|PresentationPreviewTransactionEditModeTests|UnframePreviewBridgeEditModeTests'
   graphics=(-nographics)
 elif [[ "$mode" == unit ]]; then
   filter='PresentationNativeRuntimeFixtureEditModeTests|PresentationNativeHandlerFactoryEditModeTests|PresentationBakedRuntimeDownloadEditModeTests'

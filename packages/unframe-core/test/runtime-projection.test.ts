@@ -178,7 +178,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     expect(accessed).toBe(false);
   });
 
-  it("rejects computed Model positions that overflow while allowing finite loop positions", () => {
+  it("accepts wrapped loop positions and rejects overflowing or expired finite clips", () => {
     const full = structuredClone(snapshot) as CanonicalRuntimeSnapshot;
     full.clock.runtimeTimeMilliseconds = 2;
     full.lastAllocatedRunSequence = 1;
@@ -226,9 +226,12 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     run.phase.clip.speed = 1e308;
     expect(
       validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, full, 1),
+    ).toEqual([]);
+    run.phase.clip.loop = false;
+    expect(
+      validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, full, 1),
     ).toContain("Model Run model computed position must be finite.");
     run.phase.clip.speed = 1;
-    run.phase.clip.loop = false;
     if (run.phase.clip.playback.kind !== "playing")
       throw new TypeError("Expected a playing Model clip.");
     run.phase.clip.playback.positionAtReferenceMilliseconds = 998;
@@ -269,7 +272,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     ).toEqual([]);
   });
   it("creates a validated portable snapshot from CueState", () => {
-    const state = createCueState(definition, 1);
+    const state = createCueState(definition, 1, renderBundleFixture as never);
     const generated = createM3dCueRuntimeSnapshot(definition, state, {
       reliableSequence: 0,
       lastIngressSequence: 0,
@@ -277,7 +280,11 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       presentationOrigin: snapshot.presentationOrigin,
       recentEventIds: [],
     });
-    expect(generated).toEqual(snapshot);
+    expect(generated).toEqual({
+      ...snapshot,
+      mediaStates: { video: { kind: "stopped", heldPositionMilliseconds: 0 } },
+      modelClipStates: { model: { kind: "defaultPose" } },
+    });
   });
 
   it("accepts the portable snapshot and rejects inactive or unknown resources", () => {
@@ -364,7 +371,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       "Runtime Run deadline has passed.",
     );
     running.clock.runtimeTimeMilliseconds = 0;
-    const state = createCueState(secondStateDefinition, 1);
+    const state = createCueState(secondStateDefinition, 1, renderBundleFixture as never);
     state.lastRunSequence = 1;
     state.activeRuns = structuredClone(running.activeRuns).filter(
       (run): run is Extract<typeof run, { kind: "timeline" | "surfaceTransition" }> =>

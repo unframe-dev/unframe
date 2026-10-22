@@ -47,6 +47,30 @@ export const safeBuildOptionsSnapshot = (input: unknown): ValidationResult<unkno
       const descriptor = Object.getOwnPropertyDescriptor(input, key);
       if (!descriptor || descriptor.get !== undefined || descriptor.set !== undefined)
         return invalidOptions("Build options must not contain accessors.");
+      if (key === "videoValidator") {
+        const plugin = descriptor.value;
+        if (
+          typeof plugin !== "object" ||
+          plugin === null ||
+          Object.getPrototypeOf(plugin) !== Object.prototype ||
+          Object.getOwnPropertySymbols(plugin).length
+        )
+          return invalidOptions("Video validator must be a trusted host adapter.");
+        const fields = Object.getOwnPropertyDescriptors(plugin);
+        if (
+          Object.keys(fields).sort().join(",") !== "identity,validate" ||
+          !fields.identity?.enumerable ||
+          !Object.hasOwn(fields.identity, "value") ||
+          !fields.validate?.enumerable ||
+          !Object.hasOwn(fields.validate, "value") ||
+          typeof fields.validate.value !== "function"
+        )
+          return invalidOptions("Video validator fields must be data properties.");
+        const identity = safePlainClone(fields.identity.value);
+        if (!identity.valid) return invalidOptions("Video validator identity must be plain JSON.");
+        snapshot[key] = { identity: identity.value, validate: fields.validate.value };
+        continue;
+      }
       if (key === "renderers") {
         const renderers = snapshotRenderers(descriptor.value);
         if (!renderers.valid) return renderers;

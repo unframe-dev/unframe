@@ -51,6 +51,7 @@
     "com.unity.ugui": "2.0.0",
     "com.unity.xr.interaction.toolkit": "3.3.1",
     "com.unity.xr.meta-openxr": "2.5.0",
-    "com.unity.xr.openxr": "1.16.1"
+    "com.unity.xr.openxr": "1.16.1",
+    "com.unity.cloud.gltfast": "6.20.0"
   }
 }

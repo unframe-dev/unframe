@@ -40,6 +40,7 @@
           pkgs.gnugrep
           pkgs.gnused
           pkgs.bash
+          pkgs.ffmpeg
         ]
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.bubblewrap
@@ -143,7 +144,21 @@
             pkgs.stdenv.cc.cc
           ];
         };
+        mediaRuntimeClosure = pkgs.closureInfo {
+          rootPaths = [
+            pkgs.nodejs_22
+            pkgs.bash
+            pkgs.ffmpeg
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.nix-ld
+            pkgs.glibc
+          ];
+        };
         runtimeEnvironment = {
+          UNFRAME_FFMPEG_PATH = "${pkgs.ffmpeg}/bin/ffmpeg";
+          UNFRAME_FFPROBE_PATH = "${pkgs.ffmpeg}/bin/ffprobe";
+          UNFRAME_MEDIA_RUNTIME_CLOSURE = "${mediaRuntimeClosure}/store-paths";
           FONTCONFIG_FILE = presentationFontconfig;
           UNFRAME_PRESENTATION_FONT_DIRECTORY = "${presentationFonts}/share/fonts";
           UNFRAME_PRESENTATION_FONT = "${presentationFonts}/share/fonts/opentype/unframe/NotoSansCJKjp-Regular.otf";

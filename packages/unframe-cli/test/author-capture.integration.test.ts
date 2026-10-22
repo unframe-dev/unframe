@@ -1,3 +1,4 @@
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
@@ -95,6 +96,7 @@ const createProject = async () => {
     ...loaded.value.virtualSource,
   });
   assert(initial.valid);
+  await clearSourceAssetRegistration(directory, "presentation.unframe.tsx");
   const graph = await installFrozenGraph(directory);
   const sdkPackage = loaded.value.lock.packages.find(
     (pkg) => pkg.name === "@unframe/unframe-authoring",

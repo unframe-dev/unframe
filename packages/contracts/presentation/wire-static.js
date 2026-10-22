@@ -27981,6 +27981,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {number|Long|null} [encodedSizeBytes] VideoArtifact encodedSizeBytes
        * @property {unframe.delivery.VideoCodec|null} [codec] VideoArtifact codec
        * @property {boolean|null} [hasAlpha] VideoArtifact hasAlpha
+       * @property {unframe.presentation.SurfaceFit|null} [fit] VideoArtifact fit
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -28110,6 +28111,14 @@ export const unframe = ($root.unframe = (() => {
       VideoArtifact.prototype.hasAlpha = false;
 
       /**
+       * VideoArtifact fit.
+       * @member {unframe.presentation.SurfaceFit} fit
+       * @memberof unframe.delivery.VideoArtifact
+       * @instance
+       */
+      VideoArtifact.prototype.fit = 0;
+
+      /**
        * Creates a new VideoArtifact instance using the specified properties.
        * @function create
        * @memberof unframe.delivery.VideoArtifact
@@ -28173,6 +28182,8 @@ export const unframe = ($root.unframe = (() => {
           writer.uint32(/* id 14, wireType 0 =*/ 112).int32(message.codec);
         if (message.hasAlpha != null && $Object.hasOwnProperty.call(message, "hasAlpha"))
           writer.uint32(/* id 15, wireType 0 =*/ 120).bool(message.hasAlpha);
+        if (message.fit != null && $Object.hasOwnProperty.call(message, "fit"))
+          writer.uint32(/* id 16, wireType 0 =*/ 128).int32(message.fit);
         return writer;
       };
 
@@ -28266,6 +28277,10 @@ export const unframe = ($root.unframe = (() => {
             }
             case 15: {
               message.hasAlpha = reader.bool();
+              break;
+            }
+            case 16: {
+              message.fit = reader.int32();
               break;
             }
             default:
@@ -28366,6 +28381,16 @@ export const unframe = ($root.unframe = (() => {
           }
         if (message.hasAlpha != null && message.hasOwnProperty("hasAlpha"))
           if (typeof message.hasAlpha !== "boolean") return "hasAlpha: boolean expected";
+        if (message.fit != null && message.hasOwnProperty("fit"))
+          switch (message.fit) {
+            default:
+              return "fit: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+              break;
+          }
         return null;
       };
 
@@ -28482,6 +28507,30 @@ export const unframe = ($root.unframe = (() => {
             break;
         }
         if (object.hasAlpha != null) message.hasAlpha = $Boolean(object.hasAlpha);
+        switch (object.fit) {
+          default:
+            if (typeof object.fit === "number") {
+              message.fit = object.fit;
+              break;
+            }
+            break;
+          case "SURFACE_FIT_UNSPECIFIED":
+          case 0:
+            message.fit = 0;
+            break;
+          case "SURFACE_FIT_CONTAIN":
+          case 1:
+            message.fit = 1;
+            break;
+          case "SURFACE_FIT_COVER":
+          case 2:
+            message.fit = 2;
+            break;
+          case "SURFACE_FIT_STRETCH":
+          case 3:
+            message.fit = 3;
+            break;
+        }
         return message;
       };
 
@@ -28526,6 +28575,7 @@ export const unframe = ($root.unframe = (() => {
           } else object.encodedSizeBytes = options.longs === $String ? "0" : 0;
           object.codec = options.enums === $String ? "VIDEO_CODEC_UNSPECIFIED" : 0;
           object.hasAlpha = false;
+          object.fit = options.enums === $String ? "SURFACE_FIT_UNSPECIFIED" : 0;
         }
         if (message.artifactId != null && message.hasOwnProperty("artifactId"))
           object.artifactId = message.artifactId;
@@ -28589,6 +28639,13 @@ export const unframe = ($root.unframe = (() => {
               : message.codec;
         if (message.hasAlpha != null && message.hasOwnProperty("hasAlpha"))
           object.hasAlpha = message.hasAlpha;
+        if (message.fit != null && message.hasOwnProperty("fit"))
+          object.fit =
+            options.enums === $String
+              ? $root.unframe.presentation.SurfaceFit[message.fit] === $undefined
+                ? message.fit
+                : $root.unframe.presentation.SurfaceFit[message.fit]
+              : message.fit;
         return object;
       };
 
@@ -82294,6 +82351,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.presentation.RuntimeCapability>|null} [requiredRuntimeCapabilities] LocalPreviewProjection requiredRuntimeCapabilities
        * @property {unframe.presentation.ProjectedRuntimeCatalog.$Properties|null} [runtimeCatalog] LocalPreviewProjection runtimeCatalog
        * @property {unframe.delivery.TextureResidencyPlan.$Properties|null} [textureResidency] LocalPreviewProjection textureResidency
+       * @property {unframe.delivery.ModelResidencyPlan.$Properties|null} [modelResidency] LocalPreviewProjection modelResidency
+       * @property {unframe.delivery.VideoResidencyPlan.$Properties|null} [videoResidency] LocalPreviewProjection videoResidency
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -82317,6 +82376,8 @@ export const unframe = ($root.unframe = (() => {
        *   requiredRuntimeCapabilities?: Array.<unframe.presentation.RuntimeCapability>|null;
        *   runtimeCatalog?: unframe.presentation.ProjectedRuntimeCatalog.$Shape|null;
        *   textureResidency?: unframe.delivery.TextureResidencyPlan.$Shape|null;
+       *   modelResidency?: unframe.delivery.ModelResidencyPlan.$Shape|null;
+       *   videoResidency?: unframe.delivery.VideoResidencyPlan.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.preview.LocalPreviewProjection.$Shape
        */
@@ -82416,6 +82477,22 @@ export const unframe = ($root.unframe = (() => {
       LocalPreviewProjection.prototype.textureResidency = null;
 
       /**
+       * LocalPreviewProjection modelResidency.
+       * @member {unframe.delivery.ModelResidencyPlan.$Properties|null|undefined} modelResidency
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.modelResidency = null;
+
+      /**
+       * LocalPreviewProjection videoResidency.
+       * @member {unframe.delivery.VideoResidencyPlan.$Properties|null|undefined} videoResidency
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.videoResidency = null;
+
+      /**
        * Creates a new LocalPreviewProjection instance using the specified properties.
        * @function create
        * @memberof unframe.preview.LocalPreviewProjection
@@ -82493,6 +82570,22 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.delivery.TextureResidencyPlan.encode(
             message.textureResidency,
             writer.uint32(/* id 9, wireType 2 =*/ 74).fork(),
+          ).ldelim();
+        if (
+          message.modelResidency != null &&
+          $Object.hasOwnProperty.call(message, "modelResidency")
+        )
+          $root.unframe.delivery.ModelResidencyPlan.encode(
+            message.modelResidency,
+            writer.uint32(/* id 10, wireType 2 =*/ 82).fork(),
+          ).ldelim();
+        if (
+          message.videoResidency != null &&
+          $Object.hasOwnProperty.call(message, "videoResidency")
+        )
+          $root.unframe.delivery.VideoResidencyPlan.encode(
+            message.videoResidency,
+            writer.uint32(/* id 11, wireType 2 =*/ 90).fork(),
           ).ldelim();
         return writer;
       };
@@ -82622,6 +82715,24 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 10: {
+              message.modelResidency = $root.unframe.delivery.ModelResidencyPlan.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 11: {
+              message.videoResidency = $root.unframe.delivery.VideoResidencyPlan.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -82740,6 +82851,20 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
           if (error) return "textureResidency." + error;
+        }
+        if (message.modelResidency != null && message.hasOwnProperty("modelResidency")) {
+          let error = $root.unframe.delivery.ModelResidencyPlan.verify(
+            message.modelResidency,
+            long + 1,
+          );
+          if (error) return "modelResidency." + error;
+        }
+        if (message.videoResidency != null && message.hasOwnProperty("videoResidency")) {
+          let error = $root.unframe.delivery.VideoResidencyPlan.verify(
+            message.videoResidency,
+            long + 1,
+          );
+          if (error) return "videoResidency." + error;
         }
         return null;
       };
@@ -82899,6 +83024,26 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
+        if (object.modelResidency != null) {
+          if (typeof object.modelResidency !== "object")
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.modelResidency: object expected",
+            );
+          message.modelResidency = $root.unframe.delivery.ModelResidencyPlan.fromObject(
+            object.modelResidency,
+            long + 1,
+          );
+        }
+        if (object.videoResidency != null) {
+          if (typeof object.videoResidency !== "object")
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.videoResidency: object expected",
+            );
+          message.videoResidency = $root.unframe.delivery.VideoResidencyPlan.fromObject(
+            object.videoResidency,
+            long + 1,
+          );
+        }
         return message;
       };
 
@@ -82926,6 +83071,8 @@ export const unframe = ($root.unframe = (() => {
         if (options.defaults) {
           object.runtimeCatalog = null;
           object.textureResidency = null;
+          object.modelResidency = null;
+          object.videoResidency = null;
         }
         if (message.visibleNodeIds && message.visibleNodeIds.length) {
           object.visibleNodeIds = [];
@@ -82990,6 +83137,16 @@ export const unframe = ($root.unframe = (() => {
             message.textureResidency,
             options,
           );
+        if (message.modelResidency != null && message.hasOwnProperty("modelResidency"))
+          object.modelResidency = $root.unframe.delivery.ModelResidencyPlan.toObject(
+            message.modelResidency,
+            options,
+          );
+        if (message.videoResidency != null && message.hasOwnProperty("videoResidency"))
+          object.videoResidency = $root.unframe.delivery.VideoResidencyPlan.toObject(
+            message.videoResidency,
+            options,
+          );
         return object;
       };
 
@@ -83026,6 +83183,8 @@ export const unframe = ($root.unframe = (() => {
        * @typedef {Object} unframe.preview.LocalPreviewInitialState.$Properties
        * @property {Array.<unframe.realtime.NodeRuntimeState.$Properties>|null} [nodeStates] LocalPreviewInitialState nodeStates
        * @property {Array.<unframe.realtime.SurfaceRuntimeState.$Properties>|null} [surfaceStates] LocalPreviewInitialState surfaceStates
+       * @property {Array.<unframe.realtime.MediaRuntimeState.$Properties>|null} [mediaStates] LocalPreviewInitialState mediaStates
+       * @property {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>|null} [modelClipStates] LocalPreviewInitialState modelClipStates
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -83039,7 +83198,13 @@ export const unframe = ($root.unframe = (() => {
 
       /**
        * Shape of a LocalPreviewInitialState.
-       * @typedef {unframe.preview.LocalPreviewInitialState.$Properties} unframe.preview.LocalPreviewInitialState.$Shape
+       * @typedef {{
+       *   nodeStates?: Array.<unframe.realtime.NodeRuntimeState.$Shape>|null;
+       *   surfaceStates?: Array.<unframe.realtime.SurfaceRuntimeState.$Shape>|null;
+       *   mediaStates?: Array.<unframe.realtime.MediaRuntimeState.$Shape>|null;
+       *   modelClipStates?: Array.<unframe.realtime.ModelClipRuntimeState.$Shape>|null;
+       *   $unknowns?: Array.<Uint8Array>;
+       * }} unframe.preview.LocalPreviewInitialState.$Shape
        */
 
       /**
@@ -83053,6 +83218,8 @@ export const unframe = ($root.unframe = (() => {
       const LocalPreviewInitialState = function LocalPreviewInitialState(properties) {
         this.nodeStates = [];
         this.surfaceStates = [];
+        this.mediaStates = [];
+        this.modelClipStates = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -83074,6 +83241,22 @@ export const unframe = ($root.unframe = (() => {
        * @instance
        */
       LocalPreviewInitialState.prototype.surfaceStates = $util.emptyArray;
+
+      /**
+       * LocalPreviewInitialState mediaStates.
+       * @member {Array.<unframe.realtime.MediaRuntimeState.$Properties>} mediaStates
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @instance
+       */
+      LocalPreviewInitialState.prototype.mediaStates = $util.emptyArray;
+
+      /**
+       * LocalPreviewInitialState modelClipStates.
+       * @member {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>} modelClipStates
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @instance
+       */
+      LocalPreviewInitialState.prototype.modelClipStates = $util.emptyArray;
 
       /**
        * Creates a new LocalPreviewInitialState instance using the specified properties.
@@ -83113,6 +83296,18 @@ export const unframe = ($root.unframe = (() => {
             $root.unframe.realtime.SurfaceRuntimeState.encode(
               message.surfaceStates[i],
               writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+            ).ldelim();
+        if (message.mediaStates != null && message.mediaStates.length)
+          for (let i = 0; i < message.mediaStates.length; ++i)
+            $root.unframe.realtime.MediaRuntimeState.encode(
+              message.mediaStates[i],
+              writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+            ).ldelim();
+        if (message.modelClipStates != null && message.modelClipStates.length)
+          for (let i = 0; i < message.modelClipStates.length; ++i)
+            $root.unframe.realtime.ModelClipRuntimeState.encode(
+              message.modelClipStates[i],
+              writer.uint32(/* id 4, wireType 2 =*/ 34).fork(),
             ).ldelim();
         return writer;
       };
@@ -83181,6 +83376,31 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 3: {
+              if (!(message.mediaStates && message.mediaStates.length)) message.mediaStates = [];
+              message.mediaStates.push(
+                $root.unframe.realtime.MediaRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 4: {
+              if (!(message.modelClipStates && message.modelClipStates.length))
+                message.modelClipStates = [];
+              message.modelClipStates.push(
+                $root.unframe.realtime.ModelClipRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -83236,6 +83456,26 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "surfaceStates." + error;
           }
         }
+        if (message.mediaStates != null && message.hasOwnProperty("mediaStates")) {
+          if (!$Array.isArray(message.mediaStates)) return "mediaStates: array expected";
+          for (let i = 0; i < message.mediaStates.length; ++i) {
+            let error = $root.unframe.realtime.MediaRuntimeState.verify(
+              message.mediaStates[i],
+              long + 1,
+            );
+            if (error) return "mediaStates." + error;
+          }
+        }
+        if (message.modelClipStates != null && message.hasOwnProperty("modelClipStates")) {
+          if (!$Array.isArray(message.modelClipStates)) return "modelClipStates: array expected";
+          for (let i = 0; i < message.modelClipStates.length; ++i) {
+            let error = $root.unframe.realtime.ModelClipRuntimeState.verify(
+              message.modelClipStates[i],
+              long + 1,
+            );
+            if (error) return "modelClipStates." + error;
+          }
+        }
         return null;
       };
 
@@ -83289,6 +83529,40 @@ export const unframe = ($root.unframe = (() => {
             );
           }
         }
+        if (object.mediaStates) {
+          if (!$Array.isArray(object.mediaStates))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewInitialState.mediaStates: array expected",
+            );
+          message.mediaStates = [];
+          for (let i = 0; i < object.mediaStates.length; ++i) {
+            if (typeof object.mediaStates[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewInitialState.mediaStates: object expected",
+              );
+            message.mediaStates[i] = $root.unframe.realtime.MediaRuntimeState.fromObject(
+              object.mediaStates[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.modelClipStates) {
+          if (!$Array.isArray(object.modelClipStates))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewInitialState.modelClipStates: array expected",
+            );
+          message.modelClipStates = [];
+          for (let i = 0; i < object.modelClipStates.length; ++i) {
+            if (typeof object.modelClipStates[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewInitialState.modelClipStates: object expected",
+              );
+            message.modelClipStates[i] = $root.unframe.realtime.ModelClipRuntimeState.fromObject(
+              object.modelClipStates[i],
+              long + 1,
+            );
+          }
+        }
         return message;
       };
 
@@ -83310,6 +83584,8 @@ export const unframe = ($root.unframe = (() => {
         if (options.arrays || options.defaults) {
           object.nodeStates = [];
           object.surfaceStates = [];
+          object.mediaStates = [];
+          object.modelClipStates = [];
         }
         if (message.nodeStates && message.nodeStates.length) {
           object.nodeStates = [];
@@ -83324,6 +83600,22 @@ export const unframe = ($root.unframe = (() => {
           for (let j = 0; j < message.surfaceStates.length; ++j)
             object.surfaceStates[j] = $root.unframe.realtime.SurfaceRuntimeState.toObject(
               message.surfaceStates[j],
+              options,
+            );
+        }
+        if (message.mediaStates && message.mediaStates.length) {
+          object.mediaStates = [];
+          for (let j = 0; j < message.mediaStates.length; ++j)
+            object.mediaStates[j] = $root.unframe.realtime.MediaRuntimeState.toObject(
+              message.mediaStates[j],
+              options,
+            );
+        }
+        if (message.modelClipStates && message.modelClipStates.length) {
+          object.modelClipStates = [];
+          for (let j = 0; j < message.modelClipStates.length; ++j)
+            object.modelClipStates[j] = $root.unframe.realtime.ModelClipRuntimeState.toObject(
+              message.modelClipStates[j],
               options,
             );
         }
@@ -83368,6 +83660,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.realtime.RuntimeRunSnapshot.$Properties>|null} [activeRuns] LocalPreviewPlaybackState activeRuns
        * @property {unframe.realtime.RuntimeClockSnapshot.$Properties|null} [clock] LocalPreviewPlaybackState clock
        * @property {string|null} [currentGroupId] LocalPreviewPlaybackState currentGroupId
+       * @property {Array.<unframe.realtime.MediaRuntimeState.$Properties>|null} [mediaStates] LocalPreviewPlaybackState mediaStates
+       * @property {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>|null} [modelClipStates] LocalPreviewPlaybackState modelClipStates
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -83389,6 +83683,8 @@ export const unframe = ($root.unframe = (() => {
        *   activeRuns?: Array.<unframe.realtime.RuntimeRunSnapshot.$Shape>|null;
        *   clock?: unframe.realtime.RuntimeClockSnapshot.$Shape|null;
        *   currentGroupId?: string|null;
+       *   mediaStates?: Array.<unframe.realtime.MediaRuntimeState.$Shape>|null;
+       *   modelClipStates?: Array.<unframe.realtime.ModelClipRuntimeState.$Shape>|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.preview.LocalPreviewPlaybackState.$Shape
        */
@@ -83405,6 +83701,8 @@ export const unframe = ($root.unframe = (() => {
         this.nodeStates = [];
         this.surfaceStates = [];
         this.activeRuns = [];
+        this.mediaStates = [];
+        this.modelClipStates = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -83470,6 +83768,22 @@ export const unframe = ($root.unframe = (() => {
       LocalPreviewPlaybackState.prototype.currentGroupId = "";
 
       /**
+       * LocalPreviewPlaybackState mediaStates.
+       * @member {Array.<unframe.realtime.MediaRuntimeState.$Properties>} mediaStates
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.mediaStates = $util.emptyArray;
+
+      /**
+       * LocalPreviewPlaybackState modelClipStates.
+       * @member {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>} modelClipStates
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.modelClipStates = $util.emptyArray;
+
+      /**
        * Creates a new LocalPreviewPlaybackState instance using the specified properties.
        * @function create
        * @memberof unframe.preview.LocalPreviewPlaybackState
@@ -83531,6 +83845,18 @@ export const unframe = ($root.unframe = (() => {
           $Object.hasOwnProperty.call(message, "currentGroupId")
         )
           writer.uint32(/* id 7, wireType 2 =*/ 58).string(message.currentGroupId);
+        if (message.mediaStates != null && message.mediaStates.length)
+          for (let i = 0; i < message.mediaStates.length; ++i)
+            $root.unframe.realtime.MediaRuntimeState.encode(
+              message.mediaStates[i],
+              writer.uint32(/* id 8, wireType 2 =*/ 66).fork(),
+            ).ldelim();
+        if (message.modelClipStates != null && message.modelClipStates.length)
+          for (let i = 0; i < message.modelClipStates.length; ++i)
+            $root.unframe.realtime.ModelClipRuntimeState.encode(
+              message.modelClipStates[i],
+              writer.uint32(/* id 9, wireType 2 =*/ 74).fork(),
+            ).ldelim();
         return writer;
       };
 
@@ -83631,6 +83957,31 @@ export const unframe = ($root.unframe = (() => {
               message.currentGroupId = reader.string();
               break;
             }
+            case 8: {
+              if (!(message.mediaStates && message.mediaStates.length)) message.mediaStates = [];
+              message.mediaStates.push(
+                $root.unframe.realtime.MediaRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 9: {
+              if (!(message.modelClipStates && message.modelClipStates.length))
+                message.modelClipStates = [];
+              message.modelClipStates.push(
+                $root.unframe.realtime.ModelClipRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -83714,6 +84065,26 @@ export const unframe = ($root.unframe = (() => {
         }
         if (message.currentGroupId != null && message.hasOwnProperty("currentGroupId"))
           if (!$util.isString(message.currentGroupId)) return "currentGroupId: string expected";
+        if (message.mediaStates != null && message.hasOwnProperty("mediaStates")) {
+          if (!$Array.isArray(message.mediaStates)) return "mediaStates: array expected";
+          for (let i = 0; i < message.mediaStates.length; ++i) {
+            let error = $root.unframe.realtime.MediaRuntimeState.verify(
+              message.mediaStates[i],
+              long + 1,
+            );
+            if (error) return "mediaStates." + error;
+          }
+        }
+        if (message.modelClipStates != null && message.hasOwnProperty("modelClipStates")) {
+          if (!$Array.isArray(message.modelClipStates)) return "modelClipStates: array expected";
+          for (let i = 0; i < message.modelClipStates.length; ++i) {
+            let error = $root.unframe.realtime.ModelClipRuntimeState.verify(
+              message.modelClipStates[i],
+              long + 1,
+            );
+            if (error) return "modelClipStates." + error;
+          }
+        }
         return null;
       };
 
@@ -83805,6 +84176,40 @@ export const unframe = ($root.unframe = (() => {
           );
         }
         if (object.currentGroupId != null) message.currentGroupId = $String(object.currentGroupId);
+        if (object.mediaStates) {
+          if (!$Array.isArray(object.mediaStates))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewPlaybackState.mediaStates: array expected",
+            );
+          message.mediaStates = [];
+          for (let i = 0; i < object.mediaStates.length; ++i) {
+            if (typeof object.mediaStates[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewPlaybackState.mediaStates: object expected",
+              );
+            message.mediaStates[i] = $root.unframe.realtime.MediaRuntimeState.fromObject(
+              object.mediaStates[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.modelClipStates) {
+          if (!$Array.isArray(object.modelClipStates))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewPlaybackState.modelClipStates: array expected",
+            );
+          message.modelClipStates = [];
+          for (let i = 0; i < object.modelClipStates.length; ++i) {
+            if (typeof object.modelClipStates[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewPlaybackState.modelClipStates: object expected",
+              );
+            message.modelClipStates[i] = $root.unframe.realtime.ModelClipRuntimeState.fromObject(
+              object.modelClipStates[i],
+              long + 1,
+            );
+          }
+        }
         return message;
       };
 
@@ -83827,6 +84232,8 @@ export const unframe = ($root.unframe = (() => {
           object.nodeStates = [];
           object.surfaceStates = [];
           object.activeRuns = [];
+          object.mediaStates = [];
+          object.modelClipStates = [];
         }
         if (options.defaults) {
           object.requestId = "";
@@ -83889,6 +84296,22 @@ export const unframe = ($root.unframe = (() => {
           );
         if (message.currentGroupId != null && message.hasOwnProperty("currentGroupId"))
           object.currentGroupId = message.currentGroupId;
+        if (message.mediaStates && message.mediaStates.length) {
+          object.mediaStates = [];
+          for (let j = 0; j < message.mediaStates.length; ++j)
+            object.mediaStates[j] = $root.unframe.realtime.MediaRuntimeState.toObject(
+              message.mediaStates[j],
+              options,
+            );
+        }
+        if (message.modelClipStates && message.modelClipStates.length) {
+          object.modelClipStates = [];
+          for (let j = 0; j < message.modelClipStates.length; ++j)
+            object.modelClipStates[j] = $root.unframe.realtime.ModelClipRuntimeState.toObject(
+              message.modelClipStates[j],
+              options,
+            );
+        }
         return object;
       };
 
