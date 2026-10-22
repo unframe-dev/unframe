@@ -49,6 +49,7 @@ export const presentationAssetRefs = sqliteTable(
 );
 
 export const presentationSessions = sqliteTable("presentation_sessions", {
+  publicationEpoch: integer("publication_epoch"),
   id: text().primaryKey(),
   presentationId: text("presentation_id").notNull(),
   presenterId: text("presenter_id").notNull(),

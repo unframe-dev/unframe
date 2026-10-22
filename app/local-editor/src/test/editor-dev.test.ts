@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, assert, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
-import editorConfig from "../../vite.editor.config";
+import editorConfig from "../../vite.config";
 
 let vite: ViteDevServer | undefined;
 let cacheDir: string | undefined;
@@ -75,7 +75,7 @@ it("serves the Editor before the CLI is available and proxies only its API and U
   const webAddress = vite.httpServer?.address();
   assert(webAddress && typeof webAddress === "object");
   const webOrigin = `http://127.0.0.1:${webAddress.port}`;
-  const editor = await fetch(`${webOrigin}/editor.html`);
+  const editor = await fetch(`${webOrigin}/`);
   expect(editor.status).toBe(200);
   expect(await editor.text()).toContain("/src/features/editor/main.tsx");
   const hmr = await fetch(`${webOrigin}/@vite/client`);

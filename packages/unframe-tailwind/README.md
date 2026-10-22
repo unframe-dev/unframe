@@ -17,7 +17,7 @@ export default { plugins: { "@tailwindcss/postcss": {} } };
 }
 ```
 
-React component から CSS を import し、依存追加後は `unframe-cli lock update <absolute-project-directory>`、ソースや設定変更後は `unframe-cli lock refresh <absolute-project-directory>` を実行する。`check` / `build` / Preview は固定した依存を使い、ホストの `node_modules` を再解決しない。
+React component から CSS を import し、依存追加後は `pnpm --filter @unframe/unframe-cli presentation lock update <absolute-project-directory>`、ソースや設定変更後は `pnpm --filter @unframe/unframe-cli presentation lock refresh <absolute-project-directory>` を実行する。`check` / `build` / Preview は固定した依存を使い、ホストの `node_modules` を再解決しない。
 
 style lock は Node executable、OS / CPU、native dependency と runtime closure も固定する。Linux / macOS を切り替えた場合は移行先で `lock update` が必要であり、`lock refresh` では runtime を切り替えない。通常の check / build は不一致を拒否し、暗黙更新しない。
 

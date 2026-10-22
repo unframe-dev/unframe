@@ -66,6 +66,7 @@ const httpsUrlSchema = z
   .refine((value: string) => new URL(value).protocol === "https:", "HTTPS URL required");
 const idParameter = z.object({ id: identifierSchema }).strict();
 const sessionResourceSchema = z.object({
+  publicationFence: publicationFenceSchema.nullable(),
   id: z.string(),
   presentationId: z.string(),
   presenterId: z.string(),
@@ -355,6 +356,7 @@ export const publicRoutes = [
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Presentation not found"),
+      409: errorResponse("No published presentation"),
     },
   }),
   createRoute({

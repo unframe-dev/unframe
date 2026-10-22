@@ -17,7 +17,6 @@
     "worker-configuration.d.ts",
     "playwright.config.ts",
     "vite.config.ts",
-    "vitest.config.ts",
-    "vite.editor.config.ts"
+    "vitest.config.ts"
   ]
 }

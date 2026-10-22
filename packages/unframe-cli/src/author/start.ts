@@ -40,7 +40,7 @@ export const loadAuthorAssets = async (directory: string) => {
   };
   await walk("");
   if (!assets.has("/"))
-    throw new Error("Build the local editor first: pnpm --filter @unframe/web build:editor");
+    throw new Error("Build the local editor first: pnpm --filter @unframe/local-editor build");
   return assets;
 };
 export const loadUnityPreviewAssets = async (directory: string) => {
@@ -63,20 +63,22 @@ export const runAuthorProcess = async (
   if (!directory.startsWith("/")) throw new Error("Author requires an absolute project directory.");
   if (development) {
     try {
-      const response = await fetch("http://127.0.0.1:5174/editor.html", {
+      const response = await fetch("http://127.0.0.1:5174/", {
         signal: AbortSignal.any([signal, AbortSignal.timeout(3_000)]),
       });
       await response.body?.cancel();
       if (!response.ok) throw new Error("Editor UI is unavailable.");
     } catch {
       if (signal.aborted) return;
-      throw new Error("Start the Web dev server first: pnpm --filter @unframe/web dev:editor");
+      throw new Error(
+        "Start the Local Editor dev server first: pnpm --filter @unframe/local-editor dev",
+      );
     }
   }
   const assets = development
     ? new Map<string, { bytes: Uint8Array; mediaType: string }>()
     : await loadAuthorAssets(
-        fileURLToPath(new URL("../../../../app/web/dist-editor/", import.meta.url)),
+        fileURLToPath(new URL("../../../../app/local-editor/dist/", import.meta.url)),
       );
   const unity = await loadUnityPreviewAssets(
     fileURLToPath(new URL("../../../../.unframe/unity-preview/UnframePreview/", import.meta.url)),
@@ -118,7 +120,7 @@ export const runAuthorProcess = async (
     throw error;
   }
   const browserUrl = development
-    ? `http://127.0.0.1:5174/editor.html#token=${host.token}`
+    ? `http://127.0.0.1:5174/#token=${host.token}`
     : `${host.origin}/#token=${host.token}`;
   const open = async () => {
     try {
@@ -143,7 +145,7 @@ export const runAuthorProcess = async (
       signal.addEventListener("abort", () => resolve(), { once: true });
     });
     process.stdout.write(
-      `Local author API: ${host.origin}\nEditor: ${development ? "http://127.0.0.1:5174/editor.html" : host.origin}\nProject: ${directory}\nEnter r to reopen the authenticated Editor. Stop with Ctrl+C.\n`,
+      `Local author API: ${host.origin}\nEditor: ${development ? "http://127.0.0.1:5174/" : host.origin}\nProject: ${directory}\nEnter r to reopen the authenticated Editor. Stop with Ctrl+C.\n`,
     );
     await open();
     await stopped;

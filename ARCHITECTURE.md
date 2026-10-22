@@ -4,16 +4,18 @@
 
 ## 全体像
 
-Unframe は、MR プレゼンテーションを Web で編集し、Unity クライアントで表示するプロダクトです。Backend は durable state を扱う Control Plane と、低遅延の session state を扱う Realtime Backend に分離します。
+Unframe は、MR プレゼンテーションをローカル Source から作成し、Unity クライアントで表示するプロダクトです。Backend は durable state を扱う Control Plane と、低遅延の session state を扱う Realtime Backend に分離します。
 
 ```mermaid
 flowchart LR
-  Web["Web Editor"] -->|HTTPS| CP["Control Plane\nWorkers / TypeScript / Hono"]
+  Web["管理 Web"] -->|HTTPS| CP["Control Plane\nWorkers / TypeScript / Hono"]
   Unity["Unity MR Application"] -->|HTTPS| CP
   Unity <-->|gRPC bidi| RT["Realtime Backend\nGo / gRPC"]
   CP --> D1[(D1)]
   CP --> R2[(R2)]
-  Web <-->|signed HTTPS| R2
+  Editor["Local Editor"] <-->|localhost HTTP| CLI["CLI Host"]
+  CLI -->|HTTPS publish| CP
+  CLI <-->|signed HTTPS| R2
   Unity <-->|signed HTTPS| R2
   RT -->|checkpoint / completion| CP
 ```
@@ -23,7 +25,8 @@ flowchart LR
 ```text
 unframe/
 ├── app/
-│   ├── web/                      # React 19 Web Editor
+│   ├── web/                      # React 19 management SPA
+│   ├── local-editor/             # Local Source editor / Unity Preview
 │   ├── audience/                 # React / 8th Wall / Three.js tracking PoC
 │   ├── server/
 │   │   ├── control-plane/        # Workers / TypeScript / Hono / D1 / R2
@@ -55,8 +58,13 @@ unframe/
 
 ### `app/web`
 
-- React 19 SPA としてプレゼンテーションの編集を担当する。
-- Backend 契約が定義されるまでは fixture と browser adapter を使用する。
+- React 19 SPA として認証・device 承認、公開済み Dist 確認とルーム作成を担当する。
+- Hono RPC client と TanStack Query を通して Control Plane を利用する。
+
+### `app/local-editor`
+
+- ローカル Source の編集・保存・履歴、build 要求、Unity Preview と CLI を通す公開操作を担当する。
+- 静的成果物は CLI Host が配信し、filesystem・credential・build generation は CLI が所有する。
 
 ### `app/audience`
 
@@ -74,7 +82,7 @@ unframe/
 ### `lp`
 
 - SvelteKit + `adapter-static` による静的 Landing Page とする。
-- Web Editor とは deployment と依存関係を分離する。
+- 管理 Web とは deployment と依存関係を分離する。
 
 ## 契約生成パイプライン
 
@@ -100,8 +108,9 @@ unframe/
 | 依存関係と Git hook のセットアップ | `nix run .#setup`                                             |
 | 全体品質ゲート                     | `nix run .#check`                                             |
 | Web の検査・修正                   | `nix run .#web` / `nix run .#web -- fix`                      |
-| Audience の検査・修正              | `nix run .#audience` / `nix run .#audience -- fix`            |
+| Local Editor の検査・修正          | `nix run .#local-editor` / `nix run .#local-editor -- fix`    |
 | Audience 開発・build preview       | `nix run .#audience -- dev` / `nix run .#audience -- preview` |
+| Audience の検査・修正              | `nix run .#audience` / `nix run .#audience -- fix`            |
 | LP の検査・修正                    | `nix run .#lp` / `nix run .#lp -- fix`                        |
 | Notion 同期                        | `nix run .#notion-sync`                                       |
 | flake の評価と formatter 検証      | `nix flake check`                                             |
@@ -113,11 +122,12 @@ Control Plane と Realtime の check entrypoint は実装済みです。開発�
 - `ci.yml`: 変更領域の検出と必須チェックの集約
 - `control-plane.yml`: Control Plane の typecheck / test / deploy dry-run
 - `realtime.yml`: Realtime の vet / lint / test / build / race
-- `web.yml`: Web の check / test / build
+- `web.yml`: Web の check / test / build / E2E
+- `local-editor.yml`: Local Editor の check / test / build / mock E2E
 - `audience.yml`: Audience の check / test / build（カメラ・SLAM の実機検証は含まない）
 - `lp.yml`: LP の test / check / build
 - `unity.yml`: Unity の静的検査
-- `autofix.yml`: Control Plane / Realtime / Presentation / Web / LP / Audience の format と lint fix
+- `autofix.yml`: Control Plane / Realtime / Presentation / Web / Local Editor / LP / Audience の format と lint fix
 - `sync-notion.yml`: Notion 同期
 
 ## 移行状況

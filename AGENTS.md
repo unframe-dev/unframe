@@ -10,7 +10,8 @@ Unframe is a monorepo for an MR presentation product. The repository contains:
 
 ```text
 app/
-├── web/       React 19 presentation editor (WIP)
+├── web/       React 19 management SPA (WIP)
+├── local-editor/ Local Source editor / Unity Preview (WIP)
 ├── audience/  React / 8th Wall / Three.js audience tracking PoC
 ├── server/    Control Plane and Realtime Backend (WIP)
 └── unity/     Unity 6000.3.22f1 MR application (WIP)
@@ -35,8 +36,8 @@ not equally complete in every area:
   synchronization, and persistence callback lifecycle integration remain planned.
 - Conversion pipelines and background jobs are not currently implemented. Do
   not treat planned capabilities as existing behavior.
-- `app/web/` has authentication screens and a fixture-based 3D editor.
-  Presentation server persistence and asset upload are not connected.
+- `app/web/` owns authentication, published Dist inspection, and Session creation.
+  `app/local-editor/` owns Source editing, Unity Preview, and CLI-mediated publication.
 - `lp/` is a static SvelteKit site and remains WIP while product content is being
   developed. Its CI task runs the LP test, check, and build commands.
 - `app/unity/` contains a Unity project and EditMode tests. The generated C#
@@ -125,7 +126,7 @@ of explanatory comments.
 Keep changes within the owning application unless a cross-application change is
 necessary.
 
-- Editor-specific React code belongs in `app/web/`.
+- Management Web code belongs in `app/web/`; local Source editor code belongs in `app/local-editor/`.
 - Audience-specific React, tracking, calibration, and Three.js code belongs in `app/audience/`. Its current scope is a tracking PoC; live participation remains planned.
 - Go backend code belongs in `app/server/`.
 - Unity and C# code belongs in `app/unity/`.
@@ -188,7 +189,8 @@ nix run .#setup                      # Install pnpm dependencies and enable hook
 nix run .#check                      # Full configured code quality gate
 nix run .#control-plane              # Control Plane typecheck/test/build
 nix run .#realtime                   # Realtime vet/lint/test/build/race
-nix run .#web                        # Web check/test/build
+nix run .#web                        # Management Web check/test/build
+nix run .#local-editor               # Local Editor check/test/build
 nix run .#audience                   # Audience check/test/build
 nix run .#audience -- dev            # Audience development server
 nix run .#audience -- preview        # Audience production build preview

@@ -1,4 +1,6 @@
-import { and, eq, ne } from "drizzle-orm";
+import { publicationFenceSchema } from "@unframe/contracts/presentation";
+import type { z } from "zod";
+import { and, eq, ne, sql, getTableColumns } from "drizzle-orm";
 
 import { createD1Database } from "../../adapters/d1/database";
 import { presentationSessions, sessionParticipants } from "../../adapters/d1/schema";
@@ -14,7 +16,11 @@ export type SessionRecord = {
   maxParticipants: number;
   createdAt: string;
   endedAt: string | null;
+  publicationEpoch: number | null;
+  publicationFence: z.infer<typeof publicationFenceSchema> | null;
 };
+
+export type SessionCreateRecord = Omit<SessionRecord, "publicationEpoch" | "publicationFence">;
 
 export type SessionParticipant = {
   sessionId: string;
@@ -26,7 +32,7 @@ export type SessionParticipant = {
 export type JoinResult = "joined" | "existing" | "full" | "ended" | "not_found";
 
 export type SessionRepository = {
-  create(record: SessionRecord, presenter: SessionParticipant): Promise<void>;
+  create(record: SessionCreateRecord, presenter: SessionParticipant): Promise<SessionRecord | null>;
   findById(id: string): Promise<SessionRecord | null>;
   findActiveByCodeHash(joinCodeHash: string): Promise<SessionRecord | null>;
   participantFor(sessionId: string, userId: string): Promise<SessionParticipant | null>;
@@ -49,8 +55,8 @@ export class D1SessionRepository implements SessionRepository {
     this.db = createD1Database(database);
   }
 
-  async create(record: SessionRecord, presenter: SessionParticipant) {
-    await this.database.batch([
+  async create(record: SessionCreateRecord, presenter: SessionParticipant) {
+    const [inserted] = await this.database.batch([
       this.database
         .prepare(
           `INSERT INTO presentation_sessions
@@ -58,7 +64,7 @@ export class D1SessionRepository implements SessionRepository {
           max_participants, created_at, ended_at, publication_epoch)
          SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 (SELECT MAX(epoch) FROM presentation_publications WHERE presentation_id = ?)
-         WHERE EXISTS (SELECT 1 FROM presentations WHERE id = ?)`,
+         WHERE EXISTS (SELECT 1 FROM presentation_publications WHERE presentation_id = ?)`,
         )
         .bind(
           record.id,
@@ -75,35 +81,43 @@ export class D1SessionRepository implements SessionRepository {
         ),
       this.database
         .prepare(
-          "INSERT INTO session_participants (session_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)",
+          "INSERT INTO session_participants (session_id, user_id, role, joined_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM presentation_sessions WHERE id = ?)",
         )
-        .bind(presenter.sessionId, presenter.userId, presenter.role, presenter.joinedAt),
+        .bind(presenter.sessionId, presenter.userId, presenter.role, presenter.joinedAt, record.id),
     ]);
+    return inserted?.meta.changes === 1 ? this.findById(record.id) : null;
+  }
+
+  private selection() {
+    return {
+      ...getTableColumns(presentationSessions),
+      publicationManifest: sql<
+        string | null
+      >`(SELECT manifest FROM presentation_publications AS publication WHERE publication.presentation_id = presentation_sessions.presentation_id AND publication.epoch = presentation_sessions.publication_epoch)`,
+    };
   }
 
   async findById(id: string) {
-    return (
-      (await this.db
-        .select()
-        .from(presentationSessions)
-        .where(eq(presentationSessions.id, id))
-        .get()) ?? null
-    );
+    const row = await this.db
+      .select(this.selection())
+      .from(presentationSessions)
+      .where(eq(presentationSessions.id, id))
+      .get();
+    return row ? sessionRecord(row) : null;
   }
 
   async findActiveByCodeHash(joinCodeHash: string) {
-    return (
-      (await this.db
-        .select()
-        .from(presentationSessions)
-        .where(
-          and(
-            eq(presentationSessions.joinCodeHash, joinCodeHash),
-            ne(presentationSessions.state, "Ended"),
-          ),
-        )
-        .get()) ?? null
-    );
+    const row = await this.db
+      .select(this.selection())
+      .from(presentationSessions)
+      .where(
+        and(
+          eq(presentationSessions.joinCodeHash, joinCodeHash),
+          ne(presentationSessions.state, "Ended"),
+        ),
+      )
+      .get();
+    return row ? sessionRecord(row) : null;
   }
 
   async participantFor(sessionId: string, userId: string) {
@@ -208,3 +222,21 @@ export class D1SessionRepository implements SessionRepository {
     return this.findById(id);
   }
 }
+
+const sessionRecord = ({
+  publicationManifest,
+  ...record
+}: typeof presentationSessions.$inferSelect & {
+  publicationManifest: string | null;
+}): SessionRecord => {
+  if (record.publicationEpoch === null) return { ...record, publicationFence: null };
+  if (publicationManifest === null) throw new Error("Session publication is missing");
+  const manifest: unknown = JSON.parse(publicationManifest);
+  const publicationFence = publicationFenceSchema.strip().parse(manifest);
+  if (
+    publicationFence.presentationId !== record.presentationId ||
+    publicationFence.publicationEpoch !== record.publicationEpoch
+  )
+    throw new Error("Session publication fence does not match its saved epoch");
+  return { ...record, publicationFence };
+};

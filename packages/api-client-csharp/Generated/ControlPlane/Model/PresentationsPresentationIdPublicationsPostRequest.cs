@@ -36,7 +36,7 @@ namespace Unframe.ControlPlane.Model
         /// <param name="buildId">buildId</param>
         /// <param name="expectedPublicationFence">expectedPublicationFence</param>
         [JsonConstructor]
-        public PresentationsPresentationIdPublicationsPostRequest(string buildId, PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence? expectedPublicationFence = default)
+        public PresentationsPresentationIdPublicationsPostRequest(string buildId, SessionsPost201ResponseSessionPublicationFence? expectedPublicationFence = default)
         {
             BuildId = buildId;
             ExpectedPublicationFence = expectedPublicationFence;
@@ -55,7 +55,7 @@ namespace Unframe.ControlPlane.Model
         /// Gets or Sets ExpectedPublicationFence
         /// </summary>
         [JsonPropertyName("expectedPublicationFence")]
-        public PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence? ExpectedPublicationFence { get; set; }
+        public SessionsPost201ResponseSessionPublicationFence? ExpectedPublicationFence { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -115,7 +115,7 @@ namespace Unframe.ControlPlane.Model
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
             Option<string?> buildId = default;
-            Option<PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence?> expectedPublicationFence = default;
+            Option<SessionsPost201ResponseSessionPublicationFence?> expectedPublicationFence = default;
 
             while (utf8JsonReader.Read())
             {
@@ -136,7 +136,7 @@ namespace Unframe.ControlPlane.Model
                             buildId = new Option<string?>(utf8JsonReader.GetString()!);
                             break;
                         case "expectedPublicationFence":
-                            expectedPublicationFence = new Option<PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence?>(JsonSerializer.Deserialize<PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence>(ref utf8JsonReader, jsonSerializerOptions));
+                            expectedPublicationFence = new Option<SessionsPost201ResponseSessionPublicationFence?>(JsonSerializer.Deserialize<SessionsPost201ResponseSessionPublicationFence>(ref utf8JsonReader, jsonSerializerOptions));
                             break;
                         default:
                             break;

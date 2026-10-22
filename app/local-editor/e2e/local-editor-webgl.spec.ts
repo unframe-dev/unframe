@@ -85,30 +85,35 @@ for (const kind of ["structured", "opaque"] as const)
       if (message.type() === "error") errors.push(message.text());
     });
     const assetMetrics: { partialAlpha: number; transparent: number }[] = [];
-    const assetChecks: Promise<void>[] = [];
+    const assetErrors: string[] = [];
     const assetsFetched: { path: string; status: number; length: string | undefined }[] = [];
-    page.on("response", (response) => {
-      if (
-        new URL(response.url()).pathname.startsWith("/api/previews/") &&
-        response.url().includes("/assets/")
-      ) {
-        assetChecks.push(
-          response.body().then((bytes) => {
-            const data = PNG.sync.read(bytes).data;
-            let partialAlpha = 0,
-              transparent = 0;
-            for (let i = 3; i < data.length; i += 4) {
-              if (data[i] === 0) transparent++;
-              else if (data[i]! < 255) partialAlpha++;
-            }
-            assetMetrics.push({ partialAlpha, transparent });
-          }),
-        );
+    // Read the exact bytes forwarded to Unity without depending on Chromium's response-body cache.
+    await page.route("**/api/previews/**/assets/**", async (route) => {
+      try {
+        const response = await route.fetch();
+        const bytes = await response.body();
+        const data = PNG.sync.read(bytes).data;
+        let partialAlpha = 0,
+          transparent = 0;
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] === 0) transparent++;
+          else if (data[i]! < 255) partialAlpha++;
+        }
+        assetMetrics.push({ partialAlpha, transparent });
         assetsFetched.push({
-          path: new URL(response.url()).pathname,
+          path: new URL(route.request().url()).pathname,
           status: response.status(),
           length: response.headers()["content-length"],
         });
+        await route.fulfill({ response, body: bytes });
+        await response.dispose();
+      } catch (error) {
+        assetErrors.push(String(error));
+        try {
+          await route.abort();
+        } catch (abortError) {
+          assetErrors.push(String(abortError));
+        }
       }
     });
     try {
@@ -117,6 +122,7 @@ for (const kind of ["structured", "opaque"] as const)
         .poll(
           async () => {
             const text = await page.locator("body").innerText();
+            expect(assetErrors).toEqual([]);
             if (text.includes("Preview 失敗:")) throw new Error(text);
             return /表示 build identity: build:/.test(text);
           },
@@ -128,7 +134,8 @@ for (const kind of ["structured", "opaque"] as const)
       const dev = await canvas.screenshot({ path: testInfo.outputPath(`${kind}-dev.png`) });
       expect(pixels(dev).varied, JSON.stringify(errors)).toBeGreaterThan(500);
       expect(assetsFetched.length).toBeGreaterThan(0);
-      await Promise.all(assetChecks);
+      expect(assetErrors).toEqual([]);
+      expect(assetsFetched.every((asset) => asset.status === 200)).toBe(true);
       if (kind === "structured") {
         await expect(page.getByText("Group: main / Step: start")).toBeVisible();
         const input = page
@@ -227,6 +234,8 @@ for (const kind of ["structured", "opaque"] as const)
       await page.getByRole("button", { name: "Dist Preview", exact: true }).click();
       await expect(page.getByText(/表示 mode: dist/)).toBeVisible({ timeout: 120_000 });
       await expect(page.getByText(`表示 build identity: ${distManifest.buildId}`)).toBeVisible();
+      expect(assetErrors).toEqual([]);
+      expect(assetsFetched.every((asset) => asset.status === 200)).toBe(true);
       const dist = await canvas.screenshot({ path: testInfo.outputPath(`${kind}-dist.png`) });
       expect(pixels(dist).varied, JSON.stringify(errors)).toBeGreaterThan(500);
       if (kind === "opaque") {
@@ -241,11 +250,13 @@ for (const kind of ["structured", "opaque"] as const)
       await testInfo.attach(`${kind}-dev`, { body: dev, contentType: "image/png" });
       await testInfo.attach(`${kind}-dist`, { body: dist, contentType: "image/png" });
     } finally {
+      await page.unrouteAll({ behavior: "wait" });
       await testInfo.attach("browser-diagnostics", {
-        body: JSON.stringify({ errors, assetsFetched, assetMetrics }),
+        body: JSON.stringify({ errors, assetsFetched, assetMetrics, assetErrors }),
         contentType: "application/json",
       });
       child.kill("SIGTERM");
       await new Promise<void>((resolve) => child.once("exit", () => resolve()));
+      expect(assetErrors).toEqual([]);
     }
   });

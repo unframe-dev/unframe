@@ -188,6 +188,10 @@ public sealed class PresentationNativeShowcaseVideoTests
             {
                 float movieTime = (float)frame / flow.framesPerSecond;
                 while (captureClock.Elapsed.TotalSeconds < movieTime) yield return null;
+                Assert.That(!connectionTask.IsCompleted && realtime.ControlReady, Is.True, "Showcase transport disconnected.");
+                // Reliable changes require a matching State keyframe before the runtime is ready again.
+                float readinessDeadline = Time.realtimeSinceStartup + 10;
+                while (!runtime.SessionReady && !connectionTask.IsCompleted && realtime.ControlReady && Time.realtimeSinceStartup < readinessDeadline) yield return null;
                 Assert.That(runtime.SessionReady, Is.True, "Showcase transport lost readiness.");
                 if (pending == null && commandIndex < flow.commands.Length && movieTime >= flow.commands[commandIndex].atSeconds)
                 {

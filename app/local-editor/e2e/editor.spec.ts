@@ -87,7 +87,7 @@ test("saves Source and reloads Dev and Dist through the Host with a Unity bridge
     if (path === "/api/preview-display") return route.fulfill({ status: 204 });
     return route.abort();
   });
-  await page.goto(`/editor.html#token=${token}`);
+  await page.goto(`/#token=${token}`);
   await expect(page.getByText("表示 build identity: fixture-build")).toBeVisible();
   await expect(page).not.toHaveURL(/token=/);
   await page.getByRole("button", { name: "hero", exact: true }).click();

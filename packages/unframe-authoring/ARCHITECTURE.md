@@ -103,7 +103,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 ## 9. Deferred decisions
 
 - Lossless Syntax Tree / source patching library
-- `unframe.lock` と Component package distribution の形式
+- Component package の外部配布と更新方針。ローカル lock v2 の形式は [実行契約](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v2-と生成-id) と CLI が所有する
 - public API の正確な naming と versioning
 - Component migration metadata と自動変換
 - Part partition permission / isolate

@@ -8,18 +8,19 @@
 
 Unframe は次のコンポーネントからなるモノレポです。
 
-| パス                          | 役割                                     |
-| ----------------------------- | ---------------------------------------- |
-| `app/audience/`               | 観客向け Web XR 位置合わせ PoC           |
-| `app/web/`                    | React 19 Web Editor（WIP）               |
-| `app/server/`                 | Control Plane / Realtime Backend（WIP）  |
-| `app/server/realtime/`        | Go / gRPC Realtime Backend（WIP）        |
-| `app/unity/`                  | Unity MR Application（WIP）              |
-| `lp/`                         | SvelteKit Landing Page（WIP）            |
-| `packages/contracts/`         | 将来の API / protocol contract 境界      |
-| `packages/api-client-csharp/` | C# client の成果物置き場（現在は未接続） |
-| `packages/config/`            | 共有 TypeScript、Vite+、Git hook 設定    |
-| `scripts/`                    | 開発、生成、CI、ドキュメント同期の実処理 |
+| パス                          | 役割                                       |
+| ----------------------------- | ------------------------------------------ |
+| `app/web/`                    | React 19 管理 Web（WIP）                   |
+| `app/local-editor/`           | ローカル Source 編集・Unity Preview（WIP） |
+| `app/audience/`               | 観客向け Web XR 位置合わせ PoC             |
+| `app/server/`                 | Control Plane / Realtime Backend（WIP）    |
+| `app/server/realtime/`        | Go / gRPC Realtime Backend（WIP）          |
+| `app/unity/`                  | Unity MR Application（WIP）                |
+| `lp/`                         | SvelteKit Landing Page（WIP）              |
+| `packages/contracts/`         | 将来の API / protocol contract 境界        |
+| `packages/api-client-csharp/` | C# client の成果物置き場（現在は未接続）   |
+| `packages/config/`            | 共有 TypeScript、Vite+、Git hook 設定      |
+| `scripts/`                    | 開発、生成、CI、ドキュメント同期の実処理   |
 
 旧 Go/Huma/Turso/R2 HTTP backend は削除済みです。Control Plane と Realtime は
 それぞれの component 内で runtime、依存関係、テスト、運用手順を完結させます。Realtime
@@ -49,7 +50,7 @@ assignment fencing、page-change の in-memory fan-out を実装しています�
 
 アプリケーション固有のコードは、それを所有するディレクトリに置きます。
 
-- エディター固有の React コードは `app/web/` に置く。
+- 管理 Web は `app/web/`、ローカル Source Editor は `app/local-editor/` に置く。
 - 観客向け React、追跡、位置合わせ、Three.js 描画は `app/audience/` に置く。
 - Control Plane は `app/server/control-plane/`、Realtime Go backend は
   `app/server/realtime/` に置く。
@@ -98,6 +99,7 @@ nix run .#setup
 | Control Plane check / test / build   | `nix run .#control-plane`                                     |
 | Realtime check / test / build / race | `nix run .#realtime`                                          |
 | Web check / test / build             | `nix run .#web`                                               |
+| Local Editor check / test / build    | `nix run .#local-editor`                                      |
 | Audience check / test / build        | `nix run .#audience`                                          |
 | Audience 開発 / build preview        | `nix run .#audience -- dev` / `nix run .#audience -- preview` |
 | LP test / check / build              | `nix run .#lp`                                                |
@@ -152,7 +154,7 @@ TypeScript のテストは公開境界、重要な分岐、失敗モードを変
 - `.test.ts` へ移すためだけに hook・interface・状態管理層を追加しません。拡張子だけを変える移動も行いません。
 - test double は外部サービスや高コストな依存の境界に置き、必要な統合確認で補います。
 
-`nix run .#check` は現在、Control Plane、Presentation packages、Realtime、LP、Web、Audience
+`nix run .#check` は現在、Control Plane、Presentation packages、Realtime、LP、Web、Local Editor、Audience
 の検証を実行します。Presentation gate は共有 `packages/config` の hook fixture と設定
 check も実行します。現在は Unity Editor テストを実行しません。ドキュメント link
 check や security check も、この品質ゲートには含まれません。
@@ -177,6 +179,7 @@ nix run .#presentation -- fix
 nix run .#realtime -- fix
 nix run .#lp -- fix
 nix run .#web -- fix
+nix run .#local-editor -- fix
 nix run .#audience -- fix
 ```
 
@@ -213,18 +216,20 @@ commit message の入力形式は次のとおりです。
 
 scope は主な変更対象に合わせます。
 
-| scope       | 対象                                             |
-| ----------- | ------------------------------------------------ |
-| `web`       | `app/web/`                                       |
-| `server`    | `app/server/`                                    |
-| `realtime`  | `app/server/realtime/`                           |
-| `unity`     | `app/unity/`                                     |
-| `lp`        | `lp/`                                            |
-| `contracts` | `packages/contracts/` と `packages/api-client-*` |
-| `config`    | `packages/config/`                               |
-| `scripts`   | `scripts/`                                       |
-| `docs`      | `docs/`                                          |
-| `repo`      | repository 全体の設定                            |
+| scope          | 対象                                             |
+| -------------- | ------------------------------------------------ |
+| `web`          | `app/web/`                                       |
+| `audience`     | `app/audience/`                                  |
+| `local-editor` | `app/local-editor/`                              |
+| `server`       | `app/server/`                                    |
+| `realtime`     | `app/server/realtime/`                           |
+| `unity`        | `app/unity/`                                     |
+| `lp`           | `lp/`                                            |
+| `contracts`    | `packages/contracts/` と `packages/api-client-*` |
+| `config`       | `packages/config/`                               |
+| `scripts`      | `scripts/`                                       |
+| `docs`         | `docs/`                                          |
+| `repo`         | repository 全体の設定                            |
 
 対応する type は `feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、
 `ci`、`chore`、`remove`、`deploy`、`init` です。gitmoji は手動で付けず、hook に任せます。

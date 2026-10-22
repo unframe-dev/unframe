@@ -99,19 +99,6 @@
             <dir>${presentationFonts}/share/fonts</dir>
           </fontconfig>
         '';
-        posixCacheHelper = pkgs.stdenv.mkDerivation {
-          pname = "unframe-posix-cache-helper";
-          version = "1";
-          src = ./packages/unframe-cli/src/filesystem/posix-cache-helper.c;
-          dontUnpack = true;
-          buildPhase = ''
-            $CC -std=c11 -O2 -Wall -Wextra -Werror "$src" -o unframe-posix-cache-helper
-          '';
-          installPhase = ''
-            mkdir -p "$out/bin"
-            cp unframe-posix-cache-helper "$out/bin/"
-          '';
-        };
         darwinOpaqueLauncher = pkgs.stdenv.mkDerivation {
           pname = "unframe-darwin-opaque";
           version = "4";
@@ -166,7 +153,6 @@
           UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
           UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";
           UNFRAME_DARWIN_POLICY_NODE = "${pkgs.nodejs_22}/bin/node";
-          UNFRAME_POSIX_HELPER = "${posixCacheHelper}/bin/unframe-posix-cache-helper";
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
           UNFRAME_DARWIN_OPAQUE_LAUNCHER = "${darwinOpaqueLauncher}/bin/unframe-darwin-opaque";
@@ -299,6 +285,7 @@
             extraRuntimeInputs = [
               pkgs.openssl
               pkgs.caddy
+              pkgs.ffmpeg
             ];
           };
           contracts-consumers = mkApp {
@@ -308,6 +295,10 @@
           realtime = mkApp {
             name = "realtime";
             script = "ci/realtime.sh";
+          };
+          local-editor = mkApp {
+            name = "local-editor";
+            script = "ci/local-editor.sh";
           };
           web = mkApp {
             name = "web";

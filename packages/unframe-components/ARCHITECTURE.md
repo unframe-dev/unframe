@@ -92,7 +92,7 @@ Opaque source が React などを必要とする場合、その依存は Compone
 ## 9. Deferred decisions
 
 - Surface 以外に提供する Spatial / Surface Primitive と標準 Component set
-- Component distribution と lockfile format
+- Component の外部配布と標準 Component package の配布検証。ローカル lock v2 は CLI の実装済み契約に従う
 - Opaque dependency capability と sandbox policy
 - Component / renderer drift の完全な検証方式
 - Component migration metadata と自動変換
@@ -106,6 +106,6 @@ Manifest は実際に Structure へ結合できない Props、Slots、Parts、Va
 
 Authoring SDK は 6 category の Theme Token、同 category alias、Text / Frame Named Style、型付き Prop / Token reference、Variant style、typed Part override、Slot placeholder、nested Frame / Text を表現し、strict schema で検証する。Standard Theme 自体は空の Token / Named Style record のままであり、標準 visual design はまだ提供しない。
 
-Component Props / Variant / Part / Slot の解決と展開、Spatial 3D Primitive、Interaction、Action / Output lowering、Opaque entry、package lock / integrity の縦断検証、migration、preview、visual regression はこの package の実装完了範囲に含めない。これらを暗黙の名前規約で補わず、Compiler / Renderer の対応 contract が実装された後に検証する。
+Component Props / Variant / Part / Slot の解決と展開、Spatial 3D Primitive、Interaction、Action / Output lowering、Opaque entry、package lock / integrity の縦断検証、migration、preview、visual regression はこの package の実装完了範囲に含めない。Compiler は既に Props / Variant / Part / Slot の解決と Action / Output lowering、lock v2 を実装している。この package は resolution / lowering を所有せず、標準 Component としての縦断 fixture・配布・visual regression の検証を別途行う。
 
 型付き Theme、Props / Slots / Parts / Variants、nested Frame / Text の規則は [Structured Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md) を正本とする。Slot は Frame children 内の明示 placeholder を挿入位置とする。placeholder の `semanticParentId` は nested semantic roots の接続先を指定し、省略時は Surface の追加 roots として扱う。migration metadata / 自動変換と Part partition isolate は M3A に含めない。

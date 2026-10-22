@@ -26,18 +26,18 @@ using Unframe.ControlPlane.Client;
 namespace Unframe.ControlPlane.Model
 {
     /// <summary>
-    /// PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence
+    /// SessionsPost201ResponseSessionPublicationFence
     /// </summary>
-    public partial class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence : IValidatableObject
+    public partial class SessionsPost201ResponseSessionPublicationFence : IValidatableObject
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence" /> class.
+        /// Initializes a new instance of the <see cref="SessionsPost201ResponseSessionPublicationFence" /> class.
         /// </summary>
         /// <param name="presentationId">presentationId</param>
         /// <param name="publicationEpoch">publicationEpoch</param>
         /// <param name="publicationManifestHash">publicationManifestHash</param>
         [JsonConstructor]
-        public PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence(string presentationId, long publicationEpoch, string publicationManifestHash)
+        public SessionsPost201ResponseSessionPublicationFence(string presentationId, long publicationEpoch, string publicationManifestHash)
         {
             PresentationId = presentationId;
             PublicationEpoch = publicationEpoch;
@@ -72,7 +72,7 @@ namespace Unframe.ControlPlane.Model
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence {\n");
+            sb.Append("class SessionsPost201ResponseSessionPublicationFence {\n");
             sb.Append("  PresentationId: ").Append(PresentationId).Append("\n");
             sb.Append("  PublicationEpoch: ").Append(PublicationEpoch).Append("\n");
             sb.Append("  PublicationManifestHash: ").Append(PublicationManifestHash).Append("\n");
@@ -124,19 +124,19 @@ namespace Unframe.ControlPlane.Model
     }
 
     /// <summary>
-    /// A Json converter for type <see cref="PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence" />
+    /// A Json converter for type <see cref="SessionsPost201ResponseSessionPublicationFence" />
     /// </summary>
-    public class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFenceJsonConverter : JsonConverter<PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence>
+    public class SessionsPost201ResponseSessionPublicationFenceJsonConverter : JsonConverter<SessionsPost201ResponseSessionPublicationFence>
     {
         /// <summary>
-        /// Deserializes json to <see cref="PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence" />
+        /// Deserializes json to <see cref="SessionsPost201ResponseSessionPublicationFence" />
         /// </summary>
         /// <param name="utf8JsonReader"></param>
         /// <param name="typeToConvert"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <returns></returns>
         /// <exception cref="JsonException"></exception>
-        public override PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
+        public override SessionsPost201ResponseSessionPublicationFence Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
         {
             int currentDepth = utf8JsonReader.CurrentDepth;
 
@@ -180,61 +180,61 @@ namespace Unframe.ControlPlane.Model
             }
 
             if (!presentationId.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.", nameof(presentationId));
+                throw new ArgumentException("Property is required for class SessionsPost201ResponseSessionPublicationFence.", nameof(presentationId));
 
             if (!publicationEpoch.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.", nameof(publicationEpoch));
+                throw new ArgumentException("Property is required for class SessionsPost201ResponseSessionPublicationFence.", nameof(publicationEpoch));
 
             if (!publicationManifestHash.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.", nameof(publicationManifestHash));
+                throw new ArgumentException("Property is required for class SessionsPost201ResponseSessionPublicationFence.", nameof(publicationManifestHash));
 
             if (presentationId.IsSet && presentationId.Value == null)
-                throw new ArgumentNullException(nameof(presentationId), "Property is not nullable for class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.");
+                throw new ArgumentNullException(nameof(presentationId), "Property is not nullable for class SessionsPost201ResponseSessionPublicationFence.");
 
             if (publicationEpoch.IsSet && publicationEpoch.Value == null)
-                throw new ArgumentNullException(nameof(publicationEpoch), "Property is not nullable for class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.");
+                throw new ArgumentNullException(nameof(publicationEpoch), "Property is not nullable for class SessionsPost201ResponseSessionPublicationFence.");
 
             if (publicationManifestHash.IsSet && publicationManifestHash.Value == null)
-                throw new ArgumentNullException(nameof(publicationManifestHash), "Property is not nullable for class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.");
+                throw new ArgumentNullException(nameof(publicationManifestHash), "Property is not nullable for class SessionsPost201ResponseSessionPublicationFence.");
 
-            return new PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence(presentationId.Value!, publicationEpoch.Value!.Value!, publicationManifestHash.Value!);
+            return new SessionsPost201ResponseSessionPublicationFence(presentationId.Value!, publicationEpoch.Value!.Value!, publicationManifestHash.Value!);
         }
 
         /// <summary>
-        /// Serializes a <see cref="PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence" />
+        /// Serializes a <see cref="SessionsPost201ResponseSessionPublicationFence" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence"></param>
+        /// <param name="sessionsPost201ResponseSessionPublicationFence"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public override void Write(Utf8JsonWriter writer, PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence, JsonSerializerOptions jsonSerializerOptions)
+        public override void Write(Utf8JsonWriter writer, SessionsPost201ResponseSessionPublicationFence sessionsPost201ResponseSessionPublicationFence, JsonSerializerOptions jsonSerializerOptions)
         {
             writer.WriteStartObject();
 
-            WriteProperties(writer, presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence, jsonSerializerOptions);
+            WriteProperties(writer, sessionsPost201ResponseSessionPublicationFence, jsonSerializerOptions);
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Serializes the properties of <see cref="PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence" />
+        /// Serializes the properties of <see cref="SessionsPost201ResponseSessionPublicationFence" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence"></param>
+        /// <param name="sessionsPost201ResponseSessionPublicationFence"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void WriteProperties(Utf8JsonWriter writer, PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence, JsonSerializerOptions jsonSerializerOptions)
+        public void WriteProperties(Utf8JsonWriter writer, SessionsPost201ResponseSessionPublicationFence sessionsPost201ResponseSessionPublicationFence, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.PresentationId == null)
-                throw new ArgumentNullException(nameof(presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.PresentationId), "Property is required for class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.");
+            if (sessionsPost201ResponseSessionPublicationFence.PresentationId == null)
+                throw new ArgumentNullException(nameof(sessionsPost201ResponseSessionPublicationFence.PresentationId), "Property is required for class SessionsPost201ResponseSessionPublicationFence.");
 
-            if (presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.PublicationManifestHash == null)
-                throw new ArgumentNullException(nameof(presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.PublicationManifestHash), "Property is required for class PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.");
+            if (sessionsPost201ResponseSessionPublicationFence.PublicationManifestHash == null)
+                throw new ArgumentNullException(nameof(sessionsPost201ResponseSessionPublicationFence.PublicationManifestHash), "Property is required for class SessionsPost201ResponseSessionPublicationFence.");
 
-            writer.WriteString("presentationId", presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.PresentationId);
+            writer.WriteString("presentationId", sessionsPost201ResponseSessionPublicationFence.PresentationId);
 
-            writer.WriteNumber("publicationEpoch", presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.PublicationEpoch);
+            writer.WriteNumber("publicationEpoch", sessionsPost201ResponseSessionPublicationFence.PublicationEpoch);
 
-            writer.WriteString("publicationManifestHash", presentationsPresentationIdPublicationsPostRequestExpectedPublicationFence.PublicationManifestHash);
+            writer.WriteString("publicationManifestHash", sessionsPost201ResponseSessionPublicationFence.PublicationManifestHash);
         }
     }
 }

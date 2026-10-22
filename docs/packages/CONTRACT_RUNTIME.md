@@ -179,7 +179,7 @@ Replayは`after_sequence + 1`からcontiguousに返す。範囲外、projection�
 
 Canonical snapshotはShared Runtime Stateだけを持つ。participant、connection、projection、presence、tracking sample、edge detector、renderer artifact、URLを含めない。Projected snapshotはprofileのvisible closureだけを持ち、canonical restoreへ使用しない。
 
-Snapshot cutはlogical time `T`以下の全internal completionを処理後、reliable sequence `S`のstate freezeと`S+1` subscriber登録を同じcritical sectionで行う。serializationとprojectionはlock外のimmutable valueだけを読む。catch-up overflowではpartial resultを捨て、新cutから初回を含む最大3回かつ合計250 msまで再試行し、超過は`RESOURCE_EXHAUSTED / snapshot_catch_up_exhausted`とする。
+Snapshot cutはlogical time `T`以下の全internal completionを処理後、reliable sequence `S`のstate freezeと`S+1` subscriber登録を同じcritical sectionで行う。serializationとprojectionはlock外のimmutable valueだけを読む。catch-up overflowではpartial resultを捨て、新cutから初回を含む最大3回かつ合計250 msまで再試行し、超過は`RESOURCE_EXHAUSTED / snapshot_catch_up_exhausted`とする。再試行対象はSnapshotの投影・serializationの準備中のoverflowであり、初回Snapshot送信開始後のqueue overflowは`reliable_subscriber_slow`で接続を終了する。
 
 Durable checkpoint field 12だけは例外的にtyped `CanonicalRuntimeSnapshot`のdeterministic protobuf bytesを保持する。任意bytesではない。writerはunknown fieldを含めず、field 11は受信したfield 12そのものの`sha256:` hashとする。hash検証後にschema 2としてparseする。外側のsession、runtime、assignment、Publication、Definition/Bundle hashをロード対象の信頼済み値と照合し、外側の`reliable_sequence`と内側の同fieldを一致させる。内側ではRun ID assignment、owner epoch、catalog参照と全invariantを検証する。parse/re-serialize結果をhash sourceにしない。
 
@@ -190,6 +190,8 @@ Durable checkpointの`recovery_payload`はSession開始日時、過去の参加�
 recoveryは同じassignment epochでだけ行う。保存時にrunningでもclockを進めず`paused/processRecovered`へ変更する。active Runとarmed timerからscheduleを再構築する。checkpoint以降の確定済みeventはcontiguous event log、または全後続eventを含む新checkpointで復元する。どちらでもgapを埋められなければ`paused/recoveryGap`のまま継続を拒否する。
 
 State frameはlatest-winsでreplayしない。keyframeは全visible latest-wins elementと全visible Anchor binding、deltaは前回送信後に変わったentryだけを持つ。frame sequenceは正に単調増加し、delta gap、fence不一致、`base_reliable_sequence`がControl適用cursorより新しい場合はframeを捨て、次のkeyframeを要求する。Timeline、Surface crossfade、Media、Model clipの毎frame補間値を送らない。
+
+現行transportはRunning中、Anchorの有無によらず50 ms周期でkeyframeを送る。ControlとStateは独立streamであり、先着して破棄されたStateも後続keyframeで収束させる。接続ごとに原則20 fpsのfull keyframeを送る負荷を伴う。
 
 Node keyframe patchは全visible Nodeについて、Timelineが現在所有しないactive、visible、opacity、およびtransformのposition・rotation・scale各componentを全て持つ。delta patchは所有されていないfield/componentの変更分だけを持つ。`NodeStatePatch.transform`ではcomponentごとの省略を許すが、空のtransform patchはrejectする。DefinitionとSnapshotのtransformは全component必須のままとする。empty patch、同じframeのduplicate element ID、profile外Node、Timeline所有propertyを含むpatchをrejectする。State mailboxはelement/field単位でlatest-wins mergeし、送信中のimmutable frameを書き換えない。
 
@@ -281,7 +283,7 @@ Model clipは骨格内部だけを評価し、ModelNode Transformを変更しな
 | `RESOURCE_EXHAUSTED`  | `snapshot_catch_up_exhausted`     | Snapshot再試行上限                                                                  |
 | `RESOURCE_EXHAUSTED`  | `message_limit_exceeded`          | item byte上限                                                                       |
 | `RESOURCE_EXHAUSTED`  | `state_rate_exceeded`             | 継続的State rate超過                                                                |
-| `UNAVAILABLE`         | `runtime_assignment_unavailable`  | assignmentへ到達不能                                                                |
+| `UNAVAILABLE`         | `runtime_assignment_unavailable`  | assignment authorizerの検証失敗（既知のinactive・lease・fence違反を除く）           |
 | `UNAVAILABLE`         | `runtime_persistence_unavailable` | checkpoint/presence callbackへ到達不能                                              |
 | `UNAVAILABLE`         | `runtime_projection_unavailable`  | Control Planeのprojection取得不可                                                   |
 | `INTERNAL`            | `internal_error`                  | nonceまたはconnection ID生成失敗                                                    |

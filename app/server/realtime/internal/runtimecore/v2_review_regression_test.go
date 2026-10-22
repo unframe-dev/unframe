@@ -199,7 +199,7 @@ func TestV2RestoreRejectsMissingRecoveryHistory(t *testing.T) {
 
 func TestV2SubscriptionReclaimsConsumedBytes(t *testing.T) {
 	s, _ := reviewSession(t)
-	_, _, events, closeSub := s.SnapshotPresenceAndSubscribe()
+	_, _, events, closeSub, _ := s.SnapshotPresenceAndSubscribe()
 	defer closeSub()
 	event := &realtimev2.ProjectedReliableEvent{EventId: strings.Repeat("x", 600<<10)}
 	publish := func() {
