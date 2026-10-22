@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	realtime "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
+	protocol "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -44,6 +45,9 @@ func TestPresenterAuthorityWireConformance(t *testing.T) {
 			}
 			decoded := message.ProtoReflect().New().Interface()
 			if err := proto.Unmarshal(wire, decoded); err != nil {
+				t.Fatal(err)
+			}
+			if err := protocol.ValidateMessage(decoded); err != nil {
 				t.Fatal(err)
 			}
 			if !proto.Equal(message, decoded) {

@@ -11063,7 +11063,7 @@
                   "protocolVersion": {
                     "type": "string",
                     "enum": [
-                      "v2"
+                      "v3"
                     ]
                   },
                   "capacity": {
@@ -11835,6 +11835,36 @@
                 }
               }
             }
+          },
+          "413": {
+            "description": "Checkpoint payload exceeds its byte limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -12090,6 +12120,36 @@
           },
           "409": {
             "description": "Runtime assignment is not active",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Checkpoint payload exceeds its byte limit",
             "content": {
               "application/json": {
                 "schema": {
@@ -13689,7 +13749,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Trusted Runtime v2 bootstrap",
+            "description": "Trusted Runtime v3 bootstrap",
             "content": {
               "application/json": {
                 "schema": {
@@ -13925,6 +13985,36 @@
                 }
               }
             }
+          },
+          "413": {
+            "description": "Checkpoint payload exceeds its byte limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -14127,6 +14217,36 @@
           },
           "409": {
             "description": "Runtime fence conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Checkpoint payload exceeds its byte limit",
             "content": {
               "application/json": {
                 "schema": {

@@ -158,6 +158,9 @@ func (s *V2Session) enterV2Group(targetID string) ([]*realtimev2.ProjectedReliab
 	if err := s.armV2StepTimers(); err != nil {
 		return nil, err
 	}
+	if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED, false); err != nil {
+		return nil, err
+	}
 	initialization := &realtimev2.GroupRuntimeInitialization{NodeStates: cloneV2NodeStates(newNodes), SurfaceStates: cloneV2SurfaceStates(newSurfaces), MediaStates: cloneV2MediaStates(newMedia), ModelClipStates: cloneV2ModelStates(newModel), Variables: cloneV2VariableStates(newVariables)}
 	events = append(events,
 		&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_GroupExited{GroupExited: &realtimev2.GroupExited{GroupId: oldID, GroupEntryEpoch: oldEpoch}}},

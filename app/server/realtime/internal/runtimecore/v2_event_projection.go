@@ -31,7 +31,7 @@ func ProjectV2ReliableEvent(event *realtimev2.ProjectedReliableEvent, profile *d
 	case *realtimev2.ProjectedReliableEvent_RuntimeStatusChanged, *realtimev2.ProjectedReliableEvent_PresentationOriginChanged,
 		*realtimev2.ProjectedReliableEvent_GroupExited, *realtimev2.ProjectedReliableEvent_StepEntered,
 		*realtimev2.ProjectedReliableEvent_CueAccepted, *realtimev2.ProjectedReliableEvent_PresentationEnded,
-		*realtimev2.ProjectedReliableEvent_LogicalInputAccepted, *realtimev2.ProjectedReliableEvent_ParticipantPresenceChanged:
+		*realtimev2.ProjectedReliableEvent_LogicalInputAccepted, *realtimev2.ProjectedReliableEvent_GestureInputAccepted, *realtimev2.ProjectedReliableEvent_ZoneInputAccepted, *realtimev2.ProjectedReliableEvent_ParticipantPresenceChanged:
 		visible = true
 	case *realtimev2.ProjectedReliableEvent_GroupEntered:
 		clone := proto.Clone(event).(*realtimev2.ProjectedReliableEvent)

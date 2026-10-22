@@ -1,6 +1,6 @@
 # Presenter 認識・Runtime authority 移行計画
 
-- 状態: 工程1の wire・version・容量契約と正本 schema / 生成物を更新。実行側の工程2〜6は未着手。
+- 状態: 工程1の契約・生成物を更新済み。工程2の Runtime 入力受付・同期・復旧と保存境界を実装し、関連テスト・race・lint・生成 drift 検査を完了。工程3〜6は未着手。
 - 計画の起点: `815ca9886ca8304d4164c067e2a66b7221ec458b`（2026-10-22、文書変更のみ）。実装基準は `origin/main` の `5219fa91` と rebase 後の #160（`af24157b`）。文書固有の変更は `22980438` に載せ替えた。
 - 仕様の正本: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md)、[進行意味論](../packages/ARCHITECTURE.md#12-v1-presentation-progression-の意味論)、[データ契約](../packages/DATA_MODEL.md)、[配信・実行契約](../packages/CONTRACT_RUNTIME.md)。
 
@@ -64,6 +64,10 @@ JSON Schema、descriptor、静的 codec / wire types、fixture、Go / C# consume
 - 同時認識は独立イベントとして受理順に処理する。先の入力が Step を変えた場合、後続の旧文脈入力を拒否する。`transitioning` 中の通常入力は保留しない。
 
 完了条件は、旧 Step / 世代、Viewer、client 起点 System event を拒否し、応答消失・checkpoint 復旧後の同一 ID 再送が二重実行されないこと。上限直前の同期と中断・再試行を含めて検証する。同じ Step / 世代で経過時間だけを増やしても入力が失効しないこと、全体操作の権限・状態遷移・NoOp・終了後の拒否、Step 不一致でも有効な全体操作を受理することをテストする。
+
+工程2では、v3 の通常入力4種、全体操作の権限・状態検証、input / command epoch、同期 ACK、容量前 barrier、Outcome と共有状態の同時保存、process recovery を接続した。Pose の admission・最新値保持・Anchor 投影は残し、server の Gesture / Zone 認識と cooldown を削除した。Control Plane の callback / completion / bootstrap は v3 checkpoint と byte 上限を検証する。Step 選択の復元本体は工程4に残り、現時点では `STEP_NOT_REACHED`、終了後は `SESSION_ENDED` で拒否する。
+
+検証は変更した Realtime の auth / protocol / persistence / runtimecore / gRPC / composition root に限定した test・race と、Go vet / lint、Control Plane の関連テスト、OpenAPI / C# consumer 生成 drift 検査を通した。`pnpm --filter @unframe/control-plane run typecheck` は工程5の Core 未移行に由来する既知23件で失敗する。旧 Compiler の Delivery fixture、Unity / Quest、repository 全体の test / build は未検証であり、一括切替はまだ完了していない。
 
 ### 3. Pause と Anchor の共有表示を実装する
 

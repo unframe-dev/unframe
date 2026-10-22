@@ -31,7 +31,7 @@ func newV2LifecycleConnection(t *testing.T, initiallyPaused bool, sendGate func(
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	c.controlInput <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}
+	c.controlInput <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}
 	controlStream := &v2LeaseStream[realtimev2.ControlClientItem, realtimev2.ControlServerItem]{ctx: ctx, receive: func() (*realtimev2.ControlClientItem, error) {
 		select {
 		case item := <-c.controlInput:
@@ -79,7 +79,7 @@ func newV2LifecycleConnection(t *testing.T, initiallyPaused bool, sendGate func(
 		}
 	}
 	stateInput := make(chan *realtimev2.StateClientItem, 1)
-	stateInput <- &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, StateConnectionNonce: nonce.Nonce}}}
+	stateInput <- &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, StateConnectionNonce: nonce.Nonce}}}
 	stateStream := &v2LeaseStream[realtimev2.StateClientItem, realtimev2.StateServerItem]{ctx: ctx, receive: func() (*realtimev2.StateClientItem, error) {
 		select {
 		case item := <-stateInput:
@@ -119,7 +119,7 @@ func newV2LifecycleConnection(t *testing.T, initiallyPaused bool, sendGate func(
 
 func (c *v2LifecycleConnection) runtimeControl(t *testing.T, id string, kind realtimev2.RuntimeControlKind) {
 	t.Helper()
-	if _, _, err := c.service.runtime.RuntimeControl(context.Background(), c.identity, &realtimev2.RuntimeControlCommand{ClientEventId: id, PresentationOriginVersion: c.service.runtime.Snapshot().PresentationOrigin.Version, Kind: kind}); err != nil {
+	if _, _, err := c.service.runtime.RuntimeControl(context.Background(), c.identity, &realtimev2.RuntimeControlCommand{ClientEventId: v3TestEventID(c.service.runtime.InputSynchronization().CommandEpoch, id), CommandEpoch: c.service.runtime.InputSynchronization().CommandEpoch, PresentationOriginVersion: c.service.runtime.Snapshot().PresentationOrigin.Version, Kind: kind}); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -48,15 +48,15 @@ func TestV2StateRejectsTrackingAfterAssignmentRevoke(t *testing.T) {
 }
 
 func runV2TrackingGateTest(t *testing.T, readyThenRevoke, receiveFirst bool) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-1","stage":{"zones":{"zone":{"id":"zone","owner":{"kind":"presentation"},"center":[0,0,0],"size":[2,2,2]}}},"scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"enter","priority":1,"order":0,"trigger":{"kind":"zoneEdge","subject":{"kind":"participant","owner":{"kind":"presenter"}},"zoneId":"zone","edge":"enter"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","stage":{"zones":{"zone":{"id":"zone","owner":{"kind":"presentation"},"center":[0,0,0]}}},"scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"enter","priority":1,"order":0,"trigger":{"kind":"zoneEdge","actor":{"kind":"presenter"},"zoneId":"zone","edge":"enter"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
-	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 2}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 2, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}}
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 3}
 	guard := &revocableV2TrackingAssignment{}
 	service, err := NewV2Service(runtime, bootstrap, v2TestProjection{persistencehttp.RuntimeProjection{Role: "presenter", Profile: profile}}, testIdentityResolver{identity}, guard)
 	if err != nil {
@@ -79,11 +79,11 @@ func runV2TrackingGateTest(t *testing.T, readyThenRevoke, receiveFirst bool) {
 		}
 	})
 	client := realtimev2.NewRealtimeServiceClient(conn)
-	control, err := client.ConnectControl(ctx)
+	control, err := v3TestConnectControl(ctx, client)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}); err != nil {
+	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}); err != nil {
 		t.Fatal(err)
 	}
 	connected, err := control.Recv()
@@ -102,7 +102,7 @@ func runV2TrackingGateTest(t *testing.T, readyThenRevoke, receiveFirst bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connected.GetConnected().ConnectionId, StateConnectionNonce: nonce.GetStateConnectionNonce().Nonce}}}); err != nil {
+	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connected.GetConnected().ConnectionId, StateConnectionNonce: nonce.GetStateConnectionNonce().Nonce}}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := state.Recv(); err != nil {
@@ -120,6 +120,7 @@ func runV2TrackingGateTest(t *testing.T, readyThenRevoke, receiveFirst bool) {
 	}
 	pose := &presentationv2.Pose{Position: &presentationv2.Vector3{}, Rotation: &presentationv2.Quaternion{W: 1}}
 	if readyThenRevoke {
+		v3TestReady(t, runtime, identity)
 		outside := &presentationv2.Pose{Position: &presentationv2.Vector3{X: 2}, Rotation: &presentationv2.Quaternion{W: 1}}
 		seed := &realtimev2.TrackingFrame{FrameSequence: 1, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: outside, PositionAvailable: true, RotationAvailable: true}}}
 		if _, _, err := runtime.AcceptTracking(ctx, identity, seed, time.Now(), 1); err != nil {
@@ -149,8 +150,22 @@ func runV2TrackingGateTest(t *testing.T, readyThenRevoke, receiveFirst bool) {
 	if readyThenRevoke {
 		want = codes.FailedPrecondition
 	}
-	if status.Code(err) != want || runtime.Snapshot().ReliableSequence != cut {
+	if status.Code(err) != want {
 		t.Fatalf("pre-ready tracking error=%v cut=%#v", err, runtime.Snapshot())
+	}
+	if !readyThenRevoke && runtime.Snapshot().ReliableSequence != cut {
+		t.Fatal("pre-ready tracking changed canonical state")
+	}
+	if readyThenRevoke {
+		events, err := runtime.Replay(cut)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, event := range events {
+			if event.GetParticipantPresenceChanged() == nil && event.GetRuntimeStatusChanged().GetPaused() == nil {
+				t.Fatalf("revoked tracking produced a Runtime event: %v", event)
+			}
+		}
 	}
 	wantReason := "handshake_order_invalid"
 	if readyThenRevoke {

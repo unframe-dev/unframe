@@ -40,15 +40,15 @@ func (p v2TestProjection) Projection(context.Context, persistencehttp.Projection
 }
 
 func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
-	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 2}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 2, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}}
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 3}
 	service, err := NewV2Service(runtime, bootstrap, v2TestProjection{persistencehttp.RuntimeProjection{Role: "presenter", Profile: profile}}, testIdentityResolver{identity}, allowAllAssignment{})
 	if err != nil {
 		t.Fatal(err)
@@ -66,11 +66,11 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 	}
 	defer func() { _ = connection.Close() }()
 	client := realtimev2.NewRealtimeServiceClient(connection)
-	control, err := client.ConnectControl(ctx)
+	control, err := v3TestConnectControl(ctx, client)
 	if err != nil {
 		t.Fatal(err)
 	}
-	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}
+	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}
 	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: handshake}}); err != nil {
 		t.Fatal(err)
 	}
@@ -90,14 +90,14 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectedItem.GetConnected().ConnectionId, StateConnectionNonce: nonceItem.GetStateConnectionNonce().Nonce}}}); err != nil {
+	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectedItem.GetConnected().ConnectionId, StateConnectionNonce: nonceItem.GetStateConnectionNonce().Nonce}}}); err != nil {
 		t.Fatal(err)
 	}
 	stateConnected, err := state.Recv()
 	if err != nil || stateConnected.GetConnected() == nil {
 		t.Fatalf("state connected = %#v, error = %v", stateConnected, err)
 	}
-	if _, _, err := runtime.LogicalInput(identity, &realtimev2.LogicalInputCommand{ClientEventId: "concurrent-1", LogicalEventName: "next"}); err != nil {
+	if _, _, err := v3TestLogicalInput(t, runtime, identity, "concurrent-1", "next"); err != nil {
 		t.Fatal(err)
 	}
 	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_StateReady{StateReady: &realtimev2.StateReady{AppliedReliableSequence: snapshotItem.GetConnectionSnapshot().ReliableSequence, PresentationOriginVersion: snapshotItem.GetConnectionSnapshot().Snapshot.RuntimeView.PresentationOrigin.Version}}}); err != nil {
@@ -123,11 +123,11 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 			break
 		}
 	}
-	resumeControl, err := client.ConnectControl(ctx)
+	resumeControl, err := v3TestConnectControl(ctx, client)
 	if err != nil {
 		t.Fatal(err)
 	}
-	resumeHandshake := &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, Resume: &realtimev2.ResumeCursor{PriorConnectionId: connectedItem.GetConnected().ConnectionId, AppliedReliableSequence: snapshotItem.GetConnectionSnapshot().ReliableSequence, Fence: snapshotItem.GetConnectionSnapshot().Fence}}
+	resumeHandshake := &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, Resume: &realtimev2.ResumeCursor{PriorConnectionId: connectedItem.GetConnected().ConnectionId, AppliedReliableSequence: snapshotItem.GetConnectionSnapshot().ReliableSequence, Fence: snapshotItem.GetConnectionSnapshot().Fence}}
 	if err := resumeControl.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: resumeHandshake}}); err != nil {
 		t.Fatal(err)
 	}
@@ -157,15 +157,15 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 }
 
 func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"variable.set","variableId":"private-score","value":{"kind":"literal","value":2}}],"next":{"kind":"stay"}}]}}}},"variables":{"private-score":{"id":"private-score","type":"number","owner":{"kind":"presentation"},"initialValue":1}},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"variable.set","variableId":"private-score","value":{"kind":"literal","value":2}}],"next":{"kind":"stay"}}]}}}},"variables":{"private-score":{"id":"private-score","type":"number","owner":{"kind":"presentation"},"initialValue":1}},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "viewer-profile", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_VIEWER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
-	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 2}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "viewer-profile", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 2, Role: presentationv2.SessionRole_SESSION_ROLE_VIEWER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}}
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 3}
 	service, err := NewV2Service(runtime, bootstrap, v2TestProjection{persistencehttp.RuntimeProjection{Role: "viewer", Profile: profile}}, testIdentityResolver{identity}, allowAllAssignment{})
 	if err != nil {
 		t.Fatal(err)
@@ -182,11 +182,11 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 		t.Fatal(err)
 	}
 	defer func() { _ = connection.Close() }()
-	control, err := realtimev2.NewRealtimeServiceClient(connection).ConnectControl(ctx)
+	control, err := v3TestConnectControl(ctx, realtimev2.NewRealtimeServiceClient(connection))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}); err != nil {
+	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}); err != nil {
 		t.Fatal(err)
 	}
 	connected, err := control.Recv()
@@ -203,7 +203,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 	}
 	presenter := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
 	for _, id := range []string{"first", "second"} {
-		if _, _, err := runtime.LogicalInput(presenter, &realtimev2.LogicalInputCommand{ClientEventId: id, LogicalEventName: "next"}); err != nil {
+		if _, _, err := v3TestLogicalInput(t, runtime, presenter, id, "next"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -227,7 +227,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connected.GetConnected().ConnectionId, StateConnectionNonce: nonce.GetStateConnectionNonce().Nonce}}}); err != nil {
+	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connected.GetConnected().ConnectionId, StateConnectionNonce: nonce.GetStateConnectionNonce().Nonce}}}); err != nil {
 		t.Fatal(err)
 	}
 	if item, err := state.Recv(); err != nil || item.GetConnected() == nil {
@@ -248,11 +248,11 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 			break
 		}
 	}
-	resume, err := realtimev2.NewRealtimeServiceClient(connection).ConnectControl(ctx)
+	resume, err := v3TestConnectControl(ctx, realtimev2.NewRealtimeServiceClient(connection))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := resume.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, Resume: &realtimev2.ResumeCursor{PriorConnectionId: connected.GetConnected().ConnectionId, AppliedReliableSequence: 6, Fence: snapshot.GetConnectionSnapshot().Fence}}}}); err != nil {
+	if err := resume.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, Resume: &realtimev2.ResumeCursor{PriorConnectionId: connected.GetConnected().ConnectionId, AppliedReliableSequence: 6, Fence: snapshot.GetConnectionSnapshot().Fence}}}}); err != nil {
 		t.Fatal(err)
 	}
 	resumeConnected, err := resume.Recv()
@@ -279,7 +279,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 			break
 		}
 	}
-	if _, _, err := runtime.LogicalInput(presenter, &realtimev2.LogicalInputCommand{ClientEventId: "third", LogicalEventName: "next"}); err != nil {
+	if _, _, err := v3TestLogicalInput(t, runtime, presenter, "third", "next"); err != nil {
 		t.Fatal(err)
 	}
 	for range 2 {
@@ -291,7 +291,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := resumeState.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: resumeConnected.GetConnected().ConnectionId, StateConnectionNonce: nonce.GetStateConnectionNonce().Nonce}}}); err != nil {
+	if err := resumeState.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: resumeConnected.GetConnected().ConnectionId, StateConnectionNonce: nonce.GetStateConnectionNonce().Nonce}}}); err != nil {
 		t.Fatal(err)
 	}
 	if item, err := resumeState.Recv(); err != nil || item.GetConnected() == nil {

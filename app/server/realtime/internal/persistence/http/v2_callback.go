@@ -30,7 +30,7 @@ func (c *Client) CheckpointEnvelope(ctx context.Context, envelope *realtimev2.Du
 		PresentationRevision: presentationRevision,
 		Version:              envelope.CheckpointSequence,
 		LastSequence:         envelope.ReliableSequence,
-		IdempotencyKey:       fmt.Sprintf("v2-checkpoint:%d:%s", envelope.CheckpointSequence, envelope.CanonicalSnapshotHash),
+		IdempotencyKey:       fmt.Sprintf("v3-checkpoint:%d:%s", envelope.CheckpointSequence, envelope.CanonicalSnapshotHash),
 		Payload:              json.RawMessage(materialized),
 	})
 }
@@ -51,7 +51,7 @@ func (c *Client) CompleteEnvelope(ctx context.Context, envelope *realtimev2.Dura
 		PresentationRevision: presentationRevision,
 		CheckpointVersion:    envelope.CheckpointSequence,
 		LastSequence:         envelope.ReliableSequence,
-		IdempotencyKey:       fmt.Sprintf("v2-completion:%d:%s", envelope.CheckpointSequence, envelope.CanonicalSnapshotHash),
+		IdempotencyKey:       fmt.Sprintf("v3-completion:%d:%s", envelope.CheckpointSequence, envelope.CanonicalSnapshotHash),
 		StartedAt:            startedAt,
 		EndedAt:              endedAt,
 		ParticipantCount:     uint32(len(participants)),
@@ -61,10 +61,7 @@ func (c *Client) CompleteEnvelope(ctx context.Context, envelope *realtimev2.Dura
 }
 
 func validCheckpointEnvelope(envelope *realtimev2.DurableCheckpointEnvelope) bool {
-	if envelope == nil || envelope.SchemaVersion != 2 || envelope.CheckpointSequence == 0 || protocolv2.ValidateMessage(envelope) != nil {
-		return false
-	}
-	if _, err := protocolv2.DecodeRecoveryMetadata(envelope); err != nil {
+	if envelope == nil || envelope.SchemaVersion != 3 || envelope.CheckpointSequence == 0 || protocolv2.ValidateMessage(envelope) != nil {
 		return false
 	}
 	digest := sha256.Sum256(envelope.CanonicalSnapshotPayload)
@@ -72,7 +69,7 @@ func validCheckpointEnvelope(envelope *realtimev2.DurableCheckpointEnvelope) boo
 		return false
 	}
 	snapshot := &realtimev2.CanonicalRuntimeSnapshot{}
-	return proto.Unmarshal(envelope.CanonicalSnapshotPayload, snapshot) == nil && snapshot.ReliableSequence == envelope.ReliableSequence && protocolv2.ValidateMessage(snapshot) == nil
+	return proto.Unmarshal(envelope.CanonicalSnapshotPayload, snapshot) == nil && snapshot.ReliableSequence == envelope.ReliableSequence && protocolv2.ValidateCheckpointCut(envelope, snapshot) == nil
 }
 
 func runtimeKind(kind realtimev2.RuntimeKind) assignment.RuntimeKind {

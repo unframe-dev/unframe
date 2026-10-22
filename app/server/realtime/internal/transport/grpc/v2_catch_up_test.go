@@ -16,7 +16,7 @@ import (
 )
 
 func TestSnapshotCatchUpReplacesOverflowedCut(t *testing.T) {
-	core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":2,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
+	core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":3,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestSnapshotCatchUpStopsAtAttemptAndTimeLimits(t *testing.T) {
 		startTimeout bool
 	}{{name: "attempts", overflow: true}, {name: "preparation timeout"}, {name: "delivery timeout", startTimeout: true}} {
 		t.Run(test.name, func(t *testing.T) {
-			core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":2,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
+			core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":3,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -131,7 +131,7 @@ func TestV2ControlCatchUpAtSnapshotSend(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			assignments := &catchUpDeliveryAssignment{}
 			service, profile := newV2LeaseTestService(t, assignments)
-			handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}
+			handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}
 			var priorConnection string
 			var resumeCursor *realtimev2.ResumeCursor
 			if test.resume {

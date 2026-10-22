@@ -9,7 +9,7 @@ import (
 )
 
 func TestCapabilityNegotiation(t *testing.T) {
-	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}}
+	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, 8, 9, 10}}
 	if err := NegotiateControl(handshake, handshake.SupportedCapabilities); err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestCapabilityNegotiation(t *testing.T) {
 func TestProjectedViewRejectsUnreachableSurfaceState(t *testing.T) {
 	canonical := snapshotFixture()
 	view := &realtimev2.ParticipantRuntimeView{ProjectionProfileId: "profile", AssignmentEpoch: 1, BaseReliableSequence: 3, Progression: canonical.Progression, Clock: canonical.Clock, PresentationOrigin: canonical.PresentationOrigin, SurfaceStates: []*realtimev2.SurfaceRuntimeState{{SurfaceId: "surface", StateId: "state"}}}
-	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2, Surfaces: []*presentationv2.ProjectedSurfaceDefinition{{SurfaceId: "surface", HostNodeId: "host", ReachableStateIds: []string{"state"}, PhysicalSizeMeters: &presentationv2.Vector2{X: 1, Y: 1}, LogicalSize: &presentationv2.Vector2{X: 1, Y: 1}, Fit: presentationv2.SurfaceFit_SURFACE_FIT_CONTAIN, Owner: &presentationv2.ResourceOwner{Scope: &presentationv2.ResourceOwner_Presentation{Presentation: &presentationv2.PresentationResourceOwner{}}}}}}
+	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3, Surfaces: []*presentationv2.ProjectedSurfaceDefinition{{SurfaceId: "surface", HostNodeId: "host", ReachableStateIds: []string{"state"}, PhysicalSizeMeters: &presentationv2.Vector2{X: 1, Y: 1}, LogicalSize: &presentationv2.Vector2{X: 1, Y: 1}, Fit: presentationv2.SurfaceFit_SURFACE_FIT_CONTAIN, Owner: &presentationv2.ResourceOwner{Scope: &presentationv2.ResourceOwner_Presentation{Presentation: &presentationv2.PresentationResourceOwner{}}}}}}
 	if err := ValidateProjectedView(view, catalog); err != nil {
 		t.Fatal(err)
 	}
@@ -48,19 +48,19 @@ func connectionFixture(t *testing.T) *ConnectionCursor {
 	t.Helper()
 	canonical := snapshotFixture()
 	fence := &presentationv2.RuntimeProjectionFence{SessionId: "session", Publication: publication(), AssignmentEpoch: 1, ProjectionProfileId: "profile", PresentationOriginVersion: 0}
-	snapshot := &realtimev2.ConnectionSnapshotEnvelope{SchemaVersion: 2, ConnectionId: "connection", Fence: fence, ProjectionInstance: &presentationv2.ProjectionInstance{ProjectionProfileId: "profile", ParticipantId: "presenter", AssignmentEpoch: 1}, PresenceAtCut: &realtimev2.ProjectedPresenceState{}, ReliableSequence: 3, Snapshot: &realtimev2.ProjectedRuntimeSnapshot{ProjectionProfileId: "profile", AssignmentEpoch: 1, ReliableSequence: 3, RuntimeView: &realtimev2.ParticipantRuntimeView{ProjectionProfileId: "profile", AssignmentEpoch: 1, BaseReliableSequence: 3, Progression: canonical.Progression, Clock: canonical.Clock, PresentationOrigin: canonical.PresentationOrigin}}}
+	snapshot := &realtimev2.ConnectionSnapshotEnvelope{SchemaVersion: 3, ConnectionId: "connection", Fence: fence, ProjectionInstance: &presentationv2.ProjectionInstance{ProjectionProfileId: "profile", ParticipantId: "presenter", AssignmentEpoch: 1}, PresenceAtCut: &realtimev2.ProjectedPresenceState{}, ReliableSequence: 3, Snapshot: &realtimev2.ProjectedRuntimeSnapshot{ProjectionProfileId: "profile", AssignmentEpoch: 1, ReliableSequence: 3, RuntimeView: &realtimev2.ParticipantRuntimeView{ProjectionProfileId: "profile", AssignmentEpoch: 1, BaseReliableSequence: 3, Progression: canonical.Progression, Clock: canonical.Clock, PresentationOrigin: canonical.PresentationOrigin}}}
 	invalidView := proto.Clone(snapshot).(*realtimev2.ConnectionSnapshotEnvelope)
 	invalidView.Snapshot.RuntimeView.NodeStates = []*realtimev2.NodeRuntimeState{{NodeId: "hidden", Active: true, Visible: true, Opacity: 1, Transform: &presentationv2.Transform{Position: &presentationv2.Vector3{}, Rotation: &presentationv2.Quaternion{W: 1}, Scale: &presentationv2.Vector3{X: 1, Y: 1, Z: 1}}}}
-	if _, err := NewConnectionCursor(invalidView, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}); err == nil {
+	if _, err := NewConnectionCursor(invalidView, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}); err == nil {
 		t.Fatal("profile-external snapshot state admitted")
 	}
-	cursor, err := NewConnectionCursor(snapshot, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2})
+	cursor, err := NewConnectionCursor(snapshot, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
 	bad := proto.Clone(snapshot).(*realtimev2.ConnectionSnapshotEnvelope)
 	bad.Snapshot.RuntimeView.PresentationOrigin.Version = 1
-	if _, err := NewConnectionCursor(bad, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}); err == nil {
+	if _, err := NewConnectionCursor(bad, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}); err == nil {
 		t.Fatal("snapshot origin mismatch admitted")
 	}
 	return cursor

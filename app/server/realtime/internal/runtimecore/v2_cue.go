@@ -55,27 +55,7 @@ func (s *V2Session) applySelectedV2Cue(cue v2Cue, causeEventID string) ([]*realt
 		return nil, rejection, err
 	}
 	blocking = append(blocking, modelBlocking...)
-	if cue.FirePolicy.Kind == "repeatable" && next.Clock.RuntimeTimeMs > math.MaxUint64-cue.FirePolicy.CooldownMilliseconds {
-		return nil, nil, ErrV2RuntimeDefinition
-	}
 	s.snapshot = next
-	if cue.FirePolicy.Kind == "repeatable" {
-		deadline := next.Clock.RuntimeTimeMs + cue.FirePolicy.CooldownMilliseconds
-		found := false
-		for _, cooldown := range next.StepExecution.Cooldowns {
-			if cooldown.CueId == cue.ID {
-				cooldown.NextEligibleRuntimeTimeMs = deadline
-				found = true
-				break
-			}
-		}
-		if !found {
-			next.StepExecution.Cooldowns = append(next.StepExecution.Cooldowns, &realtimev2.CueCooldown{CueId: cue.ID, NextEligibleRuntimeTimeMs: deadline})
-		}
-		sort.Slice(next.StepExecution.Cooldowns, func(i, j int) bool {
-			return next.StepExecution.Cooldowns[i].CueId < next.StepExecution.Cooldowns[j].CueId
-		})
-	}
 	if cue.FirePolicy.Kind == "oncePerStepEntry" {
 		s.snapshot.StepExecution.ConsumedCueIds = append(s.snapshot.StepExecution.ConsumedCueIds, cue.ID)
 		sort.Strings(s.snapshot.StepExecution.ConsumedCueIds)
@@ -142,6 +122,9 @@ func (s *V2Session) enterV2Step(targetID string) (*realtimev2.ProjectedReliableE
 	s.snapshot.Progression.StepEnteredAtRuntimeTimeMs = s.snapshot.Clock.RuntimeTimeMs
 	s.snapshot.StepExecution = &realtimev2.StepExecutionSnapshot{StepEntryEpoch: s.snapshot.Progression.StepEntryEpoch}
 	if err := s.armV2StepTimers(); err != nil {
+		return nil, err
+	}
+	if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED, false); err != nil {
 		return nil, err
 	}
 	return &realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_StepEntered{StepEntered: &realtimev2.StepEntered{GroupId: s.snapshot.Progression.CurrentGroupId, GroupEntryEpoch: s.snapshot.Progression.GroupEntryEpoch, StepId: targetID, StepEntryEpoch: s.snapshot.Progression.StepEntryEpoch, EnteredAtRuntimeTimeMs: s.snapshot.Clock.RuntimeTimeMs}}}, nil
@@ -259,11 +242,6 @@ func (s *V2Session) fireV2ModelCompleted(nodeID, clipID, causeEventID string) ([
 func v2CueEligible(cue v2Cue, snapshot *realtimev2.CanonicalRuntimeSnapshot) bool {
 	if cue.FirePolicy.Kind == "oncePerStepEntry" {
 		return !containsV2(snapshot.StepExecution.ConsumedCueIds, cue.ID)
-	}
-	for _, cooldown := range snapshot.StepExecution.Cooldowns {
-		if cooldown.CueId == cue.ID && snapshot.Clock.RuntimeTimeMs < cooldown.NextEligibleRuntimeTimeMs {
-			return false
-		}
 	}
 	return true
 }
