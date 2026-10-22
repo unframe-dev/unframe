@@ -38,6 +38,7 @@ jobs:
       control-plane: ${{ steps.filter.outputs.control-plane }}
       realtime: ${{ steps.filter.outputs.realtime }}
       web: ${{ steps.filter.outputs.web }}
+      audience: ${{ steps.filter.outputs.audience }}
       presentation: ${{ steps.filter.outputs.presentation }}
       lp: ${{ steps.filter.outputs.lp }}
       unity: ${{ steps.filter.outputs.unity }}
@@ -84,6 +85,11 @@ jobs:
               - 'scripts/ci/web.sh'
               - 'app/web/**'
               - 'packages/api-client-typescript/**'
+            audience:
+              - *shared
+              - *js-shared
+              - ".github/workflows/audience.yml"
+              - "app/audience/**"
             presentation:
               - *shared
               - *js-shared
@@ -125,6 +131,12 @@ jobs:
     if: needs.changes.outputs.web == 'true'
     uses: ./.github/workflows/web.yml
 
+  audience:
+    name: Audience
+    needs: changes
+    if: needs.changes.outputs.audience == 'true'
+    uses: ./.github/workflows/audience.yml
+
   presentation:
     name: Presentation Packages
     needs: changes
@@ -146,7 +158,7 @@ jobs:
   ci:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
-    needs: [changes, control-plane, realtime, web, presentation, lp, unity]
+    needs: [changes, control-plane, realtime, web, audience, presentation, lp, unity]
     if: always()
     runs-on: ubuntu-latest
     steps:
