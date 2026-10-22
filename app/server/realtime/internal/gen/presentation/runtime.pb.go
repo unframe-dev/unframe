@@ -452,6 +452,128 @@ func (SurfaceFit) EnumDescriptor() ([]byte, []int) {
 	return file_unframe_presentation_runtime_proto_rawDescGZIP(), []int{7}
 }
 
+type MotionGuidePreset int32
+
+const (
+	MotionGuidePreset_MOTION_GUIDE_PRESET_UNSPECIFIED   MotionGuidePreset = 0
+	MotionGuidePreset_MOTION_GUIDE_PRESET_SWIPE_LEFT    MotionGuidePreset = 1
+	MotionGuidePreset_MOTION_GUIDE_PRESET_SWIPE_RIGHT   MotionGuidePreset = 2
+	MotionGuidePreset_MOTION_GUIDE_PRESET_SWIPE_DOWN    MotionGuidePreset = 3
+	MotionGuidePreset_MOTION_GUIDE_PRESET_SWIPE_UP      MotionGuidePreset = 4
+	MotionGuidePreset_MOTION_GUIDE_PRESET_PUSH_FORWARD  MotionGuidePreset = 5
+	MotionGuidePreset_MOTION_GUIDE_PRESET_PULL_BACKWARD MotionGuidePreset = 6
+	MotionGuidePreset_MOTION_GUIDE_PRESET_SPREAD_HANDS  MotionGuidePreset = 7
+	MotionGuidePreset_MOTION_GUIDE_PRESET_CLOSE_HANDS   MotionGuidePreset = 8
+)
+
+// Enum value maps for MotionGuidePreset.
+var (
+	MotionGuidePreset_name = map[int32]string{
+		0: "MOTION_GUIDE_PRESET_UNSPECIFIED",
+		1: "MOTION_GUIDE_PRESET_SWIPE_LEFT",
+		2: "MOTION_GUIDE_PRESET_SWIPE_RIGHT",
+		3: "MOTION_GUIDE_PRESET_SWIPE_DOWN",
+		4: "MOTION_GUIDE_PRESET_SWIPE_UP",
+		5: "MOTION_GUIDE_PRESET_PUSH_FORWARD",
+		6: "MOTION_GUIDE_PRESET_PULL_BACKWARD",
+		7: "MOTION_GUIDE_PRESET_SPREAD_HANDS",
+		8: "MOTION_GUIDE_PRESET_CLOSE_HANDS",
+	}
+	MotionGuidePreset_value = map[string]int32{
+		"MOTION_GUIDE_PRESET_UNSPECIFIED":   0,
+		"MOTION_GUIDE_PRESET_SWIPE_LEFT":    1,
+		"MOTION_GUIDE_PRESET_SWIPE_RIGHT":   2,
+		"MOTION_GUIDE_PRESET_SWIPE_DOWN":    3,
+		"MOTION_GUIDE_PRESET_SWIPE_UP":      4,
+		"MOTION_GUIDE_PRESET_PUSH_FORWARD":  5,
+		"MOTION_GUIDE_PRESET_PULL_BACKWARD": 6,
+		"MOTION_GUIDE_PRESET_SPREAD_HANDS":  7,
+		"MOTION_GUIDE_PRESET_CLOSE_HANDS":   8,
+	}
+)
+
+func (x MotionGuidePreset) Enum() *MotionGuidePreset {
+	p := new(MotionGuidePreset)
+	*p = x
+	return p
+}
+
+func (x MotionGuidePreset) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MotionGuidePreset) Descriptor() protoreflect.EnumDescriptor {
+	return file_unframe_presentation_runtime_proto_enumTypes[8].Descriptor()
+}
+
+func (MotionGuidePreset) Type() protoreflect.EnumType {
+	return &file_unframe_presentation_runtime_proto_enumTypes[8]
+}
+
+func (x MotionGuidePreset) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MotionGuidePreset.Descriptor instead.
+func (MotionGuidePreset) EnumDescriptor() ([]byte, []int) {
+	return file_unframe_presentation_runtime_proto_rawDescGZIP(), []int{8}
+}
+
+type MotionGuideHand int32
+
+const (
+	MotionGuideHand_MOTION_GUIDE_HAND_UNSPECIFIED MotionGuideHand = 0
+	MotionGuideHand_MOTION_GUIDE_HAND_EITHER      MotionGuideHand = 1
+	MotionGuideHand_MOTION_GUIDE_HAND_LEFT        MotionGuideHand = 2
+	MotionGuideHand_MOTION_GUIDE_HAND_RIGHT       MotionGuideHand = 3
+	MotionGuideHand_MOTION_GUIDE_HAND_BOTH        MotionGuideHand = 4
+)
+
+// Enum value maps for MotionGuideHand.
+var (
+	MotionGuideHand_name = map[int32]string{
+		0: "MOTION_GUIDE_HAND_UNSPECIFIED",
+		1: "MOTION_GUIDE_HAND_EITHER",
+		2: "MOTION_GUIDE_HAND_LEFT",
+		3: "MOTION_GUIDE_HAND_RIGHT",
+		4: "MOTION_GUIDE_HAND_BOTH",
+	}
+	MotionGuideHand_value = map[string]int32{
+		"MOTION_GUIDE_HAND_UNSPECIFIED": 0,
+		"MOTION_GUIDE_HAND_EITHER":      1,
+		"MOTION_GUIDE_HAND_LEFT":        2,
+		"MOTION_GUIDE_HAND_RIGHT":       3,
+		"MOTION_GUIDE_HAND_BOTH":        4,
+	}
+)
+
+func (x MotionGuideHand) Enum() *MotionGuideHand {
+	p := new(MotionGuideHand)
+	*p = x
+	return p
+}
+
+func (x MotionGuideHand) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MotionGuideHand) Descriptor() protoreflect.EnumDescriptor {
+	return file_unframe_presentation_runtime_proto_enumTypes[9].Descriptor()
+}
+
+func (MotionGuideHand) Type() protoreflect.EnumType {
+	return &file_unframe_presentation_runtime_proto_enumTypes[9]
+}
+
+func (x MotionGuideHand) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MotionGuideHand.Descriptor instead.
+func (MotionGuideHand) EnumDescriptor() ([]byte, []int) {
+	return file_unframe_presentation_runtime_proto_rawDescGZIP(), []int{9}
+}
+
 type PublicationFence struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	PresentationId          string                 `protobuf:"bytes,1,opt,name=presentation_id,json=presentationId,proto3" json:"presentation_id,omitempty"`
@@ -3428,21 +3550,116 @@ func (x *ProjectedModelClipDefinition) GetOwner() *ResourceOwner {
 	return nil
 }
 
+// Presenter-only candidates for the active group and step. This metadata does
+// not assert guard eligibility or authorize local Cue execution.
+type ProjectedMotionGuideDefinition struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	GroupId               string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	StepId                string                 `protobuf:"bytes,2,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	CueId                 string                 `protobuf:"bytes,3,opt,name=cue_id,json=cueId,proto3" json:"cue_id,omitempty"`
+	Preset                MotionGuidePreset      `protobuf:"varint,4,opt,name=preset,proto3,enum=unframe.presentation.MotionGuidePreset" json:"preset,omitempty"`
+	Hand                  MotionGuideHand        `protobuf:"varint,5,opt,name=hand,proto3,enum=unframe.presentation.MotionGuideHand" json:"hand,omitempty"`
+	MinimumDistanceMeters float64                `protobuf:"fixed64,6,opt,name=minimum_distance_meters,json=minimumDistanceMeters,proto3" json:"minimum_distance_meters,omitempty"`
+	WindowMs              uint64                 `protobuf:"varint,7,opt,name=window_ms,json=windowMs,proto3" json:"window_ms,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *ProjectedMotionGuideDefinition) Reset() {
+	*x = ProjectedMotionGuideDefinition{}
+	mi := &file_unframe_presentation_runtime_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectedMotionGuideDefinition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectedMotionGuideDefinition) ProtoMessage() {}
+
+func (x *ProjectedMotionGuideDefinition) ProtoReflect() protoreflect.Message {
+	mi := &file_unframe_presentation_runtime_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectedMotionGuideDefinition.ProtoReflect.Descriptor instead.
+func (*ProjectedMotionGuideDefinition) Descriptor() ([]byte, []int) {
+	return file_unframe_presentation_runtime_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *ProjectedMotionGuideDefinition) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *ProjectedMotionGuideDefinition) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *ProjectedMotionGuideDefinition) GetCueId() string {
+	if x != nil {
+		return x.CueId
+	}
+	return ""
+}
+
+func (x *ProjectedMotionGuideDefinition) GetPreset() MotionGuidePreset {
+	if x != nil {
+		return x.Preset
+	}
+	return MotionGuidePreset_MOTION_GUIDE_PRESET_UNSPECIFIED
+}
+
+func (x *ProjectedMotionGuideDefinition) GetHand() MotionGuideHand {
+	if x != nil {
+		return x.Hand
+	}
+	return MotionGuideHand_MOTION_GUIDE_HAND_UNSPECIFIED
+}
+
+func (x *ProjectedMotionGuideDefinition) GetMinimumDistanceMeters() float64 {
+	if x != nil {
+		return x.MinimumDistanceMeters
+	}
+	return 0
+}
+
+func (x *ProjectedMotionGuideDefinition) GetWindowMs() uint64 {
+	if x != nil {
+		return x.WindowMs
+	}
+	return 0
+}
+
 type ProjectedRuntimeCatalog struct {
-	state                  protoimpl.MessageState          `protogen:"open.v1"`
-	CatalogContractVersion uint32                          `protobuf:"varint,1,opt,name=catalog_contract_version,json=catalogContractVersion,proto3" json:"catalog_contract_version,omitempty"`
-	Nodes                  []*ProjectedNodeDefinition      `protobuf:"bytes,2,rep,name=nodes,proto3" json:"nodes,omitempty"`
-	Surfaces               []*ProjectedSurfaceDefinition   `protobuf:"bytes,3,rep,name=surfaces,proto3" json:"surfaces,omitempty"`
-	Variables              []*ProjectedVariableDefinition  `protobuf:"bytes,4,rep,name=variables,proto3" json:"variables,omitempty"`
-	Timelines              []*ProjectedTimelineDefinition  `protobuf:"bytes,5,rep,name=timelines,proto3" json:"timelines,omitempty"`
-	ModelClips             []*ProjectedModelClipDefinition `protobuf:"bytes,6,rep,name=model_clips,json=modelClips,proto3" json:"model_clips,omitempty"`
+	state                  protoimpl.MessageState            `protogen:"open.v1"`
+	CatalogContractVersion uint32                            `protobuf:"varint,1,opt,name=catalog_contract_version,json=catalogContractVersion,proto3" json:"catalog_contract_version,omitempty"`
+	Nodes                  []*ProjectedNodeDefinition        `protobuf:"bytes,2,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Surfaces               []*ProjectedSurfaceDefinition     `protobuf:"bytes,3,rep,name=surfaces,proto3" json:"surfaces,omitempty"`
+	Variables              []*ProjectedVariableDefinition    `protobuf:"bytes,4,rep,name=variables,proto3" json:"variables,omitempty"`
+	Timelines              []*ProjectedTimelineDefinition    `protobuf:"bytes,5,rep,name=timelines,proto3" json:"timelines,omitempty"`
+	ModelClips             []*ProjectedModelClipDefinition   `protobuf:"bytes,6,rep,name=model_clips,json=modelClips,proto3" json:"model_clips,omitempty"`
+	MotionGuides           []*ProjectedMotionGuideDefinition `protobuf:"bytes,7,rep,name=motion_guides,json=motionGuides,proto3" json:"motion_guides,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ProjectedRuntimeCatalog) Reset() {
 	*x = ProjectedRuntimeCatalog{}
-	mi := &file_unframe_presentation_runtime_proto_msgTypes[46]
+	mi := &file_unframe_presentation_runtime_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3454,7 +3671,7 @@ func (x *ProjectedRuntimeCatalog) String() string {
 func (*ProjectedRuntimeCatalog) ProtoMessage() {}
 
 func (x *ProjectedRuntimeCatalog) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_presentation_runtime_proto_msgTypes[46]
+	mi := &file_unframe_presentation_runtime_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3467,7 +3684,7 @@ func (x *ProjectedRuntimeCatalog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectedRuntimeCatalog.ProtoReflect.Descriptor instead.
 func (*ProjectedRuntimeCatalog) Descriptor() ([]byte, []int) {
-	return file_unframe_presentation_runtime_proto_rawDescGZIP(), []int{46}
+	return file_unframe_presentation_runtime_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ProjectedRuntimeCatalog) GetCatalogContractVersion() uint32 {
@@ -3508,6 +3725,13 @@ func (x *ProjectedRuntimeCatalog) GetTimelines() []*ProjectedTimelineDefinition 
 func (x *ProjectedRuntimeCatalog) GetModelClips() []*ProjectedModelClipDefinition {
 	if x != nil {
 		return x.ModelClips
+	}
+	return nil
+}
+
+func (x *ProjectedRuntimeCatalog) GetMotionGuides() []*ProjectedMotionGuideDefinition {
+	if x != nil {
+		return x.MotionGuides
 	}
 	return nil
 }
@@ -3715,7 +3939,15 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"\x16source_animation_index\x18\x04 \x01(\rR\x14sourceAnimationIndex\x12\x1f\n" +
 	"\vduration_ms\x18\x05 \x01(\x04R\n" +
 	"durationMs\x129\n" +
-	"\x05owner\x18\x06 \x01(\v2#.unframe.presentation.ResourceOwnerR\x05owner\"\xdd\x03\n" +
+	"\x05owner\x18\x06 \x01(\v2#.unframe.presentation.ResourceOwnerR\x05owner\"\xbc\x02\n" +
+	"\x1eProjectedMotionGuideDefinition\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
+	"\astep_id\x18\x02 \x01(\tR\x06stepId\x12\x15\n" +
+	"\x06cue_id\x18\x03 \x01(\tR\x05cueId\x12?\n" +
+	"\x06preset\x18\x04 \x01(\x0e2'.unframe.presentation.MotionGuidePresetR\x06preset\x129\n" +
+	"\x04hand\x18\x05 \x01(\x0e2%.unframe.presentation.MotionGuideHandR\x04hand\x126\n" +
+	"\x17minimum_distance_meters\x18\x06 \x01(\x01R\x15minimumDistanceMeters\x12\x1b\n" +
+	"\twindow_ms\x18\a \x01(\x04R\bwindowMs\"\xb8\x04\n" +
 	"\x17ProjectedRuntimeCatalog\x128\n" +
 	"\x18catalog_contract_version\x18\x01 \x01(\rR\x16catalogContractVersion\x12C\n" +
 	"\x05nodes\x18\x02 \x03(\v2-.unframe.presentation.ProjectedNodeDefinitionR\x05nodes\x12L\n" +
@@ -3723,7 +3955,8 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"\tvariables\x18\x04 \x03(\v21.unframe.presentation.ProjectedVariableDefinitionR\tvariables\x12O\n" +
 	"\ttimelines\x18\x05 \x03(\v21.unframe.presentation.ProjectedTimelineDefinitionR\ttimelines\x12S\n" +
 	"\vmodel_clips\x18\x06 \x03(\v22.unframe.presentation.ProjectedModelClipDefinitionR\n" +
-	"modelClips*`\n" +
+	"modelClips\x12Y\n" +
+	"\rmotion_guides\x18\a \x03(\v24.unframe.presentation.ProjectedMotionGuideDefinitionR\fmotionGuides*`\n" +
 	"\vSessionRole\x12\x1c\n" +
 	"\x18SESSION_ROLE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16SESSION_ROLE_PRESENTER\x10\x01\x12\x17\n" +
@@ -3770,7 +4003,23 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"\x17SURFACE_FIT_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13SURFACE_FIT_CONTAIN\x10\x01\x12\x15\n" +
 	"\x11SURFACE_FIT_COVER\x10\x02\x12\x17\n" +
-	"\x13SURFACE_FIT_STRETCH\x10\x03B[ZYgithub.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation;presentationb\x06proto3"
+	"\x13SURFACE_FIT_STRETCH\x10\x03*\xdf\x02\n" +
+	"\x11MotionGuidePreset\x12#\n" +
+	"\x1fMOTION_GUIDE_PRESET_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eMOTION_GUIDE_PRESET_SWIPE_LEFT\x10\x01\x12#\n" +
+	"\x1fMOTION_GUIDE_PRESET_SWIPE_RIGHT\x10\x02\x12\"\n" +
+	"\x1eMOTION_GUIDE_PRESET_SWIPE_DOWN\x10\x03\x12 \n" +
+	"\x1cMOTION_GUIDE_PRESET_SWIPE_UP\x10\x04\x12$\n" +
+	" MOTION_GUIDE_PRESET_PUSH_FORWARD\x10\x05\x12%\n" +
+	"!MOTION_GUIDE_PRESET_PULL_BACKWARD\x10\x06\x12$\n" +
+	" MOTION_GUIDE_PRESET_SPREAD_HANDS\x10\a\x12#\n" +
+	"\x1fMOTION_GUIDE_PRESET_CLOSE_HANDS\x10\b*\xa7\x01\n" +
+	"\x0fMotionGuideHand\x12!\n" +
+	"\x1dMOTION_GUIDE_HAND_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18MOTION_GUIDE_HAND_EITHER\x10\x01\x12\x1a\n" +
+	"\x16MOTION_GUIDE_HAND_LEFT\x10\x02\x12\x1b\n" +
+	"\x17MOTION_GUIDE_HAND_RIGHT\x10\x03\x12\x1a\n" +
+	"\x16MOTION_GUIDE_HAND_BOTH\x10\x04B[ZYgithub.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation;presentationb\x06proto3"
 
 var (
 	file_unframe_presentation_runtime_proto_rawDescOnce sync.Once
@@ -3784,127 +4033,133 @@ func file_unframe_presentation_runtime_proto_rawDescGZIP() []byte {
 	return file_unframe_presentation_runtime_proto_rawDescData
 }
 
-var file_unframe_presentation_runtime_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_unframe_presentation_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
+var file_unframe_presentation_runtime_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
+var file_unframe_presentation_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
 var file_unframe_presentation_runtime_proto_goTypes = []any{
-	(SessionRole)(0),                     // 0: unframe.presentation.SessionRole
-	(RuntimeCapability)(0),               // 1: unframe.presentation.RuntimeCapability
-	(ScalarType)(0),                      // 2: unframe.presentation.ScalarType
-	(Easing)(0),                          // 3: unframe.presentation.Easing
-	(RunCompletion)(0),                   // 4: unframe.presentation.RunCompletion
-	(TimelineProperty)(0),                // 5: unframe.presentation.TimelineProperty
-	(AnchorTarget)(0),                    // 6: unframe.presentation.AnchorTarget
-	(SurfaceFit)(0),                      // 7: unframe.presentation.SurfaceFit
-	(*PublicationFence)(nil),             // 8: unframe.presentation.PublicationFence
-	(*ProjectionInstance)(nil),           // 9: unframe.presentation.ProjectionInstance
-	(*RuntimeProjectionFence)(nil),       // 10: unframe.presentation.RuntimeProjectionFence
-	(*Vector2)(nil),                      // 11: unframe.presentation.Vector2
-	(*Vector3)(nil),                      // 12: unframe.presentation.Vector3
-	(*Quaternion)(nil),                   // 13: unframe.presentation.Quaternion
-	(*Transform)(nil),                    // 14: unframe.presentation.Transform
-	(*Pose)(nil),                         // 15: unframe.presentation.Pose
-	(*ScalarValue)(nil),                  // 16: unframe.presentation.ScalarValue
-	(*NullScalar)(nil),                   // 17: unframe.presentation.NullScalar
-	(*RuntimeRunId)(nil),                 // 18: unframe.presentation.RuntimeRunId
-	(*RuntimeRunOwner)(nil),              // 19: unframe.presentation.RuntimeRunOwner
-	(*PresentationRunOwner)(nil),         // 20: unframe.presentation.PresentationRunOwner
-	(*GroupRunOwner)(nil),                // 21: unframe.presentation.GroupRunOwner
-	(*RuntimeRunCause)(nil),              // 22: unframe.presentation.RuntimeRunCause
-	(*ResourceOwner)(nil),                // 23: unframe.presentation.ResourceOwner
-	(*PresentationResourceOwner)(nil),    // 24: unframe.presentation.PresentationResourceOwner
-	(*GroupResourceOwner)(nil),           // 25: unframe.presentation.GroupResourceOwner
-	(*TimelineTrackTarget)(nil),          // 26: unframe.presentation.TimelineTrackTarget
-	(*NumberKeyframeValue)(nil),          // 27: unframe.presentation.NumberKeyframeValue
-	(*Vector3KeyframeValue)(nil),         // 28: unframe.presentation.Vector3KeyframeValue
-	(*QuaternionKeyframeValue)(nil),      // 29: unframe.presentation.QuaternionKeyframeValue
-	(*TimelineKeyframe)(nil),             // 30: unframe.presentation.TimelineKeyframe
-	(*ProjectedTimelineTrack)(nil),       // 31: unframe.presentation.ProjectedTimelineTrack
-	(*ProjectedTimelineDefinition)(nil),  // 32: unframe.presentation.ProjectedTimelineDefinition
-	(*ProjectedVariableDefinition)(nil),  // 33: unframe.presentation.ProjectedVariableDefinition
-	(*StageParent)(nil),                  // 34: unframe.presentation.StageParent
-	(*NodeParent)(nil),                   // 35: unframe.presentation.NodeParent
-	(*PresenterAnchorParent)(nil),        // 36: unframe.presentation.PresenterAnchorParent
-	(*SpatialParent)(nil),                // 37: unframe.presentation.SpatialParent
-	(*ContainerNode)(nil),                // 38: unframe.presentation.ContainerNode
-	(*SurfaceNode)(nil),                  // 39: unframe.presentation.SurfaceNode
-	(*ModelNode)(nil),                    // 40: unframe.presentation.ModelNode
-	(*BoxGeometry)(nil),                  // 41: unframe.presentation.BoxGeometry
-	(*SphereGeometry)(nil),               // 42: unframe.presentation.SphereGeometry
-	(*SrgbaColor)(nil),                   // 43: unframe.presentation.SrgbaColor
-	(*SrgbColor)(nil),                    // 44: unframe.presentation.SrgbColor
-	(*UnlitShapeMaterial)(nil),           // 45: unframe.presentation.UnlitShapeMaterial
-	(*ShapeNode)(nil),                    // 46: unframe.presentation.ShapeNode
-	(*DirectionalLight)(nil),             // 47: unframe.presentation.DirectionalLight
-	(*PointLight)(nil),                   // 48: unframe.presentation.PointLight
-	(*SpotLight)(nil),                    // 49: unframe.presentation.SpotLight
-	(*LightNode)(nil),                    // 50: unframe.presentation.LightNode
-	(*ProjectedNodeDefinition)(nil),      // 51: unframe.presentation.ProjectedNodeDefinition
-	(*ProjectedSurfaceDefinition)(nil),   // 52: unframe.presentation.ProjectedSurfaceDefinition
-	(*ProjectedModelClipDefinition)(nil), // 53: unframe.presentation.ProjectedModelClipDefinition
-	(*ProjectedRuntimeCatalog)(nil),      // 54: unframe.presentation.ProjectedRuntimeCatalog
+	(SessionRole)(0),                       // 0: unframe.presentation.SessionRole
+	(RuntimeCapability)(0),                 // 1: unframe.presentation.RuntimeCapability
+	(ScalarType)(0),                        // 2: unframe.presentation.ScalarType
+	(Easing)(0),                            // 3: unframe.presentation.Easing
+	(RunCompletion)(0),                     // 4: unframe.presentation.RunCompletion
+	(TimelineProperty)(0),                  // 5: unframe.presentation.TimelineProperty
+	(AnchorTarget)(0),                      // 6: unframe.presentation.AnchorTarget
+	(SurfaceFit)(0),                        // 7: unframe.presentation.SurfaceFit
+	(MotionGuidePreset)(0),                 // 8: unframe.presentation.MotionGuidePreset
+	(MotionGuideHand)(0),                   // 9: unframe.presentation.MotionGuideHand
+	(*PublicationFence)(nil),               // 10: unframe.presentation.PublicationFence
+	(*ProjectionInstance)(nil),             // 11: unframe.presentation.ProjectionInstance
+	(*RuntimeProjectionFence)(nil),         // 12: unframe.presentation.RuntimeProjectionFence
+	(*Vector2)(nil),                        // 13: unframe.presentation.Vector2
+	(*Vector3)(nil),                        // 14: unframe.presentation.Vector3
+	(*Quaternion)(nil),                     // 15: unframe.presentation.Quaternion
+	(*Transform)(nil),                      // 16: unframe.presentation.Transform
+	(*Pose)(nil),                           // 17: unframe.presentation.Pose
+	(*ScalarValue)(nil),                    // 18: unframe.presentation.ScalarValue
+	(*NullScalar)(nil),                     // 19: unframe.presentation.NullScalar
+	(*RuntimeRunId)(nil),                   // 20: unframe.presentation.RuntimeRunId
+	(*RuntimeRunOwner)(nil),                // 21: unframe.presentation.RuntimeRunOwner
+	(*PresentationRunOwner)(nil),           // 22: unframe.presentation.PresentationRunOwner
+	(*GroupRunOwner)(nil),                  // 23: unframe.presentation.GroupRunOwner
+	(*RuntimeRunCause)(nil),                // 24: unframe.presentation.RuntimeRunCause
+	(*ResourceOwner)(nil),                  // 25: unframe.presentation.ResourceOwner
+	(*PresentationResourceOwner)(nil),      // 26: unframe.presentation.PresentationResourceOwner
+	(*GroupResourceOwner)(nil),             // 27: unframe.presentation.GroupResourceOwner
+	(*TimelineTrackTarget)(nil),            // 28: unframe.presentation.TimelineTrackTarget
+	(*NumberKeyframeValue)(nil),            // 29: unframe.presentation.NumberKeyframeValue
+	(*Vector3KeyframeValue)(nil),           // 30: unframe.presentation.Vector3KeyframeValue
+	(*QuaternionKeyframeValue)(nil),        // 31: unframe.presentation.QuaternionKeyframeValue
+	(*TimelineKeyframe)(nil),               // 32: unframe.presentation.TimelineKeyframe
+	(*ProjectedTimelineTrack)(nil),         // 33: unframe.presentation.ProjectedTimelineTrack
+	(*ProjectedTimelineDefinition)(nil),    // 34: unframe.presentation.ProjectedTimelineDefinition
+	(*ProjectedVariableDefinition)(nil),    // 35: unframe.presentation.ProjectedVariableDefinition
+	(*StageParent)(nil),                    // 36: unframe.presentation.StageParent
+	(*NodeParent)(nil),                     // 37: unframe.presentation.NodeParent
+	(*PresenterAnchorParent)(nil),          // 38: unframe.presentation.PresenterAnchorParent
+	(*SpatialParent)(nil),                  // 39: unframe.presentation.SpatialParent
+	(*ContainerNode)(nil),                  // 40: unframe.presentation.ContainerNode
+	(*SurfaceNode)(nil),                    // 41: unframe.presentation.SurfaceNode
+	(*ModelNode)(nil),                      // 42: unframe.presentation.ModelNode
+	(*BoxGeometry)(nil),                    // 43: unframe.presentation.BoxGeometry
+	(*SphereGeometry)(nil),                 // 44: unframe.presentation.SphereGeometry
+	(*SrgbaColor)(nil),                     // 45: unframe.presentation.SrgbaColor
+	(*SrgbColor)(nil),                      // 46: unframe.presentation.SrgbColor
+	(*UnlitShapeMaterial)(nil),             // 47: unframe.presentation.UnlitShapeMaterial
+	(*ShapeNode)(nil),                      // 48: unframe.presentation.ShapeNode
+	(*DirectionalLight)(nil),               // 49: unframe.presentation.DirectionalLight
+	(*PointLight)(nil),                     // 50: unframe.presentation.PointLight
+	(*SpotLight)(nil),                      // 51: unframe.presentation.SpotLight
+	(*LightNode)(nil),                      // 52: unframe.presentation.LightNode
+	(*ProjectedNodeDefinition)(nil),        // 53: unframe.presentation.ProjectedNodeDefinition
+	(*ProjectedSurfaceDefinition)(nil),     // 54: unframe.presentation.ProjectedSurfaceDefinition
+	(*ProjectedModelClipDefinition)(nil),   // 55: unframe.presentation.ProjectedModelClipDefinition
+	(*ProjectedMotionGuideDefinition)(nil), // 56: unframe.presentation.ProjectedMotionGuideDefinition
+	(*ProjectedRuntimeCatalog)(nil),        // 57: unframe.presentation.ProjectedRuntimeCatalog
 }
 var file_unframe_presentation_runtime_proto_depIdxs = []int32{
-	8,  // 0: unframe.presentation.RuntimeProjectionFence.publication:type_name -> unframe.presentation.PublicationFence
-	12, // 1: unframe.presentation.Transform.position:type_name -> unframe.presentation.Vector3
-	13, // 2: unframe.presentation.Transform.rotation:type_name -> unframe.presentation.Quaternion
-	12, // 3: unframe.presentation.Transform.scale:type_name -> unframe.presentation.Vector3
-	12, // 4: unframe.presentation.Pose.position:type_name -> unframe.presentation.Vector3
-	13, // 5: unframe.presentation.Pose.rotation:type_name -> unframe.presentation.Quaternion
-	17, // 6: unframe.presentation.ScalarValue.null_value:type_name -> unframe.presentation.NullScalar
-	20, // 7: unframe.presentation.RuntimeRunOwner.presentation:type_name -> unframe.presentation.PresentationRunOwner
-	21, // 8: unframe.presentation.RuntimeRunOwner.group:type_name -> unframe.presentation.GroupRunOwner
-	24, // 9: unframe.presentation.ResourceOwner.presentation:type_name -> unframe.presentation.PresentationResourceOwner
-	25, // 10: unframe.presentation.ResourceOwner.group:type_name -> unframe.presentation.GroupResourceOwner
+	10, // 0: unframe.presentation.RuntimeProjectionFence.publication:type_name -> unframe.presentation.PublicationFence
+	14, // 1: unframe.presentation.Transform.position:type_name -> unframe.presentation.Vector3
+	15, // 2: unframe.presentation.Transform.rotation:type_name -> unframe.presentation.Quaternion
+	14, // 3: unframe.presentation.Transform.scale:type_name -> unframe.presentation.Vector3
+	14, // 4: unframe.presentation.Pose.position:type_name -> unframe.presentation.Vector3
+	15, // 5: unframe.presentation.Pose.rotation:type_name -> unframe.presentation.Quaternion
+	19, // 6: unframe.presentation.ScalarValue.null_value:type_name -> unframe.presentation.NullScalar
+	22, // 7: unframe.presentation.RuntimeRunOwner.presentation:type_name -> unframe.presentation.PresentationRunOwner
+	23, // 8: unframe.presentation.RuntimeRunOwner.group:type_name -> unframe.presentation.GroupRunOwner
+	26, // 9: unframe.presentation.ResourceOwner.presentation:type_name -> unframe.presentation.PresentationResourceOwner
+	27, // 10: unframe.presentation.ResourceOwner.group:type_name -> unframe.presentation.GroupResourceOwner
 	5,  // 11: unframe.presentation.TimelineTrackTarget.property:type_name -> unframe.presentation.TimelineProperty
-	12, // 12: unframe.presentation.Vector3KeyframeValue.value:type_name -> unframe.presentation.Vector3
-	13, // 13: unframe.presentation.QuaternionKeyframeValue.value:type_name -> unframe.presentation.Quaternion
-	27, // 14: unframe.presentation.TimelineKeyframe.number:type_name -> unframe.presentation.NumberKeyframeValue
-	28, // 15: unframe.presentation.TimelineKeyframe.vector3:type_name -> unframe.presentation.Vector3KeyframeValue
-	29, // 16: unframe.presentation.TimelineKeyframe.quaternion:type_name -> unframe.presentation.QuaternionKeyframeValue
+	14, // 12: unframe.presentation.Vector3KeyframeValue.value:type_name -> unframe.presentation.Vector3
+	15, // 13: unframe.presentation.QuaternionKeyframeValue.value:type_name -> unframe.presentation.Quaternion
+	29, // 14: unframe.presentation.TimelineKeyframe.number:type_name -> unframe.presentation.NumberKeyframeValue
+	30, // 15: unframe.presentation.TimelineKeyframe.vector3:type_name -> unframe.presentation.Vector3KeyframeValue
+	31, // 16: unframe.presentation.TimelineKeyframe.quaternion:type_name -> unframe.presentation.QuaternionKeyframeValue
 	3,  // 17: unframe.presentation.TimelineKeyframe.easing_to_next:type_name -> unframe.presentation.Easing
-	26, // 18: unframe.presentation.ProjectedTimelineTrack.target:type_name -> unframe.presentation.TimelineTrackTarget
-	30, // 19: unframe.presentation.ProjectedTimelineTrack.keyframes:type_name -> unframe.presentation.TimelineKeyframe
-	31, // 20: unframe.presentation.ProjectedTimelineDefinition.tracks:type_name -> unframe.presentation.ProjectedTimelineTrack
-	23, // 21: unframe.presentation.ProjectedTimelineDefinition.owner:type_name -> unframe.presentation.ResourceOwner
+	28, // 18: unframe.presentation.ProjectedTimelineTrack.target:type_name -> unframe.presentation.TimelineTrackTarget
+	32, // 19: unframe.presentation.ProjectedTimelineTrack.keyframes:type_name -> unframe.presentation.TimelineKeyframe
+	33, // 20: unframe.presentation.ProjectedTimelineDefinition.tracks:type_name -> unframe.presentation.ProjectedTimelineTrack
+	25, // 21: unframe.presentation.ProjectedTimelineDefinition.owner:type_name -> unframe.presentation.ResourceOwner
 	2,  // 22: unframe.presentation.ProjectedVariableDefinition.type:type_name -> unframe.presentation.ScalarType
-	23, // 23: unframe.presentation.ProjectedVariableDefinition.owner:type_name -> unframe.presentation.ResourceOwner
+	25, // 23: unframe.presentation.ProjectedVariableDefinition.owner:type_name -> unframe.presentation.ResourceOwner
 	6,  // 24: unframe.presentation.PresenterAnchorParent.target:type_name -> unframe.presentation.AnchorTarget
-	34, // 25: unframe.presentation.SpatialParent.stage:type_name -> unframe.presentation.StageParent
-	35, // 26: unframe.presentation.SpatialParent.node:type_name -> unframe.presentation.NodeParent
-	36, // 27: unframe.presentation.SpatialParent.presenter_anchor:type_name -> unframe.presentation.PresenterAnchorParent
-	12, // 28: unframe.presentation.BoxGeometry.size:type_name -> unframe.presentation.Vector3
-	43, // 29: unframe.presentation.UnlitShapeMaterial.color:type_name -> unframe.presentation.SrgbaColor
-	41, // 30: unframe.presentation.ShapeNode.box:type_name -> unframe.presentation.BoxGeometry
-	42, // 31: unframe.presentation.ShapeNode.sphere:type_name -> unframe.presentation.SphereGeometry
-	45, // 32: unframe.presentation.ShapeNode.material:type_name -> unframe.presentation.UnlitShapeMaterial
-	44, // 33: unframe.presentation.DirectionalLight.color:type_name -> unframe.presentation.SrgbColor
-	44, // 34: unframe.presentation.PointLight.color:type_name -> unframe.presentation.SrgbColor
-	44, // 35: unframe.presentation.SpotLight.color:type_name -> unframe.presentation.SrgbColor
-	47, // 36: unframe.presentation.LightNode.directional:type_name -> unframe.presentation.DirectionalLight
-	48, // 37: unframe.presentation.LightNode.point:type_name -> unframe.presentation.PointLight
-	49, // 38: unframe.presentation.LightNode.spot:type_name -> unframe.presentation.SpotLight
-	37, // 39: unframe.presentation.ProjectedNodeDefinition.parent:type_name -> unframe.presentation.SpatialParent
-	23, // 40: unframe.presentation.ProjectedNodeDefinition.owner:type_name -> unframe.presentation.ResourceOwner
-	38, // 41: unframe.presentation.ProjectedNodeDefinition.container:type_name -> unframe.presentation.ContainerNode
-	39, // 42: unframe.presentation.ProjectedNodeDefinition.surface:type_name -> unframe.presentation.SurfaceNode
-	40, // 43: unframe.presentation.ProjectedNodeDefinition.model:type_name -> unframe.presentation.ModelNode
-	46, // 44: unframe.presentation.ProjectedNodeDefinition.shape:type_name -> unframe.presentation.ShapeNode
-	50, // 45: unframe.presentation.ProjectedNodeDefinition.light:type_name -> unframe.presentation.LightNode
-	11, // 46: unframe.presentation.ProjectedSurfaceDefinition.physical_size_meters:type_name -> unframe.presentation.Vector2
-	11, // 47: unframe.presentation.ProjectedSurfaceDefinition.logical_size:type_name -> unframe.presentation.Vector2
+	36, // 25: unframe.presentation.SpatialParent.stage:type_name -> unframe.presentation.StageParent
+	37, // 26: unframe.presentation.SpatialParent.node:type_name -> unframe.presentation.NodeParent
+	38, // 27: unframe.presentation.SpatialParent.presenter_anchor:type_name -> unframe.presentation.PresenterAnchorParent
+	14, // 28: unframe.presentation.BoxGeometry.size:type_name -> unframe.presentation.Vector3
+	45, // 29: unframe.presentation.UnlitShapeMaterial.color:type_name -> unframe.presentation.SrgbaColor
+	43, // 30: unframe.presentation.ShapeNode.box:type_name -> unframe.presentation.BoxGeometry
+	44, // 31: unframe.presentation.ShapeNode.sphere:type_name -> unframe.presentation.SphereGeometry
+	47, // 32: unframe.presentation.ShapeNode.material:type_name -> unframe.presentation.UnlitShapeMaterial
+	46, // 33: unframe.presentation.DirectionalLight.color:type_name -> unframe.presentation.SrgbColor
+	46, // 34: unframe.presentation.PointLight.color:type_name -> unframe.presentation.SrgbColor
+	46, // 35: unframe.presentation.SpotLight.color:type_name -> unframe.presentation.SrgbColor
+	49, // 36: unframe.presentation.LightNode.directional:type_name -> unframe.presentation.DirectionalLight
+	50, // 37: unframe.presentation.LightNode.point:type_name -> unframe.presentation.PointLight
+	51, // 38: unframe.presentation.LightNode.spot:type_name -> unframe.presentation.SpotLight
+	39, // 39: unframe.presentation.ProjectedNodeDefinition.parent:type_name -> unframe.presentation.SpatialParent
+	25, // 40: unframe.presentation.ProjectedNodeDefinition.owner:type_name -> unframe.presentation.ResourceOwner
+	40, // 41: unframe.presentation.ProjectedNodeDefinition.container:type_name -> unframe.presentation.ContainerNode
+	41, // 42: unframe.presentation.ProjectedNodeDefinition.surface:type_name -> unframe.presentation.SurfaceNode
+	42, // 43: unframe.presentation.ProjectedNodeDefinition.model:type_name -> unframe.presentation.ModelNode
+	48, // 44: unframe.presentation.ProjectedNodeDefinition.shape:type_name -> unframe.presentation.ShapeNode
+	52, // 45: unframe.presentation.ProjectedNodeDefinition.light:type_name -> unframe.presentation.LightNode
+	13, // 46: unframe.presentation.ProjectedSurfaceDefinition.physical_size_meters:type_name -> unframe.presentation.Vector2
+	13, // 47: unframe.presentation.ProjectedSurfaceDefinition.logical_size:type_name -> unframe.presentation.Vector2
 	7,  // 48: unframe.presentation.ProjectedSurfaceDefinition.fit:type_name -> unframe.presentation.SurfaceFit
-	23, // 49: unframe.presentation.ProjectedSurfaceDefinition.owner:type_name -> unframe.presentation.ResourceOwner
-	23, // 50: unframe.presentation.ProjectedModelClipDefinition.owner:type_name -> unframe.presentation.ResourceOwner
-	51, // 51: unframe.presentation.ProjectedRuntimeCatalog.nodes:type_name -> unframe.presentation.ProjectedNodeDefinition
-	52, // 52: unframe.presentation.ProjectedRuntimeCatalog.surfaces:type_name -> unframe.presentation.ProjectedSurfaceDefinition
-	33, // 53: unframe.presentation.ProjectedRuntimeCatalog.variables:type_name -> unframe.presentation.ProjectedVariableDefinition
-	32, // 54: unframe.presentation.ProjectedRuntimeCatalog.timelines:type_name -> unframe.presentation.ProjectedTimelineDefinition
-	53, // 55: unframe.presentation.ProjectedRuntimeCatalog.model_clips:type_name -> unframe.presentation.ProjectedModelClipDefinition
-	56, // [56:56] is the sub-list for method output_type
-	56, // [56:56] is the sub-list for method input_type
-	56, // [56:56] is the sub-list for extension type_name
-	56, // [56:56] is the sub-list for extension extendee
-	0,  // [0:56] is the sub-list for field type_name
+	25, // 49: unframe.presentation.ProjectedSurfaceDefinition.owner:type_name -> unframe.presentation.ResourceOwner
+	25, // 50: unframe.presentation.ProjectedModelClipDefinition.owner:type_name -> unframe.presentation.ResourceOwner
+	8,  // 51: unframe.presentation.ProjectedMotionGuideDefinition.preset:type_name -> unframe.presentation.MotionGuidePreset
+	9,  // 52: unframe.presentation.ProjectedMotionGuideDefinition.hand:type_name -> unframe.presentation.MotionGuideHand
+	53, // 53: unframe.presentation.ProjectedRuntimeCatalog.nodes:type_name -> unframe.presentation.ProjectedNodeDefinition
+	54, // 54: unframe.presentation.ProjectedRuntimeCatalog.surfaces:type_name -> unframe.presentation.ProjectedSurfaceDefinition
+	35, // 55: unframe.presentation.ProjectedRuntimeCatalog.variables:type_name -> unframe.presentation.ProjectedVariableDefinition
+	34, // 56: unframe.presentation.ProjectedRuntimeCatalog.timelines:type_name -> unframe.presentation.ProjectedTimelineDefinition
+	55, // 57: unframe.presentation.ProjectedRuntimeCatalog.model_clips:type_name -> unframe.presentation.ProjectedModelClipDefinition
+	56, // 58: unframe.presentation.ProjectedRuntimeCatalog.motion_guides:type_name -> unframe.presentation.ProjectedMotionGuideDefinition
+	59, // [59:59] is the sub-list for method output_type
+	59, // [59:59] is the sub-list for method input_type
+	59, // [59:59] is the sub-list for extension type_name
+	59, // [59:59] is the sub-list for extension extendee
+	0,  // [0:59] is the sub-list for field type_name
 }
 
 func init() { file_unframe_presentation_runtime_proto_init() }
@@ -3957,8 +4212,8 @@ func file_unframe_presentation_runtime_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_unframe_presentation_runtime_proto_rawDesc), len(file_unframe_presentation_runtime_proto_rawDesc)),
-			NumEnums:      8,
-			NumMessages:   47,
+			NumEnums:      10,
+			NumMessages:   48,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

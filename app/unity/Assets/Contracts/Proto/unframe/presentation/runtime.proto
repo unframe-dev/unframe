@@ -320,6 +320,38 @@ message ProjectedModelClipDefinition {
   ResourceOwner owner = 6;
 }
 
+enum MotionGuidePreset {
+  MOTION_GUIDE_PRESET_UNSPECIFIED = 0;
+  MOTION_GUIDE_PRESET_SWIPE_LEFT = 1;
+  MOTION_GUIDE_PRESET_SWIPE_RIGHT = 2;
+  MOTION_GUIDE_PRESET_SWIPE_DOWN = 3;
+  MOTION_GUIDE_PRESET_SWIPE_UP = 4;
+  MOTION_GUIDE_PRESET_PUSH_FORWARD = 5;
+  MOTION_GUIDE_PRESET_PULL_BACKWARD = 6;
+  MOTION_GUIDE_PRESET_SPREAD_HANDS = 7;
+  MOTION_GUIDE_PRESET_CLOSE_HANDS = 8;
+}
+
+enum MotionGuideHand {
+  MOTION_GUIDE_HAND_UNSPECIFIED = 0;
+  MOTION_GUIDE_HAND_EITHER = 1;
+  MOTION_GUIDE_HAND_LEFT = 2;
+  MOTION_GUIDE_HAND_RIGHT = 3;
+  MOTION_GUIDE_HAND_BOTH = 4;
+}
+
+// Presenter-only candidates for the active group and step. This metadata does
+// not assert guard eligibility or authorize local Cue execution.
+message ProjectedMotionGuideDefinition {
+  string group_id = 1;
+  string step_id = 2;
+  string cue_id = 3;
+  MotionGuidePreset preset = 4;
+  MotionGuideHand hand = 5;
+  double minimum_distance_meters = 6;
+  uint64 window_ms = 7;
+}
+
 message ProjectedRuntimeCatalog {
   uint32 catalog_contract_version = 1;
   repeated ProjectedNodeDefinition nodes = 2;
@@ -327,4 +359,5 @@ message ProjectedRuntimeCatalog {
   repeated ProjectedVariableDefinition variables = 4;
   repeated ProjectedTimelineDefinition timelines = 5;
   repeated ProjectedModelClipDefinition model_clips = 6;
+  repeated ProjectedMotionGuideDefinition motion_guides = 7;
 }

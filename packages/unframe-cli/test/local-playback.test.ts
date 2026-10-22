@@ -206,7 +206,10 @@ describe("local Preview Runtime Core playback", () => {
 
   it("withholds input while a blocking run owns progression", async () => {
     const definition = await referenceDefinition();
-    const continueCue = definition.flow.groups.main!.steps.start!.cues[0]!;
+    const continueCue = definition.flow.groups.main!.steps.start!.cues.find(
+      (cue) => cue.id === "continue",
+    );
+    assert(continueCue);
     const play = continueCue.actions.find((action) => action.kind === "timeline.play");
     assert(play?.kind === "timeline.play");
     play.completion = "blocking";

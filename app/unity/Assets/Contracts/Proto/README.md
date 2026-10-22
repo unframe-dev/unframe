@@ -16,11 +16,9 @@ nix run .#unity-proto
 Do not edit the copied `.proto` files or generated C# files directly. Update
 the source contract and run the generation task instead.
 
-## Local fixtures
+## Contract test fixtures
 
-`PresentationContractJsonFixtureLoader` accepts protobuf JSON directly. A local
-Delivery fixture is a `DeliveryManifest` JSON object using the protobuf JSON
-mapping: lower-camel field names, named enum values, and quoted `uint64` values.
-Unknown fields are rejected. `LocalPresentationFixtureRunner` loads the local
-Delivery, snapshot, and Control fixtures from `Resources/PresentationFixtures/`
-and renders them without a network source.
+EditMode tests decode protobuf JSON through `PresentationContractJsonFixtureLoader`
+under `Assets/Tests/EditMode/Editor/Support/`. Unknown fields are rejected. These
+fixtures are test data; runtime presentation loading uses the Control Plane Delivery
+API and the authenticated Realtime connection.

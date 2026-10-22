@@ -187,7 +187,7 @@ function subjectLabel(subject: Extract<Trigger, { kind: "motion" }>["subject"]):
     case "participant":
       return "発表者（presenter）の参加者（participant）";
     case "anchor":
-      return `発表者（presenter）の${{ head: "頭", leftHand: "左手", rightHand: "右手", body: "身体" }[subject.target]}（${subject.target}）`;
+      return `発表者（presenter）の${{ head: "頭", leftHand: "左手", rightHand: "右手", bothHands: "両手", eitherHand: "いずれかの手", body: "身体" }[subject.target]}（${subject.target}）`;
     default:
       return unreachable(subject);
   }

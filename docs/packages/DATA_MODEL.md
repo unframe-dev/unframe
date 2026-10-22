@@ -45,6 +45,33 @@ Definition にダウンロード URL、端末 capability、現在の再生時刻
 
 ## 検証と実装の境界
 
+### 腕モーションからの演出開始
+
+既存の `motion` Trigger に `preset` を指定して、腕の動作を Cue の開始条件にできる。Group / Step / Cue / Action / Timeline の構造は変更しない。片腕のプリセットは `swipeLeft`、`swipeRight`、`swipeDown`、`swipeUp`、`pushForward`、`pullBackward`。`subject` は presenter の anchor で、`target` は `eitherHand`、`leftHand`、`rightHand` のいずれか。両腕の `spreadHands`、`closeHands` は `target: "bothHands"` を必要とする。これらの複合対象は motion 専用で、zoneEdge には指定できない。
+
+```json
+{
+  "kind": "motion",
+  "actor": { "kind": "system", "source": "tracking" },
+  "subject": {
+    "kind": "anchor",
+    "owner": { "kind": "presenter" },
+    "target": "eitherHand"
+  },
+  "preset": "swipeUp",
+  "minimumDistanceMeters": 0.28,
+  "windowMilliseconds": 1200
+}
+```
+
+この Trigger を持つ Cue の既存 `timeline.play` Action で opacity の Timeline を開始すれば、振り上げをきっかけにフェードインできる。`surface.setState` の crossfade も同じ Action 経路を使う。動作成立時に演出を開始する方式であり、腕の変位で再生位置や透明度を連続操作する契約ではない。`preset` を持たない既存の距離条件も引き続き有効。
+
+本番では Realtime が presenter の既存 Tracking Pose を評価する。クライアントが送る「認識できた」という通知を判定の正本にはしない。共有 v2 Definition の Publication 保存・読み戻しが対応し、旧 Control Plane v1 draft schema は変更しない。Web Author の Cue 編集・プリセット選択 UI は未実装。Realtime は共有 Definition の motion preset を Tracking Pose から評価する。Presenter Delivery には対応する操作案内のメタデータを投影する。Tracking wire にトリガーボタン状態は含まれず、ボタン保持を認識開始条件にはしない。
+
+Realtime のプリセット判定は、頭からの相対手位置と動作開始時の頭の水平向きを使う。上下は Y 軸、前方は canonical の -Z を頭の回転で変換した水平方向。0.20 秒の静止（速度 0.12m/s 以下）で準備し、Cue の距離・時間窓に加えて平均速度 0.25m/s 以上を要求する。片腕の横ずれは主方向変位の65%以下。両腕は広げる場合に手間距離 0.50m 以下から 0.60m 以上へ、縮める場合はその逆へ動かし、左右とも開始時の中心からの距離を 0.10m 以上変える。両腕の `minimumDistanceMeters` は手間距離の変化量を表す。
+
+必要な追跡の欠損、0.50 秒を超えるフレーム間隔、場面変更で再準備を必要とする。成立後も再び静止するまで認識しない。これらは実装の既定値であり、Quest 実機での認識率・誤検出の調整は未完了。
+
 [契約 package](../../packages/contracts/README.md) に生成・drift check・fixture の実行方法を記載する。JSON Schema と descriptor は生成物であり、手編集しない。
 
 構造テストの合格は、GLB importer、動画 decoder、font atlas、Runtime reducer、再接続、Quest の実機動作が実装済みであることを意味しない。意味検証は Core、投影と admission は Delivery、素材変換は Compiler、描画は各 consumer の責務となる。端末の上限値は検証済み CapabilityProfile の必須入力であり、fixture の合成値を製品設定に使わない。

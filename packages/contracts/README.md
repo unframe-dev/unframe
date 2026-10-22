@@ -30,6 +30,14 @@ pnpm --filter @unframe/contracts test:presentation
 
 `presentation/*.schema.json` と `contract.pb` は生成物です。fixture は合成データで、モデル・動画・フォントの実バイトや実機測定値を含みません。構造の受理・拒否と生成物の一致を検証し、素材の変換・描画成功とは区別します。
 
+### Presenter motion guide metadata
+
+`ProjectedRuntimeCatalog.motion_guides` は Presenter profile にだけ含まれる操作候補です。
+`group_id` / `step_id` / `cue_id` と、motion preset・対象の手・最小移動距離・判定時間を配信します。
+Viewer profile では空です。guard と Cue 発火履歴は投影していないため、現在の Group / Step に一致しても
+実行可能と断定せず、UI では操作候補として扱います。入力・完了判定・状態遷移は authoritative Runtime が所有します。
+追加 metadata は描画・再生の意味を変更しないため、catalog contract version は 2 です。
+
 ## Realtime / Delivery v2 consumers
 
 `proto/unframe/{presentation,delivery,realtime}/` が wire の正本です。Realtime v1 と Presentation v1 の公開 schema、fixture、生成経路は廃止しています。旧 Control Plane Presentation CRUD の DTO は独立した未移行の境界です。

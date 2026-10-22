@@ -345,3 +345,76 @@ test("Video artifacts require an explicit supported fit", async () => {
     assert.equal(renderBundleSchema.safeParse(bundle).success, false);
   }
 });
+
+test("motion presets constrain hand subjects without expanding zone selectors", () => {
+  const original = presentationDefinitionSchema.parse(definition);
+  const group = Object.values(original.flow.groups)[0]!;
+  const step = Object.values(group.steps)[0]!;
+  const cue = step.cues[0]!;
+  const motion = {
+    kind: "motion",
+    actor: { kind: "system", source: "tracking" },
+    subject: { kind: "anchor", owner: { kind: "presenter" }, target: "eitherHand" },
+    preset: "swipeUp",
+    minimumDistanceMeters: 0.28,
+    windowMilliseconds: 1200,
+  };
+  Object.assign(cue, { trigger: motion });
+  for (const preset of [
+    "swipeLeft",
+    "swipeRight",
+    "swipeDown",
+    "swipeUp",
+    "pushForward",
+    "pullBackward",
+  ]) {
+    motion.preset = preset;
+    for (const target of ["eitherHand", "leftHand", "rightHand"]) {
+      motion.subject.target = target;
+      assert.equal(presentationDefinitionSchema.safeParse(original).success, true);
+      assert.equal(validateDefinition(original), true);
+    }
+  }
+  for (const preset of ["spreadHands", "closeHands"]) {
+    motion.preset = preset;
+    motion.subject.target = "bothHands";
+    assert.equal(presentationDefinitionSchema.safeParse(original).success, true);
+    assert.equal(validateDefinition(original), true);
+  }
+  for (const [preset, target] of [
+    ["swipeUp", "head"],
+    ["swipeUp", "bothHands"],
+    ["spreadHands", "eitherHand"],
+    ["unknown", "eitherHand"],
+  ]) {
+    motion.preset = preset!;
+    motion.subject.target = target!;
+    assert.equal(presentationDefinitionSchema.safeParse(original).success, false);
+    assert.equal(validateDefinition(original), false);
+  }
+  const { preset: _preset, ...distanceMotion } = motion;
+  Object.assign(cue, { trigger: distanceMotion });
+  for (const target of ["head", "body", "leftHand", "rightHand"]) {
+    distanceMotion.subject.target = target;
+    assert.equal(presentationDefinitionSchema.safeParse(original).success, true);
+    assert.equal(validateDefinition(original), true);
+  }
+  for (const target of ["eitherHand", "bothHands"]) {
+    distanceMotion.subject.target = target;
+    assert.equal(presentationDefinitionSchema.safeParse(original).success, false);
+    assert.equal(validateDefinition(original), false);
+  }
+  const zone = {
+    kind: "zoneEdge",
+    actor: motion.actor,
+    subject: motion.subject,
+    zoneId: "front",
+    edge: "enter",
+  };
+  Object.assign(cue, { trigger: zone });
+  for (const target of ["eitherHand", "bothHands"]) {
+    zone.subject.target = target;
+    assert.equal(presentationDefinitionSchema.safeParse(original).success, false);
+    assert.equal(validateDefinition(original), false);
+  }
+});

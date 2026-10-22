@@ -31,6 +31,7 @@ static class Program
             CheckFullSnapshotCut();
             CheckRunStateClosure();
             CheckLoopingModelPosition();
+            CheckModelClipReliableEvents();
             Console.WriteLine("Presentation Runtime adapter checks passed.");
             return 0;
         }
@@ -367,6 +368,46 @@ static class Program
         ControlServerItem missingProgression = snapshot.Clone();
         missingProgression.ConnectionSnapshot.Snapshot.RuntimeView.Progression = null;
         Require(!store.TryReceiveControl(missingProgression.ToByteArray(), out _), "snapshot without progression was accepted");
+    }
+
+    private static void CheckModelClipReliableEvents()
+    {
+        DeliveryManifest delivery = LoadDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.ModelClips.Add(new ProjectedModelClipDefinition
+        { ModelNodeId = "node:cube", ModelAssetId = "asset:storyboard-cube", ClipId = "clip:wave", DurationMs = 1000 });
+        var store = new PresentationRuntimeDataStore();
+        Require(store.TryReceiveDelivery(delivery, out string error), error);
+        ControlServerItem snapshot = LoadSnapshot();
+        snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState
+        { ModelNodeId = "node:cube", DefaultPose = new DefaultModelPose() });
+        Require(store.TryReceiveControl(snapshot, out error), error);
+        var run = new RuntimeRunSnapshot
+        {
+            RunId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 91 },
+            Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
+            Cause = new RuntimeRunCause { CueId = "cue:wave", CauseEventId = "event:wave" },
+            Completion = RunCompletion.NonBlocking,
+            ModelClip = new ModelClipRunSnapshot { ModelNodeId = "node:cube", Single = new ClipPlayback
+            { ClipId = "clip:wave", Speed = 1, Playback = new PlaybackClock { Playing = new PlayingClock() } } },
+        };
+        var start = new ProjectedReliableEvent
+        {
+            Sequence = 1, Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+            ModelClipStarted = new ModelClipStarted { RunId = run.RunId.Clone(), ModelNodeId = "node:cube", Run = run, Playback = run.ModelClip.Single.Clone() },
+        };
+        Require(store.TryReceiveControl(new ControlServerItem { ReliableEvent = start }, out error), error);
+        Require(store.TryGetModelClipState("node:cube", out ModelClipRuntimeState state) && state.Active.RunId.Equals(run.RunId), "model clip start was not retained");
+        var stop = new ProjectedReliableEvent
+        {
+            Sequence = 2, Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+            ModelClipStopped = new ModelClipStopped { RunId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 92 },
+                ModelNodeId = "node:cube", Clip = new ClipHeldPose { ClipId = "clip:wave", PositionMs = 200 } },
+        };
+        Require(!store.TryReceiveControl(new ControlServerItem { ReliableEvent = stop }, out _), "unknown model run accepted");
+        Require(store.LastReliableSequence == 1, "invalid model event advanced sequence");
+        stop.ModelClipStopped.RunId = run.RunId.Clone();
+        Require(store.TryReceiveControl(new ControlServerItem { ReliableEvent = stop }, out error), error);
+        Require(store.TryGetModelClipState("node:cube", out state) && state.HeldClip.PositionMs == 200, "held clip pose was not retained");
     }
 
     private static void CheckLoopingModelPosition()
