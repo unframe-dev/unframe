@@ -1,0 +1,39 @@
+{
+  "name": "@unframe/audience",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/prepare-engine.mjs && node scripts/prepare-detectors.mjs",
+    "dev": "vp dev",
+    "prebuild": "node scripts/prepare-engine.mjs && node scripts/prepare-detectors.mjs",
+    "build": "vp build",
+    "preview": "vp preview",
+    "check": "tsc --noEmit && vp lint src scripts vite.config.ts vitest.config.ts",
+    "test": "vp test run",
+    "markers:generate": "node scripts/generate-marker-board.mjs",
+    "precheck": "node scripts/prepare-detectors.mjs",
+    "pretest": "node scripts/prepare-detectors.mjs"
+  },
+  "dependencies": {
+    "@8thwall/engine-binary": "1.0.0",
+    "js-aruco2": "2.0.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "three": "0.183.2",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "0.183.1",
+    "@vitejs/plugin-react": "6.1.1",
+    "jsdom": "30.1.1",
+    "typescript": "^7.0.0",
+    "vite": "catalog:",
+    "vitest": "4.1.11"
+  }
+}

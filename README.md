@@ -23,6 +23,7 @@ MR デバイス上でプレゼンテーションを表示
 
 | コンポーネント              | 役割                                                   | 技術                                             |
 | --------------------------- | ------------------------------------------------------ | ------------------------------------------------ |
+| Audience Web XR（PoC）      | 観客端末での画像認識・会場位置合わせの検証             | React / 8th Wall / Three.js                      |
 | Web Editor（WIP）           | プレゼンテーションの作成・編集                         | React 19                                         |
 | Control Plane（WIP）        | 認証・認可、durable resource、asset、session bootstrap | Cloudflare Workers / TypeScript / Hono / D1 / R2 |
 | Realtime Backend（WIP）     | session 中の低遅延状態同期                             | Go / gRPC / container                            |
@@ -42,6 +43,7 @@ MR デバイス上でプレゼンテーションを表示
 ```text
 app/
 ├── web/       React ベースの Web Editor
+├── audience/  観客向け Web XR の位置合わせ PoC
 ├── server/    Control Plane / Realtime Backend
 └── unity/     Unity ベースの MR Application
 
@@ -49,6 +51,8 @@ lp/            Landing Page
 packages/      契約境界、C# client placeholder、共有設定
 docs/          アーキテクチャ、設計判断、ドキュメント
 ```
+
+Audience の検査は `nix run .#audience`、開発サーバーは `nix run .#audience -- dev` で実行します。SDK 配置と実機検証は [Audience README](./app/audience/README.md) を参照してください。2026-10-22にユーザー承認で位置保持PoCを完了し、[Webアプリ開発](./docs/plans/audience-web-app-plan.md)へ移行します。ライブ参加は今後実装する機能です。
 
 ## ドキュメント
 

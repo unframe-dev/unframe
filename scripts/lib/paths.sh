@@ -13,6 +13,9 @@ export REALTIME_SERVER_DIR="${REPO_ROOT}/app/server/realtime"
 # app/web (React 編集エディタ)
 export WEB_DIR="${REPO_ROOT}/app/web"
 export WEB_FILTER="@unframe/web"
+# app/audience (Web XR viewer)
+export AUDIENCE_DIR="${REPO_ROOT}/app/audience"
+export AUDIENCE_FILTER="@unframe/audience"
 # lp (SvelteKit SSG)
 export LP_DIR="${REPO_ROOT}/lp"
 export LP_FILTER="@unframe/site"

@@ -11,6 +11,7 @@ Unframe is a monorepo for an MR presentation product. The repository contains:
 ```text
 app/
 ├── web/       React 19 presentation editor (WIP)
+├── audience/  React / 8th Wall / Three.js audience tracking PoC
 ├── server/    Control Plane and Realtime Backend (WIP)
 └── unity/     Unity 6000.3.22f1 MR application (WIP)
 
@@ -124,7 +125,8 @@ of explanatory comments.
 Keep changes within the owning application unless a cross-application change is
 necessary.
 
-- React-specific code belongs in `app/web/`.
+- Editor-specific React code belongs in `app/web/`.
+- Audience-specific React, tracking, calibration, and Three.js code belongs in `app/audience/`. Its current scope is a tracking PoC; live participation remains planned.
 - Go backend code belongs in `app/server/`.
 - Unity and C# code belongs in `app/unity/`.
 - Landing page code belongs in `lp/`.
@@ -187,6 +189,10 @@ nix run .#check                      # Full configured code quality gate
 nix run .#control-plane              # Control Plane typecheck/test/build
 nix run .#realtime                   # Realtime vet/lint/test/build/race
 nix run .#web                        # Web check/test/build
+nix run .#audience                   # Audience check/test/build
+nix run .#audience -- dev            # Audience development server
+nix run .#audience -- preview        # Audience production build preview
+nix run .#audience -- fix            # Audience formatter autofix
 nix run .#lp                         # LP test/check/build
 nix run .#control-plane -- fix       # Control Plane formatter autofix
 nix run .#realtime -- fix             # Realtime formatter/linter autofix
@@ -252,11 +258,11 @@ Entering `nix develop` runs the shell hook that enables the repository-local
 Git hooks. `nix run .#setup` also enables them explicitly. The active repository
 hook path is `packages/config/githooks`.
 
-The tracked repository hook is currently `prepare-commit-msg`. It transforms
-commit messages but does not provide a reliable pre-commit formatter or staged
-file validation. A Vite+ staged configuration exists, but agents must not
-assume it is active unless the configured `core.hooksPath` and hook files prove
-that it is active.
+The tracked `pre-commit` hook runs `pnpm exec vp staged` from the repository
+root, applying the configured Vite+ checks and formatting to staged files.
+`prepare-commit-msg` transforms commit messages. Confirm `core.hooksPath` and
+the installed hook files before relying on these checks, and inspect the
+resulting staged diff because hooks can modify it.
 
 The current commit-message behavior includes:
 

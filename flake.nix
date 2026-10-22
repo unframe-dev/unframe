@@ -313,6 +313,10 @@
             name = "web";
             script = "ci/web.sh";
           };
+          audience = mkApp {
+            name = "audience";
+            script = "ci/audience.sh";
+          };
           lp = mkApp {
             name = "lp";
             script = "ci/lp.sh";

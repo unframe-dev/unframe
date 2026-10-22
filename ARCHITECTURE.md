@@ -24,6 +24,7 @@ flowchart LR
 unframe/
 ├── app/
 │   ├── web/                      # React 19 Web Editor
+│   ├── audience/                 # React / 8th Wall / Three.js tracking PoC
 │   ├── server/
 │   │   ├── control-plane/        # Workers / TypeScript / Hono / D1 / R2
 │   │   ├── realtime/             # Go / gRPC / container
@@ -57,6 +58,14 @@ unframe/
 - React 19 SPA としてプレゼンテーションの編集を担当する。
 - Backend 契約が定義されるまでは fixture と browser adapter を使用する。
 
+### `app/audience`
+
+- 観客向けWeb XRクライアント。AprilTag 3 `tag36h11`・単一ID 0と8th Wall absolute SLAMによる位置保持PoCのみを持つ。
+- 有効なタグ姿勢を1回で即採用し、確定値には一致待ち・平滑化なし。表示層のみ距離別の上限付き閾値で小揺れを抑え、閾値を超える変化は即反映する。次の有効タグまでSDK座標内で表示を保持する。未検出・曖昧姿勢は前位置を保持し、SDK追跡低下・hidden・停止で非表示にして新しいタグを要求する。
+- NORMAL連続5秒後に最大頻度で検出開始。既定は黒外周15cm／余白込み22.5cm。ArUco・各単独比較モード・比較描画・複数タグ用実装は撤去した。
+- UI・SDK adapter・検出/姿勢計算・ライブ描画を分離し、ログと明示操作による検出画像保存を残す。ルームIDによる匿名参加・Backend／Quest同期は後続開発。
+- 2026-10-22、ユーザーが現構成を十分な精度と判断しPoCを完了。黒外周150mmで約3.3m、240mmで約5.8mの認識報告を得た。追跡構成を維持してWebアプリ開発へ移行する。定量的な誤差・長時間保持・7m初回認識の目標は未実証。[採用記録](./docs/experiments/audience-apriltag-adopted.md)と[Audience README](./app/audience/README.md)を参照する。
+
 ### `app/unity`
 
 - Unity / C# で MR 表示と realtime session 参加を担当する。
@@ -85,15 +94,17 @@ unframe/
 
 ツールチェインは Nix flake で固定し、JavaScript workspace は pnpm で管理します。現在の repository-wide entrypoint は次のとおりです。
 
-| 用途                               | コマンド                                 |
-| ---------------------------------- | ---------------------------------------- |
-| 開発環境                           | `nix develop`                            |
-| 依存関係と Git hook のセットアップ | `nix run .#setup`                        |
-| 全体品質ゲート                     | `nix run .#check`                        |
-| Web の検査・修正                   | `nix run .#web` / `nix run .#web -- fix` |
-| LP の検査・修正                    | `nix run .#lp` / `nix run .#lp -- fix`   |
-| Notion 同期                        | `nix run .#notion-sync`                  |
-| flake の評価と formatter 検証      | `nix flake check`                        |
+| 用途                               | コマンド                                                      |
+| ---------------------------------- | ------------------------------------------------------------- |
+| 開発環境                           | `nix develop`                                                 |
+| 依存関係と Git hook のセットアップ | `nix run .#setup`                                             |
+| 全体品質ゲート                     | `nix run .#check`                                             |
+| Web の検査・修正                   | `nix run .#web` / `nix run .#web -- fix`                      |
+| Audience の検査・修正              | `nix run .#audience` / `nix run .#audience -- fix`            |
+| Audience 開発・build preview       | `nix run .#audience -- dev` / `nix run .#audience -- preview` |
+| LP の検査・修正                    | `nix run .#lp` / `nix run .#lp -- fix`                        |
+| Notion 同期                        | `nix run .#notion-sync`                                       |
+| flake の評価と formatter 検証      | `nix flake check`                                             |
 
 Control Plane と Realtime の check entrypoint は実装済みです。開発・migration の手順は各 component の README を参照してください。自動 deployment workflow はありません。
 
@@ -103,9 +114,10 @@ Control Plane と Realtime の check entrypoint は実装済みです。開発�
 - `control-plane.yml`: Control Plane の typecheck / test / deploy dry-run
 - `realtime.yml`: Realtime の vet / lint / test / build / race
 - `web.yml`: Web の check / test / build
+- `audience.yml`: Audience の check / test / build（カメラ・SLAM の実機検証は含まない）
 - `lp.yml`: LP の test / check / build
 - `unity.yml`: Unity の静的検査
-- `autofix.yml`: Control Plane / Realtime / Web / LP の format と lint fix
+- `autofix.yml`: Control Plane / Realtime / Presentation / Web / LP / Audience の format と lint fix
 - `sync-notion.yml`: Notion 同期
 
 ## 移行状況

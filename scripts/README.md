@@ -21,10 +21,16 @@ nix run .#presentation
 nix run .#unity-proto -- check
 nix run .#realtime
 nix run .#web
+nix run .#audience
+nix run .#audience -- fix
+nix run .#audience -- dev
+nix run .#audience -- preview
 nix run .#lp
 nix run .#notion-sync
 nix flake check
 ```
+
+Audience の `dev` / `preview` は追加引数を package script へ渡します。LAN 公開は明示的に `nix run .#audience -- dev --host 0.0.0.0` を指定します。スマートフォンのカメラを使う検証には HTTPS が必要です。準備・実機検証手順は [Audience README](../app/audience/README.md) を参照してください。
 
 GitHub Actions では `nixbuild/nix-quick-install-action` で Nix を導入し、`magic-nix-cache-action` で Nix store をキャッシュします。
 
