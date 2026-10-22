@@ -15,7 +15,7 @@
 
 ## 1. Role
 
-採用済みの [ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) は、Presenter 認識イベントと入力世代、固定 Gesture / Zone、cooldown 廃止、Step 開始状態履歴、pause 用の凍結 Anchor を契約へ追加・変更する。現行 Zod / Protobuf・生成物は未移行である。本書の current boundary と既存 version は実装状況を示し、新仕様の対応を示さない。
+採用済みの [ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) は、Presenter 認識イベントと入力世代、固定 Gesture / Zone、cooldown 廃止、Step 開始状態履歴、pause 用の凍結 Anchor を契約へ追加・変更する。[v3 契約](../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) と Zod / Protobuf・生成物を更新した。実行側 consumer は未移行であり、本書の v2 に関する実装説明は移行前の記録として扱う。
 
 `packages/contracts` は、TypeScript、Go、C# の実装が同じ意味を交換するための portable contract source と generated artifact の境界である。ここでは転送・保存される構造を定義し、構造だけでは表現できない意味検証や application policy は所有しない。
 

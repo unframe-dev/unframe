@@ -6,7 +6,7 @@
 - 対象: Meta Quest 3 を利用する MR プレゼンテーション
 - 目的: 同じ Realtime Runtime Core を Fly.io と会場内 Venue Edge のどちらにも配置できる通信・割り当て方式を定義する
 
-本書は対象要件、構成、各 component の責務、通信方式、障害時挙動、実装・検証項目を定義する。[ADR-0027](../../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・凍結 Anchor・Step 復元は採用済みの未実装設計である。現行実装、Zod / v2 Protobuf、生成物は未変更であり、本書の target 記述から新 field や version が実装済みとは扱わない。
+本書は対象要件、構成、各 component の責務、通信方式、障害時挙動、実装・検証項目を定義する。[ADR-0027](../../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・凍結 Anchor・Step 復元は採用済みの未実装設計である。[v3 契約](../../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) と生成物は更新したが、実行側 consumer は移行前である。以下の実装・検証状況は移行前 v2 の記録であり、v3 の動作実績ではない。
 
 現在は、Control Plane の `RuntimeAssignment`、PublicationFence、認証済み Delivery と Realtime bootstrap を、Go の Realtime v2 process、Unity の生成 client と Baked Web renderer に接続している。Realtime process は検証済み Definition / RenderBundle と checkpoint から v2 Session を起動し、Presenter の Tracking / Input、Cue / Action / Transition / Timeline、Control / State 配信、Snapshot / Replay / Resume、checkpoint / completion callback を処理する。Unity Editor で接続・描画を検証し、Quest 用 Android arm64 APK の生成と manifest を確認した。これらはローカルサービスとビルドの証拠であり、Quest 実機動作や配備済みサービスを示さない。
 
@@ -37,7 +37,7 @@ Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent
 | Presenter Tracking / Input と evaluator      | 実装済み | Quest Scene の Head / Hand / Body Pose と入力 adapter、v2 Tracking / Logical / Surface admission、Cue / Action / Surface / Timeline / Media evaluator を接続。実機 Tracking と入力は未検証             |
 | Snapshot / Replay / Connection Resume        | 実装済み | v2 Control の atomic cut、fenced replay / resync、StateReady、durable checkpoint 復元を接続。Cloud 再配置をまたぐ recovery は未検証                                                                    |
 | Cloud Delivery と Quest encoded Asset cache  | 実装済み | Control Plane は認証済み participant の v2 Delivery と期限付き HTTPS Asset URL を返す。Unity は検証・pin・residency を Editor で確認。Android APK は生成済み、実機 download は未検証                   |
-| ADR-0027 採用仕様                            | 未実装   | 現行 v2 は Runtime で motion / Zone を認識する。採用設計の契約と consumer の更新は未着手                                                                                                               |
+| ADR-0027 採用仕様                            | 未実装   | 現行 v2 は Runtime で motion / Zone を認識する。v3 契約と生成物を更新済み。Runtime / Unity consumer は未移行                                                                                           |
 | 1 / 10 / 25 / 50 Quest 実機計測              | 未実装   | latency、jitter、fan-out、Asset ready、GPU / CPU peak は未計測                                                                                                                                         |
 
 ## 1. 背景
@@ -483,7 +483,7 @@ ReliableEvent
 - gap 検知時は replay、保持範囲外なら Snapshot を取得する。
 - exactly-once delivery は仮定せず、`eventId` で idempotent に適用する。
 - profile projectionでparticipantに不可視なReliable Eventが発生しても、そのeventごとのControl itemを送信しない。Runtime Coreはconnectionごとに連続する不可視sequence範囲を保持し、次の可視Reliable Eventを送る直前に一つの`ProjectionAdvance { fromExclusive, throughSequence }`へ集約する。不可視eventだけを理由にnetwork writeを開始せず、後続の可視eventがなければmarkerも送らない。新しいConnection Snapshotはcutの`reliableSequence`で未送信範囲を置き換える。markerはpayload、resource ID、event kindを含まず、clientはmarkerと直後の可視eventをControl stream順に適用する。これにより可視同期境界ではcanonical event数の集約差分が分かり得るが、不可視eventごとの発生時刻とtraffic patternは公開しない。
-- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstep、Snapshot projectionの試行回数と総時間budgetの上限を所有する。現行 v2 の retention、replay / catch-up queue、Snapshot retry、idempotency、State dependency buffer、microstep の数値と超過時の挙動は [配信・実行契約](../../../docs/packages/CONTRACT_RUNTIME.md) を正本とする。採用設計では未確認 Outcome に時間・件数だけの eviction を適用せず §8.3 の同期手順を使い、新しい上限値は未決定である。保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
+- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstep、Snapshot projectionの試行回数と総時間budgetの上限を所有する。現行 v2 の retention、replay / catch-up queue、Snapshot retry、idempotency、State dependency buffer、microstep の数値と超過時の挙動は [配信・実行契約](../../../docs/packages/CONTRACT_RUNTIME.md) を正本とする。採用設計では未確認 Outcome に時間・件数だけの eviction を適用せず §8.3 の同期手順を使い、新しい上限値は [v3 契約](../../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md#容量と超過時の動作) に固定する。保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
 
 同一logical runtime timeに複数のTimerまたはRun completionがある場合は、versionedなevent kind順、stable target ID順、Run ID順で処理する。zero-duration actionから生じる内部eventは同一event loopで処理するが、`RuntimeProtocolLimits`のmicrostep上限を超えた場合は無限遷移としてRuntimeを`Paused`にし、runtime faultをReliable Controlで通知する。
 

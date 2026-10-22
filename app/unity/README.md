@@ -2,7 +2,7 @@
 
 ## 採用仕様と現行実装
 
-[ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) により、Presenter client の Gesture / Zone 認識、認識開始時の Step と server 入力世代、共有演出全体の pause、到達済み Step の直近開始状態への復元を採用しました。実装・Zod / Protobuf・生成物は未変更です。以下は現行実装とその検証手順であり、Runtime の motion / dwell 認識、Anchor の500 ms失効、再校正時のローカル処理は移行対象です。
+[ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) により、Presenter client の Gesture / Zone 認識、認識開始時の Step と server 入力世代、共有演出全体の pause、到達済み Step の直近開始状態への復元を採用しました。[v3 契約](../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) と生成物は更新しましたが、Unity-owned adapter は未移行です。以下は移行前 v2 の実装・検証手順であり、Runtime の motion / dwell 認識、Anchor の500 ms失効、再校正時のローカル処理は移行対象です。
 
 採用後は認識を端末に置き、Pose は追従演出用に分離します。pause の凍結 Anchor は server の Snapshot に従い、経年だけで非表示にせず、resume 後に有効な Pose を得るまで保持します。HMD 視点と操作 UI は継続します。再校正は server の入力世代更新と同期します。端末校正の無効化やアプリ休止と、Session の pause 操作を同一視しません。
 

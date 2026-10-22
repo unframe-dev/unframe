@@ -4,7 +4,7 @@
 - **Wire source**: `packages/contracts/proto/unframe/{presentation,delivery,realtime}/`
 - **Related**: [Architecture](./ARCHITECTURE.md), [Data model](./DATA_MODEL.md), [ADR-0007（アーカイブ）](../decisions/archived/0007-timeline-runtime-run-wire-contract.md), [ADR-0008（アーカイブ）](../decisions/archived/0008-runtime-transport-contract.md), [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md), [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md), [ADR-0011](../decisions/0011-surface-partition-contract.md), [ADR-0012](../decisions/0012-texture-budget-residency-contract.md), [ADR-0015](../decisions/0015-presentation-definition-artifact-boundaries.md), [ADR-0016](../decisions/0016-model-animation-scope.md)
 
-この文書は Delivery と Runtime の required presence、検証、状態遷移、失敗結果を固定する。[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・凍結 Anchor・Step 復元は採用済みの未実装設計であり、現行 Zod / v2 Protobuf と生成物は未変更である。以下で「採用設計」と記す規則は現行 v2 に対する変更要件であり、新 field number や version をここでは定義しない。それ以外の wire 記述は現行 v2 を基準とする。`realtime.v1` は廃止済みであり、v2 への互換 adapter、fallback、downgrade は持たない。
+この文書は Delivery と Runtime の required presence、検証、状態遷移、失敗結果を固定する。[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・凍結 Anchor・Step 復元は採用済みの未実装設計であり、[v3 の wire・version・容量](./CONTRACT_PRESENTER_AUTHORITY.md) と正本 schema / 生成物は更新済みだが、実行側 consumer は移行前である。以下で「採用設計」と記す規則は現行 v2 に対する変更要件であり、具体 field と version は v3 契約を正本とする。それ以外の wire 記述は現行 v2 を基準とする。`realtime.v1` は廃止済みであり、v2 への互換 adapter、fallback、downgrade は持たない。
 
 ## 1. Version と数値
 
@@ -121,7 +121,7 @@ Controlはreliable、ordered、replayableで、Stateはlatest-wins、non-replaya
 
 ### 4.1 Protocol limits
 
-この節の数値と eviction は現行 v2 の契約である。採用設計の未確認 Outcome は時間・件数だけで evict せず、§4.2 の同期手順で整理する。採用設計の新しい数値上限は未決定である。
+この節の数値と eviction は現行 v2 の契約である。採用設計の未確認 Outcome は時間・件数だけで evict せず、§4.2 の同期手順で整理する。採用設計の数値上限は [v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md#容量と超過時の動作) に固定する。
 
 `RuntimeProtocolLimits`の全fieldはrequiredで、接続中に変更しない。baselineは次の値に固定する。
 

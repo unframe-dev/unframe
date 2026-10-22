@@ -53,7 +53,7 @@ unframe/
 
 - Go / gRPC の独立した container application とする。
 - Unity との bidirectional stream、session 中の canonical state、fan-out、backpressure を担当する。
-- Presenter が認識した入力の有効性、Cue / Action、Timeline / Timer、Step 遷移を確定する。入力世代、共有演出全体の pause、到達済み Step の開始状態への復元は [ADR-0027](./docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の採用仕様であり、現行実装・生成契約には未反映である。
+- Presenter が認識した入力の有効性、Cue / Action、Timeline / Timer、Step 遷移を確定する。入力世代、共有演出全体の pause、到達済み Step の開始状態への復元は [ADR-0027](./docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の採用仕様であり、[v3 契約](./docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) に反映し、実行側 consumer は移行前である。
 - hot path は Control Plane、D1、R2 に依存せず、checkpoint と completion のみを Control Plane へ永続化する。
 
 ### `app/web`

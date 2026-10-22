@@ -12686,7 +12686,7 @@
                     "schemaVersion": {
                       "type": "number",
                       "enum": [
-                        2
+                        3
                       ]
                     },
                     "presentationId": {
@@ -12729,7 +12729,7 @@
                         "definition": {
                           "type": "number",
                           "enum": [
-                            2
+                            3
                           ]
                         },
                         "renderBundle": {
@@ -12747,25 +12747,25 @@
                         "delivery": {
                           "type": "number",
                           "enum": [
-                            2
+                            3
                           ]
                         },
                         "runtime": {
                           "type": "number",
                           "enum": [
-                            2
+                            3
                           ]
                         },
                         "progression": {
                           "type": "number",
                           "enum": [
-                            1
+                            2
                           ]
                         },
                         "projection": {
                           "type": "number",
                           "enum": [
-                            1
+                            2
                           ]
                         }
                       },
@@ -13015,7 +13015,7 @@
                     "schemaVersion": {
                       "type": "number",
                       "enum": [
-                        2
+                        3
                       ]
                     },
                     "presentationId": {
@@ -13058,7 +13058,7 @@
                         "definition": {
                           "type": "number",
                           "enum": [
-                            2
+                            3
                           ]
                         },
                         "renderBundle": {
@@ -13076,25 +13076,25 @@
                         "delivery": {
                           "type": "number",
                           "enum": [
-                            2
+                            3
                           ]
                         },
                         "runtime": {
                           "type": "number",
                           "enum": [
-                            2
+                            3
                           ]
                         },
                         "progression": {
                           "type": "number",
                           "enum": [
-                            1
+                            2
                           ]
                         },
                         "projection": {
                           "type": "number",
                           "enum": [
-                            1
+                            2
                           ]
                         }
                       },

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "reliableSequence": 0,
   "lastIngressSequence": 0,
   "lastAllocatedRunSequence": 0,
@@ -22,7 +22,6 @@
   "stepExecution": {
     "stepEntryEpoch": 1,
     "consumedCueIds": [],
-    "cooldownUntilRuntimeTimeMilliseconds": {},
     "timerStates": {}
   },
   "surfaceStates": {
@@ -90,6 +89,75 @@
       "rotation": [0, 0, 0, 1]
     }
   },
-  "recentEventIds": [],
-  "modelClipStates": {}
+  "modelClipStates": {},
+  "inputEpoch": 1,
+  "frozenAnchors": [],
+  "stepStartHistory": [
+    {
+      "groupId": "intro",
+      "stepId": "start",
+      "groupEntryEpoch": 1,
+      "stepEntryEpoch": 1,
+      "capturedAtRuntimeTimeMilliseconds": 0,
+      "surfaceStates": {
+        "baked": {
+          "stateId": "default"
+        },
+        "native": {
+          "stateId": "default"
+        },
+        "video": {
+          "stateId": "default"
+        }
+      },
+      "nodeStates": {
+        "model": {
+          "active": true,
+          "visible": true,
+          "opacity": 1,
+          "transform": {
+            "position": [0, 0, 0],
+            "rotation": [0, 0, 0, 1],
+            "scale": [1, 1, 1]
+          }
+        },
+        "node-baked": {
+          "active": true,
+          "visible": true,
+          "opacity": 1,
+          "transform": {
+            "position": [0, 0, 0],
+            "rotation": [0, 0, 0, 1],
+            "scale": [1, 1, 1]
+          }
+        },
+        "node-native": {
+          "active": true,
+          "visible": true,
+          "opacity": 1,
+          "transform": {
+            "position": [0, 0, 0],
+            "rotation": [0, 0, 0, 1],
+            "scale": [1, 1, 1]
+          }
+        },
+        "node-video": {
+          "active": true,
+          "visible": true,
+          "opacity": 1,
+          "transform": {
+            "position": [0, 0, 0],
+            "rotation": [0, 0, 0, 1],
+            "scale": [1, 1, 1]
+          }
+        }
+      },
+      "mediaStates": {},
+      "modelClipStates": {},
+      "variables": {
+        "counter": 0
+      },
+      "activeRuns": []
+    }
+  ]
 }

@@ -9,7 +9,7 @@
   - [ADR-0014: Presentation の描画方式を限定する](../decisions/0014-presentation-rendering-scope.md)
   - [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md)
 
-[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・Pause・Step 開始状態復元は採用後の実装設計である。現行実装・Zod / Protobuf・生成物は未変更であり、以下の責務追加を実装済みとは扱わない。
+[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・Pause・Step 開始状態復元は採用後の実装設計である。[v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md) と生成物は更新したが、以下の責務追加の実行側 consumer は未移行である。
 
 具体的な成果物・配信・Runtime のデータ契約は [Presentation v2](./DATA_MODEL.md) を正本とする。本書は実装配置と責務を説明する。
 

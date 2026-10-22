@@ -22,7 +22,7 @@
   - [Repository Architecture](../../ARCHITECTURE.md)
   - [Server Architecture](../../app/server/ARCHITECTURE.md)
 
-[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・Pause・Step 開始状態復元は採用後の設計である。現行実装・Zod / Protobuf・生成物は未変更であり、本書の概念型は実装済み schema を示さない。
+[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・Pause・Step 開始状態復元は採用後の設計である。[v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md) と生成物は更新済みで、実行側 consumer は未移行である。本書の概念型と正本 schema の差異は v3 契約に従う。
 
 具体的なデータ構造と実行規則は [Presentation v2 データ契約](./DATA_MODEL.md) を正本とする。serialized field は [Contracts の手書き Zod schema](../../packages/contracts/src/presentation/index.ts) と推論型を正本とする。本書に残る概念図・型例は責務の説明であり、コピー可能な現行 API 定義ではない。
 
@@ -1224,7 +1224,7 @@ Renderer の基本選択規則は次のとおりとする。
 
 ## 12. v1 Presentation Progression の意味論
 
-本節は Surface State を含む進行の意味論を定義する。[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) により更新した入力・復元の概念型は採用後設計であり、現行 Zod / Protobuf の shape と一致するとは限らない。wire schema と consumer の更新は未着手である。
+本節は Surface State を含む進行の意味論を定義する。[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) により更新した入力・復元の概念型は採用後設計であり、現行 Zod / Protobuf の shape と一致するとは限らない。wire schema は v3 へ更新済みで、consumer は未移行である。
 
 ```text
 Group       = State Machine のスコープ

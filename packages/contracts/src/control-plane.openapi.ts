@@ -4237,7 +4237,7 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @enum {number} */
-                            schemaVersion: 2;
+                            schemaVersion: 3;
                             presentationId: string;
                             publicationEpoch: number;
                             publicationManifestHash: string;
@@ -4248,19 +4248,19 @@ export interface paths {
                             assetSetHash: string;
                             contractVersions: {
                                 /** @enum {number} */
-                                definition: 2;
+                                definition: 3;
                                 /** @enum {number} */
                                 renderBundle: 2;
                                 /** @enum {number} */
                                 assetSet: 2;
                                 /** @enum {number} */
-                                delivery: 2;
+                                delivery: 3;
                                 /** @enum {number} */
-                                runtime: 2;
+                                runtime: 3;
                                 /** @enum {number} */
-                                progression: 1;
+                                progression: 2;
                                 /** @enum {number} */
-                                projection: 1;
+                                projection: 2;
                             };
                         };
                     };
@@ -4383,7 +4383,7 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @enum {number} */
-                            schemaVersion: 2;
+                            schemaVersion: 3;
                             presentationId: string;
                             publicationEpoch: number;
                             publicationManifestHash: string;
@@ -4394,19 +4394,19 @@ export interface paths {
                             assetSetHash: string;
                             contractVersions: {
                                 /** @enum {number} */
-                                definition: 2;
+                                definition: 3;
                                 /** @enum {number} */
                                 renderBundle: 2;
                                 /** @enum {number} */
                                 assetSet: 2;
                                 /** @enum {number} */
-                                delivery: 2;
+                                delivery: 3;
                                 /** @enum {number} */
-                                runtime: 2;
+                                runtime: 3;
                                 /** @enum {number} */
-                                progression: 1;
+                                progression: 2;
                                 /** @enum {number} */
-                                projection: 1;
+                                projection: 2;
                             };
                         };
                     };

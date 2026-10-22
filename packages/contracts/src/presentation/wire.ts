@@ -3,6 +3,11 @@ import protobuf from "protobufjs/minimal.js";
 
 import { unframe } from "../../presentation/wire-static.js";
 import { getInternalWireType, type WireMessageType } from "./wire-metadata";
+import {
+  assertRuntimeByteLength,
+  runtimeAuthorityLimits,
+  validateAuthorityWireValue,
+} from "./runtime-authority";
 
 export { getPresentationWireType } from "./wire-metadata";
 
@@ -186,27 +191,39 @@ function validateObject(type: WireMessageType, value: Record<string, unknown>, d
       }
     }
   }
-  if (type.fullName === ".unframe.presentation.ProjectedMotionGuideDefinition") {
-    const preset = value["preset"];
-    const hand = value["hand"];
-    const distance = value["minimumDistanceMeters"];
-    const window = value["windowMs"];
-    const validId = (name: string) =>
-      typeof value[name] === "string" && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/u.test(value[name]);
-    if (
-      !validId("groupId") ||
-      !validId("stepId") ||
-      !validId("cueId") ||
-      typeof preset !== "number" ||
-      typeof hand !== "number" ||
-      preset >= 7 !== (hand === 4) ||
-      typeof distance !== "number" ||
-      distance <= 0 ||
-      typeof window !== "string" ||
-      BigInt(window) <= 0n ||
-      BigInt(window) > BigInt(Number.MAX_SAFE_INTEGER)
-    )
-      throw new TypeError("Invalid motion guide metadata");
+  validateAuthorityWireValue(type.fullName, value);
+  const name = type.fullName.split(".").at(-1);
+  if (name === "CanonicalRuntimeSnapshot" && value["stepStartHistory"] !== undefined) {
+    const codec = staticCodec(type.fullName.slice(1));
+    const bytes = codec
+      .encode(
+        codec.fromObject({ stepStartHistory: value["stepStartHistory"] }),
+        new protobuf.Writer(),
+      )
+      .finish();
+    assertRuntimeByteLength("StepStartHistory", bytes.length);
+  }
+  if (name === "RuntimeRecoveryMetadata" && value["commands"] !== undefined) {
+    const commands = value["commands"] as unknown[];
+    if (commands.length > runtimeAuthorityLimits.maximumCommandHistoryCount)
+      throw new RangeError("Command history exceeds its record count limit");
+    const codec = staticCodec(type.fullName.slice(1));
+    const bytes = codec.encode(codec.fromObject({ commands }), new protobuf.Writer()).finish();
+    assertRuntimeByteLength("CommandHistory", bytes.length);
+  }
+  if (
+    [
+      "StepStartState",
+      "RuntimeCommandHistory",
+      "PresenterInputSynchronization",
+      "InputSynchronizationAck",
+    ].includes(name!)
+  ) {
+    const codec = staticCodec(type.fullName.slice(1));
+    assertRuntimeByteLength(
+      type.fullName,
+      codec.encode(codec.fromObject(value), new protobuf.Writer()).finish().length,
+    );
   }
 }
 
@@ -216,10 +233,13 @@ export function encodeWireMessage(typeName: string, value: object): Uint8Array {
   validateObject(type, snapshot);
   const codec = staticCodec(typeName);
   // workerd's Buffer UTF-8 writer differs from Node when the remaining length is omitted.
-  return codec.encode(codec.fromObject(snapshot), new protobuf.Writer()).finish();
+  const bytes = codec.encode(codec.fromObject(snapshot), new protobuf.Writer()).finish();
+  assertRuntimeByteLength(typeName, bytes.length);
+  return bytes;
 }
 
 export function decodeWireMessage(typeName: string, bytes: Uint8Array): Record<string, unknown> {
+  assertRuntimeByteLength(typeName, bytes.length);
   const codec = staticCodec(typeName);
   const value = codec.toObject(codec.decode(bytes), {
     longs: String,

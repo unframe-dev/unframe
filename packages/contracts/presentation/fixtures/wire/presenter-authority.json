@@ -1,0 +1,161 @@
+[
+  {
+    "typeName": "unframe.realtime.GestureInputCommand",
+    "value": {
+      "clientEventId": "18446744073709551615:550e8400-e29b-41d4-a716-446655440000",
+      "inputContext": {
+        "inputEpoch": "7",
+        "groupId": "intro",
+        "groupEntryEpoch": "2",
+        "stepId": "start",
+        "stepEntryEpoch": "3"
+      },
+      "commandEpoch": "18446744073709551615",
+      "gesture": 8
+    },
+    "hex": "0a3931383434363734343037333730393535313631353a35353065383430302d653239622d343164342d613731362d343436363535343430303030121408071205696e74726f180222057374617274280318ffffffffffffffffff013008"
+  },
+  {
+    "typeName": "unframe.realtime.ZoneInputCommand",
+    "value": {
+      "clientEventId": "4:550e8400-e29b-41d4-a716-446655440000",
+      "inputContext": {
+        "inputEpoch": "7",
+        "groupId": "intro",
+        "groupEntryEpoch": "2",
+        "stepId": "start",
+        "stepEntryEpoch": "3"
+      },
+      "commandEpoch": "4",
+      "zoneId": "stage",
+      "edge": 1
+    },
+    "hex": "0a26343a35353065383430302d653239622d343164342d613731362d343436363535343430303030121408071205696e74726f18022205737461727428031804320573746167653801"
+  },
+  {
+    "typeName": "unframe.realtime.PresenterInputSynchronization",
+    "value": {
+      "phase": 1,
+      "reason": 7,
+      "synchronizationRevision": "9007199254740993",
+      "inputContext": {
+        "inputEpoch": "7",
+        "groupId": "intro",
+        "groupEntryEpoch": "2",
+        "stepId": "start",
+        "stepEntryEpoch": "3"
+      },
+      "commandEpoch": "4",
+      "nextCommandEpoch": "5",
+      "reliableSequence": "9007199254740995",
+      "recognitionCatalog": {
+        "gestures": [1, 8],
+        "zones": [
+          {
+            "zoneId": "stage",
+            "center": {
+              "x": 1,
+              "y": 2,
+              "z": 3
+            }
+          }
+        ]
+      }
+    },
+    "hex": "08011007188180808080808010221408071205696e74726f180222057374617274280328043005388380808080808010422a0a02010812240a057374616765121b09000000000000f03f110000000000000040190000000000000840"
+  },
+  {
+    "typeName": "unframe.realtime.InputSynchronizationAck",
+    "value": {
+      "synchronizationRevision": "9007199254740993",
+      "inputContext": {
+        "inputEpoch": "7",
+        "groupId": "intro",
+        "groupEntryEpoch": "2",
+        "stepId": "start",
+        "stepEntryEpoch": "3"
+      },
+      "commandEpoch": "5",
+      "appliedReliableSequence": "9007199254740995",
+      "pendingCommandsDiscarded": true
+    },
+    "hex": "088180808080808010121408071205696e74726f180222057374617274280318052083808080808080102801"
+  },
+  {
+    "typeName": "unframe.realtime.ProjectedAnchorBindingPatch",
+    "value": {
+      "nodeId": "follow",
+      "frozen": {
+        "nodeId": "follow",
+        "position": {
+          "x": 1,
+          "y": 2,
+          "z": 3
+        }
+      }
+    },
+    "hex": "0a06666f6c6c6f7722250a06666f6c6c6f77121b09000000000000f03f110000000000000040190000000000000840"
+  },
+  {
+    "typeName": "unframe.realtime.RuntimeViewReplaced",
+    "value": {
+      "runtimeView": {
+        "projectionProfileId": "profile",
+        "assignmentEpoch": "1",
+        "baseReliableSequence": "12",
+        "progression": {
+          "currentGroupId": "intro",
+          "groupEntryEpoch": "2",
+          "currentStepId": "start",
+          "stepEntryEpoch": "3",
+          "stepEnteredAtRuntimeTimeMs": "100",
+          "stable": {}
+        },
+        "nodeStates": [
+          {
+            "nodeId": "follow",
+            "active": true,
+            "visible": true,
+            "opacity": 1,
+            "transform": {
+              "position": {},
+              "rotation": {
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          }
+        ],
+        "clock": {
+          "runtimeTimeMs": "100",
+          "paused": {
+            "reason": 8
+          }
+        },
+        "presentationOrigin": {
+          "pose": {
+            "position": {},
+            "rotation": {
+              "w": 1
+            }
+          }
+        },
+        "frozenAnchors": [
+          {
+            "nodeId": "follow",
+            "position": {
+              "x": 1,
+              "y": 2,
+              "z": 3
+            }
+          }
+        ]
+      }
+    },
+    "hex": "0aa8010a0770726f66696c651001180c22160a05696e74726f10021a0573746172742003286432002a410a06666f6c6c6f771001180121000000000000f03f2a2a0a00120921000000000000f03f1a1b09000000000000f03f11000000000000f03f19000000000000f03f520608641a0208085a0f120d0a00120921000000000000f03f72250a06666f6c6c6f77121b09000000000000f03f110000000000000040190000000000000840"
+  }
+]

@@ -346,75 +346,137 @@ test("Video artifacts require an explicit supported fit", async () => {
   }
 });
 
-test("motion presets constrain hand subjects without expanding zone selectors", () => {
-  const original = presentationDefinitionSchema.parse(definition);
-  const group = Object.values(original.flow.groups)[0]!;
-  const step = Object.values(group.steps)[0]!;
-  const cue = step.cues[0]!;
-  const motion = {
-    kind: "motion",
-    actor: { kind: "system", source: "tracking" },
-    subject: { kind: "anchor", owner: { kind: "presenter" }, target: "eitherHand" },
-    preset: "swipeUp",
-    minimumDistanceMeters: 0.28,
-    windowMilliseconds: 1200,
-  };
-  Object.assign(cue, { trigger: motion });
-  for (const preset of [
+test("Presenter gesture triggers accept the eight recognized gestures", () => {
+  const valid = structuredClone(definition);
+  for (const gesture of [
     "swipeLeft",
     "swipeRight",
-    "swipeDown",
     "swipeUp",
+    "swipeDown",
     "pushForward",
     "pullBackward",
+    "spreadHands",
+    "closeHands",
   ]) {
-    motion.preset = preset;
-    for (const target of ["eitherHand", "leftHand", "rightHand"]) {
-      motion.subject.target = target;
-      assert.equal(presentationDefinitionSchema.safeParse(original).success, true);
-      assert.equal(validateDefinition(original), true);
+    valid.flow.groups.intro.steps.start.cues[0].trigger = {
+      kind: "gesture",
+      actor: { kind: "presenter" },
+      gesture,
+    };
+    const result = presentationDefinitionSchema.safeParse(valid);
+    assert.equal(result.success, true, result.success ? undefined : result.error.message);
+    assert.equal(validateDefinition(valid), true, ajv.errorsText(validateDefinition.errors));
+  }
+});
+
+test("Zones expose only their center and Presenter edges need no recognition tuning", () => {
+  const valid = structuredClone(definition);
+  valid.stage.zones.front = { id: "front", owner: { kind: "presentation" }, center: [0, 1, -1] };
+  valid.flow.groups.intro.steps.start.cues[0].firePolicy = { kind: "repeatable" };
+  for (const edge of ["enter", "exit"]) {
+    valid.flow.groups.intro.steps.start.cues[0].trigger = {
+      kind: "zoneEdge",
+      actor: { kind: "presenter" },
+      zoneId: "front",
+      edge,
+    };
+    const result = presentationDefinitionSchema.safeParse(valid);
+    assert.equal(result.success, true, result.success ? undefined : result.error.message);
+    assert.equal(validateDefinition(valid), true, ajv.errorsText(validateDefinition.errors));
+  }
+  for (const change of [
+    (value: typeof valid) => {
+      value.stage.zones.front.size = [2, 2, 2];
+    },
+    (value: typeof valid) => {
+      value.flow.groups.intro.steps.start.cues[0].firePolicy.cooldownMilliseconds = 0;
+    },
+    (value: typeof valid) => {
+      value.flow.groups.intro.steps.start.cues[0].trigger.dwellMilliseconds = 100;
+    },
+    (value: typeof valid) => {
+      value.flow.groups.intro.steps.start.cues[0].trigger.hysteresisMeters = 0.1;
+    },
+    (value: typeof valid) => {
+      value.flow.groups.intro.steps.start.cues[0].trigger.subject = {
+        kind: "participant",
+        owner: { kind: "presenter" },
+      };
+    },
+  ]) {
+    const invalid = structuredClone(valid);
+    change(invalid);
+    assert.equal(presentationDefinitionSchema.safeParse(invalid).success, false);
+    assert.equal(validateDefinition(invalid), false);
+  }
+});
+
+test("Recognition publication requires the new schema and contract majors", async () => {
+  for (const [name, schema] of schemas.filter(([name]) =>
+    [
+      "presentation-definition",
+      "capability-profile",
+      "build-manifest",
+      "published-presentation",
+    ].includes(name),
+  )) {
+    const valid = await fixture(name);
+    valid.schemaVersion = 3;
+    if (valid.contractVersions) {
+      Object.assign(valid.contractVersions, {
+        delivery: 3,
+        runtime: 3,
+        progression: 2,
+        projection: 2,
+      });
+      if (name !== "capability-profile") valid.contractVersions.definition = 3;
+    }
+    const validate = ajv.getSchema(
+      `https://contracts.unframe.dev/presentation/${name}.schema.json`,
+    )!;
+    assert.equal(schema.safeParse(valid).success, true, name);
+    assert.equal(validate(valid), true, ajv.errorsText(validate.errors));
+    assert.equal(schema.safeParse({ ...valid, schemaVersion: 2 }).success, false, name);
+    assert.equal(validate({ ...valid, schemaVersion: 2 }), false, name);
+    for (const key of Object.keys(valid.contractVersions ?? {})) {
+      const invalid = structuredClone(valid);
+      invalid.contractVersions[key] -= 1;
+      assert.equal(schema.safeParse(invalid).success, false, `${name}: ${key}`);
+      assert.equal(validate(invalid), false, `${name}: ${key}`);
     }
   }
-  for (const preset of ["spreadHands", "closeHands"]) {
-    motion.preset = preset;
-    motion.subject.target = "bothHands";
-    assert.equal(presentationDefinitionSchema.safeParse(original).success, true);
-    assert.equal(validateDefinition(original), true);
-  }
-  for (const [preset, target] of [
-    ["swipeUp", "head"],
-    ["swipeUp", "bothHands"],
-    ["spreadHands", "eitherHand"],
-    ["unknown", "eitherHand"],
+});
+
+test("Definition rejects old motion and tracking actors without fallback", () => {
+  for (const trigger of [
+    {
+      kind: "motion",
+      actor: { kind: "system", source: "tracking" },
+      subject: { kind: "anchor", owner: { kind: "presenter" }, target: "leftHand" },
+      preset: "swipeUp",
+      minimumDistanceMeters: 0.28,
+      windowMilliseconds: 1200,
+    },
+    { kind: "gesture", actor: { kind: "presenter" }, gesture: "unknown" },
+    { kind: "gesture", actor: { kind: "system", source: "tracking" }, gesture: "swipeUp" },
+    {
+      kind: "gesture",
+      actor: { kind: "presenter" },
+      gesture: "swipeUp",
+      minimumDistanceMeters: 0.28,
+    },
+    { kind: "gesture", actor: { kind: "presenter" }, gesture: "swipeUp", windowMilliseconds: 1200 },
+    { kind: "logicalInput", actor: { kind: "system", source: "tracking" }, action: "next" },
+    {
+      kind: "zoneEdge",
+      actor: { kind: "system", source: "tracking" },
+      zoneId: "front",
+      edge: "enter",
+    },
   ]) {
-    motion.preset = preset!;
-    motion.subject.target = target!;
-    assert.equal(presentationDefinitionSchema.safeParse(original).success, false);
-    assert.equal(validateDefinition(original), false);
-  }
-  const { preset: _preset, ...distanceMotion } = motion;
-  Object.assign(cue, { trigger: distanceMotion });
-  for (const target of ["head", "body", "leftHand", "rightHand"]) {
-    distanceMotion.subject.target = target;
-    assert.equal(presentationDefinitionSchema.safeParse(original).success, true);
-    assert.equal(validateDefinition(original), true);
-  }
-  for (const target of ["eitherHand", "bothHands"]) {
-    distanceMotion.subject.target = target;
-    assert.equal(presentationDefinitionSchema.safeParse(original).success, false);
-    assert.equal(validateDefinition(original), false);
-  }
-  const zone = {
-    kind: "zoneEdge",
-    actor: motion.actor,
-    subject: motion.subject,
-    zoneId: "front",
-    edge: "enter",
-  };
-  Object.assign(cue, { trigger: zone });
-  for (const target of ["eitherHand", "bothHands"]) {
-    zone.subject.target = target;
-    assert.equal(presentationDefinitionSchema.safeParse(original).success, false);
-    assert.equal(validateDefinition(original), false);
+    const invalid = structuredClone(definition);
+    invalid.flow.groups.intro.steps.start.cues[0].trigger = trigger;
+    assert.equal(presentationDefinitionSchema.safeParse(invalid).success, false);
+    assert.equal(validateDefinition(invalid), false);
   }
 });
