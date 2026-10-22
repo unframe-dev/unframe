@@ -32,6 +32,7 @@ const inspection = () => ({
         index: 0,
         codec_type: "video",
         codec_name: "h264",
+        codec_tag_string: "avc1",
         profile: "High",
         level: 41,
         width: 64,
@@ -97,6 +98,19 @@ describe("MP4 inspection", () => {
       },
     });
   });
+  it.each(["avc3", "hvc1", "", undefined])(
+    "rejects a video sample entry unsupported by Unity: %s",
+    (sampleEntry) => {
+      const input = inspection();
+      const probe = JSON.parse(input.probeJson);
+      probe.streams[0].codec_tag_string = sampleEntry;
+      input.probeJson = JSON.stringify(probe);
+      expect(validateMp4Inspection(input)).toMatchObject({
+        valid: false,
+        diagnostics: [{ code: "video-codec-unsupported" }],
+      });
+    },
+  );
   it("rejects a container duration that disagrees with the presentation end", () => {
     const input = inspection();
     const probe = JSON.parse(input.probeJson);

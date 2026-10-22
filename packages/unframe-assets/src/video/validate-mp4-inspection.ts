@@ -17,6 +17,7 @@ const streamSchema = z.object({
   index: z.number().int().nonnegative(),
   codec_type: z.enum(["video", "audio"]),
   codec_name: z.string(),
+  codec_tag_string: z.string().optional(),
   profile: z.string(),
   time_base: z
     .string()
@@ -169,6 +170,7 @@ export const validateMp4Inspection = (input: unknown): ValidationResult<VideoMet
       );
     if (
       video.codec_name !== "h264" ||
+      video.codec_tag_string !== "avc1" ||
       video.profile !== "High" ||
       !video.level ||
       video.level > 41 ||
@@ -185,7 +187,7 @@ export const validateMp4Inspection = (input: unknown): ValidationResult<VideoMet
     )
       return failure(
         "video-codec-unsupported",
-        "Video requires bounded progressive AVC High up to level 4.1, 8-bit 4:2:0.",
+        "Video requires avc1 with bounded progressive AVC High up to level 4.1, 8-bit 4:2:0.",
       );
     if (
       headers.profiles.some((value) => value !== 100) ||

@@ -83,7 +83,7 @@ for await (const line of lines) {
         "-show_streams",
         "-show_format",
         "-show_entries",
-        "format=format_name,duration:stream=index,codec_type,codec_name,profile,level,width,height,pix_fmt,field_order,sample_rate,channels,time_base,start_pts,duration_ts:packet=stream_index,pts,dts,duration:packet_side_data=skip_samples,discard_padding",
+        "format=format_name,duration:stream=index,codec_type,codec_name,codec_tag_string,profile,level,width,height,pix_fmt,field_order,sample_rate,channels,time_base,start_pts,duration_ts:packet=stream_index,pts,dts,duration:packet_side_data=skip_samples,discard_padding",
         "-of",
         "json",
         source,

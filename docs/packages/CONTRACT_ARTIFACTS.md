@@ -137,7 +137,7 @@ fitはcontain / cover / stretchを必須とし、containは枠内へ縦横比を
 するのは H.264、alpha なしだけとし、同 profile は VP9、AV1、alpha を supported と申告しない。
 これらの feature は Video artifact contract には維持するが、別の形式・budget profile が Accepted
 になるまで Delivery で拒否する。基本 profile の MP4 映像 track は AVC High Profile、level 4.1
-以下、8 bit、4:2:0、progressive に限定する。
+以下、8 bit、4:2:0、progressive、sample entry `avc1` に限定する。
 interlace、10/12 bit、4:2:2、4:4:4を拒否する。音声 track は任意で一つだけとし、存在する場合は
 AAC-LC（MPEG-4 Audio Object Type 2）、48 kHz、mono または stereo に限定する。Compiler は MP4
 container と各 elementary stream を parse してこの値を検証し、file extension や codec 名だけで

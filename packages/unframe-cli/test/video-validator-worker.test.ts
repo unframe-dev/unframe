@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
-import { expect, it } from "vitest";
+import { assert, expect, it } from "vitest";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 
 const inspect = async (sourcePath: unknown) => {
@@ -46,6 +46,17 @@ it.each(["/input/source.mp4", "/private/var/folders/media job/source.mp4"])(
     expect(JSON.parse(result.value.framesJson).at(-1)).toBe(sourcePath);
   },
 );
+
+it("requests the video sample entry from ffprobe for Unity compatibility validation", async () => {
+  const result = (await inspect("/input/source.mp4")).at(-1);
+  expect(result).toMatchObject({ type: "result", value: { fullDecodeSucceeded: true } });
+  const args = JSON.parse(result.value.probeJson) as string[];
+  const entries = args[args.indexOf("-show_entries") + 1];
+  assert.isDefined(entries);
+  const streamEntry = entries.split(":").find((entry) => entry.startsWith("stream="));
+  assert.isDefined(streamEntry);
+  expect(streamEntry.slice("stream=".length).split(",")).toContain("codec_tag_string");
+});
 
 it.each([undefined, "relative.mp4", "", "/source\u0000.mp4"])(
   "fails closed for an invalid media source path %s",
