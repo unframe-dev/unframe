@@ -3,11 +3,11 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"io"
 	"testing"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -223,7 +223,9 @@ func TestV2ControlCatchUpAtSnapshotSend(t *testing.T) {
 				}
 				return nil
 			}}
+			started := time.Now()
 			err := service.ConnectControl(stream)
+			elapsed := time.Since(started)
 			if test.wantReason == "" {
 				if err != nil {
 					t.Fatalf("ConnectControl: %v", err)
@@ -231,8 +233,17 @@ func TestV2ControlCatchUpAtSnapshotSend(t *testing.T) {
 			} else if status.Code(err) != codes.ResourceExhausted || status.Convert(err).Message() != test.wantReason {
 				t.Fatalf("ConnectControl: %v, want %s", err, test.wantReason)
 			}
-			if snapshotCut != test.wantCut || attempts != test.wantAttempts {
-				t.Fatalf("snapshot cut=%d attempts=%d, want %d/%d", snapshotCut, attempts, test.wantCut, test.wantAttempts)
+			if snapshotCut != test.wantCut {
+				t.Fatalf("snapshot cut=%d, want %d", snapshotCut, test.wantCut)
+			}
+			if test.overflowEveryAttempt {
+				// The fixed-clock test checks the exact attempt limit; real delivery
+				// may exhaust its total time budget first, especially under race.
+				if attempts > test.wantAttempts || (attempts < test.wantAttempts && elapsed < 250*time.Millisecond) {
+					t.Fatalf("attempts=%d elapsed=%s, want %d attempts or total budget exhausted", attempts, elapsed, test.wantAttempts)
+				}
+			} else if attempts != test.wantAttempts {
+				t.Fatalf("attempts=%d, want %d", attempts, test.wantAttempts)
 			}
 			if test.wantResync && resyncCut != expectedRetryCut {
 				t.Fatalf("resync cut=%d, want %d", resyncCut, expectedRetryCut)
