@@ -2,9 +2,9 @@
 
 ## 採用仕様と現行実装
 
-[ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) により、Presenter client の Gesture / Zone 認識、認識開始時の Step と server 入力世代、共有演出全体の pause、到達済み Step の直近開始状態への復元を採用しました。[v3 契約](../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) と生成物に合わせ、Unity の Delivery / Snapshot / transport version と凍結 Anchor・`RuntimeViewReplaced` の適用を更新しました。pause 中と resume 後の fresh Pose 待ちは凍結表示を保持し、共有再生は停止した logical clock を使います。Presenter の認識・入力同期・command epoch は未移行であり、必要な v3 capability を持つ実接続は引き続き拒否します。以下の入力・再校正の手順は移行前の実装を含みます。
+[ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力同期・凍結表示・到達済み Step 復元を実装した。対象テストと実機未検証の範囲は移行計画に記録する。 `PresenterRecognition` は Gesture の開始文脈と頭方向を保持し、Zone は腰位置だけを使う。入力同期は Reliable cut 適用後に ACK し、READY まで通常入力を停止する。pause 中と resume 後の fresh Pose 待ちは凍結表示を保持し、Step 復元は `RuntimeViewReplaced` を一括適用する。
 
-採用後は認識を端末に置き、Pose は追従演出用に分離します。pause の凍結 Anchor は server の Snapshot に従い、経年だけで非表示にせず、resume 後に有効な Pose を得るまで保持します。HMD 視点と操作 UI は継続します。再校正は server の入力世代更新と同期します。端末校正の無効化やアプリ休止と、Session の pause 操作を同一視しません。
+全体操作 UI は pause / resume / end / 再校正と、Presenter 専用 catalog の到達済み Step 選択を扱う。切断・再校正・世代変更では途中認識と古い送信待ち操作を破棄する。HMD 視点と操作 UI は pause 中も継続する。
 
 ## 現行実装
 
@@ -18,7 +18,7 @@
 
 ローカル受信処理は Delivery の参照関係、Snapshot の投影情報と sequence、Reliable Event の連番を検証します。`LocalDelivery.json` の hash は動作確認用の値で、Asset URL も含まれていません。公開成果物の内容検証や Asset ダウンロードは行いません。現在の描画経路が受け付ける Delivery renderer は Native UI の仮表示です。
 
-配信・実行は v2 契約のみを使用します。旧 JSON importer とサンプルは廃止し、v1 データの読み込み・変換、独立音声、ページ番号を直接指定する操作は提供しません。
+配信・実行は v3 契約のみを使用します。旧 JSON importer とサンプルは廃止し、v1 データの読み込み・変換、独立音声、ページ番号を直接指定する操作は提供しません。
 
 `PresentationControlPlaneConnection` は、HTTPS Control Plane origin、Session ID、更新可能な認証 token provider を受け取り、POST Deliveryで `unity-media-v1` を固定します。POST bootstrapとpublication / assignment / projectionを照合して `PresentationBakedRuntime` へ渡し、再接続時はcredentialを更新します。publication / projectionの変更ではDeliveryを再取得します。credentialはSceneやassetへ保存しません。
 

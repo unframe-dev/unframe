@@ -64,11 +64,10 @@ export type ProgressionPhase =
       pendingNext: Next;
     };
 
-type CueInputSubject = Extract<Cue["trigger"], { kind: "zoneEdge" | "motion" }>["subject"];
 type CueInputBase = {
   actor:
     | { kind: "participant"; role: "presenter" | "viewer" }
-    | { kind: "system"; source: "tracking" | "timer" | "timeline" | "media" | "runtime" };
+    | { kind: "system"; source: "timer" | "timeline" | "media" | "runtime" };
   payload: Record<string, Scalar>;
   causeEventId: string;
 };
@@ -81,15 +80,8 @@ export type CueInput = CueInputBase &
         kind: "zoneEdge";
         zoneId: string;
         edge: "enter" | "exit";
-        subject: Extract<Cue["trigger"], { kind: "zoneEdge" }>["subject"];
       }
-    | {
-        kind: "motion";
-        preset?: Extract<Cue["trigger"], { kind: "motion"; preset: string }>["preset"];
-        subject: CueInputSubject;
-        distanceMeters: number;
-        windowMilliseconds: number;
-      }
+    | { kind: "gesture"; gesture: Extract<Cue["trigger"], { kind: "gesture" }>["gesture"] }
     | { kind: "timer"; cueId: string }
     | { kind: "timelineCompleted"; timelineId: string }
     | { kind: "mediaCompleted"; surfaceId: string }
@@ -100,6 +92,8 @@ export type CueState = {
   playbackCatalog: ReturnType<typeof initializePlaybackCatalog>;
   mediaStates: CanonicalRuntimeSnapshot["mediaStates"];
   modelClipStates: CanonicalRuntimeSnapshot["modelClipStates"];
+  inputEpoch: number;
+  stepStartHistory: CanonicalRuntimeSnapshot["stepStartHistory"];
   runtimeTimeMilliseconds: number;
   currentGroupId: string;
   currentStepId: string;
@@ -118,7 +112,6 @@ export type CueState = {
     { active: boolean; visible: boolean; opacity: number; transform: Transform }
   >;
   consumedCueIds: string[];
-  cooldownUntilRuntimeTimeMilliseconds: Record<string, number>;
   timerStates: Record<
     string,
     { kind: "armed"; dueAtRuntimeTimeMilliseconds: number } | { kind: "fired" }
@@ -168,9 +161,9 @@ const initializeResources = (
 const enterStep = (definition: PresentationDefinition, state: CueState, stepId: string) => {
   state.currentStepId = stepId;
   state.stepEntryEpoch += 1;
+  state.inputEpoch += 1;
   state.stepEnteredAtRuntimeTimeMilliseconds = state.runtimeTimeMilliseconds;
   state.consumedCueIds = [];
-  state.cooldownUntilRuntimeTimeMilliseconds = {};
   state.timerStates = {};
   for (const cue of definition.flow.groups[state.currentGroupId]?.steps[stepId]?.cues ?? [])
     if (cue.trigger.kind === "timer")
@@ -181,6 +174,33 @@ const enterStep = (definition: PresentationDefinition, state: CueState, stepId: 
           cue.trigger.afterMilliseconds,
         ),
       };
+  const start = clone({
+    groupId: state.currentGroupId,
+    stepId,
+    groupEntryEpoch: state.groupEntryEpoch,
+    stepEntryEpoch: state.stepEntryEpoch,
+    capturedAtRuntimeTimeMilliseconds: state.runtimeTimeMilliseconds,
+    nodeStates: state.nodes,
+    surfaceStates: Object.fromEntries(
+      Object.entries(state.surfaces).map(([id, stateId]) => {
+        const transition = state.activeRuns.find(
+          (run) => run.kind === "surfaceTransition" && run.surfaceId === id,
+        );
+        return [id, { stateId, ...(transition ? { transitionRunId: transition.runId } : {}) }];
+      }),
+    ),
+    mediaStates: state.mediaStates,
+    modelClipStates: state.modelClipStates,
+    variables: state.variables,
+    activeRuns: state.activeRuns,
+  });
+  state.stepStartHistory = state.stepStartHistory.filter(
+    (entry) => entry.groupId !== start.groupId || entry.stepId !== stepId,
+  );
+  state.stepStartHistory.push(start);
+  state.stepStartHistory.sort(
+    (left, right) => compareId(left.groupId, right.groupId) || compareId(left.stepId, right.stepId),
+  );
 };
 
 export const createCueState = (
@@ -195,6 +215,8 @@ export const createCueState = (
     playbackCatalog: initializePlaybackCatalog(definition, renderBundle),
     mediaStates: {},
     modelClipStates: {},
+    inputEpoch: 0,
+    stepStartHistory: [],
     runtimeTimeMilliseconds: 0,
     currentGroupId: groupId,
     currentStepId: "",
@@ -210,7 +232,6 @@ export const createCueState = (
     variables: {},
     nodes: {},
     consumedCueIds: [],
-    cooldownUntilRuntimeTimeMilliseconds: {},
     timerStates: {},
   };
   initializeResources(definition, state, groupId, true);
@@ -248,25 +269,17 @@ const triggerMatches = (cue: Cue, input: CueInput) => {
     case "zoneEdge":
       return (
         trigger.kind === "zoneEdge" &&
-        input.actor.kind === "system" &&
-        input.actor.source === "tracking" &&
+        input.actor.kind === "participant" &&
+        input.actor.role === "presenter" &&
         trigger.zoneId === input.zoneId &&
-        trigger.edge === input.edge &&
-        subjectMatches(trigger.subject, input.subject)
+        trigger.edge === input.edge
       );
-    case "motion":
+    case "gesture":
       return (
-        trigger.kind === "motion" &&
-        ("preset" in trigger ? trigger.preset === input.preset : input.preset === undefined) &&
-        input.actor.kind === "system" &&
-        input.actor.source === "tracking" &&
-        subjectMatches(trigger.subject, input.subject) &&
-        typeof input.distanceMeters === "number" &&
-        Number.isFinite(input.distanceMeters) &&
-        input.distanceMeters >= trigger.minimumDistanceMeters &&
-        typeof input.windowMilliseconds === "number" &&
-        Number.isFinite(input.windowMilliseconds) &&
-        input.windowMilliseconds <= trigger.windowMilliseconds
+        trigger.kind === "gesture" &&
+        input.actor.kind === "participant" &&
+        input.actor.role === "presenter" &&
+        trigger.gesture === input.gesture
       );
     case "timer":
       return (
@@ -299,18 +312,6 @@ const triggerMatches = (cue: Cue, input: CueInput) => {
       );
   }
 };
-
-const subjectMatches = (
-  selector: Extract<Cue["trigger"], { kind: "zoneEdge" | "motion" }>["subject"],
-  subject: CueInputSubject | undefined,
-) =>
-  selector.kind === subject?.kind &&
-  selector.owner.kind === subject.owner.kind &&
-  (selector.kind !== "anchor" ||
-    (subject.kind === "anchor" &&
-      (selector.target === subject.target ||
-        (selector.target === "eitherHand" &&
-          (subject.target === "leftHand" || subject.target === "rightHand")))));
 
 const reference = (
   ref: { kind: string; variableId?: string; field?: string; surfaceId?: string; nodeId?: string },
@@ -557,11 +558,6 @@ const evaluateCueEvent = (
       if (!triggerMatches(cue, input)) return false;
       if (cue.firePolicy.kind === "oncePerStepEntry" && state.consumedCueIds.includes(cue.id))
         return false;
-      if (
-        cue.firePolicy.kind === "repeatable" &&
-        (state.cooldownUntilRuntimeTimeMilliseconds[cue.id] ?? 0) > state.runtimeTimeMilliseconds
-      )
-        return false;
       return guardPasses(cue.guard, state, cue.fixedPayload ?? input.payload);
     })
     .sort((a, b) => b.priority - a.priority || a.order - b.order || compareId(a.id, b.id));
@@ -759,11 +755,6 @@ const evaluateCueEvent = (
     }
   }
   if (cue.firePolicy.kind === "oncePerStepEntry") next.consumedCueIds.push(cue.id);
-  else
-    next.cooldownUntilRuntimeTimeMilliseconds[cue.id] = checkedTimeAddition(
-      next.runtimeTimeMilliseconds,
-      cue.firePolicy.cooldownMilliseconds,
-    );
   for (const run of pendingRuns)
     next.activeRuns.push({
       ...run,

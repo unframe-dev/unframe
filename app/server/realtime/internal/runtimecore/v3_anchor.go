@@ -98,7 +98,7 @@ func (s *V2Session) prepareV3Pause(previous *realtimev2.CanonicalRuntimeSnapshot
 		}
 	}
 	var replacement *realtimev2.ProjectedReliableEvent
-	if len(events) > 0 && events[len(events)-1].GetRuntimeStatusChanged().GetPaused() != nil {
+	if len(events) > 0 && (events[len(events)-1].GetRuntimeStatusChanged().GetPaused() != nil || events[len(events)-1].GetRuntimeViewReplaced() != nil) {
 		replacement = events[len(events)-1]
 	} else {
 		replacement = s.nextEvent(&realtimev2.ProjectedReliableEvent{})

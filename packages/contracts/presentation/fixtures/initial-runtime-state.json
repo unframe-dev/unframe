@@ -1,6 +1,6 @@
 {
   "definition": {
-    "schemaVersion": 2,
+    "schemaVersion": 3,
     "presentationId": "demo",
     "metadata": {
       "title": "Contract fixture"

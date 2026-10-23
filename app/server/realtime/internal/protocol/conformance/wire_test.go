@@ -59,21 +59,20 @@ func TestSharedWireConformance(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if filename == "valid-delivery.json" {
-					// The compiler fixture still contains the retired v2 recognition catalog.
-					if err := protojson.Unmarshal(fixture.Value, message); err == nil && protocolv2.ValidateMessage(message) == nil {
-						t.Fatal("legacy compiled Delivery admitted as v3")
-					}
-					return
-				}
 				if err := protojson.Unmarshal(fixture.Value, message); err != nil {
 					t.Fatal(err)
+				}
+				if filename == "valid-delivery.json" {
+					if err := protocolv2.ValidateMessage(message); err != nil {
+						t.Fatal(err)
+					}
 				}
 				encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(message)
 				if err != nil {
 					t.Fatal(err)
 				}
-				if !bytes.Equal(encoded, wire) {
+				// Complete Delivery messages contain oneofs whose field order differs between codecs.
+				if filename != "valid-delivery.json" && !bytes.Equal(encoded, wire) {
 					t.Fatal("Go encoded bytes differ from TypeScript fixture")
 				}
 				decoded := proto.Clone(message)
@@ -93,8 +92,11 @@ func TestSharedWireConformance(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if !bytes.Equal(preserved, future) {
+				if !bytes.Equal(decoded.ProtoReflect().GetUnknown(), []byte{0x98, 0x06, 0x01}) {
 					t.Fatal("unknown field was not preserved")
+				}
+				if filename != "valid-delivery.json" && !bytes.Equal(preserved, future) {
+					t.Fatal("encoded fixture with unknown field changed")
 				}
 			})
 		}

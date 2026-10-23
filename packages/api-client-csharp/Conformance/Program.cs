@@ -20,6 +20,7 @@ foreach (var path in args)
             case "unframe.realtime.GestureInputCommand":
             case "unframe.realtime.ZoneInputCommand":
             case "unframe.realtime.PresenterInputSynchronization":
+            case "unframe.realtime.PresenterStepSelectionCatalog":
             case "unframe.realtime.InputSynchronizationAck":
             case "unframe.realtime.ProjectedAnchorBindingPatch":
             case "unframe.realtime.RuntimeViewReplaced":

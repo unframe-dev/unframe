@@ -1,8 +1,8 @@
 # Presenter authority contract v3
 
-状態: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の構造・意味・上限を固定する採用契約。Zod / Protobuf と生成物を更新する契約工程の対象であり、Go / Unity / Authoring の実行経路の移行完了を意味しない。移行完了までは現行 v2 consumer と接続しない。
+状態: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の構造・意味・上限を固定する採用契約。Go / Unity / Authoring / Compiler / Core をこの契約に接続した。実装と検証の状況は[移行計画](../plans/presenter-recognition-runtime-authority-refactor.md)を参照する。旧 major の consumer とは接続しない。
 
-構造の正本は [Definition](../../packages/contracts/src/presentation/definition.ts)、[Snapshot](../../packages/contracts/src/presentation/runtime-projection.ts)、[共通 Proto](../../packages/contracts/proto/unframe/presentation/runtime.proto)、[Realtime Proto](../../packages/contracts/proto/unframe/realtime/realtime.proto)。数値・wire 境界検証は [runtime-authority.ts](../../packages/contracts/src/presentation/runtime-authority.ts) を併読する。本書が [配信・実行契約](./CONTRACT_RUNTIME.md) の v2 記述と異なる場合、v3 には本書を適用する。
+構造の正本は [Definition](../../packages/contracts/src/presentation/definition.ts)、[Snapshot](../../packages/contracts/src/presentation/runtime-projection.ts)、[共通 Proto](../../packages/contracts/proto/unframe/presentation/runtime.proto)、[Realtime Proto](../../packages/contracts/proto/unframe/realtime/realtime.proto)。数値・wire 境界検証は [runtime-authority.ts](../../packages/contracts/src/presentation/runtime-authority.ts) を併読する。入力同期・復元・容量の詳細は本書を正本とする。
 
 ## Version と移行
 
@@ -92,6 +92,8 @@ ACK 消失では旧記録と REQUIRED を維持する。READY 消失では durab
 pause / Step 復元の共有表示変更は `RuntimeViewReplaced` の完全な ParticipantRuntimeView を一つの Reliable event として適用する。profile ごとの visible closure だけを含め、base reliable sequence はその event sequence に一致させる。履歴・Outcome・private 同期情報は含めない。新 view の適用時に古い Timeline / Surface / Media / Model の再生と Anchor 表示を一括置換し、古い State frame は新 cut より前の状態を上書きしない。
 
 resume は最新の有効 Pose があればそれを用い、なければ凍結表示を保持する。`ProjectedAnchorBindingPatch` は `unavailable / sample / frozen` の oneof とし、frozen の Node ID は外側の Node ID と一致させる。新 cut に属する sample で凍結を解除し、以後は通常の500ms freshness を適用する。解除後の unavailable も凍結を除去する。最初の sample が latest-wins 配信で失われても、次の keyframe / unavailable で通常状態に収束する。resume 待ちの keyframe は frozen を明示し、未取得を unavailable に置き換えない。server は解除を canonical checkpoint にも反映する。HMD 視点と操作 UI は停止しない。
+
+Presenter にだけ private な `PresenterStepSelectionCatalog` を送る。`reached_steps` は履歴にある Group / Step ID の組を重複なし・Group / Step 順で列挙し、`reliable_sequence` まで適用してから選択 UI に反映する。入力同期と同じ Runtime lock で取得し、Control item の1 MiB上限を適用する。開始状態や他 participant の結果を含めず、Viewer には送らない。
 
 `StepStartState` は Group / Step ID と保存時の入場 epoch、capture logical time、Node / Surface / Media / Model / Variable state、active Run を持つ非再帰の開始状態。global clock / 配信連番 / allocator / 認証 / 校正 / Anchor は含めない。Canonical の実行中 resource と履歴 resource は別の owner / epoch 文脈で検証する。各 `(groupId, stepId)` は直近一件だけとし、並び順は Group ID、Step ID の UTF-16 code-unit 順。
 

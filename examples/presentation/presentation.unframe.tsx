@@ -113,11 +113,8 @@ export default definePresentation({
               {
                 id: "swipe-continue",
                 trigger: {
-                  kind: "motionPreset",
-                  preset: "swipeLeft",
-                  hand: "eitherHand",
-                  minimumDistanceMeters: 0.2,
-                  windowMilliseconds: 750,
+                  kind: "gesture",
+                  gesture: "swipeLeft",
                 },
                 actions: [
                   {

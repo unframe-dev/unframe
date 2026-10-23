@@ -6,9 +6,9 @@
 - 対象: Meta Quest 3 を利用する MR プレゼンテーション
 - 目的: 同じ Realtime Runtime Core を Fly.io と会場内 Venue Edge のどちらにも配置できる通信・割り当て方式を定義する
 
-本書は対象要件、構成、各 component の責務、通信方式、障害時挙動、実装・検証項目を定義する。[ADR-0027](../../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・凍結 Anchor・Step 復元は採用済みの未実装設計である。[v3 契約](../../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) と生成物は更新したが、実行側 consumer は移行前である。以下の実装・検証状況は移行前 v2 の記録であり、v3 の動作実績ではない。
+本書は対象要件、構成、各 component の責務、通信方式、障害時挙動を定義する。[ADR-0027](../../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力同期・凍結表示・到達済み Step 復元を実装した。対象テストと実機未検証の範囲は移行計画に記録する。 wire・version・容量は [v3 契約](../../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) を正本とする。
 
-現在は、Control Plane の `RuntimeAssignment`、PublicationFence、認証済み Delivery と Realtime bootstrap を、Go の Realtime v2 process、Unity の生成 client と Baked Web renderer に接続している。Realtime process は検証済み Definition / RenderBundle と checkpoint から v2 Session を起動し、Presenter の Tracking / Input、Cue / Action / Transition / Timeline、Control / State 配信、Snapshot / Replay / Resume、checkpoint / completion callback を処理する。Unity Editor で接続・描画を検証し、Quest 用 Android arm64 APK の生成と manifest を確認した。これらはローカルサービスとビルドの証拠であり、Quest 実機動作や配備済みサービスを示さない。
+現在は、Control Plane の `RuntimeAssignment`、PublicationFence、認証済み Delivery と Realtime bootstrap を、Go の Realtime v3 process、Unity の生成 client と Baked Web renderer に接続している。Realtime process は検証済み Definition / RenderBundle と checkpoint から Session を起動し、Presenter の Tracking / Input、Cue / Action / Transition / Timeline、Control / State 配信、Snapshot / Replay / Resume、checkpoint / completion callback を処理する。Unity Editor で接続・描画を検証し、Quest 用 Android arm64 APK の生成と manifest を確認した。これらはローカルサービスとビルドの証拠であり、Quest 実機動作や配備済みサービスを示さない。
 
 Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent と local HTTPS listener、実機での latency / jitter / 50 台 fan-out、端末の GPU / CPU peak は未検証または未実装である。Venue Edge の content-addressed cache / Range handler は domain と handler にあり、local listener へは接続していない。
 
@@ -25,19 +25,19 @@ Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent
 | -------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Venue Edge provisioning / Runtime Assignment | 部分実装 | `control-plane/src/modules/venue-edges/`、`runtime-assignments/`。Cloud / Venue Edge 共通の assignment、lease、bootstrap、publication fence は接続済み。Cloud Machine lifecycle と Edge Agent は未実装 |
 | JWT / JWKS / scope、assignment fencing       | 実装済み | `realtime/internal/auth/`、`assignment/` と gRPC guard。接続・command の epoch / lease を検証する                                                                                                      |
-| Realtime v2 Runtime Core composition         | 実装済み | `cmd/server/` が検証済み Definition / RenderBundle と checkpoint から `runtimecore.V2Session` を構築し、v2 gRPC service に接続する。Fly.io 配備と実機 fan-out は未検証                                 |
+| Realtime v3 Runtime Core composition         | 実装済み | `cmd/server/` が検証済み Definition / RenderBundle と checkpoint から `runtimecore.V2Session` を構築し、v3 gRPC service に接続する。Fly.io 配備と実機 fan-out は未検証                                 |
 | readiness / health / observability           | 部分実装 | assignment lease・JWKS に基づく gRPC health と metrics / structured log は接続済み。exporter、trace、alert は未実装                                                                                    |
-| checkpoint / completion callback と recovery | 実装済み | v2 mutation の checkpoint、completion を Control Plane の fenced callback へ送り、起動時に検証して復元する。Cloud / Edge の自動再配置・local checkpoint store は未実装                                 |
-| message / rate protection                    | 部分実装 | v2 gRPC は message size と Tracking rate を制限する。全 message 種別に共通の invalid-message count 切断 policy は未接続                                                                                |
-| Venue Edge Asset cache / Range gateway       | 未実装   | v2 Delivery の publication / projection / access binding に基づく local cache、HTTPS listener、証明書、容量・pin・eviction policy は未実装                                                             |
-| Runtime pause / resume                       | 部分実装 | v2 Session は明示 pause / resume、Presenter 切断、lease 失効を扱う。`pauseTimeout` による自動終了は未実装                                                                                              |
-| State frame / latest-wins mailbox            | 部分実装 | v2 State stream の keyframe と Anchor patch は接続済み。`internal/state/mailbox.go` の field-merge primitive は State fan-out に未接続                                                                 |
+| checkpoint / completion callback と recovery | 実装済み | v3 mutation の checkpoint、completion を Control Plane の fenced callback へ送り、起動時に検証して復元する。Cloud / Edge の自動再配置・local checkpoint store は未実装                                 |
+| message / rate protection                    | 部分実装 | v3 gRPC は message size と Tracking rate を制限する。全 message 種別に共通の invalid-message count 切断 policy は未接続                                                                                |
+| Venue Edge Asset cache / Range gateway       | 未実装   | v3 Delivery の publication / projection / access binding に基づく local cache、HTTPS listener、証明書、容量・pin・eviction policy は未実装                                                             |
+| Runtime pause / resume                       | 部分実装 | v3 Session は明示 pause / resume、Presenter 切断、lease 失効を扱う。`pauseTimeout` による自動終了は未実装                                                                                              |
+| State frame / latest-wins mailbox            | 部分実装 | v3 State stream の keyframe と Anchor patch は接続済み。`internal/state/mailbox.go` の field-merge primitive は State fan-out に未接続                                                                 |
 | Fly.io Cloud Runtime                         | 部分実装 | Docker image、H2C service profile と共通 binary はある。Machine lifecycle、公開 endpoint、deploy は未実装                                                                                              |
-| Unity Control / State gRPC                   | 実装済み | 生成 v2 client、HTTP/2 transport、nonce・reconnect・Snapshot / State 適用を Editor で検証し、Android arm64 APK を生成した。Quest 実機通信は未検証                                                      |
-| Presenter Tracking / Input と evaluator      | 実装済み | Quest Scene の Head / Hand / Body Pose と入力 adapter、v2 Tracking / Logical / Surface admission、Cue / Action / Surface / Timeline / Media evaluator を接続。実機 Tracking と入力は未検証             |
-| Snapshot / Replay / Connection Resume        | 実装済み | v2 Control の atomic cut、fenced replay / resync、StateReady、durable checkpoint 復元を接続。Cloud 再配置をまたぐ recovery は未検証                                                                    |
-| Cloud Delivery と Quest encoded Asset cache  | 実装済み | Control Plane は認証済み participant の v2 Delivery と期限付き HTTPS Asset URL を返す。Unity は検証・pin・residency を Editor で確認。Android APK は生成済み、実機 download は未検証                   |
-| ADR-0027 採用仕様                            | 未実装   | 現行 v2 は Runtime で motion / Zone を認識する。v3 契約と生成物を更新済み。Runtime / Unity consumer は未移行                                                                                           |
+| Unity Control / State gRPC                   | 実装済み | 生成 v3 client、HTTP/2 transport、nonce・reconnect・Snapshot / State・入力同期・一括置換を対象テストで検証。Quest 実機通信は未検証                                                                     |
+| Presenter Tracking / Input と evaluator      | 実装済み | Quest の Pose は追従用に送り、Gesture / Zone は端末で認識する。v3 admission と Cue / Action / Surface / Timeline / Media evaluator を接続。実機品質は未検証                                            |
+| Snapshot / Replay / Connection Resume        | 実装済み | v3 Control の atomic cut、fenced replay / resync、StateReady、durable checkpoint 復元を接続。Cloud 再配置をまたぐ recovery は未検証                                                                    |
+| Cloud Delivery と Quest encoded Asset cache  | 実装済み | Control Plane は認証済み participant の v3 Delivery と期限付き HTTPS Asset URL を返す。Unity は検証・pin・residency を Editor で確認。Android APK は生成済み、実機 download は未検証                   |
+| ADR-0027 採用仕様                            | 実装済み | Presenter の Gesture / Zone 入力、入力同期、凍結 Anchor、Step 開始履歴と一括復元を接続。対象検証と実機未検証の範囲は移行計画を参照                                                                     |
 | 1 / 10 / 25 / 50 Quest 実機計測              | 未実装   | latency、jitter、fan-out、Asset ready、GPU / CPU peak は未計測                                                                                                                                         |
 
 ## 1. 背景
@@ -447,7 +447,7 @@ State Connection
 - Control Connection終了時は`connectionId`と未使用の`stateConnectionNonce`を無効化する。
 - connection間の到着順は仮定せず、Reliable sequenceと`baseReliableSequence`でapplication上の依存関係を解決する。
 
-現行の Realtime は v2 の Control / State 二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run を実装する。wire の正本は `packages/contracts/proto/unframe/realtime/realtime.proto` と [配信・実行契約](../../../docs/packages/CONTRACT_RUNTIME.md) であり、ページ番号を直接指定する v1 service は公開しない。
+現行の Realtime は v3 の Control / State 二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run を実装する。wire の正本は `packages/contracts/proto/unframe/realtime/realtime.proto` と [配信・実行契約](../../../docs/packages/CONTRACT_RUNTIME.md) であり、ページ番号を直接指定する v1 service は公開しない。
 
 実測で TCP retransmission、head-of-line blocking、write blocking、jitter が UX 上の問題になる場合のみ、State Connection を UDP / QUIC 系 transport へ置き換える。Control Connection は gRPC のまま維持する。
 
@@ -489,7 +489,7 @@ ReliableEvent
 
 Surface transition / interaction の canonical wire contract は [Presentation Architecture](../../../docs/packages/ARCHITECTURE.md#surface-transition--interaction-wire-contract) を正本とする。採用設計の Surface 入力は §8.3 の認識開始時の Step / 世代拘束に加えて `clientEventId`、`SemanticSurfaceId`、`InteractionId`、`presentationOriginVersion` を持ち、任意の`capturedAt`は診断にだけ使う。Surface State、Hit Region、RenderSurfaceId、座標、renderer artifact、任意payloadを入力として信用しない。accepted input は `SurfaceInteractionAccepted`、cut は `SurfaceStateChanged`、crossfade は `SurfaceTransitionStarted` / `SurfaceTransitionCompleted` として Reliable Event に lower する。interaction outcome は接続単位のcommand結果であり、rejectをsession-global event logへ追加しない。projected Reliable EventはSession、PublicationFence、assignment epoch、projection profile、Presentation Originをfenceする。
 
-crossfade開始時はcanonical State変更、Run追加、interaction無効化をatomicに確定し、完了時はRun除去と遷移先Hit Region有効化をatomicに確定する。interaction / Hit Region専用のmutable wire fieldは持たず、Projected Snapshotの`stateId`、`transitionRunId`、active RunとDelivery済みstate artifactから導出する。crossfade weightは開始時刻、duration、easingからQuestが計算し、Element State Streamへ毎frame送信しない。これらの Snapshot / Event を v2 Control stream で配信する。
+crossfade開始時はcanonical State変更、Run追加、interaction無効化をatomicに確定し、完了時はRun除去と遷移先Hit Region有効化をatomicに確定する。interaction / Hit Region専用のmutable wire fieldは持たず、Projected Snapshotの`stateId`、`transitionRunId`、active RunとDelivery済みstate artifactから導出する。crossfade weightは開始時刻、duration、easingからQuestが計算し、Element State Streamへ毎frame送信しない。これらの Snapshot / Event を v3 Control stream で配信する。
 
 ### 8.3 Presenter Pose と認識済み入力
 
@@ -497,7 +497,7 @@ crossfade開始時はcanonical State変更、Run追加、interaction無効化を
 
 Zone は Presentation Space の軸に平行な一辺2mの箱とし、設定値は中心位置だけ、client へ配布する情報は Zone ID と位置とする。Body tracking の腰位置で内外を判定し、腰が取得できない間は停止して他部位へ代替しない。2m は現行判定とテストに基づく採用値で、実機の認識品質は未検証である。境界の揺れ対策は client 内部に置き、server は再認識・滞在時間の再計測をしない。
 
-離散入力は次の意味情報を持つ。現行 v2 の message をそのまま示すものではなく、wire encoding は実装時に更新する。
+離散入力は次の意味情報を持つ。wire encoding は v3 契約と正本 Protobuf に従う。
 
 - 個別のイベント ID と入力種類（Gesture / Zone / ボタン / Surface）
 - 認識開始時の Group / Step、Step 入場世代、server 管理の入力世代
@@ -562,7 +562,7 @@ ElementStateFrame
 - Reliable Event適用後は、条件を満たしたbufferをfield単位でmergeして適用する。client側bufferの時間または容量上限を超えた場合はState Connectionを再確立し、Reliable ControlやSession全体をblockしない。
 - `anchorBindings` は raw Presenter Pose の一覧ではなく、projection profile で visible かつ Anchor parent を直接参照する Node ID だけを key にした親状態である。running 中の sample は ephemeral、採用設計の凍結表示は durable な共有状態と区別する。Nodeの`followPosition` / `followRotation`が要求する成分だけを運び、参照されないAnchor、profile外Node、追従しない成分を配信しない。追従しないpositionはzero translation、追従しないrotationはidentityとしてparent matrixを組み立てる。`trackingFrameSequence`は元Tracking Frame、`observedAtRuntimeMonotonic`はRuntimeが受理した時点の`producedAtRuntimeMonotonic`と同じmonotonic time domainとする。client申告の`capturedAt`をfreshness authorityにしない。
 - 現行 v2 の `anchorSampleMaxAgeMilliseconds` は protocol version に紐付く `500 ms` とする。採用設計でも通常 running の追跡欠損と freshness はこの規則で扱うが、pause 中と resume 後の有効 Pose 待ちには適用しない。frame生成時に`producedAtRuntimeMonotonic - observedAtRuntimeMonotonic > 500 ms`、tracking unavailable、またはOrigin version不一致ならRuntimeは`unavailable` tombstoneを送る。clientも同期済みRuntime monotonic timeで500 msを超えたsampleをlocal expiryし、次のfresh sampleまでAnchor childを描画せずhit-testしない。
-- 初回 / 再接続keyframeは全Element Stateに加えて、そのcutでvisibleな全Anchor-bound Nodeのfresh sampleまたは`unavailable`をexactly onceで含む。現行 v2 の Projected Runtime Snapshot は Anchor を含まず、初回 keyframe / fresh sample まで unavailable とする。採用設計では Snapshot の凍結 Anchor を先に適用し、pause 中や resume 後の再開待ちを経年だけで非表示にしない。再開待ちの凍結位置を fresh sample のない keyframe で消去せず、有効 Pose の取得後に通常の sample / unavailable 規則へ戻す。
+- 初回 / 再接続keyframeは全Element Stateに加えて、そのcutでvisibleな全Anchor-bound Nodeのfresh sampleまたは`unavailable`をexactly onceで含む。Projected Runtime Snapshot の凍結 Anchor を先に適用し、pause 中や resume 後の再開待ちを経年だけで非表示にしない。再開待ちの凍結位置を fresh sample のない keyframe で消去せず、有効 Pose の取得後に通常の sample / unavailable 規則へ戻す。
 - clientは一つのState FrameのElement patch、Anchor patch、`baseReliableSequence`、`presentationOriginVersion`をatomicに適用する。各render / hit sampleでは最後に適用したframeSequence、Control cut、Origin、Anchor setをfreezeし、一つのlogical runtime timeでactive Runを評価する。visual Transformとauthoritative hit-testに別のcutを使わない。
 
 ### 8.5 Clock synchronization
@@ -862,7 +862,7 @@ Internet 障害中の継続は best-effort であり、offline 対応を正式�
 - Quest は exponential backoff と jitter で同じ endpoint へ再接続する。
 - 復旧不能時は Cloud Control Plane へ session failure を報告する。
 
-現行 v2 process は `DurableCheckpointEnvelope` の検証・復元、logical clock、checkpoint / completion callback と bounded replay を接続している。Cloud / Edge の配置先をまたぐ durable recovery と実機再接続は未検証である。
+現行 process は `DurableCheckpointEnvelope` の検証・復元、logical clock、checkpoint / completion callback と bounded replay を接続している。Cloud / Edge の配置先をまたぐ durable recovery と実機再接続は未検証である。
 
 ### 13.5 Asset取得・cache障害
 
@@ -1046,7 +1046,7 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 
 この段階でVenue Edge用PCなしに、Presenter QuestとViewer Questだけでend-to-endの発表を成立させる。
 
-現行の v2 Runtime、Control Plane Delivery / callback、Unity Editor の接続・描画と Android arm64 APK build は成立している。Fly.io Machine lifecycle と公開 endpoint、Quest 実機での接続・発表・性能確認は残るため、この段階の MVP はまだ成立していない。
+現行の v3 Runtime、Control Plane Delivery / callback、Unity Editor の接続・描画と Android arm64 APK build は成立している。Fly.io Machine lifecycle と公開 endpoint、Quest 実機での接続・発表・性能確認は残るため、この段階の MVP はまだ成立していない。
 
 ### Phase 3: Cloud 基準性能の計測
 

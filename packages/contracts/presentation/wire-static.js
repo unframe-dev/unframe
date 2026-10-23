@@ -47141,6 +47141,351 @@ export const unframe = ($root.unframe = (() => {
       return StepSelection;
     })();
 
+    realtime.PresenterStepSelectionCatalog = (function () {
+      /**
+       * Properties of a PresenterStepSelectionCatalog.
+       * @typedef {Object} unframe.realtime.PresenterStepSelectionCatalog.$Properties
+       * @property {Array.<unframe.realtime.StepSelection.$Properties>|null} [reachedSteps] PresenterStepSelectionCatalog reachedSteps
+       * @property {number|Long|null} [reliableSequence] PresenterStepSelectionCatalog reliableSequence
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a PresenterStepSelectionCatalog.
+       * @memberof unframe.realtime
+       * @interface IPresenterStepSelectionCatalog
+       * @augments unframe.realtime.PresenterStepSelectionCatalog.$Properties
+       * @deprecated Use unframe.realtime.PresenterStepSelectionCatalog.$Properties instead.
+       */
+
+      /**
+       * Shape of a PresenterStepSelectionCatalog.
+       * @typedef {unframe.realtime.PresenterStepSelectionCatalog.$Properties} unframe.realtime.PresenterStepSelectionCatalog.$Shape
+       */
+
+      /**
+       * Constructs a new PresenterStepSelectionCatalog.
+       * @memberof unframe.realtime
+       * @classdesc Represents a PresenterStepSelectionCatalog.
+       * @constructor
+       * @param {unframe.realtime.PresenterStepSelectionCatalog.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const PresenterStepSelectionCatalog = function PresenterStepSelectionCatalog(properties) {
+        this.reachedSteps = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * PresenterStepSelectionCatalog reachedSteps.
+       * @member {Array.<unframe.realtime.StepSelection.$Properties>} reachedSteps
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @instance
+       */
+      PresenterStepSelectionCatalog.prototype.reachedSteps = $util.emptyArray;
+
+      /**
+       * PresenterStepSelectionCatalog reliableSequence.
+       * @member {number|Long} reliableSequence
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @instance
+       */
+      PresenterStepSelectionCatalog.prototype.reliableSequence = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * Creates a new PresenterStepSelectionCatalog instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {unframe.realtime.PresenterStepSelectionCatalog.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog} PresenterStepSelectionCatalog instance
+       * @type {{
+       *   (properties: unframe.realtime.PresenterStepSelectionCatalog.$Shape): unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape;
+       *   (properties?: unframe.realtime.PresenterStepSelectionCatalog.$Properties): unframe.realtime.PresenterStepSelectionCatalog;
+       * }}
+       */
+      PresenterStepSelectionCatalog.create = function (properties) {
+        return new PresenterStepSelectionCatalog(properties);
+      };
+
+      /**
+       * Encodes the specified PresenterStepSelectionCatalog message. Does not implicitly {@link unframe.realtime.PresenterStepSelectionCatalog.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {unframe.realtime.PresenterStepSelectionCatalog.$Properties} message PresenterStepSelectionCatalog message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterStepSelectionCatalog.encode = function PresenterStepSelectionCatalog$encode(
+        message,
+        writer,
+      ) {
+        if (!writer) writer = $Writer.create();
+        if (message.reachedSteps != null && message.reachedSteps.length)
+          for (let i = 0; i < message.reachedSteps.length; ++i)
+            $root.unframe.realtime.StepSelection.encode(
+              message.reachedSteps[i],
+              writer.uint32(/* id 1, wireType 2 =*/ 10).fork(),
+            ).ldelim();
+        if (
+          message.reliableSequence != null &&
+          $Object.hasOwnProperty.call(message, "reliableSequence")
+        )
+          writer.uint32(/* id 2, wireType 0 =*/ 16).uint64(message.reliableSequence);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified PresenterStepSelectionCatalog message, length delimited. Does not implicitly {@link unframe.realtime.PresenterStepSelectionCatalog.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {unframe.realtime.PresenterStepSelectionCatalog.$Properties} message PresenterStepSelectionCatalog message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterStepSelectionCatalog.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a PresenterStepSelectionCatalog message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape} PresenterStepSelectionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterStepSelectionCatalog.decode = function PresenterStepSelectionCatalog$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              if (!(message.reachedSteps && message.reachedSteps.length)) message.reachedSteps = [];
+              message.reachedSteps.push(
+                $root.unframe.realtime.StepSelection.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 2: {
+              message.reliableSequence = reader.uint64();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a PresenterStepSelectionCatalog message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape} PresenterStepSelectionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterStepSelectionCatalog.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a PresenterStepSelectionCatalog message.
+       * @function verify
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      PresenterStepSelectionCatalog.verify = function PresenterStepSelectionCatalog$verify(
+        message,
+        long,
+      ) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.reachedSteps != null && message.hasOwnProperty("reachedSteps")) {
+          if (!$Array.isArray(message.reachedSteps)) return "reachedSteps: array expected";
+          for (let i = 0; i < message.reachedSteps.length; ++i) {
+            let error = $root.unframe.realtime.StepSelection.verify(
+              message.reachedSteps[i],
+              long + 1,
+            );
+            if (error) return "reachedSteps." + error;
+          }
+        }
+        if (message.reliableSequence != null && message.hasOwnProperty("reliableSequence"))
+          if (
+            !$util.isInteger(message.reliableSequence) &&
+            !(
+              message.reliableSequence &&
+              $util.isInteger(message.reliableSequence.low) &&
+              $util.isInteger(message.reliableSequence.high)
+            )
+          )
+            return "reliableSequence: integer|Long expected";
+        return null;
+      };
+
+      /**
+       * Creates a PresenterStepSelectionCatalog message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog} PresenterStepSelectionCatalog
+       */
+      PresenterStepSelectionCatalog.fromObject = function PresenterStepSelectionCatalog$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.reachedSteps) {
+          if (!$Array.isArray(object.reachedSteps))
+            throw $TypeError(
+              ".unframe.realtime.PresenterStepSelectionCatalog.reachedSteps: array expected",
+            );
+          message.reachedSteps = [];
+          for (let i = 0; i < object.reachedSteps.length; ++i) {
+            if (typeof object.reachedSteps[i] !== "object")
+              throw $TypeError(
+                ".unframe.realtime.PresenterStepSelectionCatalog.reachedSteps: object expected",
+              );
+            message.reachedSteps[i] = $root.unframe.realtime.StepSelection.fromObject(
+              object.reachedSteps[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.reliableSequence != null)
+          if ($util.Long)
+            (message.reliableSequence = $util.Long.fromValue(object.reliableSequence)).unsigned =
+              true;
+          else if (typeof object.reliableSequence === "string")
+            message.reliableSequence = $parseInt(object.reliableSequence, 10);
+          else if (typeof object.reliableSequence === "number")
+            message.reliableSequence = object.reliableSequence;
+          else if (typeof object.reliableSequence === "object")
+            message.reliableSequence = new $util.LongBits(
+              object.reliableSequence.low >>> 0,
+              object.reliableSequence.high >>> 0,
+            ).toNumber(true);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a PresenterStepSelectionCatalog message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {unframe.realtime.PresenterStepSelectionCatalog} message PresenterStepSelectionCatalog
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      PresenterStepSelectionCatalog.toObject = function PresenterStepSelectionCatalog$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) object.reachedSteps = [];
+        if (options.defaults)
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.reliableSequence =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.reliableSequence = options.longs === $String ? "0" : 0;
+        if (message.reachedSteps && message.reachedSteps.length) {
+          object.reachedSteps = [];
+          for (let j = 0; j < message.reachedSteps.length; ++j)
+            object.reachedSteps[j] = $root.unframe.realtime.StepSelection.toObject(
+              message.reachedSteps[j],
+              options,
+            );
+        }
+        if (message.reliableSequence != null && message.hasOwnProperty("reliableSequence"))
+          if (typeof message.reliableSequence === "number")
+            object.reliableSequence =
+              options.longs === $String
+                ? $String(message.reliableSequence)
+                : message.reliableSequence;
+          else
+            object.reliableSequence =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.reliableSequence)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.reliableSequence.low >>> 0,
+                      message.reliableSequence.high >>> 0,
+                    ).toNumber(true)
+                  : message.reliableSequence;
+        return object;
+      };
+
+      /**
+       * Converts this PresenterStepSelectionCatalog to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      PresenterStepSelectionCatalog.prototype.toJSON = function () {
+        return PresenterStepSelectionCatalog.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for PresenterStepSelectionCatalog
+       * @function getTypeUrl
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      PresenterStepSelectionCatalog.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.PresenterStepSelectionCatalog";
+      };
+
+      return PresenterStepSelectionCatalog;
+    })();
+
     /**
      * InputSynchronizationPhase enum.
      * @name unframe.realtime.InputSynchronizationPhase
@@ -50556,7 +50901,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {unframe.realtime.StateConnectionNonce.$Properties|null} [stateConnectionNonce] ControlServerItem stateConnectionNonce
        * @property {unframe.realtime.ResyncRequired.$Properties|null} [resyncRequired] ControlServerItem resyncRequired
        * @property {unframe.realtime.PresenterInputSynchronization.$Properties|null} [presenterInputSynchronization] ControlServerItem presenterInputSynchronization
-       * @property {"connected"|"connectionSnapshot"|"reliableEvent"|"projectionAdvance"|"commandOutcome"|"stateConnectionNonce"|"resyncRequired"|"presenterInputSynchronization"} [item] ControlServerItem item
+       * @property {unframe.realtime.PresenterStepSelectionCatalog.$Properties|null} [presenterStepSelectionCatalog] ControlServerItem presenterStepSelectionCatalog
+       * @property {"connected"|"connectionSnapshot"|"reliableEvent"|"projectionAdvance"|"commandOutcome"|"stateConnectionNonce"|"resyncRequired"|"presenterInputSynchronization"|"presenterStepSelectionCatalog"} [item] ControlServerItem item
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -50579,9 +50925,10 @@ export const unframe = ($root.unframe = (() => {
        *   stateConnectionNonce?: unframe.realtime.StateConnectionNonce.$Shape|null;
        *   resyncRequired?: unframe.realtime.ResyncRequired.$Shape|null;
        *   presenterInputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape|null;
+       *   presenterStepSelectionCatalog?: unframe.realtime.PresenterStepSelectionCatalog.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * } & (
-       *   ({ item?: undefined; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null }|{ item?: "connected"; connected: unframe.realtime.ControlConnected.$Shape; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null }|{ item?: "connectionSnapshot"; connected?: null; connectionSnapshot: unframe.realtime.ConnectionSnapshotEnvelope.$Shape; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null }|{ item?: "reliableEvent"; connected?: null; connectionSnapshot?: null; reliableEvent: unframe.realtime.ProjectedReliableEvent.$Shape; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null }|{ item?: "projectionAdvance"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance: unframe.realtime.ProjectionAdvance.$Shape; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null }|{ item?: "commandOutcome"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome: unframe.realtime.CommandOutcome.$Shape; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null }|{ item?: "stateConnectionNonce"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce: unframe.realtime.StateConnectionNonce.$Shape; resyncRequired?: null; presenterInputSynchronization?: null }|{ item?: "resyncRequired"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired: unframe.realtime.ResyncRequired.$Shape; presenterInputSynchronization?: null }|{ item?: "presenterInputSynchronization"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization: unframe.realtime.PresenterInputSynchronization.$Shape })
+       *   ({ item?: undefined; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "connected"; connected: unframe.realtime.ControlConnected.$Shape; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "connectionSnapshot"; connected?: null; connectionSnapshot: unframe.realtime.ConnectionSnapshotEnvelope.$Shape; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "reliableEvent"; connected?: null; connectionSnapshot?: null; reliableEvent: unframe.realtime.ProjectedReliableEvent.$Shape; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "projectionAdvance"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance: unframe.realtime.ProjectionAdvance.$Shape; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "commandOutcome"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome: unframe.realtime.CommandOutcome.$Shape; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "stateConnectionNonce"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce: unframe.realtime.StateConnectionNonce.$Shape; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "resyncRequired"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired: unframe.realtime.ResyncRequired.$Shape; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "presenterInputSynchronization"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization: unframe.realtime.PresenterInputSynchronization.$Shape; presenterStepSelectionCatalog?: null }|{ item?: "presenterStepSelectionCatalog"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog: unframe.realtime.PresenterStepSelectionCatalog.$Shape })
        * )} unframe.realtime.ControlServerItem.$Shape
        */
 
@@ -50664,12 +51011,20 @@ export const unframe = ($root.unframe = (() => {
        */
       ControlServerItem.prototype.presenterInputSynchronization = null;
 
+      /**
+       * ControlServerItem presenterStepSelectionCatalog.
+       * @member {unframe.realtime.PresenterStepSelectionCatalog.$Properties|null|undefined} presenterStepSelectionCatalog
+       * @memberof unframe.realtime.ControlServerItem
+       * @instance
+       */
+      ControlServerItem.prototype.presenterStepSelectionCatalog = null;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
       /**
        * ControlServerItem item.
-       * @member {"connected"|"connectionSnapshot"|"reliableEvent"|"projectionAdvance"|"commandOutcome"|"stateConnectionNonce"|"resyncRequired"|"presenterInputSynchronization"|undefined} item
+       * @member {"connected"|"connectionSnapshot"|"reliableEvent"|"projectionAdvance"|"commandOutcome"|"stateConnectionNonce"|"resyncRequired"|"presenterInputSynchronization"|"presenterStepSelectionCatalog"|undefined} item
        * @memberof unframe.realtime.ControlServerItem
        * @instance
        */
@@ -50684,6 +51039,7 @@ export const unframe = ($root.unframe = (() => {
             "stateConnectionNonce",
             "resyncRequired",
             "presenterInputSynchronization",
+            "presenterStepSelectionCatalog",
           ]),
         ),
         set: $util.oneOfSetter($oneOfFields),
@@ -50773,6 +51129,14 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.realtime.PresenterInputSynchronization.encode(
             message.presenterInputSynchronization,
             writer.uint32(/* id 8, wireType 2 =*/ 66).fork(),
+          ).ldelim();
+        if (
+          message.presenterStepSelectionCatalog != null &&
+          $Object.hasOwnProperty.call(message, "presenterStepSelectionCatalog")
+        )
+          $root.unframe.realtime.PresenterStepSelectionCatalog.encode(
+            message.presenterStepSelectionCatalog,
+            writer.uint32(/* id 9, wireType 2 =*/ 74).fork(),
           ).ldelim();
         return writer;
       };
@@ -50877,6 +51241,16 @@ export const unframe = ($root.unframe = (() => {
             case 8: {
               message.presenterInputSynchronization =
                 $root.unframe.realtime.PresenterInputSynchronization.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                );
+              break;
+            }
+            case 9: {
+              message.presenterStepSelectionCatalog =
+                $root.unframe.realtime.PresenterStepSelectionCatalog.decode(
                   reader,
                   reader.uint32(),
                   $undefined,
@@ -51010,6 +51384,20 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "presenterInputSynchronization." + error;
           }
         }
+        if (
+          message.presenterStepSelectionCatalog != null &&
+          message.hasOwnProperty("presenterStepSelectionCatalog")
+        ) {
+          if (properties.item === 1) return "item: multiple values";
+          properties.item = 1;
+          {
+            let error = $root.unframe.realtime.PresenterStepSelectionCatalog.verify(
+              message.presenterStepSelectionCatalog,
+              long + 1,
+            );
+            if (error) return "presenterStepSelectionCatalog." + error;
+          }
+        }
         return null;
       };
 
@@ -51099,6 +51487,17 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
         }
+        if (object.presenterStepSelectionCatalog != null) {
+          if (typeof object.presenterStepSelectionCatalog !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ControlServerItem.presenterStepSelectionCatalog: object expected",
+            );
+          message.presenterStepSelectionCatalog =
+            $root.unframe.realtime.PresenterStepSelectionCatalog.fromObject(
+              object.presenterStepSelectionCatalog,
+              long + 1,
+            );
+        }
         return message;
       };
 
@@ -51176,6 +51575,17 @@ export const unframe = ($root.unframe = (() => {
               options,
             );
           if (options.oneofs) object.item = "presenterInputSynchronization";
+        }
+        if (
+          message.presenterStepSelectionCatalog != null &&
+          message.hasOwnProperty("presenterStepSelectionCatalog")
+        ) {
+          object.presenterStepSelectionCatalog =
+            $root.unframe.realtime.PresenterStepSelectionCatalog.toObject(
+              message.presenterStepSelectionCatalog,
+              options,
+            );
+          if (options.oneofs) object.item = "presenterStepSelectionCatalog";
         }
         return object;
       };
@@ -54143,6 +54553,7 @@ export const unframe = ($root.unframe = (() => {
      * @property {number} PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED=6 PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED value
      * @property {number} PAUSE_REASON_RECOVERY_GAP=7 PAUSE_REASON_RECOVERY_GAP value
      * @property {number} PAUSE_REASON_EXPLICIT_PAUSE=8 PAUSE_REASON_EXPLICIT_PAUSE value
+     * @property {number} PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED=9 PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED value
      */
     realtime.PauseReason = (function () {
       const valuesById = $Object.create(null),
@@ -54156,6 +54567,7 @@ export const unframe = ($root.unframe = (() => {
       values[(valuesById[6] = "PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED")] = 6;
       values[(valuesById[7] = "PAUSE_REASON_RECOVERY_GAP")] = 7;
       values[(valuesById[8] = "PAUSE_REASON_EXPLICIT_PAUSE")] = 8;
+      values[(valuesById[9] = "PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED")] = 9;
       return values;
     })();
 
@@ -54532,6 +54944,7 @@ export const unframe = ($root.unframe = (() => {
             case 6:
             case 7:
             case 8:
+            case 9:
               break;
           }
         return null;
@@ -54592,6 +55005,10 @@ export const unframe = ($root.unframe = (() => {
           case "PAUSE_REASON_EXPLICIT_PAUSE":
           case 8:
             message.reason = 8;
+            break;
+          case "PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED":
+          case 9:
+            message.reason = 9;
             break;
         }
         return message;
@@ -79552,6 +79969,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.realtime.RuntimeCommandHistory.$Properties>|null} [commands] RuntimeRecoveryMetadata commands
        * @property {number|Long|null} [commandEpoch] RuntimeRecoveryMetadata commandEpoch
        * @property {unframe.realtime.PresenterInputSynchronization.$Properties|null} [inputSynchronization] RuntimeRecoveryMetadata inputSynchronization
+       * @property {unframe.realtime.RuntimeCapacityFault.$Properties|null} [capacityFault] RuntimeRecoveryMetadata capacityFault
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -79571,6 +79989,7 @@ export const unframe = ($root.unframe = (() => {
        *   commands?: Array.<unframe.realtime.RuntimeCommandHistory.$Shape>|null;
        *   commandEpoch?: number|Long|null;
        *   inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape|null;
+       *   capacityFault?: unframe.realtime.RuntimeCapacityFault.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.realtime.RuntimeRecoveryMetadata.$Shape
        */
@@ -79635,6 +80054,14 @@ export const unframe = ($root.unframe = (() => {
       RuntimeRecoveryMetadata.prototype.inputSynchronization = null;
 
       /**
+       * RuntimeRecoveryMetadata capacityFault.
+       * @member {unframe.realtime.RuntimeCapacityFault.$Properties|null|undefined} capacityFault
+       * @memberof unframe.realtime.RuntimeRecoveryMetadata
+       * @instance
+       */
+      RuntimeRecoveryMetadata.prototype.capacityFault = null;
+
+      /**
        * Creates a new RuntimeRecoveryMetadata instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.RuntimeRecoveryMetadata
@@ -79684,6 +80111,11 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.realtime.PresenterInputSynchronization.encode(
             message.inputSynchronization,
             writer.uint32(/* id 5, wireType 2 =*/ 42).fork(),
+          ).ldelim();
+        if (message.capacityFault != null && $Object.hasOwnProperty.call(message, "capacityFault"))
+          $root.unframe.realtime.RuntimeCapacityFault.encode(
+            message.capacityFault,
+            writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
           ).ldelim();
         return writer;
       };
@@ -79769,6 +80201,15 @@ export const unframe = ($root.unframe = (() => {
                 );
               break;
             }
+            case 6: {
+              message.capacityFault = $root.unframe.realtime.RuntimeCapacityFault.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -79846,6 +80287,13 @@ export const unframe = ($root.unframe = (() => {
           );
           if (error) return "inputSynchronization." + error;
         }
+        if (message.capacityFault != null && message.hasOwnProperty("capacityFault")) {
+          let error = $root.unframe.realtime.RuntimeCapacityFault.verify(
+            message.capacityFault,
+            long + 1,
+          );
+          if (error) return "capacityFault." + error;
+        }
         return null;
       };
 
@@ -79921,6 +80369,16 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
         }
+        if (object.capacityFault != null) {
+          if (typeof object.capacityFault !== "object")
+            throw $TypeError(
+              ".unframe.realtime.RuntimeRecoveryMetadata.capacityFault: object expected",
+            );
+          message.capacityFault = $root.unframe.realtime.RuntimeCapacityFault.fromObject(
+            object.capacityFault,
+            long + 1,
+          );
+        }
         return message;
       };
 
@@ -79955,6 +80413,7 @@ export const unframe = ($root.unframe = (() => {
                   : long;
           } else object.commandEpoch = options.longs === $String ? "0" : 0;
           object.inputSynchronization = null;
+          object.capacityFault = null;
         }
         if (message.startedAt != null && message.hasOwnProperty("startedAt"))
           object.startedAt = message.startedAt;
@@ -79994,6 +80453,11 @@ export const unframe = ($root.unframe = (() => {
               message.inputSynchronization,
               options,
             );
+        if (message.capacityFault != null && message.hasOwnProperty("capacityFault"))
+          object.capacityFault = $root.unframe.realtime.RuntimeCapacityFault.toObject(
+            message.capacityFault,
+            options,
+          );
         return object;
       };
 
@@ -80022,6 +80486,427 @@ export const unframe = ($root.unframe = (() => {
       };
 
       return RuntimeRecoveryMetadata;
+    })();
+
+    realtime.RuntimeCapacityFault = (function () {
+      /**
+       * Properties of a RuntimeCapacityFault.
+       * @typedef {Object} unframe.realtime.RuntimeCapacityFault.$Properties
+       * @property {number|Long|null} [stepStartStateBytes] RuntimeCapacityFault stepStartStateBytes
+       * @property {number|Long|null} [stepStartHistoryBytes] RuntimeCapacityFault stepStartHistoryBytes
+       * @property {number|Long|null} [canonicalSnapshotBytes] RuntimeCapacityFault canonicalSnapshotBytes
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a RuntimeCapacityFault.
+       * @memberof unframe.realtime
+       * @interface IRuntimeCapacityFault
+       * @augments unframe.realtime.RuntimeCapacityFault.$Properties
+       * @deprecated Use unframe.realtime.RuntimeCapacityFault.$Properties instead.
+       */
+
+      /**
+       * Shape of a RuntimeCapacityFault.
+       * @typedef {unframe.realtime.RuntimeCapacityFault.$Properties} unframe.realtime.RuntimeCapacityFault.$Shape
+       */
+
+      /**
+       * Constructs a new RuntimeCapacityFault.
+       * @memberof unframe.realtime
+       * @classdesc Represents a RuntimeCapacityFault.
+       * @constructor
+       * @param {unframe.realtime.RuntimeCapacityFault.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const RuntimeCapacityFault = function RuntimeCapacityFault(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * RuntimeCapacityFault stepStartStateBytes.
+       * @member {number|Long} stepStartStateBytes
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @instance
+       */
+      RuntimeCapacityFault.prototype.stepStartStateBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeCapacityFault stepStartHistoryBytes.
+       * @member {number|Long} stepStartHistoryBytes
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @instance
+       */
+      RuntimeCapacityFault.prototype.stepStartHistoryBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeCapacityFault canonicalSnapshotBytes.
+       * @member {number|Long} canonicalSnapshotBytes
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @instance
+       */
+      RuntimeCapacityFault.prototype.canonicalSnapshotBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * Creates a new RuntimeCapacityFault instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {unframe.realtime.RuntimeCapacityFault.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.RuntimeCapacityFault} RuntimeCapacityFault instance
+       * @type {{
+       *   (properties: unframe.realtime.RuntimeCapacityFault.$Shape): unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape;
+       *   (properties?: unframe.realtime.RuntimeCapacityFault.$Properties): unframe.realtime.RuntimeCapacityFault;
+       * }}
+       */
+      RuntimeCapacityFault.create = function (properties) {
+        return new RuntimeCapacityFault(properties);
+      };
+
+      /**
+       * Encodes the specified RuntimeCapacityFault message. Does not implicitly {@link unframe.realtime.RuntimeCapacityFault.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {unframe.realtime.RuntimeCapacityFault.$Properties} message RuntimeCapacityFault message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      RuntimeCapacityFault.encode = function RuntimeCapacityFault$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (
+          message.stepStartStateBytes != null &&
+          $Object.hasOwnProperty.call(message, "stepStartStateBytes")
+        )
+          writer.uint32(/* id 1, wireType 0 =*/ 8).uint64(message.stepStartStateBytes);
+        if (
+          message.stepStartHistoryBytes != null &&
+          $Object.hasOwnProperty.call(message, "stepStartHistoryBytes")
+        )
+          writer.uint32(/* id 2, wireType 0 =*/ 16).uint64(message.stepStartHistoryBytes);
+        if (
+          message.canonicalSnapshotBytes != null &&
+          $Object.hasOwnProperty.call(message, "canonicalSnapshotBytes")
+        )
+          writer.uint32(/* id 3, wireType 0 =*/ 24).uint64(message.canonicalSnapshotBytes);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified RuntimeCapacityFault message, length delimited. Does not implicitly {@link unframe.realtime.RuntimeCapacityFault.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {unframe.realtime.RuntimeCapacityFault.$Properties} message RuntimeCapacityFault message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      RuntimeCapacityFault.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a RuntimeCapacityFault message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape} RuntimeCapacityFault
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      RuntimeCapacityFault.decode = function RuntimeCapacityFault$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.stepStartStateBytes = reader.uint64();
+              break;
+            }
+            case 2: {
+              message.stepStartHistoryBytes = reader.uint64();
+              break;
+            }
+            case 3: {
+              message.canonicalSnapshotBytes = reader.uint64();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a RuntimeCapacityFault message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape} RuntimeCapacityFault
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      RuntimeCapacityFault.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a RuntimeCapacityFault message.
+       * @function verify
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      RuntimeCapacityFault.verify = function RuntimeCapacityFault$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.stepStartStateBytes != null && message.hasOwnProperty("stepStartStateBytes"))
+          if (
+            !$util.isInteger(message.stepStartStateBytes) &&
+            !(
+              message.stepStartStateBytes &&
+              $util.isInteger(message.stepStartStateBytes.low) &&
+              $util.isInteger(message.stepStartStateBytes.high)
+            )
+          )
+            return "stepStartStateBytes: integer|Long expected";
+        if (
+          message.stepStartHistoryBytes != null &&
+          message.hasOwnProperty("stepStartHistoryBytes")
+        )
+          if (
+            !$util.isInteger(message.stepStartHistoryBytes) &&
+            !(
+              message.stepStartHistoryBytes &&
+              $util.isInteger(message.stepStartHistoryBytes.low) &&
+              $util.isInteger(message.stepStartHistoryBytes.high)
+            )
+          )
+            return "stepStartHistoryBytes: integer|Long expected";
+        if (
+          message.canonicalSnapshotBytes != null &&
+          message.hasOwnProperty("canonicalSnapshotBytes")
+        )
+          if (
+            !$util.isInteger(message.canonicalSnapshotBytes) &&
+            !(
+              message.canonicalSnapshotBytes &&
+              $util.isInteger(message.canonicalSnapshotBytes.low) &&
+              $util.isInteger(message.canonicalSnapshotBytes.high)
+            )
+          )
+            return "canonicalSnapshotBytes: integer|Long expected";
+        return null;
+      };
+
+      /**
+       * Creates a RuntimeCapacityFault message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.RuntimeCapacityFault} RuntimeCapacityFault
+       */
+      RuntimeCapacityFault.fromObject = function RuntimeCapacityFault$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.stepStartStateBytes != null)
+          if ($util.Long)
+            (message.stepStartStateBytes = $util.Long.fromValue(
+              object.stepStartStateBytes,
+            )).unsigned = true;
+          else if (typeof object.stepStartStateBytes === "string")
+            message.stepStartStateBytes = $parseInt(object.stepStartStateBytes, 10);
+          else if (typeof object.stepStartStateBytes === "number")
+            message.stepStartStateBytes = object.stepStartStateBytes;
+          else if (typeof object.stepStartStateBytes === "object")
+            message.stepStartStateBytes = new $util.LongBits(
+              object.stepStartStateBytes.low >>> 0,
+              object.stepStartStateBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.stepStartHistoryBytes != null)
+          if ($util.Long)
+            (message.stepStartHistoryBytes = $util.Long.fromValue(
+              object.stepStartHistoryBytes,
+            )).unsigned = true;
+          else if (typeof object.stepStartHistoryBytes === "string")
+            message.stepStartHistoryBytes = $parseInt(object.stepStartHistoryBytes, 10);
+          else if (typeof object.stepStartHistoryBytes === "number")
+            message.stepStartHistoryBytes = object.stepStartHistoryBytes;
+          else if (typeof object.stepStartHistoryBytes === "object")
+            message.stepStartHistoryBytes = new $util.LongBits(
+              object.stepStartHistoryBytes.low >>> 0,
+              object.stepStartHistoryBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.canonicalSnapshotBytes != null)
+          if ($util.Long)
+            (message.canonicalSnapshotBytes = $util.Long.fromValue(
+              object.canonicalSnapshotBytes,
+            )).unsigned = true;
+          else if (typeof object.canonicalSnapshotBytes === "string")
+            message.canonicalSnapshotBytes = $parseInt(object.canonicalSnapshotBytes, 10);
+          else if (typeof object.canonicalSnapshotBytes === "number")
+            message.canonicalSnapshotBytes = object.canonicalSnapshotBytes;
+          else if (typeof object.canonicalSnapshotBytes === "object")
+            message.canonicalSnapshotBytes = new $util.LongBits(
+              object.canonicalSnapshotBytes.low >>> 0,
+              object.canonicalSnapshotBytes.high >>> 0,
+            ).toNumber(true);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a RuntimeCapacityFault message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {unframe.realtime.RuntimeCapacityFault} message RuntimeCapacityFault
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      RuntimeCapacityFault.toObject = function RuntimeCapacityFault$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.stepStartStateBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.stepStartStateBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.stepStartHistoryBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.stepStartHistoryBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.canonicalSnapshotBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.canonicalSnapshotBytes = options.longs === $String ? "0" : 0;
+        }
+        if (message.stepStartStateBytes != null && message.hasOwnProperty("stepStartStateBytes"))
+          if (typeof message.stepStartStateBytes === "number")
+            object.stepStartStateBytes =
+              options.longs === $String
+                ? $String(message.stepStartStateBytes)
+                : message.stepStartStateBytes;
+          else
+            object.stepStartStateBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.stepStartStateBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.stepStartStateBytes.low >>> 0,
+                      message.stepStartStateBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.stepStartStateBytes;
+        if (
+          message.stepStartHistoryBytes != null &&
+          message.hasOwnProperty("stepStartHistoryBytes")
+        )
+          if (typeof message.stepStartHistoryBytes === "number")
+            object.stepStartHistoryBytes =
+              options.longs === $String
+                ? $String(message.stepStartHistoryBytes)
+                : message.stepStartHistoryBytes;
+          else
+            object.stepStartHistoryBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.stepStartHistoryBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.stepStartHistoryBytes.low >>> 0,
+                      message.stepStartHistoryBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.stepStartHistoryBytes;
+        if (
+          message.canonicalSnapshotBytes != null &&
+          message.hasOwnProperty("canonicalSnapshotBytes")
+        )
+          if (typeof message.canonicalSnapshotBytes === "number")
+            object.canonicalSnapshotBytes =
+              options.longs === $String
+                ? $String(message.canonicalSnapshotBytes)
+                : message.canonicalSnapshotBytes;
+          else
+            object.canonicalSnapshotBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.canonicalSnapshotBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.canonicalSnapshotBytes.low >>> 0,
+                      message.canonicalSnapshotBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.canonicalSnapshotBytes;
+        return object;
+      };
+
+      /**
+       * Converts this RuntimeCapacityFault to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      RuntimeCapacityFault.prototype.toJSON = function () {
+        return RuntimeCapacityFault.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for RuntimeCapacityFault
+       * @function getTypeUrl
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      RuntimeCapacityFault.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.RuntimeCapacityFault";
+      };
+
+      return RuntimeCapacityFault;
     })();
 
     realtime.RuntimeParticipantHistory = (function () {

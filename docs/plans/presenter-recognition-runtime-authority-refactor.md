@@ -1,6 +1,6 @@
 # Presenter 認識・Runtime authority 移行計画
 
-- 状態: 工程1・2を実装済み。工程3の Runtime 凍結表示と Unity adapter を実装し、Go と対象 dotnet 検証を実施。Unity EditMode は licensing 初期化失敗で未実行。工程4〜6は未着手。
+- 状態: 工程4の Step 履歴・一括復元と工程5の consumer 接続を実装。工程6の対象検証・独立レビューと文書更新を進行中。Quest 実機検証は今回保留（2026-10-23）。
 - 計画の起点: `815ca9886ca8304d4164c067e2a66b7221ec458b`（2026-10-22、文書変更のみ）。実装基準は `origin/main` の `5219fa91` と rebase 後の #160（`af24157b`）。文書固有の変更は `22980438` に載せ替えた。
 - 仕様の正本: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md)、[進行意味論](../packages/ARCHITECTURE.md#12-v1-presentation-progression-の意味論)、[データ契約](../packages/DATA_MODEL.md)、[配信・実行契約](../packages/CONTRACT_RUNTIME.md)。
 
@@ -121,3 +121,15 @@ JSON Schema、descriptor、静的 codec / wire types、fixture、Go / C# consume
 ローカルの test / build は変更の影響範囲に限定する。全体の `nix run .#check` は LP など対象外の test / build も含むため、この計画ではローカル実行を前提にしない。全体検証は remote CI/CD に委ね、Unity Editor / Quest 実機は別に実施する。未実行・実行不能な検証を成功扱いしない。
 
 工程はレビュー単位であり、不整合な中間状態をリリースする境界ではない。source contract、生成物、consumer、fixture の整合が取れた状態で一括切替する。完了には工程1〜6の受入条件、生成 drift 検査、対象ローカル検証と remote CI の成功、残る実機制約の明示を必要とする。
+
+## 工程4〜6の実装・受入記録（2026-10-23）
+
+- Runtime: Step 開始履歴の保存・再入場置換、到達済み Step の paused 一括復元、Run ID / owner / 時計 / 参照の再構築、Timer / Cue の初期化、容量超過・保存失敗時の rollback を実装した。Presenter 専用の到達済み ID catalog を追加した。履歴全体は配布しない。
+- Consumers: Authoring / Structured・React Compiler / Core / CLI / Local Editor を Gesture、中心位置だけの Zone、cooldown なしへ移行した。Local Preview は認識設定を含めず Gesture / Zone / Anchor を拒否する。Compiler 由来の Delivery fixture を v3 で再生成した。
+- Unity: Gesture 8種、開始文脈・頭方向、腰限定 Zone の seed、同期 ACK / READY、旧操作破棄、全体操作と Step 選択 UI を接続した。凍結表示と Run / Surface / Media / Model の一括置換を検証した。
+- 対象検証: Contracts 61件と wire 13件、Core 372件、Authoring 71件、Compiler の関連テスト、Local Editor 92件、CLI Preview / Playback 33件が成功。Control Plane を含む関連型検査と Local Editor build が成功した。Go runtimecore / protocol / persistence の race と、gRPC catch-up・private fault・Presenter 入力・Viewer 投影の race を検証した。生成 Go / C# は v3 Delivery と認識・同期 message を復号した。Unity EditMode は53件成功し、dotnet adapter 全体・authority・pause、Assets format と .meta を検証した。
+- Go catch-up の試行回数テストには固定時計を渡し、race の計測負荷で250ms予算と競合しないようにした。別の固定時計テストで時間予算の境界も検証する。実装の時間上限は変更しない。
+- 残確認: Unity の paused Viewer 途中参加の独立レビュー指摘を修正中。容量 fault を invariant pause で保持して無条件 resume 拒否する実装と、上限再検証の採用仕様との整合を確認中。生成 drift と最終独立レビューの結果を確定する。
+- 実機: Quest が接続されておらず、ユーザー指定で今回は保留した。8種類の認識品質、頭方向・両手競合、Zone 境界と腰 tracking 欠損・復帰の端末受入は未実施であり、Editor の成功で代替しない。
+
+リポジトリ全体の test / build と `nix run .#check` は、ローカル検証を影響範囲に限定する指示に従って実行していない。対象範囲の結果を全体 gate の成功とは扱わない。

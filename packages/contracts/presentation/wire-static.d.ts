@@ -19302,6 +19302,149 @@ export namespace unframe {
       type $Shape = unframe.realtime.StepSelection.$Properties;
     }
 
+    /**
+     * Properties of a PresenterStepSelectionCatalog.
+     * @deprecated Use unframe.realtime.PresenterStepSelectionCatalog.$Properties instead.
+     */
+    interface IPresenterStepSelectionCatalog
+      extends unframe.realtime.PresenterStepSelectionCatalog.$Properties {}
+
+    /** Represents a PresenterStepSelectionCatalog. */
+    class PresenterStepSelectionCatalog {
+      /**
+       * Constructs a new PresenterStepSelectionCatalog.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.PresenterStepSelectionCatalog.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** PresenterStepSelectionCatalog reachedSteps. */
+      reachedSteps: unframe.realtime.StepSelection.$Properties[];
+
+      /** PresenterStepSelectionCatalog reliableSequence. */
+      reliableSequence: number | Long;
+
+      /**
+       * Creates a new PresenterStepSelectionCatalog instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns PresenterStepSelectionCatalog instance
+       */
+      static create(
+        properties: unframe.realtime.PresenterStepSelectionCatalog.$Shape,
+      ): unframe.realtime.PresenterStepSelectionCatalog &
+        unframe.realtime.PresenterStepSelectionCatalog.$Shape;
+      static create(
+        properties?: unframe.realtime.PresenterStepSelectionCatalog.$Properties,
+      ): unframe.realtime.PresenterStepSelectionCatalog;
+
+      /**
+       * Encodes the specified PresenterStepSelectionCatalog message. Does not implicitly {@link unframe.realtime.PresenterStepSelectionCatalog.verify|verify} messages.
+       * @param message PresenterStepSelectionCatalog message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.PresenterStepSelectionCatalog.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified PresenterStepSelectionCatalog message, length delimited. Does not implicitly {@link unframe.realtime.PresenterStepSelectionCatalog.verify|verify} messages.
+       * @param message PresenterStepSelectionCatalog message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.PresenterStepSelectionCatalog.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a PresenterStepSelectionCatalog message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape} PresenterStepSelectionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.PresenterStepSelectionCatalog &
+        unframe.realtime.PresenterStepSelectionCatalog.$Shape;
+
+      /**
+       * Decodes a PresenterStepSelectionCatalog message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape} PresenterStepSelectionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.PresenterStepSelectionCatalog &
+        unframe.realtime.PresenterStepSelectionCatalog.$Shape;
+
+      /**
+       * Verifies a PresenterStepSelectionCatalog message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a PresenterStepSelectionCatalog message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns PresenterStepSelectionCatalog
+       */
+      static fromObject(object: {
+        [k: string]: any;
+      }): unframe.realtime.PresenterStepSelectionCatalog;
+
+      /**
+       * Creates a plain object from a PresenterStepSelectionCatalog message. Also converts values to other types if specified.
+       * @param message PresenterStepSelectionCatalog
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.PresenterStepSelectionCatalog,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this PresenterStepSelectionCatalog to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for PresenterStepSelectionCatalog
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace PresenterStepSelectionCatalog {
+      /** Properties of a PresenterStepSelectionCatalog. */
+      interface $Properties {
+        /** PresenterStepSelectionCatalog reachedSteps */
+        reachedSteps?: unframe.realtime.StepSelection.$Properties[] | null;
+
+        /** PresenterStepSelectionCatalog reliableSequence */
+        reliableSequence?: number | Long | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a PresenterStepSelectionCatalog. */
+      type $Shape = unframe.realtime.PresenterStepSelectionCatalog.$Properties;
+    }
+
     /** InputSynchronizationPhase enum. */
     enum InputSynchronizationPhase {
       /** INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED value */
@@ -20821,6 +20964,9 @@ export namespace unframe {
       /** ControlServerItem presenterInputSynchronization. */
       presenterInputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Properties | null;
 
+      /** ControlServerItem presenterStepSelectionCatalog. */
+      presenterStepSelectionCatalog?: unframe.realtime.PresenterStepSelectionCatalog.$Properties | null;
+
       /** ControlServerItem item. */
       item?:
         | "connected"
@@ -20830,7 +20976,8 @@ export namespace unframe {
         | "commandOutcome"
         | "stateConnectionNonce"
         | "resyncRequired"
-        | "presenterInputSynchronization";
+        | "presenterInputSynchronization"
+        | "presenterStepSelectionCatalog";
 
       /**
        * Creates a new ControlServerItem instance using the specified properties.
@@ -20956,6 +21103,9 @@ export namespace unframe {
         /** ControlServerItem presenterInputSynchronization */
         presenterInputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Properties | null;
 
+        /** ControlServerItem presenterStepSelectionCatalog */
+        presenterStepSelectionCatalog?: unframe.realtime.PresenterStepSelectionCatalog.$Properties | null;
+
         /** ControlServerItem item */
         item?:
           | "connected"
@@ -20965,7 +21115,8 @@ export namespace unframe {
           | "commandOutcome"
           | "stateConnectionNonce"
           | "resyncRequired"
-          | "presenterInputSynchronization";
+          | "presenterInputSynchronization"
+          | "presenterStepSelectionCatalog";
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
@@ -20981,6 +21132,7 @@ export namespace unframe {
         stateConnectionNonce?: unframe.realtime.StateConnectionNonce.$Shape | null;
         resyncRequired?: unframe.realtime.ResyncRequired.$Shape | null;
         presenterInputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape | null;
+        presenterStepSelectionCatalog?: unframe.realtime.PresenterStepSelectionCatalog.$Shape | null;
         $unknowns?: Uint8Array[];
       } & (
         | {
@@ -20993,6 +21145,7 @@ export namespace unframe {
             stateConnectionNonce?: null;
             resyncRequired?: null;
             presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "connected";
@@ -21004,6 +21157,7 @@ export namespace unframe {
             stateConnectionNonce?: null;
             resyncRequired?: null;
             presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "connectionSnapshot";
@@ -21015,6 +21169,7 @@ export namespace unframe {
             stateConnectionNonce?: null;
             resyncRequired?: null;
             presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "reliableEvent";
@@ -21026,6 +21181,7 @@ export namespace unframe {
             stateConnectionNonce?: null;
             resyncRequired?: null;
             presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "projectionAdvance";
@@ -21037,6 +21193,7 @@ export namespace unframe {
             stateConnectionNonce?: null;
             resyncRequired?: null;
             presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "commandOutcome";
@@ -21048,6 +21205,7 @@ export namespace unframe {
             stateConnectionNonce?: null;
             resyncRequired?: null;
             presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "stateConnectionNonce";
@@ -21059,6 +21217,7 @@ export namespace unframe {
             stateConnectionNonce: unframe.realtime.StateConnectionNonce.$Shape;
             resyncRequired?: null;
             presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "resyncRequired";
@@ -21070,6 +21229,7 @@ export namespace unframe {
             stateConnectionNonce?: null;
             resyncRequired: unframe.realtime.ResyncRequired.$Shape;
             presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "presenterInputSynchronization";
@@ -21081,6 +21241,19 @@ export namespace unframe {
             stateConnectionNonce?: null;
             resyncRequired?: null;
             presenterInputSynchronization: unframe.realtime.PresenterInputSynchronization.$Shape;
+            presenterStepSelectionCatalog?: null;
+          }
+        | {
+            item?: "presenterStepSelectionCatalog";
+            connected?: null;
+            connectionSnapshot?: null;
+            reliableEvent?: null;
+            projectionAdvance?: null;
+            commandOutcome?: null;
+            stateConnectionNonce?: null;
+            resyncRequired?: null;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog: unframe.realtime.PresenterStepSelectionCatalog.$Shape;
           }
       );
     }
@@ -23278,6 +23451,9 @@ export namespace unframe {
 
       /** PAUSE_REASON_EXPLICIT_PAUSE value */
       PAUSE_REASON_EXPLICIT_PAUSE = 8,
+
+      /** PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED value */
+      PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED = 9,
     }
 
     /** TerminationReason enum. */
@@ -34907,6 +35083,9 @@ export namespace unframe {
       /** RuntimeRecoveryMetadata inputSynchronization. */
       inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Properties | null;
 
+      /** RuntimeRecoveryMetadata capacityFault. */
+      capacityFault?: unframe.realtime.RuntimeCapacityFault.$Properties | null;
+
       /**
        * Creates a new RuntimeRecoveryMetadata instance using the specified properties.
        * @param [properties] Properties to set
@@ -35022,6 +35201,9 @@ export namespace unframe {
         /** RuntimeRecoveryMetadata inputSynchronization */
         inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Properties | null;
 
+        /** RuntimeRecoveryMetadata capacityFault */
+        capacityFault?: unframe.realtime.RuntimeCapacityFault.$Properties | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
@@ -35033,8 +35215,152 @@ export namespace unframe {
         commands?: unframe.realtime.RuntimeCommandHistory.$Shape[] | null;
         commandEpoch?: number | Long | null;
         inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape | null;
+        capacityFault?: unframe.realtime.RuntimeCapacityFault.$Shape | null;
         $unknowns?: Uint8Array[];
       };
+    }
+
+    /**
+     * Properties of a RuntimeCapacityFault.
+     * @deprecated Use unframe.realtime.RuntimeCapacityFault.$Properties instead.
+     */
+    interface IRuntimeCapacityFault extends unframe.realtime.RuntimeCapacityFault.$Properties {}
+
+    /** Represents a RuntimeCapacityFault. */
+    class RuntimeCapacityFault {
+      /**
+       * Constructs a new RuntimeCapacityFault.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.RuntimeCapacityFault.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** RuntimeCapacityFault stepStartStateBytes. */
+      stepStartStateBytes: number | Long;
+
+      /** RuntimeCapacityFault stepStartHistoryBytes. */
+      stepStartHistoryBytes: number | Long;
+
+      /** RuntimeCapacityFault canonicalSnapshotBytes. */
+      canonicalSnapshotBytes: number | Long;
+
+      /**
+       * Creates a new RuntimeCapacityFault instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns RuntimeCapacityFault instance
+       */
+      static create(
+        properties: unframe.realtime.RuntimeCapacityFault.$Shape,
+      ): unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape;
+      static create(
+        properties?: unframe.realtime.RuntimeCapacityFault.$Properties,
+      ): unframe.realtime.RuntimeCapacityFault;
+
+      /**
+       * Encodes the specified RuntimeCapacityFault message. Does not implicitly {@link unframe.realtime.RuntimeCapacityFault.verify|verify} messages.
+       * @param message RuntimeCapacityFault message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.RuntimeCapacityFault.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified RuntimeCapacityFault message, length delimited. Does not implicitly {@link unframe.realtime.RuntimeCapacityFault.verify|verify} messages.
+       * @param message RuntimeCapacityFault message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.RuntimeCapacityFault.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a RuntimeCapacityFault message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape} RuntimeCapacityFault
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape;
+
+      /**
+       * Decodes a RuntimeCapacityFault message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape} RuntimeCapacityFault
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape;
+
+      /**
+       * Verifies a RuntimeCapacityFault message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a RuntimeCapacityFault message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns RuntimeCapacityFault
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.RuntimeCapacityFault;
+
+      /**
+       * Creates a plain object from a RuntimeCapacityFault message. Also converts values to other types if specified.
+       * @param message RuntimeCapacityFault
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.RuntimeCapacityFault,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this RuntimeCapacityFault to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for RuntimeCapacityFault
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace RuntimeCapacityFault {
+      /** Properties of a RuntimeCapacityFault. */
+      interface $Properties {
+        /** RuntimeCapacityFault stepStartStateBytes */
+        stepStartStateBytes?: number | Long | null;
+
+        /** RuntimeCapacityFault stepStartHistoryBytes */
+        stepStartHistoryBytes?: number | Long | null;
+
+        /** RuntimeCapacityFault canonicalSnapshotBytes */
+        canonicalSnapshotBytes?: number | Long | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a RuntimeCapacityFault. */
+      type $Shape = unframe.realtime.RuntimeCapacityFault.$Properties;
     }
 
     /**

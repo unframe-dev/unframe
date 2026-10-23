@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-10-21。設計を採用し、[v3 契約](../packages/CONTRACT_PRESENTER_AUTHORITY.md) と正本 schema / 生成物を更新。実行側 consumer は未移行。
+Accepted — 2026-10-21。Presenter 認識・入力同期・凍結表示・到達済み Step 復元を実装した。対象テストと実機未検証の範囲は移行計画に記録する。
 
 ## Context
 
@@ -53,6 +53,6 @@ Accepted — 2026-10-21。設計を採用し、[v3 契約](../packages/CONTRACT_
 
 ## Adoption and Exceptions
 
-初回採用は文書のみ。[v3 契約](../packages/CONTRACT_PRESENTER_AUTHORITY.md) で wire 形状・version 対応表・容量上限を固定し、正本 schema と生成物を更新した。Runtime / Unity / Authoring の実行側は未移行であり、契約更新をサービスの対応完了と扱わない。実装時は Definition・Delivery・Control・Snapshot / checkpoint の構造と意味規則を整合させ、Core、Runtime、Unity、Author の利用箇所を更新する。旧認識方式との互換 fallback は設けず、非対応 consumer を契約の version / capability 検証で拒否する。
+[v3 契約](../packages/CONTRACT_PRESENTER_AUTHORITY.md) の schema と生成 consumer を Runtime / Unity / Authoring / Compiler / Core へ接続した。旧方式への fallback は設けない。対象テストと実機確認の境界は[移行計画](../plans/presenter-recognition-runtime-authority-refactor.md)に記録する。
 
 関連仕様は [Presentation Architecture](../packages/ARCHITECTURE.md)、[Data model](../packages/DATA_MODEL.md)、[Delivery / Runtime contract](../packages/CONTRACT_RUNTIME.md)、[Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md) に反映する。実装レビューでは旧 Step・旧世代入力、応答消失後の再送、同時成立の独立処理、Zone の無通知初期化、pause 中の途中参加、Step 復元と旧 Run 完了、checkpoint 復旧を検証する。Gesture と2m Zone の認識品質は Quest 実機で別途確認する。例外はリポジトリの設計レビューで本 ADR の更新または後継 ADR として承認・記録する。

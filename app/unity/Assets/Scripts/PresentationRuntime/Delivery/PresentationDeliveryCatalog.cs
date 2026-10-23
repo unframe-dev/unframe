@@ -116,6 +116,8 @@ namespace Unframe.Unity.PresentationRuntime
                 if (required != RuntimeCapability.TimelineRun && required != RuntimeCapability.RuntimeTransport
                     && required != RuntimeCapability.SurfaceTransition && required != RuntimeCapability.Tracking
                     && required != RuntimeCapability.ModelClip && required != RuntimeCapability.VideoPlayback
+                    && required != RuntimeCapability.PresenterRecognition && required != RuntimeCapability.InputSynchronization
+                    && required != RuntimeCapability.FrozenAnchors && required != RuntimeCapability.StepRestore
                     || !requiredCapabilities.Add(required))
                 {
                     return Fail("delivery capability is unsupported or duplicated.", out error);

@@ -177,19 +177,9 @@ function actorLabel(actor: Extract<Trigger, { kind: "logicalInput" }>["actor"]):
     case "presenter":
       return "発表者（presenter）";
     case "system":
-      return `システム（system）${actor.source ? ` / ${{ tracking: "位置追跡", timer: "タイマー", timeline: "Timeline", media: "Media", runtime: "Runtime" }[actor.source]}（${actor.source}）` : ""}`;
+      return `システム（system）${actor.source ? ` / ${{ timer: "タイマー", timeline: "Timeline", media: "Media", runtime: "Runtime" }[actor.source]}（${actor.source}）` : ""}`;
     default:
       return unreachable(actor);
-  }
-}
-function subjectLabel(subject: Extract<Trigger, { kind: "motion" }>["subject"]): string {
-  switch (subject.kind) {
-    case "participant":
-      return "発表者（presenter）の参加者（participant）";
-    case "anchor":
-      return `発表者（presenter）の${{ head: "頭", leftHand: "左手", rightHand: "右手", bothHands: "両手", eitherHand: "いずれかの手", body: "身体" }[subject.target]}（${subject.target}）`;
-    default:
-      return unreachable(subject);
   }
 }
 export function triggerPresentation(trigger: Trigger): { title: string; rows: DetailRow[] } {
@@ -226,23 +216,15 @@ export function triggerPresentation(trigger: Trigger): { title: string; rows: De
           ["Zone", trigger.zoneId],
           ["境界", trigger.edge === "enter" ? "進入（enter）" : "退出（exit）"],
           ["発信者", actorLabel(trigger.actor)],
-          ["追跡対象", subjectLabel(trigger.subject)],
-          ...(trigger.dwellMilliseconds !== undefined
-            ? ([["滞留時間", `${trigger.dwellMilliseconds} ms`]] satisfies DetailRow[])
-            : []),
-          ...(trigger.hysteresisMeters !== undefined
-            ? ([["境界の余裕", `${trigger.hysteresisMeters} m`]] satisfies DetailRow[])
-            : []),
+          ["領域", "腰位置で判定する一辺 2 m の箱"],
         ],
       };
-    case "motion":
+    case "gesture":
       return {
-        title: "移動を検出",
+        title: "Gesture を検出",
         rows: [
           ["発信者", actorLabel(trigger.actor)],
-          ["追跡対象", subjectLabel(trigger.subject)],
-          ["最小移動距離", `${trigger.minimumDistanceMeters} m`],
-          ["検出期間", `${trigger.windowMilliseconds} ms`],
+          ["Gesture", trigger.gesture],
         ],
       };
     case "timer":

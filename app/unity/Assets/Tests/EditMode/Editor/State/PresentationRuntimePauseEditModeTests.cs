@@ -25,6 +25,45 @@ public sealed class PresentationRuntimePauseEditModeTests
         clock.Running = new Running();
         Assert.That(PresentationPlaybackPlayer.SampleRuntimeTimeMs(clock, 50, 50.25), Is.EqualTo(1450));
     }
+    [Test]
+    public void ReplacementRestoresRunsAndSurfaceTogetherAndRejectsPartialState()
+    {
+        var delivery = JsonParser.Default.Parse<DeliveryManifest>(UnityEngine.Resources.Load<UnityEngine.TextAsset>("PresentationFixtures/LocalDelivery").text);
+        var snapshot = JsonParser.Default.Parse<ControlServerItem>(UnityEngine.Resources.Load<UnityEngine.TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        foreach (var node in delivery.ProjectionProfile.RuntimeCatalog.Nodes)
+        {
+            node.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+            if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model)
+                snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState { ModelNodeId = node.NodeId, DefaultPose = new DefaultModelPose() });
+        }
+        foreach (var definition in delivery.ProjectionProfile.RuntimeCatalog.Surfaces) definition.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        var store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        var view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Clone();
+        view.BaseReliableSequence = 1; view.Clock.Paused = new Paused { Reason = PauseReason.ExplicitPause };
+        view.Progression.StepEntryEpoch++;
+        view.NodeStates[0].Opacity = 0.42;
+        var runId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 100 };
+        var surface = view.SurfaceStates[0];
+        surface.TransitionRunId = runId.Clone();
+        view.ActiveRuns.Add(new RuntimeRunSnapshot { RunId = runId,
+            Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() }, Cause = new RuntimeRunCause { CueId = "cue:restore", CauseEventId = "event:restore" },
+            Completion = RunCompletion.NonBlocking, SurfaceTransition = new SurfaceTransitionRunSnapshot { SurfaceId = surface.SurfaceId, FromStateId = surface.StateId, ToStateId = surface.StateId, DurationMs = 1000, Easing = Easing.Linear } });
+        var replacement = new ControlServerItem { ReliableEvent = new ProjectedReliableEvent { Sequence = 1, Fence = snapshot.ConnectionSnapshot.Fence.Clone(), RuntimeViewReplaced = new RuntimeViewReplaced { RuntimeView = view } } };
+        var invalid = replacement.Clone(); invalid.ReliableEvent.RuntimeViewReplaced.RuntimeView.SurfaceStates[0].TransitionRunId.RunSequence = 999;
+        Assert.That(store.TryReceiveNetworkControl(invalid, out _), Is.False);
+        Assert.That(store.LastReliableSequence, Is.Zero);
+        Assert.That(store.TryGetNodeState(view.NodeStates[0].NodeId, out var original), Is.True);
+        Assert.That(original.Opacity, Is.Not.EqualTo(0.42));
+        Assert.That(store.TryReceiveNetworkControl(replacement, out error), Is.True, error);
+        Assert.That(store.TryGetSurfaceState(surface.SurfaceId, out var restored), Is.True);
+        Assert.That(restored.TransitionRunId, Is.EqualTo(runId));
+        Assert.That(store.RuntimeClock.StatusCase, Is.EqualTo(RuntimeClockSnapshot.StatusOneofCase.Paused));
+        view.ActiveRuns.Clear(); surface.TransitionRunId = null; view.BaseReliableSequence = 2; replacement.ReliableEvent.Sequence = 2;
+        Assert.That(store.TryReceiveNetworkControl(replacement, out error), Is.True, error);
+        Assert.That(store.ActiveRuns, Is.Empty);
+    }
 #endif
     public static void Run()
     {

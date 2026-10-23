@@ -299,6 +299,9 @@ func newV2InitialSnapshot(raw json.RawMessage, mediaSpecs map[string]map[string]
 	if err := protocolv2.ValidateMessage(snapshot); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrV2RuntimeDefinition, err)
 	}
+	if err := captureV3StepStart(snapshot); err != nil {
+		return nil, err
+	}
 	return snapshot, nil
 }
 

@@ -18,6 +18,52 @@ const gesture = {
   gesture: 1,
 };
 
+test("capacity recovery records attempted sizes instead of the rolled-back snapshot sizes", () => {
+  const type = "unframe.realtime.RuntimeCapacityFault";
+  const required = {
+    stepStartStateBytes: "70000",
+    stepStartHistoryBytes: "70004",
+    canonicalSnapshotBytes: "140100",
+  };
+  assert.deepEqual(decodeWireMessage(type, encodeWireMessage(type, required)), required);
+  for (const field of Object.keys(required)) {
+    assert.throws(() => encodeWireMessage(type, { ...required, [field]: "0" }));
+  }
+  assert.doesNotThrow(() => encodeWireMessage("unframe.realtime.Paused", { reason: 9 }));
+});
+
+test("Presenter Step selection catalog exposes reached IDs at a Reliable cut without saved state", () => {
+  const catalog = {
+    reachedSteps: [{ groupId: "intro", stepId: "start" }],
+    reliableSequence: "12",
+  };
+  const type = "unframe.realtime.ControlServerItem";
+  assert.deepEqual(
+    decodeWireMessage(type, encodeWireMessage(type, { presenterStepSelectionCatalog: catalog })),
+    { presenterStepSelectionCatalog: catalog },
+  );
+  assert.throws(
+    () =>
+      encodeWireMessage(type, {
+        presenterStepSelectionCatalog: { ...catalog, stepStartHistory: [] },
+      }),
+    /not a wire field/,
+  );
+  for (const reachedSteps of [
+    [{ groupId: "", stepId: "start" }],
+    [catalog.reachedSteps[0], catalog.reachedSteps[0]],
+    [
+      { groupId: "z", stepId: "s" },
+      { groupId: "a", stepId: "s" },
+    ],
+  ])
+    assert.throws(() =>
+      encodeWireMessage(type, {
+        presenterStepSelectionCatalog: { ...catalog, reachedSteps },
+      }),
+    );
+});
+
 test("recognized gestures retain their captured input context without client authority fields", () => {
   const name = "unframe.realtime.GestureInputCommand";
   assert.deepEqual(decodeWireMessage(name, encodeWireMessage(name, gesture)), gesture);

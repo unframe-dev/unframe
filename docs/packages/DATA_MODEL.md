@@ -1,19 +1,19 @@
-# Presentation データ契約 v2
+# Presentation データ契約
 
 ## 正本と読み方
 
-v2 は今回の機能範囲に対するデータ契約である。構造は Zod / Protobuf、構造だけでは表せない参照整合性・計算・状態遷移・拒否条件は以下の仕様を正本とする。両方を満たして初めて有効なデータとなる。
+Definition / Delivery / Runtime は v3、RenderBundle / AssetSet は v2 を使用する。構造は Zod / Protobuf、構造だけでは表せない参照整合性・計算・状態遷移・拒否条件は以下の仕様を正本とする。両方を満たして初めて有効なデータとなる。
 
-[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・Step 復元・pause 中の凍結状態は採用済み設計であり、Zod / Protobuf と生成物を更新済みである。構造リンクは更新済みの正本を指す。wire・version・容量は [v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md) に固定し、実行側 consumer は移行前である。以下の v2 記述と異なる場合は v3 契約を優先する。
+[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力同期・凍結表示・到達済み Step 復元を実装した。対象テストと実機未検証の範囲は移行計画に記録する。 wire・version・容量は [v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md) を正本とする。
 
-| 対象                                                                    | 構造の正本                                                                           | 意味規則                                |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------- |
-| Definition / RenderBundle / AssetSet / Build / Publication / Capability | [Zod v2](../../packages/contracts/src/presentation/index.ts)                         | [成果物契約](./CONTRACT_ARTIFACTS.md)   |
-| 配信と再接続に共通の型                                                  | [presentation v2](../../packages/contracts/proto/unframe/presentation/runtime.proto) | [配信・実行契約](./CONTRACT_RUNTIME.md) |
-| DeliveryManifest                                                        | [delivery v2](../../packages/contracts/proto/unframe/delivery/delivery.proto)        | 同上                                    |
-| Command / Event / Run / Snapshot / StateFrame                           | [realtime v2](../../packages/contracts/proto/unframe/realtime/realtime.proto)        | 同上                                    |
+| 対象                                                                    | 構造の正本                                                                        | 意味規則                                |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------- |
+| Definition / RenderBundle / AssetSet / Build / Publication / Capability | [Zod](../../packages/contracts/src/presentation/index.ts)                         | [成果物契約](./CONTRACT_ARTIFACTS.md)   |
+| 配信と再接続に共通の型                                                  | [presentation](../../packages/contracts/proto/unframe/presentation/runtime.proto) | [配信・実行契約](./CONTRACT_RUNTIME.md) |
+| DeliveryManifest                                                        | [delivery](../../packages/contracts/proto/unframe/delivery/delivery.proto)        | 同上                                    |
+| Command / Event / Run / Snapshot / StateFrame                           | [realtime](../../packages/contracts/proto/unframe/realtime/realtime.proto)        | 同上                                    |
 
-型・意味規則が旧 Architecture の例や初期 v1 と異なる場合は、この v2 契約を優先する。Architecture と ADR は設計理由を説明する。v1 は初期 subset の履歴であり、現在の静的 Compiler / Core は v2 だけを生成・検証する。Delivery / Runtime / Unity の接続は別途必要である。
+型・意味規則が旧 Architecture の例や初期 v1 と異なる場合は、この契約を優先する。Architecture と ADR は設計理由を説明する。v1 は初期 subset の履歴であり、現在の Compiler / Core は上記の version 組合せを生成・検証し、Delivery / Runtime / Unity と接続する。
 
 M3A は Theme と Structured composition の静的 `baked-web` 経路を v2 へ接続する。その authoring と compile-time 解決規則は [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。この接続は CLI / reference project まで実装され、動的機能と consumer 接続は後続に残る。
 
@@ -47,7 +47,7 @@ Definition にダウンロード URL、端末 capability、現在の再生時刻
 
 ## 検証と実装の境界
 
-### Gesture / Zone と共有進行（採用済み・未実装）
+### Gesture / Zone と共有進行
 
 Presenter client が入力を認識し、Runtime が Cue の採用と共有状態を確定する。定義と状態の配置は次のとおりとする。
 
@@ -64,12 +64,12 @@ Presenter client が入力を認識し、Runtime が Cue の採用と共有状�
 
 `timeline.play` や `surface.setState` による演出開始と、Pose に追従する連続演出は別の経路とする。Runtime は受理した認識結果から Cue を評価し、Pose から Gesture / Zone を再認識しない。pause では共有演出全体を止め、HMD の視点と操作 UI は継続する。Step 選択は到達済みの直近開始状態を paused で復元し、明示 resume を待つ。入力の寿命・再送・復元の詳細は [配信・実行契約](./CONTRACT_RUNTIME.md) に従う。
 
-### 現行実装との差分
+### 実装と検証範囲
 
-現行 Zod / Protobuf / consumer は Runtime が Pose から motion / Zone を認識する方式であり、`system/tracking` actor、ユーザー指定の motion 距離・時間窓・対象の手、可変 Zone size、cooldown を持つ。Presenter の `motion_guides` は操作案内であり、client 認識契約ではない。これらは移行対象であり、採用仕様の互換機能として残さない。入力世代、Step 選択・開始状態履歴、pause 中の凍結 Anchor 保存も未実装である。2m Zone と端末認識の品質は Quest 実機で別途検証する。
+Zod / Protobuf、Authoring / Compiler / Core、Realtime と Unity を v3 に揃えた。旧 motion / tracking trigger、可変 Zone size、server cooldown は受理しない。Presenter にだけ認識設定と到達済み Step ID を渡し、開始状態履歴は server に保持する。認識品質と2m Zone の妥当性は Quest 実機の別途確認が必要である。
 
 [契約 package](../../packages/contracts/README.md) に生成・drift check・fixture の実行方法を記載する。JSON Schema と descriptor は生成物であり、手編集しない。
 
 構造テストの合格は、GLB importer、動画 decoder、font atlas、Runtime reducer、再接続、Quest の実機動作が実装済みであることを意味しない。意味検証は Core、投影と admission は Delivery、素材変換は Compiler、描画は各 consumer の責務となる。端末の上限値は検証済み CapabilityProfile の必須入力であり、fixture の合成値を製品設定に使わない。
 
-Core は静的 baked-web subset の意味検証と [build / 公開物の整合性検証](../../packages/unframe-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) を持つ。Compiler / CLI は Definition、RenderBundle、AssetSet、BuildManifest と素材 bytes を出力する。v2 全体の意味検証と Delivery / Runtime consumer の接続は未完了である。
+Core は Scene / Flow / Runtime Snapshot の意味検証と [build / 公開物の整合性検証](../../packages/unframe-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) を持つ。Compiler / CLI は Definition、RenderBundle、AssetSet、BuildManifest と素材 bytes を出力する。Delivery / Runtime consumer は v3 へ接続済みである。素材変換・端末描画・実機検証の範囲は各 consumer の文書を参照する。

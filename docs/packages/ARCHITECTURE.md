@@ -6,8 +6,8 @@
 - **Maturity**:
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
-  - Progression semantic wire contract: Accepted（v2 Protobuf。consumer の実装・検証範囲は [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md) と [Unity README](../../app/unity/README.md) を参照）
-  - コンパイル後の構造・配信・Runtime: Presentation v2。現行 Authoring / build host は [CLI Architecture](../../packages/unframe-cli/ARCHITECTURE.md) を参照
+  - Progression semantic wire contract: Accepted（v3 Protobuf。consumer の実装・検証範囲は [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md) と [Unity README](../../app/unity/README.md) を参照）
+  - コンパイル後の Definition・配信・Runtime: v3、RenderBundle / AssetSet: v2。現行 Authoring / build host は [CLI Architecture](../../packages/unframe-cli/ARCHITECTURE.md) を参照
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
   - [Local Editor: Unity Preview の設計と実装計画](./LOCAL_EDITOR_DESIGN.md)
@@ -22,9 +22,9 @@
   - [Repository Architecture](../../ARCHITECTURE.md)
   - [Server Architecture](../../app/server/ARCHITECTURE.md)
 
-[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・Pause・Step 開始状態復元は採用後の設計である。[v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md) と生成物は更新済みで、実行側 consumer は未移行である。本書の概念型と正本 schema の差異は v3 契約に従う。
+[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力同期・凍結表示・到達済み Step 復元を実装した。対象テストと実機未検証の範囲は移行計画に記録する。 wire・version・容量の正本は [v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md) とする。
 
-具体的なデータ構造と実行規則は [Presentation v2 データ契約](./DATA_MODEL.md) を正本とする。serialized field は [Contracts の手書き Zod schema](../../packages/contracts/src/presentation/index.ts) と推論型を正本とする。本書に残る概念図・型例は責務の説明であり、コピー可能な現行 API 定義ではない。
+具体的なデータ構造と実行規則は [Presentation データ契約](./DATA_MODEL.md) を正本とする。serialized field は [Contracts の手書き Zod schema](../../packages/contracts/src/presentation/index.ts) と推論型を正本とする。本書に残る概念図・型例は責務の説明であり、コピー可能な現行 API 定義ではない。
 
 ## 1. この文書の位置付け
 
@@ -1224,7 +1224,7 @@ Renderer の基本選択規則は次のとおりとする。
 
 ## 12. v1 Presentation Progression の意味論
 
-本節は Surface State を含む進行の意味論を定義する。[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) により更新した入力・復元の概念型は採用後設計であり、現行 Zod / Protobuf の shape と一致するとは限らない。wire schema は v3 へ更新済みで、consumer は未移行である。
+本節は Surface State を含む進行の意味論を定義する。入力・復元の wire schema と version は [Presenter authority v3](./CONTRACT_PRESENTER_AUTHORITY.md) に従う。概念型は責務の説明であり、生成型を置き換えない。
 
 ```text
 Group       = State Machine のスコープ
@@ -1997,7 +1997,7 @@ Durable recoveryにはSnapshotの`reliableSequence = S`以降を埋めるcontigu
 
 現行 Realtime 起動は `ConfigureDurability` で checkpoint callback を接続し、bootstrap の checkpoint を `RestoreCheckpoint` で復元する。Connection Resume / replay は Runtime session と gRPC transport に接続済みである。process 再起動後の過去 event log は保持せず、保持範囲外の Connection Resume には新しい Snapshot を要求する。詳細な上限と失敗理由は [Runtime contract](./CONTRACT_RUNTIME.md) を正本とする。
 
-ADR-0027 の入力世代、Step 開始履歴、凍結 Anchor の保存と復元は未実装である。各 mutation は共有状態と処理結果を同じ checkpoint に保存してから公開し、復旧時は確定済み checkpoint から再構築する。
+ADR-0027 の入力世代、Step 開始履歴、凍結 Anchor を checkpoint に保存し、Step 選択では Run と表示を一括復元して paused にする。各 mutation は共有状態と処理結果を同じ checkpoint に保存してから公開する。
 
 Timelineのtick履歴はreplayせず、logical runtime timeとactive Runから現在値を再計算する。Projected Runtime SnapshotはCanonicalRuntimeSnapshotから生成する派生物であり、durable recoveryの入力に使用しない。
 

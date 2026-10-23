@@ -77,7 +77,11 @@ func NewV2Service(runtime *runtimecore.V2Session, bootstrap persistencehttp.Runt
 	return &V2Service{runtime: runtime, bootstrap: bootstrap, projections: projections, identities: identities, assignments: assignments, nonces: session.NewStateNonceManager(nil), controls: make(map[string]*v2Control), resumeRecords: make(map[string]v2ResumeRecord), trackingStarted: time.Now()}, nil
 }
 
-func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.ControlClientItem, realtimev2.ControlServerItem]) (result error) {
+func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.ControlClientItem, realtimev2.ControlServerItem]) error {
+	return s.connectControl(stream, time.Now)
+}
+
+func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.ControlClientItem, realtimev2.ControlServerItem], snapshotNow func() time.Time) (result error) {
 	defer func() { setV2ReasonTrailer(stream, result) }()
 	identity, err := s.identities.Resolve(stream.Context())
 	if err != nil || identity.ProtocolVersion != 3 {
@@ -200,7 +204,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		s.nonces.Revoke(connectionID)
 	}
 
-	events, unsubscribe, err := s.prepareSnapshotCatchUp(stream.Context(), time.Now, func(candidate *realtimev2.CanonicalRuntimeSnapshot, presence *realtimev2.ProjectedPresenceState) error {
+	events, unsubscribe, err := s.prepareSnapshotCatchUp(stream.Context(), snapshotNow, func(candidate *realtimev2.CanonicalRuntimeSnapshot, presence *realtimev2.ProjectedPresenceState) error {
 		snapshot = candidate
 		var enabledLogicalInputs []string
 		if identity.Role == session.RolePresenter {
@@ -320,8 +324,8 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		}
 		sendMu.Lock()
 		defer sendMu.Unlock()
-		current := s.runtime.InputSynchronization()
-		if current == nil || (!force && proto.Equal(current, sentSynchronization)) || observed < current.ReliableSequence {
+		current, catalog := s.runtime.PresenterSynchronization()
+		if current == nil || (!force && proto.Equal(current, sentSynchronization)) || observed < current.ReliableSequence || observed < catalog.ReliableSequence {
 			return nil
 		}
 		if lastVisible < current.ReliableSequence {
@@ -333,6 +337,9 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			control.deliveredSequence.Store(lastVisible)
 		}
 		if err := sendRaw(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_PresenterInputSynchronization{PresenterInputSynchronization: current}}); err != nil {
+			return err
+		}
+		if err := sendRaw(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_PresenterStepSelectionCatalog{PresenterStepSelectionCatalog: catalog}}); err != nil {
 			return err
 		}
 		sentSynchronization = current

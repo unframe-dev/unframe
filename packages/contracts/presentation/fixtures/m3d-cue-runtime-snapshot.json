@@ -152,8 +152,17 @@
           }
         }
       },
-      "mediaStates": {},
-      "modelClipStates": {},
+      "mediaStates": {
+        "video": {
+          "kind": "stopped",
+          "heldPositionMilliseconds": 0
+        }
+      },
+      "modelClipStates": {
+        "model": {
+          "kind": "defaultPose"
+        }
+      },
       "variables": {
         "counter": 0
       },
