@@ -16,6 +16,8 @@ namespace Unframe.Unity.PresentationRuntime
         public string buildIdentity;
         public string message;
         public string sequence;
+        public string outcome;
+        public string phase;
     }
 
     public sealed class UnframePreview : MonoBehaviour
@@ -67,7 +69,7 @@ namespace Unframe.Unity.PresentationRuntime
                 var provider = new PresentationPreviewAssetProvider(input, bearer);
                 await transaction.PrepareAsync(envelope, provider.GetAsync, CancellationToken.None);
                 if (expected != generation) return;
-                Emit("prepared", requestId, null, null);
+                Emit("prepared", requestId, input.BuildIdentity, null);
             }
             catch (Exception exception)
             {
@@ -94,30 +96,41 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        public void Playback(string json)
+        public void Playback(string json) { ApplyPlayback(json, false); }
+        public void Restore(string json) { ApplyPlayback(json, true); }
+
+        private void ApplyPlayback(string json, bool restoring)
         {
             string requestId = null;
+            string sequence = null;
+            string phase = restoring ? "restore" : "apply";
             try
             {
                 EnsureTransaction();
                 LocalPreviewPlaybackState state = JsonParser.Default.Parse<LocalPreviewPlaybackState>(json);
                 requestId = state.RequestId;
-                if (!transaction.TryPlayback(state, Time.realtimeSinceStartupAsDouble, out string error))
-                    throw new InvalidOperationException(error);
-                Emit("playback", requestId, null, null, state.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                sequence = state.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                string error;
+                bool applied = restoring
+                    ? transaction.TryRestore(state, Time.realtimeSinceStartupAsDouble, out error)
+                    : transaction.TryPlayback(state, Time.realtimeSinceStartupAsDouble, out error);
+                if (!applied)
+                {
+                    Emit("failed", requestId, null, error, sequence, transaction.PlaybackRejected ? "rejected" : "failed", phase);
+                    return;
+                }
+                Emit(restoring ? "restored" : "playback", requestId, null, null, sequence);
             }
-            catch (Exception exception)
+            catch (Exception)
             {
-                Emit("failed", requestId, null, exception is InvalidOperationException ? exception.Message : "preview.playback-input-invalid");
+                Emit("failed", requestId, null, "preview.playback-input-invalid", sequence, "rejected", phase);
             }
         }
         private void Update()
         {
             if (transaction != null && !transaction.TryUpdate(Time.realtimeSinceStartupAsDouble, out string error))
-            {
-                Invalidate("");
-                Emit("failed", null, null, error);
-            }
+                Emit("failed", transaction.PlaybackRequestId, null, error,
+                    transaction.PlaybackSequence.ToString(System.Globalization.CultureInfo.InvariantCulture), "failed", "update");
         }
 
         public void Discard(string requestId)
@@ -130,9 +143,9 @@ namespace Unframe.Unity.PresentationRuntime
             latestRequest = null;
             transaction?.Invalidate();
         }
-        private void Emit(string kind, string requestId, string identity, string message, string sequence = null)
+        private void Emit(string kind, string requestId, string identity, string message, string sequence = null, string outcome = null, string phase = null)
         {
-            var notification = new PresentationPreviewEvent { kind = kind, requestId = requestId, buildIdentity = identity, message = message, sequence = sequence };
+            var notification = new PresentationPreviewEvent { kind = kind, requestId = requestId, buildIdentity = identity, message = message, sequence = sequence, outcome = outcome, phase = phase };
             Notification?.Invoke(notification);
 #if UNITY_WEBGL && !UNITY_EDITOR
             UnframePreviewNotify(JsonUtility.ToJson(notification));

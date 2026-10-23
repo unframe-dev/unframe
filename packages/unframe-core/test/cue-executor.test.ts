@@ -167,6 +167,7 @@ describe("pure Cue executor", () => {
     const first = advanceCueClock(definition, createCueState(definition, 1), 10);
     expect(first.state.timerStates.timer).toEqual({ kind: "fired" });
     expect(first.outcomes).toEqual([]);
+    expect(first.captures).toEqual([]);
     const again = advanceCueClock(definition, first.state, 20);
     expect(again.outcomes).toEqual([]);
     expect(
@@ -245,13 +246,18 @@ describe("pure Cue executor", () => {
         next: { kind: "group", groupId: "other" },
       },
     ];
-    const result = executeCueEvent(definition, createCueState(definition, 1), input);
+    const result = executeCueEvent(definition, createCueState(definition, 1), input, {
+      capture: true,
+    });
     expect(result.state).toMatchObject({
       currentGroupId: "other",
       groupEntryEpoch: 2,
       variables: { count: 5 },
     });
     expect(result.state.variables).not.toHaveProperty("local");
+    expect(result.capture?.state.currentGroupId).toBe("intro");
+    expect(result.capture?.state.variables.local).toBe(1);
+    expect(result.capture?.state.variables.count).toBe(5);
   });
 
   it("patches a Node and cuts a Surface State in one batch", () => {
@@ -331,4 +337,47 @@ describe("pure Cue executor", () => {
     ).toEqual({ kind: "none" });
     expect(executeCueEvent(definition, state, event).state.variables.count).toBe(1);
   });
+});
+
+it("captures accepted actions before presentation exit without capturing rejected candidates", () => {
+  const definition = setup();
+  definition.flow.groups.intro!.steps.start!.cues = [
+    {
+      id: "exit",
+      priority: 0,
+      order: 0,
+      trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
+      firePolicy: { kind: "oncePerStepEntry" },
+      actions: [
+        { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 7 } },
+      ],
+      next: { kind: "end" },
+    },
+  ];
+  const result = executeCueEvent(definition, createCueState(definition, 1), input, {
+    capture: true,
+  });
+  expect(result.capture?.cueId).toBe("exit");
+  expect(result.capture?.state.ended).toBe(false);
+  expect(result.capture?.state.variables.count).toBe(7);
+  expect(result.state.ended).toBe(true);
+  expect(executeCueEvent(definition, result.state, input).capture).toBeUndefined();
+});
+
+it("captures checkpoints only when explicitly requested", () => {
+  const definition = setup();
+  definition.flow.groups.intro!.steps.start!.cues = [
+    {
+      id: "ack",
+      priority: 0,
+      order: 0,
+      trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
+      firePolicy: { kind: "oncePerStepEntry" },
+      actions: [],
+      next: { kind: "stay" },
+    },
+  ];
+  const state = createCueState(definition, 1);
+  expect(executeCueEvent(definition, state, input).capture).toBeUndefined();
+  expect(executeCueEvent(definition, state, input, { capture: true }).capture?.cueId).toBe("ack");
 });

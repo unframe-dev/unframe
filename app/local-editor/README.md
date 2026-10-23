@@ -1,6 +1,6 @@
 # Unframe Local Editor
 
-`app/local-editor` / `@unframe/local-editor` はローカル専用の Source Inspector、保存・履歴、Dev／Dist build、Unity Preview、Timeline 閲覧と CLI を通す公開 UI です。`index.html` を `dist/` に build し、CLI Host が静的 UI と Unity player、token 認証付き HTTP API を配信します。ローカル HTTP 型と filesystem は CLI が所有します。認証・公開済み Dist の確認・ルーム作成は [Web](../web/README.md) が担当します。
+`app/local-editor` / `@unframe/local-editor` はローカル専用の Source Inspector、保存・履歴、Dev／Dist build、Unity Preview、Cue 時間軸の閲覧・確認と CLI を通す公開 UI です。`index.html` を `dist/` に build し、CLI Host が静的 UI と Unity player、token 認証付き HTTP API を配信します。ローカル HTTP 型と filesystem は CLI が所有します。認証・公開済み Dist の確認・ルーム作成は [Web](../web/README.md) が担当します。
 
 ## Local Editor の起動
 
@@ -34,21 +34,22 @@ Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dis
 
 ビルド済み UI を CLI から配信する場合は、`pnpm --filter @unframe/local-editor build` の後に `presentation author /absolute/path/to/project` を実行します。Opaque capture の環境準備は [scripts README](../../scripts/README.md) を参照してください。
 
-CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props と host Transform を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
+CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
-Timelines パネルは保存済み Source の進行構造を読み取り専用で表示します。Group を選んで Step 遷移図を確認し、Step → Cue の順に選ぶと trigger、guard、actions と遷移先を参照できます。Cue が開始する複数 Timeline は共通の Cue 発火基準で表示し、ズームとキーフレーム選択で値・easing を確認できます。外部保存の更新では同じ ID の選択を維持し、削除された項目は選択を解除します。表示対象の保存 revision と Unity Preview の表示 revision は別です。編集・再生・シークは対象外です。詳細は [読み取り専用 Timeline 仕様](../../docs/packages/LOCAL_EDITOR_TIMELINE_SPEC.md) を参照してください。
+左の Group／Step／Cue 一覧から閲覧対象を選び、中央下部で時間軸・進行図・問題、右側で Cue／キーの詳細と公開 Props を確認します。選択だけでは Cue を実行しません。時間軸はズーム・横スクロールに対応し、Timeline と Surface crossfade を表示します。テーマ、左右パネルの開閉、横・縦分割のサイズを調整できます。
+
+通常再生で実際に発火した Cue は、表示 build と Source revision が一致する場合に「この Cue を確認」で確認できます。発火直後を0msとして前後にシークし、確認範囲の終端で停止します。確認中だけキー選択もシークします。「通常再生に戻る」は入る前の位置へ一時停止で復帰します。後続 Cue／Step への進行と Source／Dist の書き換えは行いません。Dist は Source 一致を検証できないため、時間軸は閲覧専用です。詳細は [Cue 時間軸仕様](../../docs/packages/LOCAL_EDITOR_TIMELINE_SPEC.md) を参照してください。
+
+未保存 Props は外部更新で破棄せず競合として保持します。Instance を切り替える場合は保存・破棄・取消を選べます。保存結果が不明な場合は同じ要求を再送し、競合の場合は自動上書きしません。Unity の部分適用・後続更新の故障中は再生・シーク・公開を止めます。正常 state の再適用に失敗した場合は「Preview を再読込」で新しい request を作成します。
 
 Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。
 
-公開には `UNFRAME_CONTROL_PLANE_URL`、`UNFRAME_WEB_ORIGIN`、`UNFRAME_DEVICE_CLIENT_ID` を Host 起動時にすべて設定します。origin は HTTPS、または loopback HTTP を指定します。承認画面は設定済み Web origin の `/device` で開き、bearer と `device_code` は Host のメモリーだけに保持します。公開は Unity が commit を完了した Dist と現在の `dist` が一致する場合だけ開始し、受付後は upload 元を固定します。
+公開には `UNFRAME_CONTROL_PLANE_URL`、`UNFRAME_WEB_ORIGIN`、`UNFRAME_DEVICE_CLIENT_ID` を Host 起動時にすべて設定します。origin は HTTPS、または loopback HTTP を指定します。承認画面は設定済み Web origin の `/device` で開き、bearer と `device_code` は Host のメモリーだけに保持します。公開は Unity の commit と初期 playback 適用が確認された Dist と現在の `dist` が一致する場合だけ開始し、受付後は upload 元を固定します。
 
 ## 品質ゲート
 
 ```bash
 nix run .#local-editor
-pnpm --filter @unframe/local-editor test:e2e
-UNFRAME_REAL_WEBGL=1 pnpm --filter @unframe/local-editor test:e2e
-nix run .#local-editor-e2e
 ```
 
-mock E2E、実 WebGL、実 Control Plane／D1／R2／Realtime・native Unity の E2E は別々の検証です。前提と成果物は [scripts README](../../scripts/README.md#local-editor-と-unity) を参照してください。公開条件は [実装契約](../../docs/packages/LOCAL_EDITOR_DESIGN.md) に従います。
+React 外の controller・変換・adapter を `src/**/tests/**/*.test.ts` の Node テストで検証します。UI／component test・E2E は設けていません。画面、固定 Browser／CSP、実 WebGL／Quest の描画は別途手動確認が必要です。Unity 変更時は `nix develop --command bash scripts/unity/test-native-editor.sh playback` を使用します。公開条件は [実装契約](../../docs/packages/LOCAL_EDITOR_DESIGN.md) に従います。

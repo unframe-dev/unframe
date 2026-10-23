@@ -10,4 +10,8 @@ export type {
 } from "./author/contract.js";
 export type { LocalPreviewEnvelopeWire } from "@unframe/contracts/presentation";
 
-export type { PreviewPlaybackCommand, PreviewPlaybackResponse } from "./author/preview-contract.js";
+export type {
+  CueOccurrence,
+  PreviewPlaybackCommand,
+  PreviewPlaybackResponse,
+} from "./author/preview-contract.js";

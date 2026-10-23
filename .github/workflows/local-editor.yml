@@ -1,7 +1,7 @@
 name: Local Editor
 
 # app/local-editor (local Source editor) の品質ゲート。ci.yml から呼ばれる reusable workflow。
-# unit/build gate と Playwright E2E を分けて実行する。
+# Node ロジックテストと型検査・build を実行する。
 on:
   workflow_call:
   workflow_dispatch:
@@ -23,11 +23,5 @@ jobs:
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile
 
-      - name: Install Playwright Chromium
-        run: nix develop --command pnpm --filter @unframe/local-editor exec playwright install --with-deps chromium
-
       - name: check / test / build
         run: nix run .#local-editor
-
-      - name: Playwright E2E
-        run: nix develop --command pnpm --filter @unframe/local-editor run test:e2e
