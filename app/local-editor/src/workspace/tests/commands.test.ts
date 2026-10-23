@@ -3,7 +3,7 @@ import type { PreviewPlaybackCommand, ProjectSnapshot } from "@unframe/unframe-c
 import type { HostApi } from "../../infra/host-api";
 import type { PreviewDriver } from "../../preview/preview-driver";
 import { createWorkspace } from "../create-workspace";
-function fixture() {
+function fixture(readOnly = false) {
   let project: ProjectSnapshot = {
     revision: "r1",
     sourceHash: "r1",
@@ -76,7 +76,7 @@ function fixture() {
     subscribeFailure: () => () => undefined,
     dispose: disposed,
   };
-  const workspace = createWorkspace({ api, createDriver: () => driver });
+  const workspace = createWorkspace({ api, createDriver: () => driver, readOnly });
   return { workspace, api, builds, disposed };
 }
 it("connects a saved Props revision to Dev build", async () => {
@@ -172,4 +172,27 @@ it("does not seek another Cue when selecting a keyframe", async () => {
   });
   expect(actual.mock.calls.some(([command]) => command.command === "seekCue")).toBe(false);
   w.dispose();
+});
+
+it("loads a copied Dist on startup without building or starting publication", async () => {
+  const { workspace: w, api, builds } = fixture(true);
+  const auth = vi.spyOn(api, "publicationAuth");
+  w.start();
+  w.connectViewport({} as HTMLCanvasElement);
+  try {
+    await vi.waitFor(() => expect(w.preview.store.getState().status).toBe("ready"));
+    expect(w.preview.store.getState().loaded?.channel).toBe("dist");
+    expect(builds).toEqual([]);
+    expect(auth).not.toHaveBeenCalled();
+    w.commands.selectPreviewChannel("dev");
+    await w.commands.buildDist();
+    w.project.selectInstance("i");
+    w.project.editProp("title", "after");
+    await w.commands.saveProps("title");
+    expect(w.preview.store.getState().channel).toBe("dist");
+    expect(w.project.store.getState().project?.revision).toBe("r1");
+    expect(builds).toEqual([]);
+  } finally {
+    w.dispose();
+  }
 });

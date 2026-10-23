@@ -28,6 +28,7 @@ namespace Unframe.Unity.PresentationRuntime
         private sealed class SnapshotResyncRequiredException : Exception { }
         private readonly PresentationRuntimeDataStore store;
         private readonly PresentationTextureResidency textures;
+        private readonly Func<CancellationToken, Task> prepareResources;
         private readonly SemaphoreSlim writes = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim stateWrites = new SemaphoreSlim(1, 1);
         private ulong trackingFrameSequence;
@@ -49,10 +50,11 @@ namespace Unframe.Unity.PresentationRuntime
         public event Action RuntimeChanged;
         public event Action Disconnected;
 
-        public PresentationRealtimeConnection(PresentationRuntimeDataStore store, PresentationTextureResidency textures)
+        public PresentationRealtimeConnection(PresentationRuntimeDataStore store, PresentationTextureResidency textures, Func<CancellationToken, Task> prepareResources = null)
         {
             this.store = store ?? throw new ArgumentNullException(nameof(store));
             this.textures = textures ?? throw new ArgumentNullException(nameof(textures));
+            this.prepareResources = prepareResources;
         }
 
         public async Task RunAsync(Uri endpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken, string certFingerprint = null, Func<YetAnotherHttpHandler> handlerFactory = null)
@@ -324,6 +326,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!await expectedState.ResponseStream.MoveNext(token) || expectedState.ResponseStream.Current.ItemCase != StateServerItem.ItemOneofCase.Connected
                     || expectedState.ResponseStream.Current.Connected.ConnectionId != connectionId) throw Failure("realtime state connection mismatch");
                 if (!store.TryValidateRuntimeOwnership(out string ownershipError)) throw Failure(ownershipError);
+                if (prepareResources != null) await prepareResources(token);
                 await WriteAsync(new ControlClientItem { StateReady = CreateStateReady() }, token);
                 token.ThrowIfCancellationRequested();
                 if (disposed || control != expectedControl || state != expectedState)

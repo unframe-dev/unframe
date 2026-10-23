@@ -21,16 +21,18 @@ export function WorkspaceHeader() {
     <header className="workspace-header">
       <div className="brand">
         <span className="brand-mark">u</span>
-        <h1>Unframe</h1>
-        <span className="muted">Local Editor</span>
+        <h1>{w.readOnly ? "Unframe Dist Preview" : "Unframe"}</h1>
+        {!w.readOnly && <span className="muted">Local Editor</span>}
       </div>
       <div className="channel-switch" role="group" aria-label="Preview チャンネル">
-        <Button
-          aria-pressed={channel === "dev"}
-          onClick={() => w.commands.selectPreviewChannel("dev")}
-        >
-          開発 Preview
-        </Button>
+        {!w.readOnly && (
+          <Button
+            aria-pressed={channel === "dev"}
+            onClick={() => w.commands.selectPreviewChannel("dev")}
+          >
+            開発 Preview
+          </Button>
+        )}
         <Button
           aria-pressed={channel === "dist"}
           onClick={() => w.commands.selectPreviewChannel("dist")}
@@ -39,22 +41,26 @@ export function WorkspaceHeader() {
         </Button>
       </div>
       <div className="spacer" />
-      <Button
-        title="Undo"
-        aria-label="Undo"
-        disabled={project.status !== "clean" || !project.undo.length}
-        onClick={() => void w.commands.undo()}
-      >
-        <ArrowUUpLeftIcon />
-      </Button>
-      <Button
-        title="Redo"
-        aria-label="Redo"
-        disabled={project.status !== "clean" || !project.redo.length}
-        onClick={() => void w.commands.redo()}
-      >
-        <ArrowUUpRightIcon />
-      </Button>
+      {!w.readOnly && (
+        <>
+          <Button
+            title="Undo"
+            aria-label="Undo"
+            disabled={project.status !== "clean" || !project.undo.length}
+            onClick={() => void w.commands.undo()}
+          >
+            <ArrowUUpLeftIcon />
+          </Button>
+          <Button
+            title="Redo"
+            aria-label="Redo"
+            disabled={project.status !== "clean" || !project.redo.length}
+            onClick={() => void w.commands.redo()}
+          >
+            <ArrowUUpRightIcon />
+          </Button>
+        </>
+      )}
       <Button
         title="Preview 再読込"
         aria-label="Preview 再読込"
@@ -102,10 +108,12 @@ export function WorkspaceHeader() {
       >
         {theme === "light" ? <MoonIcon /> : <SunIcon />}
       </Button>
-      <Button className="primary" onClick={() => w.ui.setState({ publicationOpen: true })}>
-        <UploadSimpleIcon />
-        公開
-      </Button>
+      {!w.readOnly && (
+        <Button className="primary" onClick={() => w.ui.setState({ publicationOpen: true })}>
+          <UploadSimpleIcon />
+          公開
+        </Button>
+      )}
     </header>
   );
 }

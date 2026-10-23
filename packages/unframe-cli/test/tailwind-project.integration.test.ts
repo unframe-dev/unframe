@@ -1,3 +1,4 @@
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
@@ -10,9 +11,9 @@ import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import { checkAuthoringProject } from "@unframe/unframe-compiler";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { runPreviewProcess } from "../src/process/preview.js";
+import { startDistPreviewHost } from "../src/author/start.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
-import { copyProjectFixture } from "./copy-project-fixture.js";
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -68,6 +69,7 @@ it("locks project-owned Tailwind with an uppercase CSS entry, captures reproduci
       ...loaded.value.virtualSource,
     });
     assert(checked.valid);
+    await clearSourceAssetRegistration(directory, found.entryFile);
     await writeFile(
       join(directory, "unframe.lock"),
       canonicalizeJsonPayload({ ...loaded.value.lock, assets: [] }) + "\n",
@@ -218,24 +220,28 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
     await invoke(directory, "build");
     const changed = await pngHashes(directory);
     expect(changed).toEqual(devImages);
-    const previewAbort = new AbortController();
-    let announce!: (origin: string) => void;
-    const announced = new Promise<string>((resolve) => {
-      announce = resolve;
-    });
-    const preview = runPreviewProcess(directory, previewAbort.signal, announce);
+    const preview = await startDistPreviewHost(join(directory, "dist"), { assets: new Map() });
     try {
-      const origin = await Promise.race([
-        announced,
-        preview.then((result) => {
-          throw new Error(result.stderr);
-        }),
-      ]);
-      const page = await (await fetch(origin)).text();
-      const asset = /src="([^"]+)"/.exec(page)?.[1];
-      assert(asset);
+      const { origin } = preview;
+      const requestId = "a".repeat(32);
+      const headers = {
+        authorization: `Bearer ${preview.token}`,
+        origin,
+        "content-type": "application/json",
+      };
+      const response = await fetch(`${origin}/api/previews`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ requestId, channel: "dist" }),
+      });
+      expect(response.status).toBe(200);
+      const envelope = (await response.json()) as {
+        assets: { assetId: string; reference: string }[];
+      };
+      assert(envelope.assets[0]);
+      const asset = `/api/previews/${requestId}/assets/${envelope.assets[0].reference}`;
       const previewBytes = new Uint8Array(
-        await (await fetch(new URL(asset, origin))).arrayBuffer(),
+        await (await fetch(new URL(asset, origin), { headers })).arrayBuffer(),
       );
       expect(changed).toContain(digest(previewBytes));
       const beforeFailure = digest(await readFile(join(directory, "unframe.lock")));
@@ -253,11 +259,12 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
       expect(failure.stderr).toContain("config failure");
       expect(await pngHashes(directory)).toEqual(changed);
       expect(
-        Buffer.from(await (await fetch(new URL(asset, origin))).arrayBuffer()).equals(previewBytes),
+        Buffer.from(await (await fetch(new URL(asset, origin), { headers })).arrayBuffer()).equals(
+          previewBytes,
+        ),
       ).toBe(true);
     } finally {
-      previewAbort.abort();
-      await preview;
+      await preview.close();
     }
   } finally {
     await rm(directory, { recursive: true, force: true });

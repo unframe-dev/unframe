@@ -9,7 +9,7 @@ rm -rf "$assets/Unframe"
 mkdir -p "$assets/Unframe/Scripts/State" "$assets/Unframe/Scripts/Delivery" "$assets/Unframe/Generated" "$assets/Unframe/Plugins" "$assets/Unframe/Resources" "$assets/Unframe/Editor"
 runtime="$root/app/unity/Assets/Scripts/PresentationRuntime"
 cp -R "$runtime/Rendering" "$runtime/Animation" "$runtime/Preview" "$assets/Unframe/Scripts/"
-cp "$runtime/State/IPresentationRenderView.cs" "$assets/Unframe/Scripts/State/"
+cp "$runtime/State/IPresentationRenderView.cs" "$runtime/State/PresentationMediaPlaybackValidation.cs" "$assets/Unframe/Scripts/State/"
 cp "$runtime/Delivery/PresentationDeliveryCatalog.cs" "$runtime/Delivery/PresentationBakedDeliveryValidation.cs" "$runtime/Delivery/PresentationCoordinateValidation.cs" "$assets/Unframe/Scripts/Delivery/"
 for source in Runtime Delivery Realtime Preview; do
   cp "$runtime/Generated/$source.cs" "$assets/Unframe/Generated/"
@@ -19,12 +19,18 @@ for plugin in Google.Protobuf System.Runtime.CompilerServices.Unsafe; do
 done
 cp -R "$root/app/unity/Assets/Plugins/WebGL" "$assets/Unframe/Plugins/"
 cp "$root/app/unity/Assets/Resources/BakedSurface.shader" "$assets/Unframe/Resources/"
+cp -R "$root/app/unity/Assets/Resources/PresentationModelShaders" "$assets/Unframe/Resources/"
+cp -R "$root/app/unity/Assets/Resources/PresentationMaterials" "$assets/Unframe/Resources/"
 cp "$root/app/unity/Assets/Editor/UnframePreviewBuild.cs" "$assets/Unframe/Editor/"
 cp "$root/app/unity/ProjectSettings/ProjectVersion.txt" "$project/ProjectSettings/"
 cat > "$project/Packages/manifest.json" <<'JSON'
 {
   "dependencies": {
     "com.unity.modules.animation": "1.0.0",
+    "com.unity.cloud.gltfast": "6.20.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.2",
+    "com.unity.modules.video": "1.0.0",
+    "com.unity.modules.audio": "1.0.0",
     "com.unity.modules.imageconversion": "1.0.0",
     "com.unity.modules.physics": "1.0.0",
     "com.unity.modules.ui": "1.0.0",

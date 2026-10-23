@@ -1,8 +1,9 @@
-import type { PresentationDefinition } from "@unframe/contracts/presentation";
+import type { PresentationDefinition, RenderBundle } from "@unframe/contracts/presentation";
 import {
   advanceCueClock,
   createCueState,
   executeCueEvent,
+  runtimeRunDeadline,
   type CueInput,
   type CueCapture,
   type CueState,
@@ -48,6 +49,7 @@ const cueInput = (cue: Cue, causeEventId: string): CueInput | undefined => {
 export const createLocalPlayback = ({
   requestId,
   definition,
+  renderBundle,
   visibleNodeIds,
   visibleSurfaceIds,
   visibleTimelineIds,
@@ -55,13 +57,14 @@ export const createLocalPlayback = ({
 }: {
   requestId: string;
   definition: PresentationDefinition;
+  renderBundle?: RenderBundle;
   visibleNodeIds: ReadonlySet<string>;
   visibleSurfaceIds: ReadonlySet<string>;
   visibleTimelineIds: ReadonlySet<string>;
   now: () => number;
 }) => {
   let runEpoch = 1;
-  let state = createCueState(definition, runEpoch);
+  let state = createCueState(definition, runEpoch, renderBundle);
   let sequence = 0n;
   let playing = false;
   let referenceTime = now();
@@ -99,16 +102,16 @@ export const createLocalPlayback = ({
           (run) =>
             (run.kind === "timeline"
               ? visibleTimelineIds.has(run.timelineId)
-              : visibleSurfaceIds.has(run.surfaceId)) &&
+              : run.kind === "modelClip"
+                ? visibleNodeIds.has(run.modelNodeId)
+                : visibleSurfaceIds.has(run.surfaceId)) &&
             run.cause.causeEventId === capture.causeEventId &&
             run.cause.cueId === capture.cueId &&
             run.startedAtRuntimeTimeMilliseconds === checkpoint.runtimeTimeMilliseconds,
         )
-        .map((run) =>
-          run.kind === "timeline"
-            ? definition.flow.timelines[run.timelineId]!.durationMilliseconds
-            : run.durationMilliseconds,
-        ),
+        .map((run) => runtimeRunDeadline(definition, checkpoint, run))
+        .filter(Number.isFinite)
+        .map((deadline) => Math.max(0, deadline - checkpoint.runtimeTimeMilliseconds)),
     );
     const metadata: CueOccurrence = {
       occurrenceId: `${requestId}:${++occurrenceSequence}`,
@@ -241,7 +244,7 @@ export const createLocalPlayback = ({
         playing = false;
         break;
       case "reset":
-        state = createCueState(definition, ++runEpoch);
+        state = createCueState(definition, ++runEpoch, renderBundle);
         occurrences.clear();
         lastGood = undefined;
         pending = undefined;

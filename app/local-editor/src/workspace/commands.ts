@@ -5,6 +5,7 @@ import type { createPreviewController } from "../preview/preview-controller";
 import type { createPublicationController } from "../publication/publication-controller";
 import type { createUiStore } from "./ui-store";
 export function createCommands(input: {
+  readOnly?: boolean;
   project: ReturnType<typeof createProjectController>;
   preview: ReturnType<typeof createPreviewController>;
   publication: ReturnType<typeof createPublicationController>;
@@ -34,9 +35,10 @@ export function createCommands(input: {
     return !!p && !!view?.sourceRevision && view.sourceRevision === p.revision;
   };
   return {
-    saveProps: (propId: string) => input.project.saveProp(propId),
-    undo: input.project.undo,
-    redo: input.project.redo,
+    saveProps: (propId: string) =>
+      input.readOnly ? Promise.resolve() : input.project.saveProp(propId),
+    undo: () => (input.readOnly ? Promise.resolve() : input.project.undo()),
+    redo: () => (input.readOnly ? Promise.resolve() : input.project.redo()),
     selectPreviewChannel: input.selectChannel,
     reloadPreview: input.reload,
     buildDist: input.buildDist,
@@ -76,7 +78,7 @@ export function createCommands(input: {
       if (available()) input.preview.playback.leaveInspection();
     },
     publish() {
-      if (available()) return input.publication.publish();
+      if (!input.readOnly && available()) return input.publication.publish();
       return Promise.resolve();
     },
   };

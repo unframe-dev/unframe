@@ -1,3 +1,5 @@
+import { snapshotSourceAssets } from "../validation/snapshot-source-assets.js";
+import type { CompilerSourceAssetBytes } from "./types.js";
 import {
   isComponentManifest,
   isComponentStructure,
@@ -30,7 +32,7 @@ import type {
 import { resolveStructuredComponent } from "../resolution/resolve-structured-component.js";
 import { lowerCues } from "../lowering/lower-cues.js";
 import { checkSlotComposition, sameOwner } from "../resolution/check-slot-composition.js";
-import { checkProjectAssets } from "../validation/check-project-assets.js";
+import { checkProjectAssetReferences } from "../validation/check-project-assets.js";
 import { resolveOpaqueProject } from "../resolution/resolve-opaque-component.js";
 import type { StaticReactSceneItem } from "@unframe/unframe-authoring";
 
@@ -381,7 +383,8 @@ const checkDeclarationProjectUnchecked = (
     if (!manifestValid || !structureValid) continue;
   }
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
-  if (!presentation.theme)
+  const needsTheme = components.some((entry) => entry.structure.root.kind !== "model");
+  if (!presentation.theme && needsTheme)
     diagnostics.push(
       diagnostic(
         "compiler-theme-required",
@@ -392,7 +395,7 @@ const checkDeclarationProjectUnchecked = (
   const theme = themes.filter(
     (candidate) => candidate.declaration.id === presentation.theme?.themeId,
   );
-  if (theme.length !== 1)
+  if ((presentation.theme !== undefined || needsTheme) && theme.length !== 1)
     diagnostics.push(
       diagnostic(
         "compiler-theme-not-found",
@@ -495,9 +498,11 @@ const checkDeclarationProjectUnchecked = (
         ),
       );
     const componentSemanticTree =
-      entry.structure.root.kind === "surface"
-        ? entry.structure.root.baseSemanticTree
-        : entry.structure.baseSemanticTree!;
+      entry.structure.root.kind === "model"
+        ? { rootNodeIds: [], nodes: {} }
+        : entry.structure.root.kind === "surface"
+          ? entry.structure.root.baseSemanticTree
+          : entry.structure.baseSemanticTree!;
     const componentSemanticEntries = Object.entries(componentSemanticTree.nodes);
     uniqueIds(
       componentSemanticEntries.map(([, semantic]) => ({ id: semantic.id })),
@@ -650,14 +655,6 @@ const checkDeclarationProjectUnchecked = (
             "Timeline Output must reference a Timeline in the same Component.",
           ),
         );
-      else if (output.producer.kind === "mediaCompleted")
-        diagnostics.push(
-          diagnostic(
-            "compiler-output-producer-unsupported",
-            [...path, "manifest", "outputs", outputId],
-            "Media Output producers are not supported.",
-          ),
-        );
     if (nestedInstanceIds.has(instance.id)) {
       if (entry.structure.timelines.length)
         diagnostics.push(
@@ -712,6 +709,161 @@ const checkDeclarationProjectUnchecked = (
       );
     mappedSpatialIds.add(spatial.id);
     const root = entry.structure.root;
+    for (const [actionId, action] of Object.entries(entry.manifest.actions))
+      for (const [effectIndex, effect] of action.effects.entries())
+        if (
+          (effect.kind === "playMedia" ||
+            effect.kind === "pauseMedia" ||
+            effect.kind === "seekMedia") &&
+          (root.kind !== "surface" || effect.surfaceId !== root.id)
+        )
+          diagnostics.push(
+            diagnostic(
+              "compiler-media-target-invalid",
+              [...path, "manifest", "actions", actionId, "effects", effectIndex],
+              "Media Actions must target this Component's Surface root.",
+            ),
+          );
+    for (const [outputId, output] of Object.entries(entry.manifest.outputs))
+      if (
+        output.producer.kind === "mediaCompleted" &&
+        (root.kind !== "surface" || output.producer.surfaceId !== root.id)
+      )
+        diagnostics.push(
+          diagnostic(
+            "compiler-media-target-invalid",
+            [...path, "manifest", "outputs", outputId],
+            "Media completion must target this Component's Surface root.",
+          ),
+        );
+
+    for (const [actionId, action] of Object.entries(entry.manifest.actions)) {
+      for (const [effectIndex, effect] of action.effects.entries()) {
+        if (
+          ["playModelClip", "pauseModelClip", "resumeModelClip", "stopModelClip"].includes(
+            effect.kind,
+          ) &&
+          (root.kind !== "model" || !("nodeId" in effect) || effect.nodeId !== root.id)
+        )
+          diagnostics.push(
+            diagnostic(
+              "compiler-model-target-invalid",
+              [...path, "manifest", "actions", actionId, "effects", effectIndex],
+              "Model playback must target this Component's Model root.",
+            ),
+          );
+      }
+      if (
+        root.kind === "model" &&
+        (Object.keys(action.inputs).length ||
+          action.preconditions.length ||
+          action.effects.some(
+            (effect) =>
+              !["playModelClip", "pauseModelClip", "resumeModelClip", "stopModelClip"].includes(
+                effect.kind,
+              ),
+          ))
+      )
+        diagnostics.push(
+          diagnostic(
+            "compiler-model-feature-unsupported",
+            [...path, "manifest", "actions", actionId],
+            "Model Actions support only fixed clip playback on the root.",
+          ),
+        );
+    }
+    for (const [outputId, output] of Object.entries(entry.manifest.outputs)) {
+      if (
+        output.producer.kind === "modelClipCompleted" &&
+        (root.kind !== "model" || output.producer.nodeId !== root.id)
+      )
+        diagnostics.push(
+          diagnostic(
+            "compiler-model-target-invalid",
+            [...path, "manifest", "outputs", outputId],
+            "Clip completion must target this Component's Model root.",
+          ),
+        );
+      if (
+        root.kind === "model" &&
+        output.producer.kind !== "modelClipCompleted" &&
+        output.producer.kind !== "timer"
+      )
+        diagnostics.push(
+          diagnostic(
+            "compiler-model-feature-unsupported",
+            [...path, "manifest", "outputs", outputId],
+            "Model Outputs support clip completion and timers.",
+          ),
+        );
+    }
+    if (root.kind === "model") {
+      if (
+        [
+          entry.manifest.props,
+          entry.manifest.slots,
+          entry.manifest.parts,
+          entry.manifest.variants,
+          entry.manifest.states,
+          entry.structure.partBindings,
+          entry.structure.variantStyles,
+          instance.props,
+          instance.slots,
+          instance.variants,
+        ].some((value) => Object.keys(value).length !== 0) ||
+        entry.structure.timelines.length ||
+        instance.partOverrides.length ||
+        entry.manifest.renderers.length
+      )
+        diagnostics.push(
+          diagnostic(
+            "compiler-model-feature-unsupported",
+            path,
+            "Model Components require empty props, slots, parts, variants, states, Timelines and renderer declarations.",
+          ),
+        );
+      const nodeId = resourceId(instance.id, spatial.id);
+      if (used.has(nodeId))
+        diagnostics.push(
+          diagnostic(
+            "compiler-resource-id-collision",
+            path,
+            "Lowered resource IDs must be unique.",
+          ),
+        );
+      used.add(nodeId);
+      const rotation = canonicalQuaternion(spatial.transform.rotation);
+      if (!rotation)
+        diagnostics.push(
+          diagnostic(
+            "compiler-invalid-quaternion",
+            [...path, "spatialNodeId"],
+            "Spatial rotation must be a finite nonzero quaternion.",
+          ),
+        );
+      nodes[nodeId] = {
+        id: nodeId,
+        kind: "model",
+        name: spatial.name,
+        owner: spatial.owner,
+        audience: spatial.audience,
+        parent:
+          spatial.parent.kind === "node"
+            ? { kind: "node", nodeId: resourceId(instance.id, spatial.parent.nodeId) }
+            : spatial.parent,
+        transform: {
+          position: [...spatial.transform.position],
+          rotation: rotation ?? [0, 0, 0, 1],
+          scale: [...spatial.transform.scale],
+        },
+        order: spatial.order,
+        active: spatial.active,
+        visible: spatial.visible,
+        opacity: spatial.opacity,
+        assetId: root.asset.assetId,
+      };
+      continue;
+    }
     if (root.kind !== "surface")
       diagnostics.push(
         diagnostic(
@@ -1142,10 +1294,44 @@ const checkDeclarationProjectUnchecked = (
         diagnostic(
           "compiler-spatial-component-mismatch",
           ["presentation", "scene", "spatial", spatial.id],
-          "Every Spatial node must host one Surface component.",
+          "Every Spatial node must host one Surface or Model component.",
         ),
       );
-  const checkedAssets = checkProjectAssets(presentation.assets, assets, surfaces);
+  for (const instance of instances) {
+    const entry = components.find(
+      (entry) =>
+        entry.manifest.componentId === instance.componentId &&
+        entry.manifest.version === instance.version,
+    );
+    if (!entry || entry.structure.root.kind !== "surface") continue;
+    const hasMedia =
+      Object.values(entry.manifest.actions).some((action) =>
+        action.effects.some(
+          (effect) =>
+            effect.kind === "playMedia" ||
+            effect.kind === "pauseMedia" ||
+            effect.kind === "seekMedia",
+        ),
+      ) ||
+      Object.values(entry.manifest.outputs).some(
+        (output) => output.producer.kind === "mediaCompleted",
+      );
+    if (!hasMedia) continue;
+    const surface = surfaces[resourceId(instance.id, entry.structure.root.id)];
+    if (
+      !surface ||
+      surface.content.kind !== "structured" ||
+      Object.values(surface.content.nodes).filter((node) => node.kind === "video").length !== 1
+    )
+      diagnostics.push(
+        diagnostic(
+          "compiler-media-target-invalid",
+          ["presentation", "scene", "components", instance.id],
+          "A media target Surface must contain exactly one Video content node.",
+        ),
+      );
+  }
+  const checkedAssets = checkProjectAssetReferences(presentation.assets, assets, surfaces, nodes);
   diagnostics.push(...checkedAssets.diagnostics);
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
 
@@ -1201,6 +1387,64 @@ const checkDeclarationProjectUnchecked = (
   };
 };
 
+export const prepareDeclarationProject = (
+  input: unknown,
+  sourceAssetBytes: unknown = {},
+  checkedOverride?: CheckedDeclarationProject,
+): ValidationResult<{
+  project: CompilerDeclarationProject;
+  checked: CheckedDeclarationProject;
+  sourceAssetBytes: CompilerSourceAssetBytes;
+}> => {
+  const snapshot = safePlainClone(input);
+  if (!snapshot.valid) return snapshot;
+  if (
+    snapshot.value === null ||
+    typeof snapshot.value !== "object" ||
+    Array.isArray(snapshot.value)
+  )
+    return {
+      valid: false,
+      diagnostics: [diagnostic("compiler-invalid-input", [], "Project must be a plain object.")],
+    };
+  if (!declarationProjectFieldKeysSchema.safeParse(Object.keys(snapshot.value)).success)
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic(
+          "compiler-invalid-project-field",
+          [],
+          "Project contains an unknown top-level field.",
+        ),
+      ],
+    };
+  const parsed = declarationProjectEnvelopeSchema.safeParse(snapshot.value);
+  if (!parsed.success)
+    return {
+      valid: false,
+      diagnostics: sortDiagnostics([...projectEnvelopeDiagnostics(parsed.error.issues)]),
+    };
+  const project = parsed.data as unknown as CompilerDeclarationProject;
+  const sourceAssets = snapshotSourceAssets(project.assets, sourceAssetBytes);
+  if (!sourceAssets.valid) return sourceAssets;
+  const checked = checkedOverride
+    ? { valid: true as const, value: checkedOverride, diagnostics: [] as const }
+    : checkDeclarationProjectUnchecked(project);
+  return checked.valid
+    ? {
+        valid: true,
+        value: { project, checked: checked.value, sourceAssetBytes: sourceAssets.value.bytes },
+        diagnostics: [],
+      }
+    : checked;
+};
+
 export const checkDeclarationProject = (
   input: unknown,
-): ValidationResult<CheckedDeclarationProject> => checkDeclarationProjectUnchecked(input);
+  sourceAssetBytes: CompilerSourceAssetBytes = {},
+): ValidationResult<CheckedDeclarationProject> => {
+  const prepared = prepareDeclarationProject(input, sourceAssetBytes);
+  return prepared.valid
+    ? { valid: true, value: prepared.value.checked, diagnostics: [] }
+    : prepared;
+};

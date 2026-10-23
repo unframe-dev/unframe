@@ -10,16 +10,18 @@ export function createWorkspace({
   api,
   createDriver,
   theme = "light",
+  readOnly = false,
 }: {
   api: HostApi;
   createDriver: (canvas: HTMLCanvasElement) => PreviewDriver;
   theme?: Theme;
+  readOnly?: boolean;
 }) {
   const ui = createUiStore(theme);
   let driver: PreviewDriver | null = null;
   let closed = false,
     started = false;
-  let channel: "dev" | "dist" = "dev";
+  let channel: "dev" | "dist" = readOnly ? "dist" : "dev";
   let requestedRevision: string | null = null;
   let connected = false;
   const failureListeners = new Set<Parameters<PreviewDriver["subscribeFailure"]>[0]>();
@@ -54,7 +56,8 @@ export function createWorkspace({
     }
   }
   function update(revision: string) {
-    if (channel === "dev" && revision !== requestedRevision) request();
+    if (requestedRevision === null || (channel === "dev" && revision !== requestedRevision))
+      request();
   }
   const project = createProjectController({
     api,
@@ -122,17 +125,21 @@ export function createWorkspace({
         : null,
     );
   });
+  preview.store.setState({ channel });
   const commands = createCommands({
+    readOnly,
     project,
     preview,
     publication,
     ui,
     selectChannel(next) {
+      if (readOnly && next !== "dist") return;
       channel = next;
       request();
     },
     reload: request,
     async buildDist() {
+      if (readOnly) return;
       const revision = project.store.getState().project?.revision;
       if (!revision || project.store.getState().status !== "clean") return;
       channel = "dist";
@@ -145,6 +152,7 @@ export function createWorkspace({
     },
   });
   return {
+    readOnly,
     ui,
     project,
     preview,
@@ -154,7 +162,7 @@ export function createWorkspace({
       if (closed || started) return;
       started = true;
       project.start();
-      publication.start();
+      if (!readOnly) publication.start();
     },
     connectViewport(canvas: HTMLCanvasElement) {
       if (closed || connected) return;

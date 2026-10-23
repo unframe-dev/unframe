@@ -58,7 +58,7 @@ function Details() {
           <p className="muted">左の Cue または時間軸のキーを選択してください。</p>
         )}
       </section>
-      <PropsInspector />
+      {!w.readOnly && <PropsInspector />}
     </>
   );
 }
@@ -217,7 +217,7 @@ export function WorkspaceShell() {
         </>
       )}
       <WorkspaceStatus />
-      <PublicationPanel />
+      {!w.readOnly && <PublicationPanel />}
     </main>
   );
 }

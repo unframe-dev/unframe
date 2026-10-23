@@ -47,6 +47,11 @@ namespace Unframe.Unity.PresentationRuntime
                     || owned && state.Transform == null) return false;
             foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces)
                 if (!TryIsOwned(surface.Owner, progression.CurrentGroupId, out bool owned) || owned != runtime.TryGetSurfaceState(surface.SurfaceId, out _)) return false;
+            foreach (ProjectedNodeDefinition node in catalog.Nodes)
+                if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model
+                    && (!TryIsOwned(node.Owner, progression.CurrentGroupId, out bool owned) || owned != runtime.TryGetModelClipState(node.NodeId, out _))) return false;
+            foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces)
+                if (surface.HasVideo && (!TryIsOwned(surface.Owner, progression.CurrentGroupId, out bool owned) || owned != runtime.TryGetMediaState(surface.SurfaceId, out _))) return false;
             foreach (ProjectedVariableDefinition variable in catalog.Variables)
                 if (!TryIsOwned(variable.Owner, progression.CurrentGroupId, out bool owned)
                     || owned != runtime.TryGetVariableState(variable.VariableId, out VariableState state)
@@ -167,6 +172,7 @@ namespace Unframe.Unity.PresentationRuntime
         internal void InvalidateAnchorSamples() { runtime.InvalidateAnchorSamples(); }
         public bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { return runtime.TryGetSurfaceState(id, out value); }
         public bool TryGetVariableState(string id, out VariableState value) { return runtime.TryGetVariableState(id, out value); }
+        public bool TryGetMediaState(string id, out MediaRuntimeState value) { return runtime.TryGetMediaState(id, out value); }
         public bool TryGetModelClipState(string modelNodeId, out ModelClipRuntimeState value) { return runtime.TryGetModelClipState(modelNodeId, out value); }
         /// <summary>Returns a copy of the last accepted snapshot cut, without later events or state frames.</summary>
         public bool TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot) { return runtime.TryGetLastConnectionSnapshot(out snapshot); }

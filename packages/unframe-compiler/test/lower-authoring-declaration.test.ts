@@ -1,3 +1,4 @@
+import { normalizeDeclarationGraph } from "../src/normalization/normalize-declaration-graph.js";
 import { describe, expect, it } from "vitest";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 
@@ -24,6 +25,15 @@ const builderNames = [
   "surfaceState",
   "setSurfaceState",
   "playTimeline",
+  "playModelClip",
+  "pauseModelClip",
+  "resumeModelClip",
+  "stopModelClip",
+  "modelClipCompleted",
+  "playMedia",
+  "pauseMedia",
+  "seekMedia",
+  "video",
   "surfaceInteraction",
   "timelineCompleted",
   "mediaCompleted",
@@ -34,6 +44,7 @@ const builderNames = [
   "tokenRef",
   "namedStyleRef",
   "assetRef",
+  "model",
   "spatial",
   "frame",
   "text",
@@ -536,5 +547,35 @@ describe("lowerAuthoringDeclarationFile", () => {
         }),
       ]),
     });
+  });
+});
+
+it("extracts a constant logical Model root without executing builders", () => {
+  const result = lower(
+    'import {defineComponentStructure,model,assetRef} from "@unframe/unframe-authoring"; export default defineComponentStructure({id:"model",componentId:"model-component",partBindings:{},variantStyles:{},timelines:[],root:model({id:"root",asset:assetRef({assetId:"mesh"})})});',
+  );
+  expect(result.ok).toBe(true);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const normalized = normalizeDeclarationGraph(result.graph);
+  expect(normalized).toMatchObject({
+    ok: true,
+    value: { root: { kind: "model", id: "root", asset: { kind: "asset-ref", assetId: "mesh" } } },
+  });
+});
+
+it("extracts Video and clip playback builders without executing Source", () => {
+  const result = lower(
+    'import {defineComponentStructure,video,assetRef,playModelClip,modelClipCompleted,seekMedia} from "@unframe/unframe-authoring"; export default defineComponentStructure({root:video({id:"movie",asset:assetRef({assetId:"movie"}),loop:false}),play:playModelClip({nodeId:"root",clipId:"clip-0",speed:1,loop:false,completion:"blocking",transition:{kind:"immediate"},conflict:"reject"}),done:modelClipCompleted({nodeId:"root",clipId:"clip-0"}),seek:seekMedia({surfaceId:"surface",positionSeconds:{kind:"literal",value:1}})});',
+  );
+  expect(result.ok).toBe(true);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(normalizeDeclarationGraph(result.graph)).toMatchObject({
+    ok: true,
+    value: {
+      root: { kind: "video", asset: { kind: "asset-ref", assetId: "movie" } },
+      play: { kind: "playModelClip", clipId: "clip-0" },
+      done: { kind: "modelClipCompleted" },
+      seek: { kind: "seekMedia" },
+    },
   });
 });

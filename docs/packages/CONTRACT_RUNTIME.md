@@ -25,7 +25,7 @@
 
 Protoの`uint32`は`0..4_294_967_295`、`uint64`は`0..18_446_744_073_709_551_615`である。JSONへ変換するconsumerはすべての整数を`0..9_007_199_254_740_991`に制限し、超過をrejectする。JSON numberをwireへ変換する際はfinite、integer、non-negative、安全整数を順に検証する。`double`はfiniteでなければならず、`NaN`、正負Infinity、`-0`をrejectする。ただし次段落のMedia/Model clip sample positionだけは入力境界で`-0`を`0`へcanonicalizeして受理する。
 
-logical runtime time、duration、deadline、retention、expiryは非負の整数millisecondであり、duration、retention、expiryは明記がない限り正とする。Compilerが秒単位の素材durationを変換する場合、binary64で`seconds * 1000`を計算しhalf-away-from-zeroで整数化し、正のdurationが`0`へ丸められた場合は`1`へclampする。Media/Model clipのsample positionだけは速度適用後の正確な位置を保つfiniteな`double` millisecondとし、`-0`を`0`へcanonicalizeする。sample positionを整数へ丸めない。
+logical runtime time、duration、deadline、retention、expiryは非負の整数millisecondであり、duration、retention、expiryは明記がない限り正とする。Videoのdurationは成果物契約のpacket-end規則に従い有理数からミリ秒へ切り上げる。その他の素材durationをCompilerが秒から変換する場合、binary64で`seconds * 1000`を計算しhalf-away-from-zeroで整数化し、正のdurationが`0`へ丸められた場合は`1`へclampする。Media/Model clipのsample positionだけは速度適用後の正確な位置を保つfiniteな`double` millisecondとし、`-0`を`0`へcanonicalizeする。sample positionを整数へ丸めない。
 
 `ScalarValue`はstring、finite number、boolean、明示nullのexactly one variantを持つ。空oneofはnullではない。`ScalarType`と値variantは一致しなければならない。
 
@@ -61,7 +61,7 @@ required messageの欠落、空oneof、unknown enum、重複key、非canonical�
 
 すべてのlimitとtier IDはrequiredである。`TextureLimits`、`NativeUiLimits`、`VideoLimits`、`ModelLimits`の数値は正でなければならない。`encoded_cache_reserve_bytes < max_encoded_cache_bytes`を要求する。`max_blended_clips_per_model`はcapabilityによらず`2`、通常時は`1`であり、layer、mask、additive blendを表すfieldは存在しない。
 
-Limitの集計単位は次に固定する。Texture width/height/pixelsは一texture、bindingsとGPU bytesはprofile全体のunique selected texture、serial CPUは一textureのmax、encoded cacheは全selected Assetで判定する。Native UI node/depth/text/code pointは一artifact、glyphとfont Assetはprofile全体のunique集合で判定する。Video width/height/pixelsは一video、encoded bytesはunique selected videoのsum、decoded frame bytesは同時decoder instance集合のsumである。Model Asset、instance、encoded bytes、nodes、primitives、vertices、trianglesはprofile全体のunique Asset集計、bonesは一skin、morph targetは一primitive、animation clipは一Assetの上限である。
+Limitの集計単位は次に固定する。Texture width/height/pixelsは一texture、bindingsとGPU bytesはprofile全体のunique selected texture、serial CPUは一textureのmax、encoded cacheは全selected Assetで判定する。Native UI node/depth/text/code pointは一artifact、glyphとfont Assetはprofile全体のunique集合で判定する。Video width/height/pixelsは一video、encoded bytesはunique selected videoのsum、decoded frame bytesは同時decoder instance集合のsumである。Model Asset数とencoded bytesはunique checksum、instanceはvisible ModelNode数、nodes / primitives / vertices / trianglesはModelNodeごとに展開した合計、bonesは一skin、morph targetは一primitive、animation clipは一Assetの上限である。
 
 ### 3.1 Projection profile
 
@@ -100,10 +100,10 @@ Viewerのbuttonは`interaction_enabled=false`かつ`interaction_id` absentであ
 
 ### 3.3 Residency admission
 
-Residency entryの集合はselected asset集合の対応kindと一致する。集計はchecked unsigned arithmeticで行う。
+Residency entryの集合はselected asset集合の対応kindと一致する。Video planは動画がない場合も空のplanを必須とし、Delivery受け入れ時に対応Assetと予算集計を検証する。集計はchecked unsigned arithmeticで行う。
 
 - Texture GPU chargeはunique checksumごとの`decoded_gpu_bytes`のsum、CPU chargeは`peak_load_cpu_bytes`のmax。
-- Model encoded bytes、nodes、primitives、vertices、trianglesはunique checksumごとのsum。instance countはvisible ModelNode数、bone/morph/clipは上記のper-container最大値を使う。
+- Model bindingはselected Asset IDごとに保持する。assets数とencoded bytesはunique checksum、nodes / primitives / vertices / trianglesはvisible ModelNodeごとのdescriptorをinstance展開して合計する。instance countはvisible ModelNode数、bone/morph/clipは上記のper-container最大値を使う。
 - Native UIの`font_asset_ids`はselected Native UI artifactの全`ResolvedFont`が参照するAsset IDのunique集合をID順に持ち、`font_asset_count`はその集合に対応するunique checksum件数と一致する。glyph closureは各text sourceから、literalは実際のUnicode scalar、string variableは全allowed range、booleanは両label、numberはASCII `-0123456789.`、timerはASCII `0123456789:`を列挙する。string variableの集合には置換用U+0020とU+FFFD、`overflow=ellipsis`のtextにはU+2026も追加する。各scalarをprimary、fallback順で最初にsupportするFontFaceへ割り当て、`(font checksum, Unicode scalar)`で重複排除する。supportするfontがなければDeliveryをrejectする。`GlyphResidencyKey`はchecksumとscalarを持ち、font checksum昇順、同一font内はscalar数値昇順とする。件数を`max_glyphs`、font集合件数を`max_font_assets`と照合する。nodes、depth、text nodes、code pointsはartifactごとの実測値の最大をplanへ記録し、対応limitと照合する。
 - Video bindingごとの`decoded_frame_bytes = width * height * 4`とし、portable decode surfaceをRGBA32一枚としてchecked unsigned arithmeticで算出する。encoded bytesはunique checksumのsum。decoder admissionは、presentation-owned Surfaceとcurrent Group-owned Surfaceだけを候補に、各Surfaceの到達可能Stateから選べるVideo artifactまたは非Video状態の直積を列挙する。各組合せではactive Video Surface instance一つをdecoder一つとして数え、同じchecksumの複数Surfaceも別decoderとする。全Groupと全組合せのcount最大値を`maximum_concurrent_decoders`、`decoded_frame_bytes`合計の最大値を`maximum_decoded_frame_bytes`とし、Capabilityの対応limit以下でなければならない。
 

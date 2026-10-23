@@ -43,7 +43,7 @@ Cue 詳細は Trigger → Guard → Actions → 遷移先のカードで関係�
 ## Cue 確認
 
 - 0ms は accepted Cue の actions 適用後・次 Step／Group への遷移前。Group exit の Cue も遷移前を確認する。
-- 確認範囲はその Cue が開始する Timeline／Surface 遷移の最長 duration。時間を持つ Run がなければ0msの状態確認のみ。
+- 確認範囲はその Cue が開始する表示対象の Timeline／Surface 遷移／動画／Model clip の最長の有限再生時間。Model crossfade は現在の遷移区間の終端までを扱う。loop や一時停止中など有限の完了時刻を持たない Run だけの場合は0msの状態確認のみ。
 - 通常再生位置を退避して一時停止し、最新 occurrence から絶対時刻で再評価する。既存 Run も共通時計で評価し、後続 Cue／Step へ進めない。
 - 確認再生は終端で停止する。「0秒へ」は `seekCue(0)`、「通常再生に戻る」は退避位置への一時停止復帰。通常 reset と区別する。
 - keyframe 選択は右詳細を更新する。同じ Cue の確認中だけその時刻へシークし、別 Cue／通常再生／未記録 Cue では Preview を動かさない。

@@ -5,12 +5,15 @@ import {
   buildRuntimeProjection,
   canonicalizeJsonPayload,
   createInitialRuntimeState,
+  createCueState,
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   type BuildArtifacts,
 } from "@unframe/unframe-core";
 import { readBuildGeneration } from "../filesystem/read-build-generation.js";
+import { readDistBuild } from "../filesystem/read-dist-build.js";
 import { AuthorError, randomIdSchema } from "./contract.js";
+import { projectPlaybackResourcesWire } from "./playback-wire.js";
 import { createLocalPlayback } from "./local-playback.js";
 import { previewCapability } from "./preview-capability.js";
 import {
@@ -79,6 +82,15 @@ type Candidate = {
   lastSequence?: string | undefined;
 };
 
+export const createDistPreviewService = (directory: string): LocalPreviewService =>
+  createLocalPreviewService(directory, {
+    readGeneration: async (dist, input) => {
+      if (input.channel !== "dist")
+        fail(409, "preview-dist-only", "A copied Dist supports Dist Preview only.");
+      return readDistBuild(dist);
+    },
+  });
+
 export const createLocalPreviewService = (
   directory: string,
   options: { readGeneration?: typeof readBuildGeneration; now?: () => number } = {},
@@ -137,12 +149,9 @@ export const createLocalPreviewService = (
       );
       checkCurrent(expectedEpoch, signal);
       const artifacts = readVerifiedArtifacts(fixed.artifacts);
-      const capability = previewCapability();
-      const { projection, selection } = projectPreviewBuild(artifacts);
+      const { projection, selection, residency } = projectPreviewBuild(artifacts);
       if (
-        projection.requiredRuntimeCapabilities?.some(
-          (value) => value === 4 || value === 5 || value === 6,
-        ) ||
+        projection.requiredRuntimeCapabilities?.some((value) => value === 6) ||
         projection.runtimeCatalog?.nodes?.some(
           (node) => node.parent && "presenterAnchor" in node.parent,
         ) ||
@@ -176,7 +185,6 @@ export const createLocalPreviewService = (
       const initial = createInitialRuntimeState(artifacts.definition);
       const visibleNodes = new Set(selection.visibleNodeIds);
       const visibleSurfaces = new Set(selection.visibleSurfaceIds);
-      const residency = selection.residency;
       const envelope: LocalPreviewEnvelopeWire = {
         schemaVersion: 1,
         requestId: input.requestId,
@@ -188,23 +196,16 @@ export const createLocalPreviewService = (
           requiredRuntimeCapabilities: (projection.requiredRuntimeCapabilities ?? []).filter(
             (value) => value !== 1,
           ),
-          textureResidency: {
-            budgetTierId: capability.limits.texture.tierId,
-            textures: residency.textures.map((texture) => ({
-              assetId: texture.assetId,
-              checksum: texture.checksum,
-              pixelSize: {
-                width: String(texture.pixelSize[0]),
-                height: String(texture.pixelSize[1]),
-              },
-              decodedGpuBytes: String(texture.gpuBytes),
-              peakLoadCpuBytes: String(texture.peakLoadCpuBytes),
-            })),
-            totalDecodedGpuBytes: String(residency.totalTextureGpuBytes),
-            maximumPeakLoadCpuBytes: String(residency.maximumTextureLoadCpuBytes),
-          },
+          textureResidency: residency.textures,
+          modelResidency: residency.models,
+          videoResidency: residency.video,
         },
         initialState: {
+          ...projectPlaybackResourcesWire(
+            createCueState(artifacts.definition, 1, artifacts.renderBundle),
+            visibleNodes,
+            visibleSurfaces,
+          ),
           nodeStates: initial.nodeStates.filter((node) => visibleNodes.has(node.nodeId!)),
           surfaceStates: initial.surfaceStates.filter((surface) =>
             visibleSurfaces.has(surface.surfaceId!),
@@ -225,6 +226,7 @@ export const createLocalPreviewService = (
         playback: createLocalPlayback({
           requestId: input.requestId,
           definition: artifacts.definition,
+          renderBundle: artifacts.renderBundle,
           visibleNodeIds: visibleNodes,
           visibleSurfaceIds: visibleSurfaces,
           visibleTimelineIds: new Set(

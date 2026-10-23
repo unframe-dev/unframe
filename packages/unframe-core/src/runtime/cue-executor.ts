@@ -1,4 +1,16 @@
-import type { PresentationDefinition } from "@unframe/contracts/presentation";
+import type {
+  CanonicalRuntimeSnapshot,
+  PresentationDefinition,
+  RenderBundle,
+} from "@unframe/contracts/presentation";
+
+import {
+  initializePlaybackCatalog,
+  initializePlaybackResources,
+  applyPlaybackAction,
+  playbackDeadline,
+  settlePlaybackRun,
+} from "./media-runtime.js";
 
 import { evaluateTimelineTrack } from "./timeline-interpolation.js";
 
@@ -37,27 +49,7 @@ export type RuntimeRunCause = {
   stepId: string;
   stepEntryEpoch: number;
 };
-type RuntimeRunBase = {
-  runId: RuntimeRunId;
-  owner: RuntimeRunOwner;
-  cause: RuntimeRunCause;
-  startedAtRuntimeTimeMilliseconds: number;
-};
-export type RuntimeRun =
-  | (RuntimeRunBase & {
-      kind: "timeline";
-      timelineId: string;
-      completion: "blocking" | "nonBlocking";
-    })
-  | (RuntimeRunBase & {
-      kind: "surfaceTransition";
-      completion: "blocking";
-      surfaceId: string;
-      fromStateId: string;
-      toStateId: string;
-      durationMilliseconds: number;
-      easing: "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
-    });
+export type RuntimeRun = CanonicalRuntimeSnapshot["activeRuns"][number];
 type PendingRun =
   | Omit<Extract<RuntimeRun, { kind: "timeline" }>, "runId">
   | Omit<Extract<RuntimeRun, { kind: "surfaceTransition" }>, "runId">;
@@ -94,9 +86,14 @@ export type CueInput = CueInputBase &
       }
     | { kind: "timer"; cueId: string }
     | { kind: "timelineCompleted"; timelineId: string }
+    | { kind: "mediaCompleted"; surfaceId: string }
+    | { kind: "modelClipCompleted"; nodeId: string; clipId: string }
   );
 
 export type CueState = {
+  playbackCatalog: ReturnType<typeof initializePlaybackCatalog>;
+  mediaStates: CanonicalRuntimeSnapshot["mediaStates"];
+  modelClipStates: CanonicalRuntimeSnapshot["modelClipStates"];
   runtimeTimeMilliseconds: number;
   currentGroupId: string;
   currentStepId: string;
@@ -161,6 +158,7 @@ const initializeResources = (
     )
       state.surfaces[id] = surface.initialStateId;
   }
+  initializePlaybackResources(definition, state, groupId, includePresentation);
   for (const [id, variable] of Object.entries(definition.flow.variables))
     if (
       ownerActive(variable.owner, groupId) &&
@@ -190,11 +188,15 @@ const enterStep = (definition: PresentationDefinition, state: CueState, stepId: 
 export const createCueState = (
   definition: PresentationDefinition,
   assignmentEpoch: number,
+  renderBundle?: RenderBundle,
 ): CueState => {
   if (!Number.isSafeInteger(assignmentEpoch) || assignmentEpoch <= 0)
     throw new RangeError("Assignment epoch must be a positive safe integer.");
   const groupId = definition.flow.initialGroupId;
   const state: CueState = {
+    playbackCatalog: initializePlaybackCatalog(definition, renderBundle),
+    mediaStates: {},
+    modelClipStates: {},
     runtimeTimeMilliseconds: 0,
     currentGroupId: groupId,
     currentStepId: "",
@@ -273,6 +275,21 @@ const triggerMatches = (cue: Cue, input: CueInput) => {
         cue.id === input.cueId &&
         input.actor.kind === "system" &&
         input.actor.source === "timer"
+      );
+    case "mediaCompleted":
+      return (
+        trigger.kind === "mediaCompleted" &&
+        trigger.surfaceId === input.surfaceId &&
+        input.actor.kind === "system" &&
+        input.actor.source === "media"
+      );
+    case "modelClipCompleted":
+      return (
+        trigger.kind === "modelClipCompleted" &&
+        trigger.nodeId === input.nodeId &&
+        trigger.clipId === input.clipId &&
+        input.actor.kind === "system" &&
+        input.actor.source === "runtime"
       );
     case "timelineCompleted":
       return (
@@ -355,15 +372,31 @@ const scalarType = (value: unknown) => (value === null ? "null" : typeof value);
 const compareId = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 const runIdEquals = (a: RuntimeRunId, b: RuntimeRunId) =>
   a.assignmentEpoch === b.assignmentEpoch && a.runSequence === b.runSequence;
+const completionOrder: Record<RuntimeRun["kind"], number> = {
+  surfaceTransition: 0,
+  timeline: 1,
+  media: 2,
+  modelClip: 3,
+};
 const runTarget = (run: RuntimeRun | PendingRun) =>
-  run.kind === "timeline" ? `timeline:${run.timelineId}` : `surface:${run.surfaceId}`;
+  run.kind === "timeline"
+    ? `timeline:${run.timelineId}`
+    : run.kind === "modelClip"
+      ? `modelClip:${run.modelNodeId}`
+      : `${run.kind}:${run.surfaceId}`;
 const trackClaim = (nodeId: string, property: string) => `node:${nodeId}:${property}`;
 const runClaims = (definition: PresentationDefinition, run: RuntimeRun): string[] =>
   run.kind === "timeline"
     ? definition.flow.timelines[run.timelineId]!.tracks.map((track) =>
         trackClaim(track.target.nodeId, track.target.property),
       )
-    : [`surface:${run.surfaceId}`];
+    : [
+        run.kind === "modelClip"
+          ? `modelClip:${run.modelNodeId}`
+          : run.kind === "media"
+            ? `media:${run.surfaceId}`
+            : `surface:${run.surfaceId}`,
+      ];
 const timelineClaims = (timeline: Timeline) =>
   timeline.tracks.map((track) => trackClaim(track.target.nodeId, track.target.property));
 const claimConflicts = (a: string, b: string) =>
@@ -418,6 +451,8 @@ const removeRun = (
   commit: boolean,
 ) => {
   if (commit && run.kind === "timeline") timelineRunValue(definition, state, run);
+  if (commit && (run.kind === "media" || run.kind === "modelClip"))
+    settlePlaybackRun(state, run, false);
   state.activeRuns = state.activeRuns.filter((active) => !runIdEquals(active.runId, run.runId));
 };
 const applyNext = (
@@ -446,11 +481,16 @@ const applyNext = (
             });
         }
       for (const [id, node] of Object.entries(definition.scene.nodes))
-        if (node.owner.kind === "group" && node.owner.groupId === oldGroup) delete state.nodes[id];
+        if (node.owner.kind === "group" && node.owner.groupId === oldGroup) {
+          delete state.nodes[id];
+          delete state.modelClipStates[id];
+        }
       for (const [id, surface] of Object.entries(definition.scene.surfaces)) {
         const host = definition.scene.nodes[surface.hostNodeId];
-        if (host?.owner.kind === "group" && host.owner.groupId === oldGroup)
+        if (host?.owner.kind === "group" && host.owner.groupId === oldGroup) {
           delete state.surfaces[id];
+          delete state.mediaStates[id];
+        }
       }
       for (const [id, variable] of Object.entries(definition.flow.variables))
         if (variable.owner.kind === "group" && variable.owner.groupId === oldGroup)
@@ -472,6 +512,10 @@ const applyNext = (
             reason: "presentationEnded",
           });
       state.activeRuns = [];
+      for (const id of Object.keys(state.modelClipStates))
+        state.modelClipStates[id] = { kind: "defaultPose" };
+      for (const id of Object.keys(state.mediaStates))
+        state.mediaStates[id] = { kind: "stopped", heldPositionMilliseconds: 0 };
       state.ended = true;
       break;
   }
@@ -481,12 +525,19 @@ const evaluateCueEvent = (
   definition: PresentationDefinition,
   state: CueState,
   input: CueInput,
-  allowTimer: boolean,
+  allowScheduledInput: boolean,
   captureState = false,
 ): CueExecution => {
   if (state.ended || state.phase.kind === "transitioning")
     return { state, outcome: { kind: "none" } };
-  if (input.kind === "timer" && !allowTimer) return { state, outcome: { kind: "none" } };
+  if (
+    (input.kind === "timer" ||
+      input.kind === "mediaCompleted" ||
+      input.kind === "modelClipCompleted" ||
+      input.kind === "timelineCompleted") &&
+    !allowScheduledInput
+  )
+    return { state, outcome: { kind: "none" } };
   if (input.kind === "surfaceInteraction") {
     const surface = definition.scene.surfaces[input.surfaceId ?? ""];
     const currentState = surface?.states[state.surfaces[input.surfaceId ?? ""] ?? ""];
@@ -535,7 +586,7 @@ const evaluateCueEvent = (
   for (const action of cue.actions) {
     switch (action.kind) {
       case "surface.setState": {
-        if (!claim(`surface:${action.surfaceId}`))
+        if (claims.has(`media:${action.surfaceId}`) || !claim(`surface:${action.surfaceId}`))
           return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
         const surface = definition.scene.surfaces[action.surfaceId];
         if (!surface?.states[action.stateId] || next.surfaces[action.surfaceId] === undefined)
@@ -564,6 +615,17 @@ const evaluateCueEvent = (
             durationMilliseconds: action.transition.durationMilliseconds,
             easing: action.transition.easing,
           });
+        }
+        if (next.surfaces[action.surfaceId] !== action.stateId) {
+          const mediaRun = next.activeRuns.find(
+            (run) => run.kind === "media" && run.surfaceId === action.surfaceId,
+          );
+          if (mediaRun?.kind === "media") {
+            settlePlaybackRun(next, mediaRun, false);
+            next.activeRuns = next.activeRuns.filter(
+              (run) => !runIdEquals(run.runId, mediaRun.runId),
+            );
+          }
         }
         next.surfaces[action.surfaceId] = action.stateId;
         break;
@@ -664,6 +726,32 @@ const evaluateCueEvent = (
         }
         break;
       }
+      case "media.play":
+      case "media.pause":
+      case "media.seek":
+      case "modelClip.play":
+      case "modelClip.pause":
+      case "modelClip.resume":
+      case "modelClip.stop": {
+        const key =
+          "surfaceId" in action ? `media:${action.surfaceId}` : `modelClip:${action.nodeId}`;
+        const active = state.activeRuns.find((run) => runClaims(definition, run).includes(key));
+        if (!claim(key, active))
+          return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
+        // Surface switches and media commands write the same playback state.
+        if ("surfaceId" in action && claims.has(`surface:${action.surfaceId}`))
+          return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
+        const reason = applyPlaybackAction(
+          definition,
+          next,
+          action,
+          runCause(cue, input, state),
+          (value) => actionValue(value, state, payload),
+          () => ({ assignmentEpoch: state.assignmentEpoch, runSequence: 0 }),
+        );
+        if (reason) return { state, outcome: { kind: "rejected", cueId: cue.id, reason } };
+        break;
+      }
       default:
         return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" } };
     }
@@ -674,12 +762,25 @@ const evaluateCueEvent = (
       next.runtimeTimeMilliseconds,
       cue.firePolicy.cooldownMilliseconds,
     );
+  for (const run of pendingRuns)
+    next.activeRuns.push({
+      ...run,
+      runId: { assignmentEpoch: state.assignmentEpoch, runSequence: 0 },
+    } as RuntimeRun);
   const blockingRunIds: RuntimeRunId[] = [];
-  for (const run of pendingRuns.sort((a, b) => compareId(runTarget(a), runTarget(b)))) {
-    const active = { ...run, runId: allocateRun(next) } as RuntimeRun;
-    next.activeRuns.push(active);
-    if (active.completion === "blocking") blockingRunIds.push(active.runId);
+  for (const run of next.activeRuns
+    .filter((run) => run.runId.runSequence === 0)
+    .sort((a, b) => compareId(runTarget(a), runTarget(b)))) {
+    run.runId = allocateRun(next);
+    if (run.kind === "media") {
+      const value = next.mediaStates[run.surfaceId];
+      if (value?.kind === "active") value.runId = run.runId;
+    }
+    if (run.kind === "modelClip")
+      next.modelClipStates[run.modelNodeId] = { kind: "active", runId: run.runId };
+    if (run.completion === "blocking") blockingRunIds.push(run.runId);
   }
+  next.activeRuns.sort((a, b) => a.runId.runSequence - b.runId.runSequence);
   const capture = captureState
     ? { cueId: cue.id, causeEventId: input.causeEventId, state: clone(next) }
     : undefined;
@@ -717,13 +818,7 @@ export const completeRuntimeRun = (
   if (
     !run ||
     runId.assignmentEpoch !== state.assignmentEpoch ||
-    state.runtimeTimeMilliseconds <
-      checkedTimeAddition(
-        run.startedAtRuntimeTimeMilliseconds,
-        run.kind === "timeline"
-          ? definition.flow.timelines[run.timelineId]!.durationMilliseconds
-          : run.durationMilliseconds,
-      ) ||
+    state.runtimeTimeMilliseconds < runtimeRunDeadline(definition, state, run) ||
     (run.owner.kind === "group" &&
       (run.owner.groupId !== state.currentGroupId ||
         run.owner.groupEntryEpoch !== state.groupEntryEpoch))
@@ -731,7 +826,14 @@ export const completeRuntimeRun = (
     return { state, completed: false };
   const next = clone(state);
   const canceledRuns: CanceledRuntimeRun[] = [];
-  removeRun(definition, next, run, true);
+  if (run.kind === "modelClip" && run.phase.kind === "crossfade") {
+    const active = next.activeRuns.find((candidate) => runIdEquals(candidate.runId, run.runId))!;
+    if (active.kind === "modelClip" && active.phase.kind === "crossfade")
+      active.phase = { kind: "single", clip: active.phase.transition.to };
+    return { state: next, completed: false };
+  }
+  if (run.kind === "media" || run.kind === "modelClip") settlePlaybackRun(next, run, true);
+  removeRun(definition, next, run, run.kind === "timeline");
   if (next.phase.kind === "transitioning") {
     next.phase.blockingRunIds = next.phase.blockingRunIds.filter((id) => !runIdEquals(id, runId));
     if (next.phase.blockingRunIds.length === 0) {
@@ -771,17 +873,13 @@ export const advanceCueClock = (
     const nextRun = current.activeRuns
       .map((run) => ({
         run,
-        deadline: checkedTimeAddition(
-          run.startedAtRuntimeTimeMilliseconds,
-          run.kind === "timeline"
-            ? definition.flow.timelines[run.timelineId]!.durationMilliseconds
-            : run.durationMilliseconds,
-        ),
+        deadline: runtimeRunDeadline(definition, current, run),
       }))
       .filter(({ deadline }) => deadline <= toRuntimeTimeMilliseconds)
       .sort(
         (a, b) =>
           a.deadline - b.deadline ||
+          completionOrder[a.run.kind] - completionOrder[b.run.kind] ||
           compareId(runTarget(a.run), runTarget(b.run)) ||
           a.run.runId.runSequence - b.run.runId.runSequence,
       )[0];
@@ -807,18 +905,40 @@ export const advanceCueClock = (
       const completion = completeRuntimeRun(definition, current, nextRun.run.runId);
       current = completion.state;
       canceledRuns.push(...(completion.canceledRuns ?? []));
-      if (!suppressCompletionCues && nextRun.run.kind === "timeline") {
+      if (
+        completion.completed &&
+        !suppressCompletionCues &&
+        nextRun.run.kind !== "surfaceTransition"
+      ) {
         const result = evaluateCueEvent(
           definition,
           current,
           {
-            kind: "timelineCompleted",
-            timelineId: nextRun.run.timelineId,
-            actor: { kind: "system", source: "timeline" },
+            ...(nextRun.run.kind === "timeline"
+              ? ({
+                  kind: "timelineCompleted",
+                  timelineId: nextRun.run.timelineId,
+                  actor: { kind: "system", source: "timeline" },
+                } as const)
+              : nextRun.run.kind === "media"
+                ? ({
+                    kind: "mediaCompleted",
+                    surfaceId: nextRun.run.surfaceId,
+                    actor: { kind: "system", source: "media" },
+                  } as const)
+                : ({
+                    kind: "modelClipCompleted",
+                    nodeId: nextRun.run.modelNodeId,
+                    clipId:
+                      nextRun.run.phase.kind === "single"
+                        ? nextRun.run.phase.clip.clipId
+                        : nextRun.run.phase.transition.to.clipId,
+                    actor: { kind: "system", source: "runtime" },
+                  } as const)),
             payload: {},
             causeEventId: `${nextRun.run.runId.assignmentEpoch}:${nextRun.run.runId.runSequence}:completed`,
           },
-          false,
+          true,
           options.capture,
         );
         if (result.capture) captures.push(result.capture);
@@ -855,3 +975,17 @@ export const advanceCueClock = (
   current.runtimeTimeMilliseconds = toRuntimeTimeMilliseconds;
   return { state: current, outcomes, captures, ...(canceledRuns.length ? { canceledRuns } : {}) };
 };
+
+export const runtimeRunDeadline = (
+  definition: PresentationDefinition,
+  state: CueState,
+  run: RuntimeRun,
+): number =>
+  run.kind === "timeline"
+    ? checkedTimeAddition(
+        run.startedAtRuntimeTimeMilliseconds,
+        definition.flow.timelines[run.timelineId]!.durationMilliseconds,
+      )
+    : run.kind === "surfaceTransition"
+      ? checkedTimeAddition(run.startedAtRuntimeTimeMilliseconds, run.durationMilliseconds)
+      : playbackDeadline(state, run);

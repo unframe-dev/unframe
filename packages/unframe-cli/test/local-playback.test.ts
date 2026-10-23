@@ -5,6 +5,7 @@ import { checkAuthoringProjectAssembly } from "@unframe/unframe-compiler";
 import { createLocalPlayback } from "../src/author/local-playback.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const requestId = "a".repeat(32);
 const referenceDefinition = async () => {
@@ -22,6 +23,7 @@ const referenceDefinition = async () => {
       ...loaded.value.virtualSource,
     },
     loaded.value.assemblyCarrier,
+    sourceAssetBytesFor(discovered, loaded.value.lock.assets),
   );
   assert(checked.valid, JSON.stringify(checked.diagnostics));
   return checked.value.definition;

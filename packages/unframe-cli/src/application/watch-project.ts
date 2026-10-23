@@ -28,7 +28,7 @@ export const watchPresentationProject = async ({
   directory,
   signal,
   intervalMs = 400,
-  channel = "dist",
+  channel = "dev",
   snapshot = async () => {
     const found = await discoverPresentationProjectFiles(directory);
     return found.ok ? found.revision : undefined;

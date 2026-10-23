@@ -18,6 +18,7 @@ else {
   const workspace = createWorkspace({
     api: createHostApi(token),
     theme,
+    readOnly: location.pathname === "/dist-preview",
     createDriver: (canvas) => createUnityPreviewDriver(canvas, token),
   });
   createRoot(target).render(

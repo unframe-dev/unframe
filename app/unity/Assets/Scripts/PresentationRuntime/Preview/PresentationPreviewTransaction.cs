@@ -29,6 +29,8 @@ namespace Unframe.Unity.PresentationRuntime
             internal readonly PresentationNodeHierarchy Hierarchy = new PresentationNodeHierarchy();
             internal readonly PresentationTextureResidency Textures = new PresentationTextureResidency();
             internal PresentationBakedSurfaceRenderer Renderer;
+            internal readonly PresentationVideoResidency Videos;
+            internal readonly PresentationModelResidency Models = new PresentationModelResidency();
             internal readonly PresentationPlaybackPlayer Playback = new PresentationPlaybackPlayer();
             internal RuntimeClockSnapshot Clock;
             internal double ClockReceivedAt;
@@ -37,9 +39,10 @@ namespace Unframe.Unity.PresentationRuntime
             internal bool Faulted;
             private bool disposed;
 
-            internal Scene(PresentationLocalPreviewInput input, Transform parent)
+            internal Scene(PresentationLocalPreviewInput input, Transform parent, Func<IPresentationVideoDecoder> createDecoder)
             {
                 Input = input;
+                Videos = new PresentationVideoResidency(createDecoder);
                 Root = new GameObject("Preview " + input.RequestId);
                 Root.SetActive(false);
                 Root.transform.SetParent(parent, false);
@@ -51,6 +54,8 @@ namespace Unframe.Unity.PresentationRuntime
                 if (Root != null) Root.SetActive(false);
                 Playback.Clear();
                 Renderer?.Dispose();
+                Models.Dispose();
+                Videos.Dispose();
                 Hierarchy.Clear();
                 Textures.Dispose();
                 PresentationTextureResidency.Destroy(Root);
@@ -58,6 +63,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         private readonly Transform root;
+        private readonly Func<IPresentationVideoDecoder> createDecoder;
         private readonly int mainThread;
         private Scene current;
         private Scene candidate;
@@ -69,16 +75,18 @@ namespace Unframe.Unity.PresentationRuntime
         private bool disposed;
         private string playbackRequestId;
 
-        public PresentationPreviewTransaction(Transform root)
+        public PresentationPreviewTransaction(Transform root, Func<IPresentationVideoDecoder> createDecoder = null)
         {
             if (root == null) throw new ArgumentNullException(nameof(root));
             this.root = root;
+            this.createDecoder = createDecoder;
             mainThread = Thread.CurrentThread.ManagedThreadId;
         }
         public bool PlaybackRejected { get; private set; }
         public bool PlaybackFaulted { get { return current?.Faulted == true; } }
         public string PlaybackRequestId { get { return playbackRequestId; } }
         public ulong PlaybackSequence { get { return current?.Sequence ?? 0; } }
+        public string LoadedRequestId { get { return current?.Input.RequestId; } }
         public string LoadedBuildIdentity { get { return current?.Input.BuildIdentity; } }
         public string PreparedRequestId { get { return candidate?.Prepared == true ? candidate.Input.RequestId : null; } }
         public ulong ResidentGpuBytes { get { return current?.Textures.ResidentGpuBytes ?? 0; } }
@@ -117,7 +125,7 @@ namespace Unframe.Unity.PresentationRuntime
                 IEnumerable<TextureResidencyBinding> oldBindings = current?.Input.TextureBindings ?? Array.Empty<TextureResidencyBinding>();
                 if (!PresentationPreviewAdmission.TryAdmit(oldBindings, input.TextureBindings, out string error))
                     throw new InvalidOperationException(error);
-                next = new Scene(input, root);
+                next = new Scene(input, root, createDecoder);
                 candidate = next;
                 foreach (TextureResidencyBinding binding in input.TextureBindings)
                 {
@@ -138,9 +146,31 @@ namespace Unframe.Unity.PresentationRuntime
                 CheckLatest(expectedGeneration, token);
                 if (!next.Textures.IsReady(input.TextureBindings)) throw new InvalidOperationException("asset_residency_lost");
                 if (!next.Hierarchy.TryReplace(input, next.Root.transform, out error)) throw new InvalidOperationException(error);
+                var modelBudget = new PresentationModelTextureBudget { Limits = PresentationLocalPreviewAdapter.PreviewTextureLimits("local-web-preview"), UsedGpuBytes = next.Textures.ResidentGpuBytes };
+                foreach (var binding in input.TextureBindings) modelBudget.UsedBindings++;
+                var loadedModels = new HashSet<string>();
+                foreach (var node in input.Catalog.Nodes)
+                {
+                    if (node.NodeCase != Unframe.Presentation.ProjectedNodeDefinition.NodeOneofCase.Model || !loadedModels.Add(node.Model.ModelAssetId)) continue;
+                    ModelResidencyBinding model = null;
+                    foreach (var binding in input.ModelBindings) if (binding.AssetId == node.Model.ModelAssetId) { model = binding; break; }
+                    if (model == null) throw new InvalidOperationException("preview.model-residency-absent");
+                    var asset = await assetProvider(input.RequestId, input.References[model.AssetId], token);
+                    CheckLatest(expectedGeneration, token);
+                    if (asset == null || asset.MediaType != "model/gltf-binary") throw new InvalidOperationException("preview.model-media-type-invalid");
+                    await next.Models.LoadAsync(model, input.Assets[model.AssetId], asset.Bytes, token, modelBudget);
+                    CheckLatest(expectedGeneration, token);
+                }
+                await next.Models.InstantiateAsync(input, next.Hierarchy, token);
+                CheckLatest(expectedGeneration, token);
                 next.Renderer = new PresentationBakedSurfaceRenderer();
                 if (!next.Renderer.TryBuild(input, next.Hierarchy, out error)) throw new InvalidOperationException(error);
+                next.Playback.Models = next.Models;
+                await next.Videos.BuildAsync(input, next.Hierarchy, async (id, videoToken) => await assetProvider(input.RequestId, input.References[id], videoToken), token);
+                CheckLatest(expectedGeneration, token);
+                next.Playback.Videos = next.Videos;
                 if (!next.Playback.TryRefresh(input, next.Hierarchy, next.Renderer, next.Textures, 0, out error)) throw new InvalidOperationException(error);
+                next.Playback.Models = next.Models;
                 next.Prepared = true;
                 return input.RequestId;
             }
@@ -215,8 +245,14 @@ namespace Unframe.Unity.PresentationRuntime
                 current.ClockReceivedAt = now;
                 if (restoring) current.Playback.Clear();
                 if (!current.Playback.TryRefresh(current.Input, current.Hierarchy, current.Renderer, current.Textures,
-                    current.Clock.RuntimeTimeMs, out error))
+                    current.Clock.RuntimeTimeMs, out error, current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running))
                 {
+                    if (error == "video-user-activation-required")
+                    {
+                        PlaybackRejected = true;
+                        current.Videos.Pause();
+                        return false;
+                    }
                     StopPlayback();
                     return false;
                 }
@@ -241,7 +277,13 @@ namespace Unframe.Unity.PresentationRuntime
             try
             {
                 double time = PresentationPlaybackPlayer.SampleRuntimeTimeMs(current.Clock, current.ClockReceivedAt, now);
-                if (current.Playback.TryUpdate(current.Input, current.Hierarchy, current.Renderer, current.Textures, time, out error)) return true;
+                if (current.Playback.TryUpdate(current.Input, current.Hierarchy, current.Renderer, current.Textures, time, out error,
+                    current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)) return true;
+                if (error == "video-user-activation-required")
+                {
+                    current.Videos.Pause();
+                    return false;
+                }
             }
             catch (Exception) { error = "preview.playback-update-failed"; }
             StopPlayback();
@@ -251,6 +293,7 @@ namespace Unframe.Unity.PresentationRuntime
         private void StopPlayback()
         {
             current.Faulted = true;
+            current.Videos.Pause();
             if (current.Root != null) current.Root.SetActive(false);
         }
 
@@ -266,11 +309,12 @@ namespace Unframe.Unity.PresentationRuntime
         {
             CheckAccess();
             generation++;
+            current?.Videos.Pause();
             playbackRequestId = null;
             latestRequestId = null;
             cancellation?.Cancel();
             cancellation = null;
-            candidate?.Dispose();
+            if (candidate?.Prepared == true) candidate.Dispose();
             candidate = null;
         }
 

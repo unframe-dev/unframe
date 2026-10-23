@@ -69,6 +69,12 @@ export function createPlaybackController(input: {
         const unavailable = intent.command === "poll" || [401, 403].includes(error.status);
         if (unavailable) requestId = undefined;
         input.onDiagnostic(error, unavailable);
+      } else if (
+        error instanceof UnityExchangeError &&
+        error.message === "video-user-activation-required"
+      ) {
+        pending = [{ command: "pause" }];
+        input.onDiagnostic(error);
       } else if (error instanceof UnityExchangeError && error.notification?.outcome === "rejected")
         input.onDiagnostic(error);
       else {

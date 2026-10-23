@@ -265,3 +265,33 @@ it("waits for Host receipt invalidation before cancellation completes", async ()
   api.invalidateDisplay = async () => undefined;
   await controller.dispose();
 });
+
+it("pauses after asynchronous video activation refusal without restoring the scene", async () => {
+  const { api, driver, commands } = fixture();
+  let notify!: Parameters<PreviewDriver["subscribeFailure"]>[0];
+  driver.subscribeFailure = (listener) => {
+    notify = listener;
+    return () => undefined;
+  };
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "r");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    const current = controller.store.getState().playback!.state;
+    notify({
+      kind: "failed",
+      requestId: current.requestId!,
+      sequence: current.sequence!,
+      outcome: "rejected",
+      phase: "update",
+      message: "video-user-activation-required",
+    });
+    await vi.waitFor(() =>
+      expect(commands.some((command) => command.command === "pause")).toBe(true),
+    );
+    expect(commands.some((command) => command.command === "recover")).toBe(false);
+    expect(controller.store.getState().status).toBe("ready");
+  } finally {
+    await controller.dispose();
+  }
+});

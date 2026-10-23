@@ -21,7 +21,7 @@ import type {
 } from "../api/types.js";
 import { diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
 import { hashJson, renderIntent } from "../lowering/support.js";
-import { checkProjectAssets } from "../validation/check-project-assets.js";
+import { checkProjectAssetReferences } from "../validation/check-project-assets.js";
 
 type ReactProject = CompilerDeclarationProject & {
   presentation: Omit<CompilerDeclarationProject["presentation"], "scene"> & {
@@ -519,7 +519,7 @@ export const resolveOpaqueProject = (
       type: variable.type,
       initialValue: variable.initialValue,
     };
-  const checkedAssets = checkProjectAssets(presentation.assets, project.assets, surfaces);
+  const checkedAssets = checkProjectAssetReferences(presentation.assets, project.assets, surfaces);
   diagnostics.push(...checkedAssets.diagnostics);
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
   const definition: PresentationDefinition = {

@@ -3,6 +3,7 @@ import type {
   PreviewPlaybackResponse,
   PreviewPlaybackCommand,
 } from "@unframe/unframe-cli/author-contract";
+import { UnityExchangeError } from "../../infra/unity-exchange";
 import { createPlaybackController } from "../playback-controller";
 const state = (requestId: string, sequence = "1"): PreviewPlaybackResponse => ({
   mode: "normal",
@@ -70,4 +71,55 @@ it("only sends the newest queued seek after an in-flight delivery", async () => 
     { requestId: "r", command: "seekCue", inspectionId: "i", timeMilliseconds: 200 },
   ]);
   controller.dispose();
+});
+
+it("pauses after browser activation refusal and accepts a later play", async () => {
+  const commands: string[] = [];
+  let sequence = 0;
+  let rejectPlay = false;
+  const fault = vi.fn();
+  const diagnostic = vi.fn();
+  const controller = createPlaybackController({
+    api: {
+      playback: async (command) => {
+        commands.push(command.command);
+        return state("r", String(command.command === "applied" ? sequence : ++sequence));
+      },
+    },
+    driver: {
+      playback: async () => {
+        if (rejectPlay) {
+          rejectPlay = false;
+          throw new UnityExchangeError("video-user-activation-required", {
+            kind: "failed",
+            requestId: "r",
+            sequence: String(sequence),
+            outcome: "rejected",
+            phase: "apply",
+          });
+        }
+      },
+    },
+    onState: () => undefined,
+    onFault: fault,
+    onDiagnostic: diagnostic,
+    pollMilliseconds: 10000,
+  });
+  try {
+    controller.load("r");
+    await vi.waitFor(() => expect(commands).toContain("applied"));
+    rejectPlay = true;
+    controller.command({ command: "play" });
+    await vi.waitFor(() => expect(commands).toContain("pause"));
+    expect(fault).not.toHaveBeenCalled();
+    expect(diagnostic).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "video-user-activation-required" }),
+    );
+    controller.command({ command: "play" });
+    await vi.waitFor(() =>
+      expect(commands.filter((command) => command === "play")).toHaveLength(2),
+    );
+  } finally {
+    controller.dispose();
+  }
 });

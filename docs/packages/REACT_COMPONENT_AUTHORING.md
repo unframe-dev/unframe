@@ -6,7 +6,7 @@
 - **Implementation contract**: [Lock・抽出・編集・capture](./REACT_COMPONENT_EXECUTION_CONTRACT.md)
 - **Scope**: 一ファイルの React Component → 一 import 配置 → 静的 baked-web → Editor 編集・保存 → 有限 State
 
-本書は、Web の UI ライブラリを使う Component の作者向け API と、ローカル Authoring の提供範囲を示す。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v2 の frozen check と native 隔離 Browser capture を接続している。必要な隔離 capability が欠ける場合は拒否する。Linux / macOS arm64 の機構と保証差、macOS の実機検証待ちは [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。ローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redoに対応する。Unity Preview は Core の Cue / Timer / Timeline を使うローカル再生と play / pause / reset に対応する。受け入れ範囲と導入条件は6節を参照する。
+本書は、Web の UI ライブラリを使う Component の作者向け API と、ローカル Authoring の提供範囲を示す。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v3 の frozen check と native 隔離 Browser capture を接続している。必要な隔離 capability が欠ける場合は拒否する。Linux / macOS arm64 の機構と保証差、macOS の実機検証待ちは [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。ローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redoに対応する。Unity Preview は Core の Cue / Timer / Timeline を使うローカル再生と play / pause / reset に対応する。受け入れ範囲と導入条件は6節を参照する。
 
 Surface の Structured / Opaque 表現と Renderer の binding 検証の境界は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) と [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md#a1-の前提契約canonical-surface) に従う。
 
@@ -266,11 +266,11 @@ Presentation ──→ Instance / host Spatial / Surface ──→ isolated Brow
 
 host の初期値は `active: true`、`visible: true`、`opacity: 1`、name は Instance ID とする。初期 API は Transform 全要素と物理サイズを必須にする。静的 Component が states を省略した場合、単一の `default` State と空の公開操作を生成する。State を宣言した場合は initialState を必須にし、暗黙の State は加えない。
 
-ローカル Component は entry と到達する local files の hash で revision を識別し、配布 package の version / integrity を持たない。外部 package は pnpm locator と content integrity、dependency graph で固定する。lock / assembly は local / package origin と structured / opaque mode の union に変更する。具体的な serialized shape、循環依存の扱い、hash 入力と生成 ID の算出は [実装 contract 0節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v2-と生成-id) を正本とする。
+ローカル Component は entry と到達する local files の hash で revision を識別し、配布 package の version / integrity を持たない。外部 package は pnpm locator と content integrity、dependency graph で固定する。lock / assembly は local / package origin と structured / opaque mode の union に変更する。具体的な serialized shape、循環依存の扱い、hash 入力と生成 ID の算出は [実装 contract 0節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v3-と生成-id) を正本とする。
 
 依存更新と build を分離する。明示的な依存更新で pnpm の固定解決結果から描画に必要な依存全体を snapshot し、`unframe.lock` へ保存する。通常の check / build は network、host node_modules、registry へ fallback せず、lock を変更しない。ローカル Source 編集後は、固定外部依存を変更しない local lock 更新を明示的に行う。Editor はこの更新を保存操作に含める。手書き編集で local hash が古い場合、build は更新の必要を診断する。
 
-lock v2 は Opaque / local origin / binary asset を含む。旧 lock v1 からの暗黙変換や互換 fallback は提供せず、Source を更新して lock を明示再生成する。既存 Structured の宣言と canonical 出力の意味は維持する。
+lock v3はOpaque / local originとsource Assetのpath/hash/sizeを固定する。旧schemaからの暗黙変換や互換fallbackは提供せず、Source を更新して lock を明示再生成する。既存 Structured の宣言と canonical 出力の意味は維持する。
 
 固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。通常 CSS の import と url 依存を固定 bundle に含める。PostCSS 8 / Tailwind 4 は project 所有 config / plugin と固定 Node graph を使い、CLI の隔離 Style worker で実行する。設定・依存固定・対応範囲は [Tailwind README](../../packages/unframe-tailwind/README.md) を参照する。Component の意味抽出は引き続き非実行であり、config / plugin の実行と区別する。実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
 

@@ -1,3 +1,4 @@
+import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
 import { describe, expect, it } from "vitest";
 import { standardComponents } from "@unframe/unframe-components";
 import type {
@@ -122,7 +123,6 @@ const project = () => ({
     "reference-font": {
       id: "reference-font",
       mediaType: "font/ttf" as const,
-      dataBase64: "AAEAAAAAAAAAAAAA",
       encodedSizeBytes: 12,
       checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
     },
@@ -139,7 +139,7 @@ const nullPrototype = (value: unknown): unknown => {
 };
 
 const codes = (value: unknown) => {
-  const result = checkDeclarationProject(value);
+  const result = checkDeclarationProjectWithFixtureBytes(value);
   return result.valid ? [] : result.diagnostics.map((item) => item.code);
 };
 
@@ -150,7 +150,12 @@ describe("checkDeclarationProject", () => {
     { ...presentation(), scene: [], flow: null },
   ])("rejects malformed React Presentation headers as declarations: %j", (presentation) => {
     expect(
-      checkDeclarationProject({ presentation, themes: [], components: [], assets: {} }),
+      checkDeclarationProjectWithFixtureBytes({
+        presentation,
+        themes: [],
+        components: [],
+        assets: {},
+      }),
     ).toMatchObject({
       valid: false,
       diagnostics: [{ code: "compiler-invalid-declaration", path: ["presentation"] }],
@@ -162,7 +167,7 @@ describe("checkDeclarationProject", () => {
     (text) => {
       const input = project();
       input.components[0]!.lock.origin.sourceHash = text;
-      expect(checkDeclarationProject(input)).toMatchObject({
+      expect(checkDeclarationProjectWithFixtureBytes(input)).toMatchObject({
         valid: false,
         diagnostics: [
           {
@@ -177,7 +182,7 @@ describe("checkDeclarationProject", () => {
   it.each(["\ud800", "\udc00"])("rejects a lone surrogate object key as input: %j", (key) => {
     const input = project();
     Object.defineProperty(input.presentation.metadata, key, { value: "value", enumerable: true });
-    expect(checkDeclarationProject(input)).toMatchObject({
+    expect(checkDeclarationProjectWithFixtureBytes(input)).toMatchObject({
       valid: false,
       diagnostics: [{ code: "compiler-invalid-input", path: ["presentation", "metadata"] }],
     });
@@ -186,7 +191,7 @@ describe("checkDeclarationProject", () => {
   it("accepts a well-formed surrogate pair in lock metadata", () => {
     const input = project();
     input.components[0]!.lock.origin.sourceHash = "\ud83d\ude00";
-    expect(checkDeclarationProject(input).valid).toBe(true);
+    expect(checkDeclarationProjectWithFixtureBytes(input).valid).toBe(true);
   });
 
   it("resolves Grid placement into partition bounds", () => {
@@ -238,7 +243,7 @@ describe("checkDeclarationProject", () => {
         },
       },
     } as ComponentStructure;
-    const checked = checkDeclarationProject(input);
+    const checked = checkDeclarationProjectWithFixtureBytes(input);
     expect(checked.valid ? [] : checked.diagnostics).toEqual([]);
     if (!checked.valid) return;
     const surface = checked.value.definition.scene.surfaces["instance:surface-root"]!;
@@ -272,7 +277,6 @@ describe("checkDeclarationProject", () => {
       ),
       (char) => char.charCodeAt(0),
     );
-    const dataBase64 = btoa(String.fromCharCode(...bytes));
     input.assets = {
       ...input.assets,
       picture: {
@@ -280,7 +284,6 @@ describe("checkDeclarationProject", () => {
         mediaType: "image/png",
         checksum: checksumBytes(bytes),
         encodedSizeBytes: bytes.length,
-        dataBase64,
       },
     };
     input.presentation = {
@@ -332,7 +335,7 @@ describe("checkDeclarationProject", () => {
         },
       },
     } as ComponentStructure;
-    const checked = checkDeclarationProject(input);
+    const checked = checkDeclarationProjectWithFixtureBytes(input);
     expect(checked.valid ? [] : checked.diagnostics).toEqual([]);
     if (!checked.valid) return;
     const surface = checked.value.definition.scene.surfaces["instance:surface-root"]!;
@@ -409,7 +412,7 @@ describe("checkDeclarationProject", () => {
       fit: "contain",
       transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     };
-    const result = checkDeclarationProject({
+    const result = checkDeclarationProjectWithFixtureBytes({
       ...input,
       presentation: {
         ...input.presentation,
@@ -496,7 +499,7 @@ describe("checkDeclarationProject", () => {
       fit: "contain",
       transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     };
-    const result = checkDeclarationProject({
+    const result = checkDeclarationProjectWithFixtureBytes({
       ...input,
       presentation: {
         ...input.presentation,
@@ -582,7 +585,7 @@ describe("checkDeclarationProject", () => {
     ).toEqual({ "react-first": 0, "structured-second": 1, "structured-explicit": 7 });
   });
   it("identifies the lowered content as a structured tree", () => {
-    const result = checkDeclarationProject(project());
+    const result = checkDeclarationProjectWithFixtureBytes(project());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(Object.values(result.value.definition.scene.surfaces)[0]).toHaveProperty(
@@ -658,7 +661,7 @@ describe("checkDeclarationProject", () => {
       trigger: { kind: "component.output", componentInstanceId: "instance", outputId: "finished" },
       actions: [],
     });
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(result.value.definition.flow.timelines["instance:fade"]).toEqual({
@@ -709,7 +712,7 @@ describe("checkDeclarationProject", () => {
         },
       ],
     };
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(
@@ -850,7 +853,7 @@ describe("checkDeclarationProject", () => {
         },
       },
     };
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(result.value.definition.flow.groups.group?.steps.step?.cues).toEqual([
@@ -943,7 +946,7 @@ describe("checkDeclarationProject", () => {
         },
       },
     };
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(result.value.definition.flow.groups.group?.steps.step?.cues).toEqual([
@@ -961,7 +964,7 @@ describe("checkDeclarationProject", () => {
       }),
     ]);
   });
-  it("rejects undeclared Timeline effects and media Output producers", () => {
+  it("rejects undeclared Timeline effects and media Outputs on non-video Surfaces", () => {
     const input = project() as StructuredProject & {
       components: StructuredProject["components"][number][];
     };
@@ -985,10 +988,7 @@ describe("checkDeclarationProject", () => {
       },
     };
     expect(codes(input)).toEqual(
-      expect.arrayContaining([
-        "compiler-timeline-not-found",
-        "compiler-output-producer-unsupported",
-      ]),
+      expect.arrayContaining(["compiler-timeline-not-found", "compiler-media-target-invalid"]),
     );
   });
   it("lowers finite states, visual changes, semantic changes and interactions", () => {
@@ -1081,7 +1081,7 @@ describe("checkDeclarationProject", () => {
         } as SurfaceDeclaration,
       } as ComponentStructure,
     };
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     const surface = result.value.definition.scene.surfaces["instance:surface-root"]!;
@@ -1144,12 +1144,11 @@ describe("checkDeclarationProject", () => {
       "reference-font": {
         id: "reference-font",
         mediaType: "font/ttf",
-        dataBase64: "AAEAAAAAAAAAAAAA",
         encodedSizeBytes: 12,
         checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
       },
     };
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid).toBe(true);
     if (!result.valid) return;
     expect(result.value.definition.schemaVersion).toBe(2);
@@ -1189,7 +1188,7 @@ describe("checkDeclarationProject", () => {
       density: "compact",
     };
 
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
 
     expect(result.valid).toBe(true);
     if (!result.valid) return;
@@ -1210,7 +1209,7 @@ describe("checkDeclarationProject", () => {
   });
 
   it.each([
-    ["noncanonical base64", { dataBase64: "AAEAAAAAAAAAAAA" }],
+    ["unexpected payload field", { dataBase64: "AAEAAAAAAAAAAAA" }],
     ["encoded length mismatch", { encodedSizeBytes: 11 }],
     [
       "checksum mismatch",
@@ -1219,7 +1218,6 @@ describe("checkDeclarationProject", () => {
     [
       "font signature mismatch",
       {
-        dataBase64: "T1RUAAAAAAAAAAAA",
         checksum: "sha256:a1f098f0b83e4000e5265942ea3a38af0c92d06425a754ba6f28c301a66388c0",
       },
     ],
@@ -1307,7 +1305,7 @@ describe("checkDeclarationProject", () => {
       limit: 80,
     };
 
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
 
     expect(result.valid).toBe(true);
     if (!result.valid) return;
@@ -1416,7 +1414,7 @@ describe("checkDeclarationProject", () => {
       },
     ];
 
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
 
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
@@ -1670,7 +1668,7 @@ describe("checkDeclarationProject", () => {
       },
     });
 
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
 
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
@@ -1697,7 +1695,7 @@ describe("checkDeclarationProject", () => {
     slotPlaceholder.semanticParentId = "missing";
     expect(codes(input)).toContain("compiler-slot-semantic-parent-not-found");
     slotPlaceholder.semanticParentId = "semantic-text";
-    const attached = checkDeclarationProject(input);
+    const attached = checkDeclarationProjectWithFixtureBytes(input);
     expect(attached.valid ? [] : attached.diagnostics.map(({ code }) => code)).toContain(
       "graph.invalid",
     );
@@ -1780,13 +1778,13 @@ describe("checkDeclarationProject", () => {
       { presentation: {}, themes: {}, components: [], assets: {} },
       { presentation: {}, themes: [], components: [], assets: {}, extra: sparse },
     ]) {
-      expect(() => checkDeclarationProject(input)).not.toThrow();
+      expect(() => checkDeclarationProjectWithFixtureBytes(input)).not.toThrow();
       expect(codes(input)).not.toEqual([]);
     }
   });
 
   it("lowers the reference structured Surface to a Core-valid canonical Definition", () => {
-    const result = checkDeclarationProject(project());
+    const result = checkDeclarationProjectWithFixtureBytes(project());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(validatePresentationDefinition(result.value.definition).valid).toBe(true);
@@ -1800,7 +1798,7 @@ describe("checkDeclarationProject", () => {
     expect(result.value.sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.definitionHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.sourceHash).toBe(
-      "sha256:aa489f983b548617876a4e79f710321d159d6ebd572b1d39db558806dd64ce01",
+      "sha256:d76fe9a10ae41c742cecda8b85b0a5e44bb242273601dbb6b2d0d4d2002c667b",
     );
     expect(result.value.definitionHash).toBe(
       "sha256:feeb8319fee482e9d68aaeb3f71546284aa0bc3a1d12f989fac1e67832509ed0",
@@ -1809,7 +1807,7 @@ describe("checkDeclarationProject", () => {
 
   it("accepts recursively null-prototype declaration data", () => {
     const normalized = nullPrototype(project());
-    const result = checkDeclarationProject(normalized);
+    const result = checkDeclarationProjectWithFixtureBytes(normalized);
 
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
   });
@@ -1817,7 +1815,7 @@ describe("checkDeclarationProject", () => {
   it("normalizes Spatial rotations to the v2 canonical quaternion form", () => {
     const input = project();
     input.presentation.scene.spatial[0]!.transform.rotation = [-2, -0, -0, -0];
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(result.value.definition.scene.nodes["instance:spatial"]?.transform.rotation).toEqual([
@@ -1839,7 +1837,7 @@ describe("checkDeclarationProject", () => {
       },
     });
 
-    const result = checkDeclarationProject(value);
+    const result = checkDeclarationProjectWithFixtureBytes(value);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     expect(reads).toBe(0);
   });
@@ -1883,7 +1881,7 @@ describe("checkDeclarationProject", () => {
     };
     firstProject.components[0]!.structure = structure;
     firstProject.assets = { "asset-a": validAssetA, "asset-b": validAssetB };
-    const first = checkDeclarationProject(firstProject);
+    const first = checkDeclarationProjectWithFixtureBytes(firstProject);
     const secondProject = project();
     secondProject.components[0]!.structure = structure;
     secondProject.presentation.assets = [...firstProject.presentation.assets];
@@ -1891,7 +1889,7 @@ describe("checkDeclarationProject", () => {
       "asset-b": validAssetB,
       "asset-a": validAssetA,
     };
-    const second = checkDeclarationProject(secondProject);
+    const second = checkDeclarationProjectWithFixtureBytes(secondProject);
     expect(first).toMatchObject({ valid: true });
     expect(second).toMatchObject({ valid: true });
     if (!first.valid || !second.valid) return;
@@ -1901,7 +1899,7 @@ describe("checkDeclarationProject", () => {
   it("does not mutate input and rejects duplicate catalogs, empty locks, interactions, and node parents", () => {
     const value = project();
     const before = structuredClone(value);
-    checkDeclarationProject(value);
+    checkDeclarationProjectWithFixtureBytes(value);
     expect(value).toEqual(before);
 
     const duplicateTheme = project();
@@ -2064,7 +2062,7 @@ describe("checkDeclarationProject", () => {
 
   it("lowers nested absolute Frames and rejects nonempty actions, outputs, cues, and operations", () => {
     const nested = project();
-    const nestedResult = checkDeclarationProject({
+    const nestedResult = checkDeclarationProjectWithFixtureBytes({
       ...nested,
       components: [
         {
@@ -2158,7 +2156,7 @@ describe("checkDeclarationProject", () => {
   it("uses escaped instance-local identifiers and rejects hostile boundary values", () => {
     const escaped = project();
     escaped.presentation.scene.components[0]!.id = "instance/a";
-    const result = checkDeclarationProject(escaped);
+    const result = checkDeclarationProjectWithFixtureBytes(escaped);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (result.valid)
       expect(result.value.definition.scene.surfaces).toHaveProperty("instance/a:surface-root");
@@ -2180,7 +2178,7 @@ describe("checkDeclarationProject", () => {
 
     const malformedStructure = project();
     (malformedStructure.components[0] as unknown as { structure: unknown }).structure = {};
-    const malformedStructureResult = checkDeclarationProject(malformedStructure);
+    const malformedStructureResult = checkDeclarationProjectWithFixtureBytes(malformedStructure);
     expect(malformedStructureResult).toMatchObject({
       valid: false,
       diagnostics: [
@@ -2193,7 +2191,7 @@ describe("checkDeclarationProject", () => {
 
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;
-    expect(() => checkDeclarationProject(cyclic)).not.toThrow();
+    expect(() => checkDeclarationProjectWithFixtureBytes(cyclic)).not.toThrow();
     expect(codes(cyclic)).toContain("compiler-invalid-input");
 
     expect(codes({ presentation: undefined })).toContain("compiler-invalid-input");
@@ -2205,7 +2203,7 @@ describe("checkDeclarationProject", () => {
         throw new Error("hostile");
       },
     });
-    expect(() => checkDeclarationProject(throwingGetter)).not.toThrow();
+    expect(() => checkDeclarationProjectWithFixtureBytes(throwingGetter)).not.toThrow();
     expect(codes(throwingGetter)).toContain("compiler-invalid-input");
 
     const symbol = project() as Record<string | symbol, unknown>;
@@ -2295,7 +2293,7 @@ describe("checkDeclarationProject", () => {
     input.presentation.scene.components = [first.instance, second.instance];
     (input as unknown as { components: unknown[] }).components = [first.catalog, second.catalog];
 
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
 
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
@@ -2386,7 +2384,7 @@ describe("checkDeclarationProject", () => {
       checksum: "sha256:invalid",
     };
 
-    const result = checkDeclarationProject(input);
+    const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([
       {
         code: "compiler-invalid-asset",
@@ -2400,7 +2398,7 @@ describe("checkDeclarationProject", () => {
 describe("compileDeclarationProject", () => {
   it("returns an input diagnostic for a React Presentation with a missing header", async () => {
     await expect(
-      compileDeclarationProject(
+      compileDeclarationProjectWithFixtureBytes(
         {
           presentation: { scene: [] },
           themes: [],
@@ -2420,7 +2418,7 @@ describe("compileDeclarationProject", () => {
     async (text) => {
       const input = project();
       input.components[0]!.lock.origin.sourceHash = text;
-      await expect(compileDeclarationProject(input, {})).resolves.toMatchObject({
+      await expect(compileDeclarationProjectWithFixtureBytes(input, {})).resolves.toMatchObject({
         valid: false,
         diagnostics: [{ code: "compiler-invalid-input" }],
       });
@@ -2503,7 +2501,6 @@ describe("compileDeclarationProject", () => {
         mediaType: "image/png",
         checksum: checksumBytes(bytes),
         encodedSizeBytes: bytes.length,
-        dataBase64,
       },
     };
     input.presentation = {
@@ -2544,7 +2541,10 @@ describe("compileDeclarationProject", () => {
         return renderer.build(buildInput);
       },
     };
-    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    const result = await compileDeclarationProjectWithFixtureBytes(input, {
+      ...options(),
+      renderers: [observing],
+    });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     expect(received).toEqual({
       mediaType: "image/png",
@@ -2585,7 +2585,10 @@ describe("compileDeclarationProject", () => {
         return renderer.build(value);
       },
     };
-    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    const result = await compileDeclarationProjectWithFixtureBytes(input, {
+      ...options(),
+      renderers: [observing],
+    });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(calls).toBe(0);
@@ -2629,7 +2632,7 @@ describe("compileDeclarationProject", () => {
         },
       } as ComponentStructure,
     };
-    const result = await compileDeclarationProject(input, options());
+    const result = await compileDeclarationProjectWithFixtureBytes(input, options());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
@@ -2711,7 +2714,10 @@ describe("compileDeclarationProject", () => {
         return renderer.build(value);
       },
     };
-    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    const result = await compileDeclarationProjectWithFixtureBytes(input, {
+      ...options(),
+      renderers: [observing],
+    });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     const compiled = Object.values(result.value.renderBundle.surfaces)[0]!;
@@ -2764,7 +2770,7 @@ describe("compileDeclarationProject", () => {
         },
       } as ComponentStructure,
     };
-    const result = await compileDeclarationProject(input, options());
+    const result = await compileDeclarationProjectWithFixtureBytes(input, options());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
@@ -2813,9 +2819,9 @@ describe("compileDeclarationProject", () => {
       };
       return input;
     };
-    const flat = await compileDeclarationProject(withRadius(0), options());
-    const rounded = await compileDeclarationProject(withRadius(3), options());
-    const repeated = await compileDeclarationProject(withRadius(3), options());
+    const flat = await compileDeclarationProjectWithFixtureBytes(withRadius(0), options());
+    const rounded = await compileDeclarationProjectWithFixtureBytes(withRadius(3), options());
+    const repeated = await compileDeclarationProjectWithFixtureBytes(withRadius(3), options());
     expect(flat.valid ? [] : flat.diagnostics).toEqual([]);
     expect(rounded.valid ? [] : rounded.diagnostics).toEqual([]);
     expect(repeated.valid ? [] : repeated.diagnostics).toEqual([]);
@@ -2847,7 +2853,7 @@ describe("compileDeclarationProject", () => {
         return renderer.build(value);
       },
     };
-    const result = await compileDeclarationProject(partitionedInput(), {
+    const result = await compileDeclarationProjectWithFixtureBytes(partitionedInput(), {
       ...options(),
       renderers: [failing],
     });
@@ -2882,7 +2888,7 @@ describe("compileDeclarationProject", () => {
         };
       },
     };
-    await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    await compileDeclarationProjectWithFixtureBytes(input, { ...options(), renderers: [probe] });
     expect(bounds).toEqual({ x: 420, y: 0, width: 1080, height: 1080 });
   });
 
@@ -2929,7 +2935,7 @@ describe("compileDeclarationProject", () => {
         },
       } as ComponentStructure,
     };
-    const result = await compileDeclarationProject(input, options());
+    const result = await compileDeclarationProjectWithFixtureBytes(input, options());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(
@@ -2987,7 +2993,10 @@ describe("compileDeclarationProject", () => {
         return renderer.build(value);
       },
     };
-    const result = await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    const result = await compileDeclarationProjectWithFixtureBytes(input, {
+      ...options(),
+      renderers: [probe],
+    });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     expect(owned).toEqual(["instance:frame-root", "instance:text-content"]);
   });
@@ -3038,7 +3047,10 @@ describe("compileDeclarationProject", () => {
         return renderer.build(value);
       },
     };
-    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    const result = await compileDeclarationProjectWithFixtureBytes(input, {
+      ...options(),
+      renderers: [observing],
+    });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(calls).toBe(0);
@@ -3103,7 +3115,10 @@ describe("compileDeclarationProject", () => {
         return renderer.build(value);
       },
     };
-    const result = await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    const result = await compileDeclarationProjectWithFixtureBytes(input, {
+      ...options(),
+      renderers: [probe],
+    });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(owned).not.toContain("instance:frame-root");
@@ -3157,7 +3172,7 @@ describe("compileDeclarationProject", () => {
         return renderer.build(rendererInput);
       },
     };
-    const result = await compileDeclarationProject(input, {
+    const result = await compileDeclarationProjectWithFixtureBytes(input, {
       ...options(),
       renderers: [countingRenderer],
     });
@@ -3215,7 +3230,7 @@ describe("compileDeclarationProject", () => {
         return renderer.build(rendererInput);
       },
     };
-    const result = await compileDeclarationProject(
+    const result = await compileDeclarationProjectWithFixtureBytes(
       {
         presentation: { ...header, scene, assets: [] },
         themes: [],
@@ -3340,7 +3355,7 @@ describe("compileDeclarationProject", () => {
         return renderer.build(rendererInput);
       },
     };
-    const result = await compileDeclarationProject(mixed, {
+    const result = await compileDeclarationProjectWithFixtureBytes(mixed, {
       ...options(),
       renderers: [countingRenderer],
     });
@@ -3354,8 +3369,8 @@ describe("compileDeclarationProject", () => {
   });
 
   it("renders every Surface state into a canonical valid RenderBundle without changing check", async () => {
-    const before = checkDeclarationProject(project());
-    const result = await compileDeclarationProject(project(), options());
+    const before = checkDeclarationProjectWithFixtureBytes(project());
+    const result = await compileDeclarationProjectWithFixtureBytes(project(), options());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(result.value.renderBundleHash).toMatch(/^sha256:[0-9a-f]{64}$/);
@@ -3386,8 +3401,8 @@ describe("compileDeclarationProject", () => {
         artifactIds: [artifactId],
       },
     });
-    expect(checkDeclarationProject(project())).toEqual(before);
-    const repeated = await compileDeclarationProject(project(), options());
+    expect(checkDeclarationProjectWithFixtureBytes(project())).toEqual(before);
+    const repeated = await compileDeclarationProjectWithFixtureBytes(project(), options());
     expect(repeated.valid).toBe(true);
     if (!repeated.valid) return;
     expect({ ...repeated.value, assets: undefined }).toEqual({
@@ -3417,7 +3432,7 @@ describe("compileDeclarationProject", () => {
       },
     });
 
-    const result = await compileDeclarationProject(project(), hostile);
+    const result = await compileDeclarationProjectWithFixtureBytes(project(), hostile);
 
     expect(accessed).toBe(false);
     expect(result.valid).toBe(false);
@@ -3426,12 +3441,12 @@ describe("compileDeclarationProject", () => {
   });
 
   it("binds bundle identity to compiler and build context", async () => {
-    const baseline = await compileDeclarationProject(project(), options());
-    const differentCompiler = await compileDeclarationProject(project(), {
+    const baseline = await compileDeclarationProjectWithFixtureBytes(project(), options());
+    const differentCompiler = await compileDeclarationProjectWithFixtureBytes(project(), {
       ...options(),
       compiler: { ...options().compiler, version: "2" },
     });
-    const differentLocale = await compileDeclarationProject(project(), {
+    const differentLocale = await compileDeclarationProjectWithFixtureBytes(project(), {
       ...options(),
       locale: "en-US",
     });
@@ -3466,7 +3481,7 @@ describe("compileDeclarationProject", () => {
       },
     };
 
-    const result = await compileDeclarationProject(value, {
+    const result = await compileDeclarationProjectWithFixtureBytes(value, {
       ...options(),
       renderers: [orderedRenderer],
     });
@@ -3476,13 +3491,16 @@ describe("compileDeclarationProject", () => {
   });
 
   it("keeps renderer and encoder failures on the diagnostic boundary", async () => {
-    const noRenderer = await compileDeclarationProject(project(), { ...options(), renderers: [] });
+    const noRenderer = await compileDeclarationProjectWithFixtureBytes(project(), {
+      ...options(),
+      renderers: [],
+    });
     expect(noRenderer.valid && noRenderer.value).toBeFalsy();
     if (!noRenderer.valid)
       expect(noRenderer.diagnostics.map((item) => item.code)).toContain(
         "compiler-renderer-not-found",
       );
-    const duplicateRenderer = await compileDeclarationProject(project(), {
+    const duplicateRenderer = await compileDeclarationProjectWithFixtureBytes(project(), {
       ...options(),
       renderers: [renderer, { ...renderer }],
     });
@@ -3491,7 +3509,7 @@ describe("compileDeclarationProject", () => {
       expect(duplicateRenderer.diagnostics.map((item) => item.code)).toContain(
         "compiler-renderer-ambiguous",
       );
-    const invalidRenderer = await compileDeclarationProject(project(), {
+    const invalidRenderer = await compileDeclarationProjectWithFixtureBytes(project(), {
       ...options(),
       renderers: [{ ...renderer, build: undefined } as never],
     });
@@ -3506,7 +3524,7 @@ describe("compileDeclarationProject", () => {
         throw new Error("nope");
       },
     };
-    const failure = await compileDeclarationProject(project(), {
+    const failure = await compileDeclarationProjectWithFixtureBytes(project(), {
       ...options(),
       renderers: [throwing],
     });
@@ -3520,14 +3538,14 @@ describe("compileDeclarationProject", () => {
         return renderer.build(input);
       },
     };
-    const mutation = await compileDeclarationProject(project(), {
+    const mutation = await compileDeclarationProjectWithFixtureBytes(project(), {
       ...options(),
       renderers: [mutating],
     });
     expect(mutation.valid).toBe(false);
     if (!mutation.valid)
       expect(mutation.diagnostics.map((item) => item.code)).toContain("renderer-mutated-input");
-    const encoding = await compileDeclarationProject(project(), {
+    const encoding = await compileDeclarationProjectWithFixtureBytes(project(), {
       ...options(),
       encodeLimits: { ...PNG_ABSOLUTE_LIMITS, maxWidth: 1 },
     });
@@ -3537,7 +3555,7 @@ describe("compileDeclarationProject", () => {
   });
 
   it("rejects an unsupported renderer contract before building", async () => {
-    const result = await compileDeclarationProject(project(), {
+    const result = await compileDeclarationProjectWithFixtureBytes(project(), {
       ...options(),
       renderers: [{ ...renderer, identity: { ...renderer.identity, contractVersion: "999" } }],
     });
@@ -3549,7 +3567,7 @@ describe("compileDeclarationProject", () => {
   });
 
   it("exposes internal failure stage and cause without including private data in the message", async () => {
-    const checked = checkDeclarationProject(project());
+    const checked = checkDeclarationProjectWithFixtureBytes(project());
     expect(checked.valid).toBe(true);
     if (!checked.valid) return;
     const cause = new Error("private source content");
@@ -3559,7 +3577,7 @@ describe("compileDeclarationProject", () => {
       },
     });
     await expect(
-      compileCheckedDeclarationProject(project(), broken, options()),
+      compileCheckedDeclarationProjectWithFixtureBytes(project(), broken, options()),
     ).rejects.toMatchObject({
       name: "CompilerInternalError",
       code: "compiler-internal-error",
@@ -3578,7 +3596,7 @@ describe("compileDeclarationProject", () => {
         return "private-source";
       },
     });
-    const result = await compileDeclarationProject(project(), options(), {
+    const result = await compileDeclarationProjectWithFixtureBytes(project(), options(), {
       get: () => entry,
       set: () => {},
     });
@@ -3602,7 +3620,7 @@ describe("compileDeclarationProject", () => {
         return renderer.build(input);
       },
     };
-    const first = await compileDeclarationProject(
+    const first = await compileDeclarationProjectWithFixtureBytes(
       project(),
       { ...options(), renderers: [counting] },
       cache,
@@ -3619,12 +3637,12 @@ describe("compileDeclarationProject", () => {
           },
         });
     }
-    const repeated = await compileDeclarationProject(
+    const repeated = await compileDeclarationProjectWithFixtureBytes(
       project(),
       { ...options(), renderers: [counting] },
       cache,
     );
-    const changed = await compileDeclarationProject(
+    const changed = await compileDeclarationProjectWithFixtureBytes(
       project(),
       { ...options(), locale: "en-US", renderers: [counting] },
       cache,
@@ -3651,17 +3669,17 @@ describe("compileDeclarationProject", () => {
       },
     };
     const alternative = { ...renderer, identity: { ...renderer.identity, id: "alternative" } };
-    const first = await compileDeclarationProject(
+    const first = await compileDeclarationProjectWithFixtureBytes(
       project(),
       { ...options(), renderers: [counting, alternative] },
       cache,
     );
-    const reordered = await compileDeclarationProject(
+    const reordered = await compileDeclarationProjectWithFixtureBytes(
       project(),
       { ...options(), renderers: [alternative, counting] },
       cache,
     );
-    const changed = await compileDeclarationProject(
+    const changed = await compileDeclarationProjectWithFixtureBytes(
       project(),
       {
         ...options(),
@@ -3693,7 +3711,7 @@ describe("compileDeclarationProject", () => {
       },
     };
     const config = { ...options(), renderers: [counting] };
-    const first = await compileDeclarationProject(project(), config, cache);
+    const first = await compileDeclarationProjectWithFixtureBytes(project(), config, cache);
     expect(first.valid).toBe(true);
     const key = [...entries.keys()][0];
     if (!key) throw new Error("Expected a cached build.");
@@ -3701,7 +3719,7 @@ describe("compileDeclarationProject", () => {
     const bytes = Object.values(entry.assets)[0];
     if (!bytes) throw new Error("Expected an encoded asset.");
     bytes[0] = (bytes[0] ?? 0) ^ 1;
-    const repeated = await compileDeclarationProject(project(), config, cache);
+    const repeated = await compileDeclarationProjectWithFixtureBytes(project(), config, cache);
     expect(repeated.valid).toBe(true);
     expect(builds).toBe(2);
   });
@@ -3723,7 +3741,7 @@ describe("compileDeclarationProject", () => {
       },
     };
     const config = { ...options(), renderers: [counting] };
-    const first = await compileDeclarationProject(project(), config, cache);
+    const first = await compileDeclarationProjectWithFixtureBytes(project(), config, cache);
     expect(first.valid).toBe(true);
     const key = [...entries.keys()][0];
     if (!key) throw new Error("Expected a cached build.");
@@ -3733,7 +3751,7 @@ describe("compileDeclarationProject", () => {
     };
     entry.definition.presentationId = "tampered";
     entry.warnings.push({ code: "tampered" });
-    const repeated = await compileDeclarationProject(project(), config, cache);
+    const repeated = await compileDeclarationProjectWithFixtureBytes(project(), config, cache);
     expect(repeated.valid).toBe(true);
     if (repeated.valid && first.valid)
       expect(repeated.value.warnings).toEqual(first.value.warnings);
@@ -3749,8 +3767,74 @@ describe("compileDeclarationProject", () => {
         return renderer.build(input);
       },
     };
-    expect(checkDeclarationProject(project()).valid).toBe(true);
+    expect(checkDeclarationProjectWithFixtureBytes(project()).valid).toBe(true);
     expect(calls).toBe(0);
     expect(unused).toBeDefined();
   });
+  describe("independent source asset bytes at the public compiler boundary", () => {
+    it("rejects nonempty descriptors when bytes are omitted", () => {
+      expect(checkDeclarationProject(project()).valid).toBe(false);
+    });
+
+    it("rejects mutated bytes before consulting the cache", async () => {
+      const input = project();
+      const bytes = fixtureSourceAssetBytes(input);
+      bytes["reference-font"]![0] = 255;
+      let cacheConsulted = false;
+      const result = await compileDeclarationProject(input, options(), bytes, {
+        get: () => {
+          cacheConsulted = true;
+          return undefined;
+        },
+        set: () => {},
+      });
+      expect(result.valid).toBe(false);
+      expect(cacheConsulted).toBe(false);
+    });
+
+    it("retains the validated bytes while cache lookup awaits caller changes", async () => {
+      const input = project();
+      const bytes = fixtureSourceAssetBytes(input);
+      const expected = bytes["reference-font"]!.slice();
+      let release!: () => void;
+      let entered!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const pending = compileDeclarationProject(input, options(), bytes, {
+        get: async () => {
+          entered();
+          await gate;
+          return undefined;
+        },
+        set: () => {},
+      });
+      await started;
+      bytes["reference-font"]!.fill(255);
+      input.assets = {};
+      release();
+      const result = await pending;
+      expect(result.valid ? [] : result.diagnostics).toEqual([]);
+      if (!result.valid) throw new Error("Expected the initial source snapshot to compile");
+      expect(result.value.assets["reference-font"]).toEqual(expected);
+    });
+  });
 });
+
+const checkDeclarationProjectWithFixtureBytes = (input: unknown) =>
+  checkDeclarationProject(input, fixtureSourceAssetBytes(input));
+const compileDeclarationProjectWithFixtureBytes = (
+  input: unknown,
+  config: unknown,
+  cache?: import("../src/cache/build-cache.js").CompilerBuildCache,
+) => compileDeclarationProject(input, config, fixtureSourceAssetBytes(input), cache);
+const compileCheckedDeclarationProjectWithFixtureBytes = (
+  input: CompilerDeclarationProject,
+  checked: import("../src/index.js").CheckedDeclarationProject,
+  config: unknown,
+  cache?: import("../src/cache/build-cache.js").CompilerBuildCache,
+) =>
+  compileCheckedDeclarationProject(input, checked, config, fixtureSourceAssetBytes(input), cache);

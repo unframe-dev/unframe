@@ -19,6 +19,7 @@ import {
 } from "../src/styles/node-snapshot.js";
 import { runIsolatedWorker } from "@unframe/unframe-worker-host";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 vi.mock("@unframe/unframe-worker-host", async (original) => ({
   ...(await original<typeof import("@unframe/unframe-worker-host")>()),
@@ -70,6 +71,7 @@ const fixture = async () => {
       variables: {},
     },
   };
+  await clearSourceAssetRegistration(directory, original.entryFile);
   await writeFile(
     join(directory, "unframe.lock"),
     canonicalizeJsonPayload({ ...originalLock.value.lock, assets: [] }) + "\n",

@@ -39,7 +39,7 @@ const validLock = (): UnframeLock => {
   };
   pkg.contentIntegrity = hashLockedPackageContent(pkg);
   const lock: UnframeLock = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     packageSnapshotProfile: "pnpm-lock9-locator-v1",
     resolutionProfile: "browser-import-production-types-v1",
     extractionProfile: "react-component-v1",
@@ -66,10 +66,10 @@ const validLock = (): UnframeLock => {
     assets: [
       {
         id: "font",
+        path: "assets/font.ttf",
         mediaType: "font/ttf",
         hash: digest(new Uint8Array([1, 2, 3])),
         size: 3,
-        dataBase64: "AQID",
       },
     ],
     rendererPlugins: [
@@ -86,7 +86,7 @@ const errorCode = (lock: unknown) => {
   return result.ok ? "ok" : result.diagnostic.code;
 };
 
-describe("unframe.lock v2 boundary", () => {
+describe("unframe.lock v3 boundary", () => {
   it("loads a frozen local Component and package graph", () => {
     const lock = validLock();
     const result = loadUnframeLock(bytes(lock));
@@ -102,8 +102,12 @@ describe("unframe.lock v2 boundary", () => {
     });
   });
 
-  it("rejects v1 and unknown nested fields", () => {
+  it("rejects embedded-byte locks and unknown nested fields", () => {
     expect(errorCode({ ...validLock(), schemaVersion: 1 })).toBe("cli-lock-shape-invalid");
+    expect(errorCode({ ...validLock(), schemaVersion: 2 })).toBe("cli-lock-shape-invalid");
+    const embedded = validLock();
+    embedded.assets[0] = { ...embedded.assets[0]!, dataBase64: "AQID" } as never;
+    expect(errorCode(embedded)).toBe("cli-lock-shape-invalid");
     const lock = validLock();
     lock.packages[0]!.files[0] = { ...lock.packages[0]!.files[0]!, extra: 1 } as never;
     expect(errorCode(lock)).toBe("cli-lock-shape-invalid");
@@ -135,8 +139,8 @@ describe("unframe.lock v2 boundary", () => {
 
   it("rejects invalid binary, missing references, and unreachable packages", () => {
     const invalidAsset = validLock();
-    invalidAsset.assets[0]!.dataBase64 = "AQI=";
-    expect(errorCode(invalidAsset)).toBe("cli-lock-asset-hash-invalid");
+    invalidAsset.assets[0]!.path = "../font.ttf";
+    expect(errorCode(invalidAsset)).toBe("cli-lock-shape-invalid");
 
     const missing = validLock();
     missing.rootDependencies[0]!.packageKey = digest("missing");

@@ -18,7 +18,10 @@ export function PlaybackControls() {
         <Button
           aria-label="再生"
           disabled={!ready || !p || p.ended || !!p.state.clock?.running}
-          onClick={() => w.commands.playback({ command: "play" })}
+          onClick={() => {
+            (window as Window & { unframeVideoActivate?: () => void }).unframeVideoActivate?.();
+            w.commands.playback({ command: "play" });
+          }}
         >
           <PlayIcon weight="fill" />
         </Button>

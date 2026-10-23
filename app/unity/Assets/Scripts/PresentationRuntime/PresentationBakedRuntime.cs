@@ -19,6 +19,8 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly PresentationNodeStateApplier stateApplier = new PresentationNodeStateApplier();
         private readonly PresentationPlaybackPlayer playback = new PresentationPlaybackPlayer();
         private PresentationTextureResidency textures;
+        private PresentationModelResidency models;
+        private PresentationVideoResidency videos;
         private PresentationBakedSurfaceRenderer surfaceRenderer;
         private PresentationRealtimeConnection connection;
         private RuntimeClockSnapshot clock;
@@ -65,7 +67,8 @@ namespace Unframe.Unity.PresentationRuntime
             presentationSpace.gameObject.SetActive(isActiveAndEnabled && SessionReady);
         }
         public bool DownloadReady { get; private set; }
-        public bool ResidentReady { get { return textures != null && store.Delivery != null && store.Delivery.Residency.Textures != null && textures.IsReady(store.Delivery.Residency.Textures.Textures); } }
+        private bool TextureReady { get { return textures != null && store.Delivery != null && store.Delivery.Residency.Textures != null && textures.IsReady(store.Delivery.Residency.Textures.Textures); } }
+        public bool ResidentReady { get { return TextureReady && (videos == null || videos.IsReady(store)); } }
         public bool ControlReady { get { return DownloadReady && ResidentReady && connection != null && connection.ControlReady; } }
         public bool SessionReady { get { return DownloadReady && ResidentReady && connection != null && connection.SessionReady; } }
         public ulong PresentationOriginVersion { get { return ControlReady ? store.PresentationOrigin?.Version ?? 0 : 0; } }
@@ -89,10 +92,22 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 if (!store.TryReceiveDelivery(manifest, out string error) || !SupportsDelivery()) throw new InvalidOperationException(error ?? "delivery renderer is unsupported");
                 textures = new PresentationTextureResidency();
+                models = new PresentationModelResidency { Limits = store.Delivery.CapabilityProfile.Limits.Model };
+                playback.Models = models;
                 var selectedAssets = new List<AssetAccessBinding>();
                 foreach (TextureResidencyBinding binding in store.Delivery.Residency.Textures.Textures)
                 {
                     if (!store.TryGetAsset(binding.AssetId, out AssetAccessBinding access)) throw new InvalidOperationException("asset access binding is absent");
+                    selectedAssets.Add(access);
+                }
+                foreach (var binding in store.Delivery.Residency.Models.Models)
+                {
+                    if (!store.TryGetAsset(binding.AssetId, out var access)) throw new InvalidOperationException("model asset access binding is absent");
+                    selectedAssets.Add(access);
+                }
+                foreach (var binding in store.Delivery.Residency.Video.Videos)
+                {
+                    if (!store.TryGetAsset(binding.AssetId, out var access)) throw new InvalidOperationException("video asset access binding is absent");
                     selectedAssets.Add(access);
                 }
                 string consumerToken = PresentationRuntimeHost.ConsumerToken(store.Delivery.SessionId, store.Delivery.ProjectionInstance.ParticipantId);
@@ -108,13 +123,28 @@ namespace Unframe.Unity.PresentationRuntime
                         byte[] bytes = await lease.GetAsync(access, (asset, token) => DownloadAsync(client, asset, token), lifetime.Token);
                         if (!textures.TryLoad(binding, access, bytes, out error)) throw new InvalidOperationException(error);
                     }
+                    var modelBudget = new PresentationModelTextureBudget { Limits = store.Delivery.CapabilityProfile.Limits.Texture, UsedGpuBytes = textures.ResidentGpuBytes };
+                    foreach (var textureBinding in store.Delivery.Residency.Textures.Textures) modelBudget.UsedBindings++;
+                    foreach (var binding in store.Delivery.Residency.Models.Models)
+                    {
+                        if (!store.TryGetAsset(binding.AssetId, out var access)) throw new InvalidOperationException("model asset access binding is absent");
+                        byte[] bytes = await lease.GetAsync(access, (asset, token) => DownloadAsync(client, asset, token), lifetime.Token);
+                        await models.LoadAsync(binding, access, bytes, lifetime.Token, modelBudget);
+                    }
+                    if (!hierarchy.TryReplace(store, presentationSpace, out error)) throw new InvalidOperationException(error);
+                    await models.InstantiateAsync(store, hierarchy, lifetime.Token);
+                    videos = new PresentationVideoResidency { Limits = store.Delivery.CapabilityProfile.Limits.Video }; playback.Videos = videos;
+                    await videos.BuildAsync(store, hierarchy, async (id, token) =>
+                    {
+                        if (!store.TryGetAsset(id, out var access)) throw new InvalidOperationException("video asset access binding is absent");
+                        return new PresentationPreviewAssetData(await lease.GetAsync(access, (asset, t) => DownloadAsync(client, asset, t), token), access.MediaType);
+                    }, lifetime.Token);
                 }
                 DownloadReady = true;
-                if (!ResidentReady) throw new InvalidOperationException("asset-texture-residency-failed");
-                if (!hierarchy.TryReplace(store, presentationSpace, out error)) throw new InvalidOperationException(error);
+                if (!TextureReady) throw new InvalidOperationException("asset-texture-residency-failed");
                 surfaceRenderer = new PresentationBakedSurfaceRenderer();
                 if (!surfaceRenderer.TryBuild(store, hierarchy, out error)) throw new InvalidOperationException(error);
-                connection = new PresentationRealtimeConnection(store, textures);
+                connection = new PresentationRealtimeConnection(store, textures, token => videos.PrepareVisibleAsync(store, token));
                 connection.RuntimeChanged += Refresh;
                 connection.Disconnected += HandleDisconnected;
                 await connection.RunAsync(realtimeEndpoint, bearerProvider, lifetime.Token, certFingerprint, realtimeHandlerFactory);
@@ -134,6 +164,10 @@ namespace Unframe.Unity.PresentationRuntime
                 clock = null;
                 surfaceRenderer?.Dispose();
                 surfaceRenderer = null;
+                videos?.Dispose();
+                videos = null;
+                models?.Dispose();
+                models = null;
                 hierarchy.Clear();
                 textures?.Dispose();
                 textures = null;
@@ -147,9 +181,8 @@ namespace Unframe.Unity.PresentationRuntime
         private bool SupportsDelivery()
         {
             if (store.Delivery.Residency.Textures == null || store.Delivery.ProjectionProfile.LocalOverlays.Count != 0) return false;
-            foreach (DeliveredRenderSurface surface in store.Delivery.ProjectionProfile.RenderSurfaces) if (surface.RendererKind != RendererKind.BakedWeb) return false;
-            foreach (Unframe.Presentation.ProjectedNodeDefinition node in store.Nodes)
-                if (node.NodeCase == Unframe.Presentation.ProjectedNodeDefinition.NodeOneofCase.Model) return false;
+            foreach (DeliveredRenderSurface surface in store.Delivery.ProjectionProfile.RenderSurfaces) if (surface.RendererKind != RendererKind.BakedWeb && surface.RendererKind != RendererKind.Video) return false;
+
             return true;
         }
 
@@ -157,7 +190,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (!Uri.TryCreate(access.Url, UriKind.Absolute, out Uri url) || url.Scheme != "https"
                 || !string.IsNullOrEmpty(url.UserInfo) || access.ExpiresAtUnixMs <= (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                || access.EncodedSizeBytes == 0 || access.EncodedSizeBytes > 17 * 1024 * 1024) throw new InvalidOperationException("asset-download-access-invalid");
+                || access.EncodedSizeBytes == 0 || access.EncodedSizeBytes > PresentationModelPreflight.MaximumEncodedBytes) throw new InvalidOperationException("asset-download-access-invalid");
             using (HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token))
             {
                 if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType != access.MediaType
@@ -182,6 +215,11 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void Refresh()
         {
+            if (connection != null && !connection.SessionReady)
+            {
+                HandleDisconnected();
+                return;
+            }
             RefreshCalibration();
             RuntimeClockSnapshot latest = store.RuntimeClock;
             if (latest != null && (clock == null || latest.RuntimeTimeMs != clock.RuntimeTimeMs || latest.StatusCase != clock.StatusCase))
@@ -189,7 +227,7 @@ namespace Unframe.Unity.PresentationRuntime
                 clock = latest;
                 clockReceivedAt = Time.realtimeSinceStartupAsDouble;
             }
-            if (!playback.TryRefresh(store, hierarchy, surfaceRenderer, textures, RuntimeTimeMs(), out string error))
+            if (!playback.TryRefresh(store, hierarchy, surfaceRenderer, textures, RuntimeTimeMs(), out string error, clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running))
             {
                 LastError = error;
                 lifetime.Cancel();
@@ -198,6 +236,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void HandleDisconnected()
         {
+            videos?.Pause();
+            clock = null;
             store.InvalidateAnchorSamples();
             stateApplier.ApplyAnchors(store, hierarchy);
             surfaceRenderer?.Disable();
@@ -241,16 +281,16 @@ namespace Unframe.Unity.PresentationRuntime
         {
             RefreshCalibration();
             if (connection != null && !connection.SessionReady) HandleDisconnected();
-            if (connection != null && connection.SessionReady && ResidentReady)
+            if (connection != null && connection.SessionReady && TextureReady)
             {
                 double runtimeTime = RuntimeTimeMs();
-                if (!playback.TryUpdate(store, hierarchy, surfaceRenderer, textures, runtimeTime, out string error))
+                if (!playback.TryUpdate(store, hierarchy, surfaceRenderer, textures, runtimeTime, out string error, clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running))
                 {
                     LastError = error;
                     lifetime.Cancel();
                 }
             }
-            if (connection != null && !ResidentReady)
+            if (connection != null && !TextureReady)
             {
                 LastError = "asset_residency_lost";
                 surfaceRenderer.Disable();

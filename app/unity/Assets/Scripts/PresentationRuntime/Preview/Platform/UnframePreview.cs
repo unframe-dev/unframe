@@ -126,11 +126,19 @@ namespace Unframe.Unity.PresentationRuntime
                 Emit("failed", requestId, null, "preview.playback-input-invalid", sequence, "rejected", phase);
             }
         }
+        private bool activationBlocked;
         private void Update()
         {
             if (transaction != null && !transaction.TryUpdate(Time.realtimeSinceStartupAsDouble, out string error))
-                Emit("failed", transaction.PlaybackRequestId, null, error,
-                    transaction.PlaybackSequence.ToString(System.Globalization.CultureInfo.InvariantCulture), "failed", "update");
+            {
+                bool activationRequired = error == "video-user-activation-required";
+                if (!activationRequired || !activationBlocked)
+                    Emit("failed", transaction.PlaybackRequestId, null, error,
+                        transaction.PlaybackSequence.ToString(System.Globalization.CultureInfo.InvariantCulture), activationRequired ? "rejected" : "failed", "update");
+                activationBlocked = activationRequired;
+                return;
+            }
+            activationBlocked = false;
         }
 
         public void Discard(string requestId)
@@ -141,6 +149,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             generation++;
             latestRequest = null;
+            activationBlocked = false;
             transaction?.Invalidate();
         }
         private void Emit(string kind, string requestId, string identity, string message, string sequence = null, string outcome = null, string phase = null)

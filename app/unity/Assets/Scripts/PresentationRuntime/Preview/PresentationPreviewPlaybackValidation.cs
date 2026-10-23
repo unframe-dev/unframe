@@ -71,6 +71,17 @@ namespace Unframe.Unity.PresentationRuntime
                         || !OwnerMatches(definition.Owner, run.Owner)) return false;
                     transitions.Add(transition.SurfaceId, run);
                 }
+                else if (run.RunCase == RuntimeRunSnapshot.RunOneofCase.ModelClip)
+                {
+                    var clip = run.ModelClip;
+                    if (!definitions.TryGetValue(clip.ModelNodeId, out var node) || node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Model || !OwnerMatches(node.Owner, run.Owner)
+                        || !nodes.ContainsKey(clip.ModelNodeId) || !PresentationMediaPlaybackValidation.ValidModelRun(input.Catalog, clip, state.Clock.RuntimeTimeMs)) return false;
+                }
+                else if (run.RunCase == RuntimeRunSnapshot.RunOneofCase.Media)
+                {
+                    if (!input.TryGetSurface(run.Media.SurfaceId, out var surface) || !OwnerMatches(surface.Owner, run.Owner)
+                        || !surfaces.ContainsKey(surface.SurfaceId) || !PresentationMediaPlaybackValidation.ValidClock(run.Media.Playback, state.Clock.RuntimeTimeMs)) return false;
+                }
                 else return false;
             }
             foreach (var surface in surfaces.Values)
@@ -81,6 +92,10 @@ namespace Unframe.Unity.PresentationRuntime
                 transitions.Remove(surface.SurfaceId);
             }
             if (transitions.Count != 0) return false;
+            foreach (var media in state.MediaStates) if (!surfaces.ContainsKey(media.SurfaceId)) return false;
+            foreach (var clip in state.ModelClipStates) if (!nodes.ContainsKey(clip.ModelNodeId)) return false;
+            if (!PresentationMediaPlaybackValidation.TryValidate(input.Catalog, state.MediaStates, state.ModelClipStates, state.ActiveRuns, state.Clock.RuntimeTimeMs, out error)) return false;
+            input.ReplaceMediaPlayback(state.MediaStates, state.ModelClipStates);
             input.ReplacePlayback(nodes, surfaces, new List<RuntimeRunSnapshot>(state.ActiveRuns));
             error = null;
             return true;

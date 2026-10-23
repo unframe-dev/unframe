@@ -120,7 +120,10 @@ export function createPreviewController(input: {
   const unsubscribe = input.driver.subscribeFailure((notification) => {
     const snapshot = store.getState();
     if (snapshot.status !== "ready" || !acceptsNotification(snapshot, notification)) return;
-    if (requiresRecovery(notification))
+    if (notification.message === "video-user-activation-required") {
+      playback.command({ command: "pause" });
+      store.setState({ error: notification.message });
+    } else if (requiresRecovery(notification))
       void recover(
         new UnityExchangeError(notification.message ?? "Unity Preview failed.", notification),
         snapshot.playback,

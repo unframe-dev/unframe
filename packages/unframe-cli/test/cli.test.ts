@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import filesystem from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
@@ -7,6 +10,31 @@ import { runPresentationCli } from "../src/index.js";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 
 describe("runPresentationCli", () => {
+  it("ignores transient runtime leases when initializing from the template", async () => {
+    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-init-lease-"));
+    const directory = join(parent, "project");
+    const readdir = filesystem.readdir;
+    const listing = vi.spyOn(filesystem, "readdir").mockImplementationOnce(async (path) => {
+      const entries = await readdir(path, { withFileTypes: true });
+      return [
+        ...entries,
+        ...[".unframe-source.lock", ".unframe-build.lock"].map(
+          (name) => ({ name, isFile: () => true }) as Dirent,
+        ),
+      ] as unknown as Awaited<ReturnType<typeof filesystem.readdir>>;
+    });
+    syncBuiltinESMExports();
+    try {
+      const initialized = await runPresentationCli({ args: ["init", directory] });
+      expect(initialized.exitCode, initialized.stderr).toBe(0);
+      const checked = await runPresentationCli({ args: ["check", directory] });
+      expect(checked.exitCode, checked.stderr).toBe(0);
+    } finally {
+      listing.mockRestore();
+      syncBuiltinESMExports();
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
   it("rejects arbitrary output paths at the Host channel boundary", async () => {
     const result = await runPresentationCli({
       args: ["build", "/project"],

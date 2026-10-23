@@ -569,11 +569,13 @@ export const resolveStructuredComponent = ({
       };
       return;
     }
-    if (node.kind === "image") {
+    if (node.kind === "image" || node.kind === "video") {
       const at = [...path, "structure", node.id];
       contentNodes[id] = {
         ...common,
-        kind: "image",
+        ...(node.kind === "video"
+          ? { kind: "video" as const, loop: node.loop }
+          : { kind: "image" as const }),
         assetId: node.asset.assetId,
         style: {
           fit: node.style.fit,
@@ -705,6 +707,7 @@ export const resolveStructuredComponent = ({
   };
 
   const root = structure.root.kind === "surface" ? structure.root.root : structure.root;
+  if (root.kind === "model") throw new TypeError("Model roots are not Surface content.");
   lower(root, null, 0);
   const boundPartTargets = new Set<string>();
   for (const [partId, targetId] of Object.entries(structure.partBindings)) {
@@ -821,11 +824,21 @@ export const resolveStructuredComponent = ({
           ? {}
           : { clip: resolveBoolean(override.clip, [...at, "clip"]) ?? target.clip }),
       };
-    if (override.kind === "image" && target.kind === "image")
+    if (
+      (override.kind === "image" && target.kind === "image") ||
+      (override.kind === "video" && target.kind === "video")
+    )
       return {
-        kind: "image",
+        ...(override.kind === "video"
+          ? {
+              kind: "video" as const,
+              ...(override.loop === undefined ? {} : { loop: override.loop }),
+            }
+          : { kind: "image" as const }),
         ...common,
-        ...(override.asset === undefined ? {} : { assetId: override.asset.assetId }),
+        ...(override.kind === "image" && override.asset !== undefined
+          ? { assetId: override.asset.assetId }
+          : {}),
         ...(override.style === undefined
           ? {}
           : {

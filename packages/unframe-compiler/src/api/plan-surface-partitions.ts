@@ -37,6 +37,7 @@ type PlannedSurface = {
   readonly interactionsByState: RenderBundle["surfaces"][string]["interactionsByState"];
 };
 export type PlannedPartition = {
+  readonly videoNodeId?: string;
   readonly plan: RenderSurfacePlan;
   readonly pixelTarget: readonly [number, number];
   readonly partitionRendererKey: string;
@@ -67,6 +68,7 @@ const paintFrame = (node: Node) =>
 const painted = (node: Node) =>
   node.kind === "text" ||
   node.kind === "image" ||
+  node.kind === "video" ||
   (node.kind === "shape" &&
     (node.style.fill.alpha > 0 || (node.style.strokeWidth > 0 && node.style.stroke.alpha > 0))) ||
   paintFrame(node);
@@ -135,9 +137,25 @@ export const planSurfacePartitions = (
   const frameIds: string[] = [];
   const descendants = new Map<string, string[]>();
   let unsupportedNodeId: string | undefined;
+  const unsupportedVideoReason =
+    "Video geometry and compositing cannot be represented by a dedicated partition.";
+  const videoIds = Object.values(content.nodes)
+    .filter((node) => node.kind === "video")
+    .map((node) => node.id);
+  if (videoIds.length > 1)
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic(
+          "compiler-video-target-ambiguous",
+          ["surface", surface.id],
+          "A media Surface must contain exactly one Video.",
+        ),
+      ],
+    };
   const visit = (id: string): string[] => {
     const node = content.nodes[id]!;
-    if (node.kind === "video") unsupportedNodeId = id;
+
     const subtree: string[] = [];
     if (node.kind === "frame") frameIds.push(id);
     const canPaint =
@@ -155,17 +173,6 @@ export const planSurfacePartitions = (
     return subtree;
   };
   visit(content.rootFrameId);
-  if (unsupportedNodeId)
-    return {
-      valid: false,
-      diagnostics: [
-        diagnostic(
-          "compiler-partition-content-unsupported",
-          ["surface", surface.id, "contentNodes", unsupportedNodeId],
-          "The current structured renderer does not support Video content.",
-        ),
-      ],
-    };
   const fullWindow = visibleWindow(surface);
   if (!representableWindow(fullWindow))
     return {
@@ -228,9 +235,31 @@ export const planSurfacePartitions = (
       }
       const atom = atoms.find((item) => item.id === id);
       if (atom) atom.boundsByState[stateId] = painted(node) ? clipped : null;
+      if (node.kind === "video" && clipped) {
+        if (
+          node.opacity !== 1 ||
+          node.style.border.width !== 0 ||
+          node.style.border.radius !== 0 ||
+          Object.values(node.style.tint).some((value) => value !== 1) ||
+          hashCanonicalJsonPayload(raw) !== hashCanonicalJsonPayload(clipped)
+        )
+          unsupportedNodeId = id;
+        const prior = Object.values(atom!.boundsByState).find(
+          (bounds) => bounds !== null && bounds !== clipped,
+        );
+        if (prior && hashCanonicalJsonPayload(prior) !== hashCanonicalJsonPayload(clipped))
+          unsupportedNodeId = id;
+      }
+
       if (node.kind !== "frame") return;
       const operandIds = descendants.get(id)!;
-      if ((node.clip || node.opacity < 1) && operandIds.length > 0) {
+      const containsVideo = operandIds.some((operand) => videoIds.includes(operand));
+      if (
+        containsVideo &&
+        ((node.opacity > 0 && node.opacity < 1) || (node.clip && node.border.radius > 0))
+      )
+        unsupportedNodeId = id;
+      if ((node.clip || node.opacity < 1) && operandIds.length > 0 && !containsVideo) {
         const indices = operandIds.map((operand) => atoms.findIndex((item) => item.id === operand));
         const start = Math.min(...indices);
         const end = Math.max(...indices);
@@ -280,6 +309,17 @@ export const planSurfacePartitions = (
         left.bounds.height - right.bounds.height,
     );
   }
+  if (unsupportedNodeId)
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic(
+          "compiler-video-compositing-unsupported",
+          ["surface", surface.id, "contentNodes", unsupportedNodeId],
+          unsupportedVideoReason,
+        ),
+      ],
+    };
   const merged: Closure[] = [];
   for (const closure of closures.sort((a, b) => a.start - b.start || a.end - b.end)) {
     const previous = merged.at(-1);
@@ -309,7 +349,13 @@ export const planSurfacePartitions = (
   });
   for (let start = 0; start < atoms.length;) {
     let end = start + 1;
-    while (end < atoms.length && keys[end] === keys[start]) end++;
+    while (
+      end < atoms.length &&
+      keys[end] === keys[start] &&
+      !videoIds.includes(atoms[start]!.id) &&
+      !videoIds.includes(atoms[end]!.id)
+    )
+      end++;
     const owned = atoms.slice(start, end);
     let bounds: Bounds | null = null;
     const states: Record<string, { kind: "capture" | "empty" }> = {};
@@ -327,11 +373,12 @@ export const planSurfacePartitions = (
     if (bounds) {
       const layer = plans.length;
       const ownedContentNodeIds = owned.map((atom) => atom.id);
+      const videoNodeId = videoIds.includes(owned[0]!.id) ? owned[0]!.id : undefined;
       const descriptor = {
         partitionStrategyVersion: 1,
         semanticSurfaceId: surface.id,
         renderer: { ...renderer, entry: { kind: "structured" } },
-        executionClass: "baked-web",
+        executionClass: videoNodeId ? "video" : "baked-web",
         compositingGroupKey: keys[start],
         ownedContentNodeIds,
         logicalBounds: bounds,
@@ -348,6 +395,7 @@ export const planSurfacePartitions = (
       }
       const contextNodeIds = frameIds.filter((id) => context.has(id));
       plans.push({
+        ...(videoNodeId ? { videoNodeId } : {}),
         plan: {
           id,
           semanticSurfaceId: surface.id,
