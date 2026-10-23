@@ -126,7 +126,7 @@ export const validateCueInvariants = (
           case "zoneEdge":
             target(definition.stage.zones, trigger.zoneId, "/trigger/zoneId");
             break;
-          case "motion":
+          case "gesture":
             break;
           case "timelineCompleted":
             target(timelines, trigger.timelineId, "/trigger/timelineId");

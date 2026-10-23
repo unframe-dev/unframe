@@ -10,6 +10,11 @@
       <HintPath>../../Assets/Plugins/Google.Protobuf.dll</HintPath>
     </Reference>
     <Compile Include="Program.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Quest/QuestPresentationInput.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Quest/PresenterRecognition.cs" />
+    <Compile Include="../../Assets/Tests/EditMode/Editor/Quest/PresenterAuthorityTests.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Quest/PresenterInputSynchronizationState.cs" />
+    <Compile Include="../../Assets/Tests/EditMode/Editor/State/PresentationRuntimePauseEditModeTests.cs" />
     <Compile Include="VideoPreflightChecks.cs" />
     <Compile Include="ModelPlaybackChecks.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Rendering/PresentationModelPlaybackMath.cs" />

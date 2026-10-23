@@ -2,6 +2,7 @@ package runtimecore
 
 import (
 	"encoding/json"
+	"math"
 	"sort"
 
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
@@ -9,6 +10,9 @@ import (
 )
 
 func (s *V2Session) enterV2Group(targetID string) ([]*realtimev2.ProjectedReliableEvent, error) {
+	if s.snapshot.Progression.GroupEntryEpoch == math.MaxUint64 || s.snapshot.Progression.StepEntryEpoch == math.MaxUint64 {
+		return nil, ErrV2RuntimeDefinition
+	}
 	target, ok := s.definition.Flow.Groups[targetID]
 	if !ok || target.ID != targetID || target.InitialStepID == "" {
 		return nil, ErrV2RuntimeDefinition
@@ -156,6 +160,12 @@ func (s *V2Session) enterV2Group(targetID string) ([]*realtimev2.ProjectedReliab
 	s.snapshot.Progression.Phase = &realtimev2.ProgressionRuntimeState_Stable{Stable: &realtimev2.StableProgression{}}
 	s.snapshot.StepExecution = &realtimev2.StepExecutionSnapshot{StepEntryEpoch: s.snapshot.Progression.StepEntryEpoch}
 	if err := s.armV2StepTimers(); err != nil {
+		return nil, err
+	}
+	if err := captureV3StepStart(s.snapshot); err != nil {
+		return nil, errV3StepEntryCapacity
+	}
+	if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED, false); err != nil {
 		return nil, err
 	}
 	initialization := &realtimev2.GroupRuntimeInitialization{NodeStates: cloneV2NodeStates(newNodes), SurfaceStates: cloneV2SurfaceStates(newSurfaces), MediaStates: cloneV2MediaStates(newMedia), ModelClipStates: cloneV2ModelStates(newModel), Variables: cloneV2VariableStates(newVariables)}

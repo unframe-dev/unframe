@@ -10,7 +10,7 @@ namespace Unframe.Unity.PresentationRuntime
 {
     internal sealed class PresentationRuntimeStateStore
     {
-        private const uint RealtimeSnapshotSchemaVersion = 2;
+        private const uint RealtimeSnapshotSchemaVersion = 3;
 
         private readonly PresentationDeliveryCatalog delivery;
         private readonly Dictionary<string, NodeRuntimeState> nodeStates = new Dictionary<string, NodeRuntimeState>();
@@ -19,6 +19,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly Dictionary<string, MediaRuntimeState> mediaStates = new Dictionary<string, MediaRuntimeState>();
         private readonly Dictionary<string, ModelClipRuntimeState> modelClipStates = new Dictionary<string, ModelClipRuntimeState>();
         private readonly Dictionary<string, AnchorSampleState> anchorSamples = new Dictionary<string, AnchorSampleState>();
+        private readonly Dictionary<string, FrozenAnchorDisplayState> frozenAnchors = new Dictionary<string, FrozenAnchorDisplayState>();
         private sealed class AnchorSampleState
         {
             internal ProjectedAnchorBindingSample Sample;
@@ -69,6 +70,7 @@ namespace Unframe.Unity.PresentationRuntime
             anchorSamples.Clear();
             LastReliableSequence = 0;
             LastStateFrameSequence = 0;
+            frozenAnchors.Clear();
             hasSnapshot = false;
             presentationOriginVersion = 0;
             presentationOrigin = null;
@@ -145,6 +147,11 @@ namespace Unframe.Unity.PresentationRuntime
         internal bool TryGetAnchorSample(string id, out ProjectedAnchorBindingSample value)
         {
             value = null;
+            if (frozenAnchors.TryGetValue(id, out FrozenAnchorDisplayState frozen))
+            {
+                value = new ProjectedAnchorBindingSample { Position = frozen.Position?.Clone(), Rotation = frozen.Rotation?.Clone() };
+                return true;
+            }
             if (!anchorSamples.TryGetValue(id, out AnchorSampleState state)) return false;
             double elapsedMs = (Stopwatch.GetTimestamp() - state.ReceivedAtTicks) * 1000d / Stopwatch.Frequency;
             if (elapsedMs < 0 || state.AgeAtReceiptMs + elapsedMs > 500d) return false;
@@ -194,6 +201,7 @@ namespace Unframe.Unity.PresentationRuntime
             { error = "realtime snapshot presentation origin is invalid."; return false; }
 
             if (!TryValidateSnapshotView(view, out error)
+                || !TryValidateFrozenAnchors(view, out error)
                 || !TryReplaceRuntimeState(view.NodeStates, view.SurfaceStates, view.Variables, view.ModelClipStates, out error))
             {
                 return false;
@@ -202,6 +210,7 @@ namespace Unframe.Unity.PresentationRuntime
             LastReliableSequence = envelope.ReliableSequence;
             LastStateFrameSequence = 0;
             anchorSamples.Clear();
+            ReplaceFrozenAnchors(view);
             presentationOriginVersion = envelope.Fence.PresentationOriginVersion;
             presentationOrigin = view.PresentationOrigin?.Clone();
             Replace(participants, presence);
@@ -262,6 +271,27 @@ namespace Unframe.Unity.PresentationRuntime
 
             switch (reliableEvent.PayloadCase)
             {
+                case ProjectedReliableEvent.PayloadOneofCase.RuntimeViewReplaced:
+                    ParticipantRuntimeView replacement = reliableEvent.RuntimeViewReplaced.RuntimeView;
+                    if (replacement == null || replacement.BaseReliableSequence != reliableEvent.Sequence
+                        || replacement.ProjectionProfileId != delivery.Delivery.ProjectionProfile.ProjectionProfileId
+                        || replacement.AssignmentEpoch != delivery.Delivery.ProjectionInstance.AssignmentEpoch
+                        || replacement.Clock?.RuntimeTimeMs != reliableEvent.OccurredAtRuntimeTimeMs
+                        || !Equals(replacement.PresentationOrigin, presentationOrigin)
+                        || !TryValidateSnapshotView(replacement, out error)
+                        || !HasCompleteOwnership(replacement)
+                        || !TryValidateFrozenAnchors(replacement, out error)
+                        || !TryReplaceRuntimeState(replacement.NodeStates, replacement.SurfaceStates, replacement.Variables, replacement.ModelClipStates, out error))
+                    { error = "realtime.event replacement view is invalid."; return false; }
+                    mediaStates.Clear();
+                    foreach (var media in replacement.MediaStates) mediaStates.Add(media.SurfaceId, media.Clone());
+                    activeRuns.Clear();
+                    foreach (var run in replacement.ActiveRuns) activeRuns.Add(RunKey(run.RunId), run.Clone());
+                    clock = replacement.Clock.Clone();
+                    progression = replacement.Progression.Clone();
+                    anchorSamples.Clear();
+                    ReplaceFrozenAnchors(replacement);
+                    break;
                 case ProjectedReliableEvent.PayloadOneofCase.RuntimeStatusChanged:
                     RuntimeStatusChanged status = reliableEvent.RuntimeStatusChanged;
                     if (status.StatusCase == RuntimeStatusChanged.StatusOneofCase.None
@@ -279,6 +309,7 @@ namespace Unframe.Unity.PresentationRuntime
                     presentationOrigin = nextOrigin.Clone();
                     presentationOriginVersion = nextOrigin.Version;
                     anchorSamples.Clear();
+                    frozenAnchors.Clear();
                     break;
                 case ProjectedReliableEvent.PayloadOneofCase.ParticipantPresenceChanged:
                     ParticipantPresenceChanged presenceChange = reliableEvent.ParticipantPresenceChanged;
@@ -308,6 +339,15 @@ namespace Unframe.Unity.PresentationRuntime
                     if (reliableEvent.CueAccepted.GroupId != progression.CurrentGroupId || reliableEvent.CueAccepted.StepId != progression.CurrentStepId
                         || !PresentationDeliveryCatalog.IsId(reliableEvent.CueAccepted.CueId))
                     { error = "realtime.event cue is invalid."; return false; }
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.GestureInputAccepted:
+                    if (reliableEvent.GestureInputAccepted.Gesture < GestureKind.SwipeLeft || reliableEvent.GestureInputAccepted.Gesture > GestureKind.CloseHands)
+                    { error = "realtime.event gesture is invalid."; return false; }
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ZoneInputAccepted:
+                    if (!PresentationDeliveryCatalog.IsId(reliableEvent.ZoneInputAccepted.ZoneId)
+                        || reliableEvent.ZoneInputAccepted.Edge != ZoneEdge.Enter && reliableEvent.ZoneInputAccepted.Edge != ZoneEdge.Exit)
+                    { error = "realtime.event zone is invalid."; return false; }
                     break;
                 case ProjectedReliableEvent.PayloadOneofCase.LogicalInputAccepted:
                     if (!PresentationDeliveryCatalog.IsId(reliableEvent.LogicalInputAccepted.LogicalEventName))
@@ -743,11 +783,17 @@ namespace Unframe.Unity.PresentationRuntime
                 nodeStates[update.Key] = update.Value;
             }
 
-            if (frame.Kind == StateFrameKind.Keyframe) anchorSamples.Clear();
+            if (frame.Kind == StateFrameKind.Keyframe) { anchorSamples.Clear(); frozenAnchors.Clear(); }
             long receivedAtTicks = Stopwatch.GetTimestamp();
             foreach (ProjectedAnchorBindingPatch binding in frame.AnchorBindings)
             {
-                if (binding.StateCase == ProjectedAnchorBindingPatch.StateOneofCase.Unavailable
+                frozenAnchors.Remove(binding.NodeId);
+                if (binding.StateCase == ProjectedAnchorBindingPatch.StateOneofCase.Frozen)
+                {
+                    anchorSamples.Remove(binding.NodeId);
+                    frozenAnchors[binding.NodeId] = binding.Frozen.Clone();
+                }
+                else if (binding.StateCase == ProjectedAnchorBindingPatch.StateOneofCase.Unavailable
                     || frame.ProducedAtRuntimeMonotonicMs - binding.Sample.ObservedAtRuntimeMonotonicMs > 500)
                     anchorSamples.Remove(binding.NodeId);
                 else anchorSamples[binding.NodeId] = new AnchorSampleState
@@ -781,6 +827,11 @@ namespace Unframe.Unity.PresentationRuntime
                     || node.Parent?.ParentCase != SpatialParent.ParentOneofCase.PresenterAnchor) return false;
                 previous = binding.NodeId;
                 if (binding.StateCase == ProjectedAnchorBindingPatch.StateOneofCase.Unavailable) continue;
+                if (binding.StateCase == ProjectedAnchorBindingPatch.StateOneofCase.Frozen)
+                {
+                    if (binding.Frozen.NodeId != binding.NodeId || !ValidFrozenAnchor(binding.Frozen, node)) return false;
+                    continue;
+                }
                 if (binding.StateCase != ProjectedAnchorBindingPatch.StateOneofCase.Sample) return false;
                 ProjectedAnchorBindingSample sample = binding.Sample;
                 PresenterAnchorParent parent = node.Parent.PresenterAnchor;
@@ -851,6 +902,71 @@ namespace Unframe.Unity.PresentationRuntime
                 && PresentationDeliveryCatalog.IsCanonicalFinite(scale.X) && PresentationDeliveryCatalog.IsCanonicalFinite(scale.Y) && PresentationDeliveryCatalog.IsCanonicalFinite(scale.Z) && scale.X > 0 && scale.Y > 0 && scale.Z > 0
                 && PresentationCoordinateValidation.IsRenderableScale(scale)
                 && PresentationDeliveryCatalog.IsCanonicalUnitQuaternion(rotation);
+        }
+
+        private static bool ValidFrozenAnchor(FrozenAnchorDisplayState frozen, ProjectedNodeDefinition node)
+        {
+            PresenterAnchorParent parent = node?.Parent?.PresenterAnchor;
+            return frozen != null && parent != null && (frozen.Position != null || frozen.Rotation != null)
+                && (frozen.Position == null || parent.FollowPosition && IsValidVector(frozen.Position) && PresentationCoordinateValidation.IsRenderable(frozen.Position))
+                && (frozen.Rotation == null || parent.FollowRotation && PresentationDeliveryCatalog.IsCanonicalUnitQuaternion(frozen.Rotation));
+        }
+
+        private bool TryValidateFrozenAnchors(ParticipantRuntimeView view, out string error)
+        {
+            error = "realtime snapshot contains invalid frozen anchors.";
+            var nodes = new HashSet<string>();
+            foreach (var state in view.NodeStates) nodes.Add(state.NodeId);
+            string previous = null;
+            foreach (FrozenAnchorDisplayState frozen in view.FrozenAnchors)
+            {
+                if (!nodes.Contains(frozen.NodeId) || previous != null && string.CompareOrdinal(previous, frozen.NodeId) >= 0
+                    || !delivery.TryGetNode(frozen.NodeId, out ProjectedNodeDefinition node) || !ValidFrozenAnchor(frozen, node)) return false;
+                previous = frozen.NodeId;
+            }
+            error = null;
+            return true;
+        }
+
+        private void ReplaceFrozenAnchors(ParticipantRuntimeView view)
+        {
+            frozenAnchors.Clear();
+            foreach (FrozenAnchorDisplayState frozen in view.FrozenAnchors) frozenAnchors.Add(frozen.NodeId, frozen.Clone());
+        }
+
+        private bool HasCompleteOwnership(ParticipantRuntimeView view)
+        {
+            var nodes = new HashSet<string>();
+            var surfaces = new HashSet<string>();
+            var variables = new HashSet<string>();
+            var models = new HashSet<string>();
+            var media = new HashSet<string>();
+            foreach (var node in delivery.Delivery.ProjectionProfile.RuntimeCatalog.Nodes)
+                if (IsViewOwner(node.Owner, view.Progression.CurrentGroupId))
+                {
+                    nodes.Add(node.NodeId);
+                    if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model) models.Add(node.NodeId);
+                }
+            foreach (var surface in delivery.Delivery.ProjectionProfile.RuntimeCatalog.Surfaces)
+                if (IsViewOwner(surface.Owner, view.Progression.CurrentGroupId))
+                {
+                    surfaces.Add(surface.SurfaceId);
+                    if (surface.HasVideo) media.Add(surface.SurfaceId);
+                }
+            foreach (var variable in delivery.Delivery.ProjectionProfile.RuntimeCatalog.Variables)
+                if (IsViewOwner(variable.Owner, view.Progression.CurrentGroupId)) variables.Add(variable.VariableId);
+            foreach (var node in view.NodeStates) if (!nodes.Remove(node.NodeId) || node.Transform == null) return false;
+            foreach (var surface in view.SurfaceStates) if (!surfaces.Remove(surface.SurfaceId)) return false;
+            foreach (var variable in view.Variables) if (!variables.Remove(variable.VariableId)) return false;
+            foreach (var model in view.ModelClipStates) if (!models.Remove(model.ModelNodeId)) return false;
+            foreach (var state in view.MediaStates) if (!media.Remove(state.SurfaceId)) return false;
+            return nodes.Count == 0 && surfaces.Count == 0 && variables.Count == 0 && models.Count == 0 && media.Count == 0;
+        }
+
+        private static bool IsViewOwner(ResourceOwner owner, string groupId)
+        {
+            return owner?.ScopeCase == ResourceOwner.ScopeOneofCase.Presentation
+                || owner?.ScopeCase == ResourceOwner.ScopeOneofCase.Group && owner.Group.GroupId == groupId;
         }
 
         private bool TryValidateSnapshotView(ParticipantRuntimeView view, out string error)

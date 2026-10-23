@@ -144,6 +144,8 @@ namespace Unframe.Unity.PresentationRuntime
             IEnumerable<VariableState> states = null;
             if (item?.ConnectionSnapshot?.Snapshot?.RuntimeView != null)
                 states = item.ConnectionSnapshot.Snapshot.RuntimeView.Variables;
+            else if (item?.ReliableEvent?.RuntimeViewReplaced?.RuntimeView != null)
+                states = item.ReliableEvent.RuntimeViewReplaced.RuntimeView.Variables;
             else if (item?.ReliableEvent?.VariableChanged != null)
                 states = new[] { item.ReliableEvent.VariableChanged.State };
             else if (item?.ReliableEvent?.GroupEntered?.Initialization != null)

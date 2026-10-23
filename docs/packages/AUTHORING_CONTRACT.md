@@ -124,19 +124,15 @@ Authoring SDK の個別 builder と declaration 全体の guard は local declar
 
 ## 発表者のモーション操作候補
 
-Presentation Cue の trigger は、Component Output / event に加えて次を指定できます。
+採用仕様は [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) に従う。Author は Gesture の種類だけを選択し、距離・速度・時間窓・左右の手は設定しない。Zone の幾何設定は中心位置だけとし、形状・寸法は一辺2mの軸平行な箱に固定する。Cue は通常 `oncePerStepEntry`、繰り返しが必要なものだけ `repeatable` とし、cooldown の authoring field は設けない。認識は Presenter、Guard / Cue / Action / Next の評価は Runtime が担う。
+
+Structured と React Opaque は次の同じ Trigger 宣言を使用する。
 
 ```ts
 trigger: {
-  kind: "motionPreset",
-  preset: "swipeLeft",
-  hand: "eitherHand",
-  minimumDistanceMeters: 0.2,
-  windowMilliseconds: 750,
+  kind: "gesture",
+  gesture: "swipeLeft",
 }
 ```
 
-片手 preset は `swipeLeft` / `swipeRight` / `swipeDown` / `swipeUp` / `pushForward` / `pullBackward`、
-対象は `eitherHand` / `leftHand` / `rightHand` です。`spreadHands` / `closeHands` は `bothHands` を指定します。
-最小移動距離は正の有限値、判定時間は正の安全整数です。Structured と React の両方で canonical tracking motion trigger に変換します。
-Presenter Delivery の motion guide metadata に投影されます。これは操作候補の案内であり、ガードの成立や操作の完了を保証しません。
+Gesture は8種類から選び、Structured / React の両方で Presenter actor の canonical Gesture Trigger に変換する。`zoneEdge` は Zone ID と enter / exit を指定し、Stage の Zone 宣言には中心位置だけを持たせる。Presenter Delivery の recognition catalog は種類と Zone ID / 中心だけを含み、Guard / Cue の成立は Runtime が確定する。Local Preview は Gesture / Zone と Presenter Anchor を拒否する。

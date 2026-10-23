@@ -77,16 +77,20 @@ func NewV2Service(runtime *runtimecore.V2Session, bootstrap persistencehttp.Runt
 	return &V2Service{runtime: runtime, bootstrap: bootstrap, projections: projections, identities: identities, assignments: assignments, nonces: session.NewStateNonceManager(nil), controls: make(map[string]*v2Control), resumeRecords: make(map[string]v2ResumeRecord), trackingStarted: time.Now()}, nil
 }
 
-func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.ControlClientItem, realtimev2.ControlServerItem]) (result error) {
+func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.ControlClientItem, realtimev2.ControlServerItem]) error {
+	return s.connectControl(stream, time.Now)
+}
+
+func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.ControlClientItem, realtimev2.ControlServerItem], snapshotNow func() time.Time) (result error) {
 	defer func() { setV2ReasonTrailer(stream, result) }()
 	identity, err := s.identities.Resolve(stream.Context())
-	if err != nil || identity.ProtocolVersion != 2 {
-		return status.Error(codes.Unauthenticated, "v2 realtime credential is required")
+	if err != nil || identity.ProtocolVersion != 3 {
+		return status.Error(codes.Unauthenticated, "v3 realtime credential is required")
 	}
 	claim := assignmentClaim(identity)
 	var sendMu sync.Mutex
 	sendRawChecked := func(item *realtimev2.ControlServerItem, beforeSend func() error) error {
-		if proto.Size(item) > 1<<20 {
+		if protocolv2.KnownSize(item) > 1<<20 {
 			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 		}
 		_, err := v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) { return s.assignments.ReliableDeliveryDeadline(claim) }, func() (struct{}, error) {
@@ -116,7 +120,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		}
 		return err
 	}
-	if proto.Size(first) > 1<<20 {
+	if protocolv2.KnownSize(first) > 1<<20 {
 		return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 	}
 	handshake := first.GetHandshake()
@@ -175,7 +179,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 	var snapshot *realtimev2.CanonicalRuntimeSnapshot
 	var fence *presentationv2.RuntimeProjectionFence
 	instance := &presentationv2.ProjectionInstance{ProjectionProfileId: profile.ProjectionProfileId, ParticipantId: identity.ParticipantID, AssignmentEpoch: identity.AssignmentEpoch}
-	connected := &realtimev2.ControlConnected{ProtocolVersion: "v2", ProgressionContractVersion: 1, RequiredCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, ProjectionInstance: instance, Limits: v2ProtocolLimits()}
+	connected := &realtimev2.ControlConnected{ProtocolVersion: "v3", ProgressionContractVersion: 2, RequiredCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, ProjectionInstance: instance, Limits: v2ProtocolLimits()}
 	if handshake.Resume == nil {
 		if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_Connected{Connected: connected}}); err != nil {
 			return err
@@ -200,7 +204,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		s.nonces.Revoke(connectionID)
 	}
 
-	events, unsubscribe, err := s.prepareSnapshotCatchUp(stream.Context(), time.Now, func(candidate *realtimev2.CanonicalRuntimeSnapshot, presence *realtimev2.ProjectedPresenceState) error {
+	events, unsubscribe, err := s.prepareSnapshotCatchUp(stream.Context(), snapshotNow, func(candidate *realtimev2.CanonicalRuntimeSnapshot, presence *realtimev2.ProjectedPresenceState) error {
 		snapshot = candidate
 		var enabledLogicalInputs []string
 		if identity.Role == session.RolePresenter {
@@ -211,7 +215,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 		}
 		fence = &presentationv2.RuntimeProjectionFence{SessionId: identity.SessionID, Publication: &presentationv2.PublicationFence{PresentationId: s.bootstrap.Publication.PresentationID, PublicationEpoch: s.bootstrap.Publication.PublicationEpoch, PublicationManifestHash: s.bootstrap.Publication.PublicationManifestHash}, AssignmentEpoch: identity.AssignmentEpoch, ProjectionProfileId: profile.ProjectionProfileId, PresentationOriginVersion: snapshot.PresentationOrigin.Version}
-		cut = &realtimev2.ConnectionSnapshotEnvelope{SchemaVersion: 2, ConnectionId: connectionID, Fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), ProjectionInstance: proto.Clone(instance).(*presentationv2.ProjectionInstance), PresenceAtCut: presence, ReliableSequence: snapshot.ReliableSequence, Snapshot: &realtimev2.ProjectedRuntimeSnapshot{ProjectionProfileId: profile.ProjectionProfileId, AssignmentEpoch: identity.AssignmentEpoch, ReliableSequence: snapshot.ReliableSequence, RuntimeView: view}}
+		cut = &realtimev2.ConnectionSnapshotEnvelope{SchemaVersion: 3, ConnectionId: connectionID, Fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), ProjectionInstance: proto.Clone(instance).(*presentationv2.ProjectionInstance), PresenceAtCut: presence, ReliableSequence: snapshot.ReliableSequence, Snapshot: &realtimev2.ProjectedRuntimeSnapshot{ProjectionProfileId: profile.ProjectionProfileId, AssignmentEpoch: identity.AssignmentEpoch, ReliableSequence: snapshot.ReliableSequence, RuntimeView: view}}
 		if handshake.Resume == nil {
 			if _, err := protocolv2.NewConnectionCursor(cut, fence, profile.RuntimeCatalog); err != nil {
 				return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
@@ -294,7 +298,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			}
 		}
 		item := &realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_ReliableEvent{ReliableEvent: projected}}
-		if proto.Size(item) > 1<<20 {
+		if protocolv2.KnownSize(item) > 1<<20 {
 			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 		}
 		if err := sendRaw(item); err != nil {
@@ -313,6 +317,34 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		}
 		control.snapshotCut = control.deliveredSequence.Load()
 	}
+	var sentSynchronization *realtimev2.PresenterInputSynchronization
+	sendSynchronization := func(force bool) error {
+		if identity.Role != session.RolePresenter {
+			return nil
+		}
+		sendMu.Lock()
+		defer sendMu.Unlock()
+		current, catalog := s.runtime.PresenterSynchronization()
+		if current == nil || (!force && proto.Equal(current, sentSynchronization)) || observed < current.ReliableSequence || observed < catalog.ReliableSequence {
+			return nil
+		}
+		if lastVisible < current.ReliableSequence {
+			advance := &realtimev2.ProjectionAdvance{Fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), FromExclusive: lastVisible, ThroughSequence: current.ReliableSequence}
+			if err := sendRaw(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_ProjectionAdvance{ProjectionAdvance: advance}}); err != nil {
+				return err
+			}
+			lastVisible = current.ReliableSequence
+			control.deliveredSequence.Store(lastVisible)
+		}
+		if err := sendRaw(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_PresenterInputSynchronization{PresenterInputSynchronization: current}}); err != nil {
+			return err
+		}
+		if err := sendRaw(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_PresenterStepSelectionCatalog{PresenterStepSelectionCatalog: catalog}}); err != nil {
+			return err
+		}
+		sentSynchronization = current
+		return nil
+	}
 
 	issueNonce := func() error {
 		nonce, err := s.nonces.Issue(connectionID, identity.ParticipantID)
@@ -322,6 +354,9 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		return send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_StateConnectionNonce{StateConnectionNonce: &realtimev2.StateConnectionNonce{Nonce: nonce, ExpiresInMs: 30000}}})
 	}
 	if err := issueNonce(); err != nil {
+		return err
+	}
+	if err := sendSynchronization(false); err != nil {
 		return err
 	}
 	streamErrors := make(chan error, 1)
@@ -360,14 +395,31 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 	defer leaseTimer.Stop()
 	leaseCheck := time.NewTicker(time.Second)
 	defer leaseCheck.Stop()
+	synchronizationCheck := time.NewTicker(20 * time.Millisecond)
+	defer synchronizationCheck.Stop()
+	stateReadySeen := false
 	for {
 		var item *realtimev2.ControlClientItem
 		var err error
 		select {
+		case <-synchronizationCheck.C:
+			if err := sendSynchronization(false); err != nil {
+				return err
+			}
+			continue
 		case <-control.stateDetached:
 			if err := s.v2ControlClosed(control); err != nil {
 				return err
 			}
+			if identity.Role == session.RolePresenter && stateReadySeen {
+				if err := s.assignments.AllowCommand(claim); err != nil {
+					return assignmentError(err)
+				}
+				if err := s.runtime.BeginInputSynchronization(stream.Context(), realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECONNECTED, true); err != nil {
+					return v2CommandError(err)
+				}
+			}
+			stateReadySeen = false
 			if err := issueNonce(); err != nil {
 				return err
 			}
@@ -413,13 +465,20 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		if item == nil {
 			return status.Error(codes.InvalidArgument, "handshake_order_invalid")
 		}
-		if proto.Size(item) > 1<<20 {
+		if protocolv2.KnownSize(item) > 1<<20 {
 			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 		}
 		if err := protocolv2.ValidateMessage(item); err != nil {
 			return status.Error(codes.InvalidArgument, "message_invalid")
 		}
 		switch value := item.Item.(type) {
+		case *realtimev2.ControlClientItem_InputSynchronizationAck:
+			if _, err := s.runtime.AcknowledgeInputSynchronization(stream.Context(), identity, value.InputSynchronizationAck); err != nil {
+				return v2CommandError(err)
+			}
+			if err := sendSynchronization(true); err != nil {
+				return err
+			}
 		case *realtimev2.ControlClientItem_StateReady:
 			s.mu.Lock()
 			if !control.stateConnected {
@@ -431,6 +490,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 				return status.Error(codes.FailedPrecondition, "state_ready_fence_mismatch")
 			}
 			control.readyOnce.Do(func() { close(control.ready) })
+			stateReadySeen = true
 			s.mu.Unlock()
 		case *realtimev2.ControlClientItem_LogicalInput:
 			outcome, _, err := s.runtime.LogicalInputContext(stream.Context(), identity, value.LogicalInput)
@@ -450,6 +510,22 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			}
 		case *realtimev2.ControlClientItem_RuntimeControl:
 			outcome, _, err := s.runtime.RuntimeControl(stream.Context(), identity, value.RuntimeControl)
+			if err != nil {
+				return v2CommandError(err)
+			}
+			if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_CommandOutcome{CommandOutcome: outcome}}); err != nil {
+				return err
+			}
+		case *realtimev2.ControlClientItem_GestureInput:
+			outcome, _, err := s.runtime.GestureInputContext(stream.Context(), identity, value.GestureInput)
+			if err != nil {
+				return v2CommandError(err)
+			}
+			if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_CommandOutcome{CommandOutcome: outcome}}); err != nil {
+				return err
+			}
+		case *realtimev2.ControlClientItem_ZoneInput:
+			outcome, _, err := s.runtime.ZoneInputContext(stream.Context(), identity, value.ZoneInput)
 			if err != nil {
 				return v2CommandError(err)
 			}
@@ -477,7 +553,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 					}
 				}
 				item := &realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_ReliableEvent{ReliableEvent: projected}}
-				if proto.Size(item) > 1<<20 {
+				if protocolv2.KnownSize(item) > 1<<20 {
 					sendMu.Unlock()
 					return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 				}
@@ -497,8 +573,8 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.StateClientItem, realtimev2.StateServerItem]) (result error) {
 	defer func() { setV2ReasonTrailer(stream, result) }()
 	identity, err := s.identities.Resolve(stream.Context())
-	if err != nil || identity.ProtocolVersion != 2 {
-		return status.Error(codes.Unauthenticated, "v2 realtime credential is required")
+	if err != nil || identity.ProtocolVersion != 3 {
+		return status.Error(codes.Unauthenticated, "v3 realtime credential is required")
 	}
 	send := func(item *realtimev2.StateServerItem) error {
 		_, err := v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) {
@@ -516,7 +592,7 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 	if first.GetHandshake() == nil {
 		return status.Error(codes.InvalidArgument, "handshake_order_invalid")
 	}
-	if proto.Size(first) > 256<<10 {
+	if protocolv2.KnownSize(first) > 256<<10 {
 		return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 	}
 	handshake := first.GetHandshake()
@@ -526,7 +602,7 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 	s.mu.Lock()
 	control := s.controls[handshake.ConnectionId]
 	s.mu.Unlock()
-	if control == nil || control.identity.SessionID != identity.SessionID || control.identity.ParticipantID != identity.ParticipantID || handshake.ProtocolVersion != "v2" || handshake.ProgressionContractVersion != 1 || !sameCapabilities(handshake.SupportedCapabilities, control.profile.RequiredRuntimeCapabilities) || s.nonces.Consume(handshake.ConnectionId, identity.ParticipantID, handshake.StateConnectionNonce) != nil {
+	if control == nil || control.identity.SessionID != identity.SessionID || control.identity.ParticipantID != identity.ParticipantID || handshake.ProtocolVersion != "v3" || handshake.ProgressionContractVersion != 2 || !sameCapabilities(handshake.SupportedCapabilities, control.profile.RequiredRuntimeCapabilities) || s.nonces.Consume(handshake.ConnectionId, identity.ParticipantID, handshake.StateConnectionNonce) != nil {
 		return status.Error(codes.Unauthenticated, "state_nonce_invalid")
 	}
 	s.mu.Lock()
@@ -566,7 +642,7 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 				stateInput <- status.Error(codes.InvalidArgument, "handshake_order_invalid")
 				return
 			}
-			if proto.Size(item) > 256<<10 {
+			if protocolv2.KnownSize(item) > 256<<10 {
 				stateInput <- status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 				return
 			}
@@ -671,7 +747,7 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 			return err
 		}
 		outbound := &realtimev2.StateServerItem{Item: &realtimev2.StateServerItem_StateFrame{StateFrame: frame}}
-		if proto.Size(outbound) > 256<<10 {
+		if protocolv2.KnownSize(outbound) > 256<<10 {
 			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 		}
 		if err := send(outbound); err != nil {
@@ -707,7 +783,10 @@ func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.E
 	for _, node := range view.NodeStates {
 		frame.Elements = append(frame.Elements, &realtimev2.ElementStatePatch{ElementId: node.NodeId, Node: v2KeyframeNodePatch(node, owned[node.NodeId])})
 	}
-	frame.AnchorBindings, err = s.runtime.ProjectedAnchorBindings(view.NodeStates, nowMs)
+	frame.AnchorBindings, err = s.runtime.ProjectedAnchorBindingsAtCut(view.NodeStates, nowMs, snapshot.ReliableSequence)
+	if errors.Is(err, runtimecore.ErrV3StateCutChanged) {
+		return nil, errV2StatePending
+	}
 	if err != nil {
 		return nil, status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 	}
@@ -780,6 +859,8 @@ func v2CommandError(err error) error {
 		return status.Error(codes.FailedPrecondition, "presentation_origin_mismatch")
 	case errors.Is(err, runtimecore.ErrV2IdempotencyKeyReused):
 		return status.Error(codes.InvalidArgument, "idempotency_key_reused")
+	case errors.Is(err, runtimecore.ErrV3CommandEpochFuture):
+		return status.Error(codes.InvalidArgument, "command_epoch_future")
 	case errors.Is(err, runtimecore.ErrV2PersistenceUnavailable):
 		return status.Error(codes.Unavailable, "runtime_persistence_unavailable")
 	default:
@@ -826,7 +907,37 @@ func sameCapabilities(supported, required []presentationv2.RuntimeCapability) bo
 }
 
 func v2ProtocolLimits() *realtimev2.RuntimeProtocolLimits {
-	return &realtimev2.RuntimeProtocolLimits{MaximumIdUtf8Bytes: 128, MaximumControlItemBytes: 1048576, MaximumStateItemBytes: 262144, ReliableEventRetentionCount: 4096, ReliableEventRetentionBytes: 8 << 20, ReliableEventRetentionMs: 900000, MaximumReplayItems: 1024, MaximumReplayBytes: 1 << 20, IdempotencyRetentionCount: 1024, IdempotencyRetentionMs: 900000, SnapshotCatchUpMaxAttempts: 3, SnapshotCatchUpTotalBudgetMs: 250, RuntimeMicrostepLimit: 1024, MaximumTrackingSamplesPerFrame: 4, MaximumTrackingFramesPerSecond: 90, AnchorSampleMaxAgeMs: 500, CatchUpQueueMaximumItems: 1024, CatchUpQueueMaximumBytes: 1 << 20, StateDependencyBufferMaximumValues: 4096, StateDependencyBufferMaximumMs: 500}
+	return &realtimev2.RuntimeProtocolLimits{
+		MaximumIdUtf8Bytes:                 128,
+		MaximumControlItemBytes:            protocolv2.MaximumControlItemBytes,
+		MaximumStateItemBytes:              protocolv2.MaximumStateItemBytes,
+		ReliableEventRetentionCount:        4096,
+		ReliableEventRetentionBytes:        8 << 20,
+		ReliableEventRetentionMs:           900000,
+		MaximumReplayItems:                 1024,
+		MaximumReplayBytes:                 1 << 20,
+		SnapshotCatchUpMaxAttempts:         3,
+		SnapshotCatchUpTotalBudgetMs:       250,
+		RuntimeMicrostepLimit:              1024,
+		MaximumTrackingSamplesPerFrame:     4,
+		MaximumTrackingFramesPerSecond:     90,
+		AnchorSampleMaxAgeMs:               500,
+		CatchUpQueueMaximumItems:           1024,
+		CatchUpQueueMaximumBytes:           1 << 20,
+		StateDependencyBufferMaximumValues: 4096,
+		StateDependencyBufferMaximumMs:     500,
+		MaximumCommandHistoryCount:         protocolv2.MaximumCommandHistoryCount,
+		MaximumCommandHistoryBytes:         protocolv2.MaximumCommandHistoryBytes,
+		CommandHistorySyncCount:            protocolv2.CommandHistorySyncCount,
+		CommandHistorySyncBytes:            protocolv2.CommandHistorySyncBytes,
+		MaximumCommandRecordBytes:          protocolv2.MaximumCommandRecordBytes,
+		MaximumCanonicalSnapshotBytes:      protocolv2.MaximumCanonicalSnapshotBytes,
+		MaximumStepStartHistoryBytes:       protocolv2.MaximumStepStartHistoryBytes,
+		MaximumStepStartStateBytes:         protocolv2.MaximumStepStartStateBytes,
+		MaximumRecoveryMetadataBytes:       protocolv2.MaximumRecoveryMetadataBytes,
+		MaximumCheckpointJsonBytes:         protocolv2.MaximumCheckpointJSONBytes,
+		MaximumInputSynchronizationBytes:   protocolv2.MaximumInputSynchronizationBytes,
+	}
 }
 
 func setV2ReasonTrailer(stream grpcgo.ServerStream, err error) {
@@ -835,7 +946,7 @@ func setV2ReasonTrailer(stream grpcgo.ServerStream, err error) {
 	}
 	var reason string
 	switch status.Convert(err).Message() {
-	case "v2 realtime credential is required", "realtime connection is unauthenticated":
+	case "v3 realtime credential is required", "realtime connection is unauthenticated":
 		reason = "authentication_required"
 	case "handshake_order_invalid":
 		reason = "handshake_order_invalid"
@@ -845,7 +956,7 @@ func setV2ReasonTrailer(stream grpcgo.ServerStream, err error) {
 		reason = "assignment_lease_expired"
 	case "realtime assignment is not active":
 		reason = "assignment_inactive"
-	case "message_invalid", "message_limit_exceeded", "state_nonce_invalid", "protocol_incompatible", "publication_fence_mismatch", "presentation_origin_mismatch", "state_ready_fence_mismatch", "idempotency_key_reused", "presenter_required", "runtime_snapshot_invalid", "runtime_projection_unavailable", "runtime_assignment_unavailable", "snapshot_catch_up_exhausted", "runtime_persistence_unavailable", "participant_already_connected", "reliable_subscriber_slow", "state_rate_exceeded", "internal_error":
+	case "message_invalid", "message_limit_exceeded", "state_nonce_invalid", "protocol_incompatible", "publication_fence_mismatch", "presentation_origin_mismatch", "state_ready_fence_mismatch", "idempotency_key_reused", "command_epoch_future", "presenter_required", "runtime_snapshot_invalid", "runtime_projection_unavailable", "runtime_assignment_unavailable", "snapshot_catch_up_exhausted", "runtime_persistence_unavailable", "participant_already_connected", "reliable_subscriber_slow", "state_rate_exceeded", "internal_error":
 		reason = status.Convert(err).Message()
 	case "private_runtime_fault":
 		reason = "runtime_snapshot_required"

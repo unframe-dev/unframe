@@ -11,6 +11,7 @@ import {
   internalRuntimeProjectionRoute,
 } from "../../openapi";
 import { ServiceIdentity } from "../persistence-callback/service-identity";
+import { parseCheckpointJson } from "../persistence-callback/checkpoint";
 import { PublicationService } from "./service";
 
 export function createRuntimePublicationRoutes() {
@@ -69,6 +70,10 @@ export function createRuntimePublicationRoutes() {
       )
         .bind(sessionId)
         .first<{ payload: string }>();
+      let restoredCheckpoint: Record<string, unknown> | null = null;
+      if (checkpoint) {
+        restoredCheckpoint = await parseCheckpointJson(checkpoint.payload);
+      }
       const result = {
         assignment: {
           sessionId,
@@ -87,7 +92,7 @@ export function createRuntimePublicationRoutes() {
         },
         definition: artifacts.definition,
         renderBundle: artifacts.renderBundle,
-        checkpoint: checkpoint ? (JSON.parse(checkpoint.payload) as Record<string, unknown>) : null,
+        checkpoint: restoredCheckpoint,
       };
       const current = await DB.prepare(
         `SELECT 1 FROM presentation_sessions AS session

@@ -3,7 +3,7 @@ using Google.Protobuf;
 using Unframe.Delivery;
 using Unframe.Realtime;
 
-if (args.Length != 2) throw new ArgumentException("Pass conformance.json and valid-delivery.json paths");
+if (args.Length == 0) throw new ArgumentException("Pass one or more wire fixture paths");
 foreach (var path in args)
 {
     using var document = JsonDocument.Parse(File.ReadAllText(path));
@@ -17,6 +17,24 @@ foreach (var path in args)
         var value = fixture.GetProperty("value").GetRawText();
         switch (typeName)
         {
+            case "unframe.realtime.GestureInputCommand":
+            case "unframe.realtime.ZoneInputCommand":
+            case "unframe.realtime.PresenterInputSynchronization":
+            case "unframe.realtime.PresenterStepSelectionCatalog":
+            case "unframe.realtime.InputSynchronizationAck":
+            case "unframe.realtime.ProjectedAnchorBindingPatch":
+            case "unframe.realtime.RuntimeViewReplaced":
+                {
+                    var descriptor = RealtimeReflection.Descriptor.MessageTypes.Single(message => message.FullName == typeName);
+                    var fromJson = JsonParser.Default.Parse(value, descriptor);
+                    var fromWire = descriptor.Parser.ParseFrom(expected);
+                    if (!fromJson.Equals(fromWire) || !fromJson.ToByteArray().SequenceEqual(expected) ||
+                        !fromWire.ToByteArray().SequenceEqual(expected))
+                        throw new Exception($"{typeName} JSON/binary conformance failed");
+                    if (fromWire is GestureInputCommand command && command.CommandEpoch != ulong.MaxValue)
+                        throw new Exception("GestureInputCommand lost the full uint64 command epoch");
+                    break;
+                }
             case "unframe.realtime.NodeStatePatch":
                 {
                     var fromJson = JsonParser.Default.Parse<NodeStatePatch>(value);

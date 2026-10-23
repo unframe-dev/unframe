@@ -59,6 +59,48 @@ const baselineSource = (change?: (current: typeof source) => void) => {
 };
 
 describe("Delivery artifact selection and admission", () => {
+  it("delivers only sorted recognition kinds and referenced center-only Zones to the Presenter", () => {
+    const input = baselineSource((current) => {
+      current.definition.stage.zones = {
+        z: { id: "z", owner: { kind: "presentation" }, center: [3, 2, 1] },
+        a: { id: "a", owner: { kind: "presentation" }, center: [0, 0, 0] },
+        unused: { id: "unused", owner: { kind: "presentation" }, center: [4, 4, 4] },
+      };
+      current.definition.flow.groups.intro!.steps.start!.cues = (
+        [
+          { kind: "gesture", gesture: "swipeUp" },
+          { kind: "gesture", gesture: "swipeLeft" },
+          { kind: "gesture", gesture: "swipeUp" },
+          { kind: "zoneEdge", zoneId: "z", edge: "enter" },
+          { kind: "zoneEdge", zoneId: "a", edge: "exit" },
+        ] as const
+      ).map((trigger, index) => ({
+        id: `cue-${index}`,
+        trigger: {
+          ...trigger,
+          actor: { kind: "presenter" },
+        },
+        priority: 0,
+        order: index,
+        firePolicy: { kind: "repeatable" },
+        actions: [],
+        next: { kind: "stay" },
+      }));
+    });
+    const presenter = buildProjectionProfile(input, "presenter").profile;
+    expect(presenter.runtimeCatalog?.presenterRecognition).toEqual({
+      gestures: [1, 4],
+      zones: [
+        { zoneId: "a", center: { x: 0, y: 0, z: 0 } },
+        { zoneId: "z", center: { x: 3, y: 2, z: 1 } },
+      ],
+    });
+    expect(presenter.requiredRuntimeCapabilities).toEqual(expect.arrayContaining([7, 8, 9, 10]));
+    const viewer = buildProjectionProfile(input, "viewer").profile;
+    expect(viewer.runtimeCatalog).not.toHaveProperty("presenterRecognition");
+    expect(viewer.requiredRuntimeCapabilities).not.toContain(7);
+  });
+
   it.each([67_108_864, 67_126_671])("rejects model import CPU above %s bytes", (limit) => {
     const input = baselineSource((current) => {
       Object.assign(current.renderBundle.models["model-asset"]!, { peakLoadCpuBytes: 67_126_672 });
@@ -320,8 +362,8 @@ describe("Delivery artifact selection and admission", () => {
     const encoded = encodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", profile);
     const decoded = decodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", encoded);
     expect(decoded.projectionProfileId).toBe(profile.projectionProfileId);
-    expect(profile.runtimeCatalog?.catalogContractVersion).toBe(2);
-    expect((decoded.runtimeCatalog as Record<string, unknown>).catalogContractVersion).toBe(2);
+    expect(profile.runtimeCatalog?.catalogContractVersion).toBe(3);
+    expect((decoded.runtimeCatalog as Record<string, unknown>).catalogContractVersion).toBe(3);
     expect(profile.projectionProfileId).toBe(calculateProjectionProfileId(profile));
     expect(decoded.projectionProfileId).toBe(calculateProjectionProfileId(decoded));
     const layered = structuredClone(profile);

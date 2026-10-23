@@ -87,7 +87,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
 
     [TestCase(false)]
     [TestCase(true)]
-    public async Task StateReadyPermitsRuntimeControlButNotInputOrTrackingBeforeFirstKeyframe(bool paused)
+    public async Task StateReadyDisplaysPausedSnapshotWhilePresenterInputRemainsBlocked(bool paused)
     {
         var store = CreateOwnedStore(paused);
         using (var textures = new PresentationTextureResidency())
@@ -108,12 +108,13 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             {
                 Assert.That(commands.Items.Count, Is.EqualTo(1));
                 Assert.That(commands.Items[0].ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.StateReady));
-                Assert.That(connection.SessionReady, Is.False, "A local StateReady write is not server acknowledgement.");
+                Assert.That(connection.SessionReady, Is.EqualTo(paused), "Running display requires a State keyframe; paused display uses the confirmed Snapshot.");
                 Assert.That(connection.ControlReady, Is.True);
                 Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand { ClientEventId = "event:input", LogicalEventName = "next" } }, CancellationToken.None));
                 Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { SurfaceInteraction = new SurfaceInteractionCommand { ClientEventId = "event:surface" } }, CancellationToken.None));
-                Assert.Throws<InvalidOperationException>(() => connection.SendTrackingAsync(TrackingInput(), CancellationToken.None));
-                Assert.That(tracking.Items, Is.Empty);
+                if (paused) await connection.SendTrackingAsync(TrackingInput(), CancellationToken.None);
+                else Assert.Throws<InvalidOperationException>(() => connection.SendTrackingAsync(TrackingInput(), CancellationToken.None));
+                Assert.That(tracking.Items.Count, Is.EqualTo(paused ? 1 : 0));
                 Assert.That(commands.Items.Count, Is.EqualTo(1));
                 foreach (RuntimeControlKind kind in new[] { RuntimeControlKind.Resume, RuntimeControlKind.End })
                 {
@@ -128,7 +129,22 @@ public sealed class PresentationRealtimeConnectionEditModeTests
                     }, CancellationToken.None);
                 }
                 Assert.That(commands.Items.Count, Is.EqualTo(3));
-                Assert.That(connection.SessionReady, Is.False);
+                Assert.That(connection.SessionReady, Is.EqualTo(paused));
+                if (paused)
+                {
+                    Assert.That(store.TryGetLastConnectionSnapshot(out var cut), Is.True);
+                    Assert.That(store.TryReceiveNetworkControl(new ControlServerItem
+                    {
+                        ReliableEvent = new ProjectedReliableEvent
+                        {
+                            Sequence = 1,
+                            Fence = cut.Fence.Clone(),
+                            RuntimeStatusChanged = new RuntimeStatusChanged { Running = new Running() }
+                        }
+                    }, out string error), Is.True, error);
+                    Assert.That(connection.InputSynchronization.Ready, Is.False);
+                    Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand { LogicalEventName = "next" } }, CancellationToken.None));
+                }
             }
             finally
             {
@@ -139,11 +155,56 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         }
     }
 
-    private static PresentationRuntimeDataStore CreateOwnedStore(bool paused = false)
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task PausedViewerDisplaysFrozenSnapshotWithoutPresenterSynchronization(bool recovering)
+    {
+        var store = CreateOwnedStore(true, true);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        using (var cancellation = new CancellationTokenSource())
+        {
+            LoadTrackingTextures(store, textures);
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            if (recovering)
+            {
+                typeof(PresentationRealtimeConnection).GetMethod("BeginReplayBootstrap", flags).Invoke(connection, null);
+                typeof(PresentationRealtimeConnection).GetMethod("CompleteReplayBootstrap", flags).Invoke(connection, null);
+            }
+            var writer = new ControlWriter();
+            var stateCall = new AsyncDuplexStreamingCall<StateClientItem, StateServerItem>(new TrackingWriter(), new ConnectedStateReader(), Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+            var controlCall = new AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem>(writer, null, Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+            typeof(PresentationRealtimeConnection).GetField("state", flags).SetValue(connection, stateCall);
+            typeof(PresentationRealtimeConnection).GetField("control", flags).SetValue(connection, controlCall);
+            typeof(PresentationRealtimeConnection).GetField("connectionId", flags).SetValue(connection, "ready-test");
+            Task run = (Task)typeof(PresentationRealtimeConnection).GetMethod("RunStateAsync", flags).Invoke(connection, new object[] { cancellation.Token });
+            try
+            {
+                Assert.That(connection.InputSynchronization.Ready, Is.False);
+                Assert.That(connection.SessionReady, Is.True, "Paused Viewer must display the confirmed Snapshot without a private Presenter sync or State frame.");
+                Assert.That(store.TryGetAnchorSample(store.Delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].NodeId, out var frozen), Is.True);
+                Assert.That(frozen.Position.X, Is.EqualTo(7));
+                Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand() }, CancellationToken.None));
+                Assert.Throws<InvalidOperationException>(() => connection.SendTrackingAsync(TrackingInput(), CancellationToken.None));
+            }
+            finally
+            {
+                cancellation.Cancel();
+                try { await run; } catch (OperationCanceledException) { }
+            }
+        }
+    }
+
+    private static PresentationRuntimeDataStore CreateOwnedStore(bool paused = false, bool frozenViewer = false)
     {
         var store = new PresentationRuntimeDataStore();
         var delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
         var catalog = delivery.ProjectionProfile.RuntimeCatalog;
+        if (frozenViewer)
+        {
+            delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Viewer;
+            catalog.Nodes[0].Parent = new Unframe.Presentation.SpatialParent { PresenterAnchor = new Unframe.Presentation.PresenterAnchorParent { Target = Unframe.Presentation.AnchorTarget.Head, FollowPosition = true } };
+        }
         foreach (var node in catalog.Nodes) node.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
         foreach (var surface in catalog.Surfaces) surface.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
         foreach (var variable in catalog.Variables)
@@ -153,6 +214,10 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         }
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        foreach (var node in catalog.Nodes)
+            if (node.NodeCase == Unframe.Presentation.ProjectedNodeDefinition.NodeOneofCase.Model)
+                snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState { ModelNodeId = node.NodeId, DefaultPose = new DefaultModelPose() });
+        if (frozenViewer) snapshot.ConnectionSnapshot.Snapshot.RuntimeView.FrozenAnchors.Add(new FrozenAnchorDisplayState { NodeId = catalog.Nodes[0].NodeId, Position = new Unframe.Presentation.Vector3 { X = 7 } });
         if (paused) snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Clock.Paused = new Unframe.Realtime.Paused { Reason = PauseReason.ExplicitPause };
         foreach (var variable in catalog.Variables)
             snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables.Add(new Unframe.Realtime.VariableState { VariableId = variable.VariableId, Value = new Unframe.Presentation.ScalarValue { StringValue = "value" } });
@@ -311,15 +376,28 @@ public sealed class PresentationRealtimeConnectionEditModeTests
     [TestCase("readiness")]
     [TestCase("replace")]
     [TestCase("cancel")]
+    [TestCase("discard")]
     public async Task QueuedInputRechecksReadinessAndControlStreamBeforeWriting(string mode)
     {
-        var store = new PresentationRuntimeDataStore();
-        Assert.That(store.TryReceiveDelivery(PresentationTextureResidencyEditModeTests.BakedDelivery(), out string error), Is.True, error);
+        var store = CreateOwnedStore();
         using (var textures = new PresentationTextureResidency())
         using (var connection = new PresentationRealtimeConnection(store, textures))
         using (var cancellation = new CancellationTokenSource())
         {
             LoadTrackingTextures(store, textures);
+            var required = new PresenterInputSynchronization
+            {
+                Phase = InputSynchronizationPhase.Required,
+                Reason = InputSynchronizationReason.Connected,
+                SynchronizationRevision = 1,
+                CommandEpoch = 1,
+                RecognitionCatalog = new Unframe.Presentation.PresenterRecognitionCatalog(),
+                InputContext = new InputContext { InputEpoch = 1, GroupId = store.Progression.CurrentGroupId, GroupEntryEpoch = store.Progression.GroupEntryEpoch, StepId = store.Progression.CurrentStepId, StepEntryEpoch = store.Progression.StepEntryEpoch }
+            };
+            Assert.That(connection.InputSynchronization.Receive(required), Is.True);
+            connection.InputSynchronization.TryCreateAck(0);
+            required.Phase = InputSynchronizationPhase.Ready;
+            Assert.That(connection.InputSynchronization.Receive(required), Is.True);
             PrepareTrackingState(connection, new TrackingWriter());
             var writer = new ControlWriter { FirstWriteRelease = new TaskCompletionSource<bool>() };
             var call = new AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem>(writer, null, Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
@@ -333,6 +411,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             if (mode == "readiness") typeof(PresentationRealtimeConnection).GetMethod("BeginStateStream", flags).Invoke(connection, null);
             if (mode == "replace") typeof(PresentationRealtimeConnection).GetField("control", flags).SetValue(connection, null);
             if (mode == "cancel") cancellation.Cancel();
+            if (mode == "discard") connection.DiscardPendingInputs();
             writer.FirstWriteRelease.SetResult(true);
             await first;
             Exception failure = null;

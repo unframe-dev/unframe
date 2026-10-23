@@ -19,6 +19,9 @@ message ControlClientItem {
     LogicalInputCommand logical_input = 20;
     SurfaceInteractionCommand surface_interaction = 21;
     RuntimeControlCommand runtime_control = 22;
+    GestureInputCommand gesture_input = 100;
+    ZoneInputCommand zone_input = 101;
+    InputSynchronizationAck input_synchronization_ack = 102;
   }
   reserved 4 to 19;
   reserved 23 to 99;
@@ -46,8 +49,8 @@ message RuntimeProtocolLimits {
   uint64 reliable_event_retention_ms = 6;
   uint32 maximum_replay_items = 7;
   uint64 maximum_replay_bytes = 8;
-  uint32 idempotency_retention_count = 9;
-  uint64 idempotency_retention_ms = 10;
+  reserved 9, 10;
+  reserved "idempotency_retention_count", "idempotency_retention_ms";
   uint32 snapshot_catch_up_max_attempts = 11;
   uint64 snapshot_catch_up_total_budget_ms = 12;
   uint32 runtime_microstep_limit = 13;
@@ -58,6 +61,17 @@ message RuntimeProtocolLimits {
   uint64 catch_up_queue_maximum_bytes = 18;
   uint32 state_dependency_buffer_maximum_values = 19;
   uint64 state_dependency_buffer_maximum_ms = 20;
+  uint32 maximum_command_history_count = 21;
+  uint64 maximum_command_history_bytes = 22;
+  uint32 command_history_sync_count = 23;
+  uint64 command_history_sync_bytes = 24;
+  uint32 maximum_command_record_bytes = 25;
+  uint64 maximum_canonical_snapshot_bytes = 26;
+  uint64 maximum_step_start_history_bytes = 27;
+  uint64 maximum_step_start_state_bytes = 28;
+  uint64 maximum_recovery_metadata_bytes = 29;
+  uint64 maximum_checkpoint_json_bytes = 30;
+  uint32 maximum_input_synchronization_bytes = 31;
 }
 
 message ControlConnected {
@@ -86,6 +100,8 @@ message LogicalInputCommand {
   string logical_event_name = 2;
   uint64 presentation_origin_version = 3;
   optional uint64 captured_at_client_monotonic_ms = 4;
+  InputContext input_context = 5;
+  uint64 command_epoch = 6;
 }
 
 message SurfaceInteractionCommand {
@@ -94,6 +110,8 @@ message SurfaceInteractionCommand {
   string interaction_id = 3;
   uint64 presentation_origin_version = 4;
   optional uint64 captured_at_client_monotonic_ms = 5;
+  InputContext input_context = 6;
+  uint64 command_epoch = 7;
 }
 
 enum RuntimeControlKind {
@@ -101,12 +119,91 @@ enum RuntimeControlKind {
   RUNTIME_CONTROL_KIND_PAUSE = 1;
   RUNTIME_CONTROL_KIND_RESUME = 2;
   RUNTIME_CONTROL_KIND_END = 3;
+  RUNTIME_CONTROL_KIND_SELECT_STEP = 4;
+  RUNTIME_CONTROL_KIND_RECALIBRATE = 5;
 }
 
 message RuntimeControlCommand {
   string client_event_id = 1;
   RuntimeControlKind kind = 2;
   uint64 presentation_origin_version = 3;
+  uint64 command_epoch = 4;
+  StepSelection step_selection = 5;
+}
+
+message InputContext {
+  uint64 input_epoch = 1;
+  string group_id = 2;
+  uint64 group_entry_epoch = 3;
+  string step_id = 4;
+  uint64 step_entry_epoch = 5;
+}
+
+message GestureInputCommand {
+  string client_event_id = 1;
+  InputContext input_context = 2;
+  uint64 command_epoch = 3;
+  uint64 presentation_origin_version = 4;
+  optional uint64 captured_at_client_monotonic_ms = 5;
+  unframe.presentation.GestureKind gesture = 6;
+}
+
+message ZoneInputCommand {
+  string client_event_id = 1;
+  InputContext input_context = 2;
+  uint64 command_epoch = 3;
+  uint64 presentation_origin_version = 4;
+  optional uint64 captured_at_client_monotonic_ms = 5;
+  string zone_id = 6;
+  unframe.presentation.ZoneEdge edge = 7;
+}
+
+message StepSelection {
+  string group_id = 1;
+  string step_id = 2;
+}
+
+message PresenterStepSelectionCatalog {
+  repeated StepSelection reached_steps = 1;
+  uint64 reliable_sequence = 2;
+}
+
+enum InputSynchronizationPhase {
+  INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED = 0;
+  INPUT_SYNCHRONIZATION_PHASE_REQUIRED = 1;
+  INPUT_SYNCHRONIZATION_PHASE_READY = 2;
+}
+
+enum InputSynchronizationReason {
+  INPUT_SYNCHRONIZATION_REASON_UNSPECIFIED = 0;
+  INPUT_SYNCHRONIZATION_REASON_CONNECTED = 1;
+  INPUT_SYNCHRONIZATION_REASON_RECONNECTED = 2;
+  INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED = 3;
+  INPUT_SYNCHRONIZATION_REASON_PAUSED = 4;
+  INPUT_SYNCHRONIZATION_REASON_RESUMED = 5;
+  INPUT_SYNCHRONIZATION_REASON_RECALIBRATED = 6;
+  INPUT_SYNCHRONIZATION_REASON_HISTORY_CAPACITY = 7;
+  INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED = 8;
+  INPUT_SYNCHRONIZATION_REASON_STEP_RESTORED = 9;
+}
+
+message PresenterInputSynchronization {
+  InputSynchronizationPhase phase = 1;
+  InputSynchronizationReason reason = 2;
+  uint64 synchronization_revision = 3;
+  InputContext input_context = 4;
+  uint64 command_epoch = 5;
+  optional uint64 next_command_epoch = 6;
+  uint64 reliable_sequence = 7;
+  unframe.presentation.PresenterRecognitionCatalog recognition_catalog = 8;
+}
+
+message InputSynchronizationAck {
+  uint64 synchronization_revision = 1;
+  InputContext input_context = 2;
+  uint64 command_epoch = 3;
+  uint64 applied_reliable_sequence = 4;
+  bool pending_commands_discarded = 5;
 }
 
 message CommandOutcome {
@@ -136,6 +233,12 @@ enum CommandRejectionReason {
   COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE = 1;
   COMMAND_REJECTION_REASON_INTERACTION_UNAVAILABLE = 2;
   COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT = 3;
+  COMMAND_REJECTION_REASON_INPUT_CONTEXT_STALE = 4;
+  COMMAND_REJECTION_REASON_COMMAND_EPOCH_STALE = 5;
+  COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED = 6;
+  COMMAND_REJECTION_REASON_STEP_NOT_REACHED = 7;
+  COMMAND_REJECTION_REASON_SESSION_ENDED = 8;
+  COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED = 9;
 }
 
 message CommandRejected { CommandRejectionReason reason = 1; }
@@ -172,6 +275,8 @@ message ControlServerItem {
     CommandOutcome command_outcome = 5;
     StateConnectionNonce state_connection_nonce = 6;
     ResyncRequired resync_required = 7;
+    PresenterInputSynchronization presenter_input_synchronization = 8;
+    PresenterStepSelectionCatalog presenter_step_selection_catalog = 9;
   }
 }
 
@@ -216,6 +321,9 @@ message ProjectedReliableEvent {
     ModelClipCanceled model_clip_canceled = 327;
     ParticipantPresenceChanged participant_presence_changed = 400;
     MediaStoppedSeeked media_stopped_seeked = 1000;
+    GestureInputAccepted gesture_input_accepted = 1001;
+    ZoneInputAccepted zone_input_accepted = 1002;
+    RuntimeViewReplaced runtime_view_replaced = 1003;
   }
   reserved 6 to 19;
   reserved 22 to 99;
@@ -242,6 +350,7 @@ enum PauseReason {
   PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED = 6;
   PAUSE_REASON_RECOVERY_GAP = 7;
   PAUSE_REASON_EXPLICIT_PAUSE = 8;
+  PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED = 9;
 }
 
 enum TerminationReason {
@@ -298,6 +407,14 @@ message CueAccepted {
 
 message PresentationEnded { TerminationReason reason = 1; }
 message LogicalInputAccepted { string logical_event_name = 1; }
+message GestureInputAccepted { unframe.presentation.GestureKind gesture = 1; }
+message ZoneInputAccepted {
+  string zone_id = 1;
+  unframe.presentation.ZoneEdge edge = 2;
+}
+
+// A complete projected replacement is applied atomically at this event's sequence.
+message RuntimeViewReplaced { ParticipantRuntimeView runtime_view = 1; }
 
 message SurfaceInteractionAccepted {
   string surface_id = 1;
@@ -581,15 +698,11 @@ message ArmedTimer {
   bool fired = 3;
 }
 
-message CueCooldown {
-  string cue_id = 1;
-  uint64 next_eligible_runtime_time_ms = 2;
-}
-
 message StepExecutionSnapshot {
   uint64 step_entry_epoch = 1;
   repeated string consumed_cue_ids = 2;
-  repeated CueCooldown cooldowns = 3;
+  reserved 3;
+  reserved "cooldowns";
   repeated ArmedTimer timers = 4;
 }
 
@@ -688,8 +801,32 @@ message CanonicalRuntimeSnapshot {
   repeated VariableState variables = 11;
   repeated RuntimeRunSnapshot active_runs = 12;
   PresentationOrigin presentation_origin = 13;
-  repeated string recent_event_ids = 14;
+  reserved 14;
+  reserved "recent_event_ids";
   repeated ModelClipRuntimeState model_clip_states = 15;
+  uint64 input_epoch = 16;
+  repeated FrozenAnchorDisplayState frozen_anchors = 17;
+  repeated StepStartState step_start_history = 18;
+}
+
+message FrozenAnchorDisplayState {
+  string node_id = 1;
+  optional unframe.presentation.Vector3 position = 2;
+  optional unframe.presentation.Quaternion rotation = 3;
+}
+
+message StepStartState {
+  string group_id = 1;
+  string step_id = 2;
+  uint64 group_entry_epoch = 3;
+  uint64 step_entry_epoch = 4;
+  uint64 captured_at_runtime_time_ms = 5;
+  repeated NodeRuntimeState node_states = 6;
+  repeated SurfaceRuntimeState surface_states = 7;
+  repeated MediaRuntimeState media_states = 8;
+  repeated VariableState variables = 9;
+  repeated RuntimeRunSnapshot active_runs = 10;
+  repeated ModelClipRuntimeState model_clip_states = 11;
 }
 
 // Durable server-only history, excluded from participant projections.
@@ -697,16 +834,28 @@ message RuntimeRecoveryMetadata {
   string started_at = 1;
   repeated RuntimeParticipantHistory participants = 2;
   repeated RuntimeCommandHistory commands = 3;
+  uint64 command_epoch = 4;
+  PresenterInputSynchronization input_synchronization = 5;
+  RuntimeCapacityFault capacity_fault = 6;
+}
+
+message RuntimeCapacityFault {
+  uint64 step_start_state_bytes = 1;
+  uint64 step_start_history_bytes = 2;
+  uint64 canonical_snapshot_bytes = 3;
 }
 message RuntimeParticipantHistory {
   string participant_id = 1;
   unframe.presentation.SessionRole role = 2;
 }
 message RuntimeCommandHistory {
-  string key = 1;
+  reserved 1, 4;
+  reserved "key", "remembered_at_unix_ms";
   string fingerprint = 2;
   CommandOutcome outcome = 3;
-  int64 remembered_at_unix_ms = 4;
+  string participant_id = 5;
+  string client_event_id = 6;
+  uint64 command_epoch = 7;
 }
 
 message ParticipantRuntimeView {
@@ -723,6 +872,7 @@ message ParticipantRuntimeView {
   PresentationOrigin presentation_origin = 11;
   repeated string enabled_logical_inputs = 12;
   repeated ModelClipRuntimeState model_clip_states = 13;
+  repeated FrozenAnchorDisplayState frozen_anchors = 14;
 }
 
 message ProjectedRuntimeSnapshot {
@@ -870,6 +1020,7 @@ message ProjectedAnchorBindingPatch {
   oneof state {
     AnchorBindingUnavailable unavailable = 2;
     ProjectedAnchorBindingSample sample = 3;
+    FrozenAnchorDisplayState frozen = 4;
   }
 }
 

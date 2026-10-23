@@ -11,28 +11,9 @@ import (
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 )
 
-func TestV2TrackingFrameFiresCanonicalZoneCue(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","stage":{"zones":{"zone":{"id":"zone","owner":{"kind":"presentation"},"center":[0,0,0],"size":[2,2,2]}}},"scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"enter","priority":1,"order":0,"trigger":{"kind":"zoneEdge","actor":{"kind":"system","source":"tracking"},"subject":{"kind":"participant","owner":{"kind":"presenter"}},"zoneId":"zone","edge":"enter","dwellMilliseconds":0,"hysteresisMeters":0},"firePolicy":{"kind":"oncePerStepEntry"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
-	core, err := NewV2Session(definition)
-	if err != nil {
-		t.Fatal(err)
-	}
-	identity := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
-	calibration := trackingTestPose(0, 0, 0)
-	outside := trackingTestFrame(1, calibration, trackingTestSample(realtimev2.TrackedTarget_TRACKED_TARGET_BODY, trackingTestPose(2, 0, 0)))
-	if _, events, err := core.AcceptTracking(context.Background(), identity, outside, time.Unix(100, 0), 1); err != nil || len(events) != 0 {
-		t.Fatalf("outside events=%#v err=%v", events, err)
-	}
-	inside := trackingTestFrame(2, calibration, trackingTestSample(realtimev2.TrackedTarget_TRACKED_TARGET_BODY, trackingTestPose(0, 0, 0)))
-	_, events, err := core.AcceptTracking(context.Background(), identity, inside, time.Unix(100, 1), 2)
-	if err != nil || len(events) != 1 || events[0].GetCueAccepted() == nil || events[0].GetCueAccepted().CueId != "enter" || core.Snapshot().ReliableSequence != 1 {
-		t.Fatalf("inside events=%#v cut=%#v err=%v", events, core.Snapshot(), err)
-	}
-}
-
 func TestV2AnchorBindingUsesFreshPresenterBodyAndExpiresAfterFiveHundredMs(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{"badge":{"id":"badge","kind":"container","owner":{"kind":"presentation"},"parent":{"kind":"anchor","target":"body","owner":{"kind":"presenter"},"followPosition":true,"followRotation":false},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
-	core, err := NewV2Session(definition)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{"badge":{"id":"badge","kind":"container","owner":{"kind":"presentation"},"parent":{"kind":"anchor","target":"body","owner":{"kind":"presenter"},"followPosition":true,"followRotation":false},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	core, err := newV3RegressionSession(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +44,7 @@ func TestV2AnchorBindingUsesFreshPresenterBodyAndExpiresAfterFiveHundredMs(t *te
 	}
 	headDefinition := bytes.ReplaceAll(definition, []byte(`"target":"body"`), []byte(`"target":"head"`))
 	headDefinition = bytes.ReplaceAll(headDefinition, []byte(`"followPosition":true,"followRotation":false`), []byte(`"followPosition":false,"followRotation":true`))
-	head, err := NewV2Session(headDefinition)
+	head, err := newV3RegressionSession(headDefinition)
 	if err != nil {
 		t.Fatal(err)
 	}

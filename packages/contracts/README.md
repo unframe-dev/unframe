@@ -32,6 +32,8 @@ pnpm --filter @unframe/contracts test:presentation
 
 ### Presenter motion guide metadata
 
+以下は移行前 v2 の実装契約です。[ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) では Gesture の種類だけを Author が選び、client が認識する方式を採用しましたが、[v3 の wire・version・容量契約](../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) と Zod / Protobuf・生成物を更新しました。SDK / 実行側 consumer は未移行です。現在配布している認識閾値と対象の手を、新仕様のユーザー設定として使用しません。
+
 `ProjectedRuntimeCatalog.motion_guides` は Presenter profile にだけ含まれる操作候補です。
 `group_id` / `step_id` / `cue_id` と、motion preset・対象の手・最小移動距離・判定時間を配信します。
 Viewer profile では空です。guard と Cue 発火履歴は投影していないため、現在の Group / Step に一致しても

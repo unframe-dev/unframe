@@ -8,6 +8,7 @@ import (
 
 	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -25,7 +26,32 @@ func ValidateSnapshot(snapshot *realtimev2.CanonicalRuntimeSnapshot, catalog *pr
 			return fmt.Errorf("message_invalid: run allocator")
 		}
 	}
-	return validateRuntimeState(snapshot, catalog, assignmentEpoch)
+	if err := validateRuntimeState(snapshot, catalog, assignmentEpoch); err != nil {
+		return err
+	}
+	for _, entry := range snapshot.StepStartHistory {
+		if entry.CapturedAtRuntimeTimeMs > snapshot.Clock.RuntimeTimeMs {
+			return fmt.Errorf("message_invalid: future Step history capture")
+		}
+		progression := &realtimev2.ProgressionRuntimeState{CurrentGroupId: entry.GroupId, CurrentStepId: entry.StepId, GroupEntryEpoch: entry.GroupEntryEpoch, StepEntryEpoch: entry.StepEntryEpoch, Phase: &realtimev2.ProgressionRuntimeState_Stable{Stable: &realtimev2.StableProgression{}}}
+		var blocking []*presentationv2.RuntimeRunId
+		for _, run := range entry.ActiveRuns {
+			if run.RunId.RunSequence > snapshot.LastAllocatedRunSequence {
+				return fmt.Errorf("message_invalid: historical run allocator")
+			}
+			if run.Completion == presentationv2.RunCompletion_RUN_COMPLETION_BLOCKING {
+				blocking = append(blocking, run.RunId)
+			}
+		}
+		if len(blocking) > 0 {
+			progression.Phase = &realtimev2.ProgressionRuntimeState_Transitioning{Transitioning: &realtimev2.TransitioningProgression{BlockingRunIds: blocking}}
+		}
+		historical := &realtimev2.CanonicalRuntimeSnapshot{Progression: progression, Clock: &realtimev2.RuntimeClockSnapshot{RuntimeTimeMs: entry.CapturedAtRuntimeTimeMs}, NodeStates: entry.NodeStates, SurfaceStates: entry.SurfaceStates, Variables: entry.Variables, MediaStates: entry.MediaStates, ModelClipStates: entry.ModelClipStates, ActiveRuns: entry.ActiveRuns}
+		if err := validateRuntimeState(historical, catalog, assignmentEpoch); err != nil {
+			return fmt.Errorf("message_invalid: Step history: %w", err)
+		}
+	}
+	return nil
 }
 
 type runtimeStateCut interface {
@@ -37,6 +63,7 @@ type runtimeStateCut interface {
 	GetMediaStates() []*realtimev2.MediaRuntimeState
 	GetModelClipStates() []*realtimev2.ModelClipRuntimeState
 	GetActiveRuns() []*realtimev2.RuntimeRunSnapshot
+	GetFrozenAnchors() []*realtimev2.FrozenAnchorDisplayState
 }
 
 func validateRuntimeState(snapshot runtimeStateCut, catalog *presentationv2.ProjectedRuntimeCatalog, assignmentEpoch uint64) error {
@@ -83,6 +110,16 @@ func validateRuntimeState(snapshot runtimeStateCut, catalog *presentationv2.Proj
 	}
 	if len(snapshot.GetNodeStates()) != len(nodes) || len(snapshot.GetSurfaceStates()) != len(surfaces) || len(snapshot.GetVariables()) != len(variables) || len(snapshot.GetModelClipStates()) != len(models) {
 		return fmt.Errorf("message_invalid: snapshot resource closure")
+	}
+	for _, frozen := range snapshot.GetFrozenAnchors() {
+		node := nodes[frozen.NodeId]
+		if node == nil || node.Parent.GetPresenterAnchor() == nil {
+			return fmt.Errorf("message_invalid: frozen Anchor target")
+		}
+		parent := node.Parent.GetPresenterAnchor()
+		if frozen.Position != nil && !parent.FollowPosition || frozen.Rotation != nil && !parent.FollowRotation {
+			return fmt.Errorf("message_invalid: frozen Anchor components")
+		}
 	}
 	seen := make(map[string]bool)
 	for _, state := range snapshot.GetNodeStates() {
@@ -360,14 +397,19 @@ func DecodeCheckpoint(envelope, expected *realtimev2.DurableCheckpointEnvelope, 
 	if snapshot.ReliableSequence != envelope.ReliableSequence {
 		return nil, fmt.Errorf("message_invalid: checkpoint reliable sequence")
 	}
-	if _, err := DecodeRecoveryMetadata(envelope); err != nil {
+	if err := ValidateCheckpointCut(envelope, snapshot); err != nil {
 		return nil, err
 	}
 	canonicalizeSamplePositions(snapshot.ProtoReflect())
 	if err := ValidateSnapshot(snapshot, catalog, envelope.AssignmentEpoch); err != nil {
 		return nil, err
 	}
-	snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PROCESS_RECOVERED}}
+	if snapshot.Clock.GetTerminating() != nil {
+		return nil, fmt.Errorf("session_ended: terminating checkpoint cannot be restored")
+	}
+	if snapshot.Clock.GetPaused().GetReason() != realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION {
+		snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PROCESS_RECOVERED}}
+	}
 	return snapshot, nil
 }
 
@@ -401,7 +443,14 @@ func EncodeCheckpoint(snapshot *realtimev2.CanonicalRuntimeSnapshot, metadata *r
 		hash := sha256.Sum256(checkpoint.RecoveryPayload)
 		checkpoint.RecoveryHash = proto.String("sha256:" + hex.EncodeToString(hash[:]))
 	}
-	if _, err := DecodeRecoveryMetadata(checkpoint); err != nil {
+	recovery, err := DecodeRecoveryMetadata(checkpoint)
+	if err != nil {
+		return nil, err
+	}
+	if err := rejectUnknown(recovery.ProtoReflect()); err != nil {
+		return nil, err
+	}
+	if err := ValidateCheckpointCut(checkpoint, snapshot); err != nil {
 		return nil, err
 	}
 	if err := ValidateMessage(checkpoint); err != nil {
@@ -411,4 +460,34 @@ func EncodeCheckpoint(snapshot *realtimev2.CanonicalRuntimeSnapshot, metadata *r
 		return nil, err
 	}
 	return checkpoint, nil
+}
+
+// ValidateCheckpointCut checks recovery and canonical payloads describe the same input cut.
+func ValidateCheckpointCut(envelope *realtimev2.DurableCheckpointEnvelope, snapshot *realtimev2.CanonicalRuntimeSnapshot) error {
+	if err := ValidateMessage(snapshot); err != nil {
+		return err
+	}
+	if err := ValidateMessage(envelope); err != nil {
+		return err
+	}
+	recovery, err := DecodeRecoveryMetadata(envelope)
+	if err != nil {
+		return err
+	}
+	if envelope.ReliableSequence != snapshot.ReliableSequence {
+		return fmt.Errorf("message_invalid: checkpoint reliable sequence")
+	}
+	context := recovery.InputSynchronization.InputContext
+	progression := snapshot.Progression
+	if context.InputEpoch != snapshot.InputEpoch || context.GroupId != progression.CurrentGroupId || context.StepId != progression.CurrentStepId || context.GroupEntryEpoch != progression.GroupEntryEpoch || context.StepEntryEpoch != progression.StepEntryEpoch {
+		return fmt.Errorf("message_invalid: recovery input context disagrees with canonical cut")
+	}
+	encoded, err := protojson.Marshal(envelope)
+	if err != nil {
+		return err
+	}
+	if len(encoded) > MaximumCheckpointJSONBytes {
+		return fmt.Errorf("message_invalid: checkpoint JSON byte limit")
+	}
+	return nil
 }

@@ -70,7 +70,7 @@ describe("venue edge HTTP routes", () => {
         await request(`/venue-edges/${credential.edge.id}/register`, "POST", undefined, {
           runtimeId: `runtime-${suffix}`,
           runtimeVersion: "1",
-          protocolVersion: "v2",
+          protocolVersion: "v3",
           capacity: 10,
           localEndpoint: "https://edge.example.com",
           certificateFingerprint: `sha256:${"a".repeat(64)}`,
@@ -87,7 +87,7 @@ describe("venue edge HTTP routes", () => {
           {
             runtimeId: `runtime-${suffix}`,
             runtimeVersion: "1",
-            protocolVersion: "v2",
+            protocolVersion: "v3",
             capacity: 10,
             localEndpoint: "http://edge.example.com",
             certificateFingerprint: `sha256:${"a".repeat(64)}`,
@@ -106,7 +106,7 @@ describe("venue edge HTTP routes", () => {
           {
             runtimeId: `runtime-${suffix}`,
             runtimeVersion: "1",
-            protocolVersion: "v2",
+            protocolVersion: "v3",
             capacity: 10,
             localEndpoint: "https://edge.example.com",
             certificateFingerprint: `sha256:${"a".repeat(64)}`,

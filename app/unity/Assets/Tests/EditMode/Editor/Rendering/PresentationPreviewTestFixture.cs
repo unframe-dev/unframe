@@ -15,7 +15,7 @@ public static class PresentationPreviewTestFixture
         var group = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:first" } };
         var catalog = new ProjectedRuntimeCatalog
         {
-            CatalogContractVersion = 2,
+            CatalogContractVersion = 3,
             Nodes =
             {
                 new ProjectedNodeDefinition { NodeId = "node:stage", Owner = owner, Parent = new SpatialParent { Stage = new StageParent() }, Container = new ContainerNode() },

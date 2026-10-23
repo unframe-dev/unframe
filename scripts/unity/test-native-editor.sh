@@ -20,7 +20,7 @@ done
 rm -f "$assets/Unframe/Scripts/Fixtures/LocalPresentationFixtureRunner.cs" "$assets/Unframe/Scripts/Fixtures/LocalPresentationFixtureRunner.cs.meta"
 cp "$runtime/PresentationBakedRuntime.cs" "$assets/Unframe/Scripts/"
 mkdir -p "$assets/Unframe/Scripts/Quest"
-for file in PresentationCalibrationState PresentationCalibrationMath QuestPresentationTracking; do
+for file in PresentationCalibrationState PresentationCalibrationMath QuestPresentationTracking QuestPresentationInput PresenterInputSynchronizationState PresenterRecognition; do
   cp "$runtime/Quest/$file.cs" "$assets/Unframe/Scripts/Quest/"
 done
 find "$root/app/unity/Assets/Plugins" -maxdepth 1 -type f \( -name '*.dll' -o -name '*.dll.meta' \) -exec cp {} "$assets/Unframe/Plugins/" \;

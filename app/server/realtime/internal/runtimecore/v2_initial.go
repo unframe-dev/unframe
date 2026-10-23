@@ -84,32 +84,23 @@ type v2Cue struct {
 	Order    uint32 `json:"order"`
 	Trigger  struct {
 		Kind       string `json:"kind"`
+		Gesture    string `json:"gesture"`
 		Event      string `json:"event"`
 		TimelineID string `json:"timelineId"`
 		Actor      struct {
 			Kind string `json:"kind"`
 		} `json:"actor"`
-		Action                string  `json:"action"`
-		SurfaceID             string  `json:"surfaceId"`
-		NodeID                string  `json:"nodeId"`
-		ClipID                string  `json:"clipId"`
-		InteractionID         string  `json:"interactionId"`
-		AfterMilliseconds     uint64  `json:"afterMilliseconds"`
-		ZoneID                string  `json:"zoneId"`
-		Edge                  string  `json:"edge"`
-		DwellMilliseconds     uint64  `json:"dwellMilliseconds"`
-		HysteresisMeters      float64 `json:"hysteresisMeters"`
-		Preset                string  `json:"preset"`
-		MinimumDistanceMeters float64 `json:"minimumDistanceMeters"`
-		WindowMilliseconds    uint64  `json:"windowMilliseconds"`
-		Subject               struct {
-			Kind   string `json:"kind"`
-			Target string `json:"target"`
-		} `json:"subject"`
+		Action            string `json:"action"`
+		SurfaceID         string `json:"surfaceId"`
+		NodeID            string `json:"nodeId"`
+		ClipID            string `json:"clipId"`
+		InteractionID     string `json:"interactionId"`
+		AfterMilliseconds uint64 `json:"afterMilliseconds"`
+		ZoneID            string `json:"zoneId"`
+		Edge              string `json:"edge"`
 	} `json:"trigger"`
 	FirePolicy struct {
-		Kind                 string `json:"kind"`
-		CooldownMilliseconds uint64 `json:"cooldownMilliseconds"`
+		Kind string `json:"kind"`
 	} `json:"firePolicy"`
 	Guard        json.RawMessage `json:"guard"`
 	FixedPayload map[string]any  `json:"fixedPayload"`
@@ -169,8 +160,11 @@ func NewV2InitialSnapshot(raw json.RawMessage) (*realtimev2.CanonicalRuntimeSnap
 }
 
 func newV2InitialSnapshot(raw json.RawMessage, mediaSpecs map[string]map[string]v2MediaSpec, modelClips map[string]map[string]v2ModelClipSpec) (*realtimev2.CanonicalRuntimeSnapshot, error) {
+	if err := validateV3AuthorityDefinition(raw); err != nil {
+		return nil, err
+	}
 	var definition v2Definition
-	if err := json.Unmarshal(raw, &definition); err != nil || definition.SchemaVersion != 2 || definition.PresentationID == "" {
+	if err := json.Unmarshal(raw, &definition); err != nil || definition.SchemaVersion != 3 || definition.PresentationID == "" {
 		return nil, ErrV2RuntimeDefinition
 	}
 	for id, node := range definition.Scene.Nodes {
@@ -194,15 +188,19 @@ func newV2InitialSnapshot(raw json.RawMessage, mediaSpecs map[string]map[string]
 	}
 	for _, group := range definition.Flow.Groups {
 		for _, step := range group.Steps {
-			trackingDefinition := v2TrackingDefinition{Zones: definition.Stage.Zones}
 			for _, cue := range step.Cues {
 				switch cue.Trigger.Kind {
-				case "zoneEdge", "motion":
-					tracked, err := v2TrackingCueFromDefinition(cue)
-					if err != nil {
+				case "motion":
+					return nil, ErrV2RuntimeDefinition
+				case "gesture":
+					if v3Gesture(cue.Trigger.Gesture) == 0 || cue.Trigger.Actor.Kind != "presenter" {
 						return nil, ErrV2RuntimeDefinition
 					}
-					trackingDefinition.Cues = append(trackingDefinition.Cues, tracked)
+				case "zoneEdge":
+					zone, ok := definition.Stage.Zones[cue.Trigger.ZoneID]
+					if !ok || zone.ID != cue.Trigger.ZoneID || cue.Trigger.Actor.Kind != "presenter" || cue.Trigger.Edge != "enter" && cue.Trigger.Edge != "exit" {
+						return nil, ErrV2RuntimeDefinition
+					}
 				case "modelClipCompleted":
 					if modelClips[cue.Trigger.NodeID][cue.Trigger.ClipID].DurationMS == 0 {
 						return nil, ErrV2RuntimeUnsupported
@@ -227,9 +225,6 @@ func newV2InitialSnapshot(raw json.RawMessage, mediaSpecs map[string]map[string]
 					}
 				}
 			}
-			if err := v2TrackingValidateDefinition(trackingDefinition); err != nil {
-				return nil, ErrV2RuntimeDefinition
-			}
 		}
 	}
 	group, found := definition.Flow.Groups[definition.Flow.InitialGroupID]
@@ -241,7 +236,8 @@ func newV2InitialSnapshot(raw json.RawMessage, mediaSpecs map[string]map[string]
 		return nil, ErrV2RuntimeDefinition
 	}
 	snapshot := &realtimev2.CanonicalRuntimeSnapshot{
-		SchemaVersion:      2,
+		SchemaVersion:      3,
+		InputEpoch:         1,
 		Clock:              &realtimev2.RuntimeClockSnapshot{Status: &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}},
 		Progression:        &realtimev2.ProgressionRuntimeState{CurrentGroupId: group.ID, GroupEntryEpoch: 1, CurrentStepId: step.ID, StepEntryEpoch: 1, Phase: &realtimev2.ProgressionRuntimeState_Stable{Stable: &realtimev2.StableProgression{}}},
 		StepExecution:      &realtimev2.StepExecutionSnapshot{StepEntryEpoch: 1},
@@ -303,6 +299,9 @@ func newV2InitialSnapshot(raw json.RawMessage, mediaSpecs map[string]map[string]
 	if err := protocolv2.ValidateMessage(snapshot); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrV2RuntimeDefinition, err)
 	}
+	if err := captureV3StepStart(snapshot); err != nil {
+		return nil, err
+	}
 	return snapshot, nil
 }
 
@@ -356,7 +355,7 @@ func buildV2CanonicalCatalog(raw json.RawMessage, mediaSpecs map[string]map[stri
 	if err := json.Unmarshal(raw, &def); err != nil {
 		return nil, ErrV2RuntimeDefinition
 	}
-	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}
+	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}
 	for _, id := range sortedV2Keys(def.Scene.Nodes) {
 		node := def.Scene.Nodes[id]
 		if node.ID != id {

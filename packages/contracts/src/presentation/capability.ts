@@ -13,13 +13,13 @@ const budget = <T extends z.ZodRawShape>(shape: T) =>
 
 export const capabilityProfileSchema = z
   .strictObject({
-    schemaVersion: z.literal(2),
+    schemaVersion: z.literal(3),
     capabilityProfileId: idSchema,
     contractVersions: z.strictObject({
-      delivery: z.literal(2),
-      runtime: z.literal(2),
-      progression: z.literal(1),
-      projection: z.literal(1),
+      delivery: z.literal(3),
+      runtime: z.literal(3),
+      progression: z.literal(2),
+      projection: z.literal(2),
     }),
     renderers: z.strictObject({
       bakedWeb: rendererCapability(z.enum(["alpha-opaque", "alpha-straight", "png", "srgb"])),

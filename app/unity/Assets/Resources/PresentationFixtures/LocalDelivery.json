@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 2,
-  "deliveryContractVersion": 2,
+  "schemaVersion": 3,
+  "deliveryContractVersion": 3,
   "sessionId": "session:local",
   "publication": {
     "presentationId": "presentation:local",
@@ -9,12 +9,12 @@
   },
   "capabilityProfile": {
     "capabilityProfileId": "capability:local",
-    "schemaVersion": 2,
+    "schemaVersion": 3,
     "contractVersions": {
-      "delivery": 2,
-      "runtime": 2,
-      "progression": 1,
-      "projection": 1
+      "delivery": 3,
+      "runtime": 3,
+      "progression": 2,
+      "projection": 2
     },
     "renderers": {
       "nativeUi": {
@@ -32,12 +32,12 @@
         "publicationEpoch": "1",
         "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       },
-      "projectionContractVersion": 1,
+      "projectionContractVersion": 2,
       "role": "SESSION_ROLE_PRESENTER"
     },
     "requiredRuntimeCapabilities": ["RUNTIME_CAPABILITY_TIMELINE_RUN"],
     "runtimeCatalog": {
-      "catalogContractVersion": 2,
+      "catalogContractVersion": 3,
       "nodes": [
         {
           "nodeId": "node:local-stage",

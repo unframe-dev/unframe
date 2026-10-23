@@ -31,7 +31,7 @@ export type VenueEdgeCredentialRecord = {
 export type EdgeRegistration = {
   runtimeId: string;
   runtimeVersion: string;
-  protocolVersion: "v2";
+  protocolVersion: "v3";
   capacity: number;
   localEndpoint: string;
   certificateFingerprint: string;

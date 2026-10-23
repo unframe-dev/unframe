@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
@@ -28,7 +27,7 @@ func v2SnapshotWithin(t *testing.T, core *V2Session) *realtimev2.CanonicalRuntim
 
 func v2ParallelCore(t *testing.T, definition json.RawMessage, writer V2CheckpointWriter) *V2Session {
 	t.Helper()
-	core, err := NewV2Session(definition)
+	core, err := newV3RegressionSession(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +35,7 @@ func v2ParallelCore(t *testing.T, definition json.RawMessage, writer V2Checkpoin
 	if err != nil {
 		t.Fatal(err)
 	}
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(writer, metadata, catalog); err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +43,7 @@ func v2ParallelCore(t *testing.T, definition json.RawMessage, writer V2Checkpoin
 }
 
 func TestV2LeaseExpiryWaitsForCheckpointAndRemainsPaused(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	entered, release := make(chan struct{}), make(chan struct{})
 	defer func() {
 		select {
@@ -99,7 +98,7 @@ func (observe v2CompletionObserver) CompleteCheckpoint(_ context.Context, envelo
 }
 
 func TestV2CompletionCallbackKeepsPreviousCutReadable(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	for _, test := range []struct {
 		name string
 		err  error
@@ -121,7 +120,7 @@ func TestV2CompletionCallbackKeepsPreviousCutReadable(t *testing.T) {
 			}))
 			finished := make(chan error, 1)
 			go func() {
-				_, _, err := core.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.RuntimeControlCommand{ClientEventId: "end-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END})
+				_, _, err := core.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "end-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END}))
 				finished <- err
 			}()
 			select {
@@ -179,10 +178,10 @@ func TestV2CompletionCallbackKeepsPreviousCutReadable(t *testing.T) {
 }
 
 func TestV2ResumeValidatorRunsWithoutSessionMutex(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	core := v2ParallelCore(t, definition, checkpointCommitObserver(func(*realtimev2.DurableCheckpointEnvelope) error { return nil }))
 	identity := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
-	if _, _, err := core.RuntimeControl(context.Background(), identity, &realtimev2.RuntimeControlCommand{ClientEventId: "pause-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE}); err != nil {
+	if _, _, err := core.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "pause-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE})); err != nil {
 		t.Fatal(err)
 	}
 	entered, release := make(chan struct{}), make(chan struct{})
@@ -196,7 +195,7 @@ func TestV2ResumeValidatorRunsWithoutSessionMutex(t *testing.T) {
 	core.ConfigureResumeValidation(func(context.Context) error { close(entered); <-release; return nil })
 	resumed := make(chan error, 1)
 	go func() {
-		_, _, err := core.RuntimeControl(context.Background(), identity, &realtimev2.RuntimeControlCommand{ClientEventId: "resume-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME})
+		_, _, err := core.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "resume-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME}))
 		resumed <- err
 	}()
 	select {
@@ -220,71 +219,9 @@ func TestV2ResumeValidatorRunsWithoutSessionMutex(t *testing.T) {
 	}
 }
 
-func TestV2TrackingCheckpointFailureRestoresEphemeralEvaluator(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","stage":{"zones":{"zone":{"id":"zone","owner":{"kind":"presentation"},"center":[0,0,0],"size":[2,2,2]}}},"scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"enter","priority":1,"order":0,"trigger":{"kind":"zoneEdge","actor":{"kind":"system","source":"tracking"},"subject":{"kind":"participant","owner":{"kind":"presenter"}},"zoneId":"zone","edge":"enter","dwellMilliseconds":0,"hysteresisMeters":0},"firePolicy":{"kind":"oncePerStepEntry"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
-	entered, release := make(chan struct{}), make(chan struct{})
-	defer func() {
-		select {
-		case <-release:
-		default:
-			close(release)
-		}
-	}()
-	core := v2ParallelCore(t, definition, checkpointCommitObserver(func(*realtimev2.DurableCheckpointEnvelope) error {
-		close(entered)
-		<-release
-		return errors.New("checkpoint unavailable")
-	}))
-	identity := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
-	calibration := trackingTestPose(0, 0, 0)
-	outside := trackingTestFrame(1, calibration, trackingTestSample(realtimev2.TrackedTarget_TRACKED_TARGET_BODY, trackingTestPose(2, 0, 0)))
-	if _, events, err := core.AcceptTracking(context.Background(), identity, outside, time.Unix(100, 0), 1); err != nil || len(events) != 0 {
-		t.Fatalf("outside seed: events=%#v err=%v", events, err)
-	}
-	core.mu.Lock()
-	before := core.tracking.Clone()
-	core.mu.Unlock()
-	inside := trackingTestFrame(2, calibration, trackingTestSample(realtimev2.TrackedTarget_TRACKED_TARGET_BODY, trackingTestPose(0, 0, 0)))
-	failed := make(chan error, 1)
-	go func() {
-		_, _, err := core.AcceptTracking(context.Background(), identity, inside, time.Unix(100, 1), 2)
-		failed <- err
-	}()
-	select {
-	case <-entered:
-	case <-time.After(time.Second):
-		t.Fatal("tracking checkpoint callback did not start")
-	}
-	readTracking := make(chan v2TrackingEvaluator, 1)
-	go func() {
-		core.mu.Lock()
-		defer core.mu.Unlock()
-		readTracking <- core.tracking.Clone()
-	}()
-	var during v2TrackingEvaluator
-	select {
-	case during = <-readTracking:
-	case <-time.After(250 * time.Millisecond):
-		t.Fatal("checkpoint callback blocked tracking reader")
-	}
-	if !reflect.DeepEqual(before, during) || core.Snapshot().ReliableSequence != 0 {
-		t.Fatal("unacknowledged tracking edge or canonical cut leaked")
-	}
-	close(release)
-	if err := <-failed; err == nil {
-		t.Fatal("failed tracking checkpoint was accepted")
-	}
-	core.mu.Lock()
-	after := core.tracking.Clone()
-	core.mu.Unlock()
-	if !reflect.DeepEqual(before, after) || core.Snapshot().ReliableSequence != 0 || core.Snapshot().Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED {
-		t.Fatal("failed tracking checkpoint did not roll back detector and pause")
-	}
-}
-
 func TestV2AdvanceFromWallIgnoresOlderTickAfterSerialization(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
-	core, err := NewV2Session(definition)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	core, err := newV3RegressionSession(definition)
 	if err != nil {
 		t.Fatal(err)
 	}

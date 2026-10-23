@@ -1,17 +1,19 @@
-# Presentation データ契約 v2
+# Presentation データ契約
 
 ## 正本と読み方
 
-v2 は今回の機能範囲に対するデータ契約である。構造は Zod / Protobuf、構造だけでは表せない参照整合性・計算・状態遷移・拒否条件は以下の仕様を正本とする。両方を満たして初めて有効なデータとなる。
+Definition / Delivery / Runtime は v3、RenderBundle / AssetSet は v2 を使用する。構造は Zod / Protobuf、構造だけでは表せない参照整合性・計算・状態遷移・拒否条件は以下の仕様を正本とする。両方を満たして初めて有効なデータとなる。
 
-| 対象                                                                    | 構造の正本                                                                           | 意味規則                                |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------- |
-| Definition / RenderBundle / AssetSet / Build / Publication / Capability | [Zod v2](../../packages/contracts/src/presentation/index.ts)                         | [成果物契約](./CONTRACT_ARTIFACTS.md)   |
-| 配信と再接続に共通の型                                                  | [presentation v2](../../packages/contracts/proto/unframe/presentation/runtime.proto) | [配信・実行契約](./CONTRACT_RUNTIME.md) |
-| DeliveryManifest                                                        | [delivery v2](../../packages/contracts/proto/unframe/delivery/delivery.proto)        | 同上                                    |
-| Command / Event / Run / Snapshot / StateFrame                           | [realtime v2](../../packages/contracts/proto/unframe/realtime/realtime.proto)        | 同上                                    |
+[ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力同期・凍結表示・到達済み Step 復元を実装した。対象テストと実機未検証の範囲は移行計画に記録する。 wire・version・容量は [v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md) を正本とする。
 
-型・意味規則が旧 Architecture の例や初期 v1 と異なる場合は、この v2 契約を優先する。Architecture と ADR は設計理由を説明する。v1 は初期 subset の履歴であり、現在の静的 Compiler / Core は v2 だけを生成・検証する。Delivery / Runtime / Unity の接続は別途必要である。
+| 対象                                                                    | 構造の正本                                                                        | 意味規則                                |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------- |
+| Definition / RenderBundle / AssetSet / Build / Publication / Capability | [Zod](../../packages/contracts/src/presentation/index.ts)                         | [成果物契約](./CONTRACT_ARTIFACTS.md)   |
+| 配信と再接続に共通の型                                                  | [presentation](../../packages/contracts/proto/unframe/presentation/runtime.proto) | [配信・実行契約](./CONTRACT_RUNTIME.md) |
+| DeliveryManifest                                                        | [delivery](../../packages/contracts/proto/unframe/delivery/delivery.proto)        | 同上                                    |
+| Command / Event / Run / Snapshot / StateFrame                           | [realtime](../../packages/contracts/proto/unframe/realtime/realtime.proto)        | 同上                                    |
+
+型・意味規則が旧 Architecture の例や初期 v1 と異なる場合は、この契約を優先する。Architecture と ADR は設計理由を説明する。v1 は初期 subset の履歴であり、現在の Compiler / Core は上記の version 組合せを生成・検証し、Delivery / Runtime / Unity と接続する。
 
 M3A は Theme と Structured composition の静的 `baked-web` 経路を v2 へ接続する。その authoring と compile-time 解決規則は [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。この接続は CLI / reference project まで実装され、動的機能と consumer 接続は後続に残る。
 
@@ -45,35 +47,29 @@ Definition にダウンロード URL、端末 capability、現在の再生時刻
 
 ## 検証と実装の境界
 
-### 腕モーションからの演出開始
+### Gesture / Zone と共有進行
 
-既存の `motion` Trigger に `preset` を指定して、腕の動作を Cue の開始条件にできる。Group / Step / Cue / Action / Timeline の構造は変更しない。片腕のプリセットは `swipeLeft`、`swipeRight`、`swipeDown`、`swipeUp`、`pushForward`、`pullBackward`。`subject` は presenter の anchor で、`target` は `eitherHand`、`leftHand`、`rightHand` のいずれか。両腕の `spreadHands`、`closeHands` は `target: "bothHands"` を必要とする。これらの複合対象は motion 専用で、zoneEdge には指定できない。
+Presenter client が入力を認識し、Runtime が Cue の採用と共有状態を確定する。定義と状態の配置は次のとおりとする。
 
-```json
-{
-  "kind": "motion",
-  "actor": { "kind": "system", "source": "tracking" },
-  "subject": {
-    "kind": "anchor",
-    "owner": { "kind": "presenter" },
-    "target": "eitherHand"
-  },
-  "preset": "swipeUp",
-  "minimumDistanceMeters": 0.28,
-  "windowMilliseconds": 1200
-}
-```
+| 対象             | 採用仕様                                                                                                                                                                                                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gesture Trigger  | `swipeLeft` / `swipeRight` / `swipeUp` / `swipeDown` / `pushForward` / `pullBackward` / `spreadHands` / `closeHands` の種類を指定する。片手動作は左右どちらでも同じ種類。距離・速度・時間窓・終了判定は client 内部で調整し、ユーザー設定にしない。 |
+| Zone Definition  | ID、owner、中心位置を保持する。標準形状は Presentation Space の軸に平行な一辺2mの箱。ユーザーが指定する幾何情報は中心位置だけで、形状・寸法・判定部位は選択させない。                                                                               |
+| Presenter 用情報 | Gesture の操作候補と Zone ID / 位置を配布する。Gesture の上下は鉛直、前後左右は動作開始時の頭の水平向きに基づく。Zone は Body tracking の腰位置で認識し、欠損時の部位代替はしない。                                                                 |
+| 入力             | Gesture の種類、または Zone ID と enter / exit を送る。認識開始時の Group / Step・Step 入場世代・server の入力世代・イベント ID を共通で持つ。送信者は認証情報から確定する。                                                                        |
+| Cue              | Guard、Action、Next、優先順位の評価は Runtime が行う。`oncePerStepEntry` / `repeatable` は残し、server cooldown は削除する。通常は前者、繰り返しが必要な Cue だけ後者を明示する。                                                                   |
+| Runtime State    | 入力世代、pause 中の凍結 Anchor、到達済み Step ごとの直近の開始状態を追加する。raw Pose 履歴や認識器内部状態は含めない。Step 履歴は checkpoint へ保存し、Viewer に履歴全体を投影しない。                                                            |
 
-この Trigger を持つ Cue の既存 `timeline.play` Action で opacity の Timeline を開始すれば、振り上げをきっかけにフェードインできる。`surface.setState` の crossfade も同じ Action 経路を使う。動作成立時に演出を開始する方式であり、腕の変位で再生位置や透明度を連続操作する契約ではない。`preset` を持たない既存の距離条件も引き続き有効。
+一動作を一種類に分類し、一度だけ通知する。動作終了後に次の動作を受け付け、固定の待ち時間や不採用動作の新 ID による再通知は設けない。異なる認識結果は別イベントとして受理順に評価し、同時成立 batch は作らない。Zone は判定開始・再開・再校正・追跡復帰時に現在位置を無通知で seed し、喪失を exit とみなさない。
 
-本番では Realtime が presenter の既存 Tracking Pose を評価する。クライアントが送る「認識できた」という通知を判定の正本にはしない。共有 v2 Definition の Publication 保存・読み戻しが対応し、旧 Control Plane v1 draft schema は変更しない。Web Author の Cue 編集・プリセット選択 UI は未実装。Realtime は共有 Definition の motion preset を Tracking Pose から評価する。Presenter Delivery には対応する操作案内のメタデータを投影する。Tracking wire にトリガーボタン状態は含まれず、ボタン保持を認識開始条件にはしない。
+`timeline.play` や `surface.setState` による演出開始と、Pose に追従する連続演出は別の経路とする。Runtime は受理した認識結果から Cue を評価し、Pose から Gesture / Zone を再認識しない。pause では共有演出全体を止め、HMD の視点と操作 UI は継続する。Step 選択は到達済みの直近開始状態を paused で復元し、明示 resume を待つ。入力の寿命・再送・復元の詳細は [配信・実行契約](./CONTRACT_RUNTIME.md) に従う。
 
-Realtime のプリセット判定は、頭からの相対手位置と動作開始時の頭の水平向きを使う。上下は Y 軸、前方は canonical の -Z を頭の回転で変換した水平方向。0.20 秒の静止（速度 0.12m/s 以下）で準備し、Cue の距離・時間窓に加えて平均速度 0.25m/s 以上を要求する。片腕の横ずれは主方向変位の65%以下。両腕は広げる場合に手間距離 0.50m 以下から 0.60m 以上へ、縮める場合はその逆へ動かし、左右とも開始時の中心からの距離を 0.10m 以上変える。両腕の `minimumDistanceMeters` は手間距離の変化量を表す。
+### 実装と検証範囲
 
-必要な追跡の欠損、0.50 秒を超えるフレーム間隔、場面変更で再準備を必要とする。成立後も再び静止するまで認識しない。これらは実装の既定値であり、Quest 実機での認識率・誤検出の調整は未完了。
+Zod / Protobuf、Authoring / Compiler / Core、Realtime と Unity を v3 に揃えた。旧 motion / tracking trigger、可変 Zone size、server cooldown は受理しない。Presenter にだけ認識設定と到達済み Step ID を渡し、開始状態履歴は server に保持する。認識品質と2m Zone の妥当性は Quest 実機の別途確認が必要である。
 
 [契約 package](../../packages/contracts/README.md) に生成・drift check・fixture の実行方法を記載する。JSON Schema と descriptor は生成物であり、手編集しない。
 
 構造テストの合格は、GLB importer、動画 decoder、font atlas、Runtime reducer、再接続、Quest の実機動作が実装済みであることを意味しない。意味検証は Core、投影と admission は Delivery、素材変換は Compiler、描画は各 consumer の責務となる。端末の上限値は検証済み CapabilityProfile の必須入力であり、fixture の合成値を製品設定に使わない。
 
-Core は静的 baked-web subset の意味検証と [build / 公開物の整合性検証](../../packages/unframe-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) を持つ。Compiler / CLI は Definition、RenderBundle、AssetSet、BuildManifest と素材 bytes を出力する。v2 全体の意味検証と Delivery / Runtime consumer の接続は未完了である。
+Core は Scene / Flow / Runtime Snapshot の意味検証と [build / 公開物の整合性検証](../../packages/unframe-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) を持つ。Compiler / CLI は Definition、RenderBundle、AssetSet、BuildManifest と素材 bytes を出力する。Delivery / Runtime consumer は v3 へ接続済みである。素材変換・端末描画・実機検証の範囲は各 consumer の文書を参照する。

@@ -286,32 +286,9 @@ const triggerActorSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("presenter") }),
   z.strictObject({
     kind: z.literal("system"),
-    source: z.enum(["tracking", "timer", "timeline", "media", "runtime"]).optional(),
+    source: z.enum(["timer", "timeline", "media", "runtime"]).optional(),
   }),
 ]);
-const trackedSubjectSchema = z.discriminatedUnion("kind", [
-  z.strictObject({
-    kind: z.literal("participant"),
-    owner: z.strictObject({ kind: z.literal("presenter") }),
-  }),
-  z.strictObject({
-    kind: z.literal("anchor"),
-    owner: z.strictObject({ kind: z.literal("presenter") }),
-    target: z.enum(["head", "leftHand", "rightHand", "body"]),
-  }),
-]);
-const motionTriggerFields = {
-  kind: z.literal("motion"),
-  actor: z.strictObject({ kind: z.literal("system"), source: z.literal("tracking") }),
-  minimumDistanceMeters: positiveFiniteNumberSchema,
-  windowMilliseconds: positiveSafeUIntSchema,
-};
-const motionHandSubject = <T extends z.ZodType>(target: T) =>
-  z.strictObject({
-    kind: z.literal("anchor"),
-    owner: z.strictObject({ kind: z.literal("presenter") }),
-    target,
-  });
 const triggerSchema = z.union([
   z.strictObject({
     kind: z.literal("logicalInput"),
@@ -331,30 +308,23 @@ const triggerSchema = z.union([
   }),
   z.strictObject({
     kind: z.literal("zoneEdge"),
-    actor: z.strictObject({ kind: z.literal("system"), source: z.literal("tracking") }),
-    subject: trackedSubjectSchema,
+    actor: z.strictObject({ kind: z.literal("presenter") }),
     zoneId: idSchema,
     edge: z.enum(["enter", "exit"]),
-    dwellMilliseconds: safeUIntSchema.optional(),
-    hysteresisMeters: nonNegativeFiniteNumberSchema.optional(),
   }),
-  z.strictObject({ ...motionTriggerFields, subject: trackedSubjectSchema }),
   z.strictObject({
-    ...motionTriggerFields,
-    preset: z.enum([
+    kind: z.literal("gesture"),
+    actor: z.strictObject({ kind: z.literal("presenter") }),
+    gesture: z.enum([
       "swipeLeft",
       "swipeRight",
-      "swipeDown",
       "swipeUp",
+      "swipeDown",
       "pushForward",
       "pullBackward",
+      "spreadHands",
+      "closeHands",
     ]),
-    subject: motionHandSubject(z.enum(["eitherHand", "leftHand", "rightHand"])),
-  }),
-  z.strictObject({
-    ...motionTriggerFields,
-    preset: z.enum(["spreadHands", "closeHands"]),
-    subject: motionHandSubject(z.literal("bothHands")),
   }),
   z.strictObject({ kind: z.literal("timer"), afterMilliseconds: positiveSafeUIntSchema }),
   z.strictObject({ kind: z.literal("timelineCompleted"), timelineId: idSchema }),
@@ -628,7 +598,6 @@ const cueSchema = z.strictObject({
     z.strictObject({ kind: z.literal("oncePerStepEntry") }),
     z.strictObject({
       kind: z.literal("repeatable"),
-      cooldownMilliseconds: safeUIntSchema,
     }),
   ]),
   actions: z.array(actionSchema),
@@ -641,7 +610,7 @@ const cueSchema = z.strictObject({
 });
 
 export const presentationDefinitionSchema = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   presentationId: idSchema,
   metadata: z.strictObject({ title: z.string().min(1) }),
   stage: z.strictObject({
@@ -658,7 +627,6 @@ export const presentationDefinitionSchema = z.strictObject({
         id: idSchema,
         owner: resourceOwnerSchema,
         center: vector3Schema,
-        size: positiveVector3Schema,
       }),
     ),
   }),
