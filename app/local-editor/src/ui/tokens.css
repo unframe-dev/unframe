@@ -1,0 +1,36 @@
+:root {
+  --background: #f7f8fb;
+  --panel: #fff;
+  --surface: #eef1f6;
+  --text: #111827;
+  --muted: #64748b;
+  --border: #d7deea;
+  --accent: #2190ff;
+  --accent-soft: #e2f0ff;
+  --danger: #b42332;
+  --radius: 5px;
+  --font-sans: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, monospace;
+}
+[data-theme="dark"] {
+  --background: #0d0e11;
+  --panel: #15171b;
+  --surface: #1d2026;
+  --text: #f9fafb;
+  --muted: #b5bfce;
+  --border: #313742;
+  --accent: #5ba8ff;
+  --accent-soft: #1c3149;
+  --danger: #ff969e;
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-panel: var(--panel);
+  --color-surface: var(--surface);
+  --color-foreground: var(--text);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}

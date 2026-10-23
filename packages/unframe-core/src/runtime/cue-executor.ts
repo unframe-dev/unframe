@@ -119,6 +119,14 @@ export type CueState = {
   >;
 };
 
+export type CueCapture = { cueId: string; causeEventId: string; state: CueState };
+export type CueExecution = {
+  state: CueState;
+  outcome: CueOutcome;
+  canceledRuns?: CanceledRuntimeRun[];
+  capture?: CueCapture;
+};
+
 export type CueOutcome =
   | { kind: "accepted"; cueId: string }
   | { kind: "rejected"; cueId: string; reason: "invalidActionValue" | "invalidTarget" | "conflict" }
@@ -518,7 +526,8 @@ const evaluateCueEvent = (
   state: CueState,
   input: CueInput,
   allowScheduledInput: boolean,
-): { state: CueState; outcome: CueOutcome; canceledRuns?: CanceledRuntimeRun[] } => {
+  captureState = false,
+): CueExecution => {
   if (state.ended || state.phase.kind === "transitioning")
     return { state, outcome: { kind: "none" } };
   if (
@@ -772,6 +781,9 @@ const evaluateCueEvent = (
     if (run.completion === "blocking") blockingRunIds.push(run.runId);
   }
   next.activeRuns.sort((a, b) => a.runId.runSequence - b.runId.runSequence);
+  const capture = captureState
+    ? { cueId: cue.id, causeEventId: input.causeEventId, state: clone(next) }
+    : undefined;
   if (blockingRunIds.length)
     next.phase = {
       kind: "transitioning",
@@ -785,6 +797,7 @@ const evaluateCueEvent = (
   return {
     state: next,
     outcome: { kind: "accepted", cueId: cue.id },
+    ...(capture ? { capture } : {}),
     ...(canceledRuns.length ? { canceledRuns } : {}),
   };
 };
@@ -793,8 +806,8 @@ export const executeCueEvent = (
   definition: PresentationDefinition,
   state: CueState,
   input: CueInput,
-): { state: CueState; outcome: CueOutcome; canceledRuns?: CanceledRuntimeRun[] } =>
-  evaluateCueEvent(definition, state, input, false);
+  options: { capture?: boolean } = {},
+): CueExecution => evaluateCueEvent(definition, state, input, false, options.capture);
 
 export const completeRuntimeRun = (
   definition: PresentationDefinition,
@@ -805,7 +818,7 @@ export const completeRuntimeRun = (
   if (
     !run ||
     runId.assignmentEpoch !== state.assignmentEpoch ||
-    state.runtimeTimeMilliseconds < runDeadline(definition, state, run) ||
+    state.runtimeTimeMilliseconds < runtimeRunDeadline(definition, state, run) ||
     (run.owner.kind === "group" &&
       (run.owner.groupId !== state.currentGroupId ||
         run.owner.groupEntryEpoch !== state.groupEntryEpoch))
@@ -836,7 +849,13 @@ export const advanceCueClock = (
   definition: PresentationDefinition,
   state: CueState,
   toRuntimeTimeMilliseconds: number,
-): { state: CueState; outcomes: CueOutcome[]; canceledRuns?: CanceledRuntimeRun[] } => {
+  options: { capture?: boolean } = {},
+): {
+  state: CueState;
+  outcomes: CueOutcome[];
+  captures: CueCapture[];
+  canceledRuns?: CanceledRuntimeRun[];
+} => {
   if (
     !Number.isSafeInteger(toRuntimeTimeMilliseconds) ||
     toRuntimeTimeMilliseconds < state.runtimeTimeMilliseconds
@@ -844,6 +863,7 @@ export const advanceCueClock = (
     throw new RangeError("Logical runtime time must increase monotonically.");
   let current = clone(state);
   const outcomes: CueOutcome[] = [];
+  const captures: CueCapture[] = [];
   const canceledRuns: CanceledRuntimeRun[] = [];
   let firedCount = 0;
   let completionBatchDeadline: number | undefined;
@@ -853,7 +873,7 @@ export const advanceCueClock = (
     const nextRun = current.activeRuns
       .map((run) => ({
         run,
-        deadline: runDeadline(definition, current, run),
+        deadline: runtimeRunDeadline(definition, current, run),
       }))
       .filter(({ deadline }) => deadline <= toRuntimeTimeMilliseconds)
       .sort(
@@ -919,7 +939,9 @@ export const advanceCueClock = (
             causeEventId: `${nextRun.run.runId.assignmentEpoch}:${nextRun.run.runId.runSequence}:completed`,
           },
           true,
+          options.capture,
         );
+        if (result.capture) captures.push(result.capture);
         current = result.state;
         canceledRuns.push(...(result.canceledRuns ?? []));
         if (result.outcome.kind !== "none") outcomes.push(result.outcome);
@@ -943,16 +965,18 @@ export const advanceCueClock = (
         causeEventId: `${current.stepEntryEpoch}:${cueId}:timer`,
       },
       true,
+      options.capture,
     );
+    if (result.capture) captures.push(result.capture);
     current = result.state;
     canceledRuns.push(...(result.canceledRuns ?? []));
     if (result.outcome.kind !== "none") outcomes.push(result.outcome);
   }
   current.runtimeTimeMilliseconds = toRuntimeTimeMilliseconds;
-  return { state: current, outcomes, ...(canceledRuns.length ? { canceledRuns } : {}) };
+  return { state: current, outcomes, captures, ...(canceledRuns.length ? { canceledRuns } : {}) };
 };
 
-const runDeadline = (
+export const runtimeRunDeadline = (
   definition: PresentationDefinition,
   state: CueState,
   run: RuntimeRun,

@@ -77,6 +77,9 @@ type Candidate = {
   assets: Map<string, PreviewAsset>;
   references: Map<string, string>;
   playback: ReturnType<typeof createLocalPlayback>;
+  receiptHealthy: boolean;
+  recovering: boolean;
+  lastSequence?: string | undefined;
 };
 
 export const createDistPreviewService = (directory: string): LocalPreviewService =>
@@ -218,6 +221,8 @@ export const createLocalPreviewService = (
         artifacts,
         assets,
         references,
+        receiptHealthy: false,
+        recovering: false,
         playback: createLocalPlayback({
           requestId: input.requestId,
           definition: artifacts.definition,
@@ -256,7 +261,26 @@ export const createLocalPreviewService = (
         displayed.requestId !== input.requestId
       )
         fail(409, "preview-stale", "Playback requires the current committed Preview.");
-      return displayed.playback(input);
+      if (input.command === "invalidateDisplay") {
+        try {
+          return displayed.playback({ requestId: input.requestId, command: "pause" });
+        } finally {
+          invalidate();
+        }
+      }
+      if (displayed.recovering && input.command !== "applied" && input.command !== "recover")
+        fail(409, "preview-recovering", "Preview recovery must finish before playback continues.");
+      if (input.command === "recover") {
+        if (input.sequence !== displayed.lastSequence)
+          fail(409, "preview-stale", "Playback recovery sequence is stale.");
+        displayed.receiptHealthy = false;
+        displayed.recovering = true;
+      }
+      const response = displayed.playback(input);
+      displayed.lastSequence = response.state.sequence;
+      displayed.receiptHealthy = input.command === "applied";
+      if (input.command === "applied") displayed.recovering = false;
+      return response;
     },
     async asset(requestId, reference) {
       parseRequest(randomIdSchema.safeParse(requestId));
@@ -272,10 +296,22 @@ export const createLocalPreviewService = (
       parseRequest(randomIdSchema.safeParse(requestId));
       const receipt = displayed;
       const expectedEpoch = epoch;
-      if (closed || !receipt || receipt.channel !== "dist" || receipt.requestId !== requestId)
+      if (
+        closed ||
+        !receipt ||
+        receipt.channel !== "dist" ||
+        receipt.requestId !== requestId ||
+        !receipt.receiptHealthy ||
+        receipt.recovering
+      )
         fail(409, "preview-not-displayed", "Publish requires the current committed Dist Preview.");
+      const checkReceipt = () => {
+        checkCurrent(expectedEpoch);
+        if (displayed !== receipt || !receipt.receiptHealthy || receipt.recovering)
+          fail(409, "preview-not-displayed", "The displayed Preview is no longer confirmed.");
+      };
       const current = await readGeneration(directory, { channel: "dist" });
-      checkCurrent(expectedEpoch);
+      checkReceipt();
       const artifacts = readVerifiedArtifacts(current.artifacts);
       if (identities(artifacts) !== identities(receipt.artifacts))
         fail(409, "preview-dist-changed", "Current Dist differs from the committed Preview.");
@@ -294,9 +330,9 @@ export const createLocalPreviewService = (
         );
       const pinnedAssets = new Map<string, PreviewAsset>();
       for (const [assetId, descriptor] of assetEntries) {
-        checkCurrent(expectedEpoch);
+        checkReceipt();
         const rawAsset = await current.readAsset(assetId);
-        checkCurrent(expectedEpoch);
+        checkReceipt();
         const asset = verifyAsset(rawAsset, descriptor);
         const expected = receipt.assets.get(assetId);
         if (
@@ -311,7 +347,7 @@ export const createLocalPreviewService = (
           );
         pinnedAssets.set(assetId, expected ?? asset);
       }
-      checkCurrent(expectedEpoch);
+      checkReceipt();
       const pinned: PinnedPreviewDist = {
         generationId: current.generationId,
         artifacts: structuredClone(artifacts),
