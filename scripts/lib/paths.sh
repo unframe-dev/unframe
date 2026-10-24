@@ -13,8 +13,12 @@ export REALTIME_SERVER_DIR="${REPO_ROOT}/app/server/realtime"
 # app/web (React management SPA)
 export WEB_DIR="${REPO_ROOT}/app/web"
 export WEB_FILTER="@unframe/web"
+# app/local-editor (React local authoring UI)
 export LOCAL_EDITOR_DIR="${REPO_ROOT}/app/local-editor"
 export LOCAL_EDITOR_FILTER="@unframe/local-editor"
+# app/audience (Web XR viewer)
+export AUDIENCE_DIR="${REPO_ROOT}/app/audience"
+export AUDIENCE_FILTER="@unframe/audience"
 # lp (SvelteKit SSG)
 export LP_DIR="${REPO_ROOT}/lp"
 export LP_FILTER="@unframe/site"

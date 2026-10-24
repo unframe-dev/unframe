@@ -1,0 +1,47 @@
+:root {
+  font-family: "Noto Sans JP", system-ui, sans-serif;
+  color: #17352f;
+  background: #f6faf8;
+  font-synthesis: none;
+  color-scheme: light;
+  font-weight: 400;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+a {
+  color: inherit;
+  text-underline-offset: 4px;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.audience-camera-view {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  background: #102822;
+}
+.camera {
+  position: fixed;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 0;
+}
+.audience-camera-view > .audience-stage {
+  z-index: 1;
+}
