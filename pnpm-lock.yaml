@@ -233,6 +233,9 @@ importers:
       '@8thwall/engine-binary':
         specifier: 1.0.0
         version: 1.0.0
+      '@unframe/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       js-aruco2:
         specifier: 2.0.0
         version: 2.0.0

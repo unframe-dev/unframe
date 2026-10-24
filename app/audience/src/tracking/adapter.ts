@@ -1,3 +1,4 @@
+import { createSensorMonitor } from "./sensor-monitor";
 import { describeRawValue, describeTrackingInput } from "./raw-tracking";
 import { loadEngine } from "./engine-loader";
 import { createFrameSource, type FrameMeasurementSnapshot } from "../fiducials/frame-source";
@@ -14,6 +15,26 @@ export function createTrackingAdapter(
   workerFactory = createDetectorWorker,
 ) {
   const callbacks = options.callbacks;
+  const sensors = createSensorMonitor();
+  const startup = {
+    phase: "idle" as
+      | "idle"
+      | "engine-loading"
+      | "slam-loading"
+      | "pipeline-starting"
+      | "running"
+      | "stopped"
+      | "error",
+    updates: 0,
+    realityUpdates: 0,
+    poseUpdates: 0,
+    firstUpdateAtMs: null as number | null,
+    lastUpdateAtMs: null as number | null,
+  };
+  function startupPhase(phase: typeof startup.phase) {
+    startup.phase = phase;
+    callbacks.onDiagnostic("sdk.startup", { ...startup });
+  }
   let engine: XrEngine | undefined;
   let worker: Awaited<ReturnType<typeof workerFactory>> | undefined;
   let source: ReturnType<typeof createFrameSource> | undefined;
@@ -157,6 +178,8 @@ export function createTrackingAdapter(
     return structuredClone({
       scope: "adapter-lifetime" as const,
       sessionsStarted,
+      startup,
+      sensors: sensors.getSnapshot(),
       experiment: {
         detectionEnabled: true,
         detectionStart: "manual",
@@ -185,6 +208,8 @@ export function createTrackingAdapter(
     });
   }
   function stop() {
+    sensors.stop();
+    startupPhase("stopped");
     detectionRevision++;
     detectionActive = false;
     cancelPending();
@@ -253,6 +278,15 @@ export function createTrackingAdapter(
     if (starting) return starting;
     if (running) return Promise.resolve();
     const session = ++generation;
+    Object.assign(startup, {
+      updates: 0,
+      realityUpdates: 0,
+      poseUpdates: 0,
+      firstUpdateAtMs: null,
+      lastUpdateAtMs: null,
+    });
+    sensors.start();
+    startupPhase("engine-loading");
     let lastPoseSampleAtMs = -Infinity;
     let lastRawDiagnosticAtMs = -Infinity;
     let lastRawSignature: string | undefined;
@@ -271,11 +305,14 @@ export function createTrackingAdapter(
         window.clearTimeout(timer);
         reject(error);
         fail(error);
+        sensors.stop();
+        startupPhase("error");
       };
       void (async () => {
         try {
           const loaded = await loader(options.engineUrl ?? "/external/xr/xr.js");
           if (session !== generation) return;
+          startupPhase("slam-loading");
           await loaded.loadChunk("slam");
           if (session !== generation) return;
           engine = loaded;
@@ -391,6 +428,7 @@ export function createTrackingAdapter(
             onStart: (dimensions) => {
               if (session !== generation) return;
               running = true;
+              startupPhase("running");
               window.clearTimeout(timer);
               cancelStart = undefined;
               callbacks.onDiagnostic("sdk.started", {
@@ -399,8 +437,8 @@ export function createTrackingAdapter(
                 canvasWidth: dimensions.canvasWidth,
                 canvasHeight: dimensions.canvasHeight,
               });
-              const { scene, camera } = loaded.Threejs.xrScene();
-              cleanup = callbacks.onScene(scene, camera) ?? undefined;
+              const { scene, camera, renderer } = loaded.Threejs.xrScene();
+              cleanup = callbacks.onScene(scene, camera, renderer) ?? undefined;
               document.addEventListener("visibilitychange", visibility);
               visibility();
               resolve();
@@ -410,6 +448,19 @@ export function createTrackingAdapter(
               const reality = processCpuResult?.reality;
               updateTracking(reality?.trackingStatus, reality?.trackingReason);
               const callbackAtMs = performance.now();
+              startup.updates++;
+              if (reality) startup.realityUpdates++;
+              startup.firstUpdateAtMs ??= callbackAtMs;
+              startup.lastUpdateAtMs = callbackAtMs;
+              const p = reality?.position,
+                q = reality?.rotation;
+              if (
+                p &&
+                q &&
+                [p.x, p.y, p.z, q.x, q.y, q.z, q.w].every(Number.isFinite) &&
+                Math.abs(Math.hypot(q.x, q.y, q.z, q.w) - 1) <= 1e-3
+              )
+                startup.poseUpdates++;
               const rawTracking = describeTrackingInput(reality);
               const rawUpdate: RawUpdate = {
                 ...rawTracking,
@@ -539,6 +590,7 @@ export function createTrackingAdapter(
           ];
           moduleNames = modules.map((entry) => entry.name);
           loaded.addCameraPipelineModules(modules);
+          startupPhase("pipeline-starting");
           await loaded.run({ canvas: options.canvas });
         } catch (error) {
           report(error);

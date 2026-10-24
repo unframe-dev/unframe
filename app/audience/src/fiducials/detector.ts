@@ -74,10 +74,14 @@ export function createAprilTagDetector(module: AprilTagModule) {
   };
 }
 
+async function loadAprilTagFactory(): Promise<AprilTagFactory> {
+  // Vite adds ?import to relative dynamic imports, which cannot load public JavaScript.
+  const moduleUrl = new URL("/external/detectors/apriltag.mjs", self.location.origin).href;
+  return (await import(/* @vite-ignore */ moduleUrl)).default as AprilTagFactory;
+}
+
 export async function createDetector(factory?: AprilTagFactory) {
-  const moduleUrl = "/external/detectors/apriltag.mjs";
-  const loadFactory =
-    factory ?? ((await import(/* @vite-ignore */ moduleUrl)).default as AprilTagFactory);
+  const loadFactory = factory ?? (await loadAprilTagFactory());
   const response = await fetch("/external/detectors/apriltag_wasm.wasm");
   if (!response.ok) throw new Error(`AprilTag WASM load failed (${response.status}).`);
   const detector = createAprilTagDetector(

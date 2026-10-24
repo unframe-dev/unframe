@@ -1,9 +1,9 @@
 :root {
-  font-family: Inter, "Noto Sans JP", system-ui, sans-serif;
-  color: #edf6f2;
-  background: #101c22;
+  font-family: "Noto Sans JP", system-ui, sans-serif;
+  color: #17352f;
+  background: #f6faf8;
   font-synthesis: none;
-  color-scheme: dark;
+  color-scheme: light;
   font-weight: 400;
 }
 * {
@@ -13,350 +13,35 @@ body {
   margin: 0;
 }
 button,
+input,
+select {
+  font: inherit;
+}
+button,
 a {
   -webkit-tap-highlight-color: transparent;
-}
-button {
-  font: inherit;
-  cursor: pointer;
-}
-button:disabled {
-  opacity: 0.45;
-  cursor: wait;
 }
 a {
   color: inherit;
   text-underline-offset: 4px;
 }
-button:focus-visible,
-a:focus-visible,
-summary:focus-visible {
-  outline: 3px solid #eed49b;
-  outline-offset: 5px;
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
-.experience {
+.audience-camera-view {
   position: relative;
   isolation: isolate;
   min-height: 100svh;
-  overflow: hidden;
-  padding: 32px max(28px, env(safe-area-inset-right)) 24px;
-  background:
-    radial-gradient(ellipse at 75% 35%, #1a393b 0, transparent 50%),
-    linear-gradient(145deg, #17272e, #101c22 65%);
-}
-.experience:before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  opacity: 0.15;
-  background-image:
-    linear-gradient(#80b4ac22 1px, transparent 1px),
-    linear-gradient(90deg, #80b4ac22 1px, transparent 1px);
-  background-size: 65px 65px;
-  mask-image: linear-gradient(transparent, #000);
+  background: #102822;
 }
 .camera {
   position: fixed;
   inset: 0;
-  /* The SDK writes backing-pixel sizes inline via Three.setSize; keep CSS pixels independent. */
   width: 100% !important;
   height: 100% !important;
-  z-index: -1;
-  visibility: hidden;
+  z-index: 0;
 }
-.active {
-  background: linear-gradient(#07111499, transparent 45%, #071114bb);
-}
-.active:before {
-  display: none;
-}
-.active .camera {
-  visibility: visible;
-}
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  max-width: 1280px;
-  margin: 0 auto;
-}
-.brand {
-  text-decoration: none;
-  font-size: 30px;
-  font-weight: 650;
-  letter-spacing: -1.8px;
-}
-.brand span {
-  font-size: 11px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-left: 18px;
-  font-weight: 400;
-  color: #91a9a8;
-}
-.poc-badge {
-  font-size: 11px;
-  letter-spacing: 1px;
-  border: 1px solid #638c8c55;
-  border-radius: 30px;
-  padding: 9px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #c1d5d0;
-}
-.poc-badge i {
-  width: 6px;
-  height: 6px;
-  background: #65d5bb;
-  border-radius: 50%;
-}
-.intro {
-  max-width: 720px;
-  margin: clamp(65px, 13vh, 150px) auto 34px;
-  text-align: center;
-}
-h1 {
-  font-size: clamp(26px, 4vw, 44px);
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  line-height: 1.5;
-  margin: 0 0 20px;
-}
-.description {
-  font-size: 13px;
-  color: #b0c3c1;
-  line-height: 2;
-}
-.control-panel {
-  width: min(100%, 430px);
-  margin: 0 auto;
-  background: #14272cce;
-  border: 1px solid #668e843b;
-  border-radius: 20px;
-  padding: 25px;
-  backdrop-filter: blur(18px);
-}
-.primary {
-  border: 0;
-  border-radius: 10px;
-  background: #c8f3d9;
-  color: #102d28;
-  min-height: 54px;
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  font-weight: 600;
-  font-size: 14px;
-}
-.primary span {
-  font-size: 22px;
-  font-weight: 400;
-}
-.primary:hover {
-  background: #dcffe9;
-}
-.secondary {
-  border: 1px solid #607d7b;
-  background: transparent;
-  color: #f0f6f3;
-  border-radius: 10px;
-  min-height: 44px;
-  padding: 10px 22px;
-}
-.setup-info {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 24px;
-  font-size: 11px;
-  color: #b2c5bf;
-}
-.setup-info strong {
-  font-weight: 500;
-  color: #f1f6ee;
-  margin-left: 5px;
-}
-.setup-info a {
-  color: #d8e7dd;
-}
-.hint {
-  font-size: 11px;
-  line-height: 1.9;
-  color: #92ada5;
-  margin: 15px 0 0;
-}
-.diagnostics {
-  border-top: 1px solid #58796a44;
-  margin-top: 23px;
-  padding-top: 17px;
-  font-size: 11px;
-  color: #b5cdc4;
-}
-.diagnostics summary {
-  cursor: pointer;
-  letter-spacing: 0.03em;
-}
-.diagnostics p {
-  line-height: 1.9;
-}
-.diagnostics dl {
-  margin-top: 18px;
-}
-.diagnostics dl div {
-  display: flex;
-  justify-content: space-between;
-  margin: 9px 0;
-}
-.diagnostics dd {
-  margin: 0;
-}
-.text-button {
-  background: none;
-  border: 0;
-  padding: 5px 0;
-  color: #c8f3d9;
-  text-decoration: underline;
-  font-size: 11px;
-}
-.footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  max-width: 1280px;
-  margin: 80px auto 0;
-  font-size: 9px;
-  letter-spacing: 1.8px;
-  color: #829e98;
-}
-.tracking-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  margin-bottom: 20px;
-}
-.tracking-quality {
-  margin-left: auto;
-  font-size: 9px;
-  color: #b7c5c0;
-}
-.status-dot {
-  height: 6px;
-  width: 6px;
-  border-radius: 50%;
-  background: #edcd85;
-}
-.status-dot.locked {
-  background: #66dfb7;
-}
-.error {
-  font-size: 12px;
-  line-height: 1.8;
-  color: #ffd1bd;
-  margin: 0 0 18px;
-}
-.active .intro {
-  margin: 40px auto 20px;
-}
-.active h1 {
-  font-size: 23px;
-}
-.active .description {
-  font-size: 12px;
-}
-.active .footer {
-  margin-top: 28px;
-}
-@media (max-width: 600px) {
-  .experience {
-    padding: 24px 20px max(22px, env(safe-area-inset-bottom));
-  }
-  .brand {
-    font-size: 27px;
-  }
-  .brand span {
-    margin-left: 12px;
-    font-size: 9px;
-  }
-  .poc-badge {
-    font-size: 9px;
-    padding: 8px;
-  }
-  .intro {
-    margin-top: 90px;
-    margin-bottom: 36px;
-  }
-  .eyebrow {
-    font-size: 8px;
-    letter-spacing: 2px;
-  }
-  h1 {
-    font-size: 27px;
-  }
-  .description {
-    font-size: 12px;
-  }
-  .control-panel {
-    padding: 21px;
-    border-radius: 16px;
-  }
-  .footer {
-    font-size: 8px;
-    letter-spacing: 1px;
-    margin-top: 60px;
-  }
-  .active .intro {
-    margin-top: 28px;
-  }
-  .active h1 {
-    font-size: 19px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  * {
-    scroll-behavior: auto;
-  }
-}
-
-.experiment-controls {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.experiment-controls label {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-}
-.experiment-controls select {
-  width: 100%;
-  min-width: 0;
-  padding: 10px;
-  color: #edf6f2;
-  background: #242f32;
-  border: 1px solid #638c8c;
-  border-radius: 8px;
-  font: inherit;
-}
-
-.topbar,
-.intro,
-.control-panel,
-.footer {
-  position: relative;
+.audience-camera-view > .audience-stage {
   z-index: 1;
-}
-.active .intro {
-  margin-top: 24px;
-  margin-bottom: 24px;
-}
-.active .intro h1 {
-  font-size: clamp(20px, 3vw, 32px);
-}
-.active .control-panel {
-  margin-bottom: 24px;
 }

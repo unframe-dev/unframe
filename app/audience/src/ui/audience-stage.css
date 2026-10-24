@@ -1,0 +1,390 @@
+.audience-stage {
+  --audience-primary: #006b5f;
+  --audience-container: #b8f2df;
+  --audience-surface: #f6faf8;
+  --audience-ink: #17352f;
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  color: var(--audience-ink);
+  font-family: "Google Sans", "Noto Sans JP", system-ui, sans-serif;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+.audience-stage--permission,
+.audience-stage--ended {
+  background: var(--audience-surface);
+}
+.audience-stage--sdk,
+.audience-stage--error {
+  background: linear-gradient(180deg, #081d1a66, transparent 35%, #081d1a55);
+}
+.audience-stage__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 1200px;
+}
+.audience-stage__brand {
+  color: inherit;
+  text-decoration: none;
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -1.3px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.audience-stage__brand span {
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 500;
+}
+.audience-stage--sdk .audience-stage__brand,
+.audience-stage--error .audience-stage__brand {
+  color: #fff;
+  text-shadow: 0 1px 10px #001d19;
+}
+.audience-stage__icon-button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid #ffffff80;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f6faf8eb;
+  color: #17352f;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+}
+.audience-stage__card {
+  width: min(100%, 420px);
+  min-width: 0;
+  margin: auto 0;
+  padding: 32px;
+  border-radius: 32px;
+  background: #f6faf8f5;
+  box-shadow: 0 12px 48px #032f1e16;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.audience-stage__card h1 {
+  font-size: clamp(24px, 4vw, 30px);
+  line-height: 1.5;
+  letter-spacing: -0.7px;
+  font-weight: 600;
+  margin: 20px 0 12px;
+  max-width: none;
+}
+.audience-stage__card p {
+  font-size: 15px;
+  line-height: 1.9;
+  color: #47625b;
+  margin: 12px 0 24px;
+}
+.audience-stage__card small {
+  display: block;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #546e65;
+  margin-top: 18px;
+}
+.audience-stage__step {
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 650;
+  color: var(--audience-primary);
+}
+.audience-stage__camera-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  background: #d7f4e9;
+  color: var(--audience-primary);
+  margin-top: 36px;
+}
+.audience-stage__camera-icon svg {
+  width: 30px;
+  height: 30px;
+}
+.audience-stage__primary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 56px;
+  padding: 16px 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--audience-primary);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  width: 100%;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.audience-stage__primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.audience-stage__preparing {
+  margin: auto 0 32px;
+  backdrop-filter: blur(24px);
+}
+.audience-stage__orbit {
+  width: 64px;
+  height: 64px;
+  border: 3px solid #d4e9e0;
+  border-radius: 50%;
+  border-top-color: var(--audience-primary);
+  margin: 28px 0 12px;
+  animation: audience-orbit 1.6s linear infinite;
+}
+.audience-stage__progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #dcebe4;
+}
+.audience-stage__progress span {
+  height: 100%;
+  display: block;
+  background: var(--audience-primary);
+  border-radius: inherit;
+  transition: width 0.25s;
+}
+.audience-stage__waiting-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--audience-primary);
+  margin-top: 12px;
+}
+.audience-stage__status {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 550;
+  border-radius: 999px;
+  background: #17352fdc;
+  color: #f5fcf7;
+  backdrop-filter: blur(12px);
+}
+.audience-stage__status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9ce8c9;
+}
+.audience-stage__reticle {
+  position: fixed;
+  top: 43%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(56vw, 240px);
+  height: min(56vw, 240px);
+  pointer-events: none;
+}
+.audience-stage__reticle i {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border: 3px solid #d5ffeb;
+  filter: drop-shadow(0 1px 4px #00241f88);
+  border-radius: 2px;
+}
+.audience-stage__reticle i:nth-child(1) {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: 16px;
+}
+.audience-stage__reticle i:nth-child(2) {
+  top: 0;
+  right: 0;
+  border-left: 0;
+  border-bottom: 0;
+  border-top-right-radius: 16px;
+}
+.audience-stage__reticle i:nth-child(3) {
+  bottom: 0;
+  left: 0;
+  border-right: 0;
+  border-top: 0;
+  border-bottom-left-radius: 16px;
+}
+.audience-stage__reticle i:nth-child(4) {
+  bottom: 0;
+  right: 0;
+  border-left: 0;
+  border-top: 0;
+  border-bottom-right-radius: 16px;
+}
+.audience-stage__scan-hint {
+  position: fixed;
+  bottom: max(32px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 40px);
+  padding: 16px 24px;
+  border-radius: 24px;
+  background: #17352fe8;
+  color: #fff;
+  backdrop-filter: blur(16px);
+  text-align: center;
+  box-sizing: border-box;
+}
+.audience-stage__scan-hint strong {
+  font-size: 14px;
+  font-weight: 550;
+  display: block;
+}
+.audience-stage__scan-hint span {
+  font-size: 12px;
+  display: block;
+  margin-top: 6px;
+  color: #d1e7dc;
+}
+.audience-stage__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #071c1780;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+.audience-stage__sheet {
+  background: #f6faf8;
+  color: #17352f;
+  width: min(100%, 520px);
+  max-height: 85dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 24px 24px max(24px, env(safe-area-inset-bottom));
+  border-radius: 32px 32px 0 0;
+  box-sizing: border-box;
+}
+.audience-stage__sheet header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.audience-stage__sheet h2 {
+  font-size: 20px;
+  margin: 0;
+  font-weight: 600;
+}
+.audience-stage__sheet p,
+.audience-stage__sheet label {
+  font-size: 13px;
+  line-height: 1.8;
+}
+.audience-stage__sheet button:not(.audience-stage__icon-button),
+.audience-stage__sheet select {
+  border: 1px solid #bacfc5;
+  border-radius: 16px;
+  background: #e8f1ec;
+  color: #17352f;
+  padding: 12px 16px;
+  min-height: 48px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.audience-stage__sheet select {
+  max-width: 100%;
+}
+.audience-stage__sheet a {
+  color: #006b5f;
+}
+.audience-stage__sheet .sdk-progress {
+  margin: 20px 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: #e4eee8;
+}
+.audience-stage :focus-visible {
+  outline: 3px solid #007e6b;
+  outline-offset: 4px;
+}
+.audience-stage__test-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.audience-stage__test-controls button {
+  flex: 1 1 140px;
+}
+.audience-stage__sheet details > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 550;
+}
+.audience-stage__sheet dl {
+  font-size: 12px;
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px;
+}
+.audience-stage__sheet dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.audience-stage__floating-action {
+  position: fixed;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  right: 20px;
+  max-width: calc(100% - 40px);
+  border: 0;
+  border-radius: 999px;
+  padding: 14px 22px;
+  background: #b8f2df;
+  color: #003b31;
+  min-height: 48px;
+  box-shadow: 0 4px 24px #001c1840;
+  cursor: pointer;
+}
+@keyframes audience-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (min-width: 700px) {
+  .audience-stage__preparing {
+    margin: auto 0 48px;
+  }
+  .audience-stage__sheet {
+    border-radius: 32px;
+    margin-bottom: 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .audience-stage *,
+  .audience-stage *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}

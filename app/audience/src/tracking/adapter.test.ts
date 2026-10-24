@@ -38,7 +38,11 @@ function fixture() {
     GlTextureRenderer: { pipelineModule: () => ({ name: "camera" }), create: vi.fn() },
     Threejs: {
       pipelineModule: () => ({ name: "three" }),
-      xrScene: () => ({ scene: new Scene(), camera: new PerspectiveCamera() }),
+      xrScene: () => ({
+        scene: new Scene(),
+        camera: new PerspectiveCamera(),
+        renderer: { resetState: vi.fn() },
+      }),
     },
     XrController: { configure: vi.fn(), pipelineModule: () => ({ name: "reality" }) },
     addCameraPipelineModules: vi.fn((value) => {
@@ -611,4 +615,29 @@ describe("SDK pose sampling", () => {
       f.adapter.stop();
     }
   });
+});
+
+it("records per-start pipeline progress even while LIMITED prevents tag detection", async () => {
+  const f = fixture();
+  await f.adapter.start();
+  expect(f.adapter.getMeasurementSnapshot().startup).toMatchObject({
+    phase: "running",
+    updates: 0,
+  });
+  f.update("LIMITED");
+  f.update("LIMITED");
+  expect(f.adapter.getMeasurementSnapshot().startup).toMatchObject({
+    updates: 2,
+    realityUpdates: 2,
+    poseUpdates: 0,
+  });
+  expect(f.adapter.getMeasurementSnapshot().detection.submitted).toBe(0);
+  f.adapter.stop();
+  expect(f.adapter.getMeasurementSnapshot().startup.phase).toBe("stopped");
+  await f.adapter.start();
+  expect(f.adapter.getMeasurementSnapshot().startup).toMatchObject({
+    phase: "running",
+    updates: 0,
+  });
+  f.adapter.stop();
 });

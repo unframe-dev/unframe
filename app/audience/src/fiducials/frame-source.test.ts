@@ -22,6 +22,8 @@ function fixture(requireWorldTracking = true) {
     FRAMEBUFFER_COMPLETE: 6,
     GENERATE_MIPMAP_HINT: 7,
     NO_ERROR: 0,
+    CONTEXT_LOST_WEBGL: 37442,
+    isContextLost: vi.fn(() => false),
     getError: vi.fn(() => 0),
     getParameter: vi.fn((key: number) => state.get(key)),
     bindFramebuffer: vi.fn((_target: number, value: unknown) => state.set(2, value)),
@@ -576,12 +578,92 @@ describe("SDK frame source", () => {
 
   it("reports unsupported GPU readback instead of emitting an invalid black frame", () => {
     const f = fixture();
-    f.gl.getError.mockReturnValue(1282);
+    f.gl.readPixels.mockImplementation(() => {
+      f.gl.getError.mockReturnValueOnce(1282);
+    });
     f.update();
     expect(f.onFrame).not.toHaveBeenCalled();
     expect(f.onDiagnostic).toHaveBeenCalledWith("frame-source-error", {
       message: "SDK camera readback WebGL error 1282",
     });
+  });
+
+  it("records errors from the shared context before capture without disabling valid frames", () => {
+    const f = fixture();
+    f.gl.getError.mockReturnValueOnce(1282).mockReturnValueOnce(1281);
+    f.update();
+    f.tick();
+    f.update();
+    expect(f.onFrame).toHaveBeenCalledTimes(2);
+    expect(f.onDiagnostic).toHaveBeenCalledWith("frame-source-gl-errors", {
+      phase: "before-capture",
+      errors: [1282, 1281],
+      contextLost: false,
+      limitReached: false,
+    });
+    expect(f.source.getMeasurementSnapshot().error).toBe(0);
+    expect(f.state.get(2)).toBe("existing-framebuffer");
+    expect(f.state.get(3)).toBe(8);
+  });
+
+  it("keeps errors caused by its renderer fatal after clearing earlier shared errors", () => {
+    const f = fixture();
+    f.gl.getError.mockReturnValueOnce(1281);
+    f.renderer.render.mockImplementation(() => {
+      f.gl.getError.mockReturnValueOnce(1282).mockReturnValueOnce(1280);
+    });
+    f.update();
+    expect(f.onFrame).not.toHaveBeenCalled();
+    expect(f.onDiagnostic).toHaveBeenCalledWith("frame-source-gl-errors", {
+      phase: "capture",
+      errors: [1282, 1280],
+      contextLost: false,
+      limitReached: false,
+    });
+    expect(f.onDiagnostic).toHaveBeenCalledWith("frame-source-error", {
+      message: "SDK camera readback WebGL error 1282",
+    });
+  });
+
+  it("treats pre-existing context loss as fatal without draining a sticky context forever", () => {
+    const f = fixture();
+    f.gl.getError.mockReturnValue(37442);
+    f.update();
+    expect(f.gl.getError).toHaveBeenCalledOnce();
+    expect(f.createRenderer).not.toHaveBeenCalled();
+    expect(f.onFrame).not.toHaveBeenCalled();
+    expect(f.onDiagnostic).toHaveBeenCalledWith("frame-source-gl-errors", {
+      phase: "before-capture",
+      errors: [37442],
+      contextLost: true,
+      limitReached: false,
+    });
+    expect(f.source.getMeasurementSnapshot().error).toBe(1);
+  });
+
+  it("detects context loss even after its one-shot WebGL error was already consumed", () => {
+    const f = fixture();
+    f.gl.isContextLost.mockReturnValue(true);
+    f.update();
+    expect(f.createRenderer).not.toHaveBeenCalled();
+    expect(f.onFrame).not.toHaveBeenCalled();
+    expect(f.source.getMeasurementSnapshot().error).toBe(1);
+  });
+
+  it("bounds error draining and refuses capture while the error boundary cannot be established", () => {
+    const f = fixture();
+    f.gl.getError.mockReturnValue(1282);
+    f.update();
+    expect(f.gl.getError).toHaveBeenCalledTimes(32);
+    expect(f.createRenderer).not.toHaveBeenCalled();
+    expect(f.onFrame).not.toHaveBeenCalled();
+    expect(f.onDiagnostic).toHaveBeenCalledWith("frame-source-gl-errors", {
+      phase: "before-capture",
+      errors: Array(32).fill(1282),
+      contextLost: false,
+      limitReached: true,
+    });
+    expect(f.source.getMeasurementSnapshot().error).toBe(1);
   });
 
   it("releases its framebuffer on detach and recreates on resize", () => {

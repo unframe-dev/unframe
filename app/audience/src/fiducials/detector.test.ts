@@ -3,6 +3,7 @@ import { runInNewContext } from "node:vm";
 import { describe, expect, it, vi } from "vitest";
 import {
   createAprilTagDetector,
+  createDetector,
   validateGrayFrame,
   type AprilTagFactory,
   type GrayFrame,
@@ -45,6 +46,24 @@ async function aprilTagDetector() {
 }
 
 describe("dedicated fiducial detectors", () => {
+  it("allows an injected factory without browser globals and supplies the fetched WASM", async () => {
+    const binary = new Uint8Array([0, 97, 115, 109]).buffer;
+    const fetcher = vi.fn(async () => new Response(binary));
+    vi.stubGlobal("fetch", fetcher);
+    const factory = vi.fn(async () => ({
+      HEAPU8: new Uint8Array(16),
+      cwrap: () => () => 0,
+      getValue: () => 0,
+    }));
+    try {
+      const detector = await createDetector(factory);
+      expect(fetcher).toHaveBeenCalledWith("/external/detectors/apriltag_wasm.wasm");
+      expect(factory).toHaveBeenCalledWith({ wasmBinary: binary });
+      detector.dispose();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it("explicitly requests native full-resolution detection and edge refinement", () => {
     const configure = vi.fn(() => 0);
     const detector = createAprilTagDetector({

@@ -9,6 +9,8 @@ import {
   Vector3,
 } from "three";
 import { createDisplayJitterFilter } from "./jitter-filter";
+import { createPresentationSpace } from "./presentation-space";
+import { createPresentationGuide } from "./presentation-guide";
 import type { Scene } from "three";
 import type { RigidPose } from "../fiducials/alignment";
 
@@ -22,7 +24,13 @@ function matrix(pose: RigidPose) {
 export function sdkFromVenueAtObservation(tagVenueFromCamera: RigidPose, sdkFromCamera: RigidPose) {
   return matrix(sdkFromCamera).multiply(matrix(tagVenueFromCamera).invert());
 }
-export function createLiveTagAnchor(scene: Scene, markerSize: number, venueFromMarker: RigidPose) {
+export function createLiveTagAnchor(
+  scene: Scene,
+  markerSize: number,
+  venueFromMarker: RigidPose,
+  venueFromPresentation: RigidPose,
+  showGuides = true,
+) {
   const root = new Group();
   root.matrixAutoUpdate = false;
   root.visible = false;
@@ -31,12 +39,16 @@ export function createLiveTagAnchor(scene: Scene, markerSize: number, venueFromM
   const box = new Mesh(geometry, material);
   box.position.z = markerSize / 2;
   const axes = new AxesHelper(markerSize);
-  root.add(box, axes);
+  if (showGuides) root.add(box, axes);
+  const presentation = createPresentationSpace(root, venueFromMarker, venueFromPresentation);
+  const guide = showGuides ? createPresentationGuide(presentation.contentRoot) : null;
   scene.add(root);
   const marker = matrix(venueFromMarker);
   const displayFilter = createDisplayJitterFilter();
   let displayDiagnostic: ReturnType<typeof displayFilter.update>["diagnostic"] | null = null;
   return {
+    contentRoot: presentation.contentRoot,
+    setPresentationOrigin: presentation.setOrigin,
     update(tagVenueFromCamera: RigidPose, sdkFromCamera: RigidPose) {
       const sdkFromVenue = sdkFromVenueAtObservation(tagVenueFromCamera, sdkFromCamera);
       const markerDistanceMeters = new Vector3()
@@ -61,6 +73,8 @@ export function createLiveTagAnchor(scene: Scene, markerSize: number, venueFromM
       root.visible = false;
     },
     dispose() {
+      guide?.dispose();
+      presentation.dispose();
       scene.remove(root);
       geometry.dispose();
       material.dispose();

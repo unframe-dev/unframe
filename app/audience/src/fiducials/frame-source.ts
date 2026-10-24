@@ -244,6 +244,33 @@ export function createFrameSource(options: FrameSourceOptions) {
     measurement.skipped[reason] = (measurement.skipped[reason] ?? 0) + 1;
   };
 
+  const inspectGlErrors = (phase: "before-capture" | "capture") => {
+    const errors: number[] = [];
+    let contextLost = gl!.isContextLost();
+    let limitReached = false;
+    for (let index = 0; index < 32; index++) {
+      const error = gl!.getError();
+      if (error === gl!.NO_ERROR) break;
+      errors.push(error);
+      if (error === gl!.CONTEXT_LOST_WEBGL) {
+        contextLost = true;
+        break;
+      }
+      if (index === 31) limitReached = true;
+    }
+    if (errors.length || contextLost || limitReached) {
+      options.onDiagnostic("frame-source-gl-errors", {
+        phase,
+        errors,
+        contextLost,
+        limitReached,
+      });
+    }
+    if (contextLost) throw new Error("SDK camera capture WebGL context is lost");
+    if (limitReached) throw new Error("SDK camera capture WebGL error drain limit reached");
+    return errors;
+  };
+
   const release = () => {
     renderer?.destroy();
     renderer = null;
@@ -401,6 +428,9 @@ export function createFrameSource(options: FrameSourceOptions) {
       const packKeys = gl2 ? [gl2.PACK_ROW_LENGTH, gl2.PACK_SKIP_ROWS, gl2.PACK_SKIP_PIXELS] : [];
       const packValues = packKeys.map((key) => gl!.getParameter(key) as number);
       try {
+        // The SDK and presentation renderer share this context. Earlier errors belong
+        // to their own operations; establish a clean boundary before capture work.
+        inspectGlErrors("before-capture");
         if (!renderer) {
           outputWidth = geometry.videoWidth;
           outputHeight = geometry.videoHeight;
@@ -459,8 +489,10 @@ export function createFrameSource(options: FrameSourceOptions) {
           for (const key of packKeys) gl2.pixelStorei(key, 0);
         }
         gl.readPixels(0, 0, outputWidth, outputHeight, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
-        const glError = gl.getError();
-        if (glError !== gl.NO_ERROR) throw new Error(`SDK camera readback WebGL error ${glError}`);
+        const captureErrors = inspectGlErrors("capture");
+        if (captureErrors.length) {
+          throw new Error(`SDK camera readback WebGL error ${captureErrors[0]}`);
+        }
         const readbackCompletedAtMs = now();
         const pixels = new Uint8Array(outputWidth * outputHeight);
         for (let i = 0; i < pixels.length; i++) {

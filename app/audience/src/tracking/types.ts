@@ -1,6 +1,6 @@
 import type { describeTrackingInput } from "./raw-tracking";
 import type { RigidPose } from "../fiducials/alignment";
-import type { Camera, Scene } from "three";
+import type { Camera, Scene, WebGLRenderer } from "three";
 import type { FrameRenderer, FrameSourceOptions, FiducialFrame } from "../fiducials/frame-source";
 import type { DetectorResult } from "../fiducials/detector";
 export interface CameraPipelineModule {
@@ -44,7 +44,10 @@ export interface XrEngine {
     pipelineModule(): CameraPipelineModule;
     create(options: Parameters<FrameSourceOptions["createRenderer"]>[0]): FrameRenderer;
   };
-  Threejs: { pipelineModule(): CameraPipelineModule; xrScene(): { scene: Scene; camera: Camera } };
+  Threejs: {
+    pipelineModule(): CameraPipelineModule;
+    xrScene(): { scene: Scene; camera: Camera; renderer: Pick<WebGLRenderer, "resetState"> };
+  };
   XrController: {
     configure(options: { disableWorldTracking: boolean; scale: "absolute" }): void;
     pipelineModule(): CameraPipelineModule;
@@ -69,7 +72,11 @@ export interface SdkPoseSample {
 }
 export interface TrackingCallbacks {
   onPoseSample?(sample: SdkPoseSample): void;
-  onScene(scene: Scene, camera: Camera): void | (() => void);
+  onScene(
+    scene: Scene,
+    camera: Camera,
+    renderer: Pick<WebGLRenderer, "resetState">,
+  ): void | (() => void);
   onDetections(frame: FiducialFrame, result: DetectorResult): void;
   onTracking(status: "NORMAL" | "LIMITED"): void;
   onReset(reason: "hidden" | "tracking-lost" | "stopped"): void;
