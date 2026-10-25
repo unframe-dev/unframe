@@ -1,8 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { PublishedPresentation } from "@unframe/contracts/presentation";
 
 const presentation = { id: "presentation-1", name: "公開済みプレゼン" };
 const publication = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   presentationId: presentation.id,
   publicationEpoch: 3,
   publicationManifestHash: `sha256:${"a".repeat(64)}`,
@@ -12,15 +13,15 @@ const publication = {
   renderBundleHash: `sha256:${"c".repeat(64)}`,
   assetSetHash: `sha256:${"d".repeat(64)}`,
   contractVersions: {
-    definition: 2,
+    definition: 3,
     renderBundle: 2,
     assetSet: 2,
-    delivery: 2,
-    runtime: 2,
-    progression: 1,
-    projection: 1,
+    delivery: 3,
+    runtime: 3,
+    progression: 2,
+    projection: 2,
   },
-};
+} satisfies PublishedPresentation;
 const room = {
   id: "room-1",
   presentationId: presentation.id,
