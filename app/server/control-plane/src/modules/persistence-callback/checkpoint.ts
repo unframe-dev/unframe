@@ -41,14 +41,14 @@ export async function parseCheckpointJson(json: string): Promise<Record<string, 
   return validateCheckpoint(value);
 }
 
-function bytes(value: unknown, maximum: number): Uint8Array {
+function bytes(value: unknown, maximum: number): Uint8Array<ArrayBuffer> {
   if (typeof value !== "string") throw invalid();
   const decoded = Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
   if (decoded.byteLength > maximum) throw tooLarge();
   return decoded;
 }
 
-async function hash(value: Uint8Array): Promise<string> {
+async function hash(value: Uint8Array<ArrayBuffer>): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", value));
   return `sha256:${Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 }
