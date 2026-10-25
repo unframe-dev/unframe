@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
 	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
@@ -36,7 +37,7 @@ func (p projectionProvider) Projection(context.Context, persistencehttp.Projecti
 	return persistencehttp.RuntimeProjection{Role: "presenter", Profile: p.profile}, nil
 }
 
-func TestV2AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
+func TestV3AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
 	now := time.Now().UTC()
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -54,14 +55,14 @@ func TestV2AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-e2e","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}}},"variables":{},"timelines":{}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-e2e","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}}},"variables":{},"timelines":{}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-e2e", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-e2e", RuntimeID: "runtime-e2e", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1, PresentationRevision: 1}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 2, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}}
 	service, err := transportgrpc.NewV2Service(runtime, bootstrap, projectionProvider{profile}, auth.ContextIdentityResolver{}, guard)
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +101,7 @@ func TestV2AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}); err != nil {
+	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}); err != nil {
 		t.Fatal(err)
 	}
 	connected, err := control.Recv()
@@ -116,17 +117,19 @@ func TestV2AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
 		t.Fatalf("nonce = %v, error = %v", nonce, err)
 	}
 
-	t.Run("legacy JWT rejected by v2", func(t *testing.T) {
-		legacy := identity
-		legacy.ProtocolVersion = 1
-		stream, err := client.ConnectControl(metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+issueToken(t, privateKey, legacy, now)))
-		if err == nil {
-			_, err = stream.Recv()
-		}
-		if status.Code(err) != codes.Unauthenticated {
-			t.Fatalf("legacy JWT status = %v", err)
-		}
-	})
+	for _, version := range []uint64{1, 2} {
+		t.Run(fmt.Sprintf("legacy v%d JWT rejected by v3", version), func(t *testing.T) {
+			legacy := identity
+			legacy.ProtocolVersion = version
+			stream, err := client.ConnectControl(metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+issueToken(t, privateKey, legacy, now)))
+			if err == nil {
+				_, err = stream.Recv()
+			}
+			if status.Code(err) != codes.Unauthenticated {
+				t.Fatalf("legacy JWT status = %v", err)
+			}
+		})
+	}
 	t.Run("legacy service unavailable", func(t *testing.T) {
 		stream, err := conn.NewStream(authorized, &grpcgo.StreamDesc{ServerStreams: true, ClientStreams: true}, "/unframe.realtime.v1.RealtimeService/Connect")
 		if err == nil {
@@ -136,17 +139,19 @@ func TestV2AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
 			t.Fatalf("legacy service status = %v", err)
 		}
 	})
-	t.Run("legacy handshake rejected", func(t *testing.T) {
-		stream, err := client.ConnectControl(authorized)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_ = stream.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v1", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}})
-		_, err = stream.Recv()
-		if status.Code(err) != codes.InvalidArgument {
-			t.Fatalf("legacy handshake status = %v", err)
-		}
-	})
+	for _, version := range []string{"v1", "v2"} {
+		t.Run("legacy "+version+" handshake rejected", func(t *testing.T) {
+			stream, err := client.ConnectControl(authorized)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = stream.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: version, ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}})
+			_, err = stream.Recv()
+			if status.Code(err) != codes.InvalidArgument {
+				t.Fatalf("legacy handshake status = %v", err)
+			}
+		})
+	}
 	closeControl()
 }
 
@@ -154,7 +159,7 @@ func e2eIdentity(participantID string, role session.Role) session.Identity {
 	return session.Identity{
 		SessionID: "session-e2e", ParticipantID: participantID, Role: role,
 		RuntimeID: "runtime-e2e", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1, PresentationID: "presentation-e2e",
-		PresentationRevision: 1, ProtocolVersion: 2,
+		PresentationRevision: 1, ProtocolVersion: 3,
 	}
 }
 
