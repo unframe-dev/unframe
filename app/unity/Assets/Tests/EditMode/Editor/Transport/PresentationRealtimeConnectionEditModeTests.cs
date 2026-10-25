@@ -208,30 +208,43 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             var view = cut.Snapshot.RuntimeView.Clone();
             view.BaseReliableSequence = 1;
             view.Clock.Paused = new Unframe.Realtime.Paused { Reason = PauseReason.ExplicitPause };
-            var item = new ControlServerItem { ReliableEvent = new ProjectedReliableEvent
+            var item = new ControlServerItem
             {
-                Sequence = 1, Fence = cut.Fence.Clone(),
-                RuntimeViewReplaced = new RuntimeViewReplaced { RuntimeView = view }
-            } };
+                ReliableEvent = new ProjectedReliableEvent
+                {
+                    Sequence = 1,
+                    Fence = cut.Fence.Clone(),
+                    RuntimeViewReplaced = new RuntimeViewReplaced { RuntimeView = view }
+                }
+            };
             Assert.That(store.TryReceiveNetworkControl(item, out string error), Is.True, error);
             typeof(PresentationRealtimeConnection).GetMethod("ReliableDisplayChanged", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(connection, new object[] { item });
             Assert.That(connection.SessionReady, Is.True);
             Assert.That(connection.InputSynchronization.Ready, Is.False);
-            var resumed = new ControlServerItem { ReliableEvent = new ProjectedReliableEvent
+            var resumed = new ControlServerItem
             {
-                Sequence = 2, Fence = cut.Fence.Clone(),
-                RuntimeStatusChanged = new RuntimeStatusChanged { Running = new Running() }
-            } };
+                ReliableEvent = new ProjectedReliableEvent
+                {
+                    Sequence = 2,
+                    Fence = cut.Fence.Clone(),
+                    RuntimeStatusChanged = new RuntimeStatusChanged { Running = new Running() }
+                }
+            };
             Assert.That(store.TryReceiveNetworkControl(resumed, out error), Is.True, error);
             typeof(PresentationRealtimeConnection).GetMethod("ReliableDisplayChanged", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(connection, new object[] { resumed });
             Assert.That(connection.SessionReady, Is.True, "Resume must retain the confirmed frozen display until a current keyframe arrives.");
             foreach (ulong baseSequence in new ulong[] { 1, 2 })
             {
-                var frame = new StateServerItem { StateFrame = new ElementStateFrame
+                var frame = new StateServerItem
                 {
-                    Fence = cut.Fence.Clone(), BaseReliableSequence = baseSequence,
-                    FrameSequence = 1, Kind = StateFrameKind.Delta
-                } };
+                    StateFrame = new ElementStateFrame
+                    {
+                        Fence = cut.Fence.Clone(),
+                        BaseReliableSequence = baseSequence,
+                        FrameSequence = 1,
+                        Kind = StateFrameKind.Delta
+                    }
+                };
                 object[] received = { frame, false, null };
                 Assert.That((bool)typeof(PresentationRealtimeConnection).GetMethod("TryReceiveStateFrame", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(connection, received), Is.True);
                 Assert.That(received[1], Is.False, "An old-cut or pre-keyframe delta must not apply.");

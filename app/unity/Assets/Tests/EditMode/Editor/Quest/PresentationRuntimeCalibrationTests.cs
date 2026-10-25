@@ -123,8 +123,10 @@ public sealed class PresentationRuntimeCalibrationTests
             }, calibration, null);
             var required = new PresenterInputSynchronization
             {
-                Phase = InputSynchronizationPhase.Required, Reason = InputSynchronizationReason.Connected,
-                SynchronizationRevision = 1, CommandEpoch = 1,
+                Phase = InputSynchronizationPhase.Required,
+                Reason = InputSynchronizationReason.Connected,
+                SynchronizationRevision = 1,
+                CommandEpoch = 1,
                 InputContext = new InputContext { InputEpoch = 1, GroupId = "g", GroupEntryEpoch = 1, StepId = "s", StepEntryEpoch = 1 },
                 RecognitionCatalog = new Unframe.Presentation.PresenterRecognitionCatalog()
             };
