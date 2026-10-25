@@ -188,6 +188,11 @@ describe("canonical participant projection", () => {
       delete source.renderBundle.surfaces[surface!];
       delete snapshot.nodeStates[node!];
       delete snapshot.surfaceStates[surface!];
+      for (const entry of snapshot.stepStartHistory) {
+        delete entry.nodeStates[node!];
+        delete entry.surfaceStates[surface!];
+        entry.mediaStates = {};
+      }
     }
     snapshot.mediaStates = {};
     delete source.assetSet.assets["video-asset"];

@@ -100,6 +100,13 @@ const command = {
 };
 const authorityFixtures = [
   {
+    typeName: "unframe.realtime.PresenterStepSelectionCatalog",
+    value: {
+      reachedSteps: [{ groupId: "intro", stepId: "start" }],
+      reliableSequence: "9007199254740995",
+    },
+  },
+  {
     typeName: "unframe.realtime.GestureInputCommand",
     value: {
       ...command,

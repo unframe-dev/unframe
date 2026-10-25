@@ -72,6 +72,10 @@ func TestV3ControlSynchronizesPresenterAndDispatchesRecognizedInputs(t *testing.
 	if required.Phase != realtimev2.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_REQUIRED || required.ReliableSequence > snapshot.ReliableSequence || len(required.RecognitionCatalog.Gestures) != 1 || len(required.RecognitionCatalog.Zones) != 1 {
 		t.Fatalf("initial input synchronization: %v", required)
 	}
+	catalog := next(func(i *realtimev2.ControlServerItem) bool { return i.GetPresenterStepSelectionCatalog() != nil }).GetPresenterStepSelectionCatalog()
+	if catalog.ReliableSequence > snapshot.ReliableSequence || len(catalog.ReachedSteps) != 1 || catalog.ReachedSteps[0].GroupId != "intro" || catalog.ReachedSteps[0].StepId != "start" {
+		t.Fatalf("initial reached Step catalog: %v", catalog)
+	}
 	command := &realtimev2.GestureInputCommand{ClientEventId: v3TestEventID(required.CommandEpoch, "gesture"), CommandEpoch: required.CommandEpoch, InputContext: required.InputContext, PresentationOriginVersion: snapshot.Fence.PresentationOriginVersion, Gesture: presentationv2.GestureKind_GESTURE_KIND_SWIPE_LEFT}
 	input <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_GestureInput{GestureInput: command}}
 	outcome := next(func(i *realtimev2.ControlServerItem) bool { return i.GetCommandOutcome() != nil }).GetCommandOutcome()

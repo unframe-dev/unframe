@@ -871,28 +871,24 @@ const componentStructureSchema = z.union([
     baseSemanticTree: baseSemanticTreeSchema,
   }),
 ]);
-const motionPresetFields = {
-  kind: z.literal("motionPreset"),
-  minimumDistanceMeters: z.number().finite().positive(),
-  windowMilliseconds: positiveSafeIntegerSchema,
-};
 const cueTriggerSchema = z.union([
   z.strictObject({
-    ...motionPresetFields,
-    preset: z.enum([
+    kind: z.literal("zoneEdge"),
+    zoneId: idSchema,
+    edge: z.enum(["enter", "exit"]),
+  }),
+  z.strictObject({
+    kind: z.literal("gesture"),
+    gesture: z.enum([
       "swipeLeft",
       "swipeRight",
       "swipeDown",
       "swipeUp",
       "pushForward",
       "pullBackward",
+      "spreadHands",
+      "closeHands",
     ]),
-    hand: z.enum(["eitherHand", "leftHand", "rightHand"]),
-  }),
-  z.strictObject({
-    ...motionPresetFields,
-    preset: z.enum(["spreadHands", "closeHands"]),
-    hand: z.literal("bothHands"),
   }),
   z.strictObject({ kind: z.literal("event"), event: idSchema }),
   z.strictObject({
@@ -947,7 +943,6 @@ const cueSchema = z
         z.strictObject({ kind: z.literal("oncePerStepEntry") }),
         z.strictObject({
           kind: z.literal("repeatable"),
-          cooldownMilliseconds: nonNegativeIntegerSchema,
         }),
       ])
       .optional(),
@@ -1003,6 +998,16 @@ const presentationSchema = z.strictObject({
   ...stableShape,
   metadata: z.strictObject({ title: z.string().min(1) }),
   stage: z.strictObject({
+    zones: z
+      .record(
+        idSchema,
+        z.strictObject({
+          ...stableShape,
+          owner: resourceOwnerSchema,
+          center: z.tuple([finiteNumberSchema, finiteNumberSchema, finiteNumberSchema]),
+        }),
+      )
+      .optional(),
     coordinateSystem: z.strictObject({
       unit: z.literal("meter"),
       handedness: z.literal("right"),

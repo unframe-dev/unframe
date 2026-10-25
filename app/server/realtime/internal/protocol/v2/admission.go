@@ -75,7 +75,7 @@ func validate(message protoreflect.Message, path string, partialTransform bool) 
 			continue
 		}
 		if field.Kind() == protoreflect.MessageKind && !message.Has(field) {
-			if descriptor.Name() == "Transform" && partialTransform || descriptor.Name() == "ProjectedRuntimeCatalog" && name == "presenter_recognition" || descriptor.Name() == "RuntimeControlCommand" && name == "step_selection" {
+			if descriptor.Name() == "Transform" && partialTransform || descriptor.Name() == "ProjectedRuntimeCatalog" && name == "presenter_recognition" || descriptor.Name() == "RuntimeControlCommand" && name == "step_selection" || descriptor.Name() == "RuntimeRecoveryMetadata" && name == "capacity_fault" {
 				continue
 			}
 			return fmt.Errorf("message_invalid: %s is required", fieldPath)

@@ -163,6 +163,11 @@ message StepSelection {
   string step_id = 2;
 }
 
+message PresenterStepSelectionCatalog {
+  repeated StepSelection reached_steps = 1;
+  uint64 reliable_sequence = 2;
+}
+
 enum InputSynchronizationPhase {
   INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED = 0;
   INPUT_SYNCHRONIZATION_PHASE_REQUIRED = 1;
@@ -271,6 +276,7 @@ message ControlServerItem {
     StateConnectionNonce state_connection_nonce = 6;
     ResyncRequired resync_required = 7;
     PresenterInputSynchronization presenter_input_synchronization = 8;
+    PresenterStepSelectionCatalog presenter_step_selection_catalog = 9;
   }
 }
 
@@ -344,6 +350,7 @@ enum PauseReason {
   PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED = 6;
   PAUSE_REASON_RECOVERY_GAP = 7;
   PAUSE_REASON_EXPLICIT_PAUSE = 8;
+  PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED = 9;
 }
 
 enum TerminationReason {
@@ -829,6 +836,13 @@ message RuntimeRecoveryMetadata {
   repeated RuntimeCommandHistory commands = 3;
   uint64 command_epoch = 4;
   PresenterInputSynchronization input_synchronization = 5;
+  RuntimeCapacityFault capacity_fault = 6;
+}
+
+message RuntimeCapacityFault {
+  uint64 step_start_state_bytes = 1;
+  uint64 step_start_history_bytes = 2;
+  uint64 canonical_snapshot_bytes = 3;
 }
 message RuntimeParticipantHistory {
   string participant_id = 1;

@@ -72,6 +72,7 @@ type V2Session struct {
 	presence                  map[string]session.Role
 	participants              map[string]session.Role
 	startedAt                 time.Time
+	capacityFault             *realtimev2.RuntimeCapacityFault
 	faultGeneration           uint64
 	committedRecovery         *realtimev2.RuntimeRecoveryMetadata
 }
@@ -113,6 +114,9 @@ func (s *V2Session) RestoreCheckpoint(envelope *realtimev2.DurableCheckpointEnve
 	if err != nil {
 		return err
 	}
+	if err := s.validateV3StepHistory(restored); err != nil {
+		return err
+	}
 	if restored.Clock.GetTerminating() != nil {
 		return ErrV2RuntimeDefinition
 	}
@@ -132,7 +136,9 @@ func (s *V2Session) RestoreCheckpoint(envelope *realtimev2.DurableCheckpointEnve
 	s.lastTick = time.Now()
 	s.checkpointMetadata.CheckpointSequence = envelope.CheckpointSequence
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
-	s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PROCESS_RECOVERED}}
+	if s.snapshot.Clock.GetPaused().GetReason() != realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION {
+		s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PROCESS_RECOVERED}}
+	}
 	if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED, true); err != nil {
 		return err
 	}
@@ -423,6 +429,14 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 		if err != nil {
 			s.snapshot = previous
 			_ = s.restoreV2Recovery(previousRecovery)
+			if errors.Is(err, errV3StepEntryCapacity) {
+				if pauseErr := s.pauseV3CapacityFault(ctx, previous, err); pauseErr != nil {
+					return nil, nil, pauseErr
+				}
+			}
+			if errors.Is(err, ErrV3RuntimeCapacity) {
+				return v3Rejected(input.clientEventID, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED), cloneV2Events(dueEvents), nil
+			}
 			return nil, nil, err
 		}
 		if rejection != nil {
@@ -432,7 +446,7 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 			events = append(events, cueEvents...)
 		}
 	}
-	if protocolv2.KnownSize(s.snapshot) > protocolv2.MaximumCanonicalSnapshotBytes {
+	if !withinV3SnapshotCapacity(s.snapshot) {
 		s.snapshot = previous
 		_ = s.restoreV2Recovery(previousRecovery)
 		return v3Rejected(input.clientEventID, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED), cloneV2Events(dueEvents), nil

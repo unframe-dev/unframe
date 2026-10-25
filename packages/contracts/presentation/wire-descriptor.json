@@ -3004,6 +3004,19 @@
                 }
               }
             },
+            "PresenterStepSelectionCatalog": {
+              "fields": {
+                "reachedSteps": {
+                  "rule": "repeated",
+                  "type": "StepSelection",
+                  "id": 1
+                },
+                "reliableSequence": {
+                  "type": "uint64",
+                  "id": 2
+                }
+              }
+            },
             "InputSynchronizationPhase": {
               "values": {
                 "INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED": 0,
@@ -3229,7 +3242,8 @@
                     "commandOutcome",
                     "stateConnectionNonce",
                     "resyncRequired",
-                    "presenterInputSynchronization"
+                    "presenterInputSynchronization",
+                    "presenterStepSelectionCatalog"
                   ]
                 }
               },
@@ -3265,6 +3279,10 @@
                 "presenterInputSynchronization": {
                   "type": "PresenterInputSynchronization",
                   "id": 8
+                },
+                "presenterStepSelectionCatalog": {
+                  "type": "PresenterStepSelectionCatalog",
+                  "id": 9
                 }
               }
             },
@@ -3524,7 +3542,8 @@
                 "PAUSE_REASON_ATOMIC_COMMIT_FAILED": 5,
                 "PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED": 6,
                 "PAUSE_REASON_RECOVERY_GAP": 7,
-                "PAUSE_REASON_EXPLICIT_PAUSE": 8
+                "PAUSE_REASON_EXPLICIT_PAUSE": 8,
+                "PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED": 9
               }
             },
             "TerminationReason": {
@@ -4927,6 +4946,26 @@
                 "inputSynchronization": {
                   "type": "PresenterInputSynchronization",
                   "id": 5
+                },
+                "capacityFault": {
+                  "type": "RuntimeCapacityFault",
+                  "id": 6
+                }
+              }
+            },
+            "RuntimeCapacityFault": {
+              "fields": {
+                "stepStartStateBytes": {
+                  "type": "uint64",
+                  "id": 1
+                },
+                "stepStartHistoryBytes": {
+                  "type": "uint64",
+                  "id": 2
+                },
+                "canonicalSnapshotBytes": {
+                  "type": "uint64",
+                  "id": 3
                 }
               }
             },

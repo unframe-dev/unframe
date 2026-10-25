@@ -1,6 +1,6 @@
 # Presenter 認識・Runtime authority 移行計画
 
-- 状態: 工程1・2を実装済み。工程3の Runtime 凍結表示と Unity adapter を実装し、Go と対象 dotnet 検証を実施。Unity EditMode は licensing 初期化失敗で未実行。工程4〜6は未着手。
+- 状態: 工程1〜5と工程6の対象ローカル検証・独立レビューを完了。修正後の remote CI は未実行。Quest 実機検証は保留（2026-10-25）。
 - 計画の起点: `815ca9886ca8304d4164c067e2a66b7221ec458b`（2026-10-22、文書変更のみ）。実装基準は `origin/main` の `5219fa91` と rebase 後の #160（`af24157b`）。文書固有の変更は `22980438` に載せ替えた。
 - 仕様の正本: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md)、[進行意味論](../packages/ARCHITECTURE.md#12-v1-presentation-progression-の意味論)、[データ契約](../packages/DATA_MODEL.md)、[配信・実行契約](../packages/CONTRACT_RUNTIME.md)。
 
@@ -14,7 +14,7 @@ ADR-0027 全体を対象とする。Presenter が Gesture / Zone を認識し、
 
 Gesture 8種、腰位置で判定する一辺2mの Zone、認識開始時の入力文脈、server cooldown 廃止、全体 pause、到達済み Step の直近開始状態への復元は採用済み仕様として扱う。認識閾値は端末内部の調整値であり、ユーザー設定として公開しない。
 
-既存の[汎用パッケージ改善計画](./unframe-packages-refactor.md)、[M6 未完了事項](./presentation-packages-implementation-plan.md)の全体解消、`pauseTimeout`、任意の未到達 Step への移動、Presenter 交代、Local Preview の tracking 対応追加は対象外とする。
+[M6 未完了事項](./presentation-packages-implementation-plan.md)の全体解消、`pauseTimeout`、任意の未到達 Step への移動、Presenter 交代、Local Preview の tracking 対応追加は対象外とする。
 
 ## 統合基準時点の実装との対応
 
@@ -121,3 +121,23 @@ JSON Schema、descriptor、静的 codec / wire types、fixture、Go / C# consume
 ローカルの test / build は変更の影響範囲に限定する。全体の `nix run .#check` は LP など対象外の test / build も含むため、この計画ではローカル実行を前提にしない。全体検証は remote CI/CD に委ね、Unity Editor / Quest 実機は別に実施する。未実行・実行不能な検証を成功扱いしない。
 
 工程はレビュー単位であり、不整合な中間状態をリリースする境界ではない。source contract、生成物、consumer、fixture の整合が取れた状態で一括切替する。完了には工程1〜6の受入条件、生成 drift 検査、対象ローカル検証と remote CI の成功、残る実機制約の明示を必要とする。
+
+## 工程4〜6の実装・受入記録（2026-10-23）
+
+- Runtime: Step 開始履歴の保存・再入場置換、到達済み Step の paused 一括復元、Run ID / owner / 時計 / 参照の再構築、Timer / Cue の初期化、容量超過・保存失敗時の rollback を実装した。Presenter 専用の到達済み ID catalog を追加した。履歴全体は配布しない。
+- Consumers: Authoring / Structured・React Compiler / Core / CLI / Local Editor を Gesture、中心位置だけの Zone、cooldown なしへ移行した。Local Preview は認識設定を含めず Gesture / Zone / Anchor を拒否する。Compiler 由来の Delivery fixture を v3 で再生成した。
+- Unity: Gesture 8種、開始文脈・頭方向、腰限定 Zone の seed、同期 ACK / READY、旧操作破棄、全体操作と Step 選択 UI を接続した。凍結表示と Run / Surface / Media / Model の一括置換を検証した。
+- 対象検証: Contracts 61件と wire 13件、Core 372件、Authoring 71件、Compiler の関連テスト、Local Editor 92件、CLI Preview / Playback 33件が成功。Control Plane を含む関連型検査と Local Editor build が成功した。Go runtimecore / protocol / persistence の race と、gRPC catch-up・private fault・Presenter 入力・Viewer 投影の race を検証した。生成 Go / C# は v3 Delivery と認識・同期 message を復号した。Unity EditMode は53件成功し、dotnet adapter 全体・authority・pause、Assets format と .meta を検証した。
+- Go catch-up の試行回数テストには固定時計を渡し、race の計測負荷で250ms予算と競合しないようにした。別の固定時計テストで時間予算の境界も検証する。実装の時間上限は変更しない。
+- 実機: Quest が接続されておらず、ユーザー指定で今回は保留した。8種類の認識品質、頭方向・両手競合、Zone 境界と腰 tracking 欠損・復帰の端末受入は未実施であり、Editor の成功で代替しない。
+
+リポジトリ全体の test / build と `nix run .#check` は、ローカル検証を影響範囲に限定する指示に従って実行していない。対象範囲の結果を全体 gate の成功とは扱わない。
+
+## コミットレビューと再検証（2026-10-25）
+
+- Runtime: 通常 checkpoint では容量 fault 情報を省略できるようにし、入場失敗時は候補の byte 長を保存して resume 時に再検証する。再接続・保存失敗で pause 理由が変わっても fault を保持する。Group 初期化用の仮状態では履歴を作らず、現在の Presentation 状態を合成した後に容量を判定する。
+- Unity: 同期通知の cut を ACK し、最初の keyframe 前に届いた paused 一括置換を Viewer も表示する。古い frame と keyframe 前の delta は適用せず確定表示を保持する。校正が無効な間も全体操作 UI を扱い、有効な校正値同士の更新でも再同期する。
+- 生成 descriptor と breaking report を同期した。実装と文書の独立レビュー、修正、再レビューを行い、確定した残指摘はない。
+- Contracts 62件・wire 13件、Core 372件、Authoring 71件、Compiler 397件、CLI Preview / Playback 33件、Local Editor 92件が成功。関連型検査・lint、Local Editor / Control Plane build、reference project の型検査が成功した。Go / C# / Unity 生成 drift、breaking 正例・負例、C# wire conformance も成功した。
+- Go の runtimecore / protocol/v2 / persistence/http は test・race・vet・lint、gRPC / composition root / wire conformance は race が成功した。Realtime 全体の vet / lint も成功した。Unity の dotnet adapter 全体・authority・pause、EditMode 対象7クラス96件、format・meta 整合性が成功した。
+- 修正後の remote CI、リポジトリ全体の test / build、Quest 実機の認識品質・校正・controller ray 操作は未検証。今回の対象ローカル検証で代替したとは扱わない。

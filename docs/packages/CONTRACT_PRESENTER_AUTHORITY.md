@@ -1,8 +1,8 @@
 # Presenter authority contract v3
 
-状態: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の構造・意味・上限を固定する採用契約。Zod / Protobuf と生成物を更新する契約工程の対象であり、Go / Unity / Authoring の実行経路の移行完了を意味しない。移行完了までは現行 v2 consumer と接続しない。
+状態: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の構造・意味・上限を固定する採用契約。Go / Unity / Authoring / Compiler / Core をこの契約に接続した。実装と検証の状況は[移行計画](../plans/presenter-recognition-runtime-authority-refactor.md)を参照する。旧 major の consumer とは接続しない。
 
-構造の正本は [Definition](../../packages/contracts/src/presentation/definition.ts)、[Snapshot](../../packages/contracts/src/presentation/runtime-projection.ts)、[共通 Proto](../../packages/contracts/proto/unframe/presentation/runtime.proto)、[Realtime Proto](../../packages/contracts/proto/unframe/realtime/realtime.proto)。数値・wire 境界検証は [runtime-authority.ts](../../packages/contracts/src/presentation/runtime-authority.ts) を併読する。本書が [配信・実行契約](./CONTRACT_RUNTIME.md) の v2 記述と異なる場合、v3 には本書を適用する。
+構造の正本は [Definition](../../packages/contracts/src/presentation/definition.ts)、[Snapshot](../../packages/contracts/src/presentation/runtime-projection.ts)、[共通 Proto](../../packages/contracts/proto/unframe/presentation/runtime.proto)、[Realtime Proto](../../packages/contracts/proto/unframe/realtime/realtime.proto)。数値・wire 境界検証は [runtime-authority.ts](../../packages/contracts/src/presentation/runtime-authority.ts) を併読する。入力同期・復元・容量の詳細は本書を正本とする。
 
 ## Version と移行
 
@@ -93,6 +93,8 @@ pause / Step 復元の共有表示変更は `RuntimeViewReplaced` の完全な P
 
 resume は最新の有効 Pose があればそれを用い、なければ凍結表示を保持する。`ProjectedAnchorBindingPatch` は `unavailable / sample / frozen` の oneof とし、frozen の Node ID は外側の Node ID と一致させる。新 cut に属する sample で凍結を解除し、以後は通常の500ms freshness を適用する。解除後の unavailable も凍結を除去する。最初の sample が latest-wins 配信で失われても、次の keyframe / unavailable で通常状態に収束する。resume 待ちの keyframe は frozen を明示し、未取得を unavailable に置き換えない。server は解除を canonical checkpoint にも反映する。HMD 視点と操作 UI は停止しない。
 
+Presenter にだけ private な `PresenterStepSelectionCatalog` を送る。`reached_steps` は履歴にある Group / Step ID の組を重複なし・Group / Step 順で列挙し、`reliable_sequence` まで適用してから選択 UI に反映する。入力同期と同じ Runtime lock で取得し、Control item の1 MiB上限を適用する。開始状態や他 participant の結果を含めず、Viewer には送らない。
+
 `StepStartState` は Group / Step ID と保存時の入場 epoch、capture logical time、Node / Surface / Media / Model / Variable state、active Run を持つ非再帰の開始状態。global clock / 配信連番 / allocator / 認証 / 校正 / Anchor は含めない。Canonical の実行中 resource と履歴 resource は別の owner / epoch 文脈で検証する。各 `(groupId, stepId)` は直近一件だけとし、並び順は Group ID、Step ID の UTF-16 code-unit 順。
 
 初期化完了後、最初の入力・時間評価より前に履歴を保存する。Step 選択は保存状態を復元して paused にし、明示 resume まで進めない。新しい Step / input epoch、Cue 消費初期化、入場時刻基準の Timer、新 Run ID・owner epoch・時計 rebase と Run 参照 / 完了予約の再構築を同じ変更で行う。旧 completion を無効化し、Session 時計・sequence・allocator・重複排除記録を巻き戻さない。前 Step から続く Run も保存位置へ戻す。Anchor は選択時点の値を凍結する。
@@ -119,7 +121,7 @@ Control は外側 oneof を含む `ControlClientItem / ControlServerItem` 全体
 
 新規 command は結果の最悪サイズ1,024 bytesと繰返し field overhead を予約して admission 判定する。通常入力が同期開始値へ達する前に barrier を開始し、hard limit までの余裕は同期中の全体操作と metadata に使う。全体操作も hard limit を超える見込みなら実行せず capacity reject とする。拒否のために記録を増やしたり、未確認結果を TTL / LRU で evict したりしない。同期 ACK 自体は記録容量を消費しない。
 
-開始履歴の初期保存・置換、Action、Step 遷移、Step 復元を preflight し、各上限を超える変更は部分 commit しない。入場に必要な履歴が保存できない場合は入場を取り消し、元の履歴を保って paused / runtime capacity fault とする。容量 fault に対する resume は上限を再検証し、修復せず同じ遷移を進めない。通常の Action batch capacity reject は元の状態を保持する。履歴を黙って削除したり Control item を無断で分割したりしない。
+開始履歴の初期保存・置換、Action、Step 遷移、Step 復元を preflight し、各上限を超える変更は部分 commit しない。入場に必要な履歴が保存できない場合は入場を取り消し、元の履歴を保って paused / runtime capacity fault とする。失敗した候補の単一開始状態・履歴集合・Canonical 全体の byte 長は、任意の `RuntimeRecoveryMetadata.capacity_fault` に保存し、再接続や保存失敗による pause 理由の変更後も保持する。通常の checkpoint では省略する。容量 fault に対する resume は記録した byte 長を現行上限と照合し、修復せず同じ遷移を進めない。Step 復元・resume・終了の確定時に fault を解除する。通常の Action batch capacity reject は元の状態を保持する。履歴を黙って削除したり Control item を無断で分割したりしない。
 
 Control Plane は envelope JSON の UTF-8 byte 長を保存前に照合し、超過は `413 / checkpoint_payload_too_large` で拒否する。DB schema 変更は必要ないが、callback body と bootstrap 読込の両境界で同じ制約を適用する。completion が内包する checkpoint も同じ検証を使う。
 

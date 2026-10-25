@@ -160,6 +160,10 @@ func NewV2InitialSnapshot(raw json.RawMessage) (*realtimev2.CanonicalRuntimeSnap
 }
 
 func newV2InitialSnapshot(raw json.RawMessage, mediaSpecs map[string]map[string]v2MediaSpec, modelClips map[string]map[string]v2ModelClipSpec) (*realtimev2.CanonicalRuntimeSnapshot, error) {
+	return newV2InitialState(raw, mediaSpecs, modelClips, true)
+}
+
+func newV2InitialState(raw json.RawMessage, mediaSpecs map[string]map[string]v2MediaSpec, modelClips map[string]map[string]v2ModelClipSpec, captureHistory bool) (*realtimev2.CanonicalRuntimeSnapshot, error) {
 	if err := validateV3AuthorityDefinition(raw); err != nil {
 		return nil, err
 	}
@@ -298,6 +302,11 @@ func newV2InitialSnapshot(raw json.RawMessage, mediaSpecs map[string]map[string]
 	})
 	if err := protocolv2.ValidateMessage(snapshot); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrV2RuntimeDefinition, err)
+	}
+	if captureHistory {
+		if err := captureV3StepStart(snapshot); err != nil {
+			return nil, err
+		}
 	}
 	return snapshot, nil
 }

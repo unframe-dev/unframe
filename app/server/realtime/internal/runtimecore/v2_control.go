@@ -54,7 +54,7 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 		return v3Rejected(command.ClientEventId, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_SESSION_ENDED), nil, nil
 	}
 	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_SELECT_STEP {
-		return v3Rejected(command.ClientEventId, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_STEP_NOT_REACHED), nil, nil
+		return s.selectV3Step(ctx, command, key, fingerprint)
 	}
 	noOp := realtimev2.CommandNoOpReason_COMMAND_NO_OP_REASON_UNSPECIFIED
 	if s.snapshot.Clock.GetTerminating() != nil {
@@ -137,6 +137,9 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 			return nil, nil, err
 		}
 	}
+	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END || command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME {
+		s.capacityFault = nil
+	}
 	s.rememberOutcome(key, fingerprint, outcome)
 	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END {
 		if err := s.commitV2Completion(ctx, previous, events); err != nil {
@@ -152,6 +155,9 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 }
 
 func (s *V2Session) validateV2Resume(ctx context.Context) error {
+	if fault := s.capacityFault; fault != nil && (fault.StepStartStateBytes > protocolv2.MaximumStepStartStateBytes || fault.StepStartHistoryBytes > protocolv2.MaximumStepStartHistoryBytes || fault.CanonicalSnapshotBytes > protocolv2.MaximumCanonicalSnapshotBytes) {
+		return ErrV3RuntimeCapacity
+	}
 	if paused := s.snapshot.Clock.GetPaused(); paused != nil && paused.Reason == realtimev2.PauseReason_PAUSE_REASON_RECOVERY_GAP {
 		return ErrV2RuntimeDefinition
 	}

@@ -216,6 +216,9 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 		if item.GetReliableEvent().GetVariableChanged() != nil {
 			t.Fatal("viewer received private variable")
 		}
+		if item.GetPresenterInputSynchronization() != nil || item.GetPresenterStepSelectionCatalog() != nil {
+			t.Fatal("viewer received private Presenter state")
+		}
 		if advance := item.GetProjectionAdvance(); advance != nil && advance.FromExclusive == 3 && advance.ThroughSequence == 4 {
 			seenAdvance = true
 		}

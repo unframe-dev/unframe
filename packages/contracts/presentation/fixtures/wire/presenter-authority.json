@@ -1,5 +1,18 @@
 [
   {
+    "typeName": "unframe.realtime.PresenterStepSelectionCatalog",
+    "value": {
+      "reachedSteps": [
+        {
+          "groupId": "intro",
+          "stepId": "start"
+        }
+      ],
+      "reliableSequence": "9007199254740995"
+    },
+    "hex": "0a0e0a05696e74726f12057374617274108380808080808010"
+  },
+  {
     "typeName": "unframe.realtime.GestureInputCommand",
     "value": {
       "clientEventId": "18446744073709551615:550e8400-e29b-41d4-a716-446655440000",

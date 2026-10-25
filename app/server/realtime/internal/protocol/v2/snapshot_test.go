@@ -219,3 +219,28 @@ func TestPausedCheckpointRecoveryPreservesRuntimeCut(t *testing.T) {
 		t.Fatal("paused recovery changed runtime cut")
 	}
 }
+
+func TestCapacityFaultCheckpointRequiresPausedRuntime(t *testing.T) {
+	metadata, catalog := checkpointFixture(t)
+	recovery, err := DecodeRecoveryMetadata(metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovery.CapacityFault = &realtimev2.RuntimeCapacityFault{StepStartStateBytes: 70000, StepStartHistoryBytes: 70004, CanonicalSnapshotBytes: 140100}
+	metadata.RecoveryPayload, err = proto.Marshal(recovery)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := snapshotFixture()
+	if _, err := EncodeCheckpoint(snapshot, metadata, catalog); err == nil {
+		t.Fatal("running capacity fault accepted")
+	}
+	snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION}}
+	if _, err := EncodeCheckpoint(snapshot, metadata, catalog); err != nil {
+		t.Fatal(err)
+	}
+	snapshot.Clock.GetPaused().Reason = realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED
+	if _, err := EncodeCheckpoint(snapshot, metadata, catalog); err != nil {
+		t.Fatal(err)
+	}
+}

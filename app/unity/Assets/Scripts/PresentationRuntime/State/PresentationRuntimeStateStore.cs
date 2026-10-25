@@ -340,6 +340,15 @@ namespace Unframe.Unity.PresentationRuntime
                         || !PresentationDeliveryCatalog.IsId(reliableEvent.CueAccepted.CueId))
                     { error = "realtime.event cue is invalid."; return false; }
                     break;
+                case ProjectedReliableEvent.PayloadOneofCase.GestureInputAccepted:
+                    if (reliableEvent.GestureInputAccepted.Gesture < GestureKind.SwipeLeft || reliableEvent.GestureInputAccepted.Gesture > GestureKind.CloseHands)
+                    { error = "realtime.event gesture is invalid."; return false; }
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.ZoneInputAccepted:
+                    if (!PresentationDeliveryCatalog.IsId(reliableEvent.ZoneInputAccepted.ZoneId)
+                        || reliableEvent.ZoneInputAccepted.Edge != ZoneEdge.Enter && reliableEvent.ZoneInputAccepted.Edge != ZoneEdge.Exit)
+                    { error = "realtime.event zone is invalid."; return false; }
+                    break;
                 case ProjectedReliableEvent.PayloadOneofCase.LogicalInputAccepted:
                     if (!PresentationDeliveryCatalog.IsId(reliableEvent.LogicalInputAccepted.LogicalEventName))
                     { error = "realtime.event input is invalid."; return false; }

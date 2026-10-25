@@ -407,7 +407,9 @@ func DecodeCheckpoint(envelope, expected *realtimev2.DurableCheckpointEnvelope, 
 	if snapshot.Clock.GetTerminating() != nil {
 		return nil, fmt.Errorf("session_ended: terminating checkpoint cannot be restored")
 	}
-	snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PROCESS_RECOVERED}}
+	if snapshot.Clock.GetPaused().GetReason() != realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION {
+		snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PROCESS_RECOVERED}}
+	}
 	return snapshot, nil
 }
 
@@ -474,6 +476,9 @@ func ValidateCheckpointCut(envelope *realtimev2.DurableCheckpointEnvelope, snaps
 	}
 	if envelope.ReliableSequence != snapshot.ReliableSequence {
 		return fmt.Errorf("message_invalid: checkpoint reliable sequence")
+	}
+	if recovery.CapacityFault != nil && snapshot.Clock.GetPaused() == nil {
+		return fmt.Errorf("message_invalid: capacity fault requires paused cut")
 	}
 	context := recovery.InputSynchronization.InputContext
 	progression := snapshot.Progression

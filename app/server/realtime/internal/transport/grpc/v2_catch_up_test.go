@@ -224,8 +224,7 @@ func TestV2ControlCatchUpAtSnapshotSend(t *testing.T) {
 				return nil
 			}}
 			started := time.Now()
-			err := service.ConnectControl(stream)
-			elapsed := time.Since(started)
+			err := service.connectControl(stream, func() time.Time { return started })
 			if test.wantReason == "" {
 				if err != nil {
 					t.Fatalf("ConnectControl: %v", err)
@@ -236,13 +235,7 @@ func TestV2ControlCatchUpAtSnapshotSend(t *testing.T) {
 			if snapshotCut != test.wantCut {
 				t.Fatalf("snapshot cut=%d, want %d", snapshotCut, test.wantCut)
 			}
-			if test.overflowEveryAttempt {
-				// The fixed-clock test checks the exact attempt limit; real delivery
-				// may exhaust its total time budget first, especially under race.
-				if attempts > test.wantAttempts || (attempts < test.wantAttempts && elapsed < 250*time.Millisecond) {
-					t.Fatalf("attempts=%d elapsed=%s, want %d attempts or total budget exhausted", attempts, elapsed, test.wantAttempts)
-				}
-			} else if attempts != test.wantAttempts {
+			if attempts != test.wantAttempts {
 				t.Fatalf("attempts=%d, want %d", attempts, test.wantAttempts)
 			}
 			if test.wantResync && resyncCut != expectedRetryCut {

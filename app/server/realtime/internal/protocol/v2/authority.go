@@ -87,6 +87,24 @@ func validateAuthority(message protoreflect.Message, path string) error {
 		return fmt.Errorf("message_invalid: %s serialized byte limit", path)
 	}
 	switch name {
+	case "RuntimeCapacityFault":
+		if get("step_start_state_bytes").Uint() == 0 || get("step_start_history_bytes").Uint() == 0 || get("canonical_snapshot_bytes").Uint() == 0 {
+			return invalid()
+		}
+	case "PresenterStepSelectionCatalog":
+		list := get("reached_steps").List()
+		previous := ""
+		for i := 0; i < list.Len(); i++ {
+			entry := list.Get(i).Message()
+			fields := entry.Descriptor().Fields()
+			groupID := entry.Get(fields.ByName("group_id")).String()
+			stepID := entry.Get(fields.ByName("step_id")).String()
+			key := groupID + "\x00" + stepID
+			if !identifier.MatchString(groupID) || !identifier.MatchString(stepID) || key <= previous {
+				return invalid()
+			}
+			previous = key
+		}
 	case "ControlHandshake", "StateHandshake", "ControlConnected":
 		field := "supported_capabilities"
 		if name == "ControlConnected" {

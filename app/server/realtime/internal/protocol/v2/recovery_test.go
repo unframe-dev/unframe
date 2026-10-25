@@ -60,3 +60,14 @@ func TestRecoveryMetadataRejectsOmissionAndOrphanHash(t *testing.T) {
 		t.Fatal("hash without payload accepted")
 	}
 }
+
+func TestCapacityFaultRequiresPositiveDimensions(t *testing.T) {
+	for _, fault := range []*realtimev2.RuntimeCapacityFault{{}, {StepStartStateBytes: 1, StepStartHistoryBytes: 1}, {StepStartStateBytes: 1, CanonicalSnapshotBytes: 1}, {StepStartHistoryBytes: 1, CanonicalSnapshotBytes: 1}} {
+		if err := ValidateMessage(fault); err == nil {
+			t.Fatalf("invalid fault accepted: %v", fault)
+		}
+	}
+	if err := ValidateMessage(&realtimev2.RuntimeCapacityFault{StepStartStateBytes: 1, StepStartHistoryBytes: 1, CanonicalSnapshotBytes: 1}); err != nil {
+		t.Fatal(err)
+	}
+}

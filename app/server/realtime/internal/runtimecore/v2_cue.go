@@ -55,6 +55,9 @@ func (s *V2Session) applySelectedV2Cue(cue v2Cue, causeEventID string) ([]*realt
 		return nil, rejection, err
 	}
 	blocking = append(blocking, modelBlocking...)
+	if !withinV3SnapshotCapacity(next) {
+		return nil, nil, ErrV3RuntimeCapacity
+	}
 	s.snapshot = next
 	if cue.FirePolicy.Kind == "oncePerStepEntry" {
 		s.snapshot.StepExecution.ConsumedCueIds = append(s.snapshot.StepExecution.ConsumedCueIds, cue.ID)
@@ -113,6 +116,9 @@ func (s *V2Session) applySelectedV2Cue(cue v2Cue, causeEventID string) ([]*realt
 }
 
 func (s *V2Session) enterV2Step(targetID string) (*realtimev2.ProjectedReliableEvent, error) {
+	if s.snapshot.Progression.StepEntryEpoch == math.MaxUint64 {
+		return nil, ErrV2RuntimeDefinition
+	}
 	group := s.definition.Flow.Groups[s.snapshot.Progression.CurrentGroupId]
 	if _, found := group.Steps[targetID]; !found {
 		return nil, ErrV2RuntimeDefinition
@@ -122,6 +128,9 @@ func (s *V2Session) enterV2Step(targetID string) (*realtimev2.ProjectedReliableE
 	s.snapshot.Progression.StepEnteredAtRuntimeTimeMs = s.snapshot.Clock.RuntimeTimeMs
 	s.snapshot.StepExecution = &realtimev2.StepExecutionSnapshot{StepEntryEpoch: s.snapshot.Progression.StepEntryEpoch}
 	if err := s.armV2StepTimers(); err != nil {
+		return nil, err
+	}
+	if err := captureV3StepStart(s.snapshot); err != nil {
 		return nil, err
 	}
 	if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED, false); err != nil {

@@ -68,6 +68,25 @@ function inputContext(value: unknown): void {
 
 export function validateAuthorityWireValue(typeName: string, value: Record<string, unknown>): void {
   const name = typeName.split(".").at(-1);
+  if (
+    name === "RuntimeCapacityFault" &&
+    !["stepStartStateBytes", "stepStartHistoryBytes", "canonicalSnapshotBytes"].every((field) =>
+      positiveInteger(value[field]),
+    )
+  )
+    throw new TypeError("Runtime capacity fault requires attempted byte sizes");
+  if (name === "PresenterStepSelectionCatalog") {
+    let previous = "";
+    for (const step of (value["reachedSteps"] ?? []) as Record<string, unknown>[]) {
+      const groupId = step["groupId"];
+      const stepId = step["stepId"];
+      if (!identifier(groupId) || !identifier(stepId))
+        throw new TypeError("Step selection requires Group and Step IDs");
+      const key = `${groupId}\u0000${stepId}`;
+      if (key <= previous) throw new TypeError("Reached Steps must be sorted and unique");
+      previous = key;
+    }
+  }
   if (name === "ControlHandshake" || name === "ControlConnected" || name === "StateHandshake") {
     if (
       value["protocolVersion"] !== runtimeAuthorityVersions.protocol ||

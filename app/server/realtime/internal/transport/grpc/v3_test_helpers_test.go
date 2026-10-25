@@ -65,6 +65,9 @@ func (c *v3SynchronizedTestClient) Recv() (*realtimev2.ControlServerItem, error)
 		if err != nil {
 			return item, err
 		}
+		if item.GetPresenterStepSelectionCatalog() != nil {
+			continue
+		}
 		state := item.GetPresenterInputSynchronization()
 		if state == nil {
 			return item, nil

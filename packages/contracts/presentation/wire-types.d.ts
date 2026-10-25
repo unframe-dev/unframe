@@ -1058,6 +1058,7 @@ export type ControlServerItemWire_item =
       stateConnectionNonce?: never;
       resyncRequired?: never;
       presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       connectionSnapshot: ConnectionSnapshotEnvelopeWire;
@@ -1068,6 +1069,7 @@ export type ControlServerItemWire_item =
       stateConnectionNonce?: never;
       resyncRequired?: never;
       presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       reliableEvent: ProjectedReliableEventWire;
@@ -1078,6 +1080,7 @@ export type ControlServerItemWire_item =
       stateConnectionNonce?: never;
       resyncRequired?: never;
       presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       projectionAdvance: ProjectionAdvanceWire;
@@ -1088,6 +1091,7 @@ export type ControlServerItemWire_item =
       stateConnectionNonce?: never;
       resyncRequired?: never;
       presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       commandOutcome: CommandOutcomeWire;
@@ -1098,6 +1102,7 @@ export type ControlServerItemWire_item =
       stateConnectionNonce?: never;
       resyncRequired?: never;
       presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       stateConnectionNonce: StateConnectionNonceWire;
@@ -1108,6 +1113,7 @@ export type ControlServerItemWire_item =
       commandOutcome?: never;
       resyncRequired?: never;
       presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       resyncRequired: ResyncRequiredWire;
@@ -1118,6 +1124,7 @@ export type ControlServerItemWire_item =
       commandOutcome?: never;
       stateConnectionNonce?: never;
       presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       presenterInputSynchronization: PresenterInputSynchronizationWire;
@@ -1128,6 +1135,18 @@ export type ControlServerItemWire_item =
       commandOutcome?: never;
       stateConnectionNonce?: never;
       resyncRequired?: never;
+      presenterStepSelectionCatalog?: never;
+    }
+  | {
+      presenterStepSelectionCatalog: PresenterStepSelectionCatalogWire;
+      connected?: never;
+      connectionSnapshot?: never;
+      reliableEvent?: never;
+      projectionAdvance?: never;
+      commandOutcome?: never;
+      stateConnectionNonce?: never;
+      resyncRequired?: never;
+      presenterInputSynchronization?: never;
     };
 export type ControlServerItemWire = ControlServerItemWireFields & ControlServerItemWire_item;
 
@@ -1535,6 +1554,11 @@ export type PresenterInputSynchronizationWire__nextCommandEpoch =
   | { nextCommandEpoch?: never };
 export type PresenterInputSynchronizationWire = PresenterInputSynchronizationWireFields &
   PresenterInputSynchronizationWire__nextCommandEpoch;
+
+export interface PresenterStepSelectionCatalogWire {
+  reachedSteps?: StepSelectionWire[];
+  reliableSequence?: string;
+}
 
 export interface ProgressionNextWireFields {}
 export type ProgressionNextWire_destination =
@@ -3078,6 +3102,12 @@ export interface ResyncRequiredWire {
 
 export interface RunningWire {}
 
+export interface RuntimeCapacityFaultWire {
+  stepStartStateBytes?: string;
+  stepStartHistoryBytes?: string;
+  canonicalSnapshotBytes?: string;
+}
+
 export interface RuntimeClockSnapshotWireFields {
   runtimeTimeMs?: string;
 }
@@ -3147,6 +3177,7 @@ export interface RuntimeRecoveryMetadataWire {
   commands?: RuntimeCommandHistoryWire[];
   commandEpoch?: string;
   inputSynchronization?: PresenterInputSynchronizationWire;
+  capacityFault?: RuntimeCapacityFaultWire;
 }
 
 export interface RuntimeRunSnapshotWireFields {
