@@ -1,6 +1,6 @@
 # Audienceの外部接続境界と担当範囲
 
-更新日: 2026-10-23。状態: HTTP参加クライアント実装済み。外部提供・実接続・Realtime接続は未完了。
+更新日: 2026-10-25。状態: HTTP取得・期限前更新、通常視聴のDelivery/XR/Runtime接合、回復要求の受け口を実装済み。外部提供・実接続・Realtime接続は未完了。
 
 ## 基本方針
 
@@ -41,15 +41,15 @@ join用のHTTP認証資格とbootstrapで得るRealtime credentialは用途を�
 
 TTL、保存方式、transport、endpoint名をAudience担当だけで確定しない。観客はviewer権限のみとし、進行・編集権限を得ない要件を伝える。資格や素材URLを診断ログへ含めない。
 
-## 提供を待たずに進める作業
+## Audience側で実装済みの受け口
 
-1. PoCをXrHost／Localization／Renderer／アプリ制御へ分離する。
-2. 契約fixtureからPNGの取得後データ・配置・表示状態を描画する。
-3. 既存HTTP schemaに基づくリクエスト／レスポンス処理と失敗時UIをテストする。
-4. transport非依存のSnapshot・イベント・State適用器と破棄・再同期をテストする。
-5. PNG、動画、GLBのrendererを段階実装し、対応機能と測定した予算をBackend担当へ提示する。
+- 通常参加で取得したDeliveryを視聴セッションへ渡し、明示的なカメラ開始後にRuntimeを生成する。fixtureも同じセッション制御を使う。
+- `RuntimeInput` は既存Control/State wireを受理し、停止・assignment更新・再接続後の古い入力を拒否する。Snapshot/keyframeの回復要求を状態として公開する。これはネットワーク送信・handshake・Readyを代行しない。
+- Delivery/bootstrapの期限前更新に既存APIを再利用する。同一配信ならassetAccessを更新し既存表示を保持、assignment変更ならRuntimeを再生成する。匿名資格の発行・延長は外部の決定待ち。
+- 製品では設定済みマーカー実寸・board ID・revisionを検証用queryで上書きしない。現状はローカル暫定設定で、sessionごとの配布元は未確定。
+- PNG/動画/GLB表示と操作進行はfixtureで検証する。未実装の必須表現を黙って欠落させない。
 
-fixtureやテストダブルはテスト専用。模擬データで実サーバー接続済みと表示しない。既存ログインを使う疎通確認は、認可された開発資格・利用可能なoriginがある場合だけ行う。ログインを製品の参加条件にはしない。
+残るアプリ作業は、提供された通信仕様への実adapter接続、資格再認証・復帰・同期精度の実検証、端末測定に基づくCapability確定と追加表現の判断。アプリ内の受け口だけで匿名参加・実サーバー接続を完了扱いにしない。
 
 ## 完了判定
 

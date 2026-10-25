@@ -1,9 +1,19 @@
 # Audience Webアプリ開発への移行
 
-- 更新日: 2026-10-24
+- 更新日: 2026-10-25
 - 状態: 位置保持PoCはユーザー承認により完了。Audience内の責務分離、座標接合、PNG・動画・GLB描画、進行適用、HTTPクライアント、視聴UIを実装済み。実Backend／Realtimeとの接続と総合受入は未完了。
 - 所有アプリ: `app/audience/`。編集用の`app/web/`と分離する。
 - 統合先: `webXR/audience`。`webXR/tracking-poc`は取り込み済み。現状保存のDraft PRは[#167](https://github.com/unframe-dev/unframe/pull/167)。2026-10-22に最新main（最終取得時点`5219fa91`）を取り込み、競合を解消した。新しい実装は更新済み統合ブランチから作業ブランチを分ける。
+
+## 現在のアプリ側実装
+
+通常入口にDelivery → XR起動 → Runtime入力を接合する視聴セッションを追加し、fixtureも同じ制御へ移した。HTTP接続情報は期限前に更新し、成功するまで有効な旧情報を維持する。同じ配信構造では素材URLだけを更新し、assignment変更ではカメラを維持しつつ新しいRuntime/Snapshotを待つ。
+
+Snapshot/keyframeの回復要求、切断・再接続の受け口、待機・素材準備・再同期・終了UI、製品用会場設定の保持、安全な製品診断を実装した。描画資源所有・Runtime純粋検証・診断を分離し、XR画面を遅延ロードする。READMEの現在仕様と実装履歴も分離した。
+
+外部待ちは匿名viewer資格・Audience profile登録・ブラウザRealtime・HTTPS/CORS等の接続環境、会場設定の配布契約。未知のAPI/transportを仮実装せず、既存wire入力とテストダブルで結合を確認する。実通信のhandshake/Ready/Replay/Resume/再認証・時計遅延補償、スマートフォンの総合負荷/長時間受入、Android NORMAL待機問題は未完了。表現の追加対応はCapability合意と端末測定後の別作業とする。
+
+以下の工程・検証記録には過去時点の記述を含む。現在の操作と仕様は[Audience README](../../app/audience/README.md)を正本とする。
 
 ## 引き継ぐ構成
 
@@ -285,3 +295,17 @@ UI変更の検証: `nix run .#audience` は459テスト・型検査・lint・bui
 最終Audience個別ゲート `nix run .#audience` は52ファイル・467テスト、型検査・lint・本番buildが成功。ログは `/tmp/audience-pr-final-check.log`。既存の500kB超chunk警告は残る。実Backend／Realtime接続とAndroidのNORMAL待機問題の解決を完了扱いにしない。今回の追加差分はAudience本体、関連文書、既存contractsを参照するAudience importerの依存ロック3行のみ。共有契約・Backend・CI・Nix設定の追加変更はない。
 
 今回の `nix run .#check` はControl Planeの検査を通過後、Audience外の `packages/unframe-compiler/test/video-compilation.test.ts:245` の `preserves baked/video/baked paint order with complete independent ownership` が5000msタイムアウトし停止した（compiler387成功・1失敗）。後続集約チェックは未実行。全体成功とは扱わず、対象外のコードやtimeout設定は変更しない。ログは `/tmp/audience-pr-full-check.log`。ユーザーの現状保存・push依頼に従ってDraftへ反映し、この検証制約をPRへ明記する。
+
+## アプリ側の視聴統合と責務整理（2026-10-25）
+
+通常参加のDeliveryをXRとRuntimeへ接続し、fixtureも同じviewing-sessionを使用する。期限前のDelivery/bootstrap更新、期限内の旧接続維持、世代付き入力、Snapshot/keyframe回復要求、Snapshot再同期用の明示的な入力切替、切断/再接続UI、安全な製品診断を追加した。製品マーカー設定は検証queryで上書きしない。
+
+描画資源所有をpresentation-sessionへ、純粋なRuntime検証をruntime-input/runtime-view-validationへ、診断をdiagnosticsへ分離した。通常XR画面を遅延ロードし、READMEの現在仕様と過去の実装履歴を分けた。追跡・タグ姿勢即採用・SDK保持・表示小揺れ補正の方式は維持した。
+
+`nix run .#audience` は59ファイル・529テスト、型検査・lint・本番build成功。ログ `/tmp/audience-application-final-check.log`。既存の500kB超bundle chunk警告は残る。メタ情報のみを更新後、packageのbuildを別途再実行した。
+
+`nix run .#check` はControl Plane通過後、今回未変更の `packages/unframe-compiler/test/video-compilation.test.ts:245` の動画paint-orderテストが5000msタイムアウトし停止（compiler387成功・1失敗）。後続集約チェックは未実行で、全体成功とは扱わない。ログ `/tmp/audience-application-full-check.log`。共有契約・Backend・CI・Nix・依存設定の変更はない。
+
+実Realtime adapter/資格再認証、匿名identity発行、Audience profile登録、会場設定の配布仕様、スマートフォンの負荷・音声・長時間受入、Android NORMAL待機原因の確定は未完了。今回の検証はアプリ内の実契約データとテストダブルを含み、実通信・実機受入の成功に置き換えない。変更は未コミット。
+
+本番previewをChromeの390×844モバイルviewportで確認し、innerWidth/scrollWidthとも390、開発リンクなし、JavaScript例外なしを確認した。カメラや実通信の受入ではない。結果 `/tmp/audience-product-entry-mobile.json`、画面 `/tmp/audience-product-entry-mobile.png`。本番bundleにfixture動画/GLB/PNGの参照が含まれないことも確認した。

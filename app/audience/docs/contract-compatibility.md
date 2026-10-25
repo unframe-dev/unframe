@@ -1,10 +1,10 @@
 # Audienceと既存Quest／Unity契約の適合確認
 
-確認日: 2026-10-24。対象: 統合済みmain `5219fa91`を含む`webXR/audience`。これはコード・契約の静的な照合結果であり、Audienceの実接続や端末での契約適合を証明するものではない。追加案は未承認・未実装として区別する。
+確認日: 2026-10-25。対象: 統合済みmain `5219fa91`を含む`webXR/audience`。これはコード・契約の静的な照合結果であり、Audienceの実接続や端末での契約適合を証明するものではない。追加案は未承認・未実装として区別する。
 
 ## 判定
 
-既存のSession、Delivery、Runtime、Realtime v2を共用する。Audience専用のプレゼン定義・ページ同期プロトコルは新設しない。Audienceは位置保持PoCを完了し、既存contracts依存でPNG・H.264動画・GLB描画・座標接合・Snapshot／イベント／State適用・Group切替・Timeline／Surfaceクロスフェードをアプリ内で実装している。HTTP join／Delivery／bootstrapの取得・整合検証・期限管理と参加UIを実装済み。匿名資格・登録済Audience profile・接続環境の外部提供待ちで実HTTP接続は未検証。実Realtime接続は未実装で、ライブ視聴可能な状態にはまだ達していない。
+既存のSession、Delivery、Runtime、Realtime v2を共用する。Audience専用のプレゼン定義・ページ同期プロトコルは新設しない。Audienceは位置保持PoCを完了し、既存contracts依存でPNG・H.264動画・GLB描画・座標接合・Snapshot／イベント／State適用・Group切替・Timeline／Surfaceクロスフェードをアプリ内で実装している。HTTP join／Delivery／bootstrapの取得・整合検証・期限前更新と参加UIを実装済み。通常入口も取得DeliveryをXR／Runtimeへ渡し、停止・assignment変更時の入力世代、Snapshot／keyframe回復要求と切断・復帰UIを管理する。受信adapterは未接続である。匿名資格・登録済Audience profile・接続環境の外部提供待ちで実HTTP接続は未検証。実Realtime接続は未実装で、ライブ視聴可能な状態にはまだ達していない。
 
 ## 契約の正本
 
