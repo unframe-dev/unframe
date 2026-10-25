@@ -79,6 +79,9 @@ test("接続準備完了をライブ受信完了として表示せず退出で�
   render(<JoinExperience controller={controller} />);
   update({
     phase: "prepared",
+    revision: 1,
+    refreshing: false,
+    refreshError: null,
     session: { id: "session-secret", state: "Presenting" },
     expiresAt: "2026-10-23T00:01:00Z",
   });

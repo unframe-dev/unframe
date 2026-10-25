@@ -11,7 +11,14 @@ type PublicSession = Pick<Session, "id" | "state">;
 export type JoinSnapshot =
   | { phase: "idle" | "joining" }
   | { phase: "delivery" | "bootstrap"; session: PublicSession }
-  | { phase: "prepared"; session: PublicSession; expiresAt: string }
+  | {
+      phase: "prepared";
+      session: PublicSession;
+      expiresAt: string;
+      revision: number;
+      refreshing: boolean;
+      refreshError: string | null;
+    }
   | { phase: "error"; error: string; session?: PublicSession };
 export interface PreparedConnection {
   session: Session;
@@ -109,6 +116,10 @@ export function createJoinController(options: {
   let generation = 0;
   let disposed = false;
   let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+  let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  let pendingWork: Promise<void> | null = null;
+  let revision = 0;
+  let retryCount = 0;
   function publish(next: JoinSnapshot) {
     snapshot = next;
     for (const listener of listeners) listener();
@@ -117,9 +128,24 @@ export function createJoinController(options: {
     generation++;
     request?.abort();
     request = null;
+    pendingWork = null;
     clearTimeout(expiryTimer);
+    clearTimeout(refreshTimer);
     expiryTimer = undefined;
+    refreshTimer = undefined;
     prepared = null;
+    retryCount = 0;
+  }
+  function publishPrepared(refreshing: boolean, refreshError: string | null = null) {
+    if (!prepared) return;
+    publish({
+      phase: "prepared",
+      session: { id: prepared.session.id, state: prepared.session.state },
+      expiresAt: new Date(expiry(prepared, now())).toISOString(),
+      revision,
+      refreshing,
+      refreshError,
+    });
   }
   function expire() {
     if (!prepared) return;
@@ -135,6 +161,7 @@ export function createJoinController(options: {
     }
   }
   function scheduleExpiry() {
+    clearTimeout(expiryTimer);
     if (!prepared) return;
     const remaining = expiry(prepared, now()) - now();
     expiryTimer = setTimeout(
@@ -145,57 +172,102 @@ export function createJoinController(options: {
       Math.min(remaining, 2_147_483_647),
     );
   }
-  async function acquire(code?: string): Promise<void> {
-    if (disposed) return;
-    stop();
+  function scheduleRefresh(retry = false) {
+    clearTimeout(refreshTimer);
+    if (!prepared || disposed) return;
+    const remaining = expiry(prepared, now()) - now();
+    const delay = retry
+      ? 1000 * 2 ** retryCount++
+      : Math.max(1000, remaining - Math.min(30_000, remaining / 2));
+    // A lease may cap refreshed credentials at the same deadline. Avoid a tight
+    // refresh loop near expiry and keep the original expiry timer authoritative.
+    if ((retry && retryCount > 3) || delay >= remaining) return;
+    refreshTimer = setTimeout(
+      () => {
+        refreshTimer = undefined;
+        void acquire();
+      },
+      Math.min(delay, 2_147_483_647),
+    );
+  }
+  function acquire(code?: string): Promise<void> {
+    if (disposed) return Promise.resolve();
+    if (code === undefined) {
+      expire();
+      if (pendingWork) return pendingWork;
+    } else stop();
     const token = generation;
     const pending = new AbortController();
     request = pending;
+    clearTimeout(refreshTimer);
+    refreshTimer = undefined;
     const current = () => !disposed && token === generation && !pending.signal.aborted;
-    try {
-      if (code !== undefined) {
-        joinedSession = null;
-        publish({ phase: "joining" });
-        const joined = await options.client.join(code, pending.signal);
+    const retaining = prepared !== null;
+    if (retaining) publishPrepared(true);
+    const work = (async () => {
+      try {
+        if (code !== undefined) {
+          joinedSession = null;
+          publish({ phase: "joining" });
+          const joined = await options.client.join(code, pending.signal);
+          if (!current()) return;
+          joinedSession = structuredClone(joined);
+        }
+        const session = joinedSession;
+        if (!session) {
+          publish({ phase: "idle" });
+          return;
+        }
+        if (session.state === "Ended") throw new AudienceConnectionError("session-ended");
+        const publicSession = { id: session.id, state: session.state };
+        if (!retaining) publish({ phase: "delivery", session: publicSession });
+        const delivery = await options.client.delivery(session.id, pending.signal);
         if (!current()) return;
-        joinedSession = structuredClone(joined);
+        validateDelivery(session, delivery, options.capabilityProfileId);
+        if (!retaining) publish({ phase: "bootstrap", session: publicSession });
+        const bootstrap = await options.client.bootstrap(session.id, pending.signal);
+        if (!current()) return;
+        if (retaining) expire();
+        if (!current()) return;
+        validateBootstrap(delivery, bootstrap);
+        const nextSession = { ...session, publicationFence: { ...bootstrap.publicationFence } };
+        const connection = structuredClone({ session: nextSession, delivery, bootstrap });
+        expiry(connection, now());
+        joinedSession = nextSession;
+        prepared = connection;
+        revision++;
+        retryCount = 0;
+        scheduleExpiry();
+        scheduleRefresh();
+        publishPrepared(false);
+      } catch (error) {
+        if (!current()) return;
+        expire();
+        if (!current()) return;
+        if (prepared) {
+          publishPrepared(false, displayError(error));
+          scheduleRefresh(true);
+        } else {
+          publish({
+            phase: "error",
+            error: displayError(error),
+            ...(joinedSession
+              ? { session: { id: joinedSession.id, state: joinedSession.state } }
+              : {}),
+          });
+        }
+      } finally {
+        if (current()) {
+          request = null;
+          pendingWork = null;
+        }
       }
-      const session = joinedSession;
-      if (!session) {
-        publish({ phase: "idle" });
-        return;
-      }
-      if (session.state === "Ended") throw new AudienceConnectionError("session-ended");
-      const publicSession = { id: session.id, state: session.state };
-      publish({ phase: "delivery", session: publicSession });
-      const delivery = await options.client.delivery(session.id, pending.signal);
-      if (!current()) return;
-      validateDelivery(session, delivery, options.capabilityProfileId);
-      publish({ phase: "bootstrap", session: publicSession });
-      const bootstrap = await options.client.bootstrap(session.id, pending.signal);
-      if (!current()) return;
-      validateBootstrap(delivery, bootstrap);
-      joinedSession = { ...session, publicationFence: { ...bootstrap.publicationFence } };
-      const connection = structuredClone({ session: joinedSession, delivery, bootstrap });
-      const until = expiry(connection, now());
-      prepared = connection;
-      scheduleExpiry();
-      publish({
-        phase: "prepared",
-        session: publicSession,
-        expiresAt: new Date(until).toISOString(),
-      });
-    } catch (error) {
-      if (!current()) return;
-      prepared = null;
-      publish({
-        phase: "error",
-        error: displayError(error),
-        ...(joinedSession ? { session: { id: joinedSession.id, state: joinedSession.state } } : {}),
-      });
-    } finally {
-      if (current()) request = null;
-    }
+    })();
+    pendingWork = work;
+    void work.then(() => {
+      if (pendingWork === work) pendingWork = null;
+    });
+    return work;
   }
   return {
     getSnapshot: () => snapshot,

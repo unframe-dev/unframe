@@ -1,9 +1,12 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { AnchorExperience } from "../AnchorExperience";
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { JoinExperience } from "./JoinExperience";
 import { readConnectionConfig } from "./application-config";
 import { createAudienceHttpClient } from "./http-client";
-import { createJoinController } from "./join-controller";
+import { createJoinController, type PreparedConnection } from "./join-controller";
+
+const ViewerExperience = lazy(() =>
+  import("../experience/ViewerExperience").then((module) => ({ default: module.ViewerExperience })),
+);
 
 const idleSnapshot = { phase: "idle" } as const;
 const idleSubscribe = () => () => {};
@@ -24,12 +27,36 @@ export function AudienceApplication() {
     };
   });
   useEffect(() => () => state.controller?.dispose(), [state]);
+  useEffect(() => {
+    const checkExpiry = () => {
+      if (!document.hidden) state.controller?.getPrepared();
+    };
+    document.addEventListener("visibilitychange", checkExpiry);
+    return () => document.removeEventListener("visibilitychange", checkExpiry);
+  }, [state]);
   const snapshot = useSyncExternalStore(
     state.controller?.subscribe ?? idleSubscribe,
     state.controller?.getSnapshot ?? getIdleSnapshot,
   );
-  if (snapshot.phase === "prepared" && state.controller)
-    return <AnchorExperience viewerMode onLeave={state.controller.leave} />;
+  const [connection, setConnection] = useState<PreparedConnection | null>(null);
+  const revision = snapshot.phase === "prepared" ? snapshot.revision : null;
+  useEffect(() => {
+    setConnection(revision === null ? null : (state.controller?.getPrepared() ?? null));
+  }, [revision, state]);
+  if (snapshot.phase === "prepared" && state.controller && connection)
+    return (
+      <Suspense fallback={<p role="status">視聴画面を準備しています。</p>}>
+        <ViewerExperience
+          connection={connection}
+          refreshing={snapshot.refreshing}
+          refreshError={snapshot.refreshError}
+          onRefresh={() => {
+            void state.controller?.refresh();
+          }}
+          onLeave={state.controller.leave}
+        />
+      </Suspense>
+    );
   return (
     <>
       {state.invalid && (

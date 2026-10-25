@@ -1,7 +1,12 @@
 import { afterEach, expect, test, vi } from "vitest";
 import fixture from "../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import { createJoinController } from "./join-controller";
-import { AudienceConnectionError, type Bootstrap, type Session } from "./http-client";
+import {
+  AudienceConnectionError,
+  type Bootstrap,
+  type Session,
+  type createAudienceHttpClient,
+} from "./http-client";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
 
 const clock = Date.parse("2026-10-23T00:00:00Z");
@@ -42,7 +47,7 @@ function setup() {
   };
   const client = {
     join: vi.fn(async () => session),
-    delivery: vi.fn(async () => delivery),
+    delivery: vi.fn<ReturnType<typeof createAudienceHttpClient>["delivery"]>(async () => delivery),
     bootstrap: vi.fn(async () => bootstrap),
   };
   const controller = createJoinController({ client, capabilityProfileId: "synthetic-test-only" });
@@ -132,8 +137,13 @@ test("同じsessionの情報更新で公開物が変わった場合は混ぜず�
   await controller.join("ABCD-EFGH");
   delivery.publication!.publicationEpoch = "2";
   await controller.refresh();
-  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "delivery-mismatch" });
-  expect(controller.getPrepared()).toBeNull();
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "prepared",
+    refreshError: "delivery-mismatch",
+    revision: 1,
+  });
+  expect(controller.getPrepared()?.delivery.publication?.publicationEpoch).toBe("1");
+  controller.dispose();
 });
 
 test("取得済みデータを呼出元が変更しても保管中の資格を変更しない", async () => {
@@ -155,8 +165,13 @@ test("joinのfenceがnullでも最初の公開物を固定し更新時に変更�
   delivery.projectionProfile!.key!.publication!.publicationEpoch = "2";
   bootstrap.publicationFence.publicationEpoch = 2;
   await controller.refresh();
-  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "delivery-mismatch" });
-  expect(controller.getPrepared()).toBeNull();
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "prepared",
+    refreshError: "delivery-mismatch",
+    revision: 1,
+  });
+  expect(controller.getPrepared()?.delivery.publication?.publicationEpoch).toBe("1");
+  controller.dispose();
 });
 
 test("同公開物のassignment変更は更新したDeliveryとbootstrapが一致すれば受理", async () => {
@@ -184,4 +199,162 @@ test("終了済sessionではDeliveryを要求しない", async () => {
   await controller.join("ABCD-EFGH");
   expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "session-ended" });
   expect(client.delivery).not.toHaveBeenCalled();
+});
+
+test("期限前に自動更新している間もpreparedと旧資格を維持し成功時だけrevisionを進める", async () => {
+  const { controller, client, delivery, bootstrap } = setup();
+  await controller.join("ABCD-EFGH");
+  let complete!: (value: DeliveryManifestWire) => void;
+  client.delivery.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+  );
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "prepared",
+    refreshing: true,
+    revision: 1,
+  });
+  expect(controller.getPrepared()?.bootstrap.credential).toBe("secret-credential");
+  bootstrap.credential = "renewed-private-credential";
+  bootstrap.expiresAt = new Date(clock + 180_000).toISOString();
+  delivery.assetAccess!.forEach((asset) => {
+    asset.expiresAtUnixMs = String(clock + 180_000);
+  });
+  complete(delivery);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "prepared",
+    refreshing: false,
+    revision: 2,
+    refreshError: null,
+  });
+  expect(controller.getPrepared()?.bootstrap.credential).toBe("renewed-private-credential");
+  expect(JSON.stringify(controller.getSnapshot())).not.toContain("private");
+  expect(client.join).toHaveBeenCalledTimes(1);
+  controller.dispose();
+});
+
+test("素材URLの最短期限を使って自動更新し失敗は既存接続を保持して再試行する", async () => {
+  const { controller, client, delivery } = setup();
+  delivery.assetAccess![0]!.expiresAtUnixMs = String(clock + 20_000);
+  await controller.join("ABCD-EFGH");
+  client.delivery.mockRejectedValue(new AudienceConnectionError("network-error"));
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "prepared",
+    refreshing: false,
+    refreshError: "network-error",
+    revision: 1,
+  });
+  expect(controller.getPrepared()).not.toBeNull();
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(client.delivery).toHaveBeenCalledTimes(3);
+  await vi.advanceTimersByTimeAsync(9_000);
+  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+  expect(controller.getPrepared()).toBeNull();
+  expect(client.delivery.mock.calls.length).toBeLessThanOrEqual(5);
+});
+
+test.each(["leave", "cancel", "dispose"] as const)(
+  "%sは更新中の要求と全timerを取消し遅延応答を無視する",
+  async (operation) => {
+    const { controller, client, delivery } = setup();
+    await controller.join("ABCD-EFGH");
+    let complete!: (value: DeliveryManifestWire) => void;
+    client.delivery.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const work = controller.refresh();
+    const signal = client.delivery.mock.calls.at(-1)?.[1] as AbortSignal | undefined;
+    controller[operation]();
+    expect(signal?.aborted).toBe(true);
+    complete(delivery);
+    await work;
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(controller.getSnapshot()).toEqual({ phase: "idle" });
+    expect(controller.getPrepared()).toBeNull();
+    expect(client.delivery).toHaveBeenCalledTimes(2);
+  },
+);
+
+test("更新を同時要求しても重複せず旧期限を過ぎた要求の完了で復帰しない", async () => {
+  const { controller, client, delivery } = setup();
+  await controller.join("ABCD-EFGH");
+  let complete!: (value: DeliveryManifestWire) => void;
+  client.delivery.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const first = controller.refresh();
+  const second = controller.refresh();
+  expect(client.delivery).toHaveBeenCalledTimes(2);
+  await vi.advanceTimersByTimeAsync(60_000);
+  complete(delivery);
+  await Promise.all([first, second]);
+  expect(controller.getPrepared()).toBeNull();
+  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+});
+
+test("更新失敗後の再試行成功で期限とrevisionを進め以後の旧期限timerを解除する", async () => {
+  const { controller, client, bootstrap, delivery } = setup();
+  await controller.join("ABCD-EFGH");
+  client.delivery.mockRejectedValueOnce(new AudienceConnectionError("network-error"));
+  await vi.advanceTimersByTimeAsync(30_000);
+  bootstrap.expiresAt = new Date(clock + 180_000).toISOString();
+  delivery.assetAccess!.forEach((asset) => {
+    asset.expiresAtUnixMs = String(clock + 180_000);
+  });
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "prepared",
+    refreshError: null,
+    refreshing: false,
+    revision: 2,
+  });
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(controller.getSnapshot().phase).toBe("prepared");
+  expect(client.delivery).toHaveBeenCalledTimes(3);
+  controller.dispose();
+});
+
+test("leaseにより期限を延ばせなくても更新要求が期限付近で無限発生しない", async () => {
+  const { controller, client, bootstrap, delivery } = setup();
+  bootstrap.expiresAt = new Date(clock + 2_000).toISOString();
+  delivery.assetAccess!.forEach((asset) => {
+    asset.expiresAtUnixMs = String(clock + 2_000);
+  });
+  await controller.join("ABCD-EFGH");
+  await vi.advanceTimersByTimeAsync(2_000);
+  expect(client.delivery).toHaveBeenCalledTimes(2);
+  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+});
+
+test("timerが止まった間に旧期限を過ぎた更新結果は新期限が有効でも採用しない", async () => {
+  const { controller, client, bootstrap, delivery } = setup();
+  await controller.join("ABCD-EFGH");
+  let complete!: (value: DeliveryManifestWire) => void;
+  client.delivery.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const work = controller.refresh();
+  vi.setSystemTime(clock + 61_000);
+  bootstrap.expiresAt = new Date(clock + 180_000).toISOString();
+  delivery.assetAccess!.forEach((asset) => {
+    asset.expiresAtUnixMs = String(clock + 180_000);
+  });
+  complete(delivery);
+  await work;
+  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+  expect(controller.getPrepared()).toBeNull();
 });

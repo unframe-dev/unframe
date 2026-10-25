@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
     waitForIdle: vi.fn(async () => {}),
     getSnapshot: vi.fn(() => runtimeSnapshot),
     dispose: vi.fn(),
+    reset: vi.fn(),
   };
   return {
     runtime,
@@ -70,6 +71,7 @@ vi.mock("./scenario", () => ({ createFixtureScenario: async () => mocks.scenario
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  mocks.runtime.getSnapshot.mockReturnValue(mocks.runtimeSnapshot);
 });
 function openControls() {
   if (!screen.queryByRole("dialog", { name: "視聴メニュー" }))
@@ -132,7 +134,7 @@ test("開始中に停止した場合、遅れて完了してもSnapshotを適用
 });
 
 test("描画エラーを表示し初期状態へ再試行できる", async () => {
-  mocks.runtime.getSnapshot.mockReturnValueOnce({
+  mocks.runtime.getSnapshot.mockReturnValue({
     phase: "ready",
     rendering: "error",
     error: "presentation-render-failed",
@@ -142,6 +144,7 @@ test("描画エラーを表示し初期状態へ再試行できる", async () =>
   render(<FixtureExperience />);
   await startFixture();
   expect(await screen.findByRole("alert")).toBeTruthy();
+  mocks.runtime.getSnapshot.mockReturnValue(mocks.runtimeSnapshot);
   fireEvent.click(screen.getByRole("button", { name: "初期状態から再試行" }));
   await waitFor(() => expect(mocks.session.openRuntime).toHaveBeenCalledTimes(2));
 });

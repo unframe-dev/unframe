@@ -6,6 +6,7 @@ import type { Ref } from "react";
 import type { BoardConfig, TagProfile } from "./fiducials/config";
 
 export interface AnchorExperienceViewProps {
+  mode?: "tracking" | "viewer";
   canvasRef: Ref<HTMLCanvasElement>;
   stage: "loading" | "ready" | "starting" | "running" | "stopped" | "error";
   error: string | null;
@@ -71,31 +72,37 @@ export function AnchorExperienceView(props: AnchorExperienceViewProps) {
             </div>
             <details>
               <summary>設定・診断</summary>
-              <label>
-                マーカーの外寸{" "}
-                <select
-                  value={profile?.sizeCm ?? 22.5}
-                  disabled={stage === "running" || stage === "starting"}
-                  onChange={(event) => props.onChangeSize(event.target.value)}
-                >
-                  <option value="22.5">22.5 cm（黒い外周15 cm）</option>
-                  <option value="36">36 cm（黒い外周24 cm）</option>
-                  <option value="50">50 cm</option>
-                  <option value="60">60 cm</option>
-                  <option value="70">70 cm</option>
-                </select>
-              </label>
+              {props.mode !== "viewer" && (
+                <label>
+                  マーカーの外寸{" "}
+                  <select
+                    value={profile?.sizeCm ?? 22.5}
+                    disabled={stage === "running" || stage === "starting"}
+                    onChange={(event) => props.onChangeSize(event.target.value)}
+                  >
+                    <option value="22.5">22.5 cm（黒い外周15 cm）</option>
+                    <option value="36">36 cm（黒い外周24 cm）</option>
+                    <option value="50">50 cm</option>
+                    <option value="60">60 cm</option>
+                    <option value="70">70 cm</option>
+                  </select>
+                </label>
+              )}
               <p>
                 黒いマーカー外周 {config ? (config.markers[0]!.sizeMeters * 100).toFixed(1) : "—"}{" "}
                 cm
               </p>
-              <a
-                href={`/print-target.html?size=${profile?.sizeCm ?? 22.5}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                マーカーを表示・印刷
-              </a>
+              {props.mode === "viewer" ? (
+                <p>会場設定の配布元は未確定のため、現在はローカル設定を使用しています。</p>
+              ) : (
+                <a
+                  href={`/print-target.html?size=${profile?.sizeCm ?? 22.5}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  マーカーを表示・印刷
+                </a>
+              )}
               <p>
                 タグ採用 {props.anchorUpdateCount}回 ／{" "}
                 {props.completionHz === null

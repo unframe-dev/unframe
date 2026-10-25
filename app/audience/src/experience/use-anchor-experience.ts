@@ -8,7 +8,8 @@ import type { AnchorExperienceViewProps } from "../AnchorExperienceView";
 
 export function useAnchorExperience({
   showGuides = true,
-}: { showGuides?: boolean } = {}): AnchorExperienceViewProps {
+  mode = "tracking",
+}: { showGuides?: boolean; mode?: "tracking" | "viewer" } = {}): AnchorExperienceViewProps {
   const canvas = useRef<HTMLCanvasElement>(null);
   const session = useRef<ReturnType<typeof createAnchorSession> | null>(null);
   const diagnostics = useRef(createDiagnostics());
@@ -19,10 +20,16 @@ export function useAnchorExperience({
 
   useEffect(() => {
     let active = true;
+    setConfig(null);
+    setProfile(null);
+    setSnapshot(null);
+    setError(null);
     void Promise.resolve()
       .then(async () => {
+        const board = await loadBoardConfig();
+        if (mode === "viewer") return { profile: null, config: board };
         const chosen = selectedTagProfile(window.location.search);
-        return { profile: chosen, config: configureTagBoard(await loadBoardConfig(), chosen) };
+        return { profile: chosen, config: configureTagBoard(board, chosen) };
       })
       .then((value) => {
         if (!active) return;
@@ -35,7 +42,7 @@ export function useAnchorExperience({
     return () => {
       active = false;
     };
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     if (!config || !canvas.current) return;
@@ -55,7 +62,7 @@ export function useAnchorExperience({
   }, [config, showGuides]);
 
   function changeSize(size: string) {
-    if (!config) return;
+    if (mode !== "tracking" || !config) return;
     const nextProfile = selectedTagProfile(`?size=${encodeURIComponent(size)}`);
     const nextConfig = configureTagBoard(config, nextProfile);
     setError(null);
@@ -87,6 +94,7 @@ export function useAnchorExperience({
     }
   }
   return {
+    mode,
     canvasRef: canvas,
     stage: snapshot?.stage ?? (error ? "error" : "loading"),
     error: error ?? snapshot?.error ?? null,

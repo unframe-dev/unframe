@@ -109,6 +109,8 @@ export function AudienceStage({
   error,
   notice,
   viewingLabel = "視聴中",
+  waitingLabel = "位置合わせができました",
+  waitingMessage = "プレゼンテーションを待っています。",
   children,
 }: {
   phase: ViewingPhase;
@@ -121,6 +123,8 @@ export function AudienceStage({
   error?: string | null;
   notice?: ReactNode;
   viewingLabel?: string;
+  waitingLabel?: string;
+  waitingMessage?: string;
   children?: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -214,8 +218,8 @@ export function AudienceStage({
       )}
       {phase === "waiting" && (
         <div className="audience-stage__scan-hint" role="status">
-          <strong>位置合わせができました</strong>
-          <span>プレゼンテーションを待っています。</span>
+          <strong>{waitingLabel}</strong>
+          <span>{waitingMessage}</span>
         </div>
       )}
       {phase === "ended" && (

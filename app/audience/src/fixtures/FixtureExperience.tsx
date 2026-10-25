@@ -6,9 +6,11 @@ import { createAnchorSession, type AnchorSessionSnapshot } from "../experience/a
 import { configureTagBoard, loadBoardConfig, selectedTagProfile } from "../fiducials/config";
 import type { BoardConfig } from "../fiducials/config";
 import type { createRuntimePlayback } from "../runtime/playback";
+import { createViewingSession } from "../experience/viewing-session";
 import { createFixtureScenario } from "./scenario";
 import { createMediaFixtureScenario } from "./media-scenario";
-import { safeCheckpointError, summarizeRuntime, summarizeTrackingDiagnostics } from "./checkpoint";
+import { summarizeRuntime } from "./checkpoint";
+import { safeDiagnosticError, summarizeTrackingDiagnostics } from "../diagnostics/tracking-summary";
 import "./fixture.css";
 
 type Scenario = Awaited<ReturnType<typeof createFixtureScenario>>;
@@ -18,7 +20,7 @@ type RuntimeSnapshot = ReturnType<Runtime["getSnapshot"]>;
 export function FixtureExperience() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const session = useRef<ReturnType<typeof createAnchorSession> | null>(null);
-  const runtime = useRef<Runtime | null>(null);
+  const runtime = useRef<ReturnType<typeof createViewingSession> | null>(null);
   const generation = useRef(0);
   const lastReadyRuntime = useRef<ReturnType<typeof summarizeRuntime>>(null);
   function recordPlayback(state: RuntimeSnapshot) {
@@ -70,43 +72,42 @@ export function FixtureExperience() {
     if (!config || !canvas.current) return;
     const current = createAnchorSession({ canvas: canvas.current, config, onChange: setAnchor });
     session.current = current;
+    const viewer = createViewingSession(current);
+    runtime.current = viewer;
+    const unsubscribe = viewer.subscribe(() => {
+      const state = viewer.getSnapshot().runtime;
+      if (state) recordPlayback(state);
+    });
     setAnchor(current.getSnapshot());
     return () => {
       generation.current++;
       runtime.current = null;
-      current.dispose();
+      unsubscribe();
+      viewer.dispose();
       if (session.current === current) session.current = null;
     };
   }, [config]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (runtime.current) recordPlayback(runtime.current.getSnapshot());
-    }, 150);
-    return () => window.clearInterval(timer);
-  }, []);
-
   async function initialize(startCamera: boolean) {
-    const current = session.current;
+    const current = runtime.current;
     if (!current || !scenario || busy) return;
     const attempt = ++generation.current;
     setBusy(true);
     setError(null);
     lastReadyRuntime.current = null;
     try {
-      if (startCamera) await current.start();
+      await current.start(scenario.delivery, startCamera);
       if (attempt !== generation.current) return;
-      if (current.getSnapshot().stage !== "running") {
-        setError(current.getSnapshot().error ?? "カメラを開始できませんでした。");
+      if (session.current?.getSnapshot().stage !== "running" || !current.getInput()) {
+        setError(session.current?.getSnapshot().error ?? "カメラを開始できませんでした。");
         return;
       }
-      const next = current.openRuntime(scenario.delivery);
-      runtime.current = next;
-      next.applyControl({ connectionSnapshot: scenario.snapshot });
+      current.getInput()!.applyControl({ connectionSnapshot: scenario.snapshot });
       setStarted(true);
       setActionIndex(0);
-      await next.waitForIdle();
-      if (attempt === generation.current) recordPlayback(next.getSnapshot());
+      await current.waitForIdle();
+      const state = current.getRuntimeSnapshot();
+      if (attempt === generation.current && state) recordPlayback(state);
     } catch {
       if (attempt === generation.current)
         setError("表示を準備できませんでした。初期状態から再試行してください。");
@@ -122,10 +123,11 @@ export function FixtureExperience() {
     const attempt = generation.current;
     setBusy(true);
     try {
-      current.applyControl(action.item);
+      current.getInput()?.applyControl(action.item);
       await current.waitForIdle();
       if (attempt !== generation.current) return;
-      recordPlayback(current.getSnapshot());
+      const state = current.getRuntimeSnapshot();
+      if (state) recordPlayback(state);
       setActionIndex((value) => value + 1);
     } catch {
       if (attempt === generation.current)
@@ -137,8 +139,7 @@ export function FixtureExperience() {
 
   function stop() {
     generation.current++;
-    runtime.current = null;
-    session.current?.stop();
+    runtime.current?.stop();
     setActionIndex(0);
     setStarted(false);
     setBusy(false);
@@ -148,7 +149,7 @@ export function FixtureExperience() {
   }
 
   function downloadCheckpoint() {
-    const state = runtime.current?.getSnapshot() ?? playback;
+    const state = runtime.current?.getRuntimeSnapshot() ?? playback;
     const payload = {
       schemaVersion: 2,
       mode: "audience-fixture",
@@ -160,7 +161,7 @@ export function FixtureExperience() {
       tracking: anchor
         ? {
             stage: anchor.stage,
-            error: safeCheckpointError(anchor.error),
+            error: safeDiagnosticError(anchor.error),
             status: anchor.tracking,
             detection: anchor.detection,
             anchorUpdateCount: anchor.anchorUpdateCount,

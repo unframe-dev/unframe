@@ -8,7 +8,10 @@ export function AnchorExperience({
 }: { viewerMode?: boolean; onLeave?: () => void } = {}) {
   return (
     <AnchorExperienceView
-      {...useAnchorExperience({ showGuides: !viewerMode })}
+      {...useAnchorExperience({
+        showGuides: !viewerMode,
+        mode: viewerMode ? "viewer" : "tracking",
+      })}
       contentReady={!viewerMode}
       {...(onLeave ? { onLeave } : {})}
     />

@@ -1,12 +1,9 @@
 import { summarizeSdkProgress, type SdkProgress } from "../tracking/progress";
-import type { WebGLRenderer } from "three";
 import { createTrackingAdapter } from "../tracking/adapter";
 import { createDiagnostics } from "../tracking/diagnostics";
 import { createLiveTagAnchor } from "../rendering/live-tag-anchor";
-import { createRuntimePlayback } from "../runtime/playback";
-import { createPresentation, hasMediaResources } from "../rendering/presentation";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
 import { createTagAnchorState } from "./tag-anchor-state";
+import { createPresentationSession } from "./presentation-session";
 import type { BoardConfig } from "../fiducials/config";
 import type { DetectorInputCapture } from "../tracking/input-capture";
 
@@ -50,26 +47,7 @@ export function createAnchorSession(options: {
   const diagnostics = options.diagnostics ?? createDiagnostics();
   const localization = createTagAnchorState(config);
   let liveAnchor: ReturnType<typeof createLiveTagAnchor> | null = null;
-  let sceneRenderer: Pick<WebGLRenderer, "resetState"> | null = null;
   let inputCapture: DetectorInputCapture | null = null;
-  let presentation: Awaited<ReturnType<typeof createPresentation>> | null = null;
-  let presentationDelivery: DeliveryManifestWire | null = null;
-  let runtimePlayback: ReturnType<typeof createRuntimePlayback> | null = null;
-  let presentationRequest: AbortController | null = null;
-  let presentationWork: Promise<void> = Promise.resolve();
-  const clearPresentation = () => {
-    presentationRequest?.abort();
-    presentationRequest = null;
-    if (presentation) sceneRenderer?.resetState();
-    presentation?.dispose();
-    presentation = null;
-    presentationDelivery = null;
-  };
-  const clearRuntime = () => {
-    runtimePlayback?.dispose();
-    runtimePlayback = null;
-    clearPresentation();
-  };
   let attempt = 0;
   let snapshot: AnchorSessionSnapshot = {
     stage: "ready",
@@ -99,6 +77,15 @@ export function createAnchorSession(options: {
     };
     options.onChange(snapshot);
   };
+  const presentationSession = createPresentationSession({
+    canPlay: () =>
+      !document.hidden &&
+      snapshot.tracking === "NORMAL" &&
+      localization.getSnapshot().anchor.lastTagAtMs !== null,
+    onPlaybackBlocked(blocked) {
+      if (snapshot.mediaPlaybackBlocked !== blocked) publish({ mediaPlaybackBlocked: blocked });
+    },
+  });
   const log = (event: string, detail: unknown) =>
     diagnostics.record(Math.round(performance.now()), event, detail);
   let running = false;
@@ -123,11 +110,11 @@ export function createAnchorSession(options: {
   resize();
   window.addEventListener("resize", resize);
   const onVisibility = () => {
-    if (document.hidden) presentation?.setPlaybackEnabled(false);
+    if (document.hidden) presentationSession.pause();
   };
   document.addEventListener("visibilitychange", onVisibility);
   const clearAnchor = (reason: string) => {
-    presentation?.setPlaybackEnabled(false);
+    presentationSession.pause();
     liveAnchor?.clear();
     localization.clear();
     publish();
@@ -137,7 +124,6 @@ export function createAnchorSession(options: {
     canvas: surface,
     callbacks: {
       onScene(scene, _camera, renderer) {
-        sceneRenderer = renderer;
         running = true;
         const marker = config.markers[0]!;
         const anchor = createLiveTagAnchor(
@@ -148,19 +134,18 @@ export function createAnchorSession(options: {
           options.showGuides ?? false,
         );
         liveAnchor = anchor;
+        presentationSession.attachScene(anchor, renderer);
         const previousBeforeRender = scene.onBeforeRender;
         const beforeRender: typeof scene.onBeforeRender = function (...args) {
           previousBeforeRender.apply(scene, args);
-          runtimePlayback?.prepareFrame();
-          presentation?.prepareRender(args[2]);
+          presentationSession.prepareRender(args[2]);
         };
         scene.onBeforeRender = beforeRender;
         return () => {
           if (scene.onBeforeRender === beforeRender) scene.onBeforeRender = previousBeforeRender;
-          clearRuntime();
+          presentationSession.detachScene(anchor);
           renderer.resetState();
           anchor.dispose();
-          if (sceneRenderer === renderer) sceneRenderer = null;
           if (liveAnchor === anchor) liveAnchor = null;
         };
       },
@@ -323,47 +308,6 @@ export function createAnchorSession(options: {
         }
       });
   }, 100);
-  async function presentPresentation(delivery: DeliveryManifestWire, view: unknown) {
-    const host = liveAnchor;
-    if (!active || !host) throw new Error("Presentation requires an active XR scene");
-    presentationRequest?.abort();
-    const request = new AbortController();
-    presentationRequest = request;
-    const previousWork = presentationWork;
-    presentationWork = (async () => {
-      await previousWork.catch(() => undefined);
-      if (!active || request.signal.aborted || liveAnchor !== host) return;
-      // The SDK preserves the current GL program; release it before disposal can delete that program.
-      if (presentation) sceneRenderer?.resetState();
-      if (presentationDelivery === delivery && presentation?.applyView(view)) return;
-      // Release old decoders and model instances before replacing media to stay within their limits.
-      if (
-        presentation &&
-        (hasMediaResources(delivery) ||
-          (presentationDelivery && hasMediaResources(presentationDelivery)))
-      ) {
-        presentation.dispose();
-        presentation = null;
-        presentationDelivery = null;
-      }
-      const next = await createPresentation({
-        host,
-        delivery,
-        view,
-        signal: request.signal,
-        residentCpuBytes: presentation?.retainedCpuBytes ?? 0,
-      });
-      if (!active || request.signal.aborted || liveAnchor !== host) {
-        next.dispose();
-        return;
-      }
-      if (presentation) sceneRenderer?.resetState();
-      presentation?.dispose();
-      presentation = next;
-      presentationDelivery = delivery;
-    })();
-    await presentationWork;
-  }
   return {
     getSnapshot: () => snapshot,
     getDiagnosticContext: () => ({
@@ -372,32 +316,9 @@ export function createAnchorSession(options: {
       measurementSnapshot: controller.getMeasurementSnapshot(),
       ...diagnostics.snapshot(),
     }),
-    presentPresentation,
-    async resumeMediaPlayback() {
-      await presentation?.resumePlayback();
-    },
-    openRuntime(delivery: DeliveryManifestWire) {
-      if (!active || !liveAnchor) throw new Error("Runtime playback requires an active XR scene");
-      const next = createRuntimePlayback({
-        delivery,
-        present: (view) => presentPresentation(delivery, view),
-        clear: clearPresentation,
-        frame(view, runtimeTimeMilliseconds) {
-          if (!presentation || presentationDelivery !== delivery) return;
-          presentation.setPlaybackEnabled(
-            !document.hidden &&
-              snapshot.tracking === "NORMAL" &&
-              localization.getSnapshot().anchor.lastTagAtMs !== null,
-          );
-          presentation.applyAnimationFrame(view, runtimeTimeMilliseconds);
-          if (snapshot.mediaPlaybackBlocked !== presentation.playbackBlocked)
-            publish({ mediaPlaybackBlocked: presentation.playbackBlocked });
-        },
-      });
-      clearRuntime();
-      runtimePlayback = next;
-      return next;
-    },
+    presentPresentation: presentationSession.present,
+    resumeMediaPlayback: presentationSession.resumePlayback,
+    openRuntime: presentationSession.openRuntime,
     async start() {
       if (!active || snapshot.stage === "starting" || snapshot.stage === "running") return;
       const current = ++attempt;
@@ -429,7 +350,7 @@ export function createAnchorSession(options: {
     stop() {
       if (!active) return;
       attempt++;
-      clearRuntime();
+      presentationSession.clearRuntime();
       controller.stop();
       publish({ stage: "stopped" });
     },
@@ -439,7 +360,7 @@ export function createAnchorSession(options: {
       generation++;
       attempt++;
       window.clearInterval(timer);
-      clearRuntime();
+      presentationSession.dispose();
       controller.stop();
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", onVisibility);

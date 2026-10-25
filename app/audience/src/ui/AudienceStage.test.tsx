@@ -25,3 +25,17 @@ test("視聴中は大きな案内と診断を隠しメニューから開く", ()
   fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
   expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+test("配信待機の理由を追跡の表示条件と独立して表示する", () => {
+  render(
+    <AudienceStage
+      phase="waiting"
+      canStart={false}
+      onStart={() => {}}
+      waitingLabel="表示を準備しています"
+      waitingMessage="素材を読み込んでいます。"
+    />,
+  );
+  expect(screen.getByText("表示を準備しています")).toBeTruthy();
+  expect(screen.getByText("素材を読み込んでいます。")).toBeTruthy();
+});
