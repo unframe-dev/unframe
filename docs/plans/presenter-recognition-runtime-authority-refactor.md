@@ -1,6 +1,6 @@
 # Presenter 認識・Runtime authority 移行計画
 
-- 状態: 工程1〜5と工程6の対象ローカル検証・独立レビューを完了。Ready 切替後の remote CI で失敗が判明し、修正・再検証中。Quest 実機検証は端末未接続のため保留（2026-10-25）。
+- 状態: 工程1〜5と工程6の対象ローカル検証・独立レビューを完了。Ready 切替後の remote CI で判明した失敗は末尾の受入記録に整理する。最新の成否は [PR #168 のチェック](https://github.com/unframe-dev/unframe/pull/168/checks) を参照。Quest 実機検証は端末未接続のため保留（2026-10-25）。
 - 計画の起点: `815ca9886ca8304d4164c067e2a66b7221ec458b`（2026-10-22、文書変更のみ）。実装基準は `origin/main` の `5219fa91` と rebase 後の #160（`af24157b`）。文書固有の変更は `22980438` に載せ替えた。
 - 仕様の正本: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md)、[進行意味論](../packages/ARCHITECTURE.md#12-v1-presentation-progression-の意味論)、[データ契約](../packages/DATA_MODEL.md)、[配信・実行契約](../packages/CONTRACT_RUNTIME.md)。
 
@@ -145,6 +145,8 @@ JSON Schema、descriptor、静的 codec / wire types、fixture、Go / C# consume
 ## Remote CI の受入対応（2026-10-25）
 
 - Ready 切替後の [CI](https://github.com/unframe-dev/unframe/actions/runs/40186598879) で品質チェックを実行。Realtime の統合 fixture に残る v2 の version / capability、Web / Control Plane の checkpoint バイナリ型、Unity の C# 整形が失敗した。
-- 統合 fixture を v3 へ揃え、v1 / v2 の JWT・handshake 拒否を検証した。checkpoint の型注釈は `Uint8Array<ArrayBuffer>` とし、Unity の initializer を整形した。対象のローカル検証は成功。修正後の remote CI による受入は未完了。
+- 統合 fixture を v3 へ揃え、v1 / v2 の JWT・handshake 拒否を検証した。checkpoint の型注釈は `Uint8Array<ArrayBuffer>` とし、Unity の initializer を整形した。対象のローカル検証は成功。修正後の remote CI で同じ経路の受入を確認する。
 - Cloudflare Control Plane build は失敗しており、詳細ログ API が403を返すため原因調査は保留。ローカルの `pnpm --filter @unframe/control-plane run build`（deploy dry-run）は成功したが、remote build / deploy の成功を意味しない。
 - `nix shell --inputs-from . nixpkgs#android-tools --command adb devices` の接続一覧は空。Quest の認識品質・校正・controller ray 操作は引き続き未検証。依存 PR #160 の統合も未完了。
+
+- 続く CI で CLI の参照プロジェクト検証と Web E2E の公開情報 fixture にも旧 version の期待値が残っていた。Definition / Build Manifest / Published Presentation は3、RenderBundle / AssetSet は2、progression / projection は2へ整合させた。CLI の対象検証、Web の対象 E2E 15件・型検査・lint は成功し、独立レビューで追加指摘はなかった。
