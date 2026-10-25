@@ -1,6 +1,6 @@
 # Presenter 認識・Runtime authority 移行計画
 
-- 状態: 工程1〜5と工程6の対象ローカル検証・独立レビューを完了。修正後の remote CI は未実行。Quest 実機検証は保留（2026-10-25）。
+- 状態: 工程1〜5と工程6の対象ローカル検証・独立レビューを完了。Ready 切替後の remote CI で失敗が判明し、修正・再検証中。Quest 実機検証は端末未接続のため保留（2026-10-25）。
 - 計画の起点: `815ca9886ca8304d4164c067e2a66b7221ec458b`（2026-10-22、文書変更のみ）。実装基準は `origin/main` の `5219fa91` と rebase 後の #160（`af24157b`）。文書固有の変更は `22980438` に載せ替えた。
 - 仕様の正本: [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md)、[進行意味論](../packages/ARCHITECTURE.md#12-v1-presentation-progression-の意味論)、[データ契約](../packages/DATA_MODEL.md)、[配信・実行契約](../packages/CONTRACT_RUNTIME.md)。
 
@@ -141,3 +141,10 @@ JSON Schema、descriptor、静的 codec / wire types、fixture、Go / C# consume
 - Contracts 62件・wire 13件、Core 372件、Authoring 71件、Compiler 397件、CLI Preview / Playback 33件、Local Editor 92件が成功。関連型検査・lint、Local Editor / Control Plane build、reference project の型検査が成功した。Go / C# / Unity 生成 drift、breaking 正例・負例、C# wire conformance も成功した。
 - Go の runtimecore / protocol/v2 / persistence/http は test・race・vet・lint、gRPC / composition root / wire conformance は race が成功した。Realtime 全体の vet / lint も成功した。Unity の dotnet adapter 全体・authority・pause、EditMode 対象7クラス96件、format・meta 整合性が成功した。
 - 修正後の remote CI、リポジトリ全体の test / build、Quest 実機の認識品質・校正・controller ray 操作は未検証。今回の対象ローカル検証で代替したとは扱わない。
+
+## Remote CI の受入対応（2026-10-25）
+
+- Ready 切替後の [CI](https://github.com/unframe-dev/unframe/actions/runs/40186598879) で品質チェックを実行。Realtime の統合 fixture に残る v2 の version / capability、Web / Control Plane の checkpoint バイナリ型、Unity の C# 整形が失敗した。
+- 統合 fixture を v3 へ揃え、v1 / v2 の JWT・handshake 拒否を検証した。checkpoint の型注釈は `Uint8Array<ArrayBuffer>` とし、Unity の initializer を整形した。対象のローカル検証は成功。修正後の remote CI による受入は未完了。
+- Cloudflare Control Plane build は失敗しており、詳細ログ API が403を返すため原因調査は保留。ローカルの `pnpm --filter @unframe/control-plane run build`（deploy dry-run）は成功したが、remote build / deploy の成功を意味しない。
+- `nix shell --inputs-from . nixpkgs#android-tools --command adb devices` の接続一覧は空。Quest の認識品質・校正・controller ray 操作は引き続き未検証。依存 PR #160 の統合も未完了。
