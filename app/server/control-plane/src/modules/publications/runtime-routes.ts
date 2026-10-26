@@ -3,16 +3,25 @@ import {
   capabilityProfileSchema,
   publishedPresentationSchema,
 } from "@unframe/contracts/presentation";
-import { buildProjectionProfile, hashCanonicalJsonPayload } from "@unframe/unframe-core";
+import {
+  buildProjectionProfile,
+  hashCanonicalJsonPayload,
+  selectDeliveryArtifacts,
+} from "@unframe/unframe-core";
 import type { AppEnvironment } from "../../config";
 import {
   internalRuntimeBootstrapRoute,
+  internalRuntimeAssetRoute,
   internalRuntimeLeaseRoute,
   internalRuntimeProjectionRoute,
 } from "../../openapi";
 import { ServiceIdentity } from "../persistence-callback/service-identity";
 import { parseCheckpointJson } from "../persistence-callback/checkpoint";
-import { PublicationService } from "./service";
+import { R2Presigner } from "../../adapters/assets/r2-presigner";
+import { RuntimeAssignmentService, RuntimeAssignmentError } from "../runtime-assignments/service";
+import { D1RuntimeAssignmentRepository } from "../runtime-assignments/repository";
+import { normalizedCapability } from "./capability";
+import { PublicationError, PublicationService } from "./service";
 
 export function createRuntimePublicationRoutes() {
   const app = new OpenAPIHono<AppEnvironment>({
@@ -31,6 +40,113 @@ export function createRuntimePublicationRoutes() {
     await next();
   });
   return app
+    .openapi(internalRuntimeAssetRoute, async (context) => {
+      const query = context.req.valid("query");
+      const config = context.get("config");
+      const assignments = new RuntimeAssignmentService(
+        new D1RuntimeAssignmentRepository(config.DB),
+        () => new Date(),
+      );
+      const conflict = () =>
+        context.json({ error: { code: "conflict", message: "Runtime fence unavailable" } }, 409);
+      const forbidden = () =>
+        context.json(
+          { error: { code: "forbidden", message: "Asset not selected for participant" } },
+          403,
+        );
+      try {
+        const assignment = await assignments.active(query.sessionId);
+        if (
+          assignment.runtimeKind !== "VenueEdge" ||
+          assignment.runtimeId !== query.runtimeId ||
+          assignment.assignmentEpoch !== query.assignmentEpoch
+        )
+          return conflict();
+        const participant = await config.DB.prepare(
+          `SELECT session.presentation_id AS presentationId, session.publication_epoch AS publicationEpoch,
+                  participant.role, selection.capability_profile_id AS capabilityProfileId
+           FROM presentation_sessions AS session
+           JOIN session_participants AS participant ON participant.session_id = session.id
+           JOIN session_participant_capabilities AS selection ON selection.session_id = session.id AND selection.user_id = participant.user_id
+           WHERE session.id = ? AND participant.user_id = ? AND session.state != 'Ended'`,
+        )
+          .bind(query.sessionId, query.participantId)
+          .first<{
+            presentationId: string;
+            publicationEpoch: number | null;
+            role: "presenter" | "viewer";
+            capabilityProfileId: string;
+          }>();
+        if (!participant || participant.publicationEpoch === null) return forbidden();
+        const artifacts = await new PublicationService(config.DB, config.ASSETS).publishedArtifacts(
+          participant.presentationId,
+          participant.publicationEpoch,
+        );
+        const selection = selectDeliveryArtifacts(
+          { ...artifacts, capability: normalizedCapability(participant.capabilityProfileId) },
+          participant.role,
+        );
+        const asset = selection.assets.find((candidate) => candidate.assetId === query.assetId);
+        if (!asset) return forbidden();
+        const current = await assignments.active(query.sessionId);
+        if (
+          current.runtimeId !== assignment.runtimeId ||
+          current.assignmentEpoch !== assignment.assignmentEpoch
+        )
+          return conflict();
+        const present = await config.DB.prepare(
+          `SELECT 1 FROM presentation_sessions AS session JOIN session_participants AS participant ON participant.session_id = session.id
+           JOIN session_participant_capabilities AS selection ON selection.session_id = session.id AND selection.user_id = participant.user_id
+           WHERE session.id = ? AND participant.user_id = ? AND participant.role = ? AND session.publication_epoch = ? AND session.state != 'Ended' AND selection.capability_profile_id = ?`,
+        )
+          .bind(
+            query.sessionId,
+            query.participantId,
+            participant.role,
+            participant.publicationEpoch,
+            participant.capabilityProfileId,
+          )
+          .first();
+        if (!present) return forbidden();
+        const expiresAt = new Date(
+          Math.min(Date.now() + 60_000, new Date(current.leaseExpiresAt).getTime()),
+        );
+        if (expiresAt.getTime() <= Date.now()) return conflict();
+        const { url } = await new R2Presigner(config).issueDownload({
+          objectKey: `publication-builds/${participant.presentationId}/${artifacts.buildManifest.buildId}/${asset.assetId}`,
+          expiresAt,
+        });
+        const publication = artifacts.publishedPresentation;
+        return context.json(
+          {
+            assignment: {
+              sessionId: current.sessionId,
+              runtimeId: current.runtimeId,
+              runtimeKind: current.runtimeKind,
+              assignmentEpoch: current.assignmentEpoch,
+              presentationRevision: current.presentationRevision,
+              leaseExpiresAt: current.leaseExpiresAt,
+            },
+            publication: {
+              presentationId: publication.presentationId,
+              publicationEpoch: publication.publicationEpoch,
+              publicationManifestHash: publication.publicationManifestHash,
+              definitionHash: publication.definitionHash,
+              renderBundleHash: publication.renderBundleHash,
+            },
+            url,
+            checksum: asset.descriptor.checksum,
+            size: asset.descriptor.encodedSizeBytes,
+            mediaType: asset.descriptor.mediaType,
+          },
+          200,
+        );
+      } catch (error) {
+        if (error instanceof RuntimeAssignmentError || error instanceof PublicationError)
+          return conflict();
+        throw error;
+      }
+    })
     .openapi(internalRuntimeBootstrapRoute, async (context) => {
       const { sessionId, runtimeId, assignmentEpoch } = context.req.valid("query");
       const { DB, ASSETS } = context.get("config");

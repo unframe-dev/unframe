@@ -16,6 +16,7 @@ public sealed class PresentationBakedRuntimeDownloadEditModeTests
         private readonly string mediaType;
         private readonly long? contentLength;
         public int Requests { get; private set; }
+        public string Authorization { get; private set; }
         public Handler(byte[] bytes, string mediaType = "image/png", long? contentLength = null)
         {
             this.bytes = bytes;
@@ -25,6 +26,7 @@ public sealed class PresentationBakedRuntimeDownloadEditModeTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Requests++;
+            Authorization = request.Headers.Authorization?.ToString();
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StreamContent(new NonSeekableStream(bytes))
@@ -39,6 +41,24 @@ public sealed class PresentationBakedRuntimeDownloadEditModeTests
     {
         public NonSeekableStream(byte[] bytes) : base(bytes) { }
         public override bool CanSeek { get { return false; } }
+    }
+
+    [Test]
+    public async Task VenueAssetUsesRuntimeBearerOnlyForAuthenticatedSessionEndpoint()
+    {
+        var handler = new Handler(new byte[] { 1, 2, 3 });
+        using (var client = new HttpClient(handler))
+        {
+            var access = Access();
+            access.AssetId = "texture";
+            access.Url = "https://venue.example.test:9443/sessions/session/assets/texture";
+            var endpoint = new Uri("https://venue.example.test:9443");
+            await PresentationAssetDownloader.DownloadAsync(client, access, CancellationToken.None, endpoint, "session", _ => Task.FromResult("runtime-token"));
+            Assert.That(handler.Authorization, Is.EqualTo("Bearer runtime-token"));
+            access.Url = "https://other.example.test/sessions/session/assets/texture";
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await PresentationAssetDownloader.DownloadAsync(client, access, CancellationToken.None, endpoint, "session", _ => Task.FromResult("runtime-token")));
+            Assert.That(handler.Requests, Is.EqualTo(1));
+        }
     }
 
     [Test]

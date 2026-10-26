@@ -10,7 +10,7 @@
 
 現在は、Control Plane の `RuntimeAssignment`、PublicationFence、認証済み Delivery と Realtime bootstrap を、Go の Realtime v3 process、Unity の生成 client と Baked Web renderer に接続している。Realtime process は検証済み Definition / RenderBundle と checkpoint から Session を起動し、Presenter の Tracking / Input、Cue / Action / Transition / Timeline、Control / State 配信、Snapshot / Replay / Resume、checkpoint / completion callback を処理する。Unity Editor で接続・描画を検証し、Quest 用 Android arm64 APK の生成と manifest を確認した。これらはローカルサービスとビルドの証拠であり、Quest 実機動作や配備済みサービスを示さない。
 
-Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent と local HTTPS listener、実機での latency / jitter / 50 台 fan-out、端末の GPU / CPU peak は未検証または未実装である。Venue Edge の content-addressed cache / Range handler は domain と handler にあり、local listener へは接続していない。
+Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent、実機での latency / jitter / 50 台 fan-out、端末の GPU / CPU peak は未検証または未実装である。Venue Edge の content-addressed cache / Range handler は TLS listener と Unity consumer に接続済み。証明書更新と会場実機の未検証範囲は [会場検証手順](../../../docs/validation/venue-edge-asset-delivery.md) を参照。
 
 ## 実装状況
 
@@ -29,7 +29,7 @@ Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent
 | readiness / health / observability           | 部分実装 | assignment lease・JWKS に基づく gRPC health と metrics / structured log は接続済み。exporter、trace、alert は未実装                                                                                    |
 | checkpoint / completion callback と recovery | 実装済み | v3 mutation の checkpoint、completion を Control Plane の fenced callback へ送り、起動時に検証して復元する。Cloud / Edge の自動再配置・local checkpoint store は未実装                                 |
 | message / rate protection                    | 部分実装 | v3 gRPC は message size と Tracking rate を制限する。全 message 種別に共通の invalid-message count 切断 policy は未接続                                                                                |
-| Venue Edge Asset cache / Range gateway       | 未実装   | v3 Delivery の publication / projection / access binding に基づく local cache、HTTPS listener、証明書、容量・pin・eviction policy は未実装                                                             |
+| Venue Edge Asset cache / Range gateway       | 実装済み | `internal/assetgateway/`、`cmd/server/venue_edge.go`。Runtime JWT と Control Plane の都度認可、content hash cache、TLS / HTTP2 listener、証明書読み込み・更新手順を接続。実機は未検証                  |
 | Runtime pause / resume                       | 部分実装 | v3 Session は明示 pause / resume、Presenter 切断、lease 失効を扱う。`pauseTimeout` による自動終了は未実装                                                                                              |
 | State frame / latest-wins mailbox            | 部分実装 | v3 State stream の keyframe と Anchor patch は接続済み。`internal/state/mailbox.go` の field-merge primitive は State fan-out に未接続                                                                 |
 | Fly.io Cloud Runtime                         | 部分実装 | Docker image、H2C service profile と共通 binary はある。Machine lifecycle、公開 endpoint、deploy は未実装                                                                                              |
@@ -710,7 +710,7 @@ cache/
 - Cloud からの取得には短命 signed URL を使い、Edge へ恒久 R2 credential を置かない。
 - baseline cache capacity、reserve、pin / eviction policyは [ADR-0012](../../../docs/decisions/0012-texture-budget-residency-contract.md) を正本とし、実機計測による変更は新tier / policy versionで行う。
 - active session が参照する Asset は eviction しない。
-- Venue Edge cache の4 GiB hard limit、512 MiB low-disk reserve、Session pin、unpinned LRU、partial cleanupは実際の local listener とともに未接続である。Unity の encoded Asset cache には別途容量・reserve・pin / eviction が実装されている。
+- Venue Edge cache の4 GiB hard limit、512 MiB low-disk reserve、process の Session pin、過去 process の unpinned LRU、partial cleanup は local listener に接続済みである。Unity の encoded Asset cache には別途容量・reserve・pin / eviction が実装されている。
 
 ### 11.4 Venue Edge の Quest 向け endpoint
 
@@ -736,9 +736,9 @@ Video と大容量 Asset のため、Range Requests を必須とする。
 
 Venue Edge 配置では、Quest は Realtime と同じ session-bound Runtime JWT を HTTP の `Authorization: Bearer` header で提示する。Asset 専用 token や Quest 向け signed URL は発行しない。
 
-- JWT の audience は Realtime と Venue Edge Asset Gateway に共通の Runtime audience とする。現在の `unframe-venue-edge` から移行する具体的な値は protocol contract で確定する。
+- JWT の audience は Realtime と Venue Edge Asset Gateway に共通の Runtime audience とする。現在の値は `unframe-realtime-runtime`。
 - JWTは`realtime:connect`と`assets:read`のscopeを持ち、gRPC接続では前者、Asset Gatewayでは後者を必須とする。
-- Asset Gatewayは署名と標準時刻claimに加え、JWTの`runtimeId`、`runtimeKind: VenueEdge`、`sessionId`、`participantId`、`assignmentEpoch`、`presentationId`、`publicationEpoch`、`publicationManifestHash`を検証する。
+- 現在の Asset Gateway は署名・標準時刻 claim・scope と JWT の runtime / Session / participant / assignmentEpoch / presentationId / revision を検証する。JWT には publicationEpoch / publicationManifestHash を含めず、Control Plane の都度認可レスポンスを起動時の PublicationFence と照合する。
 - URLの`sessionId`はJWTのclaimと一致し、要求された`assetId`はそのPublicationFenceのManifestに掲載されていなければならない。
 - 現在のRuntime割当とleaseが無効な場合、または別session、別PublicationFence、Manifest未掲載Assetへの要求は拒否する。request parameterでJWTの権限範囲を広げられないようにする。
 - JWTをquery parameterへ含めず、access logにも記録しない。
@@ -920,7 +920,7 @@ Internet
 
 Venue Edge の必要 capacity は、同時 Session 数、participant 数、Asset cache size、Element update rate、payload size、TLS / fan-out CPU を負荷試験して決定する。初期運用では一つの Venue Edge / Runtime instance が一つの active Session を担当する。
 
-Venue Edge の実際の local listener 構成は未決定である。少なくとも Control gRPC、State gRPC、Asset HTTPS を提供する必要があるが、同一 process / port で multiplex するか、port を分離するか、LAN interface への bind、証明書の生成・保存・rotation、fingerprint 形式、firewall と discovery を実装前に確定する。
+現在の Venue Edge は同じ process / port で Control / State gRPC と Asset HTTPS を TLS / HTTP2 multiplex する。LAN bind は `REALTIME_LISTEN_ADDR`、公開 origin は `REALTIME_RUNTIME_ENDPOINT` で設定する。証明書は operator がリポジトリ外へ保存し、更新時は Session 終了・release・再登録・新規 assignment を行う。fingerprint は leaf DER の lowercase `sha256:` hash。会場 firewall / DNS と browser trust は会場検証手順で固定する。
 
 ## 15. Observability
 
@@ -1061,8 +1061,8 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 
 - 同じRuntime CoreをVenue Edge用binaryとして起動
 - Cloud Agent、Edge登録、health、lease renewal
-- local HTTPS listenerとcertificate fingerprint pinning
-- Manifest prefetch、content-addressed cache、Range配信
+- 接続済み: local HTTPS listener と certificate fingerprint pinning（会場実機は未検証）
+- 接続済み: demand-load の content-addressed cache / Range 配信。Manifest prefetch は未実装
 - local checkpoint、process restart recovery、Internet grace behavior
 - Cloud基準値と同じ条件でlatency / jitter / fan-outを再計測
 
@@ -1108,7 +1108,7 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - Venue Edge の標準 hardware と最低要件
 - 一つのEdgeで許可するactive Session数
 - 会場 router を製品構成に含めるか
-- local HTTPS listenerのprocess / port構成、LAN bind、証明書保存・rotation、fingerprint形式、firewall / discovery
+- 会場ごとの firewall / DNS / browser trust、証明書発行主体と更新担当
 - Cloud Agentのservice manager、credential store、update / rollback方式
 - Internet grace periodとsession停止policy
 - assignment lease duration、renew interval、health freshness。現在のEdge固有renew APIは安全上の暫定上限を5分、割当・bootstrapに使うheartbeat ageは60秒とする

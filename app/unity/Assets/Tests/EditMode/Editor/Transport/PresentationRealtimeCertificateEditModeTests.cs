@@ -27,6 +27,9 @@ public sealed class PresentationRealtimeCertificateEditModeTests
                 .CreateDelegate(typeof(PinVerifier));
 
             Assert.That(verify("127.0.0.1", "127.0.0.1", der, valid, pin), Is.True);
+            Assert.That(PresentationAssetDownloader.VerifyPinnedCertificate(certificate, pin, valid), Is.True);
+            Assert.That(PresentationAssetDownloader.VerifyPinnedCertificate(certificate, "sha256:" + new string('0', 64), valid), Is.False);
+            Assert.That(PresentationAssetDownloader.VerifyPinnedCertificate(certificate, pin, new DateTimeOffset(certificate.NotAfter.ToUniversalTime()).AddDays(1)), Is.False);
             Assert.That(verify("127.0.0.1", "127.0.0.1", der, valid, "sha256:" + new string('0', 64)), Is.False);
             Assert.That(verify("127.0.0.1", "other.example.test", der, valid, pin), Is.False);
             Assert.That(verify("127.0.0.1", "127.0.0.1", der, new DateTimeOffset(certificate.NotAfter.ToUniversalTime()).AddDays(1), pin), Is.False);

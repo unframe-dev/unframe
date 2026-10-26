@@ -113,9 +113,9 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!(encodedCache ?? PresentationEncodedAssetCache.Shared).TryReserveSession(consumerToken, selectedAssets, out PresentationEncodedAssetCache.Lease lease, out error))
                     throw new InvalidOperationException(error);
                 using (lease)
-                using (HttpClient client = new HttpClient(httpHandlerFactory == null ? new HttpClientHandler { AllowAutoRedirect = false } : httpHandlerFactory()) { Timeout = TimeSpan.FromSeconds(30) })
+                using (HttpClient client = new HttpClient(httpHandlerFactory == null ? PresentationAssetDownloader.CreateHandler(realtimeEndpoint, certFingerprint) : httpHandlerFactory()) { Timeout = TimeSpan.FromSeconds(30) })
                     await sceneRenderer.LoadAsync(store, hierarchy,
-                        (asset, token) => lease.GetAsync(asset, (binding, cancellation) => PresentationAssetDownloader.DownloadAsync(client, binding, cancellation), token), lifetime.Token);
+                        (asset, token) => lease.GetAsync(asset, (binding, cancellation) => PresentationAssetDownloader.DownloadAsync(client, binding, cancellation, certFingerprint == null ? null : realtimeEndpoint, manifest.SessionId, bearerProvider), token), lifetime.Token);
                 playback.Models = sceneRenderer.Models;
                 playback.Videos = sceneRenderer.Videos;
                 DownloadReady = true;

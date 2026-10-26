@@ -232,6 +232,13 @@ func main() {
 		}
 		return verifier.Ready(ctx)
 	}
+	if config.assignment.RuntimeKind == assignment.RuntimeKindVenueEdge {
+		if err := runVenueEdge(ctx, listener, dependencies, readiness, persistence, bootstrap.Publication, httpClient); err != nil {
+			slog.Error("venue edge stopped", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(ctx, listener, dependencies, readiness); err != nil {
 		slog.Error("realtime gRPC server stopped", "error", err)
 		os.Exit(1)

@@ -1020,3 +1020,33 @@ export const downloadPublicationAssetRoute = createRoute({
     409: errorResponse("Published asset integrity mismatch"),
   },
 });
+
+export const internalRuntimeAssetRoute = createRoute({
+  method: "get",
+  path: "/internal/runtime/assets",
+  security: serviceSecurity,
+  request: {
+    query: runtimeBootstrapQuery
+      .extend({ participantId: identifierSchema, assetId: identifierSchema })
+      .strict(),
+  },
+  responses: {
+    200: {
+      description: "Authorized Venue Edge asset origin; never forward this URL to participants",
+      content: {
+        "application/json": {
+          schema: runtimeLeaseSchema.extend({
+            url: z.string().url(),
+            checksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+            size: z.number().int().positive(),
+            mediaType: z.string(),
+          }),
+        },
+      },
+    },
+    400: errorResponse("Invalid asset request"),
+    401: errorResponse("Unauthorized service"),
+    403: errorResponse("Asset not selected for participant"),
+    409: errorResponse("Runtime assignment or publication unavailable"),
+  },
+});

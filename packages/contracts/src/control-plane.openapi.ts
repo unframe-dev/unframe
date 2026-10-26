@@ -4716,6 +4716,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/runtime/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    sessionId: string;
+                    runtimeId: string;
+                    assignmentEpoch: number;
+                    participantId: string;
+                    assetId: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Authorized Venue Edge asset origin; never forward this URL to participants */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            assignment: {
+                                sessionId: string;
+                                runtimeId: string;
+                                /** @enum {string} */
+                                runtimeKind: "Cloud" | "VenueEdge";
+                                assignmentEpoch: number;
+                                presentationRevision: number;
+                                /** Format: date-time */
+                                leaseExpiresAt: string;
+                            };
+                            publication: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                                definitionHash: string;
+                                renderBundleHash: string;
+                            };
+                            /** Format: uri */
+                            url: string;
+                            checksum: string;
+                            size: number;
+                            mediaType: string;
+                        };
+                    };
+                };
+                /** @description Invalid asset request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized service */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Asset not selected for participant */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Runtime assignment or publication unavailable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/runtime/bootstrap": {
         parameters: {
             query?: never;
