@@ -46,6 +46,23 @@ afterEach(async () => {
 });
 
 describe("atomic artifact publication", () => {
+  it("publishes GLB bytes under an encoded logical Asset ID", async () => {
+    const directory = await project();
+    const bytes = Uint8Array.of(0x67, 0x6c, 0x54, 0x46);
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: {
+        ...artifacts(),
+        assets: [{ assetId: "models/chair", mediaType: "model/gltf-binary", bytes }],
+      },
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(
+      new Uint8Array(await readFile(join(directory, "dist/assets/models%2Fchair.glb"))),
+    ).toEqual(bytes);
+  });
+
   it("creates output directories inside the owned parent when its visible path is replaced", async () => {
     const directory = await project();
     const outside = await project();
@@ -132,12 +149,13 @@ describe("atomic artifact publication", () => {
       const directory = await project();
       const pointerName = channel === "dev" ? "current" : "dist";
       const pointerPath = join(directory, channel === "dev" ? ".unframe/preview/current" : "dist");
-      const originalRename = NativeFilesystem.prototype.rename;
-      vi.spyOn(NativeFilesystem.prototype, "rename").mockImplementation(
+      const operation = channel === "dev" ? "rename" : "renameNoReplace";
+      const originalRename = NativeFilesystem.prototype[operation];
+      vi.spyOn(NativeFilesystem.prototype, operation).mockImplementation(
         async function (this: NativeFilesystem, path, target) {
           await originalRename.call(this, path, target);
           if (target.endsWith(`/${pointerName}`)) {
-            await unlink(pointerPath);
+            await rm(pointerPath, { recursive: true, force: true });
             await symlink("user-output", pointerPath);
           }
         },
@@ -162,7 +180,7 @@ describe("atomic artifact publication", () => {
         channel,
         artifacts: artifacts(),
       });
-      const previous = await readlink(join(directory, pointer));
+      const previous = await readFile(join(directory, pointer, "definition.json"), "utf8");
       const stale = await publishAtomicArtifacts({
         projectDirectory: directory,
         channel,
@@ -183,7 +201,7 @@ describe("atomic artifact publication", () => {
         },
       });
       expect(cancelled).toEqual({ ok: false, family: "cancel", code: "cli-output-cancel" });
-      expect(await readlink(join(directory, pointer))).toBe(previous);
+      expect(await readFile(join(directory, pointer, "definition.json"), "utf8")).toBe(previous);
       expect(
         await readdir(
           join(
@@ -230,7 +248,7 @@ describe("atomic artifact publication", () => {
   it("publishes Dev generations without changing the Dist pointer or bytes", async () => {
     const directory = await project();
     await publishAtomicArtifacts({ projectDirectory: directory, artifacts: artifacts("dist") });
-    const dist = await readlink(join(directory, "dist"));
+    const dist = await readFile(join(directory, "dist/build-receipt.json"), "utf8");
     const result = await publishAtomicArtifacts({
       projectDirectory: directory,
       channel: "dev",
@@ -244,7 +262,7 @@ describe("atomic artifact publication", () => {
     expect(
       await readFile(join(directory, ".unframe/preview/current/definition.json"), "utf8"),
     ).toBe("definition-dev");
-    expect(await readlink(join(directory, "dist"))).toBe(dist);
+    expect(await readFile(join(directory, "dist/build-receipt.json"), "utf8")).toBe(dist);
     expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe("definition-dist");
   });
 
@@ -272,7 +290,7 @@ describe("atomic artifact publication", () => {
       artifacts: artifacts(),
     });
     expect(initial.ok).toBe(true);
-    const previous = await readlink(join(directory, "dist"));
+    const previous = await readFile(join(directory, "dist/build-receipt.json"), "utf8");
     let current = true;
     const result = await publishAtomicArtifacts({
       projectDirectory: directory,
@@ -285,7 +303,7 @@ describe("atomic artifact publication", () => {
       },
     });
     expect(result).toEqual({ ok: false, family: "io", code: "cli-output-stale" });
-    expect(await readlink(join(directory, "dist"))).toBe(previous);
+    expect(await readFile(join(directory, "dist/build-receipt.json"), "utf8")).toBe(previous);
     expect(await readdir(join(directory, ".unframe/generations"))).toHaveLength(1);
     expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe("definition-one");
   });
@@ -319,9 +337,10 @@ describe("atomic artifact publication", () => {
         generationId: () => "a".repeat(32),
       }),
     ).resolves.toMatchObject({ ok: true });
-    expect(await readlink(join(directory, "dist"))).toBe(
-      ".unframe/generations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    );
+    expect(
+      JSON.parse(await readFile(join(directory, "dist/build-receipt.json"), "utf8")).generationId,
+    ).toBe("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    expect((await lstat(join(directory, "dist"))).isDirectory()).toBe(true);
 
     await expect(
       publishAtomicArtifacts({
@@ -330,9 +349,10 @@ describe("atomic artifact publication", () => {
         generationId: () => "b".repeat(32),
       }),
     ).resolves.toMatchObject({ ok: true });
-    expect(await readlink(join(directory, "dist"))).toBe(
-      ".unframe/generations/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    );
+    expect(
+      JSON.parse(await readFile(join(directory, "dist/build-receipt.json"), "utf8")).generationId,
+    ).toBe("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    expect((await lstat(join(directory, "dist"))).isDirectory()).toBe(true);
     await expect(readFile(join(directory, "dist", "definition.json"), "utf8")).resolves.toBe(
       "definition-two",
     );
@@ -478,9 +498,9 @@ describe("atomic artifact publication", () => {
         },
       }),
     ).resolves.toEqual({ ok: false, family: "cancel", code: "cli-output-cancel" });
-    await expect(readlink(join(directory, "dist"))).resolves.toBe(
-      ".unframe/generations/22222222222222222222222222222222",
-    );
+    expect(
+      JSON.parse(await readFile(join(directory, "dist/build-receipt.json"), "utf8")).generationId,
+    ).toBe("22222222222222222222222222222222");
     await expect(
       lstat(join(directory, ".unframe/generations/.staging-33333333333333333333333333333333")),
     ).rejects.toThrow();
@@ -572,7 +592,7 @@ describe("atomic artifact publication", () => {
         testing: {
           onPhase: async (phase) => {
             if (phase !== "before-dist-replace") return;
-            await unlink(join(directory, "dist"));
+            await rm(join(directory, "dist"), { recursive: true, force: true });
             await symlink("../external-output", join(directory, "dist"));
           },
         },
@@ -621,9 +641,9 @@ describe("atomic artifact publication", () => {
         },
       }),
     ).resolves.toEqual({ ok: false, family: "cancel", code: "cli-output-cancel" });
-    await expect(readlink(join(directory, "dist"))).resolves.toBe(
-      ".unframe/generations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    );
+    expect(
+      JSON.parse(await readFile(join(directory, "dist/build-receipt.json"), "utf8")).generationId,
+    ).toBe("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     await expect(lstat(join(directory, ".unframe/generations", "b".repeat(32)))).rejects.toThrow();
   });
 
@@ -731,6 +751,120 @@ describe("atomic artifact publication", () => {
       detail: { stage: "write-artifacts", operation: "sync", code: "EBADF" },
     });
   });
+  it("restores the previous Dist if visible publication verification fails after exchange", async () => {
+    const directory = await project();
+    await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("previous"),
+      generationId: () => "1".repeat(32),
+    });
+    const originalExchange = NativeFilesystem.prototype.exchange;
+    let corrupted = false;
+    vi.spyOn(NativeFilesystem.prototype, "exchange").mockImplementation(
+      async function (this: NativeFilesystem, path, target) {
+        await originalExchange.call(this, path, target);
+        if (!corrupted) {
+          corrupted = true;
+          await writeFile(join(directory, "dist/definition.json"), "corrupted");
+        }
+      },
+    );
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("next"),
+      generationId: () => "2".repeat(32),
+    });
+    expect(result).toMatchObject({ ok: false, code: "cli-output-io" });
+    expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe(
+      "definition-previous",
+    );
+    expect(await readdir(join(directory, ".unframe/generations"))).toEqual(["1".repeat(32)]);
+    expect(await readdir(directory)).toEqual([".unframe", "dist"]);
+  });
+
+  it("rejects modified staged Dist bytes while keeping the successful directory", async () => {
+    const directory = await project();
+    await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("previous"),
+      generationId: () => "3".repeat(32),
+    });
+    const id = "4".repeat(32);
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("next"),
+      generationId: () => id,
+      testing: {
+        onPhase: async (phase) => {
+          if (phase === "before-dist-replace")
+            await writeFile(join(directory, `.dist-${id}/definition.json`), "corrupted");
+        },
+      },
+    });
+    expect(result).toMatchObject({ ok: false, code: "cli-output-io" });
+    expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe(
+      "definition-previous",
+    );
+  });
+  it("restores a competing directory inserted during the revision check instead of publishing over it", async () => {
+    const directory = await project();
+    await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("previous"),
+      generationId: () => "a".repeat(32),
+    });
+    const competitor = join(directory, "competitor");
+    const displaced = join(directory, "previous-dist");
+    await mkdir(competitor);
+    await writeFile(join(competitor, "sentinel.txt"), "competing output");
+    const expected = await lstat(competitor);
+    let revisionChecks = 0;
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("next"),
+      generationId: () => "b".repeat(32),
+      isCurrentRevision: async () => {
+        if (revisionChecks++ === 0) {
+          await rename(join(directory, "dist"), displaced);
+          await rename(competitor, join(directory, "dist"));
+        }
+        return true;
+      },
+    });
+    expect(result).toMatchObject({ ok: false, code: "cli-output-io" });
+    const actual = await lstat(join(directory, "dist"));
+    expect({ dev: actual.dev, ino: actual.ino }).toEqual({ dev: expected.dev, ino: expected.ino });
+    expect(await readFile(join(directory, "dist/sentinel.txt"), "utf8")).toBe("competing output");
+    expect(await readFile(join(displaced, "definition.json"), "utf8")).toBe("definition-previous");
+    expect(await readdir(directory)).toEqual([".unframe", "dist", "previous-dist"]);
+    expect(await readdir(join(directory, ".unframe/generations"))).toEqual(["a".repeat(32)]);
+  });
+
+  it("preserves an empty directory inserted during the first publication revision check", async () => {
+    const directory = await project();
+    let inserted: Awaited<ReturnType<typeof lstat>> | undefined;
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts(),
+      generationId: () => "c".repeat(32),
+      isCurrentRevision: async () => {
+        if (!inserted) {
+          await mkdir(join(directory, "dist"));
+          inserted = await lstat(join(directory, "dist"));
+        }
+        return true;
+      },
+    });
+    expect(result).toMatchObject({ ok: false, code: "cli-output-io" });
+    const actual = await lstat(join(directory, "dist"));
+    expect({ dev: actual.dev, ino: actual.ino }).toEqual({
+      dev: inserted?.dev,
+      ino: inserted?.ino,
+    });
+    expect(await readdir(join(directory, "dist"))).toEqual([]);
+    expect(await readdir(join(directory, ".unframe/generations"))).toEqual([]);
+    expect(await readdir(directory)).toEqual([".unframe", "dist"]);
+  });
 });
 
 it("keeps the previous generation when asset names alias on the native filesystem", async () => {
@@ -742,7 +876,7 @@ it("keeps the previous generation when asset names alias on the native filesyste
   );
   await unlink(join(directory, "A"));
   await publishAtomicArtifacts({ projectDirectory: directory, artifacts: artifacts() });
-  const previous = await readlink(join(directory, "dist"));
+  const previous = await readFile(join(directory, "dist/build-receipt.json"), "utf8");
   const value = artifacts("replacement");
   value.assets = [
     { assetId: "A", mediaType: "image/png", bytes: encoder.encode("one") },
@@ -751,7 +885,7 @@ it("keeps the previous generation when asset names alias on the native filesyste
   const result = await publishAtomicArtifacts({ projectDirectory: directory, artifacts: value });
   if (aliases) {
     expect(result).toMatchObject({ ok: false, code: "cli-output-io" });
-    expect(await readlink(join(directory, "dist"))).toBe(previous);
+    expect(await readFile(join(directory, "dist/build-receipt.json"), "utf8")).toBe(previous);
   } else {
     expect(result).toMatchObject({ ok: true });
     expect(await readFile(join(directory, "dist/assets/A.png"), "utf8")).toBe("one");

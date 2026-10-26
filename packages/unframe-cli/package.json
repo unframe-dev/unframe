@@ -22,13 +22,14 @@
     "prepresentation": "bash ../../scripts/build-cli-filesystem.sh",
     "pretui": "bash ../../scripts/build-cli-filesystem.sh",
     "pretest:tui": "bash ../../scripts/build-cli-filesystem.sh",
-    "test:native": "go test native/*.go && go vet native/*.go"
+    "test:native": "go -C native test ./... && go -C native vet ./..."
   },
   "dependencies": {
     "@opentui/core": "0.4.5",
     "@opentui/keymap": "0.4.5",
     "@opentui/solid": "0.4.5",
     "@unframe/contracts": "workspace:*",
+    "@unframe/unframe-assets": "workspace:*",
     "@unframe/unframe-compiler": "workspace:*",
     "@unframe/unframe-core": "workspace:*",
     "@unframe/unframe-renderer-web": "workspace:*",

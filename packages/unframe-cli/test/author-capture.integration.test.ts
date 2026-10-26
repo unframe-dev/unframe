@@ -1,3 +1,4 @@
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
@@ -16,6 +17,7 @@ import { discoverPresentationProjectFiles } from "../src/filesystem/discover-pro
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
 import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -42,7 +44,7 @@ const installFrozenGraph = async (directory: string) => {
       }
     >;
   };
-  const web = lock.importers["app/web"]!;
+  const web = lock.importers["app/local-editor"]!;
   const runtimeNames = ["react", "react-dom"];
   const typeNames = ["@types/react", "@types/react-dom"];
   const dependencies = Object.fromEntries(
@@ -82,7 +84,7 @@ const installFrozenGraph = async (directory: string) => {
 const createProject = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-capture-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);
   const loaded = loadUnframeLock(discovered.lockBytes);
@@ -94,6 +96,7 @@ const createProject = async () => {
     ...loaded.value.virtualSource,
   });
   assert(initial.valid);
+  await clearSourceAssetRegistration(directory, "presentation.unframe.tsx");
   const graph = await installFrozenGraph(directory);
   const sdkPackage = loaded.value.lock.packages.find(
     (pkg) => pkg.name === "@unframe/unframe-authoring",

@@ -1,81 +1,35 @@
-# Unframe Web Editor
+# Unframe Web
 
-`app/web` はローカル Source を編集する React UI と、認証・Device Authorization・account settings の Web application を持ちます。ローカル Editor は開発時に Vite、ビルド済み UI は CLI Host から配信し、Source と lock を正本に保存します。Dev／Dist Preview は共通 Unity renderer の WebGL build を使います。設計と公開条件は [Local Editor の実装契約](../../docs/packages/LOCAL_EDITOR_DESIGN.md) を参照してください。
+`app/web` は認証・アカウント設定、device 承認、公開済み Dist の確認とルーム作成を担当する Workers 向け React SPA です。Source 編集・build・Unity Preview・公開操作は [Local Editor](../local-editor/README.md) と CLI が担当します。
 
-## Local Editor の起動
-
-対象 host は Linux x86_64 と macOS arm64 です。native 隔離の保証差と実機検証結果は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。project 指定、固定 Browser の provision、利用可能な Unity Editor の WebGL module と license が必要です。`UNITY_EDITOR` は `ProjectVersion.txt` に対応する実行ファイルを指定できます。未指定時は OS ごとの Unity Hub 標準配置を探します。
-
-初回にリポジトリ root で依存関係、固定 Browser、Unity Preview player を準備します。
+## 起動と接続先
 
 ```bash
 nix run .#setup
-nix develop --command scripts/dev/install-presentation-browser.sh
-nix run .#unity-preview
+nix develop
+pnpm --filter @unframe/web dev
 ```
 
-開発時は2つのターミナルでそれぞれ `nix develop` に入り、リポジトリ root から次を実行します。
+`VITE_CONTROL_PLANE_URL` は Control Plane API の origin で、未設定時は `https://api.un-fra.me` を使います。ブラウザー認証は Better Auth client、製品 API は `@unframe/api-client-typescript` の Hono RPC client と TanStack Query を使い、cookie を送信します。
 
-```bash
-# ターミナル1: Editor UI (http://127.0.0.1:5174/editor.html)
-pnpm --filter @unframe/web dev:editor
-```
+## 管理画面
 
-```bash
-# ターミナル2: ローカル API / Unity player (http://127.0.0.1:5175)
-pnpm --filter @unframe/unframe-cli dev -- "$PWD/examples/local-editor-showcase"
-```
+- `/home`: 閲覧可能な Presentation と最新公開 Dist を確認します。公開情報のない Presentation と取得エラーを区別します。
+- `/rooms`: 公開済み Presentation からルーム（Session）を作成します。作成時点の最新公開版が固定され、結果の publication fence を表示します。Join Code は作成直後だけ表示し、再読み込み後に再取得できません。
+- `/login`・`/signup`・`/recover`・`/recover/reset`・`/device`: 認証と device 承認。
+- `/settings/profile`・`/settings/security`: アカウント設定。`/devices` は準備画面です。
 
-CLI が認証付きの Editor URL をブラウザで開きます。Web は HMR で画面の変更を反映し、API と Unity player の要求を CLI に proxy します。CLI の `dev` が固定 Browser のパス設定と OS 別の起動準備を行うため、wrapper の手動指定や `build:editor` は不要です。ページ全体を再読み込みした場合は、CLI のターミナルで `r` + Enter を入力して認証付き Editor を開き直します。停止は各ターミナルで `Ctrl+C` です。
-
-Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dist Preview を順に確認します。Preview は一時停止状態で開き、「再生」後に現在の Step の入力ボタンを操作できます。Step／Cue／Timeline と Surface の遷移はローカルで実行し、Unity の描画・再生処理は通常 Runtime と共通です。「一時停止」は再生時刻を保持し、「リセット」は初期状態へ戻します。本番 Realtime 接続は対象外です。
-
-フェードの確認には、ターミナル2の CLI を `Ctrl+C` で停止し、`pnpm --filter @unframe/unframe-cli dev -- "$PWD/examples/presentation"` で起動し直します。表示後に「再生」→「continue」を押すと、Surface が inactive 状態へ切り替わり、host の不透明度が1秒で `1 → 0.5` に変化して Step が `finished` へ進みます。Unity 側のコード変更後は `nix run .#unity-preview` で player を再ビルドしてください。
-
-ビルド済み UI を CLI から配信する場合は、`pnpm --filter @unframe/web build:editor` の後に `presentation author /absolute/path/to/project` を実行します。Opaque capture の環境準備は [scripts README](../../scripts/README.md) を参照してください。
-
-CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props と host Transform を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
-
-Timelines パネルは保存済み Source の進行構造を読み取り専用で表示します。Group を選んで Step 遷移図を確認し、Step → Cue の順に選ぶと trigger、guard、actions と遷移先を参照できます。Cue が開始する複数 Timeline は共通の Cue 発火基準で表示し、ズームとキーフレーム選択で値・easing を確認できます。外部保存の更新では同じ ID の選択を維持し、削除された項目は選択を解除します。表示対象の保存 revision と Unity Preview の表示 revision は別です。編集・再生・シークは対象外です。詳細は [読み取り専用 Timeline 仕様](../../docs/packages/LOCAL_EDITOR_TIMELINE_SPEC.md) を参照してください。
-
-Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。
-
-公開には `UNFRAME_CONTROL_PLANE_URL`、`UNFRAME_WEB_ORIGIN`、`UNFRAME_DEVICE_CLIENT_ID` を Host 起動時にすべて設定します。origin は HTTPS、または loopback HTTP を指定します。承認画面は設定済み Web origin の `/device` で開き、bearer と `device_code` は Host のメモリーだけに保持します。公開は Unity が commit を完了した Dist と現在の `dist` が一致する場合だけ開始し、受付後は upload 元を固定します。
-
-## Web application
-
-```bash
-pnpm --filter @unframe/web run dev
-```
-
-開発 URL は `http://localhost:5173/` です。Home の一覧・作成は mock repository を使います。`/editor/$presentationId` は Local Host 起動の案内を表示します。Presentation のサーバー永続化や共同編集はこの Web application に接続していません。
-
-`/login`、`/signup`、`/recover`、`/recover/reset?token=`、`/device` は Better Auth のブラウザー flow を扱います。`/settings/profile` と `/settings/security` は account settings、`/devices` と `/rooms` は管理の準備画面です。認証が必要な application route は未認証時に LP 所有の `/` へ遷移します。
-
-| 領域                                         | 責務                                                                 |
-| -------------------------------------------- | -------------------------------------------------------------------- |
-| `src/app/`                                   | router、provider、application shell                                  |
-| `src/features/editor/`                       | Source Inspector、保存・履歴、Local Host API、Unity Preview、公開 UI |
-| `src/features/auth/`・`device/`・`settings/` | 認証、device 承認、account settings                                  |
-| `src/features/presentations/`                | Home と mock repository                                              |
-| `src/shared/`                                | brand、layout、Base UI に基づく共通 primitives                       |
-| `worker/`                                    | root-based request を Static Assets へ渡す Worker                    |
-
-`editor.html` を `build:editor` で `dist-editor` に生成し、CLI Host が配信します。Cloudflare 向け Web application は通常の `build` で生成します。
+ルームの参加・Runtime 配置・発表開始停止はこの Web の対象外です。作成応答が不明な場合は自動再送しません。未終了の Session がある Presentation の再公開は Control Plane が拒否します。
 
 ## 検証
 
 ```bash
-pnpm --filter @unframe/web run check
-pnpm --filter @unframe/web run test
-pnpm --filter @unframe/web run build:editor
-pnpm --filter @unframe/web run test:e2e
-nix run .#local-editor-e2e
+nix run .#web
+pnpm --filter @unframe/web test:e2e
+pnpm --filter @unframe/web cf:deploy:dry-run
 ```
 
-テストの粒度は [CONTRIBUTING のテスト方針](../../CONTRIBUTING.md#テストと品質ゲート) に従います。既存 model の変換と Preview 制御は `.test.ts`、主要操作の配線は Playwright E2E で確認します。component 内に状態を持つ Source 保存・再試行・undo、更新に伴う選択や公開可否などは、React の回帰テストとして必要な `.test.tsx` を残します。
-
-通常の Playwright E2E と Local Editor の実 WebGL／native Unity／実サービス E2E は別の検証です。後者の前提と生成物は [scripts README](../../scripts/README.md#local-editor-と-unity) を参照してください。2026-10-07 に実 WebGL の Structured／Opaque Dev・Dist 描画、contain／alpha と Transform 保存後の画素変化を確認しました。ローカル実 Control Plane／R2／Realtime と native Unity を通す公開 E2E も成功し、Snapshot／StateReady と実画素を確認しました。
+通常 Web の E2E と、Local Editor・実 Control Plane・Unity の統合検証は別です。後者は [scripts README](../../scripts/README.md#local-editor-と-unity) を参照してください。
 
 ## Cloudflare 配信
 
@@ -101,6 +55,4 @@ pnpm --dir app/web exec wrangler dev --config dist/unframe_web_editor/wrangler.j
 
 NixOS で配布版 `workerd` を実行するには、host 側で `programs.nix-ld.enable` が必要です。このリポジトリにはデプロイ workflow がないため、公開操作は品質ゲートに含めていません。
 
-## Control Plane の接続先
-
-Device Authorization 画面は `VITE_CONTROL_PLANE_URL` を Control Plane API の origin として使い、未設定時は production の `https://api.un-fra.me` を使います。cookie session を送るため、認証 request は `credentials: "include"` です。Home の Presentation 一覧と新規作成は mock repository 内で完結します。
+Worker 名 `unframe-web-editor` は sibling infra の `editor_worker_name` に合わせて維持しています。dry-run は実配信・OAuth callback・cookie/CORS の本番検証を代替しません。

@@ -7,11 +7,38 @@ using Unframe.Unity.PresentationRuntime;
 public sealed class PresentationRichDeliveryBudgetTests
 {
     [Test]
-    public void VideoBudgetCountsEveryPreparedArtifactEvenWhenAssetsAreShared()
+    public void VideoBudgetCountsConcurrentSurfacesEvenWhenAssetsAreShared()
     {
         DeliveryManifest manifest = VideoManifest();
         Assert.That(Validate(manifest), Is.True);
         manifest.CapabilityProfile.Limits.Video.MaxConcurrentDecoders = 1;
+        Assert.That(Validate(manifest), Is.False);
+    }
+
+    [Test]
+    public void VideoStateAlternativesShareOneDecoderAndFrameBudget()
+    {
+        DeliveryManifest manifest = VideoManifest();
+        var first = manifest.ProjectionProfile.RenderSurfaces[0];
+        first.Artifacts.Add(manifest.ProjectionProfile.RenderSurfaces[1].Artifacts[0].Clone());
+        manifest.ProjectionProfile.RenderSurfaces.RemoveAt(1);
+        manifest.Residency.Video.MaximumConcurrentDecoders = 1;
+        manifest.Residency.Video.MaximumDecodedFrameBytes = 4;
+        manifest.CapabilityProfile.Limits.Video.MaxConcurrentDecoders = 1;
+        Assert.That(Validate(manifest), Is.True);
+    }
+
+    [Test]
+    public void MutuallyExclusiveGroupsShareOneDecoderAndFrameBudget()
+    {
+        DeliveryManifest manifest = VideoManifest();
+        manifest.ProjectionProfile.RuntimeCatalog.Nodes[0].Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:a" } };
+        manifest.ProjectionProfile.RuntimeCatalog.Nodes[1].Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:b" } };
+        manifest.Residency.Video.MaximumConcurrentDecoders = 1;
+        manifest.Residency.Video.MaximumDecodedFrameBytes = 4;
+        manifest.CapabilityProfile.Limits.Video.MaxConcurrentDecoders = 1;
+        Assert.That(Validate(manifest), Is.True);
+        manifest.ProjectionProfile.RuntimeCatalog.Nodes[1].Owner.Group.GroupId = "group:a";
         Assert.That(Validate(manifest), Is.False);
     }
 
@@ -68,6 +95,7 @@ public sealed class PresentationRichDeliveryBudgetTests
     {
         DeliveryManifest manifest = VideoManifest();
         manifest.ProjectionProfile.RenderSurfaces.Clear();
+        manifest.Residency.Video = new VideoResidencyPlan();
         manifest.AssetAccess.Clear();
         manifest.AssetAccess.Add(new AssetAccessBinding { AssetId = "font", Checksum = "font-checksum", MediaType = "font/ttf", EncodedSizeBytes = 10 });
         manifest.CapabilityProfile.Renderers.NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1, Features = { NativeUiFeature.Clip } };
@@ -126,7 +154,7 @@ public sealed class PresentationRichDeliveryBudgetTests
             ArtifactId = "video:one",
             ContractVersion = 1,
             VideoAssetId = "video",
-            Checksum = "checksum",
+            Checksum = "sha256:" + new string('a', 64),
             EncodedSizeBytes = 10,
             PixelSize = new PixelSize { Width = 1, Height = 1 },
             Codec = VideoCodec.H264,
@@ -138,11 +166,23 @@ public sealed class PresentationRichDeliveryBudgetTests
         {
             ProjectionProfile = new ProjectionProfileDescriptor
             {
-                RuntimeCatalog = new ProjectedRuntimeCatalog(),
+                RuntimeCatalog = new ProjectedRuntimeCatalog
+                {
+                    Nodes =
+                    {
+                        new ProjectedNodeDefinition { NodeId = "node:one", Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() } },
+                        new ProjectedNodeDefinition { NodeId = "node:two", Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() } },
+                    },
+                    Surfaces =
+                    {
+                        new ProjectedSurfaceDefinition { SurfaceId = "surface:one", HostNodeId = "node:one" },
+                        new ProjectedSurfaceDefinition { SurfaceId = "surface:two", HostNodeId = "node:two" },
+                    },
+                },
                 RenderSurfaces =
                 {
-                    new DeliveredRenderSurface { RendererKind = RendererKind.Video, ArtifactContractVersion = 1, Artifacts = { new DeliveredArtifact { Video = artifact } } },
-                    new DeliveredRenderSurface { RendererKind = RendererKind.Video, ArtifactContractVersion = 1, Artifacts = { new DeliveredArtifact { Video = second } } },
+                    new DeliveredRenderSurface { SemanticSurfaceId = "surface:one", RendererKind = RendererKind.Video, ArtifactContractVersion = 1, Artifacts = { new DeliveredArtifact { Video = artifact } } },
+                    new DeliveredRenderSurface { SemanticSurfaceId = "surface:two", RendererKind = RendererKind.Video, ArtifactContractVersion = 1, Artifacts = { new DeliveredArtifact { Video = second } } },
                 },
             },
             CapabilityProfile = new CapabilityProfile
@@ -154,7 +194,7 @@ public sealed class PresentationRichDeliveryBudgetTests
                     { TierId = "video-test", MaxWidth = 1, MaxHeight = 1, MaxPixels = 1, MaxConcurrentDecoders = 2, MaxDecodedFrameBytes = 8, MaxEncodedBytes = 10 }
                 }
             },
-            AssetAccess = { new AssetAccessBinding { AssetId = "video", Checksum = "checksum", MediaType = "video/mp4", EncodedSizeBytes = 10 } },
+            AssetAccess = { new AssetAccessBinding { AssetId = "video", Checksum = "sha256:" + new string('a', 64), MediaType = "video/mp4", EncodedSizeBytes = 10 } },
             Residency = new ResidencyPlan
             {
                 Video = new VideoResidencyPlan
@@ -163,7 +203,7 @@ public sealed class PresentationRichDeliveryBudgetTests
                     MaximumConcurrentDecoders = 2,
                     MaximumDecodedFrameBytes = 8,
                     TotalEncodedBytes = 10,
-                    Videos = { new VideoResidencyBinding { AssetId = "video", Checksum = "checksum", EncodedSizeBytes = 10, DecodedFrameBytes = 4 } },
+                    Videos = { new VideoResidencyBinding { AssetId = "video", Checksum = "sha256:" + new string('a', 64), EncodedSizeBytes = 10, DecodedFrameBytes = 4 } },
                 }
             },
         };

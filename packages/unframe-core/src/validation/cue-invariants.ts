@@ -14,7 +14,7 @@ const accessible = (owner: Owner, groupId: string) =>
 export const validateCueInvariants = (
   definition: PresentationDefinition,
   diagnostics: Diagnostic[],
-  options: { fullDelivery?: boolean } = {},
+  _options: { fullDelivery?: boolean } = {},
 ) => {
   const { groups, variables, timelines } = definition.flow;
   const { nodes, surfaces } = definition.scene;
@@ -126,26 +126,24 @@ export const validateCueInvariants = (
           case "zoneEdge":
             target(definition.stage.zones, trigger.zoneId, "/trigger/zoneId");
             break;
-          case "motion":
+          case "gesture":
             break;
           case "timelineCompleted":
             target(timelines, trigger.timelineId, "/trigger/timelineId");
             break;
           case "mediaCompleted":
-            if (!options.fullDelivery)
-              issue(
-                "feature.unsupported",
-                "/trigger",
-                "Media triggers are not executable in this slice.",
-              );
-            else mediaTarget(trigger.surfaceId, "/trigger/surfaceId");
+            mediaTarget(trigger.surfaceId, "/trigger/surfaceId");
             break;
-          default:
-            issue(
-              "feature.unsupported",
-              "/trigger",
-              "Model triggers are not executable in this slice.",
-            );
+          case "modelClipCompleted": {
+            const node = target(nodes, trigger.nodeId, "/trigger/nodeId");
+            if (node && node.kind !== "model")
+              issue(
+                "behavior.invalid",
+                "/trigger/nodeId",
+                "Model completion requires a Model Node.",
+              );
+            break;
+          }
         }
         const valueType = (value: Value, suffix: string): string | undefined => {
           if (value.kind === "literal") return scalarType(value.value);
@@ -210,6 +208,16 @@ export const validateCueInvariants = (
               const surface = target(surfaces, action.surfaceId, `${suffix}/surfaceId`);
               if (surface && !Object.hasOwn(surface.states, action.stateId))
                 issue("reference.invalid", `${suffix}/stateId`, "Surface State does not exist.");
+              if (
+                action.transition?.kind === "crossfade" &&
+                surface?.content.kind === "structured" &&
+                Object.values(surface.content.nodes).some((node) => node.kind === "video")
+              )
+                issue(
+                  "feature.unsupported",
+                  `${suffix}/transition`,
+                  "Video Surfaces support cut State transitions only.",
+                );
               const stateClaim = `surface:${action.surfaceId}:state`;
               const repeatedState = claims.has(stateClaim);
               claim(stateClaim, suffix);
@@ -272,15 +280,9 @@ export const validateCueInvariants = (
             case "media.play":
             case "media.pause":
             case "media.seek": {
-              if (!options.fullDelivery) {
-                issue(
-                  "feature.unsupported",
-                  suffix,
-                  "Media actions are not executable in this slice.",
-                );
-                break;
-              }
               mediaTarget(action.surfaceId, `${suffix}/surfaceId`);
+              if (action.kind === "media.seek")
+                expectType(action.positionSeconds, "number", `${suffix}/positionSeconds`);
               claim(`media:${action.surfaceId}:playback`, suffix);
               break;
             }
@@ -288,14 +290,6 @@ export const validateCueInvariants = (
             case "modelClip.pause":
             case "modelClip.resume":
             case "modelClip.stop": {
-              if (!options.fullDelivery) {
-                issue(
-                  "feature.unsupported",
-                  suffix,
-                  "Model actions are not executable in this slice.",
-                );
-                break;
-              }
               const node = target(nodes, action.nodeId, `${suffix}/nodeId`);
               if (node && node.kind !== "model")
                 issue(

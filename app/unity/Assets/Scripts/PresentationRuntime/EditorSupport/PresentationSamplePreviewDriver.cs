@@ -119,7 +119,7 @@ namespace Unframe.Unity.PresentationRuntime.Editor
             if (!resumed && Runtime.CanSendRuntimeControl && !commandPending)
             {
                 resumed = true;
-                command = SendAsync(QuestPresentationInput.CreateRuntimeControl(RuntimeControlKind.Resume, Runtime.PresentationOriginVersion));
+                command = SendAsync(QuestPresentationInput.CreateControl(RuntimeControlKind.Resume, Runtime.PresentationOriginVersion, Runtime.InputSynchronization.CommandEpoch));
             }
             if (!framed && Runtime.SessionReady && Runtime.PresentationSpace.GetComponentsInChildren<Renderer>().Length > 0)
             {
@@ -131,7 +131,7 @@ namespace Unframe.Unity.PresentationRuntime.Editor
             Vector2 position = mouse.position.ReadValue();
             if (controls.Contains(new Vector2(position.x, Screen.height - position.y))) return;
             if (Runtime.TryPickInteraction(PreviewCamera.ScreenPointToRay(position), out string surface, out string interaction))
-                command = SendAsync(QuestPresentationInput.CreateSurfaceInteraction(surface, interaction, Runtime.PresentationOriginVersion));
+                command = SendAsync(QuestPresentationInput.CreateSurfaceInteraction(surface, interaction, Runtime.PresentationOriginVersion, Runtime.InputSynchronization.Context, Runtime.InputSynchronization.CommandEpoch));
         }
 
         private async Task SendAsync(ControlClientItem command)
@@ -153,9 +153,9 @@ namespace Unframe.Unity.PresentationRuntime.Editor
             if (ErrorCode != null) GUILayout.Label("Error: " + ErrorCode);
             GUILayout.BeginHorizontal();
             GUI.enabled = Runtime != null && Runtime.CanSendRuntimeControl && !commandPending && Running?.IsCompleted == false;
-            if (GUILayout.Button("Resume")) command = SendAsync(QuestPresentationInput.CreateRuntimeControl(RuntimeControlKind.Resume, Runtime.PresentationOriginVersion));
-            if (GUILayout.Button("Pause")) command = SendAsync(QuestPresentationInput.CreateRuntimeControl(RuntimeControlKind.Pause, Runtime.PresentationOriginVersion));
-            if (GUILayout.Button("End")) command = SendAsync(QuestPresentationInput.CreateRuntimeControl(RuntimeControlKind.End, Runtime.PresentationOriginVersion));
+            if (GUILayout.Button("Resume")) command = SendAsync(QuestPresentationInput.CreateControl(RuntimeControlKind.Resume, Runtime.PresentationOriginVersion, Runtime.InputSynchronization.CommandEpoch));
+            if (GUILayout.Button("Pause")) command = SendAsync(QuestPresentationInput.CreateControl(RuntimeControlKind.Pause, Runtime.PresentationOriginVersion, Runtime.InputSynchronization.CommandEpoch));
+            if (GUILayout.Button("End")) command = SendAsync(QuestPresentationInput.CreateControl(RuntimeControlKind.End, Runtime.PresentationOriginVersion, Runtime.InputSynchronization.CommandEpoch));
             GUI.enabled = Runtime?.SessionReady == true;
             if (GUILayout.Button("Frame")) framing.Frame(Runtime.PresentationSpace);
             GUI.enabled = true;

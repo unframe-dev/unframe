@@ -9,16 +9,18 @@ using Quaternion = UnityEngine.Quaternion;
 public sealed class QuestMotionGuideTests
 {
     [Test]
-    public void OnlyCurrentStableStepProducesCandidates()
+    public void CurrentRecognitionCatalogProducesOnlySupportedTrackedGestures()
     {
-        var catalog = new ProjectedRuntimeCatalog();
-        catalog.MotionGuides.Add(Guide("one", "first", "a"));
-        catalog.MotionGuides.Add(Guide("one", "second", "b"));
-        var progression = new ProgressionRuntimeState { CurrentGroupId = "one", CurrentStepId = "first", Stable = new StableProgression() };
+        var catalog = new PresenterRecognitionCatalog();
+        catalog.Gestures.Add(GestureKind.SwipeLeft);
+        catalog.Gestures.Add(GestureKind.SpreadHands);
+        catalog.Gestures.Add((GestureKind)999);
         var state = new QuestMotionGuideState();
+        var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
+        state.Refresh(catalog, progression, true, true, true, true, true, false, false);
+        Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft }));
         state.Refresh(catalog, progression, true, true, true, true, true, true, false);
-        Assert.That(state.Candidates.Count, Is.EqualTo(1));
-        Assert.That(state.Candidates[0].CueId, Is.EqualTo("a"));
+        Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft, GestureKind.SpreadHands }));
         progression.Transitioning = new TransitioningProgression();
         state.Refresh(catalog, progression, true, true, true, true, true, true, false);
         Assert.That(state.Candidates, Is.Empty);
@@ -32,27 +34,11 @@ public sealed class QuestMotionGuideTests
     [TestCase(true, true, true, true, true, true, true)]
     public void UnsafeOrHiddenStatesClearCandidates(bool presenter, bool calibrated, bool running, bool head, bool left, bool right, bool menu)
     {
-        var catalog = new ProjectedRuntimeCatalog();
-        catalog.MotionGuides.Add(Guide("one", "first", "a"));
+        var catalog = new PresenterRecognitionCatalog();
+        catalog.Gestures.Add(GestureKind.SwipeLeft);
         var state = new QuestMotionGuideState();
-        state.Refresh(catalog, new ProgressionRuntimeState { CurrentGroupId = "one", CurrentStepId = "first", Stable = new StableProgression() }, presenter, calibrated, running, head, left, right, menu);
+        state.Refresh(catalog, new ProgressionRuntimeState { Stable = new StableProgression() }, presenter, calibrated, running, head, left, right, menu);
         Assert.That(state.Candidates, Is.Empty);
-    }
-
-    [Test]
-    public void BothHandCandidateRequiresBothHandsAndSingleHandRequiresItsTarget()
-    {
-        var catalog = new ProjectedRuntimeCatalog();
-        var both = Guide("one", "first", "both");
-        both.Preset = (MotionGuidePreset)7;
-        both.Hand = (MotionGuideHand)4;
-        catalog.MotionGuides.Add(both);
-        var state = new QuestMotionGuideState();
-        var progression = new ProgressionRuntimeState { CurrentGroupId = "one", CurrentStepId = "first", Stable = new StableProgression() };
-        state.Refresh(catalog, progression, true, true, true, true, true, false, false);
-        Assert.That(state.Candidates, Is.Empty);
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false);
-        Assert.That(state.Candidates.Count, Is.EqualTo(1));
     }
 
     [Test]
@@ -83,7 +69,7 @@ public sealed class QuestMotionGuideTests
     [TestCase(8, .01)]
     [TestCase(8, .3)]
     [TestCase(8, 1.0)]
-    public void BothHandDiagramModelsServerSeparationRulesBeforeUniformScaling(int preset, double minimum)
+    public void BothHandDiagramShowsSeparationBeforeUniformScaling(int preset, double minimum)
     {
         QuestMotionGuideGeometry.Diagram(preset, minimum, out float startHalf, out float endHalf, out float scale);
         float initial = startHalf * 2;
@@ -135,14 +121,4 @@ public sealed class QuestMotionGuideTests
         Assert.That(mesh == null, Is.True);
     }
 
-    private static ProjectedMotionGuideDefinition Guide(string group, string step, string cue) => new ProjectedMotionGuideDefinition
-    {
-        GroupId = group,
-        StepId = step,
-        CueId = cue,
-        Preset = (MotionGuidePreset)1,
-        Hand = (MotionGuideHand)1,
-        MinimumDistanceMeters = .28,
-        WindowMs = 1200,
-    };
 }

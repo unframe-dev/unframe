@@ -21,7 +21,7 @@ import type {
 } from "../api/types.js";
 import { diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
 import { hashJson, renderIntent } from "../lowering/support.js";
-import { checkProjectAssets } from "../validation/check-project-assets.js";
+import { checkProjectAssetReferences } from "../validation/check-project-assets.js";
 
 type ReactProject = CompilerDeclarationProject & {
   presentation: Omit<CompilerDeclarationProject["presentation"], "scene"> & {
@@ -390,12 +390,16 @@ export const resolveOpaqueProject = (
           "cues",
           index,
         ] as const;
-        if (cue.trigger.kind !== "component.output" && cue.trigger.kind !== "motionPreset") {
+        if (
+          cue.trigger.kind !== "component.output" &&
+          cue.trigger.kind !== "gesture" &&
+          cue.trigger.kind !== "zoneEdge"
+        ) {
           diagnostics.push(
             diagnostic(
               "compiler-opaque-cue-trigger-invalid",
               path,
-              "React Cues require a declared Component Output or motion preset.",
+              "React Cues require a declared Component Output, Gesture, or Zone edge.",
             ),
           );
           continue;
@@ -492,31 +496,26 @@ export const resolveOpaqueProject = (
           priority: cue.priority ?? 0,
           order: cue.order ?? index,
           trigger:
-            outputTrigger.kind === "motionPreset"
-              ? ({
-                  kind: "motion",
-                  actor: { kind: "system", source: "tracking" },
-                  preset: outputTrigger.preset,
-                  subject: {
-                    kind: "anchor",
-                    owner: { kind: "presenter" },
-                    target: outputTrigger.hand,
+            outputTrigger.kind === "zoneEdge"
+              ? { ...outputTrigger, actor: { kind: "presenter" } }
+              : outputTrigger.kind === "gesture"
+                ? ({
+                    kind: "gesture",
+                    actor: { kind: "presenter" },
+                    gesture: outputTrigger.gesture,
+                  } as (typeof cues)[number]["trigger"])
+                : {
+                    kind: "surfaceInteraction",
+                    actor: { kind: "presenter" },
+                    surfaceId: reactResourceId("surface", triggerInstance!.id),
+                    interactionId: reactResourceId(
+                      "interaction",
+                      triggerInstance!.id,
+                      output!.producer.kind === "surfaceInteraction"
+                        ? output!.producer.interactionId
+                        : "",
+                    ),
                   },
-                  minimumDistanceMeters: outputTrigger.minimumDistanceMeters,
-                  windowMilliseconds: outputTrigger.windowMilliseconds,
-                } as (typeof cues)[number]["trigger"])
-              : {
-                  kind: "surfaceInteraction",
-                  actor: { kind: "presenter" },
-                  surfaceId: reactResourceId("surface", triggerInstance!.id),
-                  interactionId: reactResourceId(
-                    "interaction",
-                    triggerInstance!.id,
-                    output!.producer.kind === "surfaceInteraction"
-                      ? output!.producer.interactionId
-                      : "",
-                  ),
-                },
           fixedPayload: Object.fromEntries(
             Object.entries(output?.payload ?? {}).map(([key, field]) => [key, field.value]),
           ),
@@ -542,14 +541,23 @@ export const resolveOpaqueProject = (
       type: variable.type,
       initialValue: variable.initialValue,
     };
-  const checkedAssets = checkProjectAssets(presentation.assets, project.assets, surfaces);
+  const checkedAssets = checkProjectAssetReferences(presentation.assets, project.assets, surfaces);
   diagnostics.push(...checkedAssets.diagnostics);
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
   const definition: PresentationDefinition = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     presentationId: presentation.id,
     metadata: presentation.metadata,
-    stage: { ...presentation.stage, size: [...presentation.stage.size], zones: {} },
+    stage: {
+      ...presentation.stage,
+      size: [...presentation.stage.size],
+      zones: Object.fromEntries(
+        Object.entries(presentation.stage.zones ?? {}).map(([id, zone]) => [
+          id,
+          { id: zone.id, owner: zone.owner, center: [...zone.center] },
+        ]),
+      ),
+    },
     scene: { nodes, surfaces },
     flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines: {} },
   };

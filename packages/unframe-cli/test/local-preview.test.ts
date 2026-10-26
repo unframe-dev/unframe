@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -86,6 +86,23 @@ const deferred = <T>() => {
 };
 
 describe("fixed local Preview service", () => {
+  it("omits Presenter recognition and connection-only capabilities from the preview envelope", async () => {
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => generation(),
+    });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    expect(envelope.projection?.runtimeCatalog?.catalogContractVersion).toBe(3);
+    expect(envelope.projection?.runtimeCatalog).not.toHaveProperty("presenterRecognition");
+    expect(envelope.projection?.requiredRuntimeCapabilities).not.toEqual(
+      expect.arrayContaining([8, 9, 10]),
+    );
+    expect(
+      envelope.projection?.requiredRuntimeCapabilities?.some((value) =>
+        [1, 7, 8, 9, 10].includes(value),
+      ),
+    ).toBe(false);
+  });
+
   it("starts committed playback paused and binds commands to the display request", async () => {
     let now = 100;
     const service = createLocalPreviewService("/project", {
@@ -478,6 +495,43 @@ describe("fixed local Preview service", () => {
     expect(selected).toEqual(["texture"]);
   });
 
+  it.each(["gesture", "zoneEdge"] as const)(
+    "rejects %s recognition in Local Preview",
+    async (kind) => {
+      const source = generation();
+      source.artifacts.definition.stage.zones.front = {
+        id: "front",
+        owner: { kind: "presentation" },
+        center: [0, 0, 0],
+      };
+      source.artifacts.definition.flow.groups.intro!.steps.start!.cues = [
+        {
+          id: "recognize",
+          priority: 0,
+          order: 0,
+          trigger:
+            kind === "gesture"
+              ? { kind, actor: { kind: "presenter" }, gesture: "swipeLeft" }
+              : { kind, actor: { kind: "presenter" }, zoneId: "front", edge: "enter" },
+          firePolicy: { kind: "repeatable" },
+          actions: [],
+          next: { kind: "stay" },
+        },
+      ];
+      source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+        source.artifacts.definition,
+      );
+      source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+      source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+        source.artifacts.renderBundle,
+      );
+      const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+      await expect(service.load({ requestId: requestA, channel: "dist" })).rejects.toMatchObject({
+        code: "preview-tracking-unsupported",
+      });
+    },
+  );
+
   it("rejects tracking anchors while ordinary Cues remain declarative", async () => {
     const source = generation();
     source.artifacts.definition.scene.nodes["node-baked"]!.parent = {
@@ -530,27 +584,42 @@ describe("fixed local Preview service", () => {
       await service.load({ requestId: requestA, channel: "dist" });
       service.committed({ requestId: requestA, buildIdentity: "build-a" });
       const pinned = await service.pinDisplayedDist(requestA);
-      const assetPath = join(directory, ".unframe/generations", generationA, "assets/image.png");
+      const assetPath = join(directory, "dist/assets/image.png");
       await writeFile(assetPath, new Uint8Array(64));
       await expect(service.pinDisplayedDist(requestA)).rejects.toThrow();
       expect(await pinned.readAsset("image")).toEqual(sourceAssets.image);
-      await writeFile(
-        join(directory, ".unframe/generations", generationA, "build-manifest.json"),
-        "{}",
-      );
+      await writeFile(join(directory, "dist/build-manifest.json"), "{}");
       expect(pinned.artifacts.buildManifest.buildId).toBe("build-a");
     } finally {
       service.close();
       await rm(directory, { recursive: true, force: true });
     }
   });
-  it("reports unsupported model rendering before loading any of its assets", async () => {
+  it("includes verified H264 Video residency and initial Media state without treating playback as tracking", async () => {
     const source = generation();
-    source.artifacts.definition.scene.nodes.model =
-      presentationDefinitionSchema.parse(definitionFixture).scene.nodes.model!;
-    source.artifacts.renderBundle.models = renderBundleSchema.parse(bundleFixture).models;
-    source.artifacts.assetSet.assets["model-asset"] =
-      assetSetManifestSchema.parse(assetSetFixture).assets["model-asset"]!;
+    const definition = presentationDefinitionSchema.parse(definitionFixture);
+    source.artifacts.definition.scene.nodes["node-video"] = definition.scene.nodes["node-video"]!;
+    source.artifacts.definition.scene.surfaces.video = definition.scene.surfaces.video!;
+    source.artifacts.renderBundle.surfaces.video =
+      renderBundleSchema.parse(bundleFixture).surfaces.video!;
+    source.artifacts.assetSet.assets["video-asset"] =
+      assetSetManifestSchema.parse(assetSetFixture).assets["video-asset"]!;
+    const videoBytes = Uint8Array.from(
+      await readFile(
+        new URL("../../../examples/media-presentation/assets/video.mp4", import.meta.url),
+      ),
+    );
+    const videoHash = `sha256:${createHash("sha256").update(videoBytes).digest("hex")}`;
+    source.artifacts.assetSet.assets["video-asset"]!.checksum = videoHash;
+    source.artifacts.assetSet.assets["video-asset"]!.encodedSizeBytes = videoBytes.byteLength;
+    const render = source.artifacts.renderBundle.surfaces.video!.renderSurfaces["render-video"]!;
+    const artifact = render.artifacts["artifact-video"]!;
+    if (artifact.kind !== "video") throw new Error("Expected Video fixture.");
+    artifact.checksum = videoHash;
+    artifact.encodedSizeBytes = videoBytes.byteLength;
+    const readAsset = source.readAsset;
+    source.readAsset = async (id) =>
+      id === "video-asset" ? { bytes: videoBytes, mediaType: "video/mp4" } : readAsset(id);
     source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
       source.artifacts.definition,
     );
@@ -562,8 +631,57 @@ describe("fixed local Preview service", () => {
       source.artifacts.assetSet,
     );
     const service = createLocalPreviewService("/project", { readGeneration: async () => source });
-    await expect(service.load({ requestId: requestA, channel: "dist" })).rejects.toMatchObject({
-      code: "preview-rendering-unsupported",
+    const loaded = await service.load({ requestId: requestA, channel: "dist" });
+    expect(loaded.projection?.requiredRuntimeCapabilities).toContain(4);
+    expect(loaded.projection?.videoResidency?.videos).toMatchObject([
+      {
+        assetId: "video-asset",
+        checksum: videoHash,
+        encodedSizeBytes: String(videoBytes.byteLength),
+      },
+    ]);
+    expect(loaded.initialState?.mediaStates).toEqual([
+      { surfaceId: "video", stopped: { heldPositionMs: 0 } },
+    ]);
+    const binding = loaded.assets!.find((asset) => asset.assetId === "video-asset")!;
+    expect(await service.asset(requestA, binding.reference!)).toEqual({
+      bytes: videoBytes,
+      mediaType: "video/mp4",
     });
+    service.close();
+  });
+
+  it("includes verified Model residency and initial clip state in the Preview envelope", async () => {
+    const source = generation();
+    source.artifacts.definition.scene.nodes.model =
+      presentationDefinitionSchema.parse(definitionFixture).scene.nodes.model!;
+    source.artifacts.renderBundle.models = renderBundleSchema.parse(bundleFixture).models;
+    source.artifacts.assetSet.assets["model-asset"] =
+      assetSetManifestSchema.parse(assetSetFixture).assets["model-asset"]!;
+    const modelBytes = new Uint8Array(64).fill(45);
+    const modelHash = `sha256:${createHash("sha256").update(modelBytes).digest("hex")}`;
+    source.artifacts.assetSet.assets["model-asset"]!.checksum = modelHash;
+    source.artifacts.renderBundle.models["model-asset"]!.checksum = modelHash;
+    const readAsset = source.readAsset;
+    source.readAsset = async (id) =>
+      id === "model-asset" ? { bytes: modelBytes, mediaType: "model/gltf-binary" } : readAsset(id);
+    source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+      source.artifacts.definition,
+    );
+    source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+    source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+      source.artifacts.renderBundle,
+    );
+    source.artifacts.buildManifest.assetSetHash = hashCanonicalJsonPayload(
+      source.artifacts.assetSet,
+    );
+    const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+    const loaded = await service.load({ requestId: requestA, channel: "dist" });
+    expect(loaded.projection?.modelResidency?.models).toEqual([
+      expect.objectContaining({ assetId: "model-asset", checksum: modelHash }),
+    ]);
+    expect(loaded.initialState?.modelClipStates).toEqual([
+      expect.objectContaining({ modelNodeId: "model", defaultPose: {} }),
+    ]);
   });
 });

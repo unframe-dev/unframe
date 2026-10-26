@@ -3,10 +3,10 @@ import { createNativeEditorConfiguration } from "../../../scripts/unity/prepare-
 
 const dependencies = {
   "com.cysharp.yetanotherhttphandler": "handler-version",
+  "com.unity.cloud.gltfast": "model-version",
   "com.unity.render-pipelines.universal": "pipeline-version",
   "com.unity.test-framework": "test-version",
   "com.unity.nuget.newtonsoft-json": "json-version",
-  "com.unity.cloud.gltfast": "gltf-version",
   "com.unity.ugui": "ui-version",
   "com.unity.inputsystem": "input-version",
   "unused-package": "unused-version",
@@ -17,16 +17,16 @@ describe("native Unity test configuration", () => {
     expect(createNativeEditorConfiguration({ dependencies }, []).manifest).toEqual({
       dependencies: {
         "com.cysharp.yetanotherhttphandler": "handler-version",
+        "com.unity.cloud.gltfast": "model-version",
         "com.unity.render-pipelines.universal": "pipeline-version",
         "com.unity.test-framework": "test-version",
         "com.unity.nuget.newtonsoft-json": "json-version",
-        "com.unity.cloud.gltfast": "gltf-version",
         "com.unity.ugui": "ui-version",
         "com.unity.inputsystem": "input-version",
-        "com.unity.modules.video": "1.0.0",
-        "com.unity.modules.audio": "1.0.0",
         "com.unity.modules.jsonserialize": "1.0.0",
         "com.unity.modules.animation": "1.0.0",
+        "com.unity.modules.video": "1.0.0",
+        "com.unity.modules.audio": "1.0.0",
         "com.unity.modules.imageconversion": "1.0.0",
         "com.unity.modules.physics": "1.0.0",
         "com.unity.modules.xr": "1.0.0",
@@ -41,6 +41,7 @@ describe("native Unity test configuration", () => {
       name: "UnframeNativeTests",
       references: [
         "UnframeNativeRuntime",
+        "glTFast",
         "Cysharp.Net.Http.YetAnotherHttpHandler",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.RenderPipelines.Core.Runtime",

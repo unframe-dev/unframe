@@ -202,6 +202,8 @@ public sealed class PresentationBakedRenderingEditModeTests
 
     private sealed class StaticRenderView : IPresentationRenderView
     {
+        public bool TryGetMediaState(string id, out MediaRuntimeState value) { value = null; return false; }
+        public bool TryGetModelClipState(string id, out ModelClipRuntimeState value) { value = null; return false; }
         private readonly IEnumerable<NodeRuntimeState> nodes;
         private readonly IEnumerable<SurfaceRuntimeState> surfaces;
 

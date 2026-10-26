@@ -25,7 +25,7 @@ describe("Runtime Assignment migration", () => {
       repository.register("migration-provisioning-edge", {
         runtimeId: "registered-runtime",
         runtimeVersion: "current",
-        protocolVersion: "v2",
+        protocolVersion: "v3",
         capacity: 1,
         localEndpoint: "https://edge.example.test",
         certificateFingerprint: `sha256:${"a".repeat(64)}`,

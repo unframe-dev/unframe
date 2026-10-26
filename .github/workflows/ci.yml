@@ -2,7 +2,7 @@ name: CI
 
 # オーケストレーション。変更のあった領域だけ reusable workflow を呼び、
 # 最後に集約ゲート (job: ci) を必須チェックにする。
-# 各領域の実体: control-plane.yml / presentation.yml / realtime.yml / web.yml / lp.yml / unity.yml。
+# 各領域の実体: control-plane.yml / presentation.yml / realtime.yml / web.yml / local-editor.yml / lp.yml / unity.yml。
 #
 # paths-ignore は設けない。docs-only PR でも workflow を起動し、changes で全領域が
 # skip → 集約 job `CI` が成功することで、必須ステータスチェックが常に報告される。
@@ -38,6 +38,7 @@ jobs:
       control-plane: ${{ steps.filter.outputs.control-plane }}
       realtime: ${{ steps.filter.outputs.realtime }}
       web: ${{ steps.filter.outputs.web }}
+      local-editor: ${{ steps.filter.outputs.local-editor }}
       presentation: ${{ steps.filter.outputs.presentation }}
       lp: ${{ steps.filter.outputs.lp }}
       unity: ${{ steps.filter.outputs.unity }}
@@ -84,6 +85,15 @@ jobs:
               - 'scripts/ci/web.sh'
               - 'app/web/**'
               - 'packages/api-client-typescript/**'
+              - 'packages/contracts/**'
+              - 'app/server/control-plane/**'
+            local-editor:
+              - *shared
+              - *js-shared
+              - '.github/workflows/local-editor.yml'
+              - 'app/local-editor/**'
+              - 'packages/unframe-*/**'
+              - 'packages/contracts/**'
             presentation:
               - *shared
               - *js-shared
@@ -125,6 +135,12 @@ jobs:
     if: needs.changes.outputs.web == 'true'
     uses: ./.github/workflows/web.yml
 
+  local-editor:
+    name: Local Editor
+    needs: changes
+    if: needs.changes.outputs.local-editor == 'true'
+    uses: ./.github/workflows/local-editor.yml
+
   presentation:
     name: Presentation Packages
     needs: changes
@@ -146,7 +162,7 @@ jobs:
   ci:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
-    needs: [changes, control-plane, realtime, web, presentation, lp, unity]
+    needs: [changes, control-plane, realtime, web, local-editor, presentation, lp, unity]
     if: always()
     runs-on: ubuntu-latest
     steps:

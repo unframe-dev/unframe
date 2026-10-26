@@ -40,6 +40,7 @@
           pkgs.gnugrep
           pkgs.gnused
           pkgs.bash
+          pkgs.ffmpeg
         ]
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.bubblewrap
@@ -99,19 +100,6 @@
             <dir>${presentationFonts}/share/fonts</dir>
           </fontconfig>
         '';
-        posixCacheHelper = pkgs.stdenv.mkDerivation {
-          pname = "unframe-posix-cache-helper";
-          version = "1";
-          src = ./packages/unframe-cli/src/filesystem/posix-cache-helper.c;
-          dontUnpack = true;
-          buildPhase = ''
-            $CC -std=c11 -O2 -Wall -Wextra -Werror "$src" -o unframe-posix-cache-helper
-          '';
-          installPhase = ''
-            mkdir -p "$out/bin"
-            cp unframe-posix-cache-helper "$out/bin/"
-          '';
-        };
         darwinOpaqueLauncher = pkgs.stdenv.mkDerivation {
           pname = "unframe-darwin-opaque";
           version = "4";
@@ -156,7 +144,21 @@
             pkgs.stdenv.cc.cc
           ];
         };
+        mediaRuntimeClosure = pkgs.closureInfo {
+          rootPaths = [
+            pkgs.nodejs_22
+            pkgs.bash
+            pkgs.ffmpeg
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.nix-ld
+            pkgs.glibc
+          ];
+        };
         runtimeEnvironment = {
+          UNFRAME_FFMPEG_PATH = "${pkgs.ffmpeg}/bin/ffmpeg";
+          UNFRAME_FFPROBE_PATH = "${pkgs.ffmpeg}/bin/ffprobe";
+          UNFRAME_MEDIA_RUNTIME_CLOSURE = "${mediaRuntimeClosure}/store-paths";
           FONTCONFIG_FILE = presentationFontconfig;
           UNFRAME_PRESENTATION_FONT_DIRECTORY = "${presentationFonts}/share/fonts";
           UNFRAME_PRESENTATION_FONT = "${presentationFonts}/share/fonts/opentype/unframe/NotoSansCJKjp-Regular.otf";
@@ -166,7 +168,6 @@
           UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
           UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";
           UNFRAME_DARWIN_POLICY_NODE = "${pkgs.nodejs_22}/bin/node";
-          UNFRAME_POSIX_HELPER = "${posixCacheHelper}/bin/unframe-posix-cache-helper";
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
           UNFRAME_DARWIN_OPAQUE_LAUNCHER = "${darwinOpaqueLauncher}/bin/unframe-darwin-opaque";
@@ -299,6 +300,7 @@
             extraRuntimeInputs = [
               pkgs.openssl
               pkgs.caddy
+              pkgs.ffmpeg
             ];
           };
           presentation-sample = mkApp {
@@ -316,6 +318,10 @@
           realtime = mkApp {
             name = "realtime";
             script = "ci/realtime.sh";
+          };
+          local-editor = mkApp {
+            name = "local-editor";
+            script = "ci/local-editor.sh";
           };
           web = mkApp {
             name = "web";

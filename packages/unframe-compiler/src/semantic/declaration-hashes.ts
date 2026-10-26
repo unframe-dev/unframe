@@ -2,6 +2,7 @@ import type {
   ComponentManifest,
   ComponentStructure,
   FrameDeclaration,
+  ModelDeclaration,
   Json,
   OpaqueSurfaceSemanticAdapter,
   SemanticNodeDeclaration,
@@ -38,8 +39,11 @@ const opaqueSurface = (value: OpaqueSurfaceSemanticAdapter): JsonRecord => ({
   ),
 });
 
-const structureRoot = (value: SurfaceDeclaration | FrameDeclaration): JsonRecord => {
+const structureRoot = (
+  value: SurfaceDeclaration | FrameDeclaration | ModelDeclaration,
+): JsonRecord => {
   const semantic = withoutSource(value);
+  if (value.kind === "model") return semantic;
   if (value.kind === "surface")
     return {
       ...semantic,

@@ -7,61 +7,33 @@ using UnityEngine;
 
 public sealed class PresentationDeliveryValidationEditModeTests
 {
-    [TestCase("viewer")]
-    [TestCase("unknown-preset")]
-    [TestCase("wrong-hand")]
-    [TestCase("distance")]
-    [TestCase("unrepresentable-distance")]
-    [TestCase("window")]
-    [TestCase("duplicate")]
-    public void MotionGuideMetadataIsValidatedBeforeUse(string invalid)
-    {
-        DeliveryManifest delivery = CreateFixture();
-        var guide = new ProjectedMotionGuideDefinition
-        {
-            GroupId = "main",
-            StepId = "start",
-            CueId = "move",
-            Preset = (MotionGuidePreset)1,
-            Hand = (MotionGuideHand)1,
-            MinimumDistanceMeters = .2,
-            WindowMs = 1000,
-        };
-        delivery.ProjectionProfile.RuntimeCatalog.MotionGuides.Add(guide);
-        switch (invalid)
-        {
-            case "viewer": delivery.ProjectionProfile.Key.Role = SessionRole.Viewer; break;
-            case "unknown-preset": guide.Preset = (MotionGuidePreset)999; break;
-            case "wrong-hand": guide.Hand = (MotionGuideHand)4; break;
-            case "distance": guide.MinimumDistanceMeters = double.NaN; break;
-            case "unrepresentable-distance": guide.MinimumDistanceMeters = double.MaxValue; break;
-            case "window": guide.WindowMs = 0; break;
-            case "duplicate": delivery.ProjectionProfile.RuntimeCatalog.MotionGuides.Add(guide.Clone()); break;
-        }
-        Assert.That(new PresentationRuntimeDataStore().TryReceiveDelivery(delivery, out _), Is.False);
-    }
-
-    [Test]
-    public void PresenterCanReceiveMotionGuideMetadata()
-    {
-        DeliveryManifest delivery = CreateFixture();
-        delivery.ProjectionProfile.RuntimeCatalog.MotionGuides.Add(new ProjectedMotionGuideDefinition
-        {
-            GroupId = "main",
-            StepId = "start",
-            CueId = "move",
-            Preset = (MotionGuidePreset)7,
-            Hand = (MotionGuideHand)4,
-            MinimumDistanceMeters = .2,
-            WindowMs = 1000,
-        });
-        AssertAccepted(delivery);
-    }
-
     [Test]
     public void LocalFixture_HasACompleteDeliveryGraph()
     {
         AssertAccepted(CreateFixture());
+    }
+
+    [Test]
+    public void Delivery_RejectsMissingVideoResidencyEvenWithoutVideoSurfaces()
+    {
+        DeliveryManifest delivery = CreateFixture();
+        delivery.Residency.Video = null;
+        AssertRejected(delivery, "video residency");
+    }
+
+    [TestCase("binding")]
+    [TestCase("encoded")]
+    [TestCase("decoders")]
+    [TestCase("frames")]
+    public void Delivery_RejectsNonemptyVideoResidencyWithoutVideoSurfaces(string field)
+    {
+        DeliveryManifest delivery = CreateFixture();
+        delivery.Residency.Video = new VideoResidencyPlan();
+        if (field == "binding") delivery.Residency.Video.Videos.Add(new VideoResidencyBinding { AssetId = "asset:absent" });
+        else if (field == "encoded") delivery.Residency.Video.TotalEncodedBytes = 1;
+        else if (field == "decoders") delivery.Residency.Video.MaximumConcurrentDecoders = 1;
+        else delivery.Residency.Video.MaximumDecodedFrameBytes = 1;
+        AssertRejected(delivery, "video residency");
     }
 
     [Test]

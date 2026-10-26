@@ -13,7 +13,7 @@ import (
 
 func snapshotFixture() *realtimev2.CanonicalRuntimeSnapshot {
 	return &realtimev2.CanonicalRuntimeSnapshot{
-		SchemaVersion: 2, ReliableSequence: 3,
+		SchemaVersion: 3, ReliableSequence: 3, InputEpoch: 1,
 		Clock:              &realtimev2.RuntimeClockSnapshot{Status: &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}},
 		Progression:        &realtimev2.ProgressionRuntimeState{CurrentGroupId: "group", GroupEntryEpoch: 1, CurrentStepId: "step", StepEntryEpoch: 1, Phase: &realtimev2.ProgressionRuntimeState_Stable{Stable: &realtimev2.StableProgression{}}},
 		StepExecution:      &realtimev2.StepExecutionSnapshot{StepEntryEpoch: 1},
@@ -26,10 +26,11 @@ func checkpointFixture(t *testing.T) (*realtimev2.DurableCheckpointEnvelope, *pr
 	if err != nil {
 		t.Fatal(err)
 	}
+	recovery := recoveryEnvelope(t, &realtimev2.RuntimeRecoveryMetadata{StartedAt: "2026-10-22T00:00:00Z", Participants: []*realtimev2.RuntimeParticipantHistory{{ParticipantId: "presenter", Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER}}, CommandEpoch: 1, InputSynchronization: synchronizationFixture()})
 	digest := sha256.Sum256(payload)
 	return &realtimev2.DurableCheckpointEnvelope{
-		SchemaVersion: 2, CheckpointSequence: 1, SessionId: "session", RuntimeId: "runtime", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: publication(), DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64), ReliableSequence: 3, CanonicalSnapshotHash: "sha256:" + hex.EncodeToString(digest[:]), CanonicalSnapshotPayload: payload,
-	}, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}
+		SchemaVersion: 3, RecoveryPayload: recovery.RecoveryPayload, RecoveryHash: recovery.RecoveryHash, CheckpointSequence: 1, SessionId: "session", RuntimeId: "runtime", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: publication(), DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64), ReliableSequence: 3, CanonicalSnapshotHash: "sha256:" + hex.EncodeToString(digest[:]), CanonicalSnapshotPayload: payload,
+	}, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}
 }
 func TestCheckpointRecovery(t *testing.T) {
 	envelope, catalog := checkpointFixture(t)
@@ -63,7 +64,7 @@ func TestCheckpointRejectsPayloadTamperingAndTrustedFenceMismatch(t *testing.T) 
 	}
 }
 func TestSnapshotRejectsMissingActiveOwnedResource(t *testing.T) {
-	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2, Nodes: []*presentationv2.ProjectedNodeDefinition{{NodeId: "node", Owner: &presentationv2.ResourceOwner{Scope: &presentationv2.ResourceOwner_Presentation{Presentation: &presentationv2.PresentationResourceOwner{}}}, Parent: &presentationv2.SpatialParent{Parent: &presentationv2.SpatialParent_Stage{Stage: &presentationv2.StageParent{}}}, Node: &presentationv2.ProjectedNodeDefinition_Container{Container: &presentationv2.ContainerNode{}}}}}
+	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3, Nodes: []*presentationv2.ProjectedNodeDefinition{{NodeId: "node", Owner: &presentationv2.ResourceOwner{Scope: &presentationv2.ResourceOwner_Presentation{Presentation: &presentationv2.PresentationResourceOwner{}}}, Parent: &presentationv2.SpatialParent{Parent: &presentationv2.SpatialParent_Stage{Stage: &presentationv2.StageParent{}}}, Node: &presentationv2.ProjectedNodeDefinition_Container{Container: &presentationv2.ContainerNode{}}}}}
 	if err := ValidateSnapshot(snapshotFixture(), catalog, 1); err == nil {
 		t.Fatal("missing active Node state admitted")
 	}
@@ -177,5 +178,69 @@ func TestSnapshotRejectsModelRunWithDefaultPose(t *testing.T) {
 	snapshot.ActiveRuns[0].GetModelClip().GetCrossfade().TransitionClock.GetPlaying().ReferenceRuntimeTimeMs = 1900
 	if err := ValidateSnapshot(snapshot, catalog, 1); err == nil {
 		t.Fatal("crossfade at its transition deadline admitted")
+	}
+}
+
+func TestCheckpointRecoveryRejectsTerminatingRuntime(t *testing.T) {
+	for _, reason := range []realtimev2.TerminationReason{
+		realtimev2.TerminationReason_TERMINATION_REASON_EXPLICIT_END,
+		realtimev2.TerminationReason_TERMINATION_REASON_CONTROL_PLANE_ENDED,
+		realtimev2.TerminationReason_TERMINATION_REASON_PAUSE_TIMEOUT,
+	} {
+		t.Run(reason.String(), func(t *testing.T) {
+			metadata, catalog := checkpointFixture(t)
+			snapshot := snapshotFixture()
+			snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Terminating{Terminating: &realtimev2.Terminating{Reason: reason}}
+			checkpoint, err := EncodeCheckpoint(snapshot, metadata, catalog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if recovered, err := DecodeCheckpoint(checkpoint, checkpoint, catalog); err == nil || recovered != nil {
+				t.Fatal("terminating checkpoint was reopened as paused")
+			}
+		})
+	}
+}
+
+func TestPausedCheckpointRecoveryPreservesRuntimeCut(t *testing.T) {
+	metadata, catalog := checkpointFixture(t)
+	snapshot := snapshotFixture()
+	snapshot.Clock.RuntimeTimeMs = 123
+	snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PROCESS_RECOVERED}}
+	checkpoint, err := EncodeCheckpoint(snapshot, metadata, catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := DecodeCheckpoint(checkpoint, checkpoint, catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proto.Equal(recovered, snapshot) {
+		t.Fatal("paused recovery changed runtime cut")
+	}
+}
+
+func TestCapacityFaultCheckpointRequiresPausedRuntime(t *testing.T) {
+	metadata, catalog := checkpointFixture(t)
+	recovery, err := DecodeRecoveryMetadata(metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovery.CapacityFault = &realtimev2.RuntimeCapacityFault{StepStartStateBytes: 70000, StepStartHistoryBytes: 70004, CanonicalSnapshotBytes: 140100}
+	metadata.RecoveryPayload, err = proto.Marshal(recovery)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := snapshotFixture()
+	if _, err := EncodeCheckpoint(snapshot, metadata, catalog); err == nil {
+		t.Fatal("running capacity fault accepted")
+	}
+	snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION}}
+	if _, err := EncodeCheckpoint(snapshot, metadata, catalog); err != nil {
+		t.Fatal(err)
+	}
+	snapshot.Clock.GetPaused().Reason = realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED
+	if _, err := EncodeCheckpoint(snapshot, metadata, catalog); err != nil {
+		t.Fatal(err)
 	}
 }

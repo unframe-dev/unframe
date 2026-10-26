@@ -1,7 +1,7 @@
 # 腕モーションの判定
 
-本番プレゼンのモーション判定は、Realtime が Unity から受信した頭・左右手の Tracking を使って行います。Cue の既存 Timeline Action で演出を開始する構成は [データ契約](../../../docs/packages/DATA_MODEL.md#腕モーションからの演出開始) を参照してください。接続・表示の手順は [本番プレゼン](production-presentation.md) にまとめています。
+Presenter の Unity client が頭・左右手の Pose から Gesture を認識し、認識開始時の入力 context とともに Runtime へ送ります。Runtime は context と Guard を検証し、Cue / Action / Next を確定します。認識結果の種類と Zone の契約は[データ契約](../../../docs/packages/DATA_MODEL.md#gesture--zone-と共有進行)、接続・表示は[本番プレゼン](production-presentation.md)を参照してください。
 
-旧ローカルリハーサルのモーション進行、仮描画、診断 UI は廃止しました。旧リハーサルの Definition は `app/unity/AuthoringArchive/` に保管しており、本番ビルドには含めません。この原本の演出を利用する場合は、現行コンパイラーが受け付けるプロジェクトへ移して Build を公開する必要があります。
+Author が指定するのは `gesture` の種類だけです。距離・速度・時間窓・使用する手は Presenter client 内部の認識条件で、Authoring や Delivery の設定ではありません。Quest の操作案内は[アプリUI](quest-app-ui.md#本番モーションの3d案内)を参照してください。
 
-現在の Tracking wire はコントローラーのトリガー押下状態を含みません。トリガーを保持しながら腕を動かす操作は本番経路には実装されていません。Unity 側のローカル判定でサーバーのモーション判定を迂回する接続もありません。
+旧ローカルリハーサルのモーション進行と仮描画は廃止しました。原本は `app/unity/AuthoringArchive/` に保管しており、本番ビルドには含めません。利用する場合は現行 Authoring Project へ移し、ビルド・公開します。

@@ -11,21 +11,21 @@ import (
 	"testing"
 )
 
-func TestV2RepeatableCueRespectsCooldown(t *testing.T) {
+func TestV3RepeatableCueHasNoCooldown(t *testing.T) {
 	s, _ := reviewSession(t)
 	var cue v2Cue
-	_ = json.Unmarshal([]byte(`{"id":"repeat","trigger":{"kind":"logicalInput","action":"next"},"firePolicy":{"kind":"repeatable","cooldownMilliseconds":100},"next":{"kind":"stay"}}`), &cue)
+	_ = json.Unmarshal([]byte(`{"id":"repeat","trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"next":{"kind":"stay"}}`), &cue)
 	g := s.definition.Flow.Groups["intro"]
 	st := g.Steps["start"]
 	st.Cues = []v2Cue{cue}
 	g.Steps["start"] = st
 	s.definition.Flow.Groups["intro"] = g
-	for i, id := range []string{"first", "second"} {
-		out, _, err := s.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "p"}, &realtimev2.LogicalInputCommand{ClientEventId: id, LogicalEventName: "next"})
+	for _, id := range []string{"first", "second"} {
+		out, _, err := s.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "p"}, v3TestLogicalInput(s, &realtimev2.LogicalInputCommand{ClientEventId: id, LogicalEventName: "next"}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if i == 0 && out.GetAccepted().GetCueCommitted() == nil || i == 1 && out.GetAccepted().GetCueNotSelected() == nil {
+		if out.GetAccepted().GetCueCommitted() == nil {
 			t.Fatalf("cooldown outcome %v", out)
 		}
 	}
@@ -40,7 +40,7 @@ func TestV2LeaveFailureReleasesPresence(t *testing.T) {
 	if err := s.LeaveParticipant(context.Background(), id); err == nil {
 		t.Fatal("expected persistence failure")
 	}
-	_, presence, _, closeSub := s.SnapshotPresenceAndSubscribe()
+	_, presence, _, closeSub, _ := s.SnapshotPresenceAndSubscribe()
 	defer closeSub()
 	if len(presence.Participants) != 0 {
 		t.Fatal("disconnected participant still present")
@@ -125,7 +125,7 @@ func TestV2SemanticEventResolvesInteractionCatalog(t *testing.T) {
 	st.Cues = []v2Cue{cue}
 	g.Steps["start"] = st
 	s.definition.Flow.Groups["intro"] = g
-	out, _, err := s.SurfaceInteraction(session.Identity{ParticipantID: "p", Role: session.RolePresenter}, &realtimev2.SurfaceInteractionCommand{ClientEventId: "tap", SurfaceId: "screen", InteractionId: "tap"})
+	out, _, err := s.SurfaceInteraction(session.Identity{ParticipantID: "p", Role: session.RolePresenter}, v3TestSurfaceInteraction(s, &realtimev2.SurfaceInteractionCommand{ClientEventId: "tap", SurfaceId: "screen", InteractionId: "tap"}))
 	if err != nil || out.GetAccepted().GetCueCommitted().GetCueId() != "semantic" {
 		t.Fatalf("semantic outcome=%v err=%v", out, err)
 	}
@@ -146,7 +146,7 @@ func TestV2TimelineClaimsRejectStopAndPatchAtomically(t *testing.T) {
 	var cue v2Cue
 	_ = json.Unmarshal([]byte(`{"id":"stop-patch","firePolicy":{"kind":"repeatable"},"actions":[{"kind":"timeline.stop","timelineId":"one"},{"kind":"node.patch","nodeId":"node","patch":{"opacity":{"kind":"literal","value":0.3}}}],"next":{"kind":"stay"}}`), &cue)
 	events, reject, err := s.applySelectedV2Cue(cue, "event")
-	if err != nil || reject == nil || len(events) != 0 || len(s.snapshot.ActiveRuns) != 1 || s.snapshot.NodeStates[0].Opacity != 0 || len(s.snapshot.StepExecution.Cooldowns) != 0 {
+	if err != nil || reject == nil || len(events) != 0 || len(s.snapshot.ActiveRuns) != 1 || s.snapshot.NodeStates[0].Opacity != 0 {
 		t.Fatalf("conflicting batch events=%v reject=%v err=%v", events, reject, err)
 	}
 }
@@ -186,7 +186,7 @@ func TestV2TimelineInterpolationUsesEasingAndQuaternionShortestArc(t *testing.T)
 func TestV2EnabledInputsFilterPolicyAndSystemActors(t *testing.T) {
 	s, _ := reviewSession(t)
 	var cue v2Cue
-	_ = json.Unmarshal([]byte(`{"id":"next","trigger":{"kind":"logicalInput","action":"next","actor":{"kind":"presenter"}},"firePolicy":{"kind":"repeatable"}}`), &cue)
+	_ = json.Unmarshal([]byte(`{"id":"next","trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"}}`), &cue)
 	g := s.definition.Flow.Groups["intro"]
 	st := g.Steps["start"]
 	st.Cues = []v2Cue{cue}
@@ -194,10 +194,6 @@ func TestV2EnabledInputsFilterPolicyAndSystemActors(t *testing.T) {
 	s.definition.Flow.Groups["intro"] = g
 	if names := s.EnabledLogicalInputs(s.snapshot); len(names) != 1 || names[0] != "next" {
 		t.Fatalf("inputs=%v", names)
-	}
-	s.snapshot.StepExecution.Cooldowns = []*realtimev2.CueCooldown{{CueId: "next", NextEligibleRuntimeTimeMs: 10}}
-	if names := s.EnabledLogicalInputs(s.snapshot); len(names) != 0 {
-		t.Fatalf("cooldown inputs=%v", names)
 	}
 	s.snapshot.Clock.RuntimeTimeMs = 10
 	if names := s.EnabledLogicalInputs(s.snapshot); len(names) != 1 {

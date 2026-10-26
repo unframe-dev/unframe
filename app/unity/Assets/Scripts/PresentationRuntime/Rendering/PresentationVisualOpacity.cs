@@ -9,6 +9,7 @@ namespace Unframe.Unity.PresentationRuntime
         private sealed class ColorBinding
         {
             public Material Material;
+            public Material OriginalMaterial;
             public string Property;
             public Color Original;
         }
@@ -42,6 +43,18 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 Color color = binding.Original;
                 color.a *= clampedOpacity;
+                binding.Material.CopyPropertiesFromMaterial(binding.OriginalMaterial);
+                binding.Material.shaderKeywords = binding.OriginalMaterial.shaderKeywords;
+                binding.Material.renderQueue = binding.OriginalMaterial.renderQueue;
+                binding.Material.SetOverrideTag("RenderType", binding.OriginalMaterial.GetTag("RenderType", false, ""));
+                if (clampedOpacity < 1)
+                {
+                    ConfigureTransparency(binding.Material);
+                    if (binding.Material.HasProperty("alphaCutoff"))
+                        binding.Material.SetFloat("alphaCutoff", binding.OriginalMaterial.GetFloat("alphaCutoff") * clampedOpacity);
+                    if (binding.Material.HasProperty("_Cutoff"))
+                        binding.Material.SetFloat("_Cutoff", binding.OriginalMaterial.GetFloat("_Cutoff") * clampedOpacity);
+                }
                 binding.Material.SetColor(binding.Property, color);
             }
         }
@@ -64,7 +77,7 @@ namespace Unframe.Unity.PresentationRuntime
                     continue;
                 }
 
-                string property = source.HasProperty("_BaseColor") ? "_BaseColor" : source.HasProperty("_Color") ? "_Color" : null;
+                string property = source.HasProperty("baseColorFactor") ? "baseColorFactor" : source.HasProperty("_BaseColor") ? "_BaseColor" : source.HasProperty("_Color") ? "_Color" : null;
                 if (property == null)
                 {
                     continue;
@@ -72,12 +85,12 @@ namespace Unframe.Unity.PresentationRuntime
 
                 Material material = new Material(source);
                 material.name = source.name + " (Presentation Opacity)";
-                ConfigureTransparency(material);
                 materials[index] = material;
                 ownedMaterials.Add(material);
                 bindings.Add(new ColorBinding
                 {
                     Material = material,
+                    OriginalMaterial = source,
                     Property = property,
                     Original = material.GetColor(property),
                 });
@@ -110,18 +123,19 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static void ConfigureTransparency(Material material)
         {
-            if (!material.HasProperty("_Surface"))
+            if (!material.HasProperty("_ZWrite"))
             {
                 return;
             }
 
-            material.SetFloat("_Surface", 1f);
+            if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 1f);
+            else material.EnableKeyword("_ALPHABLEND_ON");
             material.SetFloat("_Blend", 0f);
             material.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
             material.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             material.SetFloat("_ZWrite", 0f);
             material.SetOverrideTag("RenderType", "Transparent");
-            material.DisableKeyword("_ALPHATEST_ON");
+
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;

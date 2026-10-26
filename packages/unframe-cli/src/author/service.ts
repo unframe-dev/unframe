@@ -24,6 +24,10 @@ import { readBuildGeneration } from "../filesystem/read-build-generation.js";
 import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
 import {
+  createSourceAssetAssemblyCarrier,
+  resolveDevProjectSourceAssets,
+} from "../filesystem/source-assets.js";
+import {
   AuthorError,
   type AuthorDiagnostic,
   type AuthorService,
@@ -204,15 +208,23 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
     loaded.value.assemblyCarrier.componentLocks,
   );
   const catalog = checkAuthoringProject(source);
+  const sourceAssets = await resolveDevProjectSourceAssets(found.assetSources, found.localFiles);
   const checked =
-    frozen.length === 0
-      ? checkAuthoringProjectAssembly(source, loaded.value.assemblyCarrier)
+    frozen.length === 0 && sourceAssets.ok
+      ? checkAuthoringProjectAssembly(
+          source,
+          createSourceAssetAssemblyCarrier(loaded.value.assemblyCarrier, sourceAssets.value.assets),
+          sourceAssets.value.sourceAssetBytes,
+        )
       : undefined;
   const diagnostics: AuthorDiagnostic[] = [
     ...styleDiagnostics(prepared.diagnostics),
     ...frozen.map((item) =>
       diagnostic(item.code, "Source differs from its frozen lock.", [item.path]),
     ),
+    ...(!sourceAssets.ok
+      ? [diagnostic(sourceAssets.code, sourceAssets.message, [sourceAssets.path])]
+      : []),
     ...(!catalog.valid ? catalog.diagnostics.map(sourceDiagnostic) : []),
     ...(checked && !checked.valid
       ? checked.diagnostics.map((item) =>
@@ -327,8 +339,12 @@ export const createAuthorService = async (
     run?: (input: RunPresentationCliInput) => ReturnType<typeof runPresentationCli>;
     readPublishedArtifacts?: typeof readPublishedArtifacts;
     artifactRetention?: { maxGenerations?: number; maxBytes?: number };
+    maxCompletedJobs?: number;
   } = {},
 ): Promise<AuthorService> => {
+  const maxCompletedJobs = options.maxCompletedJobs ?? 64;
+  if (!Number.isSafeInteger(maxCompletedJobs) || maxCompletedJobs < 1)
+    throw new TypeError("Invalid completed job limit");
   await prepareAuthorStorage(directory);
   const initial = await acquireSourceLock(directory, { allowRecovery: true });
   if (!initial.ok) fail(409, initial.code, "Project source is busy or requires recovery.");
@@ -352,6 +368,15 @@ export const createAuthorService = async (
     string,
     { revision: string; buildId: string; channel: "dev" | "dist" }
   >();
+  const completed: { buildId: string; requestId: string }[] = [];
+  const retainCompleted = (buildId: string, requestId: string) => {
+    completed.push({ buildId, requestId });
+    while (completed.length > maxCompletedJobs) {
+      const stale = completed.shift()!;
+      jobs.delete(stale.buildId);
+      requests.delete(stale.requestId);
+    }
+  };
   const artifacts = new AuthorArtifactCache(
     options.artifactRetention?.maxGenerations,
     options.artifactRetention?.maxBytes,
@@ -469,7 +494,16 @@ export const createAuthorService = async (
         const lockBytes = encoder.encode(canonicalizeJsonPayload(nextLock) + "\n");
         const loaded = loadUnframeLock(lockBytes);
         if (!loaded.ok) fail(422, loaded.diagnostic.code, loaded.diagnostic.message);
-        const checked = checkAuthoringProjectAssembly(source, loaded.value.assemblyCarrier);
+        const sourceAssets = await resolveDevProjectSourceAssets(
+          current.found.assetSources,
+          current.found.localFiles,
+        );
+        if (!sourceAssets.ok) fail(422, sourceAssets.code, sourceAssets.message);
+        const checked = checkAuthoringProjectAssembly(
+          source,
+          createSourceAssetAssemblyCarrier(loaded.value.assemblyCarrier, sourceAssets.value.assets),
+          sourceAssets.value.sourceAssetBytes,
+        );
         if (!checked.valid)
           fail(
             422,
@@ -654,6 +688,7 @@ export const createAuthorService = async (
               }
             })().finally(() => {
               active.delete(buildId);
+              retainCompleted(buildId, requestId);
             });
           };
           return job;

@@ -1,6 +1,7 @@
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { cp, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +19,7 @@ import {
   hashPackageLocator,
 } from "../src/filesystem/lock.js";
 import { lockedFile } from "../src/filesystem/package-snapshot.js";
+import { clearSourceAssetRegistration, sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
 const reference = join(dirname(fileURLToPath(import.meta.url)), "../../../examples/presentation");
@@ -39,7 +41,7 @@ export const Hero = defineComponent({
 const createProject = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-react-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const discovery = await discoverPresentationProjectFiles(directory);
   assert(discovery.ok);
   const loaded = loadUnframeLock(discovery.lockBytes);
@@ -63,6 +65,7 @@ const createProject = async () => {
       variables: {},
     },
   };
+  await clearSourceAssetRegistration(directory, discovery.entryFile);
   await writeFile(
     join(directory, "unframe.lock"),
     canonicalizeJsonPayload({ ...loaded.value.lock, assets: [] }) + "\n",
@@ -353,6 +356,7 @@ describe("React frozen CLI path", () => {
           ...lock.value.virtualSource,
         },
         lock.value.assemblyCarrier,
+        sourceAssetBytesFor(discovered, lock.value.lock.assets),
       );
       if (!checked.valid) throw new Error(JSON.stringify(checked.diagnostics));
       const componentLock = lock.value.lock.componentLocks.find(

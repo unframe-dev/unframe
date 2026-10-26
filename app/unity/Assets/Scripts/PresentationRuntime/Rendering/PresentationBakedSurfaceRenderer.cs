@@ -65,9 +65,8 @@ namespace Unframe.Unity.PresentationRuntime
                     // while child orders composite partitions independently of their off-center bounds.
                     sortingGroups.Add(host.AddComponent<SortingGroup>());
                 }
-                GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                GameObject quad = CreateQuad();
                 quad.name = surface.RenderSurfaceId;
-                PresentationTextureResidency.Destroy(quad.GetComponent<Collider>());
                 quad.transform.SetParent(host.transform, false);
                 LogicalBounds bounds = surface.LogicalBounds;
                 double fitX = semantic.PhysicalSizeMeters.X / semantic.LogicalSize.X;
@@ -129,8 +128,17 @@ namespace Unframe.Unity.PresentationRuntime
         public bool TryPickInteraction(Ray ray, IPresentationRenderView view, PresentationTextureResidency textures,
             out string surfaceId, out string interactionId)
         {
+            bool picked = TryPickInteraction(ray, view, textures, out surfaceId, out interactionId, out _);
+            if (!picked) { surfaceId = null; interactionId = null; }
+            return picked;
+        }
+
+        public bool TryPickInteraction(Ray ray, IPresentationRenderView view, PresentationTextureResidency textures,
+            out string surfaceId, out string interactionId, out float surfaceDistance)
+        {
             surfaceId = null;
             interactionId = null;
+            surfaceDistance = float.PositiveInfinity;
             Partition nearest = null;
             PresentationNormalizedPoint point = default;
             float nearestDistance = float.PositiveInfinity;
@@ -152,6 +160,8 @@ namespace Unframe.Unity.PresentationRuntime
                 nearestDistance = distance;
             }
             if (nearest == null) return false;
+            surfaceId = nearest.Surface.SemanticSurfaceId;
+            surfaceDistance = nearestDistance;
             foreach (ProjectedSemanticSurface semantic in view.SemanticSurfaces)
             {
                 if (semantic.SemanticSurfaceId != nearest.Surface.SemanticSurfaceId) continue;
@@ -195,9 +205,25 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (Partition partition in partitions) if (partition.Renderer != null) partition.Renderer.enabled = false;
         }
 
+        internal static GameObject CreateQuad()
+        {
+            var quad = new GameObject("Surface", typeof(MeshFilter), typeof(MeshRenderer));
+            var mesh = new Mesh { name = "Presentation surface" };
+            mesh.vertices = new[] { new UnityEngine.Vector3(-.5f, -.5f, 0), new UnityEngine.Vector3(.5f, -.5f, 0), new UnityEngine.Vector3(-.5f, .5f, 0), new UnityEngine.Vector3(.5f, .5f, 0) };
+            mesh.uv = new[] { new UnityEngine.Vector2(0, 0), new UnityEngine.Vector2(1, 0), new UnityEngine.Vector2(0, 1), new UnityEngine.Vector2(1, 1) };
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            quad.GetComponent<MeshFilter>().sharedMesh = mesh;
+            return quad;
+        }
+
         private void Clear()
         {
-            foreach (Partition partition in partitions) PresentationTextureResidency.Destroy(partition.Object);
+            foreach (Partition partition in partitions)
+            {
+                if (partition.Object != null) PresentationTextureResidency.Destroy(partition.Object.GetComponent<MeshFilter>().sharedMesh);
+                PresentationTextureResidency.Destroy(partition.Object);
+            }
             partitions.Clear();
         }
 

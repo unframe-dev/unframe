@@ -28,6 +28,8 @@ namespace Unframe.Unity.PresentationRuntime
         private bool menuOpen = true;
         private bool wasAudience;
         private bool detailsOpen;
+        private bool stepsOpen;
+        private int stepPage;
         private QuestOnboardingView onboarding;
         private bool OnboardingActive => onboarding != null && !onboarding.IsComplete;
         private bool confirmEnd;
@@ -151,17 +153,32 @@ namespace Unframe.Unity.PresentationRuntime
             SetVisible("Retry", !confirmEnd && ((detailsOpen && entry?.IsRunning == true) || !String.IsNullOrEmpty(error)));
             SetEnabled("Retry", !busy && session != null && session.HasConnectionSettings);
             SetVisible("Exit", detailsOpen && !confirmEnd);
+            SetVisible("Steps", !AudienceMode && !confirmEnd && detailsOpen);
+            SetEnabled("Steps", !busy && entry?.CanControl == true && entry.ReachedSteps.Count > 0);
+            SetVisible("PreviousSteps", stepsOpen && !AudienceMode && !confirmEnd);
+            SetEnabled("PreviousSteps", stepPage > 0);
+            SetVisible("MoreSteps", stepsOpen && !AudienceMode && !confirmEnd);
+            SetEnabled("MoreSteps", (stepPage + 1) * 3 < (entry?.ReachedSteps.Count ?? 0));
+            for (int i = 0; i < 3; i++)
+            {
+                int index = stepPage * 3 + i;
+                bool exists = stepsOpen && !AudienceMode && !confirmEnd && entry != null && index < entry.ReachedSteps.Count;
+                SetVisible("Step" + i, exists);
+                SetEnabled("Step" + i, !busy && entry?.CanControl == true);
+                if (exists) FindButton("Step" + i).GetComponentInChildren<Text>().text = entry.ReachedSteps[index].GroupId + " / " + entry.ReachedSteps[index].StepId;
+            }
             SetEnabled("Exit", session != null && (session.HasConnectionSettings || entry?.IsRunning == true));
             LayoutActions();
         }
 
         private static readonly string[] ConfirmActions = { "ConfirmEnd", "CancelEnd" };
-        private static readonly string[] SettingsActions = { "Align", "CameraPermission", "Retry", "Connect", "End", "Exit", "Details" };
+        private static readonly string[] SettingsActions = { "Align", "CameraPermission", "Retry", "Connect", "End", "Exit", "Steps", "Details" };
+        private static readonly string[] StepActions = { "Step0", "Step1", "Step2", "PreviousSteps", "MoreSteps", "Details" };
         private static readonly string[] MainActions = { "Resume", "Pause", "Next", "Close", "Align", "CameraPermission", "Retry", "Details" };
 
         private void LayoutActions()
         {
-            string[] order = confirmEnd ? ConfirmActions : detailsOpen ? SettingsActions : MainActions;
+            string[] order = confirmEnd ? ConfirmActions : stepsOpen ? StepActions : detailsOpen ? SettingsActions : MainActions;
             int count = 0;
             foreach (string name in order)
             {
@@ -173,7 +190,12 @@ namespace Unframe.Unity.PresentationRuntime
                 button.GetComponentInChildren<Text>().rectTransform.sizeDelta = rect.sizeDelta;
                 count++;
             }
-            SetVisible("Close", !confirmEnd && !detailsOpen);
+            SetVisible("Close", !confirmEnd && !detailsOpen && !stepsOpen);
+            if (stepsOpen)
+            {
+                foreach (Button button in buttons)
+                    if (Array.IndexOf(StepActions, button.name) < 0) button.gameObject.SetActive(false);
+            }
         }
 
         public void SetMenuOpen(bool open)
@@ -385,7 +407,7 @@ namespace Unframe.Unity.PresentationRuntime
             AddButton("End", "発表を終了", 4, () => { confirmEnd = true; Refresh(); });
             AddButton("Align", "位置合わせ", 5, ResetCalibration);
             AddButton("Close", "資料を見る", 6, () => SetMenuOpen(false));
-            AddButton("Details", "詳細と再接続", 7, () => { detailsOpen = !detailsOpen; Refresh(); });
+            AddButton("Details", "詳細と再接続", 7, () => { if (stepsOpen) stepsOpen = false; else detailsOpen = !detailsOpen; Refresh(); });
             AddButton("Retry", "再接続", 8, () => RunOperation(() => session.RetryAsync()));
             AddButton("Exit", "接続を解除", 9, () =>
             {
@@ -395,6 +417,22 @@ namespace Unframe.Unity.PresentationRuntime
             AddButton("CameraPermission", "カメラを許可", 10, () => cameraPreview.RetryCameraPermission());
             AddButton("ConfirmEnd", "終了する", 0, () => { confirmEnd = false; RunOperation(() => entry.EndAsync()); });
             AddButton("CancelEnd", "戻る", 1, () => { confirmEnd = false; Refresh(); });
+            AddButton("Steps", "到達済みの Step", 0, () => { stepsOpen = true; stepPage = 0; Refresh(); });
+            AddButton("PreviousSteps", "前の一覧", 0, () => { stepPage = Math.Max(0, stepPage - 1); Refresh(); });
+            AddButton("MoreSteps", "次の一覧", 0, () => { if ((stepPage + 1) * 3 < (entry?.ReachedSteps.Count ?? 0)) stepPage++; Refresh(); });
+            for (int i = 0; i < 3; i++)
+            {
+                int slot = i;
+                AddButton("Step" + i, "Step", i, () =>
+                {
+                    int index = stepPage * 3 + slot;
+                    if (entry != null && index < entry.ReachedSteps.Count)
+                    {
+                        var step = entry.ReachedSteps[index];
+                        RunOperation(() => entry.ControlAsync(Unframe.Realtime.RuntimeControlKind.SelectStep, step.GroupId, step.StepId));
+                    }
+                });
+            }
             leftAim = CreateAim("Left controller aim", new Color(0.3f, 0.85f, 1));
             rightAim = CreateAim("Right controller aim", new Color(0.45f, 1, 0.65f));
             notice = new GameObject("Audience Notice", typeof(RectTransform), typeof(Canvas), typeof(Image));
@@ -491,6 +529,8 @@ namespace Unframe.Unity.PresentationRuntime
             details = null;
             heading = null;
             buttons.Clear();
+            stepsOpen = false;
+            stepPage = 0;
             panel = null;
             status = null;
             leftAim = null;

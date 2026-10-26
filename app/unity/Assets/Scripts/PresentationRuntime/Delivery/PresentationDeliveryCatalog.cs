@@ -7,9 +7,9 @@ namespace Unframe.Unity.PresentationRuntime
 {
     internal sealed class PresentationDeliveryCatalog
     {
-        private const uint DeliverySchemaVersion = 2;
-        private const uint DeliveryContractVersion = 2;
-        private const uint RuntimeCatalogContractVersion = 2;
+        private const uint DeliverySchemaVersion = 3;
+        private const uint DeliveryContractVersion = 3;
+        private const uint RuntimeCatalogContractVersion = 3;
 
         private readonly Dictionary<string, ProjectedNodeDefinition> nodes = new Dictionary<string, ProjectedNodeDefinition>();
         private readonly Dictionary<string, ProjectedSurfaceDefinition> surfaces = new Dictionary<string, ProjectedSurfaceDefinition>();
@@ -92,7 +92,7 @@ namespace Unframe.Unity.PresentationRuntime
             ContractVersions versions = capability.ContractVersions;
             if (capability.SchemaVersion != DeliverySchemaVersion || !IsId(capability.CapabilityProfileId) || versions == null
                 || versions.Delivery != DeliveryContractVersion || versions.Runtime != RuntimeCatalogContractVersion
-                || versions.Progression != 1 || versions.Projection != 1)
+                || versions.Progression != 2 || versions.Projection != 2)
             {
                 return Fail("delivery capability profile is incompatible.", out error);
             }
@@ -111,24 +111,13 @@ namespace Unframe.Unity.PresentationRuntime
             }
 
             HashSet<RuntimeCapability> requiredCapabilities = new HashSet<RuntimeCapability>();
-            var guideKeys = new HashSet<string>(StringComparer.Ordinal);
-            foreach (ProjectedMotionGuideDefinition guide in catalog.MotionGuides)
-            {
-                int preset = (int)guide.Preset;
-                int hand = (int)guide.Hand;
-                if (key.Role != SessionRole.Presenter || !IsId(guide.GroupId) || !IsId(guide.StepId) || !IsId(guide.CueId)
-                    || preset < 1 || preset > 8 || hand < 1 || hand > 4 || (preset >= 7) != (hand == 4)
-                    || !IsCanonicalFinite(guide.MinimumDistanceMeters) || guide.MinimumDistanceMeters <= 0
-                    || guide.MinimumDistanceMeters > float.MaxValue / 4
-                    || guide.WindowMs == 0 || guide.WindowMs > 9007199254740991UL
-                    || !guideKeys.Add(guide.GroupId + "\0" + guide.StepId + "\0" + guide.CueId))
-                    return Fail("delivery motion guide is invalid.", out error);
-            }
             foreach (RuntimeCapability required in profile.RequiredRuntimeCapabilities)
             {
                 if (required != RuntimeCapability.TimelineRun && required != RuntimeCapability.RuntimeTransport
                     && required != RuntimeCapability.SurfaceTransition && required != RuntimeCapability.Tracking
-                    && required != RuntimeCapability.VideoPlayback && required != RuntimeCapability.ModelClip
+                    && required != RuntimeCapability.ModelClip && required != RuntimeCapability.VideoPlayback
+                    && required != RuntimeCapability.PresenterRecognition && required != RuntimeCapability.InputSynchronization
+                    && required != RuntimeCapability.FrozenAnchors && required != RuntimeCapability.StepRestore
                     || !requiredCapabilities.Add(required))
                 {
                     return Fail("delivery capability is unsupported or duplicated.", out error);
@@ -213,6 +202,7 @@ namespace Unframe.Unity.PresentationRuntime
 
             if (!TryValidateRenderGraph(profile.RenderSurfaces, profile.SemanticSurfaces, capability.Renderers, next.Surfaces, next.Assets, out error)) return false;
             if (!PresentationBakedDeliveryValidation.TryValidate(manifest, out error)) return false;
+            if (!TryValidateVideoResidency(manifest, next, out error)) return false;
             foreach (DeliveredRenderSurface render in profile.RenderSurfaces)
                 foreach (DeliveredArtifact artifact in render.Artifacts)
                     if (artifact.NativeUi != null && artifact.NativeUi.Nodes.Count > 0
@@ -264,12 +254,15 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!TryAdd(renderSurfaces, render == null ? null : render.RenderSurfaceId, render, "render surface", out error)) return false;
                 if (!IsId(render.SemanticSurfaceId) || !semanticSurfaces.ContainsKey(render.SemanticSurfaceId))
                     return Fail("delivery render surface references an unknown semantic surface.", out error);
+                if (render.RendererKind == RendererKind.Video)
+                {
+                    if (!TryValidateVideoSurface(render, surfaces[render.SemanticSurfaceId], assets, renderers?.Video, out error)) return false;
+                    continue;
+                }
                 bool baked = render.RendererKind == RendererKind.BakedWeb;
-                bool video = render.RendererKind == RendererKind.Video;
                 if (render.ArtifactContractVersion == 0 || renderers == null
                     || (baked ? renderers.BakedWeb == null || !renderers.BakedWeb.Supported
                         || renderers.BakedWeb.ContractVersion != render.ArtifactContractVersion
-                        : video ? renderers.Video == null || !renderers.Video.Supported || renderers.Video.ContractVersion != render.ArtifactContractVersion
                         : render.RendererKind != RendererKind.NativeUi || renderers.NativeUi == null
                             || !renderers.NativeUi.Supported || renderers.NativeUi.ContractVersion != render.ArtifactContractVersion))
                     return Fail("delivery renderer capability is unsupported.", out error);
@@ -280,12 +273,10 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     if (artifact == null || (baked ? artifact.ArtifactCase != DeliveredArtifact.ArtifactOneofCase.BakedWeb
                         || artifact.BakedWeb.ContractVersion != render.ArtifactContractVersion
-                        : video ? artifact.ArtifactCase != DeliveredArtifact.ArtifactOneofCase.Video || artifact.Video.ContractVersion != render.ArtifactContractVersion
                         : artifact.ArtifactCase != DeliveredArtifact.ArtifactOneofCase.NativeUi || artifact.NativeUi.ContractVersion != render.ArtifactContractVersion))
                         return Fail("delivery artifact kind or version is incompatible.", out error);
-                    if (!TryAdd(artifacts, baked ? artifact.BakedWeb.ArtifactId : video ? artifact.Video.ArtifactId : artifact.NativeUi.ArtifactId, artifact, "artifact", out error)) return false;
-                    if (video && !PresentationRichDeliveryValidation.TryValidateVideoArtifact(artifact.Video, assets, out error)) return false;
-                    if (!baked && !video && !TryValidateNativeUiArtifact(artifact.NativeUi, assets, out error)) return false;
+                    if (!TryAdd(artifacts, baked ? artifact.BakedWeb.ArtifactId : artifact.NativeUi.ArtifactId, artifact, "artifact", out error)) return false;
+                    if (!baked && !TryValidateNativeUiArtifact(artifact.NativeUi, assets, out error)) return false;
                 }
 
                 HashSet<string> boundStates = new HashSet<string>();
@@ -532,6 +523,134 @@ namespace Unframe.Unity.PresentationRuntime
         private static bool IsAsciiAlphaNumeric(char value) { return value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z' || value >= '0' && value <= '9'; }
 
         private static bool Fail(string message, out string error) { error = message; return false; }
+
+        private static bool TryValidateVideoSurface(DeliveredRenderSurface render, ProjectedSurfaceDefinition surface,
+            Dictionary<string, AssetAccessBinding> assets, VideoCapability capability, out string error)
+        {
+            error = "delivery video artifact is invalid";
+            if (capability == null || !capability.Supported || capability.ContractVersion != 1 || render.ArtifactContractVersion != 1
+                || render.LogicalBounds == null || !IsCanonicalFinite(render.LogicalBounds.X) || !IsCanonicalFinite(render.LogicalBounds.Y)
+                || !IsCanonicalFinite(render.LogicalBounds.Width) || !IsCanonicalFinite(render.LogicalBounds.Height) || render.LogicalBounds.X < 0 || render.LogicalBounds.Y < 0
+                || render.LogicalBounds.Width <= 0 || render.LogicalBounds.Height <= 0
+                || render.LogicalBounds.X + render.LogicalBounds.Width > surface.LogicalSize.X || render.LogicalBounds.Y + render.LogicalBounds.Height > surface.LogicalSize.Y) return false;
+            var artifacts = new HashSet<string>();
+            foreach (var delivered in render.Artifacts)
+            {
+                var video = delivered.Video;
+                if (video == null || video.ContractVersion != 1 || !IsId(video.ArtifactId) || !artifacts.Add(video.ArtifactId) || !assets.TryGetValue(video.VideoAssetId, out var asset)
+                    || asset.MediaType != "video/mp4" || video.Checksum != asset.Checksum || video.EncodedSizeBytes != asset.EncodedSizeBytes
+                    || video.Fit != SurfaceFit.Contain && video.Fit != SurfaceFit.Cover && video.Fit != SurfaceFit.Stretch
+                    || video.Codec != VideoCodec.H264 || video.PixelSize == null || video.PixelSize.Width == 0 || video.PixelSize.Height == 0 || video.DurationMs == 0 || video.HasAlpha) return false;
+                var features = new HashSet<VideoFeature>(); foreach (var feature in video.RequiredFeatures)
+                    if (feature == VideoFeature.Unspecified || !capability.Features.Contains(feature) || !features.Add(feature)) return false;
+            }
+            var ids = new HashSet<string>(); foreach (var binding in render.StateBindings)
+                if (!ids.Add(binding.StateId) || !surface.ReachableStateIds.Contains(binding.StateId)
+                    || binding.BindingCase != DeliveredStateBinding.BindingOneofCase.Empty && (binding.BindingCase != DeliveredStateBinding.BindingOneofCase.Artifact
+                        || !artifacts.Contains(binding.Artifact.ArtifactId))) return false;
+            if (ids.Count != surface.ReachableStateIds.Count) return false;
+            error = null; return true;
+        }
+        internal static bool TryValidateVideoResidency(DeliveryManifest manifest, out string error)
+        {
+            var indexes = new DeliveryIndexes();
+            foreach (ProjectedNodeDefinition node in manifest.ProjectionProfile.RuntimeCatalog.Nodes)
+                indexes.Nodes.Add(node.NodeId, node);
+            foreach (ProjectedSurfaceDefinition surface in manifest.ProjectionProfile.RuntimeCatalog.Surfaces)
+                indexes.Surfaces.Add(surface.SurfaceId, surface);
+            foreach (AssetAccessBinding asset in manifest.AssetAccess) indexes.Assets.Add(asset.AssetId, asset);
+            return TryValidateVideoResidency(manifest, indexes, out error);
+        }
+
+        private static bool TryValidateVideoResidency(DeliveryManifest manifest, DeliveryIndexes indexes, out string error)
+        {
+            error = "delivery video residency or artifact metadata is inconsistent.";
+            VideoResidencyPlan plan = manifest.Residency.Video;
+            if (plan == null) return false;
+            VideoLimits limits = manifest.CapabilityProfile.Limits?.Video;
+            var selected = new Dictionary<string, VideoArtifact>();
+            var groupDecoders = new Dictionary<string, ulong>();
+            var groupFrames = new Dictionary<string, ulong>();
+            ulong persistentDecoders = 0, persistentFrames = 0;
+            try
+            {
+                foreach (DeliveredRenderSurface surface in manifest.ProjectionProfile.RenderSurfaces)
+                {
+                    if (surface.RendererKind != RendererKind.Video) continue;
+                    if (limits == null) return false;
+                    ulong maximumFrame = 0;
+                    foreach (DeliveredArtifact delivered in surface.Artifacts)
+                    {
+                        VideoArtifact video = delivered.Video;
+                        ulong width = video.PixelSize.Width, height = video.PixelSize.Height;
+                        ulong pixels = checked(width * height);
+                        ulong frame = checked(pixels * 4);
+                        if (!IsContentHash(video.Checksum) || video.EncodedSizeBytes == 0
+                            || width > limits.MaxWidth || height > limits.MaxHeight || pixels > limits.MaxPixels) return false;
+                        if (selected.TryGetValue(video.Checksum, out VideoArtifact previous))
+                        {
+                            if (previous.EncodedSizeBytes != video.EncodedSizeBytes || !previous.PixelSize.Equals(video.PixelSize)
+                                || previous.Codec != video.Codec || previous.DurationMs != video.DurationMs
+                                || previous.HasAudio != video.HasAudio || previous.HasAlpha != video.HasAlpha) return false;
+                        }
+                        else selected.Add(video.Checksum, video);
+                        maximumFrame = Math.Max(maximumFrame, frame);
+                    }
+                    if (maximumFrame == 0) continue;
+                    ProjectedSurfaceDefinition semantic = indexes.Surfaces[surface.SemanticSurfaceId];
+                    ResourceOwner owner = indexes.Nodes[semantic.HostNodeId].Owner;
+                    if (owner == null || owner.ScopeCase == ResourceOwner.ScopeOneofCase.None) return false;
+                    if (owner.ScopeCase == ResourceOwner.ScopeOneofCase.Group)
+                    {
+                        string group = owner.Group.GroupId;
+                        if (!IsId(group)) return false;
+                        groupDecoders.TryGetValue(group, out ulong count);
+                        groupFrames.TryGetValue(group, out ulong bytes);
+                        groupDecoders[group] = checked(count + 1);
+                        groupFrames[group] = checked(bytes + maximumFrame);
+                    }
+                    else
+                    {
+                        persistentDecoders = checked(persistentDecoders + 1);
+                        persistentFrames = checked(persistentFrames + maximumFrame);
+                    }
+                }
+                if (selected.Count == 0)
+                {
+                    if (plan.Videos.Count != 0 || plan.TotalEncodedBytes != 0 || plan.MaximumConcurrentDecoders != 0
+                        || plan.MaximumDecodedFrameBytes != 0) return false;
+                    error = null;
+                    return true;
+                }
+                if (!IsId(limits.TierId) || plan.BudgetTierId != limits.TierId || plan.Videos.Count != selected.Count) return false;
+                var seen = new HashSet<string>();
+                ulong encoded = 0;
+                foreach (VideoResidencyBinding binding in plan.Videos)
+                {
+                    if (!seen.Add(binding.Checksum) || !selected.TryGetValue(binding.Checksum, out VideoArtifact video)
+                        || !indexes.Assets.TryGetValue(binding.AssetId, out AssetAccessBinding access)
+                        || access.Checksum != binding.Checksum || access.MediaType != "video/mp4"
+                        || access.EncodedSizeBytes != video.EncodedSizeBytes || binding.EncodedSizeBytes != video.EncodedSizeBytes
+                        || binding.DecodedFrameBytes != checked((ulong)video.PixelSize.Width * video.PixelSize.Height * 4)) return false;
+                    encoded = checked(encoded + binding.EncodedSizeBytes);
+                }
+                ulong decoders = persistentDecoders, frames = persistentFrames;
+                foreach (string group in groupDecoders.Keys)
+                {
+                    decoders = Math.Max(decoders, checked(persistentDecoders + groupDecoders[group]));
+                    frames = Math.Max(frames, checked(persistentFrames + groupFrames[group]));
+                }
+                if (plan.TotalEncodedBytes != encoded || encoded > limits.MaxEncodedBytes
+                    || plan.MaximumConcurrentDecoders != decoders || decoders > limits.MaxConcurrentDecoders
+                    || plan.MaximumDecodedFrameBytes != frames || frames > limits.MaxDecodedFrameBytes) return false;
+            }
+            catch (OverflowException)
+            {
+                return false;
+            }
+            error = null;
+            return true;
+        }
 
         private static string ModelClipKey(string modelNodeId, string clipId) { return modelNodeId + "\n" + clipId; }
 

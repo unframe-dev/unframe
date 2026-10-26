@@ -1,9 +1,19 @@
-import { capabilityProfileSchema, type CapabilityProfile } from "@unframe/contracts/presentation";
+import {
+  createUnityMediaCapabilityProfile,
+  capabilityProfileSchema,
+  runtimeAuthorityVersions,
+  type CapabilityProfile,
+} from "@unframe/contracts/presentation";
 
 const bakedWebQuestProfile = capabilityProfileSchema.parse({
-  schemaVersion: 2,
+  schemaVersion: runtimeAuthorityVersions.capability,
   capabilityProfileId: "quest-baked-web-v1",
-  contractVersions: { delivery: 2, runtime: 2, progression: 1, projection: 1 },
+  contractVersions: {
+    delivery: runtimeAuthorityVersions.delivery,
+    runtime: runtimeAuthorityVersions.runtime,
+    progression: runtimeAuthorityVersions.progression,
+    projection: runtimeAuthorityVersions.projection,
+  },
   renderers: {
     bakedWeb: {
       supported: true,
@@ -61,39 +71,20 @@ const bakedWebQuestProfile = capabilityProfileSchema.parse({
   localOverlaySupported: false,
 });
 
+const unityMediaProfile = createUnityMediaCapabilityProfile();
 const presentationQuestProfile = capabilityProfileSchema.parse({
-  ...bakedWebQuestProfile,
+  ...unityMediaProfile,
   capabilityProfileId: "quest-presentation-v2",
   renderers: {
-    ...bakedWebQuestProfile.renderers,
+    ...unityMediaProfile.renderers,
     nativeUi: {
       supported: true,
       contractVersion: 1,
       features: ["clip"],
     },
-    video: { supported: true, contractVersion: 1, features: ["audio", "h264"] },
-  },
-  model: {
-    supported: true,
-    contractVersion: 1,
-    formats: ["model/gltf-binary"],
-    features: [
-      "animation",
-      "skin",
-      "morphTargets",
-      "alphaBlend",
-      "alphaMask",
-      "pbrMetallicRoughness",
-      "unlit",
-    ],
   },
   limits: {
-    ...bakedWebQuestProfile.limits,
-    texture: {
-      ...bakedWebQuestProfile.limits.texture,
-      tierId: "quest-presentation-v2",
-      maxSerialLoadCpuBytes: 67108864,
-    },
+    ...unityMediaProfile.limits,
     nativeUi: {
       tierId: "quest-presentation-v2",
       maxNodesPerArtifact: 1024,
@@ -103,32 +94,11 @@ const presentationQuestProfile = capabilityProfileSchema.parse({
       maxGlyphs: 8192,
       maxFontAssets: 8,
     },
-    video: {
-      tierId: "quest-presentation-v2",
-      maxWidth: 1920,
-      maxHeight: 1080,
-      maxPixels: 2073600,
-      maxConcurrentDecoders: 1,
-      maxEncodedBytes: 67108864,
-      maxDecodedFrameBytes: 8294400,
-    },
-    model: {
-      tierId: "quest-presentation-v2",
-      maxAssets: 16,
-      maxInstances: 32,
-      maxEncodedBytes: 67108864,
-      maxNodes: 4096,
-      maxPrimitives: 2048,
-      maxVertices: 1000000,
-      maxTriangles: 1000000,
-      maxBonesPerSkin: 128,
-      maxMorphTargetsPerPrimitive: 8,
-      maxAnimationClipsPerAsset: 32,
-    },
   },
 });
 
 export const normalizedCapability = (profileId: string): CapabilityProfile => {
+  if (profileId === "unity-media-v1") return createUnityMediaCapabilityProfile();
   const profile = [bakedWebQuestProfile, presentationQuestProfile].find(
     (candidate) => candidate.capabilityProfileId === profileId,
   );

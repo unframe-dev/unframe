@@ -460,6 +460,7 @@ export interface VideoArtifactWire {
   encodedSizeBytes?: string;
   codec?: number;
   hasAlpha?: boolean;
+  fit?: number;
 }
 
 export interface VideoCapabilityWire {
@@ -557,6 +558,16 @@ export interface PresenterAnchorParentWire {
   followRotation?: boolean;
 }
 
+export interface PresenterRecognitionCatalogWire {
+  gestures?: number[];
+  zones?: PresenterRecognitionZoneWire[];
+}
+
+export interface PresenterRecognitionZoneWire {
+  zoneId?: string;
+  center?: Vector3Wire;
+}
+
 export interface ProjectedModelClipDefinitionWire {
   modelNodeId?: string;
   modelAssetId?: string;
@@ -564,16 +575,6 @@ export interface ProjectedModelClipDefinitionWire {
   sourceAnimationIndex?: number;
   durationMs?: string;
   owner?: ResourceOwnerWire;
-}
-
-export interface ProjectedMotionGuideDefinitionWire {
-  groupId?: string;
-  stepId?: string;
-  cueId?: string;
-  preset?: number;
-  hand?: number;
-  minimumDistanceMeters?: number;
-  windowMs?: string;
 }
 
 export interface ProjectedNodeDefinitionWireFields {
@@ -598,7 +599,7 @@ export interface ProjectedRuntimeCatalogWire {
   variables?: ProjectedVariableDefinitionWire[];
   timelines?: ProjectedTimelineDefinitionWire[];
   modelClips?: ProjectedModelClipDefinitionWire[];
-  motionGuides?: ProjectedMotionGuideDefinitionWire[];
+  presenterRecognition?: PresenterRecognitionCatalogWire;
 }
 
 export interface ProjectedSurfaceDefinitionWire {
@@ -812,6 +813,8 @@ export type LocalPreviewEnvelopeWire = LocalPreviewEnvelopeWireFields &
 export interface LocalPreviewInitialStateWire {
   nodeStates?: NodeRuntimeStateWire[];
   surfaceStates?: SurfaceRuntimeStateWire[];
+  mediaStates?: MediaRuntimeStateWire[];
+  modelClipStates?: ModelClipRuntimeStateWire[];
 }
 
 export interface LocalPreviewPlaybackStateWire {
@@ -822,6 +825,8 @@ export interface LocalPreviewPlaybackStateWire {
   activeRuns?: RuntimeRunSnapshotWire[];
   clock?: RuntimeClockSnapshotWire;
   currentGroupId?: string;
+  mediaStates?: MediaRuntimeStateWire[];
+  modelClipStates?: ModelClipRuntimeStateWire[];
 }
 
 export interface LocalPreviewProjectionWire {
@@ -834,6 +839,8 @@ export interface LocalPreviewProjectionWire {
   requiredRuntimeCapabilities?: number[];
   runtimeCatalog?: ProjectedRuntimeCatalogWire;
   textureResidency?: TextureResidencyPlanWire;
+  modelResidency?: ModelResidencyPlanWire;
+  videoResidency?: VideoResidencyPlanWire;
 }
 
 export interface AnchorBindingUnavailableWire {}
@@ -864,8 +871,10 @@ export interface CanonicalRuntimeSnapshotWire {
   variables?: VariableStateWire[];
   activeRuns?: RuntimeRunSnapshotWire[];
   presentationOrigin?: PresentationOriginWire;
-  recentEventIds?: string[];
   modelClipStates?: ModelClipRuntimeStateWire[];
+  inputEpoch?: string;
+  frozenAnchors?: FrozenAnchorDisplayStateWire[];
+  stepStartHistory?: StepStartStateWire[];
 }
 
 export interface ClipHeldPoseWire {
@@ -927,6 +936,9 @@ export type ControlClientItemWire_item =
       logicalInput?: never;
       surfaceInteraction?: never;
       runtimeControl?: never;
+      gestureInput?: never;
+      zoneInput?: never;
+      inputSynchronizationAck?: never;
     }
   | {
       replayRequest: ReplayRequestWire;
@@ -935,6 +947,9 @@ export type ControlClientItemWire_item =
       logicalInput?: never;
       surfaceInteraction?: never;
       runtimeControl?: never;
+      gestureInput?: never;
+      zoneInput?: never;
+      inputSynchronizationAck?: never;
     }
   | {
       stateReady: StateReadyWire;
@@ -943,6 +958,9 @@ export type ControlClientItemWire_item =
       logicalInput?: never;
       surfaceInteraction?: never;
       runtimeControl?: never;
+      gestureInput?: never;
+      zoneInput?: never;
+      inputSynchronizationAck?: never;
     }
   | {
       logicalInput: LogicalInputCommandWire;
@@ -951,6 +969,9 @@ export type ControlClientItemWire_item =
       stateReady?: never;
       surfaceInteraction?: never;
       runtimeControl?: never;
+      gestureInput?: never;
+      zoneInput?: never;
+      inputSynchronizationAck?: never;
     }
   | {
       surfaceInteraction: SurfaceInteractionCommandWire;
@@ -959,6 +980,9 @@ export type ControlClientItemWire_item =
       stateReady?: never;
       logicalInput?: never;
       runtimeControl?: never;
+      gestureInput?: never;
+      zoneInput?: never;
+      inputSynchronizationAck?: never;
     }
   | {
       runtimeControl: RuntimeControlCommandWire;
@@ -967,6 +991,42 @@ export type ControlClientItemWire_item =
       stateReady?: never;
       logicalInput?: never;
       surfaceInteraction?: never;
+      gestureInput?: never;
+      zoneInput?: never;
+      inputSynchronizationAck?: never;
+    }
+  | {
+      gestureInput: GestureInputCommandWire;
+      handshake?: never;
+      replayRequest?: never;
+      stateReady?: never;
+      logicalInput?: never;
+      surfaceInteraction?: never;
+      runtimeControl?: never;
+      zoneInput?: never;
+      inputSynchronizationAck?: never;
+    }
+  | {
+      zoneInput: ZoneInputCommandWire;
+      handshake?: never;
+      replayRequest?: never;
+      stateReady?: never;
+      logicalInput?: never;
+      surfaceInteraction?: never;
+      runtimeControl?: never;
+      gestureInput?: never;
+      inputSynchronizationAck?: never;
+    }
+  | {
+      inputSynchronizationAck: InputSynchronizationAckWire;
+      handshake?: never;
+      replayRequest?: never;
+      stateReady?: never;
+      logicalInput?: never;
+      surfaceInteraction?: never;
+      runtimeControl?: never;
+      gestureInput?: never;
+      zoneInput?: never;
     };
 export type ControlClientItemWire = ControlClientItemWireFields & ControlClientItemWire_item;
 
@@ -997,6 +1057,8 @@ export type ControlServerItemWire_item =
       commandOutcome?: never;
       stateConnectionNonce?: never;
       resyncRequired?: never;
+      presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       connectionSnapshot: ConnectionSnapshotEnvelopeWire;
@@ -1006,6 +1068,8 @@ export type ControlServerItemWire_item =
       commandOutcome?: never;
       stateConnectionNonce?: never;
       resyncRequired?: never;
+      presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       reliableEvent: ProjectedReliableEventWire;
@@ -1015,6 +1079,8 @@ export type ControlServerItemWire_item =
       commandOutcome?: never;
       stateConnectionNonce?: never;
       resyncRequired?: never;
+      presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       projectionAdvance: ProjectionAdvanceWire;
@@ -1024,6 +1090,8 @@ export type ControlServerItemWire_item =
       commandOutcome?: never;
       stateConnectionNonce?: never;
       resyncRequired?: never;
+      presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       commandOutcome: CommandOutcomeWire;
@@ -1033,6 +1101,8 @@ export type ControlServerItemWire_item =
       projectionAdvance?: never;
       stateConnectionNonce?: never;
       resyncRequired?: never;
+      presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       stateConnectionNonce: StateConnectionNonceWire;
@@ -1042,6 +1112,8 @@ export type ControlServerItemWire_item =
       projectionAdvance?: never;
       commandOutcome?: never;
       resyncRequired?: never;
+      presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
     }
   | {
       resyncRequired: ResyncRequiredWire;
@@ -1051,6 +1123,30 @@ export type ControlServerItemWire_item =
       projectionAdvance?: never;
       commandOutcome?: never;
       stateConnectionNonce?: never;
+      presenterInputSynchronization?: never;
+      presenterStepSelectionCatalog?: never;
+    }
+  | {
+      presenterInputSynchronization: PresenterInputSynchronizationWire;
+      connected?: never;
+      connectionSnapshot?: never;
+      reliableEvent?: never;
+      projectionAdvance?: never;
+      commandOutcome?: never;
+      stateConnectionNonce?: never;
+      resyncRequired?: never;
+      presenterStepSelectionCatalog?: never;
+    }
+  | {
+      presenterStepSelectionCatalog: PresenterStepSelectionCatalogWire;
+      connected?: never;
+      connectionSnapshot?: never;
+      reliableEvent?: never;
+      projectionAdvance?: never;
+      commandOutcome?: never;
+      stateConnectionNonce?: never;
+      resyncRequired?: never;
+      presenterInputSynchronization?: never;
     };
 export type ControlServerItemWire = ControlServerItemWireFields & ControlServerItemWire_item;
 
@@ -1067,11 +1163,6 @@ export interface CueBatchRejectedWire {
 
 export interface CueCommittedWire {
   cueId?: string;
-}
-
-export interface CueCooldownWire {
-  cueId?: string;
-  nextEligibleRuntimeTimeMs?: string;
 }
 
 export interface CueNotSelectedWire {}
@@ -1121,6 +1212,36 @@ export interface ElementStatePatchWire {
 
 export interface EndPresentationWire {}
 
+export interface FrozenAnchorDisplayStateWireFields {
+  nodeId?: string;
+}
+export type FrozenAnchorDisplayStateWire__position =
+  | { position: Vector3Wire }
+  | { position?: never };
+export type FrozenAnchorDisplayStateWire__rotation =
+  | { rotation: QuaternionWire }
+  | { rotation?: never };
+export type FrozenAnchorDisplayStateWire = FrozenAnchorDisplayStateWireFields &
+  FrozenAnchorDisplayStateWire__position &
+  FrozenAnchorDisplayStateWire__rotation;
+
+export interface GestureInputAcceptedWire {
+  gesture?: number;
+}
+
+export interface GestureInputCommandWireFields {
+  clientEventId?: string;
+  inputContext?: InputContextWire;
+  commandEpoch?: string;
+  presentationOriginVersion?: string;
+  gesture?: number;
+}
+export type GestureInputCommandWire__capturedAtClientMonotonicMs =
+  | { capturedAtClientMonotonicMs: string }
+  | { capturedAtClientMonotonicMs?: never };
+export type GestureInputCommandWire = GestureInputCommandWireFields &
+  GestureInputCommandWire__capturedAtClientMonotonicMs;
+
 export interface GroupEnteredWire {
   groupId?: string;
   groupEntryEpoch?: string;
@@ -1140,6 +1261,22 @@ export interface GroupRuntimeInitializationWire {
   modelClipStates?: ModelClipRuntimeStateWire[];
 }
 
+export interface InputContextWire {
+  inputEpoch?: string;
+  groupId?: string;
+  groupEntryEpoch?: string;
+  stepId?: string;
+  stepEntryEpoch?: string;
+}
+
+export interface InputSynchronizationAckWire {
+  synchronizationRevision?: string;
+  inputContext?: InputContextWire;
+  commandEpoch?: string;
+  appliedReliableSequence?: string;
+  pendingCommandsDiscarded?: boolean;
+}
+
 export interface LogicalInputAcceptedWire {
   logicalEventName?: string;
 }
@@ -1148,6 +1285,8 @@ export interface LogicalInputCommandWireFields {
   clientEventId?: string;
   logicalEventName?: string;
   presentationOriginVersion?: string;
+  inputContext?: InputContextWire;
+  commandEpoch?: string;
 }
 export type LogicalInputCommandWire__capturedAtClientMonotonicMs =
   | { capturedAtClientMonotonicMs: string }
@@ -1366,6 +1505,7 @@ export interface ParticipantRuntimeViewWire {
   presentationOrigin?: PresentationOriginWire;
   enabledLogicalInputs?: string[];
   modelClipStates?: ModelClipRuntimeStateWire[];
+  frozenAnchors?: FrozenAnchorDisplayStateWire[];
 }
 
 export interface PausedWire {
@@ -1400,6 +1540,26 @@ export interface PresentationOriginChangedWire {
   origin?: PresentationOriginWire;
 }
 
+export interface PresenterInputSynchronizationWireFields {
+  phase?: number;
+  reason?: number;
+  synchronizationRevision?: string;
+  inputContext?: InputContextWire;
+  commandEpoch?: string;
+  reliableSequence?: string;
+  recognitionCatalog?: PresenterRecognitionCatalogWire;
+}
+export type PresenterInputSynchronizationWire__nextCommandEpoch =
+  | { nextCommandEpoch: string }
+  | { nextCommandEpoch?: never };
+export type PresenterInputSynchronizationWire = PresenterInputSynchronizationWireFields &
+  PresenterInputSynchronizationWire__nextCommandEpoch;
+
+export interface PresenterStepSelectionCatalogWire {
+  reachedSteps?: StepSelectionWire[];
+  reliableSequence?: string;
+}
+
 export interface ProgressionNextWireFields {}
 export type ProgressionNextWire_destination =
   | { step: NextStepWire; group?: never; end?: never; stay?: never }
@@ -1425,8 +1585,9 @@ export interface ProjectedAnchorBindingPatchWireFields {
   nodeId?: string;
 }
 export type ProjectedAnchorBindingPatchWire_state =
-  | { unavailable: AnchorBindingUnavailableWire; sample?: never }
-  | { sample: ProjectedAnchorBindingSampleWire; unavailable?: never };
+  | { unavailable: AnchorBindingUnavailableWire; sample?: never; frozen?: never }
+  | { sample: ProjectedAnchorBindingSampleWire; unavailable?: never; frozen?: never }
+  | { frozen: FrozenAnchorDisplayStateWire; unavailable?: never; sample?: never };
 export type ProjectedAnchorBindingPatchWire = ProjectedAnchorBindingPatchWireFields &
   ProjectedAnchorBindingPatchWire_state;
 
@@ -1499,6 +1660,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       presentationOriginChanged: PresentationOriginChangedWire;
@@ -1535,6 +1699,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       groupEntered: GroupEnteredWire;
@@ -1571,6 +1738,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       groupExited: GroupExitedWire;
@@ -1607,6 +1777,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       stepEntered: StepEnteredWire;
@@ -1643,6 +1816,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       cueAccepted: CueAcceptedWire;
@@ -1679,6 +1855,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       presentationEnded: PresentationEndedWire;
@@ -1715,6 +1894,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       logicalInputAccepted: LogicalInputAcceptedWire;
@@ -1751,6 +1933,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       surfaceInteractionAccepted: SurfaceInteractionAcceptedWire;
@@ -1787,6 +1972,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       surfaceStateChanged: SurfaceStateChangedWire;
@@ -1823,6 +2011,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       surfaceTransitionStarted: SurfaceTransitionStartedWire;
@@ -1859,6 +2050,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       surfaceTransitionCompleted: SurfaceTransitionCompletedWire;
@@ -1895,6 +2089,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       nodeStateCommitted: NodeStateCommittedWire;
@@ -1931,6 +2128,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       variableChanged: VariableChangedWire;
@@ -1967,6 +2167,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       timelineStarted: TimelineStartedWire;
@@ -2003,6 +2206,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       timelineCompleted: TimelineCompletedWire;
@@ -2039,6 +2245,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       timelineCanceled: TimelineCanceledWire;
@@ -2075,6 +2284,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       mediaStarted: MediaStartedWire;
@@ -2111,6 +2323,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       mediaPaused: MediaPausedWire;
@@ -2147,6 +2362,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       mediaResumed: MediaResumedWire;
@@ -2183,6 +2401,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       mediaSeeked: MediaSeekedWire;
@@ -2219,6 +2440,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       mediaCompleted: MediaCompletedWire;
@@ -2255,6 +2479,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       mediaCanceled: MediaCanceledWire;
@@ -2291,6 +2518,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       mediaStopped: MediaStoppedWire;
@@ -2327,6 +2557,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       modelClipStarted: ModelClipStartedWire;
@@ -2363,6 +2596,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       modelClipPaused: ModelClipPausedWire;
@@ -2399,6 +2635,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       modelClipResumed: ModelClipResumedWire;
@@ -2435,6 +2674,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       modelClipStopped: ModelClipStoppedWire;
@@ -2471,6 +2713,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       modelClipCompleted: ModelClipCompletedWire;
@@ -2507,6 +2752,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       modelClipCrossfadeStarted: ModelClipCrossfadeStartedWire;
@@ -2543,6 +2791,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       modelClipCrossfadeCompleted: ModelClipCrossfadeCompletedWire;
@@ -2579,6 +2830,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       modelClipCanceled: ModelClipCanceledWire;
@@ -2615,6 +2869,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       participantPresenceChanged?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       participantPresenceChanged: ParticipantPresenceChangedWire;
@@ -2651,6 +2908,9 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
     }
   | {
       mediaStoppedSeeked: MediaStoppedSeekedWire;
@@ -2687,6 +2947,126 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
+    }
+  | {
+      gestureInputAccepted: GestureInputAcceptedWire;
+      runtimeStatusChanged?: never;
+      presentationOriginChanged?: never;
+      groupEntered?: never;
+      groupExited?: never;
+      stepEntered?: never;
+      cueAccepted?: never;
+      presentationEnded?: never;
+      logicalInputAccepted?: never;
+      surfaceInteractionAccepted?: never;
+      surfaceStateChanged?: never;
+      surfaceTransitionStarted?: never;
+      surfaceTransitionCompleted?: never;
+      nodeStateCommitted?: never;
+      variableChanged?: never;
+      timelineStarted?: never;
+      timelineCompleted?: never;
+      timelineCanceled?: never;
+      mediaStarted?: never;
+      mediaPaused?: never;
+      mediaResumed?: never;
+      mediaSeeked?: never;
+      mediaCompleted?: never;
+      mediaCanceled?: never;
+      mediaStopped?: never;
+      modelClipStarted?: never;
+      modelClipPaused?: never;
+      modelClipResumed?: never;
+      modelClipStopped?: never;
+      modelClipCompleted?: never;
+      modelClipCrossfadeStarted?: never;
+      modelClipCrossfadeCompleted?: never;
+      modelClipCanceled?: never;
+      participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
+      zoneInputAccepted?: never;
+      runtimeViewReplaced?: never;
+    }
+  | {
+      zoneInputAccepted: ZoneInputAcceptedWire;
+      runtimeStatusChanged?: never;
+      presentationOriginChanged?: never;
+      groupEntered?: never;
+      groupExited?: never;
+      stepEntered?: never;
+      cueAccepted?: never;
+      presentationEnded?: never;
+      logicalInputAccepted?: never;
+      surfaceInteractionAccepted?: never;
+      surfaceStateChanged?: never;
+      surfaceTransitionStarted?: never;
+      surfaceTransitionCompleted?: never;
+      nodeStateCommitted?: never;
+      variableChanged?: never;
+      timelineStarted?: never;
+      timelineCompleted?: never;
+      timelineCanceled?: never;
+      mediaStarted?: never;
+      mediaPaused?: never;
+      mediaResumed?: never;
+      mediaSeeked?: never;
+      mediaCompleted?: never;
+      mediaCanceled?: never;
+      mediaStopped?: never;
+      modelClipStarted?: never;
+      modelClipPaused?: never;
+      modelClipResumed?: never;
+      modelClipStopped?: never;
+      modelClipCompleted?: never;
+      modelClipCrossfadeStarted?: never;
+      modelClipCrossfadeCompleted?: never;
+      modelClipCanceled?: never;
+      participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      runtimeViewReplaced?: never;
+    }
+  | {
+      runtimeViewReplaced: RuntimeViewReplacedWire;
+      runtimeStatusChanged?: never;
+      presentationOriginChanged?: never;
+      groupEntered?: never;
+      groupExited?: never;
+      stepEntered?: never;
+      cueAccepted?: never;
+      presentationEnded?: never;
+      logicalInputAccepted?: never;
+      surfaceInteractionAccepted?: never;
+      surfaceStateChanged?: never;
+      surfaceTransitionStarted?: never;
+      surfaceTransitionCompleted?: never;
+      nodeStateCommitted?: never;
+      variableChanged?: never;
+      timelineStarted?: never;
+      timelineCompleted?: never;
+      timelineCanceled?: never;
+      mediaStarted?: never;
+      mediaPaused?: never;
+      mediaResumed?: never;
+      mediaSeeked?: never;
+      mediaCompleted?: never;
+      mediaCanceled?: never;
+      mediaStopped?: never;
+      modelClipStarted?: never;
+      modelClipPaused?: never;
+      modelClipResumed?: never;
+      modelClipStopped?: never;
+      modelClipCompleted?: never;
+      modelClipCrossfadeStarted?: never;
+      modelClipCrossfadeCompleted?: never;
+      modelClipCanceled?: never;
+      participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
+      gestureInputAccepted?: never;
+      zoneInputAccepted?: never;
     };
 export type ProjectedReliableEventWire = ProjectedReliableEventWireFields &
   ProjectedReliableEventWire__causeEventId &
@@ -2722,6 +3102,12 @@ export interface ResyncRequiredWire {
 
 export interface RunningWire {}
 
+export interface RuntimeCapacityFaultWire {
+  stepStartStateBytes?: string;
+  stepStartHistoryBytes?: string;
+  canonicalSnapshotBytes?: string;
+}
+
 export interface RuntimeClockSnapshotWireFields {
   runtimeTimeMs?: string;
 }
@@ -2733,16 +3119,19 @@ export type RuntimeClockSnapshotWire = RuntimeClockSnapshotWireFields &
   RuntimeClockSnapshotWire_status;
 
 export interface RuntimeCommandHistoryWire {
-  key?: string;
   fingerprint?: string;
   outcome?: CommandOutcomeWire;
-  rememberedAtUnixMs?: string;
+  participantId?: string;
+  clientEventId?: string;
+  commandEpoch?: string;
 }
 
 export interface RuntimeControlCommandWire {
   clientEventId?: string;
   kind?: number;
   presentationOriginVersion?: string;
+  commandEpoch?: string;
+  stepSelection?: StepSelectionWire;
 }
 
 export interface RuntimeParticipantHistoryWire {
@@ -2759,8 +3148,6 @@ export interface RuntimeProtocolLimitsWire {
   reliableEventRetentionMs?: string;
   maximumReplayItems?: number;
   maximumReplayBytes?: string;
-  idempotencyRetentionCount?: number;
-  idempotencyRetentionMs?: string;
   snapshotCatchUpMaxAttempts?: number;
   snapshotCatchUpTotalBudgetMs?: string;
   runtimeMicrostepLimit?: number;
@@ -2771,12 +3158,26 @@ export interface RuntimeProtocolLimitsWire {
   catchUpQueueMaximumBytes?: string;
   stateDependencyBufferMaximumValues?: number;
   stateDependencyBufferMaximumMs?: string;
+  maximumCommandHistoryCount?: number;
+  maximumCommandHistoryBytes?: string;
+  commandHistorySyncCount?: number;
+  commandHistorySyncBytes?: string;
+  maximumCommandRecordBytes?: number;
+  maximumCanonicalSnapshotBytes?: string;
+  maximumStepStartHistoryBytes?: string;
+  maximumStepStartStateBytes?: string;
+  maximumRecoveryMetadataBytes?: string;
+  maximumCheckpointJsonBytes?: string;
+  maximumInputSynchronizationBytes?: number;
 }
 
 export interface RuntimeRecoveryMetadataWire {
   startedAt?: string;
   participants?: RuntimeParticipantHistoryWire[];
   commands?: RuntimeCommandHistoryWire[];
+  commandEpoch?: string;
+  inputSynchronization?: PresenterInputSynchronizationWire;
+  capacityFault?: RuntimeCapacityFaultWire;
 }
 
 export interface RuntimeRunSnapshotWireFields {
@@ -2815,6 +3216,10 @@ export type RuntimeStatusChangedWire_status =
   | { terminating: TerminatingWire; running?: never; paused?: never };
 export type RuntimeStatusChangedWire = RuntimeStatusChangedWireFields &
   RuntimeStatusChangedWire_status;
+
+export interface RuntimeViewReplacedWire {
+  runtimeView?: ParticipantRuntimeViewWire;
+}
 
 export interface StableProgressionWire {}
 
@@ -2866,8 +3271,26 @@ export interface StepEnteredWire {
 export interface StepExecutionSnapshotWire {
   stepEntryEpoch?: string;
   consumedCueIds?: string[];
-  cooldowns?: CueCooldownWire[];
   timers?: ArmedTimerWire[];
+}
+
+export interface StepSelectionWire {
+  groupId?: string;
+  stepId?: string;
+}
+
+export interface StepStartStateWire {
+  groupId?: string;
+  stepId?: string;
+  groupEntryEpoch?: string;
+  stepEntryEpoch?: string;
+  capturedAtRuntimeTimeMs?: string;
+  nodeStates?: NodeRuntimeStateWire[];
+  surfaceStates?: SurfaceRuntimeStateWire[];
+  mediaStates?: MediaRuntimeStateWire[];
+  variables?: VariableStateWire[];
+  activeRuns?: RuntimeRunSnapshotWire[];
+  modelClipStates?: ModelClipRuntimeStateWire[];
 }
 
 export interface SurfaceInteractionAcceptedWire {
@@ -2880,6 +3303,8 @@ export interface SurfaceInteractionCommandWireFields {
   surfaceId?: string;
   interactionId?: string;
   presentationOriginVersion?: string;
+  inputContext?: InputContextWire;
+  commandEpoch?: string;
 }
 export type SurfaceInteractionCommandWire__capturedAtClientMonotonicMs =
   | { capturedAtClientMonotonicMs: string }
@@ -2983,3 +3408,22 @@ export interface VariableStateWire {
   variableId?: string;
   value?: ScalarValueWire;
 }
+
+export interface ZoneInputAcceptedWire {
+  zoneId?: string;
+  edge?: number;
+}
+
+export interface ZoneInputCommandWireFields {
+  clientEventId?: string;
+  inputContext?: InputContextWire;
+  commandEpoch?: string;
+  presentationOriginVersion?: string;
+  zoneId?: string;
+  edge?: number;
+}
+export type ZoneInputCommandWire__capturedAtClientMonotonicMs =
+  | { capturedAtClientMonotonicMs: string }
+  | { capturedAtClientMonotonicMs?: never };
+export type ZoneInputCommandWire = ZoneInputCommandWireFields &
+  ZoneInputCommandWire__capturedAtClientMonotonicMs;

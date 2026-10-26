@@ -99,11 +99,6 @@ export const runtimeRunSnapshotSchema = z.discriminatedUnion("kind", [
     completion: z.enum(["blocking", "nonBlocking"]),
   }),
 ]);
-const m3dRunSchema = z.discriminatedUnion("kind", [
-  runtimeRunSnapshotSchema.options[0],
-  runtimeRunSnapshotSchema.options[1],
-]);
-
 const pendingNextSchema = z.union([
   z.strictObject({ kind: z.literal("stay") }),
   z.strictObject({ kind: z.literal("end") }),
@@ -166,10 +161,21 @@ const originSchema = z.strictObject({
     ]),
   }),
 });
+export const frozenAnchorDisplayStateSchema = z.union([
+  z.strictObject({
+    nodeId: idSchema,
+    position: transformSchema.shape.position,
+    rotation: transformSchema.shape.rotation.optional(),
+  }),
+  z.strictObject({
+    nodeId: idSchema,
+    position: transformSchema.shape.position.optional(),
+    rotation: transformSchema.shape.rotation,
+  }),
+]);
 const stepExecutionSchema = z.strictObject({
   stepEntryEpoch: positiveSafeUIntSchema,
   consumedCueIds: z.array(idSchema),
-  cooldownUntilRuntimeTimeMilliseconds: z.record(idSchema, safeUIntSchema),
   timerStates: z.record(
     idSchema,
     z.discriminatedUnion("kind", [
@@ -218,15 +224,28 @@ const runtimeResources = {
   variables: z.record(idSchema, scalarSchema),
   activeRuns: z.array(runtimeRunSnapshotSchema),
 };
-const m3dRuntimeResources = {
-  ...runtimeResources,
-  mediaStates: z.strictObject({}),
-  modelClipStates: z.strictObject({}),
-  activeRuns: z.array(m3dRunSchema),
+const m3dRuntimeResources = runtimeResources;
+
+const stepStartStateBase = {
+  groupId: idSchema,
+  stepId: idSchema,
+  groupEntryEpoch: positiveSafeUIntSchema,
+  stepEntryEpoch: positiveSafeUIntSchema,
+  capturedAtRuntimeTimeMilliseconds: safeUIntSchema,
 };
+export const stepStartStateSchema = z.strictObject({
+  ...stepStartStateBase,
+  ...runtimeResources,
+});
+const m3dStepStartStateSchema = z.strictObject({
+  ...stepStartStateBase,
+  ...m3dRuntimeResources,
+});
 
 export const m3dCueRuntimeSnapshotSchema = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
+  inputEpoch: positiveSafeUIntSchema,
+  stepStartHistory: z.array(m3dStepStartStateSchema),
   reliableSequence: safeUIntSchema,
   lastIngressSequence: safeUIntSchema,
   lastAllocatedRunSequence: safeUIntSchema,
@@ -235,11 +254,12 @@ export const m3dCueRuntimeSnapshotSchema = z.strictObject({
   stepExecution: stepExecutionSchema,
   ...m3dRuntimeResources,
   presentationOrigin: originSchema,
-  recentEventIds: z.array(idSchema),
+  frozenAnchors: z.array(frozenAnchorDisplayStateSchema),
 });
 export const canonicalRuntimeSnapshotSchema = z.strictObject({
   ...m3dCueRuntimeSnapshotSchema.shape,
   ...runtimeResources,
+  stepStartHistory: z.array(stepStartStateSchema),
 });
 
 export const runtimeVisibilitySelectionSchema = z.strictObject({
@@ -258,6 +278,7 @@ export const m3dCueParticipantRuntimeViewSchema = z.strictObject({
   ...m3dRuntimeResources,
   clock: clockSchema,
   presentationOrigin: originSchema,
+  frozenAnchors: z.array(frozenAnchorDisplayStateSchema),
   enabledLogicalInputs: z.array(idSchema),
 });
 export const participantRuntimeViewSchema = z.strictObject({

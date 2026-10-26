@@ -24,6 +24,38 @@ const definition = structuredClone(definitionFixture) as unknown as Presentation
 const snapshot = m3dCueRuntimeSnapshotSchema.parse(snapshotFixture);
 
 describe("M3D Runtime projection and canonical snapshot", () => {
+  it.each([
+    ["snapshot", "definition"],
+    ["snapshot", "input"],
+    ["visibility", "definition"],
+    ["visibility", "input"],
+  ])("rejects %s validator %s accessors without executing them", (validator, target) => {
+    let reads = 0;
+    const unsafeDefinition = structuredClone(definition);
+    const unsafeInput = structuredClone(
+      validator === "snapshot" ? snapshotFixture : visibilityFixture,
+    );
+    Object.defineProperty(
+      target === "definition" ? unsafeDefinition : unsafeInput,
+      "schemaVersion",
+      {
+        enumerable: true,
+        get() {
+          reads++;
+          throw new Error("getter executed");
+        },
+      },
+    );
+    const value = target === "definition" ? unsafeDefinition : definition;
+    const input =
+      target === "input" ? unsafeInput : validator === "snapshot" ? snapshot : visibilityFixture;
+    const errors =
+      validator === "snapshot"
+        ? validateM3dCueRuntimeSnapshot(value, input, 1)
+        : validateRuntimeVisibilitySelection(value, input);
+    expect(errors).not.toEqual([]);
+    expect(reads).toBe(0);
+  });
   it.each([false, true])("uses current State loop %s for an over-duration playback", (loop) => {
     const currentDefinition = structuredClone(definition);
     const surface = currentDefinition.scene.surfaces.video!;
@@ -146,7 +178,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     expect(accessed).toBe(false);
   });
 
-  it("rejects computed Model positions that overflow while allowing finite loop positions", () => {
+  it("accepts wrapped loop positions and rejects overflowing or expired finite clips", () => {
     const full = structuredClone(snapshot) as CanonicalRuntimeSnapshot;
     full.clock.runtimeTimeMilliseconds = 2;
     full.lastAllocatedRunSequence = 1;
@@ -194,9 +226,12 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     run.phase.clip.speed = 1e308;
     expect(
       validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, full, 1),
+    ).toEqual([]);
+    run.phase.clip.loop = false;
+    expect(
+      validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, full, 1),
     ).toContain("Model Run model computed position must be finite.");
     run.phase.clip.speed = 1;
-    run.phase.clip.loop = false;
     if (run.phase.clip.playback.kind !== "playing")
       throw new TypeError("Expected a playing Model clip.");
     run.phase.clip.playback.positionAtReferenceMilliseconds = 998;
@@ -236,16 +271,44 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, full, 1),
     ).toEqual([]);
   });
+  it("rejects duplicate or unknown Step history and frozen displays outside Anchor bindings", () => {
+    const duplicate = structuredClone(snapshot);
+    duplicate.stepStartHistory.push(structuredClone(duplicate.stepStartHistory[0]!));
+    expect(
+      validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, duplicate, 1),
+    ).toContain("Step start history must be sorted and unique.");
+    const unknown = structuredClone(snapshot);
+    unknown.stepStartHistory[0]!.stepId = "missing";
+    expect(
+      validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, unknown, 1).some(
+        (issue) => issue.includes("unknown Step"),
+      ),
+    ).toBe(true);
+    const frozen = structuredClone(snapshot);
+    frozen.frozenAnchors = [{ nodeId: "node-baked", position: [1, 2, 3] }];
+    expect(
+      validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, frozen, 1),
+    ).toContain("Frozen Anchor must reference an active Presenter Anchor binding.");
+  });
+
   it("creates a validated portable snapshot from CueState", () => {
-    const state = createCueState(definition, 1);
+    const state = createCueState(definition, 1, renderBundleFixture as never);
     const generated = createM3dCueRuntimeSnapshot(definition, state, {
       reliableSequence: 0,
       lastIngressSequence: 0,
       lifecycle: { kind: "running" },
       presentationOrigin: snapshot.presentationOrigin,
-      recentEventIds: [],
     });
-    expect(generated).toEqual(snapshot);
+    expect(generated).toEqual({
+      ...snapshot,
+      stepStartHistory: snapshot.stepStartHistory.map((entry) => ({
+        ...entry,
+        mediaStates: { video: { kind: "stopped", heldPositionMilliseconds: 0 } },
+        modelClipStates: { model: { kind: "defaultPose" } },
+      })),
+      mediaStates: { video: { kind: "stopped", heldPositionMilliseconds: 0 } },
+      modelClipStates: { model: { kind: "defaultPose" } },
+    });
   });
 
   it("accepts the portable snapshot and rejects inactive or unknown resources", () => {
@@ -332,7 +395,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       "Runtime Run deadline has passed.",
     );
     running.clock.runtimeTimeMilliseconds = 0;
-    const state = createCueState(secondStateDefinition, 1);
+    const state = createCueState(secondStateDefinition, 1, renderBundleFixture as never);
     state.lastRunSequence = 1;
     state.activeRuns = structuredClone(running.activeRuns).filter(
       (run): run is Extract<typeof run, { kind: "timeline" | "surfaceTransition" }> =>
@@ -345,7 +408,6 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       lastIngressSequence: 0,
       lifecycle: { kind: "running" },
       presentationOrigin: snapshot.presentationOrigin,
-      recentEventIds: [],
     });
     expect(generated.surfaceStates.baked?.transitionRunId).toEqual({
       assignmentEpoch: 1,
@@ -489,11 +551,6 @@ describe("M3D Runtime projection and canonical snapshot", () => {
         .enabledLogicalInputs,
     ).toEqual([]);
     consumed.stepExecution.consumedCueIds = [];
-    consumed.stepExecution.cooldownUntilRuntimeTimeMilliseconds.wave = 1;
-    expect(
-      projectM3dCueParticipantRuntimeView(roleDefinition, consumed, presenter, 1)
-        .enabledLogicalInputs,
-    ).toEqual([]);
   });
 
   it("omits hidden Surface Run IDs from a Viewer snapshot", () => {

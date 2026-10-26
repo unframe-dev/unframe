@@ -2,7 +2,6 @@ package runtimecore
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"time"
 
@@ -14,55 +13,13 @@ import (
 
 var errV2TrackingFrame = errors.New("v2 tracking frame is invalid")
 
-const v2TrackingMaxSafeMilliseconds uint64 = 9007199254740991
-
 type v2TrackingZone struct {
 	ID     string
 	Owner  v2Owner
 	Center [3]float64
-	Size   [3]float64
 }
 
-type v2TrackingCue struct {
-	ID                    string
-	Kind                  string
-	SubjectKind           string
-	Preset                string
-	HandTarget            string
-	Target                realtimev2.TrackedTarget
-	ZoneID                string
-	Edge                  string
-	DwellMilliseconds     uint64
-	HysteresisMeters      float64
-	MinimumDistanceMeters float64
-	WindowMilliseconds    uint64
-}
-
-type v2TrackingDefinition struct {
-	Zones           map[string]v2TrackingZone
-	Cues            []v2TrackingCue
-	CurrentGroupID  string
-	GroupEntryEpoch uint64
-	CurrentStepID   string
-	StepEntryEpoch  uint64
-}
-
-type v2TrackingPoint struct {
-	at       uint64
-	position [3]float64
-}
-
-type v2TrackingCueState struct {
-	gesture       v2TrackingGestureState
-	seeded        bool
-	inside        bool
-	pending       bool
-	pendingInside bool
-	pendingSince  uint64
-	windowSeeded  bool
-	windowStart   v2TrackingPoint
-	windowFired   bool
-}
+type v2TrackingDefinition struct{}
 
 type v2PresentedTrackingSample struct {
 	Target            realtimev2.TrackedTarget
@@ -82,8 +39,6 @@ type v2TrackingEvaluator struct {
 	lastReceivedAt    time.Time
 	lastObservedAtMs  uint64
 	lastSamples       map[realtimev2.TrackedTarget]v2PresentedTrackingSample
-	states            map[string]v2TrackingCueState
-	scope             string
 }
 
 func (e *v2TrackingEvaluator) Clone() v2TrackingEvaluator {
@@ -100,34 +55,15 @@ func (e *v2TrackingEvaluator) Clone() v2TrackingEvaluator {
 			clone.lastSamples[target] = sample
 		}
 	}
-	if e.states != nil {
-		clone.states = make(map[string]v2TrackingCueState, len(e.states))
-		for id, state := range e.states {
-			clone.states[id] = state
-		}
-	}
 	return clone
 }
 
 func (e *v2TrackingEvaluator) Accept(frame *realtimev2.TrackingFrame, receivedAt time.Time, observedAtMs uint64, definition v2TrackingDefinition, originVersion uint64) ([]v2PresentedTrackingSample, []string, error) {
-	accepted := false
-	defer func() {
-		if e != nil && !accepted {
-			// Rejected tracking cannot bridge two halves of an arm gesture.
-			for id, state := range e.states {
-				state.gesture = v2TrackingGestureState{}
-				e.states[id] = state
-			}
-		}
-	}()
 	if e == nil || frame == nil || receivedAt.IsZero() || frame.FrameSequence == 0 || frame.FrameSequence <= e.lastFrameSequence || len(frame.Samples) > 4 || frame.PresentationFromQuestLocal == nil || protocolv2.ValidateMessage(frame.PresentationFromQuestLocal) != nil {
 		return nil, nil, errV2TrackingFrame
 	}
 	if e.hasOriginVersion && originVersion < e.originVersion || e.lastFrameSequence != 0 && observedAtMs < e.lastObservedAtMs {
 		return nil, nil, errV2TrackingFrame
-	}
-	if err := v2TrackingValidateDefinition(definition); err != nil {
-		return nil, nil, err
 	}
 	seen := make(map[realtimev2.TrackedTarget]struct{}, len(frame.Samples))
 	samples := make([]v2PresentedTrackingSample, 0, len(frame.Samples))
@@ -150,47 +86,8 @@ func (e *v2TrackingEvaluator) Accept(frame *realtimev2.TrackingFrame, receivedAt
 			FrameSequence: frame.FrameSequence, OriginVersion: originVersion,
 		})
 	}
-	scope := fmt.Sprintf("%s\x00%d\x00%s\x00%d", definition.CurrentGroupID, definition.GroupEntryEpoch, definition.CurrentStepID, definition.StepEntryEpoch)
-	if !e.hasOriginVersion || originVersion != e.originVersion || e.scope != scope {
-		e.lastSamples = make(map[realtimev2.TrackedTarget]v2PresentedTrackingSample, len(samples))
-		e.states = make(map[string]v2TrackingCueState, len(definition.Cues))
-	}
-	fired := make([]string, 0)
-	for _, cue := range definition.Cues {
-		if cue.Preset != "" {
-			state := e.states[cue.ID]
-			if v2TrackingPreset(&state.gesture, cue, samples, observedAtMs) {
-				fired = append(fired, cue.ID)
-			}
-			e.states[cue.ID] = state
-			continue
-		}
-		target := cue.Target
-		if cue.SubjectKind == "participant" {
-			target = realtimev2.TrackedTarget_TRACKED_TARGET_BODY
-		}
-		for _, sample := range samples {
-			if sample.Target != target {
-				continue
-			}
-			state := e.states[cue.ID]
-			previous := e.lastSamples[target]
-			if !sample.PositionAvailable || previous.PositionAvailable && observedAtMs-previous.ObservedAtMs > 500 {
-				state = v2TrackingCueState{}
-			}
-			if sample.PositionAvailable {
-				if cue.Kind == "zoneEdge" {
-					zone := definition.Zones[cue.ZoneID]
-					if v2OwnerActive(zone.Owner, definition.CurrentGroupID) && v2TrackingZoneEdge(&state, cue, zone, sample.Pose.Position, observedAtMs) {
-						fired = append(fired, cue.ID)
-					}
-				} else if v2TrackingMotion(&state, cue, sample.Pose.Position, observedAtMs) {
-					fired = append(fired, cue.ID)
-				}
-			}
-			e.states[cue.ID] = state
-			break
-		}
+	if !e.hasOriginVersion || originVersion != e.originVersion {
+		e.lastSamples = make(map[realtimev2.TrackedTarget]v2PresentedTrackingSample)
 	}
 	for _, sample := range samples {
 		e.lastSamples[sample.Target] = sample
@@ -200,109 +97,7 @@ func (e *v2TrackingEvaluator) Accept(frame *realtimev2.TrackingFrame, receivedAt
 	e.hasOriginVersion = true
 	e.lastReceivedAt = receivedAt
 	e.lastObservedAtMs = observedAtMs
-	e.scope = scope
-	accepted = true
-	return samples, fired, nil
-}
-
-func v2TrackingValidateDefinition(definition v2TrackingDefinition) error {
-	seen := make(map[string]struct{}, len(definition.Cues))
-	for _, cue := range definition.Cues {
-		if cue.Preset != "" {
-			if !v2TrackingValidPreset(cue) {
-				return errV2TrackingFrame
-			}
-		} else if cue.ID == "" || cue.SubjectKind != "participant" && cue.SubjectKind != "anchor" || cue.SubjectKind == "participant" && cue.Target != realtimev2.TrackedTarget_TRACKED_TARGET_UNSPECIFIED || cue.SubjectKind == "anchor" && (cue.Target < realtimev2.TrackedTarget_TRACKED_TARGET_HEAD || cue.Target > realtimev2.TrackedTarget_TRACKED_TARGET_BODY) {
-			return errV2TrackingFrame
-		}
-		if _, exists := seen[cue.ID]; exists {
-			return errV2TrackingFrame
-		}
-		seen[cue.ID] = struct{}{}
-		switch cue.Kind {
-		case "zoneEdge":
-			zone, ok := definition.Zones[cue.ZoneID]
-			if !ok || zone.ID != cue.ZoneID || zone.Owner.Kind != "presentation" && (zone.Owner.Kind != "group" || zone.Owner.GroupID == "") || cue.Edge != "enter" && cue.Edge != "exit" || !v2TrackingFinite(cue.HysteresisMeters) || cue.HysteresisMeters < 0 || cue.DwellMilliseconds > v2TrackingMaxSafeMilliseconds {
-				return errV2TrackingFrame
-			}
-			for i := range zone.Size {
-				if !v2TrackingFinite(zone.Center[i]) || !v2TrackingFinite(zone.Size[i]) || zone.Size[i] <= 0 {
-					return errV2TrackingFrame
-				}
-			}
-		case "motion":
-			if !v2TrackingFinite(cue.MinimumDistanceMeters) || cue.MinimumDistanceMeters <= 0 || cue.WindowMilliseconds == 0 || cue.WindowMilliseconds > v2TrackingMaxSafeMilliseconds {
-				return errV2TrackingFrame
-			}
-		default:
-			return errV2TrackingFrame
-		}
-	}
-	return nil
-}
-
-func v2TrackingFinite(number float64) bool {
-	return !math.IsNaN(number) && !math.IsInf(number, 0) && !(number == 0 && math.Signbit(number))
-}
-
-func v2TrackingZoneEdge(state *v2TrackingCueState, cue v2TrackingCue, zone v2TrackingZone, position *presentationv2.Vector3, at uint64) bool {
-	inside := v2TrackingInsideZone(zone, position, 0)
-	if !state.seeded {
-		state.seeded, state.inside = true, inside
-		return false
-	}
-	if state.inside {
-		inside = v2TrackingInsideZone(zone, position, cue.HysteresisMeters)
-	}
-	if inside == state.inside {
-		state.pending = false
-		return false
-	}
-	if !state.pending || state.pendingInside != inside {
-		state.pending, state.pendingInside, state.pendingSince = true, inside, at
-	}
-	if at-state.pendingSince < cue.DwellMilliseconds {
-		return false
-	}
-	state.inside, state.pending = inside, false
-	return inside && cue.Edge == "enter" || !inside && cue.Edge == "exit"
-}
-
-func v2TrackingInsideZone(zone v2TrackingZone, p *presentationv2.Vector3, margin float64) bool {
-	coordinates := [3]float64{p.X, p.Y, p.Z}
-	for i, value := range coordinates {
-		distance := math.Abs(value - zone.Center[i])
-		limit := zone.Size[i]/2 + margin
-		if math.IsInf(distance, 0) || math.IsInf(limit, 0) {
-			if math.Abs(value/2-zone.Center[i]/2) > zone.Size[i]/4+margin/2 {
-				return false
-			}
-			continue
-		}
-		if distance > limit {
-			return false
-		}
-	}
-	return true
-}
-
-func v2TrackingMotion(state *v2TrackingCueState, cue v2TrackingCue, position *presentationv2.Vector3, at uint64) bool {
-	if !state.windowSeeded || at-state.windowStart.at >= cue.WindowMilliseconds {
-		state.windowSeeded = true
-		state.windowStart = v2TrackingPoint{at: at, position: [3]float64{position.X, position.Y, position.Z}}
-		state.windowFired = false
-		return false
-	}
-	if state.windowFired {
-		return false
-	}
-	start := state.windowStart.position
-	dx, dy, dz := position.X-start[0], position.Y-start[1], position.Z-start[2]
-	if math.Hypot(math.Hypot(dx, dy), dz) < cue.MinimumDistanceMeters {
-		return false
-	}
-	state.windowFired = true
-	return true
+	return samples, nil, nil
 }
 
 func v2TrackingComposePose(calibration *presentationv2.Pose, sample *realtimev2.TrackedPoseSample) (*presentationv2.Pose, error) {

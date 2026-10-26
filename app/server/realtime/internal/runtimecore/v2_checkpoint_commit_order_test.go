@@ -16,13 +16,13 @@ import (
 )
 
 func TestV2CheckpointCallbackDoesNotBlockCommittedCutReaders(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
-	core, err := NewV2Session(definition)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	core, err := newV3RegressionSession(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "presentation-1", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
-	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "presentation-1", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}
 	entered := make(chan struct{})
 	release := make(chan struct{})
 	var writes atomic.Int32
@@ -44,7 +44,7 @@ func TestV2CheckpointCallbackDoesNotBlockCommittedCutReaders(t *testing.T) {
 	}
 	committed := make(chan error, 1)
 	go func() {
-		_, _, err := core.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.RuntimeControlCommand{ClientEventId: "pause-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE})
+		_, _, err := core.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "pause-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE}))
 		committed <- err
 	}()
 	select {
@@ -73,7 +73,7 @@ func TestV2CheckpointCallbackDoesNotBlockCommittedCutReaders(t *testing.T) {
 	}
 	reads := make(chan readCut, 1)
 	go func() {
-		cut, presence, sub, unsubscribe := core.SnapshotPresenceAndSubscribe()
+		cut, presence, sub, unsubscribe, _ := core.SnapshotPresenceAndSubscribe()
 		anchors, anchorErr := core.ProjectedAnchorBindings(nil, 1)
 		log, replayErr := core.ReplayThrough(0, 0)
 		result := readCut{sequence: cut.ReliableSequence, presence: len(presence.Participants), anchors: len(anchors), replay: len(log), sub: sub, closeSub: unsubscribe, err: errors.Join(anchorErr, replayErr)}
@@ -134,9 +134,9 @@ func (observe checkpointCommitObserver) WriteCheckpoint(_ context.Context, envel
 }
 
 func TestV2CheckpointContainsCommittedCutBeforeEventPublication(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}}},"variables":{},"timelines":{}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}}},"variables":{},"timelines":{}}`)
 	metadata := &realtimev2.DurableCheckpointEnvelope{
-		SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1",
+		SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1",
 		RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1,
 		Publication: &presentationv2.PublicationFence{
 			PresentationId: "presentation-1", PublicationEpoch: 1,
@@ -145,7 +145,7 @@ func TestV2CheckpointContainsCommittedCutBeforeEventPublication(t *testing.T) {
 		DefinitionHash:   "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 	}
-	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}
+	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}
 	identity := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
 
 	for _, test := range []struct {
@@ -158,7 +158,7 @@ func TestV2CheckpointContainsCommittedCutBeforeEventPublication(t *testing.T) {
 		{name: "duplicate_rejected", writerErr: errors.New("checkpoint callback was not applied"), wantReason: realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			core, err := NewV2Session(definition)
+			core, err := newV3RegressionSession(definition)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -179,9 +179,9 @@ func TestV2CheckpointContainsCommittedCutBeforeEventPublication(t *testing.T) {
 			if err := core.ConfigureDurability(writer, metadata, catalog); err != nil {
 				t.Fatal(err)
 			}
-			_, published, err := core.RuntimeControl(context.Background(), identity, &realtimev2.RuntimeControlCommand{
+			_, published, err := core.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{
 				ClientEventId: "pause-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE,
-			})
+			}))
 			if saved == nil {
 				t.Fatal("checkpoint writer was not called")
 			}
@@ -197,7 +197,7 @@ func TestV2CheckpointContainsCommittedCutBeforeEventPublication(t *testing.T) {
 			if err != nil || replayErr != nil || len(published) != 1 || len(log) != 1 || saved.ReliableSequence != published[0].Sequence || saved.ReliableSequence != core.Snapshot().ReliableSequence {
 				t.Fatalf("published cut differs from saved checkpoint: events=%v checkpoint=%v error=%v", published, saved.ReliableSequence, err)
 			}
-			recovered, err := NewV2Session(definition)
+			recovered, err := newV3RegressionSession(definition)
 			if err != nil {
 				t.Fatal(err)
 			}

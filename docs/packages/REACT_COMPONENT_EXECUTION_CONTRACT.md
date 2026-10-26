@@ -24,9 +24,9 @@ React source / 実行可能 module は Compiler の描画用入力に留め、po
 
 共通モデルを変更しない場合、A1 の canonical lowering / CLI check 成功という完了条件を維持できない。別案は抽出・capture の隔離試作までに範囲を縮め、canonical / Editor 接続の前に再度設計することである。元の縦断検証目標に沿い、共通モデルまで拡張する方針を採用した。
 
-## 0. Lock v2 と生成 ID
+## 0. Lock v3 と生成 ID
 
-`unframe.lock` は self-contained な canonical JSON の v2 に変更する。Source 正本の local files は lock に複製せず、root-relative path と bytes hash で固定する。外部依存は文字列・binary とも bytes を lock に含める。概略型は次のとおりであり、unknown field、重複 key、不正 UTF-8 / base64、未参照の外部 package、欠けた参照は拒否する。
+`unframe.lock`はcanonical JSONのv3である。Source正本のlocal filesと登録したsource Assetはlockに複製せず、root-relative pathとbytes hashで固定し、Assetにはmedia typeとsizeも記録する。外部依存は文字列・binary とも bytes を lock に含める。概略型は次のとおりであり、unknown field、重複 key、不正 UTF-8 / base64、未参照の外部 package、欠けた参照は拒否する。
 
 ```ts
 type Hash = `sha256:${string}`;
@@ -61,7 +61,7 @@ type ComponentLock = {
   manifestHash: Hash;
 } & ({ mode: "structured"; structureHash: Hash } | { mode: "opaque"; rendererInputHash: Hash });
 type UnframeLock = {
-  schemaVersion: 2;
+  schemaVersion: 3;
   packageSnapshotProfile: "pnpm-lock9-locator-v1";
   resolutionProfile: "browser-import-production-types-v1";
   extractionProfile: "react-component-v1";
@@ -71,9 +71,11 @@ type UnframeLock = {
   dependencyGraphHash: Hash;
   themeHashes: { themeId: string; hash: Hash }[];
   componentLocks: ComponentLock[];
-  assets: { id: string; mediaType: string; hash: Hash; size: number; dataBase64: string }[];
+  assets: { id: string; path: string; mediaType: string; hash: Hash; size: number }[];
 };
 ```
+
+source Assetは非実行の`unframe.config.ts`の`assets: { [assetId]: { path, mediaType } }`で登録する。check/buildは登録とlockの一致、filesystem snapshotのsize/hashを検証し、Compilerへdescriptorとbytesを分離して渡す。素材の変更は明示的なlock更新を要求し、Dev buildの自動local hash更新では採用しない。旧schemaの暗黙読込は行わない。
 
 `Hash` は実検証で SHA-256 の小文字 hex 64 桁に限定する。file hash は decoded bytes、宣言・record の hash は既存 canonical serializer を使用する。path は ADR-0013 の root 内 regular file 規則を使う。package 内 path は package root 相対とする。file / export / dependency 配列はそれぞれ path / subpath / `(specifier,usage)`、package は key、Component は `(componentId,version)`、asset は id の code-unit 順とし、一意性を検査する。
 
@@ -128,22 +130,24 @@ React JSX と Structured JSX は別の TypeScript Program で検査する。静�
 
 ## 2. Editor host と通信
 
-host は `unframe author <absolute-project-directory>` で起動する Linux / macOS arm64 の native process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。対応範囲と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Web の UI は `app/web`、process / filesystem は CLI、pure command と patch は Compiler が所有する。API 型はこのローカル境界の所有 package に置き、Control Plane の公開 API や Realtime wire を変更しない。
+host は `pnpm --filter @unframe/unframe-cli presentation author <absolute-project-directory>` で起動する Linux / macOS arm64 の native process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。対応範囲と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Local Editor の UI は `app/local-editor`、process / filesystem は CLI、pure command と patch は Compiler が所有する。API 型はこのローカル境界の所有 package に置き、Control Plane の公開 API や Realtime wire を変更しない。
 
 loopback IPv4 のランダム port に bind し、期待する `Host` を完全一致で検査する。起動時の 256-bit session token を起動 URL の fragment で Editor に渡し、Editor は取得後すぐ URL から除去してメモリだけに保持する。API / artifact の読み取りも `Authorization: Bearer` を必須とする。token を query、cookie、永続 storage、ログへ保存しない。state-changing request は同一 Origin と JSON content type を必須とし、CORS は許可しない。host 再起動で token は失効する。
 
 レスポンスは camelCase、未知 field は拒否し、`Cache-Control: no-store` を使う。project path を request から指定させない。一つの host が起動時に選択した一つの project だけを扱う。
 
-| Method / path                                   | 入力と結果                                                                                                                         | 競合 / 再試行                                                                                            |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `GET /api/project`                              | `200 {revision, sourceHash, irHash, instances, diagnostics}` と ETag。instances は公開 Prop schema / 値、Transform、編集可否を持つ | 読み取り。raw source 全文や secrets を返さない                                                           |
-| `PATCH /api/project`                            | `If-Match`、`{commandId, expectedIrHash, command}` → `200 {revision, sourceHash, irHash, commandId}`                               | revision 不一致は 412。commandId は project 内で一意、同一 body の再送は保存済み結果、異なる body は 409 |
-| `POST /api/builds`                              | `If-Match`、`{requestId}` → `202 {buildId, revision, status:"queued"}` と Location                                                 | 同じ requestId / body / revision は同じ job。revision 不一致は 412、別 build 実行中は 409                |
-| `GET /api/builds/{buildId}`                     | `200 {buildId, revision, status, diagnostics, artifacts}`                                                                          | `queued / running / succeeded / failed / cancelled / stale`。初期 UI は 1 秒間隔で poll                  |
-| `PUT /api/builds/{buildId}/cancellation`        | 空 object → `200 {buildId, status}`                                                                                                | 繰り返しても同じ取消意図。既に terminal なら状態を変えない                                               |
-| `GET /api/builds/{buildId}/artifacts/{assetId}` | 成功済み job の catalog に存在する asset bytes                                                                                     | arbitrary path / Source / renderer JS を配信しない。Editor は認証付き fetch の結果を blob URL で表示     |
+| Method / path                                   | 入力と結果                                                                                                                                     | 競合 / 再試行                                                                                            |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `GET /api/project`                              | `200 {revision, sourceHash, irHash, definition, instances, diagnostics}` と ETag。instances は公開 Prop schema / 値、Transform、編集可否を持つ | 読み取り。raw source 全文や secrets を返さない                                                           |
+| `PATCH /api/project`                            | `If-Match`、`{commandId, expectedIrHash, command}` → `200 {revision, sourceHash, irHash, commandId}`                                           | revision 不一致は 412。commandId は project 内で一意、同一 body の再送は保存済み結果、異なる body は 409 |
+| `POST /api/builds`                              | `If-Match`、`{requestId}` → `202 BuildJob` と Location                                                                                         | 同じ requestId / body / revision は同じ job。revision 不一致は 412、別 build 実行中は 409                |
+| `GET /api/builds/{buildId}`                     | `200 BuildJob`（channel / generationId を含む）                                                                                                | `queued / running / succeeded / failed / cancelled / stale`。初期 UI は 1 秒間隔で poll                  |
+| `PUT /api/builds/{buildId}/cancellation`        | 空 object → `200 {buildId, status}`                                                                                                            | 繰り返しても同じ取消意図。既に terminal なら状態を変えない                                               |
+| `GET /api/builds/{buildId}/artifacts/{assetId}` | 成功済み job の catalog に存在する asset bytes                                                                                                 | arbitrary path / Source / renderer JS を配信しない。Editor は認証付き fetch の結果を blob URL で表示     |
 
-`command` は `setProp {instanceId, propId, value}` または `setTransform {instanceId, transform}` の discriminated union。scalar は string / finite number / boolean、Transform は全 position / rotation / scale を持つ。削除、rename、任意 patch / filename は受け付けない。A4 で追加する Undo / Redo は host が保持する同一 session の逆 command と新しい commandId / revision を使う。
+`command` は `setProp` / `setTransform` / `inheritProp` / `restoreProp` / `inheritTransform` / `restoreTransform` の discriminated union。scalar は string / finite number / boolean、Transform は全 position / rotation / scale を持つ。継承への復帰と式の復元は Compiler の Source patch を通す。Local Editor が同一 session の Undo / Redo 履歴を保持し、新しい commandId と最新 revision で逆 command を送る。削除、rename、任意 patch / filename は受け付けない。正確な request / response 型は [Author contract](../../packages/unframe-cli/src/author/contract.ts)、経路は [HTTP adapter](../../packages/unframe-cli/src/author/http.ts) を正本とする。
+
+`POST /api/builds` は Dev、`POST /api/dist-builds` は固定 Dist を生成する。BuildJob は `channel: dev | dist`、成功時の `generationId`、revision、status、diagnostics、artifact catalog を持つ。`POST /api/previews` は成功済み Dev job または固定 Dist を読み込み、`POST /api/preview-playback` が play / pause / reset を行う。`POST /api/preview-display` は Unity の表示 commit を記録し、`DELETE` は表示を無効化する。Preview の schema は [preview contract](../../packages/unframe-cli/src/author/preview-contract.ts) を参照する。
 
 commandId / requestId / buildId は 128-bit random を表す lowercase hex 32 桁に限定する。path に入れる前に strict 検証し、値を directory traversal や任意 filename として解釈しない。assetId は canonical catalog の key へ照合し、decoded 値を filesystem path に連結しない。
 
@@ -151,7 +155,7 @@ ETag / revision は config、全対象 Source bytes、lock bytes の sorted snap
 
 error は `{code,message,details:[{path,reason}],retryable}`。400 は形の不正、401 は token、403 は Origin / Host、404 は未存在 job / asset、409 は commandId 衝突・busy・保存回復待ち、412 は revision / IR の不一致、422 は意味検証、413 は入力上限、500 は I/O。422 / 412 は自動 retry しない。応答不明の保存は同じ commandId と同じ body だけで再送する。別 commandId での自動再送はしない。
 
-初期 transport limit は command JSON 256 KiB、同時 build 一件。これはローカル処理の保護値であり、Presentation の最大規模を定義しない。公開文書 snapshot が大きい場合は既存 Compiler の project limit で拒否する。build job と POST の再送記録は host session 内で保持する。再起動後の不明 job は 404 とし、Editor は project を再取得する。保存 command の成功 receipt は次節のとおり永続化する。
+初期 transport limit は command JSON 256 KiB、同時 build 一件。これはローカル処理の保護値であり、Presentation の最大規模を定義しない。公開文書 snapshot が大きい場合は既存 Compiler の project limit で拒否する。build job と POST の再送記録は host session 内で保持する。完了 job は既定64件を完了順に保持し、超過時は対応する request ID も同時に削除する。実行中 job は削除しない。削除済み job の照会は404、失効 request ID の再送は新規受付として revision を再検証する。再起動後の不明 job も404とし、Editor は project を再取得する。保存 command の成功 receipt は次節のとおり永続化する。
 
 切断で保存を途中取消ししない。build は明示 cancel または host 終了まで継続する。保存成功で古い build は cancel 要求を受け、新 revision の job を明示作成する。遅れて返った古い成果物は preview を置き換えない。build が生成を終えても、現在 revision が違えば `stale` とし、`dist` を更新しない。
 
@@ -179,9 +183,9 @@ receipt と異常 transaction は自動期限切れにしない。正常 transac
 
 ### 入力と資産
 
-入力は frozen lock と抽出 renderer、canonical Props / texts / binding IDs、明示 State、logical size、pixel target、固定 environment。render は physical position / host Transform を受け取らない。React / react-dom / JSX runtime を含めて bundle に閉じ、残った external import は拒否する。bundler の `process.env.NODE_ENV` は production に固定し、CJS の静的 require も locked resolver だけを通す。Node で user module、package lifecycle script、project bundler config を実行しない。package metadata の解決は静的 subset に限定し、bare specifier の browser mapping、`imports` wildcard、target を持たない wildcard export は明示的に拒否する。
+入力は frozen lock と抽出 renderer、canonical Props / texts / binding IDs、明示 State、logical size、pixel target、固定 environment。render は physical position / host Transform を受け取らない。React / react-dom / JSX runtime を含めて bundle に閉じ、残った external import は拒否する。bundler の `process.env.NODE_ENV` は production に固定し、CJS の静的 require も locked resolver だけを通す。Component の意味抽出では user module を Node で実行しない。package lifecycle script と project bundler config は実行しない。Style 変換では project 所有の PostCSS config / plugin を固定 Node graph の隔離 worker で実行する。package metadata の解決は静的 subset に限定し、bare specifier の browser mapping、`imports` wildcard、target を持たない wildcard export は明示的に拒否する。
 
-初期実依存 fixture は repo の pnpm lock で固定した `@base-ui/react` の Button と通常 CSS とする。utility CSS / preprocessor 設定の自動実行は含めない。CSS `url()` / `@import` は固定 asset map に解決し、未解決 URL を拒否する。画像 asset は PNG / JPEG / static WebP、font は TTF / OTF に限定し、signature と mediaType、decode 上限を検証する。外部 SVG、animated image、woff / woff2 はこの profile では拒否する。
+初期実依存 fixture は repo の pnpm lock で固定した `@base-ui/react` の Button と通常 CSS とする。PostCSS 8 / Tailwind 4 は project 所有 config と固定 Node graph を使う別の隔離 Style worker で処理する。対応範囲と制約は [Tailwind README](../../packages/unframe-tailwind/README.md) を参照する。CSS `url()` / `@import` は固定 asset map に解決し、未解決 URL を拒否する。画像 asset は PNG / JPEG / static WebP、font は TTF / OTF に限定し、signature と mediaType、decode 上限を検証する。外部 SVG、animated image、woff / woff2 はこの profile では拒否する。
 
 Browser の request は予約 origin `https://unframe.invalid/` の固定 asset map にだけ [route.fulfill](https://playwright.dev/docs/api/class-route#route-fulfill) で bytes を返す。実 DNS / HTTP へ転送しない。初期 document、JS、CSS、font、画像も同じ map に含め、page の service worker、worker、WebSocket、download、popup、外部 navigation を拒否する。route 制御だけを network isolation とせず、後述の native sandbox でも外部接続を遮断する。
 

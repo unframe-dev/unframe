@@ -10,7 +10,7 @@ namespace Unframe.Unity.PresentationRuntime
         internal static bool TryValidateRuntime(DeliveryManifest manifest, out string error)
         {
             try { return TryValidateRuntimeCore(manifest, out error); }
-            catch (Exception exception) when (exception is OverflowException || exception is ArgumentException || exception is NullReferenceException)
+            catch (Exception exception) when (exception is OverflowException || exception is ArgumentException || exception is NullReferenceException || exception is KeyNotFoundException)
             { error = "delivery native UI or video residency is invalid."; return false; }
         }
 
@@ -27,8 +27,6 @@ namespace Unframe.Unity.PresentationRuntime
             NativeUiResidencyPlan nativePlan = manifest.Residency.NativeUi;
             VideoResidencyPlan videoPlan = manifest.Residency.Video;
             var fontIds = new HashSet<string>();
-            var videoAssets = new Dictionary<string, VideoArtifact>();
-            ulong decoderCount = 0, frameBytes = 0;
             foreach (DeliveredRenderSurface surface in manifest.ProjectionProfile.RenderSurfaces)
                 foreach (DeliveredArtifact delivered in surface.Artifacts)
                 {
@@ -71,15 +69,8 @@ namespace Unframe.Unity.PresentationRuntime
                         if (!capability.Features.Contains(VideoFeature.H264) || artifact.HasAudio && !capability.Features.Contains(VideoFeature.Audio)) return false;
                         foreach (VideoFeature feature in artifact.RequiredFeatures) if (!capability.Features.Contains(feature)) return false;
                         error = "delivery video residency exceeds its declared capability budget.";
-                        ulong bytes = checked(artifact.PixelSize.Width * artifact.PixelSize.Height * 4);
                         if (artifact.PixelSize.Width > videoLimits.MaxWidth || artifact.PixelSize.Height > videoLimits.MaxHeight
                             || artifact.PixelSize.Width * artifact.PixelSize.Height > videoLimits.MaxPixels) return false;
-                        decoderCount++;
-                        frameBytes = checked(frameBytes + bytes);
-                        if (videoAssets.TryGetValue(artifact.VideoAssetId, out VideoArtifact existing)
-                            && (existing.Checksum != artifact.Checksum || !existing.PixelSize.Equals(artifact.PixelSize)
-                                || existing.EncodedSizeBytes != artifact.EncodedSizeBytes || existing.Codec != artifact.Codec)) return false;
-                        videoAssets[artifact.VideoAssetId] = artifact;
                     }
                 }
             if (fontIds.Count != 0)
@@ -97,23 +88,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (!checksums.Contains(glyph.FontChecksum) || glyph.UnicodeScalar > 0x10FFFF || glyph.UnicodeScalar >= 0xD800 && glyph.UnicodeScalar <= 0xDFFF
                         || !glyphs.Add(glyph.FontChecksum + ":" + glyph.UnicodeScalar)) return false;
             }
-            if (decoderCount != 0)
-            {
-                ulong encoded = 0;
-                var selected = new HashSet<string>();
-                foreach (VideoResidencyBinding binding in videoPlan.Videos)
-                {
-                    if (!selected.Add(binding.AssetId) || !videoAssets.TryGetValue(binding.AssetId, out VideoArtifact artifact)
-                        || binding.Checksum != artifact.Checksum || binding.EncodedSizeBytes != artifact.EncodedSizeBytes
-                        || binding.DecodedFrameBytes != artifact.PixelSize.Width * artifact.PixelSize.Height * 4) return false;
-                    encoded = checked(encoded + binding.EncodedSizeBytes);
-                }
-                if (selected.Count != videoAssets.Count || videoPlan.BudgetTierId != videoLimits.TierId
-                    || encoded != videoPlan.TotalEncodedBytes || encoded > videoLimits.MaxEncodedBytes
-                    || decoderCount > videoLimits.MaxConcurrentDecoders || decoderCount > videoPlan.MaximumConcurrentDecoders
-                    || videoPlan.MaximumConcurrentDecoders > videoLimits.MaxConcurrentDecoders || videoPlan.MaximumDecodedFrameBytes > videoLimits.MaxDecodedFrameBytes
-                    || frameBytes > videoLimits.MaxDecodedFrameBytes || frameBytes > videoPlan.MaximumDecodedFrameBytes) return false;
-            }
+            if (!PresentationDeliveryCatalog.TryValidateVideoResidency(manifest, out error)) return false;
             error = null;
             return true;
         }

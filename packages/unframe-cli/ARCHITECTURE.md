@@ -22,7 +22,7 @@ runPresentationCli
 ├─ M1 filesystem host: explicit root + config / lock, materialize virtual project
 ├─ check: unframe-compiler.checkAuthoringProjectAssembly（Browserなし）
 └─ build: exclusive project build lock + compiler + unframe-renderer-web
-   └─ managed staging + atomic dist symlink replacement
+   └─ managed staging + atomic Dist directory replacement
 ```
 
 実装は package の public entrypoint だけを import する。Compiler / Renderer の内部 module を deep import
@@ -34,7 +34,7 @@ src/
 ├─ application/
 │  ├─ types.ts                          # headless host / result contract
 │  └─ run-presentation-cli.ts      # check / build orchestration
-├─ filesystem/build-lock.ts              # process-local build exclusion lease
+├─ filesystem/build-lock.ts              # cross-process project build exclusion lease
 ├─ process/
 │  ├─ main.ts                           # Bun executable entrypoint
 │  └─ run-presentation-process.ts       # SIGINT/SIGTERM owner
@@ -49,7 +49,7 @@ root export は native module を import しない。OpenTUI の Zig core を必
 または `pnpm tui` を使う。これにより Node / Vitest 上の headless check と build は native TUI lifecycle から
 独立する。
 
-lock v2 は self-contained package bytes と local file hash を検証する。`refresh` は固定依存 graph を保持し、`update` はスクリプト無効の frozen pnpm install 後に snapshot を取り直す。`--recreate` は v1 を読み替えず Source から新規生成し、失敗時は旧 lock を保持する。workspace / link dependency は未対応で、root-relative tarball と registry locator を対象とする。
+lock v3 は self-contained package bytes、local file hash、source Assetのpath/hash/sizeを検証する。`refresh` は固定依存 graph を保持し、`update` はスクリプト無効の frozen pnpm install 後に snapshot を取り直す。`--recreate` は旧schemaを読み替えずSourceから新規生成し、失敗時は旧 lock を保持する。workspace / link dependency は未対応で、root-relative tarball と registry locator を対象とする。
 
 ## 2. Command contract
 
@@ -60,15 +60,25 @@ snapshot と explicit validation で boundary validation する。host の callb
 invocation と Compiler / Renderer の cross-boundary semantic diagnostics は、この構造検査の後に扱う。
 
 ```text
+init <absolute-project-directory> [--format text|json]
 check <absolute-project-directory> [--format text|json]
+test <absolute-project-directory> [--format text|json]
 build <absolute-project-directory> [--format text|json]
 lock refresh <absolute-project-directory> [--format text|json]
 lock update <absolute-project-directory> [--recreate] [--format text|json]
+```
+
+process entrypoint は上記を headless API へ委譲し、次の command を追加する。
+
+```text
 author <absolute-project-directory>
+dev <absolute-project-directory>
+preview <absolute-project-directory>
+publish <absolute-project-directory> <presentation-id> <control-plane-origin>
 ```
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
-`build` は Opaque Surface の locked renderer を閉じた bundle にして OS 別の native worker で capture する。Linux は namespace / cgroup、macOS arm64 は Seatbelt と process group の監視を使う。必要な隔離 capability が利用できなければ `opaque-isolation-unavailable` を返す。保証差と検証状態は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従い、成功後だけ既存の atomic publish へ進む。Structured は同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
+`build` は Opaque Surface の locked renderer を閉じた bundle にして OS 別の native worker で capture する。Linux は namespace / cgroup、macOS arm64 は Seatbelt と process group の監視を使う。必要な隔離 capability が利用できなければ `opaque-isolation-unavailable` を返す。保証差と検証状態は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従い、成功後だけ既存の atomic publish へ進む。Structured Surface を含む build は同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
 project root の検証後、Browser を起動する前に `.unframe-build.lock` を `O_CREAT|O_EXCL|O_NOFOLLOW` で取得する。
 同一 project の concurrent build は I/O diagnostic で終了し、output を公開しない。lock は保持した inode が path 上で同一の
 ときだけ finally で削除する。crash 後の stale lock は fail-closed とし、稼働中 build がないことを確認した operator だけが除去する。
@@ -82,7 +92,7 @@ Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer
 
 Prop / Variant の default を省略によって採用した場合、`check` と `build` は exit code `0` のまま warning を返す。成功 JSON の `warnings` は Instance ID、Prop / Variant 名、default 値、path を保持する。text 形式は成功を stdout、warning を stderr に出す。`build` の事前検証と compile で同じ warning を二重表示しない。default と同じ値を明示した場合は warning を出さない。
 
-`unframe.lock` v2 の asset は `id`、`mediaType`、`hash`、`size`、canonical `dataBase64` を持ち、loader が Compiler の asset carrier へ変換する。現行 compile の source asset は `font/ttf` / `font/otf` に限定する。Compiler が bytes と参照を検証し、出力 AssetSet には descriptor だけを残す。raster size は CLI option ではなく ADR-0012 の長辺 2048 policy から導出する。
+`unframe.config.ts`の`assets`はlogical Asset IDから`{ path, mediaType }`へのdata-only登録であり、pathはproject内のregular fileを指す。lock v3のassetは`id`、`path`、`mediaType`、`hash`、`size`を持つ。bytesはfilesystem snapshotからCompilerの独立入力へ渡し、lockやdeclaration projectのJSONへ埋め込まない。登録済み素材は一ファイル64 MiB、合計256 MiBまで読み込み、Compilerは画像16 MiB・フォント/GLB64 MiBの上限と実bytesのhash/size/signatureも検証する。CheckとDist buildは素材・登録・変換条件がlockと異なる場合に拒否し、明示的な`lock refresh`/`lock update`で採用する。AuthorとDev buildは最新素材を取り込み、そのhashと変換条件をDev用snapshotへ固定する。Devはlockの素材pinと既存Distを更新しない。GLBはCompilerの静的Model変換へ渡し、配布GLBをlogical Asset IDのままatomic出力する。MP4は隔離validatorで検証し、Video artifactと配布MP4へ接続する。raster sizeはCLI optionではなくADR-0012の長辺2048 policyから導出する。
 
 ## 3. Artifact boundary
 
@@ -92,11 +102,11 @@ build の成功時だけ、CLI は次の deterministic な全ファイルを辞�
 - `render-bundle.json`
 - `asset-set.json`
 - `build-manifest.json`
-- `assets/<percent-encoded asset id>.<png|ttf|otf>`
+- `assets/<percent-encoded asset id>.<png|jpg|ttf|otf|glb|mp4>`
 
-filesystem host は root 固定の `dist` に対し complete artifact set を `.unframe/generations/<generation-id>` に閉じ、成功時だけ validated
-relative target の managed `dist` symlink を atomic replacement する。失敗または cancel では previous `dist` を維持し、今回の
-staging を公開しない。local BuildManifest の `sourceDraftRevision` は `0` とし、publication と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
+filesystem host はcomplete artifact setを内部generationへ固定し、`build-receipt.json`を含む通常ディレクトリとして`dist`へ公開する。receiptはgeneration IDとbuild manifest bytesのhashを持つ。既存Distの置換は同一親FD配下のディレクトリ交換で原子的に行い、公開前後のbytesとidentityを検証する。失敗またはcancelではprevious Distを保持する。
+
+`dist`は元素材・Source・lock・`.unframe`への参照を持たず、そのディレクトリだけを別の場所へコピーできる。`preview <absolute-dist-directory>`は再ビルドせず共通Unity playerで表示し、編集・build APIを提供しない。`publish <absolute-dist-directory> <presentation-id> <control-plane-origin>`は同じDistの全素材bytesをhash・サイズで検証してから送信する。Preview用Web UIとUnity playerはCLI側の実行環境に必要である。local BuildManifest の `sourceDraftRevision` は `0` とし、publication と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
 discovery / read / write I/O は exit code `3` とする。
 
 ## 4. Interactive TUI boundary
@@ -117,7 +127,7 @@ filesystem host と Browser process は headless process が所有する。
 
 ## 5. Dependency rules
 
-headless application は `unframe-compiler` と `unframe-renderer-web` にだけ依存する。TUI adapter だけが
+headless application は Compiler / Web Renderer のほか、Core、Contracts、Tailwind、worker-host の公開 API を利用する。project の固定 Node graph と Style 変換の準備・起動は CLI、PostCSS 変換は Tailwind、Style / capture 共通の隔離・資源制限・終了確認は worker-host が所有する。Browser の配置と起動は Web Renderer に残す。TUI adapter だけが
 OpenTUI stack に依存する。`unframe-components` は fixture の devDependency であり、CLI runtime の project
 discovery / component registry ではない。依存 version は pnpm lockfile で固定し、repository toolchain は Bun と
 Node.js の両方を提供する。
@@ -126,7 +136,7 @@ Node.js の両方を提供する。
 
 build は config・Source・lock の bytes から revision を固定し、dist 置換前に再検査する。
 変更を検出した場合は `cli-output-stale` を返し、成功済み dist を保持して未公開 generation を回収する。
-build lease と一時 dist link は revision に含めない。これは外部編集の検出であり、非協調 editor との
+build lease と検証済みの一時Distディレクトリはrevisionに含めない。これは外部編集の検出であり、非協調 editor との
 原子的な保存を保証しない。ローカル Author host は source lease と journal により Source / lock の保存と recovery を行う。
 
 `pnpm presentation check|build <project>` は Bun process entry である。この entrypoint だけが単一の
@@ -139,9 +149,11 @@ build lease と一時 dist link は revision に含めない。これは外部�
 
 ## Local build cache
 
-`build` は Compiler の検証済みキャッシュ境界を `.unframe/cache/builds-v1` に接続する。key は Source / Asset bytes、Compiler / Renderer / Browser / font identity と build context / encode policy を含む。hit でも全成果物と binary checksum を Compiler が再検証し、cache failure / corruption は再 capture へ戻す。Browser identity を現在環境から取得するため、hit でも Browser session は開閉する。
+`build` は Compiler の検証済みキャッシュ境界を `.unframe/cache/builds-v1` に接続する。key は Source / Asset bytes、Compiler / Renderer / Browser / font identity と build context / encode policy を含む。hit でも全成果物と binary checksum を Compiler が再検証し、cache failure / corruption は再 capture へ戻す。SurfaceのbuildはBrowser identityを現在環境から取得するため、hitでもBrowser sessionを開閉する。ModelだけのbuildはBrowserを起動しない。
 
-Linux の directory FD と macOS の C 製 dirfd helper に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。保存規則は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md)、OS 別の境界は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。
+Linux / macOS ともに Go 製 native filesystem helper の directory FD に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。保存規則は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md)、OS 別の境界は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。
+
+native filesystem helper は [`scripts/build-cli-filesystem.sh`](../../scripts/build-cli-filesystem.sh) で `packages/unframe-cli/.cache/filesystem-helper` に生成する。依存は native 専用 Go module に固定する。CLI の `presentation` / `dev` / `tui` / `test` / `test:tui` の pnpm hook は生成を行う。`vp test` の直接実行、headless API の直接利用など hook を通らない consumer は、repository root で先に同 script を実行する。Source 保存 transaction もこの helper の FD 操作を使い、schema、checksum、cache key、保持方針は TypeScript が所有する。
 
 ## 7. Deferred
 
@@ -151,7 +163,7 @@ Linux の directory FD と macOS の C 製 dirfd helper に保存先を固定し
 - remote build cache
 - Windows / Intel Mac support
 
-`init`、`dev`、`test`、`preview`、`publish`、watch と TUI / headless command の接続は実装済みである。renderer は host の固定 registry 内で `unframe.lock` の pin を解決し、publish の credential は process 外へ保存しない。
+`init`、`dev`、`test`、`preview`、`publish`、watch と TUI / headless command の接続は実装済みである。`init` はテンプレートの登録素材も相対パスを保ってコピーする。renderer は host の固定 registry 内で `unframe.lock` の pin を解決し、publish の credential は process 外へ保存しない。
 
 これらを追加する場合も、Compiler rule、Renderer implementation、durable publication state の所有権はこの
 package に移さない。
@@ -159,11 +171,17 @@ package に移さない。
 ## 8. Local Author host
 
 `author` は native host の loopback に Web Inspector を配信し、Linux は `xdg-open`、macOS arm64 は `open` で起動 URL を開く。token 付き URL はログに出さず、origin だけを表示する。
-先に repository root で `pnpm --filter @unframe/web build:author` を実行する。
+先に repository root で `pnpm --filter @unframe/local-editor build` を実行する。
 起動は `pnpm --filter @unframe/unframe-cli presentation author /absolute/project`。
 Opaque preview には既存の固定 Browser と OS 別の隔離実行環境が必要である。
 
-`src/author/contract.ts` がローカル HTTP 境界、Compiler が Source patch、`app/web` が画面を所有する。
+`src/author/contract.ts` がローカル HTTP 境界、Compiler が Source patch、`app/local-editor` が画面を所有する。
 公開 scalar Props と host Transform を編集し、保存後に build を要求する。共有値・props spread は対象 Instance の局所 override として保存し、同一 session の Undo / Redo と継承への復帰を提供する。有限 State preview は Core の既存 Cue 実行器を使い、宣言済み操作と生成済み State 画像を接続する。React 内部の CSS 編集は提供しない。
 保存 revision と成功した preview revision を区別し、capture 失敗でも保存済み Source と以前の preview を保持する。
 認証・保存・回復規則は [実装契約](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) を参照。
+
+### Model / Video source tools
+
+登録GLBはCompilerの固定transform identity、MP4は`UNFRAME_FFMPEG_PATH` / `UNFRAME_FFPROBE_PATH`と`UNFRAME_MEDIA_RUNTIME_CLOSURE`が指定するNix tool・worker hashをsource lockへ束縛する。Distのtool更新後は明示的な`lock refresh`が必要となる。Devは最新tool identityをsnapshotへ記録する。MP4 workerは既存worker hostでreadonly input、network隔離、時間・出力・memory上限を適用し、全decode、AVC SPS、stream/packet/frameの検査結果をAssetsへ渡す。拡張子だけのadmissionや自動transcodeは行わない。
+
+PreviewはModel/Video residencyと初期・再生stateを共通Unity playerへ渡す。Control PlaneとNative Runtimeは`unity-media-v1`を使用する。Local Editorは同じfeature/budgetでprofile IDだけを`local-web-preview`とする。これらの上限はadmission設定でありQuest実機の性能測定結果を表さない。

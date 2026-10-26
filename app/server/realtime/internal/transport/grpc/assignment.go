@@ -24,8 +24,10 @@ func assignmentError(err error) error {
 		return status.Error(codes.PermissionDenied, "realtime assignment does not match this runtime")
 	case errors.Is(err, assignment.ErrLeaseExpired):
 		return status.Error(codes.FailedPrecondition, "realtime assignment lease has expired")
-	default:
+	case errors.Is(err, assignment.ErrInvalidAssignment):
 		return status.Error(codes.FailedPrecondition, "realtime assignment is not active")
+	default:
+		return status.Error(codes.Unavailable, "runtime_assignment_unavailable")
 	}
 }
 

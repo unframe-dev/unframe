@@ -66,6 +66,7 @@ const httpsUrlSchema = z
   .refine((value: string) => new URL(value).protocol === "https:", "HTTPS URL required");
 const idParameter = z.object({ id: identifierSchema }).strict();
 const sessionResourceSchema = z.object({
+  publicationFence: publicationFenceSchema.nullable(),
   id: z.string(),
   presentationId: z.string(),
   presenterId: z.string(),
@@ -355,6 +356,7 @@ export const publicRoutes = [
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Presentation not found"),
+      409: errorResponse("No published presentation"),
     },
   }),
   createRoute({
@@ -493,6 +495,7 @@ export const publicRoutes = [
       401: errorResponse("Unauthorized"),
       404: errorResponse("Session not found"),
       409: errorResponse("Runtime assignment is not active"),
+      413: errorResponse("Checkpoint payload exceeds its byte limit"),
     },
   }),
   createRoute({
@@ -514,6 +517,7 @@ export const publicRoutes = [
       401: errorResponse("Unauthorized"),
       404: errorResponse("Session not found"),
       409: errorResponse("Runtime assignment is not active"),
+      413: errorResponse("Checkpoint payload exceeds its byte limit"),
     },
   }),
   createRoute({
@@ -653,7 +657,7 @@ export const publicRoutes = [
               .object({
                 runtimeId: identifierSchema,
                 runtimeVersion: z.string().min(1),
-                protocolVersion: z.literal("v2"),
+                protocolVersion: z.literal("v3"),
                 capacity: z.number().int().nonnegative(),
                 localEndpoint: httpsUrlSchema,
                 certificateFingerprint: z.string().regex(/^sha256:[0-9a-f]{64}$/),
@@ -922,7 +926,7 @@ export const internalRuntimeBootstrapRoute = createRoute({
   request: { query: runtimeBootstrapQuery },
   responses: {
     200: {
-      description: "Trusted Runtime v2 bootstrap",
+      description: "Trusted Runtime v3 bootstrap",
       content: {
         "application/json": {
           schema: runtimeLeaseSchema.extend({
@@ -943,6 +947,7 @@ export const internalRuntimeBootstrapRoute = createRoute({
     401: errorResponse("Unauthorized"),
     404: errorResponse("Runtime assignment not found"),
     409: errorResponse("Runtime fence conflict"),
+    413: errorResponse("Checkpoint payload exceeds its byte limit"),
   },
 });
 export const internalRuntimeLeaseRoute = createRoute({
@@ -958,6 +963,7 @@ export const internalRuntimeLeaseRoute = createRoute({
     400: errorResponse("Invalid lease request"),
     401: errorResponse("Unauthorized"),
     409: errorResponse("Runtime fence conflict"),
+    413: errorResponse("Checkpoint payload exceeds its byte limit"),
   },
 });
 export const internalRuntimeProjectionRoute = createRoute({

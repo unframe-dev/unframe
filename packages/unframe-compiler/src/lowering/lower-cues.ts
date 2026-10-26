@@ -40,6 +40,19 @@ export const lowerCues = (
     }
     return { instance, entry: matches[0]! };
   };
+  const nodeTargetId = (instance: Instance, localId: string): string => {
+    const entry = components.find(
+      (candidate) =>
+        candidate.manifest.componentId === instance.componentId &&
+        candidate.manifest.version === instance.version,
+    );
+    return resourceId(
+      instance.id,
+      entry?.structure.root.kind === "model" && localId === entry.structure.root.id
+        ? (instance.spatialNodeId ?? localId)
+        : localId,
+    );
+  };
   const lowerGuard = (guard: CueGuard, instance?: Instance): CanonicalGuard => {
     if (guard.kind === "all" || guard.kind === "any")
       return { kind: guard.kind, guards: guard.guards.map((child) => lowerGuard(child, instance)) };
@@ -55,7 +68,7 @@ export const lowerCues = (
         left.kind === "surfaceState" && instance
           ? { ...left, surfaceId: resourceId(instance.id, left.surfaceId) }
           : left.kind === "nodeField" && instance
-            ? { ...left, nodeId: resourceId(instance.id, left.nodeId) }
+            ? { ...left, nodeId: nodeTargetId(instance, left.nodeId) }
             : left,
     } as CanonicalGuard;
   };
@@ -91,14 +104,13 @@ export const lowerCues = (
             event: cue.trigger.event,
             actor: { kind: "presenter" },
           };
-        else if (cue.trigger.kind === "motionPreset")
+        else if (cue.trigger.kind === "zoneEdge")
+          trigger = { ...cue.trigger, actor: { kind: "presenter" } };
+        else if (cue.trigger.kind === "gesture")
           trigger = {
-            kind: "motion",
-            actor: { kind: "system", source: "tracking" },
-            preset: cue.trigger.preset,
-            subject: { kind: "anchor", owner: { kind: "presenter" }, target: cue.trigger.hand },
-            minimumDistanceMeters: cue.trigger.minimumDistanceMeters,
-            windowMilliseconds: cue.trigger.windowMilliseconds,
+            kind: "gesture",
+            actor: { kind: "presenter" },
+            gesture: cue.trigger.gesture,
           } as CanonicalCue["trigger"];
         else {
           const target = resolve(cue.trigger.componentInstanceId, [...path, "trigger"]);
@@ -142,7 +154,18 @@ export const lowerCues = (
               kind: "timelineCompleted",
               timelineId: resourceId(target!.instance.id, output.producer.timelineId),
             };
-          } else {
+          } else if (output.producer.kind === "modelClipCompleted")
+            trigger = {
+              kind: "modelClipCompleted",
+              nodeId: nodeTargetId(target!.instance, output.producer.nodeId),
+              clipId: output.producer.clipId,
+            };
+          else if (output.producer.kind === "mediaCompleted")
+            trigger = {
+              kind: "mediaCompleted",
+              surfaceId: resourceId(target!.instance.id, output.producer.surfaceId),
+            };
+          else {
             diagnostics.push(
               diagnostic(
                 "compiler-output-producer-unsupported",
@@ -241,13 +264,48 @@ export const lowerCues = (
             else if (effect.kind === "patchNode")
               actions.push({
                 kind: "node.patch",
-                nodeId: resourceId(target!.instance.id, effect.nodeId),
+                nodeId: nodeTargetId(target!.instance, effect.nodeId),
                 patch: Object.fromEntries(
                   Object.entries(effect.patch).map(([key, value]) => [
                     key,
                     lowerValue(value, invocation.arguments, effectPath),
                   ]),
                 ),
+              });
+            else if (effect.kind === "playModelClip")
+              actions.push({
+                ...effect,
+                kind: "modelClip.play",
+                nodeId: nodeTargetId(target!.instance, effect.nodeId),
+              });
+            else if (
+              effect.kind === "pauseModelClip" ||
+              effect.kind === "resumeModelClip" ||
+              effect.kind === "stopModelClip"
+            )
+              actions.push({
+                kind:
+                  effect.kind === "pauseModelClip"
+                    ? "modelClip.pause"
+                    : effect.kind === "resumeModelClip"
+                      ? "modelClip.resume"
+                      : "modelClip.stop",
+                nodeId: nodeTargetId(target!.instance, effect.nodeId),
+              });
+            else if (effect.kind === "playMedia" || effect.kind === "pauseMedia")
+              actions.push({
+                kind: effect.kind === "playMedia" ? "media.play" : "media.pause",
+                surfaceId: resourceId(target!.instance.id, effect.surfaceId),
+              });
+            else if (effect.kind === "seekMedia")
+              actions.push({
+                kind: "media.seek",
+                surfaceId: resourceId(target!.instance.id, effect.surfaceId),
+                positionSeconds: lowerValue(
+                  effect.positionSeconds,
+                  invocation.arguments,
+                  effectPath,
+                ) as Extract<CanonicalAction, { kind: "media.seek" }>["positionSeconds"],
               });
             else if (effect.kind === "playTimeline") {
               if (

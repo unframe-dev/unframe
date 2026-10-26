@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import type { DeclarationProjectAssemblyCarrier } from "@unframe/unframe-compiler";
 import { z } from "zod";
+import { idSchema } from "@unframe/contracts/presentation";
+import { sourceAssetMediaTypeSchema, sourceAssetPathSchema } from "./load-config.js";
 
 import {
   hashDependencyGraph,
@@ -82,11 +84,16 @@ const component = z.union([
 ]);
 const theme = strict({ themeId: nonempty, hash });
 const asset = strict({
-  id: nonempty,
-  mediaType: nonempty,
+  id: idSchema,
+  path: sourceAssetPathSchema,
+  mediaType: sourceAssetMediaTypeSchema,
   hash,
-  size: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
-  dataBase64: z.string(),
+  transformIdentity: hash.optional(),
+  size: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(64 * 1024 * 1024),
 });
 const root = strict({
   styleTransform: z.unknown().optional(),
@@ -94,7 +101,7 @@ const root = strict({
     .string()
     .regex(/^[a-f0-9]{64}$/)
     .optional(),
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   packageSnapshotProfile: z.literal("pnpm-lock9-locator-v1"),
   resolutionProfile: z.literal("browser-import-production-types-v1"),
   extractionProfile: z.literal("react-component-v1"),
@@ -167,7 +174,7 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
   if (!result.success)
     return fail(
       "cli-lock-shape-invalid",
-      "unframe.lock must match the v2 serialized shape exactly.",
+      "unframe.lock must match the v3 serialized shape exactly.",
     );
   const lock = result.data as UnframeLock;
   if ((lock.styleTransform === undefined) !== (lock.styleSourceIdentity === undefined))
@@ -318,11 +325,6 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
         "Local Component source hash does not match its file closure.",
       );
   }
-  for (const item of lock.assets) {
-    const content = decodeBase64(item.dataBase64);
-    if (content === undefined || content.byteLength !== item.size || digest(content) !== item.hash)
-      return fail("cli-lock-asset-hash-invalid", "Locked asset bytes, size, and hash must match.");
-  }
   const serialized = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   if (serialized !== canonicalizeJsonPayload(lock) + "\n")
     return fail(
@@ -337,7 +339,6 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
         mediaType: item.mediaType,
         checksum: item.hash,
         encodedSizeBytes: item.size,
-        dataBase64: item.dataBase64,
       },
     ]),
   );

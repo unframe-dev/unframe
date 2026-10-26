@@ -28,7 +28,7 @@ MonoBehaviour:
   boundaryVisibilitySupport: 0
   disableBackups: 1
   enableNSCConfig: 1
-  securityXmlPath:
+  securityXmlPath: 
   horizonOsSdkDisabled: 0
   minHorizonOsSdkVersion: 74
   targetHorizonOsSdkVersion: 207

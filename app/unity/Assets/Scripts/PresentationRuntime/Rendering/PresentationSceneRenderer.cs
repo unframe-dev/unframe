@@ -11,17 +11,19 @@ namespace Unframe.Unity.PresentationRuntime
     {
         private PresentationBakedSurfaceRenderer baked;
         private PresentationNativeSurfaceRenderer native;
-        private PresentationVideoSurfaceRenderer video;
-        private PresentationModelRenderer models;
+        public PresentationVideoResidency Videos { get; private set; }
+        public PresentationModelResidency Models { get; private set; }
         private PresentationRuntimeAssetFiles files;
         private bool loaded;
         public PresentationTextureResidency Textures { get; private set; }
 
-        public bool IsReady(PresentationRuntimeDataStore store)
+        public bool HasResidentAssets(PresentationRuntimeDataStore store)
         {
-            return loaded && files.IsReady && native.IsReady && video.IsReady && models.IsReady
+            return loaded && files.IsReady && native.IsReady && Models.IsReady
                 && store.Delivery?.Residency?.Textures != null && Textures.IsReady(store.Delivery.Residency.Textures.Textures);
         }
+
+        public bool IsReady(PresentationRuntimeDataStore store) => HasResidentAssets(store) && Videos.IsReady(store);
 
         public async Task LoadAsync(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy,
             Func<AssetAccessBinding, CancellationToken, Task<byte[]>> readAsset, CancellationToken token)
@@ -37,8 +39,8 @@ namespace Unframe.Unity.PresentationRuntime
             Textures = new PresentationTextureResidency();
             baked = new PresentationBakedSurfaceRenderer();
             native = new PresentationNativeSurfaceRenderer();
-            video = new PresentationVideoSurfaceRenderer();
-            models = new PresentationModelRenderer();
+            Videos = new PresentationVideoResidency { Limits = store.Delivery.CapabilityProfile.Limits.Video };
+            Models = new PresentationModelResidency { Limits = store.Delivery.CapabilityProfile.Limits.Model };
             try
             {
                 foreach (AssetAccessBinding asset in store.Delivery.AssetAccess)
@@ -52,13 +54,27 @@ namespace Unframe.Unity.PresentationRuntime
                 }
                 if (!baked.TryBuild(store, hierarchy, out string buildError)
                     || !native.TryBuild(store, hierarchy, files.Paths, out buildError)) throw new InvalidOperationException(buildError);
-                await models.LoadAsync(store, hierarchy, (asset, cancellation) =>
+                var modelBudget = new PresentationModelTextureBudget
+                {
+                    Limits = store.Delivery.CapabilityProfile.Limits.Texture,
+                    UsedGpuBytes = Textures.ResidentGpuBytes,
+                    UsedBindings = (ulong)store.Delivery.Residency.Textures.Textures.Count,
+                };
+                foreach (ModelResidencyBinding binding in store.Delivery.Residency.Models.Models)
+                {
+                    if (!store.TryGetAsset(binding.AssetId, out AssetAccessBinding access)
+                        || !files.Paths.TryGetValue(binding.AssetId, out string path))
+                        throw new InvalidOperationException("model-asset-file-absent");
+                    await Models.LoadAsync(binding, access, File.ReadAllBytes(path), token, modelBudget);
+                }
+                await Models.InstantiateAsync(store, hierarchy, token);
+                await Videos.BuildAsync(store, hierarchy, (id, cancellation) =>
                 {
                     cancellation.ThrowIfCancellationRequested();
-                    if (!files.Paths.TryGetValue(asset.AssetId, out string path)) throw new InvalidOperationException("model-asset-file-absent");
-                    return Task.FromResult(File.ReadAllBytes(path));
+                    if (!store.TryGetAsset(id, out AssetAccessBinding access) || !files.Paths.TryGetValue(id, out string path))
+                        throw new InvalidOperationException("video-asset-file-absent");
+                    return Task.FromResult(new PresentationPreviewAssetData(File.ReadAllBytes(path), access.MediaType));
                 }, token);
-                await video.BuildAsync(store, hierarchy, files.Paths, token);
                 token.ThrowIfCancellationRequested();
                 loaded = true;
                 if (!IsReady(store)) throw new InvalidOperationException("asset_residency_lost");
@@ -69,9 +85,8 @@ namespace Unframe.Unity.PresentationRuntime
         public bool TryRefresh(PresentationRuntimeDataStore store, double time, out string error)
         {
             error = "asset_residency_lost";
-            if (!IsReady(store)) { Disable(); return false; }
-            if (baked.TryRefresh(store, Textures, time, out error) && native.TryRefresh(store, time, out error)
-                && video.TryRefresh(store, time, out error) && models.TryRefresh(store, time, out error)) return true;
+            if (!HasResidentAssets(store)) { Disable(); return false; }
+            if (baked.TryRefresh(store, Textures, time, out error) && native.TryRefresh(store, time, out error)) return true;
             Disable();
             return false;
         }
@@ -80,16 +95,24 @@ namespace Unframe.Unity.PresentationRuntime
         {
             surfaceId = null;
             interactionId = null;
-            return loaded && baked.TryPickInteraction(ray, store, Textures, out surfaceId, out interactionId);
+            if (!loaded) return false;
+            bool bakedPicked = baked.TryPickInteraction(ray, store, Textures, out string bakedSurface, out string bakedInteraction, out float bakedDistance);
+            bool nativePicked = native.TryPickInteraction(ray, store, out string nativeSurface, out string nativeInteraction, out float nativeDistance);
+            bool useNative = nativeDistance < bakedDistance || nativeDistance == bakedDistance && nativeSurface != null
+                && (bakedSurface == null || StringComparer.Ordinal.Compare(nativeSurface, bakedSurface) < 0);
+            if (useNative ? !nativePicked : !bakedPicked) return false;
+            surfaceId = useNative ? nativeSurface : bakedSurface;
+            interactionId = useNative ? nativeInteraction : bakedInteraction;
+            return true;
         }
 
-        public void Disable() { baked?.Disable(); native?.Disable(); video?.Disable(); models?.Disable(); }
+        public void Disable() { baked?.Disable(); native?.Disable(); Videos?.Pause(); }
 
         public void Dispose()
         {
             loaded = false;
-            video?.Dispose(); video = null;
-            models?.Dispose(); models = null;
+            Videos?.Dispose(); Videos = null;
+            Models?.Dispose(); Models = null;
             native?.Dispose(); native = null;
             baked?.Dispose(); baked = null;
             Textures?.Dispose(); Textures = null;

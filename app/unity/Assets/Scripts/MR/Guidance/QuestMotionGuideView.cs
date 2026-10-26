@@ -52,14 +52,14 @@ namespace Unframe.Unity.PresentationRuntime
             bool leftTracked = QuestPresentationTracking.TrySample(XRNode.LeftHand, TrackedTarget.LeftHand, out _);
             bool rightTracked = QuestPresentationTracking.TrySample(XRNode.RightHand, TrackedTarget.RightHand, out _);
             var progression = runtime?.DataStore.Progression;
-            state.Refresh(runtime?.DataStore.Catalog, progression,
-                runtime != null && runtime.IsPresenter && runtime.SessionReady,
+            state.Refresh(runtime?.InputSynchronization?.Catalog, progression,
+                runtime != null && runtime.IsPresenter && runtime.CanSendInput,
                 runtime != null && runtime.CalibrationReady, runtime?.DataStore.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running,
                 headTracked && head != null && trackingOrigin != null, leftTracked, rightTracked, ui == null || ui.MenuOpen);
             if (state.Candidates.Count == 0) { Hide(); return; }
             int signature = 17;
             for (int candidate = 0; candidate < state.Candidates.Count; candidate++)
-                signature = unchecked(signature * 31 + state.Candidates[candidate].CueId.GetHashCode());
+                signature = unchecked(signature * 31 + (int)state.Candidates[candidate]);
             if (candidateSignature != signature || groupEpoch != progression.GroupEntryEpoch || stepEpoch != progression.StepEntryEpoch)
             {
                 candidateSignature = signature;
@@ -69,12 +69,12 @@ namespace Unframe.Unity.PresentationRuntime
                 framedCue = null;
             }
             int index = (int)((Time.realtimeSinceStartupAsDouble - candidateStartedAt) / 6) % state.Candidates.Count;
-            ProjectedMotionGuideDefinition selected = state.Candidates[index];
-            bool candidateChanged = framedCue != selected.CueId;
+            GestureKind selected = state.Candidates[index];
+            bool candidateChanged = framedCue != selected.ToString();
             QuestMotionGuideGeometry.GetFrame(head.rotation, out Vector3 currentForward, out Vector3 currentRight);
             if (candidateChanged || QuestMotionGuideGeometry.NeedsReframe(forward, currentForward))
             {
-                framedCue = selected.CueId;
+                framedCue = selected.ToString();
                 forward = currentForward;
                 right = currentRight;
                 anchor = head.position + forward * 1.05f - Vector3.up * .3f;
@@ -83,20 +83,20 @@ namespace Unframe.Unity.PresentationRuntime
             if (visuals == null) return;
             visuals.SetActive(true);
             instructionPanel.SetPositionAndRotation(anchor + Vector3.up * .3f, Quaternion.LookRotation(forward, Vector3.up));
-            QuestMotionGuideGeometry.Diagram((int)selected.Preset, selected.MinimumDistanceMeters, out float startHalf, out float endHalf, out float scale);
-            bool both = (int)selected.Hand == 4;
+            QuestMotionGuideGeometry.Diagram((int)selected, ((int)selected >= 7 ? .25 : .18), out float startHalf, out float endHalf, out float scale);
+            bool both = (int)selected >= 7;
             if (candidateChanged)
             {
                 var culture = System.Globalization.CultureInfo.InvariantCulture;
-                string distance = (selected.MinimumDistanceMeters * 100).ToString("0.#", culture);
-                string seconds = (selected.WindowMs / 1000.0).ToString("0.##", culture);
-                label.text = "操作候補 " + (index + 1) + "/" + state.Candidates.Count + "　" + Description((int)selected.Preset)
-                    + "\n前を見る → " + HandDescription((int)selected.Hand) + "を0.2秒止める → 動かす"
-                    + "\n" + (both ? "両手の間隔を" : "手を") + distance + "cm以上 / " + seconds + "秒以内（25cm/秒以上）"
-                    + (both ? "\n開始間隔" + (startHalf * 200).ToString("0.#", culture) + "cm → 終了間隔" + (endHalf * 200).ToString("0.#", culture) + "cm・各手10cm以上" : "")
+                string distance = (((int)selected >= 7 ? .25 : .18) * 100).ToString("0.#", culture);
+                string seconds = "0.8";
+                label.text = "操作候補 " + (index + 1) + "/" + state.Candidates.Count + "　" + Description((int)selected)
+                    + "\n前を見る → " + (both ? "両手" : "左右いずれかの手") + "を0.15秒止める → 動かす"
+                    + "\n" + (both ? "両手の間隔を" : "手を") + distance + "cm以上 / " + seconds + "秒以内"
+                    + (both ? "\n開始間隔" + (startHalf * 200).ToString("0.#", culture) + "cm → 終了間隔" + (endHalf * 200).ToString("0.#", culture) + "cm" : "")
                     + "\n方向の例・縮尺図（実寸ではありません）";
             }
-            bool firstLeft = (int)selected.Hand == 2 || (int)selected.Hand == 1 && leftTracked;
+            bool firstLeft = leftTracked;
             float phase = Mathf.Repeat((float)Time.unscaledTimeAsDouble * .65f, 1);
             for (int i = 0; i < 2; i++)
             {
@@ -107,7 +107,7 @@ namespace Unframe.Unity.PresentationRuntime
                 bool left = both ? i == 0 : firstLeft;
                 Vector3 diagramOrigin = anchor - Vector3.up * .16f;
                 Vector3 start = diagramOrigin + (both ? (left ? -right : right) * startHalf * scale : Vector3.zero);
-                Vector3 direction = QuestMotionGuideGeometry.Direction((int)selected.Preset, forward, right, left);
+                Vector3 direction = QuestMotionGuideGeometry.Direction((int)selected, forward, right, left);
                 Vector3 end = both ? diagramOrigin + (left ? -right : right) * endHalf * scale : start + direction * endHalf * scale;
                 Vector3 wing = Mathf.Abs(Vector3.Dot(direction, Vector3.up)) > .9f ? right : Vector3.up;
                 Vector3[] points = arrowPoints[i];
@@ -214,7 +214,6 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        private static string HandDescription(int hand) => hand == 2 ? "左手" : hand == 3 ? "右手" : hand == 4 ? "両手" : "左右いずれかの手";
         private void Hide() { if (visuals != null) visuals.SetActive(false); framedCue = null; candidateSignature = 0; }
         private void OnDisable() => Hide();
         private void OnDestroy()

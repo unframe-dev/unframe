@@ -21,6 +21,7 @@ nix run .#presentation
 nix run .#unity-proto -- check
 nix run .#realtime
 nix run .#web
+nix run .#local-editor
 nix run .#lp
 nix run .#notion-sync
 nix flake check
@@ -69,9 +70,15 @@ nix develop --command scripts/ci/opaque-capture.sh
 
 PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と依存も固定します。OS を切り替えた場合は、移行先の同じ隔離 profile 内で `pnpm --filter @unframe/unframe-cli run presentation lock update <absolute-project-directory>` を実行します。`lock refresh` では runtime を切り替えません。
 
+## Native helper と worker の準備
+
+CLI の path 検査、成果物公開、build cache、Source 保存 transaction は Go 製 native filesystem helper を使用します。repository root で `bash scripts/build-cli-filesystem.sh` を実行すると `packages/unframe-cli/.cache/filesystem-helper` を生成します。native 専用 Go module の依存は `packages/unframe-cli/native/go.mod` と `go.sum` で固定します。CLI の pnpm `presentation` / `dev` / `tui` / `test` / `test:tui` は hook で生成します。`vp test` の直接実行や headless API の直接利用など hook を通らない consumer は、先に同 script を実行してください。
+
+Style / capture 共通の OS 別隔離・資源制限・終了確認は `unframe-worker-host` が所有し、Browser の配置と起動は Renderer、固定 Node graph の配置と Style 変換の準備は CLI が所有します。Linux / macOS の保証差と実機検証範囲は ADR-0026 を参照してください。
+
 ## Local Editor と Unity
 
-Local Editor の開発は、Web の `dev:editor` と CLI の `dev` を別ターミナルで起動します。CLI の起動入口が OS 別の隔離経路と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Web README](../app/web/README.md#local-editor-の起動) を参照してください。
+Local Editor の開発は、Local Editor の `dev` と CLI の `dev` を別ターミナルで起動します。CLI の起動入口が OS 別の隔離経路と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Local Editor README](../app/local-editor/README.md#local-editor-の起動) を参照してください。
 
 ```bash
 nix run .#unity-editor -- -projectPath "$PWD/app/unity"
@@ -95,8 +102,8 @@ WebGL playerは不要です。終了はCtrl+Cです。Quest用のLAN配信・マ
 
 `local-editor-e2e` は生成済み WebGL player と固定 Browser の provision を必要とします。Chromium 実行ファイルは既定で renderer の managed headless shell を使用し、`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` で明示指定できます。OS 別の Opaque capture の隔離要件も満たしてください。
 
-試験は `.unframe/unity-preview/e2e/<run>` に隔離した D1／R2、実行専用 CA・証明書、ログ・結果を作り、ローカル Control Plane、Realtime、承認用 Web と Host を起動します。実 WebGL Dist commit、device 承認、固定 Dist 公開と hash、権限・PublicationFence 拒否、HTTPS 素材と実 Snapshot／StateReady を用いる native Unity 描画を検査します。実行 directory は秘密情報を含むため共有・commit しないでください。
+試験は `.unframe/unity-preview/e2e/<run>` に隔離した D1／R2、実行専用 CA・証明書、ログ・結果を作り、ローカル Control Plane、Realtime、管理 Web と Host を起動します。実 WebGL Dist commit、device 承認、固定 Dist 公開と hash、Web の公開情報確認・ルーム作成と固定 publication、権限・PublicationFence 拒否、HTTPS 素材と実 Snapshot／StateReady を用いる native Unity 描画を検査します。実行 directory は秘密情報を含むため共有・commit しないでください。
 
 `--showcase` は `examples/local-editor-showcase` の5枚構成を使用し、実 Surface interaction → Cue → Step／状態更新と Timeline、カメラの周回・パン・ズームを native Unity で収録します。`ffmpeg` が必要で、`UNFRAME_FFMPEG_EXECUTABLE_PATH` で指定できます。run 内の `showcase.mp4` は1280×720・24fps・36秒、`native.json` は各入力の Cue・Step・状態・sequence と描画フレームの観測結果です。動画は実カメラの連番フレームから生成します。
 
-各プロセスは終了時に停止しますが、結果 directory は診断用に残ります。失敗時はその run のログを確認してください。build や unit test の成功と、この E2E の成功は分けて記録します。2026-10-07 に成功し、証拠は `.unframe/unity-preview/e2e/20261007T160533-371594/result.json` と `native.png` に保存しました。Quest 実機と WebGL の本番 Realtime 接続はこの試験に含みません。
+各プロセスは終了時に停止しますが、結果 directory は診断用に残ります。失敗時はその run のログを確認してください。build や unit test の成功と、この E2E の成功は分けて記録します。分離前の検証は 2026-10-07 に成功し、証拠は `.unframe/unity-preview/e2e/20261007T160533-371594/result.json` と `native.png` に保存しました。Quest 実機と WebGL の本番 Realtime 接続はこの試験に含みません。

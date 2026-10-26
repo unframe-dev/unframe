@@ -1,6 +1,6 @@
 # Presentation Authoring Architecture
 
-- **Status**: M3D host Timeline declarations implemented
+- **Status**: Host Timeline, Model playback and Video declarations implemented
 - **Public package name**: `@unframe/unframe-authoring`
 - **Scope**: 利用者向け Authoring SDK、制限付き DSL、semantic authoring operation
 - **Related**:
@@ -21,7 +21,7 @@
 - `defineTheme`
 - Component Manifest builder
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
-- Spatial / Surface / Layout primitive の authoring declaration
+- Spatial / Surface / Model / Video / Layout primitive の authoring declaration
 - Frame / Text / Image / Shape と absolute / Stack / Grid 配置。Frame の `layout` は親内での配置、`flow` は子の配置方式を表す
 - Theme、Token、Named Style、Asset reference
 - 型付き Prop / Token reference と Slot placeholder
@@ -30,6 +30,12 @@
 - override、Detach、semantic command が共有する operation vocabulary
 
 公開 API は Compiler が AST 上で symbol と signature を識別できる形に保つ。任意の runtime side effect や import-time registration を必要としない。
+
+`model({ id, asset })` / JSX `Model` は constant `AssetReference` を持つ ComponentStructure root であり、Frame の children には入れない。Model root は配置 TRS や内部アニメーションの再生状態を持たず、配置は既存 Component instance と Spatial が所有する。Compiler の Model subset は空の props / slots / parts / variants / states / Timelines を要求し、固定 clip の play / pause / resume / stop と clip 完了・timer Output を扱う。clip ID は変換後 GLB の metadata と照合する。
+
+`video(...)` / JSX `Video` は Asset reference、loop、placement、Image と共通の style を持つ Frame content である。Surface を対象にした `playMedia` / `pauseMedia` / `seekMedia` と `mediaCompleted` は、その Surface に一つの Video がある場合に利用できる。State は loop / visibility を変更できる。Compiler が表現できない geometry / compositing は build error とする。
+
+`playModelClip({ nodeId, clipId, speed, loop, completion, transition, conflict })`、`pauseModelClip({ nodeId })`、`resumeModelClip({ nodeId })`、`stopModelClip({ nodeId })` は Component root ID を使い、`modelClipCompleted({ nodeId, clipId })` が自然終了を参照する。`seekMedia({ surfaceId, positionSeconds })` の position は typed ActionValue である。Source 抽出はこれらの builder と JSX を実行しない。
 
 ## 3. Source boundaries
 
@@ -103,7 +109,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 ## 9. Deferred decisions
 
 - Lossless Syntax Tree / source patching library
-- `unframe.lock` と Component package distribution の形式
+- Component package の外部配布と更新方針。ローカル lock v2 の形式は [実行契約](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v2-と生成-id) と CLI が所有する
 - public API の正確な naming と versioning
 - Component migration metadata と自動変換
 - Part partition permission / isolate

@@ -64,7 +64,26 @@ export type ActionPrecondition = {
   surfaceId: string;
   stateId: string;
 };
+export type ModelClipPlayOptions = {
+  nodeId: string;
+  clipId: string;
+  speed: number;
+  loop: boolean;
+  completion: "blocking" | "nonBlocking";
+  transition:
+    | { kind: "immediate" }
+    | {
+        kind: "crossfade";
+        durationMilliseconds: number;
+        easing: "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
+      };
+  conflict: "reject";
+};
 export type ActionEffect =
+  | ({ kind: "playModelClip" } & ModelClipPlayOptions)
+  | { kind: "pauseModelClip" | "resumeModelClip" | "stopModelClip"; nodeId: string }
+  | { kind: "playMedia" | "pauseMedia"; surfaceId: string }
+  | { kind: "seekMedia"; surfaceId: string; positionSeconds: ActionValue }
   | {
       kind: "setSurfaceState";
       surfaceId: string;
@@ -102,6 +121,7 @@ export type OutputPayloadField =
   | { type: "number"; value: number }
   | { type: "string"; value: string };
 export type OutputProducer =
+  | { kind: "modelClipCompleted"; nodeId: string; clipId: string }
   | { kind: "surfaceInteraction"; interactionId: string }
   | { kind: "timelineCompleted"; timelineId: string }
   | { kind: "mediaCompleted"; surfaceId: string }
@@ -132,7 +152,12 @@ export type TransformDeclaration = {
   rotation: readonly [number, number, number, number];
   scale: readonly [number, number, number];
 };
+export type ZoneDeclaration = StableDeclaration & {
+  owner: ResourceOwner;
+  center: readonly [number, number, number];
+};
 export type StageDeclaration = {
+  zones?: Readonly<Record<string, ZoneDeclaration>>;
   coordinateSystem: {
     unit: "meter";
     handedness: "right";
@@ -262,6 +287,7 @@ export type ContentOverrideDeclaration = CommonContentOverrideDeclaration &
       }
     | { kind: "text"; value?: StringValueDeclaration; style?: TextStyleDeclaration }
     | { kind: "image"; asset?: AssetReference; style?: ImageStyleDeclaration }
+    | { kind: "video"; loop?: boolean; style?: ImageStyleDeclaration }
     | { kind: "shape"; geometry?: ShapeGeometryDeclaration; style?: ShapeStyleDeclaration }
   );
 export type SemanticOverrideDeclaration = StableDeclaration & {
@@ -371,6 +397,14 @@ export type ImageDeclaration = StableDeclaration &
     layout: PlacementDeclaration;
     style: ImageStyleDeclaration;
   };
+export type VideoDeclaration = StableDeclaration &
+  CommonPrimitiveDeclaration & {
+    kind: "video";
+    asset: AssetReference;
+    loop: boolean;
+    layout: PlacementDeclaration;
+    style: ImageStyleDeclaration;
+  };
 export type ShapeDeclaration = StableDeclaration &
   CommonPrimitiveDeclaration & {
     kind: "shape";
@@ -400,9 +434,11 @@ export type ContentNodeDeclaration =
   | FrameDeclaration
   | TextDeclaration
   | ImageDeclaration
+  | VideoDeclaration
   | ShapeDeclaration
   | SlotPlaceholderDeclaration;
-export type StructureRootDeclaration = SurfaceDeclaration | FrameDeclaration;
+export type ModelDeclaration = StableDeclaration & { kind: "model"; asset: AssetReference };
+export type StructureRootDeclaration = SurfaceDeclaration | FrameDeclaration | ModelDeclaration;
 
 export type BaseSemanticTreeDeclaration = {
   rootNodeIds: readonly string[];
@@ -565,6 +601,7 @@ export type ComponentStructure = ComponentStructureBase &
   (
     | { root: SurfaceDeclaration; baseSemanticTree?: never }
     | { root: FrameDeclaration; baseSemanticTree: BaseSemanticTreeDeclaration }
+    | { root: ModelDeclaration; baseSemanticTree?: never }
   );
 
 export type ComponentActionInvocation = {
@@ -578,21 +615,23 @@ export type ComponentOutputReference = {
   componentInstanceId: string;
   outputId: string;
 };
-export type MotionPresetTrigger = {
-  kind: "motionPreset";
-  minimumDistanceMeters: number;
-  windowMilliseconds: number;
-} & (
-  | {
-      preset: "swipeLeft" | "swipeRight" | "swipeDown" | "swipeUp" | "pushForward" | "pullBackward";
-      hand: "eitherHand" | "leftHand" | "rightHand";
-    }
-  | { preset: "spreadHands" | "closeHands"; hand: "bothHands" }
-);
+export type GestureTrigger = {
+  kind: "gesture";
+  gesture:
+    | "swipeLeft"
+    | "swipeRight"
+    | "swipeDown"
+    | "swipeUp"
+    | "pushForward"
+    | "pullBackward"
+    | "spreadHands"
+    | "closeHands";
+};
 export type CueTrigger =
   | { kind: "event"; event: string }
   | ComponentOutputReference
-  | MotionPresetTrigger;
+  | GestureTrigger
+  | { kind: "zoneEdge"; zoneId: string; edge: "enter" | "exit" };
 export type CueGuard =
   | { kind: "all"; guards: readonly CueGuard[] }
   | { kind: "any"; guards: readonly CueGuard[] }
@@ -617,7 +656,7 @@ export type CueDeclaration = StableDeclaration & {
   priority?: number;
   order?: number;
   guard?: CueGuard;
-  firePolicy?: { kind: "oncePerStepEntry" } | { kind: "repeatable"; cooldownMilliseconds: number };
+  firePolicy?: { kind: "oncePerStepEntry" } | { kind: "repeatable" };
   next?: CueNext;
   toStepId?: string;
   toGroupId?: string;

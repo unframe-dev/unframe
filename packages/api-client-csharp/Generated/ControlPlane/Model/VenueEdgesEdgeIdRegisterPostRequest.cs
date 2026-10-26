@@ -61,9 +61,9 @@ namespace Unframe.ControlPlane.Model
         public enum ProtocolVersionEnum
         {
             /// <summary>
-            /// Enum V2 for value: v2
+            /// Enum V3 for value: v3
             /// </summary>
-            V2 = 1
+            V3 = 1
         }
 
         /// <summary>
@@ -74,8 +74,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static ProtocolVersionEnum ProtocolVersionEnumFromString(string value)
         {
-            if (value.Equals("v2"))
-                return ProtocolVersionEnum.V2;
+            if (value.Equals("v3"))
+                return ProtocolVersionEnum.V3;
 
             throw new NotImplementedException($"Could not convert value to type ProtocolVersionEnum: '{value}'");
         }
@@ -87,8 +87,8 @@ namespace Unframe.ControlPlane.Model
         /// <returns></returns>
         public static ProtocolVersionEnum? ProtocolVersionEnumFromStringOrDefault(string value)
         {
-            if (value.Equals("v2"))
-                return ProtocolVersionEnum.V2;
+            if (value.Equals("v3"))
+                return ProtocolVersionEnum.V3;
 
             return null;
         }
@@ -101,8 +101,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static string ProtocolVersionEnumToJsonValue(ProtocolVersionEnum value)
         {
-            if (value == ProtocolVersionEnum.V2)
-                return "v2";
+            if (value == ProtocolVersionEnum.V3)
+                return "v3";
 
             throw new NotImplementedException($"Value could not be handled: '{value}'");
         }

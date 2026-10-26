@@ -1,3 +1,4 @@
+import { buildResidencyPlan } from "./residency.js";
 import type {
   PresentationDefinition,
   RenderBundle,
@@ -107,6 +108,7 @@ const artifactWire = (
         encodedSizeBytes: toUInt64(artifact.encodedSizeBytes),
         codec: artifact.codec === "h264" ? 1 : artifact.codec === "vp9" ? 2 : 3,
         hasAlpha: artifact.alpha,
+        fit: fit[artifact.fit],
       },
     };
   const font = (face: { assetId: string; supportedCodePointRanges: [number, number][] }) => ({
@@ -364,49 +366,47 @@ const runtimeCatalog = (
     surfaces.some((surface) => !visibleSurfaces.has(surface.surfaceId))
   )
     throw new Error("Invalid runtime catalog closure.");
-  const motionGuides =
+  const gestures = {
+    swipeLeft: 1,
+    swipeRight: 2,
+    swipeDown: 3,
+    swipeUp: 4,
+    pushForward: 5,
+    pullBackward: 6,
+    spreadHands: 7,
+    closeHands: 8,
+  };
+  const triggers = Object.values(definition.flow.groups).flatMap((group) =>
+    Object.values(group.steps).flatMap((step) => step.cues.map((cue) => cue.trigger)),
+  );
+  const presenterRecognition =
     role === "viewer"
-      ? []
-      : pairs(definition.flow.groups).flatMap(([groupId, group]) =>
-          pairs(group.steps).flatMap(([stepId, step]) =>
-            [...step.cues]
-              .sort((left, right) => byId(left.id, right.id))
-              .flatMap((cue) => {
-                const trigger = cue.trigger;
-                if (trigger.kind !== "motion" || !("preset" in trigger)) return [];
-                return [
-                  {
-                    groupId,
-                    stepId,
-                    cueId: cue.id,
-                    preset: {
-                      swipeLeft: 1,
-                      swipeRight: 2,
-                      swipeDown: 3,
-                      swipeUp: 4,
-                      pushForward: 5,
-                      pullBackward: 6,
-                      spreadHands: 7,
-                      closeHands: 8,
-                    }[trigger.preset],
-                    hand: { eitherHand: 1, leftHand: 2, rightHand: 3, bothHands: 4 }[
-                      trigger.subject.target
-                    ],
-                    minimumDistanceMeters: trigger.minimumDistanceMeters,
-                    windowMs: toUInt64(trigger.windowMilliseconds),
-                  },
-                ];
-              }),
-          ),
-        );
+      ? undefined
+      : {
+          gestures: [
+            ...new Set(
+              triggers.flatMap((trigger) =>
+                trigger.kind === "gesture" ? [gestures[trigger.gesture]] : [],
+              ),
+            ),
+          ].sort((a, b) => a - b),
+          zones: [
+            ...new Set(
+              triggers.flatMap((trigger) => (trigger.kind === "zoneEdge" ? [trigger.zoneId] : [])),
+            ),
+          ]
+            .sort(byId)
+            .map((zoneId) => ({ zoneId, center: vec3(definition.stage.zones[zoneId]!.center) })),
+        };
+
   return {
-    catalogContractVersion: 2,
+    catalogContractVersion: 3,
     nodes,
     surfaces,
     variables,
     timelines,
     modelClips,
-    motionGuides,
+    ...(presenterRecognition ? { presenterRecognition } : {}),
   };
 };
 
@@ -506,6 +506,12 @@ const buildProjection = (
   if (catalog.surfaces.some((surface) => surface.hasVideo)) capabilities.push(4);
   if (catalog.modelClips.length) capabilities.push(5);
   if (catalog.nodes.some((node) => "presenterAnchor" in node.parent)) capabilities.push(6);
+  if (
+    role === "presenter" &&
+    (catalog.presenterRecognition?.gestures.length || catalog.presenterRecognition?.zones.length)
+  )
+    capabilities.push(7);
+  capabilities.push(8, 9, 10);
   const projection: RuntimeProjection = {
     visibleNodeIds: selection.visibleNodeIds,
     visibleSurfaceIds: selection.visibleSurfaceIds,
@@ -527,9 +533,15 @@ const requireRole = (role: "presenter" | "viewer") => {
 export const buildRuntimeProjection = (
   input: BuildSourceInput,
   role: "presenter" | "viewer",
-): { projection: RuntimeProjection; selection: DeliverySelection } => {
+): {
+  projection: RuntimeProjection;
+  selection: DeliverySelection;
+  residency: ReturnType<typeof buildResidencyPlan>;
+} => {
   requireRole(role);
-  return buildProjection(parseBuildInputs(input), role);
+  const parsed = parseBuildInputs(input);
+  const projected = buildProjection(parsed, role);
+  return { ...projected, residency: buildResidencyPlan(parsed, projected.selection) };
 };
 
 export const buildProjectionProfile = (
@@ -548,7 +560,7 @@ export const buildProjectionProfile = (
         publicationEpoch: toUInt64(publication.publicationEpoch),
         publicationManifestHash: publication.publicationManifestHash,
       },
-      projectionContractVersion: 1,
+      projectionContractVersion: 2,
       role: roleNumber[role],
       capabilityProfileId: parsed.capability.capabilityProfileId,
     },

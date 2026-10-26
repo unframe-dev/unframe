@@ -1,3 +1,4 @@
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
@@ -19,6 +20,7 @@ import { discoverPresentationProjectFiles } from "../src/filesystem/discover-pro
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
 import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -97,8 +99,9 @@ const installFrozenGraph = async (directory: string) => {
 const createProject = async (mixed = false) => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-opaque-integration-"));
   temporary.push(directory);
-  await cp(reference, directory, { recursive: true });
+  await copyProjectFixture(reference, directory);
   const { loaded, presentation: initial } = await fromReference(directory);
+  if (!mixed) await clearSourceAssetRegistration(directory, "presentation.unframe.tsx");
   const graph = await installFrozenGraph(directory);
   const sdkPackage = loaded.packages.find((pkg) => pkg.name === "@unframe/unframe-authoring");
   assert(sdkPackage);
@@ -246,7 +249,12 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   const second = await runPresentationCli({ args: ["build", directory] });
   const secondDuration = performance.now() - secondStarted;
   expect(second.exitCode, second.stderr).toBe(0);
-  expect(distHashes(await distBytes(directory))).toEqual(distHashes(bytes));
+  // The receipt identifies each publication generation rather than deterministic build content.
+  const buildContent = (files: [string, Uint8Array][]) =>
+    files.filter(([path]) => path !== "build-receipt.json");
+  expect(distHashes(buildContent(await distBytes(directory)))).toEqual(
+    distHashes(buildContent(bytes)),
+  );
   console.info(
     `Opaque Base UI build durations: ${Math.round(firstDuration)} ms, ${Math.round(secondDuration)} ms`,
   );

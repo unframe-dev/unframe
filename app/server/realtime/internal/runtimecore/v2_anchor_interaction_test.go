@@ -35,7 +35,7 @@ func TestV2AnchorSurfaceInteractionRequiresAvailableTracking(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				core, err := NewV2Session(raw)
+				core, err := newV3RegressionSession(raw)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -59,7 +59,7 @@ func TestV2AnchorSurfaceInteractionRequiresAvailableTracking(t *testing.T) {
 				if scenario == "changed origin" {
 					core.snapshot.PresentationOrigin.Version++
 				}
-				out, _, err := core.SurfaceInteraction(id, &realtimev2.SurfaceInteractionCommand{ClientEventId: "tap", SurfaceId: "screen", InteractionId: "tap", PresentationOriginVersion: core.Snapshot().PresentationOrigin.Version})
+				out, _, err := core.SurfaceInteraction(id, v3TestSurfaceInteraction(core, &realtimev2.SurfaceInteractionCommand{ClientEventId: "tap", SurfaceId: "screen", InteractionId: "tap", PresentationOriginVersion: core.Snapshot().PresentationOrigin.Version}))
 				if err != nil {
 					t.Fatal(err)
 				}

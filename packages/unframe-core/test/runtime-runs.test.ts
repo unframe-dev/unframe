@@ -87,39 +87,26 @@ describe("canonical Timeline Run", () => {
     "pullBackward",
     "spreadHands",
     "closeHands",
-  ] as const)("plays the existing fade Timeline from motion preset %s", (preset) => {
+  ] as const)("plays the existing fade Timeline from Gesture %s", (preset) => {
     const definition = setup();
     const cue = definition.flow.groups.intro!.steps.start!.cues[0]!;
     const paired = preset === "spreadHands" || preset === "closeHands";
     cue.trigger = paired
       ? {
-          kind: "motion",
-          preset,
-          actor: { kind: "system", source: "tracking" },
-          subject: { kind: "anchor", owner: { kind: "presenter" }, target: "bothHands" },
-          minimumDistanceMeters: 0.28,
-          windowMilliseconds: 1200,
+          kind: "gesture",
+          gesture: preset,
+          actor: { kind: "presenter" },
         }
       : {
-          kind: "motion",
-          preset,
-          actor: { kind: "system", source: "tracking" },
-          subject: { kind: "anchor", owner: { kind: "presenter" }, target: "eitherHand" },
-          minimumDistanceMeters: 0.28,
-          windowMilliseconds: 1200,
+          kind: "gesture",
+          gesture: preset,
+          actor: { kind: "presenter" },
         };
     expect(validatePresentationDefinition(definition).valid).toBe(true);
     const started = executeCueEvent(definition, createCueState(definition, 7), {
-      kind: "motion",
-      preset,
-      actor: { kind: "system", source: "tracking" },
-      subject: {
-        kind: "anchor",
-        owner: { kind: "presenter" },
-        target: paired ? "bothHands" : "rightHand",
-      },
-      distanceMeters: 0.3,
-      windowMilliseconds: 500,
+      kind: "gesture",
+      gesture: preset,
+      actor: { kind: "participant", role: "presenter" },
       payload: {},
       causeEventId: "gesture-1",
     });
@@ -158,7 +145,7 @@ describe("canonical Timeline Run", () => {
         priority: 0,
         order: 0,
         trigger: { kind: "logicalInput", action: "stop", actor: { kind: "presenter" } },
-        firePolicy: { kind: "repeatable", cooldownMilliseconds: 0 },
+        firePolicy: { kind: "repeatable" },
         actions: [{ kind: "timeline.stop", timelineId: "fade" }],
         next: { kind: "stay" },
       },
@@ -394,7 +381,7 @@ describe("canonical Timeline Run", () => {
     }
   });
 
-  it("checks Step timer and repeatable cooldown deadlines", () => {
+  it("checks Step timer deadlines without a repeatable cooldown", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.next!.cues = [
       {
@@ -416,10 +403,11 @@ describe("canonical Timeline Run", () => {
     definition.flow.groups.intro!.steps.start!.cues[0]!.next = { kind: "stay" };
     definition.flow.groups.intro!.steps.start!.cues[0]!.firePolicy = {
       kind: "repeatable",
-      cooldownMilliseconds: 100,
     };
-    expect(() => executeCueEvent(definition, state, input)).toThrow(RangeError);
-    expect(state.cooldownUntilRuntimeTimeMilliseconds).toEqual({});
+    expect(executeCueEvent(definition, state, input).outcome).toEqual({
+      kind: "accepted",
+      cueId: "play",
+    });
   });
 
   it("suppresses all completion Cues when a deadline batch began transitioning", () => {

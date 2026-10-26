@@ -10,14 +10,13 @@ mkdir -p "$assets/Unframe/Scripts/State" "$assets/Unframe/Scripts/Delivery" "$as
 runtime="$root/app/unity/Assets/Scripts/PresentationRuntime"
 cp -R "$runtime/Animation" "$runtime/Preview" "$assets/Unframe/Scripts/"
 mkdir -p "$assets/Unframe/Scripts/Rendering"
-for source in PresentationNodeFactory PresentationNodeHierarchy PresentationSurfaceMetadata \
-  PresentationBakedSurfaceRenderer PresentationPlaybackPlayer PresentationPreviewAdmission \
-  PresentationCoordinateAdapter PresentationNodeStateApplier PresentationTextureResidency \
-  PresentationSurfacePicking PresentationRichDeliveryValidation \
-  PresentationUnityCoordinates PresentationNodeMetadata PresentationNodeRegistry PresentationVisualOpacity; do
-  cp "$runtime/Rendering/$source.cs" "$assets/Unframe/Scripts/Rendering/"
+for source in "$runtime/Rendering/"*.cs; do
+  case "$(basename "$source")" in
+    PresentationSceneRenderer.cs|PresentationNativeSurfaceRenderer.cs|PresentationModelRenderer.cs|PresentationVideoSurfaceRenderer.cs) continue ;;
+  esac
+  cp "$source" "$assets/Unframe/Scripts/Rendering/"
 done
-cp "$runtime/State/IPresentationRenderView.cs" "$assets/Unframe/Scripts/State/"
+cp "$runtime/State/IPresentationRenderView.cs" "$runtime/State/PresentationMediaPlaybackValidation.cs" "$assets/Unframe/Scripts/State/"
 cp "$runtime/Delivery/PresentationDeliveryCatalog.cs" "$runtime/Delivery/PresentationBakedDeliveryValidation.cs" "$runtime/Delivery/PresentationCoordinateValidation.cs" "$assets/Unframe/Scripts/Delivery/"
 for source in Runtime Delivery Realtime Preview; do
   cp "$runtime/Generated/$source.cs" "$assets/Unframe/Generated/"
@@ -27,12 +26,18 @@ for plugin in Google.Protobuf System.Runtime.CompilerServices.Unsafe; do
 done
 cp -R "$root/app/unity/Assets/Plugins/WebGL" "$assets/Unframe/Plugins/"
 cp "$root/app/unity/Assets/Resources/BakedSurface.shader" "$assets/Unframe/Resources/"
+cp -R "$root/app/unity/Assets/Resources/PresentationModelShaders" "$assets/Unframe/Resources/"
+cp -R "$root/app/unity/Assets/Resources/PresentationMaterials" "$assets/Unframe/Resources/"
 cp "$root/app/unity/Assets/Editor/UnframePreviewBuild.cs" "$assets/Unframe/Editor/"
 cp "$root/app/unity/ProjectSettings/ProjectVersion.txt" "$project/ProjectSettings/"
 cat > "$project/Packages/manifest.json" <<'JSON'
 {
   "dependencies": {
     "com.unity.modules.animation": "1.0.0",
+    "com.unity.cloud.gltfast": "6.20.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.2",
+    "com.unity.modules.video": "1.0.0",
+    "com.unity.modules.audio": "1.0.0",
     "com.unity.modules.imageconversion": "1.0.0",
     "com.unity.modules.physics": "1.0.0",
     "com.unity.modules.ui": "1.0.0",

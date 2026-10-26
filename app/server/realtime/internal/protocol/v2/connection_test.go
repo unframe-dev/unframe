@@ -9,7 +9,7 @@ import (
 )
 
 func TestCapabilityNegotiation(t *testing.T) {
-	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}}
+	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, 8, 9, 10}}
 	if err := NegotiateControl(handshake, handshake.SupportedCapabilities); err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestCapabilityNegotiation(t *testing.T) {
 func TestProjectedViewRejectsUnreachableSurfaceState(t *testing.T) {
 	canonical := snapshotFixture()
 	view := &realtimev2.ParticipantRuntimeView{ProjectionProfileId: "profile", AssignmentEpoch: 1, BaseReliableSequence: 3, Progression: canonical.Progression, Clock: canonical.Clock, PresentationOrigin: canonical.PresentationOrigin, SurfaceStates: []*realtimev2.SurfaceRuntimeState{{SurfaceId: "surface", StateId: "state"}}}
-	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2, Surfaces: []*presentationv2.ProjectedSurfaceDefinition{{SurfaceId: "surface", HostNodeId: "host", ReachableStateIds: []string{"state"}, PhysicalSizeMeters: &presentationv2.Vector2{X: 1, Y: 1}, LogicalSize: &presentationv2.Vector2{X: 1, Y: 1}, Fit: presentationv2.SurfaceFit_SURFACE_FIT_CONTAIN, Owner: &presentationv2.ResourceOwner{Scope: &presentationv2.ResourceOwner_Presentation{Presentation: &presentationv2.PresentationResourceOwner{}}}}}}
+	catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3, Surfaces: []*presentationv2.ProjectedSurfaceDefinition{{SurfaceId: "surface", HostNodeId: "host", ReachableStateIds: []string{"state"}, PhysicalSizeMeters: &presentationv2.Vector2{X: 1, Y: 1}, LogicalSize: &presentationv2.Vector2{X: 1, Y: 1}, Fit: presentationv2.SurfaceFit_SURFACE_FIT_CONTAIN, Owner: &presentationv2.ResourceOwner{Scope: &presentationv2.ResourceOwner_Presentation{Presentation: &presentationv2.PresentationResourceOwner{}}}}}}
 	if err := ValidateProjectedView(view, catalog); err != nil {
 		t.Fatal(err)
 	}
@@ -48,19 +48,19 @@ func connectionFixture(t *testing.T) *ConnectionCursor {
 	t.Helper()
 	canonical := snapshotFixture()
 	fence := &presentationv2.RuntimeProjectionFence{SessionId: "session", Publication: publication(), AssignmentEpoch: 1, ProjectionProfileId: "profile", PresentationOriginVersion: 0}
-	snapshot := &realtimev2.ConnectionSnapshotEnvelope{SchemaVersion: 2, ConnectionId: "connection", Fence: fence, ProjectionInstance: &presentationv2.ProjectionInstance{ProjectionProfileId: "profile", ParticipantId: "presenter", AssignmentEpoch: 1}, PresenceAtCut: &realtimev2.ProjectedPresenceState{}, ReliableSequence: 3, Snapshot: &realtimev2.ProjectedRuntimeSnapshot{ProjectionProfileId: "profile", AssignmentEpoch: 1, ReliableSequence: 3, RuntimeView: &realtimev2.ParticipantRuntimeView{ProjectionProfileId: "profile", AssignmentEpoch: 1, BaseReliableSequence: 3, Progression: canonical.Progression, Clock: canonical.Clock, PresentationOrigin: canonical.PresentationOrigin}}}
+	snapshot := &realtimev2.ConnectionSnapshotEnvelope{SchemaVersion: 3, ConnectionId: "connection", Fence: fence, ProjectionInstance: &presentationv2.ProjectionInstance{ProjectionProfileId: "profile", ParticipantId: "presenter", AssignmentEpoch: 1}, PresenceAtCut: &realtimev2.ProjectedPresenceState{}, ReliableSequence: 3, Snapshot: &realtimev2.ProjectedRuntimeSnapshot{ProjectionProfileId: "profile", AssignmentEpoch: 1, ReliableSequence: 3, RuntimeView: &realtimev2.ParticipantRuntimeView{ProjectionProfileId: "profile", AssignmentEpoch: 1, BaseReliableSequence: 3, Progression: canonical.Progression, Clock: canonical.Clock, PresentationOrigin: canonical.PresentationOrigin}}}
 	invalidView := proto.Clone(snapshot).(*realtimev2.ConnectionSnapshotEnvelope)
 	invalidView.Snapshot.RuntimeView.NodeStates = []*realtimev2.NodeRuntimeState{{NodeId: "hidden", Active: true, Visible: true, Opacity: 1, Transform: &presentationv2.Transform{Position: &presentationv2.Vector3{}, Rotation: &presentationv2.Quaternion{W: 1}, Scale: &presentationv2.Vector3{X: 1, Y: 1, Z: 1}}}}
-	if _, err := NewConnectionCursor(invalidView, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}); err == nil {
+	if _, err := NewConnectionCursor(invalidView, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}); err == nil {
 		t.Fatal("profile-external snapshot state admitted")
 	}
-	cursor, err := NewConnectionCursor(snapshot, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2})
+	cursor, err := NewConnectionCursor(snapshot, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
 	bad := proto.Clone(snapshot).(*realtimev2.ConnectionSnapshotEnvelope)
 	bad.Snapshot.RuntimeView.PresentationOrigin.Version = 1
-	if _, err := NewConnectionCursor(bad, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}); err == nil {
+	if _, err := NewConnectionCursor(bad, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}); err == nil {
 		t.Fatal("snapshot origin mismatch admitted")
 	}
 	return cursor
@@ -129,5 +129,94 @@ func TestAnchorFrameCannotAddressProfileExternalNode(t *testing.T) {
 	frame := &realtimev2.ElementStateFrame{Fence: cursor.Resume().Fence, FrameSequence: 1, BaseReliableSequence: 3, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, AnchorBindings: []*realtimev2.ProjectedAnchorBindingPatch{{NodeId: "hidden", State: &realtimev2.ProjectedAnchorBindingPatch_Unavailable{Unavailable: &realtimev2.AnchorBindingUnavailable{}}}}}
 	if err := cursor.AdmitState(frame); err == nil {
 		t.Fatal("Anchor frame addresses hidden Node")
+	}
+}
+
+func replacementFixture(cursor *ConnectionCursor) *realtimev2.ProjectedReliableEvent {
+	canonical := snapshotFixture()
+	return &realtimev2.ProjectedReliableEvent{Sequence: 4, EventId: "event-4", Fence: cursor.Resume().Fence, Payload: &realtimev2.ProjectedReliableEvent_RuntimeViewReplaced{RuntimeViewReplaced: &realtimev2.RuntimeViewReplaced{RuntimeView: &realtimev2.ParticipantRuntimeView{ProjectionProfileId: "profile", AssignmentEpoch: 1, BaseReliableSequence: 4, Progression: canonical.Progression, Clock: &realtimev2.RuntimeClockSnapshot{Status: &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_EXPLICIT_PAUSE}}}, PresentationOrigin: canonical.PresentationOrigin}}}}
+}
+
+func TestRuntimeViewReplacementRejectsStateFromBeforeItsCut(t *testing.T) {
+	cursor := connectionFixture(t)
+	if err := cursor.ApplyReliable(replacementFixture(cursor)); err != nil {
+		t.Fatal(err)
+	}
+	frame := &realtimev2.ElementStateFrame{Fence: cursor.Resume().Fence, FrameSequence: 1, BaseReliableSequence: 3, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME}
+	if err := cursor.AdmitState(frame); err == nil {
+		t.Fatal("old State overwrote the atomic Runtime replacement")
+	}
+	frame.BaseReliableSequence = 4
+	if err := cursor.AdmitState(frame); err != nil {
+		t.Fatal("rejected State consumed its sequence:", err)
+	}
+}
+
+func TestRuntimeViewReplacementValidatesProfileClosureBeforeAdvancingCut(t *testing.T) {
+	cursor := connectionFixture(t)
+	event := replacementFixture(cursor)
+	event.GetRuntimeViewReplaced().RuntimeView.NodeStates = []*realtimev2.NodeRuntimeState{{NodeId: "private", Active: true, Visible: true, Opacity: 1, Transform: &presentationv2.Transform{Position: &presentationv2.Vector3{}, Rotation: &presentationv2.Quaternion{W: 1}, Scale: &presentationv2.Vector3{X: 1, Y: 1, Z: 1}}}}
+	if err := cursor.ApplyReliable(event); err == nil {
+		t.Fatal("profile-external replacement was applied")
+	}
+	if cursor.Resume().AppliedReliableSequence != 3 {
+		t.Fatal("invalid replacement advanced the reliable cut")
+	}
+	if err := cursor.ApplyReliable(replacementFixture(cursor)); err != nil {
+		t.Fatal("valid retry rejected:", err)
+	}
+}
+
+func TestResumeRejectsStateFromBeforeTheResumeCut(t *testing.T) {
+	cursor := connectionFixture(t)
+	if err := cursor.ApplyReliable(replacementFixture(cursor)); err != nil {
+		t.Fatal(err)
+	}
+	resume := &realtimev2.ProjectedReliableEvent{Sequence: 5, EventId: "event-5", Fence: cursor.Resume().Fence, Payload: &realtimev2.ProjectedReliableEvent_RuntimeStatusChanged{RuntimeStatusChanged: &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Running{Running: &realtimev2.Running{}}}}}
+	if err := cursor.ApplyReliable(resume); err != nil {
+		t.Fatal(err)
+	}
+	frame := &realtimev2.ElementStateFrame{Fence: cursor.Resume().Fence, FrameSequence: 1, BaseReliableSequence: 4, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME}
+	if err := cursor.AdmitState(frame); err == nil {
+		t.Fatal("pre-resume State overwrote frozen display")
+	}
+	frame.BaseReliableSequence = 5
+	if err := cursor.AdmitState(frame); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFrozenAnchorStateUsesOnlyFollowComponentsWithoutATimeout(t *testing.T) {
+	canonical := snapshotFixture()
+	fence := &presentationv2.RuntimeProjectionFence{SessionId: "session", Publication: publication(), AssignmentEpoch: 1, ProjectionProfileId: "profile"}
+	node := &presentationv2.ProjectedNodeDefinition{NodeId: "anchor", Owner: &presentationv2.ResourceOwner{Scope: &presentationv2.ResourceOwner_Presentation{Presentation: &presentationv2.PresentationResourceOwner{}}}, Parent: &presentationv2.SpatialParent{Parent: &presentationv2.SpatialParent_PresenterAnchor{PresenterAnchor: &presentationv2.PresenterAnchorParent{Target: presentationv2.AnchorTarget_ANCHOR_TARGET_BODY, FollowPosition: true}}}, Node: &presentationv2.ProjectedNodeDefinition_Container{Container: &presentationv2.ContainerNode{}}}
+	state := &realtimev2.NodeRuntimeState{NodeId: "anchor", Active: true, Visible: true, Opacity: 1, Transform: &presentationv2.Transform{Position: &presentationv2.Vector3{}, Rotation: &presentationv2.Quaternion{W: 1}, Scale: &presentationv2.Vector3{X: 1, Y: 1, Z: 1}}}
+	view := &realtimev2.ParticipantRuntimeView{ProjectionProfileId: "profile", AssignmentEpoch: 1, BaseReliableSequence: 3, Progression: canonical.Progression, Clock: canonical.Clock, PresentationOrigin: canonical.PresentationOrigin, NodeStates: []*realtimev2.NodeRuntimeState{state}}
+	snapshot := &realtimev2.ConnectionSnapshotEnvelope{SchemaVersion: 3, ConnectionId: "connection", Fence: fence, ProjectionInstance: &presentationv2.ProjectionInstance{ProjectionProfileId: "profile", ParticipantId: "presenter", AssignmentEpoch: 1}, PresenceAtCut: &realtimev2.ProjectedPresenceState{}, ReliableSequence: 3, Snapshot: &realtimev2.ProjectedRuntimeSnapshot{ProjectionProfileId: "profile", AssignmentEpoch: 1, ReliableSequence: 3, RuntimeView: view}}
+	cursor, err := NewConnectionCursor(snapshot, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3, Nodes: []*presentationv2.ProjectedNodeDefinition{node}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	frozen := &realtimev2.FrozenAnchorDisplayState{NodeId: "anchor", Position: &presentationv2.Vector3{X: 2}}
+	frame := &realtimev2.ElementStateFrame{Fence: fence, FrameSequence: 1, BaseReliableSequence: 3, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeMonotonicMs: 3600000, AnchorBindings: []*realtimev2.ProjectedAnchorBindingPatch{{NodeId: "anchor", State: &realtimev2.ProjectedAnchorBindingPatch_Frozen{Frozen: frozen}}}}
+	if err := cursor.AdmitState(frame); err != nil {
+		t.Fatal("frozen display expired:", err)
+	}
+	frame.FrameSequence = 2
+	frozen.Rotation = &presentationv2.Quaternion{W: 1}
+	if err := cursor.AdmitState(frame); err == nil {
+		t.Fatal("frozen rotation outside follow contract admitted")
+	}
+}
+
+func TestRuntimeViewReplacementKeepsThePresentationOriginFence(t *testing.T) {
+	cursor := connectionFixture(t)
+	event := replacementFixture(cursor)
+	event.GetRuntimeViewReplaced().RuntimeView.PresentationOrigin.Version = 1
+	if err := cursor.ApplyReliable(event); err == nil {
+		t.Fatal("replacement changed origin without changing its fence")
+	}
+	if cursor.Resume().AppliedReliableSequence != 3 {
+		t.Fatal("invalid replacement advanced the cut")
 	}
 }

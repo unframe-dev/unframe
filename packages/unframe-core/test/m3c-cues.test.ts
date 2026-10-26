@@ -242,18 +242,16 @@ describe("M3C Cue invariants", () => {
     expect(codes(definition)).toContain("behavior.invalid");
   });
 
-  it("accepts Presenter tracking selectors and validates Zone ownership", () => {
+  it("accepts Presenter recognition inputs and validates Zone ownership", () => {
     const { definition, cue } = fixture();
     definition.stage.zones.near = {
       id: "near",
       owner: { kind: "presentation" },
       center: [0, 0, 0],
-      size: [1, 1, 1],
     };
     cue.trigger = {
       kind: "zoneEdge",
-      actor: { kind: "system", source: "tracking" },
-      subject: { kind: "participant", owner: { kind: "presenter" } },
+      actor: { kind: "presenter" },
       zoneId: "near",
       edge: "enter",
     };
@@ -264,19 +262,17 @@ describe("M3C Cue invariants", () => {
     cue.trigger.zoneId = "missing";
     expect(codes(definition)).toContain("reference.invalid");
     cue.trigger = {
-      kind: "motion",
-      actor: { kind: "system", source: "tracking" },
-      subject: { kind: "anchor", owner: { kind: "presenter" }, target: "head" },
-      minimumDistanceMeters: 0.1,
-      windowMilliseconds: 100,
+      kind: "gesture",
+      gesture: "swipeUp",
+      actor: { kind: "presenter" },
     };
     expect(codes(definition)).toEqual([]);
   });
 
-  it("rejects unsupported media producers and actions explicitly", () => {
+  it("rejects media producers and actions on a Surface without Video", () => {
     const { definition, cue } = fixture();
     cue.trigger = { kind: "mediaCompleted", surfaceId: "baked" };
     cue.actions = [{ kind: "media.play", surfaceId: "baked" }];
-    expect(codes(definition)).toContain("feature.unsupported");
+    expect(codes(definition)).toContain("behavior.invalid");
   });
 });

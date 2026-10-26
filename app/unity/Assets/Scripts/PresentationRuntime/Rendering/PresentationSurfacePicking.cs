@@ -22,14 +22,24 @@ namespace Unframe.Unity.PresentationRuntime
         {
             normalized = default;
             distance = 0;
-            if (quad == null || partitionBounds == null || !Finite(surfaceWidth) || !Finite(surfaceHeight)
+            return quad != null && TryIntersect(ray, quad.localToWorldMatrix, partitionBounds,
+                surfaceWidth, surfaceHeight, out normalized, out distance);
+        }
+
+        public static bool TryIntersect(Ray ray, Matrix4x4 quadToWorld, LogicalBounds partitionBounds,
+            double surfaceWidth, double surfaceHeight, out PresentationNormalizedPoint normalized, out float distance)
+        {
+            normalized = default;
+            distance = 0;
+            if (partitionBounds == null || !Finite(surfaceWidth) || !Finite(surfaceHeight)
                 || surfaceWidth <= 0 || surfaceHeight <= 0 || !Finite(partitionBounds.X) || !Finite(partitionBounds.Y)
                 || !Finite(partitionBounds.Width) || !Finite(partitionBounds.Height)
                 || partitionBounds.X < 0 || partitionBounds.Y < 0 || partitionBounds.Width <= 0 || partitionBounds.Height <= 0
                 || partitionBounds.X + partitionBounds.Width > surfaceWidth
                 || partitionBounds.Y + partitionBounds.Height > surfaceHeight) return false;
-            Vector3 origin = quad.InverseTransformPoint(ray.origin);
-            Vector3 direction = quad.InverseTransformVector(ray.direction);
+            Matrix4x4 worldToQuad = quadToWorld.inverse;
+            Vector3 origin = worldToQuad.MultiplyPoint3x4(ray.origin);
+            Vector3 direction = worldToQuad.MultiplyVector(ray.direction);
             if (!Finite(origin) || !Finite(direction) || direction.z <= 0) return false;
             float t = -origin.z / direction.z;
             if (float.IsNaN(t) || float.IsInfinity(t) || t < 0) return false;
@@ -38,7 +48,7 @@ namespace Unframe.Unity.PresentationRuntime
             double x = (partitionBounds.X + (point.x + 0.5) * partitionBounds.Width) / surfaceWidth;
             double y = (partitionBounds.Y + (0.5 - point.y) * partitionBounds.Height) / surfaceHeight;
             if (!Finite(x) || !Finite(y) || x < 0 || x >= 1 || y < 0 || y >= 1) return false;
-            distance = Vector3.Distance(ray.origin, quad.TransformPoint(point));
+            distance = Vector3.Distance(ray.origin, quadToWorld.MultiplyPoint3x4(point));
             normalized = new PresentationNormalizedPoint(x, y);
             return !float.IsNaN(distance) && !float.IsInfinity(distance) && distance >= 0;
         }

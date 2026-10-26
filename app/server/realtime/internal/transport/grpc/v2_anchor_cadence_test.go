@@ -20,7 +20,7 @@ import (
 )
 
 func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-1","scene":{"nodes":{"badge":{"id":"badge","kind":"container","owner":{"kind":"group","groupId":"intro"},"parent":{"kind":"anchor","target":"body","owner":{"kind":"presenter"},"followPosition":true,"followRotation":false},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"leave","priority":1,"order":0,"trigger":{"kind":"logicalInput","action":"leave"},"firePolicy":{"kind":"oncePerStepEntry"},"actions":[],"next":{"kind":"group","groupId":"out"}}]}}},"out":{"id":"out","initialStepId":"empty","steps":{"empty":{"id":"empty","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{"badge":{"id":"badge","kind":"container","owner":{"kind":"group","groupId":"intro"},"parent":{"kind":"anchor","target":"body","owner":{"kind":"presenter"},"followPosition":true,"followRotation":false},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"leave","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"leave"},"firePolicy":{"kind":"oncePerStepEntry"},"actions":[],"next":{"kind":"group","groupId":"out"}}]}}},"out":{"id":"out","initialStepId":"empty","steps":{"empty":{"id":"empty","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
@@ -31,8 +31,8 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, VisibleNodeIds: []string{"badge"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: catalog}
-	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 2}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 2, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, VisibleNodeIds: []string{"badge"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE}, RuntimeCatalog: catalog}
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 3}
 	service, err := NewV2Service(runtime, bootstrap, v2TestProjection{persistencehttp.RuntimeProjection{Role: "presenter", Profile: profile}}, testIdentityResolver{identity}, allowAllAssignment{})
 	if err != nil {
 		t.Fatal(err)
@@ -54,11 +54,11 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 		}
 	})
 	client := realtimev2.NewRealtimeServiceClient(conn)
-	control, err := client.ConnectControl(ctx)
+	control, err := v3TestConnectControl(ctx, client)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}); err != nil {
+	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}); err != nil {
 		t.Fatal(err)
 	}
 	connected, err := control.Recv()
@@ -77,7 +77,7 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connected.GetConnected().ConnectionId, StateConnectionNonce: nonce.GetStateConnectionNonce().Nonce}}}); err != nil {
+	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connected.GetConnected().ConnectionId, StateConnectionNonce: nonce.GetStateConnectionNonce().Nonce}}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := state.Recv(); err != nil {
@@ -116,7 +116,7 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 	case <-time.After(450 * time.Millisecond):
 		t.Fatal("fresh tracking did not produce an anchor frame before sample expiry")
 	}
-	if _, _, err := runtime.LogicalInput(identity, &realtimev2.LogicalInputCommand{ClientEventId: "leave-1", LogicalEventName: "leave"}); err != nil {
+	if _, _, err := v3TestLogicalInput(t, runtime, identity, "leave-1", "leave"); err != nil {
 		t.Fatal(err)
 	}
 	target := runtime.Snapshot().ReliableSequence
@@ -139,7 +139,7 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 		}
 	}
 	withoutAnchorAt := time.Now()
-	if next, err := state.Recv(); err != nil || time.Since(withoutAnchorAt) < 750*time.Millisecond || len(next.GetStateFrame().GetAnchorBindings()) != 0 {
-		t.Fatalf("non-anchor cadence did not return to one second: frame=%#v elapsed=%v err=%v", next, time.Since(withoutAnchorAt), err)
+	if next, err := state.Recv(); err != nil || time.Since(withoutAnchorAt) >= 400*time.Millisecond || len(next.GetStateFrame().GetAnchorBindings()) != 0 {
+		t.Fatalf("keyframe cadence slowed after leaving the anchor: frame=%#v elapsed=%v err=%v", next, time.Since(withoutAnchorAt), err)
 	}
 }

@@ -182,6 +182,44 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
+        public bool TryPickInteraction(Ray ray, PresentationRuntimeDataStore store,
+            out string surfaceId, out string interactionId, out float surfaceDistance)
+        {
+            surfaceId = null;
+            interactionId = null;
+            surfaceDistance = float.PositiveInfinity;
+            PresentationNormalizedPoint point = default;
+            foreach (Partition partition in partitions)
+            {
+                if (partition.Root == null || !partition.Root.activeInHierarchy || !partition.Canvas.enabled
+                    || !store.TryGetSurface(partition.Definition.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
+                    || !store.TryGetSurfaceState(semantic.SurfaceId, out SurfaceRuntimeState state)) continue;
+                bool artifactVisible = false;
+                foreach (DeliveredStateBinding binding in partition.Definition.StateBindings)
+                    if (binding.StateId == state.StateId && binding.BindingCase == DeliveredStateBinding.BindingOneofCase.Artifact
+                        && partition.Artifacts.TryGetValue(binding.Artifact.ArtifactId, out GameObject artifact) && artifact.activeSelf)
+                        artifactVisible = true;
+                if (!artifactVisible) continue;
+                LogicalBounds bounds = partition.Definition.LogicalBounds;
+                var center = new UnityEngine.Vector3((float)(bounds.X + bounds.Width / 2 - semantic.LogicalSize.X / 2),
+                    (float)(semantic.LogicalSize.Y / 2 - bounds.Y - bounds.Height / 2), 0);
+                var size = new UnityEngine.Vector3((float)bounds.Width, (float)bounds.Height, 1);
+                Matrix4x4 quadToWorld = partition.Root.transform.localToWorldMatrix * Matrix4x4.TRS(center, UnityEngine.Quaternion.identity, size);
+                if (!PresentationSurfacePicking.TryIntersect(ray, quadToWorld, bounds, semantic.LogicalSize.X, semantic.LogicalSize.Y,
+                        out PresentationNormalizedPoint candidate, out float distance)
+                    || distance > surfaceDistance
+                    || distance == surfaceDistance && surfaceId != null && StringComparer.Ordinal.Compare(semantic.SurfaceId, surfaceId) >= 0) continue;
+                surfaceId = semantic.SurfaceId;
+                surfaceDistance = distance;
+                point = candidate;
+            }
+            if (surfaceId == null) return false;
+            foreach (ProjectedSemanticSurface semantic in store.SemanticSurfaces)
+                if (semantic.SemanticSurfaceId == surfaceId && store.TryGetSurfaceState(surfaceId, out SurfaceRuntimeState state))
+                    return PresentationSurfacePicking.TryResolve(semantic, state.StateId, point, out interactionId);
+            return false;
+        }
+
         private static ulong CountCodePoints(string text)
         {
             ulong count = 0;

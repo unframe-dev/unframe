@@ -7,7 +7,6 @@ const common = {
   payload: {},
   causeEventId: "event-1",
 } as const;
-const subject = { kind: "participant", owner: { kind: "presenter" } } as const;
 
 describe("CueInput type", () => {
   it("accepts the required fields for each trigger kind", () => {
@@ -15,8 +14,8 @@ describe("CueInput type", () => {
       { kind: "logicalInput", action: "next", ...common },
       { kind: "semanticEvent", event: "ready", ...common },
       { kind: "surfaceInteraction", surfaceId: "surface", interactionId: "click", ...common },
-      { kind: "zoneEdge", zoneId: "zone", edge: "enter", subject, ...common },
-      { kind: "motion", distanceMeters: 1, windowMilliseconds: 100, subject, ...common },
+      { kind: "zoneEdge", zoneId: "zone", edge: "enter", ...common },
+      { kind: "gesture", gesture: "swipeUp", ...common },
       { kind: "timer", cueId: "cue", ...common },
       { kind: "timelineCompleted", timelineId: "timeline", ...common },
     ] as const satisfies readonly CueInput[];
@@ -33,9 +32,9 @@ const rejectedInputs = () => {
   // @ts-expect-error surface interaction requires both identifiers
   const surface: CueInput = { kind: "surfaceInteraction", surfaceId: "surface", ...common };
   // @ts-expect-error zone edge requires an edge
-  const zone: CueInput = { kind: "zoneEdge", zoneId: "zone", subject, ...common };
-  // @ts-expect-error motion requires a measured distance
-  const motion: CueInput = { kind: "motion", windowMilliseconds: 100, subject, ...common };
+  const zone: CueInput = { kind: "zoneEdge", zoneId: "zone", ...common };
+  // @ts-expect-error gesture requires a recognized kind
+  const motion: CueInput = { kind: "gesture", ...common };
   // @ts-expect-error timer requires a cue id
   const timer: CueInput = { kind: "timer", ...common };
   // @ts-expect-error timeline completion requires a timeline id

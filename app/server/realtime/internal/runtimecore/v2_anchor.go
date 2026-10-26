@@ -11,6 +11,10 @@ import (
 func (s *V2Session) ProjectedAnchorBindings(nodes []*realtimev2.NodeRuntimeState, nowMs uint64) ([]*realtimev2.ProjectedAnchorBindingPatch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.projectedV3AnchorBindings(nodes, nowMs)
+}
+
+func (s *V2Session) projectedV3AnchorBindings(nodes []*realtimev2.NodeRuntimeState, nowMs uint64) ([]*realtimev2.ProjectedAnchorBindingPatch, error) {
 	var patches []*realtimev2.ProjectedAnchorBindingPatch
 	for _, node := range nodes {
 		definition, ok := s.definition.Scene.Nodes[node.NodeId]
@@ -25,7 +29,9 @@ func (s *V2Session) ProjectedAnchorBindings(nodes []*realtimev2.NodeRuntimeState
 			return nil, err
 		}
 		patch := &realtimev2.ProjectedAnchorBindingPatch{NodeId: node.NodeId, State: &realtimev2.ProjectedAnchorBindingPatch_Unavailable{Unavailable: &realtimev2.AnchorBindingUnavailable{}}}
-		if found && nowMs >= sample.ObservedAtMs && nowMs-sample.ObservedAtMs <= 500 {
+		if frozen := frozenV3ByNode(s.snapshot.FrozenAnchors, node.NodeId); frozen != nil {
+			patch.State = &realtimev2.ProjectedAnchorBindingPatch_Frozen{Frozen: proto.Clone(frozen).(*realtimev2.FrozenAnchorDisplayState)}
+		} else if s.snapshot.Clock.GetRunning() != nil && found && nowMs >= sample.ObservedAtMs && nowMs-sample.ObservedAtMs <= 500 {
 			binding := &realtimev2.ProjectedAnchorBindingSample{TrackingFrameSequence: sample.FrameSequence, ObservedAtRuntimeMonotonicMs: sample.ObservedAtMs}
 			if definition.Parent.FollowPosition {
 				binding.Position = proto.Clone(sample.Pose.Position).(*presentationv2.Vector3)

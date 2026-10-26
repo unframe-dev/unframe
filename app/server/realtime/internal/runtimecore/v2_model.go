@@ -78,7 +78,19 @@ func modelPosition(playback *realtimev2.ClipPlayback, duration uint64, now uint6
 		if now < playing.ReferenceRuntimeTimeMs {
 			return 0, errV2ModelClip
 		}
-		raw = playing.PositionAtReferenceMs + float64(now-playing.ReferenceRuntimeTimeMs)*playback.Speed
+		if math.IsNaN(playing.PositionAtReferenceMs) || math.IsInf(playing.PositionAtReferenceMs, 0) || playing.PositionAtReferenceMs < 0 {
+			return 0, errV2ModelClip
+		}
+		elapsed := float64(now - playing.ReferenceRuntimeTimeMs)
+		raw = playing.PositionAtReferenceMs + elapsed*playback.Speed
+		if math.IsInf(raw, 1) {
+			if playback.Loop {
+				period := float64(duration)
+				raw = math.Mod(playing.PositionAtReferenceMs, period) + math.Mod(elapsed*math.Mod(playback.Speed, period), period)
+			} else {
+				raw = float64(duration)
+			}
+		}
 	} else if paused := playback.Playback.GetPaused(); paused != nil {
 		raw = paused.PositionMs
 	} else {
@@ -283,6 +295,10 @@ func evaluateV2ModelAction(state *realtimev2.ModelClipRuntimeState, active *real
 		default:
 			return v2ModelResult{}, errV2ModelClip
 		}
+		if !modelActionDeadlinesValid(modelRun, durations) {
+			result.Rejection = realtimev2.CueRejectionReason_CUE_REJECTION_REASON_RESOLVED_VALUE_INVALID
+			return result, nil
+		}
 		result.RemovedRunID = nil
 		if active != nil {
 			result.RemovedRunID = proto.Clone(active.RunId).(*presentationv2.RuntimeRunId)
@@ -301,6 +317,11 @@ func evaluateV2ModelAction(state *realtimev2.ModelClipRuntimeState, active *real
 		}
 		if err := modelRebaseRun(result.Run, durations, now, command.Kind == "modelClip.pause"); err != nil {
 			return v2ModelResult{}, err
+		}
+		if command.Kind == "modelClip.resume" && !modelActionDeadlinesValid(result.Run.GetModelClip(), durations) {
+			result.Run = modelCloneRun(active)
+			result.Rejection = realtimev2.CueRejectionReason_CUE_REJECTION_REASON_RESOLVED_VALUE_INVALID
+			return result, nil
 		}
 		if proto.Equal(result.Run, active) {
 			result.NoOp = true
@@ -342,6 +363,26 @@ func evaluateV2ModelAction(state *realtimev2.ModelClipRuntimeState, active *real
 		return v2ModelResult{}, errV2ModelClip
 	}
 	return result, nil
+}
+
+// Check target completion as well as the fade clock: the target survives the fade.
+func modelActionDeadlinesValid(model *realtimev2.ModelClipRunSnapshot, durations map[string]uint64) bool {
+	target := model.GetSingle()
+	if fade := model.GetCrossfade(); fade != nil {
+		if _, _, err := modelDeadline(fade.TransitionClock, 1, fade.DurationMs); err != nil {
+			return false
+		}
+		target = fade.To
+	}
+	if target == nil {
+		return false
+	}
+	if !target.Loop {
+		if _, _, err := modelDeadline(target.Playback, target.Speed, durations[target.ClipId]); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func modelRebaseRun(run *realtimev2.RuntimeRunSnapshot, durations map[string]uint64, now uint64, pause bool) error {

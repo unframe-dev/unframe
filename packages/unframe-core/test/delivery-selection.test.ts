@@ -59,6 +59,130 @@ const baselineSource = (change?: (current: typeof source) => void) => {
 };
 
 describe("Delivery artifact selection and admission", () => {
+  it("delivers only sorted recognition kinds and referenced center-only Zones to the Presenter", () => {
+    const input = baselineSource((current) => {
+      current.definition.stage.zones = {
+        z: { id: "z", owner: { kind: "presentation" }, center: [3, 2, 1] },
+        a: { id: "a", owner: { kind: "presentation" }, center: [0, 0, 0] },
+        unused: { id: "unused", owner: { kind: "presentation" }, center: [4, 4, 4] },
+      };
+      current.definition.flow.groups.intro!.steps.start!.cues = (
+        [
+          { kind: "gesture", gesture: "swipeUp" },
+          { kind: "gesture", gesture: "swipeLeft" },
+          { kind: "gesture", gesture: "swipeUp" },
+          { kind: "zoneEdge", zoneId: "z", edge: "enter" },
+          { kind: "zoneEdge", zoneId: "a", edge: "exit" },
+        ] as const
+      ).map((trigger, index) => ({
+        id: `cue-${index}`,
+        trigger: {
+          ...trigger,
+          actor: { kind: "presenter" },
+        },
+        priority: 0,
+        order: index,
+        firePolicy: { kind: "repeatable" },
+        actions: [],
+        next: { kind: "stay" },
+      }));
+    });
+    const presenter = buildProjectionProfile(input, "presenter").profile;
+    expect(presenter.runtimeCatalog?.presenterRecognition).toEqual({
+      gestures: [1, 4],
+      zones: [
+        { zoneId: "a", center: { x: 0, y: 0, z: 0 } },
+        { zoneId: "z", center: { x: 3, y: 2, z: 1 } },
+      ],
+    });
+    expect(presenter.requiredRuntimeCapabilities).toEqual(expect.arrayContaining([7, 8, 9, 10]));
+    const viewer = buildProjectionProfile(input, "viewer").profile;
+    expect(viewer.runtimeCatalog).not.toHaveProperty("presenterRecognition");
+    expect(viewer.requiredRuntimeCapabilities).not.toContain(7);
+  });
+
+  it.each([67_108_864, 67_126_671])("rejects model import CPU above %s bytes", (limit) => {
+    const input = baselineSource((current) => {
+      Object.assign(current.renderBundle.models["model-asset"]!, { peakLoadCpuBytes: 67_126_672 });
+      current.capability.limits.texture.maxSerialLoadCpuBytes = limit;
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(/Model load CPU bytes/);
+  });
+  it("admits model import CPU exactly at its serial budget", () => {
+    const input = baselineSource((current) => {
+      Object.assign(current.renderBundle.models["model-asset"]!, { peakLoadCpuBytes: 67_126_672 });
+      current.capability.limits.texture.maxSerialLoadCpuBytes = 67_126_672;
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).not.toThrow();
+  });
+
+  it.each(["maxGpuBytes", "maxTextureBindings"] as const)(
+    "counts embedded model textures with baked textures against %s",
+    (limit) => {
+      const input = baselineSource((current) => {
+        current.renderBundle.models["model-asset"]!.textures = [
+          { pixelSize: [2, 2], bindingCount: 2 },
+        ];
+        current.capability.limits.texture[limit] = limit === "maxGpuBytes" ? 16_777_232 : 2;
+      });
+      expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow();
+    },
+  );
+  it("admits embedded and baked textures exactly at the combined budgets", () => {
+    const input = baselineSource((current) => {
+      current.renderBundle.models["model-asset"]!.textures = [
+        { pixelSize: [2, 2], bindingCount: 2 },
+      ];
+      current.capability.limits.texture.maxGpuBytes = 16_777_248;
+      current.capability.limits.texture.maxTextureBindings = 3;
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).not.toThrow();
+  });
+  it("counts textures from distinct models together", () => {
+    const input = baselineSource((current) => {
+      const model = current.renderBundle.models["model-asset"]!;
+      model.textures = [{ pixelSize: [2, 2], bindingCount: 2 }];
+      const node = current.definition.scene.nodes.model!;
+      assert(node.kind === "model");
+      current.definition.scene.nodes["model-second"] = {
+        ...structuredClone(node),
+        id: "model-second",
+        order: 5,
+        assetId: "model-second",
+      };
+      current.renderBundle.models["model-second"] = {
+        ...structuredClone(model),
+        assetId: "model-second",
+        checksum: `sha256:${"f".repeat(64)}`,
+      };
+      current.assetSet.assets["model-second"] = {
+        ...structuredClone(current.assetSet.assets["model-asset"]!),
+        checksum: `sha256:${"f".repeat(64)}`,
+      };
+      current.capability.limits.texture.maxTextureBindings = 4;
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(/Texture bindings/);
+  });
+
+  it("checks embedded model dimensions against the device profile", () => {
+    const input = baselineSource((current) => {
+      current.renderBundle.models["model-asset"]!.textures = [
+        { pixelSize: [2048, 1], bindingCount: 2 },
+      ];
+      current.capability.limits.texture.maxTextureHeight = 1024;
+      current.renderBundle.models["model-asset"]!.textures[0]!.pixelSize = [1, 2048];
+      for (const surface of Object.values(current.renderBundle.surfaces))
+        for (const render of Object.values(surface.renderSurfaces))
+          for (const artifact of Object.values(render.artifacts))
+            if (artifact.kind === "baked-web")
+              for (const state of Object.values(artifact.states)) {
+                state.texture.pixelSize = [2048, 1];
+                state.texture.gpuBytes = 8192;
+              }
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(/Model texture height/);
+  });
+
   it("builds the identical render and runtime projection without publication identity", () => {
     const { publishedPresentation: _, ...input } = baselineSource();
     const {
@@ -159,7 +283,7 @@ describe("Delivery artifact selection and admission", () => {
     expect(selection.residency.maximumConcurrentDecoders).toBe(0);
   });
 
-  it("rejects an incompatible first candidate without silently changing the rendering contract", () => {
+  it("admits non-video builds for video-disabled profiles and rejects video builds", () => {
     const limited = structuredClone(capability);
     limited.renderers.video.supported = false;
     limited.renderers.video.features = [];
@@ -265,8 +389,8 @@ describe("Delivery artifact selection and admission", () => {
     const encoded = encodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", profile);
     const decoded = decodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", encoded);
     expect(decoded.projectionProfileId).toBe(profile.projectionProfileId);
-    expect(profile.runtimeCatalog?.catalogContractVersion).toBe(2);
-    expect((decoded.runtimeCatalog as Record<string, unknown>).catalogContractVersion).toBe(2);
+    expect(profile.runtimeCatalog?.catalogContractVersion).toBe(3);
+    expect((decoded.runtimeCatalog as Record<string, unknown>).catalogContractVersion).toBe(3);
     expect(profile.projectionProfileId).toBe(calculateProjectionProfileId(profile));
     expect(decoded.projectionProfileId).toBe(calculateProjectionProfileId(decoded));
     const layered = structuredClone(profile);
@@ -286,84 +410,6 @@ describe("Delivery artifact selection and admission", () => {
     expect(
       ((decoded.runtimeCatalog as Record<string, unknown>).modelClips as unknown[]).length,
     ).toBe(1);
-  });
-
-  it("projects motion guide candidates for presenters only and preserves hand semantics on the wire", () => {
-    const input = baselineSource((current) => {
-      const cue = current.definition.flow.groups.intro!.steps.start!.cues[0]!;
-      current.definition.flow.groups.intro!.steps.start!.cues = [
-        {
-          ...cue,
-          id: "swipe",
-          trigger: {
-            kind: "motion",
-            actor: { kind: "system", source: "tracking" },
-            preset: "swipeLeft",
-            subject: { kind: "anchor", owner: { kind: "presenter" }, target: "eitherHand" },
-            minimumDistanceMeters: 0.2,
-            windowMilliseconds: 750,
-          },
-        },
-        {
-          ...cue,
-          id: "spread",
-          order: 1,
-          trigger: {
-            kind: "motion",
-            actor: { kind: "system", source: "tracking" },
-            preset: "spreadHands",
-            subject: { kind: "anchor", owner: { kind: "presenter" }, target: "bothHands" },
-            minimumDistanceMeters: 0.35,
-            windowMilliseconds: 1200,
-          },
-        },
-        {
-          ...cue,
-          id: "generic",
-          order: 2,
-          trigger: {
-            kind: "motion",
-            actor: { kind: "system", source: "tracking" },
-            subject: { kind: "participant", owner: { kind: "presenter" } },
-            minimumDistanceMeters: 0.1,
-            windowMilliseconds: 500,
-          },
-        },
-      ];
-    });
-    const presenter = buildProjectionProfile(input, "presenter").profile;
-    const guides = presenter.runtimeCatalog?.motionGuides;
-    expect(guides).toEqual([
-      {
-        groupId: "intro",
-        stepId: "start",
-        cueId: "spread",
-        preset: 7,
-        hand: 4,
-        minimumDistanceMeters: 0.35,
-        windowMs: "1200",
-      },
-      {
-        groupId: "intro",
-        stepId: "start",
-        cueId: "swipe",
-        preset: 1,
-        hand: 1,
-        minimumDistanceMeters: 0.2,
-        windowMs: "750",
-      },
-    ]);
-    expect(buildProjectionProfile(input, "viewer").profile.runtimeCatalog?.motionGuides).toEqual(
-      [],
-    );
-    const decoded = decodeWireMessage(
-      "unframe.delivery.ProjectionProfileDescriptor",
-      encodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", presenter),
-    );
-    expect((decoded.runtimeCatalog as Record<string, unknown>).motionGuides).toEqual(guides);
-    const withoutGuides = structuredClone(presenter);
-    withoutGuides.runtimeCatalog!.motionGuides = [];
-    expect(calculateProjectionProfileId(withoutGuides)).not.toBe(presenter.projectionProfileId);
   });
 
   it("builds a participant manifest with exact selected access bindings", () => {
@@ -404,5 +450,199 @@ describe("Delivery artifact selection and admission", () => {
         assetAccess: { ...grants, extra: grants.texture! },
       }),
     ).toThrow("exactly match");
+  });
+});
+
+describe("Model instance resource budgets", () => {
+  const withTwoInstances = (aliasAsset = false, change?: (current: typeof source) => void) =>
+    baselineSource((current) => {
+      const node = current.definition.scene.nodes.model;
+      assert.isDefined(node);
+      assert(node.kind === "model");
+      current.definition.scene.nodes["model-second"] = {
+        ...structuredClone(node),
+        id: "model-second",
+        order: 5,
+        assetId: aliasAsset ? "model-alias" : node.assetId,
+      };
+      if (aliasAsset) {
+        current.renderBundle.models["model-alias"] = {
+          ...structuredClone(current.renderBundle.models[node.assetId]!),
+          assetId: "model-alias",
+        };
+        current.assetSet.assets["model-alias"] = structuredClone(
+          current.assetSet.assets[node.assetId]!,
+        );
+      }
+      change?.(current);
+    });
+
+  it.each([false, true])(
+    "imports shared Model bytes once for serial CPU budget (alias %s)",
+    (alias) => {
+      const input = withTwoInstances(alias, (current) => {
+        for (const model of Object.values(current.renderBundle.models))
+          model.peakLoadCpuBytes = 67_126_672;
+        current.capability.limits.texture.maxSerialLoadCpuBytes = 67_126_672;
+      });
+      expect(() => selectDeliveryArtifacts(input, "presenter")).not.toThrow();
+    },
+  );
+
+  it.each([
+    ["maxNodes", "nodeCount"],
+    ["maxPrimitives", "primitiveCount"],
+    ["maxVertices", "vertexCount"],
+    ["maxTriangles", "triangleCount"],
+  ] as const)("applies %s to every selected Model instance", (limit, field) => {
+    const input = withTwoInstances(false, (current) => {
+      current.capability.limits.model[limit] = current.renderBundle.models["model-asset"]![field];
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(`Model ${field}`);
+  });
+
+  it.each([false, true])(
+    "expands wire totals while retaining unique encoded bytes with alias=%s",
+    (aliasAsset) => {
+      const { publishedPresentation: _, ...input } = withTwoInstances(aliasAsset, (current) => {
+        const model = current.renderBundle.models["model-asset"]!;
+        Object.assign(current.capability.limits.model, {
+          maxAssets: 1,
+          maxInstances: 2,
+          maxEncodedBytes: model.encodedSizeBytes,
+          maxNodes: model.nodeCount * 2,
+          maxPrimitives: model.primitiveCount * 2,
+          maxVertices: model.vertexCount * 2,
+          maxTriangles: model.triangleCount * 2,
+        });
+      });
+      const result = buildRuntimeProjection(input, "presenter");
+      const model = input.renderBundle.models["model-asset"]!;
+      expect(result.residency.models).toMatchObject({
+        modelInstanceCount: "2",
+        totalEncodedBytes: String(model.encodedSizeBytes),
+        totalNodes: String(model.nodeCount * 2),
+        totalPrimitives: String(model.primitiveCount * 2),
+        totalVertices: String(model.vertexCount * 2),
+        totalTriangles: String(model.triangleCount * 2),
+      });
+      expect(result.residency.models.models).toHaveLength(aliasAsset ? 2 : 1);
+      const modelNodes = result.projection.runtimeCatalog!.nodes!.filter((node) => node.model);
+      expect(modelNodes.map((node) => node.model!.modelAssetId).sort()).toEqual(
+        aliasAsset ? ["model-alias", "model-asset"] : ["model-asset", "model-asset"],
+      );
+      for (const node of modelNodes) {
+        const binding = result.residency.models.models.find(
+          (model) => model.assetId === node.model!.modelAssetId,
+        );
+        expect(binding).toBeDefined();
+      }
+      for (const clip of result.projection.runtimeCatalog!.modelClips!)
+        expect(
+          result.residency.models.models.some((model) => model.assetId === clip.modelAssetId),
+        ).toBe(true);
+    },
+  );
+});
+
+describe("Video Delivery admission", () => {
+  const videoSource = (change?: (current: typeof source) => void) =>
+    baselineSource((current) => {
+      current.definition.scene.nodes["node-video"] = structuredClone(
+        source.definition.scene.nodes["node-video"]!,
+      );
+      current.definition.scene.surfaces.video = structuredClone(
+        source.definition.scene.surfaces.video!,
+      );
+      current.renderBundle.surfaces.video = structuredClone(source.renderBundle.surfaces.video!);
+      current.assetSet.assets["video-asset"] = structuredClone(
+        source.assetSet.assets["video-asset"]!,
+      );
+      change?.(current);
+    });
+
+  it("admits supported H264 Video artifacts and accounts for their decoder residency", () => {
+    const { publishedPresentation: _, ...input } = videoSource();
+    const result = buildRuntimeProjection(input, "presenter");
+    expect(result.selection.residency.maximumConcurrentDecoders).toBe(1);
+    expect(result.selection.assets.some((asset) => asset.assetId === "video-asset")).toBe(true);
+    expect(result.residency.video.videos).toMatchObject([
+      { assetId: "video-asset", decodedFrameBytes: "40000" },
+    ]);
+  });
+
+  it("rejects Video when the participant profile has no Video decoder support", () => {
+    const input = videoSource((current) => {
+      current.capability.renderers.video.supported = false;
+      current.capability.renderers.video.features = [];
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(
+      "No compatible artifact for render-video/default.",
+    );
+  });
+  it.each(["vp9", "av1"] as const)(
+    "rejects %s before admitting an unsupported decoder path",
+    (codec) => {
+      const input = videoSource((current) => {
+        const video =
+          current.renderBundle.surfaces.video!.renderSurfaces["render-video"]!.artifacts[
+            "artifact-video"
+          ]!;
+        assert(video.kind === "video");
+        video.codec = codec;
+        video.requiredFeatures = [codec];
+      });
+      expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(
+        "No compatible artifact for render-video/default.",
+      );
+    },
+  );
+  it.each(["loop", "fit"] as const)(
+    "reuses source Video bytes across State-specific %s",
+    (setting) => {
+      const { publishedPresentation: _, ...input } = videoSource((current) => {
+        const surface = current.definition.scene.surfaces.video!;
+        const compiled = current.renderBundle.surfaces.video!;
+        const render = compiled.renderSurfaces["render-video"]!;
+        const base = render.artifacts["artifact-video"]!;
+        assert(base.kind === "video");
+        const loop = setting === "loop" ? !base.loop : base.loop;
+        const fit = setting === "fit" ? "cover" : base.fit;
+        assert(surface.content.kind === "structured");
+        const videoNode = surface.content.nodes.video!;
+        assert(videoNode.kind === "video");
+        surface.states.variant = {
+          ...surface.states.default!,
+          id: "variant",
+          contentOverrides: { video: { kind: "video", loop, style: { ...videoNode.style, fit } } },
+        };
+        compiled.semanticsByState.variant = structuredClone(compiled.semanticsByState.default!);
+        compiled.interactionsByState.variant = [];
+        render.artifacts.variant = { ...base, id: "variant", loop, fit };
+        render.stateBindings.variant = { kind: "artifacts", artifactIds: ["variant"] };
+      });
+      const result = buildRuntimeProjection(input, "presenter");
+      expect(
+        result.selection.assets.filter((asset) => asset.assetId === "video-asset"),
+      ).toHaveLength(1);
+      expect(result.residency.video.videos).toHaveLength(1);
+      expect(result.residency.video.totalEncodedBytes).toBe("64");
+      expect(result.residency.video.maximumConcurrentDecoders).toBe("1");
+    },
+  );
+  it("still rejects conflicting dimensions for the same Video checksum", () => {
+    const input = videoSource((current) => {
+      const surface = current.definition.scene.surfaces.video!;
+      const compiled = current.renderBundle.surfaces.video!;
+      const render = compiled.renderSurfaces["render-video"]!;
+      const base = render.artifacts["artifact-video"]!;
+      assert(base.kind === "video");
+      surface.states.variant = { ...surface.states.default!, id: "variant" };
+      compiled.semanticsByState.variant = structuredClone(compiled.semanticsByState.default!);
+      compiled.interactionsByState.variant = [];
+      render.artifacts.variant = { ...base, id: "variant", pixelSize: [200, 100] };
+      render.stateBindings.variant = { kind: "artifacts", artifactIds: ["variant"] };
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow("asset-descriptor-conflict");
   });
 });

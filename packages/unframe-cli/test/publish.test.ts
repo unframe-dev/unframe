@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, mkdir, open, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
+import { encodeBuildReceipt } from "../src/filesystem/build-receipt.js";
 import { publishPresentation } from "../src/application/publish.js";
 
 describe("publishPresentation", () => {
@@ -25,9 +26,11 @@ describe("publishPresentation", () => {
     const directory = await mkdtemp(join(temporaryDirectory(), "unframe-publish-"));
     try {
       const id = "a".repeat(32);
-      const generation = join(directory, ".unframe", "generations", id);
-      await mkdir(generation, { recursive: true });
-      await symlink(`.unframe/generations/${id}`, join(directory, "dist"));
+      const generation = directory;
+      await writeFile(
+        join(directory, "build-receipt.json"),
+        encodeBuildReceipt(id, new TextEncoder().encode("{}")),
+      );
       await writeFile(join(generation, "definition.json"), "{}");
       for (const name of ["render-bundle", "asset-set", "build-manifest"])
         await writeFile(join(generation, `${name}.json`), "{}");
@@ -53,9 +56,11 @@ describe("publishPresentation", () => {
     const directory = await mkdtemp(join(temporaryDirectory(), "unframe-publish-"));
     try {
       const id = "a".repeat(32);
-      const generation = join(directory, ".unframe", "generations", id);
-      await mkdir(generation, { recursive: true });
-      await symlink(`.unframe/generations/${id}`, join(directory, "dist"));
+      const generation = directory;
+      await writeFile(
+        join(directory, "build-receipt.json"),
+        encodeBuildReceipt(id, new TextEncoder().encode("{}")),
+      );
       const file = await open(join(generation, "definition.json"), "w");
       try {
         await file.truncate(512 * 1024 * 1024);

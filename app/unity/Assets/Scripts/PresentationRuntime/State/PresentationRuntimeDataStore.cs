@@ -47,6 +47,11 @@ namespace Unframe.Unity.PresentationRuntime
                     || owned && state.Transform == null) return false;
             foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces)
                 if (!TryIsOwned(surface.Owner, progression.CurrentGroupId, out bool owned) || owned != runtime.TryGetSurfaceState(surface.SurfaceId, out _)) return false;
+            foreach (ProjectedNodeDefinition node in catalog.Nodes)
+                if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model
+                    && (!TryIsOwned(node.Owner, progression.CurrentGroupId, out bool owned) || owned != runtime.TryGetModelClipState(node.NodeId, out _))) return false;
+            foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces)
+                if (surface.HasVideo && (!TryIsOwned(surface.Owner, progression.CurrentGroupId, out bool owned) || owned != runtime.TryGetMediaState(surface.SurfaceId, out _))) return false;
             foreach (ProjectedVariableDefinition variable in catalog.Variables)
                 if (!TryIsOwned(variable.Owner, progression.CurrentGroupId, out bool owned)
                     || owned != runtime.TryGetVariableState(variable.VariableId, out VariableState state)
@@ -143,6 +148,8 @@ namespace Unframe.Unity.PresentationRuntime
             IEnumerable<VariableState> states = null;
             if (item?.ConnectionSnapshot?.Snapshot?.RuntimeView != null)
                 states = item.ConnectionSnapshot.Snapshot.RuntimeView.Variables;
+            else if (item?.ReliableEvent?.RuntimeViewReplaced?.RuntimeView != null)
+                states = item.ReliableEvent.RuntimeViewReplaced.RuntimeView.Variables;
             else if (item?.ReliableEvent?.VariableChanged != null)
                 states = new[] { item.ReliableEvent.VariableChanged.State };
             else if (item?.ReliableEvent?.GroupEntered?.Initialization != null)

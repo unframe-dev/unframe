@@ -1,3 +1,6 @@
+import { compileVideoAssets } from "./compile-video-assets.js";
+import { compileModelAssets, MODEL_BUILD_IDENTITY } from "./compile-model-assets.js";
+import type { CompilerSourceAssetBytes } from "./types.js";
 import { CompilerInternalError, type CompilerStage } from "./compiler-internal-error.js";
 import { PNG_ENCODER_IDENTITY, encodeRgbaToPng } from "@unframe/unframe-assets";
 import {
@@ -26,16 +29,12 @@ import {
   writeCachedBuild,
   type CompilerBuildCache,
 } from "../cache/build-cache.js";
-import {
-  compilerBuildOptionsSchema,
-  declarationProjectEnvelopeSchema,
-} from "../validation/project-schemas.js";
+import { compilerBuildOptionsSchema } from "../validation/project-schemas.js";
 import { safeBuildOptionsSnapshot } from "../validation/safe-build-options.js";
-import { safePlainClone } from "../validation/safe-plain-clone.js";
-import { decodeCanonicalBase64 } from "../validation/source-assets.js";
+import { encodeSourceAssetBase64 } from "../validation/source-assets.js";
 import { derivedResourceId, resourceId } from "../lowering/support.js";
 import { reactResourceId } from "../resolution/resolve-opaque-component.js";
-import { checkDeclarationProject } from "./check-declaration-project.js";
+import { prepareDeclarationProject } from "./check-declaration-project.js";
 import { opaquePartitionIdentity } from "./opaque-partition-identity.js";
 import { planSurfacePartitions } from "./plan-surface-partitions.js";
 import type {
@@ -141,13 +140,14 @@ const compileUnchecked = async (
   input: unknown,
   options: unknown,
   checkedOverride: CheckedDeclarationProject | undefined,
+  sourceAssetBytes: unknown,
   cache: CompilerBuildCache | undefined,
   context: { stage: CompilerStage },
 ): Promise<ValidationResult<CompiledDeclarationProject>> => {
-  const checked = checkedOverride
-    ? { valid: true as const, value: checkedOverride, diagnostics: [] as const }
-    : checkDeclarationProject(input);
-  if (!checked.valid) return checked;
+  const prepared = prepareDeclarationProject(input, sourceAssetBytes, checkedOverride);
+  if (!prepared.valid) return prepared;
+  const project = prepared.value.project;
+  const checked = { valid: true as const, value: prepared.value.checked, diagnostics: [] as const };
   context.stage = "input";
   const optionsSnapshot = safeBuildOptionsSnapshot(options);
   if (!optionsSnapshot.valid) return optionsSnapshot;
@@ -159,16 +159,25 @@ const compileUnchecked = async (
       "Build options must be a complete explicit configuration.",
     );
   const buildOptions = parsedOptions.data as unknown as CompilerBuildOptions;
-  const sourceSnapshot = safePlainClone(input);
-  if (!sourceSnapshot.valid)
-    return failure("compiler-invalid-input", [], "Project input could not be resolved safely.");
-  const parsedProject = declarationProjectEnvelopeSchema.safeParse(sourceSnapshot.value);
-  if (!parsedProject.success)
-    return failure("compiler-invalid-input", [], "Project input could not be resolved safely.");
-  const project = parsedProject.data as unknown as CompilerDeclarationProject;
+  context.stage = "planning";
+  const checkedSurfaces = Object.values(checked.value.definition.scene.surfaces);
+  const needsRenderer = checkedSurfaces.length > 0;
+  const needsTheme = checkedSurfaces.some((surface) => surface.content.kind === "structured");
+  context.stage = "input";
+  const hasModels = Object.values(project.assets).some(
+    (asset) => asset.mediaType === "model/gltf-binary",
+  );
+  const mediaSourceBytes = Object.values(project.assets).reduce(
+    (sum, asset) =>
+      sum +
+      (asset.mediaType === "model/gltf-binary" || asset.mediaType === "video/mp4"
+        ? asset.encodedSizeBytes
+        : 0),
+    0,
+  );
   const themeId = project.presentation.theme?.themeId;
   const theme = project.themes.find(({ declaration }) => declaration.id === themeId);
-  if (!theme && (themeId !== undefined || !Array.isArray(project.presentation.scene)))
+  if (!theme && (themeId !== undefined || needsTheme))
     return failure(
       "compiler-theme-not-found",
       ["themes"],
@@ -203,23 +212,26 @@ const compileUnchecked = async (
     rendererIds.add(candidate.identity.id);
   }
   const renderers = buildOptions.renderers.filter(({ identity }) => identity.id === "baked-web");
-  if (renderers.length !== 1)
+  if (renderers.length > 1 || (needsRenderer && renderers.length !== 1))
     return failure(
       renderers.length ? "compiler-renderer-ambiguous" : "compiler-renderer-not-found",
       ["options", "renderers"],
       "baked-web renderer must resolve exactly once.",
     );
-  const renderer = renderers[0]!;
-  const rendererFingerprint = createRendererFingerprint(
-    renderer.identity,
-    buildOptions.rendererConfigHash,
-  );
+  const renderer = renderers[0];
+  const rendererFingerprint = renderer
+    ? createRendererFingerprint(renderer.identity, buildOptions.rendererConfigHash)
+    : hashCanonicalJsonPayload({ kind: "no-surfaces" });
   const environmentHash = hashCanonicalJsonPayload({
     baseEnvironmentHash: buildOptions.compiler.baseEnvironmentHash,
     compilerName: buildOptions.compiler.name,
     compilerVersion: buildOptions.compiler.version,
     pngEncoder: PNG_ENCODER_IDENTITY,
     rendererFingerprint,
+    ...(hasModels ? { modelBuild: MODEL_BUILD_IDENTITY } : {}),
+    ...(Object.values(project.assets).some((asset) => asset.mediaType === "video/mp4")
+      ? { videoValidator: buildOptions.videoValidator?.identity ?? null }
+      : {}),
   });
   context.stage = "cache";
   const cacheKey = cache
@@ -232,8 +244,8 @@ const compileUnchecked = async (
         colorScheme: buildOptions.colorScheme,
         rendererConfigHash: buildOptions.rendererConfigHash,
         encodeLimits: buildOptions.encodeLimits,
-        rendererIdentity: renderer.identity,
-        rendererCapabilities: renderer.capabilities,
+        rendererIdentity: renderer?.identity ?? null,
+        rendererCapabilities: renderer?.capabilities ?? null,
         rendererRegistry: buildOptions.renderers
           .map(({ identity, capabilities }) => ({ identity, capabilities }))
           .sort((left, right) => compareStrings(left.identity.id, right.identity.id)),
@@ -259,7 +271,60 @@ const compileUnchecked = async (
   }
 
   context.stage = "planning";
-  const assets: Record<string, Uint8Array> = {};
+  const modelAssets = await compileModelAssets(project.assets, prepared.value.sourceAssetBytes);
+  if (!modelAssets.valid) return modelAssets;
+  for (const [groupId, group] of Object.entries(checked.value.definition.flow.groups))
+    for (const [stepId, step] of Object.entries(group.steps))
+      for (const [cueIndex, cue] of step.cues.entries()) {
+        const targets = [
+          ...(cue.trigger.kind === "modelClipCompleted" ? [cue.trigger] : []),
+          ...cue.actions.filter((action) => action.kind === "modelClip.play"),
+        ];
+        for (const target of targets) {
+          const node = checked.value.definition.scene.nodes[target.nodeId];
+          const model = node?.kind === "model" ? modelAssets.value.models[node.assetId] : undefined;
+          const clip = model?.clips[target.clipId];
+          if (
+            !clip ||
+            !Number.isSafeInteger(clip.durationMilliseconds) ||
+            clip.durationMilliseconds <= 0
+          )
+            return failure(
+              "compiler-model-clip-not-found",
+              ["flow", groupId, "steps", stepId, "cues", cueIndex],
+              "Clip must exist with a positive measured duration in the transformed GLB.",
+            );
+        }
+      }
+  for (const entry of project.components) {
+    if (!("structure" in entry) || entry.structure.root.kind !== "model") continue;
+    const model = modelAssets.value.models[entry.structure.root.asset.assetId];
+    const references = [
+      ...Object.values(entry.manifest.actions).flatMap((action) =>
+        action.effects.flatMap((effect) =>
+          effect.kind === "playModelClip" ? [effect.clipId] : [],
+        ),
+      ),
+      ...Object.values(entry.manifest.outputs).flatMap((output) =>
+        output.producer.kind === "modelClipCompleted" ? [output.producer.clipId] : [],
+      ),
+    ];
+    for (const clipId of references)
+      if (!model?.clips[clipId] || model.clips[clipId]!.durationMilliseconds <= 0)
+        return failure(
+          "compiler-model-clip-not-found",
+          ["components", entry.manifest.componentId, "clips", clipId],
+          "Every declared clip must exist with a positive measured duration in the transformed GLB.",
+        );
+  }
+  const videoAssets = await compileVideoAssets(
+    project.assets,
+    prepared.value.sourceAssetBytes,
+    buildOptions.videoValidator,
+  );
+  if (!videoAssets.valid) return videoAssets;
+  const sourceDescriptors = { ...checked.value.assetSet.assets, ...modelAssets.value.descriptors };
+  const assets: Record<string, Uint8Array> = { ...modelAssets.value.bytes };
   const fontAssets: Record<
     string,
     { mediaType: "font/ttf" | "font/otf"; checksum: `sha256:${string}`; dataBase64: string }
@@ -269,17 +334,16 @@ const compileUnchecked = async (
     { mediaType: "image/png" | "image/jpeg"; checksum: `sha256:${string}`; dataBase64: string }
   > = {};
   for (const [assetId, asset] of Object.entries(project.assets)) {
-    const bytes = decodeCanonicalBase64(asset.dataBase64);
-    if (!bytes)
-      return failure(
-        "compiler-invalid-asset",
-        ["assets", assetId],
-        "Asset bytes must be canonical base64.",
-      );
+    if (asset.mediaType === "model/gltf-binary") continue;
+    if (asset.mediaType === "video/mp4") {
+      assets[assetId] = prepared.value.sourceAssetBytes[assetId]!;
+      continue;
+    }
+    const bytes = prepared.value.sourceAssetBytes[assetId]!;
     assets[assetId] = bytes;
     const carrier = {
       checksum: asset.checksum as `sha256:${string}`,
-      dataBase64: asset.dataBase64,
+      dataBase64: encodeSourceAssetBase64(bytes),
     };
     if (asset.mediaType === "font/ttf" || asset.mediaType === "font/otf")
       fontAssets[assetId] = { ...carrier, mediaType: asset.mediaType };
@@ -291,13 +355,15 @@ const compileUnchecked = async (
   const generatedDescriptors: Record<string, BuildArtifacts["assetSet"]["assets"][string]> = {};
   const retainedChecksums = new Set<string>();
   let outputBytes = 0;
-  for (const asset of Object.values(checked.value.assetSet.assets))
+  for (const asset of Object.values(sourceDescriptors))
     if (!retainedChecksums.has(asset.checksum)) {
       retainedChecksums.add(asset.checksum);
       outputBytes += asset.encodedSizeBytes;
     }
   if (!Number.isSafeInteger(outputBytes) || outputBytes > POLICY.maxBuildOutputBytes)
     return budgetFailure("compiler-budget-output-bytes-exceeded", ["assets"]);
+  if (outputBytes + mediaSourceBytes > POLICY.maxBuildAccountedPeakBytes)
+    return budgetFailure("compiler-budget-accounted-peak-exceeded", ["assets"]);
   const definitionSurfaces = Object.values(definition.scene.surfaces);
   const planned = new Map<string, PlannedSurface>();
   const opaqueRendererHashes = new Map<string, string>();
@@ -308,6 +374,12 @@ const compileUnchecked = async (
   const hasOpaqueSurface = definitionSurfaces.some((surface) => surface.content.kind === "opaque");
   let totalPartitions = 0;
   for (const surface of definitionSurfaces) {
+    if (!renderer)
+      return failure(
+        "compiler-renderer-not-found",
+        ["options", "renderers"],
+        "Surface compilation requires a baked-web renderer.",
+      );
     if (surface.content.kind === "opaque") {
       const reactScene = Array.isArray(project.presentation.scene)
         ? project.presentation.scene
@@ -349,7 +421,13 @@ const compileUnchecked = async (
           "Render Surface count exceeds the fixed texture build policy.",
         ),
       );
-    for (const { plan, pixelTarget } of result.value.partitions) {
+    for (const { plan, pixelTarget, videoNodeId } of result.value.partitions) {
+      if (videoNodeId) {
+        preflightBindings += Object.values(plan.states).filter(
+          (state) => state.kind !== "empty",
+        ).length;
+        continue;
+      }
       const stateCount = Object.values(plan.states).filter(({ kind }) => kind === "capture").length;
       const pixelCount = pixelTarget[0] * pixelTarget[1];
       preflightBindings += stateCount;
@@ -400,6 +478,7 @@ const compileUnchecked = async (
             ),
           );
         const peakBytes =
+          mediaSourceBytes +
           preflightOutputBytes +
           captureBytes +
           maxEncodedStateBytes +
@@ -444,12 +523,80 @@ const compileUnchecked = async (
   for (const [surfaceId, surface] of Object.entries(definition.scene.surfaces).sort(
     ([left], [right]) => compareStrings(left, right),
   )) {
+    if (!renderer)
+      return failure(
+        "compiler-renderer-not-found",
+        ["options", "renderers"],
+        "Surface compilation requires a baked-web renderer.",
+      );
     const stateIds = Object.keys(surface.states).sort(compareStrings);
     const surfacePlan = planned.get(surfaceId)!;
     const { semanticsByState, interactionsByState } = surfacePlan;
     const partitions = surfacePlan.partitions;
     const renderSurfaces: RenderBundle["surfaces"][string]["renderSurfaces"] = {};
-    for (const { plan, pixelTarget } of partitions) {
+    for (const { plan, pixelTarget, videoNodeId } of partitions) {
+      if (videoNodeId) {
+        const node =
+          surface.content.kind === "structured" ? surface.content.nodes[videoNodeId] : undefined;
+        if (node?.kind !== "video")
+          return failure(
+            "compiler-video-target-invalid",
+            ["surfaces", surfaceId],
+            "Video partition must resolve to a Video content node.",
+          );
+        const metadata = videoAssets.value[node.assetId];
+        if (!metadata)
+          return failure(
+            "compiler-video-metadata-invalid",
+            ["assets", node.assetId],
+            "Video metadata is missing.",
+          );
+        const artifacts: RenderBundle["surfaces"][string]["renderSurfaces"][string]["artifacts"] =
+          {};
+        const stateBindings: RenderBundle["surfaces"][string]["renderSurfaces"][string]["stateBindings"] =
+          {};
+        for (const stateId of stateIds) {
+          if (plan.states[stateId]?.kind === "empty") {
+            stateBindings[stateId] = { kind: "empty" };
+            continue;
+          }
+          const override = surface.states[stateId]?.contentOverrides[videoNodeId];
+          const loop = override?.kind === "video" ? (override.loop ?? node.loop) : node.loop;
+          const fit =
+            override?.kind === "video" ? (override.style?.fit ?? node.style.fit) : node.style.fit;
+          const artifactId = derivedResourceId(
+            "video",
+            hashCanonicalJsonPayload({
+              sourceId: node.assetId,
+              checksum: metadata.checksum,
+              renderSurfaceId: plan.id,
+              loop,
+              fit,
+            }),
+          );
+          artifacts[artifactId] = {
+            ...metadata,
+            checksum: metadata.checksum as `sha256:${string}`,
+            id: artifactId,
+            kind: "video",
+            contractVersion: 1,
+            assetId: node.assetId,
+            loop,
+            fit,
+          };
+          stateBindings[stateId] = { kind: "artifacts", artifactIds: [artifactId] };
+        }
+        renderSurfaces[plan.id] = {
+          id: plan.id,
+          semanticSurfaceId: surfaceId,
+          logicalBounds: plan.logicalBounds,
+          layer: plan.layer,
+          partitionStrategyVersion: 1,
+          artifacts,
+          stateBindings,
+        };
+        continue;
+      }
       context.stage = "planning";
       const renderSurfaceId = plan.id;
       const opaqueRendererHash = opaqueRendererHashes.get(surfaceId);
@@ -569,6 +716,7 @@ const compileUnchecked = async (
             capture.stateId,
           ]);
         const accountedPeakBytes =
+          mediaSourceBytes +
           outputBytes +
           captureBytes +
           encoded.value.byteLength +
@@ -662,18 +810,18 @@ const compileUnchecked = async (
       textureBuildPolicy: POLICY,
     },
     surfaces,
-    models: {},
+    models: modelAssets.value.models,
   };
   const assetSet: BuildArtifacts["assetSet"] = {
     schemaVersion: 2,
-    assets: { ...checked.value.assetSet.assets, ...generatedDescriptors },
+    assets: { ...sourceDescriptors, ...generatedDescriptors },
   };
   const renderBundleJson = canonicalizeJsonPayload(bundle);
   const renderBundleHash = hashCanonicalJsonPayload(bundle);
   const assetSetJson = canonicalizeJsonPayload(assetSet);
   const assetSetHash = hashCanonicalJsonPayload(assetSet);
   const buildManifest: BuildArtifacts["buildManifest"] = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     buildId: `build:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, renderBundleHash, assetSetHash }).slice(7)}`,
     presentationId: definition.presentationId,
     sourceDraftRevision: 0,
@@ -681,13 +829,13 @@ const compileUnchecked = async (
     renderBundleHash,
     assetSetHash,
     contractVersions: {
-      definition: 2,
+      definition: 3,
       renderBundle: 2,
       assetSet: 2,
-      delivery: 2,
-      runtime: 2,
-      progression: 1,
-      projection: 1,
+      delivery: 3,
+      runtime: 3,
+      progression: 2,
+      projection: 2,
     },
   };
   const artifactValidation = validatePresentationArtifacts(definition, bundle);
@@ -724,11 +872,12 @@ const compileWithErrors = async (
   input: unknown,
   options: unknown,
   checked: CheckedDeclarationProject | undefined,
+  sourceAssetBytes: unknown,
   cache: CompilerBuildCache | undefined,
 ): Promise<ValidationResult<CompiledDeclarationProject>> => {
   const context: { stage: CompilerStage } = { stage: "check" };
   try {
-    return await compileUnchecked(input, options, checked, cache, context);
+    return await compileUnchecked(input, options, checked, sourceAssetBytes, cache, context);
   } catch (cause) {
     throw new CompilerInternalError(context.stage, cause);
   }
@@ -738,11 +887,13 @@ export const compileCheckedDeclarationProject = (
   project: CompilerDeclarationProject,
   checked: CheckedDeclarationProject,
   options: unknown,
+  sourceAssetBytes: CompilerSourceAssetBytes = {},
   cache?: CompilerBuildCache,
-) => compileWithErrors(project, options, checked, cache);
+) => compileWithErrors(project, options, checked, sourceAssetBytes, cache);
 export const compileDeclarationProject = (
   input: unknown,
   options: unknown,
+  sourceAssetBytes: CompilerSourceAssetBytes = {},
   cache?: CompilerBuildCache,
 ): Promise<ValidationResult<CompiledDeclarationProject>> =>
-  compileWithErrors(input, options, undefined, cache);
+  compileWithErrors(input, options, undefined, sourceAssetBytes, cache);

@@ -1,4 +1,4 @@
-import type { PresentationDefinition } from "@unframe/contracts/presentation";
+import type { PresentationDefinition, RenderBundle } from "@unframe/contracts/presentation";
 import {
   advanceCueClock,
   createCueState,
@@ -42,6 +42,7 @@ const cueInput = (cue: Cue, causeEventId: string): CueInput | undefined => {
 export const createLocalPlayback = ({
   requestId,
   definition,
+  renderBundle,
   visibleNodeIds,
   visibleSurfaceIds,
   visibleTimelineIds,
@@ -49,13 +50,14 @@ export const createLocalPlayback = ({
 }: {
   requestId: string;
   definition: PresentationDefinition;
+  renderBundle?: RenderBundle;
   visibleNodeIds: ReadonlySet<string>;
   visibleSurfaceIds: ReadonlySet<string>;
   visibleTimelineIds: ReadonlySet<string>;
   now: () => number;
 }) => {
   let runEpoch = 1;
-  let state = createCueState(definition, runEpoch);
+  let state = createCueState(definition, runEpoch, renderBundle);
   let sequence = 0n;
   let playing = false;
   let referenceTime = now();
@@ -93,7 +95,7 @@ export const createLocalPlayback = ({
         playing = false;
         break;
       case "reset":
-        state = createCueState(definition, ++runEpoch);
+        state = createCueState(definition, ++runEpoch, renderBundle);
         playing = false;
         referenceTime = time;
         referenceRuntimeTime = 0;

@@ -1,0 +1,523 @@
+{
+  "definition": {
+    "schemaVersion": 3,
+    "presentationId": "presenter-cue-conformance",
+    "metadata": {
+      "title": "Presenter Cue conformance"
+    },
+    "stage": {
+      "coordinateSystem": {
+        "unit": "meter",
+        "handedness": "right",
+        "upAxis": "+Y",
+        "forwardAxis": "-Z"
+      },
+      "size": [10, 10, 10],
+      "zones": {
+        "stage": {
+          "id": "stage",
+          "owner": {
+            "kind": "presentation"
+          },
+          "center": [0, 0, 0]
+        }
+      }
+    },
+    "scene": {
+      "nodes": {
+        "node": {
+          "id": "node",
+          "kind": "container",
+          "owner": {
+            "kind": "presentation"
+          },
+          "audience": {
+            "kind": "all"
+          },
+          "parent": {
+            "kind": "stage"
+          },
+          "order": 0,
+          "transform": {
+            "position": [0, 0, 0],
+            "rotation": [0, 0, 0, 1],
+            "scale": [1, 1, 1]
+          },
+          "active": true,
+          "visible": true,
+          "opacity": 0
+        }
+      },
+      "surfaces": {}
+    },
+    "flow": {
+      "initialGroupId": "g",
+      "groups": {
+        "g": {
+          "id": "g",
+          "initialStepId": "start",
+          "steps": {
+            "start": {
+              "id": "start",
+              "cues": [
+                {
+                  "id": "b",
+                  "priority": 10,
+                  "order": 0,
+                  "trigger": {
+                    "kind": "gesture",
+                    "actor": {
+                      "kind": "presenter"
+                    },
+                    "gesture": "swipeLeft"
+                  },
+                  "firePolicy": {
+                    "kind": "oncePerStepEntry"
+                  },
+                  "actions": [
+                    {
+                      "kind": "variable.set",
+                      "variableId": "count",
+                      "value": {
+                        "kind": "literal",
+                        "value": 2
+                      }
+                    }
+                  ],
+                  "next": {
+                    "kind": "stay"
+                  }
+                },
+                {
+                  "id": "a",
+                  "priority": 10,
+                  "order": 0,
+                  "trigger": {
+                    "kind": "gesture",
+                    "actor": {
+                      "kind": "presenter"
+                    },
+                    "gesture": "swipeLeft"
+                  },
+                  "firePolicy": {
+                    "kind": "oncePerStepEntry"
+                  },
+                  "actions": [
+                    {
+                      "kind": "variable.set",
+                      "variableId": "count",
+                      "value": {
+                        "kind": "literal",
+                        "value": 1
+                      }
+                    }
+                  ],
+                  "next": {
+                    "kind": "stay"
+                  }
+                },
+                {
+                  "id": "repeat",
+                  "priority": 0,
+                  "order": 0,
+                  "trigger": {
+                    "kind": "gesture",
+                    "actor": {
+                      "kind": "presenter"
+                    },
+                    "gesture": "swipeLeft"
+                  },
+                  "firePolicy": {
+                    "kind": "repeatable"
+                  },
+                  "actions": [
+                    {
+                      "kind": "variable.set",
+                      "variableId": "count",
+                      "value": {
+                        "kind": "literal",
+                        "value": 3
+                      }
+                    }
+                  ],
+                  "next": {
+                    "kind": "stay"
+                  }
+                },
+                {
+                  "id": "zone",
+                  "priority": 0,
+                  "order": 0,
+                  "trigger": {
+                    "kind": "zoneEdge",
+                    "actor": {
+                      "kind": "presenter"
+                    },
+                    "zoneId": "stage",
+                    "edge": "enter"
+                  },
+                  "firePolicy": {
+                    "kind": "oncePerStepEntry"
+                  },
+                  "actions": [
+                    {
+                      "kind": "variable.set",
+                      "variableId": "count",
+                      "value": {
+                        "kind": "literal",
+                        "value": 4
+                      }
+                    }
+                  ],
+                  "next": {
+                    "kind": "stay"
+                  }
+                },
+                {
+                  "id": "timer",
+                  "priority": 0,
+                  "order": 0,
+                  "trigger": {
+                    "kind": "timer",
+                    "afterMilliseconds": 100
+                  },
+                  "firePolicy": {
+                    "kind": "oncePerStepEntry"
+                  },
+                  "actions": [
+                    {
+                      "kind": "timeline.play",
+                      "timelineId": "fade",
+                      "completion": "nonBlocking",
+                      "conflict": "reject"
+                    }
+                  ],
+                  "next": {
+                    "kind": "stay"
+                  }
+                },
+                {
+                  "id": "complete",
+                  "priority": 0,
+                  "order": 0,
+                  "trigger": {
+                    "kind": "timelineCompleted",
+                    "timelineId": "fade"
+                  },
+                  "firePolicy": {
+                    "kind": "oncePerStepEntry"
+                  },
+                  "actions": [
+                    {
+                      "kind": "variable.set",
+                      "variableId": "count",
+                      "value": {
+                        "kind": "literal",
+                        "value": 5
+                      }
+                    }
+                  ],
+                  "next": {
+                    "kind": "step",
+                    "stepId": "second"
+                  }
+                }
+              ]
+            },
+            "second": {
+              "id": "second",
+              "cues": [
+                {
+                  "id": "again",
+                  "priority": 0,
+                  "order": 0,
+                  "trigger": {
+                    "kind": "gesture",
+                    "actor": {
+                      "kind": "presenter"
+                    },
+                    "gesture": "swipeLeft"
+                  },
+                  "firePolicy": {
+                    "kind": "repeatable"
+                  },
+                  "actions": [
+                    {
+                      "kind": "variable.set",
+                      "variableId": "count",
+                      "value": {
+                        "kind": "literal",
+                        "value": 7
+                      }
+                    }
+                  ],
+                  "next": {
+                    "kind": "stay"
+                  }
+                },
+                {
+                  "id": "return",
+                  "priority": 0,
+                  "order": 0,
+                  "trigger": {
+                    "kind": "logicalInput",
+                    "actor": {
+                      "kind": "presenter"
+                    },
+                    "action": "next"
+                  },
+                  "firePolicy": {
+                    "kind": "oncePerStepEntry"
+                  },
+                  "actions": [],
+                  "next": {
+                    "kind": "step",
+                    "stepId": "start"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "variables": {
+        "count": {
+          "id": "count",
+          "owner": {
+            "kind": "presentation"
+          },
+          "type": "number",
+          "initialValue": 0
+        }
+      },
+      "timelines": {
+        "fade": {
+          "id": "fade",
+          "owner": {
+            "kind": "presentation"
+          },
+          "durationMilliseconds": 200,
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node",
+                "property": "opacity"
+              },
+              "keyframes": [
+                {
+                  "timeMilliseconds": 0,
+                  "value": 0,
+                  "easingToNext": "linear"
+                },
+                {
+                  "timeMilliseconds": 200,
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "trace": [
+    {
+      "operation": {
+        "kind": "gesture",
+        "gesture": "swipeLeft"
+      },
+      "expected": {
+        "cueIds": ["a"],
+        "count": 1,
+        "stepId": "start",
+        "stepEntryEpoch": 1,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 0
+      }
+    },
+    {
+      "operation": {
+        "kind": "gesture",
+        "gesture": "swipeLeft"
+      },
+      "expected": {
+        "cueIds": ["b"],
+        "count": 2,
+        "stepId": "start",
+        "stepEntryEpoch": 1,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 0
+      }
+    },
+    {
+      "operation": {
+        "kind": "gesture",
+        "gesture": "swipeLeft"
+      },
+      "expected": {
+        "cueIds": ["repeat"],
+        "count": 3,
+        "stepId": "start",
+        "stepEntryEpoch": 1,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 0
+      }
+    },
+    {
+      "operation": {
+        "kind": "gesture",
+        "gesture": "swipeLeft"
+      },
+      "expected": {
+        "cueIds": ["repeat"],
+        "count": 3,
+        "stepId": "start",
+        "stepEntryEpoch": 1,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 0
+      }
+    },
+    {
+      "operation": {
+        "kind": "zoneEdge",
+        "zoneId": "stage",
+        "edge": "enter"
+      },
+      "expected": {
+        "cueIds": ["zone"],
+        "count": 4,
+        "stepId": "start",
+        "stepEntryEpoch": 1,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 0
+      }
+    },
+    {
+      "operation": {
+        "kind": "zoneEdge",
+        "zoneId": "stage",
+        "edge": "enter"
+      },
+      "expected": {
+        "cueIds": [],
+        "count": 4,
+        "stepId": "start",
+        "stepEntryEpoch": 1,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 0
+      }
+    },
+    {
+      "operation": {
+        "kind": "advance",
+        "toRuntimeTimeMs": 100
+      },
+      "expected": {
+        "cueIds": ["timer"],
+        "count": 4,
+        "stepId": "start",
+        "stepEntryEpoch": 1,
+        "activeRunCount": 1,
+        "runtimeTimeMs": 100
+      }
+    },
+    {
+      "operation": {
+        "kind": "advance",
+        "toRuntimeTimeMs": 299
+      },
+      "expected": {
+        "cueIds": [],
+        "count": 4,
+        "stepId": "start",
+        "stepEntryEpoch": 1,
+        "activeRunCount": 1,
+        "runtimeTimeMs": 299
+      }
+    },
+    {
+      "operation": {
+        "kind": "advance",
+        "toRuntimeTimeMs": 300
+      },
+      "expected": {
+        "cueIds": ["complete"],
+        "count": 5,
+        "stepId": "second",
+        "stepEntryEpoch": 2,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 300
+      }
+    },
+    {
+      "operation": {
+        "kind": "gesture",
+        "gesture": "swipeLeft"
+      },
+      "expected": {
+        "cueIds": ["again"],
+        "count": 7,
+        "stepId": "second",
+        "stepEntryEpoch": 2,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 300
+      }
+    },
+    {
+      "operation": {
+        "kind": "logicalInput",
+        "action": "next"
+      },
+      "expected": {
+        "cueIds": ["return"],
+        "count": 7,
+        "stepId": "start",
+        "stepEntryEpoch": 3,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 300
+      }
+    },
+    {
+      "operation": {
+        "kind": "advance",
+        "toRuntimeTimeMs": 399
+      },
+      "expected": {
+        "cueIds": [],
+        "count": 7,
+        "stepId": "start",
+        "stepEntryEpoch": 3,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 399
+      }
+    },
+    {
+      "operation": {
+        "kind": "advance",
+        "toRuntimeTimeMs": 400
+      },
+      "expected": {
+        "cueIds": ["timer"],
+        "count": 7,
+        "stepId": "start",
+        "stepEntryEpoch": 3,
+        "activeRunCount": 1,
+        "runtimeTimeMs": 400
+      }
+    },
+    {
+      "operation": {
+        "kind": "advance",
+        "toRuntimeTimeMs": 600
+      },
+      "expected": {
+        "cueIds": ["complete"],
+        "count": 5,
+        "stepId": "second",
+        "stepEntryEpoch": 4,
+        "activeRunCount": 0,
+        "runtimeTimeMs": 600
+      }
+    }
+  ]
+}

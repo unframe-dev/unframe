@@ -35,6 +35,7 @@ export const createNativeEditorConfiguration = (source: unknown, plugins: readon
       name: "UnframeNativeTests",
       references: [
         "UnframeNativeRuntime",
+        "glTFast",
         "Cysharp.Net.Http.YetAnotherHttpHandler",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.RenderPipelines.Core.Runtime",

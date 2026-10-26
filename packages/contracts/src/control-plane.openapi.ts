@@ -2181,6 +2181,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             session: {
+                                publicationFence: {
+                                    presentationId: string;
+                                    publicationEpoch: number;
+                                    publicationManifestHash: string;
+                                } | null;
                                 id: string;
                                 presentationId: string;
                                 presenterId: string;
@@ -2254,6 +2259,20 @@ export interface paths {
                         };
                     };
                 };
+                /** @description No published presentation */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
         };
         delete?: never;
@@ -2293,6 +2312,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            publicationFence: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                            } | null;
                             id: string;
                             presentationId: string;
                             presenterId: string;
@@ -2411,6 +2435,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            publicationFence: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                            } | null;
                             id: string;
                             presentationId: string;
                             presenterId: string;
@@ -2519,6 +2548,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            publicationFence: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                            } | null;
                             id: string;
                             presentationId: string;
                             presenterId: string;
@@ -2639,6 +2673,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            publicationFence: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                            } | null;
                             id: string;
                             presentationId: string;
                             presenterId: string;
@@ -3414,7 +3453,7 @@ export interface paths {
                         runtimeId: string;
                         runtimeVersion: string;
                         /** @enum {string} */
-                        protocolVersion: "v2";
+                        protocolVersion: "v3";
                         capacity: number;
                         /** Format: uri */
                         localEndpoint: string;
@@ -3782,6 +3821,20 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Checkpoint payload exceeds its byte limit */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
         };
         delete?: never;
@@ -3891,6 +3944,20 @@ export interface paths {
                 };
                 /** @description Runtime assignment is not active */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Checkpoint payload exceeds its byte limit */
+                413: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -4198,7 +4265,7 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @enum {number} */
-                            schemaVersion: 2;
+                            schemaVersion: 3;
                             presentationId: string;
                             publicationEpoch: number;
                             publicationManifestHash: string;
@@ -4209,19 +4276,19 @@ export interface paths {
                             assetSetHash: string;
                             contractVersions: {
                                 /** @enum {number} */
-                                definition: 2;
+                                definition: 3;
                                 /** @enum {number} */
                                 renderBundle: 2;
                                 /** @enum {number} */
                                 assetSet: 2;
                                 /** @enum {number} */
-                                delivery: 2;
+                                delivery: 3;
                                 /** @enum {number} */
-                                runtime: 2;
+                                runtime: 3;
                                 /** @enum {number} */
-                                progression: 1;
+                                progression: 2;
                                 /** @enum {number} */
-                                projection: 1;
+                                projection: 2;
                             };
                         };
                     };
@@ -4344,7 +4411,7 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @enum {number} */
-                            schemaVersion: 2;
+                            schemaVersion: 3;
                             presentationId: string;
                             publicationEpoch: number;
                             publicationManifestHash: string;
@@ -4355,19 +4422,19 @@ export interface paths {
                             assetSetHash: string;
                             contractVersions: {
                                 /** @enum {number} */
-                                definition: 2;
+                                definition: 3;
                                 /** @enum {number} */
                                 renderBundle: 2;
                                 /** @enum {number} */
                                 assetSet: 2;
                                 /** @enum {number} */
-                                delivery: 2;
+                                delivery: 3;
                                 /** @enum {number} */
-                                runtime: 2;
+                                runtime: 3;
                                 /** @enum {number} */
-                                progression: 1;
+                                progression: 2;
                                 /** @enum {number} */
-                                projection: 1;
+                                projection: 2;
                             };
                         };
                     };
@@ -4669,7 +4736,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Trusted Runtime v2 bootstrap */
+                /** @description Trusted Runtime v3 bootstrap */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -4751,6 +4818,20 @@ export interface paths {
                 };
                 /** @description Runtime fence conflict */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Checkpoint payload exceeds its byte limit */
+                413: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -4850,6 +4931,20 @@ export interface paths {
                 };
                 /** @description Runtime fence conflict */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Checkpoint payload exceeds its byte limit */
+                413: {
                     headers: {
                         [name: string]: unknown;
                     };

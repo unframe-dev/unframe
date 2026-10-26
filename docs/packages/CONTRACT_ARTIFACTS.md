@@ -28,6 +28,8 @@ Projection 1 に固定し、該当 field は literal とする。
 
 ## Definition
 
+Gesture / Zone / Cue fire policy の採用仕様は [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) と [Data model](./DATA_MODEL.md) に従う。Gesture は種類のみ、Zone の幾何設定は中心位置のみとし、認識閾値・対象の手・可変 Zone size・server cooldown はユーザー設定から除く。Zod と生成 JSON Schema は更新済みで、採用 version は [v3 対応表](./CONTRACT_PRESENTER_AUTHORITY.md#version-と移行) に従う。上記の旧 version と実行側 consumer は移行前の説明である。
+
 `scene.nodes` は `container | model | surface | shape | light` の完全 union とする。Model は一つの
 GLB Asset を参照し、SurfaceNode と SemanticSurface は一対一で対応する。Spatial TRS は local
 値で、meter、正規化済み `[x,y,z,w]` Quaternion、正の scale を使う。Hamilton 積と canonical
@@ -130,17 +132,24 @@ Native UI は group と単一行 text だけを持つ。一つの root から全
 glyph closure、font fallback、semantic text、truncate は Architecture §14.3 に従う。使用 feature
 と `requiredFeatures` を完全一致させる。
 
-Video は一つの Video Asset、duration、loop、codec、alpha、file 内 audio track の有無を持つ。
+Video は一つの Video Asset、duration、loop、fit、codec、alpha、file 内 audio track の有無を持つ。
+fitはcontain / cover / stretchを必須とし、containは枠内へ縦横比を保って配置、coverは枠を満たしてUVを切り抜き、stretchは枠全体へ伸縮する。
 独立 Audio Asset、Action、State、capability は持たない。codec feature は一つだけとし、
 `alpha`/`audio` は対応 track が実在する場合だけ要求する。v2 の基本 Delivery profile が admit
 するのは H.264、alpha なしだけとし、同 profile は VP9、AV1、alpha を supported と申告しない。
 これらの feature は Video artifact contract には維持するが、別の形式・budget profile が Accepted
 になるまで Delivery で拒否する。基本 profile の MP4 映像 track は AVC High Profile、level 4.1
-以下、8 bit、4:2:0、progressive に限定する。
+以下、8 bit、4:2:0、progressive、sample entry `avc1` に限定する。
 interlace、10/12 bit、4:2:2、4:4:4を拒否する。音声 track は任意で一つだけとし、存在する場合は
 AAC-LC（MPEG-4 Audio Object Type 2）、48 kHz、mono または stereo に限定する。Compiler は MP4
 container と各 elementary stream を parse してこの値を検証し、file extension や codec 名だけで
 判定しない。
+
+MP4のdurationはedit list適用後のpacket endから音声discard paddingを除いて有理数で算出し、stream/containerと一致させた後にミリ秒へ切り上げる。DTSとdecoded frame PTSは各trackで単調増加し、B-frameによるpacket PTSの並べ替えは許可する。
+
+Modelはimport前にGLBのencoded/accessor展開bytesを各64 MiB、JSONを4 MiB / 100万token / depth64、Node階層を256に制限する。全meshのdecoded geometryには `Σ(vertices × (160 + morphTargets × 48) + indices × 4) ≤ 64 MiB` の絶対上限を適用する。animation曲線もchannelごとにkey数×curve成分数×64 bytesを合計して64 MiBまでとする。weightsの成分数はmorph幅×primitive数、targetNamesはmorph幅と一致させる。selected sceneのdescriptorに含まれないresourceもimporterのallocation検査から除外しない。
+
+Modelのvertex属性はPOSITION / NORMAL / TANGENT / COLOR_0 / JOINTS_0 / WEIGHTS_0 / TEXCOORD_0..7に限定し、material textureはTEXCOORD_0を使用する。追加influence・color set・UV set、materialの別UV選択は黙って切り捨てず診断する。
 
 Model は自己完結した `model/gltf-binary` とする。material は glTF 2.0 PBR metallic-roughness または
 unlit、alpha は opaque/mask/blend に限定し、`alphaCutoff` は mask の場合だけ存在させる。
@@ -157,6 +166,7 @@ GLB は glTF 2.0 core と `KHR_materials_unlit` だけを許可する。`extensi
 `extensionsUsed` の各要素はこの allowlist 内で重複なしとし、UTF-16 code unit 昇順にする。
 Draco/Meshopt 圧縮、texture transform、clearcoat、transmission、lights、vendor extension は v2 で
 受理しない。buffer と image は GLB 内に埋め込み、image media type は PNG または JPEG とする。
+埋め込み画像は各辺2048、モデルごとの合計16 Mi pixelsまでとする。Bundleの`models[].textures`は画像のpixelSizeと、同じimageを参照するglTF texture数（最低1）の2倍をbindingCountとして保持する。配布判定では異なるモデルchecksumごとにRGBA32 GPU bytesとbindingsを計上し、Baked Web textureと合算して端末上限を検査する。
 
 Model の node/primitive/vertex/triangle 数、skin ごとの最大 bone 数、primitive ごとの最大 morph
 target 数、animation clip 数は、配布する GLB の default scene から到達する object を一度だけ数え、
@@ -175,6 +185,10 @@ AssetSetManifest は配信 Asset の推移的 closure だけを持ち、self has
 publication を持たない。Definition/Bundle から参照されない編集素材と、独立 audio、HTML、script
 など allowlist 外の素材を拒否する。`assetSetHash` は manifest の RFC 8785 JCS bytes から外側で
 計算する。
+
+## ローカル配布ディレクトリ
+
+CLIのDistは4つのJSON artifact、`assets/`の配布bytes、`build-receipt.json`からなる通常ディレクトリであり、元プロジェクトから切り離してPreview・publishできる。receiptはローカルgeneration IDとbuild manifest bytesのhashを照合するための情報で、Control Planeのartifact契約には含めない。素材の解決にはAsset IDとmedia typeを用い、元プロジェクトのpathやlockを必要としない。欠落・サイズ・checksumの不一致では表示準備またはpublishを停止する。
 
 ## 検証順序と diagnostic
 

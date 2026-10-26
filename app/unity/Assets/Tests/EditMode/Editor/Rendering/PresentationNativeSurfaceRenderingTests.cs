@@ -1,8 +1,12 @@
 using System.Collections.Generic;
+using System.Collections;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using TMPro;
 using UnityEngine;
+using UnityEngine.TestTools;
 using Unframe.Delivery;
 using Unframe.Presentation;
 using Unframe.Realtime;
@@ -10,6 +14,84 @@ using Unframe.Unity.PresentationRuntime;
 
 public sealed class PresentationNativeSurfaceRenderingTests
 {
+    [UnityTest]
+    public IEnumerator NativeOnlySurfaceRetainsItsSemanticInteraction()
+    {
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,
+            out DeliveryManifest delivery, out string error), Is.True, error);
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(PresentationTestFixtures.Load("LocalSnapshot").text,
+            out ControlServerItem snapshot, out error), Is.True, error);
+        var store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.TryGetSurface("semantic-surface:text-greeting", out ProjectedSurfaceDefinition surface), Is.True);
+        surface.LogicalSize = new Unframe.Presentation.Vector2 { X = 100, Y = 100 };
+        surface.PhysicalSizeMeters = new Unframe.Presentation.Vector2 { X = 1, Y = 1 };
+        delivery = store.Delivery;
+        delivery.AssetAccess.Clear();
+        delivery.Residency.Textures = new TextureResidencyPlan();
+        delivery.Residency.Models = new ModelResidencyPlan();
+        delivery.Residency.Video = new VideoResidencyPlan();
+        delivery.Residency.NativeUi = new NativeUiResidencyPlan { MaximumNodesPerArtifact = 1, MaximumTreeDepth = 1 };
+        delivery.CapabilityProfile.Renderers.NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1 };
+        delivery.CapabilityProfile.Limits = new CapabilityLimits { NativeUi = new NativeUiLimits { MaxNodesPerArtifact = 1, MaxTreeDepth = 1 } };
+        foreach (ProjectedNodeDefinition node in delivery.ProjectionProfile.RuntimeCatalog.Nodes)
+            if (node.Model != null) node.Container = new ContainerNode();
+        delivery.ProjectionProfile.RuntimeCatalog.ModelClips.Clear();
+        delivery.ProjectionProfile.RenderSurfaces.Clear();
+        delivery.ProjectionProfile.RenderSurfaces.Add(new DeliveredRenderSurface
+        {
+            RenderSurfaceId = "native-interactive",
+            SemanticSurfaceId = surface.SurfaceId,
+            RendererKind = RendererKind.NativeUi,
+            ArtifactContractVersion = 1,
+            LogicalBounds = new LogicalBounds { Width = 100, Height = 100 },
+            StateBindings = { new DeliveredStateBinding { StateId = "state:text-greeting", Artifact = new ArtifactStateBinding { ArtifactId = "native-group" } } },
+            Artifacts = { new DeliveredArtifact { NativeUi = new NativeUiArtifact
+            {
+                ArtifactId = "native-group", ContractVersion = 1, RootNodeId = "root",
+                Nodes = { new NativeUiNode { Group = new NativeUiGroup { NodeId = "root", Bounds = new LogicalBounds { Width = 100, Height = 100 } } } },
+            } } },
+        });
+        delivery.ProjectionProfile.SemanticSurfaces.Clear();
+        delivery.ProjectionProfile.SemanticSurfaces.Add(new ProjectedSemanticSurface
+        {
+            SemanticSurfaceId = surface.SurfaceId,
+            States = { new SurfaceSemanticState
+            {
+                StateId = "state:text-greeting",
+                InteractiveRegions = { new InteractiveRegion
+                {
+                    InteractionId = "continue", NormalizedBounds = new LogicalBounds { X = .25, Y = .25, Width = .5, Height = .5 },
+                } },
+            } },
+        });
+        var root = new GameObject("native-interaction-test");
+        var hierarchy = new PresentationNodeHierarchy();
+        using (var renderer = new PresentationSceneRenderer())
+        {
+            try
+            {
+                Assert.That(hierarchy.TryReplace(store, root.transform, out error), Is.True, error);
+                Task load = renderer.LoadAsync(store, hierarchy,
+                    (_, __) => Task.FromException<byte[]>(new AssertionException("No external assets are required.")), CancellationToken.None);
+                while (!load.IsCompleted) yield return null;
+                load.GetAwaiter().GetResult();
+                Assert.That(renderer.TryRefresh(store, 0, out error), Is.True, error);
+                Assert.That(hierarchy.Registry.TryGet(surface.HostNodeId, out GameObject host), Is.True);
+                var ray = new Ray(host.transform.TransformPoint(new UnityEngine.Vector3(0, 0, -1)), host.transform.forward);
+                Assert.That(renderer.TryPickInteraction(ray, store, out string surfaceId, out string interactionId), Is.True);
+                Assert.That(surfaceId, Is.EqualTo(surface.SurfaceId));
+                Assert.That(interactionId, Is.EqualTo("continue"));
+                Assert.That(renderer.TryPickInteraction(new Ray(host.transform.TransformPoint(new UnityEngine.Vector3(0, 0, 1)), -host.transform.forward),
+                    store, out _, out _), Is.False);
+                renderer.Disable();
+                Assert.That(renderer.TryPickInteraction(ray, store, out _, out _), Is.False);
+            }
+            finally { hierarchy.Clear(); Object.DestroyImmediate(root); }
+        }
+    }
+
     [Test]
     public void NumberTextUsesInvariantFixedPrecisionAndCurrentVariable()
     {

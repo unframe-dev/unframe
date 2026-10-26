@@ -192,7 +192,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
               assignmentEpoch: assignment.assignmentEpoch,
               presentationId: session.presentationId,
               presentationRevision: assignment.presentationRevision,
-              protocolVersion: 2,
+              protocolVersion: 3,
               scopes:
                 assignment.runtimeKind === "VenueEdge"
                   ? ["realtime:connect", "assets:read"]

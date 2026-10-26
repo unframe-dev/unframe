@@ -1,25 +1,10 @@
+import { asUint64, modelFeature, featureSet, buildResidencyPlan } from "./residency.js";
 import type { CapabilityProfile, DeliveryManifestWire } from "@unframe/contracts/presentation";
 import { idSchema } from "@unframe/contracts/presentation";
 import { buildProjectionProfile } from "./profile.js";
 import type { DeliverySourceInput } from "./input.js";
 import { snapshotPlainJson } from "../publication/plain-json.js";
 
-const asUint64 = (value: number) => {
-  if (!Number.isSafeInteger(value) || value < 0)
-    throw new RangeError("uint64 must be a safe unsigned integer.");
-  return String(value);
-};
-const modelFeature = {
-  animation: 1,
-  skin: 2,
-  morphTargets: 3,
-  alphaBlend: 4,
-  alphaMask: 5,
-  pbrMetallicRoughness: 6,
-  unlit: 7,
-} as const;
-const featureSet = <T extends string>(values: T[], mapping: Record<T, number>) =>
-  [...new Set(values.map((value) => mapping[value]))].sort((a, b) => a - b);
 const limits = (value: Record<string, string | number>) =>
   Object.fromEntries(
     Object.entries(value).map(([key, entry]) => [
@@ -154,39 +139,9 @@ export const buildDeliveryManifest = (input: DeliveryManifestBuildInput) => {
       expiresAtUnixMs: asUint64(grant.expiresAtUnixMilliseconds),
     };
   });
-  const residency = selection.residency;
-  const modelEntries = residency.models.map(({ assetId, checksum }) => {
-    const model = input.renderBundle.models[assetId]!;
-    return {
-      assetId,
-      checksum,
-      encodedSizeBytes: asUint64(model.encodedSizeBytes),
-      format: 1,
-      requiredFeatures: featureSet(model.requiredFeatures, modelFeature),
-      nodeCount: asUint64(model.nodeCount),
-      primitiveCount: asUint64(model.primitiveCount),
-      vertexCount: asUint64(model.vertexCount),
-      triangleCount: asUint64(model.triangleCount),
-      maximumBonesPerSkin: asUint64(model.maxBonesPerSkin),
-      maximumMorphTargetsPerPrimitive: asUint64(model.maxMorphTargetsPerPrimitive),
-      animationClipCount: asUint64(model.animationClipCount),
-    };
-  });
-  const sum = (values: number[]) =>
-    values.reduce((total, value) => {
-      const next = total + value;
-      if (!Number.isSafeInteger(next)) throw new RangeError("Residency sum overflow.");
-      return next;
-    }, 0);
-  const videos = residency.videos.map(({ assetId, checksum, decodedFrameBytes }) => ({
-    assetId,
-    checksum,
-    decodedFrameBytes: asUint64(decodedFrameBytes),
-    encodedSizeBytes: asUint64(input.assetSet.assets[assetId]!.encodedSizeBytes),
-  }));
   const manifest: DeliveryManifestWire = {
-    schemaVersion: 2,
-    deliveryContractVersion: 2,
+    schemaVersion: 3,
+    deliveryContractVersion: 3,
     sessionId: input.sessionId,
     publication: {
       presentationId: input.publishedPresentation.presentationId,
@@ -204,59 +159,7 @@ export const buildDeliveryManifest = (input: DeliveryManifestBuildInput) => {
       assignmentEpoch: asUint64(input.assignmentEpoch),
     },
     assetAccess,
-    residency: {
-      textures: {
-        budgetTierId: input.capability.limits.texture.tierId,
-        textures: residency.textures.map((texture) => ({
-          assetId: texture.assetId,
-          checksum: texture.checksum,
-          pixelSize: {
-            width: asUint64(texture.pixelSize[0]),
-            height: asUint64(texture.pixelSize[1]),
-          },
-          decodedGpuBytes: asUint64(texture.gpuBytes),
-          peakLoadCpuBytes: asUint64(texture.peakLoadCpuBytes),
-        })),
-        totalDecodedGpuBytes: asUint64(residency.totalTextureGpuBytes),
-        maximumPeakLoadCpuBytes: asUint64(residency.maximumTextureLoadCpuBytes),
-      },
-      models: {
-        budgetTierId: input.capability.limits.model.tierId,
-        models: modelEntries,
-        totalEncodedBytes: asUint64(
-          sum(modelEntries.map((entry) => Number(entry.encodedSizeBytes))),
-        ),
-        totalVertices: asUint64(sum(modelEntries.map((entry) => Number(entry.vertexCount)))),
-        totalTriangles: asUint64(sum(modelEntries.map((entry) => Number(entry.triangleCount)))),
-        modelInstanceCount: asUint64(
-          selection.visibleNodeIds.filter(
-            (id) => input.definition.scene.nodes[id]?.kind === "model",
-          ).length,
-        ),
-        totalNodes: asUint64(sum(modelEntries.map((entry) => Number(entry.nodeCount)))),
-        totalPrimitives: asUint64(sum(modelEntries.map((entry) => Number(entry.primitiveCount)))),
-      },
-      nativeUi: {
-        budgetTierId: input.capability.limits.nativeUi.tierId,
-        fontAssetIds: residency.fontAssetIds,
-        maximumNodesPerArtifact: asUint64(residency.maximumNativeNodes),
-        maximumTreeDepth: asUint64(residency.maximumNativeDepth),
-        maximumTextNodesPerArtifact: asUint64(residency.maximumNativeTextNodes),
-        maximumCodePointsPerText: asUint64(residency.maximumNativeCodePoints),
-        glyphs: residency.glyphs,
-        fontAssetCount: asUint64(
-          new Set(residency.fontAssetIds.map((id) => input.assetSet.assets[id]!.checksum)).size,
-        ),
-      },
-      video: {
-        budgetTierId: input.capability.limits.video.tierId,
-        videos,
-        totalEncodedBytes: asUint64(sum(videos.map((video) => Number(video.encodedSizeBytes)))),
-        maximumConcurrentDecoders: asUint64(residency.maximumConcurrentDecoders),
-        maximumDecodedFrameBytes: asUint64(residency.maximumDecodedFrameBytes),
-      },
-      totalSelectedEncodedBytes: asUint64(residency.totalSelectedEncodedBytes),
-    },
+    residency: buildResidencyPlan(input, selection),
   };
   return JSON.parse(JSON.stringify(manifest)) as typeof manifest;
 };

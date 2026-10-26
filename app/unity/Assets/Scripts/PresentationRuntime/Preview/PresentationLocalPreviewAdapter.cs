@@ -15,6 +15,8 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly Dictionary<string, ProjectedSurfaceDefinition> surfaces;
         private Dictionary<string, NodeRuntimeState> nodeStates;
         private Dictionary<string, SurfaceRuntimeState> surfaceStates;
+        private Dictionary<string, MediaRuntimeState> mediaStates = new Dictionary<string, MediaRuntimeState>();
+        private Dictionary<string, ModelClipRuntimeState> clipStates = new Dictionary<string, ModelClipRuntimeState>();
         private List<RuntimeRunSnapshot> activeRuns = new List<RuntimeRunSnapshot>();
         internal readonly Dictionary<string, AssetAccessBinding> Assets;
         internal readonly Dictionary<string, string> References;
@@ -31,6 +33,8 @@ namespace Unframe.Unity.PresentationRuntime
             surfaceStates = states;
             Assets = assets;
             References = references;
+            foreach (var state in envelope.InitialState.MediaStates) mediaStates.Add(state.SurfaceId, state);
+            foreach (var state in envelope.InitialState.ModelClipStates) clipStates.Add(state.ModelNodeId, state);
         }
 
         public string RequestId { get { return envelope.RequestId; } }
@@ -40,8 +44,17 @@ namespace Unframe.Unity.PresentationRuntime
         public IEnumerable<DeliveredRenderSurface> RenderSurfaces { get { return envelope.Projection.RenderSurfaces; } }
         public IEnumerable<ProjectedSemanticSurface> SemanticSurfaces { get { return envelope.Projection.SemanticSurfaces; } }
         public IEnumerable<TextureResidencyBinding> TextureBindings { get { return envelope.Projection.TextureResidency.Textures; } }
+        public IEnumerable<ModelResidencyBinding> ModelBindings { get { return envelope.Projection.ModelResidency?.Models ?? (IEnumerable<ModelResidencyBinding>)System.Array.Empty<ModelResidencyBinding>(); } }
         public Pose StageOrigin { get { return new Pose { Position = new Vector3(), Rotation = new Quaternion { W = 1 } }; } }
         public IEnumerable<RuntimeRunSnapshot> ActiveRuns { get { return activeRuns; } }
+        internal void ReplaceMediaPlayback(IEnumerable<MediaRuntimeState> media, IEnumerable<ModelClipRuntimeState> clips)
+        {
+            mediaStates = new Dictionary<string, MediaRuntimeState>(); clipStates = new Dictionary<string, ModelClipRuntimeState>();
+            foreach (var state in media) mediaStates.Add(state.SurfaceId, state);
+            foreach (var state in clips) clipStates.Add(state.ModelNodeId, state);
+        }
+        public bool TryGetMediaState(string id, out MediaRuntimeState value) => mediaStates.TryGetValue(id, out value);
+        public bool TryGetModelClipState(string id, out ModelClipRuntimeState value) => clipStates.TryGetValue(id, out value);
         internal void ReplacePlayback(Dictionary<string, NodeRuntimeState> nodes,
             Dictionary<string, SurfaceRuntimeState> states, List<RuntimeRunSnapshot> runs)
         {
@@ -75,11 +88,11 @@ namespace Unframe.Unity.PresentationRuntime
                 if (NumberField(manifest, "schemaVersion") != 2 || !PresentationDeliveryCatalog.IsId(buildId)
                     || NumberField(assetSet, "schemaVersion") != 2) return false;
                 LocalPreviewProjection projection = envelope.Projection;
-                if (projection.LocalOverlays.Count != 0 || projection.RuntimeCatalog.CatalogContractVersion != 2
-                    || projection.RuntimeCatalog.ModelClips.Count != 0) return false;
+                if (projection.RuntimeCatalog.PresenterRecognition != null || projection.LocalOverlays.Count != 0 || projection.RuntimeCatalog.CatalogContractVersion != 3
+                    ) return false;
                 var capabilities = new HashSet<RuntimeCapability>();
                 foreach (RuntimeCapability capability in projection.RequiredRuntimeCapabilities)
-                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition)
+                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition && capability != RuntimeCapability.ModelClip && capability != RuntimeCapability.VideoPlayback)
                         || !capabilities.Add(capability)) return false;
 
                 var nodes = new Dictionary<string, ProjectedNodeDefinition>();
@@ -89,7 +102,8 @@ namespace Unframe.Unity.PresentationRuntime
                     if (!PresentationDeliveryCatalog.IsId(node.NodeId) || nodes.ContainsKey(node.NodeId)
                         || !ValidOwner(node.Owner) || node.Parent == null
                         || node.Parent.ParentCase != SpatialParent.ParentOneofCase.Stage && node.Parent.ParentCase != SpatialParent.ParentOneofCase.Node
-                        || node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Container && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Surface) return false;
+                        || node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Container && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Surface
+                        && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Model) return false;
                     nodes.Add(node.NodeId, node);
                 }
                 foreach (ProjectedNodeDefinition node in nodes.Values)
@@ -138,30 +152,72 @@ namespace Unframe.Unity.PresentationRuntime
                     Struct descriptor = ObjectField(descriptors, asset.AssetId);
                     string checksum = StringField(descriptor, "checksum");
                     double encoded = NumberField(descriptor, "encodedSizeBytes");
-                    if (!PresentationDeliveryCatalog.IsContentHash(checksum) || StringField(descriptor, "mediaType") != "image/png"
-                        || encoded <= 0 || encoded > 17 * 1024 * 1024 || encoded != Math.Floor(encoded)) return false;
+                    if (!PresentationDeliveryCatalog.IsContentHash(checksum) || StringField(descriptor, "mediaType") != "image/png" && StringField(descriptor, "mediaType") != "model/gltf-binary" && StringField(descriptor, "mediaType") != "video/mp4"
+                        || encoded <= 0 || encoded > 64 * 1024 * 1024 || encoded != Math.Floor(encoded)) return false;
                     assets.Add(asset.AssetId, new AssetAccessBinding
                     {
                         AssetId = asset.AssetId,
                         Checksum = checksum,
-                        MediaType = "image/png",
+                        MediaType = StringField(descriptor, "mediaType"),
                         EncodedSizeBytes = (ulong)encoded,
                     });
                     references.Add(asset.AssetId, asset.Reference);
                 }
                 foreach (DeliveredRenderSurface render in projection.RenderSurfaces)
-                    if (render.RendererKind != RendererKind.BakedWeb) return false;
+                    if (render.RendererKind != RendererKind.BakedWeb && render.RendererKind != RendererKind.Video) return false;
                 TextureCapability textureCapability = PreviewTextureCapability();
                 if (!PresentationDeliveryCatalog.TryValidateRenderGraph(projection.RenderSurfaces, projection.SemanticSurfaces,
-                    new RendererCapabilities { BakedWeb = textureCapability }, surfaces, assets, out error)
+                    new RendererCapabilities
+                    {
+                        BakedWeb = textureCapability,
+                        Video = new VideoCapability
+                        {
+                            Supported = true,
+                            ContractVersion = 1,
+                            Features = { VideoFeature.H264, VideoFeature.Audio }
+                        }
+                    }, surfaces, assets, out error)
                     || !PresentationBakedDeliveryValidation.TryValidate(projection.RenderSurfaces, projection.TextureResidency,
                         textureCapability, PreviewTextureLimits(projection.TextureResidency.BudgetTierId), assets.Values, out error)) return false;
                 var selectedAssets = new HashSet<string>();
                 foreach (TextureResidencyBinding binding in projection.TextureResidency.Textures) selectedAssets.Add(binding.AssetId);
                 foreach (DeliveredRenderSurface render in projection.RenderSurfaces)
                     foreach (DeliveredArtifact artifact in render.Artifacts)
-                        foreach (BakedWebStateTexture state in artifact.BakedWeb.States) selectedAssets.Add(state.Texture.AssetId);
+                        if (artifact.BakedWeb != null) foreach (BakedWebStateTexture state in artifact.BakedWeb.States) selectedAssets.Add(state.Texture.AssetId);
+                        else if (artifact.Video != null) selectedAssets.Add(artifact.Video.VideoAssetId);
+                foreach (ProjectedNodeDefinition node in nodes.Values)
+                    if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model)
+                    {
+                        if (!assets.TryGetValue(node.Model.ModelAssetId, out AssetAccessBinding modelAsset) || modelAsset.MediaType != "model/gltf-binary") return false;
+                        selectedAssets.Add(node.Model.ModelAssetId);
+                    }
                 if (!selectedAssets.SetEquals(assets.Keys)) return false;
+                var modelIds = new HashSet<string>(); foreach (var node in nodes.Values) if (node.Model != null) modelIds.Add(node.Model.ModelAssetId);
+                var boundModels = new HashSet<string>();
+                if (projection.ModelResidency != null)
+                {
+                    if (projection.ModelResidency.BudgetTierId != "local-web-preview") return false;
+                    foreach (var binding in projection.ModelResidency.Models)
+                    {
+                        if (!boundModels.Add(binding.AssetId) || !assets.TryGetValue(binding.AssetId, out var access)
+                            || binding.Checksum != access.Checksum || binding.EncodedSizeBytes != access.EncodedSizeBytes || access.MediaType != "model/gltf-binary") return false;
+                    }
+                }
+                if (!modelIds.SetEquals(boundModels)) return false;
+                var videoIds = new HashSet<string>(); foreach (var render in projection.RenderSurfaces) foreach (var artifact in render.Artifacts) if (artifact.Video != null) videoIds.Add(artifact.Video.VideoAssetId);
+                var boundVideos = new HashSet<string>();
+                if (projection.VideoResidency != null)
+                {
+                    if (projection.VideoResidency.BudgetTierId != "local-web-preview") return false;
+                    foreach (var binding in projection.VideoResidency.Videos)
+                    {
+                        if (!boundVideos.Add(binding.AssetId) || !assets.TryGetValue(binding.AssetId, out var access)
+                            || binding.Checksum != access.Checksum || binding.EncodedSizeBytes != access.EncodedSizeBytes || access.MediaType != "video/mp4") return false;
+                    }
+                }
+                if (!videoIds.SetEquals(boundVideos)) return false;
+                if (!PresentationMediaPlaybackValidation.TryValidate(projection.RuntimeCatalog, envelope.InitialState.MediaStates,
+                    envelope.InitialState.ModelClipStates, System.Array.Empty<RuntimeRunSnapshot>(), 0, out error)) return false;
 
                 error = "preview.initial-state-invalid";
                 var initialNodes = new Dictionary<string, NodeRuntimeState>();
@@ -217,7 +273,7 @@ namespace Unframe.Unity.PresentationRuntime
             };
         }
 
-        private static TextureLimits PreviewTextureLimits(string tierId)
+        internal static TextureLimits PreviewTextureLimits(string tierId)
         {
             return new TextureLimits
             {

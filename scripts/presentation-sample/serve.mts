@@ -264,7 +264,7 @@ ${runtimeEndpoint} {
   const fixed = await readBuildGeneration(project, { channel: "dist" });
   const { presentationId, buildId } = fixed.artifacts.buildManifest;
   const published = await publishPresentation({
-    directory: project,
+    directory: join(project, "dist"),
     presentationId,
     controlPlaneUrl: cp,
     bearerToken: credential,

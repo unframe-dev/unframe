@@ -161,7 +161,7 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
     [Test]
     public void SnapshotRetainsTheFullTypedCutWithoutExposingMutableState()
     {
-        PresentationRuntimeDataStore store = CreateLoadedStore(out _, out ControlServerItem snapshot);
+        PresentationRuntimeDataStore store = CreateLoadedStore(out _, out ControlServerItem snapshot, true);
         ParticipantRuntimeView view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
         view.Clock = new RuntimeClockSnapshot { RuntimeTimeMs = 42, Running = new Running() };
         view.Progression = new ProgressionRuntimeState { CurrentGroupId = "group:local", GroupEntryEpoch = 1, CurrentStepId = "step:local", StepEntryEpoch = 1, Stable = new StableProgression() };
@@ -282,7 +282,7 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
     [Test]
     public void SnapshotAcceptsMatchingActiveMediaRun()
     {
-        PresentationRuntimeDataStore store = CreateLoadedStore(out _, out ControlServerItem snapshot);
+        PresentationRuntimeDataStore store = CreateLoadedStore(out _, out ControlServerItem snapshot, true);
         ParticipantRuntimeView view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
         RuntimeRunSnapshot media = NewRun(1);
         media.Media = new MediaRunSnapshot
@@ -537,12 +537,15 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         Assert.That(store.LastStateFrameSequence, Is.EqualTo(1));
     }
 
-    private static PresentationRuntimeDataStore CreateLoadedStore(out DeliveryManifest delivery, out ControlServerItem snapshot)
+    private static PresentationRuntimeDataStore CreateLoadedStore(out DeliveryManifest delivery, out ControlServerItem snapshot, bool withMedia = false)
     {
         Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(
             PresentationTestFixtures.Load("LocalDelivery").text, out delivery, out string error), Is.True, error);
         Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(
             PresentationTestFixtures.Load("LocalSnapshot").text, out snapshot, out error), Is.True, error);
+        if (withMedia)
+            foreach (var surface in delivery.ProjectionProfile.RuntimeCatalog.Surfaces)
+                if (surface.SurfaceId == "semantic-surface:text-greeting") surface.HasVideo = true;
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
         return store;

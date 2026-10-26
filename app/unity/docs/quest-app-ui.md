@@ -50,6 +50,7 @@ APKだけ作る場合は `Build Quest Development APK` です。出力は `Build
 - Xでメニューを開閉。開くたびに頭の前方の水平な位置へ配置し、開いている間は頭へ追従させません。
 - 発表者は「再生 / 再開」「次へ」「一時停止」「発表を終了」を使います。「次へ」には資料のlogical event設定が必要です。
 - 終了には確認が必要です。「接続を解除」は詳細を開いて操作します。
+- 「設定」の「到達済みの Step」から直近の開始状態へ戻せます。復元後は一時停止し、明示的な再開を待ちます。
 - B/Yまたは「位置合わせ」でマーカー校正をやり直します。カメラ権限が不足するときは「カメラを許可」を表示します。
 - 技術的な状態・安全なエラーコード・再接続は「設定」にまとめます。credentialは表示・保存しません。
 - 観客のViewer roleでは発表者用ボタンと技術詳細を隠し、鑑賞メニューには位置合わせ・必要な再接続・自身の接続解除だけを残します。準備完了時は資料のみ表示します。
@@ -60,37 +61,22 @@ APKだけ作る場合は `Build Quest Development APK` です。出力は `Build
 
 ## 本番モーションの3D案内
 
-Authoringのcue triggerで次のように指定し、正式コンパイラーでビルド・公開します。
+Authoring の Cue trigger に Gesture の種類を指定し、正式コンパイラーでビルド・公開します。
 
 ```ts
 trigger: {
-  kind: "motionPreset",
-  preset: "swipeLeft",
-  hand: "eitherHand",
-  minimumDistanceMeters: 0.2,
-  windowMilliseconds: 1000,
+  kind: "gesture",
+  gesture: "swipeLeft",
 }
 ```
 
-片手のpresetは `swipeLeft` / `swipeRight` / `swipeDown` / `swipeUp` / `pushForward` / `pullBackward`、
-handは `eitherHand` / `leftHand` / `rightHand` です。
-両手は `spreadHands` / `closeHands` と `bothHands` を組み合わせます。
-`examples/presentation` の最初のstepはクリックまたは左スワイプで同じ次の状態へ進む例です。
+Gesture は `swipeLeft` / `swipeRight` / `swipeDown` / `swipeUp` / `pushForward` / `pullBackward` / `spreadHands` / `closeHands` の8種類です。片手動作は左右どちらでも同じ種類として扱い、距離・時間窓・手の指定は Authoring に持たせません。`examples/presentation` はクリックまたは左スワイプで同じ次の状態へ進む例です。
 
-Presenter向けDeliveryの `runtimeCatalog.motionGuides` はgroup/step/cue・preset・hand・距離・時間を含みます。
-Viewerへは配信しません。現在の安定stepに一致する操作候補を、3D矢印と動く球、日本語の操作説明で表示します。
-複数のcueがある場合は6秒ごとに候補を切り替えます。球は手を動かす位置の例で、指形状や実際の手の追跡表示ではありません。
+Presenter 用の `PresenterRecognitionCatalog` から Gesture 候補を読み、3D矢印と動く球、日本語の説明で案内します。複数候補は6秒ごとに切り替えます。球は動かす位置の例で、実際の手の追跡表示ではありません。案内の数値は現在の client 内部の認識条件です。
 
-案内は方向を示す縮尺図です。実際の必要距離・時間は併記した数値に従います。
-「前を見る → 手を0.2秒止める → 動かす」の順で操作します。大きく頭を回したときは案内方向を再設定します。
-動作認識の基準は頭の水平な向きです。両手動作の図は開始・終了間隔も表示します。
+校正・入力同期が未完了、停止中、必要な頭・手の追跡不足、メニュー表示中、Viewer の場合は案内を隠します。Step の入場世代が変わると案内を再設定します。
 
-校正未成立・同期未完了・停止中・頭や必要な手の追跡不足・メニュー表示中・Viewerでは案内を隠します。
-同じstepでも入場epochが変われば案内を再設定します。生成Mesh/Materialは終了時に破棄します。
-
-ガイドは候補を説明するだけです。Cueのguard/cooldownはクライアントへ投影しないため、
-全候補が現在必ず採用されると保証するものではありません。進行と成功判定は既存Realtimeが行い、Unityは入力を捏造しません。
-現行の操作はコントローラーを含む頭・左右手のPoseを使います。指のpinch認識は追加していません。
+Presenter client が Gesture を認識し、Runtime が入力 context と Guard を検証して Cue を確定します。ガイドは操作候補の説明であり、候補が必ず採用されることを保証しません。指の pinch 認識は追加していません。
 
 ## アプリ配布までの追加作業
 

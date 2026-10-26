@@ -23,13 +23,13 @@ public sealed class QuestPresentationEntryEditModeTests
     [TestCase(RuntimeControlKind.End)]
     public void RuntimeControlsCarryFreshEventIdsAndAuthoritativeOrigin(RuntimeControlKind kind)
     {
-        var command = QuestPresentationInput.CreateRuntimeControl(kind, 17).RuntimeControl;
-        var second = QuestPresentationInput.CreateRuntimeControl(kind, 17).RuntimeControl;
+        var command = QuestPresentationInput.CreateControl(kind, 17, 3).RuntimeControl;
+        var second = QuestPresentationInput.CreateControl(kind, 17, 3).RuntimeControl;
         Assert.That(command.Kind, Is.EqualTo(kind));
         Assert.That(command.PresentationOriginVersion, Is.EqualTo(17));
         Assert.That(command.ClientEventId, Is.Not.Empty.And.Not.EqualTo(second.ClientEventId));
-        Assert.That(QuestPresentationInput.CreateRuntimeControl(kind, 0).RuntimeControl.PresentationOriginVersion, Is.Zero);
-        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateRuntimeControl(RuntimeControlKind.Unspecified, 17));
+        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateControl(kind, 0, 3));
+        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateControl(RuntimeControlKind.Unspecified, 17, 3));
     }
 
     [Test]
@@ -112,16 +112,15 @@ public sealed class QuestPresentationEntryEditModeTests
     [Test]
     public void LogicalInputRequiresExplicitNameAndCurrentOrigin()
     {
-        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("", 1));
-        Assert.That(QuestPresentationInput.CreateLogical("advance", 0).LogicalInput.PresentationOriginVersion, Is.Zero);
-        Assert.That(QuestPresentationInput.CreateSurfaceInteraction("surface", "button", 0).SurfaceInteraction.PresentationOriginVersion, Is.Zero);
+        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("", 1, new Unframe.Realtime.InputContext(), 1));
+        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("advance", 0, new Unframe.Realtime.InputContext(), 1));
 
-        var command = QuestPresentationInput.CreateLogical("advance", 7);
+        var command = QuestPresentationInput.CreateLogical("advance", 7, new Unframe.Realtime.InputContext { InputEpoch = 2 }, 3);
         Assert.That(command.ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.LogicalInput));
         Assert.That(command.LogicalInput.LogicalEventName, Is.EqualTo("advance"));
         Assert.That(command.LogicalInput.PresentationOriginVersion, Is.EqualTo(7));
         Assert.That(command.LogicalInput.ClientEventId, Is.Not.Empty);
-        var surface = QuestPresentationInput.CreateSurfaceInteraction("surface", "button", 8);
+        var surface = QuestPresentationInput.CreateSurfaceInteraction("surface", "button", 8, new Unframe.Realtime.InputContext { InputEpoch = 2 }, 3);
         Assert.That(surface.ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.SurfaceInteraction));
         Assert.That(surface.SurfaceInteraction.SurfaceId, Is.EqualTo("surface"));
         Assert.That(surface.SurfaceInteraction.InteractionId, Is.EqualTo("button"));

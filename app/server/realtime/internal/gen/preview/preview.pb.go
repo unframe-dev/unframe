@@ -138,6 +138,8 @@ type LocalPreviewProjection struct {
 	RequiredRuntimeCapabilities []presentation.RuntimeCapability      `protobuf:"varint,7,rep,packed,name=required_runtime_capabilities,json=requiredRuntimeCapabilities,proto3,enum=unframe.presentation.RuntimeCapability" json:"required_runtime_capabilities,omitempty"`
 	RuntimeCatalog              *presentation.ProjectedRuntimeCatalog `protobuf:"bytes,8,opt,name=runtime_catalog,json=runtimeCatalog,proto3" json:"runtime_catalog,omitempty"`
 	TextureResidency            *delivery.TextureResidencyPlan        `protobuf:"bytes,9,opt,name=texture_residency,json=textureResidency,proto3" json:"texture_residency,omitempty"`
+	ModelResidency              *delivery.ModelResidencyPlan          `protobuf:"bytes,10,opt,name=model_residency,json=modelResidency,proto3" json:"model_residency,omitempty"`
+	VideoResidency              *delivery.VideoResidencyPlan          `protobuf:"bytes,11,opt,name=video_residency,json=videoResidency,proto3" json:"video_residency,omitempty"`
 	unknownFields               protoimpl.UnknownFields
 	sizeCache                   protoimpl.SizeCache
 }
@@ -235,12 +237,28 @@ func (x *LocalPreviewProjection) GetTextureResidency() *delivery.TextureResidenc
 	return nil
 }
 
+func (x *LocalPreviewProjection) GetModelResidency() *delivery.ModelResidencyPlan {
+	if x != nil {
+		return x.ModelResidency
+	}
+	return nil
+}
+
+func (x *LocalPreviewProjection) GetVideoResidency() *delivery.VideoResidencyPlan {
+	if x != nil {
+		return x.VideoResidency
+	}
+	return nil
+}
+
 type LocalPreviewInitialState struct {
-	state         protoimpl.MessageState          `protogen:"open.v1"`
-	NodeStates    []*realtime.NodeRuntimeState    `protobuf:"bytes,1,rep,name=node_states,json=nodeStates,proto3" json:"node_states,omitempty"`
-	SurfaceStates []*realtime.SurfaceRuntimeState `protobuf:"bytes,2,rep,name=surface_states,json=surfaceStates,proto3" json:"surface_states,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState            `protogen:"open.v1"`
+	NodeStates      []*realtime.NodeRuntimeState      `protobuf:"bytes,1,rep,name=node_states,json=nodeStates,proto3" json:"node_states,omitempty"`
+	SurfaceStates   []*realtime.SurfaceRuntimeState   `protobuf:"bytes,2,rep,name=surface_states,json=surfaceStates,proto3" json:"surface_states,omitempty"`
+	MediaStates     []*realtime.MediaRuntimeState     `protobuf:"bytes,3,rep,name=media_states,json=mediaStates,proto3" json:"media_states,omitempty"`
+	ModelClipStates []*realtime.ModelClipRuntimeState `protobuf:"bytes,4,rep,name=model_clip_states,json=modelClipStates,proto3" json:"model_clip_states,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *LocalPreviewInitialState) Reset() {
@@ -287,19 +305,35 @@ func (x *LocalPreviewInitialState) GetSurfaceStates() []*realtime.SurfaceRuntime
 	return nil
 }
 
+func (x *LocalPreviewInitialState) GetMediaStates() []*realtime.MediaRuntimeState {
+	if x != nil {
+		return x.MediaStates
+	}
+	return nil
+}
+
+func (x *LocalPreviewInitialState) GetModelClipStates() []*realtime.ModelClipRuntimeState {
+	if x != nil {
+		return x.ModelClipStates
+	}
+	return nil
+}
+
 // A complete playback view for the committed Preview request. Sequence increases
 // across resets; only the logical runtime clock may restart at zero.
 type LocalPreviewPlaybackState struct {
-	state          protoimpl.MessageState          `protogen:"open.v1"`
-	RequestId      string                          `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Sequence       uint64                          `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	NodeStates     []*realtime.NodeRuntimeState    `protobuf:"bytes,3,rep,name=node_states,json=nodeStates,proto3" json:"node_states,omitempty"`
-	SurfaceStates  []*realtime.SurfaceRuntimeState `protobuf:"bytes,4,rep,name=surface_states,json=surfaceStates,proto3" json:"surface_states,omitempty"`
-	ActiveRuns     []*realtime.RuntimeRunSnapshot  `protobuf:"bytes,5,rep,name=active_runs,json=activeRuns,proto3" json:"active_runs,omitempty"`
-	Clock          *realtime.RuntimeClockSnapshot  `protobuf:"bytes,6,opt,name=clock,proto3" json:"clock,omitempty"`
-	CurrentGroupId string                          `protobuf:"bytes,7,opt,name=current_group_id,json=currentGroupId,proto3" json:"current_group_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState            `protogen:"open.v1"`
+	RequestId       string                            `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Sequence        uint64                            `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	NodeStates      []*realtime.NodeRuntimeState      `protobuf:"bytes,3,rep,name=node_states,json=nodeStates,proto3" json:"node_states,omitempty"`
+	SurfaceStates   []*realtime.SurfaceRuntimeState   `protobuf:"bytes,4,rep,name=surface_states,json=surfaceStates,proto3" json:"surface_states,omitempty"`
+	ActiveRuns      []*realtime.RuntimeRunSnapshot    `protobuf:"bytes,5,rep,name=active_runs,json=activeRuns,proto3" json:"active_runs,omitempty"`
+	Clock           *realtime.RuntimeClockSnapshot    `protobuf:"bytes,6,opt,name=clock,proto3" json:"clock,omitempty"`
+	CurrentGroupId  string                            `protobuf:"bytes,7,opt,name=current_group_id,json=currentGroupId,proto3" json:"current_group_id,omitempty"`
+	MediaStates     []*realtime.MediaRuntimeState     `protobuf:"bytes,8,rep,name=media_states,json=mediaStates,proto3" json:"media_states,omitempty"`
+	ModelClipStates []*realtime.ModelClipRuntimeState `protobuf:"bytes,9,rep,name=model_clip_states,json=modelClipStates,proto3" json:"model_clip_states,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *LocalPreviewPlaybackState) Reset() {
@@ -381,6 +415,20 @@ func (x *LocalPreviewPlaybackState) GetCurrentGroupId() string {
 	return ""
 }
 
+func (x *LocalPreviewPlaybackState) GetMediaStates() []*realtime.MediaRuntimeState {
+	if x != nil {
+		return x.MediaStates
+	}
+	return nil
+}
+
+func (x *LocalPreviewPlaybackState) GetModelClipStates() []*realtime.ModelClipRuntimeState {
+	if x != nil {
+		return x.ModelClipStates
+	}
+	return nil
+}
+
 type LocalPreviewAsset struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
@@ -450,7 +498,7 @@ const file_unframe_preview_preview_proto_rawDesc = "" +
 	"projection\x12N\n" +
 	"\rinitial_state\x18\a \x01(\v2).unframe.preview.LocalPreviewInitialStateR\finitialState\x12:\n" +
 	"\x06assets\x18\b \x03(\v2\".unframe.preview.LocalPreviewAssetR\x06assetsB\x12\n" +
-	"\x10_source_revision\"\xbb\x05\n" +
+	"\x10_source_revision\"\xd9\x06\n" +
 	"\x16LocalPreviewProjection\x12(\n" +
 	"\x10visible_node_ids\x18\x01 \x03(\tR\x0evisibleNodeIds\x12.\n" +
 	"\x13visible_surface_ids\x18\x02 \x03(\tR\x11visibleSurfaceIds\x120\n" +
@@ -460,11 +508,16 @@ const file_unframe_preview_preview_proto_rawDesc = "" +
 	"\x0elocal_overlays\x18\x06 \x03(\v2(.unframe.delivery.LocalOverlayDefinitionR\rlocalOverlays\x12k\n" +
 	"\x1drequired_runtime_capabilities\x18\a \x03(\x0e2'.unframe.presentation.RuntimeCapabilityR\x1brequiredRuntimeCapabilities\x12V\n" +
 	"\x0fruntime_catalog\x18\b \x01(\v2-.unframe.presentation.ProjectedRuntimeCatalogR\x0eruntimeCatalog\x12S\n" +
-	"\x11texture_residency\x18\t \x01(\v2&.unframe.delivery.TextureResidencyPlanR\x10textureResidency\"\xad\x01\n" +
+	"\x11texture_residency\x18\t \x01(\v2&.unframe.delivery.TextureResidencyPlanR\x10textureResidency\x12M\n" +
+	"\x0fmodel_residency\x18\n" +
+	" \x01(\v2$.unframe.delivery.ModelResidencyPlanR\x0emodelResidency\x12M\n" +
+	"\x0fvideo_residency\x18\v \x01(\v2$.unframe.delivery.VideoResidencyPlanR\x0evideoResidency\"\xca\x02\n" +
 	"\x18LocalPreviewInitialState\x12C\n" +
 	"\vnode_states\x18\x01 \x03(\v2\".unframe.realtime.NodeRuntimeStateR\n" +
 	"nodeStates\x12L\n" +
-	"\x0esurface_states\x18\x02 \x03(\v2%.unframe.realtime.SurfaceRuntimeStateR\rsurfaceStates\"\x98\x03\n" +
+	"\x0esurface_states\x18\x02 \x03(\v2%.unframe.realtime.SurfaceRuntimeStateR\rsurfaceStates\x12F\n" +
+	"\fmedia_states\x18\x03 \x03(\v2#.unframe.realtime.MediaRuntimeStateR\vmediaStates\x12S\n" +
+	"\x11model_clip_states\x18\x04 \x03(\v2'.unframe.realtime.ModelClipRuntimeStateR\x0fmodelClipStates\"\xb5\x04\n" +
 	"\x19LocalPreviewPlaybackState\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1a\n" +
@@ -475,7 +528,9 @@ const file_unframe_preview_preview_proto_rawDesc = "" +
 	"\vactive_runs\x18\x05 \x03(\v2$.unframe.realtime.RuntimeRunSnapshotR\n" +
 	"activeRuns\x12<\n" +
 	"\x05clock\x18\x06 \x01(\v2&.unframe.realtime.RuntimeClockSnapshotR\x05clock\x12(\n" +
-	"\x10current_group_id\x18\a \x01(\tR\x0ecurrentGroupId\"L\n" +
+	"\x10current_group_id\x18\a \x01(\tR\x0ecurrentGroupId\x12F\n" +
+	"\fmedia_states\x18\b \x03(\v2#.unframe.realtime.MediaRuntimeStateR\vmediaStates\x12S\n" +
+	"\x11model_clip_states\x18\t \x03(\v2'.unframe.realtime.ModelClipRuntimeStateR\x0fmodelClipStates\"L\n" +
 	"\x11LocalPreviewAsset\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1c\n" +
 	"\treference\x18\x02 \x01(\tR\treferenceBQZOgithub.com/unframe-dev/unframe/app/server/realtime/internal/gen/preview;previewb\x06proto3"
@@ -505,10 +560,14 @@ var file_unframe_preview_preview_proto_goTypes = []any{
 	(presentation.RuntimeCapability)(0),          // 8: unframe.presentation.RuntimeCapability
 	(*presentation.ProjectedRuntimeCatalog)(nil), // 9: unframe.presentation.ProjectedRuntimeCatalog
 	(*delivery.TextureResidencyPlan)(nil),        // 10: unframe.delivery.TextureResidencyPlan
-	(*realtime.NodeRuntimeState)(nil),            // 11: unframe.realtime.NodeRuntimeState
-	(*realtime.SurfaceRuntimeState)(nil),         // 12: unframe.realtime.SurfaceRuntimeState
-	(*realtime.RuntimeRunSnapshot)(nil),          // 13: unframe.realtime.RuntimeRunSnapshot
-	(*realtime.RuntimeClockSnapshot)(nil),        // 14: unframe.realtime.RuntimeClockSnapshot
+	(*delivery.ModelResidencyPlan)(nil),          // 11: unframe.delivery.ModelResidencyPlan
+	(*delivery.VideoResidencyPlan)(nil),          // 12: unframe.delivery.VideoResidencyPlan
+	(*realtime.NodeRuntimeState)(nil),            // 13: unframe.realtime.NodeRuntimeState
+	(*realtime.SurfaceRuntimeState)(nil),         // 14: unframe.realtime.SurfaceRuntimeState
+	(*realtime.MediaRuntimeState)(nil),           // 15: unframe.realtime.MediaRuntimeState
+	(*realtime.ModelClipRuntimeState)(nil),       // 16: unframe.realtime.ModelClipRuntimeState
+	(*realtime.RuntimeRunSnapshot)(nil),          // 17: unframe.realtime.RuntimeRunSnapshot
+	(*realtime.RuntimeClockSnapshot)(nil),        // 18: unframe.realtime.RuntimeClockSnapshot
 }
 var file_unframe_preview_preview_proto_depIdxs = []int32{
 	1,  // 0: unframe.preview.LocalPreviewEnvelope.projection:type_name -> unframe.preview.LocalPreviewProjection
@@ -520,17 +579,23 @@ var file_unframe_preview_preview_proto_depIdxs = []int32{
 	8,  // 6: unframe.preview.LocalPreviewProjection.required_runtime_capabilities:type_name -> unframe.presentation.RuntimeCapability
 	9,  // 7: unframe.preview.LocalPreviewProjection.runtime_catalog:type_name -> unframe.presentation.ProjectedRuntimeCatalog
 	10, // 8: unframe.preview.LocalPreviewProjection.texture_residency:type_name -> unframe.delivery.TextureResidencyPlan
-	11, // 9: unframe.preview.LocalPreviewInitialState.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	12, // 10: unframe.preview.LocalPreviewInitialState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	11, // 11: unframe.preview.LocalPreviewPlaybackState.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	12, // 12: unframe.preview.LocalPreviewPlaybackState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	13, // 13: unframe.preview.LocalPreviewPlaybackState.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
-	14, // 14: unframe.preview.LocalPreviewPlaybackState.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	11, // 9: unframe.preview.LocalPreviewProjection.model_residency:type_name -> unframe.delivery.ModelResidencyPlan
+	12, // 10: unframe.preview.LocalPreviewProjection.video_residency:type_name -> unframe.delivery.VideoResidencyPlan
+	13, // 11: unframe.preview.LocalPreviewInitialState.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	14, // 12: unframe.preview.LocalPreviewInitialState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	15, // 13: unframe.preview.LocalPreviewInitialState.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	16, // 14: unframe.preview.LocalPreviewInitialState.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	13, // 15: unframe.preview.LocalPreviewPlaybackState.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	14, // 16: unframe.preview.LocalPreviewPlaybackState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	17, // 17: unframe.preview.LocalPreviewPlaybackState.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
+	18, // 18: unframe.preview.LocalPreviewPlaybackState.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
+	15, // 19: unframe.preview.LocalPreviewPlaybackState.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	16, // 20: unframe.preview.LocalPreviewPlaybackState.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_unframe_preview_preview_proto_init() }

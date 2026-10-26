@@ -24,7 +24,3 @@ export function DevicesPage() {
     <ApplicationPlaceholderPage title="デバイス" description="接続済みのデバイスを管理します。" />
   );
 }
-
-export function RoomsPage() {
-  return <ApplicationPlaceholderPage title="ルーム" description="参加できるルームを管理します。" />;
-}

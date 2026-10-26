@@ -1,10 +1,16 @@
 import { connect } from "node:net";
 import { once } from "node:events";
+import { mkdtemp, rm } from "node:fs/promises";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
+import { join } from "node:path";
 import { expect, it } from "vitest";
-import { startPreviewServer } from "../src/process/preview.js";
+import { startDistPreviewHost } from "../src/author/start.js";
+import { writePortableBuild } from "./helpers/portable-dist.js";
 
 it("stops accepting requests and closes incomplete HTTP connections", async () => {
-  const server = await startPreviewServer("<p>Preview</p>", new Map());
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-preview-close-"));
+  await writePortableBuild(directory);
+  const server = await startDistPreviewHost(join(directory, "dist"), { assets: new Map() });
   const url = new URL(server.origin);
   const connection = connect(Number(url.port), url.hostname);
   await once(connection, "connect");
@@ -12,11 +18,11 @@ it("stops accepting requests and closes incomplete HTTP connections", async () =
   connection.on("error", () => undefined);
   const closed = new Promise<void>((resolve) => connection.once("close", () => resolve()));
   try {
-    await server[Symbol.asyncDispose]();
+    await server.close();
     await closed;
     await expect(fetch(server.origin)).rejects.toThrow();
   } finally {
     connection.destroy();
-    await server[Symbol.asyncDispose]();
+    await rm(directory, { recursive: true, force: true });
   }
 });

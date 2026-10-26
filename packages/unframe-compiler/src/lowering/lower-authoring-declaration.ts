@@ -86,6 +86,15 @@ const nested = new Set([
   "setSurfaceState",
   "setState",
   "playTimeline",
+  "playModelClip",
+  "pauseModelClip",
+  "resumeModelClip",
+  "stopModelClip",
+  "playMedia",
+  "pauseMedia",
+  "seekMedia",
+  "modelClipCompleted",
+
   "surfaceInteraction",
   "timelineCompleted",
   "mediaCompleted",
@@ -96,10 +105,12 @@ const nested = new Set([
   "tokenRef",
   "namedStyleRef",
   "assetRef",
+  "model",
   "spatial",
   "frame",
   "text",
   "image",
+  "video",
   "shape",
   "surface",
   "semanticOverride",
@@ -109,6 +120,8 @@ const nested = new Set([
 const builders = new Set([...roots, ...nested]);
 const jsxTags = new Map([
   ["Surface", "surface"],
+  ["Model", "model"],
+  ["Video", "video"],
   ["Frame", "frame"],
   ["Text", "text"],
   ["Slot", "slotPlaceholder"],
@@ -550,6 +563,7 @@ const createEvaluator = (
         const contentKinds = new Map([
           ["frame", "frame"],
           ["text", "text"],
+          ["video", "video"],
           ["slotPlaceholder", "slot-placeholder"],
           ["componentInstance", "component-instance"],
         ]);

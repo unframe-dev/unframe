@@ -1,6 +1,6 @@
 # Presentation Core Architecture
 
-- **Status**: Presentation v2、純粋な Cue / Runtime Run、Delivery projection / admission、snapshot 検証
+- **Status**: Presentation v3（RenderBundle / AssetSet は v2）、純粋な Cue / Runtime Run、Delivery projection / admission、snapshot 検証
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -19,15 +19,15 @@ Web、Compiler、Control Plane が同じ意味を利用できるようにする�
 
 ## 2. Owned model
 
-### Current first milestone
+### Current
 
-- generated contractから導出したPresentationDefinition / RenderBundle model
-- Stage、SurfaceNode、Frame / Text / Image / Shape、Surface State、baked-web artifactのsemantic invariant
+- Contracts の手書き Zod schema と推論型から導出した PresentationDefinition / RenderBundle model
+- Stage、SurfaceNode、静的 ModelNode、Frame / Text / Image / Shape、Surface State、baked-web artifactのsemantic invariant
 - Structured の Content Tree と Opaque の semantic binding を区別した Surface 検証（[ADR-0020](../../docs/decisions/0020-structured-and-opaque-surface-content.md)）
 - stable diagnostic codeとsemantic path
 - 配列順を保持するRFC 8785 canonical JSON、SHA-256 content hash
 
-### Target extensions
+### 実装済みの拡張 subset
 
 - Stable ID、Scalar、typed reference、Transform などの value
 - Semantic Authoring IR の normalized data model
@@ -36,6 +36,11 @@ Web、Compiler、Control Plane が同じ意味を利用できるようにする�
 - RuntimeActor、RuntimeSubject、TriggerActorSelector、Anchor owner
 - ProjectionAudience、ProjectionProfile、ProjectionInstance、ParticipantRuntimeView
 - pause-aware logical clock、StepExecutionSnapshot、RuntimeRunSnapshot、CanonicalRuntimeSnapshot
+
+これらの構造契約と純粋な snapshot / projection / Cue 実行は実装済みである。Core が network、永続化、全 Runtime の authoritative 実行を所有することは意味しない。
+
+### Target extensions
+
 - schema version に対応する pure migration
 
 Semantic Authoring IR と PresentationDefinition は同じものではない。前者は編集情報と Source Map 対応を保持し、後者は renderer-independent な実行意味だけを保持する。
@@ -70,7 +75,9 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 `hashRenderBundle`を公開する。入力型は`@unframe/contracts/presentation`のZod schemaから
 推論した型を正本とし、Core内でserialized modelを再定義しない。v1入力の受理・変換経路は持たない。
 
-`createCueState`、`executeCueEvent`、`advanceCueClock`、`completeRuntimeRun`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋な実行器である。Cueの選択、Guard、Action batch、Step / Group entry、消費、cooldown、timer、Timeline / Surface transition Runを扱う。`createCueState`にはassignment epochが必要である。認証、接続、永続化、wire event は呼び出し側または後続段階の責務とする。
+`createCueState`、`executeCueEvent`、`advanceCueClock`、`completeRuntimeRun`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋な実行器である。Cueの選択、Guard、Action batch、Step / Group entry、消費、timer、Timeline / Surface transition Runを扱う。`createCueState`にはassignment epochが必要である。認証、接続、永続化、wire event は呼び出し側または後続段階の責務とする。
+
+Presenter の認識結果を Gesture / Zone 入力として評価し、server cooldown を持たない。`oncePerStepEntry` / `repeatable`、Step 開始履歴、Timer / Run と凍結 Anchor の Snapshot 検証を v3 に揃えた。認証・入力同期・到達済み Step の一括復元と永続化は Go Realtime が所有する。
 
 `createM3dCueRuntimeSnapshot` と `validateM3dCueRuntimeSnapshot` は Cue 実行状態と明示的な sequence / clock metadata から現行 subset の portable snapshot を生成・検証する。`createRuntimeVisibilitySelection`、`validateRuntimeVisibilitySelection`、`projectM3dCueParticipantRuntimeView` は role別 resource closure と participant 向け View を扱う。`enabledLogicalInputs` は現在の状態で候補となる入力一覧であり、任意 payload / Guard / Action conflict を含む受理判定ではない。
 
@@ -82,9 +89,11 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 
 `resolveStructuredLayout(surface, stateId)` は State override を適用した Structured graph の全 Node を Surface logical 座標へ解決する。absolute / Stack / Grid の配置を同じ純粋関数で計算し、Compiler の partition・Hit Region と Web Renderer の描画が共有する。不正なグラフや配置は例外で拒否するため、外部入力は先に Definition validation を通す。
 
-Compiler、renderer、asset transformer の read boundary には、この生成型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion`、`TextureArtifact` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
+Compiler、renderer、asset transformer の read boundary には、この契約型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion`、`TextureArtifact` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
 
-上記の validation / canonicalization / hash APIは`ValidationResult<T>`を返す。失敗はthrowせず、stable diagnostic code、semantic path、必要ならrelated pathを返す。semantic pathはIDに`/`を含む場合も一つのsegmentとして保持する。低水準の`canonicalizeJsonPayload`と`hashCanonicalJsonPayload`は文字列を直接返し、不正なplain JSON入力でthrowし得るため、trust boundaryでは先にvalidation APIを通す。
+Definition / RenderBundle / artifact の validation / canonicalization / hash APIは`ValidationResult<T>`を返す。失敗はthrowせず、stable diagnostic code、semantic path、必要ならrelated pathを返す。semantic pathはIDに`/`を含む場合も一つのsegmentとして保持する。低水準の`canonicalizeJsonPayload`と`hashCanonicalJsonPayload`は文字列を直接返し、不正なplain JSON入力でthrowし得るため、trust boundaryでは先にvalidation APIを通す。
+
+Runtime の `validateRuntimeVisibilitySelection`、`validateM3dCueRuntimeSnapshot`、`validateCanonicalRuntimeSnapshot` は現行 API としてエラーの `string[]` を返し、空配列を成功とする。これらのメッセージには stable diagnostic code / semantic path の保証はない。
 
 公開validation APIは、descriptor-safeなplain JSON snapshotを作成した後、`packages/contracts`が正本として公開するZod 4 schemaで構造を検証する。Zodへcaller-owned objectを直接渡さないため、accessor、sparse array、symbol、cycle、非plain prototypeを実行時データへ混入させない。構造検証済みの値に対して、Coreは参照、cardinality、tree、lifetime、cross-artifact整合などのsemantic invariantだけを検証する。JSON parse、I/O、renderer、transport adapterは公開しない。
 
@@ -92,13 +101,13 @@ Compiler、renderer、asset transformer の read boundary には、この生成�
 
 現在の実装は、Record keyとID、Spatial / content / semantic tree、Surfaceの1:1関係、
 Group ownerとSpatial parent、Stateのcontent / semantic override、click Interaction、
-DefinitionとRenderBundleのsurface / state / Completed Semantic Tree対応を検証する。
+DefinitionとRenderBundleのsurface / state / Completed Semantic Tree対応、ModelNodeからcompiled Modelへの参照を検証する。
 Hit Regionのbounds、priority、canonical order、enabled buttonとの整合、全Stateのbindingと
-texture policy予算も検証する。Cueの参照・型・owner・actor・payload・Action競合を検証し、Surfaceのcut / crossfade、Variable、Nodeの即時Action、Timeline Action / Runを実行する。Timeline catalogではtarget / owner / audience、track、keyframe、easingを検証する。Media、Modelに依存する操作は`feature.unsupported`で拒否する。
+texture policy予算も検証する。Cueの参照・型・owner・actor・payload・Action競合を検証し、Surfaceのcut / crossfade、Variable、Nodeの即時Action、Timeline Action / Runを実行する。Timeline catalogではtarget / owner / audience、track、keyframe、easingを検証する。Mediaのplay / pause / seek、ModelClipのplay / pause / resume / stop、完了Cue、loop、保持姿勢、crossfadeをadmission済みRenderBundleの実行catalogとlogical clockから評価する。
 
 Render Surface は `partitionStrategyVersion: 1` と全 State の binding を持つ。非表示 State は `empty` とし、artifact は自身を参照する State の texture だけを保持する。全 State で空の partition、未参照 artifact、layer の欠落・重複を拒否する。描画が不要な Surface は partition を持たず、意味情報と Hit Region を保持できる（[ADR-0021](../../docs/decisions/0021-surface-interaction-geometry.md)）。encoded output budget は checksum ごとに一度だけ計上する。
 
-次はtarget全体でCoreが所有するinvariantである。初期schemaにまだ存在しないmodelの検証は未実装である。
+次はtarget全体でCoreが所有するinvariantである。
 
 - SurfaceNode と SemanticSurface は 1:1、SemanticSurface と RenderSurface は 1:0..N とする。
 - Runtime contract の Surface ID は SemanticSurfaceId とし、RenderSurfaceId を progression に含めない。
@@ -123,7 +132,7 @@ Render Surface は `partitionStrategyVersion: 1` と全 State の binding を持
 
 ## 7. Dependency rules
 
-`unframe-core` は generated TypeScript presentation contract 以外の presentation package に依存しない。runtime構造検証は`packages/contracts`のZod 4 schemaへ委譲し、Core内に同じ構造schemaを再定義しない。RFC 8785直列化には`canonicalize`、content hashには`@noble/hashes`を用いる。Authoring、Compiler、Renderer、CLI から Core へ依存する逆向きだけを許可する。
+`unframe-core` は Contracts の手書き Zod schema と推論型以外の presentation package に依存しない。runtime構造検証は`packages/contracts`のZod 4 schemaへ委譲し、Core内に同じ構造schemaを再定義しない。RFC 8785直列化には`canonicalize`、content hashには`@noble/hashes`を用いる。Authoring、Compiler、Renderer、CLI から Core へ依存する逆向きだけを許可する。
 
 ## 8. Validation strategy
 
@@ -139,7 +148,7 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 
 ## 9. Deferred decisions
 
-- Native UI、Video、Model artifactのsemantic validation
+- Native UI rendererの実consumerへの接続
 - Spatial parent以外のResource lifetimeとProjectionAudienceの参照閉包
 - data constructor、normalize、pure migration API
 - migration support window

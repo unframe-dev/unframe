@@ -189,6 +189,11 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(store.TryValidateRuntimeOwnership(out _), Is.False);
         foreach (ProjectedVariableDefinition variable in catalog.Variables)
             snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables.Add(new VariableState { VariableId = variable.VariableId, Value = new ScalarValue { StringValue = "value" } });
+        foreach (ProjectedNodeDefinition node in catalog.Nodes)
+            if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model)
+                snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState { ModelNodeId = node.NodeId, DefaultPose = new DefaultModelPose() });
+        foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces)
+            if (surface.HasVideo) snapshot.ConnectionSnapshot.Snapshot.RuntimeView.MediaStates.Add(new MediaRuntimeState { SurfaceId = surface.SurfaceId, Stopped = new MediaStoppedState() });
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
         Assert.That(store.TryValidateRuntimeOwnership(out error), Is.True, error);
         VariableState firstVariable = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables[0];
@@ -618,7 +623,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
 
         ConnectionSnapshotEnvelope snapshot = new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 2,
+            SchemaVersion = 3,
             Fence = CreateFence(delivery),
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             ReliableSequence = 4,
@@ -1708,7 +1713,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         fence.PresentationOriginVersion = origin.Version;
         return new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 2,
+            SchemaVersion = 3,
             Fence = fence,
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             ReliableSequence = sequence,
@@ -1807,7 +1812,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
 
     private static DeliveryManifest CreateDelivery()
     {
-        ProjectedRuntimeCatalog catalog = new ProjectedRuntimeCatalog { CatalogContractVersion = 2 };
+        ProjectedRuntimeCatalog catalog = new ProjectedRuntimeCatalog { CatalogContractVersion = 3 };
         catalog.Nodes.Add(new ProjectedNodeDefinition
         {
             NodeId = "node:model",
@@ -1842,8 +1847,8 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
 
         DeliveryManifest delivery = new DeliveryManifest
         {
-            SchemaVersion = 2,
-            DeliveryContractVersion = 2,
+            SchemaVersion = 3,
+            DeliveryContractVersion = 3,
             SessionId = "session:main",
             Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
             DefinitionHash = "sha256:" + new string('b', 64),
@@ -1851,9 +1856,9 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             AssetSetHash = "sha256:" + new string('d', 64),
             CapabilityProfile = new CapabilityProfile
             {
-                SchemaVersion = 2,
+                SchemaVersion = 3,
                 CapabilityProfileId = "capability:quest",
-                ContractVersions = new ContractVersions { Delivery = 2, Runtime = 2, Progression = 1, Projection = 1 },
+                ContractVersions = new ContractVersions { Delivery = 3, Runtime = 3, Progression = 2, Projection = 2 },
                 Renderers = new RendererCapabilities { NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1 } },
             },
             ProjectionProfile = new ProjectionProfileDescriptor
@@ -1862,14 +1867,14 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
                 Key = new ProjectionProfileKey
                 {
                     Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
-                    ProjectionContractVersion = 1,
+                    ProjectionContractVersion = 2,
                     Role = SessionRole.Presenter,
                     CapabilityProfileId = "capability:quest",
                 },
                 RuntimeCatalog = catalog,
             },
             ProjectionInstance = new ProjectionInstance { ProjectionProfileId = "profile:quest", ParticipantId = "participant:quest", AssignmentEpoch = 7 },
-            Residency = new ResidencyPlan { Models = new ModelResidencyPlan() },
+            Residency = new ResidencyPlan { Models = new ModelResidencyPlan(), Video = new VideoResidencyPlan() },
         };
         delivery.AssetAccess.Add(new AssetAccessBinding { AssetId = "asset:model" });
         delivery.Residency.Models.Models.Add(new ModelResidencyBinding { AssetId = "asset:model" });
@@ -1902,7 +1907,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         ConnectionSnapshotEnvelope snapshot = new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 2,
+            SchemaVersion = 3,
             Fence = CreateFence(delivery),
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             Snapshot = new ProjectedRuntimeSnapshot

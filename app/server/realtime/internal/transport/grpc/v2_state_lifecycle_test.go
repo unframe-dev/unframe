@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	"sync"
@@ -21,6 +22,11 @@ type v2LifecycleConnection struct {
 func newV2LifecycleConnection(t *testing.T, initiallyPaused bool, sendGate func(*realtimev2.ControlServerItem)) *v2LifecycleConnection {
 	t.Helper()
 	service, profile := newV2LeaseTestService(t, allowAllAssignment{})
+	return newV3LifecycleConnection(t, service, profile, initiallyPaused, sendGate)
+}
+
+func newV3LifecycleConnection(t *testing.T, service *V2Service, profile *deliveryv2.ProjectionProfileDescriptor, initiallyPaused bool, sendGate func(*realtimev2.ControlServerItem)) *v2LifecycleConnection {
+	t.Helper()
 	identity, err := service.identities.Resolve(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -31,7 +37,7 @@ func newV2LifecycleConnection(t *testing.T, initiallyPaused bool, sendGate func(
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	c.controlInput <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}
+	c.controlInput <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}
 	controlStream := &v2LeaseStream[realtimev2.ControlClientItem, realtimev2.ControlServerItem]{ctx: ctx, receive: func() (*realtimev2.ControlClientItem, error) {
 		select {
 		case item := <-c.controlInput:
@@ -79,7 +85,7 @@ func newV2LifecycleConnection(t *testing.T, initiallyPaused bool, sendGate func(
 		}
 	}
 	stateInput := make(chan *realtimev2.StateClientItem, 1)
-	stateInput <- &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, StateConnectionNonce: nonce.Nonce}}}
+	stateInput <- &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, StateConnectionNonce: nonce.Nonce}}}
 	stateStream := &v2LeaseStream[realtimev2.StateClientItem, realtimev2.StateServerItem]{ctx: ctx, receive: func() (*realtimev2.StateClientItem, error) {
 		select {
 		case item := <-stateInput:
@@ -119,7 +125,7 @@ func newV2LifecycleConnection(t *testing.T, initiallyPaused bool, sendGate func(
 
 func (c *v2LifecycleConnection) runtimeControl(t *testing.T, id string, kind realtimev2.RuntimeControlKind) {
 	t.Helper()
-	if _, _, err := c.service.runtime.RuntimeControl(context.Background(), c.identity, &realtimev2.RuntimeControlCommand{ClientEventId: id, PresentationOriginVersion: c.service.runtime.Snapshot().PresentationOrigin.Version, Kind: kind}); err != nil {
+	if _, _, err := c.service.runtime.RuntimeControl(context.Background(), c.identity, &realtimev2.RuntimeControlCommand{ClientEventId: v3TestEventID(c.service.runtime.InputSynchronization().CommandEpoch, id), CommandEpoch: c.service.runtime.InputSynchronization().CommandEpoch, PresentationOriginVersion: c.service.runtime.Snapshot().PresentationOrigin.Version, Kind: kind}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -139,6 +145,38 @@ func TestV2PausedStateWaitsForResumeKeyframe(t *testing.T) {
 		}
 	case <-time.After(1500 * time.Millisecond):
 		t.Fatal("resume did not send fresh keyframe")
+	}
+}
+
+func TestV2PeriodicKeyframesRecoverAfterClientDropsAheadFrame(t *testing.T) {
+	c := newV2LifecycleConnection(t, false, nil)
+	select {
+	case <-c.stateOutput:
+	case <-time.After(time.Second):
+		t.Fatal("initial keyframe timed out")
+	}
+	c.runtimeControl(t, "pause", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE)
+	c.runtimeControl(t, "resume", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME)
+	cut := c.service.runtime.Snapshot().ReliableSequence
+	deadline := time.After(1500 * time.Millisecond)
+	for {
+		select {
+		case item := <-c.stateOutput:
+			if frame := item.GetStateFrame(); frame != nil && frame.BaseReliableSequence >= cut {
+				// Independent streams can deliver State before the client applies Control.
+				select {
+				case next := <-c.stateOutput:
+					if next.GetStateFrame().GetBaseReliableSequence() < cut {
+						t.Fatal("replacement keyframe predates the reliable change")
+					}
+					return
+				case <-time.After(400 * time.Millisecond):
+					t.Fatal("no replacement keyframe after the client dropped an ahead frame")
+				}
+			}
+		case <-deadline:
+			t.Fatal("fresh keyframe timed out after a reliable change")
+		}
 	}
 }
 
@@ -213,7 +251,7 @@ func TestV2RunningStateFallsSilentUntilFreshResumeKeyframe(t *testing.T) {
 	for !paused {
 		select {
 		case item := <-c.controlOutput:
-			paused = item.GetReliableEvent().GetRuntimeStatusChanged().GetPaused() != nil
+			paused = item.GetReliableEvent().GetRuntimeViewReplaced().GetRuntimeView().GetClock().GetPaused() != nil
 		case <-time.After(time.Second):
 			t.Fatal("pause reliable event timed out")
 		}

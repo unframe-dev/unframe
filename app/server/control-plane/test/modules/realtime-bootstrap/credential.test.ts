@@ -23,7 +23,7 @@ const generatePrivateJwk = async () => {
 };
 
 describe("RealtimeBootstrapCredentials", () => {
-  it("rejects an explicitly requested protocol v1 credential", async () => {
+  it("rejects an explicitly requested protocol v2 credential", async () => {
     const credentials = new RealtimeBootstrapCredentials(await generatePrivateJwk(), {
       issuer: "https://control-plane.example.com",
       keyId: "v2",
@@ -42,11 +42,11 @@ describe("RealtimeBootstrapCredentials", () => {
         presentationRevision: 1,
         scopes: ["realtime:connect"],
         expiresAt: 1_700_000_300,
-        protocolVersion: 1 as unknown as 2,
+        protocolVersion: 2 as unknown as 3,
       }),
     ).rejects.toThrow();
   });
-  it("marks a publication-backed credential as protocol v2", async () => {
+  it("marks a publication-backed credential as protocol v3", async () => {
     const credentials = new RealtimeBootstrapCredentials(await generatePrivateJwk(), {
       issuer: "https://control-plane.example.com",
       keyId: "v2",
@@ -64,9 +64,9 @@ describe("RealtimeBootstrapCredentials", () => {
       presentationRevision: 1,
       scopes: ["realtime:connect"],
       expiresAt: 1_700_000_300,
-      protocolVersion: 2,
+      protocolVersion: 3,
     });
-    expect(decode<{ protocol_version: number }>(token.split(".")[1]!).protocol_version).toBe(2);
+    expect(decode<{ protocol_version: number }>(token.split(".")[1]!).protocol_version).toBe(3);
   });
   it("rejects a signing key that is not an Ed25519 private JWK", () => {
     expect(
@@ -126,7 +126,7 @@ describe("RealtimeBootstrapCredentials", () => {
       nbf: 1_699_999_970,
       exp: 1_700_000_300,
       jti: "credential-id",
-      protocol_version: 2,
+      protocol_version: 3,
     });
     expect(expiresAt).toBe(1_700_000_300_000);
 

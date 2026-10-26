@@ -19,7 +19,7 @@ func freezeV2WallClock(core *V2Session) {
 }
 
 func TestV2MediaSpecsUseEffectiveStateLoopAndBoundVideoVariants(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{"host":{"id":"host","kind":"surface","surfaceId":"screen","owner":{"kind":"presentation"}}},"surfaces":{"screen":{"id":"screen","hostNodeId":"host","content":{"kind":"structured","nodes":{"video":{"kind":"video","loop":false}}},"renderIntent":{"internalAnimation":{"kind":"precomputed-video","durationMilliseconds":77}},"states":{"stopped":{"id":"stopped","contentOverrides":{}},"looping":{"id":"looping","contentOverrides":{"video":{"kind":"video","loop":true}}},"hidden":{"id":"hidden","contentOverrides":{}}}}}},"flow":{}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{"host":{"id":"host","kind":"surface","surfaceId":"screen","owner":{"kind":"presentation"}}},"surfaces":{"screen":{"id":"screen","hostNodeId":"host","content":{"kind":"structured","nodes":{"video":{"kind":"video","loop":false}}},"renderIntent":{"internalAnimation":{"kind":"precomputed-video","durationMilliseconds":77}},"states":{"stopped":{"id":"stopped","contentOverrides":{}},"looping":{"id":"looping","contentOverrides":{"video":{"kind":"video","loop":true}}},"hidden":{"id":"hidden","contentOverrides":{}}}}}},"flow":{}}`)
 	bundle := json.RawMessage(`{"schemaVersion":2,"surfaces":{"screen":{"renderSurfaces":{"render":{"artifacts":{"nonloop":{"kind":"video","durationMilliseconds":100,"loop":false},"loop1":{"kind":"video","durationMilliseconds":100,"loop":true},"loop2":{"kind":"video","durationMilliseconds":100,"loop":true}},"stateBindings":{"stopped":{"kind":"artifacts","artifactIds":["nonloop"]},"looping":{"kind":"artifacts","artifactIds":["loop1","loop2"]}}}}}}}`)
 	var def v2Definition
 	if err := json.Unmarshal(definition, &def); err != nil {
@@ -36,10 +36,10 @@ func TestV2MediaSpecsUseEffectiveStateLoopAndBoundVideoVariants(t *testing.T) {
 }
 
 func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{"host":{"id":"host","kind":"surface","surfaceId":"screen","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{"screen":{"id":"screen","hostNodeId":"host","initialStateId":"idle","states":{"idle":{"id":"idle","contentOverrides":{},"enabledInteractionIds":[]}},"content":{"kind":"structured","nodes":{"video":{"kind":"video","loop":false}}},"physicalSizeMeters":[1,1],"logicalSize":[1,1],"fit":"contain","renderIntent":{"internalAnimation":{"kind":"none"}}}}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.play","surfaceId":"screen"}],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{"host":{"id":"host","kind":"surface","surfaceId":"screen","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{"screen":{"id":"screen","hostNodeId":"host","initialStateId":"idle","states":{"idle":{"id":"idle","contentOverrides":{},"enabledInteractionIds":[]}},"content":{"kind":"structured","nodes":{"video":{"kind":"video","loop":false}}},"physicalSizeMeters":[1,1],"logicalSize":[1,1],"fit":"contain","renderIntent":{"internalAnimation":{"kind":"none"}}}}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.play","surfaceId":"screen"}],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	definition = bytes.Replace(definition, []byte(`"cues":[`), []byte(`"cues":[{"id":"complete","priority":2,"order":0,"trigger":{"kind":"mediaCompleted","surfaceId":"screen"},"firePolicy":{"kind":"oncePerStepEntry"},"actions":[],"next":{"kind":"stay"}},`), 1)
 	bundle := json.RawMessage(`{"schemaVersion":2,"surfaces":{"screen":{"renderSurfaces":{"render":{"artifacts":{"video":{"kind":"video","durationMilliseconds":100,"loop":false}},"stateBindings":{"idle":{"kind":"artifacts","artifactIds":["video"]}}}}}}}`)
-	core, err := NewV2SessionWithBundle(definition, bundle)
+	core, err := newV3RegressionSessionWithBundle(definition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,11 +48,11 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	if len(cut.MediaStates) != 1 || cut.MediaStates[0].SurfaceId != "screen" || cut.MediaStates[0].GetStopped() == nil || core.mediaSpecs["screen"]["idle"].DurationMS != 100 {
 		t.Fatalf("initial media state=%#v", cut.MediaStates)
 	}
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
-	_, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "play-1", LogicalEventName: "play"})
+	_, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "play-1", LogicalEventName: "play"}))
 	if err != nil || len(core.Snapshot().ActiveRuns) != 1 || core.Snapshot().MediaStates[0].GetActive() == nil {
 		t.Fatalf("media play events=%#v snapshot=%#v err=%v", events, core.Snapshot(), err)
 	}
@@ -78,8 +78,8 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 		t.Fatalf("media completion cue=%#v", completed)
 	}
 	hiddenDefinition := bytes.Replace(definition, []byte(`"states":{"idle":{"id":"idle","contentOverrides":{},"enabledInteractionIds":[]}}`), []byte(`"states":{"idle":{"id":"idle","contentOverrides":{},"enabledInteractionIds":[]},"hidden":{"id":"hidden","contentOverrides":{},"enabledInteractionIds":[]}}`), 1)
-	hiddenDefinition = bytes.Replace(hiddenDefinition, []byte(`"cues":[`), []byte(`"cues":[{"id":"hide","priority":2,"order":1,"trigger":{"kind":"logicalInput","action":"hide"},"firePolicy":{"kind":"oncePerStepEntry"},"actions":[{"kind":"surface.setState","surfaceId":"screen","stateId":"hidden","transition":{"kind":"cut"}}],"next":{"kind":"stay"}},`), 1)
-	hidden, err := NewV2SessionWithBundle(hiddenDefinition, bundle)
+	hiddenDefinition = bytes.Replace(hiddenDefinition, []byte(`"cues":[`), []byte(`"cues":[{"id":"hide","priority":2,"order":1,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"hide"},"firePolicy":{"kind":"oncePerStepEntry"},"actions":[{"kind":"surface.setState","surfaceId":"screen","stateId":"hidden","transition":{"kind":"cut"}}],"next":{"kind":"stay"}},`), 1)
+	hidden, err := newV3RegressionSessionWithBundle(hiddenDefinition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,13 +87,13 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	if err := hidden.ConfigureDurability(&recordingV2Checkpoint{}, metadata, hidden.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := hidden.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "play-2", LogicalEventName: "play"}); err != nil {
+	if _, _, err := hidden.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(hidden, &realtimev2.LogicalInputCommand{ClientEventId: "play-2", LogicalEventName: "play"})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := hidden.AdvanceTo(context.Background(), 25); err != nil {
 		t.Fatal(err)
 	}
-	_, changed, err := hidden.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "hide-1", LogicalEventName: "hide"})
+	_, changed, err := hidden.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(hidden, &realtimev2.LogicalInputCommand{ClientEventId: "hide-1", LogicalEventName: "hide"}))
 	if err != nil || len(hidden.Snapshot().ActiveRuns) != 0 || hidden.Snapshot().MediaStates[0].GetStopped().HeldPositionMs != 25 || hidden.Snapshot().SurfaceStates[0].StateId != "hidden" {
 		t.Fatalf("state change=%#v cut=%#v err=%v", changed, hidden.Snapshot(), err)
 	}
@@ -109,12 +109,12 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	if stopIndex < 0 || stateIndex < 0 || stopIndex >= stateIndex {
 		t.Fatalf("media stop must precede state change: %#v", changed)
 	}
-	outcome, noMedia, err := hidden.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "play-hidden", LogicalEventName: "play"})
+	outcome, noMedia, err := hidden.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(hidden, &realtimev2.LogicalInputCommand{ClientEventId: "play-hidden", LogicalEventName: "play"}))
 	if err != nil || outcome.GetAccepted().GetCueBatchRejected() == nil || len(hidden.Snapshot().ActiveRuns) != 0 {
 		t.Fatalf("hidden media action outcome=%#v events=%#v err=%v", outcome, noMedia, err)
 	}
-	controlsDefinition := bytes.Replace(definition, []byte(`"cues":[`), []byte(`"cues":[{"id":"pause","priority":2,"order":0,"trigger":{"kind":"logicalInput","action":"pause"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.pause","surfaceId":"screen"}],"next":{"kind":"stay"}},{"id":"seek","priority":2,"order":1,"trigger":{"kind":"logicalInput","action":"seek"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.seek","surfaceId":"screen","positionSeconds":{"kind":"literal","value":0.04}}],"next":{"kind":"stay"}},{"id":"resume","priority":2,"order":2,"trigger":{"kind":"logicalInput","action":"resume"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.play","surfaceId":"screen"}],"next":{"kind":"stay"}},`), 1)
-	controls, err := NewV2SessionWithBundle(controlsDefinition, bundle)
+	controlsDefinition := bytes.Replace(definition, []byte(`"cues":[`), []byte(`"cues":[{"id":"pause","priority":2,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"pause"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.pause","surfaceId":"screen"}],"next":{"kind":"stay"}},{"id":"seek","priority":2,"order":1,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"seek"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.seek","surfaceId":"screen","positionSeconds":{"kind":"literal","value":0.04}}],"next":{"kind":"stay"}},{"id":"resume","priority":2,"order":2,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"resume"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.play","surfaceId":"screen"}],"next":{"kind":"stay"}},`), 1)
+	controls, err := newV3RegressionSessionWithBundle(controlsDefinition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	}
 	input := func(id, name string) []*realtimev2.ProjectedReliableEvent {
 		t.Helper()
-		_, emitted, err := controls.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: id, LogicalEventName: name})
+		_, emitted, err := controls.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(controls, &realtimev2.LogicalInputCommand{ClientEventId: id, LogicalEventName: name}))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -165,7 +165,7 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	if !hasMediaEvent(resumed, "resume") {
 		t.Fatalf("resume events=%#v", resumed)
 	}
-	seekStopped, err := NewV2SessionWithBundle(controlsDefinition, bundle)
+	seekStopped, err := newV3RegressionSessionWithBundle(controlsDefinition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	if err := seekStopped.ConfigureDurability(&recordingV2Checkpoint{}, metadata, seekStopped.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
-	_, stoppedSeek, err := seekStopped.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "media-stopped-seek", LogicalEventName: "seek"})
+	_, stoppedSeek, err := seekStopped.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(seekStopped, &realtimev2.LogicalInputCommand{ClientEventId: "media-stopped-seek", LogicalEventName: "seek"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,18 +192,18 @@ func TestV2MediaPlayResumesFromPublicDefinition(t *testing.T) {
 		t.Fatal(err)
 	}
 	bundle := json.RawMessage(`{"schemaVersion":2,"surfaces":{"video":{"renderSurfaces":{"render":{"artifacts":{"video":{"kind":"video","durationMilliseconds":1000,"loop":false}},"stateBindings":{"default":{"kind":"artifacts","artifactIds":["video"]}}}}}}}`)
-	core, err := NewV2SessionWithBundle(definition, bundle)
+	core, err := newV3RegressionSessionWithBundle(definition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
 	freezeV2WallClock(core)
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
 	input := func(id, action string) []*realtimev2.ProjectedReliableEvent {
 		t.Helper()
-		_, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: id, LogicalEventName: action})
+		_, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: id, LogicalEventName: action}))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -224,9 +224,9 @@ func TestV2MediaPlayResumesFromPublicDefinition(t *testing.T) {
 }
 
 func TestV2SessionWithBundleInitializesModelCatalogFromArtifact(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{"actor":{"id":"actor","kind":"model","assetId":"avatar","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{"actor":{"id":"actor","kind":"model","assetId":"avatar","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	bundle := json.RawMessage(`{"schemaVersion":2,"surfaces":{},"models":{"avatar":{"assetId":"avatar","clips":{"walk":{"sourceAnimationIndex":3,"durationMilliseconds":125}}}}}`)
-	core, err := NewV2SessionWithBundle(definition, bundle)
+	core, err := newV3RegressionSessionWithBundle(definition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,18 +237,18 @@ func TestV2SessionWithBundleInitializesModelCatalogFromArtifact(t *testing.T) {
 }
 
 func TestV2ModelActionCompletesAtArtifactDeadline(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{"actor":{"id":"actor","kind":"model","assetId":"avatar","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.play","nodeId":"actor","clipId":"walk","speed":1,"loop":false,"completion":"nonBlocking","transition":{"kind":"immediate"}}],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{"actor":{"id":"actor","kind":"model","assetId":"avatar","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.play","nodeId":"actor","clipId":"walk","speed":1,"loop":false,"completion":"nonBlocking","transition":{"kind":"immediate"}}],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	bundle := json.RawMessage(`{"schemaVersion":2,"surfaces":{},"models":{"avatar":{"assetId":"avatar","clips":{"walk":{"sourceAnimationIndex":3,"durationMilliseconds":125}}}}}`)
-	core, err := NewV2SessionWithBundle(definition, bundle)
+	core, err := newV3RegressionSessionWithBundle(definition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
 	freezeV2WallClock(core)
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
-	_, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "play-1", LogicalEventName: "play"})
+	_, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "play-1", LogicalEventName: "play"}))
 	if err != nil || len(core.Snapshot().ActiveRuns) != 1 {
 		t.Fatalf("play=%#v cut=%#v err=%v", events, core.Snapshot(), err)
 	}
@@ -259,7 +259,7 @@ func TestV2ModelActionCompletesAtArtifactDeadline(t *testing.T) {
 	if len(completed) != 1 || completed[0].GetModelClipCompleted() == nil || completed[0].OccurredAtRuntimeTimeMs != 125 {
 		t.Fatalf("events=%#v", completed)
 	}
-	ending, err := NewV2SessionWithBundle(definition, bundle)
+	ending, err := newV3RegressionSessionWithBundle(definition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,16 +268,16 @@ func TestV2ModelActionCompletesAtArtifactDeadline(t *testing.T) {
 		t.Fatal(err)
 	}
 	ending.ConfigureCompletion(&recordingV2Completion{})
-	if _, _, err := ending.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "play-2", LogicalEventName: "play"}); err != nil {
+	if _, _, err := ending.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(ending, &realtimev2.LogicalInputCommand{ClientEventId: "play-2", LogicalEventName: "play"})); err != nil {
 		t.Fatal(err)
 	}
-	_, ended, err := ending.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.RuntimeControlCommand{ClientEventId: "end-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END, PresentationOriginVersion: ending.Snapshot().PresentationOrigin.Version})
+	_, ended, err := ending.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestRuntimeControl(ending, &realtimev2.RuntimeControlCommand{ClientEventId: "end-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END, PresentationOriginVersion: ending.Snapshot().PresentationOrigin.Version}))
 	if err != nil || len(ended) < 3 || ended[0].GetModelClipCanceled() == nil || ending.Snapshot().ModelClipStates[0].GetDefaultPose() == nil {
 		t.Fatalf("end events=%#v cut=%#v err=%v", ended, ending.Snapshot(), err)
 	}
-	fadeDefinition := bytes.Replace(definition, []byte(`"cues":[`), []byte(`"cues":[{"id":"fade","priority":2,"order":0,"trigger":{"kind":"logicalInput","action":"fade"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.play","nodeId":"actor","clipId":"idle","speed":1,"loop":false,"completion":"nonBlocking","transition":{"kind":"crossfade","durationMilliseconds":20,"easing":"linear"}}],"next":{"kind":"stay"}},`), 1)
+	fadeDefinition := bytes.Replace(definition, []byte(`"cues":[`), []byte(`"cues":[{"id":"fade","priority":2,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"fade"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.play","nodeId":"actor","clipId":"idle","speed":1,"loop":false,"completion":"nonBlocking","transition":{"kind":"crossfade","durationMilliseconds":20,"easing":"linear"}}],"next":{"kind":"stay"}},`), 1)
 	fadeBundle := bytes.Replace(bundle, []byte(`"walk":{"sourceAnimationIndex":3,"durationMilliseconds":125}`), []byte(`"walk":{"sourceAnimationIndex":3,"durationMilliseconds":125},"idle":{"sourceAnimationIndex":4,"durationMilliseconds":100}`), 1)
-	fading, err := NewV2SessionWithBundle(fadeDefinition, fadeBundle)
+	fading, err := newV3RegressionSessionWithBundle(fadeDefinition, fadeBundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,21 +285,21 @@ func TestV2ModelActionCompletesAtArtifactDeadline(t *testing.T) {
 	if err := fading.ConfigureDurability(&recordingV2Checkpoint{}, metadata, fading.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := fading.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "play-3", LogicalEventName: "play"}); err != nil {
+	if _, _, err := fading.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(fading, &realtimev2.LogicalInputCommand{ClientEventId: "play-3", LogicalEventName: "play"})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := fading.AdvanceTo(context.Background(), 125); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := fading.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "fade-1", LogicalEventName: "fade"}); err != nil {
+	if _, _, err := fading.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(fading, &realtimev2.LogicalInputCommand{ClientEventId: "fade-1", LogicalEventName: "fade"})); err != nil {
 		t.Fatal(err)
 	}
 	transitioned, err := fading.AdvanceTo(context.Background(), 145)
 	if err != nil || len(transitioned) != 1 || transitioned[0].GetModelClipCrossfadeCompleted() == nil || len(fading.Snapshot().ActiveRuns) != 1 {
 		t.Fatalf("crossfade=%#v cut=%#v err=%v", transitioned, fading.Snapshot(), err)
 	}
-	controlsDefinition := bytes.Replace(definition, []byte(`"cues":[`), []byte(`"cues":[{"id":"pause","priority":2,"order":0,"trigger":{"kind":"logicalInput","action":"pause"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.pause","nodeId":"actor"}],"next":{"kind":"stay"}},{"id":"resume","priority":2,"order":1,"trigger":{"kind":"logicalInput","action":"resume"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.resume","nodeId":"actor"}],"next":{"kind":"stay"}},{"id":"stop","priority":2,"order":2,"trigger":{"kind":"logicalInput","action":"stop"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.stop","nodeId":"actor"}],"next":{"kind":"stay"}},`), 1)
-	controls, err := NewV2SessionWithBundle(controlsDefinition, bundle)
+	controlsDefinition := bytes.Replace(definition, []byte(`"cues":[`), []byte(`"cues":[{"id":"pause","priority":2,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"pause"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.pause","nodeId":"actor"}],"next":{"kind":"stay"}},{"id":"resume","priority":2,"order":1,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"resume"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.resume","nodeId":"actor"}],"next":{"kind":"stay"}},{"id":"stop","priority":2,"order":2,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"stop"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.stop","nodeId":"actor"}],"next":{"kind":"stay"}},`), 1)
+	controls, err := newV3RegressionSessionWithBundle(controlsDefinition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +309,7 @@ func TestV2ModelActionCompletesAtArtifactDeadline(t *testing.T) {
 	}
 	inputModel := func(id, name string) []*realtimev2.ProjectedReliableEvent {
 		t.Helper()
-		_, emitted, err := controls.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: id, LogicalEventName: name})
+		_, emitted, err := controls.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(controls, &realtimev2.LogicalInputCommand{ClientEventId: id, LogicalEventName: name}))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -357,22 +357,22 @@ func hasV2ModelEvent(events []*realtimev2.ProjectedReliableEvent, kind string) b
 }
 
 func TestV2ModelGroupExitCancelsOwnedRunBeforeGroupEvents(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{"actor":{"id":"actor","kind":"model","assetId":"avatar","owner":{"kind":"group","groupId":"intro"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.play","nodeId":"actor","clipId":"walk","speed":1,"loop":false,"completion":"nonBlocking","transition":{"kind":"immediate"}}],"next":{"kind":"stay"}},{"id":"leave","priority":1,"order":1,"trigger":{"kind":"logicalInput","action":"leave"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"group","groupId":"out"}}]}}},"out":{"id":"out","initialStepId":"empty","steps":{"empty":{"id":"empty","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{"actor":{"id":"actor","kind":"model","assetId":"avatar","owner":{"kind":"group","groupId":"intro"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.play","nodeId":"actor","clipId":"walk","speed":1,"loop":false,"completion":"nonBlocking","transition":{"kind":"immediate"}}],"next":{"kind":"stay"}},{"id":"leave","priority":1,"order":1,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"leave"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"group","groupId":"out"}}]}}},"out":{"id":"out","initialStepId":"empty","steps":{"empty":{"id":"empty","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	bundle := json.RawMessage(`{"schemaVersion":2,"surfaces":{},"models":{"avatar":{"assetId":"avatar","clips":{"walk":{"sourceAnimationIndex":3,"durationMilliseconds":125}}}}}`)
-	core, err := NewV2SessionWithBundle(definition, bundle)
+	core, err := newV3RegressionSessionWithBundle(definition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
 	freezeV2WallClock(core)
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
 	identity := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
-	if _, _, err := core.LogicalInput(identity, &realtimev2.LogicalInputCommand{ClientEventId: "play-1", LogicalEventName: "play"}); err != nil {
+	if _, _, err := core.LogicalInput(identity, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "play-1", LogicalEventName: "play"})); err != nil {
 		t.Fatal(err)
 	}
-	_, events, err := core.LogicalInput(identity, &realtimev2.LogicalInputCommand{ClientEventId: "leave-1", LogicalEventName: "leave"})
+	_, events, err := core.LogicalInput(identity, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "leave-1", LogicalEventName: "leave"}))
 	if err != nil || len(core.Snapshot().ActiveRuns) != 0 || len(core.Snapshot().ModelClipStates) != 0 {
 		t.Fatalf("group exit events=%#v cut=%#v err=%v", events, core.Snapshot(), err)
 	}
@@ -391,22 +391,22 @@ func TestV2ModelGroupExitCancelsOwnedRunBeforeGroupEvents(t *testing.T) {
 }
 
 func TestV2MediaGroupExitCancelsOwnedRunBeforeGroupEvents(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{"host":{"id":"host","kind":"surface","surfaceId":"screen","owner":{"kind":"group","groupId":"intro"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{"screen":{"id":"screen","hostNodeId":"host","initialStateId":"idle","states":{"idle":{"id":"idle","contentOverrides":{},"enabledInteractionIds":[]}},"content":{"kind":"structured","nodes":{"video":{"kind":"video","loop":false}}},"physicalSizeMeters":[1,1],"logicalSize":[1,1],"fit":"contain","renderIntent":{"internalAnimation":{"kind":"none"}}}}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.play","surfaceId":"screen"}],"next":{"kind":"stay"}},{"id":"leave","priority":1,"order":1,"trigger":{"kind":"logicalInput","action":"leave"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"group","groupId":"out"}}]}}},"out":{"id":"out","initialStepId":"empty","steps":{"empty":{"id":"empty","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{"host":{"id":"host","kind":"surface","surfaceId":"screen","owner":{"kind":"group","groupId":"intro"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{"screen":{"id":"screen","hostNodeId":"host","initialStateId":"idle","states":{"idle":{"id":"idle","contentOverrides":{},"enabledInteractionIds":[]}},"content":{"kind":"structured","nodes":{"video":{"kind":"video","loop":false}}},"physicalSizeMeters":[1,1],"logicalSize":[1,1],"fit":"contain","renderIntent":{"internalAnimation":{"kind":"none"}}}}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"media.play","surfaceId":"screen"}],"next":{"kind":"stay"}},{"id":"leave","priority":1,"order":1,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"leave"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"group","groupId":"out"}}]}}},"out":{"id":"out","initialStepId":"empty","steps":{"empty":{"id":"empty","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	bundle := json.RawMessage(`{"schemaVersion":2,"surfaces":{"screen":{"renderSurfaces":{"render":{"artifacts":{"video":{"kind":"video","durationMilliseconds":100,"loop":false}},"stateBindings":{"idle":{"kind":"artifacts","artifactIds":["video"]}}}}}}}`)
-	core, err := NewV2SessionWithBundle(definition, bundle)
+	core, err := newV3RegressionSessionWithBundle(definition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
 	freezeV2WallClock(core)
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
 	identity := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
-	if _, _, err := core.LogicalInput(identity, &realtimev2.LogicalInputCommand{ClientEventId: "play-1", LogicalEventName: "play"}); err != nil {
+	if _, _, err := core.LogicalInput(identity, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "play-1", LogicalEventName: "play"})); err != nil {
 		t.Fatal(err)
 	}
-	_, events, err := core.LogicalInput(identity, &realtimev2.LogicalInputCommand{ClientEventId: "leave-1", LogicalEventName: "leave"})
+	_, events, err := core.LogicalInput(identity, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "leave-1", LogicalEventName: "leave"}))
 	if err != nil || len(core.Snapshot().ActiveRuns) != 0 || len(core.Snapshot().MediaStates) != 0 {
 		t.Fatalf("group exit events=%#v cut=%#v err=%v", events, core.Snapshot(), err)
 	}

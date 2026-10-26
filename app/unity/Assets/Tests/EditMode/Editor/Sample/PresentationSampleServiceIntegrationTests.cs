@@ -95,8 +95,8 @@ public sealed class PresentationSampleServiceIntegrationTests
             UnityEngine.Object.Destroy(pixels);
         }
 
-        Task pause = runtime.SendAsync(QuestPresentationInput.CreateRuntimeControl(RuntimeControlKind.Pause,
-            runtime.PresentationOriginVersion), default);
+        Task pause = runtime.SendAsync(QuestPresentationInput.CreateControl(RuntimeControlKind.Pause,
+            runtime.PresentationOriginVersion, runtime.InputSynchronization.CommandEpoch), default);
         while (!pause.IsCompleted) yield return null;
         Assert.That(pause.IsFaulted, Is.False);
         deadline = Time.realtimeSinceStartup + 10;
@@ -105,8 +105,8 @@ public sealed class PresentationSampleServiceIntegrationTests
         Assert.That(runtime.PlaybackStatus, Is.EqualTo("Paused"));
         Assert.That(runtime.LastCommandOutcomeCode, Is.EqualTo("accepted"));
 
-        Task resume = runtime.SendAsync(QuestPresentationInput.CreateRuntimeControl(RuntimeControlKind.Resume,
-            runtime.PresentationOriginVersion), default);
+        Task resume = runtime.SendAsync(QuestPresentationInput.CreateControl(RuntimeControlKind.Resume,
+            runtime.PresentationOriginVersion, runtime.InputSynchronization.CommandEpoch), default);
         while (!resume.IsCompleted) yield return null;
         Assert.That(resume.IsFaulted, Is.False);
         deadline = Time.realtimeSinceStartup + 10;
@@ -124,7 +124,7 @@ public sealed class PresentationSampleServiceIntegrationTests
         button.GetPropertyBlock(properties);
         Texture beforeInteraction = properties.GetTexture("_FromTex");
         Task interaction = runtime.SendAsync(QuestPresentationInput.CreateSurfaceInteraction(surfaceId, interactionId,
-            runtime.PresentationOriginVersion), default);
+            runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), default);
         while (!interaction.IsCompleted) yield return null;
         Assert.That(interaction.IsFaulted, Is.False);
         deadline = Time.realtimeSinceStartup + 10;

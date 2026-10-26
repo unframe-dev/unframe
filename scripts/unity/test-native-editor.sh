@@ -19,7 +19,7 @@ for directory in Animation Delivery Generated Persistence Rendering State Transp
 done
 cp "$runtime/PresentationBakedRuntime.cs" "$assets/Unframe/Scripts/"
 mkdir -p "$assets/Unframe/Scripts/Quest"
-for file in PresentationCalibrationState PresentationCalibrationMath QuestPresentationTracking; do
+for file in PresentationCalibrationState PresentationCalibrationMath QuestPresentationTracking QuestPresentationInput PresenterInputSynchronizationState PresenterRecognition; do
   cp "$runtime/Quest/$file.cs" "$assets/Unframe/Scripts/Quest/"
 done
 find "$root/app/unity/Assets/Plugins" -maxdepth 1 -type f \( -name '*.dll' -o -name '*.dll.meta' \) -exec cp {} "$assets/Unframe/Plugins/" \;
@@ -27,6 +27,7 @@ cp "$root/app/unity/Assets/Resources/BakedSurface.shader" "$assets/Unframe/Resou
 mkdir -p "$assets/Tests/EditMode/Editor"
 cp -R "$root/app/unity/Assets/Tests/EditMode/Editor/FixturesData" "$assets/Tests/EditMode/Editor/"
 cp "$root/app/unity/Assets/Tests/EditMode/Editor/Support/"*.cs "$assets/Tests/Editor/"
+cp -R "$root/app/unity/Assets/Resources/PresentationModelShaders" "$assets/Unframe/Resources/"
 cp -R "$root/app/unity/Assets/Resources/PresentationMaterials" "$assets/Unframe/Resources/"
 mkdir -p "$assets/TextMesh Pro/Fonts"
 cp "$root/app/unity/Assets/TextMesh Pro/Fonts/LiberationSans.ttf" "$assets/TextMesh Pro/Fonts/"
@@ -49,7 +50,12 @@ if [[ "$mode" == playback ]]; then
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewPlaybackEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTransactionEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/UnframePreviewBridgeEditModeTests.cs" "$assets/Tests/Editor/"
-  filter='PresentationPreviewPlaybackEditModeTests|PresentationPreviewTransactionEditModeTests|UnframePreviewBridgeEditModeTests'
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Transport/PresentationControlPlaneConnectionEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationTextureResidencyEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationVideoLifecycleEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationModelRuntimeEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationBakedRenderingEditModeTests.cs" "$assets/Tests/Editor/"
+  filter='PresentationBakedRuntimeDownloadEditModeTests|PresentationBakedRenderingEditModeTests|PresentationTextureResidencyEditModeTests|PresentationVideoLifecycleEditModeTests|PresentationControlPlaneConnectionEditModeTests|PresentationModelRuntimeEditModeTests|PresentationPreviewPlaybackEditModeTests|PresentationPreviewTransactionEditModeTests|UnframePreviewBridgeEditModeTests'
   graphics=(-nographics)
 elif [[ "$mode" == rendering ]]; then
   for area in Rendering Delivery State Persistence Transport; do

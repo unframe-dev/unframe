@@ -9,9 +9,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 type request struct {
@@ -23,6 +27,7 @@ type request struct {
 	Bytes    []byte `json:"bytes"`
 	Limit    int64  `json:"limit"`
 	Expected *int64 `json:"expected"`
+	Mode     uint32 `json:"mode"`
 }
 type response struct {
 	ID        int    `json:"id"`
@@ -36,6 +41,8 @@ type metadata struct {
 	Size    int64  `json:"size"`
 	MtimeMs int64  `json:"mtimeMs"`
 	Kind    string `json:"kind"`
+	Uid     uint32 `json:"uid"`
+	Mode    uint32 `json:"mode"`
 }
 
 func statValue(s fs.FileInfo) metadata {
@@ -48,7 +55,7 @@ func statValue(s fs.FileInfo) metadata {
 	} else if s.Mode().IsRegular() {
 		kind = "file"
 	}
-	return metadata{uint64(raw.Dev), uint64(raw.Ino), s.Size(), s.ModTime().UnixMilli(), kind}
+	return metadata{uint64(raw.Dev), uint64(raw.Ino), s.Size(), s.ModTime().UnixMilli(), kind, raw.Uid, uint32(raw.Mode)}
 }
 func same(a, b fs.FileInfo) bool {
 	x, y := statValue(a), statValue(b)
@@ -147,7 +154,7 @@ func checkedOperation(r request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	flags := os.O_RDONLY | syscall.O_NOFOLLOW
+	flags := os.O_RDONLY | syscall.O_NOFOLLOW | syscall.O_NONBLOCK
 	if directory {
 		flags |= syscall.O_DIRECTORY
 	}
@@ -211,7 +218,7 @@ func (s *server) scoped(path string) (*os.Root, string, error) {
 	}
 	parts := strings.SplitN(strings.TrimPrefix(path, "@fd:"), "/", 2)
 	id, err := strconv.Atoi(parts[0])
-	if err != nil {
+	if err != nil || id < 1 || strconv.Itoa(id) != parts[0] {
 		return nil, "", invalid
 	}
 	d := s.handles[id]
@@ -230,7 +237,78 @@ func openFile(root *os.Root, path string, flags int, mode fs.FileMode) (*os.File
 	}
 	return os.OpenFile(path, flags, mode)
 }
+
+func renameDirectories(d *directory, path, target string, exchange bool) error {
+	// Restrict the syscall to direct children of the pinned parent: no intermediate
+	// path component can redirect resolution through a symlink or outside the root.
+	for i, name := range []string{path, target} {
+		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\x00") {
+			return invalid
+		}
+		if i == 1 && !exchange {
+			continue
+		}
+		stat, err := d.root.Lstat(name)
+		if err != nil {
+			return err
+		}
+		if !stat.IsDir() {
+			return invalid
+		}
+	}
+	var trap uintptr
+	switch runtime.GOOS + "/" + runtime.GOARCH {
+	case "linux/amd64":
+		// Go's cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go.
+		trap = 316
+	case "linux/arm64":
+		// Go's syscall/zsysnum_linux_arm64.go: SYS_RENAMEAT2.
+		trap = 276
+	case "darwin/amd64", "darwin/arm64":
+		// https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/syscalls.master
+		trap = 488 // renameatx_np
+	default:
+		return syscall.ENOSYS
+	}
+	// RENAME_EXCHANGE (Linux uapi/linux/fs.h) and RENAME_SWAP (Darwin
+	// bsd/sys/stdio.h) both equal 2. Neither operation follows the final symlink.
+	flags := uintptr(2)
+	if !exchange {
+		// RENAME_NOREPLACE is 1 in Linux uapi/linux/fs.h; RENAME_EXCL is 4
+		// in https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/stdio.h.
+		flags = 1
+		if runtime.GOOS == "darwin" {
+			flags = 4
+		}
+	}
+	from, err := syscall.BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	to, err := syscall.BytePtrFromString(target)
+	if err != nil {
+		return err
+	}
+	fd := d.file.Fd()
+	_, _, errno := syscall.Syscall6(trap, fd, uintptr(unsafe.Pointer(from)), fd, uintptr(unsafe.Pointer(to)), flags, 0)
+	runtime.KeepAlive(d.file)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
 func (s *server) execute(r request) (any, error) {
+	if r.Mode == 0 {
+		r.Mode = 0600
+		if r.Op == "mkdir" {
+			r.Mode = 0700
+		}
+	}
+	if r.Mode & ^uint32(0777) != 0 {
+		return nil, invalid
+	}
+
 	if r.Op == "readChecked" || r.Op == "directoryChecked" || r.Op == "listChecked" {
 		return checkedOperation(r)
 	}
@@ -320,7 +398,7 @@ func (s *server) execute(r request) (any, error) {
 		s.handles[s.next] = &directory{file, anchored}
 		return map[string]any{"id": s.next, "stat": statValue(opened)}, nil
 	case "read":
-		file, err := openFile(root, path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+		file, err := openFile(root, path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -331,7 +409,7 @@ func (s *server) execute(r request) (any, error) {
 		}
 		return bytes, file.Close()
 	case "write":
-		file, err := openFile(root, path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+		file, err := openFile(root, path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, fs.FileMode(r.Mode))
 		if err != nil {
 			return nil, &operationError{"open", err}
 		}
@@ -382,9 +460,9 @@ func (s *server) execute(r request) (any, error) {
 		return statValue(stat), nil
 	case "mkdir":
 		if root != nil {
-			err = root.Mkdir(path, 0700)
+			err = root.Mkdir(path, fs.FileMode(r.Mode))
 		} else {
-			err = os.Mkdir(path, 0700)
+			err = os.Mkdir(path, fs.FileMode(r.Mode))
 		}
 		return true, err
 	case "remove":
@@ -413,13 +491,42 @@ func (s *server) execute(r request) (any, error) {
 			err = os.Symlink(r.Target, path)
 		}
 		return true, err
-	case "rename":
+	case "rename", "exchange", "renameNoReplace":
 		targetRoot, target, err := s.scoped(r.Target)
 		if err != nil {
 			return nil, err
 		}
 		if root != targetRoot {
-			return nil, syscall.EXDEV
+			if r.Op != "rename" || root == nil || targetRoot == nil {
+				return nil, syscall.EXDEV
+			}
+			if path == "." || path == ".." || target == "." || target == ".." || strings.Contains(path, "/") || strings.Contains(target, "/") {
+				return nil, invalid
+			}
+			var sourceDirectory, targetDirectory *directory
+			for _, candidate := range s.handles {
+				if candidate.root == root {
+					sourceDirectory = candidate
+				}
+				if candidate.root == targetRoot {
+					targetDirectory = candidate
+				}
+			}
+			if sourceDirectory == nil || targetDirectory == nil {
+				return nil, syscall.EBADF
+			}
+			return true, unix.Renameat(int(sourceDirectory.file.Fd()), path, int(targetDirectory.file.Fd()), target)
+		}
+		if r.Op == "exchange" || r.Op == "renameNoReplace" {
+			if root == nil {
+				return nil, invalid
+			}
+			for _, d := range s.handles {
+				if d.root == root {
+					return true, renameDirectories(d, path, target, r.Op == "exchange")
+				}
+			}
+			return nil, syscall.EBADF
 		}
 		if root != nil {
 			err = root.Rename(path, target)
@@ -446,7 +553,7 @@ func (s *server) execute(r request) (any, error) {
 	return nil, invalid
 }
 func errorCode(err error) string {
-	for code, errno := range map[string]error{"EACCES": syscall.EACCES, "EBADF": syscall.EBADF, "EEXIST": syscall.EEXIST, "EIO": syscall.EIO, "EISDIR": syscall.EISDIR, "ELOOP": syscall.ELOOP, "ENOENT": syscall.ENOENT, "ENOSPC": syscall.ENOSPC, "ENOTDIR": syscall.ENOTDIR, "ENOTEMPTY": syscall.ENOTEMPTY, "EPERM": syscall.EPERM, "EROFS": syscall.EROFS, "EXDEV": syscall.EXDEV} {
+	for code, errno := range map[string]error{"EACCES": syscall.EACCES, "EBADF": syscall.EBADF, "EEXIST": syscall.EEXIST, "EIO": syscall.EIO, "EISDIR": syscall.EISDIR, "ELOOP": syscall.ELOOP, "ENOENT": syscall.ENOENT, "ENOSPC": syscall.ENOSPC, "ENOTDIR": syscall.ENOTDIR, "ENOTEMPTY": syscall.ENOTEMPTY, "ENOSYS": syscall.ENOSYS, "ENOTSUP": syscall.ENOTSUP, "EPERM": syscall.EPERM, "EROFS": syscall.EROFS, "EXDEV": syscall.EXDEV} {
 		if errors.Is(err, errno) {
 			return code
 		}

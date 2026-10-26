@@ -37,6 +37,7 @@ import type {
   VariantDeclaration,
   StateDeclaration,
   ActionPrecondition,
+  ActionValue,
   ActionEffect,
   ActionDeclaration,
   OutputProducer,
@@ -48,8 +49,10 @@ import type {
   PlacementDeclaration,
   SemanticOverrideDeclaration,
   FrameDeclaration,
+  ModelDeclaration,
   TextDeclaration,
   ImageDeclaration,
+  VideoDeclaration,
   ShapeDeclaration,
   SlotPlaceholderDeclaration,
   SurfaceDeclaration,
@@ -394,6 +397,14 @@ const contentOverrideSchema = z.discriminatedUnion("kind", [
     style: imageStyleSchema.optional(),
   }),
   z.strictObject({
+    kind: z.literal("video"),
+    visible: booleanValueSchema.optional(),
+    opacity: z.union([unitIntervalSchema, numberPropReferenceSchema]).optional(),
+    placement: placementSchema.optional(),
+    loop: z.boolean().optional(),
+    style: imageStyleSchema.optional(),
+  }),
+  z.strictObject({
     kind: z.literal("shape"),
     visible: booleanValueSchema.optional(),
     opacity: z.union([unitIntervalSchema, numberPropReferenceSchema]).optional(),
@@ -512,6 +523,15 @@ const contentNodeSchema: z.ZodType = z.lazy(() =>
       ...primitiveShape,
       kind: z.literal("image"),
       asset: assetReferenceSchema,
+      layout: placementSchema,
+      style: imageStyleSchema,
+    }),
+    z.strictObject({
+      ...stableShape,
+      ...primitiveShape,
+      kind: z.literal("video"),
+      asset: assetReferenceSchema,
+      loop: z.boolean(),
       layout: placementSchema,
       style: imageStyleSchema,
     }),
@@ -652,6 +672,35 @@ const actionPreconditionSchema = z.strictObject({
 });
 const actionEffectSchema = z.discriminatedUnion("kind", [
   z.strictObject({
+    kind: z.literal("playModelClip"),
+    nodeId: idSchema,
+    clipId: idSchema,
+    speed: finiteNumberSchema.positive(),
+    loop: z.boolean(),
+    completion: z.enum(["blocking", "nonBlocking"]),
+    transition: z.discriminatedUnion("kind", [
+      z.strictObject({ kind: z.literal("immediate") }),
+      z.strictObject({
+        kind: z.literal("crossfade"),
+        durationMilliseconds: z.number().int().positive().safe(),
+        easing: z.enum(["linear", "cubicIn", "cubicOut", "cubicInOut"]),
+      }),
+    ]),
+    conflict: z.literal("reject"),
+  }),
+  ...["pauseModelClip", "resumeModelClip", "stopModelClip"].map((kind) =>
+    z.strictObject({ kind: z.literal(kind), nodeId: idSchema }),
+  ),
+  ...["playMedia", "pauseMedia"].map((kind) =>
+    z.strictObject({ kind: z.literal(kind), surfaceId: idSchema }),
+  ),
+  z.strictObject({
+    kind: z.literal("seekMedia"),
+    surfaceId: idSchema,
+    positionSeconds: actionValueSchema,
+  }),
+
+  z.strictObject({
     kind: z.literal("setSurfaceState"),
     surfaceId: idSchema,
     stateId: idSchema,
@@ -700,6 +749,7 @@ const outputPayloadFieldSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("string"), value: z.string() }),
 ]);
 const outputProducerSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("modelClipCompleted"), nodeId: idSchema, clipId: idSchema }),
   z.strictObject({ kind: z.literal("surfaceInteraction"), interactionId: idSchema }),
   z.strictObject({ kind: z.literal("timelineCompleted"), timelineId: idSchema }),
   z.strictObject({ kind: z.literal("mediaCompleted"), surfaceId: idSchema }),
@@ -807,7 +857,13 @@ const componentStructureShape = {
     }),
   ),
 };
+const modelDeclarationSchema = z.strictObject({
+  ...stableShape,
+  kind: z.literal("model"),
+  asset: assetReferenceSchema,
+});
 const componentStructureSchema = z.union([
+  z.strictObject({ ...componentStructureShape, root: modelDeclarationSchema }),
   z.strictObject({ ...componentStructureShape, root: surfaceDeclarationSchema }),
   z.strictObject({
     ...componentStructureShape,
@@ -815,28 +871,24 @@ const componentStructureSchema = z.union([
     baseSemanticTree: baseSemanticTreeSchema,
   }),
 ]);
-const motionPresetFields = {
-  kind: z.literal("motionPreset"),
-  minimumDistanceMeters: z.number().finite().positive(),
-  windowMilliseconds: positiveSafeIntegerSchema,
-};
 const cueTriggerSchema = z.union([
   z.strictObject({
-    ...motionPresetFields,
-    preset: z.enum([
+    kind: z.literal("zoneEdge"),
+    zoneId: idSchema,
+    edge: z.enum(["enter", "exit"]),
+  }),
+  z.strictObject({
+    kind: z.literal("gesture"),
+    gesture: z.enum([
       "swipeLeft",
       "swipeRight",
       "swipeDown",
       "swipeUp",
       "pushForward",
       "pullBackward",
+      "spreadHands",
+      "closeHands",
     ]),
-    hand: z.enum(["eitherHand", "leftHand", "rightHand"]),
-  }),
-  z.strictObject({
-    ...motionPresetFields,
-    preset: z.enum(["spreadHands", "closeHands"]),
-    hand: z.literal("bothHands"),
   }),
   z.strictObject({ kind: z.literal("event"), event: idSchema }),
   z.strictObject({
@@ -891,7 +943,6 @@ const cueSchema = z
         z.strictObject({ kind: z.literal("oncePerStepEntry") }),
         z.strictObject({
           kind: z.literal("repeatable"),
-          cooldownMilliseconds: nonNegativeIntegerSchema,
         }),
       ])
       .optional(),
@@ -947,6 +998,16 @@ const presentationSchema = z.strictObject({
   ...stableShape,
   metadata: z.strictObject({ title: z.string().min(1) }),
   stage: z.strictObject({
+    zones: z
+      .record(
+        idSchema,
+        z.strictObject({
+          ...stableShape,
+          owner: resourceOwnerSchema,
+          center: z.tuple([finiteNumberSchema, finiteNumberSchema, finiteNumberSchema]),
+        }),
+      )
+      .optional(),
     coordinateSystem: z.strictObject({
       unit: z.literal("meter"),
       handedness: z.literal("right"),
@@ -1045,6 +1106,14 @@ const staticBuilderResultSchemas = new Map<string, z.ZodType>([
   ["surfaceState", actionPreconditionSchema],
   ["setSurfaceState", actionEffectSchema],
   ["playTimeline", actionEffectSchema],
+  ["playModelClip", actionEffectSchema],
+  ["pauseModelClip", actionEffectSchema],
+  ["resumeModelClip", actionEffectSchema],
+  ["stopModelClip", actionEffectSchema],
+  ["playMedia", actionEffectSchema],
+  ["pauseMedia", actionEffectSchema],
+  ["seekMedia", actionEffectSchema],
+  ["modelClipCompleted", outputProducerSchema],
   ["surfaceInteraction", outputProducerSchema],
   ["timelineCompleted", outputProducerSchema],
   ["mediaCompleted", outputProducerSchema],
@@ -1055,10 +1124,12 @@ const staticBuilderResultSchemas = new Map<string, z.ZodType>([
   ["tokenRef", tokenReferenceSchema],
   ["namedStyleRef", namedStyleReferenceSchema],
   ["assetRef", assetReferenceSchema],
+  ["model", modelDeclarationSchema],
   ["spatial", spatialDeclarationSchema],
   ["frame", frameDeclarationSchema],
   ["text", contentNodeSchema],
   ["image", contentNodeSchema],
+  ["video", contentNodeSchema],
   ["shape", contentNodeSchema],
   ["surface", surfaceDeclarationSchema],
   ["semanticOverride", semanticOverrideSchema],
@@ -1281,7 +1352,10 @@ const assertComponentManifest = (value: unknown): void => {
       } else if (effect.kind === "setVariable")
         assertId(effect.variableId, "action effect variableId");
       else if (effect.kind === "patchNode") assertId(effect.nodeId, "action effect nodeId");
-      else assertId(effect.timelineId, "action effect timelineId");
+      else if (effect.kind === "playTimeline")
+        assertId(effect.timelineId, "action effect timelineId");
+      else if ("nodeId" in effect) assertId(effect.nodeId, "action effect nodeId");
+      else assertId(effect.surfaceId, "action effect surfaceId");
     }
   }
   for (const variantValue of Object.values(declaration.variants)) {
@@ -1294,7 +1368,10 @@ const assertComponentManifest = (value: unknown): void => {
       assertId(outputValue.producer.interactionId, "output producer interactionId");
     else if (outputValue.producer.kind === "timelineCompleted")
       assertId(outputValue.producer.timelineId, "output producer timelineId");
-    else if (outputValue.producer.kind === "mediaCompleted")
+    else if (outputValue.producer.kind === "modelClipCompleted") {
+      assertId(outputValue.producer.nodeId, "output producer nodeId");
+      assertId(outputValue.producer.clipId, "output producer clipId");
+    } else if (outputValue.producer.kind === "mediaCompleted")
       assertId(outputValue.producer.surfaceId, "output producer surfaceId");
     else if (
       !finiteNumberSchema.nonnegative().safeParse(outputValue.producer.afterMilliseconds).success
@@ -1329,6 +1406,7 @@ const assertComponentStructure = (value: unknown): void => {
     assertId(targetId, "part binding targetId");
   for (const timeline of declaration.timelines) assertStableNested(timeline, "timeline id");
   if (declaration.root.kind === "surface") assertSurfaceIds(declaration.root);
+  else if (declaration.root.kind === "model") assertStableNested(declaration.root, "model id");
   else assertContentIds(declaration.root);
   assertStableNested(declaration, "id");
   assertSchema(componentStructureSchema, declaration, "Invalid Component Structure declaration.");
@@ -1615,6 +1693,12 @@ export const spatial = <const T extends WithoutStableKind<SpatialDeclaration>>(v
   assertSchema(spatialDeclarationSchema, declaration, "Invalid spatial declaration.");
   return defineStable(declaration);
 };
+export const model = <const T extends WithoutStableKind<ModelDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  const result = { ...declaration, kind: "model" as const };
+  assertSchema(modelDeclarationSchema, result, "Invalid model declaration.");
+  return defineStable(result);
+};
 export const frame = <const T extends WithoutStableKind<FrameDeclaration>>(value: T) => {
   const declaration = assertJsonSafe(value);
   assertLayout(declaration.layout);
@@ -1687,5 +1771,58 @@ export const detach = <const T extends WithoutStableKind<DetachDeclaration>>(val
   assertId(declaration.provenance.componentId, "provenance.componentId");
   const result = { ...declaration, kind: "detach" as const };
   assertSchema(detachSchema, result, "Invalid detach declaration.");
+  return defineStable(result);
+};
+
+export const playModelClip = (
+  value: Omit<Extract<ActionEffect, { kind: "playModelClip" }>, "kind">,
+): ActionEffect => {
+  const result = { ...assertJsonSafe(value), kind: "playModelClip" as const };
+  assertSchema(actionEffectSchema, result, "Invalid playback effect.");
+  return build(result);
+};
+export const pauseModelClip = (value: { nodeId: string }): ActionEffect => {
+  const result = { ...assertJsonSafe(value), kind: "pauseModelClip" as const };
+  assertSchema(actionEffectSchema, result, "Invalid playback effect.");
+  return build(result);
+};
+export const resumeModelClip = (value: { nodeId: string }): ActionEffect => {
+  const result = { ...assertJsonSafe(value), kind: "resumeModelClip" as const };
+  assertSchema(actionEffectSchema, result, "Invalid playback effect.");
+  return build(result);
+};
+export const stopModelClip = (value: { nodeId: string }): ActionEffect => {
+  const result = { ...assertJsonSafe(value), kind: "stopModelClip" as const };
+  assertSchema(actionEffectSchema, result, "Invalid playback effect.");
+  return build(result);
+};
+export const playMedia = (value: { surfaceId: string }): ActionEffect => {
+  const result = { ...assertJsonSafe(value), kind: "playMedia" as const };
+  assertSchema(actionEffectSchema, result, "Invalid playback effect.");
+  return build(result);
+};
+export const pauseMedia = (value: { surfaceId: string }): ActionEffect => {
+  const result = { ...assertJsonSafe(value), kind: "pauseMedia" as const };
+  assertSchema(actionEffectSchema, result, "Invalid playback effect.");
+  return build(result);
+};
+export const seekMedia = (value: {
+  surfaceId: string;
+  positionSeconds: ActionValue;
+}): ActionEffect => {
+  const result = { ...assertJsonSafe(value), kind: "seekMedia" as const };
+  assertSchema(actionEffectSchema, result, "Invalid playback effect.");
+  return build(result);
+};
+export const modelClipCompleted = (value: { nodeId: string; clipId: string }): OutputProducer => {
+  const result = { ...assertJsonSafe(value), kind: "modelClipCompleted" as const };
+  assertSchema(outputProducerSchema, result, "Invalid clip Output.");
+  return build(result);
+};
+
+export const video = <const T extends WithoutStableKind<VideoDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  const result = { ...declaration, kind: "video" as const };
+  assertSchema(contentNodeSchema, result, "Invalid Video declaration.");
   return defineStable(result);
 };

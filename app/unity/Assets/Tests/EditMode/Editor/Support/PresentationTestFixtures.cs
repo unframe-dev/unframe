@@ -9,6 +9,7 @@ public static class PresentationTestFixtures
     public static TextAsset Load(string name)
     {
         TextAsset fixture = AssetDatabase.LoadAssetAtPath<TextAsset>(DirectoryPath + name + ".json");
+        if (fixture == null) fixture = AssetDatabase.LoadAssetAtPath<TextAsset>(DirectoryPath + name + ".bytes");
         if (fixture == null) throw new FileNotFoundException("Presentation test fixture was not found.", name);
         return fixture;
     }

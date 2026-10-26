@@ -107,8 +107,17 @@ export const validatePresentationDefinition = (
     const path = `/scene/nodes/${pathSegment(nodeId)}`;
     validateGroupOwner(diagnostics, node, groupIds, path);
     validateCanonicalQuaternion(diagnostics, node.transform.rotation, `${path}/transform/rotation`);
-    if (!options.fullDelivery && node.kind !== "container" && node.kind !== "surface")
-      unsupported(diagnostics, `${path}/kind`, "M3A supports container and surface nodes only.");
+    if (
+      !options.fullDelivery &&
+      node.kind !== "container" &&
+      node.kind !== "surface" &&
+      node.kind !== "model"
+    )
+      unsupported(
+        diagnostics,
+        `${path}/kind`,
+        "Supported spatial nodes are Container, Surface, and Model.",
+      );
     const parentId = node.parent.kind === "node" ? node.parent.nodeId : null;
     parentByNode.set(nodeId, parentId);
     if (parentId !== null && !nodeIds.has(parentId))
@@ -234,14 +243,6 @@ export const validatePresentationDefinition = (
         );
       for (const [contentId, content] of Object.entries(nodes)) {
         const contentPath = `${path}/content/nodes/${pathSegment(contentId)}`;
-        if (content.kind === "video" && !options.fullDelivery) {
-          unsupported(
-            diagnostics,
-            `${contentPath}/kind`,
-            "Video content requires a runtime media renderer.",
-          );
-          continue;
-        }
         if (content.semanticNodeId === undefined) continue;
         const semantic = surface.baseSemanticTree.nodes[content.semanticNodeId];
         if (semantic === undefined)

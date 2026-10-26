@@ -14,6 +14,8 @@ test("Preview playback carries ordered state and the shared runtime clock withou
     nodeStates: [],
     surfaceStates: [],
     activeRuns: [],
+    mediaStates: [],
+    modelClipStates: [],
     clock: { runtimeTimeMs: "500", paused: {} },
     currentGroupId: "main",
   };
@@ -46,8 +48,7 @@ test("Preview reuses the catalog and state messages without a publication or ses
     assetSet: "{}",
     projection: {
       runtimeCatalog: {
-        catalogContractVersion: 2,
-        motionGuides: [],
+        catalogContractVersion: 3,
         nodes: [],
         surfaces: [],
         variables: [],
@@ -62,7 +63,7 @@ test("Preview reuses the catalog and state messages without a publication or ses
       localOverlays: [],
       requiredRuntimeCapabilities: [],
     },
-    initialState: { nodeStates: [], surfaceStates: [] },
+    initialState: { nodeStates: [], surfaceStates: [], mediaStates: [], modelClipStates: [] },
     assets: [],
   };
   const decoded = decodeWireMessage(

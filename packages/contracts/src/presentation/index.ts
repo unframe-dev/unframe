@@ -5,6 +5,8 @@ export * from "./definition";
 export * from "./publication";
 export * from "./render-bundle";
 export * from "./runtime-projection";
+export * from "./runtime-authority";
 export * from "./semantics";
 export * from "./wire";
 export type * from "../../presentation/wire-types";
+export { createUnityMediaCapabilityProfile } from "./media-capability";
