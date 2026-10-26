@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -66,7 +68,8 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 	}
 	defer func() { _ = connection.Close() }()
 	client := realtimev2.NewRealtimeServiceClient(connection)
-	control, err := v3TestConnectControl(ctx, client)
+	// The auto-ACK wrapper can return a send-side EOF after CloseSend before the server has closed.
+	control, err := client.ConnectControl(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,6 +123,9 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 	}
 	for {
 		if _, err := control.Recv(); err != nil {
+			if !errors.Is(err, io.EOF) {
+				t.Fatalf("Control did not close cleanly: %v", err)
+			}
 			break
 		}
 	}
