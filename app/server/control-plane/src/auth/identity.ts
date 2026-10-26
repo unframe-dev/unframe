@@ -10,7 +10,7 @@ export async function identityFromSession(
   const session = await createAuth(config).api.getSession({
     headers: context.req.raw.headers,
   });
-  if (!session) {
+  if (!session || session.user.id.startsWith("anonymous_")) {
     return undefined;
   }
   const user = session.user as typeof session.user & { twoFactorEnabled?: boolean };

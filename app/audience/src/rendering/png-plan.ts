@@ -1,4 +1,5 @@
 import {
+  runtimeAuthorityVersions,
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
   type ParticipantRuntimeView,
@@ -74,11 +75,12 @@ function canonicalQuaternion(q: readonly number[]) {
 }
 export function buildPngPlan(delivery: DeliveryManifestWire, input: unknown): PngPlan {
   const view = participantRuntimeViewSchema.parse(input);
+  if (view.frozenAnchors.length) fail("unsupported frozen Anchor display state");
   const profile = delivery.projectionProfile ?? fail("missing projection");
   if (
-    delivery.schemaVersion !== 2 ||
-    delivery.deliveryContractVersion !== 2 ||
-    profile.runtimeCatalog?.catalogContractVersion !== 2
+    delivery.schemaVersion !== runtimeAuthorityVersions.delivery ||
+    delivery.deliveryContractVersion !== runtimeAuthorityVersions.delivery ||
+    profile.runtimeCatalog?.catalogContractVersion !== runtimeAuthorityVersions.catalog
   )
     fail("unsupported delivery contract");
   if (

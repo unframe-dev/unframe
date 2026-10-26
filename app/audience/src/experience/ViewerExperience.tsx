@@ -18,6 +18,7 @@ export interface ViewerExperienceProps {
     input: RuntimeInput,
     connection: PreparedConnection,
     getConnection: () => PreparedConnection,
+    restartInput: () => RuntimeInput | null,
   ): void | (() => void);
   onRecoveryRequest?(
     request: NonNullable<ViewingSnapshot["recovery"]>,
@@ -144,11 +145,25 @@ export function ViewerExperience(props: ViewerExperienceProps) {
     const installed: NonNullable<typeof binding.current> = { input, installer: currentInstaller };
     binding.current = installed;
     try {
-      const cleanup = installer.current?.(input, structuredClone(currentConnection.current), () => {
-        if (binding.current !== installed || viewer.current?.getInput() !== input)
-          throw new Error("viewing-input-inactive");
-        return structuredClone(currentConnection.current);
-      });
+      const target = viewer.current;
+      const cleanup = installer.current?.(
+        input,
+        structuredClone(currentConnection.current),
+        () => {
+          if (binding.current !== installed || viewer.current?.getInput() !== input)
+            throw new Error("viewing-input-inactive");
+          return structuredClone(currentConnection.current);
+        },
+        () => {
+          if (
+            binding.current !== installed ||
+            viewer.current !== target ||
+            target?.getInput() !== input
+          )
+            return null;
+          return target.restartInput();
+        },
+      );
       if (cleanup) installed.cleanup = cleanup;
     } catch {
       setError(connectionFailure);
@@ -179,6 +194,12 @@ export function ViewerExperience(props: ViewerExperienceProps) {
       input.disconnected();
     }
   }, [viewing, props.onRecoveryRequest]);
+
+  useEffect(() => {
+    if (viewing?.phase !== "disconnected" || !props.onRuntimeInput) return;
+    const timer = setTimeout(() => viewer.current?.restartInput(), 2000);
+    return () => clearTimeout(timer);
+  }, [viewing?.phase, props.onRuntimeInput]);
 
   async function start() {
     const target = viewer.current;

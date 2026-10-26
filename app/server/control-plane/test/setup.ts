@@ -130,3 +130,14 @@ await applyD1Migrations(env.DB, [
       .filter(Boolean),
   },
 ]);
+
+import anonymousViewerMigration from "../migrations/0013_anonymous_viewers.sql?raw";
+await applyD1Migrations(env.DB, [
+  {
+    name: "0013_anonymous_viewers.sql",
+    queries: anonymousViewerMigration
+      .split(";")
+      .map((query: string) => query.trim())
+      .filter(Boolean),
+  },
+]);

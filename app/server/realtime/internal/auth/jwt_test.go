@@ -602,3 +602,21 @@ func mapsClone(input map[string]any) map[string]any {
 	}
 	return copy
 }
+
+func TestVerifiedCredentialIncludesOnlyAuthenticatedExpiry(t *testing.T) {
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	private, public := testKey(t)
+	server := newJWKSServer(t, "key-1", public)
+	defer server.Close()
+	verifier := newTestVerifier(t, server.URL, &now)
+	verified, err := verifier.VerifyCredential(context.Background(), issueToken(t, private, "key-1", validClaims(now)), "realtime:connect")
+	if err != nil || verified.Identity.ParticipantID != "participant-1" || !verified.ExpiresAt.Equal(now.Add(time.Minute)) {
+		t.Fatalf("verified credential=%#v error=%v", verified, err)
+	}
+	claims := validClaims(now)
+	claims["exp"] = now.Add(-time.Second).Unix()
+	rejected, err := verifier.VerifyCredential(context.Background(), issueToken(t, private, "key-1", claims), "realtime:connect")
+	if err == nil || !rejected.ExpiresAt.IsZero() || rejected.Identity.ParticipantID != "" {
+		t.Fatalf("invalid credential exposed claims: %#v error=%v", rejected, err)
+	}
+}

@@ -25,6 +25,7 @@ beforeEach(() => {
   vi.mocked(createRuntimeStore).mockReturnValue({
     applyControl: vi.fn(),
     applyState: vi.fn(),
+    restartState: vi.fn(),
     reset: vi.fn(),
     getSnapshot: () => structuredClone(snapshot),
   });

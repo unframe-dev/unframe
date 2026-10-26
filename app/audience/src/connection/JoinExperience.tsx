@@ -11,7 +11,7 @@ const progressText: Record<JoinSnapshot["phase"], string> = {
   joining: "ルームに参加中…",
   delivery: "表示データを取得中…",
   bootstrap: "接続情報を取得中…",
-  prepared: "接続準備完了。ライブ受信は未接続です。",
+  prepared: "接続準備完了。カメラを開始してください。",
   error: "接続準備を完了できませんでした。",
 };
 

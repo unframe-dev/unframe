@@ -16,6 +16,8 @@ export interface RuntimeInput {
   applyControl(item: ControlServerItemWire): void;
   applyState(item: StateServerItemWire): void;
   disconnected(): void;
+  restartState(): void;
+  getReadiness(): { reliableSequence: string; presentationOriginVersion: string } | null;
 }
 export interface ViewingSnapshot {
   phase:
@@ -153,6 +155,20 @@ export function createViewingSession(host: Host) {
         }
       };
       input = {
+        restartState() {
+          if (!current()) return;
+          target.restartState();
+          inspect();
+        },
+        getReadiness() {
+          if (!current()) return null;
+          const state = target.getSnapshot();
+          if (state.phase !== "ready" || state.rendering !== "ready" || !state.view) return null;
+          return {
+            reliableSequence: state.reliableSequence,
+            presentationOriginVersion: String(state.view.presentationOrigin.version),
+          };
+        },
         applyControl(item) {
           apply(() => target.applyControl(item));
         },

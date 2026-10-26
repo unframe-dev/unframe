@@ -36,9 +36,9 @@ Presenter profile は `ProjectedRuntimeCatalog.presenter_recognition` を配信�
 Definition 内の Gesture と Zone の認識候補を client が参照し、Presenter 入力を authoritative Runtime が検証します。
 wire・version・容量制限は [Presenter authority 契約](../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) を参照してください。
 
-## Realtime / Delivery v2 consumers
+## Realtime / Delivery v3 consumers
 
-`proto/unframe/{presentation,delivery,realtime}/` が wire の正本です。Realtime v1 と Presentation v1 の公開 schema、fixture、生成経路は廃止しています。旧 Control Plane Presentation CRUD の DTO は独立した未移行の境界です。
+`proto/unframe/{presentation,delivery,realtime}/` が wire の正本です。現在は Runtime／Delivery v3 を使用し、ブラウザの framing・認証・接続経路は [Browser Realtime transport](browser-realtime.md) を参照してください。Realtime v1 と Presentation v1 の公開 schema、fixture、生成経路は廃止しています。旧 Control Plane Presentation CRUD の DTO は独立した未移行の境界です。
 
 repository root の Nix development shell で実行します。
 

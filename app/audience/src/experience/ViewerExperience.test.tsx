@@ -364,7 +364,7 @@ test("旧installer・切断・停止・assignment変更・退出後のgetterは�
   await start();
   expect(getters[0]!().bootstrap.credential).toBe("private-old");
   const replacement = vi.fn<NonNullable<ViewerExperienceProps["onRuntimeInput"]>>(
-    (input, connection, getter) => install(input, connection, getter),
+    (input, connection, getter, restart) => install(input, connection, getter, restart),
   );
   ui.rerender(<ViewerExperience {...props} onRuntimeInput={replacement} />);
   expect(() => getters[0]!()).toThrow("viewing-input-inactive");

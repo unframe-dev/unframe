@@ -47,6 +47,7 @@ const runtimeConfigSchema = z.object({
   RESEND_API_KEY: requiredString("RESEND_API_KEY"),
   AUTH_EMAIL_FROM: requiredString("AUTH_EMAIL_FROM").email("AUTH_EMAIL_FROM must be an email"),
   WEB_ORIGIN: originUrl("WEB_ORIGIN"),
+  AUDIENCE_ORIGIN: originUrl("AUDIENCE_ORIGIN").optional(),
   PUBLICATION_ASSET_ORIGIN: originUrl("PUBLICATION_ASSET_ORIGIN")
     .refine(
       (value) => new URL(value).protocol === "https:",

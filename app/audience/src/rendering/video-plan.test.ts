@@ -120,3 +120,20 @@ describe("video plan", () => {
     expect(ids).not.toContain("a:b:c");
   });
 });
+
+it.each(["delivery", "catalog"])("rejects obsolete v2 %s contracts before rendering", (kind) => {
+  const { delivery, view } = videoFixture();
+  if (kind === "delivery") delivery.deliveryContractVersion = 2;
+  else delivery.projectionProfile!.runtimeCatalog!.catalogContractVersion = 2;
+  expect(() => buildVideoPlan(delivery, view)).toThrow();
+});
+
+it("rejects frozen Anchor display state before loading media", () => {
+  const { delivery, view } = videoFixture();
+  expect(() =>
+    buildVideoPlan(delivery, {
+      ...view,
+      frozenAnchors: [{ nodeId: Object.keys(view.nodeStates)[0]!, position: [1, 2, 3] }],
+    }),
+  ).toThrow(/Anchor/);
+});

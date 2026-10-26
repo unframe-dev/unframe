@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
@@ -18,6 +19,7 @@ type serverConfig struct {
 	controlPlaneURL string
 	serviceIdentity string
 	assignment      assignment.RuntimeAssignment
+	browserOrigins  []string
 }
 
 func loadConfig(getenv func(string) string) (serverConfig, error) {
@@ -50,7 +52,19 @@ func loadConfig(getenv func(string) string) (serverConfig, error) {
 	if err := runtimeAssignment.Validate(); err != nil {
 		return serverConfig{}, ErrInvalidConfiguration
 	}
-	return serverConfig{issuer: issuer, audience: audience, jwksURL: jwksURL, controlPlaneURL: controlPlaneURL, serviceIdentity: serviceIdentity, assignment: runtimeAssignment}, nil
+	origins := []string{}
+	for _, raw := range strings.Split(getenv("REALTIME_BROWSER_ORIGINS"), ",") {
+		value := strings.TrimSpace(raw)
+		if value == "" {
+			continue
+		}
+		origin, err := url.Parse(value)
+		if err != nil || origin.Scheme != "https" || origin.Host == "" || origin.User != nil || origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" || value != "https://"+origin.Host {
+			return serverConfig{}, ErrInvalidConfiguration
+		}
+		origins = append(origins, value)
+	}
+	return serverConfig{browserOrigins: origins, issuer: issuer, audience: audience, jwksURL: jwksURL, controlPlaneURL: controlPlaneURL, serviceIdentity: serviceIdentity, assignment: runtimeAssignment}, nil
 }
 
 func requiredEnvironment(getenv func(string) string, name string) (string, bool) {

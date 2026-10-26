@@ -1,4 +1,5 @@
 import {
+  runtimeAuthorityVersions,
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
 } from "@unframe/contracts/presentation";
@@ -44,11 +45,12 @@ function unique<T>(values: readonly T[], key: (value: T) => string | undefined):
 }
 export function buildVideoPlan(delivery: DeliveryManifestWire, input: unknown): VideoPlan {
   const view = participantRuntimeViewSchema.parse(input);
+  if (view.frozenAnchors.length) fail("unsupported frozen Anchor display state");
   const profile = delivery.projectionProfile ?? fail("missing projection");
   if (
-    delivery.schemaVersion !== 2 ||
-    delivery.deliveryContractVersion !== 2 ||
-    profile.runtimeCatalog?.catalogContractVersion !== 2 ||
+    delivery.schemaVersion !== runtimeAuthorityVersions.delivery ||
+    delivery.deliveryContractVersion !== runtimeAuthorityVersions.delivery ||
+    profile.runtimeCatalog?.catalogContractVersion !== runtimeAuthorityVersions.catalog ||
     view.projectionProfileId !== profile.projectionProfileId ||
     delivery.projectionInstance?.projectionProfileId !== profile.projectionProfileId ||
     String(view.assignmentEpoch) !== delivery.projectionInstance?.assignmentEpoch

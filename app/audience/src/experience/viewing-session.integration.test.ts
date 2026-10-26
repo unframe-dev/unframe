@@ -13,6 +13,7 @@ import { createViewingSession } from "./viewing-session";
 function contractFixture() {
   const delivery = structuredClone(fixture.value) as DeliveryManifestWire;
   delivery.projectionProfile!.key!.role = 2;
+  delivery.projectionProfile!.requiredRuntimeCapabilities = [1, 2, 3, 8, 9, 10];
   const profileId = delivery.projectionProfile!.projectionProfileId!;
   const nodeId = delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.nodeId!;
   const surfaceId = delivery.projectionProfile!.runtimeCatalog!.surfaces![0]!.surfaceId!;
@@ -29,7 +30,7 @@ function contractFixture() {
     scale: { x: 1, y: 1, z: 1 },
   };
   const snapshot: ConnectionSnapshotEnvelopeWire = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     connectionId: "connection",
     fence,
     projectionInstance: delivery.projectionInstance!,

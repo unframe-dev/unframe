@@ -139,12 +139,14 @@ describe("Audience HTTP client", () => {
     await expect(client.bootstrap("session")).rejects.toMatchObject({ code: "expired-bootstrap" });
   });
   it("rejects missing or mismatched Delivery identity", async () => {
-    for (const value of [{}, fixture.value]) {
+    for (const bytes of [
+      new Uint8Array(),
+      encodeWireMessage("unframe.delivery.DeliveryManifest", fixture.value),
+    ]) {
       const { client } = setup(
-        new Response(
-          new Uint8Array(encodeWireMessage("unframe.delivery.DeliveryManifest", value)),
-          { headers: { "content-type": "application/x-protobuf" } },
-        ),
+        new Response(new Uint8Array(bytes), {
+          headers: { "content-type": "application/x-protobuf" },
+        }),
       );
       await expect(client.delivery("different-session")).rejects.toMatchObject({
         code: "invalid-response",
@@ -152,9 +154,14 @@ describe("Audience HTTP client", () => {
     }
   });
   it("rejects unsupported Delivery contract versions", async () => {
-    const value = { ...fixture.value, deliveryContractVersion: 1 };
+    const value = fixture.value;
+    const bytes = new Uint8Array(encodeWireMessage("unframe.delivery.DeliveryManifest", value));
+    // Delivery field 2 is the contract major; mutate wire bytes because the encoder rejects obsolete majors.
+    const marker = bytes.findIndex((byte, index) => byte === 16 && bytes[index + 1] === 3);
+    expect(marker).toBeGreaterThan(-1);
+    bytes[marker + 1] = 1;
     const { client } = setup(
-      new Response(new Uint8Array(encodeWireMessage("unframe.delivery.DeliveryManifest", value)), {
+      new Response(bytes, {
         headers: { "content-type": "application/x-protobuf" },
       }),
     );

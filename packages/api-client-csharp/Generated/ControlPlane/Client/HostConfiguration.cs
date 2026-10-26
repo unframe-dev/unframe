@@ -126,6 +126,7 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new VenueEdgesPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new VenueEdgesPost201ResponseEdgeJsonConverter());
             _jsonOptions.Converters.Add(new VenueEdgesPostRequestJsonConverter());
+            _jsonOptions.Converters.Add(new ViewerCredentialsPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new WellKnownJwksJsonGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new WellKnownJwksJsonGet200ResponseKeysInnerJsonConverter());
             JsonSerializerOptionsProvider jsonSerializerOptionsProvider = new(_jsonOptions);

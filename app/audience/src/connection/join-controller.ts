@@ -103,7 +103,7 @@ function displayError(error: unknown): string {
 }
 
 export function createJoinController(options: {
-  client: ReturnType<typeof createAudienceHttpClient>;
+  client: ReturnType<typeof createAudienceHttpClient> & { leave?(): Promise<void> };
   capabilityProfileId: string;
   now?: () => number;
 }) {
@@ -123,6 +123,9 @@ export function createJoinController(options: {
   function publish(next: JoinSnapshot) {
     snapshot = next;
     for (const listener of listeners) listener();
+  }
+  function releaseIdentity() {
+    void options.client.leave?.().catch(() => {});
   }
   function stop() {
     generation++;
@@ -289,16 +292,19 @@ export function createJoinController(options: {
     },
     cancel() {
       stop();
+      releaseIdentity();
       joinedSession = null;
       if (!disposed) publish({ phase: "idle" });
     },
     leave() {
       stop();
+      releaseIdentity();
       joinedSession = null;
       if (!disposed) publish({ phase: "idle" });
     },
     dispose() {
       stop();
+      releaseIdentity();
       joinedSession = null;
       disposed = true;
       snapshot = { phase: "idle" };

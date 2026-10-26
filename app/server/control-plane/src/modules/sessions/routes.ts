@@ -1,3 +1,4 @@
+import { viewerIdentity, viewerCredential, viewerToken } from "../viewer-credentials/identity";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -87,7 +88,14 @@ export function createSessionRoutes(options: SessionRouteOptions) {
     context: AppContext,
     operation: (identity: Identity, dependencies: RouteDependencies) => Promise<T>,
   ) => {
-    const identity = await options.identityProvider(context);
+    const viewerAllowed =
+      context.req.path === "/sessions/join" ||
+      context.req.method === "GET" ||
+      context.req.path.endsWith("/bootstrap");
+    const identity =
+      viewerAllowed && viewerToken(context)
+        ? await viewerIdentity(context, now())
+        : await options.identityProvider(context);
     if (!identity) {
       throw new HTTPException(401, {
         res: context.json({ error: { code: "unauthorized", message: "Unauthorized" } }, 401),
@@ -116,6 +124,20 @@ export function createSessionRoutes(options: SessionRouteOptions) {
       return context.json(result, 201);
     })
     .openapi(joinSessionRoute, async (context) => {
+      if (viewerToken(context)) {
+        const credential = await viewerCredential(context, now());
+        if (credential) {
+          const requested = await (
+            options.sessionRepository ?? new D1SessionRepository(context.get("config").DB)
+          ).findActiveByCodeHash(await sha256JoinCode(context.req.valid("json").joinCode));
+          if (requested?.id !== credential.sessionId)
+            return context.json({ error: { code: "forbidden", message: "forbidden" } }, 403);
+          const result = await execute(context, (identity, { service }) =>
+            service.get(identity, credential.sessionId),
+          );
+          return context.json(result, 200);
+        }
+      }
       const result = await execute(context, (identity, { service }) =>
         service.join(
           identity,

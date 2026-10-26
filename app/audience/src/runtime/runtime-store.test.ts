@@ -1,3 +1,4 @@
+import { encodeWireMessage } from "@unframe/contracts/presentation";
 import { describe, expect, it } from "vitest";
 import type {
   ConnectionSnapshotEnvelopeWire,
@@ -28,7 +29,7 @@ function setup() {
     scale: { x: 1, y: 1, z: 1 },
   };
   const snapshot: ConnectionSnapshotEnvelopeWire = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     connectionId: "connection",
     fence,
     projectionInstance: delivery.projectionInstance!,
@@ -76,6 +77,164 @@ function setup() {
 }
 
 describe("runtime store", () => {
+  it.each([
+    { gestureInputAccepted: { gesture: 1 } },
+    { zoneInputAccepted: { zoneId: "stage", edge: 1 } },
+  ])(
+    "advances accepted Presenter recognition events without enabling Viewer inputs (%j)",
+    (payload) => {
+      const { store, snapshot, fence } = setup();
+      store.applyControl({ connectionSnapshot: snapshot });
+      store.applyControl({
+        reliableEvent: {
+          fence,
+          sequence: "1",
+          eventId: "accepted",
+          occurredAtRuntimeTimeMs: "0",
+          ...payload,
+        },
+      });
+      expect(store.getSnapshot()).toMatchObject({ phase: "ready", reliableSequence: "1" });
+      expect(store.getSnapshot().view!.enabledLogicalInputs).toEqual([]);
+    },
+  );
+
+  it.each([6, 7])("rejects ControlConnected requiring unsupported capability %s", (capability) => {
+    const { store, delivery } = setup();
+    store.applyControl({
+      connected: {
+        protocolVersion: "v3",
+        progressionContractVersion: 2,
+        requiredCapabilities: [1, capability, 8, 9, 10],
+        connectionId: "connection",
+        projectionInstance: delivery.projectionInstance!,
+      },
+    });
+    expect(store.getSnapshot().phase).toBe("resync-required");
+  });
+  it("accepts v3 Control negotiation and then a Viewer snapshot", () => {
+    const { store, delivery, snapshot } = setup();
+    store.applyControl({
+      connected: {
+        protocolVersion: "v3",
+        progressionContractVersion: 2,
+        requiredCapabilities: [1, 2, 3, 4, 5, 8, 9, 10],
+        connectionId: "connection",
+        projectionInstance: delivery.projectionInstance!,
+      },
+    });
+    store.applyControl({ connectionSnapshot: snapshot });
+    expect(store.getSnapshot().phase).toBe("ready");
+  });
+  it.each([
+    {
+      presenterStepSelectionCatalog: {
+        reachedSteps: [{ groupId: "intro", stepId: "start" }],
+        reliableSequence: "0",
+      },
+    },
+    {
+      presenterInputSynchronization: {
+        phase: 1,
+        reason: 1,
+        synchronizationRevision: "1",
+        commandEpoch: "1",
+        reliableSequence: "0",
+        inputContext: {
+          inputEpoch: "1",
+          groupId: "intro",
+          groupEntryEpoch: "1",
+          stepId: "start",
+          stepEntryEpoch: "1",
+        },
+        recognitionCatalog: {},
+      },
+    },
+  ])("rejects Presenter-only Control data on the Viewer stream (%j)", (payload) => {
+    const { store, snapshot } = setup();
+    store.applyControl({ connectionSnapshot: snapshot });
+    expect(() => encodeWireMessage("unframe.realtime.ControlServerItem", payload)).not.toThrow();
+    store.applyControl(payload);
+    expect(store.getSnapshot().phase).toBe("resync-required");
+    expect(store.getSnapshot().view).toBeNull();
+  });
+
+  it("atomically restores a complete Viewer view at the reliable event cut", () => {
+    const { store, snapshot, fence, nodeId } = setup();
+    store.applyControl({ connectionSnapshot: snapshot });
+    const replacement = structuredClone(snapshot.snapshot!.runtimeView!);
+    replacement.baseReliableSequence = "1";
+    replacement.progression!.currentStepId = "restored";
+    replacement.progression!.stepEntryEpoch = "2";
+    replacement.nodeStates![0]!.opacity = 0.4;
+    store.applyControl({
+      reliableEvent: {
+        fence,
+        sequence: "1",
+        eventId: "restore",
+        occurredAtRuntimeTimeMs: "0",
+        runtimeViewReplaced: { runtimeView: replacement },
+      },
+    });
+    expect(store.getSnapshot()).toMatchObject({
+      phase: "ready",
+      reliableSequence: "1",
+      stateSync: "awaiting-keyframe",
+    });
+    expect(store.getSnapshot().view!.progression.currentStepId).toBe("restored");
+    expect(store.getSnapshot().view!.nodeStates[nodeId]!.opacity).toBe(0.4);
+    store.applyState({
+      stateFrame: {
+        fence,
+        frameSequence: "1",
+        baseReliableSequence: "0",
+        kind: 2,
+        elements: [{ elementId: nodeId, node: { opacity: 1 } }],
+      },
+    });
+    expect(store.getSnapshot().view!.nodeStates[nodeId]!.opacity).toBe(0.4);
+  });
+  it.each(["cut", "profile", "assignment", "origin", "time"])(
+    "rejects a replacement with mismatching %s",
+    (kind) => {
+      const { store, snapshot, fence } = setup();
+      store.applyControl({ connectionSnapshot: snapshot });
+      const replacement = structuredClone(snapshot.snapshot!.runtimeView!);
+      replacement.baseReliableSequence = "1";
+      if (kind === "cut") replacement.baseReliableSequence = "0";
+      if (kind === "profile") replacement.projectionProfileId = "other";
+      if (kind === "assignment") replacement.assignmentEpoch = "2";
+      if (kind === "origin") replacement.presentationOrigin!.version = "1";
+      if (kind === "time") replacement.clock!.runtimeTimeMs = "1";
+      store.applyControl({
+        reliableEvent: {
+          fence,
+          sequence: "1",
+          eventId: "restore",
+          occurredAtRuntimeTimeMs: "0",
+          runtimeViewReplaced: { runtimeView: replacement },
+        },
+      });
+      expect(store.getSnapshot().phase).toBe("resync-required");
+      expect(store.getSnapshot().view).toBeNull();
+    },
+  );
+
+  it("rejects a v2 snapshot instead of rendering it under v3 delivery", () => {
+    const { store, snapshot } = setup();
+    snapshot.schemaVersion = 2;
+    store.applyControl({ connectionSnapshot: snapshot });
+    expect(store.getSnapshot().phase).toBe("resync-required");
+    expect(store.getSnapshot().view).toBeNull();
+  });
+  it("rejects frozen anchor state until Viewer anchor rendering is supported", () => {
+    const { store, snapshot, nodeId } = setup();
+    snapshot.snapshot!.runtimeView!.frozenAnchors = [{ nodeId, position: { x: 1 } }];
+    store.applyControl({ connectionSnapshot: snapshot });
+    expect(store.getSnapshot().phase).toBe("resync-required");
+    expect(store.getSnapshot().view).toBeNull();
+  });
+
   it("applies a snapshot without sharing mutable input or output", () => {
     const { store, snapshot, nodeId } = setup();
     store.applyControl({ connectionSnapshot: snapshot });
@@ -355,14 +514,14 @@ describe("runtime store", () => {
   it("rejects repeated StateConnected and resets the attachment guard on reset", () => {
     const { store, snapshot } = setup();
     store.applyControl({ connectionSnapshot: snapshot });
-    store.applyState({ connected: { connectionId: "connection" } });
+    store.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
     expect(store.getSnapshot().phase).toBe("ready");
-    store.applyState({ connected: { connectionId: "connection" } });
+    store.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
     expect(store.getSnapshot().phase).toBe("resync-required");
     expect(store.getSnapshot().view).toBeNull();
     store.reset();
     store.applyControl({ connectionSnapshot: snapshot });
-    store.applyState({ connected: { connectionId: "connection" } });
+    store.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
     expect(store.getSnapshot().phase).toBe("ready");
   });
   it("rejects a late StateConnected after accepting frames", () => {
@@ -378,12 +537,96 @@ describe("runtime store", () => {
         ],
       },
     });
-    store.applyState({ connected: { connectionId: "connection" } });
+    store.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
     expect(store.getSnapshot().phase).toBe("resync-required");
   });
 });
 
 describe("independent State recovery", () => {
+  it.each([{}, { nextStateFrameSequence: "0" }, { nextStateFrameSequence: "9007199254740992" }])(
+    "rejects invalid State attachment sequence %j after restart",
+    (sequence) => {
+      const { store, snapshot } = setup();
+      store.applyControl({ connectionSnapshot: snapshot });
+      store.restartState();
+      store.applyState({ connected: { connectionId: "connection", ...sequence } });
+      expect(store.getSnapshot()).toMatchObject({ phase: "resync-required", view: null });
+    },
+  );
+
+  it("reattaches State repeatedly after gaps while retaining the Control cut and displayed view", () => {
+    const { store, snapshot, fence, nodeId, transform } = setup();
+    snapshot.reliableSequence = "7";
+    snapshot.snapshot!.reliableSequence = "7";
+    snapshot.snapshot!.runtimeView!.baseReliableSequence = "7";
+    store.applyControl({ connectionSnapshot: snapshot });
+    const connected = { connected: { connectionId: "connection", nextStateFrameSequence: "1" } };
+    const keyframe = {
+      stateFrame: {
+        fence,
+        frameSequence: "1",
+        baseReliableSequence: "7",
+        kind: 1,
+        elements: [
+          { elementId: nodeId, node: { active: true, visible: true, opacity: 0.25, transform } },
+        ],
+      },
+    };
+    const delta = (sequence: string, opacity: number) => ({
+      stateFrame: {
+        fence,
+        frameSequence: sequence,
+        baseReliableSequence: "7",
+        kind: 2,
+        elements: [{ elementId: nodeId, node: { opacity } }],
+      },
+    });
+    store.applyState(connected);
+    store.applyState(keyframe);
+    store.applyState(delta("3", 0.9));
+    expect(store.getSnapshot()).toMatchObject({
+      phase: "ready",
+      stateSync: "awaiting-keyframe",
+      reliableSequence: "7",
+      stateSequence: "1",
+    });
+    const displayed = store.getSnapshot().view;
+    store.restartState();
+    expect(store.getSnapshot()).toMatchObject({
+      phase: "ready",
+      stateSync: "awaiting-keyframe",
+      reliableSequence: "7",
+      stateSequence: "0",
+      view: displayed,
+    });
+    store.applyState(connected);
+    expect(store.getSnapshot().phase).toBe("ready");
+    store.applyState(delta("1", 0.9));
+    expect(store.getSnapshot().view).toEqual(displayed);
+    expect(store.getSnapshot().stateSync).toBe("awaiting-keyframe");
+    store.applyState(keyframe);
+    store.applyState(delta("2", 0.5));
+    expect(store.getSnapshot()).toMatchObject({
+      phase: "ready",
+      stateSync: "ready",
+      reliableSequence: "7",
+      stateSequence: "2",
+    });
+    expect(store.getSnapshot().view!.nodeStates[nodeId]!.opacity).toBe(0.5);
+    store.applyState(delta("4", 0.9));
+    store.restartState();
+    store.applyState(connected);
+    store.applyState(keyframe);
+    store.applyState(delta("2", 0.75));
+    expect(store.getSnapshot()).toMatchObject({
+      phase: "ready",
+      stateSync: "ready",
+      reliableSequence: "7",
+      stateSequence: "2",
+    });
+    expect(store.getSnapshot().view!.nodeStates[nodeId]!.opacity).toBe(0.75);
+  });
+
   it.each([1, 2] as const)(
     "discards a stale State frame of kind %s after a reliable node commit",
     (kind) => {
@@ -1802,4 +2045,26 @@ describe("media and model runtime", () => {
       expect(store.getSnapshot().phase).toBe("resync-required");
     },
   );
+});
+
+it("restores stopped video and a held model pose from a replacement view", () => {
+  const { store, snapshot, view, surfaceId, send } = mediaSetup();
+  store.applyControl({ connectionSnapshot: snapshot });
+  const replacement = structuredClone(view);
+  replacement.baseReliableSequence = "1";
+  replacement.clock!.runtimeTimeMs = "100";
+  replacement.mediaStates = [{ surfaceId, stopped: { heldPositionMs: 250 } }];
+  replacement.modelClipStates = [
+    { modelNodeId: "model", heldClip: { clipId: "a", positionMs: 400 } },
+  ];
+  send({ runtimeViewReplaced: { runtimeView: replacement } }, 100);
+  expect(store.getSnapshot().phase).toBe("ready");
+  expect(store.getSnapshot().view!.mediaStates[surfaceId]).toEqual({
+    kind: "stopped",
+    heldPositionMilliseconds: 250,
+  });
+  expect(store.getSnapshot().view!.modelClipStates.model).toEqual({
+    kind: "heldClip",
+    clip: { clipId: "a", positionMilliseconds: 400 },
+  });
 });

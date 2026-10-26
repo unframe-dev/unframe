@@ -1,13 +1,15 @@
 import { afterEach, expect, test, vi } from "vitest";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import fixture from "../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import { createViewingSession } from "./viewing-session";
 
-const delivery = () =>
-  ({
-    sessionId: "room",
-    projectionInstance: { assignmentEpoch: "1" },
-    assetAccess: [{ assetId: "asset", url: "https://example.test/old" }],
-  }) as DeliveryManifestWire;
+function delivery(): DeliveryManifestWire {
+  const value = structuredClone(fixture.value) as DeliveryManifestWire;
+  value.projectionProfile!.key!.role = 2;
+  value.projectionProfile!.requiredRuntimeCapabilities = [1, 2, 3, 8, 9, 10];
+  value.assetAccess![0]!.url = "https://example.test/old";
+  return value;
+}
 function setup() {
   const snapshot = {
     phase: "awaiting-snapshot",

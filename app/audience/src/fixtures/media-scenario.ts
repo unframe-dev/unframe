@@ -24,6 +24,7 @@ export async function createMediaFixtureScenario(
   const model = assets[1]!;
   const { delivery, snapshot } = scenario;
   const profile = delivery.projectionProfile!;
+  profile.requiredRuntimeCapabilities = [1, 2, 3, 4, 5, 8, 9, 10];
   const catalog = profile.runtimeCatalog!;
   const owner = { presentation: {} };
   catalog.nodes!.push(

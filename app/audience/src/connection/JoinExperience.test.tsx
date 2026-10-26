@@ -85,7 +85,7 @@ test("接続準備完了をライブ受信完了として表示せず退出で�
     session: { id: "session-secret", state: "Presenting" },
     expiresAt: "2026-10-23T00:01:00Z",
   });
-  expect(screen.getByRole("status").textContent).toContain("ライブ受信は未接続");
+  expect(screen.getByRole("status").textContent).toContain("カメラを開始");
   expect(screen.queryByText("session-secret")).toBeNull();
   expect(screen.queryByRole("button", { name: "参加する" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "取得情報を更新" }));

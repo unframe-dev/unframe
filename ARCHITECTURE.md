@@ -27,7 +27,7 @@ unframe/
 ├── app/
 │   ├── web/                      # React 19 management SPA
 │   ├── local-editor/             # Local Source editor / Unity Preview
-│   ├── audience/                 # React / 8th Wall / Three.js tracking PoC
+│   ├── audience/                 # React / 8th Wall / Three.js audience viewer
 │   ├── server/
 │   │   ├── control-plane/        # Workers / TypeScript / Hono / D1 / R2
 │   │   ├── realtime/             # Go / gRPC / container
@@ -69,10 +69,10 @@ unframe/
 
 ### `app/audience`
 
-- 観客向けWeb XRクライアント。AprilTag 3 `tag36h11`・単一ID 0と8th Wall absolute SLAMによる位置保持PoCのみを持つ。
+- 観客向けWeb XRクライアント。AprilTag 3 `tag36h11`・単一ID 0と8th Wall absolute SLAMによる位置保持と PNG・H.264・GLB の視聴を担う。
 - 有効なタグ姿勢を1回で即採用し、確定値には一致待ち・平滑化なし。表示層のみ距離別の上限付き閾値で小揺れを抑え、閾値を超える変化は即反映する。次の有効タグまでSDK座標内で表示を保持する。未検出・曖昧姿勢は前位置を保持し、SDK追跡低下・hidden・停止で非表示にして新しいタグを要求する。
 - NORMAL連続5秒後に最大頻度で検出開始。既定は黒外周15cm／余白込み22.5cm。ArUco・各単独比較モード・比較描画・複数タグ用実装は撤去した。
-- UI・SDK adapter・検出/姿勢計算・ライブ描画を分離し、ログと明示操作による検出画像保存を残す。ルームIDによる匿名参加・Backend／Quest同期は後続開発。
+- UI・SDK adapter・検出/姿勢計算・ライブ描画を分離し、ログと明示操作による検出画像保存を残す。ルームコードによる匿名 Viewer 参加と既存 Runtime v3 の Control／State 受信を実装済み。公開環境とスマートフォンでの総合受入は未実施。
 - 2026-10-22、ユーザーが現構成を十分な精度と判断しPoCを完了。黒外周150mmで約3.3m、240mmで約5.8mの認識報告を得た。追跡構成を維持してWebアプリ開発へ移行する。定量的な誤差・長時間保持・7m初回認識の目標は未実証。[採用記録](./docs/experiments/audience-apriltag-adopted.md)と[Audience README](./app/audience/README.md)を参照する。
 
 ### `app/unity`
@@ -139,6 +139,6 @@ Control Plane と Realtime の check entrypoint は実装済みです。開発�
 - [x] `packages/contracts/` を次の contract を定義するための境界として保持
 - [x] Control Plane の HTTP 基盤を `app/server/control-plane/` に実装
 - [x] Control Plane の OpenAPI、認証、D1/R2 adapter、Presentation / Asset / Session API を実装
-- [x] Realtime Backend の gRPC 接続、JWT 認証、assignment fencing、page-change fan-out を実装
-- [ ] Realtime の replay / resume、完全な Runtime 状態同期、永続化 callback の session lifecycle 接続を実装
+- [x] Realtime Backend の gRPC／ブラウザ WebSocket、JWT 認証、assignment fencing、Control／State、Snapshot／replay／resume を実装
+- Runtime と永続化の詳細な実装状況は [Realtime Architecture](./app/server/realtime/ARCHITECTURE.md) を参照
 - [ ] component 間 E2E を `app/server/integration/` に実装

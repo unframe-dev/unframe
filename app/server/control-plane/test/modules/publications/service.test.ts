@@ -119,6 +119,65 @@ describe("publication service", () => {
       env.DB.prepare("UPDATE presentations SET revision = 1 WHERE id = 'demo'"),
     ]);
   });
+  it("connects an anonymous viewer through join, delivery and realtime bootstrap", async () => {
+    const service = new PublicationService(env.DB, env.ASSETS);
+    const { copy, bytes } = await publishable();
+    await service.createBuild(owner, "demo", upload(copy));
+    for (const [id, descriptor] of Object.entries(copy.assetSet.assets))
+      await service.uploadAsset(
+        owner,
+        "demo",
+        copy.buildManifest.buildId,
+        id,
+        bytes[id]!,
+        descriptor.mediaType,
+      );
+    await service.publish(owner, "demo", copy.buildManifest.buildId, null);
+    const { sha256JoinCode } = await import("../../../src/modules/sessions/service");
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, created_at, publication_epoch) VALUES ('anonymous-live', 'demo', ?, ?, 'Presenting', '2026', 1)",
+      ).bind(owner.userId, await sha256JoinCode("PLAY-ABCD")),
+      env.DB.prepare(
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES ('anonymous-live', 'runtime-demo', 'Cloud', 'https://runtime.example.test', 1, 1, '2026', '2099-01-01T00:00:00.000Z')",
+      ),
+    ]);
+    const app = createApp();
+    const request = (path: string, body: unknown, token?: string) =>
+      app.fetch(
+        new Request(`https://example.test${path}`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...(token ? { authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(body),
+        }),
+        runtimeEnvironment(),
+      );
+    const issued = await request("/viewer-credentials", { joinCode: "PLAY-ABCD" });
+    expect(issued.status).toBe(201);
+    const credential = (await issued.json()) as { token: string; participantId: string };
+    expect(
+      (await request("/sessions/join", { joinCode: "PLAY-ABCD" }, credential.token)).status,
+    ).toBe(200);
+    const delivery = await request(
+      "/sessions/anonymous-live/delivery",
+      { capabilityProfileId: "audience-web-v1" },
+      credential.token,
+    );
+    expect(delivery.status).toBe(200);
+    expect(delivery.headers.get("content-type")).toBe("application/x-protobuf");
+    const bootstrap = await request("/sessions/anonymous-live/bootstrap", {}, credential.token);
+    expect(bootstrap.status).toBe(200);
+    await expect(bootstrap.json()).resolves.toMatchObject({ runtimeId: "runtime-demo" });
+    const participant = await env.DB.prepare(
+      "SELECT role FROM session_participants WHERE user_id = ?",
+    )
+      .bind(credential.participantId)
+      .first();
+    expect(participant).toEqual({ role: "viewer" });
+  });
   it("accepts a canonical build through the bounded HTTP route", async () => {
     const response = await createApp({ identityProvider: async () => owner }).fetch(
       new Request("https://example.test/presentations/demo/builds", {

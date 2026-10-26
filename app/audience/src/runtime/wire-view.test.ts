@@ -231,7 +231,7 @@ describe("participant wire view adapter", () => {
     expect(() => toParticipantView(value)).toThrow();
   });
   it("accepts known lifecycle reasons and rejects unknown or absent reasons", () => {
-    for (let reason = 1; reason <= 8; reason++) {
+    for (let reason = 1; reason <= 9; reason++) {
       expect(
         toParticipantView({ ...wireFixture(), clock: { paused: { reason } } }).clock.lifecycle.kind,
       ).toBe("paused");
@@ -244,7 +244,7 @@ describe("participant wire view adapter", () => {
     }
     for (const clock of [
       { paused: {} },
-      { paused: { reason: 9 } },
+      { paused: { reason: 10 } },
       { terminating: { reason: 4 } },
     ]) {
       expect(() => toParticipantView({ ...wireFixture(), clock })).toThrow();

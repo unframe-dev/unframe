@@ -1,3 +1,4 @@
+import { assertViewerRuntimeCapabilities } from "../runtime/viewer-policy";
 import { afterEach, expect, it, vi } from "vitest";
 import { evaluateAnimationView } from "../runtime/animation-view";
 import { createRuntimeStore } from "../runtime/runtime-store";
@@ -27,6 +28,11 @@ it.each([false, true])(
     expect(
       scenario.delivery.assetAccess!.every((a) => /^sha256:[a-f0-9]{64}$/.test(a.checksum!)),
     ).toBe(true);
+    expect(() =>
+      assertViewerRuntimeCapabilities(
+        scenario.delivery.projectionProfile!.requiredRuntimeCapabilities,
+      ),
+    ).not.toThrow();
     const store = createRuntimeStore(scenario.delivery);
     store.applyControl({ connectionSnapshot: scenario.snapshot });
     expect(store.getSnapshot().phase).toBe("ready");

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"log/slog"
 	"net"
+	"net/http"
 	"sync"
+	"time"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
@@ -23,9 +25,13 @@ var (
 
 // Server owns a gRPC server and the listener it serves on.
 type Server struct {
-	listener net.Listener
-	server   *grpcgo.Server
-	health   *health.Server
+	listener       net.Listener
+	server         *grpcgo.Server
+	health         *health.Server
+	browser        *http.Server
+	browserHandler *browserHandler
+	browserCancel  context.CancelFunc
+	split          *splitListener
 
 	mu        sync.Mutex
 	started   bool
@@ -34,11 +40,12 @@ type Server struct {
 }
 
 type Dependencies struct {
-	Verifier *auth.BearerTokenVerifier
-	Guard    *assignment.AssignmentGuard
-	V2       *V2Service
-	Logger   *slog.Logger
-	Metrics  *observability.Metrics
+	Verifier       *auth.BearerTokenVerifier
+	Guard          *assignment.AssignmentGuard
+	V2             *V2Service
+	Logger         *slog.Logger
+	Metrics        *observability.Metrics
+	BrowserOrigins []string
 }
 
 // NewServer creates an authenticated server and registers the realtime bidi
@@ -57,12 +64,21 @@ func NewServer(listener net.Listener, dependencies Dependencies, options ...grpc
 	healthServer.SetServingStatus("", healthv1.HealthCheckResponse_NOT_SERVING)
 	realtimev2.RegisterRealtimeServiceServer(grpcServer, dependencies.V2)
 	healthv1.RegisterHealthServer(grpcServer, healthServer)
-	return &Server{
+	result := &Server{
 		listener:  listener,
 		server:    grpcServer,
 		health:    healthServer,
 		serveDone: make(chan struct{}),
-	}, nil
+	}
+	if len(dependencies.BrowserOrigins) > 0 {
+		lifetime, cancel := context.WithCancel(context.Background())
+		result.browserCancel = cancel
+		result.browserHandler = newBrowserHandler(lifetime, dependencies.Verifier, dependencies.V2, dependencies.BrowserOrigins)
+		result.browser = &http.Server{Handler: result.browserHandler, ReadHeaderTimeout: 5 * time.Second}
+		result.split = newSplitListener(listener)
+		result.listener = result.split
+	}
+	return result, nil
 }
 
 // GRPCServer returns the underlying server for generated service registration.
@@ -88,9 +104,17 @@ func (s *Server) Start() error {
 		return ErrServerStarted
 	}
 	s.started = true
+	if s.browser != nil {
+		go s.split.run()
+		go func() { _ = s.browser.Serve(httpListener{s.split}) }()
+	}
 
 	go func() {
 		err := s.server.Serve(s.listener)
+		if s.browser != nil {
+			s.browserCancel()
+			_ = s.browser.Close()
+		}
 		s.mu.Lock()
 		if errors.Is(err, grpcgo.ErrServerStopped) {
 			err = nil
@@ -119,10 +143,22 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		return nil
 	}
 	s.SetApplicationReady(false)
+	browserDone := make(chan struct{})
+	var browserStopped <-chan struct{} = browserDone
+	close(browserDone)
+	if s.browser != nil {
+		browserStopped = s.browserHandler.stop()
+		s.browserCancel()
+		_ = s.browser.Close()
+	}
 
 	stopped := make(chan struct{})
 	go func() {
 		s.server.GracefulStop()
+		select {
+		case <-browserStopped:
+		case <-ctx.Done():
+		}
 		close(stopped)
 	}()
 

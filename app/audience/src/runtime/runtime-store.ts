@@ -1,4 +1,5 @@
 import {
+  runtimeAuthorityVersions,
   type ConnectionSnapshotEnvelopeWire,
   type ControlServerItemWire,
   type DeliveryManifestWire,
@@ -10,7 +11,7 @@ import {
   type RuntimeRunIdWire,
 } from "@unframe/contracts/presentation";
 import { toParticipantView } from "./wire-view";
-import { assertViewerDelivery } from "./viewer-policy";
+import { assertViewerDelivery, assertViewerRuntimeCapabilities } from "./viewer-policy";
 import { evaluateAnimationView } from "./animation-view";
 import { requireValue, uint, id, cloneWire, sameWire } from "./runtime-input";
 import {
@@ -166,7 +167,7 @@ export function createRuntimeStore(inputDelivery: DeliveryManifestWire) {
   };
   const applySnapshot = (envelope: ConnectionSnapshotEnvelopeWire) => {
     requireValue(state.phase === "awaiting-snapshot");
-    requireValue(envelope.schemaVersion === 2);
+    requireValue(envelope.schemaVersion === runtimeAuthorityVersions.snapshot);
     id(envelope.connectionId);
     requireValue(connectionId === null || connectionId === envelope.connectionId);
     requireValue(
@@ -243,12 +244,22 @@ export function createRuntimeStore(inputDelivery: DeliveryManifestWire) {
         reason: null,
       };
     },
+    restartState(): void {
+      if (state.phase !== "ready") return;
+      stateConnected = false;
+      state.stateSequence = "0";
+      state.stateSync = "awaiting-keyframe";
+    },
     applyControl(input: ControlServerItemWire): void {
       if (state.phase === "resync-required" || state.phase === "ended") return;
       try {
         const item = cloneWire("unframe.realtime.ControlServerItem", input);
         if (item.connected) {
-          requireValue(connectionId === null && item.connected.protocolVersion === "v2");
+          requireValue(
+            connectionId === null &&
+              item.connected.protocolVersion === runtimeAuthorityVersions.protocol,
+          );
+          assertViewerRuntimeCapabilities(item.connected.requiredCapabilities);
           id(item.connected.connectionId);
           requireValue(
             item.connected.progressionContractVersion ===
@@ -293,6 +304,36 @@ export function createRuntimeStore(inputDelivery: DeliveryManifestWire) {
         id(event.eventId);
         const time = uint(event.occurredAtRuntimeTimeMs);
         requireValue(time >= uint(wireView.clock?.runtimeTimeMs));
+        if (event.runtimeViewReplaced) {
+          const replacement = event.runtimeViewReplaced.runtimeView;
+          requireValue(
+            replacement &&
+              replacement.projectionProfileId === profile.projectionProfileId &&
+              uint(replacement.assignmentEpoch) ===
+                uint(delivery.projectionInstance!.assignmentEpoch) &&
+              uint(replacement.baseReliableSequence) === uint(event.sequence) &&
+              uint(replacement.presentationOrigin?.version) ===
+                uint(wireView.presentationOrigin?.version) &&
+              uint(replacement.clock?.runtimeTimeMs) === time,
+          );
+          canceledMedia.clear();
+          canceledModels.clear();
+          validateRuntimeView(replacement, {
+            catalog,
+            assignmentEpoch: delivery.projectionInstance!.assignmentEpoch,
+          });
+          wireView = replacement;
+          maximumRunSequence = Math.max(
+            maximumRunSequence,
+            ...(replacement.activeRuns ?? []).map((run) => runKey(run.runId)),
+          );
+          groupChange = null;
+          projectionPending = false;
+          state.reliableSequence = String(uint(event.sequence));
+          state.stateSync = "awaiting-keyframe";
+          publish();
+          return;
+        }
         if (groupChange === "exited") requireValue(event.groupEntered);
         if (groupChange === "entered") requireValue(event.stepEntered);
         if (event.groupExited) {
@@ -773,6 +814,11 @@ export function createRuntimeStore(inputDelivery: DeliveryManifestWire) {
           };
         } else if (event.logicalInputAccepted) {
           id(event.logicalInputAccepted.logicalEventName);
+        } else if (event.gestureInputAccepted) {
+          requireValue([1, 2, 3, 4, 5, 6, 7, 8].includes(event.gestureInputAccepted.gesture ?? 0));
+        } else if (event.zoneInputAccepted) {
+          id(event.zoneInputAccepted.zoneId);
+          requireValue([1, 2].includes(event.zoneInputAccepted.edge ?? 0));
         } else if (event.cueAccepted) {
           const cue = event.cueAccepted;
           id(cue.cueId);
@@ -817,7 +863,8 @@ export function createRuntimeStore(inputDelivery: DeliveryManifestWire) {
           requireValue(
             !stateConnected &&
               state.stateSequence === "0" &&
-              item.connected.connectionId === connectionId,
+              item.connected.connectionId === connectionId &&
+              uint(item.connected.nextStateFrameSequence) > 0,
           );
           stateConnected = true;
           return;

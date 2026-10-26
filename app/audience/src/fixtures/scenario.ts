@@ -36,6 +36,7 @@ export async function createFixtureScenario(baseUrl: string): Promise<FixtureSce
   const delivery = structuredClone(fixture.value) as DeliveryManifestWire;
   const profile = delivery.projectionProfile!;
   profile.key!.role = 2;
+  profile.requiredRuntimeCapabilities = [1, 2, 3, 8, 9, 10];
   const profileId = profile.projectionProfileId!;
   const catalog = profile.runtimeCatalog!;
   const owner = (groupId: string) => ({ group: { groupId } });
@@ -148,7 +149,7 @@ export async function createFixtureScenario(baseUrl: string): Promise<FixtureSce
     presentationOriginVersion: "0",
   };
   const snapshot: ConnectionSnapshotEnvelopeWire = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     connectionId: "fixture-connection",
     fence,
     projectionInstance: delivery.projectionInstance!,

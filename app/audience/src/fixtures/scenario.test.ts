@@ -1,3 +1,4 @@
+import { assertViewerRuntimeCapabilities } from "../runtime/viewer-policy";
 import { afterEach, expect, it, vi } from "vitest";
 import { evaluateAnimationView } from "../runtime/animation-view";
 import { createRuntimeStore } from "../runtime/runtime-store";
@@ -20,6 +21,11 @@ it("uses checked PNG assets and applies every fixture action through the real st
   expect(
     scenario.delivery.assetAccess!.every((asset) => /^sha256:[a-f0-9]{64}$/.test(asset.checksum!)),
   ).toBe(true);
+  expect(() =>
+    assertViewerRuntimeCapabilities(
+      scenario.delivery.projectionProfile!.requiredRuntimeCapabilities,
+    ),
+  ).not.toThrow();
   const store = createRuntimeStore(scenario.delivery);
   store.applyControl({ connectionSnapshot: scenario.snapshot });
   expect(store.getSnapshot().phase).toBe("ready");

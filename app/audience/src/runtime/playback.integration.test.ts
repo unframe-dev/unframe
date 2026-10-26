@@ -28,7 +28,7 @@ function setup() {
     scale: { x: 1, y: 1, z: 1 },
   };
   const snapshot: ConnectionSnapshotEnvelopeWire = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     connectionId: "connection",
     fence,
     projectionInstance: delivery.projectionInstance!,
@@ -110,6 +110,7 @@ it("applies real Snapshot and State to the PNG scene and removes it on a reliabl
   await playback.waitForIdle();
   const loads = loadTexture.mock.calls.length;
   expect(loads).toBe(3);
+  playback.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
   playback.applyState({
     stateFrame: {
       fence,
@@ -154,6 +155,56 @@ it("applies real Snapshot and State to the PNG scene and removes it on a reliabl
       delivery.projectionProfile!.renderSurfaces![0]!.renderSurfaceId!,
     ) as Mesh,
   ).toHaveProperty("material.opacity", 0.25);
+  const retainedMesh = contentRoot.getObjectByName(
+    delivery.projectionProfile!.renderSurfaces![0]!.renderSurfaceId!,
+  );
+  playback.restartState();
+  expect(playback.getSnapshot()).toMatchObject({
+    phase: "ready",
+    rendering: "ready",
+    stateSequence: "0",
+    stateSync: "awaiting-keyframe",
+  });
+  expect(
+    contentRoot.getObjectByName(delivery.projectionProfile!.renderSurfaces![0]!.renderSurfaceId!),
+  ).toBe(retainedMesh);
+  playback.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
+  await playback.waitForIdle();
+  expect(
+    contentRoot.getObjectByName(delivery.projectionProfile!.renderSurfaces![0]!.renderSurfaceId!),
+  ).toBe(retainedMesh);
+
+  playback.applyState({
+    stateFrame: {
+      fence,
+      frameSequence: "1",
+      baseReliableSequence: "0",
+      kind: 1,
+      elements: [
+        { elementId: nodeId, node: { active: true, visible: true, opacity: 0.5, transform } },
+      ],
+    },
+  });
+  playback.applyState({
+    stateFrame: {
+      fence,
+      frameSequence: "2",
+      baseReliableSequence: "0",
+      kind: 2,
+      elements: [{ elementId: nodeId, node: { opacity: 0.75 } }],
+    },
+  });
+  await playback.waitForIdle();
+  expect(playback.getSnapshot()).toMatchObject({
+    phase: "ready",
+    rendering: "ready",
+    stateSync: "ready",
+    stateSequence: "2",
+  });
+  expect(
+    contentRoot.getObjectByName(delivery.projectionProfile!.renderSurfaces![0]!.renderSurfaceId!),
+  ).toHaveProperty("material.opacity", 0.75);
+  expect(loadTexture).toHaveBeenCalledTimes(loads);
   playback.applyControl({
     reliableEvent: {
       fence,

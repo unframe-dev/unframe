@@ -2,7 +2,7 @@
 
 他担当への実装・提供依頼、接続順、受入条件は[引き継ぎ報告書](docs/handoff-report.md)を参照。
 
-会場の観客向けWeb XRクライアント。2026-10-22に位置保持PoCを完了し、採用済みの追跡構成でWebアプリを開発している。現在はAprilTag `tag36h11`の単一ID 0と8th Wall SDK／SLAMを使う位置保持に加え、契約データによるPNG・H.264動画・GLB描画と進行状態適用をアプリ内部で実装している。既存HTTPのjoin → Delivery → bootstrapクライアントと参加画面を実装済み。匿名資格の発行・Audience profile登録・接続環境は外部提供待ちで、実Backend・Realtimeとの接続は未検証。
+会場の観客向けWeb XRクライアント。2026-10-22に位置保持PoCを完了し、採用済みの追跡構成でWebアプリを開発している。現在はAprilTag `tag36h11`の単一ID 0と8th Wall SDK／SLAMを使う位置保持に加え、契約データによるPNG・H.264動画・GLB描画と進行状態適用をアプリ内部で実装している。既存HTTPのjoin → Delivery → bootstrapクライアントと参加画面を実装済み。匿名 Viewer 資格・Audience profile・ブラウザ Realtime adapter を実装済み。公開環境とスマートフォンでの総合受入は未実施。
 
 ## 採用した方式
 
@@ -90,25 +90,21 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 検出の合間は固定し、補正残差も次の観測まで保持する。SDKカメラへの補正や一致待ちは追加しない。通常JSON schema 21の各採用frameの`displayStabilization`に`markerDistanceMeters`、今回の`thresholds`、判定・差・残差・補正前後の行列を記録する。非採用frameはnull。
 
-## 現在の視聴経路（2026-10-25）
+## 現在の視聴経路（2026-10-27）
 
-通常入口はルーム入力 → 既存HTTP join／Delivery／bootstrap → 明示カメラ開始 → SDK NORMAL待機 → タグ認識 → Runtime入力待ち。取得したDeliveryをXR／Runtimeへ接続する視聴セッションを通常画面とfixtureで共用する。ネットワークの受信実装は追加していないため、通常環境では実プレゼン受信待ちであり、タグ認識をライブ接続成功とは表示しない。
+ルーム入力 → 匿名 Viewer 資格取得 → 既存 HTTP join／Delivery／bootstrap → 明示カメラ開始 → Snapshot／素材準備 → State 接続と Ready → SDK NORMAL／タグ認識 → ライブ視聴。共有 Runtime v3 と WebSocket の Control／State を使い、登壇側の進行を適用する。
 
-- `experience/viewing-session.ts`: XR開始、DeliveryとRuntimeの結合、入力世代、終了・切断・再同期要求を所有する。停止・assignment変更・再接続後に古い入力口から届いた更新は無視する。
-- `experience/ViewerExperience.tsx`: 通常視聴のUI。Snapshot待ち、素材準備、切断、再同期、終了を区別し、メニューから再接続・情報更新・安全なJSON保存を扱う。サイズの検証操作は置かない。
-- `experience/presentation-session.ts`: 素材ロード・取消・交換とRuntime描画を所有する。SDKと共有するGL状態を解除してからmaterial等を破棄する。
-- `runtime/runtime-store.ts`: sequence・fenceと状態公開を所有。純粋な入力／View／Run検証は`runtime-input.ts`・`runtime-view-validation.ts`へ分離する。
-- `diagnostics/`: 製品・fixture共通の安全な追跡要約と製品ログを構築する。製品ログには資格・署名URL・画素・プレゼン変数や進行IDを含めない。
+`connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信、`experience/viewing-session.ts` は XR／Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落は表示を保持して keyframe を再取得する。製品診断には資格・署名 URL・画素・プレゼン変数や進行 ID を含めない。
 
-`RuntimeInput`は既存Control／State wireを受ける端末内の入力口である。`onRuntimeInput`で受信adapterを接続でき、`onRecoveryRequest`でSnapshot／keyframe要求を通知する。Snapshot再同期ではcallbackの世代限定`restartInput()`で新しい入力口へ切り替えてから受信する。keyframe回復では既存入力口を維持する。これらは送信成功や再接続完了を保証しない。ブラウザtransport、handshake／Ready／Replay／Resumeは未実装。未知のWebSocket等や模擬サーバーを製品へ追加しない。資格のみの更新で入力口を作り直さず、将来のadapterは現在有効な入力口の接続情報getterから最新資格を参照する。停止・交換・退出後の古いgetterは拒否する。実transportの再認証方法は外部仕様待ち。
+接続手順、origin／migration／配信設定、Ready・資格更新・復帰の条件は [接続境界](docs/connection-boundaries.md) を参照。公開環境と実機での総合受入は未実施。
 
 ## 期限更新
 
 既存Delivery／bootstrapを期限前に再取得する。初回は最短期限の30秒前、短い寿命では残り時間の半分を目安にし、最低1秒間隔。失敗時は元の有効接続を維持し、1／2／4秒の最大3回再試行する。期限到達・取消・退出・破棄では失効を優先し、遅延応答を受理しない。
 
-同じDelivery構造・assignmentの更新ではassetAccessだけを交換し、読み込み済み表示とカメラを維持する。新しいURLは以後の素材要求に使う。assignmentなどの変更時はカメラを維持しながらRuntimeを作り直し、新しいSnapshotを待つ。異なるpublication／profileの混在はHTTP接続制御で拒否する。匿名identityの発行・延長を代行しない。
+同じDelivery構造・assignmentの更新ではassetAccessだけを交換し、読み込み済み表示とカメラを維持する。新しいURLは以後の素材要求に使う。assignmentなどの変更時はカメラを維持しながらRuntimeを作り直し、新しいSnapshotを待つ。異なるpublication／profileの混在はHTTP接続制御で拒否する。API 資格も期限前に更新する。Runtime JWT の交換ではカメラを維持し、新 Snapshot と素材を再適用する。
 
-接続設定は `VITE_AUDIENCE_API_ORIGIN`（HTTPS origin）と `VITE_AUDIENCE_CAPABILITY_PROFILE_ID`（登録済みprofile ID）。未設定なら参加不可として案内する。資格はメモリのみで、永続保存・リロード後の自動復帰は実装しない。
+接続設定は `VITE_AUDIENCE_API_ORIGIN`（HTTPS origin）と `VITE_AUDIENCE_CAPABILITY_PROFILE_ID=audience-web-v1`。未設定なら参加不可として案内する。資格はメモリのみで、永続保存・リロード後の自動復帰は実装しない。
 
 ## 会場設定
 
@@ -130,6 +126,6 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 `/?fixture=1&size=36` は黒外周24cmのマーカーで開始する。メニューの「テスト内容」でPNG、PNG・動画・GLB、動画・GLB途中参加を選択。カメラ開始後、メニューの「次の操作」で進行し、「状態をJSON保存」で診断を取得する。固定テストデータのためサーバー接続済みとは扱わない。fixtureはDEV限定で、本番bundleにテスト素材を含めない。
 
-製品側の接続制御はテストダブルで検証し、fixtureも同じ視聴セッションを通す。Chrome／SwiftShaderではPNG合成と動画・GLB通常／途中参加を確認済み。iPhone Safariのカメラ・動画・音声同時負荷、長時間メモリ、繰り返し入退場、実Realtime同期は別途端末受入が必要。Galaxy ChromeのNORMAL待機は起動診断ログで調査中で、修正済みとは扱わない。実機測定なしにQuest／Unityの資源上限をAudience profileへ転用しない。
+製品側の接続制御はテストダブルで検証し、fixtureも同じ視聴セッションを通す。Chrome／SwiftShaderではPNG合成と動画・GLB通常／途中参加を確認済み。iPhone Safariのカメラ・動画・音声同時負荷、長時間メモリ、繰り返し入退場、公開環境での Realtime 同期は別途端末受入が必要。Galaxy ChromeのNORMAL待機は起動診断ログで調査中で、修正済みとは扱わない。実機測定なしにQuest／Unityの資源上限をAudience profileへ転用しない。
 
 検証結果・過去の実装時点の制約は[実装履歴](docs/implementation-history.md)へ分離した。[契約適合](docs/contract-compatibility.md)と[外部接続境界](docs/connection-boundaries.md)も参照する。

@@ -1,4 +1,5 @@
 import {
+  runtimeAuthorityVersions,
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
   type ParticipantRuntimeView,
@@ -31,10 +32,11 @@ const uint = (v: string | undefined, zero = false) => {
 export function buildModelPlan(delivery: DeliveryManifestWire, input: unknown): ModelPlan {
   const view = participantRuntimeViewSchema.parse(input),
     profile = delivery.projectionProfile;
+  if (view.frozenAnchors.length) fail("unsupported frozen Anchor display state");
   if (
-    delivery.schemaVersion !== 2 ||
-    delivery.deliveryContractVersion !== 2 ||
-    profile?.runtimeCatalog?.catalogContractVersion !== 2 ||
+    delivery.schemaVersion !== runtimeAuthorityVersions.delivery ||
+    delivery.deliveryContractVersion !== runtimeAuthorityVersions.delivery ||
+    profile?.runtimeCatalog?.catalogContractVersion !== runtimeAuthorityVersions.catalog ||
     profile.projectionProfileId !== view.projectionProfileId ||
     delivery.projectionInstance?.projectionProfileId !== view.projectionProfileId ||
     delivery.projectionInstance.assignmentEpoch !== String(view.assignmentEpoch)

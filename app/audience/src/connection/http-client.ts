@@ -70,7 +70,7 @@ function validate<T>(schema: z.ZodType<T>, value: unknown): T {
 
 export function createAudienceHttpClient(
   config: { apiOrigin: string; capabilityProfileId: string },
-  options: { fetch?: typeof fetch; now?: () => number } = {},
+  options: { fetch?: typeof fetch; now?: () => number; authorization?: () => string | null } = {},
 ) {
   let origin: string;
   try {
@@ -99,12 +99,18 @@ export function createAudienceHttpClient(
     try {
       response = await requestFetch(`${origin}${path}`, {
         method: "POST",
-        credentials: "include",
+        credentials: options.authorization ? "omit" : "include",
         mode: "cors",
         redirect: "error",
         cache: "no-store",
         referrerPolicy: "no-referrer",
-        headers: { Accept: contentType, ...(body ? { "Content-Type": "application/json" } : {}) },
+        headers: {
+          Accept: contentType,
+          ...(options.authorization?.()
+            ? { Authorization: `Bearer ${options.authorization()}` }
+            : {}),
+          ...(body ? { "Content-Type": "application/json" } : {}),
+        },
         ...(body ? { body: JSON.stringify(body) } : {}),
         ...(signal ? { signal } : {}),
       });
@@ -165,8 +171,8 @@ export function createAudienceHttpClient(
         ) as DeliveryManifestWire;
         if (signal?.aborted) throw new AudienceConnectionError("aborted");
         if (
-          value.schemaVersion !== 2 ||
-          value.deliveryContractVersion !== 2 ||
+          value.schemaVersion !== 3 ||
+          value.deliveryContractVersion !== 3 ||
           value.sessionId !== id ||
           !value.publication ||
           !value.projectionProfile ||

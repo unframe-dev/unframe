@@ -77,6 +77,7 @@ const pauseReasons = [
   "microstep-limit-exceeded",
   "recovery-gap",
   "explicit-pause",
+  "runtime-capacity-exceeded",
 ];
 const terminationReasons = ["explicit-end", "control-plane-ended", "pause-timeout"];
 function reason(value: number | undefined, names: string[]): string {
@@ -221,6 +222,7 @@ function progressionPhase(value: NonNullable<ParticipantRuntimeViewWire["progres
 }
 
 export function toParticipantView(value: ParticipantRuntimeViewWire): ParticipantRuntimeView {
+  if (value.frozenAnchors?.length) fail("unsupported frozen anchor display state");
   const progression = required(value.progression, "progression");
   const clock = required(value.clock, "clock");
   const status = oneOf(clock, ["running", "paused", "terminating"]);
@@ -309,5 +311,6 @@ export function toParticipantView(value: ParticipantRuntimeViewWire): Participan
       pose: { position: vector(originPose.position), rotation: rotation(originPose.rotation) },
     },
     enabledLogicalInputs: value.enabledLogicalInputs ?? [],
+    frozenAnchors: [],
   });
 }

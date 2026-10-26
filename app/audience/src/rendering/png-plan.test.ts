@@ -448,3 +448,20 @@ it("plans PNG alongside model nodes and video partitions without drawing them tw
   expect(buildPngPlan(delivery, view).nodes.some((value) => value.id === "model")).toBe(true);
   expect(buildPngPlan(delivery, view).planes).toHaveLength(3);
 });
+
+it.each(["delivery", "catalog"])("rejects obsolete v2 %s contracts before rendering", (kind) => {
+  const { delivery, view } = pngFixture();
+  if (kind === "delivery") delivery.deliveryContractVersion = 2;
+  else delivery.projectionProfile!.runtimeCatalog!.catalogContractVersion = 2;
+  expect(() => buildPngPlan(delivery, view)).toThrow();
+});
+
+it("rejects frozen Anchor display state before loading media", () => {
+  const { delivery, view } = pngFixture();
+  expect(() =>
+    buildPngPlan(delivery, {
+      ...view,
+      frozenAnchors: [{ nodeId: Object.keys(view.nodeStates)[0]!, position: [1, 2, 3] }],
+    }),
+  ).toThrow(/Anchor/);
+});

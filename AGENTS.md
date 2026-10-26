@@ -12,7 +12,7 @@ Unframe is a monorepo for an MR presentation product. The repository contains:
 app/
 ├── web/       React 19 management SPA (WIP)
 ├── local-editor/ Local Source editor / Unity Preview (WIP)
-├── audience/  React / 8th Wall / Three.js audience tracking PoC
+├── audience/  React / 8th Wall / Three.js audience viewer
 ├── server/    Control Plane and Realtime Backend (WIP)
 └── unity/     Unity 6000.3.22f1 MR application (WIP)
 
@@ -31,9 +31,9 @@ not equally complete in every area:
 - The legacy Go/Huma/Turso/R2 HTTP backend has been removed. The Control Plane
   implements authentication, Presentation / Asset APIs, Session lifecycle,
   Venue Edge assignment, and Realtime bootstrap. The independent Go Realtime
-  process implements an authenticated Protobuf bidi service, assignment fencing,
-  and in-memory page-change fan-out. Replay / resume, full Runtime state
-  synchronization, and persistence callback lifecycle integration remain planned.
+  process implements authenticated v3 Control / State over gRPC and browser
+  WebSocket, assignment fencing, Runtime snapshots, and replay / resume.
+  See `app/server/realtime/ARCHITECTURE.md` for Runtime and persistence boundaries.
 - Conversion pipelines and background jobs are not currently implemented. Do
   not treat planned capabilities as existing behavior.
 - `app/web/` owns authentication, published Dist inspection, and Session creation.
@@ -127,7 +127,7 @@ Keep changes within the owning application unless a cross-application change is
 necessary.
 
 - Management Web code belongs in `app/web/`; local Source editor code belongs in `app/local-editor/`.
-- Audience-specific React, tracking, calibration, and Three.js code belongs in `app/audience/`. Its current scope is a tracking PoC; live participation remains planned.
+- Audience-specific React, tracking, calibration, and Three.js code belongs in `app/audience/`. Anonymous Viewer participation and browser Runtime reception are implemented; public-environment and device acceptance remain unverified.
 - Go backend code belongs in `app/server/`.
 - Unity and C# code belongs in `app/unity/`.
 - Landing page code belongs in `lp/`.

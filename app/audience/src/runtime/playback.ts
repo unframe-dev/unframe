@@ -87,6 +87,7 @@ export function createRuntimePlayback(options: {
     applyState(item: StateServerItemWire) {
       if (disposed) return;
       store.applyState(item);
+      if (item?.connected && store.getSnapshot().phase === "ready") return;
       changed();
     },
     getSnapshot() {
@@ -107,6 +108,10 @@ export function createRuntimePlayback(options: {
     },
     async waitForIdle() {
       while (pending) await pending;
+    },
+    restartState() {
+      if (disposed) return;
+      store.restartState();
     },
     reset() {
       if (disposed) return;

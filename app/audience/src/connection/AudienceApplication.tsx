@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { JoinExperience } from "./JoinExperience";
 import { readConnectionConfig } from "./application-config";
-import { createAudienceHttpClient } from "./http-client";
+import { createAudienceRealtime } from "./realtime-client";
+import { createAnonymousAudienceClient } from "./anonymous-client";
 import { createJoinController, type PreparedConnection } from "./join-controller";
 
 const ViewerExperience = lazy(() =>
@@ -20,13 +21,20 @@ export function AudienceApplication() {
       controller:
         settings.status === "configured"
           ? createJoinController({
-              client: createAudienceHttpClient(settings.config),
+              client: createAnonymousAudienceClient(settings.config),
               capabilityProfileId: settings.config.capabilityProfileId,
             })
           : null,
     };
   });
-  useEffect(() => () => state.controller?.dispose(), [state]);
+  const [realtime] = useState(() => createAudienceRealtime());
+  useEffect(
+    () => () => {
+      state.controller?.dispose();
+      realtime.dispose();
+    },
+    [state, realtime],
+  );
   useEffect(() => {
     const checkExpiry = () => {
       if (!document.hidden) state.controller?.getPrepared();
@@ -48,6 +56,8 @@ export function AudienceApplication() {
       <Suspense fallback={<p role="status">視聴画面を準備しています。</p>}>
         <ViewerExperience
           connection={connection}
+          onRuntimeInput={realtime.install}
+          onRecoveryRequest={realtime.recover}
           refreshing={snapshot.refreshing}
           refreshError={snapshot.refreshError}
           onRefresh={() => {
