@@ -386,7 +386,7 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
     [TestCase("delta-gap")]
     [TestCase("stream-reset")]
     [TestCase("snapshot-reset")]
-    public void ReadinessRequiresCurrentKeyframeAndClosesOnResynchronization(string reason)
+    public void ReadinessRequiresCurrentKeyframeAndRetainsDisplayUntilStreamOrSnapshotReset(string reason)
     {
         var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
         var store = new PresentationRuntimeDataStore();
@@ -410,9 +410,10 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
                 if (reason == "reliable-cut") stale.StateFrame.BaseReliableSequence++;
                 AssertAccepted(connection, stale, false);
             }
-            Assert.That(connection.SessionReady, Is.False);
+            bool retainDisplay = reason == "origin" || reason == "reliable-cut" || reason == "delta-gap";
+            Assert.That(connection.SessionReady, Is.EqualTo(retainDisplay));
             AssertAccepted(connection, Frame(fence, 4, 0, StateFrameKind.Delta), false);
-            Assert.That(connection.SessionReady, Is.False);
+            Assert.That(connection.SessionReady, Is.EqualTo(retainDisplay));
             AssertAccepted(connection, Frame(fence, 5, 0, StateFrameKind.Keyframe), true);
             Assert.That(connection.SessionReady, Is.True);
             AssertAccepted(connection, Frame(fence, 5, 0, StateFrameKind.Keyframe), false);

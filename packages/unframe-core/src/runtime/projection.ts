@@ -116,6 +116,31 @@ export const validateRuntimeVisibilitySelection = (
   }
 };
 
+const snapshotAtStepStart = (
+  snapshot: M3dCueRuntimeSnapshot,
+  entry: M3dCueRuntimeSnapshot["stepStartHistory"][number],
+): M3dCueRuntimeSnapshot => ({
+  ...snapshot,
+  nodeStates: entry.nodeStates,
+  surfaceStates: entry.surfaceStates,
+  mediaStates: entry.mediaStates,
+  modelClipStates: entry.modelClipStates,
+  variables: entry.variables,
+  activeRuns: entry.activeRuns,
+  clock: { ...snapshot.clock, runtimeTimeMilliseconds: entry.capturedAtRuntimeTimeMilliseconds },
+  progression: {
+    currentGroupId: entry.groupId,
+    currentStepId: entry.stepId,
+    groupEntryEpoch: entry.groupEntryEpoch,
+    stepEntryEpoch: entry.stepEntryEpoch,
+    stepEnteredAtRuntimeTimeMilliseconds: entry.capturedAtRuntimeTimeMilliseconds,
+    phase: { kind: "stable" },
+  },
+  stepExecution: { stepEntryEpoch: entry.stepEntryEpoch, consumedCueIds: [], timerStates: {} },
+  stepStartHistory: [],
+  frozenAnchors: [],
+});
+
 export const validateM3dCueRuntimeSnapshot = (
   definition: PresentationDefinition,
   input: unknown,
@@ -346,6 +371,47 @@ export const validateM3dCueRuntimeSnapshot = (
       timer.dueAtRuntimeTimeMilliseconds <= snapshot.clock.runtimeTimeMilliseconds
     )
       issues.push("Snapshot contains an expired armed Timer.");
+  let previousHistoryKey: string | undefined;
+  for (const entry of snapshot.stepStartHistory) {
+    const key = `${entry.groupId}\0${entry.stepId}`;
+    if (previousHistoryKey !== undefined && key <= previousHistoryKey)
+      issues.push("Step start history must be sorted and unique.");
+    previousHistoryKey = key;
+    if (
+      entry.capturedAtRuntimeTimeMilliseconds > snapshot.clock.runtimeTimeMilliseconds ||
+      entry.groupEntryEpoch > groupEntryEpoch ||
+      entry.stepEntryEpoch > stepEntryEpoch
+    )
+      issues.push("Step start history exceeds the current runtime cut.");
+    issues.push(
+      ...validateM3dCueRuntimeSnapshot(
+        definition,
+        snapshotAtStepStart(snapshot, entry),
+        assignmentEpoch,
+        complete,
+      ).map((issue) => `Step start history: ${issue}`),
+    );
+  }
+  const frozenIds = new Set<string>();
+  for (const anchor of snapshot.frozenAnchors) {
+    if (frozenIds.has(anchor.nodeId)) issues.push("Frozen Anchor display IDs must be unique.");
+    frozenIds.add(anchor.nodeId);
+    const node = definition.scene.nodes[anchor.nodeId];
+    if (!node || !expectedNodes.includes(anchor.nodeId) || node.parent.kind !== "anchor") {
+      issues.push("Frozen Anchor must reference an active Presenter Anchor binding.");
+      continue;
+    }
+    if (
+      (anchor.position && !node.parent.followPosition) ||
+      (anchor.rotation && !node.parent.followRotation)
+    )
+      issues.push("Frozen Anchor contains a component outside its follow binding.");
+    if (
+      anchor.rotation &&
+      (!isUnitQuaternion(anchor.rotation) || !hasCanonicalQuaternionSign(anchor.rotation))
+    )
+      issues.push("Frozen Anchor rotation must be a canonical unit quaternion.");
+  }
   return issues;
 };
 
@@ -389,8 +455,6 @@ export const validateCanonicalRuntimeSnapshot = (
   )
     issues.push("Step execution contains duplicate consumed Cue IDs.");
   for (const id of snapshot.stepExecution.consumedCueIds) ensureCue(id, "Consumed Cue");
-  for (const id of Object.keys(snapshot.stepExecution.cooldownUntilRuntimeTimeMilliseconds))
-    ensureCue(id, "Cooldown");
   for (const id of Object.keys(snapshot.stepExecution.timerStates)) ensureCue(id, "Timer");
   if (progression.phase.kind === "transitioning") {
     ensureCue(progression.phase.cueId, "Transitioning progression");
@@ -565,12 +629,24 @@ export const validateCanonicalRuntimeSnapshot = (
     )
       issues.push("Looping Model Run cannot block progression.");
   }
+  for (const entry of snapshot.stepStartHistory) {
+    const historicalIssues = validateCanonicalRuntimeSnapshot(
+      definition,
+      renderBundle,
+      snapshotAtStepStart(snapshot, entry),
+      assignmentEpoch,
+    );
+    for (const issue of historicalIssues) {
+      const historicalIssue = `Step start history: ${issue}`;
+      if (!issues.includes(historicalIssue)) issues.push(historicalIssue);
+    }
+  }
   return issues;
 };
 
 type CueSnapshotMetadata = Pick<
   M3dCueRuntimeSnapshot,
-  "reliableSequence" | "lastIngressSequence" | "presentationOrigin" | "recentEventIds"
+  "reliableSequence" | "lastIngressSequence" | "presentationOrigin"
 > & { lifecycle: M3dCueRuntimeSnapshot["clock"]["lifecycle"] };
 
 export const createM3dCueRuntimeSnapshot = (
@@ -587,7 +663,10 @@ export const createM3dCueRuntimeSnapshot = (
     }),
   );
   const snapshot = m3dCueRuntimeSnapshotSchema.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
+    inputEpoch: state.inputEpoch,
+    stepStartHistory: state.stepStartHistory,
+    frozenAnchors: [],
     reliableSequence: metadata.reliableSequence,
     lastIngressSequence: metadata.lastIngressSequence,
     lastAllocatedRunSequence: state.lastRunSequence,
@@ -606,7 +685,6 @@ export const createM3dCueRuntimeSnapshot = (
     stepExecution: {
       stepEntryEpoch: state.stepEntryEpoch,
       consumedCueIds: state.consumedCueIds,
-      cooldownUntilRuntimeTimeMilliseconds: state.cooldownUntilRuntimeTimeMilliseconds,
       timerStates: state.timerStates,
     },
     surfaceStates,
@@ -616,7 +694,6 @@ export const createM3dCueRuntimeSnapshot = (
     variables: state.variables,
     activeRuns: state.activeRuns,
     presentationOrigin: metadata.presentationOrigin,
-    recentEventIds: metadata.recentEventIds,
   });
   const issues = validateM3dCueRuntimeSnapshot(definition, snapshot, state.assignmentEpoch);
   if (issues.length) throw new Error(issues.join(" "));
@@ -685,14 +762,15 @@ export const projectM3dCueParticipantRuntimeView = (
             !(
               cue.firePolicy.kind === "oncePerStepEntry" &&
               snapshot.stepExecution.consumedCueIds.includes(cue.id)
-            ) &&
-            (snapshot.stepExecution.cooldownUntilRuntimeTimeMilliseconds[cue.id] ?? 0) <=
-              snapshot.clock.runtimeTimeMilliseconds,
+            ),
         )
         .map((cue) => (cue.trigger.kind === "logicalInput" ? cue.trigger.action : "")),
     ),
   );
   return {
+    frozenAnchors: snapshot.frozenAnchors.filter((anchor) =>
+      profile.visibleNodeIds.includes(anchor.nodeId),
+    ),
     projectionProfileId: profile.projectionProfileId,
     assignmentEpoch,
     baseReliableSequence: snapshot.reliableSequence,

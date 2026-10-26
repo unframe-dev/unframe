@@ -34,10 +34,26 @@ namespace Unframe.Unity.PresentationRuntime
             : lifetime == null ? "Session stopped"
             : !runtime.DownloadReady ? "Loading presentation assets"
             : !runtime.SessionReady ? "Synchronizing session"
-            : runtime.CanSendInput ? "Ready: Presenter" : "Ready: Viewer";
+            : runtime.CanSendInput ? "Ready: Presenter" : runtime.CanSendRuntimeControl ? "Presenter: input paused or synchronizing" : "Ready: Viewer";
         private string logicalEventName;
         private readonly QuestPresentationButtonEdges buttons = new QuestPresentationButtonEdges();
         private double lastTrackingAt;
+        private readonly PresenterRecognition recognition = new PresenterRecognition();
+        private ulong recognitionRevision;
+        private bool recalibrationPending;
+        private ulong calibrationRevision;
+        private Task recalibration;
+        public Func<Ray, bool> ControlRayHandler { get; set; }
+        public IReadOnlyList<StepSelection> ReachedSteps => runtime != null ? runtime.ReachedSteps : Array.Empty<StepSelection>();
+        public bool CanControl => runtime != null && runtime.CanSendRuntimeControl && runtime.InputSynchronization?.CommandEpoch > 0;
+
+        public Task ControlAsync(RuntimeControlKind kind, string groupId = null, string stepId = null)
+        {
+            if (!CanControl || lifetime == null) throw new InvalidOperationException("Presenter control is unavailable.");
+            return runtime.SendAsync(QuestPresentationInput.CreateControl(kind, runtime.PresentationOriginVersion,
+                runtime.InputSynchronization.CommandEpoch, groupId, stepId), lifetime.Token);
+        }
+
 
         private void Awake()
         {
@@ -70,7 +86,11 @@ namespace Unframe.Unity.PresentationRuntime
             logicalEventName = advanceLogicalEventName;
             CancellationTokenSource runLifetime = new CancellationTokenSource();
             lifetime = runLifetime;
+            calibrationRevision = 0;
+            recalibrationPending = false;
+            recalibration = null;
             calibration.Changed += OnCalibrationChanged;
+            runtime.InputInvalidated += ResetRecognition;
             OnCalibrationChanged();
             run = RunAsync(connection, runLifetime);
         }
@@ -89,9 +109,11 @@ namespace Unframe.Unity.PresentationRuntime
                 interactionLifetime?.Cancel();
                 if (input != null) await input;
                 if (tracking != null) await tracking;
+                if (recalibration != null) await recalibration;
                 if (ReferenceEquals(lifetime, runLifetime))
                 {
                     calibration.Changed -= OnCalibrationChanged;
+                    runtime.InputInvalidated -= ResetRecognition;
                     interactionLifetime?.Dispose();
                     interactionLifetime = null;
                     lifetime = null;
@@ -108,19 +130,29 @@ namespace Unframe.Unity.PresentationRuntime
             bool nextLeft = IsPressed(XRNode.LeftHand, CommonUsages.triggerButton);
             bool nextRight = IsPressed(XRNode.RightHand, CommonUsages.triggerButton);
             bool nextPrimary = IsPressed(XRNode.RightHand, CommonUsages.primaryButton);
-            buttons.Sample(nextLeft, nextRight, nextPrimary, runtime.CanSendInput,
+            buttons.Sample(nextLeft, nextRight, nextPrimary, runtime.CanSendInput || CanControl,
                 out bool leftRayPressed, out bool rightRayPressed, out bool logicalPressed);
-            if (lifetime == null || lifetime.IsCancellationRequested || !runtime.SessionReady || !runtime.CalibrationReady || interactionLifetime == null || interactionLifetime.IsCancellationRequested) return;
+            if (lifetime == null || lifetime.IsCancellationRequested) return;
+            TrySendRecalibration();
 
-            if (logicalPressed && !String.IsNullOrWhiteSpace(logicalEventName)
+            if ((leftRayPressed || rightRayPressed) && CanControl)
+            {
+                XRNode controlHand = rightRayPressed ? XRNode.RightHand : XRNode.LeftHand;
+                if (TryControllerRay(controlHand, out Ray controlRay) && (ControlRayHandler?.Invoke(controlRay) ?? false))
+                    leftRayPressed = rightRayPressed = false;
+            }
+            if (!runtime.SessionReady || !runtime.CalibrationReady || interactionLifetime == null || interactionLifetime.IsCancellationRequested) return;
+            if (logicalPressed && runtime.CanSendInput && !String.IsNullOrWhiteSpace(logicalEventName)
                 && (input == null || input.IsCompleted) && runtime.PresentationOriginVersion != 0)
-                input = SendInputAsync(QuestPresentationInput.CreateLogical(logicalEventName, runtime.PresentationOriginVersion), interactionLifetime.Token);
-            else if ((leftRayPressed || rightRayPressed) && (input == null || input.IsCompleted) && runtime.PresentationOriginVersion != 0)
+                input = SendInputAsync(QuestPresentationInput.CreateLogical(logicalEventName, runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
+            else if (runtime.CanSendInput && (leftRayPressed || rightRayPressed) && (input == null || input.IsCompleted) && runtime.PresentationOriginVersion != 0)
             {
                 XRNode hand = rightRayPressed ? XRNode.RightHand : XRNode.LeftHand;
                 if (TryControllerRay(hand, out Ray ray) && runtime.TryPickInteraction(ray, out string surfaceId, out string interactionId))
-                    input = SendInputAsync(QuestPresentationInput.CreateSurfaceInteraction(surfaceId, interactionId, runtime.PresentationOriginVersion), interactionLifetime.Token);
+                    input = SendInputAsync(QuestPresentationInput.CreateSurfaceInteraction(surfaceId, interactionId, runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
             }
+
+            SampleRecognition();
 
             if (runtime.CanSendTracking && Time.realtimeSinceStartupAsDouble - lastTrackingAt >= 0.1
                 && (tracking == null || tracking.IsCompleted))
@@ -138,6 +170,37 @@ namespace Unframe.Unity.PresentationRuntime
                 else samples.Add(QuestPoseSample.Unavailable(TrackedTarget.Body));
                 tracking = SendTrackingAsync(QuestPresentationTracking.CreateFrame(calibration.PresentationFromQuestLocal, samples.ToArray()), interactionLifetime.Token);
             }
+        }
+
+        private void ResetRecognition() { recognition.Reset(null, null); recognitionRevision = 0; }
+
+        private void SampleRecognition()
+        {
+            var synchronization = runtime.InputSynchronization;
+            if (!runtime.CanSendInput)
+            {
+                recognition.Reset(null, null); recognitionRevision = 0; return;
+            }
+            if (recognitionRevision != synchronization.Revision)
+            {
+                recognition.Reset(synchronization.Context, synchronization.Catalog);
+                recognitionRevision = synchronization.Revision;
+            }
+            if (!PresentationCoordinateAdapter.TryToUnityPose(calibration.PresentationFromQuestLocal, out UnityEngine.Pose fromLocal)) return;
+            QuestPresentationTracking.TrySample(XRNode.Head, TrackedTarget.Head, out QuestPoseSample head);
+            QuestPresentationTracking.TrySample(XRNode.LeftHand, TrackedTarget.LeftHand, out QuestPoseSample left);
+            QuestPresentationTracking.TrySample(XRNode.RightHand, TrackedTarget.RightHand, out QuestPoseSample right);
+            Unframe.Presentation.Vector3 position(QuestPoseSample sample) => sample.Available
+                ? QuestPresentationTracking.ToCanonicalPose(fromLocal.position + fromLocal.rotation * sample.Position, Quaternion.identity).Position : null;
+            Vector3 direction = fromLocal.rotation * head.Rotation * Vector3.forward;
+            var result = recognition.SampleHands(Time.realtimeSinceStartupAsDouble, position(left), position(right), head.Available
+                ? new Unframe.Presentation.Vector3 { X = direction.x, Y = direction.y, Z = -direction.z } : null);
+            if (result != null) _ = SendInputAsync(QuestPresentationInput.CreateRecognition(result, runtime.PresentationOriginVersion, synchronization.CommandEpoch), interactionLifetime.Token);
+            Unframe.Presentation.Vector3 waist = null;
+            if (bodySource != null && bodySource.TryGetQuestLocalPose(out Vector3 bodyPosition, out Quaternion _))
+                waist = QuestPresentationTracking.ToCanonicalPose(fromLocal.position + fromLocal.rotation * bodyPosition, Quaternion.identity).Position;
+            foreach (var edge in recognition.SampleWaist(waist))
+                _ = SendInputAsync(QuestPresentationInput.CreateRecognition(edge, runtime.PresentationOriginVersion, synchronization.CommandEpoch), interactionLifetime.Token);
         }
 
         private async Task SendInputAsync(ControlClientItem item, CancellationToken token)
@@ -179,8 +242,32 @@ namespace Unframe.Unity.PresentationRuntime
             interactionLifetime?.Cancel();
             interactionLifetime?.Dispose();
             interactionLifetime = null;
+            recognition.Reset(null, null); recognitionRevision = 0;
+            runtime.DiscardPendingInputs();
+            if (!calibration.IsValid || calibrationRevision != 0) recalibrationPending = true;
+            calibrationRevision = calibration.Revision;
+            TrySendRecalibration();
             if (lifetime != null && !lifetime.IsCancellationRequested && calibration.IsValid)
                 interactionLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        }
+
+        private void TrySendRecalibration()
+        {
+            if (recalibrationPending && calibration?.IsValid == true && CanControl
+                && lifetime != null && !lifetime.IsCancellationRequested && (recalibration == null || recalibration.IsCompleted))
+                recalibration = SendRecalibrationAsync();
+        }
+
+        private async Task SendRecalibrationAsync()
+        {
+            recalibrationPending = false;
+            try { await ControlAsync(RuntimeControlKind.Recalibrate); }
+            catch (OperationCanceledException) when (lifetime == null || lifetime.IsCancellationRequested) { }
+            catch (Exception exception)
+            {
+                recalibrationPending = true;
+                Debug.LogWarning("[Presentation] Recalibration rejected: " + exception.GetType().Name, this);
+            }
         }
 
         public void InvalidateCalibration(string reason) => calibration?.Invalidate(reason);

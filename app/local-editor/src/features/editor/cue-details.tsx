@@ -96,11 +96,6 @@ export function CueDetails({
                   ? "繰り返し発火できる"
                   : "Step に入るたびに1回"}
               </p>
-              {cue.firePolicy.kind === "repeatable" && (
-                <Parameters
-                  rows={[["再発火の待ち時間", `${cue.firePolicy.cooldownMilliseconds} ms`]]}
-                />
-              )}
             </div>
             {cue.fixedPayload && (
               <div className="editor-cue-payload">

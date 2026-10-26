@@ -52,15 +52,15 @@ public sealed class QuestPresentationEntryEditModeTests
     [Test]
     public void LogicalInputRequiresExplicitNameAndCurrentOrigin()
     {
-        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("", 1));
-        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("advance", 0));
+        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("", 1, new Unframe.Realtime.InputContext(), 1));
+        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("advance", 0, new Unframe.Realtime.InputContext(), 1));
 
-        var command = QuestPresentationInput.CreateLogical("advance", 7);
+        var command = QuestPresentationInput.CreateLogical("advance", 7, new Unframe.Realtime.InputContext { InputEpoch = 2 }, 3);
         Assert.That(command.ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.LogicalInput));
         Assert.That(command.LogicalInput.LogicalEventName, Is.EqualTo("advance"));
         Assert.That(command.LogicalInput.PresentationOriginVersion, Is.EqualTo(7));
         Assert.That(command.LogicalInput.ClientEventId, Is.Not.Empty);
-        var surface = QuestPresentationInput.CreateSurfaceInteraction("surface", "button", 8);
+        var surface = QuestPresentationInput.CreateSurfaceInteraction("surface", "button", 8, new Unframe.Realtime.InputContext { InputEpoch = 2 }, 3);
         Assert.That(surface.ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.SurfaceInteraction));
         Assert.That(surface.SurfaceInteraction.SurfaceId, Is.EqualTo("surface"));
         Assert.That(surface.SurfaceInteraction.InteractionId, Is.EqualTo("button"));

@@ -1,25 +1,25 @@
 # Presentation Delivery / Runtime contract
 
-- **Status**: Normative target contract
+- **Status**: Normative contract（Presenter authority v3）
 - **Wire source**: `packages/contracts/proto/unframe/{presentation,delivery,realtime}/`
 - **Related**: [Architecture](./ARCHITECTURE.md), [Data model](./DATA_MODEL.md), [ADR-0007（アーカイブ）](../decisions/archived/0007-timeline-runtime-run-wire-contract.md), [ADR-0008（アーカイブ）](../decisions/archived/0008-runtime-transport-contract.md), [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md), [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md), [ADR-0011](../decisions/0011-surface-partition-contract.md), [ADR-0012](../decisions/0012-texture-budget-residency-contract.md), [ADR-0015](../decisions/0015-presentation-definition-artifact-boundaries.md), [ADR-0016](../decisions/0016-model-animation-scope.md)
 
-この文書は Delivery と Runtime の v2 wire を実装する際の required presence、検証、状態遷移、失敗結果を固定する。`realtime.v1` は廃止済みであり、v2 への互換 adapter、fallback、downgrade は持たない。
+この文書は Delivery と Runtime の presence、検証、状態遷移、失敗結果を固定する。Presenter 認識・入力同期・凍結 Anchor・Step 復元を v3 の正本 schema と生成 consumer に接続した。version・fingerprint・入力同期・容量の詳細は [Presenter authority contract](./CONTRACT_PRESENTER_AUTHORITY.md) を正本とする。旧 major の公開物・checkpoint・入力方式への adapter や downgrade は持たない。検証範囲と未検証事項は[移行計画](../plans/presenter-recognition-runtime-authority-refactor.md)を参照する。
 
 ## 1. Version と数値
 
-有効な組み合わせは次の一つだけである。
+有効な version の組合せは次の一つである。RenderBundle / AssetSet は2、Renderer / Model は1を維持する。
 
 | 項目                                   |           値 |
 | -------------------------------------- | -----------: |
-| Delivery schema / contract             |    `2` / `2` |
-| Capability schema                      |          `2` |
-| Runtime protocol / contract            | `"v2"` / `2` |
-| Progression contract                   |          `1` |
-| Projection contract                    |          `1` |
-| Projected runtime catalog contract     |          `2` |
-| Connection / canonical snapshot schema |          `2` |
-| Durable checkpoint schema              |          `2` |
+| Delivery schema / contract             |    `3` / `3` |
+| Capability schema                      |          `3` |
+| Runtime protocol / contract            | `"v3"` / `3` |
+| Progression contract                   |          `2` |
+| Projection contract                    |          `2` |
+| Projected runtime catalog contract     |          `3` |
+| Connection / canonical snapshot schema |          `3` |
+| Durable checkpoint schema              |          `3` |
 
 同じ major 内で未知の通常fieldはwire decoderが保持または無視してよい。ただしrequired `oneof`は、同じmessageに未知fieldが共存していても既知variantが一つもdecodeされなければ空oneofとしてrejectする。これにより未知variantを既知messageとして誤適用しない。未知の enum 値、未知の required capability、上表と異なるversionも解釈せずfail closedにする。required fieldやvariantを増やす変更は新majorを必要とする。
 
@@ -57,7 +57,7 @@ required messageの欠落、空oneof、unknown enum、重複key、非canonical�
 5. selected assetだけの期限付きaccess binding。
 6. selected graphに対応するresidency plan。
 
-`CapabilityProfile`のversionsは`delivery=2 / runtime=2 / progression=1 / projection=1`で固定する。`supported=false`のrenderer/modelはcontract version `1`と空feature集合を持ち、対応するartifactを選択できない。`supported=true`ではcontract version `1`、そのkindが必要とするfeature、正のlimitを必須とする。Model formatは`GLTF_BINARY`だけを許す。WebView、embedded HTML/JS/Wasm、独立音声のcapabilityや予約値を追加しない。
+`CapabilityProfile`のversionsは`delivery=3 / runtime=3 / progression=2 / projection=2`で固定する。`supported=false`のrenderer/modelはcontract version `1`と空feature集合を持ち、対応するartifactを選択できない。`supported=true`ではcontract version `1`、そのkindが必要とするfeature、正のlimitを必須とする。Model formatは`GLTF_BINARY`だけを許す。WebView、embedded HTML/JS/Wasm、独立音声のcapabilityや予約値を追加しない。
 
 すべてのlimitとtier IDはrequiredである。`TextureLimits`、`NativeUiLimits`、`VideoLimits`、`ModelLimits`の数値は正でなければならない。`encoded_cache_reserve_bytes < max_encoded_cache_bytes`を要求する。`max_blended_clips_per_model`はcapabilityによらず`2`、通常時は`1`であり、layer、mask、additive blendを表すfieldは存在しない。
 
@@ -115,11 +115,13 @@ encoded cache admission、reservation共有、pin、LRU、staging leaseはADR-00
 
 Controlはreliable、ordered、replayableで、Stateはlatest-wins、non-replayableである。各streamの最初のitemはHandshake exactly onceとし、それ以前の別payload、二回目のHandshake、空itemを`INVALID_ARGUMENT / handshake_order_invalid`で閉じる。
 
-認証済みcontextだけがsession、participant、role、assignmentを所有する。client payloadからidentityやroleを採用しない。Control handshakeは`protocol_version="v2"`、progression `1`、required capability全件を満たす。State handshakeはControlで選択済みの値、connection IDと一致し、Controlが発行した32-byte nonceを30,000 ms以内に一回だけ使用する。nonceの再利用、別connection利用、expiryは`UNAUTHENTICATED / state_nonce_invalid`で閉じる。
+認証済みcontextだけがsession、participant、role、assignmentを所有する。client payloadからidentityやroleを採用しない。Control handshakeは`protocol_version="v3"`、progression `2`、required capability全件を満たす。State handshakeはControlで選択済みの値、connection IDと一致し、Controlが発行した32-byte nonceを30,000 ms以内に一回だけ使用する。nonceの再利用、別connection利用、expiryは`UNAUTHENTICATED / state_nonce_invalid`で閉じる。
 
 初回Control接続では`ControlConnected`、Snapshot、State nonceの順に送る。resumeではSnapshotの代わりにReliable replayを送り、その後State nonceを送る。Stateは`StateConnected`後、Control clientがSnapshotまたはreplayを適用して`StateReady`を送り、そのsequenceとorigin versionが接続のcutに一致してからframeを送る。初回のcutは送信Snapshotのcut、resumeのcutは最後に送信した投影済みreplay eventのcursorであり、replayが空ならresume cursorを維持する。hidden eventだけによるcanonical sequenceの進行をcutへ含めない。不一致は`FAILED_PRECONDITION / state_ready_fence_mismatch`とする。Stateだけが切断した場合はattachmentとreadyを解除し、生存するControlで新しいsingle-use nonceを発行する。再接続したStateは`StateConnected`の後、Control接続のcutに対する`StateReady`を再度必要とする。
 
 ### 4.1 Protocol limits
+
+Reliable log / Replay / State buffer の上限は従来値を維持する。command history は時間・件数による eviction を廃止し、[v3 の容量と同期 ACK](./CONTRACT_PRESENTER_AUTHORITY.md#容量と超過時の動作)に従う。
 
 `RuntimeProtocolLimits`の全fieldはrequiredで、接続中に変更しない。baselineは次の値に固定する。
 
@@ -131,7 +133,7 @@ Controlはreliable、ordered、replayableで、Stateはlatest-wins、non-replaya
 | Reliable event log         | 4,096件、8 MiB、900,000 msのいずれかの境界より古いeventをevict |
 | Replay response            |                                                 1,024件、1 MiB |
 | Catch-up queue             |                                                 1,024件、1 MiB |
-| Idempotency retention      |                     1,024件、900,000 msのいずれかの境界でevict |
+| Command history            |                1,024件、262,144 bytes。上限前の同期 ACK で整理 |
 | Snapshot catch-up          |                                      初回を含む3回、合計250 ms |
 | Runtime microsteps / drain |                                                          1,024 |
 | State dependency buffer    |                                      4,096 field value、500 ms |
@@ -139,21 +141,25 @@ Controlはreliable、ordered、replayableで、Stateはlatest-wins、non-replaya
 | Tracking frames / second   |                                                             90 |
 | Anchor sample max age      |                                                         500 ms |
 
-server implementationは上表の値を緩和・縮小せず、Handshakeで明示する。item byte上限とtracking rateはv2で上表の値に固定する。変更には新contractを必要とする。超過itemは`RESOURCE_EXHAUSTED / message_limit_exceeded`とする。Tracking rateはserver monotonic timeの各rolling 1,000 msで90 frameまでを受理し、超過frameをdropする。3つの連続するrolling windowで一件以上dropした場合は`RESOURCE_EXHAUSTED / state_rate_exceeded`でStateだけを閉じる。
+server implementationは上表の値を緩和・縮小せず、Handshakeで明示する。item byte上限とtracking rateは上表の値に固定する。変更には新contractを必要とする。超過itemは`RESOURCE_EXHAUSTED / message_limit_exceeded`とする。Tracking rateはserver monotonic timeの各rolling 1,000 msで90 frameまでを受理し、超過frameをdropする。3つの連続するrolling windowで一件以上dropした場合は`RESOURCE_EXHAUSTED / state_rate_exceeded`でStateだけを閉じる。
 
 ### 4.2 Command とidempotency
 
 `PresentationOriginChanged`自身のevent fenceは変更前のorigin versionを持つ。payloadのorigin versionは直前値から1だけ進め、clientはevent適用後に保持fenceを更新する。後続event / State frameは更新後のversionを使う。resumeは更新後のfenceを送り、古いoriginのState frameを破棄する。
 
-PresenterだけがLogical Input、Surface Interaction、Runtime Controlを送れる。Viewer commandは`PERMISSION_DENIED / presenter_required`。origin version不一致はoutcomeを返さず`FAILED_PRECONDITION / presentation_origin_mismatch`でControlを閉じる。
+PresenterだけがLogical / Surface / Gesture / Zone InputとRuntime Controlを送れる。client 起点の System event を許可せず、送信者は認証情報から Runtime が設定する。Viewer commandは`PERMISSION_DENIED / presenter_required`。origin version不一致はoutcomeを返さず`FAILED_PRECONDITION / presentation_origin_mismatch`でControlを閉じる。
 
-`client_event_id`はSessionとparticipant範囲で接続をまたぐidempotency keyである。fingerprint bytesはASCII `unframe-command-v2`、NUL、ControlClientItem oneofのvariant名（`logical_input`、`surface_interaction`、`runtime_control`）、NULに続けて、`client_event_id`と診断用capture時刻を除く各stringをfield number順の`uint32 big-endian byte-length + UTF-8 bytes`、各enumを`uint32 big-endian`、各`uint64`をbig-endianで連結した値とする。fingerprintはそのSHA-256で、recovery metadataには`sha256:`に小文字hexを続けた形式で保存する。同じkey / fingerprintは保存済みOutcomeを返し、event、sequence、ingressを増やさない。異なるfingerprintでの再利用は`INVALID_ARGUMENT / idempotency_key_reused`で閉じる。
+`client_event_id` は `<command_epoch>:<小文字UUID v4>` とし、Session / participant 内の idempotency key とする。fingerprint は `unframe-command-v3` と variant、ID、epoch、origin、入力文脈、payload から算出し、診断用時刻を含めない。[正確な encoding](./CONTRACT_PRESENTER_AUTHORITY.md#fingerprint)に従う。同じ ID・内容には保存済み Outcome を返し、異内容の再利用は `INVALID_ARGUMENT / idempotency_key_reused` で閉じる。
 
-Logical InputとSurface InteractionはRuntimeがpaused、terminating、transitioningの場合、targetを探索する前に`RUNTIME_NOT_ACCEPTING_INPUT`とする。Logical inputが現在Stepで利用不能なら`INPUT_UNAVAILABLE`。Surfaceが未知、不可視、inactive、transition中、現在Stateでinteraction無効のいずれでも`INTERACTION_UNAVAILABLE`に丸める。これらのrejectはingress、Cue消費、cooldown、state、event sequenceを変更しない。
+Gesture・Zone・ボタン・Surface 入力を、認識開始時の Group / Step、Step 入場世代、server 管理の入力世代、イベント ID に拘束する。送信時に現在の Step へ付け替えない。新規入力は現在の Step・世代・実行状態を検証し、client 時刻での並べ替え、過去への遡及評価、追加の経過時間による有効期限を設けない。Step 入場・再入場・選択、pause / resume、切断からの復旧、再校正で入力世代を更新し、途中の認識を破棄する。再校正後は server と世代を同期してから認識を再開する。
 
-Runtime Controlはこのavailability判定の例外である。pauseはrunningから`paused/explicitPause`、resumeはpausedからinvariant、assignment lease、Publication fenceを再検証してrunning、endはrunning/pausedからterminatingへ遷移する。pause済みへのpause、runningへのresume、terminatingへの任意controlはそれぞれ`CommandNoOp`を返しeventを作らない。NoOpもidempotency windowへ保存する。
+通常再送は同じ ID と内容を使う。認証・Session 等の拘束を検証した後、保存済み Outcome を現在の Step・世代に対する新規入力判定より先に返す。同じ ID の異なる内容は拒否する。未確認 Outcome を保持し、上限に達する前に新規入力受付を止める。状態同期、新しい入力世代への切替、client の古い送信待ち操作の破棄を確認してから旧記録を整理し、記録消去を理由に古いイベントを再実行しない。切断復旧は未処理操作を持ち越さず確定状態へ同期し、長時間切断に対する厳密な再送期限は設けない。
 
-Accepted outcomeはcanonical input eventの受理だけを表し、その`canonical_event_id / reliable_sequence`は`LogicalInputAccepted`または`SurfaceInteractionAccepted`またはRuntime controlに対応する`RuntimeStatusChanged`を指す。Logical/Surface inputのaccepted outcomeはcue evaluationのexactly oneを持つ。候補なしは`CueNotSelected`、commit成功は`CueCommitted`、選択後のbatch rejectは`CueBatchRejected`と型付き理由を返す。batch rejectはCue消費、cooldown、resource state、Run、Reliable sequenceを変更せず、別Cueへfallbackしない。Runtime Controlではcue evaluationを禁止する。NoOpはcanonical event IDやsequenceを持たない。
+Logical InputとSurface InteractionはRuntimeがpaused、terminating、transitioningの場合、targetを探索する前に`RUNTIME_NOT_ACCEPTING_INPUT`とする。Logical inputが現在Stepで利用不能なら`INPUT_UNAVAILABLE`。Surfaceが未知、不可視、inactive、transition中、現在Stateでinteraction無効のいずれでも`INTERACTION_UNAVAILABLE`に丸める。これらのrejectはingress、Cue消費、state、event sequenceを変更しない。
+
+Runtime Control は通常入力の availability 判定と Step 一致条件を適用しない。Presenter 権限と実行状態を検証し、pause / resume / end / selectStep / recalibrate を扱う。running から pause、paused から resume、running / paused から end とする。同状態への pause / resume と終了後の pause / end は NoOp を保存する。終了後の resume / selectStep は `SESSION_ENDED`、未到達 Step は `STEP_NOT_REACHED` を返す。Step 選択の復元規則は §7.1 に従う。
+
+Accepted outcomeはcanonical input eventの受理だけを表し、その`canonical_event_id / reliable_sequence`は`LogicalInputAccepted` / `SurfaceInteractionAccepted` / `GestureInputAccepted` / `ZoneInputAccepted`、または全体操作の `RuntimeStatusChanged` / `RuntimeViewReplaced`を指す。通常入力の accepted outcomeはcue evaluationのexactly oneを持つ。候補なしは`CueNotSelected`、commit成功は`CueCommitted`、選択後のbatch rejectは`CueBatchRejected`と型付き理由を返す。batch rejectはCue消費、resource state、Run、Reliable sequenceを変更せず、別Cueへfallbackしない。Runtime Controlではcue evaluationを禁止する。NoOpはcanonical event IDやsequenceを持たない。
 
 ## 5. Reliable Event、replay、projection
 
@@ -177,11 +183,11 @@ Replayは`after_sequence + 1`からcontiguousに返す。範囲外、projection�
 
 ## 6. Snapshot、checkpoint、State frame
 
-Canonical snapshotはShared Runtime Stateだけを持つ。participant、connection、projection、presence、tracking sample、edge detector、renderer artifact、URLを含めない。Projected snapshotはprofileのvisible closureだけを持ち、canonical restoreへ使用しない。
+Canonical snapshotはShared Runtime Stateだけを持つ。participant、connection、projection、presence、raw tracking sample、認識器の内部状態、renderer artifact、URLを含めない。pause 時に確定した凍結 Anchor 表示状態と §7.1 の Step 開始状態履歴を Snapshot / checkpoint の共有状態に含める。開始状態履歴全体は Viewer へ投影しない。Projected snapshotはprofileのvisible closureだけを持ち、canonical restoreへ使用しない。
 
 Snapshot cutはlogical time `T`以下の全internal completionを処理後、reliable sequence `S`のstate freezeと`S+1` subscriber登録を同じcritical sectionで行う。serializationとprojectionはlock外のimmutable valueだけを読む。catch-up overflowではpartial resultを捨て、新cutから初回を含む最大3回かつ合計250 msまで再試行し、超過は`RESOURCE_EXHAUSTED / snapshot_catch_up_exhausted`とする。再試行対象はSnapshotの投影・serializationの準備中のoverflowであり、初回Snapshot送信開始後のqueue overflowは`reliable_subscriber_slow`で接続を終了する。
 
-Durable checkpoint field 12だけは例外的にtyped `CanonicalRuntimeSnapshot`のdeterministic protobuf bytesを保持する。任意bytesではない。writerはunknown fieldを含めず、field 11は受信したfield 12そのものの`sha256:` hashとする。hash検証後にschema 2としてparseする。外側のsession、runtime、assignment、Publication、Definition/Bundle hashをロード対象の信頼済み値と照合し、外側の`reliable_sequence`と内側の同fieldを一致させる。内側ではRun ID assignment、owner epoch、catalog参照と全invariantを検証する。parse/re-serialize結果をhash sourceにしない。
+Durable checkpoint field 12だけは例外的にtyped `CanonicalRuntimeSnapshot`のdeterministic protobuf bytesを保持する。任意bytesではない。writerはunknown fieldを含めず、field 11は受信したfield 12そのものの`sha256:` hashとする。hash検証後にschema 3としてparseする。外側のsession、runtime、assignment、Publication、Definition/Bundle hashをロード対象の信頼済み値と照合し、外側の`reliable_sequence`と内側の同fieldを一致させる。内側ではRun ID assignment、owner epoch、catalog参照と全invariantを検証する。parse/re-serialize結果をhash sourceにしない。
 
 Durable checkpointの`recovery_payload`はSession開始日時、過去の参加者とrole、保持期間内のcommand key・fingerprint・outcome・記録時刻を持つ`RuntimeRecoveryMetadata`のdeterministic protobuf bytesとする。`recovery_hash`はその生bytesの`sha256:` hashであり、parse前に検証する。両fieldは一組で扱い、canonical stateやProjected snapshotには含めない。Runtimeによる復旧はこのmetadataを必須とし、欠落したcheckpointを拒否する。stateとcommand記録を同じcheckpointに確定し、再送では保存済みoutcomeを返してActionを再実行しない。
 
@@ -195,13 +201,19 @@ State frameはlatest-winsでreplayしない。keyframeは全visible latest-wins 
 
 Node keyframe patchは全visible Nodeについて、Timelineが現在所有しないactive、visible、opacity、およびtransformのposition・rotation・scale各componentを全て持つ。delta patchは所有されていないfield/componentの変更分だけを持つ。`NodeStatePatch.transform`ではcomponentごとの省略を許すが、空のtransform patchはrejectする。DefinitionとSnapshotのtransformは全component必須のままとする。empty patch、同じframeのduplicate element ID、profile外Node、Timeline所有propertyを含むpatchをrejectする。State mailboxはelement/field単位でlatest-wins mergeし、送信中のimmutable frameを書き換えない。
 
-TrackingはPresenterのState streamだけが送れる。frame sequenceは正に単調増加、sample targetはduplicate-free、最大4件である。frameはfiniteでcanonicalな`presentation_from_quest_local` rigid Poseをrequiredで持つ。capture timestampは診断だけに使い、freshnessやcanonical ingress orderに使わない。Runtimeは同じframeのcalibrationでQuest-local poseをPresentation Spaceへ変換し、受理時のRuntime monotonic時刻をfreshness authorityとしてfresh sampleからtracking evaluatorをseedする。Presenter本人selectorはbody sampleで判定する。motionは固定した時間窓の開始点からの直線距離で判定する。zone dwellは越境後の状態が指定時間継続した時点でedge成立とし、途中で戻れば取消す。recovery直後のsampleで疑似edgeを生成しない。
+Tracking は Presenter の State stream だけが送れる。frame sequence は正に単調増加、sample target は duplicate-free、最大4件で、finite で canonical な `presentation_from_quest_local` rigid Pose を必須とする。Runtime は同じ frame の calibration で Quest-local Pose を Presentation Space へ変換する。capture timestamp は診断専用で、受理時の Runtime monotonic 時刻を freshness authority とする。
 
-Anchor patchはvisibleなAnchor-bound Node IDをkeyにし、`unavailable`または`sample`のexactly oneを持つ。sampleはfollowするposition/rotationだけをoptional fieldで持つ。500 msを超えたsample、cut/origin/assignment不一致をunavailableとし、対象Nodeを描画もhit-testもしない。別AnchorやStageへfallbackしない。
+Pose を手追従などの連続演出専用の latest-wins 入力とし、Runtime で motion / Zone を再認識しない。Presenter client が Gesture の8種類と Zone の出入りを認識して Reliable Control へ送る。Gesture は種類だけを送り、距離・速度・時間窓・終了判定は client 内部の調整値とする。Zone は Presentation Space の軸に平行な一辺2mの箱、設定値は中心位置だけとし、配布された ID / 位置と Body tracking の腰位置で判定する。腰が取得できなければ停止し、別部位へ代替しない。2m は実機検証済み値ではない。server は境界の揺れや滞在時間を再計測しない。
+
+新しい入力期間では Gesture の新しい動作を待ち、Zone の現在位置を無通知で seed する。追跡喪失を exit とせず、復帰時も無通知で seed する。Zone 内で開始した場合は外へ出て改めて入るまで enter を発生させない。認識器の内部状態や raw Pose 履歴は保存しない。
+
+Anchor patch は visible な Anchor-bound Node ID を key に `unavailable` / `sample` / `frozen` の exactly one を持ち、follow する position / rotation だけを運ぶ。running 中は500 msを超えた sample、cut / origin / assignment 不一致を unavailable とし、描画・hit-testを停止する。別 Anchor や Stage へ fallback しない。
+
+pause 時に有効な Anchor を共有の凍結表示状態へ確定し、Snapshot / checkpoint に含める。pause 中は Pose の経年だけで非表示にせず、pause 前から unavailable の対象に架空の位置を与えない。resume 後は最新の有効 Pose から追従し、まだ有効 Pose がなければ凍結位置を維持して取得後に再開する。この再開待ちを通常 running の500 ms freshness 規則と区別する。HMD の視点更新と操作 UI は継続する。
 
 ## 7. Runtime state とAction transaction
 
-Runtime CoreだけがTrigger、Guard、Cue選択、Action、Run allocator、completionを確定する。一つのexternal inputまたはdue-event drainはArchitecture §12.9の順序に従い、1,024回目までのmicrostepを確定できる。1,025回目は評価・適用せず、それ以前の確定済みmutationを維持して`paused/microstepLimitExceeded`へ一つのatomic mutationで遷移する。
+Runtime Core は認証済みの成立イベントに対する入力検証、Guard、Cue 選択、Action、Run allocator、completion、Step 遷移を確定する。Gesture / Zone 認識は Presenter client が担う。独立イベントは別 ID で受理順に評価し、同時成立 batch を作らない。同じ Step で有効ならそれぞれ実行し、先行イベントで Step が変われば後続の旧入力を拒否する。一イベントの Cue 候補は優先順位・order・ID 順で一つ選ぶ。server cooldown は廃止し、client の一動作一通知と動作終了判定を使う。固定待ち時間や不採用動作の新 ID による再発行は設けない。Cue は通常 `oncePerStepEntry`、必要時だけ `repeatable` とする。一つのexternal inputまたはdue-event drainはArchitecture §12.9の順序に従い、1,024回目までのmicrostepを確定できる。1,025回目は評価・適用せず、それ以前の確定済みmutationを維持して`paused/microstepLimitExceeded`へ一つのatomic mutationで遷移する。
 
 Action batchは全Actionと`next`をpre-event snapshotに対して解決し、property claimを作ってから一度だけcommitする。`surface.setState`は対象Surfaceのstate/transitionとMedia lifecycle/playbackをclaimするため、同一Surfaceへの`media.play`/`pause`/`seek`とは両方のAction配列順で競合し、異なるSurfaceなら競合しない。同一claim、active Runとの競合、型不一致、存在しないlive target、同じStateへのcrossfade、active transitionへのsetState、crossfade中のmodel clip要求が一つでもあれば全体をrejectする。Action配列順、last-write-wins、queue、interrupt、replaceで解決しない。永続化を含むcommit失敗はstate/eventを公開せず`paused/atomicCommitFailed`にする。
 
@@ -214,6 +226,10 @@ Presentation開始時にpresentation-owned stateを一度初期化し、initial 
 Group exitはInteraction無効化、group-owned non-blocking Runのcancel、Node deactivate、group-owned state破棄、GroupExitedの順。presentation-owned stateとRunは維持する。Step exitではStepExecutionを破棄するが、Runはowner規則に従う。
 
 blocking Run中はphaseをtransitioningにし、通常inputを評価しない。期限に達したTimerはfiredにするがCueを評価・再試行しない。Run completionはstateとblocking setだけを更新し、completion Triggerから新Cueを開始しない。最後のblocking Run後にpending nextを一度適用する。
+
+Step 選択は、Session 内で到達済みの `(groupId, stepId)` ごとに保存した直近の入場開始状態1件を復元する。初期化完了後、最初の入力・時間経過を評価する前の表示、変数、Surface / Media / Model、進行中の Run を保存し、履歴も checkpoint 対象にする。未到達 Step は選択できない。現在の演出を取り消し、対象開始状態を一つの状態変更として復元して paused にし、明示 resume まで進めない。前 Step から続く演出も保存時の再生位置へ戻す。
+
+復元では Step 入場世代・入力世代を更新し、Cue 消費を初期化、Timer を新しい入場時刻基準で再設定する。Run は新 ID と必要な owner epoch を持ち、保存位置を現在の server 時計へ rebase する。Run 参照・完了予約も一括再構築し、取消済み Run の完了通知を無効化する。Session 時計、配信連番、Run 採番、重複排除記録、認証、実空間の校正は巻き戻さない。過去の手位置を復元せず選択時点の Anchor を凍結する。開始状態履歴は実行中の inactive Group state と分け、Viewer へ履歴全体を配布しない。
 
 ### 7.2 Surface transition
 

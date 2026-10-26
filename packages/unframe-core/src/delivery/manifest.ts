@@ -140,8 +140,8 @@ export const buildDeliveryManifest = (input: DeliveryManifestBuildInput) => {
     };
   });
   const manifest: DeliveryManifestWire = {
-    schemaVersion: 2,
-    deliveryContractVersion: 2,
+    schemaVersion: 3,
+    deliveryContractVersion: 3,
     sessionId: input.sessionId,
     publication: {
       presentationId: input.publishedPresentation.presentationId,

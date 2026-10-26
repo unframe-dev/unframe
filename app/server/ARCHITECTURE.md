@@ -81,6 +81,8 @@ State は保存期間だけでなく、authority、delivery semantics、failure 
 
 Reliable / ephemeral の具体的なmessage、snapshot、replay規則はRealtime contractが所有する。Control Planeはそれらのwire typeをschemaへ複製しない。
 
+[ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の採用仕様では、Presenter が Gesture / Zone を認識し、Realtime が入力世代・Cue / Action・共有進行を確定する。通常の Pose は ephemeral のまま、pause 時に確定した凍結 Anchor と到達済み Step の直近開始状態履歴は checkpoint 対象とする。[v3 の wire・保存契約](../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) は確定したが、Control Plane / Realtime の実行経路は移行前である。
+
 ## 4. Component contracts
 
 ### 4.1 Control Plane HTTP boundary

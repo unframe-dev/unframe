@@ -1,4 +1,4 @@
-// Package protocolv2 validates portable v2 messages before runtime admission.
+// Package protocolv2 validates portable Runtime messages before runtime admission.
 package protocolv2
 
 import (
@@ -75,7 +75,7 @@ func validate(message protoreflect.Message, path string, partialTransform bool) 
 			continue
 		}
 		if field.Kind() == protoreflect.MessageKind && !message.Has(field) {
-			if descriptor.Name() == "Transform" && partialTransform {
+			if descriptor.Name() == "Transform" && partialTransform || descriptor.Name() == "ProjectedRuntimeCatalog" && name == "presenter_recognition" || descriptor.Name() == "RuntimeControlCommand" && name == "step_selection" || descriptor.Name() == "RuntimeRecoveryMetadata" && name == "capacity_fault" {
 				continue
 			}
 			return fmt.Errorf("message_invalid: %s is required", fieldPath)
@@ -105,10 +105,10 @@ func collectionKey(field protoreflect.FieldDescriptor, value protoreflect.Value)
 		"MediaRuntimeState": {"surface_id"}, "ProjectedNodeDefinition": {"node_id"},
 		"ProjectedSurfaceDefinition": {"surface_id"}, "ProjectedVariableDefinition": {"variable_id"},
 		"ProjectedTimelineDefinition": {"timeline_id"}, "ProjectedModelClipDefinition": {"model_node_id", "clip_id"},
-		"ProjectedMotionGuideDefinition": {"group_id", "step_id", "cue_id"},
-		"AssetAccessBinding":             {"asset_id"}, "TextureResidencyBinding": {"asset_id"},
+		"PresenterRecognitionZone": {"zone_id"}, "FrozenAnchorDisplayState": {"node_id"}, "StepStartState": {"group_id", "step_id"},
+		"AssetAccessBinding": {"asset_id"}, "TextureResidencyBinding": {"asset_id"},
 		"ModelResidencyBinding": {"asset_id"}, "VideoResidencyBinding": {"asset_id"},
-		"RuntimeParticipantHistory": {"participant_id"}, "ProjectedParticipantPresence": {"participant_id"}, "ArmedTimer": {"cue_id"}, "CueCooldown": {"cue_id"},
+		"RuntimeParticipantHistory": {"participant_id"}, "ProjectedParticipantPresence": {"participant_id"}, "ArmedTimer": {"cue_id"},
 	}
 	var parts []string
 	for _, key := range keys[message.Descriptor().Name()] {
@@ -140,7 +140,7 @@ func validateValue(field protoreflect.FieldDescriptor, value protoreflect.Value,
 			return invalid()
 		}
 	case protoreflect.Uint64Kind, protoreflect.Uint32Kind:
-		if (strings.HasSuffix(name, "_epoch") || name == "run_sequence" || name == "sequence" || name == "checkpoint_sequence" || name == "frame_sequence" || name == "duration_ms" || strings.HasPrefix(name, "max_") || name == "expires_at_unix_ms") && value.Uint() == 0 {
+		if (strings.HasSuffix(name, "_epoch") || name == "run_sequence" || name == "sequence" || name == "checkpoint_sequence" || name == "frame_sequence" || name == "duration_ms" || strings.HasPrefix(name, "max_") || name == "expires_at_unix_ms" || name == "synchronization_revision") && value.Uint() == 0 {
 			return invalid()
 		}
 	case protoreflect.StringKind:
@@ -199,37 +199,32 @@ func validateKnownMessage(message protoreflect.Message, path string, partialTran
 			}
 		}
 	case "ControlHandshake", "StateHandshake", "ControlConnected":
-		if get("protocol_version").String() != "v2" || get("progression_contract_version").Uint() != 1 {
+		if get("protocol_version").String() != "v3" || get("progression_contract_version").Uint() != 2 {
 			return fmt.Errorf("protocol_incompatible: %s", path)
 		}
 	case "ContractVersions":
 		for _, version := range []struct {
 			name     string
 			expected uint64
-		}{{"delivery", 2}, {"runtime", 2}, {"progression", 1}, {"projection", 1}} {
+		}{{"delivery", 3}, {"runtime", 3}, {"progression", 2}, {"projection", 2}} {
 			if get(version.name).Uint() != version.expected {
 				return fmt.Errorf("protocol_incompatible: %s.%s", path, version.name)
 			}
 		}
 	case "DeliveryManifest":
-		if get("schema_version").Uint() != 2 || get("delivery_contract_version").Uint() != 2 {
+		if get("schema_version").Uint() != 3 || get("delivery_contract_version").Uint() != 3 {
 			return invalid()
 		}
 	case "CanonicalRuntimeSnapshot", "ConnectionSnapshotEnvelope", "DurableCheckpointEnvelope", "CapabilityProfile":
-		if get("schema_version").Uint() != 2 {
-			return invalid()
-		}
-	case "ProjectedMotionGuideDefinition":
-		preset, hand := get("preset").Enum(), get("hand").Enum()
-		if get("minimum_distance_meters").Float() <= 0 || get("window_ms").Uint() == 0 || get("window_ms").Uint() > 9007199254740991 || (preset >= 7) != (hand == 4) {
+		if get("schema_version").Uint() != 3 {
 			return invalid()
 		}
 	case "ProjectedRuntimeCatalog":
-		if get("catalog_contract_version").Uint() != 2 {
+		if get("catalog_contract_version").Uint() != 3 {
 			return invalid()
 		}
 	case "ProjectionProfileKey":
-		if get("projection_contract_version").Uint() != 1 {
+		if get("projection_contract_version").Uint() != 2 {
 			return invalid()
 		}
 	case "TextureCapability", "NativeUiCapability", "VideoCapability", "ModelCapability":
@@ -244,7 +239,7 @@ func validateKnownMessage(message protoreflect.Message, path string, partialTran
 			return invalid()
 		}
 	}
-	return nil
+	return validateAuthority(message, path)
 }
 
 func rejectUnknown(message protoreflect.Message) error {

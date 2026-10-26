@@ -101,6 +101,65 @@ public sealed class PresentationRuntimeCalibrationTests
         finally { DestroyPreparedRuntime(host); }
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task UpdatingAValidCalibrationRequestsRecalibrationAndDoesNotLeaveInputSuspended(bool deferred)
+    {
+        var host = new GameObject("Calibration replacement");
+        QuestPresentationEntry entry = null;
+        try
+        {
+            var writer = new RuntimeCommandWriter();
+            var runtime = PreparePausedRuntime(host, writer, out var connection);
+            entry = host.AddComponent<QuestPresentationEntry>();
+            typeof(QuestPresentationEntry).GetField("questTrackingOrigin", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(entry, host.transform);
+            var calibration = new PresentationCalibrationState();
+            var pose = new Unframe.Presentation.Pose { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } };
+            Assert.That(calibration.TrySet(pose, out _), Is.True);
+            entry.Configure(new Uri("https://api.example.com/"), "session", async token =>
+            {
+                await Task.Delay(Timeout.Infinite, token);
+                return "unused";
+            }, calibration, null);
+            var required = new PresenterInputSynchronization
+            {
+                Phase = InputSynchronizationPhase.Required,
+                Reason = InputSynchronizationReason.Connected,
+                SynchronizationRevision = 1,
+                CommandEpoch = 1,
+                InputContext = new InputContext { InputEpoch = 1, GroupId = "g", GroupEntryEpoch = 1, StepId = "s", StepEntryEpoch = 1 },
+                RecognitionCatalog = new Unframe.Presentation.PresenterRecognitionCatalog()
+            };
+            Assert.That(connection.InputSynchronization.Receive(required), Is.True);
+            connection.InputSynchronization.TryCreateAck(0);
+            var ready = required.Clone(); ready.Phase = InputSynchronizationPhase.Ready;
+            Assert.That(connection.InputSynchronization.Receive(ready), Is.True);
+            if (deferred) typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, false);
+            pose.Position.X = 1;
+            Assert.That(calibration.TrySet(pose, out _), Is.True);
+            if (deferred)
+            {
+                Assert.That(writer.Items, Is.Empty);
+                typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, true);
+                typeof(QuestPresentationEntry).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(entry, null);
+            }
+            Assert.That(writer.Items.Count, Is.EqualTo(1));
+            Assert.That(writer.Items[0].RuntimeControl.Kind, Is.EqualTo(RuntimeControlKind.Recalibrate));
+            required.SynchronizationRevision++;
+            required.Reason = InputSynchronizationReason.Recalibrated;
+            Assert.That(connection.InputSynchronization.Receive(required), Is.True);
+            Assert.That(connection.InputSynchronization.TryCreateAck(0), Is.Not.Null);
+            ready = required.Clone(); ready.Phase = InputSynchronizationPhase.Ready;
+            Assert.That(connection.InputSynchronization.Receive(ready), Is.True);
+            Assert.That(connection.InputSynchronization.Ready, Is.True);
+        }
+        finally
+        {
+            if (entry != null) await entry.StopAsync();
+            DestroyPreparedRuntime(host);
+        }
+    }
+
     [TestCase("viewer")]
     [TestCase("control-not-ready")]
     public void RuntimeControlsRequirePresenterAndLiveControlConnection(string blocked)

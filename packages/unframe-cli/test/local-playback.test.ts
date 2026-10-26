@@ -144,7 +144,7 @@ describe("local Preview Runtime Core playback", () => {
     now = 10000;
     expect(playback({ requestId, command: "play" }).state.clock).toEqual(ended.state.clock);
   });
-  it("lists only Core-accepted cues after guard, priority, consumption, and cooldown evaluation", async () => {
+  it("lists Core-accepted cues after guard, priority, and consumption evaluation", async () => {
     const definition = await referenceDefinition();
     const cue: Omit<
       (typeof definition.flow.groups)[string]["steps"][string]["cues"][number],
@@ -175,7 +175,7 @@ describe("local Preview Runtime Core playback", () => {
         ...cue,
         id: "repeat",
         trigger: { kind: "semanticEvent", event: "repeat", actor: { kind: "presenter" } },
-        firePolicy: { kind: "repeatable", cooldownMilliseconds: 100 },
+        firePolicy: { kind: "repeatable" },
       },
     ];
     let now = 0;
@@ -195,9 +195,13 @@ describe("local Preview Runtime Core playback", () => {
     expect(
       playback({ requestId, command: "input", cueId: "lower" }).inputs.map((input) => input.cueId),
     ).toEqual(["repeat"]);
-    expect(playback({ requestId, command: "input", cueId: "repeat" }).inputs).toEqual([]);
+    expect(
+      playback({ requestId, command: "input", cueId: "repeat" }).inputs.map((item) => item.cueId),
+    ).toEqual(["repeat"]);
     now = 99;
-    expect(playback({ requestId, command: "poll" }).inputs).toEqual([]);
+    expect(playback({ requestId, command: "poll" }).inputs.map((item) => item.cueId)).toEqual([
+      "repeat",
+    ]);
     now = 100;
     expect(playback({ requestId, command: "poll" }).inputs).toEqual([
       { cueId: "repeat", label: "repeat" },

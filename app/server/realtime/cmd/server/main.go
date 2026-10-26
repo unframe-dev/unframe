@@ -142,7 +142,7 @@ func main() {
 		slog.Error("build canonical runtime catalog", "error", err)
 		os.Exit(1)
 	}
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: bootstrap.Assignment.SessionID, RuntimeId: bootstrap.Assignment.RuntimeID, AssignmentEpoch: bootstrap.Assignment.AssignmentEpoch, Publication: &presentationv2.PublicationFence{PresentationId: bootstrap.Publication.PresentationID, PublicationEpoch: bootstrap.Publication.PublicationEpoch, PublicationManifestHash: bootstrap.Publication.PublicationManifestHash}, DefinitionHash: bootstrap.Publication.DefinitionHash, RenderBundleHash: bootstrap.Publication.RenderBundleHash}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: bootstrap.Assignment.SessionID, RuntimeId: bootstrap.Assignment.RuntimeID, AssignmentEpoch: bootstrap.Assignment.AssignmentEpoch, Publication: &presentationv2.PublicationFence{PresentationId: bootstrap.Publication.PresentationID, PublicationEpoch: bootstrap.Publication.PublicationEpoch, PublicationManifestHash: bootstrap.Publication.PublicationManifestHash}, DefinitionHash: bootstrap.Publication.DefinitionHash, RenderBundleHash: bootstrap.Publication.RenderBundleHash}
 	switch bootstrap.Assignment.RuntimeKind {
 	case assignment.RuntimeKindCloud:
 		metadata.RuntimeKind = realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD

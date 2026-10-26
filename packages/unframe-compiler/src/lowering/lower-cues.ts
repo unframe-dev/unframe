@@ -104,14 +104,13 @@ export const lowerCues = (
             event: cue.trigger.event,
             actor: { kind: "presenter" },
           };
-        else if (cue.trigger.kind === "motionPreset")
+        else if (cue.trigger.kind === "zoneEdge")
+          trigger = { ...cue.trigger, actor: { kind: "presenter" } };
+        else if (cue.trigger.kind === "gesture")
           trigger = {
-            kind: "motion",
-            actor: { kind: "system", source: "tracking" },
-            preset: cue.trigger.preset,
-            subject: { kind: "anchor", owner: { kind: "presenter" }, target: cue.trigger.hand },
-            minimumDistanceMeters: cue.trigger.minimumDistanceMeters,
-            windowMilliseconds: cue.trigger.windowMilliseconds,
+            kind: "gesture",
+            actor: { kind: "presenter" },
+            gesture: cue.trigger.gesture,
           } as CanonicalCue["trigger"];
         else {
           const target = resolve(cue.trigger.componentInstanceId, [...path, "trigger"]);

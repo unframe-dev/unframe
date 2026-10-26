@@ -48,8 +48,7 @@ test("Preview reuses the catalog and state messages without a publication or ses
     assetSet: "{}",
     projection: {
       runtimeCatalog: {
-        catalogContractVersion: 2,
-        motionGuides: [],
+        catalogContractVersion: 3,
         nodes: [],
         surfaces: [],
         variables: [],

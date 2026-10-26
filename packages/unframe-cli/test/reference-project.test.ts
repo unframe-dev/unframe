@@ -545,7 +545,7 @@ describe("reference Authoring Project", () => {
     expect(browserReads).toBe(0);
   });
 
-  it("builds deterministic v2 manifests, PNG and Font assets into managed dist", async () => {
+  it("builds deterministic manifests, PNG and Font assets into managed dist", async () => {
     const directory = await projectCopy();
     const first = fakeBrowser();
     const second = fakeBrowser();
@@ -572,10 +572,21 @@ describe("reference Authoring Project", () => {
     expect(assetNamesPng).toHaveLength(4);
     const firstAssetSet = await readFile(join(directory, "dist/asset-set.json"));
     const firstBuild = await readFile(join(directory, "dist/build-manifest.json"));
-    expect(JSON.parse(firstDefinition.toString()).schemaVersion).toBe(2);
+    expect(JSON.parse(firstDefinition.toString()).schemaVersion).toBe(3);
+    expect(JSON.parse(firstBundle.toString()).schemaVersion).toBe(2);
+    expect(JSON.parse(firstAssetSet.toString()).schemaVersion).toBe(2);
     expect(JSON.parse(firstBuild.toString())).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       sourceDraftRevision: 0,
+      contractVersions: {
+        definition: 3,
+        renderBundle: 2,
+        assetSet: 2,
+        delivery: 3,
+        runtime: 3,
+        progression: 2,
+        projection: 2,
+      },
     });
     const firstPngs = await Promise.all(
       assetNamesPng.map((name) => readFile(join(directory, "dist", "assets", name))),

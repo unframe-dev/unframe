@@ -1,5 +1,13 @@
 # 端末校正とSession Runtime
 
+## 採用済みの変更と適用範囲
+
+[ADR-0027](../../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) により、Presenter の再校正では server の入力世代も更新し、状態同期後に Gesture の新しい動作を待ち、Zone を現在位置から無通知で初期化します。送信済みの旧世代入力も server が採用しません。この処理は未実装であり、以下のローカル校正 API と cancel 動作だけでは実現されません。
+
+Session の pause は共有演出を停止する操作であり、端末のアプリ休止・校正無効化とは区別します。有効な校正の下では、pause 時の凍結位置で表示を保持し、HMD 視点と操作 UI を更新します。無効な座標変換のまま描画を継続する規則ではありません。
+
+## 現行実装
+
 `PresentationCalibrationState` は端末ごとの校正の正本です。確定済みのcanonical `presentationFromQuestLocal`、ローカルrevision、無効理由を保持します。ネットワークのPresentationOrigin version、publication、assignmentは変更しません。受信した校正値は厳密に検証してcloneし、不正な値を受け取っても確定済み校正を置き換えません。
 
 ## 座標と描画

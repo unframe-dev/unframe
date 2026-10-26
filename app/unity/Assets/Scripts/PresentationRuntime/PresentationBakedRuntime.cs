@@ -73,8 +73,20 @@ namespace Unframe.Unity.PresentationRuntime
         public bool SessionReady { get { return DownloadReady && ResidentReady && connection != null && connection.SessionReady; } }
         public ulong PresentationOriginVersion { get { return ControlReady ? store.PresentationOrigin?.Version ?? 0 : 0; } }
         public bool CanSendRuntimeControl { get { return ControlReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
-        public bool CanSendInput { get { return CalibrationReady && SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
-        public bool CanSendTracking { get { return CanSendInput; } }
+        public System.Collections.Generic.IReadOnlyList<StepSelection> ReachedSteps => connection?.ReachedSteps ?? System.Array.Empty<StepSelection>();
+        public event System.Action InputInvalidated;
+        public void DiscardPendingInputs() => connection?.DiscardPendingInputs();
+        public PresenterInputSynchronizationState InputSynchronization => connection?.InputSynchronization;
+        public bool CanSendInput
+        {
+            get
+            {
+                return CalibrationReady && SessionReady && InputSynchronization?.Ready == true
+            && store.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running && store.Progression?.PhaseCase == ProgressionRuntimeState.PhaseOneofCase.Stable
+            && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter;
+            }
+        }
+        public bool CanSendTracking { get { return CalibrationReady && SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
         public string LastError { get; private set; }
         public DeliveryManifest Delivery { get { return store.Delivery?.Clone(); } }
         public bool TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot) { return store.TryGetLastConnectionSnapshot(out snapshot); }
@@ -146,6 +158,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!surfaceRenderer.TryBuild(store, hierarchy, out error)) throw new InvalidOperationException(error);
                 connection = new PresentationRealtimeConnection(store, textures, token => videos.PrepareVisibleAsync(store, token));
                 connection.RuntimeChanged += Refresh;
+                connection.InputSynchronization.Invalidated += () => InputInvalidated?.Invoke();
                 connection.Disconnected += HandleDisconnected;
                 await connection.RunAsync(realtimeEndpoint, bearerProvider, lifetime.Token, certFingerprint, realtimeHandlerFactory);
             }

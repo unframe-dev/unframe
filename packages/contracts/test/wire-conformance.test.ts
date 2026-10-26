@@ -15,7 +15,15 @@ interface Fixture {
   hex: string;
 }
 const path = resolve(import.meta.dirname, "../presentation/fixtures/wire/conformance.json");
-const fixtures = JSON.parse(await readFile(path, "utf8")) as Fixture[];
+const fixtures: Fixture[] = [
+  ...JSON.parse(await readFile(path, "utf8")),
+  ...JSON.parse(
+    await readFile(
+      resolve(import.meta.dirname, "../presentation/fixtures/wire/presenter-authority.json"),
+      "utf8",
+    ),
+  ),
+];
 
 test("node transform patches preserve independent component presence", () => {
   for (const [transform, hex] of [
@@ -274,8 +282,9 @@ test("required wire oneofs reject missing and unknown-only payloads", () => {
   );
   assert.doesNotThrow(() =>
     encodeWireMessage("unframe.realtime.ControlHandshake", {
-      protocolVersion: "v2",
+      protocolVersion: "v3",
       progressionContractVersion: 2,
+      supportedCapabilities: [1, 8, 9, 10],
     }),
   );
   assert.doesNotThrow(() =>
@@ -297,25 +306,14 @@ test("Video fit uses field 16 and the shared SurfaceFit values", () => {
   }
 });
 
-test("motion guide metadata preserves valid hand semantics and rejects missing ranges", () => {
-  const name = "unframe.presentation.ProjectedMotionGuideDefinition";
-  const guide = {
-    groupId: "group",
-    stepId: "step",
-    cueId: "cue",
-    preset: 1,
-    hand: 1,
-    minimumDistanceMeters: 0.2,
-    windowMs: "750",
-  };
-  assert.deepEqual(decodeWireMessage(name, encodeWireMessage(name, guide)), guide);
-  for (const patch of [
-    { hand: 4 },
-    { preset: 7 },
-    { minimumDistanceMeters: 0 },
-    { windowMs: "0" },
-    { windowMs: "9007199254740992" },
-    { cueId: "" },
-  ])
-    assert.throws(() => encodeWireMessage(name, { ...guide, ...patch }), /motion guide/);
+test("Presenter recognition metadata carries gesture kinds and Zone centers without Cue or threshold authority", () => {
+  const name = "unframe.presentation.PresenterRecognitionCatalog";
+  const catalog = { gestures: [1, 8], zones: [{ zoneId: "stage", center: { x: 1 } }] };
+  assert.deepEqual(decodeWireMessage(name, encodeWireMessage(name, catalog)), catalog);
+  for (const field of ["cueId", "hand", "minimumDistanceMeters", "windowMs"])
+    assert.throws(() => encodeWireMessage(name, { ...catalog, [field]: 1 }), /not a wire field/);
+  assert.throws(
+    () => encodeWireMessage("unframe.presentation.ProjectedMotionGuideDefinition", {}),
+    /Unknown wire message/,
+  );
 });

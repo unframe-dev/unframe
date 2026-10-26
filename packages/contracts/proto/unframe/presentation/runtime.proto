@@ -22,6 +22,10 @@ enum RuntimeCapability {
   RUNTIME_CAPABILITY_VIDEO_PLAYBACK = 4;
   RUNTIME_CAPABILITY_MODEL_CLIP = 5;
   RUNTIME_CAPABILITY_TRACKING = 6;
+  RUNTIME_CAPABILITY_PRESENTER_RECOGNITION = 7;
+  RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION = 8;
+  RUNTIME_CAPABILITY_FROZEN_ANCHORS = 9;
+  RUNTIME_CAPABILITY_STEP_RESTORE = 10;
 }
 
 message PublicationFence {
@@ -320,36 +324,33 @@ message ProjectedModelClipDefinition {
   ResourceOwner owner = 6;
 }
 
-enum MotionGuidePreset {
-  MOTION_GUIDE_PRESET_UNSPECIFIED = 0;
-  MOTION_GUIDE_PRESET_SWIPE_LEFT = 1;
-  MOTION_GUIDE_PRESET_SWIPE_RIGHT = 2;
-  MOTION_GUIDE_PRESET_SWIPE_DOWN = 3;
-  MOTION_GUIDE_PRESET_SWIPE_UP = 4;
-  MOTION_GUIDE_PRESET_PUSH_FORWARD = 5;
-  MOTION_GUIDE_PRESET_PULL_BACKWARD = 6;
-  MOTION_GUIDE_PRESET_SPREAD_HANDS = 7;
-  MOTION_GUIDE_PRESET_CLOSE_HANDS = 8;
+enum GestureKind {
+  GESTURE_KIND_UNSPECIFIED = 0;
+  GESTURE_KIND_SWIPE_LEFT = 1;
+  GESTURE_KIND_SWIPE_RIGHT = 2;
+  GESTURE_KIND_SWIPE_DOWN = 3;
+  GESTURE_KIND_SWIPE_UP = 4;
+  GESTURE_KIND_PUSH_FORWARD = 5;
+  GESTURE_KIND_PULL_BACKWARD = 6;
+  GESTURE_KIND_SPREAD_HANDS = 7;
+  GESTURE_KIND_CLOSE_HANDS = 8;
 }
 
-enum MotionGuideHand {
-  MOTION_GUIDE_HAND_UNSPECIFIED = 0;
-  MOTION_GUIDE_HAND_EITHER = 1;
-  MOTION_GUIDE_HAND_LEFT = 2;
-  MOTION_GUIDE_HAND_RIGHT = 3;
-  MOTION_GUIDE_HAND_BOTH = 4;
+enum ZoneEdge {
+  ZONE_EDGE_UNSPECIFIED = 0;
+  ZONE_EDGE_ENTER = 1;
+  ZONE_EDGE_EXIT = 2;
 }
 
-// Presenter-only candidates for the active group and step. This metadata does
-// not assert guard eligibility or authorize local Cue execution.
-message ProjectedMotionGuideDefinition {
-  string group_id = 1;
-  string step_id = 2;
-  string cue_id = 3;
-  MotionGuidePreset preset = 4;
-  MotionGuideHand hand = 5;
-  double minimum_distance_meters = 6;
-  uint64 window_ms = 7;
+message PresenterRecognitionZone {
+  string zone_id = 1;
+  Vector3 center = 2;
+}
+
+// Only Presenter receives these candidates; Guard and Cue selection remain server-owned.
+message PresenterRecognitionCatalog {
+  repeated GestureKind gestures = 1;
+  repeated PresenterRecognitionZone zones = 2;
 }
 
 message ProjectedRuntimeCatalog {
@@ -359,5 +360,7 @@ message ProjectedRuntimeCatalog {
   repeated ProjectedVariableDefinition variables = 4;
   repeated ProjectedTimelineDefinition timelines = 5;
   repeated ProjectedModelClipDefinition model_clips = 6;
-  repeated ProjectedMotionGuideDefinition motion_guides = 7;
+  reserved 7;
+  reserved "motion_guides";
+  PresenterRecognitionCatalog presenter_recognition = 8;
 }

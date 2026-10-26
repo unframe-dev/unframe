@@ -12,6 +12,19 @@ static class Program
     {
         try
         {
+            if (args.Length == 1 && args[0] == "authority")
+            {
+                PresenterAuthorityTests.Run();
+                CheckAtomicReplacement();
+                Console.WriteLine("Presenter authority checks passed.");
+                return 0;
+            }
+            if (args.Length == 1 && args[0] == "pause")
+            {
+                PresentationRuntimePauseEditModeTests.Run();
+                Console.WriteLine("Pause runtime checks passed.");
+                return 0;
+            }
             if (args.Length == 1)
             {
                 var store = new PresentationRuntimeDataStore();
@@ -29,6 +42,7 @@ static class Program
             CheckBinaryDeliveryAndAssetDescriptor();
             CheckOriginFenceAndUnsupportedEvent();
             CheckFullSnapshotCut();
+            CheckAtomicReplacement();
             CheckRunStateClosure();
             CheckLoopingModelPosition();
             CheckModelClipReliableEvents();
@@ -330,6 +344,53 @@ static class Program
             && after.Equals(snapshot.ConnectionSnapshot), "rejected snapshot replaced the last cut");
     }
 
+    private static void CheckAtomicReplacement()
+    {
+        DeliveryManifest delivery = LoadDelivery();
+        ControlServerItem snapshot = LoadSnapshot();
+        AddVideoFixture(delivery, snapshot);
+        foreach (var node in delivery.ProjectionProfile.RuntimeCatalog.Nodes) node.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        foreach (var definition in delivery.ProjectionProfile.RuntimeCatalog.Surfaces) definition.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        delivery.ProjectionProfile.RuntimeCatalog.ModelClips.Add(new ProjectedModelClipDefinition
+        { ModelNodeId = "node:cube", ModelAssetId = "asset:storyboard-cube", ClipId = "clip:restore", DurationMs = 1000 });
+        var store = new PresentationRuntimeDataStore();
+        Require(store.TryReceiveDelivery(delivery, out string error), error);
+        Require(store.TryReceiveControl(snapshot, out error), error);
+        var view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Clone();
+        view.BaseReliableSequence = 1; view.Clock.Paused = new Paused { Reason = PauseReason.ExplicitPause };
+        view.Progression.StepEntryEpoch++;
+        view.NodeStates[0].Opacity = 0.37;
+        var mediaId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 80 };
+        var modelId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 81 };
+        var surfaceId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 82 };
+        RuntimeRunSnapshot Run(RuntimeRunId id) => new RuntimeRunSnapshot { RunId = id,
+            Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
+            Cause = new RuntimeRunCause { CueId = "cue:restore", CauseEventId = "event:restore" }, Completion = RunCompletion.NonBlocking };
+        var media = Run(mediaId); media.Media = new MediaRunSnapshot { SurfaceId = "surface:adapter-video", Playback = new PlaybackClock { Paused = new PausedClock { PositionMs = 12 } } };
+        view.ActiveRuns.Add(media);
+        view.MediaStates[0].Active = new MediaActive { RunId = mediaId.Clone(), Playback = media.Media.Playback.Clone() };
+        var model = Run(modelId); model.ModelClip = new ModelClipRunSnapshot { ModelNodeId = "node:cube", Single = new ClipPlayback { ClipId = "clip:restore", Speed = 1, Playback = new PlaybackClock { Paused = new PausedClock { PositionMs = 230 } } } };
+        view.ActiveRuns.Add(model);
+        foreach (var state in view.ModelClipStates) if (state.ModelNodeId == "node:cube") state.Active = new ModelClipActive { RunId = modelId.Clone() };
+        var surface = Run(surfaceId); surface.SurfaceTransition = new SurfaceTransitionRunSnapshot { SurfaceId = view.SurfaceStates[0].SurfaceId, FromStateId = view.SurfaceStates[0].StateId, ToStateId = view.SurfaceStates[0].StateId };
+        view.ActiveRuns.Add(surface); view.SurfaceStates[0].TransitionRunId = surfaceId.Clone();
+        var replacement = new ControlServerItem { ReliableEvent = new ProjectedReliableEvent { Sequence = 1, Fence = snapshot.ConnectionSnapshot.Fence.Clone(), RuntimeViewReplaced = new RuntimeViewReplaced { RuntimeView = view } } };
+        var invalid = replacement.Clone(); invalid.ReliableEvent.RuntimeViewReplaced.RuntimeView.MediaStates[0].Active.RunId.RunSequence = 999;
+        Require(!store.TryReceiveNetworkControl(invalid, out _), "partial replacement was accepted");
+        Require(store.LastReliableSequence == 0 && store.TryGetNodeState(view.NodeStates[0].NodeId, out var unchanged) && unchanged.Opacity != 0.37, "invalid replacement partially changed state");
+        Require(store.TryReceiveNetworkControl(replacement, out error), error);
+        Require(store.TryGetMediaState("surface:adapter-video", out var restoredMedia) && restoredMedia.Active.Playback.Paused.PositionMs == 12, "media restore lost playback position");
+        Require(store.TryGetModelClipState("node:cube", out var restoredModel) && restoredModel.Active.RunId.Equals(modelId), "model restore lost run reference");
+        Require(store.TryGetSurfaceState(view.SurfaceStates[0].SurfaceId, out var restoredSurface) && restoredSurface.TransitionRunId.Equals(surfaceId), "surface restore lost run reference");
+        view.ActiveRuns.Clear(); view.MediaStates[0].Stopped = new MediaStoppedState { HeldPositionMs = 12 };
+        foreach (var state in view.ModelClipStates) state.DefaultPose = new DefaultModelPose();
+        view.SurfaceStates[0].TransitionRunId = null; view.BaseReliableSequence = 2; replacement.ReliableEvent.Sequence = 2;
+        Require(store.TryReceiveNetworkControl(replacement, out error), error);
+        Require(!System.Linq.Enumerable.Any(store.ActiveRuns), "old restored runs survived replacement");
+        Require(store.TryReceiveNetworkControl(new ControlServerItem { ReliableEvent = new ProjectedReliableEvent { Sequence = 3, Fence = snapshot.ConnectionSnapshot.Fence.Clone(), GestureInputAccepted = new GestureInputAccepted { Gesture = GestureKind.SwipeLeft } } }, out error), error);
+        Require(store.TryReceiveNetworkControl(new ControlServerItem { ReliableEvent = new ProjectedReliableEvent { Sequence = 4, Fence = snapshot.ConnectionSnapshot.Fence.Clone(), ZoneInputAccepted = new ZoneInputAccepted { ZoneId = "zone:restore", Edge = ZoneEdge.Enter } } }, out error), error);
+    }
+
     private static void CheckRunStateClosure()
     {
         var store = new PresentationRuntimeDataStore();
@@ -375,11 +436,10 @@ static class Program
         DeliveryManifest delivery = LoadDelivery();
         delivery.ProjectionProfile.RuntimeCatalog.ModelClips.Add(new ProjectedModelClipDefinition
         { ModelNodeId = "node:cube", ModelAssetId = "asset:storyboard-cube", ClipId = "clip:wave", DurationMs = 1000 });
+        foreach (var node in delivery.ProjectionProfile.RuntimeCatalog.Nodes) node.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
         var store = new PresentationRuntimeDataStore();
         Require(store.TryReceiveDelivery(delivery, out string error), error);
         ControlServerItem snapshot = LoadSnapshot();
-        snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState
-        { ModelNodeId = "node:cube", DefaultPose = new DefaultModelPose() });
         Require(store.TryReceiveControl(snapshot, out error), error);
         var run = new RuntimeRunSnapshot
         {

@@ -26,7 +26,7 @@ func (s *V2Session) advanceFromWall(ctx context.Context, now time.Time) ([]*real
 		s.mu.Unlock()
 		return nil, nil
 	}
-	if s.snapshot.Clock.GetRunning() == nil {
+	if s.snapshot.Clock.GetRunning() == nil || s.checkpointWriter != nil && len(s.participants) == 0 {
 		s.lastTick = now
 		s.mu.Unlock()
 		return nil, nil
@@ -66,7 +66,7 @@ func (s *V2Session) AdvanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*realtimev2.ProjectedReliableEvent, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.snapshot.Clock.GetRunning() == nil || runtimeTimeMs < s.snapshot.Clock.RuntimeTimeMs {
+	if s.snapshot.Clock.GetRunning() == nil || runtimeTimeMs < s.snapshot.Clock.RuntimeTimeMs || s.checkpointWriter != nil && len(s.participants) == 0 {
 		return nil, nil
 	}
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
@@ -78,8 +78,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 	for s.snapshot.Clock.GetTerminating() == nil {
 		run, timer, deadline, err := s.nextV2Due(runtimeTimeMs)
 		if err != nil {
-			s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-			return nil, err
+			return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 		}
 		if run == nil && timer == nil {
 			break
@@ -99,8 +98,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 		if timer != nil {
 			timerEvents, err := s.fireV2Timer(timer)
 			if err != nil {
-				s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-				return nil, err
+				return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 			}
 			events = append(events, timerEvents...)
 			continue
@@ -120,16 +118,14 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 			}
 			completed, err := completeV2MediaRun(s.snapshot, spec, run.RunId)
 			if err != nil {
-				s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-				return nil, err
+				return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 			}
 			for _, event := range completed {
 				sequenced := s.nextEvent(event)
 				events = append(events, sequenced)
 				cueEvents, err := s.fireV2MediaCompleted(media.SurfaceId, fmt.Sprintf("event-%d", sequenced.Sequence))
 				if err != nil {
-					s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-					return nil, err
+					return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 				}
 				events = append(events, cueEvents...)
 			}
@@ -150,8 +146,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 			}
 			result, err := advanceV2ModelRun(state, run, durations, deadline)
 			if err != nil {
-				s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-				return nil, err
+				return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 			}
 			for index, candidate := range s.snapshot.ModelClipStates {
 				if candidate == state {
@@ -175,8 +170,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 				if sequenced.GetModelClipCompleted() != nil {
 					cueEvents, err := s.fireV2ModelCompleted(model.ModelNodeId, sequenced.GetModelClipCompleted().HeldPose.ClipId, fmt.Sprintf("event-%d", sequenced.Sequence))
 					if err != nil {
-						s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-						return nil, err
+						return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 					}
 					events = append(events, cueEvents...)
 				}
@@ -192,8 +186,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 		} else if run.GetTimeline() != nil {
 			_ = json.Unmarshal(s.definition.Flow.Timelines[run.GetTimeline().TimelineId], &timeline)
 			if err := applyV2TimelineFinal(s.snapshot, timeline); err != nil {
-				s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-				return nil, err
+				return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 			}
 		} else if transition := run.GetSurfaceTransition(); transition != nil {
 			found := false
@@ -235,8 +228,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 		if run.GetTimeline() != nil && s.snapshot.Progression.GetTransitioning() == nil {
 			cueEvents, err := s.fireV2TimelineCompleted(timeline.ID, timelineCompletionEventID)
 			if err != nil {
-				s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-				return nil, err
+				return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 			}
 			events = append(events, cueEvents...)
 		}
@@ -254,8 +246,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 				if group := pending.GetGroup(); group != nil {
 					groupEvents, err := s.enterV2Group(group.GroupId)
 					if err != nil {
-						s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-						return nil, err
+						return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 					}
 					for _, event := range groupEvents {
 						events = append(events, s.nextEvent(event))
@@ -264,8 +255,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 				if step := pending.GetStep(); step != nil {
 					stepEvent, err := s.enterV2Step(step.StepId)
 					if err != nil {
-						s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-						return nil, err
+						return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 					}
 					events = append(events, s.nextEvent(stepEvent))
 				}
@@ -276,8 +266,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 					}
 					events, err = s.prepareV2Termination(events, realtimev2.TerminationReason_TERMINATION_REASON_EXPLICIT_END)
 					if err != nil {
-						s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-						return nil, err
+						return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 					}
 				}
 			}
