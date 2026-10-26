@@ -22,12 +22,12 @@ adb devices -l
 
 ## ビルドと起動
 
-1. `Unframe > ArUco > Open Presentation Test Scene` を選ぶ。
-2. `Unframe > ArUco > Build and Run Presentation on Quest` を選ぶ。
+1. `Unframe > Diagnostics > ArUco > Open Presentation Test Scene` を選ぶ。
+2. `Unframe > Diagnostics > ArUco > Build and Run Presentation on Quest` を選ぶ。
 3. ヘッドセット内でこのアプリのカメラアクセスを許可する。
 4. パネルが `LIVE` になり、頭を動かすとカメラ映像も変わり、フレーム数と撮影時刻が増えることを確認する。
 
-`Unframe > ArUco > Build Presentation Test APK` は APK の生成だけを行います。出力は `app/unity/Builds/PCA/unframe-aruco-presentation.apk`、アプリ ID は `dev.unframe.pca.presentation`、アプリ名は `Unframe PCA Preview` です。ビルドにはこのテストシーンだけを渡します。ビルド後に元の application ID とアプリ名を復元します。APK 出力は Git 管理から除外されます。
+`Unframe > Diagnostics > ArUco > Build Presentation Test APK` は APK の生成だけを行います。出力は `app/unity/Builds/PCA/unframe-aruco-presentation.apk`、アプリ ID は `dev.unframe.pca.presentation`、アプリ名は `Unframe PCA Preview` です。ビルドにはこのテストシーンだけを渡します。ビルド後に元の application ID とアプリ名を復元します。APK 出力は Git 管理から除外されます。
 
 ローカルの `DevAgentSettings.asset` がある状態で通常の Android Build を実行すると、APK へ Meta DevAgent の接続設定が混入しないようビルドを中断します。専用メニューからのビルドは、設定アセットを一時退避して APK から除外し、ビルド後に復元します。設定アセットがない場合と Android 以外のビルドにはこの制限は適用されません。
 
@@ -68,7 +68,7 @@ adb logcat -d -s Unity > ./pca-diagnostics/unity-logcat.txt
 
 ## 診断ビルドの軽量化
 
-OpenCV for Unity の導入後は、一度 `Unframe > PCA > Prepare Fast Builds (Exclude OpenCV Samples)` を実行し、スクリプトのコンパイルが終わるのを待ちます。Examples のコード・Resources とサンプル StreamingAssets を、`Assets` 外の `LocalOnly/OpenCVForUnitySamples/` へ移します。OpenCV の本体と必要な native plugin は維持します。この保存先も Git 対象外で、有料アセットを配布しません。
+OpenCV for Unity の導入後は、一度 `Unframe > Tools > OpenCV > Prepare Fast Builds (Exclude OpenCV Samples)` を実行し、スクリプトのコンパイルが終わるのを待ちます。Examples のコード・Resources とサンプル StreamingAssets を、`Assets` 外の `LocalOnly/OpenCVForUnitySamples/` へ移します。OpenCV の本体と必要な native plugin は維持します。この保存先も Git 対象外で、有料アセットを配布しません。
 
 元のサンプルを使うときは `Restore OpenCV Samples` で戻せます。元の場所と保存先の両方にファイルがある場合は上書きせず停止します。再インポートしたサンプルと保存済みサンプルを確認してから準備をやり直してください。ローカルMRと通信プレゼンの builder は、サンプルが `Assets` 内に残っている間は案内付きでビルドを拒否します。
 

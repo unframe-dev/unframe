@@ -8,7 +8,14 @@ mkdir -p "$assets" "$project/Packages" "$project/ProjectSettings"
 rm -rf "$assets/Unframe"
 mkdir -p "$assets/Unframe/Scripts/State" "$assets/Unframe/Scripts/Delivery" "$assets/Unframe/Generated" "$assets/Unframe/Plugins" "$assets/Unframe/Resources" "$assets/Unframe/Editor"
 runtime="$root/app/unity/Assets/Scripts/PresentationRuntime"
-cp -R "$runtime/Rendering" "$runtime/Animation" "$runtime/Preview" "$assets/Unframe/Scripts/"
+cp -R "$runtime/Animation" "$runtime/Preview" "$assets/Unframe/Scripts/"
+mkdir -p "$assets/Unframe/Scripts/Rendering"
+for source in "$runtime/Rendering/"*.cs; do
+  case "$(basename "$source")" in
+    PresentationSceneRenderer.cs|PresentationNativeSurfaceRenderer.cs|PresentationModelRenderer.cs|PresentationVideoSurfaceRenderer.cs) continue ;;
+  esac
+  cp "$source" "$assets/Unframe/Scripts/Rendering/"
+done
 cp "$runtime/State/IPresentationRenderView.cs" "$runtime/State/PresentationMediaPlaybackValidation.cs" "$assets/Unframe/Scripts/State/"
 cp "$runtime/Delivery/PresentationDeliveryCatalog.cs" "$runtime/Delivery/PresentationBakedDeliveryValidation.cs" "$runtime/Delivery/PresentationCoordinateValidation.cs" "$assets/Unframe/Scripts/Delivery/"
 for source in Runtime Delivery Realtime Preview; do

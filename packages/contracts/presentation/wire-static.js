@@ -63,6 +63,10 @@ export const unframe = ($root.unframe = (() => {
      * @property {number} RUNTIME_CAPABILITY_VIDEO_PLAYBACK=4 RUNTIME_CAPABILITY_VIDEO_PLAYBACK value
      * @property {number} RUNTIME_CAPABILITY_MODEL_CLIP=5 RUNTIME_CAPABILITY_MODEL_CLIP value
      * @property {number} RUNTIME_CAPABILITY_TRACKING=6 RUNTIME_CAPABILITY_TRACKING value
+     * @property {number} RUNTIME_CAPABILITY_PRESENTER_RECOGNITION=7 RUNTIME_CAPABILITY_PRESENTER_RECOGNITION value
+     * @property {number} RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION=8 RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION value
+     * @property {number} RUNTIME_CAPABILITY_FROZEN_ANCHORS=9 RUNTIME_CAPABILITY_FROZEN_ANCHORS value
+     * @property {number} RUNTIME_CAPABILITY_STEP_RESTORE=10 RUNTIME_CAPABILITY_STEP_RESTORE value
      */
     presentation.RuntimeCapability = (function () {
       const valuesById = $Object.create(null),
@@ -74,6 +78,10 @@ export const unframe = ($root.unframe = (() => {
       values[(valuesById[4] = "RUNTIME_CAPABILITY_VIDEO_PLAYBACK")] = 4;
       values[(valuesById[5] = "RUNTIME_CAPABILITY_MODEL_CLIP")] = 5;
       values[(valuesById[6] = "RUNTIME_CAPABILITY_TRACKING")] = 6;
+      values[(valuesById[7] = "RUNTIME_CAPABILITY_PRESENTER_RECOGNITION")] = 7;
+      values[(valuesById[8] = "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION")] = 8;
+      values[(valuesById[9] = "RUNTIME_CAPABILITY_FROZEN_ANCHORS")] = 9;
+      values[(valuesById[10] = "RUNTIME_CAPABILITY_STEP_RESTORE")] = 10;
       return values;
     })();
 
@@ -14116,6 +14124,699 @@ export const unframe = ($root.unframe = (() => {
       return ProjectedModelClipDefinition;
     })();
 
+    /**
+     * GestureKind enum.
+     * @name unframe.presentation.GestureKind
+     * @enum {number}
+     * @property {number} GESTURE_KIND_UNSPECIFIED=0 GESTURE_KIND_UNSPECIFIED value
+     * @property {number} GESTURE_KIND_SWIPE_LEFT=1 GESTURE_KIND_SWIPE_LEFT value
+     * @property {number} GESTURE_KIND_SWIPE_RIGHT=2 GESTURE_KIND_SWIPE_RIGHT value
+     * @property {number} GESTURE_KIND_SWIPE_DOWN=3 GESTURE_KIND_SWIPE_DOWN value
+     * @property {number} GESTURE_KIND_SWIPE_UP=4 GESTURE_KIND_SWIPE_UP value
+     * @property {number} GESTURE_KIND_PUSH_FORWARD=5 GESTURE_KIND_PUSH_FORWARD value
+     * @property {number} GESTURE_KIND_PULL_BACKWARD=6 GESTURE_KIND_PULL_BACKWARD value
+     * @property {number} GESTURE_KIND_SPREAD_HANDS=7 GESTURE_KIND_SPREAD_HANDS value
+     * @property {number} GESTURE_KIND_CLOSE_HANDS=8 GESTURE_KIND_CLOSE_HANDS value
+     */
+    presentation.GestureKind = (function () {
+      const valuesById = $Object.create(null),
+        values = $Object.create(valuesById);
+      values[(valuesById[0] = "GESTURE_KIND_UNSPECIFIED")] = 0;
+      values[(valuesById[1] = "GESTURE_KIND_SWIPE_LEFT")] = 1;
+      values[(valuesById[2] = "GESTURE_KIND_SWIPE_RIGHT")] = 2;
+      values[(valuesById[3] = "GESTURE_KIND_SWIPE_DOWN")] = 3;
+      values[(valuesById[4] = "GESTURE_KIND_SWIPE_UP")] = 4;
+      values[(valuesById[5] = "GESTURE_KIND_PUSH_FORWARD")] = 5;
+      values[(valuesById[6] = "GESTURE_KIND_PULL_BACKWARD")] = 6;
+      values[(valuesById[7] = "GESTURE_KIND_SPREAD_HANDS")] = 7;
+      values[(valuesById[8] = "GESTURE_KIND_CLOSE_HANDS")] = 8;
+      return values;
+    })();
+
+    /**
+     * ZoneEdge enum.
+     * @name unframe.presentation.ZoneEdge
+     * @enum {number}
+     * @property {number} ZONE_EDGE_UNSPECIFIED=0 ZONE_EDGE_UNSPECIFIED value
+     * @property {number} ZONE_EDGE_ENTER=1 ZONE_EDGE_ENTER value
+     * @property {number} ZONE_EDGE_EXIT=2 ZONE_EDGE_EXIT value
+     */
+    presentation.ZoneEdge = (function () {
+      const valuesById = $Object.create(null),
+        values = $Object.create(valuesById);
+      values[(valuesById[0] = "ZONE_EDGE_UNSPECIFIED")] = 0;
+      values[(valuesById[1] = "ZONE_EDGE_ENTER")] = 1;
+      values[(valuesById[2] = "ZONE_EDGE_EXIT")] = 2;
+      return values;
+    })();
+
+    presentation.PresenterRecognitionZone = (function () {
+      /**
+       * Properties of a PresenterRecognitionZone.
+       * @typedef {Object} unframe.presentation.PresenterRecognitionZone.$Properties
+       * @property {string|null} [zoneId] PresenterRecognitionZone zoneId
+       * @property {unframe.presentation.Vector3.$Properties|null} [center] PresenterRecognitionZone center
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a PresenterRecognitionZone.
+       * @memberof unframe.presentation
+       * @interface IPresenterRecognitionZone
+       * @augments unframe.presentation.PresenterRecognitionZone.$Properties
+       * @deprecated Use unframe.presentation.PresenterRecognitionZone.$Properties instead.
+       */
+
+      /**
+       * Shape of a PresenterRecognitionZone.
+       * @typedef {unframe.presentation.PresenterRecognitionZone.$Properties} unframe.presentation.PresenterRecognitionZone.$Shape
+       */
+
+      /**
+       * Constructs a new PresenterRecognitionZone.
+       * @memberof unframe.presentation
+       * @classdesc Represents a PresenterRecognitionZone.
+       * @constructor
+       * @param {unframe.presentation.PresenterRecognitionZone.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const PresenterRecognitionZone = function PresenterRecognitionZone(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * PresenterRecognitionZone zoneId.
+       * @member {string} zoneId
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @instance
+       */
+      PresenterRecognitionZone.prototype.zoneId = "";
+
+      /**
+       * PresenterRecognitionZone center.
+       * @member {unframe.presentation.Vector3.$Properties|null|undefined} center
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @instance
+       */
+      PresenterRecognitionZone.prototype.center = null;
+
+      /**
+       * Creates a new PresenterRecognitionZone instance using the specified properties.
+       * @function create
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @static
+       * @param {unframe.presentation.PresenterRecognitionZone.$Properties=} [properties] Properties to set
+       * @returns {unframe.presentation.PresenterRecognitionZone} PresenterRecognitionZone instance
+       * @type {{
+       *   (properties: unframe.presentation.PresenterRecognitionZone.$Shape): unframe.presentation.PresenterRecognitionZone & unframe.presentation.PresenterRecognitionZone.$Shape;
+       *   (properties?: unframe.presentation.PresenterRecognitionZone.$Properties): unframe.presentation.PresenterRecognitionZone;
+       * }}
+       */
+      PresenterRecognitionZone.create = function (properties) {
+        return new PresenterRecognitionZone(properties);
+      };
+
+      /**
+       * Encodes the specified PresenterRecognitionZone message. Does not implicitly {@link unframe.presentation.PresenterRecognitionZone.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @static
+       * @param {unframe.presentation.PresenterRecognitionZone.$Properties} message PresenterRecognitionZone message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterRecognitionZone.encode = function PresenterRecognitionZone$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.zoneId != null && $Object.hasOwnProperty.call(message, "zoneId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.zoneId);
+        if (message.center != null && $Object.hasOwnProperty.call(message, "center"))
+          $root.unframe.presentation.Vector3.encode(
+            message.center,
+            writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+          ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified PresenterRecognitionZone message, length delimited. Does not implicitly {@link unframe.presentation.PresenterRecognitionZone.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @static
+       * @param {unframe.presentation.PresenterRecognitionZone.$Properties} message PresenterRecognitionZone message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterRecognitionZone.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a PresenterRecognitionZone message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.presentation.PresenterRecognitionZone & unframe.presentation.PresenterRecognitionZone.$Shape} PresenterRecognitionZone
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterRecognitionZone.decode = function PresenterRecognitionZone$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.zoneId = reader.string();
+              break;
+            }
+            case 2: {
+              message.center = $root.unframe.presentation.Vector3.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a PresenterRecognitionZone message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.presentation.PresenterRecognitionZone & unframe.presentation.PresenterRecognitionZone.$Shape} PresenterRecognitionZone
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterRecognitionZone.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a PresenterRecognitionZone message.
+       * @function verify
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      PresenterRecognitionZone.verify = function PresenterRecognitionZone$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.zoneId != null && message.hasOwnProperty("zoneId"))
+          if (!$util.isString(message.zoneId)) return "zoneId: string expected";
+        if (message.center != null && message.hasOwnProperty("center")) {
+          let error = $root.unframe.presentation.Vector3.verify(message.center, long + 1);
+          if (error) return "center." + error;
+        }
+        return null;
+      };
+
+      /**
+       * Creates a PresenterRecognitionZone message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.presentation.PresenterRecognitionZone} PresenterRecognitionZone
+       */
+      PresenterRecognitionZone.fromObject = function PresenterRecognitionZone$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.zoneId != null) message.zoneId = $String(object.zoneId);
+        if (object.center != null) {
+          if (typeof object.center !== "object")
+            throw $TypeError(
+              ".unframe.presentation.PresenterRecognitionZone.center: object expected",
+            );
+          message.center = $root.unframe.presentation.Vector3.fromObject(object.center, long + 1);
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a PresenterRecognitionZone message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @static
+       * @param {unframe.presentation.PresenterRecognitionZone} message PresenterRecognitionZone
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      PresenterRecognitionZone.toObject = function PresenterRecognitionZone$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.zoneId = "";
+          object.center = null;
+        }
+        if (message.zoneId != null && message.hasOwnProperty("zoneId"))
+          object.zoneId = message.zoneId;
+        if (message.center != null && message.hasOwnProperty("center"))
+          object.center = $root.unframe.presentation.Vector3.toObject(message.center, options);
+        return object;
+      };
+
+      /**
+       * Converts this PresenterRecognitionZone to JSON.
+       * @function toJSON
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      PresenterRecognitionZone.prototype.toJSON = function () {
+        return PresenterRecognitionZone.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for PresenterRecognitionZone
+       * @function getTypeUrl
+       * @memberof unframe.presentation.PresenterRecognitionZone
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      PresenterRecognitionZone.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.presentation.PresenterRecognitionZone";
+      };
+
+      return PresenterRecognitionZone;
+    })();
+
+    presentation.PresenterRecognitionCatalog = (function () {
+      /**
+       * Properties of a PresenterRecognitionCatalog.
+       * @typedef {Object} unframe.presentation.PresenterRecognitionCatalog.$Properties
+       * @property {Array.<unframe.presentation.GestureKind>|null} [gestures] PresenterRecognitionCatalog gestures
+       * @property {Array.<unframe.presentation.PresenterRecognitionZone.$Properties>|null} [zones] PresenterRecognitionCatalog zones
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a PresenterRecognitionCatalog.
+       * @memberof unframe.presentation
+       * @interface IPresenterRecognitionCatalog
+       * @augments unframe.presentation.PresenterRecognitionCatalog.$Properties
+       * @deprecated Use unframe.presentation.PresenterRecognitionCatalog.$Properties instead.
+       */
+
+      /**
+       * Shape of a PresenterRecognitionCatalog.
+       * @typedef {unframe.presentation.PresenterRecognitionCatalog.$Properties} unframe.presentation.PresenterRecognitionCatalog.$Shape
+       */
+
+      /**
+       * Constructs a new PresenterRecognitionCatalog.
+       * @memberof unframe.presentation
+       * @classdesc Represents a PresenterRecognitionCatalog.
+       * @constructor
+       * @param {unframe.presentation.PresenterRecognitionCatalog.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const PresenterRecognitionCatalog = function PresenterRecognitionCatalog(properties) {
+        this.gestures = [];
+        this.zones = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * PresenterRecognitionCatalog gestures.
+       * @member {Array.<unframe.presentation.GestureKind>} gestures
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @instance
+       */
+      PresenterRecognitionCatalog.prototype.gestures = $util.emptyArray;
+
+      /**
+       * PresenterRecognitionCatalog zones.
+       * @member {Array.<unframe.presentation.PresenterRecognitionZone.$Properties>} zones
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @instance
+       */
+      PresenterRecognitionCatalog.prototype.zones = $util.emptyArray;
+
+      /**
+       * Creates a new PresenterRecognitionCatalog instance using the specified properties.
+       * @function create
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @static
+       * @param {unframe.presentation.PresenterRecognitionCatalog.$Properties=} [properties] Properties to set
+       * @returns {unframe.presentation.PresenterRecognitionCatalog} PresenterRecognitionCatalog instance
+       * @type {{
+       *   (properties: unframe.presentation.PresenterRecognitionCatalog.$Shape): unframe.presentation.PresenterRecognitionCatalog & unframe.presentation.PresenterRecognitionCatalog.$Shape;
+       *   (properties?: unframe.presentation.PresenterRecognitionCatalog.$Properties): unframe.presentation.PresenterRecognitionCatalog;
+       * }}
+       */
+      PresenterRecognitionCatalog.create = function (properties) {
+        return new PresenterRecognitionCatalog(properties);
+      };
+
+      /**
+       * Encodes the specified PresenterRecognitionCatalog message. Does not implicitly {@link unframe.presentation.PresenterRecognitionCatalog.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @static
+       * @param {unframe.presentation.PresenterRecognitionCatalog.$Properties} message PresenterRecognitionCatalog message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterRecognitionCatalog.encode = function PresenterRecognitionCatalog$encode(
+        message,
+        writer,
+      ) {
+        if (!writer) writer = $Writer.create();
+        if (message.gestures != null && message.gestures.length) {
+          writer.uint32(/* id 1, wireType 2 =*/ 10).fork();
+          for (let i = 0; i < message.gestures.length; ++i) writer.int32(message.gestures[i]);
+          writer.ldelim();
+        }
+        if (message.zones != null && message.zones.length)
+          for (let i = 0; i < message.zones.length; ++i)
+            $root.unframe.presentation.PresenterRecognitionZone.encode(
+              message.zones[i],
+              writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+            ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified PresenterRecognitionCatalog message, length delimited. Does not implicitly {@link unframe.presentation.PresenterRecognitionCatalog.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @static
+       * @param {unframe.presentation.PresenterRecognitionCatalog.$Properties} message PresenterRecognitionCatalog message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterRecognitionCatalog.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a PresenterRecognitionCatalog message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.presentation.PresenterRecognitionCatalog & unframe.presentation.PresenterRecognitionCatalog.$Shape} PresenterRecognitionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterRecognitionCatalog.decode = function PresenterRecognitionCatalog$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              if (!(message.gestures && message.gestures.length)) message.gestures = [];
+              if ((tag & 7) === 2) {
+                let end2 = reader.uint32() + reader.pos;
+                while (reader.pos < end2) message.gestures.push(reader.int32());
+              } else message.gestures.push(reader.int32());
+              break;
+            }
+            case 2: {
+              if (!(message.zones && message.zones.length)) message.zones = [];
+              message.zones.push(
+                $root.unframe.presentation.PresenterRecognitionZone.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a PresenterRecognitionCatalog message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.presentation.PresenterRecognitionCatalog & unframe.presentation.PresenterRecognitionCatalog.$Shape} PresenterRecognitionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterRecognitionCatalog.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a PresenterRecognitionCatalog message.
+       * @function verify
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      PresenterRecognitionCatalog.verify = function PresenterRecognitionCatalog$verify(
+        message,
+        long,
+      ) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.gestures != null && message.hasOwnProperty("gestures")) {
+          if (!$Array.isArray(message.gestures)) return "gestures: array expected";
+          for (let i = 0; i < message.gestures.length; ++i)
+            switch (message.gestures[i]) {
+              default:
+                return "gestures: enum value[] expected";
+              case 0:
+              case 1:
+              case 2:
+              case 3:
+              case 4:
+              case 5:
+              case 6:
+              case 7:
+              case 8:
+                break;
+            }
+        }
+        if (message.zones != null && message.hasOwnProperty("zones")) {
+          if (!$Array.isArray(message.zones)) return "zones: array expected";
+          for (let i = 0; i < message.zones.length; ++i) {
+            let error = $root.unframe.presentation.PresenterRecognitionZone.verify(
+              message.zones[i],
+              long + 1,
+            );
+            if (error) return "zones." + error;
+          }
+        }
+        return null;
+      };
+
+      /**
+       * Creates a PresenterRecognitionCatalog message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.presentation.PresenterRecognitionCatalog} PresenterRecognitionCatalog
+       */
+      PresenterRecognitionCatalog.fromObject = function PresenterRecognitionCatalog$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.gestures) {
+          if (!$Array.isArray(object.gestures))
+            throw $TypeError(
+              ".unframe.presentation.PresenterRecognitionCatalog.gestures: array expected",
+            );
+          message.gestures = [];
+          for (let i = 0; i < object.gestures.length; ++i)
+            switch (object.gestures[i]) {
+              default:
+                if (typeof object.gestures[i] === "number") {
+                  message.gestures[i] = object.gestures[i];
+                  break;
+                }
+              case "GESTURE_KIND_UNSPECIFIED":
+              case 0:
+                message.gestures[i] = 0;
+                break;
+              case "GESTURE_KIND_SWIPE_LEFT":
+              case 1:
+                message.gestures[i] = 1;
+                break;
+              case "GESTURE_KIND_SWIPE_RIGHT":
+              case 2:
+                message.gestures[i] = 2;
+                break;
+              case "GESTURE_KIND_SWIPE_DOWN":
+              case 3:
+                message.gestures[i] = 3;
+                break;
+              case "GESTURE_KIND_SWIPE_UP":
+              case 4:
+                message.gestures[i] = 4;
+                break;
+              case "GESTURE_KIND_PUSH_FORWARD":
+              case 5:
+                message.gestures[i] = 5;
+                break;
+              case "GESTURE_KIND_PULL_BACKWARD":
+              case 6:
+                message.gestures[i] = 6;
+                break;
+              case "GESTURE_KIND_SPREAD_HANDS":
+              case 7:
+                message.gestures[i] = 7;
+                break;
+              case "GESTURE_KIND_CLOSE_HANDS":
+              case 8:
+                message.gestures[i] = 8;
+                break;
+            }
+        }
+        if (object.zones) {
+          if (!$Array.isArray(object.zones))
+            throw $TypeError(
+              ".unframe.presentation.PresenterRecognitionCatalog.zones: array expected",
+            );
+          message.zones = [];
+          for (let i = 0; i < object.zones.length; ++i) {
+            if (typeof object.zones[i] !== "object")
+              throw $TypeError(
+                ".unframe.presentation.PresenterRecognitionCatalog.zones: object expected",
+              );
+            message.zones[i] = $root.unframe.presentation.PresenterRecognitionZone.fromObject(
+              object.zones[i],
+              long + 1,
+            );
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a PresenterRecognitionCatalog message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @static
+       * @param {unframe.presentation.PresenterRecognitionCatalog} message PresenterRecognitionCatalog
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      PresenterRecognitionCatalog.toObject = function PresenterRecognitionCatalog$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) {
+          object.gestures = [];
+          object.zones = [];
+        }
+        if (message.gestures && message.gestures.length) {
+          object.gestures = [];
+          for (let j = 0; j < message.gestures.length; ++j)
+            object.gestures[j] =
+              options.enums === $String
+                ? $root.unframe.presentation.GestureKind[message.gestures[j]] === $undefined
+                  ? message.gestures[j]
+                  : $root.unframe.presentation.GestureKind[message.gestures[j]]
+                : message.gestures[j];
+        }
+        if (message.zones && message.zones.length) {
+          object.zones = [];
+          for (let j = 0; j < message.zones.length; ++j)
+            object.zones[j] = $root.unframe.presentation.PresenterRecognitionZone.toObject(
+              message.zones[j],
+              options,
+            );
+        }
+        return object;
+      };
+
+      /**
+       * Converts this PresenterRecognitionCatalog to JSON.
+       * @function toJSON
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      PresenterRecognitionCatalog.prototype.toJSON = function () {
+        return PresenterRecognitionCatalog.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for PresenterRecognitionCatalog
+       * @function getTypeUrl
+       * @memberof unframe.presentation.PresenterRecognitionCatalog
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      PresenterRecognitionCatalog.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.presentation.PresenterRecognitionCatalog";
+      };
+
+      return PresenterRecognitionCatalog;
+    })();
+
     presentation.ProjectedRuntimeCatalog = (function () {
       /**
        * Properties of a ProjectedRuntimeCatalog.
@@ -14126,6 +14827,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.presentation.ProjectedVariableDefinition.$Properties>|null} [variables] ProjectedRuntimeCatalog variables
        * @property {Array.<unframe.presentation.ProjectedTimelineDefinition.$Properties>|null} [timelines] ProjectedRuntimeCatalog timelines
        * @property {Array.<unframe.presentation.ProjectedModelClipDefinition.$Properties>|null} [modelClips] ProjectedRuntimeCatalog modelClips
+       * @property {unframe.presentation.PresenterRecognitionCatalog.$Properties|null} [presenterRecognition] ProjectedRuntimeCatalog presenterRecognition
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -14146,6 +14848,7 @@ export const unframe = ($root.unframe = (() => {
        *   variables?: Array.<unframe.presentation.ProjectedVariableDefinition.$Shape>|null;
        *   timelines?: Array.<unframe.presentation.ProjectedTimelineDefinition.$Shape>|null;
        *   modelClips?: Array.<unframe.presentation.ProjectedModelClipDefinition.$Shape>|null;
+       *   presenterRecognition?: unframe.presentation.PresenterRecognitionCatalog.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.presentation.ProjectedRuntimeCatalog.$Shape
        */
@@ -14219,6 +14922,14 @@ export const unframe = ($root.unframe = (() => {
       ProjectedRuntimeCatalog.prototype.modelClips = $util.emptyArray;
 
       /**
+       * ProjectedRuntimeCatalog presenterRecognition.
+       * @member {unframe.presentation.PresenterRecognitionCatalog.$Properties|null|undefined} presenterRecognition
+       * @memberof unframe.presentation.ProjectedRuntimeCatalog
+       * @instance
+       */
+      ProjectedRuntimeCatalog.prototype.presenterRecognition = null;
+
+      /**
        * Creates a new ProjectedRuntimeCatalog instance using the specified properties.
        * @function create
        * @memberof unframe.presentation.ProjectedRuntimeCatalog
@@ -14280,6 +14991,14 @@ export const unframe = ($root.unframe = (() => {
               message.modelClips[i],
               writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
             ).ldelim();
+        if (
+          message.presenterRecognition != null &&
+          $Object.hasOwnProperty.call(message, "presenterRecognition")
+        )
+          $root.unframe.presentation.PresenterRecognitionCatalog.encode(
+            message.presenterRecognition,
+            writer.uint32(/* id 8, wireType 2 =*/ 66).fork(),
+          ).ldelim();
         return writer;
       };
 
@@ -14386,6 +15105,16 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 8: {
+              message.presenterRecognition =
+                $root.unframe.presentation.PresenterRecognitionCatalog.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -14476,6 +15205,16 @@ export const unframe = ($root.unframe = (() => {
             );
             if (error) return "modelClips." + error;
           }
+        }
+        if (
+          message.presenterRecognition != null &&
+          message.hasOwnProperty("presenterRecognition")
+        ) {
+          let error = $root.unframe.presentation.PresenterRecognitionCatalog.verify(
+            message.presenterRecognition,
+            long + 1,
+          );
+          if (error) return "presenterRecognition." + error;
         }
         return null;
       };
@@ -14584,6 +15323,17 @@ export const unframe = ($root.unframe = (() => {
               );
           }
         }
+        if (object.presenterRecognition != null) {
+          if (typeof object.presenterRecognition !== "object")
+            throw $TypeError(
+              ".unframe.presentation.ProjectedRuntimeCatalog.presenterRecognition: object expected",
+            );
+          message.presenterRecognition =
+            $root.unframe.presentation.PresenterRecognitionCatalog.fromObject(
+              object.presenterRecognition,
+              long + 1,
+            );
+        }
         return message;
       };
 
@@ -14609,7 +15359,10 @@ export const unframe = ($root.unframe = (() => {
           object.timelines = [];
           object.modelClips = [];
         }
-        if (options.defaults) object.catalogContractVersion = 0;
+        if (options.defaults) {
+          object.catalogContractVersion = 0;
+          object.presenterRecognition = null;
+        }
         if (
           message.catalogContractVersion != null &&
           message.hasOwnProperty("catalogContractVersion")
@@ -14655,6 +15408,12 @@ export const unframe = ($root.unframe = (() => {
               options,
             );
         }
+        if (message.presenterRecognition != null && message.hasOwnProperty("presenterRecognition"))
+          object.presenterRecognition =
+            $root.unframe.presentation.PresenterRecognitionCatalog.toObject(
+              message.presenterRecognition,
+              options,
+            );
         return object;
       };
 
@@ -32336,6 +33095,10 @@ export const unframe = ($root.unframe = (() => {
               case 4:
               case 5:
               case 6:
+              case 7:
+              case 8:
+              case 9:
+              case 10:
                 break;
             }
         }
@@ -32494,6 +33257,22 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_TRACKING":
               case 6:
                 message.requiredRuntimeCapabilities[i] = 6;
+                break;
+              case "RUNTIME_CAPABILITY_PRESENTER_RECOGNITION":
+              case 7:
+                message.requiredRuntimeCapabilities[i] = 7;
+                break;
+              case "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION":
+              case 8:
+                message.requiredRuntimeCapabilities[i] = 8;
+                break;
+              case "RUNTIME_CAPABILITY_FROZEN_ANCHORS":
+              case 9:
+                message.requiredRuntimeCapabilities[i] = 9;
+                break;
+              case "RUNTIME_CAPABILITY_STEP_RESTORE":
+              case 10:
+                message.requiredRuntimeCapabilities[i] = 10;
                 break;
             }
         }
@@ -38534,7 +39313,10 @@ export const unframe = ($root.unframe = (() => {
        * @property {unframe.realtime.LogicalInputCommand.$Properties|null} [logicalInput] ControlClientItem logicalInput
        * @property {unframe.realtime.SurfaceInteractionCommand.$Properties|null} [surfaceInteraction] ControlClientItem surfaceInteraction
        * @property {unframe.realtime.RuntimeControlCommand.$Properties|null} [runtimeControl] ControlClientItem runtimeControl
-       * @property {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"} [item] ControlClientItem item
+       * @property {unframe.realtime.GestureInputCommand.$Properties|null} [gestureInput] ControlClientItem gestureInput
+       * @property {unframe.realtime.ZoneInputCommand.$Properties|null} [zoneInput] ControlClientItem zoneInput
+       * @property {unframe.realtime.InputSynchronizationAck.$Properties|null} [inputSynchronizationAck] ControlClientItem inputSynchronizationAck
+       * @property {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"} [item] ControlClientItem item
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -38555,9 +39337,12 @@ export const unframe = ($root.unframe = (() => {
        *   logicalInput?: unframe.realtime.LogicalInputCommand.$Shape|null;
        *   surfaceInteraction?: unframe.realtime.SurfaceInteractionCommand.$Shape|null;
        *   runtimeControl?: unframe.realtime.RuntimeControlCommand.$Shape|null;
+       *   gestureInput?: unframe.realtime.GestureInputCommand.$Shape|null;
+       *   zoneInput?: unframe.realtime.ZoneInputCommand.$Shape|null;
+       *   inputSynchronizationAck?: unframe.realtime.InputSynchronizationAck.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * } & (
-       *   ({ item?: undefined; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null }|{ item?: "handshake"; handshake: unframe.realtime.ControlHandshake.$Shape; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null }|{ item?: "replayRequest"; handshake?: null; replayRequest: unframe.realtime.ReplayRequest.$Shape; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null }|{ item?: "stateReady"; handshake?: null; replayRequest?: null; stateReady: unframe.realtime.StateReady.$Shape; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null }|{ item?: "logicalInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput: unframe.realtime.LogicalInputCommand.$Shape; surfaceInteraction?: null; runtimeControl?: null }|{ item?: "surfaceInteraction"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction: unframe.realtime.SurfaceInteractionCommand.$Shape; runtimeControl?: null }|{ item?: "runtimeControl"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl: unframe.realtime.RuntimeControlCommand.$Shape })
+       *   ({ item?: undefined; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "handshake"; handshake: unframe.realtime.ControlHandshake.$Shape; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "replayRequest"; handshake?: null; replayRequest: unframe.realtime.ReplayRequest.$Shape; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "stateReady"; handshake?: null; replayRequest?: null; stateReady: unframe.realtime.StateReady.$Shape; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "logicalInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput: unframe.realtime.LogicalInputCommand.$Shape; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "surfaceInteraction"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction: unframe.realtime.SurfaceInteractionCommand.$Shape; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "runtimeControl"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl: unframe.realtime.RuntimeControlCommand.$Shape; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "gestureInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput: unframe.realtime.GestureInputCommand.$Shape; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "zoneInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput: unframe.realtime.ZoneInputCommand.$Shape; inputSynchronizationAck?: null }|{ item?: "inputSynchronizationAck"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck: unframe.realtime.InputSynchronizationAck.$Shape })
        * )} unframe.realtime.ControlClientItem.$Shape
        */
 
@@ -38624,12 +39409,36 @@ export const unframe = ($root.unframe = (() => {
        */
       ControlClientItem.prototype.runtimeControl = null;
 
+      /**
+       * ControlClientItem gestureInput.
+       * @member {unframe.realtime.GestureInputCommand.$Properties|null|undefined} gestureInput
+       * @memberof unframe.realtime.ControlClientItem
+       * @instance
+       */
+      ControlClientItem.prototype.gestureInput = null;
+
+      /**
+       * ControlClientItem zoneInput.
+       * @member {unframe.realtime.ZoneInputCommand.$Properties|null|undefined} zoneInput
+       * @memberof unframe.realtime.ControlClientItem
+       * @instance
+       */
+      ControlClientItem.prototype.zoneInput = null;
+
+      /**
+       * ControlClientItem inputSynchronizationAck.
+       * @member {unframe.realtime.InputSynchronizationAck.$Properties|null|undefined} inputSynchronizationAck
+       * @memberof unframe.realtime.ControlClientItem
+       * @instance
+       */
+      ControlClientItem.prototype.inputSynchronizationAck = null;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
       /**
        * ControlClientItem item.
-       * @member {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|undefined} item
+       * @member {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"|undefined} item
        * @memberof unframe.realtime.ControlClientItem
        * @instance
        */
@@ -38642,6 +39451,9 @@ export const unframe = ($root.unframe = (() => {
             "logicalInput",
             "surfaceInteraction",
             "runtimeControl",
+            "gestureInput",
+            "zoneInput",
+            "inputSynchronizationAck",
           ]),
         ),
         set: $util.oneOfSetter($oneOfFields),
@@ -38709,6 +39521,24 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.realtime.RuntimeControlCommand.encode(
             message.runtimeControl,
             writer.uint32(/* id 22, wireType 2 =*/ 178).fork(),
+          ).ldelim();
+        if (message.gestureInput != null && $Object.hasOwnProperty.call(message, "gestureInput"))
+          $root.unframe.realtime.GestureInputCommand.encode(
+            message.gestureInput,
+            writer.uint32(/* id 100, wireType 2 =*/ 802).fork(),
+          ).ldelim();
+        if (message.zoneInput != null && $Object.hasOwnProperty.call(message, "zoneInput"))
+          $root.unframe.realtime.ZoneInputCommand.encode(
+            message.zoneInput,
+            writer.uint32(/* id 101, wireType 2 =*/ 810).fork(),
+          ).ldelim();
+        if (
+          message.inputSynchronizationAck != null &&
+          $Object.hasOwnProperty.call(message, "inputSynchronizationAck")
+        )
+          $root.unframe.realtime.InputSynchronizationAck.encode(
+            message.inputSynchronizationAck,
+            writer.uint32(/* id 102, wireType 2 =*/ 818).fork(),
           ).ldelim();
         return writer;
       };
@@ -38799,6 +39629,34 @@ export const unframe = ($root.unframe = (() => {
                 $undefined,
                 long + 1,
               );
+              break;
+            }
+            case 100: {
+              message.gestureInput = $root.unframe.realtime.GestureInputCommand.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 101: {
+              message.zoneInput = $root.unframe.realtime.ZoneInputCommand.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 102: {
+              message.inputSynchronizationAck =
+                $root.unframe.realtime.InputSynchronizationAck.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                );
               break;
             }
             default:
@@ -38896,6 +39754,39 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "runtimeControl." + error;
           }
         }
+        if (message.gestureInput != null && message.hasOwnProperty("gestureInput")) {
+          if (properties.item === 1) return "item: multiple values";
+          properties.item = 1;
+          {
+            let error = $root.unframe.realtime.GestureInputCommand.verify(
+              message.gestureInput,
+              long + 1,
+            );
+            if (error) return "gestureInput." + error;
+          }
+        }
+        if (message.zoneInput != null && message.hasOwnProperty("zoneInput")) {
+          if (properties.item === 1) return "item: multiple values";
+          properties.item = 1;
+          {
+            let error = $root.unframe.realtime.ZoneInputCommand.verify(message.zoneInput, long + 1);
+            if (error) return "zoneInput." + error;
+          }
+        }
+        if (
+          message.inputSynchronizationAck != null &&
+          message.hasOwnProperty("inputSynchronizationAck")
+        ) {
+          if (properties.item === 1) return "item: multiple values";
+          properties.item = 1;
+          {
+            let error = $root.unframe.realtime.InputSynchronizationAck.verify(
+              message.inputSynchronizationAck,
+              long + 1,
+            );
+            if (error) return "inputSynchronizationAck." + error;
+          }
+        }
         return null;
       };
 
@@ -38962,6 +39853,33 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
+        if (object.gestureInput != null) {
+          if (typeof object.gestureInput !== "object")
+            throw $TypeError(".unframe.realtime.ControlClientItem.gestureInput: object expected");
+          message.gestureInput = $root.unframe.realtime.GestureInputCommand.fromObject(
+            object.gestureInput,
+            long + 1,
+          );
+        }
+        if (object.zoneInput != null) {
+          if (typeof object.zoneInput !== "object")
+            throw $TypeError(".unframe.realtime.ControlClientItem.zoneInput: object expected");
+          message.zoneInput = $root.unframe.realtime.ZoneInputCommand.fromObject(
+            object.zoneInput,
+            long + 1,
+          );
+        }
+        if (object.inputSynchronizationAck != null) {
+          if (typeof object.inputSynchronizationAck !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ControlClientItem.inputSynchronizationAck: object expected",
+            );
+          message.inputSynchronizationAck =
+            $root.unframe.realtime.InputSynchronizationAck.fromObject(
+              object.inputSynchronizationAck,
+              long + 1,
+            );
+        }
         return message;
       };
 
@@ -39018,6 +39936,30 @@ export const unframe = ($root.unframe = (() => {
             options,
           );
           if (options.oneofs) object.item = "runtimeControl";
+        }
+        if (message.gestureInput != null && message.hasOwnProperty("gestureInput")) {
+          object.gestureInput = $root.unframe.realtime.GestureInputCommand.toObject(
+            message.gestureInput,
+            options,
+          );
+          if (options.oneofs) object.item = "gestureInput";
+        }
+        if (message.zoneInput != null && message.hasOwnProperty("zoneInput")) {
+          object.zoneInput = $root.unframe.realtime.ZoneInputCommand.toObject(
+            message.zoneInput,
+            options,
+          );
+          if (options.oneofs) object.item = "zoneInput";
+        }
+        if (
+          message.inputSynchronizationAck != null &&
+          message.hasOwnProperty("inputSynchronizationAck")
+        ) {
+          object.inputSynchronizationAck = $root.unframe.realtime.InputSynchronizationAck.toObject(
+            message.inputSynchronizationAck,
+            options,
+          );
+          if (options.oneofs) object.item = "inputSynchronizationAck";
         }
         return object;
       };
@@ -39302,6 +40244,10 @@ export const unframe = ($root.unframe = (() => {
               case 4:
               case 5:
               case 6:
+              case 7:
+              case 8:
+              case 9:
+              case 10:
                 break;
             }
         }
@@ -39372,6 +40318,22 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_TRACKING":
               case 6:
                 message.supportedCapabilities[i] = 6;
+                break;
+              case "RUNTIME_CAPABILITY_PRESENTER_RECOGNITION":
+              case 7:
+                message.supportedCapabilities[i] = 7;
+                break;
+              case "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION":
+              case 8:
+                message.supportedCapabilities[i] = 8;
+                break;
+              case "RUNTIME_CAPABILITY_FROZEN_ANCHORS":
+              case 9:
+                message.supportedCapabilities[i] = 9;
+                break;
+              case "RUNTIME_CAPABILITY_STEP_RESTORE":
+              case 10:
+                message.supportedCapabilities[i] = 10;
                 break;
             }
         }
@@ -39806,8 +40768,6 @@ export const unframe = ($root.unframe = (() => {
        * @property {number|Long|null} [reliableEventRetentionMs] RuntimeProtocolLimits reliableEventRetentionMs
        * @property {number|null} [maximumReplayItems] RuntimeProtocolLimits maximumReplayItems
        * @property {number|Long|null} [maximumReplayBytes] RuntimeProtocolLimits maximumReplayBytes
-       * @property {number|null} [idempotencyRetentionCount] RuntimeProtocolLimits idempotencyRetentionCount
-       * @property {number|Long|null} [idempotencyRetentionMs] RuntimeProtocolLimits idempotencyRetentionMs
        * @property {number|null} [snapshotCatchUpMaxAttempts] RuntimeProtocolLimits snapshotCatchUpMaxAttempts
        * @property {number|Long|null} [snapshotCatchUpTotalBudgetMs] RuntimeProtocolLimits snapshotCatchUpTotalBudgetMs
        * @property {number|null} [runtimeMicrostepLimit] RuntimeProtocolLimits runtimeMicrostepLimit
@@ -39818,6 +40778,17 @@ export const unframe = ($root.unframe = (() => {
        * @property {number|Long|null} [catchUpQueueMaximumBytes] RuntimeProtocolLimits catchUpQueueMaximumBytes
        * @property {number|null} [stateDependencyBufferMaximumValues] RuntimeProtocolLimits stateDependencyBufferMaximumValues
        * @property {number|Long|null} [stateDependencyBufferMaximumMs] RuntimeProtocolLimits stateDependencyBufferMaximumMs
+       * @property {number|null} [maximumCommandHistoryCount] RuntimeProtocolLimits maximumCommandHistoryCount
+       * @property {number|Long|null} [maximumCommandHistoryBytes] RuntimeProtocolLimits maximumCommandHistoryBytes
+       * @property {number|null} [commandHistorySyncCount] RuntimeProtocolLimits commandHistorySyncCount
+       * @property {number|Long|null} [commandHistorySyncBytes] RuntimeProtocolLimits commandHistorySyncBytes
+       * @property {number|null} [maximumCommandRecordBytes] RuntimeProtocolLimits maximumCommandRecordBytes
+       * @property {number|Long|null} [maximumCanonicalSnapshotBytes] RuntimeProtocolLimits maximumCanonicalSnapshotBytes
+       * @property {number|Long|null} [maximumStepStartHistoryBytes] RuntimeProtocolLimits maximumStepStartHistoryBytes
+       * @property {number|Long|null} [maximumStepStartStateBytes] RuntimeProtocolLimits maximumStepStartStateBytes
+       * @property {number|Long|null} [maximumRecoveryMetadataBytes] RuntimeProtocolLimits maximumRecoveryMetadataBytes
+       * @property {number|Long|null} [maximumCheckpointJsonBytes] RuntimeProtocolLimits maximumCheckpointJsonBytes
+       * @property {number|null} [maximumInputSynchronizationBytes] RuntimeProtocolLimits maximumInputSynchronizationBytes
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -39920,24 +40891,6 @@ export const unframe = ($root.unframe = (() => {
         : 0;
 
       /**
-       * RuntimeProtocolLimits idempotencyRetentionCount.
-       * @member {number} idempotencyRetentionCount
-       * @memberof unframe.realtime.RuntimeProtocolLimits
-       * @instance
-       */
-      RuntimeProtocolLimits.prototype.idempotencyRetentionCount = 0;
-
-      /**
-       * RuntimeProtocolLimits idempotencyRetentionMs.
-       * @member {number|Long} idempotencyRetentionMs
-       * @memberof unframe.realtime.RuntimeProtocolLimits
-       * @instance
-       */
-      RuntimeProtocolLimits.prototype.idempotencyRetentionMs = $util.Long
-        ? $util.Long.fromBits(0, 0, true)
-        : 0;
-
-      /**
        * RuntimeProtocolLimits snapshotCatchUpMaxAttempts.
        * @member {number} snapshotCatchUpMaxAttempts
        * @memberof unframe.realtime.RuntimeProtocolLimits
@@ -40026,6 +40979,108 @@ export const unframe = ($root.unframe = (() => {
         : 0;
 
       /**
+       * RuntimeProtocolLimits maximumCommandHistoryCount.
+       * @member {number} maximumCommandHistoryCount
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.maximumCommandHistoryCount = 0;
+
+      /**
+       * RuntimeProtocolLimits maximumCommandHistoryBytes.
+       * @member {number|Long} maximumCommandHistoryBytes
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.maximumCommandHistoryBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeProtocolLimits commandHistorySyncCount.
+       * @member {number} commandHistorySyncCount
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.commandHistorySyncCount = 0;
+
+      /**
+       * RuntimeProtocolLimits commandHistorySyncBytes.
+       * @member {number|Long} commandHistorySyncBytes
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.commandHistorySyncBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeProtocolLimits maximumCommandRecordBytes.
+       * @member {number} maximumCommandRecordBytes
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.maximumCommandRecordBytes = 0;
+
+      /**
+       * RuntimeProtocolLimits maximumCanonicalSnapshotBytes.
+       * @member {number|Long} maximumCanonicalSnapshotBytes
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.maximumCanonicalSnapshotBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeProtocolLimits maximumStepStartHistoryBytes.
+       * @member {number|Long} maximumStepStartHistoryBytes
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.maximumStepStartHistoryBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeProtocolLimits maximumStepStartStateBytes.
+       * @member {number|Long} maximumStepStartStateBytes
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.maximumStepStartStateBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeProtocolLimits maximumRecoveryMetadataBytes.
+       * @member {number|Long} maximumRecoveryMetadataBytes
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.maximumRecoveryMetadataBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeProtocolLimits maximumCheckpointJsonBytes.
+       * @member {number|Long} maximumCheckpointJsonBytes
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.maximumCheckpointJsonBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeProtocolLimits maximumInputSynchronizationBytes.
+       * @member {number} maximumInputSynchronizationBytes
+       * @memberof unframe.realtime.RuntimeProtocolLimits
+       * @instance
+       */
+      RuntimeProtocolLimits.prototype.maximumInputSynchronizationBytes = 0;
+
+      /**
        * Creates a new RuntimeProtocolLimits instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.RuntimeProtocolLimits
@@ -40093,16 +41148,6 @@ export const unframe = ($root.unframe = (() => {
         )
           writer.uint32(/* id 8, wireType 0 =*/ 64).uint64(message.maximumReplayBytes);
         if (
-          message.idempotencyRetentionCount != null &&
-          $Object.hasOwnProperty.call(message, "idempotencyRetentionCount")
-        )
-          writer.uint32(/* id 9, wireType 0 =*/ 72).uint32(message.idempotencyRetentionCount);
-        if (
-          message.idempotencyRetentionMs != null &&
-          $Object.hasOwnProperty.call(message, "idempotencyRetentionMs")
-        )
-          writer.uint32(/* id 10, wireType 0 =*/ 80).uint64(message.idempotencyRetentionMs);
-        if (
           message.snapshotCatchUpMaxAttempts != null &&
           $Object.hasOwnProperty.call(message, "snapshotCatchUpMaxAttempts")
         )
@@ -40160,6 +41205,63 @@ export const unframe = ($root.unframe = (() => {
           writer
             .uint32(/* id 20, wireType 0 =*/ 160)
             .uint64(message.stateDependencyBufferMaximumMs);
+        if (
+          message.maximumCommandHistoryCount != null &&
+          $Object.hasOwnProperty.call(message, "maximumCommandHistoryCount")
+        )
+          writer.uint32(/* id 21, wireType 0 =*/ 168).uint32(message.maximumCommandHistoryCount);
+        if (
+          message.maximumCommandHistoryBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumCommandHistoryBytes")
+        )
+          writer.uint32(/* id 22, wireType 0 =*/ 176).uint64(message.maximumCommandHistoryBytes);
+        if (
+          message.commandHistorySyncCount != null &&
+          $Object.hasOwnProperty.call(message, "commandHistorySyncCount")
+        )
+          writer.uint32(/* id 23, wireType 0 =*/ 184).uint32(message.commandHistorySyncCount);
+        if (
+          message.commandHistorySyncBytes != null &&
+          $Object.hasOwnProperty.call(message, "commandHistorySyncBytes")
+        )
+          writer.uint32(/* id 24, wireType 0 =*/ 192).uint64(message.commandHistorySyncBytes);
+        if (
+          message.maximumCommandRecordBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumCommandRecordBytes")
+        )
+          writer.uint32(/* id 25, wireType 0 =*/ 200).uint32(message.maximumCommandRecordBytes);
+        if (
+          message.maximumCanonicalSnapshotBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumCanonicalSnapshotBytes")
+        )
+          writer.uint32(/* id 26, wireType 0 =*/ 208).uint64(message.maximumCanonicalSnapshotBytes);
+        if (
+          message.maximumStepStartHistoryBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumStepStartHistoryBytes")
+        )
+          writer.uint32(/* id 27, wireType 0 =*/ 216).uint64(message.maximumStepStartHistoryBytes);
+        if (
+          message.maximumStepStartStateBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumStepStartStateBytes")
+        )
+          writer.uint32(/* id 28, wireType 0 =*/ 224).uint64(message.maximumStepStartStateBytes);
+        if (
+          message.maximumRecoveryMetadataBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumRecoveryMetadataBytes")
+        )
+          writer.uint32(/* id 29, wireType 0 =*/ 232).uint64(message.maximumRecoveryMetadataBytes);
+        if (
+          message.maximumCheckpointJsonBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumCheckpointJsonBytes")
+        )
+          writer.uint32(/* id 30, wireType 0 =*/ 240).uint64(message.maximumCheckpointJsonBytes);
+        if (
+          message.maximumInputSynchronizationBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumInputSynchronizationBytes")
+        )
+          writer
+            .uint32(/* id 31, wireType 0 =*/ 248)
+            .uint32(message.maximumInputSynchronizationBytes);
         return writer;
       };
 
@@ -40234,14 +41336,6 @@ export const unframe = ($root.unframe = (() => {
               message.maximumReplayBytes = reader.uint64();
               break;
             }
-            case 9: {
-              message.idempotencyRetentionCount = reader.uint32();
-              break;
-            }
-            case 10: {
-              message.idempotencyRetentionMs = reader.uint64();
-              break;
-            }
             case 11: {
               message.snapshotCatchUpMaxAttempts = reader.uint32();
               break;
@@ -40280,6 +41374,50 @@ export const unframe = ($root.unframe = (() => {
             }
             case 20: {
               message.stateDependencyBufferMaximumMs = reader.uint64();
+              break;
+            }
+            case 21: {
+              message.maximumCommandHistoryCount = reader.uint32();
+              break;
+            }
+            case 22: {
+              message.maximumCommandHistoryBytes = reader.uint64();
+              break;
+            }
+            case 23: {
+              message.commandHistorySyncCount = reader.uint32();
+              break;
+            }
+            case 24: {
+              message.commandHistorySyncBytes = reader.uint64();
+              break;
+            }
+            case 25: {
+              message.maximumCommandRecordBytes = reader.uint32();
+              break;
+            }
+            case 26: {
+              message.maximumCanonicalSnapshotBytes = reader.uint64();
+              break;
+            }
+            case 27: {
+              message.maximumStepStartHistoryBytes = reader.uint64();
+              break;
+            }
+            case 28: {
+              message.maximumStepStartStateBytes = reader.uint64();
+              break;
+            }
+            case 29: {
+              message.maximumRecoveryMetadataBytes = reader.uint64();
+              break;
+            }
+            case 30: {
+              message.maximumCheckpointJsonBytes = reader.uint64();
+              break;
+            }
+            case 31: {
+              message.maximumInputSynchronizationBytes = reader.uint32();
               break;
             }
             default:
@@ -40378,25 +41516,6 @@ export const unframe = ($root.unframe = (() => {
           )
             return "maximumReplayBytes: integer|Long expected";
         if (
-          message.idempotencyRetentionCount != null &&
-          message.hasOwnProperty("idempotencyRetentionCount")
-        )
-          if (!$util.isInteger(message.idempotencyRetentionCount))
-            return "idempotencyRetentionCount: integer expected";
-        if (
-          message.idempotencyRetentionMs != null &&
-          message.hasOwnProperty("idempotencyRetentionMs")
-        )
-          if (
-            !$util.isInteger(message.idempotencyRetentionMs) &&
-            !(
-              message.idempotencyRetentionMs &&
-              $util.isInteger(message.idempotencyRetentionMs.low) &&
-              $util.isInteger(message.idempotencyRetentionMs.high)
-            )
-          )
-            return "idempotencyRetentionMs: integer|Long expected";
-        if (
           message.snapshotCatchUpMaxAttempts != null &&
           message.hasOwnProperty("snapshotCatchUpMaxAttempts")
         )
@@ -40481,6 +41600,121 @@ export const unframe = ($root.unframe = (() => {
             )
           )
             return "stateDependencyBufferMaximumMs: integer|Long expected";
+        if (
+          message.maximumCommandHistoryCount != null &&
+          message.hasOwnProperty("maximumCommandHistoryCount")
+        )
+          if (!$util.isInteger(message.maximumCommandHistoryCount))
+            return "maximumCommandHistoryCount: integer expected";
+        if (
+          message.maximumCommandHistoryBytes != null &&
+          message.hasOwnProperty("maximumCommandHistoryBytes")
+        )
+          if (
+            !$util.isInteger(message.maximumCommandHistoryBytes) &&
+            !(
+              message.maximumCommandHistoryBytes &&
+              $util.isInteger(message.maximumCommandHistoryBytes.low) &&
+              $util.isInteger(message.maximumCommandHistoryBytes.high)
+            )
+          )
+            return "maximumCommandHistoryBytes: integer|Long expected";
+        if (
+          message.commandHistorySyncCount != null &&
+          message.hasOwnProperty("commandHistorySyncCount")
+        )
+          if (!$util.isInteger(message.commandHistorySyncCount))
+            return "commandHistorySyncCount: integer expected";
+        if (
+          message.commandHistorySyncBytes != null &&
+          message.hasOwnProperty("commandHistorySyncBytes")
+        )
+          if (
+            !$util.isInteger(message.commandHistorySyncBytes) &&
+            !(
+              message.commandHistorySyncBytes &&
+              $util.isInteger(message.commandHistorySyncBytes.low) &&
+              $util.isInteger(message.commandHistorySyncBytes.high)
+            )
+          )
+            return "commandHistorySyncBytes: integer|Long expected";
+        if (
+          message.maximumCommandRecordBytes != null &&
+          message.hasOwnProperty("maximumCommandRecordBytes")
+        )
+          if (!$util.isInteger(message.maximumCommandRecordBytes))
+            return "maximumCommandRecordBytes: integer expected";
+        if (
+          message.maximumCanonicalSnapshotBytes != null &&
+          message.hasOwnProperty("maximumCanonicalSnapshotBytes")
+        )
+          if (
+            !$util.isInteger(message.maximumCanonicalSnapshotBytes) &&
+            !(
+              message.maximumCanonicalSnapshotBytes &&
+              $util.isInteger(message.maximumCanonicalSnapshotBytes.low) &&
+              $util.isInteger(message.maximumCanonicalSnapshotBytes.high)
+            )
+          )
+            return "maximumCanonicalSnapshotBytes: integer|Long expected";
+        if (
+          message.maximumStepStartHistoryBytes != null &&
+          message.hasOwnProperty("maximumStepStartHistoryBytes")
+        )
+          if (
+            !$util.isInteger(message.maximumStepStartHistoryBytes) &&
+            !(
+              message.maximumStepStartHistoryBytes &&
+              $util.isInteger(message.maximumStepStartHistoryBytes.low) &&
+              $util.isInteger(message.maximumStepStartHistoryBytes.high)
+            )
+          )
+            return "maximumStepStartHistoryBytes: integer|Long expected";
+        if (
+          message.maximumStepStartStateBytes != null &&
+          message.hasOwnProperty("maximumStepStartStateBytes")
+        )
+          if (
+            !$util.isInteger(message.maximumStepStartStateBytes) &&
+            !(
+              message.maximumStepStartStateBytes &&
+              $util.isInteger(message.maximumStepStartStateBytes.low) &&
+              $util.isInteger(message.maximumStepStartStateBytes.high)
+            )
+          )
+            return "maximumStepStartStateBytes: integer|Long expected";
+        if (
+          message.maximumRecoveryMetadataBytes != null &&
+          message.hasOwnProperty("maximumRecoveryMetadataBytes")
+        )
+          if (
+            !$util.isInteger(message.maximumRecoveryMetadataBytes) &&
+            !(
+              message.maximumRecoveryMetadataBytes &&
+              $util.isInteger(message.maximumRecoveryMetadataBytes.low) &&
+              $util.isInteger(message.maximumRecoveryMetadataBytes.high)
+            )
+          )
+            return "maximumRecoveryMetadataBytes: integer|Long expected";
+        if (
+          message.maximumCheckpointJsonBytes != null &&
+          message.hasOwnProperty("maximumCheckpointJsonBytes")
+        )
+          if (
+            !$util.isInteger(message.maximumCheckpointJsonBytes) &&
+            !(
+              message.maximumCheckpointJsonBytes &&
+              $util.isInteger(message.maximumCheckpointJsonBytes.low) &&
+              $util.isInteger(message.maximumCheckpointJsonBytes.high)
+            )
+          )
+            return "maximumCheckpointJsonBytes: integer|Long expected";
+        if (
+          message.maximumInputSynchronizationBytes != null &&
+          message.hasOwnProperty("maximumInputSynchronizationBytes")
+        )
+          if (!$util.isInteger(message.maximumInputSynchronizationBytes))
+            return "maximumInputSynchronizationBytes: integer expected";
         return null;
       };
 
@@ -40548,22 +41782,6 @@ export const unframe = ($root.unframe = (() => {
             message.maximumReplayBytes = new $util.LongBits(
               object.maximumReplayBytes.low >>> 0,
               object.maximumReplayBytes.high >>> 0,
-            ).toNumber(true);
-        if (object.idempotencyRetentionCount != null)
-          message.idempotencyRetentionCount = object.idempotencyRetentionCount >>> 0;
-        if (object.idempotencyRetentionMs != null)
-          if ($util.Long)
-            (message.idempotencyRetentionMs = $util.Long.fromValue(
-              object.idempotencyRetentionMs,
-            )).unsigned = true;
-          else if (typeof object.idempotencyRetentionMs === "string")
-            message.idempotencyRetentionMs = $parseInt(object.idempotencyRetentionMs, 10);
-          else if (typeof object.idempotencyRetentionMs === "number")
-            message.idempotencyRetentionMs = object.idempotencyRetentionMs;
-          else if (typeof object.idempotencyRetentionMs === "object")
-            message.idempotencyRetentionMs = new $util.LongBits(
-              object.idempotencyRetentionMs.low >>> 0,
-              object.idempotencyRetentionMs.high >>> 0,
             ).toNumber(true);
         if (object.snapshotCatchUpMaxAttempts != null)
           message.snapshotCatchUpMaxAttempts = object.snapshotCatchUpMaxAttempts >>> 0;
@@ -40640,6 +41858,121 @@ export const unframe = ($root.unframe = (() => {
               object.stateDependencyBufferMaximumMs.low >>> 0,
               object.stateDependencyBufferMaximumMs.high >>> 0,
             ).toNumber(true);
+        if (object.maximumCommandHistoryCount != null)
+          message.maximumCommandHistoryCount = object.maximumCommandHistoryCount >>> 0;
+        if (object.maximumCommandHistoryBytes != null)
+          if ($util.Long)
+            (message.maximumCommandHistoryBytes = $util.Long.fromValue(
+              object.maximumCommandHistoryBytes,
+            )).unsigned = true;
+          else if (typeof object.maximumCommandHistoryBytes === "string")
+            message.maximumCommandHistoryBytes = $parseInt(object.maximumCommandHistoryBytes, 10);
+          else if (typeof object.maximumCommandHistoryBytes === "number")
+            message.maximumCommandHistoryBytes = object.maximumCommandHistoryBytes;
+          else if (typeof object.maximumCommandHistoryBytes === "object")
+            message.maximumCommandHistoryBytes = new $util.LongBits(
+              object.maximumCommandHistoryBytes.low >>> 0,
+              object.maximumCommandHistoryBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.commandHistorySyncCount != null)
+          message.commandHistorySyncCount = object.commandHistorySyncCount >>> 0;
+        if (object.commandHistorySyncBytes != null)
+          if ($util.Long)
+            (message.commandHistorySyncBytes = $util.Long.fromValue(
+              object.commandHistorySyncBytes,
+            )).unsigned = true;
+          else if (typeof object.commandHistorySyncBytes === "string")
+            message.commandHistorySyncBytes = $parseInt(object.commandHistorySyncBytes, 10);
+          else if (typeof object.commandHistorySyncBytes === "number")
+            message.commandHistorySyncBytes = object.commandHistorySyncBytes;
+          else if (typeof object.commandHistorySyncBytes === "object")
+            message.commandHistorySyncBytes = new $util.LongBits(
+              object.commandHistorySyncBytes.low >>> 0,
+              object.commandHistorySyncBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.maximumCommandRecordBytes != null)
+          message.maximumCommandRecordBytes = object.maximumCommandRecordBytes >>> 0;
+        if (object.maximumCanonicalSnapshotBytes != null)
+          if ($util.Long)
+            (message.maximumCanonicalSnapshotBytes = $util.Long.fromValue(
+              object.maximumCanonicalSnapshotBytes,
+            )).unsigned = true;
+          else if (typeof object.maximumCanonicalSnapshotBytes === "string")
+            message.maximumCanonicalSnapshotBytes = $parseInt(
+              object.maximumCanonicalSnapshotBytes,
+              10,
+            );
+          else if (typeof object.maximumCanonicalSnapshotBytes === "number")
+            message.maximumCanonicalSnapshotBytes = object.maximumCanonicalSnapshotBytes;
+          else if (typeof object.maximumCanonicalSnapshotBytes === "object")
+            message.maximumCanonicalSnapshotBytes = new $util.LongBits(
+              object.maximumCanonicalSnapshotBytes.low >>> 0,
+              object.maximumCanonicalSnapshotBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.maximumStepStartHistoryBytes != null)
+          if ($util.Long)
+            (message.maximumStepStartHistoryBytes = $util.Long.fromValue(
+              object.maximumStepStartHistoryBytes,
+            )).unsigned = true;
+          else if (typeof object.maximumStepStartHistoryBytes === "string")
+            message.maximumStepStartHistoryBytes = $parseInt(
+              object.maximumStepStartHistoryBytes,
+              10,
+            );
+          else if (typeof object.maximumStepStartHistoryBytes === "number")
+            message.maximumStepStartHistoryBytes = object.maximumStepStartHistoryBytes;
+          else if (typeof object.maximumStepStartHistoryBytes === "object")
+            message.maximumStepStartHistoryBytes = new $util.LongBits(
+              object.maximumStepStartHistoryBytes.low >>> 0,
+              object.maximumStepStartHistoryBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.maximumStepStartStateBytes != null)
+          if ($util.Long)
+            (message.maximumStepStartStateBytes = $util.Long.fromValue(
+              object.maximumStepStartStateBytes,
+            )).unsigned = true;
+          else if (typeof object.maximumStepStartStateBytes === "string")
+            message.maximumStepStartStateBytes = $parseInt(object.maximumStepStartStateBytes, 10);
+          else if (typeof object.maximumStepStartStateBytes === "number")
+            message.maximumStepStartStateBytes = object.maximumStepStartStateBytes;
+          else if (typeof object.maximumStepStartStateBytes === "object")
+            message.maximumStepStartStateBytes = new $util.LongBits(
+              object.maximumStepStartStateBytes.low >>> 0,
+              object.maximumStepStartStateBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.maximumRecoveryMetadataBytes != null)
+          if ($util.Long)
+            (message.maximumRecoveryMetadataBytes = $util.Long.fromValue(
+              object.maximumRecoveryMetadataBytes,
+            )).unsigned = true;
+          else if (typeof object.maximumRecoveryMetadataBytes === "string")
+            message.maximumRecoveryMetadataBytes = $parseInt(
+              object.maximumRecoveryMetadataBytes,
+              10,
+            );
+          else if (typeof object.maximumRecoveryMetadataBytes === "number")
+            message.maximumRecoveryMetadataBytes = object.maximumRecoveryMetadataBytes;
+          else if (typeof object.maximumRecoveryMetadataBytes === "object")
+            message.maximumRecoveryMetadataBytes = new $util.LongBits(
+              object.maximumRecoveryMetadataBytes.low >>> 0,
+              object.maximumRecoveryMetadataBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.maximumCheckpointJsonBytes != null)
+          if ($util.Long)
+            (message.maximumCheckpointJsonBytes = $util.Long.fromValue(
+              object.maximumCheckpointJsonBytes,
+            )).unsigned = true;
+          else if (typeof object.maximumCheckpointJsonBytes === "string")
+            message.maximumCheckpointJsonBytes = $parseInt(object.maximumCheckpointJsonBytes, 10);
+          else if (typeof object.maximumCheckpointJsonBytes === "number")
+            message.maximumCheckpointJsonBytes = object.maximumCheckpointJsonBytes;
+          else if (typeof object.maximumCheckpointJsonBytes === "object")
+            message.maximumCheckpointJsonBytes = new $util.LongBits(
+              object.maximumCheckpointJsonBytes.low >>> 0,
+              object.maximumCheckpointJsonBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.maximumInputSynchronizationBytes != null)
+          message.maximumInputSynchronizationBytes = object.maximumInputSynchronizationBytes >>> 0;
         return message;
       };
 
@@ -40688,16 +42021,6 @@ export const unframe = ($root.unframe = (() => {
                   ? long.toNumber()
                   : long;
           } else object.maximumReplayBytes = options.longs === $String ? "0" : 0;
-          object.idempotencyRetentionCount = 0;
-          if ($util.Long) {
-            let long = new $util.Long(0, 0, true);
-            object.idempotencyRetentionMs =
-              options.longs === $String
-                ? long.toString()
-                : options.longs === $Number
-                  ? long.toNumber()
-                  : long;
-          } else object.idempotencyRetentionMs = options.longs === $String ? "0" : 0;
           object.snapshotCatchUpMaxAttempts = 0;
           if ($util.Long) {
             let long = new $util.Long(0, 0, true);
@@ -40740,6 +42063,73 @@ export const unframe = ($root.unframe = (() => {
                   ? long.toNumber()
                   : long;
           } else object.stateDependencyBufferMaximumMs = options.longs === $String ? "0" : 0;
+          object.maximumCommandHistoryCount = 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumCommandHistoryBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumCommandHistoryBytes = options.longs === $String ? "0" : 0;
+          object.commandHistorySyncCount = 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandHistorySyncBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandHistorySyncBytes = options.longs === $String ? "0" : 0;
+          object.maximumCommandRecordBytes = 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumCanonicalSnapshotBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumCanonicalSnapshotBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumStepStartHistoryBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumStepStartHistoryBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumStepStartStateBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumStepStartStateBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumRecoveryMetadataBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumRecoveryMetadataBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumCheckpointJsonBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumCheckpointJsonBytes = options.longs === $String ? "0" : 0;
+          object.maximumInputSynchronizationBytes = 0;
         }
         if (message.maximumIdUtf8Bytes != null && message.hasOwnProperty("maximumIdUtf8Bytes"))
           object.maximumIdUtf8Bytes = message.maximumIdUtf8Bytes;
@@ -40814,30 +42204,6 @@ export const unframe = ($root.unframe = (() => {
                       message.maximumReplayBytes.high >>> 0,
                     ).toNumber(true)
                   : message.maximumReplayBytes;
-        if (
-          message.idempotencyRetentionCount != null &&
-          message.hasOwnProperty("idempotencyRetentionCount")
-        )
-          object.idempotencyRetentionCount = message.idempotencyRetentionCount;
-        if (
-          message.idempotencyRetentionMs != null &&
-          message.hasOwnProperty("idempotencyRetentionMs")
-        )
-          if (typeof message.idempotencyRetentionMs === "number")
-            object.idempotencyRetentionMs =
-              options.longs === $String
-                ? $String(message.idempotencyRetentionMs)
-                : message.idempotencyRetentionMs;
-          else
-            object.idempotencyRetentionMs =
-              options.longs === $String
-                ? $util.Long.prototype.toString.call(message.idempotencyRetentionMs)
-                : options.longs === $Number
-                  ? new $util.LongBits(
-                      message.idempotencyRetentionMs.low >>> 0,
-                      message.idempotencyRetentionMs.high >>> 0,
-                    ).toNumber(true)
-                  : message.idempotencyRetentionMs;
         if (
           message.snapshotCatchUpMaxAttempts != null &&
           message.hasOwnProperty("snapshotCatchUpMaxAttempts")
@@ -40941,6 +42307,159 @@ export const unframe = ($root.unframe = (() => {
                       message.stateDependencyBufferMaximumMs.high >>> 0,
                     ).toNumber(true)
                   : message.stateDependencyBufferMaximumMs;
+        if (
+          message.maximumCommandHistoryCount != null &&
+          message.hasOwnProperty("maximumCommandHistoryCount")
+        )
+          object.maximumCommandHistoryCount = message.maximumCommandHistoryCount;
+        if (
+          message.maximumCommandHistoryBytes != null &&
+          message.hasOwnProperty("maximumCommandHistoryBytes")
+        )
+          if (typeof message.maximumCommandHistoryBytes === "number")
+            object.maximumCommandHistoryBytes =
+              options.longs === $String
+                ? $String(message.maximumCommandHistoryBytes)
+                : message.maximumCommandHistoryBytes;
+          else
+            object.maximumCommandHistoryBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumCommandHistoryBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumCommandHistoryBytes.low >>> 0,
+                      message.maximumCommandHistoryBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumCommandHistoryBytes;
+        if (
+          message.commandHistorySyncCount != null &&
+          message.hasOwnProperty("commandHistorySyncCount")
+        )
+          object.commandHistorySyncCount = message.commandHistorySyncCount;
+        if (
+          message.commandHistorySyncBytes != null &&
+          message.hasOwnProperty("commandHistorySyncBytes")
+        )
+          if (typeof message.commandHistorySyncBytes === "number")
+            object.commandHistorySyncBytes =
+              options.longs === $String
+                ? $String(message.commandHistorySyncBytes)
+                : message.commandHistorySyncBytes;
+          else
+            object.commandHistorySyncBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandHistorySyncBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandHistorySyncBytes.low >>> 0,
+                      message.commandHistorySyncBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandHistorySyncBytes;
+        if (
+          message.maximumCommandRecordBytes != null &&
+          message.hasOwnProperty("maximumCommandRecordBytes")
+        )
+          object.maximumCommandRecordBytes = message.maximumCommandRecordBytes;
+        if (
+          message.maximumCanonicalSnapshotBytes != null &&
+          message.hasOwnProperty("maximumCanonicalSnapshotBytes")
+        )
+          if (typeof message.maximumCanonicalSnapshotBytes === "number")
+            object.maximumCanonicalSnapshotBytes =
+              options.longs === $String
+                ? $String(message.maximumCanonicalSnapshotBytes)
+                : message.maximumCanonicalSnapshotBytes;
+          else
+            object.maximumCanonicalSnapshotBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumCanonicalSnapshotBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumCanonicalSnapshotBytes.low >>> 0,
+                      message.maximumCanonicalSnapshotBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumCanonicalSnapshotBytes;
+        if (
+          message.maximumStepStartHistoryBytes != null &&
+          message.hasOwnProperty("maximumStepStartHistoryBytes")
+        )
+          if (typeof message.maximumStepStartHistoryBytes === "number")
+            object.maximumStepStartHistoryBytes =
+              options.longs === $String
+                ? $String(message.maximumStepStartHistoryBytes)
+                : message.maximumStepStartHistoryBytes;
+          else
+            object.maximumStepStartHistoryBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumStepStartHistoryBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumStepStartHistoryBytes.low >>> 0,
+                      message.maximumStepStartHistoryBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumStepStartHistoryBytes;
+        if (
+          message.maximumStepStartStateBytes != null &&
+          message.hasOwnProperty("maximumStepStartStateBytes")
+        )
+          if (typeof message.maximumStepStartStateBytes === "number")
+            object.maximumStepStartStateBytes =
+              options.longs === $String
+                ? $String(message.maximumStepStartStateBytes)
+                : message.maximumStepStartStateBytes;
+          else
+            object.maximumStepStartStateBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumStepStartStateBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumStepStartStateBytes.low >>> 0,
+                      message.maximumStepStartStateBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumStepStartStateBytes;
+        if (
+          message.maximumRecoveryMetadataBytes != null &&
+          message.hasOwnProperty("maximumRecoveryMetadataBytes")
+        )
+          if (typeof message.maximumRecoveryMetadataBytes === "number")
+            object.maximumRecoveryMetadataBytes =
+              options.longs === $String
+                ? $String(message.maximumRecoveryMetadataBytes)
+                : message.maximumRecoveryMetadataBytes;
+          else
+            object.maximumRecoveryMetadataBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumRecoveryMetadataBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumRecoveryMetadataBytes.low >>> 0,
+                      message.maximumRecoveryMetadataBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumRecoveryMetadataBytes;
+        if (
+          message.maximumCheckpointJsonBytes != null &&
+          message.hasOwnProperty("maximumCheckpointJsonBytes")
+        )
+          if (typeof message.maximumCheckpointJsonBytes === "number")
+            object.maximumCheckpointJsonBytes =
+              options.longs === $String
+                ? $String(message.maximumCheckpointJsonBytes)
+                : message.maximumCheckpointJsonBytes;
+          else
+            object.maximumCheckpointJsonBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumCheckpointJsonBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumCheckpointJsonBytes.low >>> 0,
+                      message.maximumCheckpointJsonBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumCheckpointJsonBytes;
+        if (
+          message.maximumInputSynchronizationBytes != null &&
+          message.hasOwnProperty("maximumInputSynchronizationBytes")
+        )
+          object.maximumInputSynchronizationBytes = message.maximumInputSynchronizationBytes;
         return object;
       };
 
@@ -41255,6 +42774,10 @@ export const unframe = ($root.unframe = (() => {
               case 4:
               case 5:
               case 6:
+              case 7:
+              case 8:
+              case 9:
+              case 10:
                 break;
             }
         }
@@ -41331,6 +42854,22 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_TRACKING":
               case 6:
                 message.requiredCapabilities[i] = 6;
+                break;
+              case "RUNTIME_CAPABILITY_PRESENTER_RECOGNITION":
+              case 7:
+                message.requiredCapabilities[i] = 7;
+                break;
+              case "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION":
+              case 8:
+                message.requiredCapabilities[i] = 8;
+                break;
+              case "RUNTIME_CAPABILITY_FROZEN_ANCHORS":
+              case 9:
+                message.requiredCapabilities[i] = 9;
+                break;
+              case "RUNTIME_CAPABILITY_STEP_RESTORE":
+              case 10:
+                message.requiredCapabilities[i] = 10;
                 break;
             }
         }
@@ -42313,6 +43852,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {string|null} [logicalEventName] LogicalInputCommand logicalEventName
        * @property {number|Long|null} [presentationOriginVersion] LogicalInputCommand presentationOriginVersion
        * @property {number|Long|null} [capturedAtClientMonotonicMs] LogicalInputCommand capturedAtClientMonotonicMs
+       * @property {unframe.realtime.InputContext.$Properties|null} [inputContext] LogicalInputCommand inputContext
+       * @property {number|Long|null} [commandEpoch] LogicalInputCommand commandEpoch
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -42378,6 +43919,22 @@ export const unframe = ($root.unframe = (() => {
        */
       LogicalInputCommand.prototype.capturedAtClientMonotonicMs = null;
 
+      /**
+       * LogicalInputCommand inputContext.
+       * @member {unframe.realtime.InputContext.$Properties|null|undefined} inputContext
+       * @memberof unframe.realtime.LogicalInputCommand
+       * @instance
+       */
+      LogicalInputCommand.prototype.inputContext = null;
+
+      /**
+       * LogicalInputCommand commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.LogicalInputCommand
+       * @instance
+       */
+      LogicalInputCommand.prototype.commandEpoch = $util.Long ? $util.Long.fromBits(0, 0, true) : 0;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
@@ -42431,6 +43988,13 @@ export const unframe = ($root.unframe = (() => {
           $Object.hasOwnProperty.call(message, "capturedAtClientMonotonicMs")
         )
           writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.capturedAtClientMonotonicMs);
+        if (message.inputContext != null && $Object.hasOwnProperty.call(message, "inputContext"))
+          $root.unframe.realtime.InputContext.encode(
+            message.inputContext,
+            writer.uint32(/* id 5, wireType 2 =*/ 42).fork(),
+          ).ldelim();
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 6, wireType 0 =*/ 48).uint64(message.commandEpoch);
         return writer;
       };
 
@@ -42487,6 +44051,19 @@ export const unframe = ($root.unframe = (() => {
             }
             case 4: {
               message.capturedAtClientMonotonicMs = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.inputContext = $root.unframe.realtime.InputContext.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 6: {
+              message.commandEpoch = reader.uint64();
               break;
             }
             default:
@@ -42557,6 +44134,20 @@ export const unframe = ($root.unframe = (() => {
           )
             return "capturedAtClientMonotonicMs: integer|Long expected";
         }
+        if (message.inputContext != null && message.hasOwnProperty("inputContext")) {
+          let error = $root.unframe.realtime.InputContext.verify(message.inputContext, long + 1);
+          if (error) return "inputContext." + error;
+        }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
         return null;
       };
 
@@ -42604,6 +44195,26 @@ export const unframe = ($root.unframe = (() => {
               object.capturedAtClientMonotonicMs.low >>> 0,
               object.capturedAtClientMonotonicMs.high >>> 0,
             ).toNumber(true);
+        if (object.inputContext != null) {
+          if (typeof object.inputContext !== "object")
+            throw $TypeError(".unframe.realtime.LogicalInputCommand.inputContext: object expected");
+          message.inputContext = $root.unframe.realtime.InputContext.fromObject(
+            object.inputContext,
+            long + 1,
+          );
+        }
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
         return message;
       };
 
@@ -42631,6 +44242,16 @@ export const unframe = ($root.unframe = (() => {
                   ? long.toNumber()
                   : long;
           } else object.presentationOriginVersion = options.longs === $String ? "0" : 0;
+          object.inputContext = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
         }
         if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
           object.clientEventId = message.clientEventId;
@@ -42676,6 +44297,25 @@ export const unframe = ($root.unframe = (() => {
                   : message.capturedAtClientMonotonicMs;
           if (options.oneofs) object._capturedAtClientMonotonicMs = "capturedAtClientMonotonicMs";
         }
+        if (message.inputContext != null && message.hasOwnProperty("inputContext"))
+          object.inputContext = $root.unframe.realtime.InputContext.toObject(
+            message.inputContext,
+            options,
+          );
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
         return object;
       };
 
@@ -42715,6 +44355,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {string|null} [interactionId] SurfaceInteractionCommand interactionId
        * @property {number|Long|null} [presentationOriginVersion] SurfaceInteractionCommand presentationOriginVersion
        * @property {number|Long|null} [capturedAtClientMonotonicMs] SurfaceInteractionCommand capturedAtClientMonotonicMs
+       * @property {unframe.realtime.InputContext.$Properties|null} [inputContext] SurfaceInteractionCommand inputContext
+       * @property {number|Long|null} [commandEpoch] SurfaceInteractionCommand commandEpoch
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -42788,6 +44430,24 @@ export const unframe = ($root.unframe = (() => {
        */
       SurfaceInteractionCommand.prototype.capturedAtClientMonotonicMs = null;
 
+      /**
+       * SurfaceInteractionCommand inputContext.
+       * @member {unframe.realtime.InputContext.$Properties|null|undefined} inputContext
+       * @memberof unframe.realtime.SurfaceInteractionCommand
+       * @instance
+       */
+      SurfaceInteractionCommand.prototype.inputContext = null;
+
+      /**
+       * SurfaceInteractionCommand commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.SurfaceInteractionCommand
+       * @instance
+       */
+      SurfaceInteractionCommand.prototype.commandEpoch = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
@@ -42843,6 +44503,13 @@ export const unframe = ($root.unframe = (() => {
           $Object.hasOwnProperty.call(message, "capturedAtClientMonotonicMs")
         )
           writer.uint32(/* id 5, wireType 0 =*/ 40).uint64(message.capturedAtClientMonotonicMs);
+        if (message.inputContext != null && $Object.hasOwnProperty.call(message, "inputContext"))
+          $root.unframe.realtime.InputContext.encode(
+            message.inputContext,
+            writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
+          ).ldelim();
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 7, wireType 0 =*/ 56).uint64(message.commandEpoch);
         return writer;
       };
 
@@ -42903,6 +44570,19 @@ export const unframe = ($root.unframe = (() => {
             }
             case 5: {
               message.capturedAtClientMonotonicMs = reader.uint64();
+              break;
+            }
+            case 6: {
+              message.inputContext = $root.unframe.realtime.InputContext.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 7: {
+              message.commandEpoch = reader.uint64();
               break;
             }
             default:
@@ -42975,6 +44655,20 @@ export const unframe = ($root.unframe = (() => {
           )
             return "capturedAtClientMonotonicMs: integer|Long expected";
         }
+        if (message.inputContext != null && message.hasOwnProperty("inputContext")) {
+          let error = $root.unframe.realtime.InputContext.verify(message.inputContext, long + 1);
+          if (error) return "inputContext." + error;
+        }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
         return null;
       };
 
@@ -43025,6 +44719,28 @@ export const unframe = ($root.unframe = (() => {
               object.capturedAtClientMonotonicMs.low >>> 0,
               object.capturedAtClientMonotonicMs.high >>> 0,
             ).toNumber(true);
+        if (object.inputContext != null) {
+          if (typeof object.inputContext !== "object")
+            throw $TypeError(
+              ".unframe.realtime.SurfaceInteractionCommand.inputContext: object expected",
+            );
+          message.inputContext = $root.unframe.realtime.InputContext.fromObject(
+            object.inputContext,
+            long + 1,
+          );
+        }
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
         return message;
       };
 
@@ -43056,6 +44772,16 @@ export const unframe = ($root.unframe = (() => {
                   ? long.toNumber()
                   : long;
           } else object.presentationOriginVersion = options.longs === $String ? "0" : 0;
+          object.inputContext = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
         }
         if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
           object.clientEventId = message.clientEventId;
@@ -43103,6 +44829,25 @@ export const unframe = ($root.unframe = (() => {
                   : message.capturedAtClientMonotonicMs;
           if (options.oneofs) object._capturedAtClientMonotonicMs = "capturedAtClientMonotonicMs";
         }
+        if (message.inputContext != null && message.hasOwnProperty("inputContext"))
+          object.inputContext = $root.unframe.realtime.InputContext.toObject(
+            message.inputContext,
+            options,
+          );
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
         return object;
       };
 
@@ -43141,6 +44886,8 @@ export const unframe = ($root.unframe = (() => {
      * @property {number} RUNTIME_CONTROL_KIND_PAUSE=1 RUNTIME_CONTROL_KIND_PAUSE value
      * @property {number} RUNTIME_CONTROL_KIND_RESUME=2 RUNTIME_CONTROL_KIND_RESUME value
      * @property {number} RUNTIME_CONTROL_KIND_END=3 RUNTIME_CONTROL_KIND_END value
+     * @property {number} RUNTIME_CONTROL_KIND_SELECT_STEP=4 RUNTIME_CONTROL_KIND_SELECT_STEP value
+     * @property {number} RUNTIME_CONTROL_KIND_RECALIBRATE=5 RUNTIME_CONTROL_KIND_RECALIBRATE value
      */
     realtime.RuntimeControlKind = (function () {
       const valuesById = $Object.create(null),
@@ -43149,6 +44896,8 @@ export const unframe = ($root.unframe = (() => {
       values[(valuesById[1] = "RUNTIME_CONTROL_KIND_PAUSE")] = 1;
       values[(valuesById[2] = "RUNTIME_CONTROL_KIND_RESUME")] = 2;
       values[(valuesById[3] = "RUNTIME_CONTROL_KIND_END")] = 3;
+      values[(valuesById[4] = "RUNTIME_CONTROL_KIND_SELECT_STEP")] = 4;
+      values[(valuesById[5] = "RUNTIME_CONTROL_KIND_RECALIBRATE")] = 5;
       return values;
     })();
 
@@ -43159,6 +44908,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {string|null} [clientEventId] RuntimeControlCommand clientEventId
        * @property {unframe.realtime.RuntimeControlKind|null} [kind] RuntimeControlCommand kind
        * @property {number|Long|null} [presentationOriginVersion] RuntimeControlCommand presentationOriginVersion
+       * @property {number|Long|null} [commandEpoch] RuntimeControlCommand commandEpoch
+       * @property {unframe.realtime.StepSelection.$Properties|null} [stepSelection] RuntimeControlCommand stepSelection
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -43217,6 +44968,24 @@ export const unframe = ($root.unframe = (() => {
         : 0;
 
       /**
+       * RuntimeControlCommand commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.RuntimeControlCommand
+       * @instance
+       */
+      RuntimeControlCommand.prototype.commandEpoch = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeControlCommand stepSelection.
+       * @member {unframe.realtime.StepSelection.$Properties|null|undefined} stepSelection
+       * @memberof unframe.realtime.RuntimeControlCommand
+       * @instance
+       */
+      RuntimeControlCommand.prototype.stepSelection = null;
+
+      /**
        * Creates a new RuntimeControlCommand instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.RuntimeControlCommand
@@ -43252,6 +45021,13 @@ export const unframe = ($root.unframe = (() => {
           $Object.hasOwnProperty.call(message, "presentationOriginVersion")
         )
           writer.uint32(/* id 3, wireType 0 =*/ 24).uint64(message.presentationOriginVersion);
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.commandEpoch);
+        if (message.stepSelection != null && $Object.hasOwnProperty.call(message, "stepSelection"))
+          $root.unframe.realtime.StepSelection.encode(
+            message.stepSelection,
+            writer.uint32(/* id 5, wireType 2 =*/ 42).fork(),
+          ).ldelim();
         return writer;
       };
 
@@ -43306,6 +45082,19 @@ export const unframe = ($root.unframe = (() => {
               message.presentationOriginVersion = reader.uint64();
               break;
             }
+            case 4: {
+              message.commandEpoch = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.stepSelection = $root.unframe.realtime.StepSelection.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -43351,6 +45140,8 @@ export const unframe = ($root.unframe = (() => {
             case 1:
             case 2:
             case 3:
+            case 4:
+            case 5:
               break;
           }
         if (
@@ -43366,6 +45157,20 @@ export const unframe = ($root.unframe = (() => {
             )
           )
             return "presentationOriginVersion: integer|Long expected";
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
+        if (message.stepSelection != null && message.hasOwnProperty("stepSelection")) {
+          let error = $root.unframe.realtime.StepSelection.verify(message.stepSelection, long + 1);
+          if (error) return "stepSelection." + error;
+        }
         return null;
       };
 
@@ -43406,6 +45211,14 @@ export const unframe = ($root.unframe = (() => {
           case 3:
             message.kind = 3;
             break;
+          case "RUNTIME_CONTROL_KIND_SELECT_STEP":
+          case 4:
+            message.kind = 4;
+            break;
+          case "RUNTIME_CONTROL_KIND_RECALIBRATE":
+          case 5:
+            message.kind = 5;
+            break;
         }
         if (object.presentationOriginVersion != null)
           if ($util.Long)
@@ -43421,6 +45234,28 @@ export const unframe = ($root.unframe = (() => {
               object.presentationOriginVersion.low >>> 0,
               object.presentationOriginVersion.high >>> 0,
             ).toNumber(true);
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.stepSelection != null) {
+          if (typeof object.stepSelection !== "object")
+            throw $TypeError(
+              ".unframe.realtime.RuntimeControlCommand.stepSelection: object expected",
+            );
+          message.stepSelection = $root.unframe.realtime.StepSelection.fromObject(
+            object.stepSelection,
+            long + 1,
+          );
+        }
         return message;
       };
 
@@ -43448,6 +45283,16 @@ export const unframe = ($root.unframe = (() => {
                   ? long.toNumber()
                   : long;
           } else object.presentationOriginVersion = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
+          object.stepSelection = null;
         }
         if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
           object.clientEventId = message.clientEventId;
@@ -43477,6 +45322,25 @@ export const unframe = ($root.unframe = (() => {
                       message.presentationOriginVersion.high >>> 0,
                     ).toNumber(true)
                   : message.presentationOriginVersion;
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
+        if (message.stepSelection != null && message.hasOwnProperty("stepSelection"))
+          object.stepSelection = $root.unframe.realtime.StepSelection.toObject(
+            message.stepSelection,
+            options,
+          );
         return object;
       };
 
@@ -43505,6 +45369,3389 @@ export const unframe = ($root.unframe = (() => {
       };
 
       return RuntimeControlCommand;
+    })();
+
+    realtime.InputContext = (function () {
+      /**
+       * Properties of an InputContext.
+       * @typedef {Object} unframe.realtime.InputContext.$Properties
+       * @property {number|Long|null} [inputEpoch] InputContext inputEpoch
+       * @property {string|null} [groupId] InputContext groupId
+       * @property {number|Long|null} [groupEntryEpoch] InputContext groupEntryEpoch
+       * @property {string|null} [stepId] InputContext stepId
+       * @property {number|Long|null} [stepEntryEpoch] InputContext stepEntryEpoch
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of an InputContext.
+       * @memberof unframe.realtime
+       * @interface IInputContext
+       * @augments unframe.realtime.InputContext.$Properties
+       * @deprecated Use unframe.realtime.InputContext.$Properties instead.
+       */
+
+      /**
+       * Shape of an InputContext.
+       * @typedef {unframe.realtime.InputContext.$Properties} unframe.realtime.InputContext.$Shape
+       */
+
+      /**
+       * Constructs a new InputContext.
+       * @memberof unframe.realtime
+       * @classdesc Represents an InputContext.
+       * @constructor
+       * @param {unframe.realtime.InputContext.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const InputContext = function InputContext(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * InputContext inputEpoch.
+       * @member {number|Long} inputEpoch
+       * @memberof unframe.realtime.InputContext
+       * @instance
+       */
+      InputContext.prototype.inputEpoch = $util.Long ? $util.Long.fromBits(0, 0, true) : 0;
+
+      /**
+       * InputContext groupId.
+       * @member {string} groupId
+       * @memberof unframe.realtime.InputContext
+       * @instance
+       */
+      InputContext.prototype.groupId = "";
+
+      /**
+       * InputContext groupEntryEpoch.
+       * @member {number|Long} groupEntryEpoch
+       * @memberof unframe.realtime.InputContext
+       * @instance
+       */
+      InputContext.prototype.groupEntryEpoch = $util.Long ? $util.Long.fromBits(0, 0, true) : 0;
+
+      /**
+       * InputContext stepId.
+       * @member {string} stepId
+       * @memberof unframe.realtime.InputContext
+       * @instance
+       */
+      InputContext.prototype.stepId = "";
+
+      /**
+       * InputContext stepEntryEpoch.
+       * @member {number|Long} stepEntryEpoch
+       * @memberof unframe.realtime.InputContext
+       * @instance
+       */
+      InputContext.prototype.stepEntryEpoch = $util.Long ? $util.Long.fromBits(0, 0, true) : 0;
+
+      /**
+       * Creates a new InputContext instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.InputContext
+       * @static
+       * @param {unframe.realtime.InputContext.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.InputContext} InputContext instance
+       * @type {{
+       *   (properties: unframe.realtime.InputContext.$Shape): unframe.realtime.InputContext & unframe.realtime.InputContext.$Shape;
+       *   (properties?: unframe.realtime.InputContext.$Properties): unframe.realtime.InputContext;
+       * }}
+       */
+      InputContext.create = function (properties) {
+        return new InputContext(properties);
+      };
+
+      /**
+       * Encodes the specified InputContext message. Does not implicitly {@link unframe.realtime.InputContext.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.InputContext
+       * @static
+       * @param {unframe.realtime.InputContext.$Properties} message InputContext message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      InputContext.encode = function InputContext$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.inputEpoch != null && $Object.hasOwnProperty.call(message, "inputEpoch"))
+          writer.uint32(/* id 1, wireType 0 =*/ 8).uint64(message.inputEpoch);
+        if (message.groupId != null && $Object.hasOwnProperty.call(message, "groupId"))
+          writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.groupId);
+        if (
+          message.groupEntryEpoch != null &&
+          $Object.hasOwnProperty.call(message, "groupEntryEpoch")
+        )
+          writer.uint32(/* id 3, wireType 0 =*/ 24).uint64(message.groupEntryEpoch);
+        if (message.stepId != null && $Object.hasOwnProperty.call(message, "stepId"))
+          writer.uint32(/* id 4, wireType 2 =*/ 34).string(message.stepId);
+        if (
+          message.stepEntryEpoch != null &&
+          $Object.hasOwnProperty.call(message, "stepEntryEpoch")
+        )
+          writer.uint32(/* id 5, wireType 0 =*/ 40).uint64(message.stepEntryEpoch);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified InputContext message, length delimited. Does not implicitly {@link unframe.realtime.InputContext.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.InputContext
+       * @static
+       * @param {unframe.realtime.InputContext.$Properties} message InputContext message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      InputContext.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes an InputContext message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.InputContext
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.InputContext & unframe.realtime.InputContext.$Shape} InputContext
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      InputContext.decode = function InputContext$decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.inputEpoch = reader.uint64();
+              break;
+            }
+            case 2: {
+              message.groupId = reader.string();
+              break;
+            }
+            case 3: {
+              message.groupEntryEpoch = reader.uint64();
+              break;
+            }
+            case 4: {
+              message.stepId = reader.string();
+              break;
+            }
+            case 5: {
+              message.stepEntryEpoch = reader.uint64();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes an InputContext message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.InputContext
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.InputContext & unframe.realtime.InputContext.$Shape} InputContext
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      InputContext.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies an InputContext message.
+       * @function verify
+       * @memberof unframe.realtime.InputContext
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      InputContext.verify = function InputContext$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.inputEpoch != null && message.hasOwnProperty("inputEpoch"))
+          if (
+            !$util.isInteger(message.inputEpoch) &&
+            !(
+              message.inputEpoch &&
+              $util.isInteger(message.inputEpoch.low) &&
+              $util.isInteger(message.inputEpoch.high)
+            )
+          )
+            return "inputEpoch: integer|Long expected";
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          if (!$util.isString(message.groupId)) return "groupId: string expected";
+        if (message.groupEntryEpoch != null && message.hasOwnProperty("groupEntryEpoch"))
+          if (
+            !$util.isInteger(message.groupEntryEpoch) &&
+            !(
+              message.groupEntryEpoch &&
+              $util.isInteger(message.groupEntryEpoch.low) &&
+              $util.isInteger(message.groupEntryEpoch.high)
+            )
+          )
+            return "groupEntryEpoch: integer|Long expected";
+        if (message.stepId != null && message.hasOwnProperty("stepId"))
+          if (!$util.isString(message.stepId)) return "stepId: string expected";
+        if (message.stepEntryEpoch != null && message.hasOwnProperty("stepEntryEpoch"))
+          if (
+            !$util.isInteger(message.stepEntryEpoch) &&
+            !(
+              message.stepEntryEpoch &&
+              $util.isInteger(message.stepEntryEpoch.low) &&
+              $util.isInteger(message.stepEntryEpoch.high)
+            )
+          )
+            return "stepEntryEpoch: integer|Long expected";
+        return null;
+      };
+
+      /**
+       * Creates an InputContext message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.InputContext
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.InputContext} InputContext
+       */
+      InputContext.fromObject = function InputContext$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.inputEpoch != null)
+          if ($util.Long)
+            (message.inputEpoch = $util.Long.fromValue(object.inputEpoch)).unsigned = true;
+          else if (typeof object.inputEpoch === "string")
+            message.inputEpoch = $parseInt(object.inputEpoch, 10);
+          else if (typeof object.inputEpoch === "number") message.inputEpoch = object.inputEpoch;
+          else if (typeof object.inputEpoch === "object")
+            message.inputEpoch = new $util.LongBits(
+              object.inputEpoch.low >>> 0,
+              object.inputEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.groupId != null) message.groupId = $String(object.groupId);
+        if (object.groupEntryEpoch != null)
+          if ($util.Long)
+            (message.groupEntryEpoch = $util.Long.fromValue(object.groupEntryEpoch)).unsigned =
+              true;
+          else if (typeof object.groupEntryEpoch === "string")
+            message.groupEntryEpoch = $parseInt(object.groupEntryEpoch, 10);
+          else if (typeof object.groupEntryEpoch === "number")
+            message.groupEntryEpoch = object.groupEntryEpoch;
+          else if (typeof object.groupEntryEpoch === "object")
+            message.groupEntryEpoch = new $util.LongBits(
+              object.groupEntryEpoch.low >>> 0,
+              object.groupEntryEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.stepId != null) message.stepId = $String(object.stepId);
+        if (object.stepEntryEpoch != null)
+          if ($util.Long)
+            (message.stepEntryEpoch = $util.Long.fromValue(object.stepEntryEpoch)).unsigned = true;
+          else if (typeof object.stepEntryEpoch === "string")
+            message.stepEntryEpoch = $parseInt(object.stepEntryEpoch, 10);
+          else if (typeof object.stepEntryEpoch === "number")
+            message.stepEntryEpoch = object.stepEntryEpoch;
+          else if (typeof object.stepEntryEpoch === "object")
+            message.stepEntryEpoch = new $util.LongBits(
+              object.stepEntryEpoch.low >>> 0,
+              object.stepEntryEpoch.high >>> 0,
+            ).toNumber(true);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from an InputContext message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.InputContext
+       * @static
+       * @param {unframe.realtime.InputContext} message InputContext
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      InputContext.toObject = function InputContext$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.inputEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.inputEpoch = options.longs === $String ? "0" : 0;
+          object.groupId = "";
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.groupEntryEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.groupEntryEpoch = options.longs === $String ? "0" : 0;
+          object.stepId = "";
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.stepEntryEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.stepEntryEpoch = options.longs === $String ? "0" : 0;
+        }
+        if (message.inputEpoch != null && message.hasOwnProperty("inputEpoch"))
+          if (typeof message.inputEpoch === "number")
+            object.inputEpoch =
+              options.longs === $String ? $String(message.inputEpoch) : message.inputEpoch;
+          else
+            object.inputEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.inputEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.inputEpoch.low >>> 0,
+                      message.inputEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.inputEpoch;
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          object.groupId = message.groupId;
+        if (message.groupEntryEpoch != null && message.hasOwnProperty("groupEntryEpoch"))
+          if (typeof message.groupEntryEpoch === "number")
+            object.groupEntryEpoch =
+              options.longs === $String
+                ? $String(message.groupEntryEpoch)
+                : message.groupEntryEpoch;
+          else
+            object.groupEntryEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.groupEntryEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.groupEntryEpoch.low >>> 0,
+                      message.groupEntryEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.groupEntryEpoch;
+        if (message.stepId != null && message.hasOwnProperty("stepId"))
+          object.stepId = message.stepId;
+        if (message.stepEntryEpoch != null && message.hasOwnProperty("stepEntryEpoch"))
+          if (typeof message.stepEntryEpoch === "number")
+            object.stepEntryEpoch =
+              options.longs === $String ? $String(message.stepEntryEpoch) : message.stepEntryEpoch;
+          else
+            object.stepEntryEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.stepEntryEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.stepEntryEpoch.low >>> 0,
+                      message.stepEntryEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.stepEntryEpoch;
+        return object;
+      };
+
+      /**
+       * Converts this InputContext to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.InputContext
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      InputContext.prototype.toJSON = function () {
+        return InputContext.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for InputContext
+       * @function getTypeUrl
+       * @memberof unframe.realtime.InputContext
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      InputContext.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.InputContext";
+      };
+
+      return InputContext;
+    })();
+
+    realtime.GestureInputCommand = (function () {
+      /**
+       * Properties of a GestureInputCommand.
+       * @typedef {Object} unframe.realtime.GestureInputCommand.$Properties
+       * @property {string|null} [clientEventId] GestureInputCommand clientEventId
+       * @property {unframe.realtime.InputContext.$Properties|null} [inputContext] GestureInputCommand inputContext
+       * @property {number|Long|null} [commandEpoch] GestureInputCommand commandEpoch
+       * @property {number|Long|null} [presentationOriginVersion] GestureInputCommand presentationOriginVersion
+       * @property {number|Long|null} [capturedAtClientMonotonicMs] GestureInputCommand capturedAtClientMonotonicMs
+       * @property {unframe.presentation.GestureKind|null} [gesture] GestureInputCommand gesture
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a GestureInputCommand.
+       * @memberof unframe.realtime
+       * @interface IGestureInputCommand
+       * @augments unframe.realtime.GestureInputCommand.$Properties
+       * @deprecated Use unframe.realtime.GestureInputCommand.$Properties instead.
+       */
+
+      /**
+       * Shape of a GestureInputCommand.
+       * @typedef {unframe.realtime.GestureInputCommand.$Properties} unframe.realtime.GestureInputCommand.$Shape
+       */
+
+      /**
+       * Constructs a new GestureInputCommand.
+       * @memberof unframe.realtime
+       * @classdesc Represents a GestureInputCommand.
+       * @constructor
+       * @param {unframe.realtime.GestureInputCommand.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const GestureInputCommand = function GestureInputCommand(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * GestureInputCommand clientEventId.
+       * @member {string} clientEventId
+       * @memberof unframe.realtime.GestureInputCommand
+       * @instance
+       */
+      GestureInputCommand.prototype.clientEventId = "";
+
+      /**
+       * GestureInputCommand inputContext.
+       * @member {unframe.realtime.InputContext.$Properties|null|undefined} inputContext
+       * @memberof unframe.realtime.GestureInputCommand
+       * @instance
+       */
+      GestureInputCommand.prototype.inputContext = null;
+
+      /**
+       * GestureInputCommand commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.GestureInputCommand
+       * @instance
+       */
+      GestureInputCommand.prototype.commandEpoch = $util.Long ? $util.Long.fromBits(0, 0, true) : 0;
+
+      /**
+       * GestureInputCommand presentationOriginVersion.
+       * @member {number|Long} presentationOriginVersion
+       * @memberof unframe.realtime.GestureInputCommand
+       * @instance
+       */
+      GestureInputCommand.prototype.presentationOriginVersion = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * GestureInputCommand capturedAtClientMonotonicMs.
+       * @member {number|Long|null|undefined} capturedAtClientMonotonicMs
+       * @memberof unframe.realtime.GestureInputCommand
+       * @instance
+       */
+      GestureInputCommand.prototype.capturedAtClientMonotonicMs = null;
+
+      /**
+       * GestureInputCommand gesture.
+       * @member {unframe.presentation.GestureKind} gesture
+       * @memberof unframe.realtime.GestureInputCommand
+       * @instance
+       */
+      GestureInputCommand.prototype.gesture = 0;
+
+      // OneOf field names bound to virtual getters and setters
+      let $oneOfFields;
+
+      // Virtual OneOf for proto3 optional field
+      $Object.defineProperty(GestureInputCommand.prototype, "_capturedAtClientMonotonicMs", {
+        get: $util.oneOfGetter(($oneOfFields = ["capturedAtClientMonotonicMs"])),
+        set: $util.oneOfSetter($oneOfFields),
+      });
+
+      /**
+       * Creates a new GestureInputCommand instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.GestureInputCommand
+       * @static
+       * @param {unframe.realtime.GestureInputCommand.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.GestureInputCommand} GestureInputCommand instance
+       * @type {{
+       *   (properties: unframe.realtime.GestureInputCommand.$Shape): unframe.realtime.GestureInputCommand & unframe.realtime.GestureInputCommand.$Shape;
+       *   (properties?: unframe.realtime.GestureInputCommand.$Properties): unframe.realtime.GestureInputCommand;
+       * }}
+       */
+      GestureInputCommand.create = function (properties) {
+        return new GestureInputCommand(properties);
+      };
+
+      /**
+       * Encodes the specified GestureInputCommand message. Does not implicitly {@link unframe.realtime.GestureInputCommand.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.GestureInputCommand
+       * @static
+       * @param {unframe.realtime.GestureInputCommand.$Properties} message GestureInputCommand message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      GestureInputCommand.encode = function GestureInputCommand$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.clientEventId != null && $Object.hasOwnProperty.call(message, "clientEventId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.clientEventId);
+        if (message.inputContext != null && $Object.hasOwnProperty.call(message, "inputContext"))
+          $root.unframe.realtime.InputContext.encode(
+            message.inputContext,
+            writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+          ).ldelim();
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 3, wireType 0 =*/ 24).uint64(message.commandEpoch);
+        if (
+          message.presentationOriginVersion != null &&
+          $Object.hasOwnProperty.call(message, "presentationOriginVersion")
+        )
+          writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.presentationOriginVersion);
+        if (
+          message.capturedAtClientMonotonicMs != null &&
+          $Object.hasOwnProperty.call(message, "capturedAtClientMonotonicMs")
+        )
+          writer.uint32(/* id 5, wireType 0 =*/ 40).uint64(message.capturedAtClientMonotonicMs);
+        if (message.gesture != null && $Object.hasOwnProperty.call(message, "gesture"))
+          writer.uint32(/* id 6, wireType 0 =*/ 48).int32(message.gesture);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified GestureInputCommand message, length delimited. Does not implicitly {@link unframe.realtime.GestureInputCommand.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.GestureInputCommand
+       * @static
+       * @param {unframe.realtime.GestureInputCommand.$Properties} message GestureInputCommand message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      GestureInputCommand.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a GestureInputCommand message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.GestureInputCommand
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.GestureInputCommand & unframe.realtime.GestureInputCommand.$Shape} GestureInputCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      GestureInputCommand.decode = function GestureInputCommand$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.clientEventId = reader.string();
+              break;
+            }
+            case 2: {
+              message.inputContext = $root.unframe.realtime.InputContext.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 3: {
+              message.commandEpoch = reader.uint64();
+              break;
+            }
+            case 4: {
+              message.presentationOriginVersion = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.capturedAtClientMonotonicMs = reader.uint64();
+              break;
+            }
+            case 6: {
+              message.gesture = reader.int32();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a GestureInputCommand message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.GestureInputCommand
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.GestureInputCommand & unframe.realtime.GestureInputCommand.$Shape} GestureInputCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      GestureInputCommand.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a GestureInputCommand message.
+       * @function verify
+       * @memberof unframe.realtime.GestureInputCommand
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      GestureInputCommand.verify = function GestureInputCommand$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        let properties = {};
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          if (!$util.isString(message.clientEventId)) return "clientEventId: string expected";
+        if (message.inputContext != null && message.hasOwnProperty("inputContext")) {
+          let error = $root.unframe.realtime.InputContext.verify(message.inputContext, long + 1);
+          if (error) return "inputContext." + error;
+        }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
+        if (
+          message.presentationOriginVersion != null &&
+          message.hasOwnProperty("presentationOriginVersion")
+        )
+          if (
+            !$util.isInteger(message.presentationOriginVersion) &&
+            !(
+              message.presentationOriginVersion &&
+              $util.isInteger(message.presentationOriginVersion.low) &&
+              $util.isInteger(message.presentationOriginVersion.high)
+            )
+          )
+            return "presentationOriginVersion: integer|Long expected";
+        if (
+          message.capturedAtClientMonotonicMs != null &&
+          message.hasOwnProperty("capturedAtClientMonotonicMs")
+        ) {
+          properties._capturedAtClientMonotonicMs = 1;
+          if (
+            !$util.isInteger(message.capturedAtClientMonotonicMs) &&
+            !(
+              message.capturedAtClientMonotonicMs &&
+              $util.isInteger(message.capturedAtClientMonotonicMs.low) &&
+              $util.isInteger(message.capturedAtClientMonotonicMs.high)
+            )
+          )
+            return "capturedAtClientMonotonicMs: integer|Long expected";
+        }
+        if (message.gesture != null && message.hasOwnProperty("gesture"))
+          switch (message.gesture) {
+            default:
+              return "gesture: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+              break;
+          }
+        return null;
+      };
+
+      /**
+       * Creates a GestureInputCommand message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.GestureInputCommand
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.GestureInputCommand} GestureInputCommand
+       */
+      GestureInputCommand.fromObject = function GestureInputCommand$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.clientEventId != null) message.clientEventId = $String(object.clientEventId);
+        if (object.inputContext != null) {
+          if (typeof object.inputContext !== "object")
+            throw $TypeError(".unframe.realtime.GestureInputCommand.inputContext: object expected");
+          message.inputContext = $root.unframe.realtime.InputContext.fromObject(
+            object.inputContext,
+            long + 1,
+          );
+        }
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.presentationOriginVersion != null)
+          if ($util.Long)
+            (message.presentationOriginVersion = $util.Long.fromValue(
+              object.presentationOriginVersion,
+            )).unsigned = true;
+          else if (typeof object.presentationOriginVersion === "string")
+            message.presentationOriginVersion = $parseInt(object.presentationOriginVersion, 10);
+          else if (typeof object.presentationOriginVersion === "number")
+            message.presentationOriginVersion = object.presentationOriginVersion;
+          else if (typeof object.presentationOriginVersion === "object")
+            message.presentationOriginVersion = new $util.LongBits(
+              object.presentationOriginVersion.low >>> 0,
+              object.presentationOriginVersion.high >>> 0,
+            ).toNumber(true);
+        if (object.capturedAtClientMonotonicMs != null)
+          if ($util.Long)
+            (message.capturedAtClientMonotonicMs = $util.Long.fromValue(
+              object.capturedAtClientMonotonicMs,
+            )).unsigned = true;
+          else if (typeof object.capturedAtClientMonotonicMs === "string")
+            message.capturedAtClientMonotonicMs = $parseInt(object.capturedAtClientMonotonicMs, 10);
+          else if (typeof object.capturedAtClientMonotonicMs === "number")
+            message.capturedAtClientMonotonicMs = object.capturedAtClientMonotonicMs;
+          else if (typeof object.capturedAtClientMonotonicMs === "object")
+            message.capturedAtClientMonotonicMs = new $util.LongBits(
+              object.capturedAtClientMonotonicMs.low >>> 0,
+              object.capturedAtClientMonotonicMs.high >>> 0,
+            ).toNumber(true);
+        switch (object.gesture) {
+          default:
+            if (typeof object.gesture === "number") {
+              message.gesture = object.gesture;
+              break;
+            }
+            break;
+          case "GESTURE_KIND_UNSPECIFIED":
+          case 0:
+            message.gesture = 0;
+            break;
+          case "GESTURE_KIND_SWIPE_LEFT":
+          case 1:
+            message.gesture = 1;
+            break;
+          case "GESTURE_KIND_SWIPE_RIGHT":
+          case 2:
+            message.gesture = 2;
+            break;
+          case "GESTURE_KIND_SWIPE_DOWN":
+          case 3:
+            message.gesture = 3;
+            break;
+          case "GESTURE_KIND_SWIPE_UP":
+          case 4:
+            message.gesture = 4;
+            break;
+          case "GESTURE_KIND_PUSH_FORWARD":
+          case 5:
+            message.gesture = 5;
+            break;
+          case "GESTURE_KIND_PULL_BACKWARD":
+          case 6:
+            message.gesture = 6;
+            break;
+          case "GESTURE_KIND_SPREAD_HANDS":
+          case 7:
+            message.gesture = 7;
+            break;
+          case "GESTURE_KIND_CLOSE_HANDS":
+          case 8:
+            message.gesture = 8;
+            break;
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a GestureInputCommand message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.GestureInputCommand
+       * @static
+       * @param {unframe.realtime.GestureInputCommand} message GestureInputCommand
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      GestureInputCommand.toObject = function GestureInputCommand$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.clientEventId = "";
+          object.inputContext = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.presentationOriginVersion = options.longs === $String ? "0" : 0;
+          object.gesture = options.enums === $String ? "GESTURE_KIND_UNSPECIFIED" : 0;
+        }
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          object.clientEventId = message.clientEventId;
+        if (message.inputContext != null && message.hasOwnProperty("inputContext"))
+          object.inputContext = $root.unframe.realtime.InputContext.toObject(
+            message.inputContext,
+            options,
+          );
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
+        if (
+          message.presentationOriginVersion != null &&
+          message.hasOwnProperty("presentationOriginVersion")
+        )
+          if (typeof message.presentationOriginVersion === "number")
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? $String(message.presentationOriginVersion)
+                : message.presentationOriginVersion;
+          else
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.presentationOriginVersion)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.presentationOriginVersion.low >>> 0,
+                      message.presentationOriginVersion.high >>> 0,
+                    ).toNumber(true)
+                  : message.presentationOriginVersion;
+        if (
+          message.capturedAtClientMonotonicMs != null &&
+          message.hasOwnProperty("capturedAtClientMonotonicMs")
+        ) {
+          if (typeof message.capturedAtClientMonotonicMs === "number")
+            object.capturedAtClientMonotonicMs =
+              options.longs === $String
+                ? $String(message.capturedAtClientMonotonicMs)
+                : message.capturedAtClientMonotonicMs;
+          else
+            object.capturedAtClientMonotonicMs =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.capturedAtClientMonotonicMs)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.capturedAtClientMonotonicMs.low >>> 0,
+                      message.capturedAtClientMonotonicMs.high >>> 0,
+                    ).toNumber(true)
+                  : message.capturedAtClientMonotonicMs;
+          if (options.oneofs) object._capturedAtClientMonotonicMs = "capturedAtClientMonotonicMs";
+        }
+        if (message.gesture != null && message.hasOwnProperty("gesture"))
+          object.gesture =
+            options.enums === $String
+              ? $root.unframe.presentation.GestureKind[message.gesture] === $undefined
+                ? message.gesture
+                : $root.unframe.presentation.GestureKind[message.gesture]
+              : message.gesture;
+        return object;
+      };
+
+      /**
+       * Converts this GestureInputCommand to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.GestureInputCommand
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      GestureInputCommand.prototype.toJSON = function () {
+        return GestureInputCommand.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for GestureInputCommand
+       * @function getTypeUrl
+       * @memberof unframe.realtime.GestureInputCommand
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      GestureInputCommand.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.GestureInputCommand";
+      };
+
+      return GestureInputCommand;
+    })();
+
+    realtime.ZoneInputCommand = (function () {
+      /**
+       * Properties of a ZoneInputCommand.
+       * @typedef {Object} unframe.realtime.ZoneInputCommand.$Properties
+       * @property {string|null} [clientEventId] ZoneInputCommand clientEventId
+       * @property {unframe.realtime.InputContext.$Properties|null} [inputContext] ZoneInputCommand inputContext
+       * @property {number|Long|null} [commandEpoch] ZoneInputCommand commandEpoch
+       * @property {number|Long|null} [presentationOriginVersion] ZoneInputCommand presentationOriginVersion
+       * @property {number|Long|null} [capturedAtClientMonotonicMs] ZoneInputCommand capturedAtClientMonotonicMs
+       * @property {string|null} [zoneId] ZoneInputCommand zoneId
+       * @property {unframe.presentation.ZoneEdge|null} [edge] ZoneInputCommand edge
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a ZoneInputCommand.
+       * @memberof unframe.realtime
+       * @interface IZoneInputCommand
+       * @augments unframe.realtime.ZoneInputCommand.$Properties
+       * @deprecated Use unframe.realtime.ZoneInputCommand.$Properties instead.
+       */
+
+      /**
+       * Shape of a ZoneInputCommand.
+       * @typedef {unframe.realtime.ZoneInputCommand.$Properties} unframe.realtime.ZoneInputCommand.$Shape
+       */
+
+      /**
+       * Constructs a new ZoneInputCommand.
+       * @memberof unframe.realtime
+       * @classdesc Represents a ZoneInputCommand.
+       * @constructor
+       * @param {unframe.realtime.ZoneInputCommand.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const ZoneInputCommand = function ZoneInputCommand(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * ZoneInputCommand clientEventId.
+       * @member {string} clientEventId
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @instance
+       */
+      ZoneInputCommand.prototype.clientEventId = "";
+
+      /**
+       * ZoneInputCommand inputContext.
+       * @member {unframe.realtime.InputContext.$Properties|null|undefined} inputContext
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @instance
+       */
+      ZoneInputCommand.prototype.inputContext = null;
+
+      /**
+       * ZoneInputCommand commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @instance
+       */
+      ZoneInputCommand.prototype.commandEpoch = $util.Long ? $util.Long.fromBits(0, 0, true) : 0;
+
+      /**
+       * ZoneInputCommand presentationOriginVersion.
+       * @member {number|Long} presentationOriginVersion
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @instance
+       */
+      ZoneInputCommand.prototype.presentationOriginVersion = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * ZoneInputCommand capturedAtClientMonotonicMs.
+       * @member {number|Long|null|undefined} capturedAtClientMonotonicMs
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @instance
+       */
+      ZoneInputCommand.prototype.capturedAtClientMonotonicMs = null;
+
+      /**
+       * ZoneInputCommand zoneId.
+       * @member {string} zoneId
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @instance
+       */
+      ZoneInputCommand.prototype.zoneId = "";
+
+      /**
+       * ZoneInputCommand edge.
+       * @member {unframe.presentation.ZoneEdge} edge
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @instance
+       */
+      ZoneInputCommand.prototype.edge = 0;
+
+      // OneOf field names bound to virtual getters and setters
+      let $oneOfFields;
+
+      // Virtual OneOf for proto3 optional field
+      $Object.defineProperty(ZoneInputCommand.prototype, "_capturedAtClientMonotonicMs", {
+        get: $util.oneOfGetter(($oneOfFields = ["capturedAtClientMonotonicMs"])),
+        set: $util.oneOfSetter($oneOfFields),
+      });
+
+      /**
+       * Creates a new ZoneInputCommand instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @static
+       * @param {unframe.realtime.ZoneInputCommand.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.ZoneInputCommand} ZoneInputCommand instance
+       * @type {{
+       *   (properties: unframe.realtime.ZoneInputCommand.$Shape): unframe.realtime.ZoneInputCommand & unframe.realtime.ZoneInputCommand.$Shape;
+       *   (properties?: unframe.realtime.ZoneInputCommand.$Properties): unframe.realtime.ZoneInputCommand;
+       * }}
+       */
+      ZoneInputCommand.create = function (properties) {
+        return new ZoneInputCommand(properties);
+      };
+
+      /**
+       * Encodes the specified ZoneInputCommand message. Does not implicitly {@link unframe.realtime.ZoneInputCommand.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @static
+       * @param {unframe.realtime.ZoneInputCommand.$Properties} message ZoneInputCommand message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      ZoneInputCommand.encode = function ZoneInputCommand$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.clientEventId != null && $Object.hasOwnProperty.call(message, "clientEventId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.clientEventId);
+        if (message.inputContext != null && $Object.hasOwnProperty.call(message, "inputContext"))
+          $root.unframe.realtime.InputContext.encode(
+            message.inputContext,
+            writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+          ).ldelim();
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 3, wireType 0 =*/ 24).uint64(message.commandEpoch);
+        if (
+          message.presentationOriginVersion != null &&
+          $Object.hasOwnProperty.call(message, "presentationOriginVersion")
+        )
+          writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.presentationOriginVersion);
+        if (
+          message.capturedAtClientMonotonicMs != null &&
+          $Object.hasOwnProperty.call(message, "capturedAtClientMonotonicMs")
+        )
+          writer.uint32(/* id 5, wireType 0 =*/ 40).uint64(message.capturedAtClientMonotonicMs);
+        if (message.zoneId != null && $Object.hasOwnProperty.call(message, "zoneId"))
+          writer.uint32(/* id 6, wireType 2 =*/ 50).string(message.zoneId);
+        if (message.edge != null && $Object.hasOwnProperty.call(message, "edge"))
+          writer.uint32(/* id 7, wireType 0 =*/ 56).int32(message.edge);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified ZoneInputCommand message, length delimited. Does not implicitly {@link unframe.realtime.ZoneInputCommand.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @static
+       * @param {unframe.realtime.ZoneInputCommand.$Properties} message ZoneInputCommand message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      ZoneInputCommand.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a ZoneInputCommand message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.ZoneInputCommand & unframe.realtime.ZoneInputCommand.$Shape} ZoneInputCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      ZoneInputCommand.decode = function ZoneInputCommand$decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.clientEventId = reader.string();
+              break;
+            }
+            case 2: {
+              message.inputContext = $root.unframe.realtime.InputContext.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 3: {
+              message.commandEpoch = reader.uint64();
+              break;
+            }
+            case 4: {
+              message.presentationOriginVersion = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.capturedAtClientMonotonicMs = reader.uint64();
+              break;
+            }
+            case 6: {
+              message.zoneId = reader.string();
+              break;
+            }
+            case 7: {
+              message.edge = reader.int32();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a ZoneInputCommand message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.ZoneInputCommand & unframe.realtime.ZoneInputCommand.$Shape} ZoneInputCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      ZoneInputCommand.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a ZoneInputCommand message.
+       * @function verify
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      ZoneInputCommand.verify = function ZoneInputCommand$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        let properties = {};
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          if (!$util.isString(message.clientEventId)) return "clientEventId: string expected";
+        if (message.inputContext != null && message.hasOwnProperty("inputContext")) {
+          let error = $root.unframe.realtime.InputContext.verify(message.inputContext, long + 1);
+          if (error) return "inputContext." + error;
+        }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
+        if (
+          message.presentationOriginVersion != null &&
+          message.hasOwnProperty("presentationOriginVersion")
+        )
+          if (
+            !$util.isInteger(message.presentationOriginVersion) &&
+            !(
+              message.presentationOriginVersion &&
+              $util.isInteger(message.presentationOriginVersion.low) &&
+              $util.isInteger(message.presentationOriginVersion.high)
+            )
+          )
+            return "presentationOriginVersion: integer|Long expected";
+        if (
+          message.capturedAtClientMonotonicMs != null &&
+          message.hasOwnProperty("capturedAtClientMonotonicMs")
+        ) {
+          properties._capturedAtClientMonotonicMs = 1;
+          if (
+            !$util.isInteger(message.capturedAtClientMonotonicMs) &&
+            !(
+              message.capturedAtClientMonotonicMs &&
+              $util.isInteger(message.capturedAtClientMonotonicMs.low) &&
+              $util.isInteger(message.capturedAtClientMonotonicMs.high)
+            )
+          )
+            return "capturedAtClientMonotonicMs: integer|Long expected";
+        }
+        if (message.zoneId != null && message.hasOwnProperty("zoneId"))
+          if (!$util.isString(message.zoneId)) return "zoneId: string expected";
+        if (message.edge != null && message.hasOwnProperty("edge"))
+          switch (message.edge) {
+            default:
+              return "edge: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+              break;
+          }
+        return null;
+      };
+
+      /**
+       * Creates a ZoneInputCommand message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.ZoneInputCommand} ZoneInputCommand
+       */
+      ZoneInputCommand.fromObject = function ZoneInputCommand$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.clientEventId != null) message.clientEventId = $String(object.clientEventId);
+        if (object.inputContext != null) {
+          if (typeof object.inputContext !== "object")
+            throw $TypeError(".unframe.realtime.ZoneInputCommand.inputContext: object expected");
+          message.inputContext = $root.unframe.realtime.InputContext.fromObject(
+            object.inputContext,
+            long + 1,
+          );
+        }
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.presentationOriginVersion != null)
+          if ($util.Long)
+            (message.presentationOriginVersion = $util.Long.fromValue(
+              object.presentationOriginVersion,
+            )).unsigned = true;
+          else if (typeof object.presentationOriginVersion === "string")
+            message.presentationOriginVersion = $parseInt(object.presentationOriginVersion, 10);
+          else if (typeof object.presentationOriginVersion === "number")
+            message.presentationOriginVersion = object.presentationOriginVersion;
+          else if (typeof object.presentationOriginVersion === "object")
+            message.presentationOriginVersion = new $util.LongBits(
+              object.presentationOriginVersion.low >>> 0,
+              object.presentationOriginVersion.high >>> 0,
+            ).toNumber(true);
+        if (object.capturedAtClientMonotonicMs != null)
+          if ($util.Long)
+            (message.capturedAtClientMonotonicMs = $util.Long.fromValue(
+              object.capturedAtClientMonotonicMs,
+            )).unsigned = true;
+          else if (typeof object.capturedAtClientMonotonicMs === "string")
+            message.capturedAtClientMonotonicMs = $parseInt(object.capturedAtClientMonotonicMs, 10);
+          else if (typeof object.capturedAtClientMonotonicMs === "number")
+            message.capturedAtClientMonotonicMs = object.capturedAtClientMonotonicMs;
+          else if (typeof object.capturedAtClientMonotonicMs === "object")
+            message.capturedAtClientMonotonicMs = new $util.LongBits(
+              object.capturedAtClientMonotonicMs.low >>> 0,
+              object.capturedAtClientMonotonicMs.high >>> 0,
+            ).toNumber(true);
+        if (object.zoneId != null) message.zoneId = $String(object.zoneId);
+        switch (object.edge) {
+          default:
+            if (typeof object.edge === "number") {
+              message.edge = object.edge;
+              break;
+            }
+            break;
+          case "ZONE_EDGE_UNSPECIFIED":
+          case 0:
+            message.edge = 0;
+            break;
+          case "ZONE_EDGE_ENTER":
+          case 1:
+            message.edge = 1;
+            break;
+          case "ZONE_EDGE_EXIT":
+          case 2:
+            message.edge = 2;
+            break;
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a ZoneInputCommand message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @static
+       * @param {unframe.realtime.ZoneInputCommand} message ZoneInputCommand
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      ZoneInputCommand.toObject = function ZoneInputCommand$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.clientEventId = "";
+          object.inputContext = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.presentationOriginVersion = options.longs === $String ? "0" : 0;
+          object.zoneId = "";
+          object.edge = options.enums === $String ? "ZONE_EDGE_UNSPECIFIED" : 0;
+        }
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          object.clientEventId = message.clientEventId;
+        if (message.inputContext != null && message.hasOwnProperty("inputContext"))
+          object.inputContext = $root.unframe.realtime.InputContext.toObject(
+            message.inputContext,
+            options,
+          );
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
+        if (
+          message.presentationOriginVersion != null &&
+          message.hasOwnProperty("presentationOriginVersion")
+        )
+          if (typeof message.presentationOriginVersion === "number")
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? $String(message.presentationOriginVersion)
+                : message.presentationOriginVersion;
+          else
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.presentationOriginVersion)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.presentationOriginVersion.low >>> 0,
+                      message.presentationOriginVersion.high >>> 0,
+                    ).toNumber(true)
+                  : message.presentationOriginVersion;
+        if (
+          message.capturedAtClientMonotonicMs != null &&
+          message.hasOwnProperty("capturedAtClientMonotonicMs")
+        ) {
+          if (typeof message.capturedAtClientMonotonicMs === "number")
+            object.capturedAtClientMonotonicMs =
+              options.longs === $String
+                ? $String(message.capturedAtClientMonotonicMs)
+                : message.capturedAtClientMonotonicMs;
+          else
+            object.capturedAtClientMonotonicMs =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.capturedAtClientMonotonicMs)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.capturedAtClientMonotonicMs.low >>> 0,
+                      message.capturedAtClientMonotonicMs.high >>> 0,
+                    ).toNumber(true)
+                  : message.capturedAtClientMonotonicMs;
+          if (options.oneofs) object._capturedAtClientMonotonicMs = "capturedAtClientMonotonicMs";
+        }
+        if (message.zoneId != null && message.hasOwnProperty("zoneId"))
+          object.zoneId = message.zoneId;
+        if (message.edge != null && message.hasOwnProperty("edge"))
+          object.edge =
+            options.enums === $String
+              ? $root.unframe.presentation.ZoneEdge[message.edge] === $undefined
+                ? message.edge
+                : $root.unframe.presentation.ZoneEdge[message.edge]
+              : message.edge;
+        return object;
+      };
+
+      /**
+       * Converts this ZoneInputCommand to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      ZoneInputCommand.prototype.toJSON = function () {
+        return ZoneInputCommand.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for ZoneInputCommand
+       * @function getTypeUrl
+       * @memberof unframe.realtime.ZoneInputCommand
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      ZoneInputCommand.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.ZoneInputCommand";
+      };
+
+      return ZoneInputCommand;
+    })();
+
+    realtime.StepSelection = (function () {
+      /**
+       * Properties of a StepSelection.
+       * @typedef {Object} unframe.realtime.StepSelection.$Properties
+       * @property {string|null} [groupId] StepSelection groupId
+       * @property {string|null} [stepId] StepSelection stepId
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a StepSelection.
+       * @memberof unframe.realtime
+       * @interface IStepSelection
+       * @augments unframe.realtime.StepSelection.$Properties
+       * @deprecated Use unframe.realtime.StepSelection.$Properties instead.
+       */
+
+      /**
+       * Shape of a StepSelection.
+       * @typedef {unframe.realtime.StepSelection.$Properties} unframe.realtime.StepSelection.$Shape
+       */
+
+      /**
+       * Constructs a new StepSelection.
+       * @memberof unframe.realtime
+       * @classdesc Represents a StepSelection.
+       * @constructor
+       * @param {unframe.realtime.StepSelection.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const StepSelection = function StepSelection(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * StepSelection groupId.
+       * @member {string} groupId
+       * @memberof unframe.realtime.StepSelection
+       * @instance
+       */
+      StepSelection.prototype.groupId = "";
+
+      /**
+       * StepSelection stepId.
+       * @member {string} stepId
+       * @memberof unframe.realtime.StepSelection
+       * @instance
+       */
+      StepSelection.prototype.stepId = "";
+
+      /**
+       * Creates a new StepSelection instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.StepSelection
+       * @static
+       * @param {unframe.realtime.StepSelection.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.StepSelection} StepSelection instance
+       * @type {{
+       *   (properties: unframe.realtime.StepSelection.$Shape): unframe.realtime.StepSelection & unframe.realtime.StepSelection.$Shape;
+       *   (properties?: unframe.realtime.StepSelection.$Properties): unframe.realtime.StepSelection;
+       * }}
+       */
+      StepSelection.create = function (properties) {
+        return new StepSelection(properties);
+      };
+
+      /**
+       * Encodes the specified StepSelection message. Does not implicitly {@link unframe.realtime.StepSelection.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.StepSelection
+       * @static
+       * @param {unframe.realtime.StepSelection.$Properties} message StepSelection message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      StepSelection.encode = function StepSelection$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.groupId != null && $Object.hasOwnProperty.call(message, "groupId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.groupId);
+        if (message.stepId != null && $Object.hasOwnProperty.call(message, "stepId"))
+          writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.stepId);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified StepSelection message, length delimited. Does not implicitly {@link unframe.realtime.StepSelection.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.StepSelection
+       * @static
+       * @param {unframe.realtime.StepSelection.$Properties} message StepSelection message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      StepSelection.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a StepSelection message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.StepSelection
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.StepSelection & unframe.realtime.StepSelection.$Shape} StepSelection
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      StepSelection.decode = function StepSelection$decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.groupId = reader.string();
+              break;
+            }
+            case 2: {
+              message.stepId = reader.string();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a StepSelection message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.StepSelection
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.StepSelection & unframe.realtime.StepSelection.$Shape} StepSelection
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      StepSelection.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a StepSelection message.
+       * @function verify
+       * @memberof unframe.realtime.StepSelection
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      StepSelection.verify = function StepSelection$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          if (!$util.isString(message.groupId)) return "groupId: string expected";
+        if (message.stepId != null && message.hasOwnProperty("stepId"))
+          if (!$util.isString(message.stepId)) return "stepId: string expected";
+        return null;
+      };
+
+      /**
+       * Creates a StepSelection message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.StepSelection
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.StepSelection} StepSelection
+       */
+      StepSelection.fromObject = function StepSelection$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.groupId != null) message.groupId = $String(object.groupId);
+        if (object.stepId != null) message.stepId = $String(object.stepId);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a StepSelection message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.StepSelection
+       * @static
+       * @param {unframe.realtime.StepSelection} message StepSelection
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      StepSelection.toObject = function StepSelection$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.groupId = "";
+          object.stepId = "";
+        }
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          object.groupId = message.groupId;
+        if (message.stepId != null && message.hasOwnProperty("stepId"))
+          object.stepId = message.stepId;
+        return object;
+      };
+
+      /**
+       * Converts this StepSelection to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.StepSelection
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      StepSelection.prototype.toJSON = function () {
+        return StepSelection.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for StepSelection
+       * @function getTypeUrl
+       * @memberof unframe.realtime.StepSelection
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      StepSelection.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.StepSelection";
+      };
+
+      return StepSelection;
+    })();
+
+    realtime.PresenterStepSelectionCatalog = (function () {
+      /**
+       * Properties of a PresenterStepSelectionCatalog.
+       * @typedef {Object} unframe.realtime.PresenterStepSelectionCatalog.$Properties
+       * @property {Array.<unframe.realtime.StepSelection.$Properties>|null} [reachedSteps] PresenterStepSelectionCatalog reachedSteps
+       * @property {number|Long|null} [reliableSequence] PresenterStepSelectionCatalog reliableSequence
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a PresenterStepSelectionCatalog.
+       * @memberof unframe.realtime
+       * @interface IPresenterStepSelectionCatalog
+       * @augments unframe.realtime.PresenterStepSelectionCatalog.$Properties
+       * @deprecated Use unframe.realtime.PresenterStepSelectionCatalog.$Properties instead.
+       */
+
+      /**
+       * Shape of a PresenterStepSelectionCatalog.
+       * @typedef {unframe.realtime.PresenterStepSelectionCatalog.$Properties} unframe.realtime.PresenterStepSelectionCatalog.$Shape
+       */
+
+      /**
+       * Constructs a new PresenterStepSelectionCatalog.
+       * @memberof unframe.realtime
+       * @classdesc Represents a PresenterStepSelectionCatalog.
+       * @constructor
+       * @param {unframe.realtime.PresenterStepSelectionCatalog.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const PresenterStepSelectionCatalog = function PresenterStepSelectionCatalog(properties) {
+        this.reachedSteps = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * PresenterStepSelectionCatalog reachedSteps.
+       * @member {Array.<unframe.realtime.StepSelection.$Properties>} reachedSteps
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @instance
+       */
+      PresenterStepSelectionCatalog.prototype.reachedSteps = $util.emptyArray;
+
+      /**
+       * PresenterStepSelectionCatalog reliableSequence.
+       * @member {number|Long} reliableSequence
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @instance
+       */
+      PresenterStepSelectionCatalog.prototype.reliableSequence = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * Creates a new PresenterStepSelectionCatalog instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {unframe.realtime.PresenterStepSelectionCatalog.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog} PresenterStepSelectionCatalog instance
+       * @type {{
+       *   (properties: unframe.realtime.PresenterStepSelectionCatalog.$Shape): unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape;
+       *   (properties?: unframe.realtime.PresenterStepSelectionCatalog.$Properties): unframe.realtime.PresenterStepSelectionCatalog;
+       * }}
+       */
+      PresenterStepSelectionCatalog.create = function (properties) {
+        return new PresenterStepSelectionCatalog(properties);
+      };
+
+      /**
+       * Encodes the specified PresenterStepSelectionCatalog message. Does not implicitly {@link unframe.realtime.PresenterStepSelectionCatalog.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {unframe.realtime.PresenterStepSelectionCatalog.$Properties} message PresenterStepSelectionCatalog message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterStepSelectionCatalog.encode = function PresenterStepSelectionCatalog$encode(
+        message,
+        writer,
+      ) {
+        if (!writer) writer = $Writer.create();
+        if (message.reachedSteps != null && message.reachedSteps.length)
+          for (let i = 0; i < message.reachedSteps.length; ++i)
+            $root.unframe.realtime.StepSelection.encode(
+              message.reachedSteps[i],
+              writer.uint32(/* id 1, wireType 2 =*/ 10).fork(),
+            ).ldelim();
+        if (
+          message.reliableSequence != null &&
+          $Object.hasOwnProperty.call(message, "reliableSequence")
+        )
+          writer.uint32(/* id 2, wireType 0 =*/ 16).uint64(message.reliableSequence);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified PresenterStepSelectionCatalog message, length delimited. Does not implicitly {@link unframe.realtime.PresenterStepSelectionCatalog.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {unframe.realtime.PresenterStepSelectionCatalog.$Properties} message PresenterStepSelectionCatalog message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterStepSelectionCatalog.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a PresenterStepSelectionCatalog message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape} PresenterStepSelectionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterStepSelectionCatalog.decode = function PresenterStepSelectionCatalog$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              if (!(message.reachedSteps && message.reachedSteps.length)) message.reachedSteps = [];
+              message.reachedSteps.push(
+                $root.unframe.realtime.StepSelection.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 2: {
+              message.reliableSequence = reader.uint64();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a PresenterStepSelectionCatalog message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape} PresenterStepSelectionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterStepSelectionCatalog.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a PresenterStepSelectionCatalog message.
+       * @function verify
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      PresenterStepSelectionCatalog.verify = function PresenterStepSelectionCatalog$verify(
+        message,
+        long,
+      ) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.reachedSteps != null && message.hasOwnProperty("reachedSteps")) {
+          if (!$Array.isArray(message.reachedSteps)) return "reachedSteps: array expected";
+          for (let i = 0; i < message.reachedSteps.length; ++i) {
+            let error = $root.unframe.realtime.StepSelection.verify(
+              message.reachedSteps[i],
+              long + 1,
+            );
+            if (error) return "reachedSteps." + error;
+          }
+        }
+        if (message.reliableSequence != null && message.hasOwnProperty("reliableSequence"))
+          if (
+            !$util.isInteger(message.reliableSequence) &&
+            !(
+              message.reliableSequence &&
+              $util.isInteger(message.reliableSequence.low) &&
+              $util.isInteger(message.reliableSequence.high)
+            )
+          )
+            return "reliableSequence: integer|Long expected";
+        return null;
+      };
+
+      /**
+       * Creates a PresenterStepSelectionCatalog message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog} PresenterStepSelectionCatalog
+       */
+      PresenterStepSelectionCatalog.fromObject = function PresenterStepSelectionCatalog$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.reachedSteps) {
+          if (!$Array.isArray(object.reachedSteps))
+            throw $TypeError(
+              ".unframe.realtime.PresenterStepSelectionCatalog.reachedSteps: array expected",
+            );
+          message.reachedSteps = [];
+          for (let i = 0; i < object.reachedSteps.length; ++i) {
+            if (typeof object.reachedSteps[i] !== "object")
+              throw $TypeError(
+                ".unframe.realtime.PresenterStepSelectionCatalog.reachedSteps: object expected",
+              );
+            message.reachedSteps[i] = $root.unframe.realtime.StepSelection.fromObject(
+              object.reachedSteps[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.reliableSequence != null)
+          if ($util.Long)
+            (message.reliableSequence = $util.Long.fromValue(object.reliableSequence)).unsigned =
+              true;
+          else if (typeof object.reliableSequence === "string")
+            message.reliableSequence = $parseInt(object.reliableSequence, 10);
+          else if (typeof object.reliableSequence === "number")
+            message.reliableSequence = object.reliableSequence;
+          else if (typeof object.reliableSequence === "object")
+            message.reliableSequence = new $util.LongBits(
+              object.reliableSequence.low >>> 0,
+              object.reliableSequence.high >>> 0,
+            ).toNumber(true);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a PresenterStepSelectionCatalog message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {unframe.realtime.PresenterStepSelectionCatalog} message PresenterStepSelectionCatalog
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      PresenterStepSelectionCatalog.toObject = function PresenterStepSelectionCatalog$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) object.reachedSteps = [];
+        if (options.defaults)
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.reliableSequence =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.reliableSequence = options.longs === $String ? "0" : 0;
+        if (message.reachedSteps && message.reachedSteps.length) {
+          object.reachedSteps = [];
+          for (let j = 0; j < message.reachedSteps.length; ++j)
+            object.reachedSteps[j] = $root.unframe.realtime.StepSelection.toObject(
+              message.reachedSteps[j],
+              options,
+            );
+        }
+        if (message.reliableSequence != null && message.hasOwnProperty("reliableSequence"))
+          if (typeof message.reliableSequence === "number")
+            object.reliableSequence =
+              options.longs === $String
+                ? $String(message.reliableSequence)
+                : message.reliableSequence;
+          else
+            object.reliableSequence =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.reliableSequence)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.reliableSequence.low >>> 0,
+                      message.reliableSequence.high >>> 0,
+                    ).toNumber(true)
+                  : message.reliableSequence;
+        return object;
+      };
+
+      /**
+       * Converts this PresenterStepSelectionCatalog to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      PresenterStepSelectionCatalog.prototype.toJSON = function () {
+        return PresenterStepSelectionCatalog.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for PresenterStepSelectionCatalog
+       * @function getTypeUrl
+       * @memberof unframe.realtime.PresenterStepSelectionCatalog
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      PresenterStepSelectionCatalog.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.PresenterStepSelectionCatalog";
+      };
+
+      return PresenterStepSelectionCatalog;
+    })();
+
+    /**
+     * InputSynchronizationPhase enum.
+     * @name unframe.realtime.InputSynchronizationPhase
+     * @enum {number}
+     * @property {number} INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED=0 INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED value
+     * @property {number} INPUT_SYNCHRONIZATION_PHASE_REQUIRED=1 INPUT_SYNCHRONIZATION_PHASE_REQUIRED value
+     * @property {number} INPUT_SYNCHRONIZATION_PHASE_READY=2 INPUT_SYNCHRONIZATION_PHASE_READY value
+     */
+    realtime.InputSynchronizationPhase = (function () {
+      const valuesById = $Object.create(null),
+        values = $Object.create(valuesById);
+      values[(valuesById[0] = "INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED")] = 0;
+      values[(valuesById[1] = "INPUT_SYNCHRONIZATION_PHASE_REQUIRED")] = 1;
+      values[(valuesById[2] = "INPUT_SYNCHRONIZATION_PHASE_READY")] = 2;
+      return values;
+    })();
+
+    /**
+     * InputSynchronizationReason enum.
+     * @name unframe.realtime.InputSynchronizationReason
+     * @enum {number}
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_UNSPECIFIED=0 INPUT_SYNCHRONIZATION_REASON_UNSPECIFIED value
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_CONNECTED=1 INPUT_SYNCHRONIZATION_REASON_CONNECTED value
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_RECONNECTED=2 INPUT_SYNCHRONIZATION_REASON_RECONNECTED value
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED=3 INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED value
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_PAUSED=4 INPUT_SYNCHRONIZATION_REASON_PAUSED value
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_RESUMED=5 INPUT_SYNCHRONIZATION_REASON_RESUMED value
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_RECALIBRATED=6 INPUT_SYNCHRONIZATION_REASON_RECALIBRATED value
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_HISTORY_CAPACITY=7 INPUT_SYNCHRONIZATION_REASON_HISTORY_CAPACITY value
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED=8 INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED value
+     * @property {number} INPUT_SYNCHRONIZATION_REASON_STEP_RESTORED=9 INPUT_SYNCHRONIZATION_REASON_STEP_RESTORED value
+     */
+    realtime.InputSynchronizationReason = (function () {
+      const valuesById = $Object.create(null),
+        values = $Object.create(valuesById);
+      values[(valuesById[0] = "INPUT_SYNCHRONIZATION_REASON_UNSPECIFIED")] = 0;
+      values[(valuesById[1] = "INPUT_SYNCHRONIZATION_REASON_CONNECTED")] = 1;
+      values[(valuesById[2] = "INPUT_SYNCHRONIZATION_REASON_RECONNECTED")] = 2;
+      values[(valuesById[3] = "INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED")] = 3;
+      values[(valuesById[4] = "INPUT_SYNCHRONIZATION_REASON_PAUSED")] = 4;
+      values[(valuesById[5] = "INPUT_SYNCHRONIZATION_REASON_RESUMED")] = 5;
+      values[(valuesById[6] = "INPUT_SYNCHRONIZATION_REASON_RECALIBRATED")] = 6;
+      values[(valuesById[7] = "INPUT_SYNCHRONIZATION_REASON_HISTORY_CAPACITY")] = 7;
+      values[(valuesById[8] = "INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED")] = 8;
+      values[(valuesById[9] = "INPUT_SYNCHRONIZATION_REASON_STEP_RESTORED")] = 9;
+      return values;
+    })();
+
+    realtime.PresenterInputSynchronization = (function () {
+      /**
+       * Properties of a PresenterInputSynchronization.
+       * @typedef {Object} unframe.realtime.PresenterInputSynchronization.$Properties
+       * @property {unframe.realtime.InputSynchronizationPhase|null} [phase] PresenterInputSynchronization phase
+       * @property {unframe.realtime.InputSynchronizationReason|null} [reason] PresenterInputSynchronization reason
+       * @property {number|Long|null} [synchronizationRevision] PresenterInputSynchronization synchronizationRevision
+       * @property {unframe.realtime.InputContext.$Properties|null} [inputContext] PresenterInputSynchronization inputContext
+       * @property {number|Long|null} [commandEpoch] PresenterInputSynchronization commandEpoch
+       * @property {number|Long|null} [nextCommandEpoch] PresenterInputSynchronization nextCommandEpoch
+       * @property {number|Long|null} [reliableSequence] PresenterInputSynchronization reliableSequence
+       * @property {unframe.presentation.PresenterRecognitionCatalog.$Properties|null} [recognitionCatalog] PresenterInputSynchronization recognitionCatalog
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a PresenterInputSynchronization.
+       * @memberof unframe.realtime
+       * @interface IPresenterInputSynchronization
+       * @augments unframe.realtime.PresenterInputSynchronization.$Properties
+       * @deprecated Use unframe.realtime.PresenterInputSynchronization.$Properties instead.
+       */
+
+      /**
+       * Shape of a PresenterInputSynchronization.
+       * @typedef {unframe.realtime.PresenterInputSynchronization.$Properties} unframe.realtime.PresenterInputSynchronization.$Shape
+       */
+
+      /**
+       * Constructs a new PresenterInputSynchronization.
+       * @memberof unframe.realtime
+       * @classdesc Represents a PresenterInputSynchronization.
+       * @constructor
+       * @param {unframe.realtime.PresenterInputSynchronization.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const PresenterInputSynchronization = function PresenterInputSynchronization(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * PresenterInputSynchronization phase.
+       * @member {unframe.realtime.InputSynchronizationPhase} phase
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @instance
+       */
+      PresenterInputSynchronization.prototype.phase = 0;
+
+      /**
+       * PresenterInputSynchronization reason.
+       * @member {unframe.realtime.InputSynchronizationReason} reason
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @instance
+       */
+      PresenterInputSynchronization.prototype.reason = 0;
+
+      /**
+       * PresenterInputSynchronization synchronizationRevision.
+       * @member {number|Long} synchronizationRevision
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @instance
+       */
+      PresenterInputSynchronization.prototype.synchronizationRevision = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * PresenterInputSynchronization inputContext.
+       * @member {unframe.realtime.InputContext.$Properties|null|undefined} inputContext
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @instance
+       */
+      PresenterInputSynchronization.prototype.inputContext = null;
+
+      /**
+       * PresenterInputSynchronization commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @instance
+       */
+      PresenterInputSynchronization.prototype.commandEpoch = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * PresenterInputSynchronization nextCommandEpoch.
+       * @member {number|Long|null|undefined} nextCommandEpoch
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @instance
+       */
+      PresenterInputSynchronization.prototype.nextCommandEpoch = null;
+
+      /**
+       * PresenterInputSynchronization reliableSequence.
+       * @member {number|Long} reliableSequence
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @instance
+       */
+      PresenterInputSynchronization.prototype.reliableSequence = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * PresenterInputSynchronization recognitionCatalog.
+       * @member {unframe.presentation.PresenterRecognitionCatalog.$Properties|null|undefined} recognitionCatalog
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @instance
+       */
+      PresenterInputSynchronization.prototype.recognitionCatalog = null;
+
+      // OneOf field names bound to virtual getters and setters
+      let $oneOfFields;
+
+      // Virtual OneOf for proto3 optional field
+      $Object.defineProperty(PresenterInputSynchronization.prototype, "_nextCommandEpoch", {
+        get: $util.oneOfGetter(($oneOfFields = ["nextCommandEpoch"])),
+        set: $util.oneOfSetter($oneOfFields),
+      });
+
+      /**
+       * Creates a new PresenterInputSynchronization instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @static
+       * @param {unframe.realtime.PresenterInputSynchronization.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.PresenterInputSynchronization} PresenterInputSynchronization instance
+       * @type {{
+       *   (properties: unframe.realtime.PresenterInputSynchronization.$Shape): unframe.realtime.PresenterInputSynchronization & unframe.realtime.PresenterInputSynchronization.$Shape;
+       *   (properties?: unframe.realtime.PresenterInputSynchronization.$Properties): unframe.realtime.PresenterInputSynchronization;
+       * }}
+       */
+      PresenterInputSynchronization.create = function (properties) {
+        return new PresenterInputSynchronization(properties);
+      };
+
+      /**
+       * Encodes the specified PresenterInputSynchronization message. Does not implicitly {@link unframe.realtime.PresenterInputSynchronization.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @static
+       * @param {unframe.realtime.PresenterInputSynchronization.$Properties} message PresenterInputSynchronization message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterInputSynchronization.encode = function PresenterInputSynchronization$encode(
+        message,
+        writer,
+      ) {
+        if (!writer) writer = $Writer.create();
+        if (message.phase != null && $Object.hasOwnProperty.call(message, "phase"))
+          writer.uint32(/* id 1, wireType 0 =*/ 8).int32(message.phase);
+        if (message.reason != null && $Object.hasOwnProperty.call(message, "reason"))
+          writer.uint32(/* id 2, wireType 0 =*/ 16).int32(message.reason);
+        if (
+          message.synchronizationRevision != null &&
+          $Object.hasOwnProperty.call(message, "synchronizationRevision")
+        )
+          writer.uint32(/* id 3, wireType 0 =*/ 24).uint64(message.synchronizationRevision);
+        if (message.inputContext != null && $Object.hasOwnProperty.call(message, "inputContext"))
+          $root.unframe.realtime.InputContext.encode(
+            message.inputContext,
+            writer.uint32(/* id 4, wireType 2 =*/ 34).fork(),
+          ).ldelim();
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 5, wireType 0 =*/ 40).uint64(message.commandEpoch);
+        if (
+          message.nextCommandEpoch != null &&
+          $Object.hasOwnProperty.call(message, "nextCommandEpoch")
+        )
+          writer.uint32(/* id 6, wireType 0 =*/ 48).uint64(message.nextCommandEpoch);
+        if (
+          message.reliableSequence != null &&
+          $Object.hasOwnProperty.call(message, "reliableSequence")
+        )
+          writer.uint32(/* id 7, wireType 0 =*/ 56).uint64(message.reliableSequence);
+        if (
+          message.recognitionCatalog != null &&
+          $Object.hasOwnProperty.call(message, "recognitionCatalog")
+        )
+          $root.unframe.presentation.PresenterRecognitionCatalog.encode(
+            message.recognitionCatalog,
+            writer.uint32(/* id 8, wireType 2 =*/ 66).fork(),
+          ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified PresenterInputSynchronization message, length delimited. Does not implicitly {@link unframe.realtime.PresenterInputSynchronization.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @static
+       * @param {unframe.realtime.PresenterInputSynchronization.$Properties} message PresenterInputSynchronization message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresenterInputSynchronization.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a PresenterInputSynchronization message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.PresenterInputSynchronization & unframe.realtime.PresenterInputSynchronization.$Shape} PresenterInputSynchronization
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterInputSynchronization.decode = function PresenterInputSynchronization$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.phase = reader.int32();
+              break;
+            }
+            case 2: {
+              message.reason = reader.int32();
+              break;
+            }
+            case 3: {
+              message.synchronizationRevision = reader.uint64();
+              break;
+            }
+            case 4: {
+              message.inputContext = $root.unframe.realtime.InputContext.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 5: {
+              message.commandEpoch = reader.uint64();
+              break;
+            }
+            case 6: {
+              message.nextCommandEpoch = reader.uint64();
+              break;
+            }
+            case 7: {
+              message.reliableSequence = reader.uint64();
+              break;
+            }
+            case 8: {
+              message.recognitionCatalog =
+                $root.unframe.presentation.PresenterRecognitionCatalog.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a PresenterInputSynchronization message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.PresenterInputSynchronization & unframe.realtime.PresenterInputSynchronization.$Shape} PresenterInputSynchronization
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresenterInputSynchronization.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a PresenterInputSynchronization message.
+       * @function verify
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      PresenterInputSynchronization.verify = function PresenterInputSynchronization$verify(
+        message,
+        long,
+      ) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        let properties = {};
+        if (message.phase != null && message.hasOwnProperty("phase"))
+          switch (message.phase) {
+            default:
+              return "phase: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+              break;
+          }
+        if (message.reason != null && message.hasOwnProperty("reason"))
+          switch (message.reason) {
+            default:
+              return "reason: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+              break;
+          }
+        if (
+          message.synchronizationRevision != null &&
+          message.hasOwnProperty("synchronizationRevision")
+        )
+          if (
+            !$util.isInteger(message.synchronizationRevision) &&
+            !(
+              message.synchronizationRevision &&
+              $util.isInteger(message.synchronizationRevision.low) &&
+              $util.isInteger(message.synchronizationRevision.high)
+            )
+          )
+            return "synchronizationRevision: integer|Long expected";
+        if (message.inputContext != null && message.hasOwnProperty("inputContext")) {
+          let error = $root.unframe.realtime.InputContext.verify(message.inputContext, long + 1);
+          if (error) return "inputContext." + error;
+        }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
+        if (message.nextCommandEpoch != null && message.hasOwnProperty("nextCommandEpoch")) {
+          properties._nextCommandEpoch = 1;
+          if (
+            !$util.isInteger(message.nextCommandEpoch) &&
+            !(
+              message.nextCommandEpoch &&
+              $util.isInteger(message.nextCommandEpoch.low) &&
+              $util.isInteger(message.nextCommandEpoch.high)
+            )
+          )
+            return "nextCommandEpoch: integer|Long expected";
+        }
+        if (message.reliableSequence != null && message.hasOwnProperty("reliableSequence"))
+          if (
+            !$util.isInteger(message.reliableSequence) &&
+            !(
+              message.reliableSequence &&
+              $util.isInteger(message.reliableSequence.low) &&
+              $util.isInteger(message.reliableSequence.high)
+            )
+          )
+            return "reliableSequence: integer|Long expected";
+        if (message.recognitionCatalog != null && message.hasOwnProperty("recognitionCatalog")) {
+          let error = $root.unframe.presentation.PresenterRecognitionCatalog.verify(
+            message.recognitionCatalog,
+            long + 1,
+          );
+          if (error) return "recognitionCatalog." + error;
+        }
+        return null;
+      };
+
+      /**
+       * Creates a PresenterInputSynchronization message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.PresenterInputSynchronization} PresenterInputSynchronization
+       */
+      PresenterInputSynchronization.fromObject = function PresenterInputSynchronization$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        switch (object.phase) {
+          default:
+            if (typeof object.phase === "number") {
+              message.phase = object.phase;
+              break;
+            }
+            break;
+          case "INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED":
+          case 0:
+            message.phase = 0;
+            break;
+          case "INPUT_SYNCHRONIZATION_PHASE_REQUIRED":
+          case 1:
+            message.phase = 1;
+            break;
+          case "INPUT_SYNCHRONIZATION_PHASE_READY":
+          case 2:
+            message.phase = 2;
+            break;
+        }
+        switch (object.reason) {
+          default:
+            if (typeof object.reason === "number") {
+              message.reason = object.reason;
+              break;
+            }
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_UNSPECIFIED":
+          case 0:
+            message.reason = 0;
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_CONNECTED":
+          case 1:
+            message.reason = 1;
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_RECONNECTED":
+          case 2:
+            message.reason = 2;
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED":
+          case 3:
+            message.reason = 3;
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_PAUSED":
+          case 4:
+            message.reason = 4;
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_RESUMED":
+          case 5:
+            message.reason = 5;
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_RECALIBRATED":
+          case 6:
+            message.reason = 6;
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_HISTORY_CAPACITY":
+          case 7:
+            message.reason = 7;
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED":
+          case 8:
+            message.reason = 8;
+            break;
+          case "INPUT_SYNCHRONIZATION_REASON_STEP_RESTORED":
+          case 9:
+            message.reason = 9;
+            break;
+        }
+        if (object.synchronizationRevision != null)
+          if ($util.Long)
+            (message.synchronizationRevision = $util.Long.fromValue(
+              object.synchronizationRevision,
+            )).unsigned = true;
+          else if (typeof object.synchronizationRevision === "string")
+            message.synchronizationRevision = $parseInt(object.synchronizationRevision, 10);
+          else if (typeof object.synchronizationRevision === "number")
+            message.synchronizationRevision = object.synchronizationRevision;
+          else if (typeof object.synchronizationRevision === "object")
+            message.synchronizationRevision = new $util.LongBits(
+              object.synchronizationRevision.low >>> 0,
+              object.synchronizationRevision.high >>> 0,
+            ).toNumber(true);
+        if (object.inputContext != null) {
+          if (typeof object.inputContext !== "object")
+            throw $TypeError(
+              ".unframe.realtime.PresenterInputSynchronization.inputContext: object expected",
+            );
+          message.inputContext = $root.unframe.realtime.InputContext.fromObject(
+            object.inputContext,
+            long + 1,
+          );
+        }
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.nextCommandEpoch != null)
+          if ($util.Long)
+            (message.nextCommandEpoch = $util.Long.fromValue(object.nextCommandEpoch)).unsigned =
+              true;
+          else if (typeof object.nextCommandEpoch === "string")
+            message.nextCommandEpoch = $parseInt(object.nextCommandEpoch, 10);
+          else if (typeof object.nextCommandEpoch === "number")
+            message.nextCommandEpoch = object.nextCommandEpoch;
+          else if (typeof object.nextCommandEpoch === "object")
+            message.nextCommandEpoch = new $util.LongBits(
+              object.nextCommandEpoch.low >>> 0,
+              object.nextCommandEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.reliableSequence != null)
+          if ($util.Long)
+            (message.reliableSequence = $util.Long.fromValue(object.reliableSequence)).unsigned =
+              true;
+          else if (typeof object.reliableSequence === "string")
+            message.reliableSequence = $parseInt(object.reliableSequence, 10);
+          else if (typeof object.reliableSequence === "number")
+            message.reliableSequence = object.reliableSequence;
+          else if (typeof object.reliableSequence === "object")
+            message.reliableSequence = new $util.LongBits(
+              object.reliableSequence.low >>> 0,
+              object.reliableSequence.high >>> 0,
+            ).toNumber(true);
+        if (object.recognitionCatalog != null) {
+          if (typeof object.recognitionCatalog !== "object")
+            throw $TypeError(
+              ".unframe.realtime.PresenterInputSynchronization.recognitionCatalog: object expected",
+            );
+          message.recognitionCatalog =
+            $root.unframe.presentation.PresenterRecognitionCatalog.fromObject(
+              object.recognitionCatalog,
+              long + 1,
+            );
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a PresenterInputSynchronization message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @static
+       * @param {unframe.realtime.PresenterInputSynchronization} message PresenterInputSynchronization
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      PresenterInputSynchronization.toObject = function PresenterInputSynchronization$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.phase = options.enums === $String ? "INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED" : 0;
+          object.reason =
+            options.enums === $String ? "INPUT_SYNCHRONIZATION_REASON_UNSPECIFIED" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.synchronizationRevision =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.synchronizationRevision = options.longs === $String ? "0" : 0;
+          object.inputContext = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.reliableSequence =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.reliableSequence = options.longs === $String ? "0" : 0;
+          object.recognitionCatalog = null;
+        }
+        if (message.phase != null && message.hasOwnProperty("phase"))
+          object.phase =
+            options.enums === $String
+              ? $root.unframe.realtime.InputSynchronizationPhase[message.phase] === $undefined
+                ? message.phase
+                : $root.unframe.realtime.InputSynchronizationPhase[message.phase]
+              : message.phase;
+        if (message.reason != null && message.hasOwnProperty("reason"))
+          object.reason =
+            options.enums === $String
+              ? $root.unframe.realtime.InputSynchronizationReason[message.reason] === $undefined
+                ? message.reason
+                : $root.unframe.realtime.InputSynchronizationReason[message.reason]
+              : message.reason;
+        if (
+          message.synchronizationRevision != null &&
+          message.hasOwnProperty("synchronizationRevision")
+        )
+          if (typeof message.synchronizationRevision === "number")
+            object.synchronizationRevision =
+              options.longs === $String
+                ? $String(message.synchronizationRevision)
+                : message.synchronizationRevision;
+          else
+            object.synchronizationRevision =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.synchronizationRevision)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.synchronizationRevision.low >>> 0,
+                      message.synchronizationRevision.high >>> 0,
+                    ).toNumber(true)
+                  : message.synchronizationRevision;
+        if (message.inputContext != null && message.hasOwnProperty("inputContext"))
+          object.inputContext = $root.unframe.realtime.InputContext.toObject(
+            message.inputContext,
+            options,
+          );
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
+        if (message.nextCommandEpoch != null && message.hasOwnProperty("nextCommandEpoch")) {
+          if (typeof message.nextCommandEpoch === "number")
+            object.nextCommandEpoch =
+              options.longs === $String
+                ? $String(message.nextCommandEpoch)
+                : message.nextCommandEpoch;
+          else
+            object.nextCommandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.nextCommandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.nextCommandEpoch.low >>> 0,
+                      message.nextCommandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.nextCommandEpoch;
+          if (options.oneofs) object._nextCommandEpoch = "nextCommandEpoch";
+        }
+        if (message.reliableSequence != null && message.hasOwnProperty("reliableSequence"))
+          if (typeof message.reliableSequence === "number")
+            object.reliableSequence =
+              options.longs === $String
+                ? $String(message.reliableSequence)
+                : message.reliableSequence;
+          else
+            object.reliableSequence =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.reliableSequence)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.reliableSequence.low >>> 0,
+                      message.reliableSequence.high >>> 0,
+                    ).toNumber(true)
+                  : message.reliableSequence;
+        if (message.recognitionCatalog != null && message.hasOwnProperty("recognitionCatalog"))
+          object.recognitionCatalog =
+            $root.unframe.presentation.PresenterRecognitionCatalog.toObject(
+              message.recognitionCatalog,
+              options,
+            );
+        return object;
+      };
+
+      /**
+       * Converts this PresenterInputSynchronization to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      PresenterInputSynchronization.prototype.toJSON = function () {
+        return PresenterInputSynchronization.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for PresenterInputSynchronization
+       * @function getTypeUrl
+       * @memberof unframe.realtime.PresenterInputSynchronization
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      PresenterInputSynchronization.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.PresenterInputSynchronization";
+      };
+
+      return PresenterInputSynchronization;
+    })();
+
+    realtime.InputSynchronizationAck = (function () {
+      /**
+       * Properties of an InputSynchronizationAck.
+       * @typedef {Object} unframe.realtime.InputSynchronizationAck.$Properties
+       * @property {number|Long|null} [synchronizationRevision] InputSynchronizationAck synchronizationRevision
+       * @property {unframe.realtime.InputContext.$Properties|null} [inputContext] InputSynchronizationAck inputContext
+       * @property {number|Long|null} [commandEpoch] InputSynchronizationAck commandEpoch
+       * @property {number|Long|null} [appliedReliableSequence] InputSynchronizationAck appliedReliableSequence
+       * @property {boolean|null} [pendingCommandsDiscarded] InputSynchronizationAck pendingCommandsDiscarded
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of an InputSynchronizationAck.
+       * @memberof unframe.realtime
+       * @interface IInputSynchronizationAck
+       * @augments unframe.realtime.InputSynchronizationAck.$Properties
+       * @deprecated Use unframe.realtime.InputSynchronizationAck.$Properties instead.
+       */
+
+      /**
+       * Shape of an InputSynchronizationAck.
+       * @typedef {unframe.realtime.InputSynchronizationAck.$Properties} unframe.realtime.InputSynchronizationAck.$Shape
+       */
+
+      /**
+       * Constructs a new InputSynchronizationAck.
+       * @memberof unframe.realtime
+       * @classdesc Represents an InputSynchronizationAck.
+       * @constructor
+       * @param {unframe.realtime.InputSynchronizationAck.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const InputSynchronizationAck = function InputSynchronizationAck(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * InputSynchronizationAck synchronizationRevision.
+       * @member {number|Long} synchronizationRevision
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @instance
+       */
+      InputSynchronizationAck.prototype.synchronizationRevision = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * InputSynchronizationAck inputContext.
+       * @member {unframe.realtime.InputContext.$Properties|null|undefined} inputContext
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @instance
+       */
+      InputSynchronizationAck.prototype.inputContext = null;
+
+      /**
+       * InputSynchronizationAck commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @instance
+       */
+      InputSynchronizationAck.prototype.commandEpoch = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * InputSynchronizationAck appliedReliableSequence.
+       * @member {number|Long} appliedReliableSequence
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @instance
+       */
+      InputSynchronizationAck.prototype.appliedReliableSequence = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * InputSynchronizationAck pendingCommandsDiscarded.
+       * @member {boolean} pendingCommandsDiscarded
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @instance
+       */
+      InputSynchronizationAck.prototype.pendingCommandsDiscarded = false;
+
+      /**
+       * Creates a new InputSynchronizationAck instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @static
+       * @param {unframe.realtime.InputSynchronizationAck.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.InputSynchronizationAck} InputSynchronizationAck instance
+       * @type {{
+       *   (properties: unframe.realtime.InputSynchronizationAck.$Shape): unframe.realtime.InputSynchronizationAck & unframe.realtime.InputSynchronizationAck.$Shape;
+       *   (properties?: unframe.realtime.InputSynchronizationAck.$Properties): unframe.realtime.InputSynchronizationAck;
+       * }}
+       */
+      InputSynchronizationAck.create = function (properties) {
+        return new InputSynchronizationAck(properties);
+      };
+
+      /**
+       * Encodes the specified InputSynchronizationAck message. Does not implicitly {@link unframe.realtime.InputSynchronizationAck.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @static
+       * @param {unframe.realtime.InputSynchronizationAck.$Properties} message InputSynchronizationAck message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      InputSynchronizationAck.encode = function InputSynchronizationAck$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (
+          message.synchronizationRevision != null &&
+          $Object.hasOwnProperty.call(message, "synchronizationRevision")
+        )
+          writer.uint32(/* id 1, wireType 0 =*/ 8).uint64(message.synchronizationRevision);
+        if (message.inputContext != null && $Object.hasOwnProperty.call(message, "inputContext"))
+          $root.unframe.realtime.InputContext.encode(
+            message.inputContext,
+            writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+          ).ldelim();
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 3, wireType 0 =*/ 24).uint64(message.commandEpoch);
+        if (
+          message.appliedReliableSequence != null &&
+          $Object.hasOwnProperty.call(message, "appliedReliableSequence")
+        )
+          writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.appliedReliableSequence);
+        if (
+          message.pendingCommandsDiscarded != null &&
+          $Object.hasOwnProperty.call(message, "pendingCommandsDiscarded")
+        )
+          writer.uint32(/* id 5, wireType 0 =*/ 40).bool(message.pendingCommandsDiscarded);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified InputSynchronizationAck message, length delimited. Does not implicitly {@link unframe.realtime.InputSynchronizationAck.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @static
+       * @param {unframe.realtime.InputSynchronizationAck.$Properties} message InputSynchronizationAck message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      InputSynchronizationAck.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes an InputSynchronizationAck message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.InputSynchronizationAck & unframe.realtime.InputSynchronizationAck.$Shape} InputSynchronizationAck
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      InputSynchronizationAck.decode = function InputSynchronizationAck$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.synchronizationRevision = reader.uint64();
+              break;
+            }
+            case 2: {
+              message.inputContext = $root.unframe.realtime.InputContext.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 3: {
+              message.commandEpoch = reader.uint64();
+              break;
+            }
+            case 4: {
+              message.appliedReliableSequence = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.pendingCommandsDiscarded = reader.bool();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes an InputSynchronizationAck message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.InputSynchronizationAck & unframe.realtime.InputSynchronizationAck.$Shape} InputSynchronizationAck
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      InputSynchronizationAck.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies an InputSynchronizationAck message.
+       * @function verify
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      InputSynchronizationAck.verify = function InputSynchronizationAck$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (
+          message.synchronizationRevision != null &&
+          message.hasOwnProperty("synchronizationRevision")
+        )
+          if (
+            !$util.isInteger(message.synchronizationRevision) &&
+            !(
+              message.synchronizationRevision &&
+              $util.isInteger(message.synchronizationRevision.low) &&
+              $util.isInteger(message.synchronizationRevision.high)
+            )
+          )
+            return "synchronizationRevision: integer|Long expected";
+        if (message.inputContext != null && message.hasOwnProperty("inputContext")) {
+          let error = $root.unframe.realtime.InputContext.verify(message.inputContext, long + 1);
+          if (error) return "inputContext." + error;
+        }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
+        if (
+          message.appliedReliableSequence != null &&
+          message.hasOwnProperty("appliedReliableSequence")
+        )
+          if (
+            !$util.isInteger(message.appliedReliableSequence) &&
+            !(
+              message.appliedReliableSequence &&
+              $util.isInteger(message.appliedReliableSequence.low) &&
+              $util.isInteger(message.appliedReliableSequence.high)
+            )
+          )
+            return "appliedReliableSequence: integer|Long expected";
+        if (
+          message.pendingCommandsDiscarded != null &&
+          message.hasOwnProperty("pendingCommandsDiscarded")
+        )
+          if (typeof message.pendingCommandsDiscarded !== "boolean")
+            return "pendingCommandsDiscarded: boolean expected";
+        return null;
+      };
+
+      /**
+       * Creates an InputSynchronizationAck message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.InputSynchronizationAck} InputSynchronizationAck
+       */
+      InputSynchronizationAck.fromObject = function InputSynchronizationAck$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.synchronizationRevision != null)
+          if ($util.Long)
+            (message.synchronizationRevision = $util.Long.fromValue(
+              object.synchronizationRevision,
+            )).unsigned = true;
+          else if (typeof object.synchronizationRevision === "string")
+            message.synchronizationRevision = $parseInt(object.synchronizationRevision, 10);
+          else if (typeof object.synchronizationRevision === "number")
+            message.synchronizationRevision = object.synchronizationRevision;
+          else if (typeof object.synchronizationRevision === "object")
+            message.synchronizationRevision = new $util.LongBits(
+              object.synchronizationRevision.low >>> 0,
+              object.synchronizationRevision.high >>> 0,
+            ).toNumber(true);
+        if (object.inputContext != null) {
+          if (typeof object.inputContext !== "object")
+            throw $TypeError(
+              ".unframe.realtime.InputSynchronizationAck.inputContext: object expected",
+            );
+          message.inputContext = $root.unframe.realtime.InputContext.fromObject(
+            object.inputContext,
+            long + 1,
+          );
+        }
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.appliedReliableSequence != null)
+          if ($util.Long)
+            (message.appliedReliableSequence = $util.Long.fromValue(
+              object.appliedReliableSequence,
+            )).unsigned = true;
+          else if (typeof object.appliedReliableSequence === "string")
+            message.appliedReliableSequence = $parseInt(object.appliedReliableSequence, 10);
+          else if (typeof object.appliedReliableSequence === "number")
+            message.appliedReliableSequence = object.appliedReliableSequence;
+          else if (typeof object.appliedReliableSequence === "object")
+            message.appliedReliableSequence = new $util.LongBits(
+              object.appliedReliableSequence.low >>> 0,
+              object.appliedReliableSequence.high >>> 0,
+            ).toNumber(true);
+        if (object.pendingCommandsDiscarded != null)
+          message.pendingCommandsDiscarded = $Boolean(object.pendingCommandsDiscarded);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from an InputSynchronizationAck message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @static
+       * @param {unframe.realtime.InputSynchronizationAck} message InputSynchronizationAck
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      InputSynchronizationAck.toObject = function InputSynchronizationAck$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.synchronizationRevision =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.synchronizationRevision = options.longs === $String ? "0" : 0;
+          object.inputContext = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.appliedReliableSequence =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.appliedReliableSequence = options.longs === $String ? "0" : 0;
+          object.pendingCommandsDiscarded = false;
+        }
+        if (
+          message.synchronizationRevision != null &&
+          message.hasOwnProperty("synchronizationRevision")
+        )
+          if (typeof message.synchronizationRevision === "number")
+            object.synchronizationRevision =
+              options.longs === $String
+                ? $String(message.synchronizationRevision)
+                : message.synchronizationRevision;
+          else
+            object.synchronizationRevision =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.synchronizationRevision)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.synchronizationRevision.low >>> 0,
+                      message.synchronizationRevision.high >>> 0,
+                    ).toNumber(true)
+                  : message.synchronizationRevision;
+        if (message.inputContext != null && message.hasOwnProperty("inputContext"))
+          object.inputContext = $root.unframe.realtime.InputContext.toObject(
+            message.inputContext,
+            options,
+          );
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
+        if (
+          message.appliedReliableSequence != null &&
+          message.hasOwnProperty("appliedReliableSequence")
+        )
+          if (typeof message.appliedReliableSequence === "number")
+            object.appliedReliableSequence =
+              options.longs === $String
+                ? $String(message.appliedReliableSequence)
+                : message.appliedReliableSequence;
+          else
+            object.appliedReliableSequence =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.appliedReliableSequence)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.appliedReliableSequence.low >>> 0,
+                      message.appliedReliableSequence.high >>> 0,
+                    ).toNumber(true)
+                  : message.appliedReliableSequence;
+        if (
+          message.pendingCommandsDiscarded != null &&
+          message.hasOwnProperty("pendingCommandsDiscarded")
+        )
+          object.pendingCommandsDiscarded = message.pendingCommandsDiscarded;
+        return object;
+      };
+
+      /**
+       * Converts this InputSynchronizationAck to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      InputSynchronizationAck.prototype.toJSON = function () {
+        return InputSynchronizationAck.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for InputSynchronizationAck
+       * @function getTypeUrl
+       * @memberof unframe.realtime.InputSynchronizationAck
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      InputSynchronizationAck.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.InputSynchronizationAck";
+      };
+
+      return InputSynchronizationAck;
     })();
 
     realtime.CommandOutcome = (function () {
@@ -44757,6 +50004,12 @@ export const unframe = ($root.unframe = (() => {
      * @property {number} COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE=1 COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE value
      * @property {number} COMMAND_REJECTION_REASON_INTERACTION_UNAVAILABLE=2 COMMAND_REJECTION_REASON_INTERACTION_UNAVAILABLE value
      * @property {number} COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT=3 COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT value
+     * @property {number} COMMAND_REJECTION_REASON_INPUT_CONTEXT_STALE=4 COMMAND_REJECTION_REASON_INPUT_CONTEXT_STALE value
+     * @property {number} COMMAND_REJECTION_REASON_COMMAND_EPOCH_STALE=5 COMMAND_REJECTION_REASON_COMMAND_EPOCH_STALE value
+     * @property {number} COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED=6 COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED value
+     * @property {number} COMMAND_REJECTION_REASON_STEP_NOT_REACHED=7 COMMAND_REJECTION_REASON_STEP_NOT_REACHED value
+     * @property {number} COMMAND_REJECTION_REASON_SESSION_ENDED=8 COMMAND_REJECTION_REASON_SESSION_ENDED value
+     * @property {number} COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED=9 COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED value
      */
     realtime.CommandRejectionReason = (function () {
       const valuesById = $Object.create(null),
@@ -44765,6 +50018,12 @@ export const unframe = ($root.unframe = (() => {
       values[(valuesById[1] = "COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE")] = 1;
       values[(valuesById[2] = "COMMAND_REJECTION_REASON_INTERACTION_UNAVAILABLE")] = 2;
       values[(valuesById[3] = "COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT")] = 3;
+      values[(valuesById[4] = "COMMAND_REJECTION_REASON_INPUT_CONTEXT_STALE")] = 4;
+      values[(valuesById[5] = "COMMAND_REJECTION_REASON_COMMAND_EPOCH_STALE")] = 5;
+      values[(valuesById[6] = "COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED")] = 6;
+      values[(valuesById[7] = "COMMAND_REJECTION_REASON_STEP_NOT_REACHED")] = 7;
+      values[(valuesById[8] = "COMMAND_REJECTION_REASON_SESSION_ENDED")] = 8;
+      values[(valuesById[9] = "COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED")] = 9;
       return values;
     })();
 
@@ -44925,6 +50184,12 @@ export const unframe = ($root.unframe = (() => {
             case 1:
             case 2:
             case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
               break;
           }
         return null;
@@ -44965,6 +50230,30 @@ export const unframe = ($root.unframe = (() => {
           case "COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT":
           case 3:
             message.reason = 3;
+            break;
+          case "COMMAND_REJECTION_REASON_INPUT_CONTEXT_STALE":
+          case 4:
+            message.reason = 4;
+            break;
+          case "COMMAND_REJECTION_REASON_COMMAND_EPOCH_STALE":
+          case 5:
+            message.reason = 5;
+            break;
+          case "COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED":
+          case 6:
+            message.reason = 6;
+            break;
+          case "COMMAND_REJECTION_REASON_STEP_NOT_REACHED":
+          case 7:
+            message.reason = 7;
+            break;
+          case "COMMAND_REJECTION_REASON_SESSION_ENDED":
+          case 8:
+            message.reason = 8;
+            break;
+          case "COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED":
+          case 9:
+            message.reason = 9;
             break;
         }
         return message;
@@ -45611,7 +50900,9 @@ export const unframe = ($root.unframe = (() => {
        * @property {unframe.realtime.CommandOutcome.$Properties|null} [commandOutcome] ControlServerItem commandOutcome
        * @property {unframe.realtime.StateConnectionNonce.$Properties|null} [stateConnectionNonce] ControlServerItem stateConnectionNonce
        * @property {unframe.realtime.ResyncRequired.$Properties|null} [resyncRequired] ControlServerItem resyncRequired
-       * @property {"connected"|"connectionSnapshot"|"reliableEvent"|"projectionAdvance"|"commandOutcome"|"stateConnectionNonce"|"resyncRequired"} [item] ControlServerItem item
+       * @property {unframe.realtime.PresenterInputSynchronization.$Properties|null} [presenterInputSynchronization] ControlServerItem presenterInputSynchronization
+       * @property {unframe.realtime.PresenterStepSelectionCatalog.$Properties|null} [presenterStepSelectionCatalog] ControlServerItem presenterStepSelectionCatalog
+       * @property {"connected"|"connectionSnapshot"|"reliableEvent"|"projectionAdvance"|"commandOutcome"|"stateConnectionNonce"|"resyncRequired"|"presenterInputSynchronization"|"presenterStepSelectionCatalog"} [item] ControlServerItem item
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -45633,9 +50924,11 @@ export const unframe = ($root.unframe = (() => {
        *   commandOutcome?: unframe.realtime.CommandOutcome.$Shape|null;
        *   stateConnectionNonce?: unframe.realtime.StateConnectionNonce.$Shape|null;
        *   resyncRequired?: unframe.realtime.ResyncRequired.$Shape|null;
+       *   presenterInputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape|null;
+       *   presenterStepSelectionCatalog?: unframe.realtime.PresenterStepSelectionCatalog.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * } & (
-       *   ({ item?: undefined; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null }|{ item?: "connected"; connected: unframe.realtime.ControlConnected.$Shape; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null }|{ item?: "connectionSnapshot"; connected?: null; connectionSnapshot: unframe.realtime.ConnectionSnapshotEnvelope.$Shape; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null }|{ item?: "reliableEvent"; connected?: null; connectionSnapshot?: null; reliableEvent: unframe.realtime.ProjectedReliableEvent.$Shape; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null }|{ item?: "projectionAdvance"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance: unframe.realtime.ProjectionAdvance.$Shape; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null }|{ item?: "commandOutcome"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome: unframe.realtime.CommandOutcome.$Shape; stateConnectionNonce?: null; resyncRequired?: null }|{ item?: "stateConnectionNonce"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce: unframe.realtime.StateConnectionNonce.$Shape; resyncRequired?: null }|{ item?: "resyncRequired"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired: unframe.realtime.ResyncRequired.$Shape })
+       *   ({ item?: undefined; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "connected"; connected: unframe.realtime.ControlConnected.$Shape; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "connectionSnapshot"; connected?: null; connectionSnapshot: unframe.realtime.ConnectionSnapshotEnvelope.$Shape; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "reliableEvent"; connected?: null; connectionSnapshot?: null; reliableEvent: unframe.realtime.ProjectedReliableEvent.$Shape; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "projectionAdvance"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance: unframe.realtime.ProjectionAdvance.$Shape; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "commandOutcome"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome: unframe.realtime.CommandOutcome.$Shape; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "stateConnectionNonce"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce: unframe.realtime.StateConnectionNonce.$Shape; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "resyncRequired"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired: unframe.realtime.ResyncRequired.$Shape; presenterInputSynchronization?: null; presenterStepSelectionCatalog?: null }|{ item?: "presenterInputSynchronization"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization: unframe.realtime.PresenterInputSynchronization.$Shape; presenterStepSelectionCatalog?: null }|{ item?: "presenterStepSelectionCatalog"; connected?: null; connectionSnapshot?: null; reliableEvent?: null; projectionAdvance?: null; commandOutcome?: null; stateConnectionNonce?: null; resyncRequired?: null; presenterInputSynchronization?: null; presenterStepSelectionCatalog: unframe.realtime.PresenterStepSelectionCatalog.$Shape })
        * )} unframe.realtime.ControlServerItem.$Shape
        */
 
@@ -45710,12 +51003,28 @@ export const unframe = ($root.unframe = (() => {
        */
       ControlServerItem.prototype.resyncRequired = null;
 
+      /**
+       * ControlServerItem presenterInputSynchronization.
+       * @member {unframe.realtime.PresenterInputSynchronization.$Properties|null|undefined} presenterInputSynchronization
+       * @memberof unframe.realtime.ControlServerItem
+       * @instance
+       */
+      ControlServerItem.prototype.presenterInputSynchronization = null;
+
+      /**
+       * ControlServerItem presenterStepSelectionCatalog.
+       * @member {unframe.realtime.PresenterStepSelectionCatalog.$Properties|null|undefined} presenterStepSelectionCatalog
+       * @memberof unframe.realtime.ControlServerItem
+       * @instance
+       */
+      ControlServerItem.prototype.presenterStepSelectionCatalog = null;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
       /**
        * ControlServerItem item.
-       * @member {"connected"|"connectionSnapshot"|"reliableEvent"|"projectionAdvance"|"commandOutcome"|"stateConnectionNonce"|"resyncRequired"|undefined} item
+       * @member {"connected"|"connectionSnapshot"|"reliableEvent"|"projectionAdvance"|"commandOutcome"|"stateConnectionNonce"|"resyncRequired"|"presenterInputSynchronization"|"presenterStepSelectionCatalog"|undefined} item
        * @memberof unframe.realtime.ControlServerItem
        * @instance
        */
@@ -45729,6 +51038,8 @@ export const unframe = ($root.unframe = (() => {
             "commandOutcome",
             "stateConnectionNonce",
             "resyncRequired",
+            "presenterInputSynchronization",
+            "presenterStepSelectionCatalog",
           ]),
         ),
         set: $util.oneOfSetter($oneOfFields),
@@ -45810,6 +51121,22 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.realtime.ResyncRequired.encode(
             message.resyncRequired,
             writer.uint32(/* id 7, wireType 2 =*/ 58).fork(),
+          ).ldelim();
+        if (
+          message.presenterInputSynchronization != null &&
+          $Object.hasOwnProperty.call(message, "presenterInputSynchronization")
+        )
+          $root.unframe.realtime.PresenterInputSynchronization.encode(
+            message.presenterInputSynchronization,
+            writer.uint32(/* id 8, wireType 2 =*/ 66).fork(),
+          ).ldelim();
+        if (
+          message.presenterStepSelectionCatalog != null &&
+          $Object.hasOwnProperty.call(message, "presenterStepSelectionCatalog")
+        )
+          $root.unframe.realtime.PresenterStepSelectionCatalog.encode(
+            message.presenterStepSelectionCatalog,
+            writer.uint32(/* id 9, wireType 2 =*/ 74).fork(),
           ).ldelim();
         return writer;
       };
@@ -45909,6 +51236,26 @@ export const unframe = ($root.unframe = (() => {
                 $undefined,
                 long + 1,
               );
+              break;
+            }
+            case 8: {
+              message.presenterInputSynchronization =
+                $root.unframe.realtime.PresenterInputSynchronization.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                );
+              break;
+            }
+            case 9: {
+              message.presenterStepSelectionCatalog =
+                $root.unframe.realtime.PresenterStepSelectionCatalog.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                );
               break;
             }
             default:
@@ -46023,6 +51370,34 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "resyncRequired." + error;
           }
         }
+        if (
+          message.presenterInputSynchronization != null &&
+          message.hasOwnProperty("presenterInputSynchronization")
+        ) {
+          if (properties.item === 1) return "item: multiple values";
+          properties.item = 1;
+          {
+            let error = $root.unframe.realtime.PresenterInputSynchronization.verify(
+              message.presenterInputSynchronization,
+              long + 1,
+            );
+            if (error) return "presenterInputSynchronization." + error;
+          }
+        }
+        if (
+          message.presenterStepSelectionCatalog != null &&
+          message.hasOwnProperty("presenterStepSelectionCatalog")
+        ) {
+          if (properties.item === 1) return "item: multiple values";
+          properties.item = 1;
+          {
+            let error = $root.unframe.realtime.PresenterStepSelectionCatalog.verify(
+              message.presenterStepSelectionCatalog,
+              long + 1,
+            );
+            if (error) return "presenterStepSelectionCatalog." + error;
+          }
+        }
         return null;
       };
 
@@ -46101,6 +51476,28 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
+        if (object.presenterInputSynchronization != null) {
+          if (typeof object.presenterInputSynchronization !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ControlServerItem.presenterInputSynchronization: object expected",
+            );
+          message.presenterInputSynchronization =
+            $root.unframe.realtime.PresenterInputSynchronization.fromObject(
+              object.presenterInputSynchronization,
+              long + 1,
+            );
+        }
+        if (object.presenterStepSelectionCatalog != null) {
+          if (typeof object.presenterStepSelectionCatalog !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ControlServerItem.presenterStepSelectionCatalog: object expected",
+            );
+          message.presenterStepSelectionCatalog =
+            $root.unframe.realtime.PresenterStepSelectionCatalog.fromObject(
+              object.presenterStepSelectionCatalog,
+              long + 1,
+            );
+        }
         return message;
       };
 
@@ -46167,6 +51564,28 @@ export const unframe = ($root.unframe = (() => {
             options,
           );
           if (options.oneofs) object.item = "resyncRequired";
+        }
+        if (
+          message.presenterInputSynchronization != null &&
+          message.hasOwnProperty("presenterInputSynchronization")
+        ) {
+          object.presenterInputSynchronization =
+            $root.unframe.realtime.PresenterInputSynchronization.toObject(
+              message.presenterInputSynchronization,
+              options,
+            );
+          if (options.oneofs) object.item = "presenterInputSynchronization";
+        }
+        if (
+          message.presenterStepSelectionCatalog != null &&
+          message.hasOwnProperty("presenterStepSelectionCatalog")
+        ) {
+          object.presenterStepSelectionCatalog =
+            $root.unframe.realtime.PresenterStepSelectionCatalog.toObject(
+              message.presenterStepSelectionCatalog,
+              options,
+            );
+          if (options.oneofs) object.item = "presenterStepSelectionCatalog";
         }
         return object;
       };
@@ -46241,7 +51660,10 @@ export const unframe = ($root.unframe = (() => {
        * @property {unframe.realtime.ModelClipCanceled.$Properties|null} [modelClipCanceled] ProjectedReliableEvent modelClipCanceled
        * @property {unframe.realtime.ParticipantPresenceChanged.$Properties|null} [participantPresenceChanged] ProjectedReliableEvent participantPresenceChanged
        * @property {unframe.realtime.MediaStoppedSeeked.$Properties|null} [mediaStoppedSeeked] ProjectedReliableEvent mediaStoppedSeeked
-       * @property {"runtimeStatusChanged"|"presentationOriginChanged"|"groupEntered"|"groupExited"|"stepEntered"|"cueAccepted"|"presentationEnded"|"logicalInputAccepted"|"surfaceInteractionAccepted"|"surfaceStateChanged"|"surfaceTransitionStarted"|"surfaceTransitionCompleted"|"nodeStateCommitted"|"variableChanged"|"timelineStarted"|"timelineCompleted"|"timelineCanceled"|"mediaStarted"|"mediaPaused"|"mediaResumed"|"mediaSeeked"|"mediaCompleted"|"mediaCanceled"|"mediaStopped"|"modelClipStarted"|"modelClipPaused"|"modelClipResumed"|"modelClipStopped"|"modelClipCompleted"|"modelClipCrossfadeStarted"|"modelClipCrossfadeCompleted"|"modelClipCanceled"|"participantPresenceChanged"|"mediaStoppedSeeked"} [payload] ProjectedReliableEvent payload
+       * @property {unframe.realtime.GestureInputAccepted.$Properties|null} [gestureInputAccepted] ProjectedReliableEvent gestureInputAccepted
+       * @property {unframe.realtime.ZoneInputAccepted.$Properties|null} [zoneInputAccepted] ProjectedReliableEvent zoneInputAccepted
+       * @property {unframe.realtime.RuntimeViewReplaced.$Properties|null} [runtimeViewReplaced] ProjectedReliableEvent runtimeViewReplaced
+       * @property {"runtimeStatusChanged"|"presentationOriginChanged"|"groupEntered"|"groupExited"|"stepEntered"|"cueAccepted"|"presentationEnded"|"logicalInputAccepted"|"surfaceInteractionAccepted"|"surfaceStateChanged"|"surfaceTransitionStarted"|"surfaceTransitionCompleted"|"nodeStateCommitted"|"variableChanged"|"timelineStarted"|"timelineCompleted"|"timelineCanceled"|"mediaStarted"|"mediaPaused"|"mediaResumed"|"mediaSeeked"|"mediaCompleted"|"mediaCanceled"|"mediaStopped"|"modelClipStarted"|"modelClipPaused"|"modelClipResumed"|"modelClipStopped"|"modelClipCompleted"|"modelClipCrossfadeStarted"|"modelClipCrossfadeCompleted"|"modelClipCanceled"|"participantPresenceChanged"|"mediaStoppedSeeked"|"gestureInputAccepted"|"zoneInputAccepted"|"runtimeViewReplaced"} [payload] ProjectedReliableEvent payload
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -46295,9 +51717,12 @@ export const unframe = ($root.unframe = (() => {
        *   modelClipCanceled?: unframe.realtime.ModelClipCanceled.$Shape|null;
        *   participantPresenceChanged?: unframe.realtime.ParticipantPresenceChanged.$Shape|null;
        *   mediaStoppedSeeked?: unframe.realtime.MediaStoppedSeeked.$Shape|null;
+       *   gestureInputAccepted?: unframe.realtime.GestureInputAccepted.$Shape|null;
+       *   zoneInputAccepted?: unframe.realtime.ZoneInputAccepted.$Shape|null;
+       *   runtimeViewReplaced?: unframe.realtime.RuntimeViewReplaced.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * } & (
-       *   ({ payload?: undefined; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "runtimeStatusChanged"; runtimeStatusChanged: unframe.realtime.RuntimeStatusChanged.$Shape; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "presentationOriginChanged"; runtimeStatusChanged?: null; presentationOriginChanged: unframe.realtime.PresentationOriginChanged.$Shape; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "groupEntered"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered: unframe.realtime.GroupEntered.$Shape; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "groupExited"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited: unframe.realtime.GroupExited.$Shape; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "stepEntered"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered: unframe.realtime.StepEntered.$Shape; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "cueAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted: unframe.realtime.CueAccepted.$Shape; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "presentationEnded"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded: unframe.realtime.PresentationEnded.$Shape; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "logicalInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted: unframe.realtime.LogicalInputAccepted.$Shape; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "surfaceInteractionAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted: unframe.realtime.SurfaceInteractionAccepted.$Shape; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "surfaceStateChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged: unframe.realtime.SurfaceStateChanged.$Shape; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "surfaceTransitionStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted: unframe.realtime.SurfaceTransitionStarted.$Shape; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "surfaceTransitionCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted: unframe.realtime.SurfaceTransitionCompleted.$Shape; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "nodeStateCommitted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted: unframe.realtime.NodeStateCommitted.$Shape; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "variableChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged: unframe.realtime.VariableChanged.$Shape; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "timelineStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted: unframe.realtime.TimelineStarted.$Shape; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "timelineCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted: unframe.realtime.TimelineCompleted.$Shape; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "timelineCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled: unframe.realtime.TimelineCanceled.$Shape; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "mediaStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted: unframe.realtime.MediaStarted.$Shape; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "mediaPaused"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused: unframe.realtime.MediaPaused.$Shape; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "mediaResumed"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed: unframe.realtime.MediaResumed.$Shape; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "mediaSeeked"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked: unframe.realtime.MediaSeeked.$Shape; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "mediaCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted: unframe.realtime.MediaCompleted.$Shape; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "mediaCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled: unframe.realtime.MediaCanceled.$Shape; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "mediaStopped"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped: unframe.realtime.MediaStopped.$Shape; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "modelClipStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted: unframe.realtime.ModelClipStarted.$Shape; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "modelClipPaused"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused: unframe.realtime.ModelClipPaused.$Shape; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "modelClipResumed"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed: unframe.realtime.ModelClipResumed.$Shape; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "modelClipStopped"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped: unframe.realtime.ModelClipStopped.$Shape; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "modelClipCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted: unframe.realtime.ModelClipCompleted.$Shape; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "modelClipCrossfadeStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted: unframe.realtime.ModelClipCrossfadeStarted.$Shape; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "modelClipCrossfadeCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted: unframe.realtime.ModelClipCrossfadeCompleted.$Shape; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "modelClipCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled: unframe.realtime.ModelClipCanceled.$Shape; participantPresenceChanged?: null; mediaStoppedSeeked?: null }|{ payload?: "participantPresenceChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged: unframe.realtime.ParticipantPresenceChanged.$Shape; mediaStoppedSeeked?: null }|{ payload?: "mediaStoppedSeeked"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked: unframe.realtime.MediaStoppedSeeked.$Shape })
+       *   ({ payload?: undefined; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "runtimeStatusChanged"; runtimeStatusChanged: unframe.realtime.RuntimeStatusChanged.$Shape; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "presentationOriginChanged"; runtimeStatusChanged?: null; presentationOriginChanged: unframe.realtime.PresentationOriginChanged.$Shape; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "groupEntered"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered: unframe.realtime.GroupEntered.$Shape; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "groupExited"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited: unframe.realtime.GroupExited.$Shape; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "stepEntered"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered: unframe.realtime.StepEntered.$Shape; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "cueAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted: unframe.realtime.CueAccepted.$Shape; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "presentationEnded"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded: unframe.realtime.PresentationEnded.$Shape; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "logicalInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted: unframe.realtime.LogicalInputAccepted.$Shape; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "surfaceInteractionAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted: unframe.realtime.SurfaceInteractionAccepted.$Shape; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "surfaceStateChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged: unframe.realtime.SurfaceStateChanged.$Shape; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "surfaceTransitionStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted: unframe.realtime.SurfaceTransitionStarted.$Shape; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "surfaceTransitionCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted: unframe.realtime.SurfaceTransitionCompleted.$Shape; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "nodeStateCommitted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted: unframe.realtime.NodeStateCommitted.$Shape; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "variableChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged: unframe.realtime.VariableChanged.$Shape; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "timelineStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted: unframe.realtime.TimelineStarted.$Shape; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "timelineCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted: unframe.realtime.TimelineCompleted.$Shape; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "timelineCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled: unframe.realtime.TimelineCanceled.$Shape; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted: unframe.realtime.MediaStarted.$Shape; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaPaused"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused: unframe.realtime.MediaPaused.$Shape; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaResumed"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed: unframe.realtime.MediaResumed.$Shape; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaSeeked"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked: unframe.realtime.MediaSeeked.$Shape; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted: unframe.realtime.MediaCompleted.$Shape; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled: unframe.realtime.MediaCanceled.$Shape; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaStopped"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped: unframe.realtime.MediaStopped.$Shape; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted: unframe.realtime.ModelClipStarted.$Shape; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipPaused"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused: unframe.realtime.ModelClipPaused.$Shape; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipResumed"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed: unframe.realtime.ModelClipResumed.$Shape; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipStopped"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped: unframe.realtime.ModelClipStopped.$Shape; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted: unframe.realtime.ModelClipCompleted.$Shape; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipCrossfadeStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted: unframe.realtime.ModelClipCrossfadeStarted.$Shape; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipCrossfadeCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted: unframe.realtime.ModelClipCrossfadeCompleted.$Shape; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled: unframe.realtime.ModelClipCanceled.$Shape; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "participantPresenceChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged: unframe.realtime.ParticipantPresenceChanged.$Shape; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaStoppedSeeked"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked: unframe.realtime.MediaStoppedSeeked.$Shape; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "gestureInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted: unframe.realtime.GestureInputAccepted.$Shape; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "zoneInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted: unframe.realtime.ZoneInputAccepted.$Shape; runtimeViewReplaced?: null }|{ payload?: "runtimeViewReplaced"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced: unframe.realtime.RuntimeViewReplaced.$Shape })
        * )} unframe.realtime.ProjectedReliableEvent.$Shape
        */
 
@@ -46630,6 +52055,30 @@ export const unframe = ($root.unframe = (() => {
        */
       ProjectedReliableEvent.prototype.mediaStoppedSeeked = null;
 
+      /**
+       * ProjectedReliableEvent gestureInputAccepted.
+       * @member {unframe.realtime.GestureInputAccepted.$Properties|null|undefined} gestureInputAccepted
+       * @memberof unframe.realtime.ProjectedReliableEvent
+       * @instance
+       */
+      ProjectedReliableEvent.prototype.gestureInputAccepted = null;
+
+      /**
+       * ProjectedReliableEvent zoneInputAccepted.
+       * @member {unframe.realtime.ZoneInputAccepted.$Properties|null|undefined} zoneInputAccepted
+       * @memberof unframe.realtime.ProjectedReliableEvent
+       * @instance
+       */
+      ProjectedReliableEvent.prototype.zoneInputAccepted = null;
+
+      /**
+       * ProjectedReliableEvent runtimeViewReplaced.
+       * @member {unframe.realtime.RuntimeViewReplaced.$Properties|null|undefined} runtimeViewReplaced
+       * @memberof unframe.realtime.ProjectedReliableEvent
+       * @instance
+       */
+      ProjectedReliableEvent.prototype.runtimeViewReplaced = null;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
@@ -46641,7 +52090,7 @@ export const unframe = ($root.unframe = (() => {
 
       /**
        * ProjectedReliableEvent payload.
-       * @member {"runtimeStatusChanged"|"presentationOriginChanged"|"groupEntered"|"groupExited"|"stepEntered"|"cueAccepted"|"presentationEnded"|"logicalInputAccepted"|"surfaceInteractionAccepted"|"surfaceStateChanged"|"surfaceTransitionStarted"|"surfaceTransitionCompleted"|"nodeStateCommitted"|"variableChanged"|"timelineStarted"|"timelineCompleted"|"timelineCanceled"|"mediaStarted"|"mediaPaused"|"mediaResumed"|"mediaSeeked"|"mediaCompleted"|"mediaCanceled"|"mediaStopped"|"modelClipStarted"|"modelClipPaused"|"modelClipResumed"|"modelClipStopped"|"modelClipCompleted"|"modelClipCrossfadeStarted"|"modelClipCrossfadeCompleted"|"modelClipCanceled"|"participantPresenceChanged"|"mediaStoppedSeeked"|undefined} payload
+       * @member {"runtimeStatusChanged"|"presentationOriginChanged"|"groupEntered"|"groupExited"|"stepEntered"|"cueAccepted"|"presentationEnded"|"logicalInputAccepted"|"surfaceInteractionAccepted"|"surfaceStateChanged"|"surfaceTransitionStarted"|"surfaceTransitionCompleted"|"nodeStateCommitted"|"variableChanged"|"timelineStarted"|"timelineCompleted"|"timelineCanceled"|"mediaStarted"|"mediaPaused"|"mediaResumed"|"mediaSeeked"|"mediaCompleted"|"mediaCanceled"|"mediaStopped"|"modelClipStarted"|"modelClipPaused"|"modelClipResumed"|"modelClipStopped"|"modelClipCompleted"|"modelClipCrossfadeStarted"|"modelClipCrossfadeCompleted"|"modelClipCanceled"|"participantPresenceChanged"|"mediaStoppedSeeked"|"gestureInputAccepted"|"zoneInputAccepted"|"runtimeViewReplaced"|undefined} payload
        * @memberof unframe.realtime.ProjectedReliableEvent
        * @instance
        */
@@ -46682,6 +52131,9 @@ export const unframe = ($root.unframe = (() => {
             "modelClipCanceled",
             "participantPresenceChanged",
             "mediaStoppedSeeked",
+            "gestureInputAccepted",
+            "zoneInputAccepted",
+            "runtimeViewReplaced",
           ]),
         ),
         set: $util.oneOfSetter($oneOfFields),
@@ -46971,6 +52423,30 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.realtime.MediaStoppedSeeked.encode(
             message.mediaStoppedSeeked,
             writer.uint32(/* id 1000, wireType 2 =*/ 8002).fork(),
+          ).ldelim();
+        if (
+          message.gestureInputAccepted != null &&
+          $Object.hasOwnProperty.call(message, "gestureInputAccepted")
+        )
+          $root.unframe.realtime.GestureInputAccepted.encode(
+            message.gestureInputAccepted,
+            writer.uint32(/* id 1001, wireType 2 =*/ 8010).fork(),
+          ).ldelim();
+        if (
+          message.zoneInputAccepted != null &&
+          $Object.hasOwnProperty.call(message, "zoneInputAccepted")
+        )
+          $root.unframe.realtime.ZoneInputAccepted.encode(
+            message.zoneInputAccepted,
+            writer.uint32(/* id 1002, wireType 2 =*/ 8018).fork(),
+          ).ldelim();
+        if (
+          message.runtimeViewReplaced != null &&
+          $Object.hasOwnProperty.call(message, "runtimeViewReplaced")
+        )
+          $root.unframe.realtime.RuntimeViewReplaced.encode(
+            message.runtimeViewReplaced,
+            writer.uint32(/* id 1003, wireType 2 =*/ 8026).fork(),
           ).ldelim();
         return writer;
       };
@@ -47345,6 +52821,33 @@ export const unframe = ($root.unframe = (() => {
             }
             case 1000: {
               message.mediaStoppedSeeked = $root.unframe.realtime.MediaStoppedSeeked.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 1001: {
+              message.gestureInputAccepted = $root.unframe.realtime.GestureInputAccepted.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 1002: {
+              message.zoneInputAccepted = $root.unframe.realtime.ZoneInputAccepted.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 1003: {
+              message.runtimeViewReplaced = $root.unframe.realtime.RuntimeViewReplaced.decode(
                 reader,
                 reader.uint32(),
                 $undefined,
@@ -47797,6 +53300,42 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "mediaStoppedSeeked." + error;
           }
         }
+        if (
+          message.gestureInputAccepted != null &&
+          message.hasOwnProperty("gestureInputAccepted")
+        ) {
+          if (properties.payload === 1) return "payload: multiple values";
+          properties.payload = 1;
+          {
+            let error = $root.unframe.realtime.GestureInputAccepted.verify(
+              message.gestureInputAccepted,
+              long + 1,
+            );
+            if (error) return "gestureInputAccepted." + error;
+          }
+        }
+        if (message.zoneInputAccepted != null && message.hasOwnProperty("zoneInputAccepted")) {
+          if (properties.payload === 1) return "payload: multiple values";
+          properties.payload = 1;
+          {
+            let error = $root.unframe.realtime.ZoneInputAccepted.verify(
+              message.zoneInputAccepted,
+              long + 1,
+            );
+            if (error) return "zoneInputAccepted." + error;
+          }
+        }
+        if (message.runtimeViewReplaced != null && message.hasOwnProperty("runtimeViewReplaced")) {
+          if (properties.payload === 1) return "payload: multiple values";
+          properties.payload = 1;
+          {
+            let error = $root.unframe.realtime.RuntimeViewReplaced.verify(
+              message.runtimeViewReplaced,
+              long + 1,
+            );
+            if (error) return "runtimeViewReplaced." + error;
+          }
+        }
         return null;
       };
 
@@ -48195,6 +53734,36 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
+        if (object.gestureInputAccepted != null) {
+          if (typeof object.gestureInputAccepted !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ProjectedReliableEvent.gestureInputAccepted: object expected",
+            );
+          message.gestureInputAccepted = $root.unframe.realtime.GestureInputAccepted.fromObject(
+            object.gestureInputAccepted,
+            long + 1,
+          );
+        }
+        if (object.zoneInputAccepted != null) {
+          if (typeof object.zoneInputAccepted !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ProjectedReliableEvent.zoneInputAccepted: object expected",
+            );
+          message.zoneInputAccepted = $root.unframe.realtime.ZoneInputAccepted.fromObject(
+            object.zoneInputAccepted,
+            long + 1,
+          );
+        }
+        if (object.runtimeViewReplaced != null) {
+          if (typeof object.runtimeViewReplaced !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ProjectedReliableEvent.runtimeViewReplaced: object expected",
+            );
+          message.runtimeViewReplaced = $root.unframe.realtime.RuntimeViewReplaced.fromObject(
+            object.runtimeViewReplaced,
+            long + 1,
+          );
+        }
         return message;
       };
 
@@ -48547,6 +54116,30 @@ export const unframe = ($root.unframe = (() => {
             options,
           );
           if (options.oneofs) object.payload = "mediaStoppedSeeked";
+        }
+        if (
+          message.gestureInputAccepted != null &&
+          message.hasOwnProperty("gestureInputAccepted")
+        ) {
+          object.gestureInputAccepted = $root.unframe.realtime.GestureInputAccepted.toObject(
+            message.gestureInputAccepted,
+            options,
+          );
+          if (options.oneofs) object.payload = "gestureInputAccepted";
+        }
+        if (message.zoneInputAccepted != null && message.hasOwnProperty("zoneInputAccepted")) {
+          object.zoneInputAccepted = $root.unframe.realtime.ZoneInputAccepted.toObject(
+            message.zoneInputAccepted,
+            options,
+          );
+          if (options.oneofs) object.payload = "zoneInputAccepted";
+        }
+        if (message.runtimeViewReplaced != null && message.hasOwnProperty("runtimeViewReplaced")) {
+          object.runtimeViewReplaced = $root.unframe.realtime.RuntimeViewReplaced.toObject(
+            message.runtimeViewReplaced,
+            options,
+          );
+          if (options.oneofs) object.payload = "runtimeViewReplaced";
         }
         return object;
       };
@@ -48960,6 +54553,7 @@ export const unframe = ($root.unframe = (() => {
      * @property {number} PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED=6 PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED value
      * @property {number} PAUSE_REASON_RECOVERY_GAP=7 PAUSE_REASON_RECOVERY_GAP value
      * @property {number} PAUSE_REASON_EXPLICIT_PAUSE=8 PAUSE_REASON_EXPLICIT_PAUSE value
+     * @property {number} PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED=9 PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED value
      */
     realtime.PauseReason = (function () {
       const valuesById = $Object.create(null),
@@ -48973,6 +54567,7 @@ export const unframe = ($root.unframe = (() => {
       values[(valuesById[6] = "PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED")] = 6;
       values[(valuesById[7] = "PAUSE_REASON_RECOVERY_GAP")] = 7;
       values[(valuesById[8] = "PAUSE_REASON_EXPLICIT_PAUSE")] = 8;
+      values[(valuesById[9] = "PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED")] = 9;
       return values;
     })();
 
@@ -49349,6 +54944,7 @@ export const unframe = ($root.unframe = (() => {
             case 6:
             case 7:
             case 8:
+            case 9:
               break;
           }
         return null;
@@ -49409,6 +55005,10 @@ export const unframe = ($root.unframe = (() => {
           case "PAUSE_REASON_EXPLICIT_PAUSE":
           case 8:
             message.reason = 8;
+            break;
+          case "PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED":
+          case 9:
+            message.reason = 9;
             break;
         }
         return message;
@@ -52404,6 +58004,806 @@ export const unframe = ($root.unframe = (() => {
       };
 
       return LogicalInputAccepted;
+    })();
+
+    realtime.GestureInputAccepted = (function () {
+      /**
+       * Properties of a GestureInputAccepted.
+       * @typedef {Object} unframe.realtime.GestureInputAccepted.$Properties
+       * @property {unframe.presentation.GestureKind|null} [gesture] GestureInputAccepted gesture
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a GestureInputAccepted.
+       * @memberof unframe.realtime
+       * @interface IGestureInputAccepted
+       * @augments unframe.realtime.GestureInputAccepted.$Properties
+       * @deprecated Use unframe.realtime.GestureInputAccepted.$Properties instead.
+       */
+
+      /**
+       * Shape of a GestureInputAccepted.
+       * @typedef {unframe.realtime.GestureInputAccepted.$Properties} unframe.realtime.GestureInputAccepted.$Shape
+       */
+
+      /**
+       * Constructs a new GestureInputAccepted.
+       * @memberof unframe.realtime
+       * @classdesc Represents a GestureInputAccepted.
+       * @constructor
+       * @param {unframe.realtime.GestureInputAccepted.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const GestureInputAccepted = function GestureInputAccepted(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * GestureInputAccepted gesture.
+       * @member {unframe.presentation.GestureKind} gesture
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @instance
+       */
+      GestureInputAccepted.prototype.gesture = 0;
+
+      /**
+       * Creates a new GestureInputAccepted instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @static
+       * @param {unframe.realtime.GestureInputAccepted.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.GestureInputAccepted} GestureInputAccepted instance
+       * @type {{
+       *   (properties: unframe.realtime.GestureInputAccepted.$Shape): unframe.realtime.GestureInputAccepted & unframe.realtime.GestureInputAccepted.$Shape;
+       *   (properties?: unframe.realtime.GestureInputAccepted.$Properties): unframe.realtime.GestureInputAccepted;
+       * }}
+       */
+      GestureInputAccepted.create = function (properties) {
+        return new GestureInputAccepted(properties);
+      };
+
+      /**
+       * Encodes the specified GestureInputAccepted message. Does not implicitly {@link unframe.realtime.GestureInputAccepted.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @static
+       * @param {unframe.realtime.GestureInputAccepted.$Properties} message GestureInputAccepted message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      GestureInputAccepted.encode = function GestureInputAccepted$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.gesture != null && $Object.hasOwnProperty.call(message, "gesture"))
+          writer.uint32(/* id 1, wireType 0 =*/ 8).int32(message.gesture);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified GestureInputAccepted message, length delimited. Does not implicitly {@link unframe.realtime.GestureInputAccepted.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @static
+       * @param {unframe.realtime.GestureInputAccepted.$Properties} message GestureInputAccepted message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      GestureInputAccepted.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a GestureInputAccepted message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.GestureInputAccepted & unframe.realtime.GestureInputAccepted.$Shape} GestureInputAccepted
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      GestureInputAccepted.decode = function GestureInputAccepted$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.gesture = reader.int32();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a GestureInputAccepted message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.GestureInputAccepted & unframe.realtime.GestureInputAccepted.$Shape} GestureInputAccepted
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      GestureInputAccepted.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a GestureInputAccepted message.
+       * @function verify
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      GestureInputAccepted.verify = function GestureInputAccepted$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.gesture != null && message.hasOwnProperty("gesture"))
+          switch (message.gesture) {
+            default:
+              return "gesture: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+              break;
+          }
+        return null;
+      };
+
+      /**
+       * Creates a GestureInputAccepted message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.GestureInputAccepted} GestureInputAccepted
+       */
+      GestureInputAccepted.fromObject = function GestureInputAccepted$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        switch (object.gesture) {
+          default:
+            if (typeof object.gesture === "number") {
+              message.gesture = object.gesture;
+              break;
+            }
+            break;
+          case "GESTURE_KIND_UNSPECIFIED":
+          case 0:
+            message.gesture = 0;
+            break;
+          case "GESTURE_KIND_SWIPE_LEFT":
+          case 1:
+            message.gesture = 1;
+            break;
+          case "GESTURE_KIND_SWIPE_RIGHT":
+          case 2:
+            message.gesture = 2;
+            break;
+          case "GESTURE_KIND_SWIPE_DOWN":
+          case 3:
+            message.gesture = 3;
+            break;
+          case "GESTURE_KIND_SWIPE_UP":
+          case 4:
+            message.gesture = 4;
+            break;
+          case "GESTURE_KIND_PUSH_FORWARD":
+          case 5:
+            message.gesture = 5;
+            break;
+          case "GESTURE_KIND_PULL_BACKWARD":
+          case 6:
+            message.gesture = 6;
+            break;
+          case "GESTURE_KIND_SPREAD_HANDS":
+          case 7:
+            message.gesture = 7;
+            break;
+          case "GESTURE_KIND_CLOSE_HANDS":
+          case 8:
+            message.gesture = 8;
+            break;
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a GestureInputAccepted message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @static
+       * @param {unframe.realtime.GestureInputAccepted} message GestureInputAccepted
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      GestureInputAccepted.toObject = function GestureInputAccepted$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults)
+          object.gesture = options.enums === $String ? "GESTURE_KIND_UNSPECIFIED" : 0;
+        if (message.gesture != null && message.hasOwnProperty("gesture"))
+          object.gesture =
+            options.enums === $String
+              ? $root.unframe.presentation.GestureKind[message.gesture] === $undefined
+                ? message.gesture
+                : $root.unframe.presentation.GestureKind[message.gesture]
+              : message.gesture;
+        return object;
+      };
+
+      /**
+       * Converts this GestureInputAccepted to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      GestureInputAccepted.prototype.toJSON = function () {
+        return GestureInputAccepted.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for GestureInputAccepted
+       * @function getTypeUrl
+       * @memberof unframe.realtime.GestureInputAccepted
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      GestureInputAccepted.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.GestureInputAccepted";
+      };
+
+      return GestureInputAccepted;
+    })();
+
+    realtime.ZoneInputAccepted = (function () {
+      /**
+       * Properties of a ZoneInputAccepted.
+       * @typedef {Object} unframe.realtime.ZoneInputAccepted.$Properties
+       * @property {string|null} [zoneId] ZoneInputAccepted zoneId
+       * @property {unframe.presentation.ZoneEdge|null} [edge] ZoneInputAccepted edge
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a ZoneInputAccepted.
+       * @memberof unframe.realtime
+       * @interface IZoneInputAccepted
+       * @augments unframe.realtime.ZoneInputAccepted.$Properties
+       * @deprecated Use unframe.realtime.ZoneInputAccepted.$Properties instead.
+       */
+
+      /**
+       * Shape of a ZoneInputAccepted.
+       * @typedef {unframe.realtime.ZoneInputAccepted.$Properties} unframe.realtime.ZoneInputAccepted.$Shape
+       */
+
+      /**
+       * Constructs a new ZoneInputAccepted.
+       * @memberof unframe.realtime
+       * @classdesc Represents a ZoneInputAccepted.
+       * @constructor
+       * @param {unframe.realtime.ZoneInputAccepted.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const ZoneInputAccepted = function ZoneInputAccepted(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * ZoneInputAccepted zoneId.
+       * @member {string} zoneId
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @instance
+       */
+      ZoneInputAccepted.prototype.zoneId = "";
+
+      /**
+       * ZoneInputAccepted edge.
+       * @member {unframe.presentation.ZoneEdge} edge
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @instance
+       */
+      ZoneInputAccepted.prototype.edge = 0;
+
+      /**
+       * Creates a new ZoneInputAccepted instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @static
+       * @param {unframe.realtime.ZoneInputAccepted.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.ZoneInputAccepted} ZoneInputAccepted instance
+       * @type {{
+       *   (properties: unframe.realtime.ZoneInputAccepted.$Shape): unframe.realtime.ZoneInputAccepted & unframe.realtime.ZoneInputAccepted.$Shape;
+       *   (properties?: unframe.realtime.ZoneInputAccepted.$Properties): unframe.realtime.ZoneInputAccepted;
+       * }}
+       */
+      ZoneInputAccepted.create = function (properties) {
+        return new ZoneInputAccepted(properties);
+      };
+
+      /**
+       * Encodes the specified ZoneInputAccepted message. Does not implicitly {@link unframe.realtime.ZoneInputAccepted.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @static
+       * @param {unframe.realtime.ZoneInputAccepted.$Properties} message ZoneInputAccepted message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      ZoneInputAccepted.encode = function ZoneInputAccepted$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.zoneId != null && $Object.hasOwnProperty.call(message, "zoneId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.zoneId);
+        if (message.edge != null && $Object.hasOwnProperty.call(message, "edge"))
+          writer.uint32(/* id 2, wireType 0 =*/ 16).int32(message.edge);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified ZoneInputAccepted message, length delimited. Does not implicitly {@link unframe.realtime.ZoneInputAccepted.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @static
+       * @param {unframe.realtime.ZoneInputAccepted.$Properties} message ZoneInputAccepted message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      ZoneInputAccepted.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a ZoneInputAccepted message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.ZoneInputAccepted & unframe.realtime.ZoneInputAccepted.$Shape} ZoneInputAccepted
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      ZoneInputAccepted.decode = function ZoneInputAccepted$decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.zoneId = reader.string();
+              break;
+            }
+            case 2: {
+              message.edge = reader.int32();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a ZoneInputAccepted message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.ZoneInputAccepted & unframe.realtime.ZoneInputAccepted.$Shape} ZoneInputAccepted
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      ZoneInputAccepted.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a ZoneInputAccepted message.
+       * @function verify
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      ZoneInputAccepted.verify = function ZoneInputAccepted$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.zoneId != null && message.hasOwnProperty("zoneId"))
+          if (!$util.isString(message.zoneId)) return "zoneId: string expected";
+        if (message.edge != null && message.hasOwnProperty("edge"))
+          switch (message.edge) {
+            default:
+              return "edge: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+              break;
+          }
+        return null;
+      };
+
+      /**
+       * Creates a ZoneInputAccepted message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.ZoneInputAccepted} ZoneInputAccepted
+       */
+      ZoneInputAccepted.fromObject = function ZoneInputAccepted$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.zoneId != null) message.zoneId = $String(object.zoneId);
+        switch (object.edge) {
+          default:
+            if (typeof object.edge === "number") {
+              message.edge = object.edge;
+              break;
+            }
+            break;
+          case "ZONE_EDGE_UNSPECIFIED":
+          case 0:
+            message.edge = 0;
+            break;
+          case "ZONE_EDGE_ENTER":
+          case 1:
+            message.edge = 1;
+            break;
+          case "ZONE_EDGE_EXIT":
+          case 2:
+            message.edge = 2;
+            break;
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a ZoneInputAccepted message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @static
+       * @param {unframe.realtime.ZoneInputAccepted} message ZoneInputAccepted
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      ZoneInputAccepted.toObject = function ZoneInputAccepted$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.zoneId = "";
+          object.edge = options.enums === $String ? "ZONE_EDGE_UNSPECIFIED" : 0;
+        }
+        if (message.zoneId != null && message.hasOwnProperty("zoneId"))
+          object.zoneId = message.zoneId;
+        if (message.edge != null && message.hasOwnProperty("edge"))
+          object.edge =
+            options.enums === $String
+              ? $root.unframe.presentation.ZoneEdge[message.edge] === $undefined
+                ? message.edge
+                : $root.unframe.presentation.ZoneEdge[message.edge]
+              : message.edge;
+        return object;
+      };
+
+      /**
+       * Converts this ZoneInputAccepted to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      ZoneInputAccepted.prototype.toJSON = function () {
+        return ZoneInputAccepted.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for ZoneInputAccepted
+       * @function getTypeUrl
+       * @memberof unframe.realtime.ZoneInputAccepted
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      ZoneInputAccepted.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.ZoneInputAccepted";
+      };
+
+      return ZoneInputAccepted;
+    })();
+
+    realtime.RuntimeViewReplaced = (function () {
+      /**
+       * Properties of a RuntimeViewReplaced.
+       * @typedef {Object} unframe.realtime.RuntimeViewReplaced.$Properties
+       * @property {unframe.realtime.ParticipantRuntimeView.$Properties|null} [runtimeView] RuntimeViewReplaced runtimeView
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a RuntimeViewReplaced.
+       * @memberof unframe.realtime
+       * @interface IRuntimeViewReplaced
+       * @augments unframe.realtime.RuntimeViewReplaced.$Properties
+       * @deprecated Use unframe.realtime.RuntimeViewReplaced.$Properties instead.
+       */
+
+      /**
+       * Shape of a RuntimeViewReplaced.
+       * @typedef {{
+       *   runtimeView?: unframe.realtime.ParticipantRuntimeView.$Shape|null;
+       *   $unknowns?: Array.<Uint8Array>;
+       * }} unframe.realtime.RuntimeViewReplaced.$Shape
+       */
+
+      /**
+       * Constructs a new RuntimeViewReplaced.
+       * @memberof unframe.realtime
+       * @classdesc Represents a RuntimeViewReplaced.
+       * @constructor
+       * @param {unframe.realtime.RuntimeViewReplaced.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const RuntimeViewReplaced = function RuntimeViewReplaced(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * RuntimeViewReplaced runtimeView.
+       * @member {unframe.realtime.ParticipantRuntimeView.$Properties|null|undefined} runtimeView
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @instance
+       */
+      RuntimeViewReplaced.prototype.runtimeView = null;
+
+      /**
+       * Creates a new RuntimeViewReplaced instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @static
+       * @param {unframe.realtime.RuntimeViewReplaced.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.RuntimeViewReplaced} RuntimeViewReplaced instance
+       * @type {{
+       *   (properties: unframe.realtime.RuntimeViewReplaced.$Shape): unframe.realtime.RuntimeViewReplaced & unframe.realtime.RuntimeViewReplaced.$Shape;
+       *   (properties?: unframe.realtime.RuntimeViewReplaced.$Properties): unframe.realtime.RuntimeViewReplaced;
+       * }}
+       */
+      RuntimeViewReplaced.create = function (properties) {
+        return new RuntimeViewReplaced(properties);
+      };
+
+      /**
+       * Encodes the specified RuntimeViewReplaced message. Does not implicitly {@link unframe.realtime.RuntimeViewReplaced.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @static
+       * @param {unframe.realtime.RuntimeViewReplaced.$Properties} message RuntimeViewReplaced message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      RuntimeViewReplaced.encode = function RuntimeViewReplaced$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.runtimeView != null && $Object.hasOwnProperty.call(message, "runtimeView"))
+          $root.unframe.realtime.ParticipantRuntimeView.encode(
+            message.runtimeView,
+            writer.uint32(/* id 1, wireType 2 =*/ 10).fork(),
+          ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified RuntimeViewReplaced message, length delimited. Does not implicitly {@link unframe.realtime.RuntimeViewReplaced.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @static
+       * @param {unframe.realtime.RuntimeViewReplaced.$Properties} message RuntimeViewReplaced message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      RuntimeViewReplaced.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a RuntimeViewReplaced message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.RuntimeViewReplaced & unframe.realtime.RuntimeViewReplaced.$Shape} RuntimeViewReplaced
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      RuntimeViewReplaced.decode = function RuntimeViewReplaced$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.runtimeView = $root.unframe.realtime.ParticipantRuntimeView.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a RuntimeViewReplaced message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.RuntimeViewReplaced & unframe.realtime.RuntimeViewReplaced.$Shape} RuntimeViewReplaced
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      RuntimeViewReplaced.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a RuntimeViewReplaced message.
+       * @function verify
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      RuntimeViewReplaced.verify = function RuntimeViewReplaced$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.runtimeView != null && message.hasOwnProperty("runtimeView")) {
+          let error = $root.unframe.realtime.ParticipantRuntimeView.verify(
+            message.runtimeView,
+            long + 1,
+          );
+          if (error) return "runtimeView." + error;
+        }
+        return null;
+      };
+
+      /**
+       * Creates a RuntimeViewReplaced message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.RuntimeViewReplaced} RuntimeViewReplaced
+       */
+      RuntimeViewReplaced.fromObject = function RuntimeViewReplaced$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.runtimeView != null) {
+          if (typeof object.runtimeView !== "object")
+            throw $TypeError(".unframe.realtime.RuntimeViewReplaced.runtimeView: object expected");
+          message.runtimeView = $root.unframe.realtime.ParticipantRuntimeView.fromObject(
+            object.runtimeView,
+            long + 1,
+          );
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a RuntimeViewReplaced message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @static
+       * @param {unframe.realtime.RuntimeViewReplaced} message RuntimeViewReplaced
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      RuntimeViewReplaced.toObject = function RuntimeViewReplaced$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) object.runtimeView = null;
+        if (message.runtimeView != null && message.hasOwnProperty("runtimeView"))
+          object.runtimeView = $root.unframe.realtime.ParticipantRuntimeView.toObject(
+            message.runtimeView,
+            options,
+          );
+        return object;
+      };
+
+      /**
+       * Converts this RuntimeViewReplaced to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      RuntimeViewReplaced.prototype.toJSON = function () {
+        return RuntimeViewReplaced.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for RuntimeViewReplaced
+       * @function getTypeUrl
+       * @memberof unframe.realtime.RuntimeViewReplaced
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      RuntimeViewReplaced.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.RuntimeViewReplaced";
+      };
+
+      return RuntimeViewReplaced;
     })();
 
     realtime.SurfaceInteractionAccepted = (function () {
@@ -66487,305 +72887,12 @@ export const unframe = ($root.unframe = (() => {
       return ArmedTimer;
     })();
 
-    realtime.CueCooldown = (function () {
-      /**
-       * Properties of a CueCooldown.
-       * @typedef {Object} unframe.realtime.CueCooldown.$Properties
-       * @property {string|null} [cueId] CueCooldown cueId
-       * @property {number|Long|null} [nextEligibleRuntimeTimeMs] CueCooldown nextEligibleRuntimeTimeMs
-       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-       */
-
-      /**
-       * Properties of a CueCooldown.
-       * @memberof unframe.realtime
-       * @interface ICueCooldown
-       * @augments unframe.realtime.CueCooldown.$Properties
-       * @deprecated Use unframe.realtime.CueCooldown.$Properties instead.
-       */
-
-      /**
-       * Shape of a CueCooldown.
-       * @typedef {unframe.realtime.CueCooldown.$Properties} unframe.realtime.CueCooldown.$Shape
-       */
-
-      /**
-       * Constructs a new CueCooldown.
-       * @memberof unframe.realtime
-       * @classdesc Represents a CueCooldown.
-       * @constructor
-       * @param {unframe.realtime.CueCooldown.$Properties=} [properties] Properties to set
-       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-       */
-      const CueCooldown = function CueCooldown(properties) {
-        if (properties)
-          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
-            if (properties[keys[i]] != null && keys[i] !== "__proto__")
-              this[keys[i]] = properties[keys[i]];
-      };
-
-      /**
-       * CueCooldown cueId.
-       * @member {string} cueId
-       * @memberof unframe.realtime.CueCooldown
-       * @instance
-       */
-      CueCooldown.prototype.cueId = "";
-
-      /**
-       * CueCooldown nextEligibleRuntimeTimeMs.
-       * @member {number|Long} nextEligibleRuntimeTimeMs
-       * @memberof unframe.realtime.CueCooldown
-       * @instance
-       */
-      CueCooldown.prototype.nextEligibleRuntimeTimeMs = $util.Long
-        ? $util.Long.fromBits(0, 0, true)
-        : 0;
-
-      /**
-       * Creates a new CueCooldown instance using the specified properties.
-       * @function create
-       * @memberof unframe.realtime.CueCooldown
-       * @static
-       * @param {unframe.realtime.CueCooldown.$Properties=} [properties] Properties to set
-       * @returns {unframe.realtime.CueCooldown} CueCooldown instance
-       * @type {{
-       *   (properties: unframe.realtime.CueCooldown.$Shape): unframe.realtime.CueCooldown & unframe.realtime.CueCooldown.$Shape;
-       *   (properties?: unframe.realtime.CueCooldown.$Properties): unframe.realtime.CueCooldown;
-       * }}
-       */
-      CueCooldown.create = function (properties) {
-        return new CueCooldown(properties);
-      };
-
-      /**
-       * Encodes the specified CueCooldown message. Does not implicitly {@link unframe.realtime.CueCooldown.verify|verify} messages.
-       * @function encode
-       * @memberof unframe.realtime.CueCooldown
-       * @static
-       * @param {unframe.realtime.CueCooldown.$Properties} message CueCooldown message or plain object to encode
-       * @param {$protobuf.Writer} [writer] Writer to encode to
-       * @returns {$protobuf.Writer} Writer
-       */
-      CueCooldown.encode = function CueCooldown$encode(message, writer) {
-        if (!writer) writer = $Writer.create();
-        if (message.cueId != null && $Object.hasOwnProperty.call(message, "cueId"))
-          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.cueId);
-        if (
-          message.nextEligibleRuntimeTimeMs != null &&
-          $Object.hasOwnProperty.call(message, "nextEligibleRuntimeTimeMs")
-        )
-          writer.uint32(/* id 2, wireType 0 =*/ 16).uint64(message.nextEligibleRuntimeTimeMs);
-        return writer;
-      };
-
-      /**
-       * Encodes the specified CueCooldown message, length delimited. Does not implicitly {@link unframe.realtime.CueCooldown.verify|verify} messages.
-       * @function encodeDelimited
-       * @memberof unframe.realtime.CueCooldown
-       * @static
-       * @param {unframe.realtime.CueCooldown.$Properties} message CueCooldown message or plain object to encode
-       * @param {$protobuf.Writer} [writer] Writer to encode to
-       * @returns {$protobuf.Writer} Writer
-       */
-      CueCooldown.encodeDelimited = function (message, writer) {
-        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
-      };
-
-      /**
-       * Decodes a CueCooldown message from the specified reader or buffer.
-       * @function decode
-       * @memberof unframe.realtime.CueCooldown
-       * @static
-       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-       * @param {number} [length] Message length if known beforehand
-       * @returns {unframe.realtime.CueCooldown & unframe.realtime.CueCooldown.$Shape} CueCooldown
-       * @throws {Error} If the payload is not a reader or valid buffer
-       * @throws {$protobuf.util.ProtocolError} If required fields are missing
-       */
-      CueCooldown.decode = function CueCooldown$decode(reader, length, error, long) {
-        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
-        if (long === $undefined) long = 0;
-        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
-        let end = length === $undefined ? reader.len : reader.pos + length,
-          message = new this.ctor();
-        while (reader.pos < end) {
-          let tag = reader.uint32();
-          if (tag === error) break;
-          switch (tag >>> 3) {
-            case 1: {
-              message.cueId = reader.string();
-              break;
-            }
-            case 2: {
-              message.nextEligibleRuntimeTimeMs = reader.uint64();
-              break;
-            }
-            default:
-              reader.skipType(tag & 7, long);
-              break;
-          }
-        }
-        return message;
-      };
-
-      /**
-       * Decodes a CueCooldown message from the specified reader or buffer, length delimited.
-       * @function decodeDelimited
-       * @memberof unframe.realtime.CueCooldown
-       * @static
-       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-       * @returns {unframe.realtime.CueCooldown & unframe.realtime.CueCooldown.$Shape} CueCooldown
-       * @throws {Error} If the payload is not a reader or valid buffer
-       * @throws {$protobuf.util.ProtocolError} If required fields are missing
-       */
-      CueCooldown.decodeDelimited = function (reader) {
-        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
-        return this.decode(reader, reader.uint32());
-      };
-
-      /**
-       * Verifies a CueCooldown message.
-       * @function verify
-       * @memberof unframe.realtime.CueCooldown
-       * @static
-       * @param {Object.<string,*>} message Plain object to verify
-       * @returns {string|null} `null` if valid, otherwise the reason why it is not
-       */
-      CueCooldown.verify = function CueCooldown$verify(message, long) {
-        if (typeof message !== "object" || message === null) return "object expected";
-        if (long === $undefined) long = 0;
-        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
-        if (message.cueId != null && message.hasOwnProperty("cueId"))
-          if (!$util.isString(message.cueId)) return "cueId: string expected";
-        if (
-          message.nextEligibleRuntimeTimeMs != null &&
-          message.hasOwnProperty("nextEligibleRuntimeTimeMs")
-        )
-          if (
-            !$util.isInteger(message.nextEligibleRuntimeTimeMs) &&
-            !(
-              message.nextEligibleRuntimeTimeMs &&
-              $util.isInteger(message.nextEligibleRuntimeTimeMs.low) &&
-              $util.isInteger(message.nextEligibleRuntimeTimeMs.high)
-            )
-          )
-            return "nextEligibleRuntimeTimeMs: integer|Long expected";
-        return null;
-      };
-
-      /**
-       * Creates a CueCooldown message from a plain object. Also converts values to their respective internal types.
-       * @function fromObject
-       * @memberof unframe.realtime.CueCooldown
-       * @static
-       * @param {Object.<string,*>} object Plain object
-       * @returns {unframe.realtime.CueCooldown} CueCooldown
-       */
-      CueCooldown.fromObject = function CueCooldown$fromObject(object, long) {
-        if (object instanceof this.ctor) return object;
-        if (long === $undefined) long = 0;
-        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
-        let message = new this.ctor();
-        if (object.cueId != null) message.cueId = $String(object.cueId);
-        if (object.nextEligibleRuntimeTimeMs != null)
-          if ($util.Long)
-            (message.nextEligibleRuntimeTimeMs = $util.Long.fromValue(
-              object.nextEligibleRuntimeTimeMs,
-            )).unsigned = true;
-          else if (typeof object.nextEligibleRuntimeTimeMs === "string")
-            message.nextEligibleRuntimeTimeMs = $parseInt(object.nextEligibleRuntimeTimeMs, 10);
-          else if (typeof object.nextEligibleRuntimeTimeMs === "number")
-            message.nextEligibleRuntimeTimeMs = object.nextEligibleRuntimeTimeMs;
-          else if (typeof object.nextEligibleRuntimeTimeMs === "object")
-            message.nextEligibleRuntimeTimeMs = new $util.LongBits(
-              object.nextEligibleRuntimeTimeMs.low >>> 0,
-              object.nextEligibleRuntimeTimeMs.high >>> 0,
-            ).toNumber(true);
-        return message;
-      };
-
-      /**
-       * Creates a plain object from a CueCooldown message. Also converts values to other types if specified.
-       * @function toObject
-       * @memberof unframe.realtime.CueCooldown
-       * @static
-       * @param {unframe.realtime.CueCooldown} message CueCooldown
-       * @param {$protobuf.IConversionOptions} [options] Conversion options
-       * @returns {Object.<string,*>} Plain object
-       */
-      CueCooldown.toObject = function CueCooldown$toObject(message, options) {
-        if (!options) options = {};
-        let object = {};
-        if (options.defaults) {
-          object.cueId = "";
-          if ($util.Long) {
-            let long = new $util.Long(0, 0, true);
-            object.nextEligibleRuntimeTimeMs =
-              options.longs === $String
-                ? long.toString()
-                : options.longs === $Number
-                  ? long.toNumber()
-                  : long;
-          } else object.nextEligibleRuntimeTimeMs = options.longs === $String ? "0" : 0;
-        }
-        if (message.cueId != null && message.hasOwnProperty("cueId")) object.cueId = message.cueId;
-        if (
-          message.nextEligibleRuntimeTimeMs != null &&
-          message.hasOwnProperty("nextEligibleRuntimeTimeMs")
-        )
-          if (typeof message.nextEligibleRuntimeTimeMs === "number")
-            object.nextEligibleRuntimeTimeMs =
-              options.longs === $String
-                ? $String(message.nextEligibleRuntimeTimeMs)
-                : message.nextEligibleRuntimeTimeMs;
-          else
-            object.nextEligibleRuntimeTimeMs =
-              options.longs === $String
-                ? $util.Long.prototype.toString.call(message.nextEligibleRuntimeTimeMs)
-                : options.longs === $Number
-                  ? new $util.LongBits(
-                      message.nextEligibleRuntimeTimeMs.low >>> 0,
-                      message.nextEligibleRuntimeTimeMs.high >>> 0,
-                    ).toNumber(true)
-                  : message.nextEligibleRuntimeTimeMs;
-        return object;
-      };
-
-      /**
-       * Converts this CueCooldown to JSON.
-       * @function toJSON
-       * @memberof unframe.realtime.CueCooldown
-       * @instance
-       * @returns {Object.<string,*>} JSON object
-       */
-      CueCooldown.prototype.toJSON = function () {
-        return CueCooldown.toObject(this, $protobuf.util.toJSONOptions);
-      };
-
-      /**
-       * Gets the type url for CueCooldown
-       * @function getTypeUrl
-       * @memberof unframe.realtime.CueCooldown
-       * @static
-       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
-       * @returns {string} The type url
-       */
-      CueCooldown.getTypeUrl = function (prefix) {
-        if (prefix === $undefined) prefix = "type.googleapis.com";
-        return prefix + "/unframe.realtime.CueCooldown";
-      };
-
-      return CueCooldown;
-    })();
-
     realtime.StepExecutionSnapshot = (function () {
       /**
        * Properties of a StepExecutionSnapshot.
        * @typedef {Object} unframe.realtime.StepExecutionSnapshot.$Properties
        * @property {number|Long|null} [stepEntryEpoch] StepExecutionSnapshot stepEntryEpoch
        * @property {Array.<string>|null} [consumedCueIds] StepExecutionSnapshot consumedCueIds
-       * @property {Array.<unframe.realtime.CueCooldown.$Properties>|null} [cooldowns] StepExecutionSnapshot cooldowns
        * @property {Array.<unframe.realtime.ArmedTimer.$Properties>|null} [timers] StepExecutionSnapshot timers
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
@@ -66813,7 +72920,6 @@ export const unframe = ($root.unframe = (() => {
        */
       const StepExecutionSnapshot = function StepExecutionSnapshot(properties) {
         this.consumedCueIds = [];
-        this.cooldowns = [];
         this.timers = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
@@ -66838,14 +72944,6 @@ export const unframe = ($root.unframe = (() => {
        * @instance
        */
       StepExecutionSnapshot.prototype.consumedCueIds = $util.emptyArray;
-
-      /**
-       * StepExecutionSnapshot cooldowns.
-       * @member {Array.<unframe.realtime.CueCooldown.$Properties>} cooldowns
-       * @memberof unframe.realtime.StepExecutionSnapshot
-       * @instance
-       */
-      StepExecutionSnapshot.prototype.cooldowns = $util.emptyArray;
 
       /**
        * StepExecutionSnapshot timers.
@@ -66890,12 +72988,6 @@ export const unframe = ($root.unframe = (() => {
         if (message.consumedCueIds != null && message.consumedCueIds.length)
           for (let i = 0; i < message.consumedCueIds.length; ++i)
             writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.consumedCueIds[i]);
-        if (message.cooldowns != null && message.cooldowns.length)
-          for (let i = 0; i < message.cooldowns.length; ++i)
-            $root.unframe.realtime.CueCooldown.encode(
-              message.cooldowns[i],
-              writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
-            ).ldelim();
         if (message.timers != null && message.timers.length)
           for (let i = 0; i < message.timers.length; ++i)
             $root.unframe.realtime.ArmedTimer.encode(
@@ -66952,18 +73044,6 @@ export const unframe = ($root.unframe = (() => {
               if (!(message.consumedCueIds && message.consumedCueIds.length))
                 message.consumedCueIds = [];
               message.consumedCueIds.push(reader.string());
-              break;
-            }
-            case 3: {
-              if (!(message.cooldowns && message.cooldowns.length)) message.cooldowns = [];
-              message.cooldowns.push(
-                $root.unframe.realtime.CueCooldown.decode(
-                  reader,
-                  reader.uint32(),
-                  $undefined,
-                  long + 1,
-                ),
-              );
               break;
             }
             case 4: {
@@ -67029,13 +73109,6 @@ export const unframe = ($root.unframe = (() => {
             if (!$util.isString(message.consumedCueIds[i]))
               return "consumedCueIds: string[] expected";
         }
-        if (message.cooldowns != null && message.hasOwnProperty("cooldowns")) {
-          if (!$Array.isArray(message.cooldowns)) return "cooldowns: array expected";
-          for (let i = 0; i < message.cooldowns.length; ++i) {
-            let error = $root.unframe.realtime.CueCooldown.verify(message.cooldowns[i], long + 1);
-            if (error) return "cooldowns." + error;
-          }
-        }
         if (message.timers != null && message.hasOwnProperty("timers")) {
           if (!$Array.isArray(message.timers)) return "timers: array expected";
           for (let i = 0; i < message.timers.length; ++i) {
@@ -67080,21 +73153,6 @@ export const unframe = ($root.unframe = (() => {
           for (let i = 0; i < object.consumedCueIds.length; ++i)
             message.consumedCueIds[i] = $String(object.consumedCueIds[i]);
         }
-        if (object.cooldowns) {
-          if (!$Array.isArray(object.cooldowns))
-            throw $TypeError(".unframe.realtime.StepExecutionSnapshot.cooldowns: array expected");
-          message.cooldowns = [];
-          for (let i = 0; i < object.cooldowns.length; ++i) {
-            if (typeof object.cooldowns[i] !== "object")
-              throw $TypeError(
-                ".unframe.realtime.StepExecutionSnapshot.cooldowns: object expected",
-              );
-            message.cooldowns[i] = $root.unframe.realtime.CueCooldown.fromObject(
-              object.cooldowns[i],
-              long + 1,
-            );
-          }
-        }
         if (object.timers) {
           if (!$Array.isArray(object.timers))
             throw $TypeError(".unframe.realtime.StepExecutionSnapshot.timers: array expected");
@@ -67125,7 +73183,6 @@ export const unframe = ($root.unframe = (() => {
         let object = {};
         if (options.arrays || options.defaults) {
           object.consumedCueIds = [];
-          object.cooldowns = [];
           object.timers = [];
         }
         if (options.defaults)
@@ -67156,14 +73213,6 @@ export const unframe = ($root.unframe = (() => {
           object.consumedCueIds = [];
           for (let j = 0; j < message.consumedCueIds.length; ++j)
             object.consumedCueIds[j] = message.consumedCueIds[j];
-        }
-        if (message.cooldowns && message.cooldowns.length) {
-          object.cooldowns = [];
-          for (let j = 0; j < message.cooldowns.length; ++j)
-            object.cooldowns[j] = $root.unframe.realtime.CueCooldown.toObject(
-              message.cooldowns[j],
-              options,
-            );
         }
         if (message.timers && message.timers.length) {
           object.timers = [];
@@ -71559,8 +77608,10 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.realtime.VariableState.$Properties>|null} [variables] CanonicalRuntimeSnapshot variables
        * @property {Array.<unframe.realtime.RuntimeRunSnapshot.$Properties>|null} [activeRuns] CanonicalRuntimeSnapshot activeRuns
        * @property {unframe.realtime.PresentationOrigin.$Properties|null} [presentationOrigin] CanonicalRuntimeSnapshot presentationOrigin
-       * @property {Array.<string>|null} [recentEventIds] CanonicalRuntimeSnapshot recentEventIds
        * @property {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>|null} [modelClipStates] CanonicalRuntimeSnapshot modelClipStates
+       * @property {number|Long|null} [inputEpoch] CanonicalRuntimeSnapshot inputEpoch
+       * @property {Array.<unframe.realtime.FrozenAnchorDisplayState.$Properties>|null} [frozenAnchors] CanonicalRuntimeSnapshot frozenAnchors
+       * @property {Array.<unframe.realtime.StepStartState.$Properties>|null} [stepStartHistory] CanonicalRuntimeSnapshot stepStartHistory
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -71588,8 +77639,10 @@ export const unframe = ($root.unframe = (() => {
        *   variables?: Array.<unframe.realtime.VariableState.$Shape>|null;
        *   activeRuns?: Array.<unframe.realtime.RuntimeRunSnapshot.$Shape>|null;
        *   presentationOrigin?: unframe.realtime.PresentationOrigin.$Shape|null;
-       *   recentEventIds?: Array.<string>|null;
        *   modelClipStates?: Array.<unframe.realtime.ModelClipRuntimeState.$Shape>|null;
+       *   inputEpoch?: number|Long|null;
+       *   frozenAnchors?: Array.<unframe.realtime.FrozenAnchorDisplayState.$Shape>|null;
+       *   stepStartHistory?: Array.<unframe.realtime.StepStartState.$Shape>|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.realtime.CanonicalRuntimeSnapshot.$Shape
        */
@@ -71608,8 +77661,9 @@ export const unframe = ($root.unframe = (() => {
         this.mediaStates = [];
         this.variables = [];
         this.activeRuns = [];
-        this.recentEventIds = [];
         this.modelClipStates = [];
+        this.frozenAnchors = [];
+        this.stepStartHistory = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -71727,20 +77781,38 @@ export const unframe = ($root.unframe = (() => {
       CanonicalRuntimeSnapshot.prototype.presentationOrigin = null;
 
       /**
-       * CanonicalRuntimeSnapshot recentEventIds.
-       * @member {Array.<string>} recentEventIds
-       * @memberof unframe.realtime.CanonicalRuntimeSnapshot
-       * @instance
-       */
-      CanonicalRuntimeSnapshot.prototype.recentEventIds = $util.emptyArray;
-
-      /**
        * CanonicalRuntimeSnapshot modelClipStates.
        * @member {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>} modelClipStates
        * @memberof unframe.realtime.CanonicalRuntimeSnapshot
        * @instance
        */
       CanonicalRuntimeSnapshot.prototype.modelClipStates = $util.emptyArray;
+
+      /**
+       * CanonicalRuntimeSnapshot inputEpoch.
+       * @member {number|Long} inputEpoch
+       * @memberof unframe.realtime.CanonicalRuntimeSnapshot
+       * @instance
+       */
+      CanonicalRuntimeSnapshot.prototype.inputEpoch = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * CanonicalRuntimeSnapshot frozenAnchors.
+       * @member {Array.<unframe.realtime.FrozenAnchorDisplayState.$Properties>} frozenAnchors
+       * @memberof unframe.realtime.CanonicalRuntimeSnapshot
+       * @instance
+       */
+      CanonicalRuntimeSnapshot.prototype.frozenAnchors = $util.emptyArray;
+
+      /**
+       * CanonicalRuntimeSnapshot stepStartHistory.
+       * @member {Array.<unframe.realtime.StepStartState.$Properties>} stepStartHistory
+       * @memberof unframe.realtime.CanonicalRuntimeSnapshot
+       * @instance
+       */
+      CanonicalRuntimeSnapshot.prototype.stepStartHistory = $util.emptyArray;
 
       /**
        * Creates a new CanonicalRuntimeSnapshot instance using the specified properties.
@@ -71839,14 +77911,25 @@ export const unframe = ($root.unframe = (() => {
             message.presentationOrigin,
             writer.uint32(/* id 13, wireType 2 =*/ 106).fork(),
           ).ldelim();
-        if (message.recentEventIds != null && message.recentEventIds.length)
-          for (let i = 0; i < message.recentEventIds.length; ++i)
-            writer.uint32(/* id 14, wireType 2 =*/ 114).string(message.recentEventIds[i]);
         if (message.modelClipStates != null && message.modelClipStates.length)
           for (let i = 0; i < message.modelClipStates.length; ++i)
             $root.unframe.realtime.ModelClipRuntimeState.encode(
               message.modelClipStates[i],
               writer.uint32(/* id 15, wireType 2 =*/ 122).fork(),
+            ).ldelim();
+        if (message.inputEpoch != null && $Object.hasOwnProperty.call(message, "inputEpoch"))
+          writer.uint32(/* id 16, wireType 0 =*/ 128).uint64(message.inputEpoch);
+        if (message.frozenAnchors != null && message.frozenAnchors.length)
+          for (let i = 0; i < message.frozenAnchors.length; ++i)
+            $root.unframe.realtime.FrozenAnchorDisplayState.encode(
+              message.frozenAnchors[i],
+              writer.uint32(/* id 17, wireType 2 =*/ 138).fork(),
+            ).ldelim();
+        if (message.stepStartHistory != null && message.stepStartHistory.length)
+          for (let i = 0; i < message.stepStartHistory.length; ++i)
+            $root.unframe.realtime.StepStartState.encode(
+              message.stepStartHistory[i],
+              writer.uint32(/* id 18, wireType 2 =*/ 146).fork(),
             ).ldelim();
         return writer;
       };
@@ -72003,17 +78086,41 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
-            case 14: {
-              if (!(message.recentEventIds && message.recentEventIds.length))
-                message.recentEventIds = [];
-              message.recentEventIds.push(reader.string());
-              break;
-            }
             case 15: {
               if (!(message.modelClipStates && message.modelClipStates.length))
                 message.modelClipStates = [];
               message.modelClipStates.push(
                 $root.unframe.realtime.ModelClipRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 16: {
+              message.inputEpoch = reader.uint64();
+              break;
+            }
+            case 17: {
+              if (!(message.frozenAnchors && message.frozenAnchors.length))
+                message.frozenAnchors = [];
+              message.frozenAnchors.push(
+                $root.unframe.realtime.FrozenAnchorDisplayState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 18: {
+              if (!(message.stepStartHistory && message.stepStartHistory.length))
+                message.stepStartHistory = [];
+              message.stepStartHistory.push(
+                $root.unframe.realtime.StepStartState.decode(
                   reader,
                   reader.uint32(),
                   $undefined,
@@ -72164,12 +78271,6 @@ export const unframe = ($root.unframe = (() => {
           );
           if (error) return "presentationOrigin." + error;
         }
-        if (message.recentEventIds != null && message.hasOwnProperty("recentEventIds")) {
-          if (!$Array.isArray(message.recentEventIds)) return "recentEventIds: array expected";
-          for (let i = 0; i < message.recentEventIds.length; ++i)
-            if (!$util.isString(message.recentEventIds[i]))
-              return "recentEventIds: string[] expected";
-        }
         if (message.modelClipStates != null && message.hasOwnProperty("modelClipStates")) {
           if (!$Array.isArray(message.modelClipStates)) return "modelClipStates: array expected";
           for (let i = 0; i < message.modelClipStates.length; ++i) {
@@ -72178,6 +78279,36 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
             if (error) return "modelClipStates." + error;
+          }
+        }
+        if (message.inputEpoch != null && message.hasOwnProperty("inputEpoch"))
+          if (
+            !$util.isInteger(message.inputEpoch) &&
+            !(
+              message.inputEpoch &&
+              $util.isInteger(message.inputEpoch.low) &&
+              $util.isInteger(message.inputEpoch.high)
+            )
+          )
+            return "inputEpoch: integer|Long expected";
+        if (message.frozenAnchors != null && message.hasOwnProperty("frozenAnchors")) {
+          if (!$Array.isArray(message.frozenAnchors)) return "frozenAnchors: array expected";
+          for (let i = 0; i < message.frozenAnchors.length; ++i) {
+            let error = $root.unframe.realtime.FrozenAnchorDisplayState.verify(
+              message.frozenAnchors[i],
+              long + 1,
+            );
+            if (error) return "frozenAnchors." + error;
+          }
+        }
+        if (message.stepStartHistory != null && message.hasOwnProperty("stepStartHistory")) {
+          if (!$Array.isArray(message.stepStartHistory)) return "stepStartHistory: array expected";
+          for (let i = 0; i < message.stepStartHistory.length; ++i) {
+            let error = $root.unframe.realtime.StepStartState.verify(
+              message.stepStartHistory[i],
+              long + 1,
+            );
+            if (error) return "stepStartHistory." + error;
           }
         }
         return null;
@@ -72364,15 +78495,6 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
-        if (object.recentEventIds) {
-          if (!$Array.isArray(object.recentEventIds))
-            throw $TypeError(
-              ".unframe.realtime.CanonicalRuntimeSnapshot.recentEventIds: array expected",
-            );
-          message.recentEventIds = [];
-          for (let i = 0; i < object.recentEventIds.length; ++i)
-            message.recentEventIds[i] = $String(object.recentEventIds[i]);
-        }
         if (object.modelClipStates) {
           if (!$Array.isArray(object.modelClipStates))
             throw $TypeError(
@@ -72386,6 +78508,51 @@ export const unframe = ($root.unframe = (() => {
               );
             message.modelClipStates[i] = $root.unframe.realtime.ModelClipRuntimeState.fromObject(
               object.modelClipStates[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.inputEpoch != null)
+          if ($util.Long)
+            (message.inputEpoch = $util.Long.fromValue(object.inputEpoch)).unsigned = true;
+          else if (typeof object.inputEpoch === "string")
+            message.inputEpoch = $parseInt(object.inputEpoch, 10);
+          else if (typeof object.inputEpoch === "number") message.inputEpoch = object.inputEpoch;
+          else if (typeof object.inputEpoch === "object")
+            message.inputEpoch = new $util.LongBits(
+              object.inputEpoch.low >>> 0,
+              object.inputEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.frozenAnchors) {
+          if (!$Array.isArray(object.frozenAnchors))
+            throw $TypeError(
+              ".unframe.realtime.CanonicalRuntimeSnapshot.frozenAnchors: array expected",
+            );
+          message.frozenAnchors = [];
+          for (let i = 0; i < object.frozenAnchors.length; ++i) {
+            if (typeof object.frozenAnchors[i] !== "object")
+              throw $TypeError(
+                ".unframe.realtime.CanonicalRuntimeSnapshot.frozenAnchors: object expected",
+              );
+            message.frozenAnchors[i] = $root.unframe.realtime.FrozenAnchorDisplayState.fromObject(
+              object.frozenAnchors[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.stepStartHistory) {
+          if (!$Array.isArray(object.stepStartHistory))
+            throw $TypeError(
+              ".unframe.realtime.CanonicalRuntimeSnapshot.stepStartHistory: array expected",
+            );
+          message.stepStartHistory = [];
+          for (let i = 0; i < object.stepStartHistory.length; ++i) {
+            if (typeof object.stepStartHistory[i] !== "object")
+              throw $TypeError(
+                ".unframe.realtime.CanonicalRuntimeSnapshot.stepStartHistory: object expected",
+              );
+            message.stepStartHistory[i] = $root.unframe.realtime.StepStartState.fromObject(
+              object.stepStartHistory[i],
               long + 1,
             );
           }
@@ -72414,8 +78581,9 @@ export const unframe = ($root.unframe = (() => {
           object.mediaStates = [];
           object.variables = [];
           object.activeRuns = [];
-          object.recentEventIds = [];
           object.modelClipStates = [];
+          object.frozenAnchors = [];
+          object.stepStartHistory = [];
         }
         if (options.defaults) {
           object.schemaVersion = 0;
@@ -72450,6 +78618,15 @@ export const unframe = ($root.unframe = (() => {
           object.progression = null;
           object.stepExecution = null;
           object.presentationOrigin = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.inputEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.inputEpoch = options.longs === $String ? "0" : 0;
         }
         if (message.schemaVersion != null && message.hasOwnProperty("schemaVersion"))
           object.schemaVersion = message.schemaVersion;
@@ -72564,16 +78741,41 @@ export const unframe = ($root.unframe = (() => {
             message.presentationOrigin,
             options,
           );
-        if (message.recentEventIds && message.recentEventIds.length) {
-          object.recentEventIds = [];
-          for (let j = 0; j < message.recentEventIds.length; ++j)
-            object.recentEventIds[j] = message.recentEventIds[j];
-        }
         if (message.modelClipStates && message.modelClipStates.length) {
           object.modelClipStates = [];
           for (let j = 0; j < message.modelClipStates.length; ++j)
             object.modelClipStates[j] = $root.unframe.realtime.ModelClipRuntimeState.toObject(
               message.modelClipStates[j],
+              options,
+            );
+        }
+        if (message.inputEpoch != null && message.hasOwnProperty("inputEpoch"))
+          if (typeof message.inputEpoch === "number")
+            object.inputEpoch =
+              options.longs === $String ? $String(message.inputEpoch) : message.inputEpoch;
+          else
+            object.inputEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.inputEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.inputEpoch.low >>> 0,
+                      message.inputEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.inputEpoch;
+        if (message.frozenAnchors && message.frozenAnchors.length) {
+          object.frozenAnchors = [];
+          for (let j = 0; j < message.frozenAnchors.length; ++j)
+            object.frozenAnchors[j] = $root.unframe.realtime.FrozenAnchorDisplayState.toObject(
+              message.frozenAnchors[j],
+              options,
+            );
+        }
+        if (message.stepStartHistory && message.stepStartHistory.length) {
+          object.stepStartHistory = [];
+          for (let j = 0; j < message.stepStartHistory.length; ++j)
+            object.stepStartHistory[j] = $root.unframe.realtime.StepStartState.toObject(
+              message.stepStartHistory[j],
               options,
             );
         }
@@ -72607,6 +78809,1157 @@ export const unframe = ($root.unframe = (() => {
       return CanonicalRuntimeSnapshot;
     })();
 
+    realtime.FrozenAnchorDisplayState = (function () {
+      /**
+       * Properties of a FrozenAnchorDisplayState.
+       * @typedef {Object} unframe.realtime.FrozenAnchorDisplayState.$Properties
+       * @property {string|null} [nodeId] FrozenAnchorDisplayState nodeId
+       * @property {unframe.presentation.Vector3.$Properties|null} [position] FrozenAnchorDisplayState position
+       * @property {unframe.presentation.Quaternion.$Properties|null} [rotation] FrozenAnchorDisplayState rotation
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a FrozenAnchorDisplayState.
+       * @memberof unframe.realtime
+       * @interface IFrozenAnchorDisplayState
+       * @augments unframe.realtime.FrozenAnchorDisplayState.$Properties
+       * @deprecated Use unframe.realtime.FrozenAnchorDisplayState.$Properties instead.
+       */
+
+      /**
+       * Shape of a FrozenAnchorDisplayState.
+       * @typedef {unframe.realtime.FrozenAnchorDisplayState.$Properties} unframe.realtime.FrozenAnchorDisplayState.$Shape
+       */
+
+      /**
+       * Constructs a new FrozenAnchorDisplayState.
+       * @memberof unframe.realtime
+       * @classdesc Represents a FrozenAnchorDisplayState.
+       * @constructor
+       * @param {unframe.realtime.FrozenAnchorDisplayState.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const FrozenAnchorDisplayState = function FrozenAnchorDisplayState(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * FrozenAnchorDisplayState nodeId.
+       * @member {string} nodeId
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @instance
+       */
+      FrozenAnchorDisplayState.prototype.nodeId = "";
+
+      /**
+       * FrozenAnchorDisplayState position.
+       * @member {unframe.presentation.Vector3.$Properties|null|undefined} position
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @instance
+       */
+      FrozenAnchorDisplayState.prototype.position = null;
+
+      /**
+       * FrozenAnchorDisplayState rotation.
+       * @member {unframe.presentation.Quaternion.$Properties|null|undefined} rotation
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @instance
+       */
+      FrozenAnchorDisplayState.prototype.rotation = null;
+
+      // OneOf field names bound to virtual getters and setters
+      let $oneOfFields;
+
+      // Virtual OneOf for proto3 optional field
+      $Object.defineProperty(FrozenAnchorDisplayState.prototype, "_position", {
+        get: $util.oneOfGetter(($oneOfFields = ["position"])),
+        set: $util.oneOfSetter($oneOfFields),
+      });
+
+      // Virtual OneOf for proto3 optional field
+      $Object.defineProperty(FrozenAnchorDisplayState.prototype, "_rotation", {
+        get: $util.oneOfGetter(($oneOfFields = ["rotation"])),
+        set: $util.oneOfSetter($oneOfFields),
+      });
+
+      /**
+       * Creates a new FrozenAnchorDisplayState instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @static
+       * @param {unframe.realtime.FrozenAnchorDisplayState.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.FrozenAnchorDisplayState} FrozenAnchorDisplayState instance
+       * @type {{
+       *   (properties: unframe.realtime.FrozenAnchorDisplayState.$Shape): unframe.realtime.FrozenAnchorDisplayState & unframe.realtime.FrozenAnchorDisplayState.$Shape;
+       *   (properties?: unframe.realtime.FrozenAnchorDisplayState.$Properties): unframe.realtime.FrozenAnchorDisplayState;
+       * }}
+       */
+      FrozenAnchorDisplayState.create = function (properties) {
+        return new FrozenAnchorDisplayState(properties);
+      };
+
+      /**
+       * Encodes the specified FrozenAnchorDisplayState message. Does not implicitly {@link unframe.realtime.FrozenAnchorDisplayState.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @static
+       * @param {unframe.realtime.FrozenAnchorDisplayState.$Properties} message FrozenAnchorDisplayState message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      FrozenAnchorDisplayState.encode = function FrozenAnchorDisplayState$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.nodeId != null && $Object.hasOwnProperty.call(message, "nodeId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.nodeId);
+        if (message.position != null && $Object.hasOwnProperty.call(message, "position"))
+          $root.unframe.presentation.Vector3.encode(
+            message.position,
+            writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+          ).ldelim();
+        if (message.rotation != null && $Object.hasOwnProperty.call(message, "rotation"))
+          $root.unframe.presentation.Quaternion.encode(
+            message.rotation,
+            writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+          ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified FrozenAnchorDisplayState message, length delimited. Does not implicitly {@link unframe.realtime.FrozenAnchorDisplayState.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @static
+       * @param {unframe.realtime.FrozenAnchorDisplayState.$Properties} message FrozenAnchorDisplayState message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      FrozenAnchorDisplayState.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a FrozenAnchorDisplayState message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.FrozenAnchorDisplayState & unframe.realtime.FrozenAnchorDisplayState.$Shape} FrozenAnchorDisplayState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      FrozenAnchorDisplayState.decode = function FrozenAnchorDisplayState$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.nodeId = reader.string();
+              break;
+            }
+            case 2: {
+              message.position = $root.unframe.presentation.Vector3.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 3: {
+              message.rotation = $root.unframe.presentation.Quaternion.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a FrozenAnchorDisplayState message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.FrozenAnchorDisplayState & unframe.realtime.FrozenAnchorDisplayState.$Shape} FrozenAnchorDisplayState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      FrozenAnchorDisplayState.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a FrozenAnchorDisplayState message.
+       * @function verify
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      FrozenAnchorDisplayState.verify = function FrozenAnchorDisplayState$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        let properties = {};
+        if (message.nodeId != null && message.hasOwnProperty("nodeId"))
+          if (!$util.isString(message.nodeId)) return "nodeId: string expected";
+        if (message.position != null && message.hasOwnProperty("position")) {
+          properties._position = 1;
+          {
+            let error = $root.unframe.presentation.Vector3.verify(message.position, long + 1);
+            if (error) return "position." + error;
+          }
+        }
+        if (message.rotation != null && message.hasOwnProperty("rotation")) {
+          properties._rotation = 1;
+          {
+            let error = $root.unframe.presentation.Quaternion.verify(message.rotation, long + 1);
+            if (error) return "rotation." + error;
+          }
+        }
+        return null;
+      };
+
+      /**
+       * Creates a FrozenAnchorDisplayState message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.FrozenAnchorDisplayState} FrozenAnchorDisplayState
+       */
+      FrozenAnchorDisplayState.fromObject = function FrozenAnchorDisplayState$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.nodeId != null) message.nodeId = $String(object.nodeId);
+        if (object.position != null) {
+          if (typeof object.position !== "object")
+            throw $TypeError(
+              ".unframe.realtime.FrozenAnchorDisplayState.position: object expected",
+            );
+          message.position = $root.unframe.presentation.Vector3.fromObject(
+            object.position,
+            long + 1,
+          );
+        }
+        if (object.rotation != null) {
+          if (typeof object.rotation !== "object")
+            throw $TypeError(
+              ".unframe.realtime.FrozenAnchorDisplayState.rotation: object expected",
+            );
+          message.rotation = $root.unframe.presentation.Quaternion.fromObject(
+            object.rotation,
+            long + 1,
+          );
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a FrozenAnchorDisplayState message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @static
+       * @param {unframe.realtime.FrozenAnchorDisplayState} message FrozenAnchorDisplayState
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      FrozenAnchorDisplayState.toObject = function FrozenAnchorDisplayState$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) object.nodeId = "";
+        if (message.nodeId != null && message.hasOwnProperty("nodeId"))
+          object.nodeId = message.nodeId;
+        if (message.position != null && message.hasOwnProperty("position")) {
+          object.position = $root.unframe.presentation.Vector3.toObject(message.position, options);
+          if (options.oneofs) object._position = "position";
+        }
+        if (message.rotation != null && message.hasOwnProperty("rotation")) {
+          object.rotation = $root.unframe.presentation.Quaternion.toObject(
+            message.rotation,
+            options,
+          );
+          if (options.oneofs) object._rotation = "rotation";
+        }
+        return object;
+      };
+
+      /**
+       * Converts this FrozenAnchorDisplayState to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      FrozenAnchorDisplayState.prototype.toJSON = function () {
+        return FrozenAnchorDisplayState.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for FrozenAnchorDisplayState
+       * @function getTypeUrl
+       * @memberof unframe.realtime.FrozenAnchorDisplayState
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      FrozenAnchorDisplayState.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.FrozenAnchorDisplayState";
+      };
+
+      return FrozenAnchorDisplayState;
+    })();
+
+    realtime.StepStartState = (function () {
+      /**
+       * Properties of a StepStartState.
+       * @typedef {Object} unframe.realtime.StepStartState.$Properties
+       * @property {string|null} [groupId] StepStartState groupId
+       * @property {string|null} [stepId] StepStartState stepId
+       * @property {number|Long|null} [groupEntryEpoch] StepStartState groupEntryEpoch
+       * @property {number|Long|null} [stepEntryEpoch] StepStartState stepEntryEpoch
+       * @property {number|Long|null} [capturedAtRuntimeTimeMs] StepStartState capturedAtRuntimeTimeMs
+       * @property {Array.<unframe.realtime.NodeRuntimeState.$Properties>|null} [nodeStates] StepStartState nodeStates
+       * @property {Array.<unframe.realtime.SurfaceRuntimeState.$Properties>|null} [surfaceStates] StepStartState surfaceStates
+       * @property {Array.<unframe.realtime.MediaRuntimeState.$Properties>|null} [mediaStates] StepStartState mediaStates
+       * @property {Array.<unframe.realtime.VariableState.$Properties>|null} [variables] StepStartState variables
+       * @property {Array.<unframe.realtime.RuntimeRunSnapshot.$Properties>|null} [activeRuns] StepStartState activeRuns
+       * @property {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>|null} [modelClipStates] StepStartState modelClipStates
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a StepStartState.
+       * @memberof unframe.realtime
+       * @interface IStepStartState
+       * @augments unframe.realtime.StepStartState.$Properties
+       * @deprecated Use unframe.realtime.StepStartState.$Properties instead.
+       */
+
+      /**
+       * Shape of a StepStartState.
+       * @typedef {{
+       *   groupId?: string|null;
+       *   stepId?: string|null;
+       *   groupEntryEpoch?: number|Long|null;
+       *   stepEntryEpoch?: number|Long|null;
+       *   capturedAtRuntimeTimeMs?: number|Long|null;
+       *   nodeStates?: Array.<unframe.realtime.NodeRuntimeState.$Shape>|null;
+       *   surfaceStates?: Array.<unframe.realtime.SurfaceRuntimeState.$Shape>|null;
+       *   mediaStates?: Array.<unframe.realtime.MediaRuntimeState.$Shape>|null;
+       *   variables?: Array.<unframe.realtime.VariableState.$Shape>|null;
+       *   activeRuns?: Array.<unframe.realtime.RuntimeRunSnapshot.$Shape>|null;
+       *   modelClipStates?: Array.<unframe.realtime.ModelClipRuntimeState.$Shape>|null;
+       *   $unknowns?: Array.<Uint8Array>;
+       * }} unframe.realtime.StepStartState.$Shape
+       */
+
+      /**
+       * Constructs a new StepStartState.
+       * @memberof unframe.realtime
+       * @classdesc Represents a StepStartState.
+       * @constructor
+       * @param {unframe.realtime.StepStartState.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const StepStartState = function StepStartState(properties) {
+        this.nodeStates = [];
+        this.surfaceStates = [];
+        this.mediaStates = [];
+        this.variables = [];
+        this.activeRuns = [];
+        this.modelClipStates = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * StepStartState groupId.
+       * @member {string} groupId
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.groupId = "";
+
+      /**
+       * StepStartState stepId.
+       * @member {string} stepId
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.stepId = "";
+
+      /**
+       * StepStartState groupEntryEpoch.
+       * @member {number|Long} groupEntryEpoch
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.groupEntryEpoch = $util.Long ? $util.Long.fromBits(0, 0, true) : 0;
+
+      /**
+       * StepStartState stepEntryEpoch.
+       * @member {number|Long} stepEntryEpoch
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.stepEntryEpoch = $util.Long ? $util.Long.fromBits(0, 0, true) : 0;
+
+      /**
+       * StepStartState capturedAtRuntimeTimeMs.
+       * @member {number|Long} capturedAtRuntimeTimeMs
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.capturedAtRuntimeTimeMs = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * StepStartState nodeStates.
+       * @member {Array.<unframe.realtime.NodeRuntimeState.$Properties>} nodeStates
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.nodeStates = $util.emptyArray;
+
+      /**
+       * StepStartState surfaceStates.
+       * @member {Array.<unframe.realtime.SurfaceRuntimeState.$Properties>} surfaceStates
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.surfaceStates = $util.emptyArray;
+
+      /**
+       * StepStartState mediaStates.
+       * @member {Array.<unframe.realtime.MediaRuntimeState.$Properties>} mediaStates
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.mediaStates = $util.emptyArray;
+
+      /**
+       * StepStartState variables.
+       * @member {Array.<unframe.realtime.VariableState.$Properties>} variables
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.variables = $util.emptyArray;
+
+      /**
+       * StepStartState activeRuns.
+       * @member {Array.<unframe.realtime.RuntimeRunSnapshot.$Properties>} activeRuns
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.activeRuns = $util.emptyArray;
+
+      /**
+       * StepStartState modelClipStates.
+       * @member {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>} modelClipStates
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.modelClipStates = $util.emptyArray;
+
+      /**
+       * Creates a new StepStartState instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.StepStartState
+       * @static
+       * @param {unframe.realtime.StepStartState.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.StepStartState} StepStartState instance
+       * @type {{
+       *   (properties: unframe.realtime.StepStartState.$Shape): unframe.realtime.StepStartState & unframe.realtime.StepStartState.$Shape;
+       *   (properties?: unframe.realtime.StepStartState.$Properties): unframe.realtime.StepStartState;
+       * }}
+       */
+      StepStartState.create = function (properties) {
+        return new StepStartState(properties);
+      };
+
+      /**
+       * Encodes the specified StepStartState message. Does not implicitly {@link unframe.realtime.StepStartState.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.StepStartState
+       * @static
+       * @param {unframe.realtime.StepStartState.$Properties} message StepStartState message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      StepStartState.encode = function StepStartState$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.groupId != null && $Object.hasOwnProperty.call(message, "groupId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.groupId);
+        if (message.stepId != null && $Object.hasOwnProperty.call(message, "stepId"))
+          writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.stepId);
+        if (
+          message.groupEntryEpoch != null &&
+          $Object.hasOwnProperty.call(message, "groupEntryEpoch")
+        )
+          writer.uint32(/* id 3, wireType 0 =*/ 24).uint64(message.groupEntryEpoch);
+        if (
+          message.stepEntryEpoch != null &&
+          $Object.hasOwnProperty.call(message, "stepEntryEpoch")
+        )
+          writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.stepEntryEpoch);
+        if (
+          message.capturedAtRuntimeTimeMs != null &&
+          $Object.hasOwnProperty.call(message, "capturedAtRuntimeTimeMs")
+        )
+          writer.uint32(/* id 5, wireType 0 =*/ 40).uint64(message.capturedAtRuntimeTimeMs);
+        if (message.nodeStates != null && message.nodeStates.length)
+          for (let i = 0; i < message.nodeStates.length; ++i)
+            $root.unframe.realtime.NodeRuntimeState.encode(
+              message.nodeStates[i],
+              writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
+            ).ldelim();
+        if (message.surfaceStates != null && message.surfaceStates.length)
+          for (let i = 0; i < message.surfaceStates.length; ++i)
+            $root.unframe.realtime.SurfaceRuntimeState.encode(
+              message.surfaceStates[i],
+              writer.uint32(/* id 7, wireType 2 =*/ 58).fork(),
+            ).ldelim();
+        if (message.mediaStates != null && message.mediaStates.length)
+          for (let i = 0; i < message.mediaStates.length; ++i)
+            $root.unframe.realtime.MediaRuntimeState.encode(
+              message.mediaStates[i],
+              writer.uint32(/* id 8, wireType 2 =*/ 66).fork(),
+            ).ldelim();
+        if (message.variables != null && message.variables.length)
+          for (let i = 0; i < message.variables.length; ++i)
+            $root.unframe.realtime.VariableState.encode(
+              message.variables[i],
+              writer.uint32(/* id 9, wireType 2 =*/ 74).fork(),
+            ).ldelim();
+        if (message.activeRuns != null && message.activeRuns.length)
+          for (let i = 0; i < message.activeRuns.length; ++i)
+            $root.unframe.realtime.RuntimeRunSnapshot.encode(
+              message.activeRuns[i],
+              writer.uint32(/* id 10, wireType 2 =*/ 82).fork(),
+            ).ldelim();
+        if (message.modelClipStates != null && message.modelClipStates.length)
+          for (let i = 0; i < message.modelClipStates.length; ++i)
+            $root.unframe.realtime.ModelClipRuntimeState.encode(
+              message.modelClipStates[i],
+              writer.uint32(/* id 11, wireType 2 =*/ 90).fork(),
+            ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified StepStartState message, length delimited. Does not implicitly {@link unframe.realtime.StepStartState.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.StepStartState
+       * @static
+       * @param {unframe.realtime.StepStartState.$Properties} message StepStartState message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      StepStartState.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a StepStartState message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.StepStartState
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.StepStartState & unframe.realtime.StepStartState.$Shape} StepStartState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      StepStartState.decode = function StepStartState$decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.groupId = reader.string();
+              break;
+            }
+            case 2: {
+              message.stepId = reader.string();
+              break;
+            }
+            case 3: {
+              message.groupEntryEpoch = reader.uint64();
+              break;
+            }
+            case 4: {
+              message.stepEntryEpoch = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.capturedAtRuntimeTimeMs = reader.uint64();
+              break;
+            }
+            case 6: {
+              if (!(message.nodeStates && message.nodeStates.length)) message.nodeStates = [];
+              message.nodeStates.push(
+                $root.unframe.realtime.NodeRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 7: {
+              if (!(message.surfaceStates && message.surfaceStates.length))
+                message.surfaceStates = [];
+              message.surfaceStates.push(
+                $root.unframe.realtime.SurfaceRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 8: {
+              if (!(message.mediaStates && message.mediaStates.length)) message.mediaStates = [];
+              message.mediaStates.push(
+                $root.unframe.realtime.MediaRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 9: {
+              if (!(message.variables && message.variables.length)) message.variables = [];
+              message.variables.push(
+                $root.unframe.realtime.VariableState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 10: {
+              if (!(message.activeRuns && message.activeRuns.length)) message.activeRuns = [];
+              message.activeRuns.push(
+                $root.unframe.realtime.RuntimeRunSnapshot.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 11: {
+              if (!(message.modelClipStates && message.modelClipStates.length))
+                message.modelClipStates = [];
+              message.modelClipStates.push(
+                $root.unframe.realtime.ModelClipRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a StepStartState message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.StepStartState
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.StepStartState & unframe.realtime.StepStartState.$Shape} StepStartState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      StepStartState.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a StepStartState message.
+       * @function verify
+       * @memberof unframe.realtime.StepStartState
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      StepStartState.verify = function StepStartState$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          if (!$util.isString(message.groupId)) return "groupId: string expected";
+        if (message.stepId != null && message.hasOwnProperty("stepId"))
+          if (!$util.isString(message.stepId)) return "stepId: string expected";
+        if (message.groupEntryEpoch != null && message.hasOwnProperty("groupEntryEpoch"))
+          if (
+            !$util.isInteger(message.groupEntryEpoch) &&
+            !(
+              message.groupEntryEpoch &&
+              $util.isInteger(message.groupEntryEpoch.low) &&
+              $util.isInteger(message.groupEntryEpoch.high)
+            )
+          )
+            return "groupEntryEpoch: integer|Long expected";
+        if (message.stepEntryEpoch != null && message.hasOwnProperty("stepEntryEpoch"))
+          if (
+            !$util.isInteger(message.stepEntryEpoch) &&
+            !(
+              message.stepEntryEpoch &&
+              $util.isInteger(message.stepEntryEpoch.low) &&
+              $util.isInteger(message.stepEntryEpoch.high)
+            )
+          )
+            return "stepEntryEpoch: integer|Long expected";
+        if (
+          message.capturedAtRuntimeTimeMs != null &&
+          message.hasOwnProperty("capturedAtRuntimeTimeMs")
+        )
+          if (
+            !$util.isInteger(message.capturedAtRuntimeTimeMs) &&
+            !(
+              message.capturedAtRuntimeTimeMs &&
+              $util.isInteger(message.capturedAtRuntimeTimeMs.low) &&
+              $util.isInteger(message.capturedAtRuntimeTimeMs.high)
+            )
+          )
+            return "capturedAtRuntimeTimeMs: integer|Long expected";
+        if (message.nodeStates != null && message.hasOwnProperty("nodeStates")) {
+          if (!$Array.isArray(message.nodeStates)) return "nodeStates: array expected";
+          for (let i = 0; i < message.nodeStates.length; ++i) {
+            let error = $root.unframe.realtime.NodeRuntimeState.verify(
+              message.nodeStates[i],
+              long + 1,
+            );
+            if (error) return "nodeStates." + error;
+          }
+        }
+        if (message.surfaceStates != null && message.hasOwnProperty("surfaceStates")) {
+          if (!$Array.isArray(message.surfaceStates)) return "surfaceStates: array expected";
+          for (let i = 0; i < message.surfaceStates.length; ++i) {
+            let error = $root.unframe.realtime.SurfaceRuntimeState.verify(
+              message.surfaceStates[i],
+              long + 1,
+            );
+            if (error) return "surfaceStates." + error;
+          }
+        }
+        if (message.mediaStates != null && message.hasOwnProperty("mediaStates")) {
+          if (!$Array.isArray(message.mediaStates)) return "mediaStates: array expected";
+          for (let i = 0; i < message.mediaStates.length; ++i) {
+            let error = $root.unframe.realtime.MediaRuntimeState.verify(
+              message.mediaStates[i],
+              long + 1,
+            );
+            if (error) return "mediaStates." + error;
+          }
+        }
+        if (message.variables != null && message.hasOwnProperty("variables")) {
+          if (!$Array.isArray(message.variables)) return "variables: array expected";
+          for (let i = 0; i < message.variables.length; ++i) {
+            let error = $root.unframe.realtime.VariableState.verify(message.variables[i], long + 1);
+            if (error) return "variables." + error;
+          }
+        }
+        if (message.activeRuns != null && message.hasOwnProperty("activeRuns")) {
+          if (!$Array.isArray(message.activeRuns)) return "activeRuns: array expected";
+          for (let i = 0; i < message.activeRuns.length; ++i) {
+            let error = $root.unframe.realtime.RuntimeRunSnapshot.verify(
+              message.activeRuns[i],
+              long + 1,
+            );
+            if (error) return "activeRuns." + error;
+          }
+        }
+        if (message.modelClipStates != null && message.hasOwnProperty("modelClipStates")) {
+          if (!$Array.isArray(message.modelClipStates)) return "modelClipStates: array expected";
+          for (let i = 0; i < message.modelClipStates.length; ++i) {
+            let error = $root.unframe.realtime.ModelClipRuntimeState.verify(
+              message.modelClipStates[i],
+              long + 1,
+            );
+            if (error) return "modelClipStates." + error;
+          }
+        }
+        return null;
+      };
+
+      /**
+       * Creates a StepStartState message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.StepStartState
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.StepStartState} StepStartState
+       */
+      StepStartState.fromObject = function StepStartState$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.groupId != null) message.groupId = $String(object.groupId);
+        if (object.stepId != null) message.stepId = $String(object.stepId);
+        if (object.groupEntryEpoch != null)
+          if ($util.Long)
+            (message.groupEntryEpoch = $util.Long.fromValue(object.groupEntryEpoch)).unsigned =
+              true;
+          else if (typeof object.groupEntryEpoch === "string")
+            message.groupEntryEpoch = $parseInt(object.groupEntryEpoch, 10);
+          else if (typeof object.groupEntryEpoch === "number")
+            message.groupEntryEpoch = object.groupEntryEpoch;
+          else if (typeof object.groupEntryEpoch === "object")
+            message.groupEntryEpoch = new $util.LongBits(
+              object.groupEntryEpoch.low >>> 0,
+              object.groupEntryEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.stepEntryEpoch != null)
+          if ($util.Long)
+            (message.stepEntryEpoch = $util.Long.fromValue(object.stepEntryEpoch)).unsigned = true;
+          else if (typeof object.stepEntryEpoch === "string")
+            message.stepEntryEpoch = $parseInt(object.stepEntryEpoch, 10);
+          else if (typeof object.stepEntryEpoch === "number")
+            message.stepEntryEpoch = object.stepEntryEpoch;
+          else if (typeof object.stepEntryEpoch === "object")
+            message.stepEntryEpoch = new $util.LongBits(
+              object.stepEntryEpoch.low >>> 0,
+              object.stepEntryEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.capturedAtRuntimeTimeMs != null)
+          if ($util.Long)
+            (message.capturedAtRuntimeTimeMs = $util.Long.fromValue(
+              object.capturedAtRuntimeTimeMs,
+            )).unsigned = true;
+          else if (typeof object.capturedAtRuntimeTimeMs === "string")
+            message.capturedAtRuntimeTimeMs = $parseInt(object.capturedAtRuntimeTimeMs, 10);
+          else if (typeof object.capturedAtRuntimeTimeMs === "number")
+            message.capturedAtRuntimeTimeMs = object.capturedAtRuntimeTimeMs;
+          else if (typeof object.capturedAtRuntimeTimeMs === "object")
+            message.capturedAtRuntimeTimeMs = new $util.LongBits(
+              object.capturedAtRuntimeTimeMs.low >>> 0,
+              object.capturedAtRuntimeTimeMs.high >>> 0,
+            ).toNumber(true);
+        if (object.nodeStates) {
+          if (!$Array.isArray(object.nodeStates))
+            throw $TypeError(".unframe.realtime.StepStartState.nodeStates: array expected");
+          message.nodeStates = [];
+          for (let i = 0; i < object.nodeStates.length; ++i) {
+            if (typeof object.nodeStates[i] !== "object")
+              throw $TypeError(".unframe.realtime.StepStartState.nodeStates: object expected");
+            message.nodeStates[i] = $root.unframe.realtime.NodeRuntimeState.fromObject(
+              object.nodeStates[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.surfaceStates) {
+          if (!$Array.isArray(object.surfaceStates))
+            throw $TypeError(".unframe.realtime.StepStartState.surfaceStates: array expected");
+          message.surfaceStates = [];
+          for (let i = 0; i < object.surfaceStates.length; ++i) {
+            if (typeof object.surfaceStates[i] !== "object")
+              throw $TypeError(".unframe.realtime.StepStartState.surfaceStates: object expected");
+            message.surfaceStates[i] = $root.unframe.realtime.SurfaceRuntimeState.fromObject(
+              object.surfaceStates[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.mediaStates) {
+          if (!$Array.isArray(object.mediaStates))
+            throw $TypeError(".unframe.realtime.StepStartState.mediaStates: array expected");
+          message.mediaStates = [];
+          for (let i = 0; i < object.mediaStates.length; ++i) {
+            if (typeof object.mediaStates[i] !== "object")
+              throw $TypeError(".unframe.realtime.StepStartState.mediaStates: object expected");
+            message.mediaStates[i] = $root.unframe.realtime.MediaRuntimeState.fromObject(
+              object.mediaStates[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.variables) {
+          if (!$Array.isArray(object.variables))
+            throw $TypeError(".unframe.realtime.StepStartState.variables: array expected");
+          message.variables = [];
+          for (let i = 0; i < object.variables.length; ++i) {
+            if (typeof object.variables[i] !== "object")
+              throw $TypeError(".unframe.realtime.StepStartState.variables: object expected");
+            message.variables[i] = $root.unframe.realtime.VariableState.fromObject(
+              object.variables[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.activeRuns) {
+          if (!$Array.isArray(object.activeRuns))
+            throw $TypeError(".unframe.realtime.StepStartState.activeRuns: array expected");
+          message.activeRuns = [];
+          for (let i = 0; i < object.activeRuns.length; ++i) {
+            if (typeof object.activeRuns[i] !== "object")
+              throw $TypeError(".unframe.realtime.StepStartState.activeRuns: object expected");
+            message.activeRuns[i] = $root.unframe.realtime.RuntimeRunSnapshot.fromObject(
+              object.activeRuns[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.modelClipStates) {
+          if (!$Array.isArray(object.modelClipStates))
+            throw $TypeError(".unframe.realtime.StepStartState.modelClipStates: array expected");
+          message.modelClipStates = [];
+          for (let i = 0; i < object.modelClipStates.length; ++i) {
+            if (typeof object.modelClipStates[i] !== "object")
+              throw $TypeError(".unframe.realtime.StepStartState.modelClipStates: object expected");
+            message.modelClipStates[i] = $root.unframe.realtime.ModelClipRuntimeState.fromObject(
+              object.modelClipStates[i],
+              long + 1,
+            );
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a StepStartState message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.StepStartState
+       * @static
+       * @param {unframe.realtime.StepStartState} message StepStartState
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      StepStartState.toObject = function StepStartState$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) {
+          object.nodeStates = [];
+          object.surfaceStates = [];
+          object.mediaStates = [];
+          object.variables = [];
+          object.activeRuns = [];
+          object.modelClipStates = [];
+        }
+        if (options.defaults) {
+          object.groupId = "";
+          object.stepId = "";
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.groupEntryEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.groupEntryEpoch = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.stepEntryEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.stepEntryEpoch = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.capturedAtRuntimeTimeMs =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.capturedAtRuntimeTimeMs = options.longs === $String ? "0" : 0;
+        }
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          object.groupId = message.groupId;
+        if (message.stepId != null && message.hasOwnProperty("stepId"))
+          object.stepId = message.stepId;
+        if (message.groupEntryEpoch != null && message.hasOwnProperty("groupEntryEpoch"))
+          if (typeof message.groupEntryEpoch === "number")
+            object.groupEntryEpoch =
+              options.longs === $String
+                ? $String(message.groupEntryEpoch)
+                : message.groupEntryEpoch;
+          else
+            object.groupEntryEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.groupEntryEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.groupEntryEpoch.low >>> 0,
+                      message.groupEntryEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.groupEntryEpoch;
+        if (message.stepEntryEpoch != null && message.hasOwnProperty("stepEntryEpoch"))
+          if (typeof message.stepEntryEpoch === "number")
+            object.stepEntryEpoch =
+              options.longs === $String ? $String(message.stepEntryEpoch) : message.stepEntryEpoch;
+          else
+            object.stepEntryEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.stepEntryEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.stepEntryEpoch.low >>> 0,
+                      message.stepEntryEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.stepEntryEpoch;
+        if (
+          message.capturedAtRuntimeTimeMs != null &&
+          message.hasOwnProperty("capturedAtRuntimeTimeMs")
+        )
+          if (typeof message.capturedAtRuntimeTimeMs === "number")
+            object.capturedAtRuntimeTimeMs =
+              options.longs === $String
+                ? $String(message.capturedAtRuntimeTimeMs)
+                : message.capturedAtRuntimeTimeMs;
+          else
+            object.capturedAtRuntimeTimeMs =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.capturedAtRuntimeTimeMs)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.capturedAtRuntimeTimeMs.low >>> 0,
+                      message.capturedAtRuntimeTimeMs.high >>> 0,
+                    ).toNumber(true)
+                  : message.capturedAtRuntimeTimeMs;
+        if (message.nodeStates && message.nodeStates.length) {
+          object.nodeStates = [];
+          for (let j = 0; j < message.nodeStates.length; ++j)
+            object.nodeStates[j] = $root.unframe.realtime.NodeRuntimeState.toObject(
+              message.nodeStates[j],
+              options,
+            );
+        }
+        if (message.surfaceStates && message.surfaceStates.length) {
+          object.surfaceStates = [];
+          for (let j = 0; j < message.surfaceStates.length; ++j)
+            object.surfaceStates[j] = $root.unframe.realtime.SurfaceRuntimeState.toObject(
+              message.surfaceStates[j],
+              options,
+            );
+        }
+        if (message.mediaStates && message.mediaStates.length) {
+          object.mediaStates = [];
+          for (let j = 0; j < message.mediaStates.length; ++j)
+            object.mediaStates[j] = $root.unframe.realtime.MediaRuntimeState.toObject(
+              message.mediaStates[j],
+              options,
+            );
+        }
+        if (message.variables && message.variables.length) {
+          object.variables = [];
+          for (let j = 0; j < message.variables.length; ++j)
+            object.variables[j] = $root.unframe.realtime.VariableState.toObject(
+              message.variables[j],
+              options,
+            );
+        }
+        if (message.activeRuns && message.activeRuns.length) {
+          object.activeRuns = [];
+          for (let j = 0; j < message.activeRuns.length; ++j)
+            object.activeRuns[j] = $root.unframe.realtime.RuntimeRunSnapshot.toObject(
+              message.activeRuns[j],
+              options,
+            );
+        }
+        if (message.modelClipStates && message.modelClipStates.length) {
+          object.modelClipStates = [];
+          for (let j = 0; j < message.modelClipStates.length; ++j)
+            object.modelClipStates[j] = $root.unframe.realtime.ModelClipRuntimeState.toObject(
+              message.modelClipStates[j],
+              options,
+            );
+        }
+        return object;
+      };
+
+      /**
+       * Converts this StepStartState to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      StepStartState.prototype.toJSON = function () {
+        return StepStartState.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for StepStartState
+       * @function getTypeUrl
+       * @memberof unframe.realtime.StepStartState
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      StepStartState.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.StepStartState";
+      };
+
+      return StepStartState;
+    })();
+
     realtime.RuntimeRecoveryMetadata = (function () {
       /**
        * Properties of a RuntimeRecoveryMetadata.
@@ -72614,6 +79967,9 @@ export const unframe = ($root.unframe = (() => {
        * @property {string|null} [startedAt] RuntimeRecoveryMetadata startedAt
        * @property {Array.<unframe.realtime.RuntimeParticipantHistory.$Properties>|null} [participants] RuntimeRecoveryMetadata participants
        * @property {Array.<unframe.realtime.RuntimeCommandHistory.$Properties>|null} [commands] RuntimeRecoveryMetadata commands
+       * @property {number|Long|null} [commandEpoch] RuntimeRecoveryMetadata commandEpoch
+       * @property {unframe.realtime.PresenterInputSynchronization.$Properties|null} [inputSynchronization] RuntimeRecoveryMetadata inputSynchronization
+       * @property {unframe.realtime.RuntimeCapacityFault.$Properties|null} [capacityFault] RuntimeRecoveryMetadata capacityFault
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -72631,6 +79987,9 @@ export const unframe = ($root.unframe = (() => {
        *   startedAt?: string|null;
        *   participants?: Array.<unframe.realtime.RuntimeParticipantHistory.$Shape>|null;
        *   commands?: Array.<unframe.realtime.RuntimeCommandHistory.$Shape>|null;
+       *   commandEpoch?: number|Long|null;
+       *   inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape|null;
+       *   capacityFault?: unframe.realtime.RuntimeCapacityFault.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.realtime.RuntimeRecoveryMetadata.$Shape
        */
@@ -72677,6 +80036,32 @@ export const unframe = ($root.unframe = (() => {
       RuntimeRecoveryMetadata.prototype.commands = $util.emptyArray;
 
       /**
+       * RuntimeRecoveryMetadata commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.RuntimeRecoveryMetadata
+       * @instance
+       */
+      RuntimeRecoveryMetadata.prototype.commandEpoch = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeRecoveryMetadata inputSynchronization.
+       * @member {unframe.realtime.PresenterInputSynchronization.$Properties|null|undefined} inputSynchronization
+       * @memberof unframe.realtime.RuntimeRecoveryMetadata
+       * @instance
+       */
+      RuntimeRecoveryMetadata.prototype.inputSynchronization = null;
+
+      /**
+       * RuntimeRecoveryMetadata capacityFault.
+       * @member {unframe.realtime.RuntimeCapacityFault.$Properties|null|undefined} capacityFault
+       * @memberof unframe.realtime.RuntimeRecoveryMetadata
+       * @instance
+       */
+      RuntimeRecoveryMetadata.prototype.capacityFault = null;
+
+      /**
        * Creates a new RuntimeRecoveryMetadata instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.RuntimeRecoveryMetadata
@@ -72717,6 +80102,21 @@ export const unframe = ($root.unframe = (() => {
               message.commands[i],
               writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
             ).ldelim();
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.commandEpoch);
+        if (
+          message.inputSynchronization != null &&
+          $Object.hasOwnProperty.call(message, "inputSynchronization")
+        )
+          $root.unframe.realtime.PresenterInputSynchronization.encode(
+            message.inputSynchronization,
+            writer.uint32(/* id 5, wireType 2 =*/ 42).fork(),
+          ).ldelim();
+        if (message.capacityFault != null && $Object.hasOwnProperty.call(message, "capacityFault"))
+          $root.unframe.realtime.RuntimeCapacityFault.encode(
+            message.capacityFault,
+            writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
+          ).ldelim();
         return writer;
       };
 
@@ -72787,6 +80187,29 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 4: {
+              message.commandEpoch = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.inputSynchronization =
+                $root.unframe.realtime.PresenterInputSynchronization.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                );
+              break;
+            }
+            case 6: {
+              message.capacityFault = $root.unframe.realtime.RuntimeCapacityFault.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -72844,6 +80267,33 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "commands." + error;
           }
         }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
+        if (
+          message.inputSynchronization != null &&
+          message.hasOwnProperty("inputSynchronization")
+        ) {
+          let error = $root.unframe.realtime.PresenterInputSynchronization.verify(
+            message.inputSynchronization,
+            long + 1,
+          );
+          if (error) return "inputSynchronization." + error;
+        }
+        if (message.capacityFault != null && message.hasOwnProperty("capacityFault")) {
+          let error = $root.unframe.realtime.RuntimeCapacityFault.verify(
+            message.capacityFault,
+            long + 1,
+          );
+          if (error) return "capacityFault." + error;
+        }
         return null;
       };
 
@@ -72896,6 +80346,39 @@ export const unframe = ($root.unframe = (() => {
             );
           }
         }
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
+        if (object.inputSynchronization != null) {
+          if (typeof object.inputSynchronization !== "object")
+            throw $TypeError(
+              ".unframe.realtime.RuntimeRecoveryMetadata.inputSynchronization: object expected",
+            );
+          message.inputSynchronization =
+            $root.unframe.realtime.PresenterInputSynchronization.fromObject(
+              object.inputSynchronization,
+              long + 1,
+            );
+        }
+        if (object.capacityFault != null) {
+          if (typeof object.capacityFault !== "object")
+            throw $TypeError(
+              ".unframe.realtime.RuntimeRecoveryMetadata.capacityFault: object expected",
+            );
+          message.capacityFault = $root.unframe.realtime.RuntimeCapacityFault.fromObject(
+            object.capacityFault,
+            long + 1,
+          );
+        }
         return message;
       };
 
@@ -72918,7 +80401,20 @@ export const unframe = ($root.unframe = (() => {
           object.participants = [];
           object.commands = [];
         }
-        if (options.defaults) object.startedAt = "";
+        if (options.defaults) {
+          object.startedAt = "";
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
+          object.inputSynchronization = null;
+          object.capacityFault = null;
+        }
         if (message.startedAt != null && message.hasOwnProperty("startedAt"))
           object.startedAt = message.startedAt;
         if (message.participants && message.participants.length) {
@@ -72937,6 +80433,31 @@ export const unframe = ($root.unframe = (() => {
               options,
             );
         }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
+        if (message.inputSynchronization != null && message.hasOwnProperty("inputSynchronization"))
+          object.inputSynchronization =
+            $root.unframe.realtime.PresenterInputSynchronization.toObject(
+              message.inputSynchronization,
+              options,
+            );
+        if (message.capacityFault != null && message.hasOwnProperty("capacityFault"))
+          object.capacityFault = $root.unframe.realtime.RuntimeCapacityFault.toObject(
+            message.capacityFault,
+            options,
+          );
         return object;
       };
 
@@ -72965,6 +80486,427 @@ export const unframe = ($root.unframe = (() => {
       };
 
       return RuntimeRecoveryMetadata;
+    })();
+
+    realtime.RuntimeCapacityFault = (function () {
+      /**
+       * Properties of a RuntimeCapacityFault.
+       * @typedef {Object} unframe.realtime.RuntimeCapacityFault.$Properties
+       * @property {number|Long|null} [stepStartStateBytes] RuntimeCapacityFault stepStartStateBytes
+       * @property {number|Long|null} [stepStartHistoryBytes] RuntimeCapacityFault stepStartHistoryBytes
+       * @property {number|Long|null} [canonicalSnapshotBytes] RuntimeCapacityFault canonicalSnapshotBytes
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a RuntimeCapacityFault.
+       * @memberof unframe.realtime
+       * @interface IRuntimeCapacityFault
+       * @augments unframe.realtime.RuntimeCapacityFault.$Properties
+       * @deprecated Use unframe.realtime.RuntimeCapacityFault.$Properties instead.
+       */
+
+      /**
+       * Shape of a RuntimeCapacityFault.
+       * @typedef {unframe.realtime.RuntimeCapacityFault.$Properties} unframe.realtime.RuntimeCapacityFault.$Shape
+       */
+
+      /**
+       * Constructs a new RuntimeCapacityFault.
+       * @memberof unframe.realtime
+       * @classdesc Represents a RuntimeCapacityFault.
+       * @constructor
+       * @param {unframe.realtime.RuntimeCapacityFault.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const RuntimeCapacityFault = function RuntimeCapacityFault(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * RuntimeCapacityFault stepStartStateBytes.
+       * @member {number|Long} stepStartStateBytes
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @instance
+       */
+      RuntimeCapacityFault.prototype.stepStartStateBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeCapacityFault stepStartHistoryBytes.
+       * @member {number|Long} stepStartHistoryBytes
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @instance
+       */
+      RuntimeCapacityFault.prototype.stepStartHistoryBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * RuntimeCapacityFault canonicalSnapshotBytes.
+       * @member {number|Long} canonicalSnapshotBytes
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @instance
+       */
+      RuntimeCapacityFault.prototype.canonicalSnapshotBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * Creates a new RuntimeCapacityFault instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {unframe.realtime.RuntimeCapacityFault.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.RuntimeCapacityFault} RuntimeCapacityFault instance
+       * @type {{
+       *   (properties: unframe.realtime.RuntimeCapacityFault.$Shape): unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape;
+       *   (properties?: unframe.realtime.RuntimeCapacityFault.$Properties): unframe.realtime.RuntimeCapacityFault;
+       * }}
+       */
+      RuntimeCapacityFault.create = function (properties) {
+        return new RuntimeCapacityFault(properties);
+      };
+
+      /**
+       * Encodes the specified RuntimeCapacityFault message. Does not implicitly {@link unframe.realtime.RuntimeCapacityFault.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {unframe.realtime.RuntimeCapacityFault.$Properties} message RuntimeCapacityFault message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      RuntimeCapacityFault.encode = function RuntimeCapacityFault$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (
+          message.stepStartStateBytes != null &&
+          $Object.hasOwnProperty.call(message, "stepStartStateBytes")
+        )
+          writer.uint32(/* id 1, wireType 0 =*/ 8).uint64(message.stepStartStateBytes);
+        if (
+          message.stepStartHistoryBytes != null &&
+          $Object.hasOwnProperty.call(message, "stepStartHistoryBytes")
+        )
+          writer.uint32(/* id 2, wireType 0 =*/ 16).uint64(message.stepStartHistoryBytes);
+        if (
+          message.canonicalSnapshotBytes != null &&
+          $Object.hasOwnProperty.call(message, "canonicalSnapshotBytes")
+        )
+          writer.uint32(/* id 3, wireType 0 =*/ 24).uint64(message.canonicalSnapshotBytes);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified RuntimeCapacityFault message, length delimited. Does not implicitly {@link unframe.realtime.RuntimeCapacityFault.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {unframe.realtime.RuntimeCapacityFault.$Properties} message RuntimeCapacityFault message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      RuntimeCapacityFault.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a RuntimeCapacityFault message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape} RuntimeCapacityFault
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      RuntimeCapacityFault.decode = function RuntimeCapacityFault$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.stepStartStateBytes = reader.uint64();
+              break;
+            }
+            case 2: {
+              message.stepStartHistoryBytes = reader.uint64();
+              break;
+            }
+            case 3: {
+              message.canonicalSnapshotBytes = reader.uint64();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a RuntimeCapacityFault message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape} RuntimeCapacityFault
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      RuntimeCapacityFault.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a RuntimeCapacityFault message.
+       * @function verify
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      RuntimeCapacityFault.verify = function RuntimeCapacityFault$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.stepStartStateBytes != null && message.hasOwnProperty("stepStartStateBytes"))
+          if (
+            !$util.isInteger(message.stepStartStateBytes) &&
+            !(
+              message.stepStartStateBytes &&
+              $util.isInteger(message.stepStartStateBytes.low) &&
+              $util.isInteger(message.stepStartStateBytes.high)
+            )
+          )
+            return "stepStartStateBytes: integer|Long expected";
+        if (
+          message.stepStartHistoryBytes != null &&
+          message.hasOwnProperty("stepStartHistoryBytes")
+        )
+          if (
+            !$util.isInteger(message.stepStartHistoryBytes) &&
+            !(
+              message.stepStartHistoryBytes &&
+              $util.isInteger(message.stepStartHistoryBytes.low) &&
+              $util.isInteger(message.stepStartHistoryBytes.high)
+            )
+          )
+            return "stepStartHistoryBytes: integer|Long expected";
+        if (
+          message.canonicalSnapshotBytes != null &&
+          message.hasOwnProperty("canonicalSnapshotBytes")
+        )
+          if (
+            !$util.isInteger(message.canonicalSnapshotBytes) &&
+            !(
+              message.canonicalSnapshotBytes &&
+              $util.isInteger(message.canonicalSnapshotBytes.low) &&
+              $util.isInteger(message.canonicalSnapshotBytes.high)
+            )
+          )
+            return "canonicalSnapshotBytes: integer|Long expected";
+        return null;
+      };
+
+      /**
+       * Creates a RuntimeCapacityFault message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.RuntimeCapacityFault} RuntimeCapacityFault
+       */
+      RuntimeCapacityFault.fromObject = function RuntimeCapacityFault$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.stepStartStateBytes != null)
+          if ($util.Long)
+            (message.stepStartStateBytes = $util.Long.fromValue(
+              object.stepStartStateBytes,
+            )).unsigned = true;
+          else if (typeof object.stepStartStateBytes === "string")
+            message.stepStartStateBytes = $parseInt(object.stepStartStateBytes, 10);
+          else if (typeof object.stepStartStateBytes === "number")
+            message.stepStartStateBytes = object.stepStartStateBytes;
+          else if (typeof object.stepStartStateBytes === "object")
+            message.stepStartStateBytes = new $util.LongBits(
+              object.stepStartStateBytes.low >>> 0,
+              object.stepStartStateBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.stepStartHistoryBytes != null)
+          if ($util.Long)
+            (message.stepStartHistoryBytes = $util.Long.fromValue(
+              object.stepStartHistoryBytes,
+            )).unsigned = true;
+          else if (typeof object.stepStartHistoryBytes === "string")
+            message.stepStartHistoryBytes = $parseInt(object.stepStartHistoryBytes, 10);
+          else if (typeof object.stepStartHistoryBytes === "number")
+            message.stepStartHistoryBytes = object.stepStartHistoryBytes;
+          else if (typeof object.stepStartHistoryBytes === "object")
+            message.stepStartHistoryBytes = new $util.LongBits(
+              object.stepStartHistoryBytes.low >>> 0,
+              object.stepStartHistoryBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.canonicalSnapshotBytes != null)
+          if ($util.Long)
+            (message.canonicalSnapshotBytes = $util.Long.fromValue(
+              object.canonicalSnapshotBytes,
+            )).unsigned = true;
+          else if (typeof object.canonicalSnapshotBytes === "string")
+            message.canonicalSnapshotBytes = $parseInt(object.canonicalSnapshotBytes, 10);
+          else if (typeof object.canonicalSnapshotBytes === "number")
+            message.canonicalSnapshotBytes = object.canonicalSnapshotBytes;
+          else if (typeof object.canonicalSnapshotBytes === "object")
+            message.canonicalSnapshotBytes = new $util.LongBits(
+              object.canonicalSnapshotBytes.low >>> 0,
+              object.canonicalSnapshotBytes.high >>> 0,
+            ).toNumber(true);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a RuntimeCapacityFault message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {unframe.realtime.RuntimeCapacityFault} message RuntimeCapacityFault
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      RuntimeCapacityFault.toObject = function RuntimeCapacityFault$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.stepStartStateBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.stepStartStateBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.stepStartHistoryBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.stepStartHistoryBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.canonicalSnapshotBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.canonicalSnapshotBytes = options.longs === $String ? "0" : 0;
+        }
+        if (message.stepStartStateBytes != null && message.hasOwnProperty("stepStartStateBytes"))
+          if (typeof message.stepStartStateBytes === "number")
+            object.stepStartStateBytes =
+              options.longs === $String
+                ? $String(message.stepStartStateBytes)
+                : message.stepStartStateBytes;
+          else
+            object.stepStartStateBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.stepStartStateBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.stepStartStateBytes.low >>> 0,
+                      message.stepStartStateBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.stepStartStateBytes;
+        if (
+          message.stepStartHistoryBytes != null &&
+          message.hasOwnProperty("stepStartHistoryBytes")
+        )
+          if (typeof message.stepStartHistoryBytes === "number")
+            object.stepStartHistoryBytes =
+              options.longs === $String
+                ? $String(message.stepStartHistoryBytes)
+                : message.stepStartHistoryBytes;
+          else
+            object.stepStartHistoryBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.stepStartHistoryBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.stepStartHistoryBytes.low >>> 0,
+                      message.stepStartHistoryBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.stepStartHistoryBytes;
+        if (
+          message.canonicalSnapshotBytes != null &&
+          message.hasOwnProperty("canonicalSnapshotBytes")
+        )
+          if (typeof message.canonicalSnapshotBytes === "number")
+            object.canonicalSnapshotBytes =
+              options.longs === $String
+                ? $String(message.canonicalSnapshotBytes)
+                : message.canonicalSnapshotBytes;
+          else
+            object.canonicalSnapshotBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.canonicalSnapshotBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.canonicalSnapshotBytes.low >>> 0,
+                      message.canonicalSnapshotBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.canonicalSnapshotBytes;
+        return object;
+      };
+
+      /**
+       * Converts this RuntimeCapacityFault to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      RuntimeCapacityFault.prototype.toJSON = function () {
+        return RuntimeCapacityFault.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for RuntimeCapacityFault
+       * @function getTypeUrl
+       * @memberof unframe.realtime.RuntimeCapacityFault
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      RuntimeCapacityFault.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.RuntimeCapacityFault";
+      };
+
+      return RuntimeCapacityFault;
     })();
 
     realtime.RuntimeParticipantHistory = (function () {
@@ -73255,10 +81197,11 @@ export const unframe = ($root.unframe = (() => {
       /**
        * Properties of a RuntimeCommandHistory.
        * @typedef {Object} unframe.realtime.RuntimeCommandHistory.$Properties
-       * @property {string|null} [key] RuntimeCommandHistory key
        * @property {string|null} [fingerprint] RuntimeCommandHistory fingerprint
        * @property {unframe.realtime.CommandOutcome.$Properties|null} [outcome] RuntimeCommandHistory outcome
-       * @property {number|Long|null} [rememberedAtUnixMs] RuntimeCommandHistory rememberedAtUnixMs
+       * @property {string|null} [participantId] RuntimeCommandHistory participantId
+       * @property {string|null} [clientEventId] RuntimeCommandHistory clientEventId
+       * @property {number|Long|null} [commandEpoch] RuntimeCommandHistory commandEpoch
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -73273,10 +81216,11 @@ export const unframe = ($root.unframe = (() => {
       /**
        * Shape of a RuntimeCommandHistory.
        * @typedef {{
-       *   key?: string|null;
        *   fingerprint?: string|null;
        *   outcome?: unframe.realtime.CommandOutcome.$Shape|null;
-       *   rememberedAtUnixMs?: number|Long|null;
+       *   participantId?: string|null;
+       *   clientEventId?: string|null;
+       *   commandEpoch?: number|Long|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.realtime.RuntimeCommandHistory.$Shape
        */
@@ -73297,14 +81241,6 @@ export const unframe = ($root.unframe = (() => {
       };
 
       /**
-       * RuntimeCommandHistory key.
-       * @member {string} key
-       * @memberof unframe.realtime.RuntimeCommandHistory
-       * @instance
-       */
-      RuntimeCommandHistory.prototype.key = "";
-
-      /**
        * RuntimeCommandHistory fingerprint.
        * @member {string} fingerprint
        * @memberof unframe.realtime.RuntimeCommandHistory
@@ -73321,13 +81257,29 @@ export const unframe = ($root.unframe = (() => {
       RuntimeCommandHistory.prototype.outcome = null;
 
       /**
-       * RuntimeCommandHistory rememberedAtUnixMs.
-       * @member {number|Long} rememberedAtUnixMs
+       * RuntimeCommandHistory participantId.
+       * @member {string} participantId
        * @memberof unframe.realtime.RuntimeCommandHistory
        * @instance
        */
-      RuntimeCommandHistory.prototype.rememberedAtUnixMs = $util.Long
-        ? $util.Long.fromBits(0, 0, false)
+      RuntimeCommandHistory.prototype.participantId = "";
+
+      /**
+       * RuntimeCommandHistory clientEventId.
+       * @member {string} clientEventId
+       * @memberof unframe.realtime.RuntimeCommandHistory
+       * @instance
+       */
+      RuntimeCommandHistory.prototype.clientEventId = "";
+
+      /**
+       * RuntimeCommandHistory commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.RuntimeCommandHistory
+       * @instance
+       */
+      RuntimeCommandHistory.prototype.commandEpoch = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
         : 0;
 
       /**
@@ -73357,8 +81309,6 @@ export const unframe = ($root.unframe = (() => {
        */
       RuntimeCommandHistory.encode = function RuntimeCommandHistory$encode(message, writer) {
         if (!writer) writer = $Writer.create();
-        if (message.key != null && $Object.hasOwnProperty.call(message, "key"))
-          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.key);
         if (message.fingerprint != null && $Object.hasOwnProperty.call(message, "fingerprint"))
           writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.fingerprint);
         if (message.outcome != null && $Object.hasOwnProperty.call(message, "outcome"))
@@ -73366,11 +81316,12 @@ export const unframe = ($root.unframe = (() => {
             message.outcome,
             writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
           ).ldelim();
-        if (
-          message.rememberedAtUnixMs != null &&
-          $Object.hasOwnProperty.call(message, "rememberedAtUnixMs")
-        )
-          writer.uint32(/* id 4, wireType 0 =*/ 32).int64(message.rememberedAtUnixMs);
+        if (message.participantId != null && $Object.hasOwnProperty.call(message, "participantId"))
+          writer.uint32(/* id 5, wireType 2 =*/ 42).string(message.participantId);
+        if (message.clientEventId != null && $Object.hasOwnProperty.call(message, "clientEventId"))
+          writer.uint32(/* id 6, wireType 2 =*/ 50).string(message.clientEventId);
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 7, wireType 0 =*/ 56).uint64(message.commandEpoch);
         return writer;
       };
 
@@ -73413,10 +81364,6 @@ export const unframe = ($root.unframe = (() => {
           let tag = reader.uint32();
           if (tag === error) break;
           switch (tag >>> 3) {
-            case 1: {
-              message.key = reader.string();
-              break;
-            }
             case 2: {
               message.fingerprint = reader.string();
               break;
@@ -73430,8 +81377,16 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
-            case 4: {
-              message.rememberedAtUnixMs = reader.int64();
+            case 5: {
+              message.participantId = reader.string();
+              break;
+            }
+            case 6: {
+              message.clientEventId = reader.string();
+              break;
+            }
+            case 7: {
+              message.commandEpoch = reader.uint64();
               break;
             }
             default:
@@ -73469,24 +81424,26 @@ export const unframe = ($root.unframe = (() => {
         if (typeof message !== "object" || message === null) return "object expected";
         if (long === $undefined) long = 0;
         if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
-        if (message.key != null && message.hasOwnProperty("key"))
-          if (!$util.isString(message.key)) return "key: string expected";
         if (message.fingerprint != null && message.hasOwnProperty("fingerprint"))
           if (!$util.isString(message.fingerprint)) return "fingerprint: string expected";
         if (message.outcome != null && message.hasOwnProperty("outcome")) {
           let error = $root.unframe.realtime.CommandOutcome.verify(message.outcome, long + 1);
           if (error) return "outcome." + error;
         }
-        if (message.rememberedAtUnixMs != null && message.hasOwnProperty("rememberedAtUnixMs"))
+        if (message.participantId != null && message.hasOwnProperty("participantId"))
+          if (!$util.isString(message.participantId)) return "participantId: string expected";
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          if (!$util.isString(message.clientEventId)) return "clientEventId: string expected";
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
           if (
-            !$util.isInteger(message.rememberedAtUnixMs) &&
+            !$util.isInteger(message.commandEpoch) &&
             !(
-              message.rememberedAtUnixMs &&
-              $util.isInteger(message.rememberedAtUnixMs.low) &&
-              $util.isInteger(message.rememberedAtUnixMs.high)
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
             )
           )
-            return "rememberedAtUnixMs: integer|Long expected";
+            return "commandEpoch: integer|Long expected";
         return null;
       };
 
@@ -73503,7 +81460,6 @@ export const unframe = ($root.unframe = (() => {
         if (long === $undefined) long = 0;
         if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
         let message = new this.ctor();
-        if (object.key != null) message.key = $String(object.key);
         if (object.fingerprint != null) message.fingerprint = $String(object.fingerprint);
         if (object.outcome != null) {
           if (typeof object.outcome !== "object")
@@ -73513,20 +81469,20 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
-        if (object.rememberedAtUnixMs != null)
+        if (object.participantId != null) message.participantId = $String(object.participantId);
+        if (object.clientEventId != null) message.clientEventId = $String(object.clientEventId);
+        if (object.commandEpoch != null)
           if ($util.Long)
-            (message.rememberedAtUnixMs = $util.Long.fromValue(
-              object.rememberedAtUnixMs,
-            )).unsigned = false;
-          else if (typeof object.rememberedAtUnixMs === "string")
-            message.rememberedAtUnixMs = $parseInt(object.rememberedAtUnixMs, 10);
-          else if (typeof object.rememberedAtUnixMs === "number")
-            message.rememberedAtUnixMs = object.rememberedAtUnixMs;
-          else if (typeof object.rememberedAtUnixMs === "object")
-            message.rememberedAtUnixMs = new $util.LongBits(
-              object.rememberedAtUnixMs.low >>> 0,
-              object.rememberedAtUnixMs.high >>> 0,
-            ).toNumber();
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
         return message;
       };
 
@@ -73543,40 +81499,42 @@ export const unframe = ($root.unframe = (() => {
         if (!options) options = {};
         let object = {};
         if (options.defaults) {
-          object.key = "";
           object.fingerprint = "";
           object.outcome = null;
+          object.participantId = "";
+          object.clientEventId = "";
           if ($util.Long) {
-            let long = new $util.Long(0, 0, false);
-            object.rememberedAtUnixMs =
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
               options.longs === $String
                 ? long.toString()
                 : options.longs === $Number
                   ? long.toNumber()
                   : long;
-          } else object.rememberedAtUnixMs = options.longs === $String ? "0" : 0;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
         }
-        if (message.key != null && message.hasOwnProperty("key")) object.key = message.key;
         if (message.fingerprint != null && message.hasOwnProperty("fingerprint"))
           object.fingerprint = message.fingerprint;
         if (message.outcome != null && message.hasOwnProperty("outcome"))
           object.outcome = $root.unframe.realtime.CommandOutcome.toObject(message.outcome, options);
-        if (message.rememberedAtUnixMs != null && message.hasOwnProperty("rememberedAtUnixMs"))
-          if (typeof message.rememberedAtUnixMs === "number")
-            object.rememberedAtUnixMs =
-              options.longs === $String
-                ? $String(message.rememberedAtUnixMs)
-                : message.rememberedAtUnixMs;
+        if (message.participantId != null && message.hasOwnProperty("participantId"))
+          object.participantId = message.participantId;
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          object.clientEventId = message.clientEventId;
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
           else
-            object.rememberedAtUnixMs =
+            object.commandEpoch =
               options.longs === $String
-                ? $util.Long.prototype.toString.call(message.rememberedAtUnixMs)
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
                 : options.longs === $Number
                   ? new $util.LongBits(
-                      message.rememberedAtUnixMs.low >>> 0,
-                      message.rememberedAtUnixMs.high >>> 0,
-                    ).toNumber()
-                  : message.rememberedAtUnixMs;
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
         return object;
       };
 
@@ -73624,6 +81582,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {unframe.realtime.PresentationOrigin.$Properties|null} [presentationOrigin] ParticipantRuntimeView presentationOrigin
        * @property {Array.<string>|null} [enabledLogicalInputs] ParticipantRuntimeView enabledLogicalInputs
        * @property {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>|null} [modelClipStates] ParticipantRuntimeView modelClipStates
+       * @property {Array.<unframe.realtime.FrozenAnchorDisplayState.$Properties>|null} [frozenAnchors] ParticipantRuntimeView frozenAnchors
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -73651,6 +81610,7 @@ export const unframe = ($root.unframe = (() => {
        *   presentationOrigin?: unframe.realtime.PresentationOrigin.$Shape|null;
        *   enabledLogicalInputs?: Array.<string>|null;
        *   modelClipStates?: Array.<unframe.realtime.ModelClipRuntimeState.$Shape>|null;
+       *   frozenAnchors?: Array.<unframe.realtime.FrozenAnchorDisplayState.$Shape>|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.realtime.ParticipantRuntimeView.$Shape
        */
@@ -73671,6 +81631,7 @@ export const unframe = ($root.unframe = (() => {
         this.activeRuns = [];
         this.enabledLogicalInputs = [];
         this.modelClipStates = [];
+        this.frozenAnchors = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -73786,6 +81747,14 @@ export const unframe = ($root.unframe = (() => {
       ParticipantRuntimeView.prototype.modelClipStates = $util.emptyArray;
 
       /**
+       * ParticipantRuntimeView frozenAnchors.
+       * @member {Array.<unframe.realtime.FrozenAnchorDisplayState.$Properties>} frozenAnchors
+       * @memberof unframe.realtime.ParticipantRuntimeView
+       * @instance
+       */
+      ParticipantRuntimeView.prototype.frozenAnchors = $util.emptyArray;
+
+      /**
        * Creates a new ParticipantRuntimeView instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.ParticipantRuntimeView
@@ -73883,6 +81852,12 @@ export const unframe = ($root.unframe = (() => {
             $root.unframe.realtime.ModelClipRuntimeState.encode(
               message.modelClipStates[i],
               writer.uint32(/* id 13, wireType 2 =*/ 106).fork(),
+            ).ldelim();
+        if (message.frozenAnchors != null && message.frozenAnchors.length)
+          for (let i = 0; i < message.frozenAnchors.length; ++i)
+            $root.unframe.realtime.FrozenAnchorDisplayState.encode(
+              message.frozenAnchors[i],
+              writer.uint32(/* id 14, wireType 2 =*/ 114).fork(),
             ).ldelim();
         return writer;
       };
@@ -74045,6 +82020,19 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 14: {
+              if (!(message.frozenAnchors && message.frozenAnchors.length))
+                message.frozenAnchors = [];
+              message.frozenAnchors.push(
+                $root.unframe.realtime.FrozenAnchorDisplayState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -74186,6 +82174,16 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
             if (error) return "modelClipStates." + error;
+          }
+        }
+        if (message.frozenAnchors != null && message.hasOwnProperty("frozenAnchors")) {
+          if (!$Array.isArray(message.frozenAnchors)) return "frozenAnchors: array expected";
+          for (let i = 0; i < message.frozenAnchors.length; ++i) {
+            let error = $root.unframe.realtime.FrozenAnchorDisplayState.verify(
+              message.frozenAnchors[i],
+              long + 1,
+            );
+            if (error) return "frozenAnchors." + error;
           }
         }
         return null;
@@ -74366,6 +82364,23 @@ export const unframe = ($root.unframe = (() => {
             );
           }
         }
+        if (object.frozenAnchors) {
+          if (!$Array.isArray(object.frozenAnchors))
+            throw $TypeError(
+              ".unframe.realtime.ParticipantRuntimeView.frozenAnchors: array expected",
+            );
+          message.frozenAnchors = [];
+          for (let i = 0; i < object.frozenAnchors.length; ++i) {
+            if (typeof object.frozenAnchors[i] !== "object")
+              throw $TypeError(
+                ".unframe.realtime.ParticipantRuntimeView.frozenAnchors: object expected",
+              );
+            message.frozenAnchors[i] = $root.unframe.realtime.FrozenAnchorDisplayState.fromObject(
+              object.frozenAnchors[i],
+              long + 1,
+            );
+          }
+        }
         return message;
       };
 
@@ -74389,6 +82404,7 @@ export const unframe = ($root.unframe = (() => {
           object.activeRuns = [];
           object.enabledLogicalInputs = [];
           object.modelClipStates = [];
+          object.frozenAnchors = [];
         }
         if (options.defaults) {
           object.projectionProfileId = "";
@@ -74513,6 +82529,14 @@ export const unframe = ($root.unframe = (() => {
           for (let j = 0; j < message.modelClipStates.length; ++j)
             object.modelClipStates[j] = $root.unframe.realtime.ModelClipRuntimeState.toObject(
               message.modelClipStates[j],
+              options,
+            );
+        }
+        if (message.frozenAnchors && message.frozenAnchors.length) {
+          object.frozenAnchors = [];
+          for (let j = 0; j < message.frozenAnchors.length; ++j)
+            object.frozenAnchors[j] = $root.unframe.realtime.FrozenAnchorDisplayState.toObject(
+              message.frozenAnchors[j],
               options,
             );
         }
@@ -77809,6 +85833,10 @@ export const unframe = ($root.unframe = (() => {
               case 4:
               case 5:
               case 6:
+              case 7:
+              case 8:
+              case 9:
+              case 10:
                 break;
             }
         }
@@ -77883,6 +85911,22 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_TRACKING":
               case 6:
                 message.supportedCapabilities[i] = 6;
+                break;
+              case "RUNTIME_CAPABILITY_PRESENTER_RECOGNITION":
+              case 7:
+                message.supportedCapabilities[i] = 7;
+                break;
+              case "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION":
+              case 8:
+                message.supportedCapabilities[i] = 8;
+                break;
+              case "RUNTIME_CAPABILITY_FROZEN_ANCHORS":
+              case 9:
+                message.supportedCapabilities[i] = 9;
+                break;
+              case "RUNTIME_CAPABILITY_STEP_RESTORE":
+              case 10:
+                message.supportedCapabilities[i] = 10;
                 break;
             }
         }
@@ -80707,7 +88751,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {string|null} [nodeId] ProjectedAnchorBindingPatch nodeId
        * @property {unframe.realtime.AnchorBindingUnavailable.$Properties|null} [unavailable] ProjectedAnchorBindingPatch unavailable
        * @property {unframe.realtime.ProjectedAnchorBindingSample.$Properties|null} [sample] ProjectedAnchorBindingPatch sample
-       * @property {"unavailable"|"sample"} [state] ProjectedAnchorBindingPatch state
+       * @property {unframe.realtime.FrozenAnchorDisplayState.$Properties|null} [frozen] ProjectedAnchorBindingPatch frozen
+       * @property {"unavailable"|"sample"|"frozen"} [state] ProjectedAnchorBindingPatch state
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -80725,9 +88770,10 @@ export const unframe = ($root.unframe = (() => {
        *   nodeId?: string|null;
        *   unavailable?: unframe.realtime.AnchorBindingUnavailable.$Shape|null;
        *   sample?: unframe.realtime.ProjectedAnchorBindingSample.$Shape|null;
+       *   frozen?: unframe.realtime.FrozenAnchorDisplayState.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * } & (
-       *   ({ state?: undefined; unavailable?: null; sample?: null }|{ state?: "unavailable"; unavailable: unframe.realtime.AnchorBindingUnavailable.$Shape; sample?: null }|{ state?: "sample"; unavailable?: null; sample: unframe.realtime.ProjectedAnchorBindingSample.$Shape })
+       *   ({ state?: undefined; unavailable?: null; sample?: null; frozen?: null }|{ state?: "unavailable"; unavailable: unframe.realtime.AnchorBindingUnavailable.$Shape; sample?: null; frozen?: null }|{ state?: "sample"; unavailable?: null; sample: unframe.realtime.ProjectedAnchorBindingSample.$Shape; frozen?: null }|{ state?: "frozen"; unavailable?: null; sample?: null; frozen: unframe.realtime.FrozenAnchorDisplayState.$Shape })
        * )} unframe.realtime.ProjectedAnchorBindingPatch.$Shape
        */
 
@@ -80770,17 +88816,25 @@ export const unframe = ($root.unframe = (() => {
        */
       ProjectedAnchorBindingPatch.prototype.sample = null;
 
+      /**
+       * ProjectedAnchorBindingPatch frozen.
+       * @member {unframe.realtime.FrozenAnchorDisplayState.$Properties|null|undefined} frozen
+       * @memberof unframe.realtime.ProjectedAnchorBindingPatch
+       * @instance
+       */
+      ProjectedAnchorBindingPatch.prototype.frozen = null;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
       /**
        * ProjectedAnchorBindingPatch state.
-       * @member {"unavailable"|"sample"|undefined} state
+       * @member {"unavailable"|"sample"|"frozen"|undefined} state
        * @memberof unframe.realtime.ProjectedAnchorBindingPatch
        * @instance
        */
       $Object.defineProperty(ProjectedAnchorBindingPatch.prototype, "state", {
-        get: $util.oneOfGetter(($oneOfFields = ["unavailable", "sample"])),
+        get: $util.oneOfGetter(($oneOfFields = ["unavailable", "sample", "frozen"])),
         set: $util.oneOfSetter($oneOfFields),
       });
 
@@ -80825,6 +88879,11 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.realtime.ProjectedAnchorBindingSample.encode(
             message.sample,
             writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+          ).ldelim();
+        if (message.frozen != null && $Object.hasOwnProperty.call(message, "frozen"))
+          $root.unframe.realtime.FrozenAnchorDisplayState.encode(
+            message.frozen,
+            writer.uint32(/* id 4, wireType 2 =*/ 34).fork(),
           ).ldelim();
         return writer;
       };
@@ -80883,6 +88942,15 @@ export const unframe = ($root.unframe = (() => {
             }
             case 3: {
               message.sample = $root.unframe.realtime.ProjectedAnchorBindingSample.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 4: {
+              message.frozen = $root.unframe.realtime.FrozenAnchorDisplayState.decode(
                 reader,
                 reader.uint32(),
                 $undefined,
@@ -80952,6 +89020,17 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "sample." + error;
           }
         }
+        if (message.frozen != null && message.hasOwnProperty("frozen")) {
+          if (properties.state === 1) return "state: multiple values";
+          properties.state = 1;
+          {
+            let error = $root.unframe.realtime.FrozenAnchorDisplayState.verify(
+              message.frozen,
+              long + 1,
+            );
+            if (error) return "frozen." + error;
+          }
+        }
         return null;
       };
 
@@ -80992,6 +89071,16 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
+        if (object.frozen != null) {
+          if (typeof object.frozen !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ProjectedAnchorBindingPatch.frozen: object expected",
+            );
+          message.frozen = $root.unframe.realtime.FrozenAnchorDisplayState.fromObject(
+            object.frozen,
+            long + 1,
+          );
+        }
         return message;
       };
 
@@ -81026,6 +89115,13 @@ export const unframe = ($root.unframe = (() => {
             options,
           );
           if (options.oneofs) object.state = "sample";
+        }
+        if (message.frozen != null && message.hasOwnProperty("frozen")) {
+          object.frozen = $root.unframe.realtime.FrozenAnchorDisplayState.toObject(
+            message.frozen,
+            options,
+          );
+          if (options.oneofs) object.state = "frozen";
         }
         return object;
       };
@@ -82835,6 +90931,10 @@ export const unframe = ($root.unframe = (() => {
               case 4:
               case 5:
               case 6:
+              case 7:
+              case 8:
+              case 9:
+              case 10:
                 break;
             }
         }
@@ -83001,6 +91101,22 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_TRACKING":
               case 6:
                 message.requiredRuntimeCapabilities[i] = 6;
+                break;
+              case "RUNTIME_CAPABILITY_PRESENTER_RECOGNITION":
+              case 7:
+                message.requiredRuntimeCapabilities[i] = 7;
+                break;
+              case "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION":
+              case 8:
+                message.requiredRuntimeCapabilities[i] = 8;
+                break;
+              case "RUNTIME_CAPABILITY_FROZEN_ANCHORS":
+              case 9:
+                message.requiredRuntimeCapabilities[i] = 9;
+                break;
+              case "RUNTIME_CAPABILITY_STEP_RESTORE":
+              case 10:
+                message.requiredRuntimeCapabilities[i] = 10;
                 break;
             }
         }

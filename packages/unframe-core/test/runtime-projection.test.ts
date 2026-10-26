@@ -271,6 +271,26 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, full, 1),
     ).toEqual([]);
   });
+  it("rejects duplicate or unknown Step history and frozen displays outside Anchor bindings", () => {
+    const duplicate = structuredClone(snapshot);
+    duplicate.stepStartHistory.push(structuredClone(duplicate.stepStartHistory[0]!));
+    expect(
+      validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, duplicate, 1),
+    ).toContain("Step start history must be sorted and unique.");
+    const unknown = structuredClone(snapshot);
+    unknown.stepStartHistory[0]!.stepId = "missing";
+    expect(
+      validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, unknown, 1).some(
+        (issue) => issue.includes("unknown Step"),
+      ),
+    ).toBe(true);
+    const frozen = structuredClone(snapshot);
+    frozen.frozenAnchors = [{ nodeId: "node-baked", position: [1, 2, 3] }];
+    expect(
+      validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, frozen, 1),
+    ).toContain("Frozen Anchor must reference an active Presenter Anchor binding.");
+  });
+
   it("creates a validated portable snapshot from CueState", () => {
     const state = createCueState(definition, 1, renderBundleFixture as never);
     const generated = createM3dCueRuntimeSnapshot(definition, state, {
@@ -278,10 +298,14 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       lastIngressSequence: 0,
       lifecycle: { kind: "running" },
       presentationOrigin: snapshot.presentationOrigin,
-      recentEventIds: [],
     });
     expect(generated).toEqual({
       ...snapshot,
+      stepStartHistory: snapshot.stepStartHistory.map((entry) => ({
+        ...entry,
+        mediaStates: { video: { kind: "stopped", heldPositionMilliseconds: 0 } },
+        modelClipStates: { model: { kind: "defaultPose" } },
+      })),
       mediaStates: { video: { kind: "stopped", heldPositionMilliseconds: 0 } },
       modelClipStates: { model: { kind: "defaultPose" } },
     });
@@ -384,7 +408,6 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       lastIngressSequence: 0,
       lifecycle: { kind: "running" },
       presentationOrigin: snapshot.presentationOrigin,
-      recentEventIds: [],
     });
     expect(generated.surfaceStates.baked?.transitionRunId).toEqual({
       assignmentEpoch: 1,
@@ -528,11 +551,6 @@ describe("M3D Runtime projection and canonical snapshot", () => {
         .enabledLogicalInputs,
     ).toEqual([]);
     consumed.stepExecution.consumedCueIds = [];
-    consumed.stepExecution.cooldownUntilRuntimeTimeMilliseconds.wave = 1;
-    expect(
-      projectM3dCueParticipantRuntimeView(roleDefinition, consumed, presenter, 1)
-        .enabledLogicalInputs,
-    ).toEqual([]);
   });
 
   it("omits hidden Surface Run IDs from a Viewer snapshot", () => {

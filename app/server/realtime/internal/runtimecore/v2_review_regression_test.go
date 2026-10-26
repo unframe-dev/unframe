@@ -14,17 +14,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const reviewDefinition = `{"schemaVersion":2,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`
+const reviewDefinition = `{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`
 
 func reviewSession(t *testing.T) (*V2Session, *recordingV2Checkpoint) {
 	t.Helper()
-	s, err := NewV2Session(json.RawMessage(reviewDefinition))
+	s, err := newV3RegressionSession(json.RawMessage(reviewDefinition))
 	if err != nil {
 		t.Fatal(err)
 	}
 	w := &recordingV2Checkpoint{}
-	m := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "presentation-1", PublicationEpoch: 1, PublicationManifestHash: "sha256:" + strings.Repeat("a", 64)}, DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64)}
-	if err := s.ConfigureDurability(w, m, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}); err != nil {
+	m := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "presentation-1", PublicationEpoch: 1, PublicationManifestHash: "sha256:" + strings.Repeat("a", 64)}, DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64)}
+	if err := s.ConfigureDurability(w, m, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}); err != nil {
 		t.Fatal(err)
 	}
 	freezeV2WallClock(s)
@@ -114,7 +114,7 @@ func TestV2RecoveryRetainsCompletionHistoryAndCommandOutcome(t *testing.T) {
 		t.Fatal(err)
 	}
 	presenter := session.Identity{ParticipantID: "presenter-1", Role: session.RolePresenter}
-	command := &realtimev2.RuntimeControlCommand{ClientEventId: "pause", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE}
+	command := v3TestRuntimeControl(s, &realtimev2.RuntimeControlCommand{ClientEventId: "pause", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE})
 	first, _, err := s.RuntimeControl(context.Background(), presenter, command)
 	if err != nil {
 		t.Fatal(err)
@@ -134,17 +134,17 @@ func TestV2RecoveryRetainsCompletionHistoryAndCommandOutcome(t *testing.T) {
 	}
 	completion := &reviewCompletion{}
 	restored.ConfigureCompletion(completion)
-	if _, _, err := restored.RuntimeControl(context.Background(), presenter, &realtimev2.RuntimeControlCommand{ClientEventId: "end", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END}); err != nil {
+	if _, _, err := restored.RuntimeControl(context.Background(), presenter, v3TestRuntimeControl(restored, &realtimev2.RuntimeControlCommand{ClientEventId: "end", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END})); err != nil {
 		t.Fatal(err)
 	}
-	if completion.startedAt != started || len(completion.participants) != 1 || completion.participants[0] != (V2Participant{UserID: "viewer-1", Role: "viewer"}) {
+	if completion.startedAt != started || len(completion.participants) != 2 || completion.participants[1] != (V2Participant{UserID: "viewer-1", Role: "viewer"}) {
 		t.Fatalf("completion lost history: %#v", completion)
 	}
 }
-func TestV2RecoveryRetainsOutcomeExpiration(t *testing.T) {
+func TestV3RecoveryRetainsOutcomeWithoutExpiration(t *testing.T) {
 	s, w := reviewSession(t)
 	identity := session.Identity{ParticipantID: "presenter-1", Role: session.RolePresenter}
-	command := &realtimev2.RuntimeControlCommand{ClientEventId: "pause", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE}
+	command := v3TestRuntimeControl(s, &realtimev2.RuntimeControlCommand{ClientEventId: "pause", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE})
 	if _, _, err := s.RuntimeControl(context.Background(), identity, command); err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,6 @@ func TestV2RecoveryRetainsOutcomeExpiration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recovery.Commands[0].RememberedAtUnixMs = time.Now().Add(-16 * time.Minute).UnixMilli()
 	w.envelope.RecoveryPayload, _ = proto.MarshalOptions{Deterministic: true}.Marshal(recovery)
 	checkpoint, err := protocolv2.EncodeCheckpoint(snapshot, w.envelope, s.checkpointCatalog)
 	if err != nil {
@@ -166,15 +165,15 @@ func TestV2RecoveryRetainsOutcomeExpiration(t *testing.T) {
 	if _, events, err := restored.RuntimeControl(context.Background(), identity, command); err != nil || len(events) != 0 {
 		t.Fatalf("expired command failed: %v %v", events, err)
 	}
-	if restored.committedRecovery.Commands[0].Outcome.GetNoOp() == nil {
-		t.Fatal("expired accepted outcome was reused")
+	if restored.committedRecovery.Commands[0].Outcome.GetAccepted() == nil {
+		t.Fatal("accepted outcome was lost")
 	}
 }
 func TestV2FailedOutcomeCommitDoesNotRetainCommand(t *testing.T) {
 	s, _ := reviewSession(t)
 	s.checkpointWriter = failingV2Checkpoint{}
 	identity := session.Identity{ParticipantID: "presenter-1", Role: session.RolePresenter}
-	command := &realtimev2.RuntimeControlCommand{ClientEventId: "pause", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE}
+	command := v3TestRuntimeControl(s, &realtimev2.RuntimeControlCommand{ClientEventId: "pause", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE})
 	if _, _, err := s.RuntimeControl(context.Background(), identity, command); err == nil {
 		t.Fatal("failed checkpoint accepted")
 	}
@@ -188,13 +187,10 @@ func TestV2RestoreRejectsMissingRecoveryHistory(t *testing.T) {
 	s, _ := reviewSession(t)
 	snapshot := s.Snapshot()
 	s.checkpointMetadata.CheckpointSequence = 1
-	checkpoint, err := protocolv2.EncodeCheckpoint(snapshot, s.checkpointMetadata, s.checkpointCatalog)
-	if err != nil {
-		t.Fatal(err)
+	if _, err := protocolv2.EncodeCheckpoint(snapshot, s.checkpointMetadata, s.checkpointCatalog); err == nil {
+		t.Fatal("checkpoint without recovery metadata accepted")
 	}
-	if err := s.RestoreCheckpoint(checkpoint); err == nil {
-		t.Fatal("missing recovery history accepted")
-	}
+
 }
 
 func TestV2SubscriptionReclaimsConsumedBytes(t *testing.T) {
@@ -225,11 +221,11 @@ func TestV2RecoveryRetainsRejectedAndNoOpOutcomes(t *testing.T) {
 			execute := func(core *V2Session) (*realtimev2.CommandOutcome, []*realtimev2.ProjectedReliableEvent, error) {
 				switch kind {
 				case "logical":
-					return core.LogicalInput(identity, &realtimev2.LogicalInputCommand{ClientEventId: "retry", LogicalEventName: "missing"})
+					return core.LogicalInput(identity, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "retry", LogicalEventName: "missing"}))
 				case "interaction":
-					return core.SurfaceInteraction(identity, &realtimev2.SurfaceInteractionCommand{ClientEventId: "retry", SurfaceId: "missing", InteractionId: "click"})
+					return core.SurfaceInteraction(identity, v3TestSurfaceInteraction(core, &realtimev2.SurfaceInteractionCommand{ClientEventId: "retry", SurfaceId: "missing", InteractionId: "click"}))
 				default:
-					return core.RuntimeControl(context.Background(), identity, &realtimev2.RuntimeControlCommand{ClientEventId: "retry", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME})
+					return core.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "retry", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME}))
 				}
 			}
 			first, _, err := execute(s)
@@ -243,6 +239,7 @@ func TestV2RecoveryRetainsRejectedAndNoOpOutcomes(t *testing.T) {
 			if err := restored.RestoreCheckpoint(w.envelope); err != nil {
 				t.Fatal(err)
 			}
+			v3TestCopyInputContext(s, restored, "retry")
 			second, events, err := execute(restored)
 			if err != nil || len(events) != 0 || !proto.Equal(first, second) {
 				t.Fatalf("outcome changed across restart: %v %v", second, err)
@@ -257,20 +254,20 @@ func TestV2DurableCommandFingerprintsFollowWireContract(t *testing.T) {
 		variant, want string
 		origin        uint64
 	}{
-		{"logical_input", "sha256:fda9f3389deaf56a2b7a4dfad908829a49527954ee7917e9506c36c42b3a7c58", 0},
-		{"surface_interaction", "sha256:cb7ef53765864631ae39fc3f5636d3d7c886f00652df42804b0f3993abcb1357", 5},
-		{"runtime_control", "sha256:b38e9bb0dc595375c5c794ca42d1dd7e17ba86dfcf3bb49532ff9520c2a80470", 7},
+		{"logical_input", "sha256:cbce6d8efe07aef02d2e5400b82183183d2338ab4756b3bcf5b6074614070e2b", 0},
+		{"surface_interaction", "sha256:57fdea5ba6ba731a9f38109861c3d3758b9b0ee29527da0eeeed2f0a5f058d23", 5},
+		{"runtime_control", "sha256:1c175e9fca4af66fd70e8df6274dbefe94134d37c101911bfadbd550d200e2de", 7},
 	} {
 		t.Run(test.variant, func(t *testing.T) {
 			s, w := reviewSession(t)
 			s.snapshot.PresentationOrigin.Version = test.origin
 			switch test.variant {
 			case "logical_input":
-				_, _, _ = s.LogicalInput(identity, &realtimev2.LogicalInputCommand{ClientEventId: "hash", LogicalEventName: "next", PresentationOriginVersion: test.origin})
+				_, _, _ = s.LogicalInput(identity, v3TestLogicalInput(s, &realtimev2.LogicalInputCommand{ClientEventId: "hash", LogicalEventName: "next", PresentationOriginVersion: test.origin}))
 			case "surface_interaction":
-				_, _, _ = s.SurfaceInteraction(identity, &realtimev2.SurfaceInteractionCommand{ClientEventId: "hash", SurfaceId: "screen", InteractionId: "click", PresentationOriginVersion: test.origin})
+				_, _, _ = s.SurfaceInteraction(identity, v3TestSurfaceInteraction(s, &realtimev2.SurfaceInteractionCommand{ClientEventId: "hash", SurfaceId: "screen", InteractionId: "click", PresentationOriginVersion: test.origin}))
 			case "runtime_control":
-				_, _, _ = s.RuntimeControl(context.Background(), identity, &realtimev2.RuntimeControlCommand{ClientEventId: "hash", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE, PresentationOriginVersion: test.origin})
+				_, _, _ = s.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(s, &realtimev2.RuntimeControlCommand{ClientEventId: "hash", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE, PresentationOriginVersion: test.origin}))
 			}
 			recovery, err := protocolv2.DecodeRecoveryMetadata(w.envelope)
 			if err != nil {
@@ -286,7 +283,7 @@ func TestV2DurableCommandFingerprintsFollowWireContract(t *testing.T) {
 func TestV2GuardFalseTimerPersistsFiredStateBeforeClockCadence(t *testing.T) {
 	definition := strings.Replace(reviewDefinition, `"cues":[]`, `"cues":[{"id":"timer","priority":1,"order":0,"trigger":{"kind":"timer","afterMilliseconds":20},"firePolicy":{"kind":"oncePerStepEntry"},"guard":{"kind":"compare","left":{"kind":"literal","value":true},"operator":"eq","right":false},"actions":[],"next":{"kind":"stay"}}]`, 1)
 	s, w := reviewSession(t)
-	timerSession, err := NewV2Session(json.RawMessage(definition))
+	timerSession, err := newV3RegressionSession(json.RawMessage(definition))
 	if err != nil {
 		t.Fatal(err)
 	}

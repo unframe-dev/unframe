@@ -821,7 +821,7 @@ const compileUnchecked = async (
   const assetSetJson = canonicalizeJsonPayload(assetSet);
   const assetSetHash = hashCanonicalJsonPayload(assetSet);
   const buildManifest: BuildArtifacts["buildManifest"] = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     buildId: `build:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, renderBundleHash, assetSetHash }).slice(7)}`,
     presentationId: definition.presentationId,
     sourceDraftRevision: 0,
@@ -829,13 +829,13 @@ const compileUnchecked = async (
     renderBundleHash,
     assetSetHash,
     contractVersions: {
-      definition: 2,
+      definition: 3,
       renderBundle: 2,
       assetSet: 2,
-      delivery: 2,
-      runtime: 2,
-      progression: 1,
-      projection: 1,
+      delivery: 3,
+      runtime: 3,
+      progression: 2,
+      projection: 2,
     },
   };
   const artifactValidation = validatePresentationArtifacts(definition, bundle);

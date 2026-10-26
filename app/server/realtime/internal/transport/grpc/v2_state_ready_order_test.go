@@ -22,15 +22,15 @@ import (
 )
 
 func TestV2StateReadyAfterVisibleConnectedBeforeSendReturns(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
-	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 2}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 2, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}}
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 3}
 	service, err := NewV2Service(runtime, bootstrap, v2TestProjection{persistencehttp.RuntimeProjection{Role: "presenter", Profile: profile}}, testIdentityResolver{identity}, allowAllAssignment{})
 	if err != nil {
 		t.Fatal(err)
@@ -56,11 +56,11 @@ func TestV2StateReadyAfterVisibleConnectedBeforeSendReturns(t *testing.T) {
 	}
 	defer func() { _ = connection.Close() }()
 	client := realtimev2.NewRealtimeServiceClient(connection)
-	control, err := client.ConnectControl(ctx)
+	control, err := v3TestConnectControl(ctx, client)
 	if err != nil {
 		t.Fatal(err)
 	}
-	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}
+	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}
 	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: handshake}}); err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestV2StateReadyAfterVisibleConnectedBeforeSendReturns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectedItem.GetConnected().ConnectionId, StateConnectionNonce: nonceItem.GetStateConnectionNonce().Nonce}}}); err != nil {
+	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectedItem.GetConnected().ConnectionId, StateConnectionNonce: nonceItem.GetStateConnectionNonce().Nonce}}}); err != nil {
 		t.Fatal(err)
 	}
 	stateConnected, err := state.Recv()
@@ -92,7 +92,8 @@ func TestV2StateReadyAfterVisibleConnectedBeforeSendReturns(t *testing.T) {
 	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_StateReady{StateReady: &realtimev2.StateReady{AppliedReliableSequence: cut.ReliableSequence, PresentationOriginVersion: cut.Fence.PresentationOriginVersion}}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_LogicalInput{LogicalInput: &realtimev2.LogicalInputCommand{ClientEventId: "after-ready", LogicalEventName: "next", PresentationOriginVersion: cut.Fence.PresentationOriginVersion}}}); err != nil {
+	v3TestReady(t, runtime, identity)
+	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_LogicalInput{LogicalInput: &realtimev2.LogicalInputCommand{ClientEventId: v3TestEventID(runtime.InputSynchronization().CommandEpoch, "after-ready"), CommandEpoch: runtime.InputSynchronization().CommandEpoch, InputContext: runtime.InputSynchronization().InputContext, LogicalEventName: "next", PresentationOriginVersion: cut.Fence.PresentationOriginVersion}}}); err != nil {
 		t.Fatal(err)
 	}
 	for {
@@ -129,7 +130,7 @@ func TestV2StateReadyAfterVisibleConnectedBeforeSendReturns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := reconnected.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectedItem.GetConnected().ConnectionId, StateConnectionNonce: fresh.GetStateConnectionNonce().Nonce}}}); err != nil {
+	if err := reconnected.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectedItem.GetConnected().ConnectionId, StateConnectionNonce: fresh.GetStateConnectionNonce().Nonce}}}); err != nil {
 		t.Fatal(err)
 	}
 	if item, err := reconnected.Recv(); err != nil || item.GetConnected() == nil {
@@ -143,6 +144,19 @@ func TestV2StateReadyAfterVisibleConnectedBeforeSendReturns(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_StateReady{StateReady: &realtimev2.StateReady{AppliedReliableSequence: cut.ReliableSequence, PresentationOriginVersion: cut.Fence.PresentationOriginVersion}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	if runtime.Snapshot().Clock.GetPaused() == nil {
+		t.Fatal("State disconnect did not pause Runtime")
+	}
+	synchronization := runtime.InputSynchronization()
+	if synchronization.GetNextCommandEpoch() == 0 {
+		t.Fatal("State disconnect did not rotate command epoch")
+	}
+	v3TestReady(t, runtime, identity)
+	epoch := runtime.InputSynchronization().CommandEpoch
+	if _, _, err := runtime.RuntimeControl(ctx, identity, &realtimev2.RuntimeControlCommand{ClientEventId: v3TestEventID(epoch, "resume-state"), CommandEpoch: epoch, Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME, PresentationOriginVersion: runtime.Snapshot().PresentationOrigin.Version}); err != nil {
 		t.Fatal(err)
 	}
 	select {

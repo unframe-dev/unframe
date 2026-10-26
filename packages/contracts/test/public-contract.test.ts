@@ -7,6 +7,13 @@ import * as contract from "@unframe/contracts/presentation";
 test("the Unity media profile admits bounded GLB and H264/audio without mutable shared state", () => {
   const profile = contract.createUnityMediaCapabilityProfile();
   assert.equal(profile.capabilityProfileId, "unity-media-v1");
+  assert.equal(profile.schemaVersion, 3);
+  assert.deepEqual(profile.contractVersions, {
+    delivery: 3,
+    runtime: 3,
+    progression: 2,
+    projection: 2,
+  });
   assert.deepEqual(profile.renderers.video.features, ["h264", "audio"]);
   assert.deepEqual(profile.model.formats, ["model/gltf-binary"]);
   assert.equal(profile.limits.model.maxInstances, 32);

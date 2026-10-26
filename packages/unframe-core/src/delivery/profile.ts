@@ -225,6 +225,7 @@ const runtimeCatalog = (
   definition: PresentationDefinition,
   bundle: RenderBundle,
   selection: DeliverySelection,
+  role: "presenter" | "viewer",
 ) => {
   const visibleNodes = new Set(selection.visibleNodeIds);
   const visibleSurfaces = new Set(selection.visibleSurfaceIds);
@@ -365,7 +366,48 @@ const runtimeCatalog = (
     surfaces.some((surface) => !visibleSurfaces.has(surface.surfaceId))
   )
     throw new Error("Invalid runtime catalog closure.");
-  return { catalogContractVersion: 2, nodes, surfaces, variables, timelines, modelClips };
+  const gestures = {
+    swipeLeft: 1,
+    swipeRight: 2,
+    swipeDown: 3,
+    swipeUp: 4,
+    pushForward: 5,
+    pullBackward: 6,
+    spreadHands: 7,
+    closeHands: 8,
+  };
+  const triggers = Object.values(definition.flow.groups).flatMap((group) =>
+    Object.values(group.steps).flatMap((step) => step.cues.map((cue) => cue.trigger)),
+  );
+  const presenterRecognition =
+    role === "viewer"
+      ? undefined
+      : {
+          gestures: [
+            ...new Set(
+              triggers.flatMap((trigger) =>
+                trigger.kind === "gesture" ? [gestures[trigger.gesture]] : [],
+              ),
+            ),
+          ].sort((a, b) => a - b),
+          zones: [
+            ...new Set(
+              triggers.flatMap((trigger) => (trigger.kind === "zoneEdge" ? [trigger.zoneId] : [])),
+            ),
+          ]
+            .sort(byId)
+            .map((zoneId) => ({ zoneId, center: vec3(definition.stage.zones[zoneId]!.center) })),
+        };
+
+  return {
+    catalogContractVersion: 3,
+    nodes,
+    surfaces,
+    variables,
+    timelines,
+    modelClips,
+    ...(presenterRecognition ? { presenterRecognition } : {}),
+  };
 };
 
 export type RuntimeProjection = Omit<
@@ -457,13 +499,19 @@ const buildProjection = (
       }),
     };
   });
-  const catalog = runtimeCatalog(definition, bundle, selection);
+  const catalog = runtimeCatalog(definition, bundle, selection, role);
   const capabilities = [1];
   if (catalog.timelines.length) capabilities.push(2);
   if (semanticSurfaces.some((surface) => surface.states.length > 1)) capabilities.push(3);
   if (catalog.surfaces.some((surface) => surface.hasVideo)) capabilities.push(4);
   if (catalog.modelClips.length) capabilities.push(5);
   if (catalog.nodes.some((node) => "presenterAnchor" in node.parent)) capabilities.push(6);
+  if (
+    role === "presenter" &&
+    (catalog.presenterRecognition?.gestures.length || catalog.presenterRecognition?.zones.length)
+  )
+    capabilities.push(7);
+  capabilities.push(8, 9, 10);
   const projection: RuntimeProjection = {
     visibleNodeIds: selection.visibleNodeIds,
     visibleSurfaceIds: selection.visibleSurfaceIds,
@@ -512,7 +560,7 @@ export const buildProjectionProfile = (
         publicationEpoch: toUInt64(publication.publicationEpoch),
         publicationManifestHash: publication.publicationManifestHash,
       },
-      projectionContractVersion: 1,
+      projectionContractVersion: 2,
       role: roleNumber[role],
       capabilityProfileId: parsed.capability.capabilityProfileId,
     },

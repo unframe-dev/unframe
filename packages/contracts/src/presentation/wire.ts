@@ -3,6 +3,11 @@ import protobuf from "protobufjs/minimal.js";
 
 import { unframe } from "../../presentation/wire-static.js";
 import { getInternalWireType, type WireMessageType } from "./wire-metadata";
+import {
+  assertRuntimeByteLength,
+  runtimeAuthorityLimits,
+  validateAuthorityWireValue,
+} from "./runtime-authority";
 
 export { getPresentationWireType } from "./wire-metadata";
 
@@ -186,6 +191,40 @@ function validateObject(type: WireMessageType, value: Record<string, unknown>, d
       }
     }
   }
+  validateAuthorityWireValue(type.fullName, value);
+  const name = type.fullName.split(".").at(-1);
+  if (name === "CanonicalRuntimeSnapshot" && value["stepStartHistory"] !== undefined) {
+    const codec = staticCodec(type.fullName.slice(1));
+    const bytes = codec
+      .encode(
+        codec.fromObject({ stepStartHistory: value["stepStartHistory"] }),
+        new protobuf.Writer(),
+      )
+      .finish();
+    assertRuntimeByteLength("StepStartHistory", bytes.length);
+  }
+  if (name === "RuntimeRecoveryMetadata" && value["commands"] !== undefined) {
+    const commands = value["commands"] as unknown[];
+    if (commands.length > runtimeAuthorityLimits.maximumCommandHistoryCount)
+      throw new RangeError("Command history exceeds its record count limit");
+    const codec = staticCodec(type.fullName.slice(1));
+    const bytes = codec.encode(codec.fromObject({ commands }), new protobuf.Writer()).finish();
+    assertRuntimeByteLength("CommandHistory", bytes.length);
+  }
+  if (
+    [
+      "StepStartState",
+      "RuntimeCommandHistory",
+      "PresenterInputSynchronization",
+      "InputSynchronizationAck",
+    ].includes(name!)
+  ) {
+    const codec = staticCodec(type.fullName.slice(1));
+    assertRuntimeByteLength(
+      type.fullName,
+      codec.encode(codec.fromObject(value), new protobuf.Writer()).finish().length,
+    );
+  }
 }
 
 export function encodeWireMessage(typeName: string, value: object): Uint8Array {
@@ -194,10 +233,13 @@ export function encodeWireMessage(typeName: string, value: object): Uint8Array {
   validateObject(type, snapshot);
   const codec = staticCodec(typeName);
   // workerd's Buffer UTF-8 writer differs from Node when the remaining length is omitted.
-  return codec.encode(codec.fromObject(snapshot), new protobuf.Writer()).finish();
+  const bytes = codec.encode(codec.fromObject(snapshot), new protobuf.Writer()).finish();
+  assertRuntimeByteLength(typeName, bytes.length);
+  return bytes;
 }
 
 export function decodeWireMessage(typeName: string, bytes: Uint8Array): Record<string, unknown> {
+  assertRuntimeByteLength(typeName, bytes.length);
   const codec = staticCodec(typeName);
   const value = codec.toObject(codec.decode(bytes), {
     longs: String,

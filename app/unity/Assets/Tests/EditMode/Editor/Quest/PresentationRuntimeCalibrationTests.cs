@@ -16,16 +16,17 @@ public sealed class PresentationRuntimeCalibrationTests
     {
         public readonly List<ControlClientItem> Items = new List<ControlClientItem>();
         public WriteOptions WriteOptions { get; set; }
+        public Task PendingWrite;
         public Task CompleteAsync() => Task.CompletedTask;
         public Task WriteAsync(ControlClientItem item)
         {
             Items.Add(item.Clone());
-            return Task.CompletedTask;
+            return PendingWrite ?? Task.CompletedTask;
         }
     }
 
     private static PresentationBakedRuntime PreparePausedRuntime(GameObject host, RuntimeCommandWriter writer,
-        out PresentationRealtimeConnection connection)
+        out PresentationRealtimeConnection connection, ulong originVersion = 7)
     {
         var runtime = host.AddComponent<PresentationBakedRuntime>();
         runtime.ConfigureCalibration(new PresentationCalibrationState(), host.transform);
@@ -33,13 +34,20 @@ public sealed class PresentationRuntimeCalibrationTests
         var store = (PresentationRuntimeDataStore)typeof(PresentationBakedRuntime).GetField("store", flags).GetValue(runtime);
         Assert.That(store.TryReceiveDelivery(PresentationTextureResidencyEditModeTests.BakedDelivery(), out string error), Is.True, error);
         var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(
-            Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+            PresentationTestFixtures.Load("LocalSnapshot").text);
         snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Clock.Paused = new Paused { Reason = PauseReason.ExplicitPause };
-        snapshot.ConnectionSnapshot.Snapshot.RuntimeView.PresentationOrigin.Version = 7;
-        snapshot.ConnectionSnapshot.Fence.PresentationOriginVersion = 7;
+        snapshot.ConnectionSnapshot.Snapshot.RuntimeView.PresentationOrigin.Version = originVersion;
+        snapshot.ConnectionSnapshot.Fence.PresentationOriginVersion = originVersion;
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
         var textures = new PresentationTextureResidency();
-        typeof(PresentationBakedRuntime).GetField("textures", flags).SetValue(runtime, textures);
+        var renderer = new PresentationSceneRenderer();
+        typeof(PresentationSceneRenderer).GetProperty("Textures").SetValue(renderer, textures);
+        typeof(PresentationSceneRenderer).GetField("loaded", flags).SetValue(renderer, true);
+        typeof(PresentationSceneRenderer).GetField("files", flags).SetValue(renderer, new PresentationRuntimeAssetFiles());
+        typeof(PresentationSceneRenderer).GetField("native", flags).SetValue(renderer, new PresentationNativeSurfaceRenderer());
+        typeof(PresentationSceneRenderer).GetProperty("Videos").SetValue(renderer, new PresentationVideoResidency());
+        typeof(PresentationSceneRenderer).GetProperty("Models").SetValue(renderer, new PresentationModelResidency());
+        typeof(PresentationBakedRuntime).GetField("sceneRenderer", flags).SetValue(runtime, renderer);
         byte[] png = (byte[])typeof(PresentationTextureResidencyEditModeTests)
             .GetField("Png", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
         foreach (var binding in store.Delivery.Residency.Textures.Textures)
@@ -48,6 +56,7 @@ public sealed class PresentationRuntimeCalibrationTests
             Assert.That(textures.TryLoad(binding, access, png, out error), Is.True, error);
         }
         connection = new PresentationRealtimeConnection(store, textures);
+        Assert.That(connection.InputSynchronization.Receive(RequiredSynchronization()), Is.True);
         var control = new AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem>(writer, null,
             Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
         typeof(PresentationRealtimeConnection).GetField("control", flags).SetValue(connection, control);
@@ -57,6 +66,16 @@ public sealed class PresentationRuntimeCalibrationTests
         return runtime;
     }
 
+    private static PresenterInputSynchronization RequiredSynchronization() => new PresenterInputSynchronization
+    {
+        Phase = InputSynchronizationPhase.Required,
+        Reason = InputSynchronizationReason.Connected,
+        SynchronizationRevision = 1,
+        CommandEpoch = 1,
+        InputContext = new InputContext { InputEpoch = 1, GroupId = "g", GroupEntryEpoch = 1, StepId = "s", StepEntryEpoch = 1 },
+        RecognitionCatalog = new Unframe.Presentation.PresenterRecognitionCatalog(),
+    };
+
     private static void DestroyPreparedRuntime(GameObject host)
     {
         var runtime = host.GetComponent<PresentationBakedRuntime>();
@@ -64,9 +83,146 @@ public sealed class PresentationRuntimeCalibrationTests
         {
             BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
             ((PresentationRealtimeConnection)typeof(PresentationBakedRuntime).GetField("connection", flags).GetValue(runtime))?.Dispose();
-            ((PresentationTextureResidency)typeof(PresentationBakedRuntime).GetField("textures", flags).GetValue(runtime))?.Dispose();
+            ((PresentationSceneRenderer)typeof(PresentationBakedRuntime).GetField("sceneRenderer", flags).GetValue(runtime))?.Dispose();
         }
         Object.DestroyImmediate(host);
+    }
+
+    [Test]
+    public async Task EntryDoesNotQueueRepeatedControlsWhileAWriteIsPending()
+    {
+        var host = new GameObject("Pending production control");
+        var lifetime = new CancellationTokenSource();
+        var completion = new TaskCompletionSource<bool>();
+        try
+        {
+            var writer = new RuntimeCommandWriter { PendingWrite = completion.Task };
+            var runtime = PreparePausedRuntime(host, writer, out _);
+            var entry = host.AddComponent<QuestPresentationEntry>();
+            typeof(QuestPresentationEntry).GetField("runtime", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(entry, runtime);
+            typeof(QuestPresentationEntry).GetField("lifetime", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(entry, lifetime);
+            Assert.That(runtime.ResidentReady && runtime.ControlReady, Is.True);
+            Task first = entry.ResumeAsync();
+            Assert.That(first.IsCompleted, Is.False);
+            Assert.That(entry.CanControlPresentation, Is.False);
+            await entry.PauseAsync();
+            await entry.EndAsync();
+            Assert.That(writer.Items.Count, Is.EqualTo(1));
+            completion.TrySetResult(true);
+            await first;
+            Assert.That(entry.CanControlPresentation, Is.True);
+        }
+        finally
+        {
+            completion.TrySetResult(true);
+            lifetime.Cancel();
+            DestroyPreparedRuntime(host);
+            lifetime.Dispose();
+        }
+    }
+
+    [Test]
+    public async Task EntryAdvancesOnlyAfterCalibrationSessionReadinessAndInputSynchronization()
+    {
+        var host = new GameObject("Initial origin advance");
+        var lifetime = new CancellationTokenSource();
+        var interaction = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        try
+        {
+            var writer = new RuntimeCommandWriter();
+            var runtime = PreparePausedRuntime(host, writer, out var connection, 7);
+            var entry = host.AddComponent<QuestPresentationEntry>();
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(QuestPresentationEntry).GetField("runtime", flags).SetValue(entry, runtime);
+            typeof(QuestPresentationEntry).GetField("lifetime", flags).SetValue(entry, lifetime);
+            typeof(QuestPresentationEntry).GetField("interactionLifetime", flags).SetValue(entry, interaction);
+            typeof(QuestPresentationEntry).GetField("logicalEventName", flags).SetValue(entry, "advance");
+            Assert.That(entry.CanAdvance, Is.False);
+            await entry.AdvanceAsync();
+            Assert.That(writer.Items, Is.Empty);
+            typeof(PresentationRealtimeConnection).GetProperty("SessionReady").SetValue(connection, true);
+            Assert.That(entry.CanAdvance, Is.False);
+            await entry.AdvanceAsync();
+            Assert.That(writer.Items, Is.Empty);
+            var calibration = new PresentationCalibrationState();
+            Assert.That(calibration.TrySet(QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity), out _), Is.True);
+            runtime.ConfigureCalibration(calibration, host.transform);
+            Assert.That(entry.CanAdvance, Is.False);
+            var store = runtime.DataStore;
+            Assert.That(store.TryGetLastConnectionSnapshot(out var snapshot), Is.True);
+            snapshot.Snapshot.RuntimeView.Clock.Running = new Running();
+            Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out string error), Is.True, error);
+            Assert.That(connection.InputSynchronization.TryCreateAck(0), Is.Not.Null);
+            var ready = RequiredSynchronization(); ready.Phase = InputSynchronizationPhase.Ready;
+            Assert.That(connection.InputSynchronization.Receive(ready), Is.True);
+            Assert.That(entry.CanAdvance, Is.True);
+            await entry.AdvanceAsync();
+            Assert.That(writer.Items.Count, Is.EqualTo(1));
+            Assert.That(writer.Items[0].LogicalInput.LogicalEventName, Is.EqualTo("advance"));
+            Assert.That(writer.Items[0].LogicalInput.PresentationOriginVersion, Is.EqualTo(7));
+            Assert.That(writer.Items[0].LogicalInput.CommandEpoch, Is.EqualTo(1));
+        }
+        finally
+        {
+            lifetime.Cancel();
+            DestroyPreparedRuntime(host);
+            interaction.Dispose();
+            lifetime.Dispose();
+        }
+    }
+
+    [TestCase(RuntimeControlKind.Resume, 7UL)]
+    [TestCase(RuntimeControlKind.Pause, 7UL)]
+    [TestCase(RuntimeControlKind.End, 7UL)]
+    public async Task EntryForwardsRuntimeControlsWithoutCalibrationOrSpeculativePlayback(RuntimeControlKind kind, ulong originVersion)
+    {
+        var host = new GameObject("Entry production controls");
+        var lifetime = new CancellationTokenSource();
+        try
+        {
+            var writer = new RuntimeCommandWriter();
+            var runtime = PreparePausedRuntime(host, writer, out var connection, originVersion);
+            var entry = host.AddComponent<QuestPresentationEntry>();
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(QuestPresentationEntry).GetField("runtime", flags).SetValue(entry, runtime);
+            typeof(QuestPresentationEntry).GetField("lifetime", flags).SetValue(entry, lifetime);
+            Assert.That(runtime.ResidentReady && runtime.ControlReady, Is.True);
+            typeof(QuestPresentationEntry).GetField("connectionStage", flags).SetValue(entry, PresentationConnectionStage.LoadingAssets);
+            Assert.That(entry.CalibrationReady || entry.SessionReady, Is.False);
+            Assert.That(entry.ConnectionStage, Is.EqualTo(PresentationConnectionStage.Synchronizing));
+            Assert.That(entry.ControlReady && entry.IsPresenter && entry.CanControlPresentation, Is.True);
+            Assert.That(entry.PlaybackStatus, Is.EqualTo("Paused"));
+            if (kind == RuntimeControlKind.Resume) await entry.ResumeAsync();
+            else if (kind == RuntimeControlKind.Pause) await entry.PauseAsync();
+            else await entry.EndAsync();
+            Assert.That(writer.Items.Count, Is.EqualTo(1));
+            Assert.That(writer.Items[0].RuntimeControl.Kind, Is.EqualTo(kind));
+            Assert.That(writer.Items[0].RuntimeControl.PresentationOriginVersion, Is.EqualTo(originVersion));
+            Assert.That(writer.Items[0].RuntimeControl.ClientEventId, Is.Not.Empty);
+            var store = (PresentationRuntimeDataStore)typeof(PresentationBakedRuntime).GetField("store", flags).GetValue(runtime);
+            Assert.That(store.TryReceiveControl(new ControlServerItem
+            {
+                CommandOutcome = new CommandOutcome
+                {
+                    ClientEventId = writer.Items[0].RuntimeControl.ClientEventId,
+                    Rejected = new CommandRejected { Reason = CommandRejectionReason.RuntimeNotAcceptingInput },
+                }
+            }, out string outcomeError), Is.True, outcomeError);
+            Assert.That(entry.LastCommandOutcomeCode, Is.EqualTo("rejected:RuntimeNotAcceptingInput"));
+            Assert.That(entry.PlaybackStatus, Is.EqualTo("Paused"));
+            typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, false);
+            Assert.That(entry.CanControlPresentation, Is.False);
+            Assert.That(entry.PlaybackStatus, Is.EqualTo("Unknown"));
+            Assert.That(entry.LastCommandOutcomeCode, Is.Null);
+            await entry.ResumeAsync();
+            Assert.That(writer.Items.Count, Is.EqualTo(1));
+        }
+        finally
+        {
+            lifetime.Cancel();
+            DestroyPreparedRuntime(host);
+            lifetime.Dispose();
+        }
     }
 
     [TestCase(RuntimeControlKind.Resume)]
@@ -99,6 +255,65 @@ public sealed class PresentationRuntimeCalibrationTests
             Assert.That(writer.Items.Count, Is.EqualTo(1));
         }
         finally { DestroyPreparedRuntime(host); }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task UpdatingAValidCalibrationRequestsRecalibrationAndDoesNotLeaveInputSuspended(bool deferred)
+    {
+        var host = new GameObject("Calibration replacement");
+        QuestPresentationEntry entry = null;
+        try
+        {
+            var writer = new RuntimeCommandWriter();
+            var runtime = PreparePausedRuntime(host, writer, out var connection);
+            entry = host.AddComponent<QuestPresentationEntry>();
+            typeof(QuestPresentationEntry).GetField("questTrackingOrigin", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(entry, host.transform);
+            var calibration = new PresentationCalibrationState();
+            var pose = new Unframe.Presentation.Pose { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } };
+            Assert.That(calibration.TrySet(pose, out _), Is.True);
+            entry.Configure(new Uri("https://api.example.com/"), "session", async token =>
+            {
+                await Task.Delay(Timeout.Infinite, token);
+                return "unused";
+            }, calibration, null);
+            var required = new PresenterInputSynchronization
+            {
+                Phase = InputSynchronizationPhase.Required,
+                Reason = InputSynchronizationReason.Connected,
+                SynchronizationRevision = 1,
+                CommandEpoch = 1,
+                InputContext = new InputContext { InputEpoch = 1, GroupId = "g", GroupEntryEpoch = 1, StepId = "s", StepEntryEpoch = 1 },
+                RecognitionCatalog = new Unframe.Presentation.PresenterRecognitionCatalog()
+            };
+            Assert.That(connection.InputSynchronization.Receive(required), Is.True);
+            connection.InputSynchronization.TryCreateAck(0);
+            var ready = required.Clone(); ready.Phase = InputSynchronizationPhase.Ready;
+            Assert.That(connection.InputSynchronization.Receive(ready), Is.True);
+            if (deferred) typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, false);
+            pose.Position.X = 1;
+            Assert.That(calibration.TrySet(pose, out _), Is.True);
+            if (deferred)
+            {
+                Assert.That(writer.Items, Is.Empty);
+                typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, true);
+                typeof(QuestPresentationEntry).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(entry, null);
+            }
+            Assert.That(writer.Items.Count, Is.EqualTo(1));
+            Assert.That(writer.Items[0].RuntimeControl.Kind, Is.EqualTo(RuntimeControlKind.Recalibrate));
+            required.SynchronizationRevision++;
+            required.Reason = InputSynchronizationReason.Recalibrated;
+            Assert.That(connection.InputSynchronization.Receive(required), Is.True);
+            Assert.That(connection.InputSynchronization.TryCreateAck(0), Is.Not.Null);
+            ready = required.Clone(); ready.Phase = InputSynchronizationPhase.Ready;
+            Assert.That(connection.InputSynchronization.Receive(ready), Is.True);
+            Assert.That(connection.InputSynchronization.Ready, Is.True);
+        }
+        finally
+        {
+            if (entry != null) await entry.StopAsync();
+            DestroyPreparedRuntime(host);
+        }
     }
 
     [TestCase("viewer")]

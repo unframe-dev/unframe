@@ -1,3 +1,4 @@
+import { validateCheckpoint } from "./checkpoint";
 import type { CheckpointInput, CompletionInput } from "./schema";
 
 export type PersistenceResult = "applied" | "duplicate" | "not_found" | "conflict";
@@ -17,10 +18,20 @@ export class PersistenceCallbackService {
   constructor(private readonly repository: PersistenceCallbackRepository) {}
 
   async checkpoint(value: CheckpointInput) {
+    await validateCheckpoint(value.payload, {
+      ...value,
+      checkpointSequence: value.version,
+      reliableSequence: value.lastSequence,
+    });
     return this.result(await this.repository.applyCheckpoint(value));
   }
 
   async complete(value: CompletionInput) {
+    await validateCheckpoint(value.finalCheckpoint, {
+      ...value,
+      checkpointSequence: value.checkpointVersion,
+      reliableSequence: value.lastSequence,
+    });
     return this.result(await this.repository.applyCompletion(value));
   }
 

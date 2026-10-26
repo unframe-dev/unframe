@@ -83,7 +83,10 @@ func (c *Client) Bootstrap(ctx context.Context, request BootstrapRequest) (Runti
 	}
 	if len(value.Checkpoint) != 0 && string(value.Checkpoint) != "null" {
 		checkpoint := &realtimev2.DurableCheckpointEnvelope{}
-		if err := protojson.Unmarshal(value.Checkpoint, checkpoint); err != nil {
+		if len(value.Checkpoint) > 1572864 {
+			return RuntimeBootstrap{}, ErrInvalidBootstrap
+		}
+		if err := protojson.Unmarshal(value.Checkpoint, checkpoint); err != nil || !validCheckpointEnvelope(checkpoint) {
 			return RuntimeBootstrap{}, ErrInvalidBootstrap
 		}
 	}
@@ -107,7 +110,7 @@ func (c *Client) Projection(ctx context.Context, request ProjectionRequest) (Run
 		return RuntimeProjection{}, ErrInvalidProjection
 	}
 	profile := &deliveryv2.ProjectionProfileDescriptor{}
-	if err := protojson.Unmarshal(value.Profile, profile); err != nil || profile.ProjectionProfileId == "" || profile.RuntimeCatalog == nil || len(profile.RequiredRuntimeCapabilities) == 0 {
+	if err := protojson.Unmarshal(value.Profile, profile); err != nil || profile.ProjectionProfileId == "" || profile.RuntimeCatalog == nil || profile.RuntimeCatalog.CatalogContractVersion != 3 || len(profile.RequiredRuntimeCapabilities) == 0 {
 		return RuntimeProjection{}, ErrInvalidProjection
 	}
 	return RuntimeProjection{Role: value.Role, Profile: profile}, nil

@@ -152,7 +152,12 @@ export type TransformDeclaration = {
   rotation: readonly [number, number, number, number];
   scale: readonly [number, number, number];
 };
+export type ZoneDeclaration = StableDeclaration & {
+  owner: ResourceOwner;
+  center: readonly [number, number, number];
+};
 export type StageDeclaration = {
+  zones?: Readonly<Record<string, ZoneDeclaration>>;
   coordinateSystem: {
     unit: "meter";
     handedness: "right";
@@ -610,7 +615,23 @@ export type ComponentOutputReference = {
   componentInstanceId: string;
   outputId: string;
 };
-export type CueTrigger = { kind: "event"; event: string } | ComponentOutputReference;
+export type GestureTrigger = {
+  kind: "gesture";
+  gesture:
+    | "swipeLeft"
+    | "swipeRight"
+    | "swipeDown"
+    | "swipeUp"
+    | "pushForward"
+    | "pullBackward"
+    | "spreadHands"
+    | "closeHands";
+};
+export type CueTrigger =
+  | { kind: "event"; event: string }
+  | ComponentOutputReference
+  | GestureTrigger
+  | { kind: "zoneEdge"; zoneId: string; edge: "enter" | "exit" };
 export type CueGuard =
   | { kind: "all"; guards: readonly CueGuard[] }
   | { kind: "any"; guards: readonly CueGuard[] }
@@ -635,7 +656,7 @@ export type CueDeclaration = StableDeclaration & {
   priority?: number;
   order?: number;
   guard?: CueGuard;
-  firePolicy?: { kind: "oncePerStepEntry" } | { kind: "repeatable"; cooldownMilliseconds: number };
+  firePolicy?: { kind: "oncePerStepEntry" } | { kind: "repeatable" };
   next?: CueNext;
   toStepId?: string;
   toGroupId?: string;

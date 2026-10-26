@@ -1,13 +1,19 @@
 import {
   createUnityMediaCapabilityProfile,
   capabilityProfileSchema,
+  runtimeAuthorityVersions,
   type CapabilityProfile,
 } from "@unframe/contracts/presentation";
 
 const bakedWebQuestProfile = capabilityProfileSchema.parse({
-  schemaVersion: 2,
+  schemaVersion: runtimeAuthorityVersions.capability,
   capabilityProfileId: "quest-baked-web-v1",
-  contractVersions: { delivery: 2, runtime: 2, progression: 1, projection: 1 },
+  contractVersions: {
+    delivery: runtimeAuthorityVersions.delivery,
+    runtime: runtimeAuthorityVersions.runtime,
+    progression: runtimeAuthorityVersions.progression,
+    projection: runtimeAuthorityVersions.projection,
+  },
   renderers: {
     bakedWeb: {
       supported: true,
@@ -65,9 +71,37 @@ const bakedWebQuestProfile = capabilityProfileSchema.parse({
   localOverlaySupported: false,
 });
 
+const unityMediaProfile = createUnityMediaCapabilityProfile();
+const presentationQuestProfile = capabilityProfileSchema.parse({
+  ...unityMediaProfile,
+  capabilityProfileId: "quest-presentation-v2",
+  renderers: {
+    ...unityMediaProfile.renderers,
+    nativeUi: {
+      supported: true,
+      contractVersion: 1,
+      features: ["clip"],
+    },
+  },
+  limits: {
+    ...unityMediaProfile.limits,
+    nativeUi: {
+      tierId: "quest-presentation-v2",
+      maxNodesPerArtifact: 1024,
+      maxTreeDepth: 32,
+      maxTextNodesPerArtifact: 256,
+      maxCodePointsPerText: 4096,
+      maxGlyphs: 8192,
+      maxFontAssets: 8,
+    },
+  },
+});
+
 export const normalizedCapability = (profileId: string): CapabilityProfile => {
   if (profileId === "unity-media-v1") return createUnityMediaCapabilityProfile();
-  if (profileId !== bakedWebQuestProfile.capabilityProfileId)
-    throw new RangeError("Unsupported device capability profile");
-  return structuredClone(bakedWebQuestProfile);
+  const profile = [bakedWebQuestProfile, presentationQuestProfile].find(
+    (candidate) => candidate.capabilityProfileId === profileId,
+  );
+  if (!profile) throw new RangeError("Unsupported device capability profile");
+  return structuredClone(profile);
 };

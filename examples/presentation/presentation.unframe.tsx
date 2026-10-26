@@ -111,6 +111,28 @@ export default definePresentation({
             id: "start",
             cues: [
               {
+                id: "swipe-continue",
+                trigger: {
+                  kind: "gesture",
+                  gesture: "swipeLeft",
+                },
+                actions: [
+                  {
+                    kind: "component.action",
+                    componentInstanceId: "reference-surface",
+                    actionId: "fade",
+                    arguments: {},
+                  },
+                  {
+                    kind: "component.action",
+                    componentInstanceId: "reference-surface",
+                    actionId: "complete",
+                    arguments: {},
+                  },
+                ],
+                next: { kind: "step", stepId: "done" },
+              },
+              {
                 id: "continue",
                 trigger: {
                   kind: "component.output",

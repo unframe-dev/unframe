@@ -70,8 +70,6 @@ public sealed class PresentationDeliveryValidationEditModeTests
     }
 
     [TestCase(RuntimeCapability.Unspecified)]
-    [TestCase(RuntimeCapability.VideoPlayback)]
-    [TestCase(RuntimeCapability.ModelClip)]
     [TestCase((RuntimeCapability)999)]
     public void Delivery_RejectsUnsupportedRequiredRuntimeCapability(RuntimeCapability capability)
     {
@@ -125,7 +123,7 @@ public sealed class PresentationDeliveryValidationEditModeTests
     public void Delivery_RejectsNativeUiFeatureThatPlaceholderCannotRender()
     {
         DeliveryManifest delivery = CreateFixture();
-        delivery.ProjectionProfile.RenderSurfaces[0].Artifacts[0].NativeUi.RequiredFeatures.Add(NativeUiFeature.Clip);
+        delivery.ProjectionProfile.RenderSurfaces[0].Artifacts[0].NativeUi.RequiredFeatures.Add(NativeUiFeature.Ellipsis);
         AssertRejected(delivery, "native UI feature");
     }
 
@@ -135,7 +133,7 @@ public sealed class PresentationDeliveryValidationEditModeTests
         DeliveryManifest delivery = CreateFixture();
         NativeUiText text = delivery.ProjectionProfile.RenderSurfaces[0].Artifacts[0].NativeUi.Nodes[0].Text;
         text.Value = new NativeTextValue { StringVariable = new StringVariableText { VariableId = "variable:local-title" } };
-        AssertRejected(delivery, "native UI text");
+        AssertRejected(delivery, "native UI");
     }
 
     [TestCase("missing material")]
@@ -178,7 +176,7 @@ public sealed class PresentationDeliveryValidationEditModeTests
 
     private static DeliveryManifest CreateFixture()
     {
-        TextAsset fixture = Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery");
+        TextAsset fixture = PresentationTestFixtures.Load("LocalDelivery");
         Assert.That(fixture, Is.Not.Null);
         return JsonParser.Default.Parse<DeliveryManifest>(fixture.text);
     }

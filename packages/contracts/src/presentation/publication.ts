@@ -3,13 +3,13 @@ import * as z from "zod";
 import { contentHashSchema, idSchema, positiveSafeUIntSchema, safeUIntSchema } from "./common";
 
 export const contractVersionsSchema = z.strictObject({
-  definition: z.literal(2),
+  definition: z.literal(3),
   renderBundle: z.literal(2),
   assetSet: z.literal(2),
-  delivery: z.literal(2),
-  runtime: z.literal(2),
-  progression: z.literal(1),
-  projection: z.literal(1),
+  delivery: z.literal(3),
+  runtime: z.literal(3),
+  progression: z.literal(2),
+  projection: z.literal(2),
 });
 export const publicationFenceSchema = z.strictObject({
   presentationId: idSchema,
@@ -18,7 +18,7 @@ export const publicationFenceSchema = z.strictObject({
 });
 
 export const buildManifestSchema = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   buildId: idSchema,
   presentationId: idSchema,
   sourceDraftRevision: safeUIntSchema,
@@ -29,7 +29,7 @@ export const buildManifestSchema = z.strictObject({
 });
 
 export const publishedPresentationSchema = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   presentationId: idSchema,
   publicationEpoch: positiveSafeUIntSchema,
   publicationManifestHash: contentHashSchema,

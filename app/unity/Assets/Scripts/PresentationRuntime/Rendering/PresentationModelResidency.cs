@@ -45,6 +45,28 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private readonly Dictionary<string, List<Pose>> defaults = new Dictionary<string, List<Pose>>();
         private bool disposed;
+        public bool IsReady
+        {
+            get
+            {
+                if (disposed) return false;
+                foreach (GltfImport import in checksums.Values)
+                    for (int i = 0; i < import.TextureCount; i++)
+                        if (import.GetTexture(i) == null) return false;
+                foreach (GameObject instance in instances)
+                {
+                    if (instance == null) return false;
+                    foreach (MeshFilter mesh in instance.GetComponentsInChildren<MeshFilter>(true))
+                        if (mesh.sharedMesh == null) return false;
+                    foreach (SkinnedMeshRenderer mesh in instance.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                        if (mesh.sharedMesh == null) return false;
+                    foreach (Renderer renderer in instance.GetComponentsInChildren<Renderer>(true))
+                        foreach (Material material in renderer.sharedMaterials)
+                            if (material == null) return false;
+                }
+                return true;
+            }
+        }
         public async Task LoadAsync(ModelResidencyBinding binding, AssetAccessBinding access, byte[] bytes, CancellationToken token, PresentationModelTextureBudget budget = null)
         {
             if (disposed) throw new ObjectDisposedException(nameof(PresentationModelResidency));

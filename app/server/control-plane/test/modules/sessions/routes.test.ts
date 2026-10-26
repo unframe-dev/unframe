@@ -224,7 +224,7 @@ describe("session HTTP lifecycle", () => {
       409,
     );
     await env.DB.prepare(
-      "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v2', 50, ?, ?, 'healthy', ?, ?, ?)",
+      "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v3', 50, ?, ?, 'healthy', ?, ?, ?)",
     )
       .bind(
         `edge-${suffix}`,
@@ -326,7 +326,7 @@ describe("session HTTP lifecycle", () => {
     const edgeId = `edge-${suffix}`;
     await env.DB.batch([
       env.DB.prepare(
-        "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v2', 50, ?, ?, 'healthy', ?, ?, ?)",
+        "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v3', 50, ?, ?, 'healthy', ?, ?, ?)",
       ).bind(
         edgeId,
         `runtime-${suffix}`,
@@ -389,7 +389,7 @@ describe("session HTTP lifecycle", () => {
     const runtimeId = `runtime-${suffix}`;
     await env.DB.batch([
       env.DB.prepare(
-        "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v2', 50, 'https://edge.example.com', 'sha256:test', 'healthy', ?, ?, ?)",
+        "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v3', 50, 'https://edge.example.com', 'sha256:test', 'healthy', ?, ?, ?)",
       ).bind(edgeId, runtimeId, now.toISOString(), now.toISOString(), now.toISOString()),
       env.DB.prepare(
         "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at) VALUES (?, ?, 'VenueEdge', 'https://edge.example.com', 'sha256:test', ?, 1, 1, ?, ?)",

@@ -30,6 +30,12 @@ pnpm --filter @unframe/contracts test:presentation
 
 `presentation/*.schema.json` と `contract.pb` は生成物です。fixture は合成データで、モデル・動画・フォントの実バイトや実機測定値を含みません。構造の受理・拒否と生成物の一致を検証し、素材の変換・描画成功とは区別します。
 
+### Presenter recognition catalog
+
+Presenter profile は `ProjectedRuntimeCatalog.presenter_recognition` を配信します。
+Definition 内の Gesture と Zone の認識候補を client が参照し、Presenter 入力を authoritative Runtime が検証します。
+wire・version・容量制限は [Presenter authority 契約](../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) を参照してください。
+
 ## Realtime / Delivery v2 consumers
 
 `proto/unframe/{presentation,delivery,realtime}/` が wire の正本です。Realtime v1 と Presentation v1 の公開 schema、fixture、生成経路は廃止しています。旧 Control Plane Presentation CRUD の DTO は独立した未移行の境界です。

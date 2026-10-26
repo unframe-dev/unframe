@@ -25,7 +25,7 @@ const setup = () => {
         order: 0,
         priority: 0,
         trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        firePolicy: { kind: "repeatable", cooldownMilliseconds: 0 },
+        firePolicy: { kind: "repeatable" },
         actions,
         next: { kind: "stay" },
       },
@@ -315,7 +315,6 @@ describe("clock authority and resource lifecycle", () => {
       lastIngressSequence: 0,
       lifecycle: { kind: "running" },
       presentationOrigin: { version: 0, pose: { position: [0, 0, 0], rotation: [0, 0, 0, 1] } },
-      recentEventIds: [],
     });
     expect(validateCanonicalRuntimeSnapshot(definition, bundle, snapshot, 9)).toEqual([]);
   });
@@ -488,7 +487,6 @@ describe("Media State catalogs", () => {
       lastIngressSequence: 0,
       lifecycle: { kind: "running" },
       presentationOrigin: { version: 0, pose: { position: [0, 0, 0], rotation: [0, 0, 0, 1] } },
-      recentEventIds: [],
     });
     expect(validateCanonicalRuntimeSnapshot(definition, bundle, snapshot, 9)).toEqual([]);
   });
@@ -570,7 +568,6 @@ it("allows a blocking finite target to fade out a looping source", () => {
     lastIngressSequence: 0,
     lifecycle: { kind: "running" },
     presentationOrigin: { version: 0, pose: { position: [0, 0, 0], rotation: [0, 0, 0, 1] } },
-    recentEventIds: [],
   });
   expect(validateCanonicalRuntimeSnapshot(definition, bundle, snapshot, 9)).toEqual([]);
   current = advanceCueClock(definition, current, 1000).state;

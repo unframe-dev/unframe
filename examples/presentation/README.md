@@ -1,6 +1,6 @@
 # Presentation reference project
 
-This is the M3C v2 filesystem Authoring Project acceptance fixture. `unframe.lock` embeds and pins the
+This is the filesystem Authoring Project acceptance fixture for Presentation Definition v3. `unframe.lock` embeds and pins the
 minimal `@unframe/unframe-authoring` declaration package and the hashes of the theme and
 structured component declarations. It also carries the unchanged Liberation Sans TTF bytes with their
 SHA-256 checksum and size; the SDK snapshot is a fixture, not a published pnpm package; see `FONT-LICENSE.txt`. Generated `.unframe/` and `dist` output are not source.
@@ -16,6 +16,12 @@ a style Variant, a public Part override, and clipped absolute Frame nesting. A S
 places a separate Frame-root badge Component inside the card. Both Instances retain their IDs in
 the generated content and share one Surface. The badge semantic node is an additional Surface root. A click button has enabled and disabled States; the disabled State changes its visual and semantic text. Its Output supplies a fixed scalar payload to the Cue Guard and Action; clicking it changes the Surface State. A later timer Cue advances a Step with no Action. The headline demonstrates style precedence: Named
 Style size 56, inline 64, Variant 68, and Part override 72.
+
+The start Step also accepts a `gesture` Cue with `swipeLeft`. It plays the same fade and moves
+to the same done Step as the button, using a literal Action value rather than the button Output payload.
+The Presenter client recognizes the gesture with its internal thresholds; Runtime validates the captured
+input context and executes the Cue. Only the Presenter receives the recognition catalog.
+Local Preview rejects this tracking-dependent presentation.
 
 The fixture explicitly supplies its defaulted Props and Variant. Omitting `offset`, `showCard`, or
 `tone` uses the manifest default and emits a warning; `title` and the badge's `label` are required.

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "presentationId": "demo",
   "metadata": {
     "title": "Contract fixture"
@@ -187,8 +187,7 @@
                   }
                 },
                 "firePolicy": {
-                  "kind": "repeatable",
-                  "cooldownMilliseconds": 0
+                  "kind": "repeatable"
                 },
                 "actions": [
                   {
@@ -212,8 +211,7 @@
                   }
                 },
                 "firePolicy": {
-                  "kind": "repeatable",
-                  "cooldownMilliseconds": 0
+                  "kind": "repeatable"
                 },
                 "actions": [
                   {

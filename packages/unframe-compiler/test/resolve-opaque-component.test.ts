@@ -91,6 +91,50 @@ const project = (scene: ReturnType<typeof item>[]) => ({
 });
 
 describe("Opaque React lowering", () => {
+  it.each([
+    { kind: "gesture", gesture: "pullBackward" },
+    { kind: "zoneEdge", zoneId: "front", edge: "enter" },
+  ] as const)("lowers a presentation $kind without a Component Output", (trigger) => {
+    const input = project([item("hero")]);
+    const result = checkDeclarationProject({
+      ...input,
+      presentation: {
+        ...input.presentation,
+        stage: {
+          ...input.presentation.stage,
+          zones: { front: { id: "front", owner: { kind: "presentation" }, center: [0, 0, 0] } },
+        },
+        flow: {
+          ...input.presentation.flow,
+          groups: {
+            main: {
+              id: "main",
+              initialStepId: "first",
+              steps: {
+                first: {
+                  id: "first",
+                  cues: [
+                    {
+                      id: "pull",
+                      trigger,
+                      actions: [],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) throw new Error("Expected valid Gesture.");
+    expect(result.value.definition.flow.groups.main!.steps.first!.cues[0]!.trigger).toEqual({
+      ...trigger,
+      actor: { kind: "presenter" },
+    });
+  });
+
   it("lowers finite State, button Interaction and Output-to-Action Cue", () => {
     const finiteMetadata = validateStaticComponentMetadata({
       ...metadata,

@@ -40,7 +40,7 @@ func TestV2HandshakeStopsAtLeaseDeadline(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			deadline := time.Now().Add(30 * time.Millisecond)
-			service := &V2Service{identities: testIdentityResolver{session.Identity{ProtocolVersion: 2}}, assignments: deadlineAssignment{deadline: deadline}}
+			service := &V2Service{identities: testIdentityResolver{session.Identity{ProtocolVersion: 3}}, assignments: deadlineAssignment{deadline: deadline}}
 			done := make(chan error, 1)
 			if state {
 				stream := &v2LeaseStream[realtimev2.StateClientItem, realtimev2.StateServerItem]{ctx: ctx, receive: func() (*realtimev2.StateClientItem, error) { <-ctx.Done(); return nil, ctx.Err() }}
@@ -65,15 +65,15 @@ var _ AssignmentAuthorizer = deadlineAssignment{}
 
 func newV2LeaseTestService(t *testing.T, assignments AssignmentAuthorizer) (*V2Service, *deliveryv2.ProjectionProfileDescriptor) {
 	t.Helper()
-	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
-	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 2}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 2, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}}
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 3}
 	service, err := NewV2Service(runtime, bootstrap, v2TestProjection{persistencehttp.RuntimeProjection{Role: "presenter", Profile: profile}}, testIdentityResolver{identity}, assignments)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +87,7 @@ func TestV2BlockedReliableSendStopsAtLeaseDeadline(t *testing.T) {
 	defer cancel()
 	service, profile := newV2LeaseTestService(t, deadlineAssignment{deadline: time.Now().Add(200 * time.Millisecond)})
 	inputs := make(chan *realtimev2.ControlClientItem, 2)
-	inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}
+	inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}
 	blocked := make(chan struct{})
 	var once sync.Once
 	stream := &v2LeaseStream[realtimev2.ControlClientItem, realtimev2.ControlServerItem]{ctx: ctx, receive: func() (*realtimev2.ControlClientItem, error) {
@@ -98,8 +98,9 @@ func TestV2BlockedReliableSendStopsAtLeaseDeadline(t *testing.T) {
 			return nil, ctx.Err()
 		}
 	}, send: func(item *realtimev2.ControlServerItem) error {
-		if item.GetStateConnectionNonce() != nil {
-			inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_LogicalInput{LogicalInput: &realtimev2.LogicalInputCommand{ClientEventId: "blocked-send", LogicalEventName: "next"}}}
+		if syncState := item.GetPresenterInputSynchronization(); syncState != nil && syncState.Phase == realtimev2.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_REQUIRED {
+			inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_InputSynchronizationAck{InputSynchronizationAck: v3TestAck(syncState)}}
+			inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_LogicalInput{LogicalInput: &realtimev2.LogicalInputCommand{ClientEventId: v3TestEventID(1, "blocked-send"), CommandEpoch: 1, InputContext: service.runtime.InputSynchronization().InputContext, LogicalEventName: "next"}}}
 		}
 		if item.GetReliableEvent() != nil {
 			once.Do(func() { close(blocked) })
@@ -135,7 +136,7 @@ func TestV2DisconnectEvictsExpiredResumeCredentials(t *testing.T) {
 	stream := &v2LeaseStream[realtimev2.ControlClientItem, realtimev2.ControlServerItem]{ctx: ctx, receive: func() (*realtimev2.ControlClientItem, error) {
 		if first {
 			first = false
-			return &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}, nil
+			return &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}, nil
 		}
 		return nil, io.EOF
 	}, send: func(*realtimev2.ControlServerItem) error { return nil }}
@@ -164,7 +165,7 @@ func TestV2HandshakeRechecksLeaseAfterReceive(t *testing.T) {
 			if state {
 				stream := &v2LeaseStream[realtimev2.StateClientItem, realtimev2.StateServerItem]{ctx: ctx, receive: func() (*realtimev2.StateClientItem, error) {
 					lease.renew(-time.Second)
-					return &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: "connection-1", StateConnectionNonce: make([]byte, 32)}}}, nil
+					return &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: "connection-1", StateConnectionNonce: make([]byte, 32)}}}, nil
 				}, send: func(*realtimev2.StateServerItem) error { return nil }}
 				err = service.ConnectState(stream)
 			} else {
@@ -175,7 +176,7 @@ func TestV2HandshakeRechecksLeaseAfterReceive(t *testing.T) {
 					}
 					received = true
 					lease.renew(-time.Second)
-					return &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}, nil
+					return &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}, nil
 				}, send: func(*realtimev2.ControlServerItem) error { return nil }}
 				err = service.ConnectControl(stream)
 			}
@@ -211,7 +212,7 @@ func TestV2StateStopsAtLeaseDeadline(t *testing.T) {
 					return nil, ctx.Err()
 				}
 				first = false
-				return &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: "connection-1", StateConnectionNonce: nonce}}}, nil
+				return &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: "connection-1", StateConnectionNonce: nonce}}}, nil
 			}, send: func(item *realtimev2.StateServerItem) error {
 				if (stage == "connected_send" && item.GetConnected() != nil) || (stage == "frame_send" && item.GetStateFrame() != nil) {
 					once.Do(func() { close(reached) })
@@ -247,7 +248,7 @@ func TestV2HandshakeUsesRenewedLeaseDeadline(t *testing.T) {
 	defer cancel()
 	initialized := make(chan struct{})
 	lease := &renewableDeadlineAssignment{initialDuration: 100 * time.Millisecond, initialized: initialized}
-	service := &V2Service{identities: testIdentityResolver{session.Identity{ProtocolVersion: 2}}, assignments: lease}
+	service := &V2Service{identities: testIdentityResolver{session.Identity{ProtocolVersion: 3}}, assignments: lease}
 	stream := &v2LeaseStream[realtimev2.ControlClientItem, realtimev2.ControlServerItem]{ctx: ctx, receive: func() (*realtimev2.ControlClientItem, error) { <-ctx.Done(); return nil, ctx.Err() }}
 	done := make(chan error, 1)
 	go func() { done <- service.ConnectControl(stream) }()

@@ -47,7 +47,7 @@ public sealed class PresentationVideoLifecycleEditModeTests
     }
     private static LocalPreviewEnvelope VideoEnvelope()
     {
-        byte[] bytes = Resources.Load<TextAsset>("PresentationFixtures/Video").bytes;
+        byte[] bytes = PresentationTestFixtures.Load("Video").bytes;
         string checksum; using (var sha = SHA256.Create()) checksum = "sha256:" + BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
         var envelope = PresentationPreviewTestFixture.Create();
         var surface = envelope.Projection.RuntimeCatalog.Surfaces[0]; surface.ReachableStateIds.Add("state:loop"); surface.ReachableStateIds.Add("state:hidden");
@@ -95,7 +95,7 @@ public sealed class PresentationVideoLifecycleEditModeTests
         var root = new GameObject("Video invalidation");
         using (var transaction = new PresentationPreviewTransaction(root.transform, () => decoder))
         {
-            var bytes = Resources.Load<TextAsset>("PresentationFixtures/Video").bytes;
+            var bytes = PresentationTestFixtures.Load("Video").bytes;
             var prepare = transaction.PrepareAsync(envelope, (_, __, ___) => Task.FromResult(new PresentationPreviewAssetData(bytes, "video/mp4")), CancellationToken.None);
             while (!prepare.IsCompleted) yield return null;
             Assert.That(prepare.IsFaulted, Is.False, prepare.Exception?.ToString()); transaction.Commit(envelope.RequestId);
@@ -130,7 +130,7 @@ public sealed class PresentationVideoLifecycleEditModeTests
     [UnityTest]
     public IEnumerator SeparateGroupsUseOneDecoderAndLatePreparationCannotCommitAfterCancellation()
     {
-        byte[] bytes = Resources.Load<TextAsset>("PresentationFixtures/Video").bytes;
+        byte[] bytes = PresentationTestFixtures.Load("Video").bytes;
         string checksum; using (var sha = SHA256.Create()) checksum = "sha256:" + BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
         var view = new View();
         for (int i = 0; i < 3; i++)
@@ -192,7 +192,9 @@ public sealed class PresentationVideoLifecycleEditModeTests
             var runtimeHost = new GameObject("Realtime disconnect");
             var runtime = runtimeHost.AddComponent<PresentationBakedRuntime>();
             var fields = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
-            typeof(PresentationBakedRuntime).GetField("videos", fields).SetValue(runtime, videos);
+            var sceneRenderer = new PresentationSceneRenderer();
+            typeof(PresentationSceneRenderer).GetProperty("Videos").GetSetMethod(true).Invoke(sceneRenderer, new object[] { videos });
+            typeof(PresentationBakedRuntime).GetField("sceneRenderer", fields).SetValue(runtime, sceneRenderer);
             typeof(PresentationBakedRuntime).GetField("presentationSpace", fields).SetValue(runtime, root.transform);
             typeof(PresentationBakedRuntime).GetField("clock", fields).SetValue(runtime,
                 new RuntimeClockSnapshot { RuntimeTimeMs = 1500, Running = new Running() });
