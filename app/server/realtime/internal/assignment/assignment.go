@@ -72,6 +72,7 @@ type AssignmentGuard struct {
 	mu         sync.RWMutex
 	assignment RuntimeAssignment
 	clock      Clock
+	revoked    bool
 }
 
 func NewAssignmentGuard(assignment RuntimeAssignment, clock Clock) (*AssignmentGuard, error) {
@@ -82,6 +83,13 @@ func NewAssignmentGuard(assignment RuntimeAssignment, clock Clock) (*AssignmentG
 		clock = time.Now
 	}
 	return &AssignmentGuard{assignment: assignment, clock: clock}, nil
+}
+
+// Revoke permanently invalidates this assignment, including later renewal attempts.
+func (g *AssignmentGuard) Revoke() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.revoked = true
 }
 
 // Assignment returns the current assignment snapshot.
@@ -151,6 +159,9 @@ func (g *AssignmentGuard) Renew(renewal RuntimeAssignment) error {
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	if g.revoked {
+		return ErrInvalidAssignment
+	}
 	current := g.assignment
 	if renewal.SessionID != current.SessionID {
 		return ErrAssignmentSessionMismatch
@@ -181,6 +192,9 @@ func (g *AssignmentGuard) Renew(renewal RuntimeAssignment) error {
 }
 
 func (g *AssignmentGuard) validateCurrentLocked(claim AssignmentClaim) error {
+	if g.revoked {
+		return ErrInvalidAssignment
+	}
 	if claim.SessionID != g.assignment.SessionID {
 		return ErrAssignmentSessionMismatch
 	}

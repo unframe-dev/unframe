@@ -47,11 +47,20 @@ type runtimeLeaseReader interface {
 }
 
 func refreshV2Lease(ctx context.Context, reader runtimeLeaseReader, guard *assignment.AssignmentGuard, request persistencehttp.BootstrapRequest, pin persistencehttp.BootstrapPublication) error {
+	claim := assignment.AssignmentClaim{SessionID: request.SessionID, RuntimeID: request.RuntimeID, RuntimeKind: request.RuntimeKind, AssignmentEpoch: request.AssignmentEpoch, PresentationRevision: request.PresentationRevision}
+	if err := guard.ValidateCurrent(claim); err != nil && !errors.Is(err, assignment.ErrLeaseExpired) {
+		return err
+	}
 	value, err := reader.Lease(ctx, request)
 	if err != nil {
+		var response *persistencehttp.ResponseError
+		if errors.As(err, &response) && (response.StatusCode == 401 || response.StatusCode == 403 || response.StatusCode == 404 || response.StatusCode == 409 || response.StatusCode == 410) || errors.Is(err, persistencehttp.ErrInvalidBootstrap) {
+			guard.Revoke()
+		}
 		return err
 	}
 	if value.Publication != pin {
+		guard.Revoke()
 		return fmt.Errorf("runtime publication fence changed")
 	}
 	return applyV2Lease(guard, value.Assignment)
@@ -60,6 +69,7 @@ func refreshV2Lease(ctx context.Context, reader runtimeLeaseReader, guard *assig
 func applyV2Lease(guard *assignment.AssignmentGuard, value persistencehttp.BootstrapAssignment) error {
 	current := guard.Assignment()
 	if value.SessionID != current.SessionID || value.RuntimeID != current.RuntimeID || value.RuntimeKind != current.RuntimeKind || value.AssignmentEpoch != current.AssignmentEpoch || value.PresentationRevision != current.PresentationRevision {
+		guard.Revoke()
 		return fmt.Errorf("runtime assignment fence changed")
 	}
 	if value.LeaseExpiresAt.After(current.LeaseExpiresAt) {
@@ -186,13 +196,7 @@ func main() {
 		for {
 			select {
 			case now := <-ticker.C:
-				if err := guard.AllowCommand(claim); err != nil {
-					if errors.Is(err, assignment.ErrLeaseExpired) {
-						v2Runtime.PauseLeaseExpired()
-					}
-					continue
-				}
-				if _, err := v2Runtime.AdvanceFromWall(ctx, now); err != nil {
+				if err := advanceV2Runtime(ctx, v2Runtime, guard, claim, now); err != nil && !errors.Is(err, assignment.ErrLeaseExpired) && !errors.Is(err, assignment.ErrInvalidAssignment) {
 					slog.Error("advance v2 runtime clock", "error", err)
 				}
 			case <-ctx.Done():
@@ -293,4 +297,15 @@ func monitorApplicationReadiness(ctx context.Context, checks <-chan time.Time, t
 			publish(checkApplicationReadiness(ctx, timeout, readiness) == nil)
 		}
 	}
+}
+
+func advanceV2Runtime(ctx context.Context, runtime *runtimecore.V2Session, guard *assignment.AssignmentGuard, claim assignment.AssignmentClaim, now time.Time) error {
+	if err := guard.AllowCommand(claim); err != nil {
+		if errors.Is(err, assignment.ErrLeaseExpired) || errors.Is(err, assignment.ErrInvalidAssignment) {
+			runtime.PauseLeaseExpired()
+		}
+		return err
+	}
+	_, err := runtime.AdvanceFromWall(ctx, now)
+	return err
 }
