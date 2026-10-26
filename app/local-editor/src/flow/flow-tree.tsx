@@ -10,7 +10,6 @@ export function FlowTree() {
     <nav aria-label="Group / Step / Cue" className="flow-tree">
       <header className="panel-heading">
         <h2>進行</h2>
-        <small>Group / Step / Cue</small>
       </header>
       {model?.groups.map((group) => (
         <details key={group.id} open>
@@ -31,7 +30,7 @@ export function FlowTree() {
               {step.cues.map((cue) => (
                 <button
                   className="flow-cue"
-                  title={triggerTiming(cue)}
+                  title={`${cue.trigger.kind}: ${triggerTiming(cue)}`}
                   key={cue.id}
                   aria-pressed={
                     selection.groupId === group.id &&
@@ -44,7 +43,6 @@ export function FlowTree() {
                 >
                   <span className="cue-dot" />
                   {cue.id}
-                  <small>{cue.trigger.kind}</small>
                 </button>
               ))}
             </div>

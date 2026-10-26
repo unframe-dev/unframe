@@ -55,7 +55,7 @@ function Details() {
             onSelectTimeline={() => w.ui.setState({ tab: "timeline" })}
           />
         ) : (
-          <p className="muted">左の Cue または時間軸のキーを選択してください。</p>
+          <p className="muted">Cue またはキーを選択</p>
         )}
       </section>
       {!w.readOnly && <PropsInspector />}
@@ -78,7 +78,7 @@ function FlowGraph() {
       />
     </div>
   ) : (
-    <p className="empty-state">Group を選択してください。</p>
+    <p className="empty-state">Group を選択</p>
   );
 }
 function PreviewNotice() {

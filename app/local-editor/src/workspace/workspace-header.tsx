@@ -22,7 +22,6 @@ export function WorkspaceHeader() {
       <div className="brand">
         <span className="brand-mark">u</span>
         <h1>{w.readOnly ? "Unframe Dist Preview" : "Unframe"}</h1>
-        {!w.readOnly && <span className="muted">Local Editor</span>}
       </div>
       <div className="channel-switch" role="group" aria-label="Preview チャンネル">
         {!w.readOnly && (

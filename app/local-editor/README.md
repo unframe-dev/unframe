@@ -38,7 +38,7 @@ Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dis
 
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
-左の Group／Step／Cue 一覧から閲覧対象を選び、中央下部で時間軸・進行図・問題、右側で Cue／キーの詳細と公開 Props を確認します。選択だけでは Cue を実行しません。時間軸はズーム・横スクロールに対応し、Timeline と Surface crossfade を表示します。テーマ、左右パネルの開閉、横・縦分割のサイズを調整できます。
+左の Group／Step／Cue 一覧から閲覧対象を選び、中央下部で時間軸・進行図・問題、右側で Cue／キーの詳細と公開 Props を確認します。選択だけでは Cue を実行しません。Cue 詳細はきっかけ・条件・アクション・遷移先をまとめ、優先度と候補順は「実行設定」を開いて確認します。時間軸はズーム・横スクロールに対応し、Timeline と Surface crossfade を表示します。テーマ、左右パネルの開閉、横・縦分割のサイズを調整できます。
 
 通常再生で実際に発火した Cue は、表示 build と Source revision が一致する場合に「この Cue を確認」で確認できます。発火直後を0msとして前後にシークし、確認範囲の終端で停止します。確認中だけキー選択もシークします。「通常再生に戻る」は入る前の位置へ一時停止で復帰します。後続 Cue／Step への進行と Source／Dist の書き換えは行いません。Dist は Source 一致を検証できないため、時間軸は閲覧専用です。詳細は [Cue 時間軸仕様](../../docs/packages/LOCAL_EDITOR_TIMELINE_SPEC.md) を参照してください。
 

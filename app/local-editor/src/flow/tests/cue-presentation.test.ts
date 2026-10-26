@@ -36,13 +36,11 @@ it("distinguishes literal reference-like text from variable and event references
 
 it.each<{
   transition: Extract<FlowCue["actions"][number], { kind: "surface.setState" }>["transition"];
-  note: string;
   rows: string[][];
 }>([
   {
     transition: { kind: "cut" },
-    note: "即時の State 更新",
-    rows: [["切り替え", "即時（cut）"]],
+    rows: [["切り替え", "即時"]],
   },
   {
     transition: {
@@ -51,28 +49,26 @@ it.each<{
       easing: "cubicOut",
       completion: "blocking",
     },
-    note: "crossfade による State 遷移（即時更新ではありません）",
     rows: [
-      ["切り替え", "クロスフェード（crossfade）"],
+      ["切り替え", "クロスフェード"],
       ["所要時間", "400 ms"],
-      ["補間", "減速（cubicOut）"],
-      ["完了", "Run の完了まで遷移を待つ（blocking）"],
+      ["補間", "減速"],
+      ["完了", "完了まで待つ"],
     ],
   },
-])("distinguishes State transitions: $note", ({ transition, note, rows }) => {
+])("distinguishes State transitions: $transition.kind", ({ transition, rows }) => {
   const presentation = actionPresentation({
     kind: "surface.setState",
     surfaceId: "screen",
     stateId: "cover",
     transition,
   });
-  expect(presentation.note).toBe(note);
   expect(presentation.rows).toEqual([["Surface", "screen"], ["State", "cover"], ...rows]);
 });
 
 it.each([
-  ["blocking", "Run の完了まで遷移を待つ（blocking）"],
-  ["nonBlocking", "完了を待たない（nonBlocking）"],
+  ["blocking", "完了まで待つ"],
+  ["nonBlocking", "待たない"],
 ] as const)("describes %s Timeline completion", (completion, expected) => {
   expect(
     actionPresentation({
@@ -88,13 +84,13 @@ it.each<{
   transition: Extract<FlowCue["actions"][number], { kind: "modelClip.play" }>["transition"];
   rows: string[][];
 }>([
-  { transition: { kind: "immediate" }, rows: [["切り替え", "即時（immediate）"]] },
+  { transition: { kind: "immediate" }, rows: [["切り替え", "即時"]] },
   {
     transition: { kind: "crossfade", durationMilliseconds: 250, easing: "linear" },
     rows: [
-      ["切り替え", "クロスフェード（crossfade）"],
+      ["切り替え", "クロスフェード"],
       ["所要時間", "250 ms"],
-      ["補間", "一定速度（linear）"],
+      ["補間", "一定速度"],
     ],
   },
 ])("describes clip transition parameters: $transition.kind", ({ transition, rows }) => {
@@ -113,9 +109,9 @@ it.each<{
     ["Clip", "wave"],
     ["再生速度", "2 倍"],
     ["ループ", "する"],
-    ["完了", "完了を待たない（nonBlocking）"],
+    ["完了", "待たない"],
     ...rows,
-    ["競合", "競合時は拒否（reject）"],
+    ["競合", "拒否"],
   ]);
 });
 

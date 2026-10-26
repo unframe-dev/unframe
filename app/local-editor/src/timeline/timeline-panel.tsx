@@ -55,11 +55,13 @@ export function TimelinePanel() {
     <section className="timeline-panel" aria-label="Cue 時間軸">
       <div className="timeline-toolbar">
         <strong>{cue?.id ?? "Cue を選択"}</strong>
-        <span className="muted">Cue 発火 + 0ms</span>
         <div className="spacer" />
         <label>
-          ズーム
-          <select value={zoom} onChange={(e) => setZoom(Number(e.target.value))}>
+          <select
+            aria-label="ズーム"
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+          >
             {[0.5, 1, 2, 4].map((z) => (
               <option key={z} value={z}>
                 {z * 100}%
@@ -75,23 +77,23 @@ export function TimelinePanel() {
         </Button>
       </div>
       {!cue ? (
-        <p className="empty-state">左の一覧から Cue を選んで時間軸を確認してください。</p>
+        <p className="empty-state">Cue を選択</p>
       ) : (
         <>
-          <p className="timeline-note">
-            {!consistent
-              ? "表示 build と Source の一致を確認できないため、時間軸は閲覧専用です。"
-              : !occurrence
-                ? "通常再生でこの Cue を発火すると確認できます。"
-                : inspecting
-                  ? "遷移前の状態を確認中。後続の Cue・Step へは進行しません。"
-                  : "実際に発火した最新の状態を確認できます。"}
-          </p>
+          {(!consistent || !occurrence) && (
+            <p className="timeline-note">
+              {!consistent
+                ? view.channel === "dist"
+                  ? "Dist の時間軸は閲覧のみです。"
+                  : "表示と Source が一致するまで閲覧のみです。"
+                : "再生でこの Cue を発火すると確認できます。"}
+            </p>
+          )}
           <div className="seek-controls">
             <label>
-              確認時刻
               <input
                 aria-label="Cue の確認時刻"
+                title="Cue 発火からの時刻"
                 type="range"
                 min={0}
                 max={duration}
@@ -108,9 +110,16 @@ export function TimelinePanel() {
                 onKeyUp={() => setRequested(null)}
               />
             </label>
-            <span className="timecode">
-              指定 {requested ?? applied} ms / 表示成功 {applied} ms / {duration} ms
-            </span>
+            <output
+              className="timecode"
+              aria-label="表示済みの確認時刻"
+              title="Cue 発火からの時刻 / 長さ"
+            >
+              {applied} / {duration} ms
+              {requested !== null && requested !== applied && (
+                <span className="muted">（指定 {requested} ms）</span>
+              )}
+            </output>
           </div>
           <div className="timeline-scroll" tabIndex={0} aria-label="時間軸の横スクロール">
             <div className="timeline-chart" style={{ width: `${220 + 700 * zoom}px` }}>
@@ -206,9 +215,7 @@ export function TimelinePanel() {
                 </div>
               ))}
               {!timelines.length && !surfaces.length && (
-                <p className="empty-state">
-                  時間を持つ描画 Run がありません。発火直後の状態を確認できます。
-                </p>
+                <p className="empty-state">表示するトラックなし</p>
               )}
             </div>
           </div>

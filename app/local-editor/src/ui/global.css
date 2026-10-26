@@ -126,7 +126,7 @@ a {
 }
 .button.primary {
   background: var(--accent);
-  color: #071b30;
+  color: var(--accent-foreground);
   font-weight: 600;
 }
 .spacer {
@@ -175,11 +175,17 @@ a {
   display: flex;
   gap: 2px;
   padding: 2px;
-  border: 1px solid var(--border);
+  background: var(--surface);
   border-radius: 6px;
 }
 .channel-switch .button {
   min-height: 26px;
+  color: var(--muted);
+}
+.channel-switch .button[aria-pressed="true"] {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 3px #0001;
 }
 .header-divider {
   height: 20px;
@@ -230,7 +236,7 @@ a {
 }
 .flow-tree summary {
   padding: 6px 4px;
-  color: var(--muted);
+  color: var(--text);
   cursor: pointer;
   font-weight: 600;
 }
@@ -263,6 +269,11 @@ a {
 .flow-step button[aria-pressed="true"] {
   background: var(--accent-soft);
   color: var(--accent);
+  box-shadow: inset 2px 0 var(--accent);
+}
+.flow-cue[aria-pressed="true"] .cue-dot {
+  border-color: currentColor;
+  background: currentColor;
 }
 .flow-step button.flow-cue {
   padding-left: 16px;
@@ -370,11 +381,13 @@ a {
   overflow: auto;
 }
 .inspector-section {
-  padding: 12px;
+  padding: 14px;
   border-bottom: 1px solid var(--border);
 }
 .inspector-section > h2 {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 11px;
 }
 .inspector-section > select {
   width: 100%;
@@ -411,44 +424,70 @@ code {
   font: 10px var(--font-mono);
   color: var(--muted);
 }
-.editor-cue-header {
-  margin-bottom: 12px;
+.editor-cue-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.cue-metadata {
+  margin-top: 8px;
+}
+.cue-metadata summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+}
+.cue-metadata summary:focus-visible,
+.flow-tree summary:focus-visible,
+.workspace-status summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 .editor-cue-stage {
   border-top: 1px solid var(--border);
-  margin-top: 12px;
-  padding-top: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
 }
 .editor-cue-stage h4 {
-  font-weight: 600;
-}
-.editor-cue-stage h4 span {
   color: var(--muted);
-  font-weight: 400;
-  margin-left: 5px;
+  font-size: 11px;
+  font-weight: 500;
 }
 .editor-cue-card {
-  padding: 8px 0;
+  padding: 8px 0 0;
+}
+.editor-cue-card h5 {
+  font-weight: 600;
+}
+.editor-cue-card > p {
+  margin: 0;
 }
 .editor-cue-parameters {
   display: block;
 }
 .editor-cue-parameters > div {
   display: grid;
-  grid-template-columns: 100px 1fr;
+  grid-template-columns: minmax(64px, 0.8fr) minmax(0, 1.5fr);
   gap: 8px;
   margin: 4px 0;
-}
-.editor-cue-connector,
-.editor-cue-branch-note,
-.editor-timeline-note {
-  color: var(--muted);
-  font-size: 10px;
 }
 .editor-cue-actions {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.editor-cue-actions > li {
+  padding: 10px;
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+.cue-timeline-link {
+  padding: 2px 0;
+  min-height: 26px;
+  color: var(--accent);
 }
 .editor-cue-condition {
   padding-left: 8px;
@@ -585,9 +624,6 @@ code {
   color: var(--danger);
 }
 @media (max-width: 900px) {
-  .brand .muted {
-    display: none;
-  }
   .brand {
     margin-right: 8px;
   }
@@ -627,6 +663,17 @@ code {
   }
   .timecode {
     font-size: 10px;
+  }
+}
+@media (max-width: 400px) {
+  .workspace-header .brand {
+    margin-right: 0;
+  }
+  .workspace-header > .button:not(.primary) {
+    padding-inline: 3px;
+  }
+  .channel-switch .button {
+    padding-inline: 2px;
   }
 }
 @media (pointer: coarse) {

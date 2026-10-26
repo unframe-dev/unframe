@@ -13,8 +13,7 @@ export function DiagnosticsPanel() {
   ];
   return (
     <section className="diagnostics" aria-label="問題">
-      <h2>問題</h2>
-      {!items.length && !errors.length && <p className="muted">問題は報告されていません。</p>}
+      {!items.length && !errors.length && <p className="muted">問題なし</p>}
       {errors.map((error, i) => (
         <p role="alert" key={i}>
           {error}

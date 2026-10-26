@@ -5,12 +5,13 @@
   min-height: 0;
 }
 .timeline-toolbar {
-  height: 40px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 12px;
   flex-shrink: 0;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
 }
 .timeline-toolbar label {
@@ -20,15 +21,17 @@
   font-size: 10px;
 }
 .timeline-toolbar select {
-  padding: 2px;
+  padding: 3px 6px;
+  border-color: transparent;
 }
 .timeline-note {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
-  margin: 6px 12px;
+  margin: 8px 12px;
 }
 .seek-controls {
   display: flex;
+  min-height: 36px;
   gap: 12px;
   align-items: center;
   padding: 4px 12px 8px;
@@ -80,7 +83,7 @@
   text-overflow: ellipsis;
 }
 .track-label small {
-  font-size: 9px;
+  font-size: 10px;
 }
 .track-lane {
   position: relative;

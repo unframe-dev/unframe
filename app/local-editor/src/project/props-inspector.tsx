@@ -45,13 +45,9 @@ export function PropsInspector() {
             onSave={() => void workspace.commands.saveProps(id)}
           />
         ))
-      ) : (
-        <p className="muted">
-          {s.project?.instances.length
-            ? "Instance を選んで公開 Props を調整できます。"
-            : "Props 編集用の metadata がありません。Source をコードで編集してください。"}
-        </p>
-      )}
+      ) : !s.project?.instances.length ? (
+        <p className="muted">編集できる Props がありません。</p>
+      ) : null}
       {s.status === "conflict" && (
         <p role="alert">
           外部の変更と競合しています。入力値は保持しています。破棄して最新の Source

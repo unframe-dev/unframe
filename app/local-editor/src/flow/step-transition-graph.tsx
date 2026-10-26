@@ -22,17 +22,15 @@ export function StepTransitionGraph({
   const height = Math.max(group.steps.length, external.length, 1) * 120 + 50;
   const stepY = (id: string) => 45 + group.steps.findIndex((step) => step.id === id) * 120;
   return (
-    <section aria-label="Step 遷移図">
-      <h3>Step 遷移図</h3>
-      <p className="editor-timeline-note">
-        Step に実行順序・duration はありません。矢印は Cue の遷移候補です。到達性は guard
-        の成立を考慮しない構造上の経路です。
-      </p>
+    <section
+      aria-label="Step 遷移図"
+      aria-description="矢印は Cue の遷移候補です。到達性は実行条件を考慮しない構造上の経路です。"
+    >
       <div className="editor-flow-graph" tabIndex={0} aria-label="Step 遷移図のスクロール領域">
         <svg width={width} height={height} role="group" aria-label={`${group.id} の Step と遷移`}>
           <defs>
             <marker id={markerId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-              <path d="M0 0 L8 4 L0 8 Z" fill="#8fd1e3" />
+              <path d="M0 0 L8 4 L0 8 Z" fill="var(--muted)" />
             </marker>
           </defs>
           {group.edges.map((edge, index) => {
@@ -53,7 +51,7 @@ export function StepTransitionGraph({
                 <path
                   d={path}
                   fill="none"
-                  stroke="#8fd1e3"
+                  stroke="var(--muted)"
                   strokeWidth="1.5"
                   strokeDasharray={edge.conditional ? "5 4" : undefined}
                   markerEnd={`url(#${markerId})`}
@@ -89,8 +87,8 @@ export function StepTransitionGraph({
                 width="230"
                 height="65"
                 rx="6"
-                fill="#142331"
-                stroke="#5a7590"
+                fill="var(--panel)"
+                stroke="var(--border)"
               />
               <foreignObject x={width - 240} y={55 + index * 120} width="210" height="50">
                 <div className="editor-flow-destination">{label}</div>

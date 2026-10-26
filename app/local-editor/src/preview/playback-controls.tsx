@@ -10,13 +10,15 @@ export function PlaybackControls() {
   return (
     <div className="playback-controls">
       <div className="flex items-center gap-2">
-        <span className="mode-tag">
-          {inspection
-            ? `Cue 確認: ${p.occurrences.find((o) => o.occurrenceId === p.inspection?.occurrenceId)?.cueId ?? ""}`
-            : "通常再生"}
-        </span>
+        {inspection && (
+          <span className="mode-tag">
+            Cue 確認:{" "}
+            {p.occurrences.find((o) => o.occurrenceId === p.inspection?.occurrenceId)?.cueId}
+          </span>
+        )}
         <Button
           aria-label="再生"
+          title="再生"
           disabled={!ready || !p || p.ended || !!p.state.clock?.running}
           onClick={() => {
             (window as Window & { unframeVideoActivate?: () => void }).unframeVideoActivate?.();
@@ -27,6 +29,7 @@ export function PlaybackControls() {
         </Button>
         <Button
           aria-label="一時停止"
+          title="一時停止"
           disabled={!ready || !p?.state.clock?.running}
           onClick={() => w.commands.playback({ command: "pause" })}
         >
@@ -34,6 +37,7 @@ export function PlaybackControls() {
         </Button>
         <Button
           aria-label={inspection ? "0秒へ" : "リセット"}
+          title={inspection ? "0秒へ" : "リセット"}
           disabled={!ready || !p}
           onClick={() =>
             inspection && p.inspection
@@ -48,9 +52,11 @@ export function PlaybackControls() {
           <ArrowCounterClockwiseIcon />
         </Button>
         <span className="timecode">
-          {((inspection
-            ? p.inspection?.timeMilliseconds
-            : Number(p?.state.clock?.runtimeTimeMs ?? 0)) ?? 0) / 1000}
+          {(
+            ((inspection
+              ? p.inspection?.timeMilliseconds
+              : Number(p?.state.clock?.runtimeTimeMs ?? 0)) ?? 0) / 1000
+          ).toFixed(2)}{" "}
           s
         </span>
         {inspection && (

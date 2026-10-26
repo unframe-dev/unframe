@@ -23,19 +23,11 @@ function Parameters({ rows }: { rows: readonly DetailRow[] }) {
 function GuardCondition({ guard }: { guard: CueGuard }) {
   switch (guard.kind) {
     case "compare":
-      return (
-        <div className="editor-cue-comparison">
-          <p>{comparisonLabel(guard)}</p>
-          <code>
-            {guard.kind} / {guard.left.kind} / {guard.operator}
-          </code>
-        </div>
-      );
+      return <p className="editor-cue-comparison">{comparisonLabel(guard)}</p>;
     case "not":
       return (
         <div className="editor-cue-condition">
           <strong>次の条件を満たさない</strong>
-          <code>not</code>
           <GuardCondition guard={guard.guard} />
         </div>
       );
@@ -44,7 +36,6 @@ function GuardCondition({ guard }: { guard: CueGuard }) {
       return (
         <div className="editor-cue-condition">
           <strong>{guard.kind === "all" ? "すべて満たす" : "いずれかを満たす"}</strong>
-          <code>{guard.kind}</code>
           {guard.guards.map((child, index) => (
             <GuardCondition key={index} guard={child} />
           ))}
@@ -69,38 +60,31 @@ export function CueDetails({
   return (
     <section aria-label="Cue 詳細" className="editor-cue-details">
       <header className="editor-cue-header">
-        <h3 title={cue.id}>Cue {cue.id}</h3>
-        <Parameters
-          rows={[
-            ["優先度（priority）", String(cue.priority)],
-            ["候補順（order）", String(cue.order)],
-          ]}
-        />
+        <h3 title={cue.id}>{cue.id}</h3>
+        <details className="cue-metadata">
+          <summary>実行設定</summary>
+          <Parameters
+            rows={[
+              ["優先度", String(cue.priority)],
+              ["候補順", String(cue.order)],
+            ]}
+          />
+        </details>
       </header>
       <div className="editor-cue-flow">
         <div className="editor-cue-stage editor-cue-trigger">
-          <h4>
-            Trigger <span>発火のきっかけ</span>
-          </h4>
+          <h4>きっかけ</h4>
           <article className="editor-cue-card">
-            <h5>{trigger.title}</h5>
-            <code>{cue.trigger.kind}</code>
-            <p>{triggerTiming(cue)}</p>
+            <h5 title={`${cue.trigger.kind}: ${triggerTiming(cue)}`}>{trigger.title}</h5>
             <Parameters rows={trigger.rows} />
-            <div className="editor-cue-policy">
-              <h5>発火ルール</h5>
-              <code>{cue.firePolicy.kind}</code>
-              <p>
-                {cue.firePolicy.kind === "repeatable"
-                  ? "繰り返し発火できる"
-                  : "Step に入るたびに1回"}
-              </p>
-              {cue.firePolicy.kind === "repeatable" && (
-                <Parameters
-                  rows={[["再発火の待ち時間", `${cue.firePolicy.cooldownMilliseconds} ms`]]}
-                />
-              )}
-            </div>
+            <Parameters
+              rows={[
+                ["発火", cue.firePolicy.kind === "repeatable" ? "繰り返し" : "Step ごとに1回"],
+                ...(cue.firePolicy.kind === "repeatable"
+                  ? ([["待ち時間", `${cue.firePolicy.cooldownMilliseconds} ms`]] as const)
+                  : []),
+              ]}
+            />
             {cue.fixedPayload && (
               <div className="editor-cue-payload">
                 <h5>固定の入力値</h5>
@@ -116,34 +100,22 @@ export function CueDetails({
           </article>
         </div>
         <div className="editor-cue-stage editor-cue-guard">
-          <p className="editor-cue-connector">発火 → 条件判定</p>
-          <h4>
-            Guard <span>実行条件</span>
-          </h4>
+          <h4>条件</h4>
           <article className="editor-cue-card">
             {cue.guard ? (
               <>
-                <p>条件付き（成立は未確定）</p>
+                <p className="muted">実行時に判定</p>
                 <GuardCondition guard={cue.guard} />
               </>
             ) : (
-              <>
-                <h5>条件なし</h5>
-                <p>きっかけが一致すると実行候補になります。</p>
-              </>
+              <p className="muted">なし</p>
             )}
           </article>
         </div>
         <div className="editor-cue-stage editor-cue-effects">
-          <p className="editor-cue-connector">条件を満たす → 効果</p>
-          <h4>
-            Actions <span>{cue.actions.length} 件の効果</span>
-          </h4>
-          <p className="editor-cue-branch-note">
-            同じ Cue から実行する効果。カード間の時間差は示しません。
-          </p>
+          <h4>アクション</h4>
           {cue.actions.length === 0 ? (
-            <p>この Cue に action はありません。</p>
+            <p className="muted">なし</p>
           ) : (
             <ul aria-label="Actions" className="editor-cue-actions">
               {cue.actions.map((action, index) => {
@@ -153,13 +125,12 @@ export function CueDetails({
                     key={index}
                     className={`editor-cue-card editor-cue-action-${presentation.tone}`}
                   >
-                    <h5>{presentation.title}</h5>
-                    <code>{action.kind}</code>
-                    {presentation.note && <p>{presentation.note}</p>}
+                    <h5 title={action.kind}>{presentation.title}</h5>
                     <Parameters rows={presentation.rows} />
                     {action.kind === "timeline.play" && onSelectTimeline && (
                       <button
                         type="button"
+                        className="button cue-timeline-link"
                         aria-label={`Timeline ${action.timelineId} を時間軸で表示`}
                         onClick={() => onSelectTimeline(action.timelineId)}
                       >
@@ -173,21 +144,12 @@ export function CueDetails({
           )}
         </div>
         <div className="editor-cue-stage editor-cue-destination">
-          <p className="editor-cue-connector">完了指定に従う → 遷移</p>
-          <h4>
-            Destination <span>遷移先</span>
-          </h4>
+          <h4>遷移先</h4>
           <article className="editor-cue-card">
-            <h5>{destinationLabel(destination)}</h5>
-            <code>{cue.next.kind}</code>
-            <p>blocking の Run がある場合は完了を待って遷移します。</p>
+            <h5 title={cue.next.kind}>{destinationLabel(destination)}</h5>
           </article>
         </div>
       </div>
-      <p className="editor-timeline-note">
-        blocking は開始した Run の完了まで遷移を待ち、nonBlocking は完了を待ちません。duration は
-        Step の滞在時間ではありません。
-      </p>
     </section>
   );
 }

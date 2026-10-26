@@ -1,12 +1,13 @@
 :root {
-  --background: #f7f8fb;
+  --background: #f4f5f7;
   --panel: #fff;
-  --surface: #eef1f6;
-  --text: #111827;
-  --muted: #64748b;
-  --border: #d7deea;
-  --accent: #2190ff;
-  --accent-soft: #e2f0ff;
+  --surface: #eef0f3;
+  --text: #242831;
+  --muted: #626b78;
+  --border: #e0e3e8;
+  --accent: #2863da;
+  --accent-soft: #eaf0fd;
+  --accent-foreground: #fff;
   --danger: #b42332;
   --radius: 5px;
   --font-sans: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
@@ -21,6 +22,7 @@
   --border: #313742;
   --accent: #5ba8ff;
   --accent-soft: #1c3149;
+  --accent-foreground: #071b30;
   --danger: #ff969e;
 }
 @theme inline {

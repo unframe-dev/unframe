@@ -28,19 +28,18 @@ export function actionValueLabel(
   }
 }
 const completionLabel = (value: "blocking" | "nonBlocking") =>
-  value === "blocking" ? "Run の完了まで遷移を待つ（blocking）" : "完了を待たない（nonBlocking）";
+  value === "blocking" ? "完了まで待つ" : "待たない";
 const easingLabel = (value: "linear" | "cubicIn" | "cubicOut" | "cubicInOut") =>
   ({
-    linear: "一定速度（linear）",
-    cubicIn: "加速（cubicIn）",
-    cubicOut: "減速（cubicOut）",
-    cubicInOut: "加速して減速（cubicInOut）",
+    linear: "一定速度",
+    cubicIn: "加速",
+    cubicOut: "減速",
+    cubicInOut: "加速して減速",
   })[value];
 
 export function actionPresentation(action: Action): {
   title: string;
   rows: DetailRow[];
-  note?: string;
   tone: "state" | "animation";
 } {
   switch (action.kind) {
@@ -48,17 +47,10 @@ export function actionPresentation(action: Action): {
       return {
         title: "Surface の状態を切り替え",
         tone: "state",
-        note:
-          action.transition?.kind === "crossfade"
-            ? "crossfade による State 遷移（即時更新ではありません）"
-            : "即時の State 更新",
         rows: [
           ["Surface", action.surfaceId],
           ["State", action.stateId],
-          [
-            "切り替え",
-            action.transition?.kind === "crossfade" ? "クロスフェード（crossfade）" : "即時（cut）",
-          ],
+          ["切り替え", action.transition?.kind === "crossfade" ? "クロスフェード" : "即時"],
           ...(action.transition?.kind === "crossfade"
             ? ([
                 ["所要時間", `${action.transition.durationMilliseconds} ms`],
@@ -72,7 +64,6 @@ export function actionPresentation(action: Action): {
       return {
         title: "Node を更新",
         tone: "state",
-        note: "即時の Node 更新",
         rows: [
           ["Node", action.nodeId],
           ...(action.patch.active
@@ -97,7 +88,6 @@ export function actionPresentation(action: Action): {
       return {
         title: "変数を設定",
         tone: "state",
-        note: "即時の Variable 更新",
         rows: [
           ["変数", action.variableId],
           ["値", actionValueLabel(action.value)],
@@ -110,14 +100,13 @@ export function actionPresentation(action: Action): {
         rows: [
           ["Timeline", action.timelineId],
           ["完了", completionLabel(action.completion)],
-          ["競合", "競合時は拒否（reject）"],
+          ["競合", "拒否"],
         ],
       };
     case "timeline.stop":
       return {
         title: "Timeline を停止",
         tone: "animation",
-        note: `Timeline ${action.timelineId} を停止する action`,
         rows: [["Timeline", action.timelineId]],
       };
     case "media.play":
@@ -147,19 +136,14 @@ export function actionPresentation(action: Action): {
           ["再生速度", `${action.speed} 倍`],
           ["ループ", action.loop ? "する" : "しない"],
           ["完了", completionLabel(action.completion)],
-          [
-            "切り替え",
-            action.transition.kind === "immediate"
-              ? "即時（immediate）"
-              : "クロスフェード（crossfade）",
-          ],
+          ["切り替え", action.transition.kind === "immediate" ? "即時" : "クロスフェード"],
           ...(action.transition.kind === "crossfade"
             ? ([
                 ["所要時間", `${action.transition.durationMilliseconds} ms`],
                 ["補間", easingLabel(action.transition.easing)],
               ] satisfies DetailRow[])
             : []),
-          ["競合", "競合時は拒否（reject）"],
+          ["競合", "拒否"],
         ],
       };
     case "modelClip.pause":
