@@ -248,8 +248,10 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Unframe.Unity.PresentationRuntime.QuestPresentationStatusView
   entry: {fileID: 602880476}
+  session: {fileID: 602880475}
   calibrationSource: {fileID: 602880477}
   head: {fileID: 1824915350}
+  cameraPreview: {fileID: 741898267}
 --- !u!114 &602880475
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -264,6 +266,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::QuestPresentationSession
   entry: {fileID: 602880476}
   calibrationSource: {fileID: 602880477}
+  controlPlaneEndpoint:
+  webEndpoint:
+  deviceClientId: unframe-unity
 --- !u!114 &602880476
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -410,6 +415,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PassthroughCameraDevicePreview
   cameraAccess: {fileID: 1283232663}
   head: {fileID: 1824915350}
+  handleRemeasurementInput: 0
+  diagnosticUiVisible: 1
+  diagnosticInputEnabled: 1
 --- !u!114 &741898268
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -422,6 +430,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0a7c6e32bd6a4f4e9e946981f065d43c, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::ArucoOriginVisualizer
+  visible: 1
 --- !u!114 &741898269
 MonoBehaviour:
   m_ObjectHideFlags: 0
