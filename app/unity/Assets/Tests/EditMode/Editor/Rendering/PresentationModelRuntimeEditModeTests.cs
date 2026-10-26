@@ -43,7 +43,7 @@ public class PresentationModelRuntimeEditModeTests
     [UnityTest]
     public IEnumerator PreviewImportsRealMeshAndDisposesReplacedScene()
     {
-        byte[] bytes = Resources.Load<TextAsset>("PresentationFixtures/Model").bytes;
+        byte[] bytes = PresentationTestFixtures.Load("Model").bytes;
         var binding = Binding(bytes); binding.NodeCount = 3; binding.PrimitiveCount = 1; binding.VertexCount = 3;
         binding.TriangleCount = 1; binding.MaximumBonesPerSkin = 1; binding.MaximumMorphTargetsPerPrimitive = 1; binding.AnimationClipCount = 2;
         Assert.That(PresentationModelPreflight.TryValidate(bytes, binding, out var error), Is.True, error);
@@ -152,7 +152,7 @@ public class PresentationModelRuntimeEditModeTests
     [Test]
     public void VideoPreflightRejectsForgedDimensionsBeforeDecoderAllocation()
     {
-        byte[] bytes = Resources.Load<TextAsset>("PresentationFixtures/Video").bytes;
+        byte[] bytes = PresentationTestFixtures.Load("Video").bytes;
         var artifact = new VideoArtifact { Codec = VideoCodec.H264, PixelSize = new PixelSize { Width = 320, Height = 180 }, HasAudio = true, DurationMs = 6000 };
         Assert.That(PresentationVideoPreflight.TryValidate(bytes, artifact, out var error), Is.True, error);
         artifact.PixelSize.Width = 1; artifact.PixelSize.Height = 1;
@@ -192,7 +192,7 @@ public class PresentationModelRuntimeEditModeTests
     [TestCase("COLOR_1")]
     public void RejectsAttributesOutsideTheSupportedImportSubset(string attribute)
     {
-        byte[] original = Resources.Load<TextAsset>("PresentationFixtures/Model").bytes;
+        byte[] original = PresentationTestFixtures.Load("Model").bytes;
         int jsonLength = BitConverter.ToInt32(original, 12), binOffset = 20 + jsonLength;
         var json = Newtonsoft.Json.Linq.JObject.Parse(Encoding.UTF8.GetString(original, 20, jsonLength));
         var attributes = (Newtonsoft.Json.Linq.JObject)json["meshes"][0]["primitives"][0]["attributes"];

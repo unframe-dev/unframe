@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it, assert } from "vitest";
 import { createApp } from "../../../src/app";
+import { checkpointEnvelope } from "../../fixtures/checkpoint";
 import { runtimeEnvironment } from "../../runtime-environment";
 
 const seedSession = async () => {
@@ -60,12 +61,7 @@ describe("persistence callback HTTP boundary", () => {
       version: 1,
       lastSequence: 5,
       idempotencyKey: "cp-1",
-      payload: {
-        canonicalSnapshotPayload: "AQID",
-        canonicalSnapshotHash: `sha256:${"a".repeat(64)}`,
-        recoveryPayload: "BAUG",
-        recoveryHash: `sha256:${"b".repeat(64)}`,
-      },
+      payload: await checkpointEnvelope(sessionId),
     };
     expect((await callback("/callbacks/checkpoints", checkpoint, "wrong-secret")).status).toBe(401);
     await expect((await callback("/callbacks/checkpoints", checkpoint)).json()).resolves.toEqual({
@@ -97,9 +93,11 @@ describe("persistence callback HTTP boundary", () => {
       participants: [{ userId: "presenter", role: "presenter" }],
       finalCheckpoint: { ...checkpoint.payload },
     };
+    const staleRuntimeId = crypto.randomUUID();
     const staleResponse = await callback("/callbacks/completions", {
       ...completion,
-      runtimeId: crypto.randomUUID(),
+      runtimeId: staleRuntimeId,
+      finalCheckpoint: { ...completion.finalCheckpoint, runtimeId: staleRuntimeId },
       idempotencyKey: "stale-done",
     });
     expect(staleResponse.status).toBe(409);
@@ -121,6 +119,43 @@ describe("persistence callback HTTP boundary", () => {
         .first(),
     ).resolves.toMatchObject({ state: "Ended" });
   });
+
+  it.each(["/callbacks/checkpoints", "/callbacks/completions"])(
+    "rejects oversized checkpoint at %s",
+    async (path) => {
+      const response = await createApp().fetch(
+        new Request(`https://api.example.com${path}`, {
+          method: "POST",
+          headers: {
+            authorization: "Bearer test-service-identity-secret-32-characters",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            sessionId: crypto.randomUUID(),
+            runtimeId: "runtime",
+            runtimeKind: "Cloud",
+            assignmentEpoch: 1,
+            presentationRevision: 1,
+            version: 1,
+            checkpointVersion: 1,
+            lastSequence: 1,
+            idempotencyKey: "oversized",
+            startedAt: "2026-10-22T00:00:00Z",
+            endedAt: "2026-10-22T00:01:00Z",
+            participantCount: 1,
+            participants: [{ userId: "presenter", role: "presenter" }],
+            payload: "あ".repeat(524288),
+            finalCheckpoint: "あ".repeat(524288),
+          }),
+        }),
+        runtimeEnvironment(),
+      );
+      expect(response.status).toBe(413);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "checkpoint_payload_too_large" },
+      });
+    },
+  );
 
   it("publishes only the public signing key", async () => {
     const response = await createApp().fetch(

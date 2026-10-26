@@ -1,0 +1,10 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "allowImportingTsExtensions": true,
+    "types": ["node"]
+  },
+  "include": ["*.mts"]
+}

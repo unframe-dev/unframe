@@ -1,12 +1,19 @@
 import { capabilityProfileSchema, type CapabilityProfile } from "./capability";
 
+import { runtimeAuthorityVersions } from "./runtime-authority";
+
 const capacity = 64 * 1024 * 1024;
 
 export const createUnityMediaCapabilityProfile = (): CapabilityProfile =>
   capabilityProfileSchema.parse({
-    schemaVersion: 2,
+    schemaVersion: runtimeAuthorityVersions.capability,
     capabilityProfileId: "unity-media-v1",
-    contractVersions: { delivery: 2, runtime: 2, progression: 1, projection: 1 },
+    contractVersions: {
+      delivery: runtimeAuthorityVersions.delivery,
+      runtime: runtimeAuthorityVersions.runtime,
+      progression: runtimeAuthorityVersions.progression,
+      projection: runtimeAuthorityVersions.projection,
+    },
     renderers: {
       bakedWeb: {
         supported: true,

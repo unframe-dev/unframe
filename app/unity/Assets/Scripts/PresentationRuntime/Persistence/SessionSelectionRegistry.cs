@@ -191,11 +191,17 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (Asset asset in value.Assets)
             {
                 if (asset == null || !PresentationDeliveryCatalog.IsContentHash(asset.Checksum)
-                    || asset.EncodedSizeBytes == 0 || asset.MediaType != "image/png" && asset.MediaType != "model/gltf-binary" && asset.MediaType != "video/mp4"
+                    || asset.EncodedSizeBytes == 0 || !SupportedMediaType(asset.MediaType)
                     || checksums.TryGetValue(asset.Checksum, out ulong previous) && previous != asset.EncodedSizeBytes)
                     throw new InvalidOperationException("session-selection-registry-invalid");
                 checksums[asset.Checksum] = asset.EncodedSizeBytes;
             }
+        }
+
+        private static bool SupportedMediaType(string mediaType)
+        {
+            return mediaType == "image/png" || mediaType == "font/ttf" || mediaType == "font/otf"
+                || mediaType == "model/gltf-binary" || mediaType == "video/mp4";
         }
 
         private void Persist(State next)

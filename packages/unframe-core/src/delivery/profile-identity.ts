@@ -47,6 +47,7 @@ const keyedEntry = (parent: string, field: string, item: unknown): string | numb
       surfaces: "surfaceId",
       variables: "variableId",
       timelines: "timelineId",
+      zones: "zoneId",
       modelClips: "modelNodeId",
     } as Record<string, string>
   )[field];
@@ -68,7 +69,7 @@ const identityObject = (type: WireType, input: unknown, path: string): Record<st
     const fieldPath = `${path}.${field.name}`;
     const value = input[field.name];
     const present = Object.hasOwn(input, field.name);
-    if (!present && field.partOf) continue;
+    if (!present && (field.partOf || field.name === "presenterRecognition")) continue;
     const resolved = field.resolvedType;
     const childType = resolved && "fieldsArray" in resolved ? (resolved as WireType) : undefined;
     const convert = (item: unknown): unknown => {
@@ -120,6 +121,7 @@ const identityObject = (type: WireType, input: unknown, path: string): Record<st
           "visibleSurfaceIds",
           "visibleVariableIds",
           "requiredRuntimeCapabilities",
+          "gestures",
         ].includes(field.name) ||
         field.name.endsWith("Features")
       ) {
@@ -143,6 +145,7 @@ const identityObject = (type: WireType, input: unknown, path: string): Record<st
           "variables",
           "timelines",
           "modelClips",
+          "zones",
           "artifacts",
         ].includes(field.name)
       ) {

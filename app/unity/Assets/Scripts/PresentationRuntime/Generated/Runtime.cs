@@ -144,49 +144,68 @@ namespace Unframe.Presentation {
             "FQoNbW9kZWxfbm9kZV9pZBgBIAEoCRIWCg5tb2RlbF9hc3NldF9pZBgCIAEo",
             "CRIPCgdjbGlwX2lkGAMgASgJEh4KFnNvdXJjZV9hbmltYXRpb25faW5kZXgY",
             "BCABKA0SEwoLZHVyYXRpb25fbXMYBSABKAQSMgoFb3duZXIYBiABKAsyIy51",
-            "bmZyYW1lLnByZXNlbnRhdGlvbi5SZXNvdXJjZU93bmVyIpIDChdQcm9qZWN0",
-            "ZWRSdW50aW1lQ2F0YWxvZxIgChhjYXRhbG9nX2NvbnRyYWN0X3ZlcnNpb24Y",
-            "ASABKA0SPAoFbm9kZXMYAiADKAsyLS51bmZyYW1lLnByZXNlbnRhdGlvbi5Q",
-            "cm9qZWN0ZWROb2RlRGVmaW5pdGlvbhJCCghzdXJmYWNlcxgDIAMoCzIwLnVu",
-            "ZnJhbWUucHJlc2VudGF0aW9uLlByb2plY3RlZFN1cmZhY2VEZWZpbml0aW9u",
-            "EkQKCXZhcmlhYmxlcxgEIAMoCzIxLnVuZnJhbWUucHJlc2VudGF0aW9uLlBy",
-            "b2plY3RlZFZhcmlhYmxlRGVmaW5pdGlvbhJECgl0aW1lbGluZXMYBSADKAsy",
-            "MS51bmZyYW1lLnByZXNlbnRhdGlvbi5Qcm9qZWN0ZWRUaW1lbGluZURlZmlu",
-            "aXRpb24SRwoLbW9kZWxfY2xpcHMYBiADKAsyMi51bmZyYW1lLnByZXNlbnRh",
-            "dGlvbi5Qcm9qZWN0ZWRNb2RlbENsaXBEZWZpbml0aW9uKmAKC1Nlc3Npb25S",
-            "b2xlEhwKGFNFU1NJT05fUk9MRV9VTlNQRUNJRklFRBAAEhoKFlNFU1NJT05f",
-            "Uk9MRV9QUkVTRU5URVIQARIXChNTRVNTSU9OX1JPTEVfVklFV0VSEAIqnAIK",
-            "EVJ1bnRpbWVDYXBhYmlsaXR5EiIKHlJVTlRJTUVfQ0FQQUJJTElUWV9VTlNQ",
-            "RUNJRklFRBAAEigKJFJVTlRJTUVfQ0FQQUJJTElUWV9SVU5USU1FX1RSQU5T",
-            "UE9SVBABEiMKH1JVTlRJTUVfQ0FQQUJJTElUWV9USU1FTElORV9SVU4QAhIp",
-            "CiVSVU5USU1FX0NBUEFCSUxJVFlfU1VSRkFDRV9UUkFOU0lUSU9OEAMSJQoh",
-            "UlVOVElNRV9DQVBBQklMSVRZX1ZJREVPX1BMQVlCQUNLEAQSIQodUlVOVElN",
-            "RV9DQVBBQklMSVRZX01PREVMX0NMSVAQBRIfChtSVU5USU1FX0NBUEFCSUxJ",
-            "VFlfVFJBQ0tJTkcQBiqIAQoKU2NhbGFyVHlwZRIbChdTQ0FMQVJfVFlQRV9V",
-            "TlNQRUNJRklFRBAAEhYKElNDQUxBUl9UWVBFX1NUUklORxABEhYKElNDQUxB",
-            "Ul9UWVBFX05VTUJFUhACEhcKE1NDQUxBUl9UWVBFX0JPT0xFQU4QAxIUChBT",
-            "Q0FMQVJfVFlQRV9OVUxMEAQqdwoGRWFzaW5nEhYKEkVBU0lOR19VTlNQRUNJ",
-            "RklFRBAAEhEKDUVBU0lOR19MSU5FQVIQARITCg9FQVNJTkdfQ1VCSUNfSU4Q",
-            "AhIUChBFQVNJTkdfQ1VCSUNfT1VUEAMSFwoTRUFTSU5HX0NVQklDX0lOX09V",
-            "VBAEKm0KDVJ1bkNvbXBsZXRpb24SHgoaUlVOX0NPTVBMRVRJT05fVU5TUEVD",
-            "SUZJRUQQABIbChdSVU5fQ09NUExFVElPTl9CTE9DS0lORxABEh8KG1JVTl9D",
-            "T01QTEVUSU9OX05PTl9CTE9DS0lORxACKs8BChBUaW1lbGluZVByb3BlcnR5",
-            "EiEKHVRJTUVMSU5FX1BST1BFUlRZX1VOU1BFQ0lGSUVEEAASHQoZVElNRUxJ",
-            "TkVfUFJPUEVSVFlfT1BBQ0lUWRABEigKJFRJTUVMSU5FX1BST1BFUlRZX1RS",
-            "QU5TRk9STV9QT1NJVElPThACEigKJFRJTUVMSU5FX1BST1BFUlRZX1RSQU5T",
-            "Rk9STV9ST1RBVElPThADEiUKIVRJTUVMSU5FX1BST1BFUlRZX1RSQU5TRk9S",
-            "TV9TQ0FMRRAEKpgBCgxBbmNob3JUYXJnZXQSHQoZQU5DSE9SX1RBUkdFVF9V",
-            "TlNQRUNJRklFRBAAEhYKEkFOQ0hPUl9UQVJHRVRfSEVBRBABEhsKF0FOQ0hP",
-            "Ul9UQVJHRVRfTEVGVF9IQU5EEAISHAoYQU5DSE9SX1RBUkdFVF9SSUdIVF9I",
-            "QU5EEAMSFgoSQU5DSE9SX1RBUkdFVF9CT0RZEAQqcgoKU3VyZmFjZUZpdBIb",
-            "ChdTVVJGQUNFX0ZJVF9VTlNQRUNJRklFRBAAEhcKE1NVUkZBQ0VfRklUX0NP",
-            "TlRBSU4QARIVChFTVVJGQUNFX0ZJVF9DT1ZFUhACEhcKE1NVUkZBQ0VfRklU",
-            "X1NUUkVUQ0gQA0JbWllnaXRodWIuY29tL3VuZnJhbWUtZGV2L3VuZnJhbWUv",
-            "YXBwL3NlcnZlci9yZWFsdGltZS9pbnRlcm5hbC9nZW4vcHJlc2VudGF0aW9u",
-            "O3ByZXNlbnRhdGlvbmIGcHJvdG8z"));
+            "bmZyYW1lLnByZXNlbnRhdGlvbi5SZXNvdXJjZU93bmVyIloKGFByZXNlbnRl",
+            "clJlY29nbml0aW9uWm9uZRIPCgd6b25lX2lkGAEgASgJEi0KBmNlbnRlchgC",
+            "IAEoCzIdLnVuZnJhbWUucHJlc2VudGF0aW9uLlZlY3RvcjMikQEKG1ByZXNl",
+            "bnRlclJlY29nbml0aW9uQ2F0YWxvZxIzCghnZXN0dXJlcxgBIAMoDjIhLnVu",
+            "ZnJhbWUucHJlc2VudGF0aW9uLkdlc3R1cmVLaW5kEj0KBXpvbmVzGAIgAygL",
+            "Mi4udW5mcmFtZS5wcmVzZW50YXRpb24uUHJlc2VudGVyUmVjb2duaXRpb25a",
+            "b25lIvkDChdQcm9qZWN0ZWRSdW50aW1lQ2F0YWxvZxIgChhjYXRhbG9nX2Nv",
+            "bnRyYWN0X3ZlcnNpb24YASABKA0SPAoFbm9kZXMYAiADKAsyLS51bmZyYW1l",
+            "LnByZXNlbnRhdGlvbi5Qcm9qZWN0ZWROb2RlRGVmaW5pdGlvbhJCCghzdXJm",
+            "YWNlcxgDIAMoCzIwLnVuZnJhbWUucHJlc2VudGF0aW9uLlByb2plY3RlZFN1",
+            "cmZhY2VEZWZpbml0aW9uEkQKCXZhcmlhYmxlcxgEIAMoCzIxLnVuZnJhbWUu",
+            "cHJlc2VudGF0aW9uLlByb2plY3RlZFZhcmlhYmxlRGVmaW5pdGlvbhJECgl0",
+            "aW1lbGluZXMYBSADKAsyMS51bmZyYW1lLnByZXNlbnRhdGlvbi5Qcm9qZWN0",
+            "ZWRUaW1lbGluZURlZmluaXRpb24SRwoLbW9kZWxfY2xpcHMYBiADKAsyMi51",
+            "bmZyYW1lLnByZXNlbnRhdGlvbi5Qcm9qZWN0ZWRNb2RlbENsaXBEZWZpbml0",
+            "aW9uElAKFXByZXNlbnRlcl9yZWNvZ25pdGlvbhgIIAEoCzIxLnVuZnJhbWUu",
+            "cHJlc2VudGF0aW9uLlByZXNlbnRlclJlY29nbml0aW9uQ2F0YWxvZ0oECAcQ",
+            "CFINbW90aW9uX2d1aWRlcypgCgtTZXNzaW9uUm9sZRIcChhTRVNTSU9OX1JP",
+            "TEVfVU5TUEVDSUZJRUQQABIaChZTRVNTSU9OX1JPTEVfUFJFU0VOVEVSEAES",
+            "FwoTU0VTU0lPTl9ST0xFX1ZJRVdFUhACKsQDChFSdW50aW1lQ2FwYWJpbGl0",
+            "eRIiCh5SVU5USU1FX0NBUEFCSUxJVFlfVU5TUEVDSUZJRUQQABIoCiRSVU5U",
+            "SU1FX0NBUEFCSUxJVFlfUlVOVElNRV9UUkFOU1BPUlQQARIjCh9SVU5USU1F",
+            "X0NBUEFCSUxJVFlfVElNRUxJTkVfUlVOEAISKQolUlVOVElNRV9DQVBBQklM",
+            "SVRZX1NVUkZBQ0VfVFJBTlNJVElPThADEiUKIVJVTlRJTUVfQ0FQQUJJTElU",
+            "WV9WSURFT19QTEFZQkFDSxAEEiEKHVJVTlRJTUVfQ0FQQUJJTElUWV9NT0RF",
+            "TF9DTElQEAUSHwobUlVOVElNRV9DQVBBQklMSVRZX1RSQUNLSU5HEAYSLAoo",
+            "UlVOVElNRV9DQVBBQklMSVRZX1BSRVNFTlRFUl9SRUNPR05JVElPThAHEiwK",
+            "KFJVTlRJTUVfQ0FQQUJJTElUWV9JTlBVVF9TWU5DSFJPTklaQVRJT04QCBIl",
+            "CiFSVU5USU1FX0NBUEFCSUxJVFlfRlJPWkVOX0FOQ0hPUlMQCRIjCh9SVU5U",
+            "SU1FX0NBUEFCSUxJVFlfU1RFUF9SRVNUT1JFEAoqiAEKClNjYWxhclR5cGUS",
+            "GwoXU0NBTEFSX1RZUEVfVU5TUEVDSUZJRUQQABIWChJTQ0FMQVJfVFlQRV9T",
+            "VFJJTkcQARIWChJTQ0FMQVJfVFlQRV9OVU1CRVIQAhIXChNTQ0FMQVJfVFlQ",
+            "RV9CT09MRUFOEAMSFAoQU0NBTEFSX1RZUEVfTlVMTBAEKncKBkVhc2luZxIW",
+            "ChJFQVNJTkdfVU5TUEVDSUZJRUQQABIRCg1FQVNJTkdfTElORUFSEAESEwoP",
+            "RUFTSU5HX0NVQklDX0lOEAISFAoQRUFTSU5HX0NVQklDX09VVBADEhcKE0VB",
+            "U0lOR19DVUJJQ19JTl9PVVQQBCptCg1SdW5Db21wbGV0aW9uEh4KGlJVTl9D",
+            "T01QTEVUSU9OX1VOU1BFQ0lGSUVEEAASGwoXUlVOX0NPTVBMRVRJT05fQkxP",
+            "Q0tJTkcQARIfChtSVU5fQ09NUExFVElPTl9OT05fQkxPQ0tJTkcQAirPAQoQ",
+            "VGltZWxpbmVQcm9wZXJ0eRIhCh1USU1FTElORV9QUk9QRVJUWV9VTlNQRUNJ",
+            "RklFRBAAEh0KGVRJTUVMSU5FX1BST1BFUlRZX09QQUNJVFkQARIoCiRUSU1F",
+            "TElORV9QUk9QRVJUWV9UUkFOU0ZPUk1fUE9TSVRJT04QAhIoCiRUSU1FTElO",
+            "RV9QUk9QRVJUWV9UUkFOU0ZPUk1fUk9UQVRJT04QAxIlCiFUSU1FTElORV9Q",
+            "Uk9QRVJUWV9UUkFOU0ZPUk1fU0NBTEUQBCqYAQoMQW5jaG9yVGFyZ2V0Eh0K",
+            "GUFOQ0hPUl9UQVJHRVRfVU5TUEVDSUZJRUQQABIWChJBTkNIT1JfVEFSR0VU",
+            "X0hFQUQQARIbChdBTkNIT1JfVEFSR0VUX0xFRlRfSEFORBACEhwKGEFOQ0hP",
+            "Ul9UQVJHRVRfUklHSFRfSEFORBADEhYKEkFOQ0hPUl9UQVJHRVRfQk9EWRAE",
+            "KnIKClN1cmZhY2VGaXQSGwoXU1VSRkFDRV9GSVRfVU5TUEVDSUZJRUQQABIX",
+            "ChNTVVJGQUNFX0ZJVF9DT05UQUlOEAESFQoRU1VSRkFDRV9GSVRfQ09WRVIQ",
+            "AhIXChNTVVJGQUNFX0ZJVF9TVFJFVENIEAMqmgIKC0dlc3R1cmVLaW5kEhwK",
+            "GEdFU1RVUkVfS0lORF9VTlNQRUNJRklFRBAAEhsKF0dFU1RVUkVfS0lORF9T",
+            "V0lQRV9MRUZUEAESHAoYR0VTVFVSRV9LSU5EX1NXSVBFX1JJR0hUEAISGwoX",
+            "R0VTVFVSRV9LSU5EX1NXSVBFX0RPV04QAxIZChVHRVNUVVJFX0tJTkRfU1dJ",
+            "UEVfVVAQBBIdChlHRVNUVVJFX0tJTkRfUFVTSF9GT1JXQVJEEAUSHgoaR0VT",
+            "VFVSRV9LSU5EX1BVTExfQkFDS1dBUkQQBhIdChlHRVNUVVJFX0tJTkRfU1BS",
+            "RUFEX0hBTkRTEAcSHAoYR0VTVFVSRV9LSU5EX0NMT1NFX0hBTkRTEAgqTgoI",
+            "Wm9uZUVkZ2USGQoVWk9ORV9FREdFX1VOU1BFQ0lGSUVEEAASEwoPWk9ORV9F",
+            "REdFX0VOVEVSEAESEgoOWk9ORV9FREdFX0VYSVQQAkJbWllnaXRodWIuY29t",
+            "L3VuZnJhbWUtZGV2L3VuZnJhbWUvYXBwL3NlcnZlci9yZWFsdGltZS9pbnRl",
+            "cm5hbC9nZW4vcHJlc2VudGF0aW9uO3ByZXNlbnRhdGlvbmIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Unframe.Presentation.SessionRole), typeof(global::Unframe.Presentation.RuntimeCapability), typeof(global::Unframe.Presentation.ScalarType), typeof(global::Unframe.Presentation.Easing), typeof(global::Unframe.Presentation.RunCompletion), typeof(global::Unframe.Presentation.TimelineProperty), typeof(global::Unframe.Presentation.AnchorTarget), typeof(global::Unframe.Presentation.SurfaceFit), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Unframe.Presentation.SessionRole), typeof(global::Unframe.Presentation.RuntimeCapability), typeof(global::Unframe.Presentation.ScalarType), typeof(global::Unframe.Presentation.Easing), typeof(global::Unframe.Presentation.RunCompletion), typeof(global::Unframe.Presentation.TimelineProperty), typeof(global::Unframe.Presentation.AnchorTarget), typeof(global::Unframe.Presentation.SurfaceFit), typeof(global::Unframe.Presentation.GestureKind), typeof(global::Unframe.Presentation.ZoneEdge), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.PublicationFence), global::Unframe.Presentation.PublicationFence.Parser, new[]{ "PresentationId", "PublicationEpoch", "PublicationManifestHash" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectionInstance), global::Unframe.Presentation.ProjectionInstance.Parser, new[]{ "ProjectionProfileId", "ParticipantId", "AssignmentEpoch" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.RuntimeProjectionFence), global::Unframe.Presentation.RuntimeProjectionFence.Parser, new[]{ "SessionId", "Publication", "AssignmentEpoch", "ProjectionProfileId", "PresentationOriginVersion" }, null, null, null, null),
@@ -233,7 +252,9 @@ namespace Unframe.Presentation {
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedNodeDefinition), global::Unframe.Presentation.ProjectedNodeDefinition.Parser, new[]{ "NodeId", "Parent", "Order", "Owner", "Container", "Surface", "Model", "Shape", "Light" }, new[]{ "Node" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedSurfaceDefinition), global::Unframe.Presentation.ProjectedSurfaceDefinition.Parser, new[]{ "SurfaceId", "HostNodeId", "ReachableStateIds", "HasVideo", "PhysicalSizeMeters", "LogicalSize", "Fit", "Owner" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedModelClipDefinition), global::Unframe.Presentation.ProjectedModelClipDefinition.Parser, new[]{ "ModelNodeId", "ModelAssetId", "ClipId", "SourceAnimationIndex", "DurationMs", "Owner" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedRuntimeCatalog), global::Unframe.Presentation.ProjectedRuntimeCatalog.Parser, new[]{ "CatalogContractVersion", "Nodes", "Surfaces", "Variables", "Timelines", "ModelClips" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.PresenterRecognitionZone), global::Unframe.Presentation.PresenterRecognitionZone.Parser, new[]{ "ZoneId", "Center" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.PresenterRecognitionCatalog), global::Unframe.Presentation.PresenterRecognitionCatalog.Parser, new[]{ "Gestures", "Zones" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedRuntimeCatalog), global::Unframe.Presentation.ProjectedRuntimeCatalog.Parser, new[]{ "CatalogContractVersion", "Nodes", "Surfaces", "Variables", "Timelines", "ModelClips", "PresenterRecognition" }, null, null, null, null)
           }));
     }
     #endregion
@@ -254,6 +275,10 @@ namespace Unframe.Presentation {
     [pbr::OriginalName("RUNTIME_CAPABILITY_VIDEO_PLAYBACK")] VideoPlayback = 4,
     [pbr::OriginalName("RUNTIME_CAPABILITY_MODEL_CLIP")] ModelClip = 5,
     [pbr::OriginalName("RUNTIME_CAPABILITY_TRACKING")] Tracking = 6,
+    [pbr::OriginalName("RUNTIME_CAPABILITY_PRESENTER_RECOGNITION")] PresenterRecognition = 7,
+    [pbr::OriginalName("RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION")] InputSynchronization = 8,
+    [pbr::OriginalName("RUNTIME_CAPABILITY_FROZEN_ANCHORS")] FrozenAnchors = 9,
+    [pbr::OriginalName("RUNTIME_CAPABILITY_STEP_RESTORE")] StepRestore = 10,
   }
 
   public enum ScalarType {
@@ -299,6 +324,24 @@ namespace Unframe.Presentation {
     [pbr::OriginalName("SURFACE_FIT_CONTAIN")] Contain = 1,
     [pbr::OriginalName("SURFACE_FIT_COVER")] Cover = 2,
     [pbr::OriginalName("SURFACE_FIT_STRETCH")] Stretch = 3,
+  }
+
+  public enum GestureKind {
+    [pbr::OriginalName("GESTURE_KIND_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("GESTURE_KIND_SWIPE_LEFT")] SwipeLeft = 1,
+    [pbr::OriginalName("GESTURE_KIND_SWIPE_RIGHT")] SwipeRight = 2,
+    [pbr::OriginalName("GESTURE_KIND_SWIPE_DOWN")] SwipeDown = 3,
+    [pbr::OriginalName("GESTURE_KIND_SWIPE_UP")] SwipeUp = 4,
+    [pbr::OriginalName("GESTURE_KIND_PUSH_FORWARD")] PushForward = 5,
+    [pbr::OriginalName("GESTURE_KIND_PULL_BACKWARD")] PullBackward = 6,
+    [pbr::OriginalName("GESTURE_KIND_SPREAD_HANDS")] SpreadHands = 7,
+    [pbr::OriginalName("GESTURE_KIND_CLOSE_HANDS")] CloseHands = 8,
+  }
+
+  public enum ZoneEdge {
+    [pbr::OriginalName("ZONE_EDGE_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("ZONE_EDGE_ENTER")] Enter = 1,
+    [pbr::OriginalName("ZONE_EDGE_EXIT")] Exit = 2,
   }
 
   #endregion
@@ -13204,6 +13247,468 @@ namespace Unframe.Presentation {
   }
 
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class PresenterRecognitionZone : pb::IMessage<PresenterRecognitionZone>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<PresenterRecognitionZone> _parser = new pb::MessageParser<PresenterRecognitionZone>(() => new PresenterRecognitionZone());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<PresenterRecognitionZone> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Unframe.Presentation.RuntimeReflection.Descriptor.MessageTypes[46]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public PresenterRecognitionZone() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public PresenterRecognitionZone(PresenterRecognitionZone other) : this() {
+      zoneId_ = other.zoneId_;
+      center_ = other.center_ != null ? other.center_.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public PresenterRecognitionZone Clone() {
+      return new PresenterRecognitionZone(this);
+    }
+
+    /// <summary>Field number for the "zone_id" field.</summary>
+    public const int ZoneIdFieldNumber = 1;
+    private string zoneId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ZoneId {
+      get { return zoneId_; }
+      set {
+        zoneId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "center" field.</summary>
+    public const int CenterFieldNumber = 2;
+    private global::Unframe.Presentation.Vector3 center_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Unframe.Presentation.Vector3 Center {
+      get { return center_; }
+      set {
+        center_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as PresenterRecognitionZone);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(PresenterRecognitionZone other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (ZoneId != other.ZoneId) return false;
+      if (!object.Equals(Center, other.Center)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (ZoneId.Length != 0) hash ^= ZoneId.GetHashCode();
+      if (center_ != null) hash ^= Center.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (ZoneId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(ZoneId);
+      }
+      if (center_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Center);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (ZoneId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(ZoneId);
+      }
+      if (center_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Center);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (ZoneId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ZoneId);
+      }
+      if (center_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Center);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(PresenterRecognitionZone other) {
+      if (other == null) {
+        return;
+      }
+      if (other.ZoneId.Length != 0) {
+        ZoneId = other.ZoneId;
+      }
+      if (other.center_ != null) {
+        if (center_ == null) {
+          Center = new global::Unframe.Presentation.Vector3();
+        }
+        Center.MergeFrom(other.Center);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            ZoneId = input.ReadString();
+            break;
+          }
+          case 18: {
+            if (center_ == null) {
+              Center = new global::Unframe.Presentation.Vector3();
+            }
+            input.ReadMessage(Center);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            ZoneId = input.ReadString();
+            break;
+          }
+          case 18: {
+            if (center_ == null) {
+              Center = new global::Unframe.Presentation.Vector3();
+            }
+            input.ReadMessage(Center);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// Only Presenter receives these candidates; Guard and Cue selection remain server-owned.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class PresenterRecognitionCatalog : pb::IMessage<PresenterRecognitionCatalog>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<PresenterRecognitionCatalog> _parser = new pb::MessageParser<PresenterRecognitionCatalog>(() => new PresenterRecognitionCatalog());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<PresenterRecognitionCatalog> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Unframe.Presentation.RuntimeReflection.Descriptor.MessageTypes[47]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public PresenterRecognitionCatalog() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public PresenterRecognitionCatalog(PresenterRecognitionCatalog other) : this() {
+      gestures_ = other.gestures_.Clone();
+      zones_ = other.zones_.Clone();
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public PresenterRecognitionCatalog Clone() {
+      return new PresenterRecognitionCatalog(this);
+    }
+
+    /// <summary>Field number for the "gestures" field.</summary>
+    public const int GesturesFieldNumber = 1;
+    private static readonly pb::FieldCodec<global::Unframe.Presentation.GestureKind> _repeated_gestures_codec
+        = pb::FieldCodec.ForEnum(10, x => (int) x, x => (global::Unframe.Presentation.GestureKind) x);
+    private readonly pbc::RepeatedField<global::Unframe.Presentation.GestureKind> gestures_ = new pbc::RepeatedField<global::Unframe.Presentation.GestureKind>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Unframe.Presentation.GestureKind> Gestures {
+      get { return gestures_; }
+    }
+
+    /// <summary>Field number for the "zones" field.</summary>
+    public const int ZonesFieldNumber = 2;
+    private static readonly pb::FieldCodec<global::Unframe.Presentation.PresenterRecognitionZone> _repeated_zones_codec
+        = pb::FieldCodec.ForMessage(18, global::Unframe.Presentation.PresenterRecognitionZone.Parser);
+    private readonly pbc::RepeatedField<global::Unframe.Presentation.PresenterRecognitionZone> zones_ = new pbc::RepeatedField<global::Unframe.Presentation.PresenterRecognitionZone>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Unframe.Presentation.PresenterRecognitionZone> Zones {
+      get { return zones_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as PresenterRecognitionCatalog);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(PresenterRecognitionCatalog other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if(!gestures_.Equals(other.gestures_)) return false;
+      if(!zones_.Equals(other.zones_)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      hash ^= gestures_.GetHashCode();
+      hash ^= zones_.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      gestures_.WriteTo(output, _repeated_gestures_codec);
+      zones_.WriteTo(output, _repeated_zones_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      gestures_.WriteTo(ref output, _repeated_gestures_codec);
+      zones_.WriteTo(ref output, _repeated_zones_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      size += gestures_.CalculateSize(_repeated_gestures_codec);
+      size += zones_.CalculateSize(_repeated_zones_codec);
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(PresenterRecognitionCatalog other) {
+      if (other == null) {
+        return;
+      }
+      gestures_.Add(other.gestures_);
+      zones_.Add(other.zones_);
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10:
+          case 8: {
+            gestures_.AddEntriesFrom(input, _repeated_gestures_codec);
+            break;
+          }
+          case 18: {
+            zones_.AddEntriesFrom(input, _repeated_zones_codec);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10:
+          case 8: {
+            gestures_.AddEntriesFrom(ref input, _repeated_gestures_codec);
+            break;
+          }
+          case 18: {
+            zones_.AddEntriesFrom(ref input, _repeated_zones_codec);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ProjectedRuntimeCatalog : pb::IMessage<ProjectedRuntimeCatalog>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
@@ -13218,7 +13723,7 @@ namespace Unframe.Presentation {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Presentation.RuntimeReflection.Descriptor.MessageTypes[46]; }
+      get { return global::Unframe.Presentation.RuntimeReflection.Descriptor.MessageTypes[48]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -13244,6 +13749,7 @@ namespace Unframe.Presentation {
       variables_ = other.variables_.Clone();
       timelines_ = other.timelines_.Clone();
       modelClips_ = other.modelClips_.Clone();
+      presenterRecognition_ = other.presenterRecognition_ != null ? other.presenterRecognition_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -13320,6 +13826,18 @@ namespace Unframe.Presentation {
       get { return modelClips_; }
     }
 
+    /// <summary>Field number for the "presenter_recognition" field.</summary>
+    public const int PresenterRecognitionFieldNumber = 8;
+    private global::Unframe.Presentation.PresenterRecognitionCatalog presenterRecognition_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Unframe.Presentation.PresenterRecognitionCatalog PresenterRecognition {
+      get { return presenterRecognition_; }
+      set {
+        presenterRecognition_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -13341,6 +13859,7 @@ namespace Unframe.Presentation {
       if(!variables_.Equals(other.variables_)) return false;
       if(!timelines_.Equals(other.timelines_)) return false;
       if(!modelClips_.Equals(other.modelClips_)) return false;
+      if (!object.Equals(PresenterRecognition, other.PresenterRecognition)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -13354,6 +13873,7 @@ namespace Unframe.Presentation {
       hash ^= variables_.GetHashCode();
       hash ^= timelines_.GetHashCode();
       hash ^= modelClips_.GetHashCode();
+      if (presenterRecognition_ != null) hash ^= PresenterRecognition.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -13381,6 +13901,10 @@ namespace Unframe.Presentation {
       variables_.WriteTo(output, _repeated_variables_codec);
       timelines_.WriteTo(output, _repeated_timelines_codec);
       modelClips_.WriteTo(output, _repeated_modelClips_codec);
+      if (presenterRecognition_ != null) {
+        output.WriteRawTag(66);
+        output.WriteMessage(PresenterRecognition);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -13400,6 +13924,10 @@ namespace Unframe.Presentation {
       variables_.WriteTo(ref output, _repeated_variables_codec);
       timelines_.WriteTo(ref output, _repeated_timelines_codec);
       modelClips_.WriteTo(ref output, _repeated_modelClips_codec);
+      if (presenterRecognition_ != null) {
+        output.WriteRawTag(66);
+        output.WriteMessage(PresenterRecognition);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -13418,6 +13946,9 @@ namespace Unframe.Presentation {
       size += variables_.CalculateSize(_repeated_variables_codec);
       size += timelines_.CalculateSize(_repeated_timelines_codec);
       size += modelClips_.CalculateSize(_repeated_modelClips_codec);
+      if (presenterRecognition_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(PresenterRecognition);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -13438,6 +13969,12 @@ namespace Unframe.Presentation {
       variables_.Add(other.variables_);
       timelines_.Add(other.timelines_);
       modelClips_.Add(other.modelClips_);
+      if (other.presenterRecognition_ != null) {
+        if (presenterRecognition_ == null) {
+          PresenterRecognition = new global::Unframe.Presentation.PresenterRecognitionCatalog();
+        }
+        PresenterRecognition.MergeFrom(other.PresenterRecognition);
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -13481,6 +14018,13 @@ namespace Unframe.Presentation {
             modelClips_.AddEntriesFrom(input, _repeated_modelClips_codec);
             break;
           }
+          case 66: {
+            if (presenterRecognition_ == null) {
+              PresenterRecognition = new global::Unframe.Presentation.PresenterRecognitionCatalog();
+            }
+            input.ReadMessage(PresenterRecognition);
+            break;
+          }
         }
       }
     #endif
@@ -13522,6 +14066,13 @@ namespace Unframe.Presentation {
           }
           case 50: {
             modelClips_.AddEntriesFrom(ref input, _repeated_modelClips_codec);
+            break;
+          }
+          case 66: {
+            if (presenterRecognition_ == null) {
+              PresenterRecognition = new global::Unframe.Presentation.PresenterRecognitionCatalog();
+            }
+            input.ReadMessage(PresenterRecognition);
             break;
           }
         }

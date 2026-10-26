@@ -22,7 +22,11 @@
                 "RUNTIME_CAPABILITY_SURFACE_TRANSITION": 3,
                 "RUNTIME_CAPABILITY_VIDEO_PLAYBACK": 4,
                 "RUNTIME_CAPABILITY_MODEL_CLIP": 5,
-                "RUNTIME_CAPABILITY_TRACKING": 6
+                "RUNTIME_CAPABILITY_TRACKING": 6,
+                "RUNTIME_CAPABILITY_PRESENTER_RECOGNITION": 7,
+                "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION": 8,
+                "RUNTIME_CAPABILITY_FROZEN_ANCHORS": 9,
+                "RUNTIME_CAPABILITY_STEP_RESTORE": 10
               }
             },
             "PublicationFence": {
@@ -812,6 +816,52 @@
                 }
               }
             },
+            "GestureKind": {
+              "values": {
+                "GESTURE_KIND_UNSPECIFIED": 0,
+                "GESTURE_KIND_SWIPE_LEFT": 1,
+                "GESTURE_KIND_SWIPE_RIGHT": 2,
+                "GESTURE_KIND_SWIPE_DOWN": 3,
+                "GESTURE_KIND_SWIPE_UP": 4,
+                "GESTURE_KIND_PUSH_FORWARD": 5,
+                "GESTURE_KIND_PULL_BACKWARD": 6,
+                "GESTURE_KIND_SPREAD_HANDS": 7,
+                "GESTURE_KIND_CLOSE_HANDS": 8
+              }
+            },
+            "ZoneEdge": {
+              "values": {
+                "ZONE_EDGE_UNSPECIFIED": 0,
+                "ZONE_EDGE_ENTER": 1,
+                "ZONE_EDGE_EXIT": 2
+              }
+            },
+            "PresenterRecognitionZone": {
+              "fields": {
+                "zoneId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "center": {
+                  "type": "Vector3",
+                  "id": 2
+                }
+              }
+            },
+            "PresenterRecognitionCatalog": {
+              "fields": {
+                "gestures": {
+                  "rule": "repeated",
+                  "type": "GestureKind",
+                  "id": 1
+                },
+                "zones": {
+                  "rule": "repeated",
+                  "type": "PresenterRecognitionZone",
+                  "id": 2
+                }
+              }
+            },
             "ProjectedRuntimeCatalog": {
               "fields": {
                 "catalogContractVersion": {
@@ -842,8 +892,13 @@
                   "rule": "repeated",
                   "type": "ProjectedModelClipDefinition",
                   "id": 6
+                },
+                "presenterRecognition": {
+                  "type": "PresenterRecognitionCatalog",
+                  "id": 8
                 }
-              }
+              },
+              "reserved": [[7, 7], "motion_guides"]
             }
           }
         },
@@ -2445,7 +2500,10 @@
                     "stateReady",
                     "logicalInput",
                     "surfaceInteraction",
-                    "runtimeControl"
+                    "runtimeControl",
+                    "gestureInput",
+                    "zoneInput",
+                    "inputSynchronizationAck"
                   ]
                 }
               },
@@ -2473,6 +2531,18 @@
                 "runtimeControl": {
                   "type": "RuntimeControlCommand",
                   "id": 22
+                },
+                "gestureInput": {
+                  "type": "GestureInputCommand",
+                  "id": 100
+                },
+                "zoneInput": {
+                  "type": "ZoneInputCommand",
+                  "id": 101
+                },
+                "inputSynchronizationAck": {
+                  "type": "InputSynchronizationAck",
+                  "id": 102
                 }
               },
               "reserved": [
@@ -2559,14 +2629,6 @@
                   "type": "uint64",
                   "id": 8
                 },
-                "idempotencyRetentionCount": {
-                  "type": "uint32",
-                  "id": 9
-                },
-                "idempotencyRetentionMs": {
-                  "type": "uint64",
-                  "id": 10
-                },
                 "snapshotCatchUpMaxAttempts": {
                   "type": "uint32",
                   "id": 11
@@ -2606,8 +2668,58 @@
                 "stateDependencyBufferMaximumMs": {
                   "type": "uint64",
                   "id": 20
+                },
+                "maximumCommandHistoryCount": {
+                  "type": "uint32",
+                  "id": 21
+                },
+                "maximumCommandHistoryBytes": {
+                  "type": "uint64",
+                  "id": 22
+                },
+                "commandHistorySyncCount": {
+                  "type": "uint32",
+                  "id": 23
+                },
+                "commandHistorySyncBytes": {
+                  "type": "uint64",
+                  "id": 24
+                },
+                "maximumCommandRecordBytes": {
+                  "type": "uint32",
+                  "id": 25
+                },
+                "maximumCanonicalSnapshotBytes": {
+                  "type": "uint64",
+                  "id": 26
+                },
+                "maximumStepStartHistoryBytes": {
+                  "type": "uint64",
+                  "id": 27
+                },
+                "maximumStepStartStateBytes": {
+                  "type": "uint64",
+                  "id": 28
+                },
+                "maximumRecoveryMetadataBytes": {
+                  "type": "uint64",
+                  "id": 29
+                },
+                "maximumCheckpointJsonBytes": {
+                  "type": "uint64",
+                  "id": 30
+                },
+                "maximumInputSynchronizationBytes": {
+                  "type": "uint32",
+                  "id": 31
                 }
-              }
+              },
+              "reserved": [
+                [9, 9],
+                [10, 10],
+                "idempotency_retention_count",
+                "idempotency_retention_ms"
+              ]
             },
             "ControlConnected": {
               "fields": {
@@ -2695,6 +2807,14 @@
                   "options": {
                     "proto3_optional": true
                   }
+                },
+                "inputContext": {
+                  "type": "InputContext",
+                  "id": 5
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 6
                 }
               }
             },
@@ -2727,6 +2847,14 @@
                   "options": {
                     "proto3_optional": true
                   }
+                },
+                "inputContext": {
+                  "type": "InputContext",
+                  "id": 6
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 7
                 }
               }
             },
@@ -2735,7 +2863,9 @@
                 "RUNTIME_CONTROL_KIND_UNSPECIFIED": 0,
                 "RUNTIME_CONTROL_KIND_PAUSE": 1,
                 "RUNTIME_CONTROL_KIND_RESUME": 2,
-                "RUNTIME_CONTROL_KIND_END": 3
+                "RUNTIME_CONTROL_KIND_END": 3,
+                "RUNTIME_CONTROL_KIND_SELECT_STEP": 4,
+                "RUNTIME_CONTROL_KIND_RECALIBRATE": 5
               }
             },
             "RuntimeControlCommand": {
@@ -2751,6 +2881,228 @@
                 "presentationOriginVersion": {
                   "type": "uint64",
                   "id": 3
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 4
+                },
+                "stepSelection": {
+                  "type": "StepSelection",
+                  "id": 5
+                }
+              }
+            },
+            "InputContext": {
+              "fields": {
+                "inputEpoch": {
+                  "type": "uint64",
+                  "id": 1
+                },
+                "groupId": {
+                  "type": "string",
+                  "id": 2
+                },
+                "groupEntryEpoch": {
+                  "type": "uint64",
+                  "id": 3
+                },
+                "stepId": {
+                  "type": "string",
+                  "id": 4
+                },
+                "stepEntryEpoch": {
+                  "type": "uint64",
+                  "id": 5
+                }
+              }
+            },
+            "GestureInputCommand": {
+              "oneofs": {
+                "_capturedAtClientMonotonicMs": {
+                  "oneof": ["capturedAtClientMonotonicMs"]
+                }
+              },
+              "fields": {
+                "clientEventId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "inputContext": {
+                  "type": "InputContext",
+                  "id": 2
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 3
+                },
+                "presentationOriginVersion": {
+                  "type": "uint64",
+                  "id": 4
+                },
+                "capturedAtClientMonotonicMs": {
+                  "type": "uint64",
+                  "id": 5,
+                  "options": {
+                    "proto3_optional": true
+                  }
+                },
+                "gesture": {
+                  "type": "unframe.presentation.GestureKind",
+                  "id": 6
+                }
+              }
+            },
+            "ZoneInputCommand": {
+              "oneofs": {
+                "_capturedAtClientMonotonicMs": {
+                  "oneof": ["capturedAtClientMonotonicMs"]
+                }
+              },
+              "fields": {
+                "clientEventId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "inputContext": {
+                  "type": "InputContext",
+                  "id": 2
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 3
+                },
+                "presentationOriginVersion": {
+                  "type": "uint64",
+                  "id": 4
+                },
+                "capturedAtClientMonotonicMs": {
+                  "type": "uint64",
+                  "id": 5,
+                  "options": {
+                    "proto3_optional": true
+                  }
+                },
+                "zoneId": {
+                  "type": "string",
+                  "id": 6
+                },
+                "edge": {
+                  "type": "unframe.presentation.ZoneEdge",
+                  "id": 7
+                }
+              }
+            },
+            "StepSelection": {
+              "fields": {
+                "groupId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "stepId": {
+                  "type": "string",
+                  "id": 2
+                }
+              }
+            },
+            "PresenterStepSelectionCatalog": {
+              "fields": {
+                "reachedSteps": {
+                  "rule": "repeated",
+                  "type": "StepSelection",
+                  "id": 1
+                },
+                "reliableSequence": {
+                  "type": "uint64",
+                  "id": 2
+                }
+              }
+            },
+            "InputSynchronizationPhase": {
+              "values": {
+                "INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED": 0,
+                "INPUT_SYNCHRONIZATION_PHASE_REQUIRED": 1,
+                "INPUT_SYNCHRONIZATION_PHASE_READY": 2
+              }
+            },
+            "InputSynchronizationReason": {
+              "values": {
+                "INPUT_SYNCHRONIZATION_REASON_UNSPECIFIED": 0,
+                "INPUT_SYNCHRONIZATION_REASON_CONNECTED": 1,
+                "INPUT_SYNCHRONIZATION_REASON_RECONNECTED": 2,
+                "INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED": 3,
+                "INPUT_SYNCHRONIZATION_REASON_PAUSED": 4,
+                "INPUT_SYNCHRONIZATION_REASON_RESUMED": 5,
+                "INPUT_SYNCHRONIZATION_REASON_RECALIBRATED": 6,
+                "INPUT_SYNCHRONIZATION_REASON_HISTORY_CAPACITY": 7,
+                "INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED": 8,
+                "INPUT_SYNCHRONIZATION_REASON_STEP_RESTORED": 9
+              }
+            },
+            "PresenterInputSynchronization": {
+              "oneofs": {
+                "_nextCommandEpoch": {
+                  "oneof": ["nextCommandEpoch"]
+                }
+              },
+              "fields": {
+                "phase": {
+                  "type": "InputSynchronizationPhase",
+                  "id": 1
+                },
+                "reason": {
+                  "type": "InputSynchronizationReason",
+                  "id": 2
+                },
+                "synchronizationRevision": {
+                  "type": "uint64",
+                  "id": 3
+                },
+                "inputContext": {
+                  "type": "InputContext",
+                  "id": 4
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 5
+                },
+                "nextCommandEpoch": {
+                  "type": "uint64",
+                  "id": 6,
+                  "options": {
+                    "proto3_optional": true
+                  }
+                },
+                "reliableSequence": {
+                  "type": "uint64",
+                  "id": 7
+                },
+                "recognitionCatalog": {
+                  "type": "unframe.presentation.PresenterRecognitionCatalog",
+                  "id": 8
+                }
+              }
+            },
+            "InputSynchronizationAck": {
+              "fields": {
+                "synchronizationRevision": {
+                  "type": "uint64",
+                  "id": 1
+                },
+                "inputContext": {
+                  "type": "InputContext",
+                  "id": 2
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 3
+                },
+                "appliedReliableSequence": {
+                  "type": "uint64",
+                  "id": 4
+                },
+                "pendingCommandsDiscarded": {
+                  "type": "bool",
+                  "id": 5
                 }
               }
             },
@@ -2824,7 +3176,13 @@
                 "COMMAND_REJECTION_REASON_UNSPECIFIED": 0,
                 "COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE": 1,
                 "COMMAND_REJECTION_REASON_INTERACTION_UNAVAILABLE": 2,
-                "COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT": 3
+                "COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT": 3,
+                "COMMAND_REJECTION_REASON_INPUT_CONTEXT_STALE": 4,
+                "COMMAND_REJECTION_REASON_COMMAND_EPOCH_STALE": 5,
+                "COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED": 6,
+                "COMMAND_REJECTION_REASON_STEP_NOT_REACHED": 7,
+                "COMMAND_REJECTION_REASON_SESSION_ENDED": 8,
+                "COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED": 9
               }
             },
             "CommandRejected": {
@@ -2883,7 +3241,9 @@
                     "projectionAdvance",
                     "commandOutcome",
                     "stateConnectionNonce",
-                    "resyncRequired"
+                    "resyncRequired",
+                    "presenterInputSynchronization",
+                    "presenterStepSelectionCatalog"
                   ]
                 }
               },
@@ -2915,6 +3275,14 @@
                 "resyncRequired": {
                   "type": "ResyncRequired",
                   "id": 7
+                },
+                "presenterInputSynchronization": {
+                  "type": "PresenterInputSynchronization",
+                  "id": 8
+                },
+                "presenterStepSelectionCatalog": {
+                  "type": "PresenterStepSelectionCatalog",
+                  "id": 9
                 }
               }
             },
@@ -2958,7 +3326,10 @@
                     "modelClipCrossfadeCompleted",
                     "modelClipCanceled",
                     "participantPresenceChanged",
-                    "mediaStoppedSeeked"
+                    "mediaStoppedSeeked",
+                    "gestureInputAccepted",
+                    "zoneInputAccepted",
+                    "runtimeViewReplaced"
                   ]
                 }
               },
@@ -3121,6 +3492,18 @@
                 "mediaStoppedSeeked": {
                   "type": "MediaStoppedSeeked",
                   "id": 1000
+                },
+                "gestureInputAccepted": {
+                  "type": "GestureInputAccepted",
+                  "id": 1001
+                },
+                "zoneInputAccepted": {
+                  "type": "ZoneInputAccepted",
+                  "id": 1002
+                },
+                "runtimeViewReplaced": {
+                  "type": "RuntimeViewReplaced",
+                  "id": 1003
                 }
               },
               "reserved": [
@@ -3159,7 +3542,8 @@
                 "PAUSE_REASON_ATOMIC_COMMIT_FAILED": 5,
                 "PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED": 6,
                 "PAUSE_REASON_RECOVERY_GAP": 7,
-                "PAUSE_REASON_EXPLICIT_PAUSE": 8
+                "PAUSE_REASON_EXPLICIT_PAUSE": 8,
+                "PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED": 9
               }
             },
             "TerminationReason": {
@@ -3319,6 +3703,34 @@
               "fields": {
                 "logicalEventName": {
                   "type": "string",
+                  "id": 1
+                }
+              }
+            },
+            "GestureInputAccepted": {
+              "fields": {
+                "gesture": {
+                  "type": "unframe.presentation.GestureKind",
+                  "id": 1
+                }
+              }
+            },
+            "ZoneInputAccepted": {
+              "fields": {
+                "zoneId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "edge": {
+                  "type": "unframe.presentation.ZoneEdge",
+                  "id": 2
+                }
+              }
+            },
+            "RuntimeViewReplaced": {
+              "fields": {
+                "runtimeView": {
+                  "type": "ParticipantRuntimeView",
                   "id": 1
                 }
               }
@@ -4084,18 +4496,6 @@
                 }
               }
             },
-            "CueCooldown": {
-              "fields": {
-                "cueId": {
-                  "type": "string",
-                  "id": 1
-                },
-                "nextEligibleRuntimeTimeMs": {
-                  "type": "uint64",
-                  "id": 2
-                }
-              }
-            },
             "StepExecutionSnapshot": {
               "fields": {
                 "stepEntryEpoch": {
@@ -4107,17 +4507,13 @@
                   "type": "string",
                   "id": 2
                 },
-                "cooldowns": {
-                  "rule": "repeated",
-                  "type": "CueCooldown",
-                  "id": 3
-                },
                 "timers": {
                   "rule": "repeated",
                   "type": "ArmedTimer",
                   "id": 4
                 }
-              }
+              },
+              "reserved": [[3, 3], "cooldowns"]
             },
             "SurfaceRuntimeState": {
               "oneofs": {
@@ -4421,15 +4817,109 @@
                   "type": "PresentationOrigin",
                   "id": 13
                 },
-                "recentEventIds": {
-                  "rule": "repeated",
-                  "type": "string",
-                  "id": 14
-                },
                 "modelClipStates": {
                   "rule": "repeated",
                   "type": "ModelClipRuntimeState",
                   "id": 15
+                },
+                "inputEpoch": {
+                  "type": "uint64",
+                  "id": 16
+                },
+                "frozenAnchors": {
+                  "rule": "repeated",
+                  "type": "FrozenAnchorDisplayState",
+                  "id": 17
+                },
+                "stepStartHistory": {
+                  "rule": "repeated",
+                  "type": "StepStartState",
+                  "id": 18
+                }
+              },
+              "reserved": [[14, 14], "recent_event_ids"]
+            },
+            "FrozenAnchorDisplayState": {
+              "oneofs": {
+                "_position": {
+                  "oneof": ["position"]
+                },
+                "_rotation": {
+                  "oneof": ["rotation"]
+                }
+              },
+              "fields": {
+                "nodeId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "position": {
+                  "type": "unframe.presentation.Vector3",
+                  "id": 2,
+                  "options": {
+                    "proto3_optional": true
+                  }
+                },
+                "rotation": {
+                  "type": "unframe.presentation.Quaternion",
+                  "id": 3,
+                  "options": {
+                    "proto3_optional": true
+                  }
+                }
+              }
+            },
+            "StepStartState": {
+              "fields": {
+                "groupId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "stepId": {
+                  "type": "string",
+                  "id": 2
+                },
+                "groupEntryEpoch": {
+                  "type": "uint64",
+                  "id": 3
+                },
+                "stepEntryEpoch": {
+                  "type": "uint64",
+                  "id": 4
+                },
+                "capturedAtRuntimeTimeMs": {
+                  "type": "uint64",
+                  "id": 5
+                },
+                "nodeStates": {
+                  "rule": "repeated",
+                  "type": "NodeRuntimeState",
+                  "id": 6
+                },
+                "surfaceStates": {
+                  "rule": "repeated",
+                  "type": "SurfaceRuntimeState",
+                  "id": 7
+                },
+                "mediaStates": {
+                  "rule": "repeated",
+                  "type": "MediaRuntimeState",
+                  "id": 8
+                },
+                "variables": {
+                  "rule": "repeated",
+                  "type": "VariableState",
+                  "id": 9
+                },
+                "activeRuns": {
+                  "rule": "repeated",
+                  "type": "RuntimeRunSnapshot",
+                  "id": 10
+                },
+                "modelClipStates": {
+                  "rule": "repeated",
+                  "type": "ModelClipRuntimeState",
+                  "id": 11
                 }
               }
             },
@@ -4448,6 +4938,34 @@
                   "rule": "repeated",
                   "type": "RuntimeCommandHistory",
                   "id": 3
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 4
+                },
+                "inputSynchronization": {
+                  "type": "PresenterInputSynchronization",
+                  "id": 5
+                },
+                "capacityFault": {
+                  "type": "RuntimeCapacityFault",
+                  "id": 6
+                }
+              }
+            },
+            "RuntimeCapacityFault": {
+              "fields": {
+                "stepStartStateBytes": {
+                  "type": "uint64",
+                  "id": 1
+                },
+                "stepStartHistoryBytes": {
+                  "type": "uint64",
+                  "id": 2
+                },
+                "canonicalSnapshotBytes": {
+                  "type": "uint64",
+                  "id": 3
                 }
               }
             },
@@ -4465,10 +4983,6 @@
             },
             "RuntimeCommandHistory": {
               "fields": {
-                "key": {
-                  "type": "string",
-                  "id": 1
-                },
                 "fingerprint": {
                   "type": "string",
                   "id": 2
@@ -4477,11 +4991,20 @@
                   "type": "CommandOutcome",
                   "id": 3
                 },
-                "rememberedAtUnixMs": {
-                  "type": "int64",
-                  "id": 4
+                "participantId": {
+                  "type": "string",
+                  "id": 5
+                },
+                "clientEventId": {
+                  "type": "string",
+                  "id": 6
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 7
                 }
-              }
+              },
+              "reserved": [[1, 1], [4, 4], "key", "remembered_at_unix_ms"]
             },
             "ParticipantRuntimeView": {
               "fields": {
@@ -4543,6 +5066,11 @@
                   "rule": "repeated",
                   "type": "ModelClipRuntimeState",
                   "id": 13
+                },
+                "frozenAnchors": {
+                  "rule": "repeated",
+                  "type": "FrozenAnchorDisplayState",
+                  "id": 14
                 }
               }
             },
@@ -4956,7 +5484,7 @@
             "ProjectedAnchorBindingPatch": {
               "oneofs": {
                 "state": {
-                  "oneof": ["unavailable", "sample"]
+                  "oneof": ["unavailable", "sample", "frozen"]
                 }
               },
               "fields": {
@@ -4971,6 +5499,10 @@
                 "sample": {
                   "type": "ProjectedAnchorBindingSample",
                   "id": 3
+                },
+                "frozen": {
+                  "type": "FrozenAnchorDisplayState",
+                  "id": 4
                 }
               }
             },

@@ -121,3 +121,18 @@ Component migration metadata と自動変換は後続へ延期する。Action / 
 ## Implementation prerequisite
 
 Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition は Compiler が具体的な v2 値へ解決する。Runtime Text と media renderer の未対応制限を baked-web の境界で維持する。
+
+## 発表者のモーション操作候補
+
+採用仕様は [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) に従う。Author は Gesture の種類だけを選択し、距離・速度・時間窓・左右の手は設定しない。Zone の幾何設定は中心位置だけとし、形状・寸法は一辺2mの軸平行な箱に固定する。Cue は通常 `oncePerStepEntry`、繰り返しが必要なものだけ `repeatable` とし、cooldown の authoring field は設けない。認識は Presenter、Guard / Cue / Action / Next の評価は Runtime が担う。
+
+Structured と React Opaque は次の同じ Trigger 宣言を使用する。
+
+```ts
+trigger: {
+  kind: "gesture",
+  gesture: "swipeLeft",
+}
+```
+
+Gesture は8種類から選び、Structured / React の両方で Presenter actor の canonical Gesture Trigger に変換する。`zoneEdge` は Zone ID と enter / exit を指定し、Stage の Zone 宣言には中心位置だけを持たせる。Presenter Delivery の recognition catalog は種類と Zone ID / 中心だけを含み、Guard / Cue の成立は Runtime が確定する。Local Preview は Gesture / Zone と Presenter Anchor を拒否する。

@@ -1,3 +1,4 @@
+import { checkpointEnvelope } from "../../fixtures/checkpoint";
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import definition from "../../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
@@ -363,6 +364,56 @@ describe("publication service", () => {
     ).rejects.toMatchObject({ code: "conflict" });
   });
 
+  it("validates stored v3 checkpoints and byte limits before runtime bootstrap", async () => {
+    const service = new PublicationService(env.DB, env.ASSETS);
+    const { copy, bytes } = await publishable();
+    await service.createBuild(owner, "demo", upload(copy));
+    for (const [id, descriptor] of Object.entries(copy.assetSet.assets)) {
+      await service.uploadAsset(
+        owner,
+        "demo",
+        copy.buildManifest.buildId,
+        id,
+        bytes[id]!,
+        descriptor.mediaType,
+      );
+    }
+    await service.publish(owner, "demo", copy.buildManifest.buildId, null);
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, created_at, publication_epoch) VALUES ('publication-runtime-session', 'demo', ?, 'publication-runtime-hash', 'Presenting', '2026', 1)",
+      ).bind(owner.userId),
+      env.DB.prepare(
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES ('publication-runtime-session', 'runtime-demo', 'Cloud', 'https://runtime.example.test', 1, 1, '2026', '2099-01-01T00:00:00.000Z')",
+      ),
+    ]);
+    const app = createApp();
+    const runtimePath =
+      "https://example.test/internal/runtime/bootstrap?sessionId=publication-runtime-session&runtimeId=runtime-demo&assignmentEpoch=1";
+    const storedEnvelope = await checkpointEnvelope("publication-runtime-session");
+    for (const [payload, status] of [
+      [JSON.stringify("あ".repeat(524288)), 413],
+      [JSON.stringify({ ...storedEnvelope, schemaVersion: 2 }), 400],
+      [JSON.stringify(storedEnvelope), 200],
+    ] as const) {
+      await env.DB.prepare(
+        "INSERT OR REPLACE INTO session_checkpoints (session_id, version, last_sequence, idempotency_key, payload, received_at) VALUES ('publication-runtime-session', 1, 5, 'checkpoint', ?, '2026')",
+      )
+        .bind(payload)
+        .run();
+      const restored = await app.fetch(
+        new Request(runtimePath, {
+          headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` },
+        }),
+        runtimeEnvironment(),
+      );
+      expect(restored.status).toBe(status);
+      if (status === 413)
+        await expect(restored.json()).resolves.toMatchObject({
+          error: { code: "checkpoint_payload_too_large" },
+        });
+    }
+  });
   it("publishes verified R2 bytes atomically and refuses updates during active use", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);
     const { copy, bytes } = await publishable();

@@ -107,6 +107,10 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
+        public string LastCommandOutcomeCode => runtime.LastCommandOutcomeCode;
+        public void TrackCommand(string clientEventId) => runtime.TrackCommand(clientEventId);
+        public void ClearCommandOutcome(string expectedClientEventId = null) => runtime.ClearCommandOutcome(expectedClientEventId);
+
         public bool TryReceiveControl(byte[] payload, out string error) { return runtime.TryReceiveControl(payload, out error); }
         public bool TryReceiveControl(ControlServerItem item, out string error) { return runtime.TryReceiveControl(item, out error); }
         public bool TryReceiveNetworkControl(ControlServerItem item, out string error)
@@ -144,6 +148,8 @@ namespace Unframe.Unity.PresentationRuntime
             IEnumerable<VariableState> states = null;
             if (item?.ConnectionSnapshot?.Snapshot?.RuntimeView != null)
                 states = item.ConnectionSnapshot.Snapshot.RuntimeView.Variables;
+            else if (item?.ReliableEvent?.RuntimeViewReplaced?.RuntimeView != null)
+                states = item.ReliableEvent.RuntimeViewReplaced.RuntimeView.Variables;
             else if (item?.ReliableEvent?.VariableChanged != null)
                 states = new[] { item.ReliableEvent.VariableChanged.State };
             else if (item?.ReliableEvent?.GroupEntered?.Initialization != null)
@@ -171,8 +177,8 @@ namespace Unframe.Unity.PresentationRuntime
         public bool TryGetAnchorSample(string nodeId, out ProjectedAnchorBindingSample value) { return runtime.TryGetAnchorSample(nodeId, out value); }
         internal void InvalidateAnchorSamples() { runtime.InvalidateAnchorSamples(); }
         public bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { return runtime.TryGetSurfaceState(id, out value); }
-        public bool TryGetVariableState(string id, out VariableState value) { return runtime.TryGetVariableState(id, out value); }
         public bool TryGetMediaState(string id, out MediaRuntimeState value) { return runtime.TryGetMediaState(id, out value); }
+        public bool TryGetVariableState(string id, out VariableState value) { return runtime.TryGetVariableState(id, out value); }
         public bool TryGetModelClipState(string modelNodeId, out ModelClipRuntimeState value) { return runtime.TryGetModelClipState(modelNodeId, out value); }
         /// <summary>Returns a copy of the last accepted snapshot cut, without later events or state frames.</summary>
         public bool TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot) { return runtime.TryGetLastConnectionSnapshot(out snapshot); }

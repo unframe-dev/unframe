@@ -390,20 +390,25 @@ export const resolveOpaqueProject = (
           "cues",
           index,
         ] as const;
-        if (cue.trigger.kind !== "component.output") {
+        if (
+          cue.trigger.kind !== "component.output" &&
+          cue.trigger.kind !== "gesture" &&
+          cue.trigger.kind !== "zoneEdge"
+        ) {
           diagnostics.push(
             diagnostic(
               "compiler-opaque-cue-trigger-invalid",
               path,
-              "React Cues require a declared Component Output.",
+              "React Cues require a declared Component Output, Gesture, or Zone edge.",
             ),
           );
           continue;
         }
         const outputTrigger = cue.trigger;
-        const triggerInstance = presentation.scene.find(
-          (item) => item.id === outputTrigger.componentInstanceId,
-        );
+        const triggerInstance =
+          outputTrigger.kind === "component.output"
+            ? presentation.scene.find((item) => item.id === outputTrigger.componentInstanceId)
+            : undefined;
         const triggerComponent =
           triggerInstance &&
           project.components.find(
@@ -411,8 +416,14 @@ export const resolveOpaqueProject = (
               candidate.manifest.componentId === triggerInstance.component.id &&
               candidate.manifest.version === triggerInstance.component.version,
           );
-        const output = triggerComponent?.manifest.outputs[outputTrigger.outputId];
-        if (!triggerInstance || !output || output.producer.kind !== "surfaceInteraction") {
+        const output =
+          outputTrigger.kind === "component.output"
+            ? triggerComponent?.manifest.outputs[outputTrigger.outputId]
+            : undefined;
+        if (
+          outputTrigger.kind === "component.output" &&
+          (!triggerInstance || !output || output.producer.kind !== "surfaceInteraction")
+        ) {
           diagnostics.push(
             diagnostic(
               "compiler-output-not-found",
@@ -484,18 +495,29 @@ export const resolveOpaqueProject = (
           id: cue.id,
           priority: cue.priority ?? 0,
           order: cue.order ?? index,
-          trigger: {
-            kind: "surfaceInteraction",
-            actor: { kind: "presenter" },
-            surfaceId: reactResourceId("surface", triggerInstance.id),
-            interactionId: reactResourceId(
-              "interaction",
-              triggerInstance.id,
-              output.producer.interactionId,
-            ),
-          },
+          trigger:
+            outputTrigger.kind === "zoneEdge"
+              ? { ...outputTrigger, actor: { kind: "presenter" } }
+              : outputTrigger.kind === "gesture"
+                ? ({
+                    kind: "gesture",
+                    actor: { kind: "presenter" },
+                    gesture: outputTrigger.gesture,
+                  } as (typeof cues)[number]["trigger"])
+                : {
+                    kind: "surfaceInteraction",
+                    actor: { kind: "presenter" },
+                    surfaceId: reactResourceId("surface", triggerInstance!.id),
+                    interactionId: reactResourceId(
+                      "interaction",
+                      triggerInstance!.id,
+                      output!.producer.kind === "surfaceInteraction"
+                        ? output!.producer.interactionId
+                        : "",
+                    ),
+                  },
           fixedPayload: Object.fromEntries(
-            Object.entries(output.payload).map(([key, field]) => [key, field.value]),
+            Object.entries(output?.payload ?? {}).map(([key, field]) => [key, field.value]),
           ),
           firePolicy: cue.firePolicy ?? { kind: "oncePerStepEntry" },
           actions,
@@ -523,10 +545,19 @@ export const resolveOpaqueProject = (
   diagnostics.push(...checkedAssets.diagnostics);
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
   const definition: PresentationDefinition = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     presentationId: presentation.id,
     metadata: presentation.metadata,
-    stage: { ...presentation.stage, size: [...presentation.stage.size], zones: {} },
+    stage: {
+      ...presentation.stage,
+      size: [...presentation.stage.size],
+      zones: Object.fromEntries(
+        Object.entries(presentation.stage.zones ?? {}).map(([id, zone]) => [
+          id,
+          { id: zone.id, owner: zone.owner, center: [...zone.center] },
+        ]),
+      ),
+    },
     scene: { nodes, surfaces },
     flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines: {} },
   };

@@ -155,7 +155,7 @@ export const createLocalPreviewService = (
         Object.values(artifacts.definition.flow.groups).some((group) =>
           Object.values(group.steps).some((step) =>
             step.cues.some(
-              (cue) => cue.trigger.kind === "zoneEdge" || cue.trigger.kind === "motion",
+              (cue) => cue.trigger.kind === "zoneEdge" || cue.trigger.kind === "gesture",
             ),
           ),
         )
@@ -179,6 +179,8 @@ export const createLocalPreviewService = (
         references.set(reference, assetId);
         assetBindings.push({ assetId, reference });
       }
+      const { presenterRecognition: _recognition, ...previewRuntimeCatalog } =
+        projection.runtimeCatalog!;
       const initial = createInitialRuntimeState(artifacts.definition);
       const visibleNodes = new Set(selection.visibleNodeIds);
       const visibleSurfaces = new Set(selection.visibleSurfaceIds);
@@ -190,8 +192,9 @@ export const createLocalPreviewService = (
         assetSet: canonicalizeJsonPayload(artifacts.assetSet),
         projection: {
           ...projection,
+          runtimeCatalog: previewRuntimeCatalog,
           requiredRuntimeCapabilities: (projection.requiredRuntimeCapabilities ?? []).filter(
-            (value) => value !== 1,
+            (value) => ![1, 7, 8, 9, 10].includes(value),
           ),
           textureResidency: residency.textures,
           modelResidency: residency.models,

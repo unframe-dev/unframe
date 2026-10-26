@@ -39,6 +39,18 @@ export namespace unframe {
 
       /** RUNTIME_CAPABILITY_TRACKING value */
       RUNTIME_CAPABILITY_TRACKING = 6,
+
+      /** RUNTIME_CAPABILITY_PRESENTER_RECOGNITION value */
+      RUNTIME_CAPABILITY_PRESENTER_RECOGNITION = 7,
+
+      /** RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION value */
+      RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION = 8,
+
+      /** RUNTIME_CAPABILITY_FROZEN_ANCHORS value */
+      RUNTIME_CAPABILITY_FROZEN_ANCHORS = 9,
+
+      /** RUNTIME_CAPABILITY_STEP_RESTORE value */
+      RUNTIME_CAPABILITY_STEP_RESTORE = 10,
     }
 
     /**
@@ -7003,6 +7015,334 @@ export namespace unframe {
       };
     }
 
+    /** GestureKind enum. */
+    enum GestureKind {
+      /** GESTURE_KIND_UNSPECIFIED value */
+      GESTURE_KIND_UNSPECIFIED = 0,
+
+      /** GESTURE_KIND_SWIPE_LEFT value */
+      GESTURE_KIND_SWIPE_LEFT = 1,
+
+      /** GESTURE_KIND_SWIPE_RIGHT value */
+      GESTURE_KIND_SWIPE_RIGHT = 2,
+
+      /** GESTURE_KIND_SWIPE_DOWN value */
+      GESTURE_KIND_SWIPE_DOWN = 3,
+
+      /** GESTURE_KIND_SWIPE_UP value */
+      GESTURE_KIND_SWIPE_UP = 4,
+
+      /** GESTURE_KIND_PUSH_FORWARD value */
+      GESTURE_KIND_PUSH_FORWARD = 5,
+
+      /** GESTURE_KIND_PULL_BACKWARD value */
+      GESTURE_KIND_PULL_BACKWARD = 6,
+
+      /** GESTURE_KIND_SPREAD_HANDS value */
+      GESTURE_KIND_SPREAD_HANDS = 7,
+
+      /** GESTURE_KIND_CLOSE_HANDS value */
+      GESTURE_KIND_CLOSE_HANDS = 8,
+    }
+
+    /** ZoneEdge enum. */
+    enum ZoneEdge {
+      /** ZONE_EDGE_UNSPECIFIED value */
+      ZONE_EDGE_UNSPECIFIED = 0,
+
+      /** ZONE_EDGE_ENTER value */
+      ZONE_EDGE_ENTER = 1,
+
+      /** ZONE_EDGE_EXIT value */
+      ZONE_EDGE_EXIT = 2,
+    }
+
+    /**
+     * Properties of a PresenterRecognitionZone.
+     * @deprecated Use unframe.presentation.PresenterRecognitionZone.$Properties instead.
+     */
+    interface IPresenterRecognitionZone
+      extends unframe.presentation.PresenterRecognitionZone.$Properties {}
+
+    /** Represents a PresenterRecognitionZone. */
+    class PresenterRecognitionZone {
+      /**
+       * Constructs a new PresenterRecognitionZone.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.presentation.PresenterRecognitionZone.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** PresenterRecognitionZone zoneId. */
+      zoneId: string;
+
+      /** PresenterRecognitionZone center. */
+      center?: unframe.presentation.Vector3.$Properties | null;
+
+      /**
+       * Creates a new PresenterRecognitionZone instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns PresenterRecognitionZone instance
+       */
+      static create(
+        properties: unframe.presentation.PresenterRecognitionZone.$Shape,
+      ): unframe.presentation.PresenterRecognitionZone &
+        unframe.presentation.PresenterRecognitionZone.$Shape;
+      static create(
+        properties?: unframe.presentation.PresenterRecognitionZone.$Properties,
+      ): unframe.presentation.PresenterRecognitionZone;
+
+      /**
+       * Encodes the specified PresenterRecognitionZone message. Does not implicitly {@link unframe.presentation.PresenterRecognitionZone.verify|verify} messages.
+       * @param message PresenterRecognitionZone message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.presentation.PresenterRecognitionZone.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified PresenterRecognitionZone message, length delimited. Does not implicitly {@link unframe.presentation.PresenterRecognitionZone.verify|verify} messages.
+       * @param message PresenterRecognitionZone message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.presentation.PresenterRecognitionZone.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a PresenterRecognitionZone message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.presentation.PresenterRecognitionZone & unframe.presentation.PresenterRecognitionZone.$Shape} PresenterRecognitionZone
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.presentation.PresenterRecognitionZone &
+        unframe.presentation.PresenterRecognitionZone.$Shape;
+
+      /**
+       * Decodes a PresenterRecognitionZone message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.presentation.PresenterRecognitionZone & unframe.presentation.PresenterRecognitionZone.$Shape} PresenterRecognitionZone
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.presentation.PresenterRecognitionZone &
+        unframe.presentation.PresenterRecognitionZone.$Shape;
+
+      /**
+       * Verifies a PresenterRecognitionZone message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a PresenterRecognitionZone message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns PresenterRecognitionZone
+       */
+      static fromObject(object: {
+        [k: string]: any;
+      }): unframe.presentation.PresenterRecognitionZone;
+
+      /**
+       * Creates a plain object from a PresenterRecognitionZone message. Also converts values to other types if specified.
+       * @param message PresenterRecognitionZone
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.presentation.PresenterRecognitionZone,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this PresenterRecognitionZone to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for PresenterRecognitionZone
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace PresenterRecognitionZone {
+      /** Properties of a PresenterRecognitionZone. */
+      interface $Properties {
+        /** PresenterRecognitionZone zoneId */
+        zoneId?: string | null;
+
+        /** PresenterRecognitionZone center */
+        center?: unframe.presentation.Vector3.$Properties | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a PresenterRecognitionZone. */
+      type $Shape = unframe.presentation.PresenterRecognitionZone.$Properties;
+    }
+
+    /**
+     * Properties of a PresenterRecognitionCatalog.
+     * @deprecated Use unframe.presentation.PresenterRecognitionCatalog.$Properties instead.
+     */
+    interface IPresenterRecognitionCatalog
+      extends unframe.presentation.PresenterRecognitionCatalog.$Properties {}
+
+    /** Represents a PresenterRecognitionCatalog. */
+    class PresenterRecognitionCatalog {
+      /**
+       * Constructs a new PresenterRecognitionCatalog.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.presentation.PresenterRecognitionCatalog.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** PresenterRecognitionCatalog gestures. */
+      gestures: unframe.presentation.GestureKind[];
+
+      /** PresenterRecognitionCatalog zones. */
+      zones: unframe.presentation.PresenterRecognitionZone.$Properties[];
+
+      /**
+       * Creates a new PresenterRecognitionCatalog instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns PresenterRecognitionCatalog instance
+       */
+      static create(
+        properties: unframe.presentation.PresenterRecognitionCatalog.$Shape,
+      ): unframe.presentation.PresenterRecognitionCatalog &
+        unframe.presentation.PresenterRecognitionCatalog.$Shape;
+      static create(
+        properties?: unframe.presentation.PresenterRecognitionCatalog.$Properties,
+      ): unframe.presentation.PresenterRecognitionCatalog;
+
+      /**
+       * Encodes the specified PresenterRecognitionCatalog message. Does not implicitly {@link unframe.presentation.PresenterRecognitionCatalog.verify|verify} messages.
+       * @param message PresenterRecognitionCatalog message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.presentation.PresenterRecognitionCatalog.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified PresenterRecognitionCatalog message, length delimited. Does not implicitly {@link unframe.presentation.PresenterRecognitionCatalog.verify|verify} messages.
+       * @param message PresenterRecognitionCatalog message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.presentation.PresenterRecognitionCatalog.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a PresenterRecognitionCatalog message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.presentation.PresenterRecognitionCatalog & unframe.presentation.PresenterRecognitionCatalog.$Shape} PresenterRecognitionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.presentation.PresenterRecognitionCatalog &
+        unframe.presentation.PresenterRecognitionCatalog.$Shape;
+
+      /**
+       * Decodes a PresenterRecognitionCatalog message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.presentation.PresenterRecognitionCatalog & unframe.presentation.PresenterRecognitionCatalog.$Shape} PresenterRecognitionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.presentation.PresenterRecognitionCatalog &
+        unframe.presentation.PresenterRecognitionCatalog.$Shape;
+
+      /**
+       * Verifies a PresenterRecognitionCatalog message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a PresenterRecognitionCatalog message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns PresenterRecognitionCatalog
+       */
+      static fromObject(object: {
+        [k: string]: any;
+      }): unframe.presentation.PresenterRecognitionCatalog;
+
+      /**
+       * Creates a plain object from a PresenterRecognitionCatalog message. Also converts values to other types if specified.
+       * @param message PresenterRecognitionCatalog
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.presentation.PresenterRecognitionCatalog,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this PresenterRecognitionCatalog to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for PresenterRecognitionCatalog
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace PresenterRecognitionCatalog {
+      /** Properties of a PresenterRecognitionCatalog. */
+      interface $Properties {
+        /** PresenterRecognitionCatalog gestures */
+        gestures?: unframe.presentation.GestureKind[] | null;
+
+        /** PresenterRecognitionCatalog zones */
+        zones?: unframe.presentation.PresenterRecognitionZone.$Properties[] | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a PresenterRecognitionCatalog. */
+      type $Shape = unframe.presentation.PresenterRecognitionCatalog.$Properties;
+    }
+
     /**
      * Properties of a ProjectedRuntimeCatalog.
      * @deprecated Use unframe.presentation.ProjectedRuntimeCatalog.$Properties instead.
@@ -7038,6 +7378,9 @@ export namespace unframe {
 
       /** ProjectedRuntimeCatalog modelClips. */
       modelClips: unframe.presentation.ProjectedModelClipDefinition.$Properties[];
+
+      /** ProjectedRuntimeCatalog presenterRecognition. */
+      presenterRecognition?: unframe.presentation.PresenterRecognitionCatalog.$Properties | null;
 
       /**
        * Creates a new ProjectedRuntimeCatalog instance using the specified properties.
@@ -7160,6 +7503,9 @@ export namespace unframe {
         /** ProjectedRuntimeCatalog modelClips */
         modelClips?: unframe.presentation.ProjectedModelClipDefinition.$Properties[] | null;
 
+        /** ProjectedRuntimeCatalog presenterRecognition */
+        presenterRecognition?: unframe.presentation.PresenterRecognitionCatalog.$Properties | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
@@ -7172,6 +7518,7 @@ export namespace unframe {
         variables?: unframe.presentation.ProjectedVariableDefinition.$Shape[] | null;
         timelines?: unframe.presentation.ProjectedTimelineDefinition.$Shape[] | null;
         modelClips?: unframe.presentation.ProjectedModelClipDefinition.$Shape[] | null;
+        presenterRecognition?: unframe.presentation.PresenterRecognitionCatalog.$Shape | null;
         $unknowns?: Uint8Array[];
       };
     }
@@ -16370,6 +16717,15 @@ export namespace unframe {
       /** ControlClientItem runtimeControl. */
       runtimeControl?: unframe.realtime.RuntimeControlCommand.$Properties | null;
 
+      /** ControlClientItem gestureInput. */
+      gestureInput?: unframe.realtime.GestureInputCommand.$Properties | null;
+
+      /** ControlClientItem zoneInput. */
+      zoneInput?: unframe.realtime.ZoneInputCommand.$Properties | null;
+
+      /** ControlClientItem inputSynchronizationAck. */
+      inputSynchronizationAck?: unframe.realtime.InputSynchronizationAck.$Properties | null;
+
       /** ControlClientItem item. */
       item?:
         | "handshake"
@@ -16377,7 +16733,10 @@ export namespace unframe {
         | "stateReady"
         | "logicalInput"
         | "surfaceInteraction"
-        | "runtimeControl";
+        | "runtimeControl"
+        | "gestureInput"
+        | "zoneInput"
+        | "inputSynchronizationAck";
 
       /**
        * Creates a new ControlClientItem instance using the specified properties.
@@ -16497,6 +16856,15 @@ export namespace unframe {
         /** ControlClientItem runtimeControl */
         runtimeControl?: unframe.realtime.RuntimeControlCommand.$Properties | null;
 
+        /** ControlClientItem gestureInput */
+        gestureInput?: unframe.realtime.GestureInputCommand.$Properties | null;
+
+        /** ControlClientItem zoneInput */
+        zoneInput?: unframe.realtime.ZoneInputCommand.$Properties | null;
+
+        /** ControlClientItem inputSynchronizationAck */
+        inputSynchronizationAck?: unframe.realtime.InputSynchronizationAck.$Properties | null;
+
         /** ControlClientItem item */
         item?:
           | "handshake"
@@ -16504,7 +16872,10 @@ export namespace unframe {
           | "stateReady"
           | "logicalInput"
           | "surfaceInteraction"
-          | "runtimeControl";
+          | "runtimeControl"
+          | "gestureInput"
+          | "zoneInput"
+          | "inputSynchronizationAck";
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
@@ -16518,6 +16889,9 @@ export namespace unframe {
         logicalInput?: unframe.realtime.LogicalInputCommand.$Shape | null;
         surfaceInteraction?: unframe.realtime.SurfaceInteractionCommand.$Shape | null;
         runtimeControl?: unframe.realtime.RuntimeControlCommand.$Shape | null;
+        gestureInput?: unframe.realtime.GestureInputCommand.$Shape | null;
+        zoneInput?: unframe.realtime.ZoneInputCommand.$Shape | null;
+        inputSynchronizationAck?: unframe.realtime.InputSynchronizationAck.$Shape | null;
         $unknowns?: Uint8Array[];
       } & (
         | {
@@ -16528,6 +16902,9 @@ export namespace unframe {
             logicalInput?: null;
             surfaceInteraction?: null;
             runtimeControl?: null;
+            gestureInput?: null;
+            zoneInput?: null;
+            inputSynchronizationAck?: null;
           }
         | {
             item?: "handshake";
@@ -16537,6 +16914,9 @@ export namespace unframe {
             logicalInput?: null;
             surfaceInteraction?: null;
             runtimeControl?: null;
+            gestureInput?: null;
+            zoneInput?: null;
+            inputSynchronizationAck?: null;
           }
         | {
             item?: "replayRequest";
@@ -16546,6 +16926,9 @@ export namespace unframe {
             logicalInput?: null;
             surfaceInteraction?: null;
             runtimeControl?: null;
+            gestureInput?: null;
+            zoneInput?: null;
+            inputSynchronizationAck?: null;
           }
         | {
             item?: "stateReady";
@@ -16555,6 +16938,9 @@ export namespace unframe {
             logicalInput?: null;
             surfaceInteraction?: null;
             runtimeControl?: null;
+            gestureInput?: null;
+            zoneInput?: null;
+            inputSynchronizationAck?: null;
           }
         | {
             item?: "logicalInput";
@@ -16564,6 +16950,9 @@ export namespace unframe {
             logicalInput: unframe.realtime.LogicalInputCommand.$Shape;
             surfaceInteraction?: null;
             runtimeControl?: null;
+            gestureInput?: null;
+            zoneInput?: null;
+            inputSynchronizationAck?: null;
           }
         | {
             item?: "surfaceInteraction";
@@ -16573,6 +16962,9 @@ export namespace unframe {
             logicalInput?: null;
             surfaceInteraction: unframe.realtime.SurfaceInteractionCommand.$Shape;
             runtimeControl?: null;
+            gestureInput?: null;
+            zoneInput?: null;
+            inputSynchronizationAck?: null;
           }
         | {
             item?: "runtimeControl";
@@ -16582,6 +16974,45 @@ export namespace unframe {
             logicalInput?: null;
             surfaceInteraction?: null;
             runtimeControl: unframe.realtime.RuntimeControlCommand.$Shape;
+            gestureInput?: null;
+            zoneInput?: null;
+            inputSynchronizationAck?: null;
+          }
+        | {
+            item?: "gestureInput";
+            handshake?: null;
+            replayRequest?: null;
+            stateReady?: null;
+            logicalInput?: null;
+            surfaceInteraction?: null;
+            runtimeControl?: null;
+            gestureInput: unframe.realtime.GestureInputCommand.$Shape;
+            zoneInput?: null;
+            inputSynchronizationAck?: null;
+          }
+        | {
+            item?: "zoneInput";
+            handshake?: null;
+            replayRequest?: null;
+            stateReady?: null;
+            logicalInput?: null;
+            surfaceInteraction?: null;
+            runtimeControl?: null;
+            gestureInput?: null;
+            zoneInput: unframe.realtime.ZoneInputCommand.$Shape;
+            inputSynchronizationAck?: null;
+          }
+        | {
+            item?: "inputSynchronizationAck";
+            handshake?: null;
+            replayRequest?: null;
+            stateReady?: null;
+            logicalInput?: null;
+            surfaceInteraction?: null;
+            runtimeControl?: null;
+            gestureInput?: null;
+            zoneInput?: null;
+            inputSynchronizationAck: unframe.realtime.InputSynchronizationAck.$Shape;
           }
       );
     }
@@ -16919,12 +17350,6 @@ export namespace unframe {
       /** RuntimeProtocolLimits maximumReplayBytes. */
       maximumReplayBytes: number | Long;
 
-      /** RuntimeProtocolLimits idempotencyRetentionCount. */
-      idempotencyRetentionCount: number;
-
-      /** RuntimeProtocolLimits idempotencyRetentionMs. */
-      idempotencyRetentionMs: number | Long;
-
       /** RuntimeProtocolLimits snapshotCatchUpMaxAttempts. */
       snapshotCatchUpMaxAttempts: number;
 
@@ -16954,6 +17379,39 @@ export namespace unframe {
 
       /** RuntimeProtocolLimits stateDependencyBufferMaximumMs. */
       stateDependencyBufferMaximumMs: number | Long;
+
+      /** RuntimeProtocolLimits maximumCommandHistoryCount. */
+      maximumCommandHistoryCount: number;
+
+      /** RuntimeProtocolLimits maximumCommandHistoryBytes. */
+      maximumCommandHistoryBytes: number | Long;
+
+      /** RuntimeProtocolLimits commandHistorySyncCount. */
+      commandHistorySyncCount: number;
+
+      /** RuntimeProtocolLimits commandHistorySyncBytes. */
+      commandHistorySyncBytes: number | Long;
+
+      /** RuntimeProtocolLimits maximumCommandRecordBytes. */
+      maximumCommandRecordBytes: number;
+
+      /** RuntimeProtocolLimits maximumCanonicalSnapshotBytes. */
+      maximumCanonicalSnapshotBytes: number | Long;
+
+      /** RuntimeProtocolLimits maximumStepStartHistoryBytes. */
+      maximumStepStartHistoryBytes: number | Long;
+
+      /** RuntimeProtocolLimits maximumStepStartStateBytes. */
+      maximumStepStartStateBytes: number | Long;
+
+      /** RuntimeProtocolLimits maximumRecoveryMetadataBytes. */
+      maximumRecoveryMetadataBytes: number | Long;
+
+      /** RuntimeProtocolLimits maximumCheckpointJsonBytes. */
+      maximumCheckpointJsonBytes: number | Long;
+
+      /** RuntimeProtocolLimits maximumInputSynchronizationBytes. */
+      maximumInputSynchronizationBytes: number;
 
       /**
        * Creates a new RuntimeProtocolLimits instance using the specified properties.
@@ -17079,12 +17537,6 @@ export namespace unframe {
         /** RuntimeProtocolLimits maximumReplayBytes */
         maximumReplayBytes?: number | Long | null;
 
-        /** RuntimeProtocolLimits idempotencyRetentionCount */
-        idempotencyRetentionCount?: number | null;
-
-        /** RuntimeProtocolLimits idempotencyRetentionMs */
-        idempotencyRetentionMs?: number | Long | null;
-
         /** RuntimeProtocolLimits snapshotCatchUpMaxAttempts */
         snapshotCatchUpMaxAttempts?: number | null;
 
@@ -17114,6 +17566,39 @@ export namespace unframe {
 
         /** RuntimeProtocolLimits stateDependencyBufferMaximumMs */
         stateDependencyBufferMaximumMs?: number | Long | null;
+
+        /** RuntimeProtocolLimits maximumCommandHistoryCount */
+        maximumCommandHistoryCount?: number | null;
+
+        /** RuntimeProtocolLimits maximumCommandHistoryBytes */
+        maximumCommandHistoryBytes?: number | Long | null;
+
+        /** RuntimeProtocolLimits commandHistorySyncCount */
+        commandHistorySyncCount?: number | null;
+
+        /** RuntimeProtocolLimits commandHistorySyncBytes */
+        commandHistorySyncBytes?: number | Long | null;
+
+        /** RuntimeProtocolLimits maximumCommandRecordBytes */
+        maximumCommandRecordBytes?: number | null;
+
+        /** RuntimeProtocolLimits maximumCanonicalSnapshotBytes */
+        maximumCanonicalSnapshotBytes?: number | Long | null;
+
+        /** RuntimeProtocolLimits maximumStepStartHistoryBytes */
+        maximumStepStartHistoryBytes?: number | Long | null;
+
+        /** RuntimeProtocolLimits maximumStepStartStateBytes */
+        maximumStepStartStateBytes?: number | Long | null;
+
+        /** RuntimeProtocolLimits maximumRecoveryMetadataBytes */
+        maximumRecoveryMetadataBytes?: number | Long | null;
+
+        /** RuntimeProtocolLimits maximumCheckpointJsonBytes */
+        maximumCheckpointJsonBytes?: number | Long | null;
+
+        /** RuntimeProtocolLimits maximumInputSynchronizationBytes */
+        maximumInputSynchronizationBytes?: number | null;
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
@@ -17718,6 +18203,12 @@ export namespace unframe {
       /** LogicalInputCommand capturedAtClientMonotonicMs. */
       capturedAtClientMonotonicMs?: number | Long | null;
 
+      /** LogicalInputCommand inputContext. */
+      inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+      /** LogicalInputCommand commandEpoch. */
+      commandEpoch: number | Long;
+
       /**
        * Creates a new LogicalInputCommand instance using the specified properties.
        * @param [properties] Properties to set
@@ -17830,6 +18321,12 @@ export namespace unframe {
         /** LogicalInputCommand capturedAtClientMonotonicMs */
         capturedAtClientMonotonicMs?: number | Long | null;
 
+        /** LogicalInputCommand inputContext */
+        inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+        /** LogicalInputCommand commandEpoch */
+        commandEpoch?: number | Long | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
@@ -17870,6 +18367,12 @@ export namespace unframe {
 
       /** SurfaceInteractionCommand capturedAtClientMonotonicMs. */
       capturedAtClientMonotonicMs?: number | Long | null;
+
+      /** SurfaceInteractionCommand inputContext. */
+      inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+      /** SurfaceInteractionCommand commandEpoch. */
+      commandEpoch: number | Long;
 
       /**
        * Creates a new SurfaceInteractionCommand instance using the specified properties.
@@ -17989,6 +18492,12 @@ export namespace unframe {
         /** SurfaceInteractionCommand capturedAtClientMonotonicMs */
         capturedAtClientMonotonicMs?: number | Long | null;
 
+        /** SurfaceInteractionCommand inputContext */
+        inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+        /** SurfaceInteractionCommand commandEpoch */
+        commandEpoch?: number | Long | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
@@ -18010,6 +18519,12 @@ export namespace unframe {
 
       /** RUNTIME_CONTROL_KIND_END value */
       RUNTIME_CONTROL_KIND_END = 3,
+
+      /** RUNTIME_CONTROL_KIND_SELECT_STEP value */
+      RUNTIME_CONTROL_KIND_SELECT_STEP = 4,
+
+      /** RUNTIME_CONTROL_KIND_RECALIBRATE value */
+      RUNTIME_CONTROL_KIND_RECALIBRATE = 5,
     }
 
     /**
@@ -18037,6 +18552,12 @@ export namespace unframe {
 
       /** RuntimeControlCommand presentationOriginVersion. */
       presentationOriginVersion: number | Long;
+
+      /** RuntimeControlCommand commandEpoch. */
+      commandEpoch: number | Long;
+
+      /** RuntimeControlCommand stepSelection. */
+      stepSelection?: unframe.realtime.StepSelection.$Properties | null;
 
       /**
        * Creates a new RuntimeControlCommand instance using the specified properties.
@@ -18147,12 +18668,1161 @@ export namespace unframe {
         /** RuntimeControlCommand presentationOriginVersion */
         presentationOriginVersion?: number | Long | null;
 
+        /** RuntimeControlCommand commandEpoch */
+        commandEpoch?: number | Long | null;
+
+        /** RuntimeControlCommand stepSelection */
+        stepSelection?: unframe.realtime.StepSelection.$Properties | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
 
       /** Shape of a RuntimeControlCommand. */
       type $Shape = unframe.realtime.RuntimeControlCommand.$Properties;
+    }
+
+    /**
+     * Properties of an InputContext.
+     * @deprecated Use unframe.realtime.InputContext.$Properties instead.
+     */
+    interface IInputContext extends unframe.realtime.InputContext.$Properties {}
+
+    /** Represents an InputContext. */
+    class InputContext {
+      /**
+       * Constructs a new InputContext.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.InputContext.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** InputContext inputEpoch. */
+      inputEpoch: number | Long;
+
+      /** InputContext groupId. */
+      groupId: string;
+
+      /** InputContext groupEntryEpoch. */
+      groupEntryEpoch: number | Long;
+
+      /** InputContext stepId. */
+      stepId: string;
+
+      /** InputContext stepEntryEpoch. */
+      stepEntryEpoch: number | Long;
+
+      /**
+       * Creates a new InputContext instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns InputContext instance
+       */
+      static create(
+        properties: unframe.realtime.InputContext.$Shape,
+      ): unframe.realtime.InputContext & unframe.realtime.InputContext.$Shape;
+      static create(
+        properties?: unframe.realtime.InputContext.$Properties,
+      ): unframe.realtime.InputContext;
+
+      /**
+       * Encodes the specified InputContext message. Does not implicitly {@link unframe.realtime.InputContext.verify|verify} messages.
+       * @param message InputContext message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.InputContext.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified InputContext message, length delimited. Does not implicitly {@link unframe.realtime.InputContext.verify|verify} messages.
+       * @param message InputContext message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.InputContext.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes an InputContext message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.InputContext & unframe.realtime.InputContext.$Shape} InputContext
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.InputContext & unframe.realtime.InputContext.$Shape;
+
+      /**
+       * Decodes an InputContext message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.InputContext & unframe.realtime.InputContext.$Shape} InputContext
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.InputContext & unframe.realtime.InputContext.$Shape;
+
+      /**
+       * Verifies an InputContext message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates an InputContext message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns InputContext
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.InputContext;
+
+      /**
+       * Creates a plain object from an InputContext message. Also converts values to other types if specified.
+       * @param message InputContext
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.InputContext,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this InputContext to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for InputContext
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace InputContext {
+      /** Properties of an InputContext. */
+      interface $Properties {
+        /** InputContext inputEpoch */
+        inputEpoch?: number | Long | null;
+
+        /** InputContext groupId */
+        groupId?: string | null;
+
+        /** InputContext groupEntryEpoch */
+        groupEntryEpoch?: number | Long | null;
+
+        /** InputContext stepId */
+        stepId?: string | null;
+
+        /** InputContext stepEntryEpoch */
+        stepEntryEpoch?: number | Long | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of an InputContext. */
+      type $Shape = unframe.realtime.InputContext.$Properties;
+    }
+
+    /**
+     * Properties of a GestureInputCommand.
+     * @deprecated Use unframe.realtime.GestureInputCommand.$Properties instead.
+     */
+    interface IGestureInputCommand extends unframe.realtime.GestureInputCommand.$Properties {}
+
+    /** Represents a GestureInputCommand. */
+    class GestureInputCommand {
+      /**
+       * Constructs a new GestureInputCommand.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.GestureInputCommand.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** GestureInputCommand clientEventId. */
+      clientEventId: string;
+
+      /** GestureInputCommand inputContext. */
+      inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+      /** GestureInputCommand commandEpoch. */
+      commandEpoch: number | Long;
+
+      /** GestureInputCommand presentationOriginVersion. */
+      presentationOriginVersion: number | Long;
+
+      /** GestureInputCommand capturedAtClientMonotonicMs. */
+      capturedAtClientMonotonicMs?: number | Long | null;
+
+      /** GestureInputCommand gesture. */
+      gesture: unframe.presentation.GestureKind;
+
+      /**
+       * Creates a new GestureInputCommand instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns GestureInputCommand instance
+       */
+      static create(
+        properties: unframe.realtime.GestureInputCommand.$Shape,
+      ): unframe.realtime.GestureInputCommand & unframe.realtime.GestureInputCommand.$Shape;
+      static create(
+        properties?: unframe.realtime.GestureInputCommand.$Properties,
+      ): unframe.realtime.GestureInputCommand;
+
+      /**
+       * Encodes the specified GestureInputCommand message. Does not implicitly {@link unframe.realtime.GestureInputCommand.verify|verify} messages.
+       * @param message GestureInputCommand message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.GestureInputCommand.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified GestureInputCommand message, length delimited. Does not implicitly {@link unframe.realtime.GestureInputCommand.verify|verify} messages.
+       * @param message GestureInputCommand message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.GestureInputCommand.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a GestureInputCommand message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.GestureInputCommand & unframe.realtime.GestureInputCommand.$Shape} GestureInputCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.GestureInputCommand & unframe.realtime.GestureInputCommand.$Shape;
+
+      /**
+       * Decodes a GestureInputCommand message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.GestureInputCommand & unframe.realtime.GestureInputCommand.$Shape} GestureInputCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.GestureInputCommand & unframe.realtime.GestureInputCommand.$Shape;
+
+      /**
+       * Verifies a GestureInputCommand message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a GestureInputCommand message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns GestureInputCommand
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.GestureInputCommand;
+
+      /**
+       * Creates a plain object from a GestureInputCommand message. Also converts values to other types if specified.
+       * @param message GestureInputCommand
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.GestureInputCommand,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this GestureInputCommand to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for GestureInputCommand
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace GestureInputCommand {
+      /** Properties of a GestureInputCommand. */
+      interface $Properties {
+        /** GestureInputCommand clientEventId */
+        clientEventId?: string | null;
+
+        /** GestureInputCommand inputContext */
+        inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+        /** GestureInputCommand commandEpoch */
+        commandEpoch?: number | Long | null;
+
+        /** GestureInputCommand presentationOriginVersion */
+        presentationOriginVersion?: number | Long | null;
+
+        /** GestureInputCommand capturedAtClientMonotonicMs */
+        capturedAtClientMonotonicMs?: number | Long | null;
+
+        /** GestureInputCommand gesture */
+        gesture?: unframe.presentation.GestureKind | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a GestureInputCommand. */
+      type $Shape = unframe.realtime.GestureInputCommand.$Properties;
+    }
+
+    /**
+     * Properties of a ZoneInputCommand.
+     * @deprecated Use unframe.realtime.ZoneInputCommand.$Properties instead.
+     */
+    interface IZoneInputCommand extends unframe.realtime.ZoneInputCommand.$Properties {}
+
+    /** Represents a ZoneInputCommand. */
+    class ZoneInputCommand {
+      /**
+       * Constructs a new ZoneInputCommand.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.ZoneInputCommand.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** ZoneInputCommand clientEventId. */
+      clientEventId: string;
+
+      /** ZoneInputCommand inputContext. */
+      inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+      /** ZoneInputCommand commandEpoch. */
+      commandEpoch: number | Long;
+
+      /** ZoneInputCommand presentationOriginVersion. */
+      presentationOriginVersion: number | Long;
+
+      /** ZoneInputCommand capturedAtClientMonotonicMs. */
+      capturedAtClientMonotonicMs?: number | Long | null;
+
+      /** ZoneInputCommand zoneId. */
+      zoneId: string;
+
+      /** ZoneInputCommand edge. */
+      edge: unframe.presentation.ZoneEdge;
+
+      /**
+       * Creates a new ZoneInputCommand instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns ZoneInputCommand instance
+       */
+      static create(
+        properties: unframe.realtime.ZoneInputCommand.$Shape,
+      ): unframe.realtime.ZoneInputCommand & unframe.realtime.ZoneInputCommand.$Shape;
+      static create(
+        properties?: unframe.realtime.ZoneInputCommand.$Properties,
+      ): unframe.realtime.ZoneInputCommand;
+
+      /**
+       * Encodes the specified ZoneInputCommand message. Does not implicitly {@link unframe.realtime.ZoneInputCommand.verify|verify} messages.
+       * @param message ZoneInputCommand message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.ZoneInputCommand.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified ZoneInputCommand message, length delimited. Does not implicitly {@link unframe.realtime.ZoneInputCommand.verify|verify} messages.
+       * @param message ZoneInputCommand message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.ZoneInputCommand.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a ZoneInputCommand message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.ZoneInputCommand & unframe.realtime.ZoneInputCommand.$Shape} ZoneInputCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.ZoneInputCommand & unframe.realtime.ZoneInputCommand.$Shape;
+
+      /**
+       * Decodes a ZoneInputCommand message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.ZoneInputCommand & unframe.realtime.ZoneInputCommand.$Shape} ZoneInputCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.ZoneInputCommand & unframe.realtime.ZoneInputCommand.$Shape;
+
+      /**
+       * Verifies a ZoneInputCommand message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a ZoneInputCommand message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns ZoneInputCommand
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.ZoneInputCommand;
+
+      /**
+       * Creates a plain object from a ZoneInputCommand message. Also converts values to other types if specified.
+       * @param message ZoneInputCommand
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.ZoneInputCommand,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this ZoneInputCommand to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for ZoneInputCommand
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace ZoneInputCommand {
+      /** Properties of a ZoneInputCommand. */
+      interface $Properties {
+        /** ZoneInputCommand clientEventId */
+        clientEventId?: string | null;
+
+        /** ZoneInputCommand inputContext */
+        inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+        /** ZoneInputCommand commandEpoch */
+        commandEpoch?: number | Long | null;
+
+        /** ZoneInputCommand presentationOriginVersion */
+        presentationOriginVersion?: number | Long | null;
+
+        /** ZoneInputCommand capturedAtClientMonotonicMs */
+        capturedAtClientMonotonicMs?: number | Long | null;
+
+        /** ZoneInputCommand zoneId */
+        zoneId?: string | null;
+
+        /** ZoneInputCommand edge */
+        edge?: unframe.presentation.ZoneEdge | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a ZoneInputCommand. */
+      type $Shape = unframe.realtime.ZoneInputCommand.$Properties;
+    }
+
+    /**
+     * Properties of a StepSelection.
+     * @deprecated Use unframe.realtime.StepSelection.$Properties instead.
+     */
+    interface IStepSelection extends unframe.realtime.StepSelection.$Properties {}
+
+    /** Represents a StepSelection. */
+    class StepSelection {
+      /**
+       * Constructs a new StepSelection.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.StepSelection.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** StepSelection groupId. */
+      groupId: string;
+
+      /** StepSelection stepId. */
+      stepId: string;
+
+      /**
+       * Creates a new StepSelection instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns StepSelection instance
+       */
+      static create(
+        properties: unframe.realtime.StepSelection.$Shape,
+      ): unframe.realtime.StepSelection & unframe.realtime.StepSelection.$Shape;
+      static create(
+        properties?: unframe.realtime.StepSelection.$Properties,
+      ): unframe.realtime.StepSelection;
+
+      /**
+       * Encodes the specified StepSelection message. Does not implicitly {@link unframe.realtime.StepSelection.verify|verify} messages.
+       * @param message StepSelection message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.StepSelection.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified StepSelection message, length delimited. Does not implicitly {@link unframe.realtime.StepSelection.verify|verify} messages.
+       * @param message StepSelection message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.StepSelection.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a StepSelection message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.StepSelection & unframe.realtime.StepSelection.$Shape} StepSelection
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.StepSelection & unframe.realtime.StepSelection.$Shape;
+
+      /**
+       * Decodes a StepSelection message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.StepSelection & unframe.realtime.StepSelection.$Shape} StepSelection
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.StepSelection & unframe.realtime.StepSelection.$Shape;
+
+      /**
+       * Verifies a StepSelection message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a StepSelection message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns StepSelection
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.StepSelection;
+
+      /**
+       * Creates a plain object from a StepSelection message. Also converts values to other types if specified.
+       * @param message StepSelection
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.StepSelection,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this StepSelection to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for StepSelection
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace StepSelection {
+      /** Properties of a StepSelection. */
+      interface $Properties {
+        /** StepSelection groupId */
+        groupId?: string | null;
+
+        /** StepSelection stepId */
+        stepId?: string | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a StepSelection. */
+      type $Shape = unframe.realtime.StepSelection.$Properties;
+    }
+
+    /**
+     * Properties of a PresenterStepSelectionCatalog.
+     * @deprecated Use unframe.realtime.PresenterStepSelectionCatalog.$Properties instead.
+     */
+    interface IPresenterStepSelectionCatalog
+      extends unframe.realtime.PresenterStepSelectionCatalog.$Properties {}
+
+    /** Represents a PresenterStepSelectionCatalog. */
+    class PresenterStepSelectionCatalog {
+      /**
+       * Constructs a new PresenterStepSelectionCatalog.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.PresenterStepSelectionCatalog.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** PresenterStepSelectionCatalog reachedSteps. */
+      reachedSteps: unframe.realtime.StepSelection.$Properties[];
+
+      /** PresenterStepSelectionCatalog reliableSequence. */
+      reliableSequence: number | Long;
+
+      /**
+       * Creates a new PresenterStepSelectionCatalog instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns PresenterStepSelectionCatalog instance
+       */
+      static create(
+        properties: unframe.realtime.PresenterStepSelectionCatalog.$Shape,
+      ): unframe.realtime.PresenterStepSelectionCatalog &
+        unframe.realtime.PresenterStepSelectionCatalog.$Shape;
+      static create(
+        properties?: unframe.realtime.PresenterStepSelectionCatalog.$Properties,
+      ): unframe.realtime.PresenterStepSelectionCatalog;
+
+      /**
+       * Encodes the specified PresenterStepSelectionCatalog message. Does not implicitly {@link unframe.realtime.PresenterStepSelectionCatalog.verify|verify} messages.
+       * @param message PresenterStepSelectionCatalog message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.PresenterStepSelectionCatalog.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified PresenterStepSelectionCatalog message, length delimited. Does not implicitly {@link unframe.realtime.PresenterStepSelectionCatalog.verify|verify} messages.
+       * @param message PresenterStepSelectionCatalog message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.PresenterStepSelectionCatalog.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a PresenterStepSelectionCatalog message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape} PresenterStepSelectionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.PresenterStepSelectionCatalog &
+        unframe.realtime.PresenterStepSelectionCatalog.$Shape;
+
+      /**
+       * Decodes a PresenterStepSelectionCatalog message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.PresenterStepSelectionCatalog & unframe.realtime.PresenterStepSelectionCatalog.$Shape} PresenterStepSelectionCatalog
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.PresenterStepSelectionCatalog &
+        unframe.realtime.PresenterStepSelectionCatalog.$Shape;
+
+      /**
+       * Verifies a PresenterStepSelectionCatalog message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a PresenterStepSelectionCatalog message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns PresenterStepSelectionCatalog
+       */
+      static fromObject(object: {
+        [k: string]: any;
+      }): unframe.realtime.PresenterStepSelectionCatalog;
+
+      /**
+       * Creates a plain object from a PresenterStepSelectionCatalog message. Also converts values to other types if specified.
+       * @param message PresenterStepSelectionCatalog
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.PresenterStepSelectionCatalog,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this PresenterStepSelectionCatalog to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for PresenterStepSelectionCatalog
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace PresenterStepSelectionCatalog {
+      /** Properties of a PresenterStepSelectionCatalog. */
+      interface $Properties {
+        /** PresenterStepSelectionCatalog reachedSteps */
+        reachedSteps?: unframe.realtime.StepSelection.$Properties[] | null;
+
+        /** PresenterStepSelectionCatalog reliableSequence */
+        reliableSequence?: number | Long | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a PresenterStepSelectionCatalog. */
+      type $Shape = unframe.realtime.PresenterStepSelectionCatalog.$Properties;
+    }
+
+    /** InputSynchronizationPhase enum. */
+    enum InputSynchronizationPhase {
+      /** INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED value */
+      INPUT_SYNCHRONIZATION_PHASE_UNSPECIFIED = 0,
+
+      /** INPUT_SYNCHRONIZATION_PHASE_REQUIRED value */
+      INPUT_SYNCHRONIZATION_PHASE_REQUIRED = 1,
+
+      /** INPUT_SYNCHRONIZATION_PHASE_READY value */
+      INPUT_SYNCHRONIZATION_PHASE_READY = 2,
+    }
+
+    /** InputSynchronizationReason enum. */
+    enum InputSynchronizationReason {
+      /** INPUT_SYNCHRONIZATION_REASON_UNSPECIFIED value */
+      INPUT_SYNCHRONIZATION_REASON_UNSPECIFIED = 0,
+
+      /** INPUT_SYNCHRONIZATION_REASON_CONNECTED value */
+      INPUT_SYNCHRONIZATION_REASON_CONNECTED = 1,
+
+      /** INPUT_SYNCHRONIZATION_REASON_RECONNECTED value */
+      INPUT_SYNCHRONIZATION_REASON_RECONNECTED = 2,
+
+      /** INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED value */
+      INPUT_SYNCHRONIZATION_REASON_STEP_ENTERED = 3,
+
+      /** INPUT_SYNCHRONIZATION_REASON_PAUSED value */
+      INPUT_SYNCHRONIZATION_REASON_PAUSED = 4,
+
+      /** INPUT_SYNCHRONIZATION_REASON_RESUMED value */
+      INPUT_SYNCHRONIZATION_REASON_RESUMED = 5,
+
+      /** INPUT_SYNCHRONIZATION_REASON_RECALIBRATED value */
+      INPUT_SYNCHRONIZATION_REASON_RECALIBRATED = 6,
+
+      /** INPUT_SYNCHRONIZATION_REASON_HISTORY_CAPACITY value */
+      INPUT_SYNCHRONIZATION_REASON_HISTORY_CAPACITY = 7,
+
+      /** INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED value */
+      INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED = 8,
+
+      /** INPUT_SYNCHRONIZATION_REASON_STEP_RESTORED value */
+      INPUT_SYNCHRONIZATION_REASON_STEP_RESTORED = 9,
+    }
+
+    /**
+     * Properties of a PresenterInputSynchronization.
+     * @deprecated Use unframe.realtime.PresenterInputSynchronization.$Properties instead.
+     */
+    interface IPresenterInputSynchronization
+      extends unframe.realtime.PresenterInputSynchronization.$Properties {}
+
+    /** Represents a PresenterInputSynchronization. */
+    class PresenterInputSynchronization {
+      /**
+       * Constructs a new PresenterInputSynchronization.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.PresenterInputSynchronization.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** PresenterInputSynchronization phase. */
+      phase: unframe.realtime.InputSynchronizationPhase;
+
+      /** PresenterInputSynchronization reason. */
+      reason: unframe.realtime.InputSynchronizationReason;
+
+      /** PresenterInputSynchronization synchronizationRevision. */
+      synchronizationRevision: number | Long;
+
+      /** PresenterInputSynchronization inputContext. */
+      inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+      /** PresenterInputSynchronization commandEpoch. */
+      commandEpoch: number | Long;
+
+      /** PresenterInputSynchronization nextCommandEpoch. */
+      nextCommandEpoch?: number | Long | null;
+
+      /** PresenterInputSynchronization reliableSequence. */
+      reliableSequence: number | Long;
+
+      /** PresenterInputSynchronization recognitionCatalog. */
+      recognitionCatalog?: unframe.presentation.PresenterRecognitionCatalog.$Properties | null;
+
+      /**
+       * Creates a new PresenterInputSynchronization instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns PresenterInputSynchronization instance
+       */
+      static create(
+        properties: unframe.realtime.PresenterInputSynchronization.$Shape,
+      ): unframe.realtime.PresenterInputSynchronization &
+        unframe.realtime.PresenterInputSynchronization.$Shape;
+      static create(
+        properties?: unframe.realtime.PresenterInputSynchronization.$Properties,
+      ): unframe.realtime.PresenterInputSynchronization;
+
+      /**
+       * Encodes the specified PresenterInputSynchronization message. Does not implicitly {@link unframe.realtime.PresenterInputSynchronization.verify|verify} messages.
+       * @param message PresenterInputSynchronization message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.PresenterInputSynchronization.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified PresenterInputSynchronization message, length delimited. Does not implicitly {@link unframe.realtime.PresenterInputSynchronization.verify|verify} messages.
+       * @param message PresenterInputSynchronization message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.PresenterInputSynchronization.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a PresenterInputSynchronization message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.PresenterInputSynchronization & unframe.realtime.PresenterInputSynchronization.$Shape} PresenterInputSynchronization
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.PresenterInputSynchronization &
+        unframe.realtime.PresenterInputSynchronization.$Shape;
+
+      /**
+       * Decodes a PresenterInputSynchronization message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.PresenterInputSynchronization & unframe.realtime.PresenterInputSynchronization.$Shape} PresenterInputSynchronization
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.PresenterInputSynchronization &
+        unframe.realtime.PresenterInputSynchronization.$Shape;
+
+      /**
+       * Verifies a PresenterInputSynchronization message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a PresenterInputSynchronization message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns PresenterInputSynchronization
+       */
+      static fromObject(object: {
+        [k: string]: any;
+      }): unframe.realtime.PresenterInputSynchronization;
+
+      /**
+       * Creates a plain object from a PresenterInputSynchronization message. Also converts values to other types if specified.
+       * @param message PresenterInputSynchronization
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.PresenterInputSynchronization,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this PresenterInputSynchronization to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for PresenterInputSynchronization
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace PresenterInputSynchronization {
+      /** Properties of a PresenterInputSynchronization. */
+      interface $Properties {
+        /** PresenterInputSynchronization phase */
+        phase?: unframe.realtime.InputSynchronizationPhase | null;
+
+        /** PresenterInputSynchronization reason */
+        reason?: unframe.realtime.InputSynchronizationReason | null;
+
+        /** PresenterInputSynchronization synchronizationRevision */
+        synchronizationRevision?: number | Long | null;
+
+        /** PresenterInputSynchronization inputContext */
+        inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+        /** PresenterInputSynchronization commandEpoch */
+        commandEpoch?: number | Long | null;
+
+        /** PresenterInputSynchronization nextCommandEpoch */
+        nextCommandEpoch?: number | Long | null;
+
+        /** PresenterInputSynchronization reliableSequence */
+        reliableSequence?: number | Long | null;
+
+        /** PresenterInputSynchronization recognitionCatalog */
+        recognitionCatalog?: unframe.presentation.PresenterRecognitionCatalog.$Properties | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a PresenterInputSynchronization. */
+      type $Shape = unframe.realtime.PresenterInputSynchronization.$Properties;
+    }
+
+    /**
+     * Properties of an InputSynchronizationAck.
+     * @deprecated Use unframe.realtime.InputSynchronizationAck.$Properties instead.
+     */
+    interface IInputSynchronizationAck
+      extends unframe.realtime.InputSynchronizationAck.$Properties {}
+
+    /** Represents an InputSynchronizationAck. */
+    class InputSynchronizationAck {
+      /**
+       * Constructs a new InputSynchronizationAck.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.InputSynchronizationAck.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** InputSynchronizationAck synchronizationRevision. */
+      synchronizationRevision: number | Long;
+
+      /** InputSynchronizationAck inputContext. */
+      inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+      /** InputSynchronizationAck commandEpoch. */
+      commandEpoch: number | Long;
+
+      /** InputSynchronizationAck appliedReliableSequence. */
+      appliedReliableSequence: number | Long;
+
+      /** InputSynchronizationAck pendingCommandsDiscarded. */
+      pendingCommandsDiscarded: boolean;
+
+      /**
+       * Creates a new InputSynchronizationAck instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns InputSynchronizationAck instance
+       */
+      static create(
+        properties: unframe.realtime.InputSynchronizationAck.$Shape,
+      ): unframe.realtime.InputSynchronizationAck & unframe.realtime.InputSynchronizationAck.$Shape;
+      static create(
+        properties?: unframe.realtime.InputSynchronizationAck.$Properties,
+      ): unframe.realtime.InputSynchronizationAck;
+
+      /**
+       * Encodes the specified InputSynchronizationAck message. Does not implicitly {@link unframe.realtime.InputSynchronizationAck.verify|verify} messages.
+       * @param message InputSynchronizationAck message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.InputSynchronizationAck.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified InputSynchronizationAck message, length delimited. Does not implicitly {@link unframe.realtime.InputSynchronizationAck.verify|verify} messages.
+       * @param message InputSynchronizationAck message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.InputSynchronizationAck.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes an InputSynchronizationAck message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.InputSynchronizationAck & unframe.realtime.InputSynchronizationAck.$Shape} InputSynchronizationAck
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.InputSynchronizationAck & unframe.realtime.InputSynchronizationAck.$Shape;
+
+      /**
+       * Decodes an InputSynchronizationAck message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.InputSynchronizationAck & unframe.realtime.InputSynchronizationAck.$Shape} InputSynchronizationAck
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.InputSynchronizationAck & unframe.realtime.InputSynchronizationAck.$Shape;
+
+      /**
+       * Verifies an InputSynchronizationAck message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates an InputSynchronizationAck message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns InputSynchronizationAck
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.InputSynchronizationAck;
+
+      /**
+       * Creates a plain object from an InputSynchronizationAck message. Also converts values to other types if specified.
+       * @param message InputSynchronizationAck
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.InputSynchronizationAck,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this InputSynchronizationAck to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for InputSynchronizationAck
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace InputSynchronizationAck {
+      /** Properties of an InputSynchronizationAck. */
+      interface $Properties {
+        /** InputSynchronizationAck synchronizationRevision */
+        synchronizationRevision?: number | Long | null;
+
+        /** InputSynchronizationAck inputContext */
+        inputContext?: unframe.realtime.InputContext.$Properties | null;
+
+        /** InputSynchronizationAck commandEpoch */
+        commandEpoch?: number | Long | null;
+
+        /** InputSynchronizationAck appliedReliableSequence */
+        appliedReliableSequence?: number | Long | null;
+
+        /** InputSynchronizationAck pendingCommandsDiscarded */
+        pendingCommandsDiscarded?: boolean | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of an InputSynchronizationAck. */
+      type $Shape = unframe.realtime.InputSynchronizationAck.$Properties;
     }
 
     /**
@@ -18798,6 +20468,24 @@ export namespace unframe {
 
       /** COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT value */
       COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT = 3,
+
+      /** COMMAND_REJECTION_REASON_INPUT_CONTEXT_STALE value */
+      COMMAND_REJECTION_REASON_INPUT_CONTEXT_STALE = 4,
+
+      /** COMMAND_REJECTION_REASON_COMMAND_EPOCH_STALE value */
+      COMMAND_REJECTION_REASON_COMMAND_EPOCH_STALE = 5,
+
+      /** COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED value */
+      COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED = 6,
+
+      /** COMMAND_REJECTION_REASON_STEP_NOT_REACHED value */
+      COMMAND_REJECTION_REASON_STEP_NOT_REACHED = 7,
+
+      /** COMMAND_REJECTION_REASON_SESSION_ENDED value */
+      COMMAND_REJECTION_REASON_SESSION_ENDED = 8,
+
+      /** COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED value */
+      COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED = 9,
     }
 
     /**
@@ -19273,6 +20961,12 @@ export namespace unframe {
       /** ControlServerItem resyncRequired. */
       resyncRequired?: unframe.realtime.ResyncRequired.$Properties | null;
 
+      /** ControlServerItem presenterInputSynchronization. */
+      presenterInputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Properties | null;
+
+      /** ControlServerItem presenterStepSelectionCatalog. */
+      presenterStepSelectionCatalog?: unframe.realtime.PresenterStepSelectionCatalog.$Properties | null;
+
       /** ControlServerItem item. */
       item?:
         | "connected"
@@ -19281,7 +20975,9 @@ export namespace unframe {
         | "projectionAdvance"
         | "commandOutcome"
         | "stateConnectionNonce"
-        | "resyncRequired";
+        | "resyncRequired"
+        | "presenterInputSynchronization"
+        | "presenterStepSelectionCatalog";
 
       /**
        * Creates a new ControlServerItem instance using the specified properties.
@@ -19404,6 +21100,12 @@ export namespace unframe {
         /** ControlServerItem resyncRequired */
         resyncRequired?: unframe.realtime.ResyncRequired.$Properties | null;
 
+        /** ControlServerItem presenterInputSynchronization */
+        presenterInputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Properties | null;
+
+        /** ControlServerItem presenterStepSelectionCatalog */
+        presenterStepSelectionCatalog?: unframe.realtime.PresenterStepSelectionCatalog.$Properties | null;
+
         /** ControlServerItem item */
         item?:
           | "connected"
@@ -19412,7 +21114,9 @@ export namespace unframe {
           | "projectionAdvance"
           | "commandOutcome"
           | "stateConnectionNonce"
-          | "resyncRequired";
+          | "resyncRequired"
+          | "presenterInputSynchronization"
+          | "presenterStepSelectionCatalog";
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
@@ -19427,6 +21131,8 @@ export namespace unframe {
         commandOutcome?: unframe.realtime.CommandOutcome.$Shape | null;
         stateConnectionNonce?: unframe.realtime.StateConnectionNonce.$Shape | null;
         resyncRequired?: unframe.realtime.ResyncRequired.$Shape | null;
+        presenterInputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape | null;
+        presenterStepSelectionCatalog?: unframe.realtime.PresenterStepSelectionCatalog.$Shape | null;
         $unknowns?: Uint8Array[];
       } & (
         | {
@@ -19438,6 +21144,8 @@ export namespace unframe {
             commandOutcome?: null;
             stateConnectionNonce?: null;
             resyncRequired?: null;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "connected";
@@ -19448,6 +21156,8 @@ export namespace unframe {
             commandOutcome?: null;
             stateConnectionNonce?: null;
             resyncRequired?: null;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "connectionSnapshot";
@@ -19458,6 +21168,8 @@ export namespace unframe {
             commandOutcome?: null;
             stateConnectionNonce?: null;
             resyncRequired?: null;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "reliableEvent";
@@ -19468,6 +21180,8 @@ export namespace unframe {
             commandOutcome?: null;
             stateConnectionNonce?: null;
             resyncRequired?: null;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "projectionAdvance";
@@ -19478,6 +21192,8 @@ export namespace unframe {
             commandOutcome?: null;
             stateConnectionNonce?: null;
             resyncRequired?: null;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "commandOutcome";
@@ -19488,6 +21204,8 @@ export namespace unframe {
             commandOutcome: unframe.realtime.CommandOutcome.$Shape;
             stateConnectionNonce?: null;
             resyncRequired?: null;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "stateConnectionNonce";
@@ -19498,6 +21216,8 @@ export namespace unframe {
             commandOutcome?: null;
             stateConnectionNonce: unframe.realtime.StateConnectionNonce.$Shape;
             resyncRequired?: null;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
           }
         | {
             item?: "resyncRequired";
@@ -19508,6 +21228,32 @@ export namespace unframe {
             commandOutcome?: null;
             stateConnectionNonce?: null;
             resyncRequired: unframe.realtime.ResyncRequired.$Shape;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog?: null;
+          }
+        | {
+            item?: "presenterInputSynchronization";
+            connected?: null;
+            connectionSnapshot?: null;
+            reliableEvent?: null;
+            projectionAdvance?: null;
+            commandOutcome?: null;
+            stateConnectionNonce?: null;
+            resyncRequired?: null;
+            presenterInputSynchronization: unframe.realtime.PresenterInputSynchronization.$Shape;
+            presenterStepSelectionCatalog?: null;
+          }
+        | {
+            item?: "presenterStepSelectionCatalog";
+            connected?: null;
+            connectionSnapshot?: null;
+            reliableEvent?: null;
+            projectionAdvance?: null;
+            commandOutcome?: null;
+            stateConnectionNonce?: null;
+            resyncRequired?: null;
+            presenterInputSynchronization?: null;
+            presenterStepSelectionCatalog: unframe.realtime.PresenterStepSelectionCatalog.$Shape;
           }
       );
     }
@@ -19646,6 +21392,15 @@ export namespace unframe {
       /** ProjectedReliableEvent mediaStoppedSeeked. */
       mediaStoppedSeeked?: unframe.realtime.MediaStoppedSeeked.$Properties | null;
 
+      /** ProjectedReliableEvent gestureInputAccepted. */
+      gestureInputAccepted?: unframe.realtime.GestureInputAccepted.$Properties | null;
+
+      /** ProjectedReliableEvent zoneInputAccepted. */
+      zoneInputAccepted?: unframe.realtime.ZoneInputAccepted.$Properties | null;
+
+      /** ProjectedReliableEvent runtimeViewReplaced. */
+      runtimeViewReplaced?: unframe.realtime.RuntimeViewReplaced.$Properties | null;
+
       /** ProjectedReliableEvent payload. */
       payload?:
         | "runtimeStatusChanged"
@@ -19681,7 +21436,10 @@ export namespace unframe {
         | "modelClipCrossfadeCompleted"
         | "modelClipCanceled"
         | "participantPresenceChanged"
-        | "mediaStoppedSeeked";
+        | "mediaStoppedSeeked"
+        | "gestureInputAccepted"
+        | "zoneInputAccepted"
+        | "runtimeViewReplaced";
 
       /**
        * Creates a new ProjectedReliableEvent instance using the specified properties.
@@ -19900,6 +21658,15 @@ export namespace unframe {
         /** ProjectedReliableEvent mediaStoppedSeeked */
         mediaStoppedSeeked?: unframe.realtime.MediaStoppedSeeked.$Properties | null;
 
+        /** ProjectedReliableEvent gestureInputAccepted */
+        gestureInputAccepted?: unframe.realtime.GestureInputAccepted.$Properties | null;
+
+        /** ProjectedReliableEvent zoneInputAccepted */
+        zoneInputAccepted?: unframe.realtime.ZoneInputAccepted.$Properties | null;
+
+        /** ProjectedReliableEvent runtimeViewReplaced */
+        runtimeViewReplaced?: unframe.realtime.RuntimeViewReplaced.$Properties | null;
+
         /** ProjectedReliableEvent payload */
         payload?:
           | "runtimeStatusChanged"
@@ -19935,7 +21702,10 @@ export namespace unframe {
           | "modelClipCrossfadeCompleted"
           | "modelClipCanceled"
           | "participantPresenceChanged"
-          | "mediaStoppedSeeked";
+          | "mediaStoppedSeeked"
+          | "gestureInputAccepted"
+          | "zoneInputAccepted"
+          | "runtimeViewReplaced";
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
@@ -19982,6 +21752,9 @@ export namespace unframe {
         modelClipCanceled?: unframe.realtime.ModelClipCanceled.$Shape | null;
         participantPresenceChanged?: unframe.realtime.ParticipantPresenceChanged.$Shape | null;
         mediaStoppedSeeked?: unframe.realtime.MediaStoppedSeeked.$Shape | null;
+        gestureInputAccepted?: unframe.realtime.GestureInputAccepted.$Shape | null;
+        zoneInputAccepted?: unframe.realtime.ZoneInputAccepted.$Shape | null;
+        runtimeViewReplaced?: unframe.realtime.RuntimeViewReplaced.$Shape | null;
         $unknowns?: Uint8Array[];
       } & (
         | {
@@ -20020,6 +21793,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "runtimeStatusChanged";
@@ -20057,6 +21833,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "presentationOriginChanged";
@@ -20094,6 +21873,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "groupEntered";
@@ -20131,6 +21913,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "groupExited";
@@ -20168,6 +21953,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "stepEntered";
@@ -20205,6 +21993,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "cueAccepted";
@@ -20242,6 +22033,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "presentationEnded";
@@ -20279,6 +22073,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "logicalInputAccepted";
@@ -20316,6 +22113,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "surfaceInteractionAccepted";
@@ -20353,6 +22153,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "surfaceStateChanged";
@@ -20390,6 +22193,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "surfaceTransitionStarted";
@@ -20427,6 +22233,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "surfaceTransitionCompleted";
@@ -20464,6 +22273,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "nodeStateCommitted";
@@ -20501,6 +22313,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "variableChanged";
@@ -20538,6 +22353,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "timelineStarted";
@@ -20575,6 +22393,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "timelineCompleted";
@@ -20612,6 +22433,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "timelineCanceled";
@@ -20649,6 +22473,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "mediaStarted";
@@ -20686,6 +22513,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "mediaPaused";
@@ -20723,6 +22553,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "mediaResumed";
@@ -20760,6 +22593,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "mediaSeeked";
@@ -20797,6 +22633,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "mediaCompleted";
@@ -20834,6 +22673,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "mediaCanceled";
@@ -20871,6 +22713,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "mediaStopped";
@@ -20908,6 +22753,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "modelClipStarted";
@@ -20945,6 +22793,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "modelClipPaused";
@@ -20982,6 +22833,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "modelClipResumed";
@@ -21019,6 +22873,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "modelClipStopped";
@@ -21056,6 +22913,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "modelClipCompleted";
@@ -21093,6 +22953,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "modelClipCrossfadeStarted";
@@ -21130,6 +22993,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "modelClipCrossfadeCompleted";
@@ -21167,6 +23033,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "modelClipCanceled";
@@ -21204,6 +23073,9 @@ export namespace unframe {
             modelClipCanceled: unframe.realtime.ModelClipCanceled.$Shape;
             participantPresenceChanged?: null;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "participantPresenceChanged";
@@ -21241,6 +23113,9 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged: unframe.realtime.ParticipantPresenceChanged.$Shape;
             mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
           }
         | {
             payload?: "mediaStoppedSeeked";
@@ -21278,6 +23153,129 @@ export namespace unframe {
             modelClipCanceled?: null;
             participantPresenceChanged?: null;
             mediaStoppedSeeked: unframe.realtime.MediaStoppedSeeked.$Shape;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
+          }
+        | {
+            payload?: "gestureInputAccepted";
+            runtimeStatusChanged?: null;
+            presentationOriginChanged?: null;
+            groupEntered?: null;
+            groupExited?: null;
+            stepEntered?: null;
+            cueAccepted?: null;
+            presentationEnded?: null;
+            logicalInputAccepted?: null;
+            surfaceInteractionAccepted?: null;
+            surfaceStateChanged?: null;
+            surfaceTransitionStarted?: null;
+            surfaceTransitionCompleted?: null;
+            nodeStateCommitted?: null;
+            variableChanged?: null;
+            timelineStarted?: null;
+            timelineCompleted?: null;
+            timelineCanceled?: null;
+            mediaStarted?: null;
+            mediaPaused?: null;
+            mediaResumed?: null;
+            mediaSeeked?: null;
+            mediaCompleted?: null;
+            mediaCanceled?: null;
+            mediaStopped?: null;
+            modelClipStarted?: null;
+            modelClipPaused?: null;
+            modelClipResumed?: null;
+            modelClipStopped?: null;
+            modelClipCompleted?: null;
+            modelClipCrossfadeStarted?: null;
+            modelClipCrossfadeCompleted?: null;
+            modelClipCanceled?: null;
+            participantPresenceChanged?: null;
+            mediaStoppedSeeked?: null;
+            gestureInputAccepted: unframe.realtime.GestureInputAccepted.$Shape;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced?: null;
+          }
+        | {
+            payload?: "zoneInputAccepted";
+            runtimeStatusChanged?: null;
+            presentationOriginChanged?: null;
+            groupEntered?: null;
+            groupExited?: null;
+            stepEntered?: null;
+            cueAccepted?: null;
+            presentationEnded?: null;
+            logicalInputAccepted?: null;
+            surfaceInteractionAccepted?: null;
+            surfaceStateChanged?: null;
+            surfaceTransitionStarted?: null;
+            surfaceTransitionCompleted?: null;
+            nodeStateCommitted?: null;
+            variableChanged?: null;
+            timelineStarted?: null;
+            timelineCompleted?: null;
+            timelineCanceled?: null;
+            mediaStarted?: null;
+            mediaPaused?: null;
+            mediaResumed?: null;
+            mediaSeeked?: null;
+            mediaCompleted?: null;
+            mediaCanceled?: null;
+            mediaStopped?: null;
+            modelClipStarted?: null;
+            modelClipPaused?: null;
+            modelClipResumed?: null;
+            modelClipStopped?: null;
+            modelClipCompleted?: null;
+            modelClipCrossfadeStarted?: null;
+            modelClipCrossfadeCompleted?: null;
+            modelClipCanceled?: null;
+            participantPresenceChanged?: null;
+            mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted: unframe.realtime.ZoneInputAccepted.$Shape;
+            runtimeViewReplaced?: null;
+          }
+        | {
+            payload?: "runtimeViewReplaced";
+            runtimeStatusChanged?: null;
+            presentationOriginChanged?: null;
+            groupEntered?: null;
+            groupExited?: null;
+            stepEntered?: null;
+            cueAccepted?: null;
+            presentationEnded?: null;
+            logicalInputAccepted?: null;
+            surfaceInteractionAccepted?: null;
+            surfaceStateChanged?: null;
+            surfaceTransitionStarted?: null;
+            surfaceTransitionCompleted?: null;
+            nodeStateCommitted?: null;
+            variableChanged?: null;
+            timelineStarted?: null;
+            timelineCompleted?: null;
+            timelineCanceled?: null;
+            mediaStarted?: null;
+            mediaPaused?: null;
+            mediaResumed?: null;
+            mediaSeeked?: null;
+            mediaCompleted?: null;
+            mediaCanceled?: null;
+            mediaStopped?: null;
+            modelClipStarted?: null;
+            modelClipPaused?: null;
+            modelClipResumed?: null;
+            modelClipStopped?: null;
+            modelClipCompleted?: null;
+            modelClipCrossfadeStarted?: null;
+            modelClipCrossfadeCompleted?: null;
+            modelClipCanceled?: null;
+            participantPresenceChanged?: null;
+            mediaStoppedSeeked?: null;
+            gestureInputAccepted?: null;
+            zoneInputAccepted?: null;
+            runtimeViewReplaced: unframe.realtime.RuntimeViewReplaced.$Shape;
           }
       );
     }
@@ -21453,6 +23451,9 @@ export namespace unframe {
 
       /** PAUSE_REASON_EXPLICIT_PAUSE value */
       PAUSE_REASON_EXPLICIT_PAUSE = 8,
+
+      /** PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED value */
+      PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED = 9,
     }
 
     /** TerminationReason enum. */
@@ -23036,6 +25037,408 @@ export namespace unframe {
 
       /** Shape of a LogicalInputAccepted. */
       type $Shape = unframe.realtime.LogicalInputAccepted.$Properties;
+    }
+
+    /**
+     * Properties of a GestureInputAccepted.
+     * @deprecated Use unframe.realtime.GestureInputAccepted.$Properties instead.
+     */
+    interface IGestureInputAccepted extends unframe.realtime.GestureInputAccepted.$Properties {}
+
+    /** Represents a GestureInputAccepted. */
+    class GestureInputAccepted {
+      /**
+       * Constructs a new GestureInputAccepted.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.GestureInputAccepted.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** GestureInputAccepted gesture. */
+      gesture: unframe.presentation.GestureKind;
+
+      /**
+       * Creates a new GestureInputAccepted instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns GestureInputAccepted instance
+       */
+      static create(
+        properties: unframe.realtime.GestureInputAccepted.$Shape,
+      ): unframe.realtime.GestureInputAccepted & unframe.realtime.GestureInputAccepted.$Shape;
+      static create(
+        properties?: unframe.realtime.GestureInputAccepted.$Properties,
+      ): unframe.realtime.GestureInputAccepted;
+
+      /**
+       * Encodes the specified GestureInputAccepted message. Does not implicitly {@link unframe.realtime.GestureInputAccepted.verify|verify} messages.
+       * @param message GestureInputAccepted message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.GestureInputAccepted.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified GestureInputAccepted message, length delimited. Does not implicitly {@link unframe.realtime.GestureInputAccepted.verify|verify} messages.
+       * @param message GestureInputAccepted message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.GestureInputAccepted.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a GestureInputAccepted message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.GestureInputAccepted & unframe.realtime.GestureInputAccepted.$Shape} GestureInputAccepted
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.GestureInputAccepted & unframe.realtime.GestureInputAccepted.$Shape;
+
+      /**
+       * Decodes a GestureInputAccepted message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.GestureInputAccepted & unframe.realtime.GestureInputAccepted.$Shape} GestureInputAccepted
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.GestureInputAccepted & unframe.realtime.GestureInputAccepted.$Shape;
+
+      /**
+       * Verifies a GestureInputAccepted message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a GestureInputAccepted message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns GestureInputAccepted
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.GestureInputAccepted;
+
+      /**
+       * Creates a plain object from a GestureInputAccepted message. Also converts values to other types if specified.
+       * @param message GestureInputAccepted
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.GestureInputAccepted,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this GestureInputAccepted to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for GestureInputAccepted
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace GestureInputAccepted {
+      /** Properties of a GestureInputAccepted. */
+      interface $Properties {
+        /** GestureInputAccepted gesture */
+        gesture?: unframe.presentation.GestureKind | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a GestureInputAccepted. */
+      type $Shape = unframe.realtime.GestureInputAccepted.$Properties;
+    }
+
+    /**
+     * Properties of a ZoneInputAccepted.
+     * @deprecated Use unframe.realtime.ZoneInputAccepted.$Properties instead.
+     */
+    interface IZoneInputAccepted extends unframe.realtime.ZoneInputAccepted.$Properties {}
+
+    /** Represents a ZoneInputAccepted. */
+    class ZoneInputAccepted {
+      /**
+       * Constructs a new ZoneInputAccepted.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.ZoneInputAccepted.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** ZoneInputAccepted zoneId. */
+      zoneId: string;
+
+      /** ZoneInputAccepted edge. */
+      edge: unframe.presentation.ZoneEdge;
+
+      /**
+       * Creates a new ZoneInputAccepted instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns ZoneInputAccepted instance
+       */
+      static create(
+        properties: unframe.realtime.ZoneInputAccepted.$Shape,
+      ): unframe.realtime.ZoneInputAccepted & unframe.realtime.ZoneInputAccepted.$Shape;
+      static create(
+        properties?: unframe.realtime.ZoneInputAccepted.$Properties,
+      ): unframe.realtime.ZoneInputAccepted;
+
+      /**
+       * Encodes the specified ZoneInputAccepted message. Does not implicitly {@link unframe.realtime.ZoneInputAccepted.verify|verify} messages.
+       * @param message ZoneInputAccepted message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.ZoneInputAccepted.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified ZoneInputAccepted message, length delimited. Does not implicitly {@link unframe.realtime.ZoneInputAccepted.verify|verify} messages.
+       * @param message ZoneInputAccepted message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.ZoneInputAccepted.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a ZoneInputAccepted message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.ZoneInputAccepted & unframe.realtime.ZoneInputAccepted.$Shape} ZoneInputAccepted
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.ZoneInputAccepted & unframe.realtime.ZoneInputAccepted.$Shape;
+
+      /**
+       * Decodes a ZoneInputAccepted message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.ZoneInputAccepted & unframe.realtime.ZoneInputAccepted.$Shape} ZoneInputAccepted
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.ZoneInputAccepted & unframe.realtime.ZoneInputAccepted.$Shape;
+
+      /**
+       * Verifies a ZoneInputAccepted message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a ZoneInputAccepted message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns ZoneInputAccepted
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.ZoneInputAccepted;
+
+      /**
+       * Creates a plain object from a ZoneInputAccepted message. Also converts values to other types if specified.
+       * @param message ZoneInputAccepted
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.ZoneInputAccepted,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this ZoneInputAccepted to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for ZoneInputAccepted
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace ZoneInputAccepted {
+      /** Properties of a ZoneInputAccepted. */
+      interface $Properties {
+        /** ZoneInputAccepted zoneId */
+        zoneId?: string | null;
+
+        /** ZoneInputAccepted edge */
+        edge?: unframe.presentation.ZoneEdge | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a ZoneInputAccepted. */
+      type $Shape = unframe.realtime.ZoneInputAccepted.$Properties;
+    }
+
+    /**
+     * Properties of a RuntimeViewReplaced.
+     * @deprecated Use unframe.realtime.RuntimeViewReplaced.$Properties instead.
+     */
+    interface IRuntimeViewReplaced extends unframe.realtime.RuntimeViewReplaced.$Properties {}
+
+    /** Represents a RuntimeViewReplaced. */
+    class RuntimeViewReplaced {
+      /**
+       * Constructs a new RuntimeViewReplaced.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.RuntimeViewReplaced.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** RuntimeViewReplaced runtimeView. */
+      runtimeView?: unframe.realtime.ParticipantRuntimeView.$Properties | null;
+
+      /**
+       * Creates a new RuntimeViewReplaced instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns RuntimeViewReplaced instance
+       */
+      static create(
+        properties: unframe.realtime.RuntimeViewReplaced.$Shape,
+      ): unframe.realtime.RuntimeViewReplaced & unframe.realtime.RuntimeViewReplaced.$Shape;
+      static create(
+        properties?: unframe.realtime.RuntimeViewReplaced.$Properties,
+      ): unframe.realtime.RuntimeViewReplaced;
+
+      /**
+       * Encodes the specified RuntimeViewReplaced message. Does not implicitly {@link unframe.realtime.RuntimeViewReplaced.verify|verify} messages.
+       * @param message RuntimeViewReplaced message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.RuntimeViewReplaced.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified RuntimeViewReplaced message, length delimited. Does not implicitly {@link unframe.realtime.RuntimeViewReplaced.verify|verify} messages.
+       * @param message RuntimeViewReplaced message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.RuntimeViewReplaced.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a RuntimeViewReplaced message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.RuntimeViewReplaced & unframe.realtime.RuntimeViewReplaced.$Shape} RuntimeViewReplaced
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.RuntimeViewReplaced & unframe.realtime.RuntimeViewReplaced.$Shape;
+
+      /**
+       * Decodes a RuntimeViewReplaced message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.RuntimeViewReplaced & unframe.realtime.RuntimeViewReplaced.$Shape} RuntimeViewReplaced
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.RuntimeViewReplaced & unframe.realtime.RuntimeViewReplaced.$Shape;
+
+      /**
+       * Verifies a RuntimeViewReplaced message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a RuntimeViewReplaced message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns RuntimeViewReplaced
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.RuntimeViewReplaced;
+
+      /**
+       * Creates a plain object from a RuntimeViewReplaced message. Also converts values to other types if specified.
+       * @param message RuntimeViewReplaced
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.RuntimeViewReplaced,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this RuntimeViewReplaced to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for RuntimeViewReplaced
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace RuntimeViewReplaced {
+      /** Properties of a RuntimeViewReplaced. */
+      interface $Properties {
+        /** RuntimeViewReplaced runtimeView */
+        runtimeView?: unframe.realtime.ParticipantRuntimeView.$Properties | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a RuntimeViewReplaced. */
+      type $Shape = {
+        runtimeView?: unframe.realtime.ParticipantRuntimeView.$Shape | null;
+        $unknowns?: Uint8Array[];
+      };
     }
 
     /**
@@ -29875,143 +32278,6 @@ export namespace unframe {
     }
 
     /**
-     * Properties of a CueCooldown.
-     * @deprecated Use unframe.realtime.CueCooldown.$Properties instead.
-     */
-    interface ICueCooldown extends unframe.realtime.CueCooldown.$Properties {}
-
-    /** Represents a CueCooldown. */
-    class CueCooldown {
-      /**
-       * Constructs a new CueCooldown.
-       * @param [properties] Properties to set
-       */
-      constructor(properties?: unframe.realtime.CueCooldown.$Properties);
-
-      /** Unknown fields preserved while decoding when enabled */
-      $unknowns?: Uint8Array[];
-
-      /** CueCooldown cueId. */
-      cueId: string;
-
-      /** CueCooldown nextEligibleRuntimeTimeMs. */
-      nextEligibleRuntimeTimeMs: number | Long;
-
-      /**
-       * Creates a new CueCooldown instance using the specified properties.
-       * @param [properties] Properties to set
-       * @returns CueCooldown instance
-       */
-      static create(
-        properties: unframe.realtime.CueCooldown.$Shape,
-      ): unframe.realtime.CueCooldown & unframe.realtime.CueCooldown.$Shape;
-      static create(
-        properties?: unframe.realtime.CueCooldown.$Properties,
-      ): unframe.realtime.CueCooldown;
-
-      /**
-       * Encodes the specified CueCooldown message. Does not implicitly {@link unframe.realtime.CueCooldown.verify|verify} messages.
-       * @param message CueCooldown message or plain object to encode
-       * @param [writer] Writer to encode to
-       * @returns Writer
-       */
-      static encode(
-        message: unframe.realtime.CueCooldown.$Properties,
-        writer?: $protobuf.Writer,
-      ): $protobuf.Writer;
-
-      /**
-       * Encodes the specified CueCooldown message, length delimited. Does not implicitly {@link unframe.realtime.CueCooldown.verify|verify} messages.
-       * @param message CueCooldown message or plain object to encode
-       * @param [writer] Writer to encode to
-       * @returns Writer
-       */
-      static encodeDelimited(
-        message: unframe.realtime.CueCooldown.$Properties,
-        writer?: $protobuf.Writer,
-      ): $protobuf.Writer;
-
-      /**
-       * Decodes a CueCooldown message from the specified reader or buffer.
-       * @param reader Reader or buffer to decode from
-       * @param [length] Message length if known beforehand
-       * @returns {unframe.realtime.CueCooldown & unframe.realtime.CueCooldown.$Shape} CueCooldown
-       * @throws {Error} If the payload is not a reader or valid buffer
-       * @throws {$protobuf.util.ProtocolError} If required fields are missing
-       */
-      static decode(
-        reader: $protobuf.Reader | Uint8Array,
-        length?: number,
-      ): unframe.realtime.CueCooldown & unframe.realtime.CueCooldown.$Shape;
-
-      /**
-       * Decodes a CueCooldown message from the specified reader or buffer, length delimited.
-       * @param reader Reader or buffer to decode from
-       * @returns {unframe.realtime.CueCooldown & unframe.realtime.CueCooldown.$Shape} CueCooldown
-       * @throws {Error} If the payload is not a reader or valid buffer
-       * @throws {$protobuf.util.ProtocolError} If required fields are missing
-       */
-      static decodeDelimited(
-        reader: $protobuf.Reader | Uint8Array,
-      ): unframe.realtime.CueCooldown & unframe.realtime.CueCooldown.$Shape;
-
-      /**
-       * Verifies a CueCooldown message.
-       * @param message Plain object to verify
-       * @returns `null` if valid, otherwise the reason why it is not
-       */
-      static verify(message: { [k: string]: any }): string | null;
-
-      /**
-       * Creates a CueCooldown message from a plain object. Also converts values to their respective internal types.
-       * @param object Plain object
-       * @returns CueCooldown
-       */
-      static fromObject(object: { [k: string]: any }): unframe.realtime.CueCooldown;
-
-      /**
-       * Creates a plain object from a CueCooldown message. Also converts values to other types if specified.
-       * @param message CueCooldown
-       * @param [options] Conversion options
-       * @returns Plain object
-       */
-      static toObject(
-        message: unframe.realtime.CueCooldown,
-        options?: $protobuf.IConversionOptions,
-      ): { [k: string]: any };
-
-      /**
-       * Converts this CueCooldown to JSON.
-       * @returns JSON object
-       */
-      toJSON(): { [k: string]: any };
-
-      /**
-       * Gets the type url for CueCooldown
-       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
-       * @returns The type url
-       */
-      static getTypeUrl(prefix?: string): string;
-    }
-
-    namespace CueCooldown {
-      /** Properties of a CueCooldown. */
-      interface $Properties {
-        /** CueCooldown cueId */
-        cueId?: string | null;
-
-        /** CueCooldown nextEligibleRuntimeTimeMs */
-        nextEligibleRuntimeTimeMs?: number | Long | null;
-
-        /** Unknown fields preserved while decoding when enabled */
-        $unknowns?: Uint8Array[];
-      }
-
-      /** Shape of a CueCooldown. */
-      type $Shape = unframe.realtime.CueCooldown.$Properties;
-    }
-
-    /**
      * Properties of a StepExecutionSnapshot.
      * @deprecated Use unframe.realtime.StepExecutionSnapshot.$Properties instead.
      */
@@ -30033,9 +32299,6 @@ export namespace unframe {
 
       /** StepExecutionSnapshot consumedCueIds. */
       consumedCueIds: string[];
-
-      /** StepExecutionSnapshot cooldowns. */
-      cooldowns: unframe.realtime.CueCooldown.$Properties[];
 
       /** StepExecutionSnapshot timers. */
       timers: unframe.realtime.ArmedTimer.$Properties[];
@@ -30145,9 +32408,6 @@ export namespace unframe {
 
         /** StepExecutionSnapshot consumedCueIds */
         consumedCueIds?: string[] | null;
-
-        /** StepExecutionSnapshot cooldowns */
-        cooldowns?: unframe.realtime.CueCooldown.$Properties[] | null;
 
         /** StepExecutionSnapshot timers */
         timers?: unframe.realtime.ArmedTimer.$Properties[] | null;
@@ -32246,11 +34506,17 @@ export namespace unframe {
       /** CanonicalRuntimeSnapshot presentationOrigin. */
       presentationOrigin?: unframe.realtime.PresentationOrigin.$Properties | null;
 
-      /** CanonicalRuntimeSnapshot recentEventIds. */
-      recentEventIds: string[];
-
       /** CanonicalRuntimeSnapshot modelClipStates. */
       modelClipStates: unframe.realtime.ModelClipRuntimeState.$Properties[];
+
+      /** CanonicalRuntimeSnapshot inputEpoch. */
+      inputEpoch: number | Long;
+
+      /** CanonicalRuntimeSnapshot frozenAnchors. */
+      frozenAnchors: unframe.realtime.FrozenAnchorDisplayState.$Properties[];
+
+      /** CanonicalRuntimeSnapshot stepStartHistory. */
+      stepStartHistory: unframe.realtime.StepStartState.$Properties[];
 
       /**
        * Creates a new CanonicalRuntimeSnapshot instance using the specified properties.
@@ -32394,11 +34660,17 @@ export namespace unframe {
         /** CanonicalRuntimeSnapshot presentationOrigin */
         presentationOrigin?: unframe.realtime.PresentationOrigin.$Properties | null;
 
-        /** CanonicalRuntimeSnapshot recentEventIds */
-        recentEventIds?: string[] | null;
-
         /** CanonicalRuntimeSnapshot modelClipStates */
         modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Properties[] | null;
+
+        /** CanonicalRuntimeSnapshot inputEpoch */
+        inputEpoch?: number | Long | null;
+
+        /** CanonicalRuntimeSnapshot frozenAnchors */
+        frozenAnchors?: unframe.realtime.FrozenAnchorDisplayState.$Properties[] | null;
+
+        /** CanonicalRuntimeSnapshot stepStartHistory */
+        stepStartHistory?: unframe.realtime.StepStartState.$Properties[] | null;
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
@@ -32419,7 +34691,360 @@ export namespace unframe {
         variables?: unframe.realtime.VariableState.$Shape[] | null;
         activeRuns?: unframe.realtime.RuntimeRunSnapshot.$Shape[] | null;
         presentationOrigin?: unframe.realtime.PresentationOrigin.$Shape | null;
-        recentEventIds?: string[] | null;
+        modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Shape[] | null;
+        inputEpoch?: number | Long | null;
+        frozenAnchors?: unframe.realtime.FrozenAnchorDisplayState.$Shape[] | null;
+        stepStartHistory?: unframe.realtime.StepStartState.$Shape[] | null;
+        $unknowns?: Uint8Array[];
+      };
+    }
+
+    /**
+     * Properties of a FrozenAnchorDisplayState.
+     * @deprecated Use unframe.realtime.FrozenAnchorDisplayState.$Properties instead.
+     */
+    interface IFrozenAnchorDisplayState
+      extends unframe.realtime.FrozenAnchorDisplayState.$Properties {}
+
+    /** Represents a FrozenAnchorDisplayState. */
+    class FrozenAnchorDisplayState {
+      /**
+       * Constructs a new FrozenAnchorDisplayState.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.FrozenAnchorDisplayState.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** FrozenAnchorDisplayState nodeId. */
+      nodeId: string;
+
+      /** FrozenAnchorDisplayState position. */
+      position?: unframe.presentation.Vector3.$Properties | null;
+
+      /** FrozenAnchorDisplayState rotation. */
+      rotation?: unframe.presentation.Quaternion.$Properties | null;
+
+      /**
+       * Creates a new FrozenAnchorDisplayState instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns FrozenAnchorDisplayState instance
+       */
+      static create(
+        properties: unframe.realtime.FrozenAnchorDisplayState.$Shape,
+      ): unframe.realtime.FrozenAnchorDisplayState &
+        unframe.realtime.FrozenAnchorDisplayState.$Shape;
+      static create(
+        properties?: unframe.realtime.FrozenAnchorDisplayState.$Properties,
+      ): unframe.realtime.FrozenAnchorDisplayState;
+
+      /**
+       * Encodes the specified FrozenAnchorDisplayState message. Does not implicitly {@link unframe.realtime.FrozenAnchorDisplayState.verify|verify} messages.
+       * @param message FrozenAnchorDisplayState message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.FrozenAnchorDisplayState.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified FrozenAnchorDisplayState message, length delimited. Does not implicitly {@link unframe.realtime.FrozenAnchorDisplayState.verify|verify} messages.
+       * @param message FrozenAnchorDisplayState message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.FrozenAnchorDisplayState.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a FrozenAnchorDisplayState message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.FrozenAnchorDisplayState & unframe.realtime.FrozenAnchorDisplayState.$Shape} FrozenAnchorDisplayState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.FrozenAnchorDisplayState &
+        unframe.realtime.FrozenAnchorDisplayState.$Shape;
+
+      /**
+       * Decodes a FrozenAnchorDisplayState message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.FrozenAnchorDisplayState & unframe.realtime.FrozenAnchorDisplayState.$Shape} FrozenAnchorDisplayState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.FrozenAnchorDisplayState &
+        unframe.realtime.FrozenAnchorDisplayState.$Shape;
+
+      /**
+       * Verifies a FrozenAnchorDisplayState message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a FrozenAnchorDisplayState message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns FrozenAnchorDisplayState
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.FrozenAnchorDisplayState;
+
+      /**
+       * Creates a plain object from a FrozenAnchorDisplayState message. Also converts values to other types if specified.
+       * @param message FrozenAnchorDisplayState
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.FrozenAnchorDisplayState,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this FrozenAnchorDisplayState to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for FrozenAnchorDisplayState
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace FrozenAnchorDisplayState {
+      /** Properties of a FrozenAnchorDisplayState. */
+      interface $Properties {
+        /** FrozenAnchorDisplayState nodeId */
+        nodeId?: string | null;
+
+        /** FrozenAnchorDisplayState position */
+        position?: unframe.presentation.Vector3.$Properties | null;
+
+        /** FrozenAnchorDisplayState rotation */
+        rotation?: unframe.presentation.Quaternion.$Properties | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a FrozenAnchorDisplayState. */
+      type $Shape = unframe.realtime.FrozenAnchorDisplayState.$Properties;
+    }
+
+    /**
+     * Properties of a StepStartState.
+     * @deprecated Use unframe.realtime.StepStartState.$Properties instead.
+     */
+    interface IStepStartState extends unframe.realtime.StepStartState.$Properties {}
+
+    /** Represents a StepStartState. */
+    class StepStartState {
+      /**
+       * Constructs a new StepStartState.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.StepStartState.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** StepStartState groupId. */
+      groupId: string;
+
+      /** StepStartState stepId. */
+      stepId: string;
+
+      /** StepStartState groupEntryEpoch. */
+      groupEntryEpoch: number | Long;
+
+      /** StepStartState stepEntryEpoch. */
+      stepEntryEpoch: number | Long;
+
+      /** StepStartState capturedAtRuntimeTimeMs. */
+      capturedAtRuntimeTimeMs: number | Long;
+
+      /** StepStartState nodeStates. */
+      nodeStates: unframe.realtime.NodeRuntimeState.$Properties[];
+
+      /** StepStartState surfaceStates. */
+      surfaceStates: unframe.realtime.SurfaceRuntimeState.$Properties[];
+
+      /** StepStartState mediaStates. */
+      mediaStates: unframe.realtime.MediaRuntimeState.$Properties[];
+
+      /** StepStartState variables. */
+      variables: unframe.realtime.VariableState.$Properties[];
+
+      /** StepStartState activeRuns. */
+      activeRuns: unframe.realtime.RuntimeRunSnapshot.$Properties[];
+
+      /** StepStartState modelClipStates. */
+      modelClipStates: unframe.realtime.ModelClipRuntimeState.$Properties[];
+
+      /**
+       * Creates a new StepStartState instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns StepStartState instance
+       */
+      static create(
+        properties: unframe.realtime.StepStartState.$Shape,
+      ): unframe.realtime.StepStartState & unframe.realtime.StepStartState.$Shape;
+      static create(
+        properties?: unframe.realtime.StepStartState.$Properties,
+      ): unframe.realtime.StepStartState;
+
+      /**
+       * Encodes the specified StepStartState message. Does not implicitly {@link unframe.realtime.StepStartState.verify|verify} messages.
+       * @param message StepStartState message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.StepStartState.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified StepStartState message, length delimited. Does not implicitly {@link unframe.realtime.StepStartState.verify|verify} messages.
+       * @param message StepStartState message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.StepStartState.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a StepStartState message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.StepStartState & unframe.realtime.StepStartState.$Shape} StepStartState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.StepStartState & unframe.realtime.StepStartState.$Shape;
+
+      /**
+       * Decodes a StepStartState message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.StepStartState & unframe.realtime.StepStartState.$Shape} StepStartState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.StepStartState & unframe.realtime.StepStartState.$Shape;
+
+      /**
+       * Verifies a StepStartState message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a StepStartState message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns StepStartState
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.StepStartState;
+
+      /**
+       * Creates a plain object from a StepStartState message. Also converts values to other types if specified.
+       * @param message StepStartState
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.StepStartState,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this StepStartState to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for StepStartState
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace StepStartState {
+      /** Properties of a StepStartState. */
+      interface $Properties {
+        /** StepStartState groupId */
+        groupId?: string | null;
+
+        /** StepStartState stepId */
+        stepId?: string | null;
+
+        /** StepStartState groupEntryEpoch */
+        groupEntryEpoch?: number | Long | null;
+
+        /** StepStartState stepEntryEpoch */
+        stepEntryEpoch?: number | Long | null;
+
+        /** StepStartState capturedAtRuntimeTimeMs */
+        capturedAtRuntimeTimeMs?: number | Long | null;
+
+        /** StepStartState nodeStates */
+        nodeStates?: unframe.realtime.NodeRuntimeState.$Properties[] | null;
+
+        /** StepStartState surfaceStates */
+        surfaceStates?: unframe.realtime.SurfaceRuntimeState.$Properties[] | null;
+
+        /** StepStartState mediaStates */
+        mediaStates?: unframe.realtime.MediaRuntimeState.$Properties[] | null;
+
+        /** StepStartState variables */
+        variables?: unframe.realtime.VariableState.$Properties[] | null;
+
+        /** StepStartState activeRuns */
+        activeRuns?: unframe.realtime.RuntimeRunSnapshot.$Properties[] | null;
+
+        /** StepStartState modelClipStates */
+        modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Properties[] | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a StepStartState. */
+      type $Shape = {
+        groupId?: string | null;
+        stepId?: string | null;
+        groupEntryEpoch?: number | Long | null;
+        stepEntryEpoch?: number | Long | null;
+        capturedAtRuntimeTimeMs?: number | Long | null;
+        nodeStates?: unframe.realtime.NodeRuntimeState.$Shape[] | null;
+        surfaceStates?: unframe.realtime.SurfaceRuntimeState.$Shape[] | null;
+        mediaStates?: unframe.realtime.MediaRuntimeState.$Shape[] | null;
+        variables?: unframe.realtime.VariableState.$Shape[] | null;
+        activeRuns?: unframe.realtime.RuntimeRunSnapshot.$Shape[] | null;
         modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Shape[] | null;
         $unknowns?: Uint8Array[];
       };
@@ -32451,6 +35076,15 @@ export namespace unframe {
 
       /** RuntimeRecoveryMetadata commands. */
       commands: unframe.realtime.RuntimeCommandHistory.$Properties[];
+
+      /** RuntimeRecoveryMetadata commandEpoch. */
+      commandEpoch: number | Long;
+
+      /** RuntimeRecoveryMetadata inputSynchronization. */
+      inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Properties | null;
+
+      /** RuntimeRecoveryMetadata capacityFault. */
+      capacityFault?: unframe.realtime.RuntimeCapacityFault.$Properties | null;
 
       /**
        * Creates a new RuntimeRecoveryMetadata instance using the specified properties.
@@ -32561,6 +35195,15 @@ export namespace unframe {
         /** RuntimeRecoveryMetadata commands */
         commands?: unframe.realtime.RuntimeCommandHistory.$Properties[] | null;
 
+        /** RuntimeRecoveryMetadata commandEpoch */
+        commandEpoch?: number | Long | null;
+
+        /** RuntimeRecoveryMetadata inputSynchronization */
+        inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Properties | null;
+
+        /** RuntimeRecoveryMetadata capacityFault */
+        capacityFault?: unframe.realtime.RuntimeCapacityFault.$Properties | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
@@ -32570,8 +35213,154 @@ export namespace unframe {
         startedAt?: string | null;
         participants?: unframe.realtime.RuntimeParticipantHistory.$Shape[] | null;
         commands?: unframe.realtime.RuntimeCommandHistory.$Shape[] | null;
+        commandEpoch?: number | Long | null;
+        inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape | null;
+        capacityFault?: unframe.realtime.RuntimeCapacityFault.$Shape | null;
         $unknowns?: Uint8Array[];
       };
+    }
+
+    /**
+     * Properties of a RuntimeCapacityFault.
+     * @deprecated Use unframe.realtime.RuntimeCapacityFault.$Properties instead.
+     */
+    interface IRuntimeCapacityFault extends unframe.realtime.RuntimeCapacityFault.$Properties {}
+
+    /** Represents a RuntimeCapacityFault. */
+    class RuntimeCapacityFault {
+      /**
+       * Constructs a new RuntimeCapacityFault.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.RuntimeCapacityFault.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** RuntimeCapacityFault stepStartStateBytes. */
+      stepStartStateBytes: number | Long;
+
+      /** RuntimeCapacityFault stepStartHistoryBytes. */
+      stepStartHistoryBytes: number | Long;
+
+      /** RuntimeCapacityFault canonicalSnapshotBytes. */
+      canonicalSnapshotBytes: number | Long;
+
+      /**
+       * Creates a new RuntimeCapacityFault instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns RuntimeCapacityFault instance
+       */
+      static create(
+        properties: unframe.realtime.RuntimeCapacityFault.$Shape,
+      ): unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape;
+      static create(
+        properties?: unframe.realtime.RuntimeCapacityFault.$Properties,
+      ): unframe.realtime.RuntimeCapacityFault;
+
+      /**
+       * Encodes the specified RuntimeCapacityFault message. Does not implicitly {@link unframe.realtime.RuntimeCapacityFault.verify|verify} messages.
+       * @param message RuntimeCapacityFault message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.RuntimeCapacityFault.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified RuntimeCapacityFault message, length delimited. Does not implicitly {@link unframe.realtime.RuntimeCapacityFault.verify|verify} messages.
+       * @param message RuntimeCapacityFault message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.RuntimeCapacityFault.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a RuntimeCapacityFault message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape} RuntimeCapacityFault
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape;
+
+      /**
+       * Decodes a RuntimeCapacityFault message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape} RuntimeCapacityFault
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.RuntimeCapacityFault & unframe.realtime.RuntimeCapacityFault.$Shape;
+
+      /**
+       * Verifies a RuntimeCapacityFault message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a RuntimeCapacityFault message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns RuntimeCapacityFault
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.RuntimeCapacityFault;
+
+      /**
+       * Creates a plain object from a RuntimeCapacityFault message. Also converts values to other types if specified.
+       * @param message RuntimeCapacityFault
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.RuntimeCapacityFault,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this RuntimeCapacityFault to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for RuntimeCapacityFault
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace RuntimeCapacityFault {
+      /** Properties of a RuntimeCapacityFault. */
+      interface $Properties {
+        /** RuntimeCapacityFault stepStartStateBytes */
+        stepStartStateBytes?: number | Long | null;
+
+        /** RuntimeCapacityFault stepStartHistoryBytes */
+        stepStartHistoryBytes?: number | Long | null;
+
+        /** RuntimeCapacityFault canonicalSnapshotBytes */
+        canonicalSnapshotBytes?: number | Long | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a RuntimeCapacityFault. */
+      type $Shape = unframe.realtime.RuntimeCapacityFault.$Properties;
     }
 
     /**
@@ -32732,17 +35521,20 @@ export namespace unframe {
       /** Unknown fields preserved while decoding when enabled */
       $unknowns?: Uint8Array[];
 
-      /** RuntimeCommandHistory key. */
-      key: string;
-
       /** RuntimeCommandHistory fingerprint. */
       fingerprint: string;
 
       /** RuntimeCommandHistory outcome. */
       outcome?: unframe.realtime.CommandOutcome.$Properties | null;
 
-      /** RuntimeCommandHistory rememberedAtUnixMs. */
-      rememberedAtUnixMs: number | Long;
+      /** RuntimeCommandHistory participantId. */
+      participantId: string;
+
+      /** RuntimeCommandHistory clientEventId. */
+      clientEventId: string;
+
+      /** RuntimeCommandHistory commandEpoch. */
+      commandEpoch: number | Long;
 
       /**
        * Creates a new RuntimeCommandHistory instance using the specified properties.
@@ -32844,17 +35636,20 @@ export namespace unframe {
     namespace RuntimeCommandHistory {
       /** Properties of a RuntimeCommandHistory. */
       interface $Properties {
-        /** RuntimeCommandHistory key */
-        key?: string | null;
-
         /** RuntimeCommandHistory fingerprint */
         fingerprint?: string | null;
 
         /** RuntimeCommandHistory outcome */
         outcome?: unframe.realtime.CommandOutcome.$Properties | null;
 
-        /** RuntimeCommandHistory rememberedAtUnixMs */
-        rememberedAtUnixMs?: number | Long | null;
+        /** RuntimeCommandHistory participantId */
+        participantId?: string | null;
+
+        /** RuntimeCommandHistory clientEventId */
+        clientEventId?: string | null;
+
+        /** RuntimeCommandHistory commandEpoch */
+        commandEpoch?: number | Long | null;
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
@@ -32862,10 +35657,11 @@ export namespace unframe {
 
       /** Shape of a RuntimeCommandHistory. */
       type $Shape = {
-        key?: string | null;
         fingerprint?: string | null;
         outcome?: unframe.realtime.CommandOutcome.$Shape | null;
-        rememberedAtUnixMs?: number | Long | null;
+        participantId?: string | null;
+        clientEventId?: string | null;
+        commandEpoch?: number | Long | null;
         $unknowns?: Uint8Array[];
       };
     }
@@ -32925,6 +35721,9 @@ export namespace unframe {
 
       /** ParticipantRuntimeView modelClipStates. */
       modelClipStates: unframe.realtime.ModelClipRuntimeState.$Properties[];
+
+      /** ParticipantRuntimeView frozenAnchors. */
+      frozenAnchors: unframe.realtime.FrozenAnchorDisplayState.$Properties[];
 
       /**
        * Creates a new ParticipantRuntimeView instance using the specified properties.
@@ -33065,6 +35864,9 @@ export namespace unframe {
         /** ParticipantRuntimeView modelClipStates */
         modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Properties[] | null;
 
+        /** ParticipantRuntimeView frozenAnchors */
+        frozenAnchors?: unframe.realtime.FrozenAnchorDisplayState.$Properties[] | null;
+
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
       }
@@ -33084,6 +35886,7 @@ export namespace unframe {
         presentationOrigin?: unframe.realtime.PresentationOrigin.$Shape | null;
         enabledLogicalInputs?: string[] | null;
         modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Shape[] | null;
+        frozenAnchors?: unframe.realtime.FrozenAnchorDisplayState.$Shape[] | null;
         $unknowns?: Uint8Array[];
       };
     }
@@ -35625,8 +38428,11 @@ export namespace unframe {
       /** ProjectedAnchorBindingPatch sample. */
       sample?: unframe.realtime.ProjectedAnchorBindingSample.$Properties | null;
 
+      /** ProjectedAnchorBindingPatch frozen. */
+      frozen?: unframe.realtime.FrozenAnchorDisplayState.$Properties | null;
+
       /** ProjectedAnchorBindingPatch state. */
-      state?: "unavailable" | "sample";
+      state?: "unavailable" | "sample" | "frozen";
 
       /**
        * Creates a new ProjectedAnchorBindingPatch instance using the specified properties.
@@ -35740,8 +38546,11 @@ export namespace unframe {
         /** ProjectedAnchorBindingPatch sample */
         sample?: unframe.realtime.ProjectedAnchorBindingSample.$Properties | null;
 
+        /** ProjectedAnchorBindingPatch frozen */
+        frozen?: unframe.realtime.FrozenAnchorDisplayState.$Properties | null;
+
         /** ProjectedAnchorBindingPatch state */
-        state?: "unavailable" | "sample";
+        state?: "unavailable" | "sample" | "frozen";
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];
@@ -35752,18 +38561,27 @@ export namespace unframe {
         nodeId?: string | null;
         unavailable?: unframe.realtime.AnchorBindingUnavailable.$Shape | null;
         sample?: unframe.realtime.ProjectedAnchorBindingSample.$Shape | null;
+        frozen?: unframe.realtime.FrozenAnchorDisplayState.$Shape | null;
         $unknowns?: Uint8Array[];
       } & (
-        | { state?: undefined; unavailable?: null; sample?: null }
+        | { state?: undefined; unavailable?: null; sample?: null; frozen?: null }
         | {
             state?: "unavailable";
             unavailable: unframe.realtime.AnchorBindingUnavailable.$Shape;
             sample?: null;
+            frozen?: null;
           }
         | {
             state?: "sample";
             unavailable?: null;
             sample: unframe.realtime.ProjectedAnchorBindingSample.$Shape;
+            frozen?: null;
+          }
+        | {
+            state?: "frozen";
+            unavailable?: null;
+            sample?: null;
+            frozen: unframe.realtime.FrozenAnchorDisplayState.$Shape;
           }
       );
     }

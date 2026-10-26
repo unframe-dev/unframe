@@ -35,7 +35,9 @@ type ConnectionCursor struct {
 	connectionID     string
 	reliableSequence uint64
 	stateSequence    uint64
+	minimumStateCut  uint64
 	nodes            map[string]*presentationv2.ProjectedNodeDefinition
+	catalog          *presentationv2.ProjectedRuntimeCatalog
 }
 
 func NewConnectionCursor(snapshot *realtimev2.ConnectionSnapshotEnvelope, expected *presentationv2.RuntimeProjectionFence, catalog *presentationv2.ProjectedRuntimeCatalog) (*ConnectionCursor, error) {
@@ -61,7 +63,7 @@ func NewConnectionCursor(snapshot *realtimev2.ConnectionSnapshotEnvelope, expect
 	for _, node := range catalog.Nodes {
 		nodes[node.NodeId] = proto.Clone(node).(*presentationv2.ProjectedNodeDefinition)
 	}
-	return &ConnectionCursor{fence: proto.Clone(expected).(*presentationv2.RuntimeProjectionFence), connectionID: snapshot.ConnectionId, reliableSequence: snapshot.ReliableSequence, nodes: nodes}, nil
+	return &ConnectionCursor{fence: proto.Clone(expected).(*presentationv2.RuntimeProjectionFence), connectionID: snapshot.ConnectionId, reliableSequence: snapshot.ReliableSequence, minimumStateCut: snapshot.ReliableSequence, nodes: nodes, catalog: proto.Clone(catalog).(*presentationv2.ProjectedRuntimeCatalog)}, nil
 }
 
 func (cursor *ConnectionCursor) Resume() *realtimev2.ResumeCursor {
@@ -77,6 +79,18 @@ func (cursor *ConnectionCursor) ApplyReliable(event *realtimev2.ProjectedReliabl
 	}
 	if cursor.reliableSequence == ^uint64(0) || event.Sequence != cursor.reliableSequence+1 {
 		return fmt.Errorf("message_invalid: reliable sequence gap")
+	}
+	if replacement := event.GetRuntimeViewReplaced(); replacement != nil {
+		if err := ValidateProjectedView(replacement.RuntimeView, cursor.catalog); err != nil {
+			return err
+		}
+		if replacement.RuntimeView.PresentationOrigin.Version != cursor.fence.PresentationOriginVersion {
+			return fmt.Errorf("publication_fence_mismatch: replacement origin")
+		}
+		cursor.minimumStateCut = event.Sequence
+	}
+	if event.GetRuntimeStatusChanged() != nil {
+		cursor.minimumStateCut = event.Sequence
 	}
 	cursor.reliableSequence = event.Sequence
 	return nil
@@ -105,7 +119,7 @@ func (cursor *ConnectionCursor) AdmitState(frame *realtimev2.ElementStateFrame) 
 	if !proto.Equal(frame.Fence, cursor.fence) {
 		return fmt.Errorf("publication_fence_mismatch: state frame")
 	}
-	if frame.BaseReliableSequence > cursor.reliableSequence || frame.FrameSequence <= cursor.stateSequence {
+	if frame.BaseReliableSequence < cursor.minimumStateCut || frame.BaseReliableSequence > cursor.reliableSequence || frame.FrameSequence <= cursor.stateSequence {
 		return fmt.Errorf("message_invalid: stale or future state frame")
 	}
 	if frame.Kind == realtimev2.StateFrameKind_STATE_FRAME_KIND_DELTA && (cursor.stateSequence == 0 || frame.FrameSequence != cursor.stateSequence+1) {
@@ -139,6 +153,12 @@ func (cursor *ConnectionCursor) AdmitState(frame *realtimev2.ElementStateFrame) 
 			parent := node.Parent.GetPresenterAnchor()
 			if (sample.Position != nil) != parent.FollowPosition || (sample.Rotation != nil) != parent.FollowRotation || sample.TrackingFrameSequence == 0 || sample.ObservedAtRuntimeMonotonicMs > frame.ProducedAtRuntimeMonotonicMs || frame.ProducedAtRuntimeMonotonicMs-sample.ObservedAtRuntimeMonotonicMs > 500 {
 				return fmt.Errorf("message_invalid: Anchor sample components or freshness")
+			}
+		}
+		if frozen := patch.GetFrozen(); frozen != nil {
+			parent := node.Parent.GetPresenterAnchor()
+			if frozen.Position != nil && !parent.FollowPosition || frozen.Rotation != nil && !parent.FollowRotation {
+				return fmt.Errorf("message_invalid: frozen Anchor components")
 			}
 		}
 	}

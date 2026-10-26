@@ -78,15 +78,14 @@ export const projectCanonicalParticipantRuntimeView = (
                   !(
                     cue.firePolicy.kind === "oncePerStepEntry" &&
                     snapshot.stepExecution.consumedCueIds.includes(cue.id)
-                  ) &&
-                  (snapshot.stepExecution.cooldownUntilRuntimeTimeMilliseconds[cue.id] ?? 0) <=
-                    snapshot.clock.runtimeTimeMilliseconds,
+                  ),
               )
               .map((cue) => (cue.trigger.kind === "logicalInput" ? cue.trigger.action : "")),
           ),
         ].sort()
       : [];
   return participantRuntimeViewSchema.parse({
+    frozenAnchors: snapshot.frozenAnchors.filter((anchor) => nodes.has(anchor.nodeId)),
     projectionProfileId: profile.projectionProfileId,
     assignmentEpoch,
     baseReliableSequence: snapshot.reliableSequence,

@@ -86,6 +86,23 @@ const deferred = <T>() => {
 };
 
 describe("fixed local Preview service", () => {
+  it("omits Presenter recognition and connection-only capabilities from the preview envelope", async () => {
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => generation(),
+    });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    expect(envelope.projection?.runtimeCatalog?.catalogContractVersion).toBe(3);
+    expect(envelope.projection?.runtimeCatalog).not.toHaveProperty("presenterRecognition");
+    expect(envelope.projection?.requiredRuntimeCapabilities).not.toEqual(
+      expect.arrayContaining([8, 9, 10]),
+    );
+    expect(
+      envelope.projection?.requiredRuntimeCapabilities?.some((value) =>
+        [1, 7, 8, 9, 10].includes(value),
+      ),
+    ).toBe(false);
+  });
+
   it("starts committed playback paused and binds commands to the display request", async () => {
     let now = 100;
     const service = createLocalPreviewService("/project", {
@@ -477,6 +494,43 @@ describe("fixed local Preview service", () => {
     });
     expect(selected).toEqual(["texture"]);
   });
+
+  it.each(["gesture", "zoneEdge"] as const)(
+    "rejects %s recognition in Local Preview",
+    async (kind) => {
+      const source = generation();
+      source.artifacts.definition.stage.zones.front = {
+        id: "front",
+        owner: { kind: "presentation" },
+        center: [0, 0, 0],
+      };
+      source.artifacts.definition.flow.groups.intro!.steps.start!.cues = [
+        {
+          id: "recognize",
+          priority: 0,
+          order: 0,
+          trigger:
+            kind === "gesture"
+              ? { kind, actor: { kind: "presenter" }, gesture: "swipeLeft" }
+              : { kind, actor: { kind: "presenter" }, zoneId: "front", edge: "enter" },
+          firePolicy: { kind: "repeatable" },
+          actions: [],
+          next: { kind: "stay" },
+        },
+      ];
+      source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+        source.artifacts.definition,
+      );
+      source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+      source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+        source.artifacts.renderBundle,
+      );
+      const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+      await expect(service.load({ requestId: requestA, channel: "dist" })).rejects.toMatchObject({
+        code: "preview-tracking-unsupported",
+      });
+    },
+  );
 
   it("rejects tracking anchors while ordinary Cues remain declarative", async () => {
     const source = generation();

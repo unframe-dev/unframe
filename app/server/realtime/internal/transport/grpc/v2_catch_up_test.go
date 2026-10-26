@@ -3,11 +3,11 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"io"
 	"testing"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -16,7 +16,7 @@ import (
 )
 
 func TestSnapshotCatchUpReplacesOverflowedCut(t *testing.T) {
-	core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":2,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
+	core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":3,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestSnapshotCatchUpStopsAtAttemptAndTimeLimits(t *testing.T) {
 		startTimeout bool
 	}{{name: "attempts", overflow: true}, {name: "preparation timeout"}, {name: "delivery timeout", startTimeout: true}} {
 		t.Run(test.name, func(t *testing.T) {
-			core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":2,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
+			core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":3,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -131,7 +131,7 @@ func TestV2ControlCatchUpAtSnapshotSend(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			assignments := &catchUpDeliveryAssignment{}
 			service, profile := newV2LeaseTestService(t, assignments)
-			handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}
+			handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}
 			var priorConnection string
 			var resumeCursor *realtimev2.ResumeCursor
 			if test.resume {
@@ -223,7 +223,8 @@ func TestV2ControlCatchUpAtSnapshotSend(t *testing.T) {
 				}
 				return nil
 			}}
-			err := service.ConnectControl(stream)
+			started := time.Now()
+			err := service.connectControl(stream, func() time.Time { return started })
 			if test.wantReason == "" {
 				if err != nil {
 					t.Fatalf("ConnectControl: %v", err)
@@ -231,8 +232,11 @@ func TestV2ControlCatchUpAtSnapshotSend(t *testing.T) {
 			} else if status.Code(err) != codes.ResourceExhausted || status.Convert(err).Message() != test.wantReason {
 				t.Fatalf("ConnectControl: %v, want %s", err, test.wantReason)
 			}
-			if snapshotCut != test.wantCut || attempts != test.wantAttempts {
-				t.Fatalf("snapshot cut=%d attempts=%d, want %d/%d", snapshotCut, attempts, test.wantCut, test.wantAttempts)
+			if snapshotCut != test.wantCut {
+				t.Fatalf("snapshot cut=%d, want %d", snapshotCut, test.wantCut)
+			}
+			if attempts != test.wantAttempts {
+				t.Fatalf("attempts=%d, want %d", attempts, test.wantAttempts)
 			}
 			if test.wantResync && resyncCut != expectedRetryCut {
 				t.Fatalf("resync cut=%d, want %d", resyncCut, expectedRetryCut)

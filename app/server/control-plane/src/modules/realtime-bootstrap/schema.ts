@@ -19,7 +19,7 @@ export const realtimeBootstrapCredentialInputSchema = z
     assignmentEpoch: z.number().int().positive(),
     presentationId: identifier,
     presentationRevision: z.number().int().positive(),
-    protocolVersion: z.literal(2).optional(),
+    protocolVersion: z.literal(3).optional(),
     scopes: z
       .array(realtimeScopeSchema)
       .min(1)

@@ -68,7 +68,7 @@ func TestDuplicateAndUnorderedCatalogKeysAreRejected(t *testing.T) {
 		return &presentationv2.ProjectedNodeDefinition{NodeId: id, Owner: &presentationv2.ResourceOwner{Scope: &presentationv2.ResourceOwner_Presentation{Presentation: &presentationv2.PresentationResourceOwner{}}}, Parent: &presentationv2.SpatialParent{Parent: &presentationv2.SpatialParent_Stage{Stage: &presentationv2.StageParent{}}}, Node: &presentationv2.ProjectedNodeDefinition_Container{Container: &presentationv2.ContainerNode{}}}
 	}
 	for _, ids := range [][]string{{"b", "a"}, {"a", "a"}} {
-		catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2, Nodes: []*presentationv2.ProjectedNodeDefinition{node(ids[0]), node(ids[1])}}
+		catalog := &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3, Nodes: []*presentationv2.ProjectedNodeDefinition{node(ids[0]), node(ids[1])}}
 		if err := ValidateMessage(catalog); err == nil {
 			t.Fatalf("catalog keys %v admitted", ids)
 		}
