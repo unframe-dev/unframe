@@ -54,14 +54,55 @@ namespace Unframe.Unity.PresentationRuntime
             get { List<RuntimeRunSnapshot> result = new List<RuntimeRunSnapshot>(); foreach (RuntimeRunSnapshot run in activeRuns.Values) result.Add(run.Clone()); return result; }
         }
 
+        private string latestCommandEventId;
+        internal string LastCommandOutcomeCode { get; private set; }
+
+        internal void TrackCommand(string clientEventId)
+        {
+            if (string.IsNullOrWhiteSpace(clientEventId)) throw new ArgumentException("A command event identifier is required.");
+            latestCommandEventId = clientEventId;
+            LastCommandOutcomeCode = null;
+        }
+
+        internal void ClearCommandOutcome(string expectedClientEventId = null)
+        {
+            if (expectedClientEventId != null && expectedClientEventId != latestCommandEventId) return;
+            latestCommandEventId = null;
+            LastCommandOutcomeCode = null;
+        }
+
+        private bool TryApplyCommandOutcome(CommandOutcome outcome, out string error)
+        {
+            error = null;
+            if (outcome == null || string.IsNullOrWhiteSpace(outcome.ClientEventId) || outcome.ResultCase == CommandOutcome.ResultOneofCase.None)
+            {
+                error = "realtime.command_outcome is incomplete.";
+                return false;
+            }
+            if (outcome.ClientEventId != latestCommandEventId) return true;
+            switch (outcome.ResultCase)
+            {
+                case CommandOutcome.ResultOneofCase.Accepted: LastCommandOutcomeCode = "accepted"; break;
+                case CommandOutcome.ResultOneofCase.Rejected:
+                    LastCommandOutcomeCode = "rejected:" + (Enum.IsDefined(typeof(CommandRejectionReason), outcome.Rejected.Reason) ? outcome.Rejected.Reason.ToString() : "Unspecified");
+                    break;
+                case CommandOutcome.ResultOneofCase.NoOp:
+                    LastCommandOutcomeCode = "no-op:" + (Enum.IsDefined(typeof(CommandNoOpReason), outcome.NoOp.Reason) ? outcome.NoOp.Reason.ToString() : "Unspecified");
+                    break;
+            }
+            return true;
+        }
+
         internal void ResetStateStream()
         {
+            ClearCommandOutcome();
             LastStateFrameSequence = 0;
             anchorSamples.Clear();
         }
 
         internal void Reset()
         {
+            ClearCommandOutcome();
             nodeStates.Clear();
             surfaceStates.Clear();
             variableStates.Clear();
@@ -104,6 +145,8 @@ namespace Unframe.Unity.PresentationRuntime
 
             switch (item.ItemCase)
             {
+                case ControlServerItem.ItemOneofCase.CommandOutcome:
+                    return TryApplyCommandOutcome(item.CommandOutcome, out error);
                 case ControlServerItem.ItemOneofCase.ConnectionSnapshot:
                     return TryApplySnapshot(item.ConnectionSnapshot, out error);
                 case ControlServerItem.ItemOneofCase.ReliableEvent:
@@ -214,6 +257,7 @@ namespace Unframe.Unity.PresentationRuntime
             presentationOriginVersion = envelope.Fence.PresentationOriginVersion;
             presentationOrigin = view.PresentationOrigin?.Clone();
             Replace(participants, presence);
+            ClearCommandOutcome();
             hasSnapshot = true;
             lastConnectionSnapshot = envelope.Clone();
             mediaStates.Clear(); foreach (var media in view.MediaStates) mediaStates.Add(media.SurfaceId, media.Clone());

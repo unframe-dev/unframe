@@ -303,6 +303,14 @@
               pkgs.ffmpeg
             ];
           };
+          presentation-sample = mkApp {
+            name = "presentation-sample";
+            script = "presentation-sample/serve.sh";
+            extraRuntimeInputs = [
+              pkgs.openssl
+              pkgs.caddy
+            ];
+          };
           contracts-consumers = mkApp {
             name = "contracts-consumers";
             script = "contracts/generate-consumers.sh";

@@ -7,7 +7,7 @@
 ## 実機で確認する
 
 1. [ID 0 の印刷マーカー](aruco-markers/4x4-50-id-0.svg) を印刷する。辞書は `DICT_4X4_50`、**黒い正方形の一辺は200mm**、白い余白は寸法に含めない。SVG全体は240×260mmなのでA3用紙などへ倍率100%で印刷し、黒い部分を定規で実測する。用紙に合わせた自動縮小は使わない。平らな板へ貼り、白い余白を残す。
-2. Quest を USB 接続し、Android Run Device に選ぶ。`Unframe > ArUco > Open Presentation Test Scene`、`Build and Run Presentation on Quest` を実行する。接続と権限の詳細は [PCA 手順](pca-device-preview.md) を参照する。
+2. Quest を USB 接続し、Android Run Device に選ぶ。`Unframe > Diagnostics > ArUco > Open Presentation Test Scene`、`Build and Run Presentation on Quest` を実行する。接続と権限の詳細は [PCA 手順](pca-device-preview.md) を参照する。
 3. マーカー全体を映す。検出中は緑の枠と ID が表示される。位置合わせ対象は **ID 0のみ**。ID 23 は検出できても原点には採用しない。
 4. マーカーと頭をなるべく静止させる。8回以上かつ1秒以上の有効な観測で、位置2cm・向き3度以内の安定性が確認できると `ALIGNED` になる。有効な観測の間隔が0.5秒以内なら、一時的な未検出・`ambiguous pose` があっても観測を保持する。無効な姿勢は平均や観測数に含めず、0.5秒を超えて有効な姿勢が得られなければ最初から測り直す。最大5Hzなので最低約1.4秒かかる。これらは初期の判定値で、実機の精度保証ではない。
 5. 黄色い立方体が中心の表側に、赤・緑・青の軸が中心から表示される。映像パネルは小さな状態表示へ切り替わる。マーカーを隠し、頭を動かしても立方体が元の場所に残ることを確認する。
@@ -15,7 +15,7 @@
 
 `ambiguous pose` が続く場合は、近づくか、マーカーを少し斜めから見て試す。`excessive reprojection error` が続く場合は、印刷の平面性・ピント・照明と撮影中の動きを確認する。`ArUco ERROR` は B/Y で再試行し、ログを回収する。
 
-印刷 SVG は `Unframe > ArUco > Generate Printable Test Markers` で再生成できる。標準辞書から生成したもので、有料アセットの配布物は含まない。OpenCV for Unity は各環境の `Assets/OpenCVForUnity` に導入する。
+印刷 SVG は `Unframe > Tools > Generate Printable Markers` で再生成できる。標準辞書から生成したもので、有料アセットの配布物は含まない。OpenCV for Unity は各環境の `Assets/OpenCVForUnity` に導入する。
 
 ## 測定中の診断表示
 

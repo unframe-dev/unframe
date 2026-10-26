@@ -195,9 +195,19 @@ namespace Unframe.Unity.PresentationRuntime
                 }
             }
 
+            foreach (ProjectedVariableDefinition variable in catalog.Variables)
+            {
+                if (!TryAdd(next.Variables, variable == null ? null : variable.VariableId, variable, "variable", out error)) return false;
+            }
+
             if (!TryValidateRenderGraph(profile.RenderSurfaces, profile.SemanticSurfaces, capability.Renderers, next.Surfaces, next.Assets, out error)) return false;
             if (!PresentationBakedDeliveryValidation.TryValidate(manifest, out error)) return false;
             if (!TryValidateVideoResidency(manifest, next, out error)) return false;
+            foreach (DeliveredRenderSurface render in profile.RenderSurfaces)
+                foreach (DeliveredArtifact artifact in render.Artifacts)
+                    if (artifact.NativeUi != null && artifact.NativeUi.Nodes.Count > 0
+                        && (artifact.NativeUi.RequiredFeatures.Count > 0 || HasDynamicText(artifact.NativeUi))
+                        && !PresentationRichDeliveryValidation.TryValidateNativeUiArtifact(artifact.NativeUi, next.Assets, next.Variables, out error)) return false;
 
             foreach (ProjectedTimelineDefinition timeline in catalog.Timelines)
             {
@@ -205,10 +215,6 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!TryValidateTimeline(timeline, next.Nodes, out error)) return false;
             }
 
-            foreach (ProjectedVariableDefinition variable in catalog.Variables)
-            {
-                if (!TryAdd(next.Variables, variable == null ? null : variable.VariableId, variable, "variable", out error)) return false;
-            }
 
             foreach (ProjectedModelClipDefinition clip in catalog.ModelClips)
             {
@@ -315,7 +321,7 @@ namespace Unframe.Unity.PresentationRuntime
         private static bool TryValidateNativeUiArtifact(NativeUiArtifact artifact,
             Dictionary<string, AssetAccessBinding> assets, out string error)
         {
-            if (artifact.RequiredFeatures.Count != 0)
+            if (artifact.RequiredFeatures.Count != 0 && !AllNativeFeaturesSupported(artifact))
             {
                 return Fail("delivery native UI feature is unsupported by the local renderer.", out error);
             }
@@ -332,7 +338,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (color == null || !IsUnitInterval(color.Red) || !IsUnitInterval(color.Green)
                         || !IsUnitInterval(color.Blue) || !IsUnitInterval(color.Alpha))
                         return Fail("delivery native UI text color is invalid.", out error);
-                    if (node.Text.Value == null || node.Text.Value.SourceCase != NativeTextValue.SourceOneofCase.Literal)
+                    if (node.Text.Value == null || node.Text.Value.SourceCase == NativeTextValue.SourceOneofCase.None || node.Text.Value.SourceCase == NativeTextValue.SourceOneofCase.StepTimer)
                         return Fail("delivery native UI text source is unsupported by the local renderer.", out error);
 
                     if (node.Text.Font != null)
@@ -351,6 +357,19 @@ namespace Unframe.Unity.PresentationRuntime
                 return Fail("delivery native UI artifact root is absent.", out error);
             error = null;
             return true;
+        }
+
+        private static bool AllNativeFeaturesSupported(NativeUiArtifact artifact)
+        {
+            foreach (NativeUiFeature feature in artifact.RequiredFeatures) if (feature != NativeUiFeature.Clip) return false;
+            return true;
+        }
+
+        private static bool HasDynamicText(NativeUiArtifact artifact)
+        {
+            foreach (NativeUiNode node in artifact.Nodes)
+                if (node.Text?.Value != null && node.Text.Value.SourceCase != NativeTextValue.SourceOneofCase.Literal) return true;
+            return false;
         }
 
         internal static bool IsContentHash(string value)
@@ -532,6 +551,17 @@ namespace Unframe.Unity.PresentationRuntime
             if (ids.Count != surface.ReachableStateIds.Count) return false;
             error = null; return true;
         }
+        internal static bool TryValidateVideoResidency(DeliveryManifest manifest, out string error)
+        {
+            var indexes = new DeliveryIndexes();
+            foreach (ProjectedNodeDefinition node in manifest.ProjectionProfile.RuntimeCatalog.Nodes)
+                indexes.Nodes.Add(node.NodeId, node);
+            foreach (ProjectedSurfaceDefinition surface in manifest.ProjectionProfile.RuntimeCatalog.Surfaces)
+                indexes.Surfaces.Add(surface.SurfaceId, surface);
+            foreach (AssetAccessBinding asset in manifest.AssetAccess) indexes.Assets.Add(asset.AssetId, asset);
+            return TryValidateVideoResidency(manifest, indexes, out error);
+        }
+
         private static bool TryValidateVideoResidency(DeliveryManifest manifest, DeliveryIndexes indexes, out string error)
         {
             error = "delivery video residency or artifact metadata is inconsistent.";

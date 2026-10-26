@@ -160,7 +160,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (desired == null) continue;
                 count++; frames = checked(frames + desired.Artifact.PixelSize.Width * desired.Artifact.PixelSize.Height * 4);
             }
-            if (count > Limits.MaxConcurrentDecoders || frames > Limits.MaxDecodedFrameBytes) { error = "video-budget-exceeded"; return false; }
+            if (count != 0 && (Limits == null || count > Limits.MaxConcurrentDecoders || frames > Limits.MaxDecodedFrameBytes)) { error = "video-budget-exceeded"; return false; }
             foreach (var entry in entries)
             {
                 if (entry.Selected == null || entry.Attempt != null) continue;

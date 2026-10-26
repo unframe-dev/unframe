@@ -85,13 +85,20 @@ nix run .#unity-editor -- -projectPath "$PWD/app/unity"
 nix run .#unity-preview
 nix run .#local-editor-e2e
 nix run .#local-editor-e2e -- --showcase
+nix run .#presentation-sample
 ```
+
+`presentation-sample` は `examples/presentation` を正式コンパイル・CLI公開し、localhostのControl Planeと
+Realtimeを約20分起動します。`Sample ready for Unity Editor` の後にUnityの
+`Unframe > Presentation > Play Local Sample in Editor` を選ぶと接続情報を自動読込して表示します。
+WebGL playerは不要です。終了はCtrl+Cです。Quest用のLAN配信・マーカー校正は含みません。
+詳細は [Unityの接続手順](../app/unity/docs/production-presentation.md) を参照してください。
 
 `unity-editor` は Linux で `steam-run` を介し、macOS では native Editor を直接起動します。`UNITY_EDITOR` で実行ファイルを指定でき、未指定時は `app/unity/ProjectSettings/ProjectVersion.txt` の OS 別 Unity Hub 配置を使います。対応する Unity version のインストール、license と WebGL module は利用者が用意します。
 
 `unity-preview` は共有 Runtime の描画・Preview 部分から `.unframe/unity-preview/project` を生成し、WebGL player を `.unframe/unity-preview/UnframePreview` に出力します。生成 Assets は再構成し、Library／build cache は再利用します。build log は `.unframe/unity-preview/logs/build.log` です。
 
-共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。
+共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。 本番の共通再生・配信受信・Native UI・モデルの回帰は `nix develop --command bash scripts/unity/test-native-editor.sh rendering` を使用し、同じdirectoryの `rendering.xml` と `rendering.log` を確認します。WebGL PreviewはBaked描画と共通再生・検証だけを取り込み、本番専用のメディア実装を含めません。
 
 `local-editor-e2e` は生成済み WebGL player と固定 Browser の provision を必要とします。Chromium 実行ファイルは既定で renderer の managed headless shell を使用し、`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` で明示指定できます。OS 別の Opaque capture の隔離要件も満たしてください。
 

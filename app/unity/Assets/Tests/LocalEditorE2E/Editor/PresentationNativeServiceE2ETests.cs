@@ -179,7 +179,7 @@ namespace Unframe.Tests.LocalEditorE2E
                         new Vector3((float)(bounds.Width * fitX), (float)(bounds.Height * fitY), 1)), Is.LessThan(0.0001f));
                     Assert.That(Vector3.Distance(quad.transform.localPosition,
                         new Vector3((float)((bounds.X + bounds.Width / 2 - semantic.LogicalSize.X / 2) * fitX),
-                            (float)((semantic.LogicalSize.Y / 2 - bounds.Y - bounds.Height / 2) * fitY), -(float)surface.Layer * 0.0001f)), Is.LessThan(0.0001f));
+                            (float)((semantic.LogicalSize.Y / 2 - bounds.Y - bounds.Height / 2) * fitY), 0)), Is.LessThan(0.0001f));
                 }
                 foreach (var renderer in renderers)
                 {

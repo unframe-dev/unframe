@@ -7,9 +7,68 @@ using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public sealed class PresentationBakedRenderingEditModeTests
 {
+    [Test]
+    public void BakedPartitionsSortByLayerWithinEachPhysicalSurfaceWithoutChangingItsDepthOrder()
+    {
+        var store = new PresentationRuntimeDataStore();
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,
+            out DeliveryManifest delivery, out string error), Is.True, error);
+        Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
+        var renders = store.Delivery.ProjectionProfile.RenderSurfaces;
+        renders.Clear();
+        foreach (ProjectedSurfaceDefinition surface in store.Catalog.Surfaces)
+        {
+            surface.LogicalSize = new Unframe.Presentation.Vector2 { X = 100, Y = 100 };
+            surface.PhysicalSizeMeters = new Unframe.Presentation.Vector2 { X = 1, Y = 1 };
+            foreach (uint layer in new[] { uint.MaxValue, 0u, 32768u })
+                renders.Add(new DeliveredRenderSurface
+                {
+                    RenderSurfaceId = surface.SurfaceId + ":" + layer,
+                    SemanticSurfaceId = surface.SurfaceId,
+                    RendererKind = RendererKind.BakedWeb,
+                    Layer = layer,
+                    LogicalBounds = new LogicalBounds { X = layer == 0 ? 0 : 70, Y = 0, Width = 30, Height = 30 },
+                });
+        }
+        var root = new GameObject("partition order root");
+        var hierarchy = new PresentationNodeHierarchy();
+        try
+        {
+            Assert.That(hierarchy.TryReplace(store, root.transform, out error), Is.True, error);
+            using (var renderer = new PresentationBakedSurfaceRenderer())
+            {
+                Assert.That(renderer.TryBuild(store, hierarchy, out error), Is.True, error);
+                int surfaces = 0;
+                foreach (ProjectedSurfaceDefinition surface in store.Catalog.Surfaces)
+                {
+                    surfaces++;
+                    Assert.That(hierarchy.Registry.TryGet(surface.HostNodeId, out GameObject host), Is.True);
+                    Assert.That(host.GetComponent<SortingGroup>(), Is.Not.Null);
+                    Assert.That(host.GetComponent<SortingGroup>().sortingOrder, Is.Zero,
+                        "physical surfaces retain distance ordering instead of a global partition priority");
+                    MeshRenderer background = host.transform.Find(surface.SurfaceId + ":0").GetComponent<MeshRenderer>();
+                    MeshRenderer middle = host.transform.Find(surface.SurfaceId + ":32768").GetComponent<MeshRenderer>();
+                    MeshRenderer foreground = host.transform.Find(surface.SurfaceId + ":" + uint.MaxValue).GetComponent<MeshRenderer>();
+                    Assert.That(background.sortingOrder, Is.LessThan(middle.sortingOrder));
+                    Assert.That(middle.sortingOrder, Is.LessThan(foreground.sortingOrder));
+                    Assert.That(foreground.transform.localPosition.z, Is.Zero,
+                        "uint32 layer is a compositing order, not a physical displacement");
+                }
+                Assert.That(surfaces, Is.GreaterThan(1));
+                SortingGroup[] groups = root.GetComponentsInChildren<SortingGroup>();
+                Assert.That(renderer.TryBuild(store, hierarchy, out error), Is.True, error);
+                CollectionAssert.AreEquivalent(groups, root.GetComponentsInChildren<SortingGroup>(),
+                    "rebuild must reuse groups so deferred destruction cannot remove the current surface ordering");
+            }
+            Assert.That(root.GetComponentsInChildren<SortingGroup>(), Is.Empty);
+        }
+        finally { hierarchy.Clear(); Object.DestroyImmediate(root); }
+    }
+
     [Test]
     public void BakedShaderTargetsUniversalRenderPipelineWithoutImportErrors()
     {
@@ -49,10 +108,10 @@ public sealed class PresentationBakedRenderingEditModeTests
     public void BakedOpacityUsesOneMaterialChannelForNodeStateAndTimeline(bool independentView)
     {
         var store = new PresentationRuntimeDataStore();
-        Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text,
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,
             out DeliveryManifest delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
-        Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text,
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(PresentationTestFixtures.Load("LocalSnapshot").text,
             out ControlServerItem snapshot, out error), Is.True, error);
         foreach (NodeRuntimeState node in snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates)
             if (node.NodeId == "node:text-greeting")

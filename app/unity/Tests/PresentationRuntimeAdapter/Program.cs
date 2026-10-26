@@ -126,6 +126,18 @@ static class Program
         AddVideoFixture(groups, LoadSnapshot(), "-a", "group:a");
         AddVideoFixture(groups, LoadSnapshot(), "-b", "group:b");
         Require(new PresentationRuntimeDataStore().TryReceiveDelivery(groups, out error), "separate groups must share one decoder budget: " + error);
+        DeliveryManifest runtimeGroups = groups.Clone();
+        for (int i = runtimeGroups.ProjectionProfile.RenderSurfaces.Count - 1; i >= 0; i--)
+            if (runtimeGroups.ProjectionProfile.RenderSurfaces[i].RendererKind != RendererKind.Video)
+                runtimeGroups.ProjectionProfile.RenderSurfaces.RemoveAt(i);
+        Require(PresentationRichDeliveryValidation.TryValidateRuntime(runtimeGroups, out error), "runtime must admit mutually exclusive Group videos: " + error);
+        DeliveryManifest stateAlternatives = runtimeGroups.Clone();
+        var alternativeRender = stateAlternatives.ProjectionProfile.RenderSurfaces[0];
+        var alternativeArtifact = alternativeRender.Artifacts[0].Clone();
+        alternativeArtifact.Video.ArtifactId += "-alternative";
+        alternativeRender.Artifacts.Add(alternativeArtifact);
+        stateAlternatives.ProjectionProfile.RenderSurfaces.RemoveAt(1);
+        Require(PresentationRichDeliveryValidation.TryValidateRuntime(stateAlternatives, out error), "runtime must admit one decoder across Surface State alternatives: " + error);
         groups.Residency.Video.MaximumConcurrentDecoders = 2;
         Require(!new PresentationRuntimeDataStore().TryReceiveDelivery(groups, out error), "delivery accepted a wrong cross-group decoder total");
         groups.Residency.Video.MaximumConcurrentDecoders = 1;

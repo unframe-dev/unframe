@@ -273,7 +273,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             variable.Type = Unframe.Presentation.ScalarType.String;
         }
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         foreach (var node in catalog.Nodes)
             if (node.NodeCase == Unframe.Presentation.ProjectedNodeDefinition.NodeOneofCase.Model)
                 snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState { ModelNodeId = node.NodeId, DefaultPose = new DefaultModelPose() });

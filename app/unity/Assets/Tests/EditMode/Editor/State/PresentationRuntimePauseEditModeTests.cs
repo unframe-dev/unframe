@@ -28,8 +28,8 @@ public sealed class PresentationRuntimePauseEditModeTests
     [Test]
     public void ReplacementRestoresRunsAndSurfaceTogetherAndRejectsPartialState()
     {
-        var delivery = JsonParser.Default.Parse<DeliveryManifest>(UnityEngine.Resources.Load<UnityEngine.TextAsset>("PresentationFixtures/LocalDelivery").text);
-        var snapshot = JsonParser.Default.Parse<ControlServerItem>(UnityEngine.Resources.Load<UnityEngine.TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var delivery = JsonParser.Default.Parse<DeliveryManifest>(PresentationTestFixtures.Load("LocalDelivery").text);
+        var snapshot = JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         foreach (var node in delivery.ProjectionProfile.RuntimeCatalog.Nodes)
         {
             node.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
@@ -68,8 +68,7 @@ public sealed class PresentationRuntimePauseEditModeTests
     public static void Run()
     {
 #if UNITY_EDITOR
-        string root = Path.Combine(Application.dataPath, "Unframe/Resources/PresentationFixtures");
-        if (!Directory.Exists(root)) root = Path.Combine(Application.dataPath, "Resources/PresentationFixtures");
+        string root = Path.Combine(Application.dataPath, "Tests/EditMode/Editor/FixturesData");
 #else
         string root = AppContext.BaseDirectory;
 #endif

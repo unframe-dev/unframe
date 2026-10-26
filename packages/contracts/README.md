@@ -30,15 +30,11 @@ pnpm --filter @unframe/contracts test:presentation
 
 `presentation/*.schema.json` と `contract.pb` は生成物です。fixture は合成データで、モデル・動画・フォントの実バイトや実機測定値を含みません。構造の受理・拒否と生成物の一致を検証し、素材の変換・描画成功とは区別します。
 
-### Presenter motion guide metadata
+### Presenter recognition catalog
 
-以下は移行前 v2 の実装契約です。[ADR-0027](../../docs/decisions/0027-presenter-recognition-and-runtime-authority.md) では Gesture の種類だけを Author が選び、client が認識する方式を採用しましたが、[v3 の wire・version・容量契約](../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) と Zod / Protobuf・生成物を更新しました。SDK / 実行側 consumer は未移行です。現在配布している認識閾値と対象の手を、新仕様のユーザー設定として使用しません。
-
-`ProjectedRuntimeCatalog.motion_guides` は Presenter profile にだけ含まれる操作候補です。
-`group_id` / `step_id` / `cue_id` と、motion preset・対象の手・最小移動距離・判定時間を配信します。
-Viewer profile では空です。guard と Cue 発火履歴は投影していないため、現在の Group / Step に一致しても
-実行可能と断定せず、UI では操作候補として扱います。入力・完了判定・状態遷移は authoritative Runtime が所有します。
-追加 metadata は描画・再生の意味を変更しないため、catalog contract version は 2 です。
+Presenter profile は `ProjectedRuntimeCatalog.presenter_recognition` を配信します。
+Definition 内の Gesture と Zone の認識候補を client が参照し、Presenter 入力を authoritative Runtime が検証します。
+wire・version・容量制限は [Presenter authority 契約](../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) を参照してください。
 
 ## Realtime / Delivery v2 consumers
 

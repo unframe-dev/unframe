@@ -242,10 +242,10 @@ describe("Delivery artifact selection and admission", () => {
     expect(() => buildRuntimeProjection(limited, "presenter")).toThrow(
       "Texture GPU bytes exceeds capability limit",
     );
-    const { publishedPresentation: _publication, ...unsupported } = source;
-    expect(() => selectBuildArtifacts(unsupported, "presenter")).toThrow(
-      "delivery-artifact-unavailable",
-    );
+    const { publishedPresentation: _publication, ...unsupported } = structuredClone(source);
+    unsupported.capability.renderers.nativeUi.supported = false;
+    unsupported.capability.renderers.nativeUi.features = [];
+    expect(() => selectBuildArtifacts(unsupported, "presenter")).toThrow("No compatible artifact");
   });
 
   it("rejects hash-consistent invalid Surface geometry for unpublished projection", () => {
@@ -283,16 +283,43 @@ describe("Delivery artifact selection and admission", () => {
     expect(selection.residency.maximumConcurrentDecoders).toBe(0);
   });
 
-  it("keeps Native UI admission explicit while video-disabled profiles admit non-video builds", () => {
+  it("admits non-video builds for video-disabled profiles and rejects video builds", () => {
     const limited = structuredClone(capability);
     limited.renderers.video.supported = false;
     limited.renderers.video.features = [];
     expect(() =>
       selectDeliveryArtifacts({ ...baselineSource(), capability: limited }, "presenter"),
     ).not.toThrow();
-    expect(() => selectDeliveryArtifacts(source, "presenter")).toThrow(
-      "delivery-artifact-unavailable",
+    expect(() => selectDeliveryArtifacts({ ...source, capability: limited }, "presenter")).toThrow(
+      "No compatible artifact",
     );
+  });
+
+  it("selects native UI, model and video assets without changing their renderer contracts", () => {
+    const selection = selectDeliveryArtifacts(source, "presenter");
+    expect(selection.renderSurfaces.map((surface) => surface.rendererKind)).toEqual([
+      "baked-web",
+      "native-ui",
+      "video",
+    ]);
+    expect(selection.assets.map((asset) => asset.assetId)).toEqual([
+      "font",
+      "model-asset",
+      "texture",
+      "video-asset",
+    ]);
+    expect(selection.visibleVariableIds).toEqual(["counter"]);
+    expect(selection.residency.maximumConcurrentDecoders).toBe(1);
+    expect(selection.residency.fontAssetIds).toEqual(["font"]);
+  });
+
+  it("enforces native UI and video resource budgets before delivery", () => {
+    const native = structuredClone(source);
+    native.capability.limits.nativeUi.maxNodesPerArtifact = 1;
+    expect(() => selectDeliveryArtifacts(native, "presenter")).toThrow("Native UI");
+    const video = structuredClone(source);
+    video.capability.limits.video.maxEncodedBytes = 1;
+    expect(() => selectDeliveryArtifacts(video, "presenter")).toThrow("Video");
   });
 
   it("enforces selected texture GPU and serial CPU budgets", () => {

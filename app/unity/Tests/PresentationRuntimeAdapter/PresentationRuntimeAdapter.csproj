@@ -19,15 +19,16 @@
     <Compile Include="ModelPlaybackChecks.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Rendering/PresentationModelPlaybackMath.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Rendering/PresentationVideoPreflight.cs" />
-    <Content Include="../../Assets/Resources/PresentationFixtures/VideoSilent.bytes" CopyToOutputDirectory="PreserveNewest" Link="VideoSilent.bytes" />
-    <Content Include="../../Assets/Resources/PresentationFixtures/VideoShortAudio.bytes" CopyToOutputDirectory="PreserveNewest" Link="VideoShortAudio.bytes" />
-    <Content Include="../../Assets/Resources/PresentationFixtures/VideoAudioTail.bytes" CopyToOutputDirectory="PreserveNewest" Link="VideoAudioTail.bytes" />
-    <Content Include="../../Assets/Resources/PresentationFixtures/Video.bytes" CopyToOutputDirectory="PreserveNewest" Link="Video.bytes" />
+    <Content Include="../../Assets/Tests/EditMode/Editor/FixturesData/VideoSilent.bytes" CopyToOutputDirectory="PreserveNewest" Link="VideoSilent.bytes" />
+    <Content Include="../../Assets/Tests/EditMode/Editor/FixturesData/VideoShortAudio.bytes" CopyToOutputDirectory="PreserveNewest" Link="VideoShortAudio.bytes" />
+    <Content Include="../../Assets/Tests/EditMode/Editor/FixturesData/VideoAudioTail.bytes" CopyToOutputDirectory="PreserveNewest" Link="VideoAudioTail.bytes" />
+    <Content Include="../../Assets/Tests/EditMode/Editor/FixturesData/Video.bytes" CopyToOutputDirectory="PreserveNewest" Link="Video.bytes" />
     <Compile Include="../../Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTestFixture.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Generated/*.cs" Exclude="../../Assets/Scripts/PresentationRuntime/Generated/RealtimeGrpc.cs" />
-    <Compile Include="../../Assets/Scripts/PresentationRuntime/Fixtures/PresentationContractJsonFixtureLoader.cs" />
+    <Compile Include="../../Assets/Tests/EditMode/Editor/Support/PresentationContractJsonFixtureLoader.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Animation/PresentationAnimationPresetIds.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Delivery/PresentationDeliveryCatalog.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Rendering/PresentationRichDeliveryValidation.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Delivery/PresentationCoordinateValidation.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Delivery/PresentationBakedDeliveryValidation.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/State/PresentationRuntimeStateStore.cs" />
@@ -36,7 +37,7 @@
     <Compile Include="../../Assets/Scripts/PresentationRuntime/State/PresentationMediaPlaybackValidation.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Rendering/PresentationPreviewAdmission.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Preview/PresentationLocalPreviewAdapter.cs" />
-    <Content Include="../../Assets/Resources/PresentationFixtures/LocalDelivery.json" CopyToOutputDirectory="PreserveNewest" Link="LocalDelivery.json" />
-    <Content Include="../../Assets/Resources/PresentationFixtures/LocalSnapshot.json" CopyToOutputDirectory="PreserveNewest" Link="LocalSnapshot.json" />
+    <Content Include="../../Assets/Tests/EditMode/Editor/FixturesData/LocalDelivery.json" CopyToOutputDirectory="PreserveNewest" Link="LocalDelivery.json" />
+    <Content Include="../../Assets/Tests/EditMode/Editor/FixturesData/LocalSnapshot.json" CopyToOutputDirectory="PreserveNewest" Link="LocalSnapshot.json" />
   </ItemGroup>
 </Project>
