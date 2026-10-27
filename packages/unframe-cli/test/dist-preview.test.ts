@@ -21,6 +21,9 @@ it("prepares copied Dist media and pins publication without the source project",
       expect(envelope.projection?.modelResidency?.models).toHaveLength(1);
       expect(envelope.projection?.videoResidency?.videos).toHaveLength(1);
       preview.committed({ requestId, buildIdentity: artifacts.buildManifest.buildId });
+      const initial = preview.playback({ requestId, command: "poll" });
+      assert(initial.state.sequence);
+      preview.playback({ requestId, command: "applied", sequence: initial.state.sequence });
       const pinned = await preview.pinDisplayedDist(requestId);
       for (const asset of assets)
         expect(await pinned.readAsset(asset.assetId)).toEqual({
