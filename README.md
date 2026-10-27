@@ -23,9 +23,9 @@ MR デバイス上でプレゼンテーションを表示
 
 | コンポーネント              | 役割                                                   | 技術                                             |
 | --------------------------- | ------------------------------------------------------ | ------------------------------------------------ |
-| Web（WIP）                  | 認証、公開済み Dist の確認、ルーム作成                 | React 19                                         |
+| Console（WIP）              | 認証、公開済み Dist の確認、ルーム作成                 | React 19                                         |
 | Local Editor（WIP）         | Source 編集、build、Unity Preview、CLI 経由の公開      | React 19 / CLI                                   |
-| Audience Web XR（PoC）      | 観客端末での画像認識・会場位置合わせの検証             | React / 8th Wall / Three.js                      |
+| Audience Web XR（WIP）      | 匿名ルーム参加、会場位置合わせ、プレゼン視聴           | React / 8th Wall / Three.js                      |
 | Control Plane（WIP）        | 認証・認可、durable resource、asset、session bootstrap | Cloudflare Workers / TypeScript / Hono / D1 / R2 |
 | Realtime Backend（WIP）     | session 中の低遅延状態同期                             | Go / gRPC / container                            |
 | Unity MR Application（WIP） | MR 表示と realtime session 参加                        | Unity / C#                                       |
@@ -43,9 +43,10 @@ MR デバイス上でプレゼンテーションを表示
 
 ```text
 app/
-├── web/       認証・公開済み Dist 確認・ルーム作成
-├── local-editor/ ローカル Source 編集・Unity Preview
-├── audience/  観客向け Web XR の位置合わせ PoC
+├── web/
+│   ├── console/      認証・公開済み Dist 確認・ルーム作成
+│   ├── local-editor/ ローカル Source 編集・Unity Preview
+│   └── audience/     観客向け Web XR の参加・視聴
 ├── server/    Control Plane / Realtime Backend
 └── unity/     Unity ベースの MR Application
 
@@ -54,7 +55,9 @@ packages/      契約境界、C# client placeholder、共有設定
 docs/          アーキテクチャ、設計判断、ドキュメント
 ```
 
-Audience の検査は `nix run .#audience`、開発サーバーは `nix run .#audience -- dev` で実行します。SDK 配置と実機検証は [Audience README](./app/audience/README.md) を参照してください。2026-10-22にユーザー承認で位置保持PoCを完了し、[Webアプリ開発](./docs/plans/audience-web-app-plan.md)へ移行します。ライブ参加は今後実装する機能です。
+`app/web/` 配下の3アプリは、それぞれ独立した package・ビルド・起動設定を持ちます。管理画面は [Console README](./app/web/console/README.md)、ローカル編集は [Local Editor README](./app/web/local-editor/README.md) を参照してください。
+
+Audience の検査は `nix run .#audience`、開発サーバーは `nix run .#audience -- dev` で実行します。匿名 Viewer のルーム参加と Runtime 受信によるライブ視聴を実装済みで、公開環境とスマートフォンでの総合受入は未実施です。SDK 配置と実機検証は [Audience README](./app/web/audience/README.md) を参照してください。
 
 ## ドキュメント
 

@@ -1,6 +1,6 @@
 # React Component Authoring 型試作
 
-`api.d.ts` は提案 API の型宣言だけであり、実行可能な SDK ではありません。`hero.tsx`、`reveal.tsx`、`presentation.ts` は `docs/packages/REACT_COMPONENT_AUTHORING.md` の三例から、import を試作 API に差し替え、型検査対象外の CSS import を除いた fixture です。JSX は `app/web` にインストール済みの React 19 型を使用します。
+`api.d.ts` は提案 API の型宣言だけであり、実行可能な SDK ではありません。`hero.tsx`、`reveal.tsx`、`presentation.ts` は `docs/packages/REACT_COMPONENT_AUTHORING.md` の三例から、import を試作 API に差し替え、型検査対象外の CSS import を除いた fixture です。JSX は `app/web/console` にインストール済みの React 19 型を使用します。
 
 ```sh
 pnpm --filter @unframe/unframe-authoring exec tsc --noEmit -p prototypes/react-component/tsconfig.json

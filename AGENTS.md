@@ -10,14 +10,15 @@ Unframe is a monorepo for an MR presentation product. The repository contains:
 
 ```text
 app/
-├── web/       React 19 management SPA (WIP)
-├── local-editor/ Local Source editor / Unity Preview (WIP)
-├── audience/  React / 8th Wall / Three.js audience viewer
+├── web/
+│   ├── console/      React 19 management SPA (WIP)
+│   ├── local-editor/ Local Source editor / Unity Preview (WIP)
+│   └── audience/     React / 8th Wall / Three.js audience viewer
 ├── server/    Control Plane and Realtime Backend (WIP)
 └── unity/     Unity 6000.3.22f1 MR application (WIP)
 
 lp/            SvelteKit landing page and documentation site (WIP)
-docs/          Architecture, API, ADR, plan, and synchronized documentation
+docs/          Architecture, API, ADR, and plan documentation
 packages/
 ├── contracts/        Future API and protocol contract boundary
 ├── api-client-csharp/ C# client artifact placeholder
@@ -36,8 +37,9 @@ not equally complete in every area:
   See `app/server/realtime/ARCHITECTURE.md` for Runtime and persistence boundaries.
 - Conversion pipelines and background jobs are not currently implemented. Do
   not treat planned capabilities as existing behavior.
-- `app/web/` owns authentication, published Dist inspection, and Session creation.
-  `app/local-editor/` owns Source editing, Unity Preview, and CLI-mediated publication.
+- `app/web/console/` owns authentication, published Dist inspection, and Session creation.
+  `app/web/local-editor/` owns Source editing, Unity Preview, and CLI-mediated publication.
+  Each application under `app/web/` has independent dependencies, build, and startup configuration.
 - `lp/` is a static SvelteKit site and remains WIP while product content is being
   developed. Its CI task runs the LP test, check, and build commands.
 - `app/unity/` contains a Unity project and EditMode tests. The generated C#
@@ -126,8 +128,8 @@ of explanatory comments.
 Keep changes within the owning application unless a cross-application change is
 necessary.
 
-- Management Web code belongs in `app/web/`; local Source editor code belongs in `app/local-editor/`.
-- Audience-specific React, tracking, calibration, and Three.js code belongs in `app/audience/`. Anonymous Viewer participation and browser Runtime reception are implemented; public-environment and device acceptance remain unverified.
+- Management Web code belongs in `app/web/console/`; local Source editor code belongs in `app/web/local-editor/`.
+- Audience-specific React, tracking, calibration, and Three.js code belongs in `app/web/audience/`. Anonymous Viewer participation and browser Runtime reception are implemented; public-environment and device acceptance remain unverified.
 - Go backend code belongs in `app/server/`.
 - Unity and C# code belongs in `app/unity/`.
 - Landing page code belongs in `lp/`.
@@ -137,9 +139,6 @@ necessary.
 - Shared repository configuration belongs in `packages/config/`.
 - Reusable task implementations belong in `scripts/` and are exposed through
   `flake.nix`.
-- Notion-synchronized documentation belongs in `docs/notion/` and is generated
-  by the Notion sync task. Do not manually edit synchronized files unless the
-  task explicitly requires changing the synchronization behavior.
 
 Do not move application-specific code into `packages/` merely because it might
 be reused in the future.
@@ -189,7 +188,7 @@ nix run .#setup                      # Install pnpm dependencies and enable hook
 nix run .#check                      # Full configured code quality gate
 nix run .#control-plane              # Control Plane typecheck/test/build
 nix run .#realtime                   # Realtime vet/lint/test/build/race
-nix run .#web                        # Management Web check/test/build
+nix run .#console                    # Console check/test/build
 nix run .#local-editor               # Local Editor check/test/build
 nix run .#audience                   # Audience check/test/build
 nix run .#audience -- dev            # Audience development server
@@ -198,9 +197,8 @@ nix run .#audience -- fix            # Audience formatter autofix
 nix run .#lp                         # LP test/check/build
 nix run .#control-plane -- fix       # Control Plane formatter autofix
 nix run .#realtime -- fix             # Realtime formatter/linter autofix
-nix run .#web -- fix                 # Web formatter autofix
+nix run .#console -- fix             # Console formatter autofix
 nix run .#lp -- fix                  # LP formatter autofix
-nix run .#notion-sync                # Synchronize Notion to docs/notion/
 nix flake check                      # Validate flake outputs and formatter
 ```
 

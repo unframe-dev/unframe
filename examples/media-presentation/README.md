@@ -2,7 +2,7 @@
 
 同じ GLB を使う2つの Model、音声付き6秒 MP4、操作用 Surface を持つ Authoring project です。モデルは mesh / skin / morph と1秒の `clip-0` / `clip-1` を含み、配置 TRS と opacity は instance ごとに異なります。素材の利用条件は `assets/*-LICENSE.txt` と `FONT-LICENSE.txt` を参照してください。
 
-repository root で実行します。初回の Fixed Browser と Unity Preview の準備、Local Editor の起動方法は [Web README](../../app/web/README.md#local-editor-の起動) を参照してください。
+repository root で実行します。初回の Fixed Browser と Unity Preview の準備、Local Editor の起動方法は [Local Editor README](../../app/web/local-editor/README.md#local-editor-の起動) を参照してください。
 
 ```bash
 nix develop --command pnpm --filter @unframe/unframe-cli run presentation lock refresh "$PWD/examples/media-presentation"

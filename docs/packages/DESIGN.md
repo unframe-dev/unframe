@@ -388,7 +388,7 @@ OpenAPIとProtocol Buffersから生成したC# artifactを所有する。Unity�
 
 ## 6. Application-owned responsibilities
 
-### 6.1 `app/local-editor/src/features/editor`
+### 6.1 `app/web/local-editor/src/features/editor`
 
 - Semantic Authoring IRのGUI projection
 - Semantic Command、selection、history、temporary interaction state
@@ -580,7 +580,7 @@ packages/unframe-renderer-web/ARCHITECTURE.md
 packages/unframe-assets/ARCHITECTURE.md
 packages/unframe-compiler/ARCHITECTURE.md
 packages/unframe-cli/ARCHITECTURE.md
-app/local-editor/README.md
+app/web/local-editor/README.md
 app/server/control-plane/ARCHITECTURE.md
 app/server/realtime/ARCHITECTURE.md
 app/server/integration/ARCHITECTURE.md

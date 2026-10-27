@@ -3,7 +3,7 @@
 - **Status**: Superseded by ADR-0003
 - **Date**: 2026-05-19
 - **Deciders**: 颯士（Backend / WebApp 担当）
-- **関連**: [`docs/notion/6月MVP.md`](../../notion/6月MVP.md), [`docs/notion/Unframe.md`](../../notion/Unframe.md), [ADR-0002](./0002-supabase-storage-and-db.md), [ADR-0003](./0003-full-renewal.md)
+- **関連**: [ADR-0002](./0002-supabase-storage-and-db.md), [ADR-0003](./0003-full-renewal.md)
 
 > **アーカイブ**: 本ADRは旧TypeScript/Hono Backend MVPの歴史資料です。現在の設計・実装には使用しません。刷新履歴は [ADR-0003](./0003-full-renewal.md)、現行構成は [ADR-0004](../0004-monorepo-layout-and-nix-toolchain.md)、[`ARCHITECTURE.md`](../../../ARCHITECTURE.md) を参照してください。
 
@@ -11,19 +11,19 @@
 
 ## Context
 
-2026-06-07 の成果発表会まで実質 2 週間。`docs/notion/6月MVP.md` で「**Web で作る → Backend に保存 → MR で表示する E2E 1 スライス**」を 1 スライド + 1 モデル + 1 テキストで通すことが MVP と確定済み。本 ADR は **`apps/backend/` がそれを満たすために何を提供するか** を確定する。
+2026-06-07 の成果発表会まで実質 2 週間。当時の要件では「**Web で作る → Backend に保存 → MR で表示する E2E 1 スライス**」を 1 スライド + 1 モデル + 1 テキストで通すことが MVP と確定済み。本 ADR は **`apps/backend/` がそれを満たすために何を提供するか** を確定する。
 
 既存 scaffold: Hono + `@hono/zod-openapi` + Drizzle ORM + Scalar (`/docs`) + pino + 共有契約 (`packages/contracts/`) は導入済み。`/health` のみ実装され、`presentations` テーブルは `(id, title, createdAt, updatedAt)` の最小形のみ。
 
 確定済みの上位判断（当時の資料 `memory/mr_presen_overview.md` 参照）:
 
-| 項目 | 決定 |
-| --- | --- |
-| 3D モデル形式 | **`.fbx`**（`6月MVP.md` 準拠。`.glb` 撤退） |
-| 配信パイプライン | localhost + ローカル Postgres (docker-compose) |
-| 認証 / リアルタイム同期 / R2 / Cloudflare | **全部やらない** |
-| アップロードフロー | **2 段階**（`POST /assets` → assetId → `PUT /presentations/:id`） |
-| マニフェスト | **`GET /presentations/:id/manifest`**（単一プレゼンの全要素） |
+| 項目                                      | 決定                                                              |
+| ----------------------------------------- | ----------------------------------------------------------------- |
+| 3D モデル形式                             | **`.fbx`**（当時のMVP要件に準拠。`.glb` 撤退）                    |
+| 配信パイプライン                          | localhost + ローカル Postgres (docker-compose)                    |
+| 認証 / リアルタイム同期 / R2 / Cloudflare | **全部やらない**                                                  |
+| アップロードフロー                        | **2 段階**（`POST /assets` → assetId → `PUT /presentations/:id`） |
+| マニフェスト                              | **`GET /presentations/:id/manifest`**（単一プレゼンの全要素）     |
 
 ---
 
@@ -33,16 +33,16 @@
 
 ### 提供する 4 種類の API
 
-| カテゴリ | API | 役割 |
-| --- | --- | --- |
-| アセット | `POST /assets/init` | `{ filename, contentType, sizeBytes }` を受け、許可 MIME / サイズを検証して `assetId` を確保、Supabase の **signed upload URL** を発行して返す（**signed upload URL パターン**。詳細 → ADR-0002） |
-| アセット | （アップロード本体） | WebApp が `uploadUrl` に直接 PUT。Backend は介在しない |
-| プレゼン | `POST /presentations` | タイトル + 1 スライド（`content.elements[]`）+ `thumbnailAssetId?` を作成 |
-| プレゼン | `PUT /presentations/:id` | 既存プレゼンの title / slide.content / `thumbnailAssetId` を更新（content は全置換） |
-| プレゼン | `GET /presentations/:id` | プレゼン本体（slide + thumbnail URL）を返す（WebApp 編集再開用） |
-| プレゼン | `GET /presentations/:id/manifest` | MR 向けの統合マニフェスト（slide + model URL + transform） |
-| プレゼン | `GET /presentations` | プレゼン一覧（id + title + thumbnailUrl）。WebApp の選択 UI 用 |
-| システム | `GET /health` | 既存。プロセス liveness のみ |
+| カテゴリ | API                               | 役割                                                                                                                                                                                              |
+| -------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| アセット | `POST /assets/init`               | `{ filename, contentType, sizeBytes }` を受け、許可 MIME / サイズを検証して `assetId` を確保、Supabase の **signed upload URL** を発行して返す（**signed upload URL パターン**。詳細 → ADR-0002） |
+| アセット | （アップロード本体）              | WebApp が `uploadUrl` に直接 PUT。Backend は介在しない                                                                                                                                            |
+| プレゼン | `POST /presentations`             | タイトル + 1 スライド（`content.elements[]`）+ `thumbnailAssetId?` を作成                                                                                                                         |
+| プレゼン | `PUT /presentations/:id`          | 既存プレゼンの title / slide.content / `thumbnailAssetId` を更新（content は全置換）                                                                                                              |
+| プレゼン | `GET /presentations/:id`          | プレゼン本体（slide + thumbnail URL）を返す（WebApp 編集再開用）                                                                                                                                  |
+| プレゼン | `GET /presentations/:id/manifest` | MR 向けの統合マニフェスト（slide + model URL + transform）                                                                                                                                        |
+| プレゼン | `GET /presentations`              | プレゼン一覧（id + title + thumbnailUrl）。WebApp の選択 UI 用                                                                                                                                    |
+| システム | `GET /health`                     | 既存。プロセス liveness のみ                                                                                                                                                                      |
 
 > **MVP では `/finalize` を省略** する 2 ステップ運用（init + PUT）。`init` 時点で DB に `assets` 行を作成し、参照されない pending 行は週次 GC で掃除する（Follow-up）。`GET /assets/:assetId/file` は **廃止**（クライアントは manifest / list レスポンスの URL を直接取得）。
 
@@ -99,24 +99,24 @@ slides {
 ```ts
 TransformSchema = z.object({
   position: z.object({ x: number, y: number, z: number }),
-  rotation: z.object({ x: number, y: number, z: number }),   // Euler 角・度
-  scale:    z.object({ x: number, y: number, z: number }),
-})
+  rotation: z.object({ x: number, y: number, z: number }), // Euler 角・度
+  scale: z.object({ x: number, y: number, z: number }),
+});
 
 const ElementBase = z.object({
-  id: z.string().uuid(),         // slide 内で一意。要素単位の transform 編集・選択のために backend が UUID を発番
-  transform: TransformSchema,    // 各要素が個別に持つ
-})
+  id: z.string().uuid(), // slide 内で一意。要素単位の transform 編集・選択のために backend が UUID を発番
+  transform: TransformSchema, // 各要素が個別に持つ
+});
 
-SlideElementSchema = z.discriminatedUnion('type', [
-  ElementBase.extend({ type: z.literal('text'),  text: z.string() }),
-  ElementBase.extend({ type: z.literal('model'), assetId: z.string().uuid() }),  // assets.id を参照（jsonb 内）
-  ElementBase.extend({ type: z.literal('image'), assetId: z.string().uuid() }),  // assets.id を参照（jsonb 内）
-])
+SlideElementSchema = z.discriminatedUnion("type", [
+  ElementBase.extend({ type: z.literal("text"), text: z.string() }),
+  ElementBase.extend({ type: z.literal("model"), assetId: z.string().uuid() }), // assets.id を参照（jsonb 内）
+  ElementBase.extend({ type: z.literal("image"), assetId: z.string().uuid() }), // assets.id を参照（jsonb 内）
+]);
 
 SlideContentSchema = z.object({
   elements: z.array(SlideElementSchema),
-})
+});
 ```
 
 MVP では「text 要素 1 つ + model 要素 1 つ + image 要素 0〜N 個」の組み合わせで 1 スライドを構成する。要素タイプを増やしたい将来は `SlideElementSchema` の `discriminatedUnion` に branch を追加するだけ。slide レベルのプロパティ（背景色・遷移・音声 cue 等）は **MVP では持たない**。必要になったら `SlideContentSchema = z.object({ elements, background?, ... })` に拡張する余地は jsonb で保たれる。
@@ -208,6 +208,7 @@ GetManifestResponse = {
 ```
 
 ステータスコード:
+
 - `400` バリデーション失敗（Zod の issue を details に詰める）
 - `404` リソース未存在
 - `409` 整合性エラー（`UNIQUE (presentationId, orderIndex)` 違反など）
@@ -262,20 +263,24 @@ GetManifestResponse = {
 ## Consequences
 
 ### Positive
+
 - WebApp / MR 双方が **`packages/contracts/`** の Zod スキーマ 1 ヶ所で API 形を共有でき、型整合の食い違いが起きない。
 - 1:N の slide テーブルにしたことで、Phase α（マルチスライド）への移行が**スキーマ無変更**で済む。
 - `slides.content` を jsonb にしたことで、スライド構造の進化（注釈・複数要素・画像など）に対し DB schema migration が原則不要になる。
 - 2 段階アップロードで、transform 編集時に巨大ファイル再送がない → WebApp のプレビュー編集が軽い。
 
 ### Negative
+
 - ストレージがローカル FS なので、**他マシンの MR から見たい場合は同一マシン上で backend を立てる必要**がある（OK / 発表会では 1 PC でデモする想定）。
 - 拡張子 `.fbx` の MIME type が標準化されておらず、`application/octet-stream` 受け入れになる。MIME ベースでのバリデーションが弱い → ファイル名末尾 `.fbx` の検査で代替。
 
 ### Negative（jsonb 採用の代償）
+
 - `slides.content` 内側の値で WHERE 検索する場合は jsonb 演算子が必要になる。MVP では内側検索の要件なし。
 - jsonb の中身は DB constraint で守れない → **入口で `SlideContentSchema` (Zod) で必ず再バリデーション**する規律が必要（PUT 時の全置換ポリシーで一本化）。
 
 ### Neutral
+
 - 「テキストだけのスライド」「画像が複数あるスライド」など、要素構成の自由度が schema レベルで保証される
 - discriminated union により Zod のエラーメッセージが「どの要素のどのフィールドが不正か」を明確に返す（debug が楽）
 

@@ -11,7 +11,7 @@ Step 遷移図、Cue 詳細、Timeline と Surface crossfade を表示する。�
 ## 入力と責務
 
 - 既存 Local Author API の `ProjectSnapshot.definition` に含まれる、検証済み `PresentationDefinition.flow` を使用する。Web 側で Authoring Source を再 parse しない。
-- `app/local-editor/src/flow/` と `timeline/` に表示変換・表示コンポーネントを置く。選択・展開・ズームなどの UI 状態は変換処理から分離する。
+- `app/web/local-editor/src/flow/` と `timeline/` に表示変換・表示コンポーネントを置く。選択・展開・ズームなどの UI 状態は変換処理から分離する。
 - 定義・保存は既存 Host／Compiler が所有する。初期表示のための新しい保存 API や Runtime は追加しない。
 
 ## 表示と操作

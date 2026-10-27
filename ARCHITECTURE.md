@@ -25,9 +25,10 @@ flowchart LR
 ```text
 unframe/
 ├── app/
-│   ├── web/                      # React 19 management SPA
-│   ├── local-editor/             # Local Source editor / Unity Preview
-│   ├── audience/                 # React / 8th Wall / Three.js audience viewer
+│   ├── web/
+│   │   ├── console/              # React 19 management SPA
+│   │   ├── local-editor/         # Local Source editor / Unity Preview
+│   │   └── audience/             # React / 8th Wall / Three.js audience viewer
 │   ├── server/
 │   │   ├── control-plane/        # Workers / TypeScript / Hono / D1 / R2
 │   │   ├── realtime/             # Go / gRPC / container
@@ -44,6 +45,8 @@ unframe/
 
 ## 各コンポーネントの責務
 
+`app/web/` はブラウザー向けアプリの親ディレクトリです。Console、Local Editor、Audience はそれぞれ独立した package・依存関係・ビルド・起動設定を持ちます。
+
 ### `app/server/control-plane`
 
 - Cloudflare Workers / TypeScript / Hono を使用する。
@@ -57,23 +60,23 @@ unframe/
 - Presenter が認識した入力の有効性、Cue / Action、Timeline / Timer、Step 遷移を確定する。入力世代、共有演出全体の pause、到達済み Step の開始状態への復元は [ADR-0027](./docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の採用仕様であり、[v3 契約](./docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) に反映し、実行側 consumer は移行前である。
 - hot path は Control Plane、D1、R2 に依存せず、checkpoint と completion のみを Control Plane へ永続化する。
 
-### `app/web`
+### `app/web/console`
 
 - React 19 SPA として認証・device 承認、公開済み Dist 確認とルーム作成を担当する。
 - Hono RPC client と TanStack Query を通して Control Plane を利用する。
 
-### `app/local-editor`
+### `app/web/local-editor`
 
 - ローカル Source の編集・保存・履歴、build 要求、Unity Preview と CLI を通す公開操作を担当する。
 - 静的成果物は CLI Host が配信し、filesystem・credential・build generation は CLI が所有する。
 
-### `app/audience`
+### `app/web/audience`
 
 - 観客向けWeb XRクライアント。AprilTag 3 `tag36h11`・単一ID 0と8th Wall absolute SLAMによる位置保持と PNG・H.264・GLB の視聴を担う。
 - 有効なタグ姿勢を1回で即採用し、確定値には一致待ち・平滑化なし。表示層のみ距離別の上限付き閾値で小揺れを抑え、閾値を超える変化は即反映する。次の有効タグまでSDK座標内で表示を保持する。未検出・曖昧姿勢は前位置を保持し、SDK追跡低下・hidden・停止で非表示にして新しいタグを要求する。
 - NORMAL連続5秒後に最大頻度で検出開始。既定は黒外周15cm／余白込み22.5cm。ArUco・各単独比較モード・比較描画・複数タグ用実装は撤去した。
 - UI・SDK adapter・検出/姿勢計算・ライブ描画を分離し、ログと明示操作による検出画像保存を残す。ルームコードによる匿名 Viewer 参加と既存 Runtime v3 の Control／State 受信を実装済み。公開環境とスマートフォンでの総合受入は未実施。
-- 2026-10-22、ユーザーが現構成を十分な精度と判断しPoCを完了。黒外周150mmで約3.3m、240mmで約5.8mの認識報告を得た。追跡構成を維持してWebアプリ開発へ移行する。定量的な誤差・長時間保持・7m初回認識の目標は未実証。[採用記録](./docs/experiments/audience-apriltag-adopted.md)と[Audience README](./app/audience/README.md)を参照する。
+- 2026-10-22、ユーザーが現構成を十分な精度と判断しPoCを完了。黒外周150mmで約3.3m、240mmで約5.8mの認識報告を得た。追跡構成を維持してWebアプリ開発へ移行する。定量的な誤差・長時間保持・7m初回認識の目標は未実証。[採用記録](./app/web/audience/docs/experiments/audience-apriltag-adopted.md)と[Audience README](./app/web/audience/README.md)を参照する。
 
 ### `app/unity`
 
@@ -108,12 +111,11 @@ unframe/
 | 開発環境                           | `nix develop`                                                 |
 | 依存関係と Git hook のセットアップ | `nix run .#setup`                                             |
 | 全体品質ゲート                     | `nix run .#check`                                             |
-| Web の検査・修正                   | `nix run .#web` / `nix run .#web -- fix`                      |
+| Console の検査・修正               | `nix run .#console` / `nix run .#console -- fix`              |
 | Local Editor の検査・修正          | `nix run .#local-editor` / `nix run .#local-editor -- fix`    |
 | Audience 開発・build preview       | `nix run .#audience -- dev` / `nix run .#audience -- preview` |
 | Audience の検査・修正              | `nix run .#audience` / `nix run .#audience -- fix`            |
 | LP の検査・修正                    | `nix run .#lp` / `nix run .#lp -- fix`                        |
-| Notion 同期                        | `nix run .#notion-sync`                                       |
 | flake の評価と formatter 検証      | `nix flake check`                                             |
 
 Control Plane と Realtime の check entrypoint は実装済みです。開発・migration の手順は各 component の README を参照してください。自動 deployment workflow はありません。
@@ -123,13 +125,12 @@ Control Plane と Realtime の check entrypoint は実装済みです。開発�
 - `ci.yml`: 変更領域の検出と必須チェックの集約
 - `control-plane.yml`: Control Plane の typecheck / test / deploy dry-run
 - `realtime.yml`: Realtime の vet / lint / test / build / race
-- `web.yml`: Web の check / test / build / E2E
-- `local-editor.yml`: Local Editor の check / test / build / mock E2E
+- `console.yml`: Console の check / test / build / E2E
+- `local-editor.yml`: Local Editor の check / Node ロジックテスト / build
 - `audience.yml`: Audience の check / test / build（カメラ・SLAM の実機検証は含まない）
 - `lp.yml`: LP の test / check / build
 - `unity.yml`: Unity の静的検査
-- `autofix.yml`: Control Plane / Realtime / Presentation / Web / Local Editor / LP / Audience の format と lint fix
-- `sync-notion.yml`: Notion 同期
+- `autofix.yml`: Control Plane / Realtime / Presentation / Console / Local Editor / LP / Audience の format と lint fix
 
 ## 移行状況
 

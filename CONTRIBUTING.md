@@ -10,9 +10,9 @@ Unframe は次のコンポーネントからなるモノレポです。
 
 | パス                          | 役割                                       |
 | ----------------------------- | ------------------------------------------ |
-| `app/web/`                    | React 19 管理 Web（WIP）                   |
-| `app/local-editor/`           | ローカル Source 編集・Unity Preview（WIP） |
-| `app/audience/`               | 観客向け Web XR 位置合わせ PoC             |
+| `app/web/console/`            | React 19 管理 Web（WIP）                   |
+| `app/web/local-editor/`       | ローカル Source 編集・Unity Preview（WIP） |
+| `app/web/audience/`           | 観客向け Web XR の参加・視聴（WIP）        |
 | `app/server/`                 | Control Plane / Realtime Backend（WIP）    |
 | `app/server/realtime/`        | Go / gRPC Realtime Backend（WIP）          |
 | `app/unity/`                  | Unity MR Application（WIP）                |
@@ -50,8 +50,10 @@ assignment fencing、page-change の in-memory fan-out を実装しています�
 
 アプリケーション固有のコードは、それを所有するディレクトリに置きます。
 
-- 管理 Web は `app/web/`、ローカル Source Editor は `app/local-editor/` に置く。
-- 観客向け React、追跡、位置合わせ、Three.js 描画は `app/audience/` に置く。
+`app/web/` は3アプリの親ディレクトリです。各アプリの package・依存関係・ビルド・起動設定は独立して管理します。
+
+- 管理 Web は `app/web/console/`、ローカル Source Editor は `app/web/local-editor/` に置く。
+- 観客向け React、追跡、位置合わせ、Three.js 描画は `app/web/audience/` に置く。
 - Control Plane は `app/server/control-plane/`、Realtime Go backend は
   `app/server/realtime/` に置く。
 - Unity / C# のコードは `app/unity/` に置く。
@@ -98,12 +100,11 @@ nix run .#setup
 | 全体品質ゲート                       | `nix run .#check`                                             |
 | Control Plane check / test / build   | `nix run .#control-plane`                                     |
 | Realtime check / test / build / race | `nix run .#realtime`                                          |
-| Web check / test / build             | `nix run .#web`                                               |
+| Console check / test / build         | `nix run .#console`                                           |
 | Local Editor check / test / build    | `nix run .#local-editor`                                      |
 | Audience check / test / build        | `nix run .#audience`                                          |
 | Audience 開発 / build preview        | `nix run .#audience -- dev` / `nix run .#audience -- preview` |
 | LP test / check / build              | `nix run .#lp`                                                |
-| Notion 同期                          | `nix run .#notion-sync`                                       |
 | flake の評価と formatter 検証        | `nix flake check`                                             |
 
 `nix flake check` は flake の評価と formatter を検証します。アプリケーションの
@@ -139,8 +140,8 @@ generated-file notice を保持します。C# generator は未接続のため、
 
 | 対象                   | 現在のテスト                               | 今後の方針                                  |
 | ---------------------- | ------------------------------------------ | ------------------------------------------- |
-| `app/audience/`        | Vitest（較正・SDK境界・UI）                | カメラ・SLAM は実機確認が必要               |
-| `app/web/`             | package script で実行                      | 機能追加に合わせて拡張                      |
+| `app/web/audience/`    | Vitest（較正・SDK境界・UI）                | カメラ・SLAM は実機確認が必要               |
+| `app/web/console/`     | package script で実行                      | 機能追加に合わせて拡張                      |
 | `app/server/realtime/` | Go `testing`、race detector                | gRPC contract と session 実装に合わせて拡張 |
 | `lp/`                  | package script、`svelte-check`、静的 build | ページ追加に合わせて拡張                    |
 | `app/unity/`           | Unity Test Framework の EditMode           | Unity Editor で実行                         |
@@ -178,7 +179,7 @@ nix run .#control-plane -- fix
 nix run .#presentation -- fix
 nix run .#realtime -- fix
 nix run .#lp -- fix
-nix run .#web -- fix
+nix run .#console -- fix
 nix run .#local-editor -- fix
 nix run .#audience -- fix
 ```
@@ -218,9 +219,9 @@ scope は主な変更対象に合わせます。
 
 | scope          | 対象                                             |
 | -------------- | ------------------------------------------------ |
-| `web`          | `app/web/`                                       |
-| `audience`     | `app/audience/`                                  |
-| `local-editor` | `app/local-editor/`                              |
+| `console`      | `app/web/console/`                               |
+| `audience`     | `app/web/audience/`                              |
+| `local-editor` | `app/web/local-editor/`                          |
 | `server`       | `app/server/`                                    |
 | `realtime`     | `app/server/realtime/`                           |
 | `unity`        | `app/unity/`                                     |
@@ -289,9 +290,6 @@ fix/unity-controller-input-deadzone
 `docs/plans/` は実装計画の履歴であり、現行仕様の根拠とは限りません。古い Hono、
 Cloudflare/Supabase、`apps/*` layout を参照している資料は、現行実装と照合してから
 使用します。
-
-`docs/notion/` は Notion sync による生成物です。同期動作そのものを変更する場合を
-除き、手編集しません。
 
 将来の機能を、現在実装済みの機能としてドキュメントに記載しません。
 

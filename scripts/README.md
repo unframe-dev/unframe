@@ -8,7 +8,6 @@
 | `ci/`                  | 品質ゲート                                |
 | `contracts/`           | 契約生成と生成物の差分検査                |
 | `dev/`                 | 依存関係・Git hook のセットアップ         |
-| `docs/`                | Notion → `docs/notion/` 同期              |
 | `unity/`               | Unity Editor の起動と WebGL Preview build |
 | `presentation-sample/` | Unity Editor 向けサンプル配信             |
 
@@ -20,18 +19,17 @@ nix run .#control-plane
 nix run .#presentation
 nix run .#unity-proto -- check
 nix run .#realtime
-nix run .#web
+nix run .#console
 nix run .#local-editor
 nix run .#audience
 nix run .#audience -- fix
 nix run .#audience -- dev
 nix run .#audience -- preview
 nix run .#lp
-nix run .#notion-sync
 nix flake check
 ```
 
-Audience の `dev` / `preview` は追加引数を package script へ渡します。LAN 公開は明示的に `nix run .#audience -- dev --host 0.0.0.0` を指定します。スマートフォンのカメラを使う検証には HTTPS が必要です。準備・実機検証手順は [Audience README](../app/audience/README.md) を参照してください。
+Audience の `dev` / `preview` は追加引数を package script へ渡します。LAN 公開は明示的に `nix run .#audience -- dev --host 0.0.0.0` を指定します。スマートフォンのカメラを使う検証には HTTPS が必要です。準備・実機検証手順は [Audience README](../app/web/audience/README.md) を参照してください。
 
 GitHub Actions では `nixbuild/nix-quick-install-action` で Nix を導入し、`magic-nix-cache-action` で Nix store をキャッシュします。
 
@@ -84,7 +82,7 @@ Style / capture 共通の OS 別隔離・資源制限・終了確認は `unframe
 
 ## Local Editor と Unity
 
-Local Editor の開発は、Local Editor の `dev` と CLI の `dev` を別ターミナルで起動します。CLI の起動入口が OS 別の隔離経路と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Local Editor README](../app/local-editor/README.md#local-editor-の起動) を参照してください。
+Local Editor の開発は、Local Editor の `dev` と CLI の `dev` を別ターミナルで起動します。CLI の起動入口が OS 別の隔離経路と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Local Editor README](../app/web/local-editor/README.md#local-editor-の起動) を参照してください。
 
 ```bash
 nix run .#unity-editor -- -projectPath "$PWD/app/unity"

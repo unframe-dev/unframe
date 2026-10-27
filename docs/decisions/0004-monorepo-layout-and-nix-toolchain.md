@@ -29,12 +29,12 @@
 - `lp/` … SvelteKit SSG のランディングページ。
 - `packages/contracts` … 今後の OpenAPI / Protocol Buffers の共有境界。
 - `packages/config` … `tsconfig` / oxc config / git hooks 等の共有 config。
-- `scripts/` … dev / generate / ci / docs(notion sync) の実処理を配置する。
+- `scripts/` … dev / generate / ci の実処理を配置する。
 
 ### ツールチェインとタスク実行
 
 - ツールチェインは `flake.nix` / `flake.lock` で固定し、`mise.toml` を廃止する。
-- タスクの公式な実行入口は **flake apps**（`nix run .#check` / `.#web` / `.#lp` / `.#notion-sync`）と **flake checks**（`nix flake check`）とする。component 固有の入口は component 実装とともに追加する。`justfile` は廃止する。
+- タスクの公式な実行入口は **flake apps**（`nix run .#check` / `.#web` / `.#lp`）と **flake checks**（`nix flake check`）とする。component 固有の入口は component 実装とともに追加する。`justfile` は廃止する。
 - 複雑な処理の実装は `scripts/` に配置し、`flake.nix` からラップして実行する。`flake.nix` は依存関係・実行環境・公開コマンド名・スクリプト接続に留め、ロジックは持たせない。
 - CI もローカルとの差を減らすため `nix run .#…` を入口にする。
 - GitHub Actions は `ci.yml`（オーケストレーション）が変更領域を検出し、`web.yml` / `lp.yml` / `unity.yml`（いずれも `workflow_call` の再利用可能ワークフロー）を呼び分ける。backend component の workflow は component 実装とともに追加する。必須チェックは集約 job。依存更新は Hosted Renovate（`.github/renovate.json`）に委ねる。
@@ -68,10 +68,9 @@
 - [x] `app/backend` → `app/server` のリネームと、参照（README / scripts）の追従。
 - [x] 旧 OpenAPI contract と生成 client を削除し、`packages/contracts` を将来の共有境界として残す。
 - [x] `packages/config` を新設し、runtime-neutral な共有 tsconfig、Vite+ staged 設定、repository-owned hook を集約。
-- [x] `tools/notion-sync` を `scripts/docs/notion-sync` へ移設（完了）。
 - [ ] `flake.lock` を生成し、`nix flake check` をローカルと CI で検証。
 - [x] `app/web`（React 編集エディタ）のワークスペースを新設。
 
 ## Web と Local Editor の責務分離
 
-`app/web` の編集 UI は `app/local-editor` へ分離した。Web は認証・公開済み Dist 確認・ルーム作成、Local Editor と CLI はローカル編集・Preview・公開を所有する。現行構成と品質入口は [ARCHITECTURE.md](../../ARCHITECTURE.md) と [Local Editor README](../../app/local-editor/README.md) を参照。本文の当初構成は判断時点の記録として残す。
+`app/web` の編集 UI は `app/local-editor` へ分離した。Web は認証・公開済み Dist 確認・ルーム作成、Local Editor と CLI はローカル編集・Preview・公開を所有する。現行構成と品質入口は [ARCHITECTURE.md](../../ARCHITECTURE.md) と [Local Editor README](../../app/web/local-editor/README.md) を参照。本文の当初構成は判断時点の記録として残す。

@@ -1,12 +1,11 @@
 # Unframe Backend
 
-`app/server/` は、異なる実行環境を持つ二つの backend component を置く親ディレクトリです。Component 間の境界は [ARCHITECTURE.md](./ARCHITECTURE.md)、内部設計は [Control Plane](./control-plane/ARCHITECTURE.md) と [Realtime Backend](./realtime/ARCHITECTURE.md) の各文書、現在確認されている不整合と完了条件は [todo.md](./todo.md) を参照してください。
+`app/server/` は、異なる実行環境を持つ二つの backend component を置く親ディレクトリです。Component 間の境界は [ARCHITECTURE.md](./ARCHITECTURE.md)、内部設計は [Control Plane](./control-plane/ARCHITECTURE.md) と [Realtime Backend](./realtime/ARCHITECTURE.md) の各文書を参照してください。
 
 ```text
 app/server/
 ├── ARCHITECTURE.md
 ├── README.md
-├── todo.md           # component 間の不整合とArchitecture同期作業
 ├── control-plane/
 │   └── ARCHITECTURE.md  # Cloudflare Workers / TypeScript / Hono / D1 / R2
 ├── realtime/
@@ -18,7 +17,7 @@ app/server/
 - `realtime/` の目標責務はgRPC接続、session中の一時状態、fan-out、backpressureです。
 - 共有境界は `packages/contracts/` の contract です。TypeScript と Go の実装コードは直接共有しません。
 
-旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Control Plane は認証、匿名 Viewer 資格、Presentation / Asset / Session API、Venue Edge の provisioning / registration / assignment と assignment-bound bootstrap を実装しています。Realtime は独立した Go module、Runtime process、lint 設定、Docker build context、品質 task を所有します。v3 Control / State を native gRPC とブラウザ WebSocket で提供し、JWT / JWKS、assignment fencing、Snapshot、replay / resume を共用します。Runtime と永続化の状況は [Realtime Architecture](realtime/ARCHITECTURE.md)、Audience の配信設定は [接続境界](../audience/docs/connection-boundaries.md) を参照してください。
+旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Control Plane は認証、匿名 Viewer 資格、Presentation / Asset / Session API、Venue Edge の provisioning / registration / assignment と assignment-bound bootstrap を実装しています。Realtime は独立した Go module、Runtime process、lint 設定、Docker build context、品質 task を所有します。v3 Control / State を native gRPC とブラウザ WebSocket で提供し、JWT / JWKS、assignment fencing、Snapshot、replay / resume を共用します。Runtime と永続化の状況は [Realtime Architecture](realtime/ARCHITECTURE.md)、Audience の配信設定は [接続境界](../web/audience/docs/connection-boundaries.md) を参照してください。
 
 ## Control Plane
 

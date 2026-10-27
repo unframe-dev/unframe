@@ -2448,7 +2448,7 @@ dist/
 - Session は公開済み Presentation から作成し、その時点の publication epoch を保存する。API は保存 epoch に対応する `publicationFence` を返し、既存の公開版なし Session だけ `null` とする。Delivery / bootstrap では PublicationFence と projection / assignment の整合を検証する。
 - 現行 Session は有限の waiting expiry と Presentation owner による第三者作成 Waiting Session の cancel を持たない。
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
-- 管理 Web は公開済み Dist の確認とルーム作成を担当する。Source 編集と Unity Preview は `app/local-editor` と CLI Author host が所有し、canonical Definition の読み取り、公開 Props / Transform 編集と Cue / Timer / Timeline のローカル Unity Preview を提供する。
+- 管理 Web は公開済み Dist の確認とルーム作成を担当する。Source 編集と Unity Preview は `app/web/local-editor` と CLI Author host が所有し、canonical Definition の読み取り、公開 Props / Transform 編集と Cue / Timer / Timeline のローカル Unity Preview を提供する。
 - Unity の Baked Runtime は Delivery、素材取得、Snapshot / Reliable Event、Timeline / State 表示を接続する。Native UI の接続描画と Quest 実機受け入れはこの成功範囲に含めない。
 - Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から v2 Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font / GLB / MP4 bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
 - M3A の静的 Authoring subset では、型付き Theme token、Named Style、Props / Variants / Parts、Slot を使う Frame / Text composition と static lowering が実装済みである。

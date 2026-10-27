@@ -36,7 +36,7 @@ Definition + RenderBundle + AssetSet + BuildManifest + assets
 | `packages/contracts/`    | canonical artifact・描画に再利用する生成 message の正本。必要な Preview の cross-application schema もここに定義する |
 | `packages/unframe-core/` | build 検証、publication 非依存の role／capability 選択、Runtime catalog・初期表示状態の導出                          |
 | `packages/unframe-cli/`  | project filesystem、保存、出力 channel、generation 固定、Local Author HTTP API                                       |
-| `app/local-editor/`      | Dev／Dist 選択、保存・build・表示 revision の提示、Unity instance と要求の lifecycle                                 |
+| `app/web/local-editor/`  | Dev／Dist 選択、保存・build・表示 revision の提示、Unity instance と要求の lifecycle                                 |
 | `app/unity/`             | Preview／Delivery 入力 Adapter、共通 hierarchy・描画・素材管理、WebGL／Quest platform Adapter                        |
 | Control Plane            | upload された build の公開整合性、認可、Delivery projection。Source や Dev generation は受け取らない                 |
 
@@ -44,7 +44,7 @@ Definition + RenderBundle + AssetSet + BuildManifest + assets
 
 ### Local Editor と管理 Web
 
-`app/local-editor/src/app/main.tsx` が token を取り出し、workspace を生成する。`workspace/create-workspace.ts` が project／preview／publication controller と workspace 単位の Zustand vanilla store を組み立て、commands が feature 間の操作を接続する。React は selector 購読と入力・focus を所有し、HTTP／build・認証 polling／Unity 配送は controller と `infra/` の adapter が所有する。Unity canvas は固定 viewport に一つだけ接続し、テーマやパネル操作では作り直さない。`dispose` で通信・timer・通知待ち・Unity を終了する。
+`app/web/local-editor/src/app/main.tsx` が token を取り出し、workspace を生成する。`workspace/create-workspace.ts` が project／preview／publication controller と workspace 単位の Zustand vanilla store を組み立て、commands が feature 間の操作を接続する。React は selector 購読と入力・focus を所有し、HTTP／build・認証 polling／Unity 配送は controller と `infra/` の adapter が所有する。Unity canvas は固定 viewport に一つだけ接続し、テーマやパネル操作では作り直さない。`dispose` で通信・timer・通知待ち・Unity を終了する。
 
 公開 Props の draft は project controller が管理する。保存は直列で、保存完了後に履歴を確定する。結果不明の保存は同一 command ID・基準 revision・command で再送する。外部変更で draft を消さず、競合時には自動上書きしない。Transform の編集 UI は提供しない。`index.html` から `dist` を生成し、Local Host が同一 origin で配信する。旧 Author entry、Slide／Element 文書、localStorage 文書保存、React 3D viewport は編集経路から撤去した。
 
@@ -165,4 +165,4 @@ revision は config・Source・lock の bytes を含む。refresh は開始時�
 | 共通描画・素材 integrity・交換・故障と復元通知   | Unity の Preview／Rendering EditMode テスト                                 |
 | Proto drift                                      | Contracts の `check:wire-*`、`nix run .#unity-proto -- check`               |
 
-Local Editor の E2E／component test と専用実行経路は撤去した。controller の test double や EditMode の成功は、実 WebGL／Quest の描画、固定 Browser／CSP、認証画面の手動操作を保証しない。再設計時の検証・未確認事項は [実装記録](../plans/local-editor-preview-ui-refactor-notes.md) を参照する。Unity player はコード変更後に `nix run .#unity-preview` で再生成する。
+Local Editor の E2E／component test と専用実行経路は撤去した。controller の test double や EditMode の成功は、実 WebGL／Quest の描画、固定 Browser／CSP、認証画面の手動操作を保証しない。再設計時の検証・未確認事項は [実装・受入記録](../plans/local-editor-preview-ui-refactor.md) を参照する。Unity player はコード変更後に `nix run .#unity-preview` で再生成する。
