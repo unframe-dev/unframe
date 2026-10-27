@@ -1,3 +1,4 @@
+import { audienceWebCapabilityProfileId } from "@unframe/contracts/presentation";
 import { createAudienceHttpClient } from "./http-client";
 
 export function readConnectionConfig(
@@ -6,16 +7,9 @@ export function readConnectionConfig(
   | { status: "unconfigured" | "invalid" }
   | { status: "configured"; config: { apiOrigin: string; capabilityProfileId: string } } {
   const apiOrigin = environment.VITE_AUDIENCE_API_ORIGIN;
-  const capabilityProfileId = environment.VITE_AUDIENCE_CAPABILITY_PROFILE_ID;
-  if (!apiOrigin && !capabilityProfileId) return { status: "unconfigured" };
-  if (
-    typeof apiOrigin !== "string" ||
-    !apiOrigin ||
-    typeof capabilityProfileId !== "string" ||
-    !capabilityProfileId
-  )
-    return { status: "invalid" };
-  const config = { apiOrigin, capabilityProfileId };
+  if (apiOrigin === undefined || apiOrigin === "") return { status: "unconfigured" };
+  if (typeof apiOrigin !== "string") return { status: "invalid" };
+  const config = { apiOrigin, capabilityProfileId: audienceWebCapabilityProfileId };
   try {
     createAudienceHttpClient(config);
     return { status: "configured", config };

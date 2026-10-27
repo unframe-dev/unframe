@@ -10,4 +10,7 @@ export * from "./semantics";
 export * from "./wire";
 export type * from "../../presentation/wire-types";
 export { createUnityMediaCapabilityProfile } from "./media-capability";
-export { createAudienceWebCapabilityProfile } from "./audience-capability";
+export {
+  audienceWebCapabilityProfileId,
+  createAudienceWebCapabilityProfile,
+} from "./audience-capability";

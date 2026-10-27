@@ -12,7 +12,7 @@ Audience は登録・ログイン操作なしでルームコードから参加�
 
 - Control Plane はルームコードで匿名 Viewer を登録し、Session に限定した bearer 資格を発行する。未検証の backing user と専用資格テーブルで既存 participant の参照整合性を保つ。通常のログイン identity へ昇格させない。
 - API 資格は1時間、更新可能期間は初回発行から24時間とする。更新は旧 token を無効化し、ブラウザはメモリだけに保持する。これは運用上の初期方針であり、端末性能の保証ではない。
-- `audience-web-v1` は実装済みの PNG・opaque H.264・自己完結 GLB を選ぶ。予算は受理上限であり端末性能の測定値ではない。native-ui、Local Overlay、Anchor 表示は拒否する。
+- Audience profile は実装済みの PNG・opaque H.264・自己完結 GLB を選ぶ。対応機能・資源予算・通信契約versionを含む共有定義の内容ハッシュをIDとし、AudienceとControl Planeで同じ定義を使う。予算は受理上限であり端末性能の測定値ではない。native-ui、Local Overlay、Anchor 表示は拒否する。
 - Realtime は同じポートで native gRPC と WebSocket を受け、同じ認証・assignment・Runtime サービスを使う。詳細は [Browser Realtime transport](../../packages/contracts/browser-realtime.md) を正本とする。ブラウザの Cookie 認証や URL token は採用しない。
 - Audience は新規 Control 接続で Snapshot を取得する。素材適用後かつ State 接続後に Ready を送る。State 欠落は nonce 再発行による State 再接続、Control 欠落・資格交換は新 Snapshot で復帰する。
 

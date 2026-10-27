@@ -52,7 +52,7 @@ it("releases the participant, capability and backing identity when a viewer leav
   expect(issued.status).toBe(201);
   const viewer = (await issued.json()) as { token: string; participantId: string };
   await env.DB.prepare(
-    "INSERT INTO session_participant_capabilities (session_id, user_id, capability_profile_id, capability_json, projection_profile_id, selected_at) VALUES (?, ?, 'audience-web-v1', '{}', 'profile', '2026')",
+    "INSERT INTO session_participant_capabilities (session_id, user_id, capability_profile_id, capability_json, projection_profile_id, selected_at) VALUES (?, ?, 'test-profile', '{}', 'profile', '2026')",
   )
     .bind(id, viewer.participantId)
     .run();
@@ -135,7 +135,7 @@ it("reclaims expired viewer slots in a full session while preserving live viewer
   expect(expiredIssue.status).toBe(201);
   const expired = (await expiredIssue.json()) as { token: string; participantId: string };
   await env.DB.prepare(
-    "INSERT INTO session_participant_capabilities (session_id, user_id, capability_profile_id, capability_json, projection_profile_id, selected_at) VALUES (?, ?, 'audience-web-v1', '{}', 'profile', '2026')",
+    "INSERT INTO session_participant_capabilities (session_id, user_id, capability_profile_id, capability_json, projection_profile_id, selected_at) VALUES (?, ?, 'test-profile', '{}', 'profile', '2026')",
   )
     .bind(id, expired.participantId)
     .run();

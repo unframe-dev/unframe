@@ -1,3 +1,7 @@
+import {
+  audienceWebCapabilityProfileId,
+  createAudienceWebCapabilityProfile,
+} from "@unframe/contracts/presentation";
 import definition from "../../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../../../../packages/contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../../../../packages/contracts/presentation/fixtures/asset-set-manifest.json";
@@ -152,4 +156,14 @@ describe("production presentation capability profiles", () => {
       "Unsupported device capability profile",
     );
   });
+});
+
+it("resolves the exact Audience implementation and resource policy", () => {
+  expect(normalizedCapability(audienceWebCapabilityProfileId)).toEqual(
+    createAudienceWebCapabilityProfile(),
+  );
+});
+
+it("rejects unregistered Audience definitions", () => {
+  expect(() => normalizedCapability(`audience-web_${"0".repeat(64)}`)).toThrow(RangeError);
 });

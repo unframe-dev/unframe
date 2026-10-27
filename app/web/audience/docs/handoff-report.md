@@ -5,7 +5,7 @@
 ## 実装
 
 - 匿名 Viewer の発行・更新・失効と Session 限定の認可。管理・進行操作には使用できない。
-- `audience-web-v1` の登録。PNG・opaque H.264・自己完結 GLB の選択とクライアント予算検査。
+- 共有定義の内容ハッシュで識別するAudience profile。PNG・opaque H.264・自己完結 GLB の選択とクライアント予算検査。
 - 既存 v3 Protobuf を使う WebSocket Control／State。認証・assignment・nonce・Ready・Runtime は native gRPC と共用。
 - Audience の HTTP 資格管理、Snapshot／素材準備後の Ready、進行適用、期限更新、切断・再同期・退出。
 - main の Runtime v3 と Step restore に追従。Anchor 表示や Presenter 操作は未対応として拒否する。
