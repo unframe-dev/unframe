@@ -330,10 +330,6 @@
             name = "setup";
             script = "dev/setup.sh";
           };
-          notion-sync = mkApp {
-            name = "notion-sync";
-            script = "docs/notion-sync.sh";
-          };
         }
         // unityRuntime;
 

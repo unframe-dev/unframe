@@ -228,122 +228,6 @@ importers:
         specifier: 4.6.5
         version: 4.6.5
 
-  app/web/audience:
-    dependencies:
-      '@8thwall/engine-binary':
-        specifier: 1.0.0
-        version: 1.0.0
-      '@unframe/contracts':
-        specifier: workspace:*
-        version: link:../../../packages/contracts
-      js-aruco2:
-        specifier: 2.0.0
-        version: 2.0.0
-      react:
-        specifier: 19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: 19.2.8
-        version: 19.2.8(react@19.2.8)
-      three:
-        specifier: 0.183.2
-        version: 0.183.2
-      zod:
-        specifier: 4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@testing-library/jest-dom':
-        specifier: 6.9.1
-        version: 6.9.1
-      '@testing-library/react':
-        specifier: 16.3.3
-        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.19.0
-      '@types/react':
-        specifier: ^19.2.3
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.3.0(@types/react@19.3.0)
-      '@types/three':
-        specifier: 0.183.1
-        version: 0.183.1
-      '@vitejs/plugin-react':
-        specifier: 6.1.1
-        version: 6.1.1(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))
-      jsdom:
-        specifier: 30.1.1
-        version: 30.1.1(@noble/hashes@2.3.0)
-      typescript:
-        specifier: ^7.0.0
-        version: 7.0.2
-      vite:
-        specifier: 'catalog:'
-        version: '@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)'
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@types/node@24.19.0)(@vitest/browser-preview@4.1.11)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))(jsdom@30.1.1(@noble/hashes@2.3.0))
-
-  app/web/local-editor:
-    dependencies:
-      '@base-ui/react':
-        specifier: 1.7.0
-        version: 1.7.0(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@phosphor-icons/react':
-        specifier: 2.1.10
-        version: 2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@unframe/contracts':
-        specifier: workspace:*
-        version: link:../../../packages/contracts
-      '@unframe/unframe-cli':
-        specifier: workspace:*
-        version: link:../../../packages/unframe-cli
-      react:
-        specifier: ^19.2.7
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.7
-        version: 19.2.8(react@19.2.8)
-      react-resizable-panels:
-        specifier: 4.14.8
-        version: 4.14.8(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      zod:
-        specifier: 4.4.3
-        version: 4.4.3
-      zustand:
-        specifier: 5.0.15
-        version: 5.0.15(@types/react@19.3.0)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
-    devDependencies:
-      '@tailwindcss/vite':
-        specifier: 4.3.2
-        version: 4.3.2(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.19.0
-      '@types/react':
-        specifier: ^19.2.17
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.3.0(@types/react@19.3.0)
-      '@vitejs/plugin-react':
-        specifier: 6.1.1
-        version: 6.1.1(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))
-      tailwindcss:
-        specifier: 4.3.2
-        version: 4.3.2
-      typescript:
-        specifier: ^7.0.0
-        version: 7.0.2
-      vite:
-        specifier: 'catalog:'
-        version: '@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)'
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@types/node@24.19.0)(@vitest/browser-preview@4.1.11)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))(jsdom@30.1.1(@noble/hashes@2.3.0))
-
   app/server/control-plane:
     dependencies:
       '@better-auth/infra':
@@ -413,6 +297,64 @@ importers:
       zod:
         specifier: 4.6.5
         version: 4.6.5
+
+  app/web/audience:
+    dependencies:
+      '@8thwall/engine-binary':
+        specifier: 1.0.0
+        version: 1.0.0
+      '@unframe/contracts':
+        specifier: workspace:*
+        version: link:../../../packages/contracts
+      js-aruco2:
+        specifier: 2.0.0
+        version: 2.0.0
+      react:
+        specifier: 19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.8)
+      three:
+        specifier: 0.183.2
+        version: 0.183.2
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@testing-library/jest-dom':
+        specifier: 6.9.1
+        version: 6.9.1
+      '@testing-library/react':
+        specifier: 16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.0
+      '@types/react':
+        specifier: ^19.2.3
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.3.0(@types/react@19.3.0)
+      '@types/three':
+        specifier: 0.183.1
+        version: 0.183.1
+      '@vitejs/plugin-react':
+        specifier: 6.1.1
+        version: 6.1.1(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))
+      jsdom:
+        specifier: 30.1.1
+        version: 30.1.1(@noble/hashes@2.3.0)
+      typescript:
+        specifier: ^7.0.0
+        version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)'
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@24.19.0)(@vitest/browser-preview@4.1.11)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))(jsdom@30.1.1(@noble/hashes@2.3.0))
 
   app/web/console:
     dependencies:
@@ -510,6 +452,64 @@ importers:
       wrangler:
         specifier: 4.142.0
         version: 4.142.0(@cloudflare/workers-types@5.20260927.1)(@types/node@24.19.0)
+
+  app/web/local-editor:
+    dependencies:
+      '@base-ui/react':
+        specifier: 1.7.0
+        version: 1.7.0(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@phosphor-icons/react':
+        specifier: 2.1.10
+        version: 2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@unframe/contracts':
+        specifier: workspace:*
+        version: link:../../../packages/contracts
+      '@unframe/unframe-cli':
+        specifier: workspace:*
+        version: link:../../../packages/unframe-cli
+      react:
+        specifier: ^19.2.7
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.7
+        version: 19.2.8(react@19.2.8)
+      react-resizable-panels:
+        specifier: 4.14.8
+        version: 4.14.8(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+      zustand:
+        specifier: 5.0.15
+        version: 5.0.15(@types/react@19.3.0)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: 4.3.2
+        version: 4.3.2(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: 6.1.1
+        version: 6.1.1(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))
+      tailwindcss:
+        specifier: 4.3.2
+        version: 4.3.2
+      typescript:
+        specifier: ^7.0.0
+        version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)'
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@24.19.0)(@vitest/browser-preview@4.1.11)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))(jsdom@30.1.1(@noble/hashes@2.3.0))
 
   lp:
     dependencies:
@@ -1007,25 +1007,6 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.0
-      typescript:
-        specifier: ^7.0.0
-        version: 7.0.2
-
-  scripts/docs/notion-sync:
-    dependencies:
-      '@notionhq/client':
-        specifier: ^5.0.0
-        version: 5.26.0
-      notion-to-md:
-        specifier: ^3.1.7
-        version: 3.1.9
-    devDependencies:
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.19.0
-      tsx:
-        specifier: ^4.19.2
-        version: 4.23.15
       typescript:
         specifier: ^7.0.0
         version: 7.0.2
@@ -2441,10 +2422,6 @@ packages:
   '@noble/hashes@2.3.0':
     resolution: {integrity: sha512-oN+QwyX7VSHotibwubG3kpzbwKrfnyR6OOO+3Nk/53ADL7FmgHHz4TgrbaYKvvOw09u6QTx0oiH1cNCIOuN0CQ==}
     engines: {node: '>= 20.19.0'}
-
-  '@notionhq/client@5.26.0':
-    resolution: {integrity: sha512-Oc3438nQ5YmZkVO7YJG8fcTYl0V46CirdCvO33azZ9f7ZfD2rsHE4fUVANJiBB9Xf1sqpCs82nd8oKPxeXLmMg==}
-    engines: {node: '>=18'}
 
   '@opentelemetry/semantic-conventions@1.43.0':
     resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
@@ -5236,9 +5213,6 @@ packages:
     resolution: {integrity: sha512-sHHjZ5fJKlgrG4qns2YwVcdNep35h5fERrfkD2YNsb9UFk0UIHarbiTaHKVMlPuWAoiilyK8Fv/jAm11slsY7Q==}
     hasBin: true
 
-  markdown-table@2.0.0:
-    resolution: {integrity: sha512-Ezda85ToJUBhM6WGaG6veasyym+Tbs3cMAw/ZhOPqXiYsr0jgocBV3j3nx+4lk47plLlIqjwuTm/ywVI+zjJ/A==}
-
   marked@17.0.1:
     resolution: {integrity: sha512-boeBdiS0ghpWcSwoNm/jJBwdpFaMnZWRzjA6SkUMYb40SVaN1x7mmfGKp0jvexGcx+7y2La5zRZsYFZI6Qpypg==}
     engines: {node: '>= 20'}
@@ -5341,22 +5315,9 @@ packages:
     resolution: {integrity: sha512-W5ZNO5KRPB5TkYmGVD9F6YqhsglXJzE6etpbmT+f6EQElhiX/UTG551cnsRGvLG3fyZEg9HwaDmNmj5nwJ4z9g==}
     engines: {node: '>=10'}
 
-  node-fetch@2.7.0:
-    resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
-    engines: {node: 4.x || >=6.0.0}
-    peerDependencies:
-      encoding: ^0.1.0
-    peerDependenciesMeta:
-      encoding:
-        optional: true
-
   node-releases@2.0.53:
     resolution: {integrity: sha512-D9UOmYG3UH1V+ENW56t5QXBwJw1YEY18ruVeus89Rw+SyIgjPkCO84bRzO3uNIYosJbNwiabWVn48o3uJLjxFQ==}
     engines: {node: '>=18'}
-
-  notion-to-md@3.1.9:
-    resolution: {integrity: sha512-SsYhhigh+jOv06QOiFynOQATPMl96CspWDIL3Q5klzp4eaZ1dYaPI3ELoly80G1K0jf730u3ItvfwskzPKK41g==}
-    engines: {node: '>=12'}
 
   obug@2.1.4:
     resolution: {integrity: sha512-4a+OsYv9UktOJKE+l1A4OufDgdRF9PifWj+tJnHURo/P+WOxpG4GzUFL9qCalmWauao6ogiG+QvnCovwPoyAWA==}
@@ -5624,10 +5585,6 @@ packages:
     resolution: {integrity: sha512-6tDA8g98We0zd0GvVeMT9arEOnTw9qM03L9cJXaCjrip1OO764RDBLBfrB4cwzNGDj5OA5ioymC9GkizgWJDUg==}
     engines: {node: '>=8'}
 
-  repeat-string@1.6.1:
-    resolution: {integrity: sha512-PV0dzCYDNfRi1jCDbJzpW7jNNDRuCOG/jI5ctQcGKt/clZD+YcPS3yIlWuTJMmESC8aevCFmWJy5wjAFgNqN6w==}
-    engines: {node: '>=0.10'}
-
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
@@ -5877,9 +5834,6 @@ packages:
     resolution: {integrity: sha512-exgYmnmL/sJpR3upZfXG5PoatXQii55xAiXGXzY+sROLZ/Y+SLcp9PgJNI9Vz37HpQ74WvDcLT8eqm+kV3FzrA==}
     engines: {node: '>=16'}
 
-  tr46@0.0.3:
-    resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
-
   tr46@6.0.0:
     resolution: {integrity: sha512-bLVMLPtstlZ4iMQHpFHTR7GAGj2jxi8Dg0s2h2MafAE4uSWF98FC/3MomU51iQAMf8/qDUbKWf5GxuvvVcXEhw==}
     engines: {node: '>=20'}
@@ -6085,9 +6039,6 @@ packages:
       '@types/emscripten':
         optional: true
 
-  webidl-conversions@3.0.1:
-    resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
-
   webidl-conversions@8.0.1:
     resolution: {integrity: sha512-BMhLD/Sw+GbJC21C/UgyaZX41nPt8bUTg+jWyDeg7e7YN4xOM05YPSIXceACnXVtqyEw/LMClUQMtMZ+PGGpqQ==}
     engines: {node: '>=20'}
@@ -6103,9 +6054,6 @@ packages:
   whatwg-url@17.1.2:
     resolution: {integrity: sha512-TEZA+Zqxin7Jjsm2cjRohCmen5awh+hT6Zi3VZdqZlNRk7zvOI/9WpBFg/DWlA56bWnzwm6DuB8NS0EsxQH9uQ==}
     engines: {node: ^22.14.0 || >=24.0.0}
-
-  whatwg-url@5.0.0:
-    resolution: {integrity: sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==}
 
   why-is-node-running@2.3.0:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
@@ -7439,8 +7387,6 @@ snapshots:
   '@noble/ciphers@2.3.0': {}
 
   '@noble/hashes@2.3.0': {}
-
-  '@notionhq/client@5.26.0': {}
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
 
@@ -9737,10 +9683,6 @@ snapshots:
       punycode.js: 2.3.1
       uc.micro: 2.1.0
 
-  markdown-table@2.0.0:
-    dependencies:
-      repeat-string: 1.6.1
-
   marked@17.0.1: {}
 
   marked@4.3.0: {}
@@ -9832,18 +9774,7 @@ snapshots:
       semver: 7.8.5
     optional: true
 
-  node-fetch@2.7.0:
-    dependencies:
-      whatwg-url: 5.0.0
-
   node-releases@2.0.53: {}
-
-  notion-to-md@3.1.9:
-    dependencies:
-      markdown-table: 2.0.0
-      node-fetch: 2.7.0
-    transitivePeerDependencies:
-      - encoding
 
   obug@2.1.4: {}
 
@@ -10248,8 +10179,6 @@ snapshots:
       indent-string: 4.0.0
       strip-indent: 3.0.0
 
-  repeat-string@1.6.1: {}
-
   require-from-string@2.0.2: {}
 
   requizzle@0.2.4:
@@ -10572,8 +10501,6 @@ snapshots:
   tough-cookie@6.0.2:
     dependencies:
       tldts: 7.4.9
-
-  tr46@0.0.3: {}
 
   tr46@6.0.0:
     dependencies:
@@ -10937,8 +10864,6 @@ snapshots:
 
   web-tree-sitter@0.25.10: {}
 
-  webidl-conversions@3.0.1: {}
-
   webidl-conversions@8.0.1: {}
 
   whatwg-mimetype@5.0.0: {}
@@ -10958,11 +10883,6 @@ snapshots:
       webidl-conversions: 8.0.1
     transitivePeerDependencies:
       - '@noble/hashes'
-
-  whatwg-url@5.0.0:
-    dependencies:
-      tr46: 0.0.3
-      webidl-conversions: 3.0.1
 
   why-is-node-running@2.3.0:
     dependencies:
