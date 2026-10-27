@@ -1,13 +1,13 @@
 # Realtime Runtime follow-up
 
-現在の Runtime は v2 Control / State だけを公開し、JWT の protocol version 2 を要求する。publication-pinned Definition / RenderBundle、participant projection、Snapshot / replay、Tracking、Cue / Action / Timeline、checkpoint / completion は接続済み。v1 wire、ページ番号直接操作、旧 Manifest は廃止した。
+現在の Runtime は v3 Control / State だけを公開し、JWT の protocol version 3 を要求する。publication-pinned Definition / RenderBundle、participant projection、Snapshot / replay、Tracking、Cue / Action / Timeline、checkpoint / completion は接続済み。v1 wire、ページ番号直接操作、旧 Manifest は廃止した。
 
 ## 残る作業
 
 - [ ] Cloud Machine と Venue Edge Agent の登録・起動・停止 lifecycle、assignment renew / release、graceful drain を接続する。
 - [ ] 全 message 種別に共通する rate / invalid-message count policy を確定する。
 - [ ] `pauseTimeout` の期間と自動終了 policy を確定する。
-- [ ] Venue Edge の v2 Delivery access binding に基づく Asset cache、local HTTPS listener、証明書管理を実装する。
+- [ ] Venue Edge の配信経路・cache・HTTPS listener・証明書更新手順を会場実機で検証する。実装と未実施項目は [会場検証手順](../../../docs/validation/venue-edge-asset-delivery.md) を参照。
 - [ ] observability exporter、trace、dashboard、alert を接続する。
 - [ ] Fly.io の app / region / Machine / autoscaling / identity / health routing と deploy / rollback 手順を確定する。
 

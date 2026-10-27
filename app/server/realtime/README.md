@@ -45,7 +45,7 @@ Outcome と共有状態は同じ checkpoint に保存し、同じ ID・内容の
 
 接続の session、participant、role、Runtime ID / kind、assignment epoch、Presentation revision は message payload ではなく、認証 interceptor が検証して stream context へ設定した identity から取得します。gRPC server は JWT verifier、assignment guard、Realtime service なしでは構築できません。
 
-composition root は単一 Session の assignment を環境変数から読み、Control Plane の internal bootstrap で publication と Definition を照合します。同じassignment / publicationのlease延長をControl Planeで再検証し、期限切れ時はclockと入力を停止します。lease更新だけではRuntimeを再開せず、明示resumeで再検証します。Venue Edge の v2 Asset Gateway は未実装です。`internal/state` の mailbox は transport に未接続の独立した primitive です。現在の Unity Baked Web 経路は Control Plane が発行した Asset URL から直接取得します。
+composition root は単一 Session の assignment を環境変数から読み、Control Plane の internal bootstrap で publication と Definition を照合します。同じassignment / publicationのlease延長をControl Planeで再検証し、期限切れ時はclockと入力を停止します。lease更新だけではRuntimeを再開せず、明示resumeで再検証します。Venue Edge は同じ Runtime endpoint に TLS / HTTP2 listener と認可付き Asset Gateway を公開します。`internal/state` の mailbox は transport に未接続の独立した primitive です。Unity は Cloud 割当では Cloud URL、VenueEdge 割当では会場内 Asset URL へ Runtime Bearer を付けて取得します。
 
 `fly.toml` は TLS 終端から H2C backend へ接続する共通 service profile だけを定義します。app、region、Machine 構成、autoscaling、Runtime identity、health routing は未決定であり、この repository では固定していません。
 
@@ -66,3 +66,5 @@ nix run .#realtime -- fix
 docker build -t unframe-realtime app/server/realtime
 docker run --rm -p 9090:9090 unframe-realtime
 ```
+
+Venue Edge の素材 cache、TLS listener、環境変数、証明書更新と会場試験は [会場検証手順](../../../docs/validation/venue-edge-asset-delivery.md) を参照してください。実機結果は未取得です。
