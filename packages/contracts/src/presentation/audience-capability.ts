@@ -50,4 +50,5 @@ const profile = capabilityProfileSchema.parse({
   capabilityProfileId: audienceWebCapabilityProfileId,
 });
 
-export const createAudienceWebCapabilityProfile = (): CapabilityProfile => structuredClone(profile);
+export const createAudienceWebCapabilityProfile = (): CapabilityProfile =>
+  capabilityProfileSchema.parse(profile);
