@@ -104,6 +104,14 @@ export const lowerCues = (
             event: cue.trigger.event,
             actor: { kind: "presenter" },
           };
+        else if (cue.trigger.kind === "zoneEdge")
+          trigger = { ...cue.trigger, actor: { kind: "presenter" } };
+        else if (cue.trigger.kind === "gesture")
+          trigger = {
+            kind: "gesture",
+            actor: { kind: "presenter" },
+            gesture: cue.trigger.gesture,
+          } as CanonicalCue["trigger"];
         else {
           const target = resolve(cue.trigger.componentInstanceId, [...path, "trigger"]);
           outputInstance = target?.instance;

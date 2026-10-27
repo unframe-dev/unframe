@@ -338,6 +338,28 @@ describe("component contract", () => {
     expect(transition.actions[0]?.kind).toBe("component.action");
   });
 
+  it("accepts Gesture and parameterless repeatable while rejecting legacy recognition settings", () => {
+    const value = cue({
+      id: "swipe",
+      trigger: { kind: "gesture", gesture: "swipeLeft" },
+      firePolicy: { kind: "repeatable" },
+      actions: [],
+    });
+    expect(value.trigger).toEqual({ kind: "gesture", gesture: "swipeLeft" });
+    expect(() =>
+      cue({ ...value, trigger: { kind: "motionPreset", preset: "swipeLeft" } } as never),
+    ).toThrow(/Invalid cue declaration/);
+    expect(() =>
+      cue({
+        ...value,
+        trigger: { kind: "gesture", gesture: "swipeLeft", hand: "leftHand" },
+      } as never),
+    ).toThrow(/Invalid cue declaration/);
+    expect(() =>
+      cue({ ...value, firePolicy: { kind: "repeatable", cooldownMilliseconds: 1 } } as never),
+    ).toThrow(/Invalid cue declaration/);
+  });
+
   it("accepts canonical cue controls and rejects conflicting transitions", () => {
     const value = cue({
       id: "advance",
@@ -351,7 +373,7 @@ describe("component contract", () => {
         operator: "eq",
         right: true,
       },
-      firePolicy: { kind: "repeatable", cooldownMilliseconds: 100 },
+      firePolicy: { kind: "repeatable" },
       next: { kind: "step", stepId: "done" },
     });
     expect(value.next).toEqual({ kind: "step", stepId: "done" });

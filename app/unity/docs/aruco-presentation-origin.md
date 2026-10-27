@@ -32,7 +32,7 @@ ShapeはDelivery内のUnlit材のsRGBA色・両面指定をURP対応シェーダ
 
 ## 実機で確認する
 
-1. `Unframe > ArUco > Open Presentation Test Scene` で `ArucoPresentationTest` を準備する。
+1. `Unframe > Diagnostics > ArUco > Open Presentation Test Scene` で `ArucoPresentationTest` を準備する。
 2. `Build and Run Presentation on Quest` を実行する。Android IL2CPP / ARM64が必要です。ローカル認証設定はPCA専用builderと同じ除外処理を経由します。
 3. 20cmマーカーで `ALIGNED` になるまで静止する。確定前はプレゼン非表示、確定後はマーカー基準のfixture表示になる。
 4. 頭を動かし、マーカーを隠しても配置が保たれることを確認する。

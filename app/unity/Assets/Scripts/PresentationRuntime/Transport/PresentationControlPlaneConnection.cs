@@ -41,6 +41,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly PresentationRuntimeHost runtimeHost;
         private readonly Func<HttpMessageHandler> httpHandlerFactory;
         private readonly Func<YetAnotherHttpHandler> realtimeHandlerFactory;
+        private readonly Action<PresentationConnectionStage> reportStage;
         private readonly object runGate = new object();
         private CancellationTokenSource activeRun;
         private TaskCompletionSource<bool> runFinished;
@@ -49,13 +50,14 @@ namespace Unframe.Unity.PresentationRuntime
 
         public PresentationControlPlaneConnection(Uri controlPlane, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
             PresentationRuntimeHost runtimeHost = null, Func<HttpMessageHandler> httpHandlerFactory = null,
-            Func<YetAnotherHttpHandler> realtimeHandlerFactory = null)
+            Func<YetAnotherHttpHandler> realtimeHandlerFactory = null, Action<PresentationConnectionStage> reportStage = null)
         {
             if (controlPlane == null || !controlPlane.IsAbsoluteUri || controlPlane.Scheme != "https"
                 || controlPlane.AbsolutePath != "/" || !string.IsNullOrEmpty(controlPlane.UserInfo)
                 || !string.IsNullOrEmpty(controlPlane.Query) || !string.IsNullOrEmpty(controlPlane.Fragment)
                 || string.IsNullOrEmpty(sessionId) || credentialProvider == null)
                 throw new ArgumentException("An authenticated HTTPS Control Plane origin and session are required.");
+            this.reportStage = reportStage;
             this.controlPlane = controlPlane;
             this.sessionId = sessionId;
             this.credentialProvider = credentialProvider;
@@ -85,6 +87,7 @@ namespace Unframe.Unity.PresentationRuntime
                         {
                             try
                             {
+                                reportStage?.Invoke(PresentationConnectionStage.Connecting);
                                 DeliveryManifest delivery = await LoadDeliveryAsync(client, lifetime.Token);
                                 host.PrepareDelivery(delivery);
                                 lock (runGate) selectedParticipantId = delivery.ProjectionInstance.ParticipantId;
@@ -100,6 +103,7 @@ namespace Unframe.Unity.PresentationRuntime
                                         throw new PresentationDeliveryReloadRequiredException(ResyncReason.ProjectionChanged);
                                     return current.credential;
                                 }
+                                reportStage?.Invoke(PresentationConnectionStage.LoadingAssets);
                                 await runtime.RunAsync(delivery, new Uri(endpoint), RefreshCredential, lifetime.Token, fingerprint, host.EncodedCache, httpHandlerFactory, realtimeHandlerFactory);
                                 return;
                             }
@@ -148,15 +152,16 @@ namespace Unframe.Unity.PresentationRuntime
         {
             using (HttpRequestMessage request = await RequestAsync(HttpMethod.Post, "delivery", token))
             {
-                request.Content = new StringContent("{\"capabilityProfileId\":\"unity-media-v1\"}", System.Text.Encoding.UTF8, "application/json");
+                request.Content = new StringContent("{\"capabilityProfileId\":\"quest-presentation-v2\"}", System.Text.Encoding.UTF8, "application/json");
                 using (HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token))
                 {
-                    if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType != "application/x-protobuf")
-                        throw new InvalidOperationException("Control Plane Delivery request failed.");
+                    if (!response.IsSuccessStatusCode) throw new PresentationConnectionException(PresentationConnectionErrors.FromHttpStatus(response.StatusCode));
+                    if (response.Content.Headers.ContentType?.MediaType != "application/x-protobuf")
+                        throw new PresentationConnectionException("delivery-incompatible");
                     byte[] bytes = await ReadBoundedAsync(response.Content, 16 * 1024 * 1024, token);
                     DeliveryManifest delivery = DeliveryManifest.Parser.ParseFrom(bytes);
                     PresentationRuntimeDataStore validator = new PresentationRuntimeDataStore();
-                    if (delivery.SessionId != sessionId || delivery.CapabilityProfile?.CapabilityProfileId != "unity-media-v1"
+                    if (delivery.SessionId != sessionId || delivery.CapabilityProfile?.CapabilityProfileId != "quest-presentation-v2"
                         || !validator.TryReceiveDelivery(delivery, out _))
                         throw new InvalidOperationException("Control Plane Delivery is incompatible.");
                     return delivery;
@@ -169,8 +174,9 @@ namespace Unframe.Unity.PresentationRuntime
             using (HttpRequestMessage request = await RequestAsync(HttpMethod.Post, "bootstrap", token))
             using (HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token))
             {
-                if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType != "application/json")
-                    throw new InvalidOperationException("Control Plane bootstrap request failed.");
+                if (!response.IsSuccessStatusCode) throw new PresentationConnectionException(PresentationConnectionErrors.FromHttpStatus(response.StatusCode));
+                if (response.Content.Headers.ContentType?.MediaType != "application/json")
+                    throw new PresentationConnectionException("bootstrap-incompatible");
                 byte[] bytes = await ReadBoundedAsync(response.Content, 64 * 1024, token);
                 Bootstrap result = ParseBootstrap(System.Text.Encoding.UTF8.GetString(bytes));
                 if (result == null || result.publicationFence == null || string.IsNullOrWhiteSpace(result.credential)
@@ -207,8 +213,11 @@ namespace Unframe.Unity.PresentationRuntime
 
         private async Task<HttpRequestMessage> RequestAsync(HttpMethod method, string resource, CancellationToken token)
         {
-            string bearer = await credentialProvider(token);
-            if (string.IsNullOrWhiteSpace(bearer)) throw new InvalidOperationException("Control Plane credential is unavailable.");
+            string bearer;
+            try { bearer = await credentialProvider(token); }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+            catch (Exception) { throw new PresentationConnectionException("credential-unavailable"); }
+            if (string.IsNullOrWhiteSpace(bearer)) throw new PresentationConnectionException("credential-unavailable");
             HttpRequestMessage request = new HttpRequestMessage(method, new Uri(controlPlane, "sessions/" + Uri.EscapeDataString(sessionId) + "/" + resource));
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
             return request;

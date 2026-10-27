@@ -88,7 +88,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (NumberField(manifest, "schemaVersion") != 2 || !PresentationDeliveryCatalog.IsId(buildId)
                     || NumberField(assetSet, "schemaVersion") != 2) return false;
                 LocalPreviewProjection projection = envelope.Projection;
-                if (projection.LocalOverlays.Count != 0 || projection.RuntimeCatalog.CatalogContractVersion != 2
+                if (projection.RuntimeCatalog.PresenterRecognition != null || projection.LocalOverlays.Count != 0 || projection.RuntimeCatalog.CatalogContractVersion != 3
                     ) return false;
                 var capabilities = new HashSet<RuntimeCapability>();
                 foreach (RuntimeCapability capability in projection.RequiredRuntimeCapabilities)

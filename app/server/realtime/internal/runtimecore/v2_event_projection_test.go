@@ -9,7 +9,7 @@ import (
 )
 
 func TestV2EventProjectionHidesPrivateResourcesAndFiltersGroupInitialization(t *testing.T) {
-	profile := &deliveryv2.ProjectionProfileDescriptor{RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}, VisibleNodeIds: []string{"public-node"}}
+	profile := &deliveryv2.ProjectionProfileDescriptor{RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}, VisibleNodeIds: []string{"public-node"}}
 	private := &realtimev2.ProjectedReliableEvent{Sequence: 1, Payload: &realtimev2.ProjectedReliableEvent_VariableChanged{VariableChanged: &realtimev2.VariableChanged{State: &realtimev2.VariableState{VariableId: "private-variable"}}}}
 	if projected, visible := ProjectV2ReliableEvent(private, profile); visible || projected != nil {
 		t.Fatalf("private event projected %#v", projected)
@@ -22,7 +22,7 @@ func TestV2EventProjectionHidesPrivateResourcesAndFiltersGroupInitialization(t *
 }
 
 func TestV2MediaStoppedSeekProjectionUsesSurfaceVisibility(t *testing.T) {
-	profile := &deliveryv2.ProjectionProfileDescriptor{RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}, VisibleSurfaceIds: []string{"visible"}}
+	profile := &deliveryv2.ProjectionProfileDescriptor{RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}, VisibleSurfaceIds: []string{"visible"}}
 	for _, tc := range []struct {
 		id      string
 		visible bool

@@ -4,6 +4,7 @@ Shader "Unframe/Presentation/Unlit"
     {
         _BaseColor ("Base Color", Color) = (1, 1, 1, 1)
         _BaseMap ("Base Map", 2D) = "white" {}
+        [Toggle] _AlphaMask ("Alpha Mask", Float) = 0
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
     }
 
@@ -36,6 +37,7 @@ Shader "Unframe/Presentation/Unlit"
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseColor;
                 float4 _BaseMap_ST;
+                float _AlphaMask;
             CBUFFER_END
 
             struct Attributes
@@ -65,7 +67,9 @@ Shader "Unframe/Presentation/Unlit"
             half4 UnlitFragment(Varyings input) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-                return SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv) * _BaseColor;
+                half4 sampled = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
+                sampled.rgb = lerp(sampled.rgb, half3(1, 1, 1), _AlphaMask);
+                return sampled * _BaseColor;
             }
             ENDHLSL
         }

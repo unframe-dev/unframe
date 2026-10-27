@@ -180,6 +180,12 @@ const checkDeclarationProjectUnchecked = (
                     .map((cue, index) => ({ ...cue, order: cue.order ?? index }))
                     .filter((cue) => {
                       if (cue.trigger.kind === "event") return !react;
+                      if (cue.trigger.kind === "gesture" || cue.trigger.kind === "zoneEdge") {
+                        const belongsToReact = cue.actions.some((action) =>
+                          reactIds.has(action.componentInstanceId),
+                        );
+                        return belongsToReact === react;
+                      }
                       const outputTrigger = cue.trigger;
                       const belongsToReact = reactIds.has(outputTrigger.componentInstanceId);
                       if (
@@ -202,12 +208,15 @@ const checkDeclarationProjectUnchecked = (
         for (const cue of step.cues) {
           const trigger = cue.trigger;
           if (
-            trigger.kind === "component.output" &&
-            cue.actions.some(
-              (action) =>
-                reactIds.has(action.componentInstanceId) !==
-                reactIds.has(trigger.componentInstanceId),
-            )
+            (trigger.kind === "component.output" &&
+              cue.actions.some(
+                (action) =>
+                  reactIds.has(action.componentInstanceId) !==
+                  reactIds.has(trigger.componentInstanceId),
+              )) ||
+            ((trigger.kind === "gesture" || trigger.kind === "zoneEdge") &&
+              cue.actions.some((action) => reactIds.has(action.componentInstanceId)) &&
+              cue.actions.some((action) => !reactIds.has(action.componentInstanceId)))
           )
             return {
               valid: false,
@@ -1352,10 +1361,19 @@ const checkDeclarationProjectUnchecked = (
       initialValue: variable.initialValue,
     };
   const definition: PresentationDefinition = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     presentationId: presentation.id,
     metadata: presentation.metadata,
-    stage: { ...presentation.stage, size: [...presentation.stage.size], zones: {} },
+    stage: {
+      ...presentation.stage,
+      size: [...presentation.stage.size],
+      zones: Object.fromEntries(
+        Object.entries(presentation.stage.zones ?? {}).map(([id, zone]) => [
+          id,
+          { id: zone.id, owner: zone.owner, center: [...zone.center] },
+        ]),
+      ),
+    },
     scene: { nodes, surfaces },
     flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines },
   };

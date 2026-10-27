@@ -33,17 +33,28 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 	defer s.operationMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.evictV2Outcomes(time.Now())
 	if command.PresentationOriginVersion != s.snapshot.PresentationOrigin.Version {
 		return nil, nil, ErrV2OriginMismatch
 	}
 	key := identity.ParticipantID + "\x00" + command.ClientEventId
-	fingerprint := v2CommandFingerprint("runtime_control", nil, command.Kind, command.PresentationOriginVersion)
+	fingerprint := v3Fingerprint("runtime_control", command.ClientEventId, command.CommandEpoch, command.PresentationOriginVersion, nil, nil, uint32(command.Kind), command.StepSelection)
 	if stored, ok := s.outcomes[key]; ok {
 		if stored.fingerprint != fingerprint {
 			return nil, nil, ErrV2IdempotencyKeyReused
 		}
 		return proto.Clone(stored.outcome).(*realtimev2.CommandOutcome), nil, nil
+	}
+	if command.CommandEpoch > s.commandEpoch {
+		return nil, nil, ErrV3CommandEpochFuture
+	}
+	if rejection := s.admitV3Command(command.ClientEventId, command.CommandEpoch, false, nil); rejection != 0 {
+		return v3Rejected(command.ClientEventId, rejection), nil, nil
+	}
+	if s.snapshot.Clock.GetTerminating() != nil && (command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME || command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_SELECT_STEP) {
+		return v3Rejected(command.ClientEventId, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_SESSION_ENDED), nil, nil
+	}
+	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_SELECT_STEP {
+		return s.selectV3Step(ctx, command, key, fingerprint)
 	}
 	noOp := realtimev2.CommandNoOpReason_COMMAND_NO_OP_REASON_UNSPECIFIED
 	if s.snapshot.Clock.GetTerminating() != nil {
@@ -70,8 +81,21 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 		if err := s.validateV2Resume(ctx); err != nil {
 			return nil, nil, err
 		}
+		if _, err := s.releaseFreshV3Anchors(time.Now()); err != nil {
+			s.snapshot = previous
+			return nil, nil, err
+		}
 		s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}
 		status = &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Running{Running: &realtimev2.Running{}}}
+	case realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RECALIBRATE:
+		if s.snapshot.Clock.GetTerminating() != nil {
+			return v3Rejected(command.ClientEventId, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_SESSION_ENDED), nil, nil
+		}
+		if paused := s.snapshot.Clock.GetPaused(); paused != nil {
+			status = &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Paused{Paused: proto.Clone(paused).(*realtimev2.Paused)}}
+		} else {
+			status = &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Running{Running: &realtimev2.Running{}}}
+		}
 	case realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END:
 		if s.completionWriter == nil || s.checkpointMetadata == nil {
 			return nil, nil, ErrV2RuntimeDefinition
@@ -97,6 +121,25 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 		mainEvent = events[len(events)-2]
 	}
 	outcome := &realtimev2.CommandOutcome{ClientEventId: command.ClientEventId, Result: &realtimev2.CommandOutcome_Accepted{Accepted: &realtimev2.CommandAccepted{CanonicalEventId: mainEvent.EventId, ReliableSequence: mainEvent.Sequence}}}
+	if command.Kind != realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END {
+		reason := realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_PAUSED
+		if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME {
+			reason = realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RESUMED
+		}
+		if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RECALIBRATE {
+			reason = realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECALIBRATED
+		}
+		if err := s.requireV3Synchronization(reason, false); err != nil {
+			s.snapshot = previous
+			if err == ErrV3RuntimeCapacity {
+				return v3Rejected(command.ClientEventId, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_CAPACITY_EXCEEDED), nil, nil
+			}
+			return nil, nil, err
+		}
+	}
+	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END || command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME {
+		s.capacityFault = nil
+	}
 	s.rememberOutcome(key, fingerprint, outcome)
 	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END {
 		if err := s.commitV2Completion(ctx, previous, events); err != nil {
@@ -112,6 +155,9 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 }
 
 func (s *V2Session) validateV2Resume(ctx context.Context) error {
+	if fault := s.capacityFault; fault != nil && (fault.StepStartStateBytes > protocolv2.MaximumStepStartStateBytes || fault.StepStartHistoryBytes > protocolv2.MaximumStepStartHistoryBytes || fault.CanonicalSnapshotBytes > protocolv2.MaximumCanonicalSnapshotBytes) {
+		return ErrV3RuntimeCapacity
+	}
 	if paused := s.snapshot.Clock.GetPaused(); paused != nil && paused.Reason == realtimev2.PauseReason_PAUSE_REASON_RECOVERY_GAP {
 		return ErrV2RuntimeDefinition
 	}
@@ -210,6 +256,9 @@ func (s *V2Session) commitV2Completion(ctx context.Context, previous *realtimev2
 	sort.Slice(participants, func(i, j int) bool { return participants[i].UserID < participants[j].UserID })
 	startedAt := s.startedAt.UTC().Format(time.RFC3339Nano)
 	s.snapshot = previous
+	if s.committedRecovery != nil {
+		_ = s.restoreV2Recovery(s.committedRecovery)
+	}
 	if len(previousTracking) != 0 {
 		s.tracking = previousTracking[0]
 	}
@@ -229,6 +278,7 @@ func (s *V2Session) commitV2Completion(ctx context.Context, previous *realtimev2
 		return fmt.Errorf("%w: %v", ErrV2PersistenceUnavailable, writeErr)
 	}
 	s.snapshot = candidate
+	_ = s.restoreV2Recovery(recovery)
 	if len(previousTracking) != 0 {
 		s.tracking = candidateTracking
 	}

@@ -2,15 +2,15 @@
 
 タスクの実処理を置くディレクトリです。公式な実行入口は `flake.nix` の apps で、`flake.nix` はここにあるスクリプトをラップします。
 
-| ディレクトリ    | 役割                                      |
-| --------------- | ----------------------------------------- |
-| `lib/`          | 共有ヘルパ（パス定数 `paths.sh` など）    |
-| `ci/`           | 品質ゲート                                |
-| `contracts/`    | 契約生成と生成物の差分検査                |
-| `dev/`          | 依存関係・Git hook のセットアップ         |
-| `docs/`         | Notion → `docs/notion/` 同期              |
-| `unity/`        | Unity Editor の起動と WebGL Preview build |
-| `local-editor/` | ローカル実サービスと Unity の E2E         |
+| ディレクトリ           | 役割                                      |
+| ---------------------- | ----------------------------------------- |
+| `lib/`                 | 共有ヘルパ（パス定数 `paths.sh` など）    |
+| `ci/`                  | 品質ゲート                                |
+| `contracts/`           | 契約生成と生成物の差分検査                |
+| `dev/`                 | 依存関係・Git hook のセットアップ         |
+| `docs/`                | Notion → `docs/notion/` 同期              |
+| `unity/`               | Unity Editor の起動と WebGL Preview build |
+| `presentation-sample/` | Unity Editor 向けサンプル配信             |
 
 ```bash
 nix develop
@@ -83,12 +83,19 @@ Local Editor の開発は、Local Editor の `dev` と CLI の `dev` を別タ�
 ```bash
 nix run .#unity-editor -- -projectPath "$PWD/app/unity"
 nix run .#unity-preview
+nix run .#presentation-sample
 ```
+
+`presentation-sample` は `examples/presentation` を正式コンパイル・CLI公開し、localhostのControl Planeと
+Realtimeを約20分起動します。`Sample ready for Unity Editor` の後にUnityの
+`Unframe > Presentation > Play Local Sample in Editor` を選ぶと接続情報を自動読込して表示します。
+WebGL playerは不要です。終了はCtrl+Cです。Quest用のLAN配信・マーカー校正は含みません。
+詳細は [Unityの接続手順](../app/unity/docs/production-presentation.md) を参照してください。
 
 `unity-editor` は Linux で `steam-run` を介し、macOS では native Editor を直接起動します。`UNITY_EDITOR` で実行ファイルを指定でき、未指定時は `app/unity/ProjectSettings/ProjectVersion.txt` の OS 別 Unity Hub 配置を使います。対応する Unity version のインストール、license と WebGL module は利用者が用意します。
 
 `unity-preview` は共有 Runtime の描画・Preview 部分から `.unframe/unity-preview/project` を生成し、WebGL player を `.unframe/unity-preview/UnframePreview` に出力します。生成 Assets は再構成し、Library／build cache は再利用します。build log は `.unframe/unity-preview/logs/build.log` です。
 
-共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。
+共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。 本番の共通再生・配信受信・Native UI・モデルの回帰は `nix develop --command bash scripts/unity/test-native-editor.sh rendering` を使用し、同じdirectoryの `rendering.xml` と `rendering.log` を確認します。WebGL PreviewはBaked描画と共通再生・検証だけを取り込み、本番専用のメディア実装を含めません。
 
 Local Editor の品質ゲートは `nix run .#local-editor`（型検査・Node ロジックテスト・build）です。Local Editor の E2E と専用 Nix app は撤去しました。実 WebGL の画面・認証・公開操作は自動ロジック検証と分けて手動確認してください。

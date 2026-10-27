@@ -4,7 +4,7 @@
   "properties": {
     "schemaVersion": {
       "type": "number",
-      "const": 2
+      "const": 3
     },
     "presentationId": {
       "type": "string",
@@ -126,29 +126,9 @@
                 "items": false,
                 "minItems": 3,
                 "maxItems": 3
-              },
-              "size": {
-                "type": "array",
-                "prefixItems": [
-                  {
-                    "type": "number",
-                    "exclusiveMinimum": 0
-                  },
-                  {
-                    "type": "number",
-                    "exclusiveMinimum": 0
-                  },
-                  {
-                    "type": "number",
-                    "exclusiveMinimum": 0
-                  }
-                ],
-                "items": false,
-                "minItems": 3,
-                "maxItems": 3
               }
             },
-            "required": ["id", "owner", "center", "size"],
+            "required": ["id", "owner", "center"],
             "additionalProperties": false
           }
         }
@@ -6266,7 +6246,7 @@
                             "maximum": 4294967295
                           },
                           "trigger": {
-                            "oneOf": [
+                            "anyOf": [
                               {
                                 "type": "object",
                                 "properties": {
@@ -6300,13 +6280,7 @@
                                           },
                                           "source": {
                                             "type": "string",
-                                            "enum": [
-                                              "tracking",
-                                              "timer",
-                                              "timeline",
-                                              "media",
-                                              "runtime"
-                                            ]
+                                            "enum": ["timer", "timeline", "media", "runtime"]
                                           }
                                         },
                                         "required": ["kind"],
@@ -6351,13 +6325,7 @@
                                           },
                                           "source": {
                                             "type": "string",
-                                            "enum": [
-                                              "tracking",
-                                              "timer",
-                                              "timeline",
-                                              "media",
-                                              "runtime"
-                                            ]
+                                            "enum": ["timer", "timeline", "media", "runtime"]
                                           }
                                         },
                                         "required": ["kind"],
@@ -6398,13 +6366,7 @@
                                           },
                                           "source": {
                                             "type": "string",
-                                            "enum": [
-                                              "tracking",
-                                              "timer",
-                                              "timeline",
-                                              "media",
-                                              "runtime"
-                                            ]
+                                            "enum": ["timer", "timeline", "media", "runtime"]
                                           }
                                         },
                                         "required": ["kind"],
@@ -6436,67 +6398,11 @@
                                     "properties": {
                                       "kind": {
                                         "type": "string",
-                                        "const": "system"
-                                      },
-                                      "source": {
-                                        "type": "string",
-                                        "const": "tracking"
+                                        "const": "presenter"
                                       }
                                     },
-                                    "required": ["kind", "source"],
+                                    "required": ["kind"],
                                     "additionalProperties": false
-                                  },
-                                  "subject": {
-                                    "oneOf": [
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "kind": {
-                                            "type": "string",
-                                            "const": "participant"
-                                          },
-                                          "owner": {
-                                            "type": "object",
-                                            "properties": {
-                                              "kind": {
-                                                "type": "string",
-                                                "const": "presenter"
-                                              }
-                                            },
-                                            "required": ["kind"],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "required": ["kind", "owner"],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "kind": {
-                                            "type": "string",
-                                            "const": "anchor"
-                                          },
-                                          "owner": {
-                                            "type": "object",
-                                            "properties": {
-                                              "kind": {
-                                                "type": "string",
-                                                "const": "presenter"
-                                              }
-                                            },
-                                            "required": ["kind"],
-                                            "additionalProperties": false
-                                          },
-                                          "target": {
-                                            "type": "string",
-                                            "enum": ["head", "leftHand", "rightHand", "body"]
-                                          }
-                                        },
-                                        "required": ["kind", "owner", "target"],
-                                        "additionalProperties": false
-                                      }
-                                    ]
                                   },
                                   "zoneId": {
                                     "type": "string",
@@ -6505,18 +6411,9 @@
                                   "edge": {
                                     "type": "string",
                                     "enum": ["enter", "exit"]
-                                  },
-                                  "dwellMilliseconds": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 9007199254740991
-                                  },
-                                  "hysteresisMeters": {
-                                    "type": "number",
-                                    "minimum": 0
                                   }
                                 },
-                                "required": ["kind", "actor", "subject", "zoneId", "edge"],
+                                "required": ["kind", "actor", "zoneId", "edge"],
                                 "additionalProperties": false
                               },
                               {
@@ -6524,92 +6421,34 @@
                                 "properties": {
                                   "kind": {
                                     "type": "string",
-                                    "const": "motion"
+                                    "const": "gesture"
                                   },
                                   "actor": {
                                     "type": "object",
                                     "properties": {
                                       "kind": {
                                         "type": "string",
-                                        "const": "system"
-                                      },
-                                      "source": {
-                                        "type": "string",
-                                        "const": "tracking"
+                                        "const": "presenter"
                                       }
                                     },
-                                    "required": ["kind", "source"],
+                                    "required": ["kind"],
                                     "additionalProperties": false
                                   },
-                                  "subject": {
-                                    "oneOf": [
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "kind": {
-                                            "type": "string",
-                                            "const": "participant"
-                                          },
-                                          "owner": {
-                                            "type": "object",
-                                            "properties": {
-                                              "kind": {
-                                                "type": "string",
-                                                "const": "presenter"
-                                              }
-                                            },
-                                            "required": ["kind"],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "required": ["kind", "owner"],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "kind": {
-                                            "type": "string",
-                                            "const": "anchor"
-                                          },
-                                          "owner": {
-                                            "type": "object",
-                                            "properties": {
-                                              "kind": {
-                                                "type": "string",
-                                                "const": "presenter"
-                                              }
-                                            },
-                                            "required": ["kind"],
-                                            "additionalProperties": false
-                                          },
-                                          "target": {
-                                            "type": "string",
-                                            "enum": ["head", "leftHand", "rightHand", "body"]
-                                          }
-                                        },
-                                        "required": ["kind", "owner", "target"],
-                                        "additionalProperties": false
-                                      }
+                                  "gesture": {
+                                    "type": "string",
+                                    "enum": [
+                                      "swipeLeft",
+                                      "swipeRight",
+                                      "swipeUp",
+                                      "swipeDown",
+                                      "pushForward",
+                                      "pullBackward",
+                                      "spreadHands",
+                                      "closeHands"
                                     ]
-                                  },
-                                  "minimumDistanceMeters": {
-                                    "type": "number",
-                                    "exclusiveMinimum": 0
-                                  },
-                                  "windowMilliseconds": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "maximum": 9007199254740991
                                   }
                                 },
-                                "required": [
-                                  "kind",
-                                  "actor",
-                                  "subject",
-                                  "minimumDistanceMeters",
-                                  "windowMilliseconds"
-                                ],
+                                "required": ["kind", "actor", "gesture"],
                                 "additionalProperties": false
                               },
                               {
@@ -6724,14 +6563,9 @@
                                   "kind": {
                                     "type": "string",
                                     "const": "repeatable"
-                                  },
-                                  "cooldownMilliseconds": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 9007199254740991
                                   }
                                 },
-                                "required": ["kind", "cooldownMilliseconds"],
+                                "required": ["kind"],
                                 "additionalProperties": false
                               }
                             ]

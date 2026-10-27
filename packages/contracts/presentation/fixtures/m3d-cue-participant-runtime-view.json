@@ -84,5 +84,6 @@
       "rotation": [0, 0, 0, 1]
     }
   },
-  "enabledLogicalInputs": ["next"]
+  "enabledLogicalInputs": ["next"],
+  "frozenAnchors": []
 }

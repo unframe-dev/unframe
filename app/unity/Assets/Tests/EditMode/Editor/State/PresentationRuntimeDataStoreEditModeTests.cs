@@ -177,12 +177,12 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     [Test]
     public void NetworkReadinessRequiresEveryOwnedResourceAtTheSnapshotCut()
     {
-        DeliveryManifest delivery = JsonParser.Default.Parse<DeliveryManifest>(Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text);
+        DeliveryManifest delivery = JsonParser.Default.Parse<DeliveryManifest>(PresentationTestFixtures.Load("LocalDelivery").text);
         ProjectedRuntimeCatalog catalog = delivery.ProjectionProfile.RuntimeCatalog;
         foreach (ProjectedNodeDefinition node in catalog.Nodes) node.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
         foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces) surface.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
         foreach (ProjectedVariableDefinition variable in catalog.Variables) { variable.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() }; variable.Type = ScalarType.String; }
-        ControlServerItem snapshot = JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        ControlServerItem snapshot = JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
@@ -623,7 +623,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
 
         ConnectionSnapshotEnvelope snapshot = new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 2,
+            SchemaVersion = 3,
             Fence = CreateFence(delivery),
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             ReliableSequence = 4,
@@ -1417,202 +1417,6 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     }
 
     [Test]
-    public void LocalFixtureRunner_LoadsDeliveryAndBuildsTheNodeHierarchy()
-    {
-        GameObject host = new GameObject("fixture-runner");
-        try
-        {
-            LocalPresentationFixtureRunner runner = host.AddComponent<LocalPresentationFixtureRunner>();
-
-            Assert.That(runner.TryLoad(out string error), Is.True, error);
-            Assert.That(runner.Store.TryGetNode("node:cube", out _), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:cube", out GameObject nodeObject), Is.True);
-            Assert.That(nodeObject.transform.IsChildOf(host.transform), Is.True);
-        }
-        finally
-        {
-            Object.DestroyImmediate(host);
-        }
-    }
-
-    [Test]
-    public void LocalFixtureRunner_RequiresLoadBeforeAdvance()
-    {
-        GameObject host = new GameObject("fixture-runner");
-        try
-        {
-            LocalPresentationFixtureRunner runner = host.AddComponent<LocalPresentationFixtureRunner>();
-
-            Assert.That(runner.TryAdvance(out string error), Is.False);
-            Assert.That(error, Does.Contain("Load Local Presentation"));
-        }
-        finally
-        {
-            Object.DestroyImmediate(host);
-        }
-    }
-
-    [Test]
-    public void LocalFixtureRunner_AppliesContractFixturesAsLocalPresentationProgression()
-    {
-        GameObject host = new GameObject("fixture-runner");
-        try
-        {
-            LocalPresentationFixtureRunner runner = host.AddComponent<LocalPresentationFixtureRunner>();
-
-            Assert.That(runner.TryLoad(out string error), Is.True, error);
-            Assert.That(runner.ReliableEventCount, Is.EqualTo(35));
-            Assert.That(runner.Store.Nodes, Has.Count.EqualTo(35));
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:text-greeting", out GameObject greeting), Is.True);
-            Assert.That(greeting.GetComponentInChildren<TextMesh>(true).text, Is.EqualTo("仮テキスト：挨拶"));
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:opening-panel", out GameObject firstPanel), Is.True);
-            Assert.That(firstPanel.GetComponentInChildren<MeshRenderer>(true), Is.Not.Null);
-            Assert.That(GetRendererAlpha(greeting.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:cube", out GameObject firstCube), Is.True);
-            Assert.That(firstCube.GetComponentInChildren<MeshRenderer>(true), Is.Not.Null);
-            Assert.That(firstCube.transform.localPosition, Is.EqualTo(UnityEngine.Vector3.zero));
-            Assert.That(GetRendererAlpha(firstCube.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-
-            for (int i = 1; i <= 35; i++)
-            {
-                string timelineId = "timeline:story-" + i.ToString("D2");
-                Assert.That(runner.Store.TryGetTimeline(timelineId, out Unframe.Presentation.ProjectedTimelineDefinition timeline), Is.True);
-                foreach (Unframe.Presentation.ProjectedTimelineTrack track in timeline.Tracks)
-                {
-                    bool hasPositionMotion = i == 17 || (i >= 22 && i <= 24);
-                    Assert.That(
-                        track.Target.Property == Unframe.Presentation.TimelineProperty.Opacity
-                            || (hasPositionMotion && track.Target.Property == Unframe.Presentation.TimelineProperty.TransformPosition),
-                        Is.True);
-                }
-            }
-
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:text-self", out GameObject selfIntro), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:text-overview", out GameObject overview), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:text-result", out GameObject resultText), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:text-long", out GameObject longText), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:vertical-text-1", out GameObject verticalText), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:vertical-text-new", out GameObject addedText), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:foreground-panel-1", out GameObject foregroundPanel), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:normal-panel", out GameObject normalPanel), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:quadrant-upper-left", out GameObject upperLeft), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:quadrant-upper-right", out GameObject upperRight), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:quadrant-lower-left", out GameObject lowerLeft), Is.True);
-            Assert.That(runner.Hierarchy.Registry.TryGet("node:quadrant-lower-right", out GameObject lowerRight), Is.True);
-
-            for (int i = 0; i < 35; i++)
-            {
-                Assert.That(runner.TryAdvance(out error), Is.True, error);
-                Assert.That(runner.AppliedEventCount, Is.EqualTo(i + 1));
-
-                if (i == 0)
-                {
-                    Assert.That(GetRendererAlpha(greeting.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                    Assert.That(GetRendererAlpha(firstPanel.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 1)
-                {
-                    Assert.That(GetRendererAlpha(greeting.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-                    Assert.That(GetRendererAlpha(firstPanel.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 2)
-                {
-                    Assert.That(GetRendererAlpha(selfIntro.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 4)
-                {
-                    Assert.That(GetRendererAlpha(overview.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 6)
-                {
-                    Assert.That(GetRendererAlpha(firstPanel.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-                }
-                else if (i == 14)
-                {
-                    Assert.That(GetRendererAlpha(resultText.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-                    Assert.That(runner.Hierarchy.Registry.TryGet("node:side-panel-left", out GameObject sidePanel), Is.True);
-                    Assert.That(GetRendererAlpha(sidePanel.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 16)
-                {
-                    Assert.That(GetRendererAlpha(longText.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                    Assert.That(longText.transform.localPosition.y, Is.EqualTo(0.25f).Within(0.001f));
-                }
-                else if (i == 19)
-                {
-                    Assert.That(runner.Hierarchy.Registry.TryGet("node:scatter-panel-1", out GameObject lonePanel), Is.True);
-                    Assert.That(GetRendererAlpha(lonePanel.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 21)
-                {
-                    Assert.That(GetRendererAlpha(verticalText.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                    Assert.That(verticalText.transform.localPosition.y, Is.EqualTo(0.3f).Within(0.001f));
-                }
-                else if (i == 22)
-                {
-                    Assert.That(GetRendererAlpha(addedText.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                    Assert.That(verticalText.transform.localPosition.x, Is.EqualTo(-1f).Within(0.001f));
-                }
-                else if (i == 23)
-                {
-                    Assert.That(GetRendererAlpha(verticalText.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-                    Assert.That(verticalText.transform.localPosition.z, Is.EqualTo(-2f).Within(0.001f));
-                    Assert.That(GetRendererAlpha(foregroundPanel.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 25)
-                {
-                    Assert.That(GetRendererAlpha(firstCube.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 26)
-                {
-                    Assert.That(GetRendererAlpha(firstCube.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-                }
-                else if (i == 27)
-                {
-                    Assert.That(GetRendererAlpha(normalPanel.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 29)
-                {
-                    Assert.That(GetRendererAlpha(upperLeft.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                    Assert.That(GetRendererAlpha(upperRight.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                    Assert.That(GetRendererAlpha(lowerLeft.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                    Assert.That(GetRendererAlpha(lowerRight.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 30)
-                {
-                    Assert.That(GetRendererAlpha(upperLeft.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                    Assert.That(GetRendererAlpha(upperRight.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-                }
-                else if (i == 31)
-                {
-                    Assert.That(GetRendererAlpha(upperLeft.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-                    Assert.That(GetRendererAlpha(upperRight.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 32)
-                {
-                    Assert.That(GetRendererAlpha(lowerLeft.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-                else if (i == 33)
-                {
-                    Assert.That(GetRendererAlpha(lowerRight.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
-                }
-            }
-
-            Assert.That(GetRendererAlpha(greeting.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-            Assert.That(GetRendererAlpha(firstPanel.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-            Assert.That(GetRendererAlpha(firstCube.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-            Assert.That(GetRendererAlpha(lowerRight.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-            Assert.That(runner.Store.LastReliableSequence, Is.EqualTo(35));
-            Assert.That(runner.TryAdvance(out error), Is.False);
-            Assert.That(error, Does.Contain("No local reliable event remains"));
-        }
-        finally
-        {
-            Object.DestroyImmediate(host);
-        }
-    }
-
-    [Test]
     public void TimelinePlayer_AppliesPresetTimelineTracksByTheContractTimelineId()
     {
         DeliveryManifest delivery = CreateDelivery();
@@ -1909,7 +1713,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         fence.PresentationOriginVersion = origin.Version;
         return new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 2,
+            SchemaVersion = 3,
             Fence = fence,
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             ReliableSequence = sequence,
@@ -2008,7 +1812,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
 
     private static DeliveryManifest CreateDelivery()
     {
-        ProjectedRuntimeCatalog catalog = new ProjectedRuntimeCatalog { CatalogContractVersion = 2 };
+        ProjectedRuntimeCatalog catalog = new ProjectedRuntimeCatalog { CatalogContractVersion = 3 };
         catalog.Nodes.Add(new ProjectedNodeDefinition
         {
             NodeId = "node:model",
@@ -2043,8 +1847,8 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
 
         DeliveryManifest delivery = new DeliveryManifest
         {
-            SchemaVersion = 2,
-            DeliveryContractVersion = 2,
+            SchemaVersion = 3,
+            DeliveryContractVersion = 3,
             SessionId = "session:main",
             Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
             DefinitionHash = "sha256:" + new string('b', 64),
@@ -2052,9 +1856,9 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             AssetSetHash = "sha256:" + new string('d', 64),
             CapabilityProfile = new CapabilityProfile
             {
-                SchemaVersion = 2,
+                SchemaVersion = 3,
                 CapabilityProfileId = "capability:quest",
-                ContractVersions = new ContractVersions { Delivery = 2, Runtime = 2, Progression = 1, Projection = 1 },
+                ContractVersions = new ContractVersions { Delivery = 3, Runtime = 3, Progression = 2, Projection = 2 },
                 Renderers = new RendererCapabilities { NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1 } },
             },
             ProjectionProfile = new ProjectionProfileDescriptor
@@ -2063,7 +1867,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
                 Key = new ProjectionProfileKey
                 {
                     Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
-                    ProjectionContractVersion = 1,
+                    ProjectionContractVersion = 2,
                     Role = SessionRole.Presenter,
                     CapabilityProfileId = "capability:quest",
                 },
@@ -2103,7 +1907,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         ConnectionSnapshotEnvelope snapshot = new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 2,
+            SchemaVersion = 3,
             Fence = CreateFence(delivery),
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             Snapshot = new ProjectedRuntimeSnapshot

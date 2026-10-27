@@ -147,7 +147,7 @@ describe("local Preview Runtime Core playback", () => {
     now = 10000;
     expect(playback({ requestId, command: "play" }).state.clock).toEqual(ended.state.clock);
   });
-  it("lists only Core-accepted cues after guard, priority, consumption, and cooldown evaluation", async () => {
+  it("lists Core-accepted cues after guard, priority, and consumption evaluation", async () => {
     const definition = await referenceDefinition();
     const cue: Omit<
       (typeof definition.flow.groups)[string]["steps"][string]["cues"][number],
@@ -178,7 +178,7 @@ describe("local Preview Runtime Core playback", () => {
         ...cue,
         id: "repeat",
         trigger: { kind: "semanticEvent", event: "repeat", actor: { kind: "presenter" } },
-        firePolicy: { kind: "repeatable", cooldownMilliseconds: 100 },
+        firePolicy: { kind: "repeatable" },
       },
     ];
     let now = 0;
@@ -198,9 +198,13 @@ describe("local Preview Runtime Core playback", () => {
     expect(
       playback({ requestId, command: "input", cueId: "lower" }).inputs.map((input) => input.cueId),
     ).toEqual(["repeat"]);
-    expect(playback({ requestId, command: "input", cueId: "repeat" }).inputs).toEqual([]);
+    expect(
+      playback({ requestId, command: "input", cueId: "repeat" }).inputs.map((item) => item.cueId),
+    ).toEqual(["repeat"]);
     now = 99;
-    expect(playback({ requestId, command: "poll" }).inputs).toEqual([]);
+    expect(playback({ requestId, command: "poll" }).inputs.map((item) => item.cueId)).toEqual([
+      "repeat",
+    ]);
     now = 100;
     expect(playback({ requestId, command: "poll" }).inputs).toEqual([
       { cueId: "repeat", label: "repeat" },
@@ -209,7 +213,10 @@ describe("local Preview Runtime Core playback", () => {
 
   it("withholds input while a blocking run owns progression", async () => {
     const definition = await referenceDefinition();
-    const continueCue = definition.flow.groups.main!.steps.start!.cues[0]!;
+    const continueCue = definition.flow.groups.main!.steps.start!.cues.find(
+      (cue) => cue.id === "continue",
+    );
+    assert(continueCue);
     const play = continueCue.actions.find((action) => action.kind === "timeline.play");
     assert(play?.kind === "timeline.play");
     play.completion = "blocking";
@@ -329,7 +336,7 @@ it("retains only the latest repeatable occurrence and records due timers without
       priority: 0,
       order: 0,
       trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-      firePolicy: { kind: "repeatable", cooldownMilliseconds: 10 },
+      firePolicy: { kind: "repeatable" },
       actions: [],
       next: { kind: "stay" },
     },

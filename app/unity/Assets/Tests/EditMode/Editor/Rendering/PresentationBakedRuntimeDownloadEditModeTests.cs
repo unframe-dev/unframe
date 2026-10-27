@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -14,14 +13,24 @@ public sealed class PresentationBakedRuntimeDownloadEditModeTests
     private sealed class Handler : HttpMessageHandler
     {
         private readonly byte[] bytes;
-        public Handler(byte[] bytes) { this.bytes = bytes; }
+        private readonly string mediaType;
+        private readonly long? contentLength;
+        public int Requests { get; private set; }
+        public Handler(byte[] bytes, string mediaType = "image/png", long? contentLength = null)
+        {
+            this.bytes = bytes;
+            this.mediaType = mediaType;
+            this.contentLength = contentLength;
+        }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            Requests++;
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StreamContent(new NonSeekableStream(bytes))
             };
-            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mediaType);
+            response.Content.Headers.ContentLength = contentLength;
             return Task.FromResult(response);
         }
     }
@@ -67,9 +76,76 @@ public sealed class PresentationBakedRuntimeDownloadEditModeTests
         }
     }
 
+    [TestCase(2, "asset-download-incomplete")]
+    [TestCase(4, "asset-download-size-mismatch")]
+    public void ChunkedAssetRejectsBodiesOutsideDeclaredSize(int actualSize, string code)
+    {
+        using (var client = new HttpClient(new Handler(new byte[actualSize])))
+        {
+            var exception = Assert.ThrowsAsync<InvalidOperationException>(async () => await Download(client, Access()));
+            Assert.That(exception.Message, Is.EqualTo(code));
+        }
+    }
+
+    [TestCase("video/mp4", null)]
+    [TestCase("image/png", 2L)]
+    public void AssetResponseMustMatchDeclaredMediaTypeAndLength(string mediaType, long? length)
+    {
+        using (var client = new HttpClient(new Handler(new byte[3], mediaType, length)))
+        {
+            var exception = Assert.ThrowsAsync<InvalidOperationException>(async () => await Download(client, Access()));
+            Assert.That(exception.Message, Is.EqualTo("asset-download-metadata-mismatch"));
+        }
+    }
+
+    [TestCase("image/png", 17825793UL)]
+    [TestCase("font/ttf", 33554433UL)]
+    [TestCase("font/otf", 33554433UL)]
+    [TestCase("model/gltf-binary", 268435457UL)]
+    [TestCase("video/mp4", 268435457UL)]
+    [TestCase("application/octet-stream", 1UL)]
+    [TestCase("image/png", 0UL)]
+    public void InvalidAssetSizeOrMediaTypeIsRejectedBeforeSending(string mediaType, ulong size)
+    {
+        var handler = new Handler(new byte[0]);
+        using (var client = new HttpClient(handler))
+        {
+            var access = Access();
+            access.MediaType = mediaType;
+            access.EncodedSizeBytes = size;
+            var exception = Assert.ThrowsAsync<InvalidOperationException>(async () => await Download(client, access));
+            Assert.That(exception.Message, Is.EqualTo("asset-download-access-invalid"));
+            Assert.That(handler.Requests, Is.Zero);
+        }
+    }
+
+    [Test]
+    public void ExpiredAccessIsRejectedBeforeSending()
+    {
+        var handler = new Handler(new byte[0]);
+        using (var client = new HttpClient(handler))
+        {
+            var access = Access();
+            access.ExpiresAtUnixMs = (ulong)DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeMilliseconds();
+            var exception = Assert.ThrowsAsync<InvalidOperationException>(async () => await Download(client, access));
+            Assert.That(exception.Message, Is.EqualTo("asset-download-access-invalid"));
+            Assert.That(handler.Requests, Is.Zero);
+        }
+    }
+
+    private static AssetAccessBinding Access()
+    {
+        return new AssetAccessBinding
+        {
+            Url = "https://assets.example.test/texture.png",
+            MediaType = "image/png",
+            EncodedSizeBytes = 3,
+            ExpiresAtUnixMs = (ulong)DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeMilliseconds()
+        };
+    }
+
     private static Task<byte[]> Download(HttpClient client, AssetAccessBinding access)
     {
-        MethodInfo method = typeof(PresentationBakedRuntime).GetMethod("DownloadAsync", BindingFlags.NonPublic | BindingFlags.Static);
-        return (Task<byte[]>)method.Invoke(null, new object[] { client, access, CancellationToken.None });
+        return PresentationAssetDownloader.DownloadAsync(client, access, CancellationToken.None);
     }
 }

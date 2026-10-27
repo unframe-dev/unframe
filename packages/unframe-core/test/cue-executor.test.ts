@@ -181,7 +181,7 @@ describe("pure Cue executor", () => {
     ).toEqual({ kind: "none" });
   });
 
-  it("uses fixed payload in Guard and Action, then enforces cooldown", () => {
+  it("uses fixed payload in Guard and Action and immediately repeats the Cue", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues = [
       {
@@ -196,7 +196,7 @@ describe("pure Cue executor", () => {
           operator: "eq",
           right: 4,
         },
-        firePolicy: { kind: "repeatable", cooldownMilliseconds: 10 },
+        firePolicy: { kind: "repeatable" },
         actions: [
           {
             kind: "variable.set",
@@ -212,7 +212,10 @@ describe("pure Cue executor", () => {
       payload: { value: 9 },
     });
     expect(first.state.variables.count).toBe(4);
-    expect(executeCueEvent(definition, first.state, input).outcome).toEqual({ kind: "none" });
+    expect(executeCueEvent(definition, first.state, input).outcome).toEqual({
+      kind: "accepted",
+      cueId: "payload",
+    });
     const advanced = advanceCueClock(definition, first.state, 10);
     expect(executeCueEvent(definition, advanced.state, input).outcome).toEqual({
       kind: "accepted",
@@ -290,53 +293,56 @@ describe("pure Cue executor", () => {
     expect(result.state.surfaces.baked).toBe("shown");
   });
 
-  it("matches tracking actor and presenter subject for a Zone edge", () => {
-    const definition = setup();
-    definition.flow.groups.intro!.steps.start!.cues = [
-      {
-        id: "entered",
-        priority: 0,
-        order: 0,
-        trigger: {
-          kind: "zoneEdge",
-          actor: { kind: "system", source: "tracking" },
-          subject: { kind: "anchor", owner: { kind: "presenter" }, target: "head" },
-          zoneId: "front",
-          edge: "enter",
+  it.each(["gesture", "zoneEdge"] as const)(
+    "accepts %s only from the Presenter and consumes once-per-entry Cues",
+    (kind) => {
+      const definition = setup();
+      const trigger =
+        kind === "gesture"
+          ? { kind, actor: { kind: "presenter" as const }, gesture: "swipeUp" as const }
+          : {
+              kind,
+              actor: { kind: "presenter" as const },
+              zoneId: "front",
+              edge: "enter" as const,
+            };
+      definition.flow.groups.intro!.steps.start!.cues = [
+        {
+          id: "recognized",
+          priority: 0,
+          order: 0,
+          trigger,
+          firePolicy: { kind: "oncePerStepEntry" },
+          actions: [
+            { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 1 } },
+          ],
+          next: { kind: "stay" },
         },
-        firePolicy: { kind: "oncePerStepEntry" },
-        actions: [
-          { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 1 } },
-        ],
-        next: { kind: "stay" },
-      },
-    ];
-    const state = createCueState(definition, 1);
-    const event = {
-      kind: "zoneEdge" as const,
-      zoneId: "front",
-      edge: "enter" as const,
-      subject: {
-        kind: "anchor" as const,
-        owner: { kind: "presenter" as const },
-        target: "head" as const,
-      },
-      actor: { kind: "system" as const, source: "tracking" as const },
-      payload: {},
-      causeEventId: "zone-1",
-    };
-    expect(
-      executeCueEvent(definition, state, { ...event, actor: { kind: "system", source: "runtime" } })
-        .outcome,
-    ).toEqual({ kind: "none" });
-    expect(
-      executeCueEvent(definition, state, {
-        ...event,
-        subject: { ...event.subject, target: "leftHand" },
-      }).outcome,
-    ).toEqual({ kind: "none" });
-    expect(executeCueEvent(definition, state, event).state.variables.count).toBe(1);
-  });
+      ];
+      const event = {
+        ...trigger,
+        actor: { kind: "participant" as const, role: "presenter" as const },
+        payload: {},
+        causeEventId: "recognized-1",
+      };
+      const state = createCueState(definition, 1);
+      expect(
+        executeCueEvent(definition, state, {
+          ...event,
+          actor: { kind: "participant", role: "viewer" },
+        }).outcome,
+      ).toEqual({ kind: "none" });
+      expect(
+        executeCueEvent(definition, state, {
+          ...event,
+          actor: { kind: "system", source: "runtime" },
+        }).outcome,
+      ).toEqual({ kind: "none" });
+      const accepted = executeCueEvent(definition, state, event);
+      expect(accepted.state.variables.count).toBe(1);
+      expect(executeCueEvent(definition, accepted.state, event).outcome).toEqual({ kind: "none" });
+    },
+  );
 });
 
 it("captures accepted actions before presentation exit without capturing rejected candidates", () => {

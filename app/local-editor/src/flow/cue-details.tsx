@@ -80,9 +80,6 @@ export function CueDetails({
             <Parameters
               rows={[
                 ["発火", cue.firePolicy.kind === "repeatable" ? "繰り返し" : "Step ごとに1回"],
-                ...(cue.firePolicy.kind === "repeatable"
-                  ? ([["待ち時間", `${cue.firePolicy.cooldownMilliseconds} ms`]] as const)
-                  : []),
               ]}
             />
             {cue.fixedPayload && (

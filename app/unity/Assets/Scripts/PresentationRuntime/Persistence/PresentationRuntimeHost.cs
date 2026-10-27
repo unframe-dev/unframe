@@ -78,10 +78,8 @@ namespace Unframe.Unity.PresentationRuntime
             if (!validator.TryReceiveDelivery(delivery, out string validationError))
                 throw new InvalidOperationException(validationError ?? "Control Plane Delivery is incompatible.");
             var assets = new List<SessionSelectionRegistry.Asset>();
-            foreach (TextureResidencyBinding binding in delivery.Residency.Textures.Textures)
+            foreach (AssetAccessBinding asset in delivery.AssetAccess)
             {
-                if (!validator.TryGetAsset(binding.AssetId, out AssetAccessBinding asset))
-                    throw new InvalidOperationException("Control Plane Delivery asset is missing.");
                 assets.Add(new SessionSelectionRegistry.Asset
                 {
                     Checksum = asset.Checksum,

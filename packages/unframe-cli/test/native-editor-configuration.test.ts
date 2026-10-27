@@ -7,6 +7,8 @@ const dependencies = {
   "com.unity.render-pipelines.universal": "pipeline-version",
   "com.unity.test-framework": "test-version",
   "com.unity.nuget.newtonsoft-json": "json-version",
+  "com.unity.ugui": "ui-version",
+  "com.unity.inputsystem": "input-version",
   "unused-package": "unused-version",
 };
 
@@ -19,6 +21,8 @@ describe("native Unity test configuration", () => {
         "com.unity.render-pipelines.universal": "pipeline-version",
         "com.unity.test-framework": "test-version",
         "com.unity.nuget.newtonsoft-json": "json-version",
+        "com.unity.ugui": "ui-version",
+        "com.unity.inputsystem": "input-version",
         "com.unity.modules.jsonserialize": "1.0.0",
         "com.unity.modules.animation": "1.0.0",
         "com.unity.modules.video": "1.0.0",
@@ -41,6 +45,8 @@ describe("native Unity test configuration", () => {
         "Cysharp.Net.Http.YetAnotherHttpHandler",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.RenderPipelines.Core.Runtime",
+        "Unity.ugui",
+        "Unity.TextMeshPro",
       ],
       includePlatforms: ["Editor"],
       optionalUnityReferences: ["TestAssemblies"],

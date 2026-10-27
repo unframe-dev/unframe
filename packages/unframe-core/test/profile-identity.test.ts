@@ -9,7 +9,7 @@ const descriptor = {
       publicationEpoch: "2",
       publicationManifestHash: `sha256:${"a".repeat(64)}`,
     },
-    projectionContractVersion: 1,
+    projectionContractVersion: 2,
     role: 1,
     capabilityProfileId: "quest",
   },
@@ -21,7 +21,8 @@ const descriptor = {
   localOverlays: [],
   requiredRuntimeCapabilities: [1],
   runtimeCatalog: {
-    catalogContractVersion: 2,
+    catalogContractVersion: 3,
+    presenterRecognition: { gestures: [], zones: [] },
     nodes: [],
     surfaces: [],
     variables: [],

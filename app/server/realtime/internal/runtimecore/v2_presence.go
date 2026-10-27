@@ -43,8 +43,20 @@ func (s *V2Session) JoinParticipant(ctx context.Context, identity session.Identi
 	}
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
 	event := s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_ParticipantPresenceChanged{ParticipantPresenceChanged: &realtimev2.ParticipantPresenceChanged{ParticipantId: identity.ParticipantID, Role: v2SessionRole(identity.Role), Connected: true}}})
+	events := []*realtimev2.ProjectedReliableEvent{event}
+	_, previouslyJoined := s.participants[identity.ParticipantID]
 	s.participants[identity.ParticipantID] = identity.Role
-	if err := s.commitV2Mutation(ctx, previous, []*realtimev2.ProjectedReliableEvent{event}); err != nil {
+	if identity.Role == session.RolePresenter && previouslyJoined {
+		if s.snapshot.Clock.GetRunning() != nil {
+			events = append(events, s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_RuntimeStatusChanged{RuntimeStatusChanged: &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PRESENTER_DISCONNECTED}}}}}))
+		}
+		s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PRESENTER_DISCONNECTED}}
+		if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECONNECTED, true); err != nil {
+			s.snapshot = previous
+			return err
+		}
+	}
+	if err := s.commitV2Mutation(ctx, previous, events); err != nil {
 		return err
 	}
 	s.presence[identity.ParticipantID] = identity.Role
@@ -59,6 +71,7 @@ func (s *V2Session) PauseLeaseExpired() {
 	if s.snapshot.Clock.GetRunning() == nil {
 		return
 	}
+	_ = s.freezeV3Anchors(time.Now())
 	s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_ASSIGNMENT_LEASE_EXPIRED}}
 	s.lastTick = time.Now()
 }
@@ -87,6 +100,12 @@ func (s *V2Session) LeaveParticipant(ctx context.Context, identity session.Ident
 	if pausePresenter {
 		s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PRESENTER_DISCONNECTED}}
 		events = append(events, s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_RuntimeStatusChanged{RuntimeStatusChanged: &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PRESENTER_DISCONNECTED}}}}}))
+	}
+	if role == session.RolePresenter {
+		if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECONNECTED, true); err != nil {
+			s.snapshot = previous
+			return err
+		}
 	}
 	if err := s.commitV2Mutation(ctx, previous, events); err != nil {
 		return err

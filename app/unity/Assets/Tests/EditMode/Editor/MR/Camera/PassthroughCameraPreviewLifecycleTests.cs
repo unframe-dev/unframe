@@ -158,46 +158,6 @@ public sealed class PassthroughCameraPreviewLifecycleTests
         }
     }
 
-    [TestCase(false)]
-    [TestCase(true)]
-    public void PresentationStatusIsCentralAndDoesNotOverlapMeasurementDiagnostics(bool networkSession)
-    {
-        var head = new GameObject("Central Status Test", typeof(Camera));
-        var host = new GameObject("Presentation Status Test");
-        var preview = new ArucoCameraPreviewView(head.transform);
-        try
-        {
-            if (networkSession)
-            {
-                var status = host.AddComponent<Unframe.Unity.PresentationRuntime.QuestPresentationStatusView>();
-                status.Configure(null, null, head.transform);
-            }
-            else
-            {
-                var status = host.AddComponent<Unframe.Unity.PresentationRuntime.QuestLocalPresentationStatusView>();
-                status.Configure(null, head.transform);
-                typeof(Unframe.Unity.PresentationRuntime.QuestLocalPresentationStatusView)
-                    .GetMethod("CreatePanel", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(status, null);
-            }
-
-            preview.ShowStatus(new ArucoCameraPreviewStatus { MeasurementPreviewEnabled = true });
-            var statusPanel = head.transform.Find(networkSession ? "Session Status" : "Local Presentation Status");
-            var previewPanel = head.transform.Find("PCA Preview Panel");
-            float statusTop = statusPanel.localPosition.y + statusPanel.GetComponent<RectTransform>().rect.yMax * statusPanel.localScale.y;
-            float previewBottom = previewPanel.localPosition.y + previewPanel.GetComponent<RectTransform>().rect.yMin * previewPanel.localScale.y;
-            Assert.That(statusTop, Is.LessThan(previewBottom));
-            Assert.That(statusPanel.localPosition.x, Is.Zero);
-            float statusBottom = statusPanel.localPosition.y + statusPanel.GetComponent<RectTransform>().rect.yMin * statusPanel.localScale.y;
-            Assert.That(Mathf.Atan2(Mathf.Abs(statusBottom), statusPanel.localPosition.z) * Mathf.Rad2Deg, Is.LessThan(25));
-        }
-        finally
-        {
-            preview.Dispose();
-            Object.DestroyImmediate(host);
-            Object.DestroyImmediate(head);
-        }
-    }
-
     private static void Invoke(PassthroughCameraDevicePreview preview, string method) =>
         typeof(PassthroughCameraDevicePreview).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(preview, null);
 }

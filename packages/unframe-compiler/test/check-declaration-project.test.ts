@@ -1,5 +1,6 @@
 import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
 import { describe, expect, it } from "vitest";
+import capabilityFixture from "../../contracts/presentation/fixtures/capability-profile.json";
 import { standardComponents } from "@unframe/unframe-components";
 import type {
   ComponentManifest,
@@ -15,6 +16,7 @@ import {
 import {
   type SemanticSurface,
   canonicalizePresentationDefinition,
+  buildRuntimeProjection,
   validatePresentationDefinition,
 } from "@unframe/unframe-core";
 import { compileCheckedDeclarationProject } from "../src/api/compile-declaration-project.js";
@@ -144,6 +146,73 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("compiles authored Gestures into presenter guide metadata", () => {
+    const input = project();
+    input.presentation.flow.groups.group!.steps.step!.cues = [
+      {
+        id: "spread",
+        trigger: {
+          kind: "gesture",
+          gesture: "spreadHands",
+        },
+        actions: [],
+      },
+    ];
+    const result = checkDeclarationProjectWithFixtureBytes(input);
+    expect(result.valid, JSON.stringify(result.diagnostics)).toBe(true);
+    if (!result.valid) throw new Error(JSON.stringify(result.diagnostics));
+    expect(result.value.definition.flow.groups.group!.steps.step!.cues[0]!.trigger).toEqual({
+      kind: "gesture",
+      actor: { kind: "presenter" },
+      gesture: "spreadHands",
+    });
+  });
+
+  it("lowers center-only Zones and Presenter Zone edges", () => {
+    const input = project();
+    input.presentation.stage.zones = {
+      front: { id: "front", owner: { kind: "presentation" }, center: [1, 2, 3] },
+    };
+    input.presentation.flow.groups.group!.steps.step!.cues = [
+      {
+        id: "enter",
+        trigger: { kind: "zoneEdge", zoneId: "front", edge: "enter" },
+        actions: [],
+        firePolicy: { kind: "repeatable" },
+      },
+    ];
+    const result = checkDeclarationProjectWithFixtureBytes(input);
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) throw new Error("Expected valid Zone.");
+    expect(result.value.definition.stage.zones.front).toEqual({
+      id: "front",
+      owner: { kind: "presentation" },
+      center: [1, 2, 3],
+    });
+    expect(result.value.definition.flow.groups.group!.steps.step!.cues[0]!.trigger).toEqual({
+      kind: "zoneEdge",
+      actor: { kind: "presenter" },
+      zoneId: "front",
+      edge: "enter",
+    });
+  });
+
+  it.each([
+    { gesture: "unknown" },
+    { gesture: "swipeLeft", hand: "bothHands" },
+    { gesture: "swipeLeft", minimumDistanceMeters: 0.2 },
+    { gesture: "swipeLeft", windowMilliseconds: 500 },
+  ])("rejects malformed authored Gestures: %j", (trigger) => {
+    const input = project();
+    const malformed = structuredClone(input) as unknown as {
+      presentation: { flow: { groups: { group: { steps: { step: { cues: unknown[] } } } } } };
+    };
+    malformed.presentation.flow.groups.group.steps.step.cues = [
+      { id: "motion", trigger: { kind: "gesture", ...trigger }, actions: [] },
+    ];
+    expect(checkDeclarationProject(malformed).valid).toBe(false);
+  });
+
   it.each([
     { scene: [] },
     { ...presentation(), scene: [], operations: null },
@@ -1137,7 +1206,7 @@ describe("checkDeclarationProject", () => {
       expect(codes(input)).toContain("compiler-content-override-target-invalid");
     }
   });
-  it("lowers only v2 artifacts with explicit literal fonts and external assets", () => {
+  it("lowers v3 Definitions with explicit literal fonts and external assets", () => {
     const input = project();
     input.presentation.assets = [{ kind: "asset-ref", assetId: "reference-font" }];
     input.assets = {
@@ -1151,7 +1220,7 @@ describe("checkDeclarationProject", () => {
     const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid).toBe(true);
     if (!result.valid) return;
-    expect(result.value.definition.schemaVersion).toBe(2);
+    expect(result.value.definition.schemaVersion).toBe(3);
     expect(result.value.definition).not.toHaveProperty("assets");
     expect(result.value.assetSet.assets["reference-font"]?.mediaType).toBe("font/ttf");
   });
@@ -1801,7 +1870,7 @@ describe("checkDeclarationProject", () => {
       "sha256:d76fe9a10ae41c742cecda8b85b0a5e44bb242273601dbb6b2d0d4d2002c667b",
     );
     expect(result.value.definitionHash).toBe(
-      "sha256:feeb8319fee482e9d68aaeb3f71546284aa0bc3a1d12f989fac1e67832509ed0",
+      "sha256:7bd303ffa2607e56aba2780dbf3447ce99c1e760ca4858042bb4749ccf627fc5",
     );
   });
 
@@ -2485,6 +2554,38 @@ describe("compileDeclarationProject", () => {
     rendererConfigHash: "sha256:config",
     renderers: [renderer],
     encodeLimits: PNG_ABSOLUTE_LIMITS,
+  });
+
+  it("carries compiled Gestures into the production presenter projection", async () => {
+    const input = project();
+    input.presentation.flow.groups.group!.steps.step!.cues = [
+      {
+        id: "swipe",
+        trigger: {
+          kind: "gesture",
+          gesture: "swipeUp",
+        },
+        actions: [],
+      },
+    ];
+    const result = await compileDeclarationProjectWithFixtureBytes(input, options());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) throw new Error("Expected compiled Gesture presentation.");
+    const compiled = result.value;
+    const projection = buildRuntimeProjection(
+      {
+        definition: compiled.definition,
+        renderBundle: compiled.renderBundle,
+        assetSet: compiled.assetSet,
+        buildManifest: compiled.buildManifest,
+        capability: capabilityFixture as Parameters<typeof buildRuntimeProjection>[0]["capability"],
+      },
+      "presenter",
+    );
+    expect(projection.projection.runtimeCatalog?.presenterRecognition).toEqual({
+      gestures: [4],
+      zones: [],
+    });
   });
 
   it("passes verified image bytes to the selected renderer", async () => {
@@ -3382,7 +3483,7 @@ describe("compileDeclarationProject", () => {
     expect(result.value.assetSet.assets["reference-font"]?.mediaType).toBe("font/ttf");
     expect(result.value.assetSetJson).toBeTruthy();
     expect(result.value.buildManifest).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       sourceDraftRevision: 0,
       definitionHash: result.value.definitionHash,
       renderBundleHash: result.value.renderBundleHash,

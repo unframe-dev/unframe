@@ -6,6 +6,8 @@ import {
   type PersistenceCallbackRepository,
 } from "../../../src/modules/persistence-callback/service";
 
+import { checkpointEnvelope } from "../../fixtures/checkpoint";
+
 const checkpoint = {
   sessionId: "session",
   runtimeId: "runtime",
@@ -14,7 +16,7 @@ const checkpoint = {
   presentationRevision: 1,
   version: 1,
   lastSequence: 10,
-  payload: { page: 1 },
+  payload: {} as Record<string, unknown>,
   idempotencyKey: "shared-key",
 };
 const completion = {
@@ -30,7 +32,7 @@ const completion = {
   endedAt: "2026-08-11T00:10:00.000Z",
   participantCount: 1,
   participants: [{ userId: "presenter", role: "presenter" as const }],
-  finalCheckpoint: { page: 1 },
+  finalCheckpoint: {} as Record<string, unknown>,
 };
 
 describe("PersistenceCallbackService", () => {
@@ -50,6 +52,8 @@ describe("PersistenceCallbackService", () => {
         return "applied";
       },
     };
+    checkpoint.payload = await checkpointEnvelope("session", "10");
+    completion.finalCheckpoint = checkpoint.payload;
     const service = new PersistenceCallbackService(repository);
 
     await expect(service.checkpoint(checkpoint)).resolves.toEqual({ applied: true });
@@ -58,11 +62,37 @@ describe("PersistenceCallbackService", () => {
     await expect(service.complete(completion)).resolves.toEqual({ applied: false });
   });
 
+  it.each([
+    ["sessionId", { sessionId: "another-session" }, { sessionId: "another-session" }],
+    ["runtimeId", { runtimeId: "another-runtime" }, { runtimeId: "another-runtime" }],
+    ["runtimeKind", { runtimeKind: "VenueEdge" as const }, { runtimeKind: "VenueEdge" as const }],
+    ["assignmentEpoch", { assignmentEpoch: 2 }, { assignmentEpoch: 2 }],
+    ["checkpoint sequence", { version: 2 }, { checkpointVersion: 2 }],
+    ["reliable sequence", { lastSequence: 11 }, { lastSequence: 11 }],
+  ] as const)(
+    "rejects checkpoint and completion with mismatched %s",
+    async (_field, checkpointChange, completionChange) => {
+      const payload = await checkpointEnvelope("session", "10");
+      const service = new PersistenceCallbackService({
+        applyCheckpoint: async () => "applied",
+        applyCompletion: async () => "applied",
+      });
+      await expect(
+        service.checkpoint({ ...checkpoint, ...checkpointChange, payload }),
+      ).rejects.toMatchObject({ status: 400 });
+      await expect(
+        service.complete({ ...completion, ...completionChange, finalCheckpoint: payload }),
+      ).rejects.toMatchObject({ status: 400 });
+    },
+  );
+
   it("maps an unknown session to not_found", async () => {
     const repository: PersistenceCallbackRepository = {
       applyCheckpoint: async () => "not_found",
       applyCompletion: async () => "not_found",
     };
+    checkpoint.payload = await checkpointEnvelope("session", "10");
+    completion.finalCheckpoint = checkpoint.payload;
     const service = new PersistenceCallbackService(repository);
 
     await expect(service.checkpoint(checkpoint)).rejects.toEqual(
@@ -76,6 +106,7 @@ describe("PersistenceCallbackService", () => {
       applyCompletion: async () => "conflict",
     };
 
+    completion.finalCheckpoint = await checkpointEnvelope("session", "10");
     await expect(new PersistenceCallbackService(repository).complete(completion)).rejects.toEqual(
       new PersistenceCallbackError("conflict"),
     );

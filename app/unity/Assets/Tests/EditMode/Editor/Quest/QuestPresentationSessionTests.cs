@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
+using UnityEditor.SceneManagement;
 using NUnit.Framework;
 using Unframe.Unity.PresentationRuntime;
 using UnityEditor;
@@ -65,6 +67,104 @@ public sealed class QuestPresentationSessionTests
             Assert.That(entry.Calibration, Is.Null);
         }
         finally { UnityEngine.Object.DestroyImmediate(host); UnityEngine.Object.DestroyImmediate(other); }
+    }
+
+    [Test]
+    public async Task ConnectionSettingsStayInMemoryAndExitClearsThem()
+    {
+        var host = new GameObject("Session");
+        try
+        {
+            var session = host.AddComponent<QuestPresentationSession>();
+            session.ConfigureConnection(new Uri("https://api.example.com/"), "session", _ => Task.FromResult("private-token"));
+            Assert.That(session.HasConnectionSettings, Is.True);
+            Assert.That(session.ControlPlaneOrigin, Is.EqualTo("https://api.example.com/"));
+            Assert.That(JsonUtility.ToJson(session), Does.Not.Contain("private-token"));
+            await session.ExitAsync();
+            Assert.That(session.HasConnectionSettings, Is.False);
+            Assert.That(session.SessionId, Is.Empty);
+            Assert.That(session.ControlPlaneOrigin, Is.Empty);
+            Assert.That(session.IsBusy, Is.False);
+        }
+        finally { UnityEngine.Object.DestroyImmediate(host); }
+    }
+
+    [TestCase("http://api.example.com/")]
+    [TestCase("https://user:password@api.example.com/")]
+    [TestCase("https://api.example.com/path")]
+    public void InvalidOriginIsRejectedWithoutSavingConnection(string origin)
+    {
+        var host = new GameObject("Session");
+        try
+        {
+            var session = host.AddComponent<QuestPresentationSession>();
+            Assert.Throws<ArgumentException>(() => session.ConfigureConnection(new Uri(origin), "session", _ => Task.FromResult("private-token")));
+            Assert.That(session.HasConnectionSettings, Is.False);
+        }
+        finally { UnityEngine.Object.DestroyImmediate(host); }
+    }
+
+    [Test]
+    public async Task RetryStopsOldConnectionAndUsesReplacementCredentialProvider()
+    {
+        var host = new GameObject("Session");
+        QuestPresentationEntry entry = null;
+        try
+        {
+            entry = host.AddComponent<QuestPresentationEntry>();
+            var alignment = host.AddComponent<ArucoOriginAlignment>();
+            var source = host.AddComponent<ArucoPresentationCalibration>();
+            source.Configure(alignment, host.transform);
+            var session = host.AddComponent<QuestPresentationSession>();
+            SetReference(entry, "questTrackingOrigin", host.transform);
+            SetReference(session, "entry", entry);
+            SetReference(session, "calibrationSource", source);
+            bool oldCancelled = false;
+            int refreshed = 0;
+            async Task<string> OldCredential(CancellationToken token)
+            {
+                try { await Task.Delay(Timeout.Infinite, token); }
+                finally { oldCancelled = token.IsCancellationRequested; }
+                return "unused";
+            }
+            async Task<string> RefreshedCredential(CancellationToken token)
+            {
+                refreshed++;
+                await Task.Delay(Timeout.Infinite, token);
+                return "unused";
+            }
+            session.Connect(new Uri("https://api.example.com/"), "first", OldCredential);
+            session.ConfigureConnection(new Uri("https://api.example.com/"), "replacement", RefreshedCredential);
+            await session.RetryAsync();
+            Assert.That(oldCancelled, Is.True);
+            Assert.That(refreshed, Is.EqualTo(1));
+            Assert.That(session.SessionId, Is.EqualTo("replacement"));
+            Assert.That(session.IsBusy, Is.False);
+            await session.ExitAsync();
+            Assert.That(entry.IsRunning, Is.False);
+            Assert.That(session.HasConnectionSettings, Is.False);
+        }
+        finally
+        {
+            if (entry != null) await entry.StopAsync();
+            UnityEngine.Object.DestroyImmediate(host);
+        }
+    }
+
+    [Test]
+    public void ProductionSceneWiresStatusToItsSessionAndEntry()
+    {
+        var scene = EditorSceneManager.OpenScene(QuestPresentationSceneEditor.ScenePath, OpenSceneMode.Additive);
+        try
+        {
+            var session = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<QuestPresentationSession>(true)).Single();
+            var view = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<QuestPresentationStatusView>(true)).Single();
+            var settings = new SerializedObject(view);
+            Assert.That(settings.FindProperty("session").objectReferenceValue, Is.SameAs(session));
+            Assert.That(settings.FindProperty("entry").objectReferenceValue, Is.SameAs(session.GetComponent<QuestPresentationEntry>()));
+            Assert.That(settings.FindProperty("head").objectReferenceValue, Is.Not.Null);
+        }
+        finally { EditorSceneManager.CloseScene(scene, true); }
     }
 
     private static void SetReference(UnityEngine.Object target, string property, UnityEngine.Object value)
