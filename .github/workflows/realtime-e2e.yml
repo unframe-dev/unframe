@@ -1,0 +1,34 @@
+name: Realtime E2E
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: realtime / synchronization and recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
+
+      - name: Install JS dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: Install Fixed Browser
+        run: nix develop --command scripts/dev/install-presentation-browser.sh
+
+      - name: Allow Fixed Browser user namespace
+        run: bash scripts/ci/allow-presentation-browser-userns.sh
+
+      - name: Prepare isolated Opaque capture host
+        run: nix develop --command bash scripts/ci/setup-opaque-host.sh
+
+      - name: Mixed transport synchronization and recovery
+        run: nix run .#realtime-e2e -- --race

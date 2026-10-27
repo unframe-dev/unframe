@@ -75,6 +75,7 @@ jobs:
             realtime:
               - *shared
               - '.github/workflows/realtime.yml'
+              - '.github/workflows/realtime-e2e.yml'
               - 'scripts/ci/realtime.sh'
               - 'scripts/contracts/**'
               - 'app/server/realtime/**'
@@ -103,6 +104,7 @@ jobs:
             presentation:
               - *shared
               - *js-shared
+              - 'examples/presentation/**'
               - '.github/workflows/presentation.yml'
               - 'scripts/ci/presentation.sh'
               - 'packages/contracts/**'
@@ -159,6 +161,16 @@ jobs:
     if: needs.changes.outputs.presentation == 'true'
     uses: ./.github/workflows/presentation.yml
 
+  realtime-e2e:
+    name: Realtime E2E
+    needs: changes
+    if: >-
+      needs.changes.outputs.realtime == 'true' ||
+      needs.changes.outputs.control-plane == 'true' ||
+      needs.changes.outputs.audience == 'true' ||
+      needs.changes.outputs.presentation == 'true'
+    uses: ./.github/workflows/realtime-e2e.yml
+
   lp:
     name: LP
     needs: changes
@@ -175,7 +187,18 @@ jobs:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
     needs:
-      [changes, control-plane, realtime, console, local-editor, audience, presentation, lp, unity]
+      [
+        changes,
+        control-plane,
+        realtime,
+        realtime-e2e,
+        console,
+        local-editor,
+        audience,
+        presentation,
+        lp,
+        unity,
+      ]
     if: always()
     runs-on: ubuntu-latest
     steps:
