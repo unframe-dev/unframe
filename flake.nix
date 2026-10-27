@@ -294,15 +294,6 @@
             name = "unity-preview";
             script = "unity/build-preview.sh";
           };
-          local-editor-e2e = mkApp {
-            name = "local-editor-e2e";
-            script = "local-editor/e2e.sh";
-            extraRuntimeInputs = [
-              pkgs.openssl
-              pkgs.caddy
-              pkgs.ffmpeg
-            ];
-          };
           presentation-sample = mkApp {
             name = "presentation-sample";
             script = "presentation-sample/serve.sh";

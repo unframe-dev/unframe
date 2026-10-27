@@ -85,6 +85,14 @@ const deferred = <T>() => {
   return { promise, resolve };
 };
 
+const acknowledgePlayback = (
+  service: ReturnType<typeof createLocalPreviewService>,
+  requestId: string,
+) => {
+  const response = service.playback({ requestId, command: "poll" });
+  service.playback({ requestId, command: "applied", sequence: response.state.sequence! });
+};
+
 describe("fixed local Preview service", () => {
   it("omits Presenter recognition and connection-only capabilities from the preview envelope", async () => {
     const service = createLocalPreviewService("/project", {
@@ -112,6 +120,7 @@ describe("fixed local Preview service", () => {
     await service.load({ requestId: requestA, channel: "dist" });
     expect(() => service.playback({ requestId: requestA, command: "poll" })).toThrow();
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     now = 1100;
     expect(service.playback({ requestId: requestA, command: "poll" }).state.clock).toEqual({
       runtimeTimeMs: "0",
@@ -138,6 +147,7 @@ describe("fixed local Preview service", () => {
     });
     await service.load({ requestId: requestA, channel: "dist" });
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     await service.load({ requestId: requestB, channel: "dist" });
     expect(() => service.playback({ requestId: requestA, command: "play" })).toThrow(
       "current committed",
@@ -146,6 +156,7 @@ describe("fixed local Preview service", () => {
       "current committed",
     );
     service.committed({ requestId: requestB, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestB);
     service.close();
     expect(() => service.playback({ requestId: requestB, command: "reset" })).toThrow(
       "current committed",
@@ -208,6 +219,7 @@ describe("fixed local Preview service", () => {
     const envelope = await service.load({ requestId: requestA, channel: "dist" });
     expect(envelope.projection?.runtimeCatalog?.timelines).toEqual([]);
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     service.playback({ requestId: requestA, command: "play" });
     const started = service.playback({
       requestId: requestA,
@@ -280,6 +292,7 @@ describe("fixed local Preview service", () => {
       "does not match",
     );
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     const pinned = await service.pinDisplayedDist(requestA);
     current = generation("build-b");
     service.invalidate();
@@ -309,6 +322,7 @@ describe("fixed local Preview service", () => {
     expect(reads).toEqual([{ channel: "dev", generationId: generationA }]);
     expect(envelope.sourceRevision).toBe("saved-revision");
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     await expect(service.pinDisplayedDist(requestA)).rejects.toMatchObject({
       code: "preview-not-displayed",
     });
@@ -324,6 +338,7 @@ describe("fixed local Preview service", () => {
     });
     const envelope = await service.load({ requestId: requestA, channel: "dist" });
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     readable = false;
     await expect(service.load({ requestId: requestB, channel: "dist" })).rejects.toThrow(
       "build unavailable",
@@ -359,6 +374,7 @@ describe("fixed local Preview service", () => {
       "does not match",
     );
     service.committed({ requestId: requestB, buildIdentity: "build-b" });
+    acknowledgePlayback(service, requestB);
     expect((await service.pinDisplayedDist(requestB)).artifacts.buildManifest.buildId).toBe(
       "build-b",
     );
@@ -369,6 +385,7 @@ describe("fixed local Preview service", () => {
     const service = createLocalPreviewService("/project", { readGeneration: async () => source });
     await service.load({ requestId: requestA, channel: "dist" });
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     const started = deferred<void>();
     const finish = deferred<{ bytes: Uint8Array; mediaType: string }>();
     source.readAsset = async () => {
@@ -390,6 +407,7 @@ describe("fixed local Preview service", () => {
       const service = createLocalPreviewService("/project", { readGeneration: async () => source });
       await service.load({ requestId: requestA, channel: "dist" });
       service.committed({ requestId: requestA, buildIdentity: "build-a" });
+      acknowledgePlayback(service, requestA);
       if (change === "buildIdentity") source.artifacts.buildManifest.buildId = "build-b";
       else source.artifacts.buildManifest.sourceDraftRevision = 1;
       await expect(service.pinDisplayedDist(requestA)).rejects.toMatchObject({
@@ -419,6 +437,7 @@ describe("fixed local Preview service", () => {
     const service = createLocalPreviewService("/project", { readGeneration: async () => source });
     await service.load({ requestId: requestA, channel: "dist" });
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     source.readAsset = async () => ({ bytes: new Uint8Array(64), mediaType: "image/png" });
     await expect(service.pinDisplayedDist(requestA)).rejects.toMatchObject({
       code: "preview-asset-invalid",
@@ -467,6 +486,7 @@ describe("fixed local Preview service", () => {
     const service = createLocalPreviewService("/project", { readGeneration: async () => source });
     await service.load({ requestId: requestA, channel: "dist" });
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     source.readAsset = async (assetId) =>
       assetId === "font" ? { bytes: new Uint8Array(64), mediaType: "font/ttf" } : original(assetId);
     await expect(service.pinDisplayedDist(requestA)).rejects.toMatchObject({
@@ -489,6 +509,7 @@ describe("fixed local Preview service", () => {
     const service = createLocalPreviewService("/project", { readGeneration: async () => source });
     await service.load({ requestId: requestA, channel: "dist" });
     service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
     await expect(service.pinDisplayedDist(requestA)).rejects.toMatchObject({
       code: "preview-publish-budget",
     });
@@ -583,6 +604,7 @@ describe("fixed local Preview service", () => {
       expect(output).toEqual({ ok: true, generationId: generationA });
       await service.load({ requestId: requestA, channel: "dist" });
       service.committed({ requestId: requestA, buildIdentity: "build-a" });
+      acknowledgePlayback(service, requestA);
       const pinned = await service.pinDisplayedDist(requestA);
       const assetPath = join(directory, "dist/assets/image.png");
       await writeFile(assetPath, new Uint8Array(64));
@@ -683,5 +705,60 @@ describe("fixed local Preview service", () => {
     expect(loaded.initialState?.modelClipStates).toEqual([
       expect.objectContaining({ modelNodeId: "model", defaultPose: {} }),
     ]);
+  });
+});
+
+it("revokes publication receipts during recovery and permanently invalidates failed displays", async () => {
+  const service = createLocalPreviewService("/project", {
+    readGeneration: async () => generation(),
+  });
+  await service.load({ requestId: requestA, channel: "dist" });
+  service.committed({ requestId: requestA, buildIdentity: "build-a" });
+  const initial = service.playback({ requestId: requestA, command: "poll" });
+  await expect(service.pinDisplayedDist(requestA)).rejects.toThrow();
+  service.playback({ requestId: requestA, command: "applied", sequence: initial.state.sequence! });
+  await expect(service.pinDisplayedDist(requestA)).resolves.toMatchObject({
+    generationId: generationA,
+  });
+  const advanced = service.playback({ requestId: requestA, command: "play" });
+  const recovery = service.playback({
+    requestId: requestA,
+    command: "recover",
+    sequence: advanced.state.sequence!,
+  });
+  await expect(service.pinDisplayedDist(requestA)).rejects.toThrow();
+  expect(() => service.playback({ requestId: requestA, command: "play" })).toThrow();
+  expect(() =>
+    service.playback({
+      requestId: requestA,
+      command: "applied",
+      sequence: advanced.state.sequence!,
+    }),
+  ).toThrow();
+  service.playback({ requestId: requestA, command: "applied", sequence: recovery.state.sequence! });
+  await expect(service.pinDisplayedDist(requestA)).resolves.toMatchObject({
+    generationId: generationA,
+  });
+  service.playback({ requestId: requestA, command: "invalidateDisplay" });
+  await expect(service.pinDisplayedDist(requestA)).rejects.toThrow();
+  expect(() => service.committed({ requestId: requestA, buildIdentity: "build-a" })).toThrow();
+  expect(() => service.playback({ requestId: requestA, command: "poll" })).toThrow();
+  await service.load({ requestId: requestB, channel: "dist" });
+  service.committed({ requestId: requestB, buildIdentity: "build-a" });
+  expect(service.playback({ requestId: requestB, command: "poll" }).occurrences).toEqual([]);
+});
+
+it("requires the initial playback acknowledgement before publishing a newly committed request", async () => {
+  const service = createLocalPreviewService("/project", {
+    readGeneration: async () => generation(),
+  });
+  await service.load({ requestId: requestA, channel: "dist" });
+  service.committed({ requestId: requestA, buildIdentity: "build-a" });
+  await expect(service.pinDisplayedDist(requestA)).rejects.toMatchObject({ status: 409 });
+  const initial = service.playback({ requestId: requestA, command: "poll" });
+  await expect(service.pinDisplayedDist(requestA)).rejects.toMatchObject({ status: 409 });
+  service.playback({ requestId: requestA, command: "applied", sequence: initial.state.sequence! });
+  await expect(service.pinDisplayedDist(requestA)).resolves.toMatchObject({
+    generationId: generationA,
   });
 });

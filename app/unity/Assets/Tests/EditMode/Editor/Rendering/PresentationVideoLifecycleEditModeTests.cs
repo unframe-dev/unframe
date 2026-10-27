@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Google.Protobuf;
 using Unframe.Delivery;
 using Unframe.Presentation;
 using Unframe.Realtime;
@@ -21,10 +22,11 @@ public sealed class PresentationVideoLifecycleEditModeTests
         internal readonly TaskCompletionSource<bool> Gate = new TaskCompletionSource<bool>();
         internal bool Disposed, Fail, Playing;
         internal double Seconds;
+        internal string ApplyError;
         public Texture Texture => Texture2D.blackTexture;
         public bool IsPrepared => Gate.Task.IsCompleted && !Disposed;
         public async Task PrepareAsync(VideoArtifact artifact, string url, CancellationToken token) { await Gate.Task; if (Fail) throw new InvalidOperationException("test-decoder-failed"); }
-        public bool TryApply(bool playing, double seconds, out string error) { Playing = playing; Seconds = seconds; error = null; return !Disposed; }
+        public bool TryApply(bool playing, double seconds, out string error) { Playing = playing; Seconds = seconds; error = playing ? ApplyError : null; return !Disposed && error == null; }
         public void Pause() { Playing = false; }
         public void Dispose() { Disposed = true; }
     }
@@ -83,6 +85,29 @@ public sealed class PresentationVideoLifecycleEditModeTests
         };
         return envelope;
     }
+    private static LocalPreviewPlaybackState VideoPlayback(LocalPreviewEnvelope envelope)
+    {
+        var playback = new LocalPreviewPlaybackState
+        {
+            RequestId = envelope.RequestId,
+            Sequence = 1,
+            CurrentGroupId = "group:first",
+            Clock = new RuntimeClockSnapshot { Running = new Running() },
+            NodeStates = { envelope.InitialState.NodeStates },
+            SurfaceStates = { envelope.InitialState.SurfaceStates }
+        };
+        var runId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 1 }; var clock = new PlaybackClock { Playing = new PlayingClock() };
+        playback.MediaStates.Add(new MediaRuntimeState { SurfaceId = "surface:one", Active = new MediaActive { RunId = runId, Playback = clock } });
+        playback.ActiveRuns.Add(new RuntimeRunSnapshot
+        {
+            RunId = runId,
+            Owner = new RuntimeRunOwner { Group = new GroupRunOwner { GroupId = "group:first", GroupEntryEpoch = 1 } },
+            Cause = new RuntimeRunCause { CueId = "cue:video", CauseEventId = "event:video" },
+            Completion = RunCompletion.NonBlocking,
+            Media = new MediaRunSnapshot { SurfaceId = "surface:one", Playback = clock.Clone() }
+        });
+        return playback;
+    }
     [Test]
     public void PreviewAcceptsMultipleVideoArtifactsAndEmptyStateBindings()
     {
@@ -99,33 +124,88 @@ public sealed class PresentationVideoLifecycleEditModeTests
             var prepare = transaction.PrepareAsync(envelope, (_, __, ___) => Task.FromResult(new PresentationPreviewAssetData(bytes, "video/mp4")), CancellationToken.None);
             while (!prepare.IsCompleted) yield return null;
             Assert.That(prepare.IsFaulted, Is.False, prepare.Exception?.ToString()); transaction.Commit(envelope.RequestId);
-            var playback = new LocalPreviewPlaybackState
-            {
-                RequestId = envelope.RequestId,
-                Sequence = 1,
-                CurrentGroupId = "group:first",
-                Clock = new RuntimeClockSnapshot { Running = new Running() },
-                NodeStates = { envelope.InitialState.NodeStates },
-                SurfaceStates = { envelope.InitialState.SurfaceStates }
-            };
-            var runId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 1 }; var clock = new PlaybackClock { Playing = new PlayingClock() };
-            playback.MediaStates.Add(new MediaRuntimeState { SurfaceId = "surface:one", Active = new MediaActive { RunId = runId, Playback = clock } });
-            playback.ActiveRuns.Add(new RuntimeRunSnapshot
-            {
-                RunId = runId,
-                Owner = new RuntimeRunOwner { Group = new GroupRunOwner { GroupId = "group:first", GroupEntryEpoch = 1 } },
-                Cause = new RuntimeRunCause { CueId = "cue:video", CauseEventId = "event:video" },
-                Completion = RunCompletion.NonBlocking,
-                Media = new MediaRunSnapshot { SurfaceId = "surface:one", Playback = clock.Clone() }
-            });
+            var playback = VideoPlayback(envelope);
             Assert.That(transaction.TryPlayback(playback, 0, out var error), Is.True, error);
             Assert.That(decoder.Playing, Is.True);
             var renderer = root.GetComponentInChildren<MeshRenderer>(); Assert.That(renderer, Is.Not.Null);
+            playback.Sequence = 2;
+            playback.Clock.RuntimeTimeMs = 500;
+            playback.Clock.Paused = new Paused();
+            Assert.That(transaction.TryRestore(playback, 1, out error), Is.True, error);
+            Assert.That(decoder.Playing, Is.False, "a paused restore must pause the physical decoder even when the media clock is playing");
+            Assert.That(decoder.Seconds, Is.EqualTo(0.5));
+            Assert.That(transaction.TryUpdate(100, out error), Is.True, error);
+            Assert.That(decoder.Playing, Is.False);
+            Assert.That(decoder.Seconds, Is.EqualTo(0.5));
+            playback.Sequence = 3; playback.Clock.Running = new Running();
+            Assert.That(transaction.TryPlayback(playback, 100, out error), Is.True, error);
+            Assert.That(decoder.Playing, Is.True);
             transaction.Invalidate();
             Assert.That(decoder.Playing, Is.False, "invalidating playback must stop the independent decoder and audio immediately");
             Assert.That(decoder.Disposed, Is.False); Assert.That(renderer != null, Is.True); Assert.That(transaction.LoadedRequestId, Is.EqualTo(envelope.RequestId));
         }
         UnityEngine.Object.DestroyImmediate(root);
+    }
+    [UnityTest]
+    public IEnumerator ActivationRefusalAllowsPauseAndReplayWhileDecoderFaultRequiresPausedRestore()
+    {
+        var envelope = VideoEnvelope(); var decoder = new Decoder(); decoder.Gate.SetResult(true);
+        var root = new GameObject("Video recovery");
+        using (var transaction = new PresentationPreviewTransaction(root.transform, () => decoder))
+        {
+            try
+            {
+                var bytes = PresentationTestFixtures.Load("Video").bytes;
+                var prepare = transaction.PrepareAsync(envelope, (_, __, ___) => Task.FromResult(new PresentationPreviewAssetData(bytes, "video/mp4")), CancellationToken.None);
+                while (!prepare.IsCompleted) yield return null;
+                prepare.GetAwaiter().GetResult(); transaction.Commit(envelope.RequestId);
+                var playback = VideoPlayback(envelope);
+                Assert.That(transaction.TryPlayback(playback, 0, out var error), Is.True, error);
+                var bridge = root.AddComponent<UnframePreview>();
+                var field = typeof(UnframePreview).GetField("transaction", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                ((PresentationPreviewTransaction)field.GetValue(bridge))?.Dispose();
+                field.SetValue(bridge, transaction);
+                var update = typeof(UnframePreview).GetMethod("Update", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var events = new List<PresentationPreviewEvent>(); bridge.Notification += events.Add;
+                decoder.ApplyError = "video-user-activation-required";
+                playback.Sequence = 2; bridge.Playback(JsonFormatter.Default.Format(playback));
+                Assert.That(events[0].message, Is.EqualTo("video-user-activation-required"));
+                Assert.That(events[0].outcome, Is.EqualTo("rejected"));
+                Assert.That(events[0].phase, Is.EqualTo("apply"));
+                Assert.That(transaction.PlaybackFaulted, Is.False);
+                Assert.That(decoder.Playing, Is.False);
+                update.Invoke(bridge, null); update.Invoke(bridge, null);
+                Assert.That(events.Count, Is.EqualTo(2), "activation refusal should notify once until playback recovers");
+                Assert.That(events[1].requestId, Is.EqualTo(envelope.RequestId));
+                Assert.That(events[1].sequence, Is.EqualTo("2"));
+                Assert.That(events[1].outcome, Is.EqualTo("rejected"));
+                Assert.That(events[1].phase, Is.EqualTo("update"));
+                playback.Sequence = 3; playback.Clock.Paused = new Paused();
+                bridge.Playback(JsonFormatter.Default.Format(playback));
+                Assert.That(events[2].kind, Is.EqualTo("playback"));
+                Assert.That(decoder.Playing, Is.False);
+                decoder.ApplyError = null;
+                playback.Sequence = 4; playback.Clock.Running = new Running();
+                bridge.Playback(JsonFormatter.Default.Format(playback));
+                Assert.That(events[3].kind, Is.EqualTo("playback"));
+                Assert.That(decoder.Playing, Is.True);
+                update.Invoke(bridge, null);
+                decoder.ApplyError = "test-decoder-failed"; update.Invoke(bridge, null);
+                Assert.That(events[4].message, Is.EqualTo("test-decoder-failed"));
+                Assert.That(events[4].outcome, Is.EqualTo("failed"));
+                Assert.That(events[4].sequence, Is.EqualTo("4"));
+                Assert.That(transaction.PlaybackFaulted, Is.True);
+                Assert.That(decoder.Playing, Is.False, "faulted scenes must also stop independent audio playback");
+                decoder.ApplyError = null;
+                playback.Sequence = 5; playback.Clock.Paused = new Paused();
+                bridge.Restore(JsonFormatter.Default.Format(playback));
+                Assert.That(events[5].kind, Is.EqualTo("restored"));
+                Assert.That(transaction.PlaybackFaulted, Is.False);
+                Assert.That(decoder.Playing, Is.False);
+                Assert.That(root.transform.GetChild(0).gameObject.activeSelf, Is.True);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); }
+        }
     }
     [UnityTest]
     public IEnumerator SeparateGroupsUseOneDecoderAndLatePreparationCannotCommitAfterCancellation()

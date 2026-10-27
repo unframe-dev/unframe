@@ -102,8 +102,11 @@ describe("canonical completion order", () => {
       causeEventId: "start",
     });
     expect(started.outcome.kind).toBe("accepted");
-    const completed = advanceCueClock(definition, started.state, 1000);
+    const completed = advanceCueClock(definition, started.state, 1000, { capture: true });
     expect(completed.outcomes).toEqual([{ kind: "accepted", cueId: "firstDone" }]);
     expect(completed.state.currentStepId).toBe("first");
+    expect(completed.captures).toMatchObject([
+      { cueId: "firstDone", state: { currentStepId: "start", runtimeTimeMilliseconds: 1000 } },
+    ]);
   });
 });

@@ -5,28 +5,28 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "dev:e2e": "vp dev --mode e2e --host 127.0.0.1 --port 4174",
     "build": "vp build",
     "check": "tsc --noEmit",
-    "test": "vp test run",
-    "pretest:e2e": "bash ../../scripts/build-cli-filesystem.sh",
-    "test:e2e": "playwright test"
+    "test": "vp test run"
   },
   "dependencies": {
+    "@base-ui/react": "1.7.0",
+    "@phosphor-icons/react": "2.1.10",
+    "@unframe/contracts": "workspace:*",
     "@unframe/unframe-cli": "workspace:*",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-resizable-panels": "4.14.8",
+    "zod": "4.4.3",
+    "zustand": "5.0.15"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0",
-    "@testing-library/jest-dom": "7.0.1",
-    "@testing-library/react": "16.3.3",
-    "@testing-library/user-event": "14.6.7",
+    "@tailwindcss/vite": "4.3.2",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "6.1.1",
-    "jsdom": "30.1.1",
+    "tailwindcss": "4.3.2",
     "typescript": "^7.0.0",
     "vite": "catalog:",
     "vitest": "4.1.11"
