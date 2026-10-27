@@ -1,3 +1,4 @@
+import { audienceWebCapabilityProfileId } from "@unframe/contracts/presentation";
 import { env } from "cloudflare:test";
 import { sha256JoinCode } from "../../../src/modules/sessions/service";
 import { describe, expect, it } from "vitest";
@@ -83,7 +84,7 @@ it("scopes, rotates, expires and revokes anonymous credentials without managemen
   expect(
     (
       await request("/sessions/other/delivery", "POST", credential.token, {
-        capabilityProfileId: "audience-web-v1",
+        capabilityProfileId: audienceWebCapabilityProfileId,
       })
     ).status,
   ).toBe(403);

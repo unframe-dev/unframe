@@ -1,11 +1,11 @@
 import { lazy, Suspense } from "react";
 import { AudienceApplication } from "./connection/AudienceApplication";
 import "./styles.css";
-import { isFixtureRoute, isTrackingRoute } from "./fixture-route";
+import { isFixtureRoute, isTrackingRoute } from "./dev/routes";
 
 const FixtureExperience = import.meta.env.DEV
   ? lazy(() =>
-      import("./fixtures/FixtureExperience").then((module) => ({
+      import("./dev/fixtures/FixtureExperience").then((module) => ({
         default: module.FixtureExperience,
       })),
     )
@@ -13,7 +13,9 @@ const FixtureExperience = import.meta.env.DEV
 
 const TrackingExperience = import.meta.env.DEV
   ? lazy(() =>
-      import("./AnchorExperience").then((module) => ({ default: module.AnchorExperience })),
+      import("./dev/tracking/AnchorExperience").then((module) => ({
+        default: module.AnchorExperience,
+      })),
     )
   : null;
 

@@ -1,5 +1,6 @@
-import { createAudienceWebCapabilityProfile } from "@unframe/contracts/presentation";
 import {
+  audienceWebCapabilityProfileId,
+  createAudienceWebCapabilityProfile,
   createUnityMediaCapabilityProfile,
   capabilityProfileSchema,
   runtimeAuthorityVersions,
@@ -99,7 +100,7 @@ const presentationQuestProfile = capabilityProfileSchema.parse({
 });
 
 export const normalizedCapability = (profileId: string): CapabilityProfile => {
-  if (profileId === "audience-web-v1") return createAudienceWebCapabilityProfile();
+  if (profileId === audienceWebCapabilityProfileId) return createAudienceWebCapabilityProfile();
   if (profileId === "unity-media-v1") return createUnityMediaCapabilityProfile();
   const profile = [bakedWebQuestProfile, presentationQuestProfile].find(
     (candidate) => candidate.capabilityProfileId === profileId,

@@ -41,11 +41,12 @@ nix run .#audience -- preview
 
 ## 構成
 
-- `AnchorExperience.tsx` / `AnchorExperienceView.tsx`: 画面入口と表示専用View。カメラ・Workerの所有や姿勢推定を持たない。
-- `experience/use-anchor-experience.ts`: 設定・サイズ選択、Reactの画面状態とセッションの接続、アンマウント時の破棄。
+- `src/dev/fixtures/`: 開発用の素材表示画面、シナリオ、PNG・動画・GLB。
+- `src/dev/tracking/AnchorExperience.tsx` / `AnchorExperienceView.tsx`: 位置合わせ検証の画面入口と表示専用View。カメラ・Workerの所有や姿勢推定を持たない。
+- `src/dev/tracking/use-anchor-experience.ts`: 検証用の設定・サイズ選択、Reactの画面状態とセッションの接続、アンマウント時の破棄。
 - `experience/anchor-session.ts`: 権限要求、開始・停止、NORMAL待機、検出開始、リセット、古い非同期処理の拒否。設定ごとに1セッションを所有する。
 - `experience/tag-anchor-state.ts`: タグ推定結果と確定アンカーの状態。単一観測の即採用、SDK姿勢と500ms未満の鮮度条件、未検出時の保持を扱う。
-- `experience/diagnostic-export.ts`: schemaVersion 21のJSON構築と明示ダウンロード。設定読込失敗時も環境・診断記録を保存できる。
+- `src/dev/tracking/diagnostic-export.ts`: schemaVersion 21のJSON構築と明示ダウンロード。設定読込失敗時も環境・診断記録を保存できる。
 - `tracking/adapter.ts`: SDKとWorkerの所有、固定absolute設定、画像取得の制御、状態・性能の記録。
 - `fiducials/frame-source.ts`: SDKが報告するvideo全体を取得し、表示用4×4投影行列からcover変換を逆算して同じ画像のKを求める。
 - `fiducials/detector.ts` / `worker.ts`: AprilTag 3のWASMで`tag36h11`を検出。`quad_decimate=1`・`refine_edges=1`。
@@ -57,6 +58,8 @@ nix run .#audience -- preview
 - `rendering/png-presentation.ts`: PNGを全件準備後にプレゼンrootへ接合し、失敗・取消時は巻き戻す。
 - `assets/png-texture.ts`: 期限付きURLからPNGを取得し、サイズ・SHA-256・寸法を検証してsRGB textureを生成する。
 - `tracking/input-capture.ts`: 最後の配信フレームの原グレー画素とPNGを明示操作でJSONへ保存。
+
+自動テストは各実装ディレクトリの `test/` に配置する（例: `src/connection/test/`、`src/dev/fixtures/test/`、`scripts/test/`）。描画テスト専用のデータ生成は `src/rendering/test/support/` に置く。各 `test/` はVitest・型検査・lintの対象とする。
 
 画像を縮小・中央切抜きせず、SDK報告videoサイズを維持する。4096×4096画素予算を超える入力はエラーにし、黙って縮小しない。画素はWorkerへ移譲し、結果と一緒に返却して同じフレームへ復元する。別のgetUserMedia・描画ループは追加しない。
 
@@ -104,7 +107,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 同じDelivery構造・assignmentの更新ではassetAccessだけを交換し、読み込み済み表示とカメラを維持する。新しいURLは以後の素材要求に使う。assignmentなどの変更時はカメラを維持しながらRuntimeを作り直し、新しいSnapshotを待つ。異なるpublication／profileの混在はHTTP接続制御で拒否する。API 資格も期限前に更新する。Runtime JWT の交換ではカメラを維持し、新 Snapshot と素材を再適用する。
 
-接続設定は `VITE_AUDIENCE_API_ORIGIN`（HTTPS origin）と `VITE_AUDIENCE_CAPABILITY_PROFILE_ID=audience-web-v1`。未設定なら参加不可として案内する。資格はメモリのみで、永続保存・リロード後の自動復帰は実装しない。
+接続設定は `VITE_AUDIENCE_API_ORIGIN`（HTTPS origin）のみ。未設定なら参加不可として案内する。対応形式と資源予算は共有定義で管理し、profile IDはその内容のSHA-256から算出する。環境変数でprofileを選択しない。資格はメモリのみで、永続保存・リロード後の自動復帰は実装しない。
 
 ## 会場設定
 

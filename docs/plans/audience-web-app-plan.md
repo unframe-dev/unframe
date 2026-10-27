@@ -7,7 +7,7 @@
 ## 実装済みの範囲
 
 - 観客がログイン・登録なしでルームIDを入力し、匿名Viewer資格でjoin→Delivery→bootstrap→WebSocket Control／State→Snapshot／素材適用→StateReadyへ進む。資格の更新・失効、再接続・再同期、退出を扱う。
-- `audience-web-v1` によるPNG、opaque H.264 MP4、自己完結GLBの選択、取得検証・資源予算検査とThree.js描画を実装した。
+- 共有定義から算出するAudience profileによるPNG、opaque H.264 MP4、自己完結GLBの選択、取得検証・資源予算検査とThree.js描画を実装した。
 - Snapshot、sequence／fence、Group／Step、変数、Timeline、Surface／media／model、Step restoreの置換Viewを反映する。ViewerはCue／Flowの進行判断を再実行しない。
 - ルーム参加、カメラ開始、位置合わせ、視聴、再接続・終了のUIを分離した。カメラ・Worker・描画資源の所有と停止・破棄、診断を分離した。
 - AprilTag `tag36h11` の単一ID 0を即時採用し、次の観測までは8th Wall SDK／SLAMで位置を保持する。追跡低下時は非表示にして再認識を要求し、表示専用の距離別小揺れ補正を使う。

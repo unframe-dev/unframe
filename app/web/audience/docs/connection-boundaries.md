@@ -5,7 +5,7 @@
 ## 接続順
 
 1. `POST /viewer-credentials` に `{joinCode}` を送り、Viewer 登録と匿名 API 資格を取得する。
-2. 同資格で `POST /sessions/join`、`POST /sessions/{id}/delivery`、`POST /sessions/{id}/bootstrap` を呼ぶ。Delivery の profile は `audience-web-v1`。
+2. 同資格で `POST /sessions/join`、`POST /sessions/{id}/delivery`、`POST /sessions/{id}/bootstrap` を呼ぶ。Delivery の profile ID は共有のAudience定義から算出する。
 3. bootstrap の endpoint origin から `/browser/control` へ接続し、既存 v3 ControlHandshake と Snapshot を受ける。
 4. Control の nonce で `/browser/state` を接続する。Snapshot の素材適用と StateConnected を確認後、Snapshot の cut に対する StateReady を送る。
 5. 既存 Control／State の更新を Runtime に適用する。Cue／Flow を観客端末で再実行しない。
@@ -25,7 +25,7 @@ HTTP の生成元は [openapi.ts](../../../server/control-plane/src/openapi.ts)�
 
 | 所有          | 必要な設定                                                                                                                                                                             |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Audience      | `VITE_AUDIENCE_API_ORIGIN` に HTTPS API origin、`VITE_AUDIENCE_CAPABILITY_PROFILE_ID=audience-web-v1`                                                                                  |
+| Audience      | `VITE_AUDIENCE_API_ORIGIN` に HTTPS API origin。profile ID は共有定義から自動算出                                                                                                      |
 | Control Plane | `AUDIENCE_ORIGIN` に Audience の HTTPS origin、既存 DB に `0013_anonymous_viewers.sql` を適用                                                                                          |
 | Realtime      | `REALTIME_BROWSER_ORIGINS` に Audience の HTTPS origin。bootstrap endpoint と同じ host で `/browser/control`、`/browser/state` を同じ Runtime ポートへ転送し、WebSocket upgrade を許可 |
 | 素材配信      | Audience origin から PNG／MP4／GLB の CORS 取得を許可。MIME・サイズ・checksum・期限が Delivery と一致すること                                                                          |

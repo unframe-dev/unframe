@@ -8,7 +8,11 @@ import buildManifest from "../../../../../../packages/contracts/presentation/fix
 import { PublicationAssetAccess } from "../../../src/modules/publications/asset-access";
 import { DeliveryService } from "../../../src/modules/publications/delivery";
 import { validateConfig } from "../../../src/config";
-import { decodeWireMessage, type DeliveryManifestWire } from "@unframe/contracts/presentation";
+import {
+  audienceWebCapabilityProfileId,
+  decodeWireMessage,
+  type DeliveryManifestWire,
+} from "@unframe/contracts/presentation";
 import { normalizedCapability } from "../../../src/modules/publications/capability";
 import {
   buildProjectionProfile,
@@ -163,11 +167,19 @@ describe("publication service", () => {
     ).toBe(200);
     const delivery = await request(
       "/sessions/anonymous-live/delivery",
-      { capabilityProfileId: "audience-web-v1" },
+      { capabilityProfileId: audienceWebCapabilityProfileId },
       credential.token,
     );
     expect(delivery.status).toBe(200);
     expect(delivery.headers.get("content-type")).toBe("application/x-protobuf");
+    const manifest = decodeWireMessage(
+      "unframe.delivery.DeliveryManifest",
+      new Uint8Array(await delivery.arrayBuffer()),
+    ) as DeliveryManifestWire;
+    expect(manifest.capabilityProfile?.capabilityProfileId).toBe(audienceWebCapabilityProfileId);
+    expect(manifest.projectionProfile?.key?.capabilityProfileId).toBe(
+      audienceWebCapabilityProfileId,
+    );
     const bootstrap = await request("/sessions/anonymous-live/bootstrap", {}, credential.token);
     expect(bootstrap.status).toBe(200);
     await expect(bootstrap.json()).resolves.toMatchObject({ runtimeId: "runtime-demo" });

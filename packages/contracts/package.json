@@ -27,6 +27,8 @@
     "test:wire": "tsx --test test/wire-conformance.test.ts test/wire-long.test.ts"
   },
   "dependencies": {
+    "@noble/hashes": "2.3.0",
+    "canonicalize": "3.0.0",
     "long": "5.3.2",
     "protobufjs": "7.5.6",
     "zod": "4.4.3"
@@ -35,7 +37,6 @@
     "@cloudflare/workers-types": "5.20260927.1",
     "@types/node": "^24.0.0",
     "ajv": "8.20.0",
-    "canonicalize": "3.0.0",
     "openapi-typescript": "^7.12.0",
     "protobufjs-cli": "2.7.0",
     "tsx": "^4.22.1",
