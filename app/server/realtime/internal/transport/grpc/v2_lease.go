@@ -12,7 +12,7 @@ type v2OperationResult[T any] struct {
 	err   error
 }
 
-// Lease renewal may move the deadline while a gRPC operation is blocked.
+// Lease renewal or revocation may change authorization while a gRPC operation is blocked.
 func v2BeforeLeaseExpiry[T any](ctx context.Context, deadline func() (time.Time, error), operation func() (T, error)) (T, error) {
 	var zero T
 	until, err := deadline()
@@ -32,7 +32,8 @@ func v2BeforeLeaseExpiry[T any](ctx context.Context, deadline func() (time.Time,
 		if remaining <= 0 {
 			return zero, assignmentError(assignment.ErrLeaseExpired)
 		}
-		timer := time.NewTimer(remaining)
+		// Bound revocation detection even when the held lease is far in the future.
+		timer := time.NewTimer(min(remaining, 100*time.Millisecond))
 		select {
 		case received := <-result:
 			timer.Stop()
