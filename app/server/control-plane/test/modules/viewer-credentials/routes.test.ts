@@ -121,12 +121,19 @@ it("scopes, rotates, expires and revokes anonymous credentials without managemen
   await env.DB.prepare("UPDATE presentation_sessions SET state = 'Ended' WHERE id = ?")
     .bind(sessionId)
     .run();
-  expect((await request("/viewer-credentials/refresh", "POST", nextCredential.token)).status).toBe(
-    401,
-  );
+  const ended = await request("/viewer-credentials/refresh", "POST", nextCredential.token);
+  expect(ended.status).toBe(410);
+  await expect(ended.json()).resolves.toEqual({
+    error: { code: "session_ended", message: "Session ended" },
+  });
   expect(
     (await request(`/sessions/${sessionId}/bootstrap`, "POST", nextCredential.token, {})).status,
-  ).toBe(401);
+  ).toBe(410);
+  expect((await request("/sessions/other", "GET", nextCredential.token)).status).toBe(403);
+  expect((await request(`/sessions/${sessionId}`, "GET", "viewer_invalid")).status).toBe(401);
+  expect((await request(`/sessions/${sessionId}`, "GET", credential.token)).status).toBe(401);
+  timestamp = new Date("2026-10-27T01:00:00Z");
+  expect((await request(`/sessions/${sessionId}`, "GET", nextCredential.token)).status).toBe(401);
 });
 
 it("allows only the configured Audience origin for bearer browser requests", async () => {

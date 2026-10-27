@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { generateKeyPairSync, randomBytes, randomUUID } from "node:crypto";
-import { cp as copy, open, writeFile } from "node:fs/promises";
+import { appendFile, cp as copy, open, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
@@ -14,8 +14,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const state = process.env["UNFRAME_REALTIME_E2E_STATE"];
 if (!state) throw new Error("Use nix run .#realtime-e2e to prepare private TLS trust.");
 const args = process.argv.slice(2);
-if (args.some((arg) => arg !== "--race") || args.length > 1)
-  throw new Error("Usage: nix run .#realtime-e2e -- [--race]");
+if (args.some((arg) => !["--race", "--unity"].includes(arg)) || new Set(args).size !== args.length)
+  throw new Error("Usage: nix run .#realtime-e2e -- [--race] [--unity]");
 const race = args.includes("--race") ? ["-race"] : [];
 const cancellation = new AbortController();
 const children: ReturnType<typeof spawn>[] = [];
@@ -24,6 +24,14 @@ process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
 let fatal: Error | undefined;
 const quote = (value: string) => JSON.stringify(value);
+let diagnostics = Promise.resolve();
+function record(event: string, service: string, exitCode?: number | null) {
+  const entry = { event, service, ...(exitCode === undefined ? {} : { exitCode }) };
+  diagnostics = diagnostics.then(() =>
+    appendFile(join(state!, "diagnostics.jsonl"), JSON.stringify(entry) + "\n", { mode: 0o600 }),
+  );
+  void diagnostics.catch(() => {});
+}
 
 async function availablePort() {
   const server = createServer();
@@ -46,6 +54,7 @@ async function launch(
   options: { cwd?: string; env?: NodeJS.ProcessEnv; service?: boolean; terminal?: boolean } = {},
 ) {
   cancellation.signal.throwIfAborted();
+  record("process-start", label);
   const log = options.terminal ? null : await open(join(state!, `${label}.log`), "a", 0o600);
   const child = spawn(command, args, {
     cwd: options.cwd ?? root,
@@ -58,6 +67,7 @@ async function launch(
     const aborted = () => reject(new Error("Realtime E2E interrupted."));
     cancellation.signal.addEventListener("abort", aborted, { once: true });
     const finish = (error?: Error) => {
+      record("process-exit", label, child.exitCode);
       cancellation.signal.removeEventListener("abort", aborted);
       if (options.service && !cancellation.signal.aborted) {
         fatal = error ?? new Error(`${label} stopped unexpectedly.`);
@@ -108,19 +118,17 @@ async function stopChildren() {
         /* The process group has already stopped. */
       }
   }
-  for (const child of children.toReversed()) {
-    if (!child.pid || child.exitCode !== null || child.signalCode !== null) continue;
-    await Promise.race([
-      new Promise<void>((resolve) => child.once("exit", () => resolve())),
-      pause(1500),
-    ]);
-    if (child.exitCode === null && child.signalCode === null)
-      try {
-        process.kill(-child.pid, "SIGKILL");
-      } catch {
-        /* The process group has already stopped. */
-      }
-  }
+  const groups = children.flatMap((child) => (child.pid ? [child.pid] : []));
+  const alive = (pid: number) => {
+    try {
+      process.kill(-pid, 0);
+      return true;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code !== "ESRCH";
+    }
+  };
+  const deadline = Date.now() + 20000;
+  while (groups.some(alive) && Date.now() < deadline) await pause(100);
   for (const child of children.toReversed()) {
     if (child.pid)
       try {
@@ -218,13 +226,7 @@ ${runtimeEndpoint} {
 ${audienceOrigin} {
   bind 127.0.0.1
   tls ${quote(join(state, "server.pem"))} ${quote(join(state, "server-key.pem"))}
-  handle /__realtime_e2e {
-    header Content-Type text/html
-    respond "<!doctype html><html><body></body></html>"
-  }
-  handle {
-    reverse_proxy http://127.0.0.1:${audienceVitePort}
-  }
+  reverse_proxy http://127.0.0.1:${audienceVitePort}
 }
 `,
     { mode: 0o600 },
@@ -264,11 +266,23 @@ ${audienceOrigin} {
   );
   await launch(
     "pnpm",
-    ["exec", "vite", "--host", "127.0.0.1", "--port", String(audienceVitePort), "--strictPort"],
+    [
+      "exec",
+      "vp",
+      "dev",
+      "--config",
+      join(root, "scripts/realtime-e2e/vite.config.mts"),
+      "--host",
+      "127.0.0.1",
+      "--port",
+      String(audienceVitePort),
+      "--strictPort",
+    ],
     "audience",
     {
       service: true,
       cwd: join(root, "app/web/audience"),
+      env: { ...process.env, VITE_AUDIENCE_API_ORIGIN: cp },
     },
   );
   await waitFor(
@@ -337,23 +351,12 @@ ${audienceOrigin} {
     .object({ session: z.object({ id: z.string().min(1) }), joinCode: z.string().min(1) })
     .parse(await remote("/sessions", { presentationId }));
   const runtimeId = randomUUID();
-  const assignment = z
-    .object({
-      assignmentEpoch: z.number().int().positive(),
-      issuedAt: z.string().datetime(),
-      leaseExpiresAt: z.string().datetime(),
-    })
-    .parse(
-      await remote(`/sessions/${session.id}/runtime-assignment`, {
-        runtimeId,
-        runtimeKind: "Cloud",
-        endpoint: runtimeEndpoint,
-        presentationRevision: 1,
-        leaseExpiresAt: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
-      }),
-    );
   const runtimeBinary = join(state, "realtime");
   await launch("go", ["build", ...race, "-o", runtimeBinary, "./cmd/server"], "runtime-build", {
+    cwd: join(root, "app/server/realtime"),
+  });
+  const hostBinary = join(state, "runtime-host");
+  await launch("go", ["build", ...race, "-o", hostBinary, "./cmd/runtime-host"], "host-build", {
     cwd: join(root, "app/server/realtime"),
   });
   const e2eConfig = join(state, "config.json");
@@ -370,9 +373,14 @@ ${audienceOrigin} {
         presenterCredential,
         caFile: join(state, "ca.pem"),
         runtimeBinary,
+        hostBinary,
         stateDirectory: state,
         repositoryRoot: root,
         browserStatusFile: join(state, "browser-status.json"),
+        browserCommandFile: join(state, "browser-command.json"),
+        unityEnabled: args.includes("--unity"),
+        unityStatusFile: join(state, "unity-status.json"),
+        unityCommandFile: join(state, "unity-command.json"),
         runtimeEnv: {
           ...(race.length ? { GORACE: "halt_on_error=1" } : {}),
           SSL_CERT_FILE: join(state, "ca.pem"),
@@ -382,14 +390,8 @@ ${audienceOrigin} {
           REALTIME_JWKS_URL: `${cp}/.well-known/jwks.json`,
           REALTIME_CONTROL_PLANE_URL: cp,
           REALTIME_SERVICE_IDENTITY: serviceIdentity,
-          REALTIME_SESSION_ID: session.id,
           REALTIME_RUNTIME_ID: runtimeId,
-          REALTIME_RUNTIME_KIND: "Cloud",
           REALTIME_RUNTIME_ENDPOINT: runtimeEndpoint,
-          REALTIME_ASSIGNMENT_EPOCH: String(assignment.assignmentEpoch),
-          REALTIME_PRESENTATION_REVISION: "1",
-          REALTIME_ASSIGNMENT_ISSUED_AT: assignment.issuedAt,
-          REALTIME_LEASE_EXPIRES_AT: assignment.leaseExpiresAt,
           REALTIME_BROWSER_ORIGINS: audienceOrigin,
         },
       },
@@ -398,14 +400,19 @@ ${audienceOrigin} {
     ),
     { mode: 0o600 },
   );
+  const privateStateResponse = await fetch(`${audienceOrigin}/@fs${e2eConfig}`);
+  if (privateStateResponse.status !== 403)
+    throw new Error("Audience development server must deny private E2E state.");
   console.log("Running real-service gRPC / WebSocket synchronization and recovery E2E.");
-  await launch("go", ["test", ...race, "-count=1", "-v", "-timeout", "3m", "./e2e"], "e2e", {
+  await launch("go", ["test", ...race, "-count=1", "-v", "-timeout", "10m", "./e2e"], "e2e", {
     cwd: join(root, "app/server/realtime"),
     env: { ...process.env, UNFRAME_REALTIME_E2E_CONFIG: e2eConfig },
     terminal: true,
   });
   console.log("Realtime E2E passed.");
+  record("run-passed", "e2e");
 } catch (error) {
+  record("run-failed", "e2e");
   console.error(
     fatal?.message ?? (error instanceof Error ? error.message : "Realtime E2E failed."),
   );
@@ -413,6 +420,7 @@ ${audienceOrigin} {
 } finally {
   stop();
   await stopChildren();
+  await diagnostics;
   process.off("SIGINT", stop);
   process.off("SIGTERM", stop);
 }

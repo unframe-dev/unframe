@@ -29,8 +29,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         public static ControlClientItem CreateLogical(string logicalEventName, ulong presentationOriginVersion, InputContext context, ulong commandEpoch)
         {
-            if (String.IsNullOrWhiteSpace(logicalEventName) || presentationOriginVersion == 0)
-                throw new ArgumentException("A logical event and current presentation origin are required.");
+            if (String.IsNullOrWhiteSpace(logicalEventName))
+                throw new ArgumentException("A logical event is required.");
             return new ControlClientItem
             {
                 LogicalInput = new LogicalInputCommand
@@ -47,8 +47,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         public static ControlClientItem CreateSurfaceInteraction(string surfaceId, string interactionId, ulong presentationOriginVersion, InputContext context, ulong commandEpoch)
         {
-            if (String.IsNullOrWhiteSpace(surfaceId) || String.IsNullOrWhiteSpace(interactionId) || presentationOriginVersion == 0)
-                throw new ArgumentException("A picked surface, interaction, and current origin are required.");
+            if (String.IsNullOrWhiteSpace(surfaceId) || String.IsNullOrWhiteSpace(interactionId))
+                throw new ArgumentException("A picked surface and interaction are required.");
             return new ControlClientItem
             {
                 SurfaceInteraction = new SurfaceInteractionCommand
@@ -71,7 +71,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public static ControlClientItem CreateRecognition(PresenterRecognitionResult result, ulong origin, ulong epoch)
         {
-            if (result?.Context == null || origin == 0) throw new ArgumentException("Recognition requires captured context and origin.");
+            if (result?.Context == null) throw new ArgumentException("Recognition requires captured context.");
             string id = EventId(epoch);
             if (result.Gesture != GestureKind.Unspecified)
                 return new ControlClientItem
@@ -103,7 +103,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public static ControlClientItem CreateControl(RuntimeControlKind kind, ulong origin, ulong epoch, string groupId = null, string stepId = null)
         {
-            if (kind < RuntimeControlKind.Pause || kind > RuntimeControlKind.Recalibrate || origin == 0
+            if (kind < RuntimeControlKind.Pause || kind > RuntimeControlKind.Recalibrate
                 || kind == RuntimeControlKind.SelectStep && (String.IsNullOrEmpty(groupId) || String.IsNullOrEmpty(stepId))
                 || kind != RuntimeControlKind.SelectStep && (groupId != null || stepId != null)) throw new ArgumentException("Invalid runtime control.");
             return new ControlClientItem

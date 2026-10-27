@@ -127,3 +127,12 @@ export const runtimeAssignments = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.sessionId, table.epoch] })],
 );
+
+export const runtimeHosts = sqliteTable("runtime_hosts", {
+  runtimeId: text("runtime_id").primaryKey(),
+  endpoint: text().notNull(),
+  accepting: integer({ mode: "boolean" }).notNull(),
+  lastSeenAt: text("last_seen_at").notNull(),
+  servingSessionId: text("serving_session_id"),
+  servingAssignmentEpoch: integer("serving_assignment_epoch"),
+});

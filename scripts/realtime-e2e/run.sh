@@ -4,6 +4,7 @@ umask 077
 root="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
 cd "$root"
 pnpm --filter @unframe/dev-scripts exec tsc --noEmit -p ../realtime-e2e/tsconfig.json
+pnpm --filter @unframe/contracts exec tsx --test ../../scripts/realtime-e2e/browser-status.test.mts
 bash "$root/scripts/build-cli-filesystem.sh"
 mkdir -p "$root/.unframe/realtime-e2e/runs"
 state="$(mktemp -d "$root/.unframe/realtime-e2e/runs/run.XXXXXXXX")"

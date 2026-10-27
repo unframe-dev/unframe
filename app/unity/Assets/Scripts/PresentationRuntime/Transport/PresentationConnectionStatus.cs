@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
+using Google.Protobuf;
 using Grpc.Core;
 
 namespace Unframe.Unity.PresentationRuntime
@@ -24,6 +26,17 @@ namespace Unframe.Unity.PresentationRuntime
 
     public static class PresentationConnectionErrors
     {
+        public static bool CanRetryRealtimeTransport(RpcException exception)
+        {
+            if (exception.StatusCode == StatusCode.Unavailable) return true;
+            if (exception.StatusCode != StatusCode.Internal) return false;
+            for (Exception cause = exception.Status.DebugException ?? exception.InnerException; cause != null; cause = cause.InnerException)
+                if (cause is InvalidProtocolBufferException || cause is InvalidDataException) return false;
+            for (Exception cause = exception.Status.DebugException ?? exception.InnerException; cause != null; cause = cause.InnerException)
+                if (cause is IOException || cause is HttpRequestException) return true;
+            return false;
+        }
+
         public static string FromHttpStatus(HttpStatusCode status)
         {
             switch (status)

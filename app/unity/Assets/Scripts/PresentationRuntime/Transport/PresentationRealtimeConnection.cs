@@ -32,6 +32,8 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly Func<bool> additionalResidency;
         private readonly SemaphoreSlim writes = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim stateWrites = new SemaphoreSlim(1, 1);
+        private readonly object pendingGate = new object();
+        private readonly Dictionary<string, TaskCompletionSource<CommandOutcome>> pendingOutcomes = new Dictionary<string, TaskCompletionSource<CommandOutcome>>();
         private ulong trackingFrameSequence;
         private CancellationTokenSource lifetime;
         private AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem> control;
@@ -56,6 +58,7 @@ namespace Unframe.Unity.PresentationRuntime
         public bool SessionReady { get; private set; }
         public event Action RuntimeChanged;
         public event Action Disconnected;
+        public event Action<ResyncReason> SnapshotResynchronizationRequired;
 
         public PresentationRealtimeConnection(PresentationRuntimeDataStore store, PresentationTextureResidency textures, Func<CancellationToken, Task> prepareResources = null, Func<bool> additionalResidency = null)
         {
@@ -77,6 +80,7 @@ namespace Unframe.Unity.PresentationRuntime
             lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             try
             {
+                int snapshotRetries = 0;
                 for (int attempt = 0; ; attempt++)
                 {
                     RequireResidency();
@@ -87,17 +91,28 @@ namespace Unframe.Unity.PresentationRuntime
                         await RunConnectionAsync(endpoint, bearer, certFingerprint, lifetime.Token, handlerFactory);
                         throw new RpcException(new Status(StatusCode.Unavailable, "realtime stream ended"));
                     }
-                    catch (RpcException exception) when (attempt < 5 && !lifetime.IsCancellationRequested && TryPrepareSnapshotRetry(exception))
+                    catch (RpcException exception) when (snapshotRetries < 5 && !lifetime.IsCancellationRequested && TryPrepareSnapshotRetry(exception))
+                    {
+                        snapshotRetries++;
+                        attempt = -1;
+                        await Task.Delay(250, lifetime.Token);
+                    }
+                    catch (RpcException exception) when (!lifetime.IsCancellationRequested
+                        && (exception.StatusCode == StatusCode.FailedPrecondition || exception.StatusCode == StatusCode.PermissionDenied || exception.StatusCode == StatusCode.Unauthenticated))
+                    {
+                        // The Control Plane owns Session termination and assignment changes; a transport status alone cannot identify them.
+                        await bearerProvider(lifetime.Token);
+                        throw;
+                    }
+                    catch (RpcException exception) when (PresentationConnectionErrors.CanRetryRealtimeTransport(exception) && attempt < 5 && !lifetime.IsCancellationRequested)
                     {
                         await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(5000, 250 * (1 << attempt))), lifetime.Token);
                     }
-                    catch (RpcException exception) when (exception.StatusCode == StatusCode.Unavailable && attempt < 5 && !lifetime.IsCancellationRequested)
+                    catch (SnapshotResyncRequiredException) when (snapshotRetries < 5 && !lifetime.IsCancellationRequested)
                     {
-                        await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(5000, 250 * (1 << attempt))), lifetime.Token);
-                    }
-                    catch (SnapshotResyncRequiredException) when (attempt < 5 && !lifetime.IsCancellationRequested)
-                    {
-                        await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(5000, 250 * (1 << attempt))), lifetime.Token);
+                        snapshotRetries++;
+                        attempt = -1;
+                        await Task.Delay(250, lifetime.Token);
                     }
                     catch (SnapshotResyncRequiredException)
                     {
@@ -151,6 +166,11 @@ namespace Unframe.Unity.PresentationRuntime
                                 if (!await read) break;
                                 RequireResidency();
                                 ControlServerItem item = control.ResponseStream.Current;
+                                if (item.ItemCase == ControlServerItem.ItemOneofCase.ResyncRequired)
+                                {
+                                    HandleResync(item.ResyncRequired.Reason);
+                                    continue;
+                                }
                                 if (item.ItemCase == ControlServerItem.ItemOneofCase.Connected)
                                 {
                                     if (connected || item.Connected.ProtocolVersion != "v3" || item.Connected.ConnectionId.Length == 0
@@ -190,11 +210,6 @@ namespace Unframe.Unity.PresentationRuntime
                                     RuntimeChanged?.Invoke();
                                     continue;
                                 }
-                                if (item.ItemCase == ControlServerItem.ItemOneofCase.ResyncRequired)
-                                {
-                                    HandleResync(item.ResyncRequired.Reason);
-                                    continue;
-                                }
                                 if (item.ItemCase == ControlServerItem.ItemOneofCase.StateConnectionNonce)
                                 {
                                     if (resuming && !snapshot)
@@ -227,6 +242,11 @@ namespace Unframe.Unity.PresentationRuntime
                                     if (!TryReceiveReplayBootstrap(item, out string replayError)) throw Failure(replayError);
                                 }
                                 else if (!store.TryReceiveNetworkControl(item, out string error)) throw Failure(error);
+                                if (item.ItemCase == ControlServerItem.ItemOneofCase.CommandOutcome)
+                                {
+                                    lock (pendingGate)
+                                        if (pendingOutcomes.TryGetValue(item.CommandOutcome.ClientEventId, out var completion)) completion.TrySetResult(item.CommandOutcome.Clone());
+                                }
                                 if (store.LastReliableSequence != priorReliableSequence || (store.PresentationOrigin?.Version ?? 0) != priorOriginVersion)
                                     ReliableDisplayChanged(item);
                                 if (fence != null && store.PresentationOrigin != null)
@@ -242,6 +262,9 @@ namespace Unframe.Unity.PresentationRuntime
                             ControlReady = false;
                             SessionReady = false;
                             InputSynchronization.Disconnect();
+                            lock (pendingGate)
+                                foreach (var completion in pendingOutcomes.Values)
+                                    completion.TrySetException(new RpcException(new Status(StatusCode.Unavailable, "command outcome connection closed")));
                             pendingSteps = null; reachedSteps.Clear(); stepsSequence = 0;
                             inputGeneration++;
                             Disconnected?.Invoke();
@@ -281,6 +304,7 @@ namespace Unframe.Unity.PresentationRuntime
                 case ResyncReason.PresentationOriginChanged:
                 case ResyncReason.SnapshotCatchUpExhausted:
                     ResetSnapshotBootstrap();
+                    SnapshotResynchronizationRequired?.Invoke(reason);
                     throw new SnapshotResyncRequiredException();
                 case ResyncReason.ProjectionChanged:
                 case ResyncReason.PublicationFenceChanged:
@@ -479,6 +503,35 @@ namespace Unframe.Unity.PresentationRuntime
             if (!IsCommandReady(command))
                 throw new InvalidOperationException("Runtime input requires a ready connection and a command payload.");
             return WriteInputAsync(control, command.Clone(), inputGeneration, token);
+        }
+
+        public async Task<CommandOutcome> SendConfirmedAsync(ControlClientItem command, TimeSpan timeout, CancellationToken token)
+        {
+            if (timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
+            string id = command?.RuntimeControl?.ClientEventId ?? command?.LogicalInput?.ClientEventId
+                ?? command?.SurfaceInteraction?.ClientEventId ?? command?.GestureInput?.ClientEventId ?? command?.ZoneInput?.ClientEventId;
+            if (String.IsNullOrWhiteSpace(id)) throw new ArgumentException("A command event identifier is required.", nameof(command));
+            var completion = new TaskCompletionSource<CommandOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (pendingGate)
+            {
+                if (pendingOutcomes.ContainsKey(id)) throw new InvalidOperationException("This command is already awaiting its outcome.");
+                pendingOutcomes.Add(id, completion);
+            }
+            try
+            {
+                await SendAsync(command, token);
+                using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(token))
+                {
+                    deadline.CancelAfter(timeout);
+                    using (deadline.Token.Register(() => completion.TrySetCanceled()))
+                    {
+                        try { return await completion.Task; }
+                        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                        { throw new TimeoutException("The Runtime did not confirm the command outcome."); }
+                    }
+                }
+            }
+            finally { lock (pendingGate) pendingOutcomes.Remove(id); }
         }
 
         private bool IsCommandReady(ControlClientItem command)

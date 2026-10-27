@@ -20,6 +20,16 @@ const errorResponse = (description: string) => ({
   description,
   content: { "application/json": { schema: errorSchema } },
 });
+const sessionEndedResponse = {
+  description: "Session ended",
+  content: {
+    "application/json": {
+      schema: z.object({
+        error: z.object({ code: z.literal("session_ended"), message: z.string() }),
+      }),
+    },
+  },
+};
 const security = [{ bearerAuth: [] }, { cookieSession: [] }];
 const serviceSecurity = [{ serviceBearer: [] }];
 
@@ -381,6 +391,7 @@ export const publicRoutes = [
       401: errorResponse("Unauthorized"),
       404: errorResponse("Not found"),
       409: errorResponse("Session full"),
+      410: sessionEndedResponse,
       429: errorResponse("Rate limited"),
     },
   }),
@@ -398,6 +409,7 @@ export const publicRoutes = [
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Not found"),
+      410: sessionEndedResponse,
     },
   }),
   createRoute({
@@ -449,6 +461,7 @@ export const publicRoutes = [
       403: errorResponse("Forbidden"),
       404: errorResponse("Not found"),
       409: errorResponse("Session ended"),
+      410: sessionEndedResponse,
     },
   }),
   createRoute({
@@ -892,6 +905,7 @@ export const deliveryManifestRoute = createRoute({
     403: errorResponse("Not a session participant"),
     404: errorResponse("Publication not found"),
     409: errorResponse("Session or assignment changed"),
+    410: sessionEndedResponse,
     422: errorResponse("Unsupported capability"),
   },
 });
@@ -1061,13 +1075,18 @@ export const refreshViewerCredentialRoute = createRoute({
       content: { "application/json": { schema: viewerCredentialSchema } },
     },
     401: errorResponse("Expired or revoked credential"),
+    410: sessionEndedResponse,
   },
 });
 export const revokeViewerCredentialRoute = createRoute({
   method: "delete",
   path: "/viewer-credentials",
   security: [{ bearerAuth: [] }],
-  responses: { 204: { description: "Revoked" }, 401: errorResponse("Invalid credential") },
+  responses: {
+    204: { description: "Revoked" },
+    401: errorResponse("Invalid credential"),
+    410: sessionEndedResponse,
+  },
 });
 export const internalRuntimeAssetRoute = createRoute({
   method: "get",
@@ -1096,5 +1115,87 @@ export const internalRuntimeAssetRoute = createRoute({
     401: errorResponse("Unauthorized service"),
     403: errorResponse("Asset not selected for participant"),
     409: errorResponse("Runtime assignment or publication unavailable"),
+  },
+});
+
+const runtimePreparationSchema = z.union([
+  z.object({ state: z.literal("unassigned") }),
+  z.object({ state: z.literal("ended") }),
+  z.object({
+    state: z.enum(["starting", "ready"]),
+    runtimeId: identifierSchema,
+    assignmentEpoch: z.number().int().positive(),
+    leaseExpiresAt: z.string().datetime(),
+  }),
+]);
+const preparationResponses = {
+  200: {
+    description: "Runtime preparation status",
+    content: { "application/json": { schema: runtimePreparationSchema } },
+  },
+  401: errorResponse("Unauthorized"),
+  403: errorResponse("Forbidden"),
+  404: errorResponse("Session not found"),
+} as const;
+export const getRuntimePreparationRoute = createRoute({
+  method: "get",
+  path: "/sessions/{id}/runtime-preparation",
+  security,
+  request: { params: idParameter },
+  responses: preparationResponses,
+});
+export const prepareRuntimeRoute = createRoute({
+  method: "post",
+  path: "/sessions/{id}/runtime-preparation",
+  security,
+  request: { params: idParameter },
+  responses: {
+    200: preparationResponses[200],
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Forbidden"),
+    404: errorResponse("Session not found"),
+    409: errorResponse("Runtime unavailable, unpublished or ended Session"),
+  },
+});
+export const runtimeHostHeartbeatRoute = createRoute({
+  method: "post",
+  path: "/internal/runtime/hosts/{runtimeId}/heartbeat",
+  security: serviceSecurity,
+  request: {
+    params: z.object({ runtimeId: identifierSchema }).strict(),
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              endpoint: httpsUrlSchema.refine(
+                (value: string) => new URL(value).origin === value,
+                "HTTPS origin required",
+              ),
+              accepting: z.boolean(),
+              serving: z
+                .object({
+                  sessionId: identifierSchema,
+                  assignmentEpoch: z.number().int().positive(),
+                })
+                .strict()
+                .optional(),
+            })
+            .strict(),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Current Cloud assignment; null means stop the Runtime",
+      content: {
+        "application/json": { schema: z.object({ assignment: assignmentSchema.nullable() }) },
+      },
+    },
+    400: errorResponse("Invalid host heartbeat"),
+    401: errorResponse("Unauthorized service"),
+    409: errorResponse("Runtime identity or endpoint conflict"),
   },
 });

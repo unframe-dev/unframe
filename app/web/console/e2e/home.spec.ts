@@ -42,6 +42,9 @@ async function published(page: Page) {
   await page.route("**/publication", (route) => route.fulfill({ json: publication }));
 }
 test.beforeEach(async ({ page }) => {
+  await page.route("**/runtime-preparation", (route) =>
+    route.fulfill({ json: { state: "unassigned" } }),
+  );
   await page.route("**/api/auth/get-session", (route) =>
     route.fulfill({
       json: {
@@ -183,6 +186,137 @@ test("creates one room, displays the server fixed publication, and never persist
   await page.goto("/rooms/room-1");
   await expect(page.getByText("room-1", { exact: true })).toBeVisible();
   await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
+});
+
+test("prepares a room, polls readiness, starts and ends exactly once through normal UI", async ({
+  page,
+}) => {
+  let state = "Waiting";
+  let preparing = false;
+  let polls = 0;
+  const requests: string[] = [];
+  const preparation = {
+    runtimeId: "runtime-1",
+    assignmentEpoch: 1,
+    leaseExpiresAt: "2027-10-28T00:00:00.000Z",
+  };
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: { ...room, state } }));
+  await page.route("**/sessions/room-1/runtime-preparation", async (route) => {
+    if (route.request().method() === "POST") {
+      requests.push("prepare");
+      preparing = true;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await route.fulfill({ json: { ...preparation, state: "starting" } });
+    } else if (!preparing) {
+      await route.fulfill({ json: { state: "unassigned" } });
+    } else {
+      polls++;
+      await route.fulfill({ json: { ...preparation, state: polls > 1 ? "ready" : "starting" } });
+    }
+  });
+  for (const action of ["start", "end"]) {
+    await page.route(`**/sessions/room-1/${action}`, async (route) => {
+      requests.push(action);
+      state = action === "start" ? "Presenting" : "Ended";
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await route.fulfill({ json: { ...room, state } });
+    });
+  }
+  await page.goto("/rooms/room-1");
+  await expect(page.getByRole("button", { name: "発表を開始", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "発表環境を準備", exact: true }).dblclick();
+  await expect(page.getByText("発表環境を準備しています。", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "発表を開始", exact: true })).toBeEnabled();
+  expect(polls).toBeGreaterThanOrEqual(2);
+  await page.getByRole("button", { name: "発表を開始", exact: true }).dblclick();
+  await expect(page.getByText("Presenting", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "発表を終了", exact: true }).dblclick();
+  await expect(page.getByText("Ended", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "発表環境を準備", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "発表を開始", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "発表を終了", exact: true })).toHaveCount(0);
+  expect(requests).toEqual(["prepare", "start", "end"]);
+});
+
+test("retries unavailable runtime preparation in the same room", async ({ page }) => {
+  let requests = 0;
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
+  await page.route("**/sessions/room-1/runtime-preparation", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ json: { state: "unassigned" } });
+      return;
+    }
+    requests++;
+    await route.fulfill(
+      requests === 1
+        ? { status: 409, json: { error: { code: "runtime_unavailable" } } }
+        : {
+            json: {
+              state: "ready",
+              runtimeId: "runtime-1",
+              assignmentEpoch: 1,
+              leaseExpiresAt: "2027-10-28T00:00:00.000Z",
+            },
+          },
+    );
+  });
+  await page.goto("/rooms/room-1");
+  await page.getByRole("button", { name: "発表環境を準備", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("利用できる発表環境がありません");
+  await expect(page.getByRole("button", { name: "発表を開始", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "発表環境を準備", exact: true }).click();
+  await expect(page.getByRole("button", { name: "発表を開始", exact: true })).toBeEnabled();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(requests).toBe(2);
+  await expect(page).toHaveURL(/\/rooms\/room-1$/);
+});
+
+test("allows preparation retry after readiness polling fails", async ({ page }) => {
+  let attempts = 0;
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
+  await page.route("**/sessions/room-1/runtime-preparation", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill(
+        attempts > 0
+          ? { status: 503, json: { error: { code: "unavailable" } } }
+          : { json: { state: "unassigned" } },
+      );
+    } else {
+      attempts++;
+      await route.fulfill({
+        json: {
+          state: attempts > 1 ? "ready" : "starting",
+          runtimeId: "runtime-1",
+          assignmentEpoch: 1,
+          leaseExpiresAt: "2027-10-28T00:00:00.000Z",
+        },
+      });
+    }
+  });
+  await page.goto("/rooms/room-1");
+  await page.getByRole("button", { name: "発表環境を準備", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("通信に失敗");
+  await expect(page.getByRole("button", { name: "発表を開始", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "発表環境を準備", exact: true }).click();
+  await expect(page.getByRole("button", { name: "発表を開始", exact: true })).toBeEnabled();
+  expect(attempts).toBe(2);
+});
+
+test("ended room never offers preparation or presentation actions", async ({ page }) => {
+  let preparationRequests = 0;
+  await page.route("**/sessions/room-1", (route) =>
+    route.fulfill({ json: { ...room, state: "Ended" } }),
+  );
+  await page.route("**/sessions/room-1/runtime-preparation", (route) => {
+    preparationRequests++;
+    return route.fulfill({ json: { state: "ended" } });
+  });
+  await page.goto("/rooms/room-1");
+  await expect(page.getByText("このルームの発表は終了しました。", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /発表環境を準備|発表を開始|発表を終了/ }),
+  ).toHaveCount(0);
+  expect(preparationRequests).toBe(0);
 });
 
 test("clears the one-time room result when navigating to the room chooser", async ({ page }) => {

@@ -168,7 +168,8 @@ jobs:
       needs.changes.outputs.realtime == 'true' ||
       needs.changes.outputs.control-plane == 'true' ||
       needs.changes.outputs.audience == 'true' ||
-      needs.changes.outputs.presentation == 'true'
+      needs.changes.outputs.presentation == 'true' ||
+      needs.changes.outputs.unity == 'true'
     uses: ./.github/workflows/realtime-e2e.yml
 
   lp:

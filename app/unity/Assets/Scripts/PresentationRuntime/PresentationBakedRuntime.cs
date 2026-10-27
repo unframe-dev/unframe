@@ -73,6 +73,7 @@ namespace Unframe.Unity.PresentationRuntime
         public bool CanSendRuntimeControl { get { return ControlReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
         public System.Collections.Generic.IReadOnlyList<StepSelection> ReachedSteps => connection?.ReachedSteps ?? System.Array.Empty<StepSelection>();
         public event System.Action InputInvalidated;
+        public event System.Action<ResyncReason> SnapshotResynchronizationRequired;
         public void DiscardPendingInputs() => connection?.DiscardPendingInputs();
         public PresenterInputSynchronizationState InputSynchronization => connection?.InputSynchronization;
         public bool CanSendInput
@@ -124,6 +125,7 @@ namespace Unframe.Unity.PresentationRuntime
                 connection.RuntimeChanged += Refresh;
                 connection.InputSynchronization.Invalidated += () => InputInvalidated?.Invoke();
                 connection.Disconnected += HandleDisconnected;
+                connection.SnapshotResynchronizationRequired += reason => SnapshotResynchronizationRequired?.Invoke(reason);
                 await connection.RunAsync(realtimeEndpoint, bearerProvider, lifetime.Token, certFingerprint, realtimeHandlerFactory);
             }
             catch (Exception exception)
@@ -199,6 +201,16 @@ namespace Unframe.Unity.PresentationRuntime
         {
             try { await connection.SendAsync(command, token); }
             catch { store.ClearCommandOutcome(clientEventId); throw; }
+        }
+
+        public async Task<CommandOutcome> SendConfirmedAsync(ControlClientItem command, CancellationToken token)
+        {
+            if (command == null || !(command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl ? CanSendRuntimeControl : CanSendInput))
+                throw new InvalidOperationException("Runtime commands require a ready Presenter connection.");
+            string id = command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId;
+            store.TrackCommand(id);
+            try { return await connection.SendConfirmedAsync(command, TimeSpan.FromSeconds(10), token); }
+            catch { store.ClearCommandOutcome(id); throw; }
         }
 
         public Task SendTrackingAsync(TrackingFrame frame, CancellationToken token)

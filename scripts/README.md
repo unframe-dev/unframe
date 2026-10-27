@@ -108,8 +108,12 @@ Local Editor の品質ゲートは `nix run .#local-editor`（型検査・Node �
 
 ## Realtime の同期・復旧 E2E
 
-Fixed Browser を準備後、`nix run .#realtime-e2e` を実行します。`examples/presentation` を正式コンパイル・CLI公開し、隔離したローカル Control Plane／D1／R2、TLS ingress、Realtime を使用します。gRPC Presenter、複数の WebSocket Viewer、Chromium 上の製品 Audience HTTP／Realtime adapter・Runtime store を接続し、PNG の取得・checksum・decode、進行、pause／resume、途中参加、切断復帰、checkpoint からの process 再起動、Session 終了を検証します。Unity・カメラ・実機、表示時刻の精度、会場座標の整合は対象外です。
+Fixed Browser を準備後、`nix run .#realtime-e2e` を実行します。`examples/presentation` を正式コンパイル・CLI公開し、隔離したローカル Control Plane／D1／R2、TLS ingress、Realtime を使用します。gRPC の検証クライアント、複数の WebSocket Viewer、Chromium 上の製品 Audience 画面・Runtime・描画処理を接続し、素材の取得・decode、進行、pause／resume、途中参加、切断復帰、checkpoint からの process 再起動、Session 終了を検証します。カメラと8th Wall SDKへの入力はテスト用に差し替えます。
+
+`nix run .#realtime-e2e -- --unity --race` は実 Unity Editor の製品 SDK・Runtime・描画処理を Presenter として実行し、製品 Audience と同期・復旧を検証します。Editor とライセンスは `unity-editor` と同じ準備が必要です。実機、時計補償、会場設定配布は対象外です。
 
 `nix run .#realtime-e2e -- --race` は Runtime binary と Go E2E の両方で race detector を有効にします。GitHub Actions はこの mode を実行します。
 
-空きポートと run ごとの証明書・DB を使い、終了・失敗・中断時に子プロセスを停止します。Chromium のローカル証明書例外はその run の server key の SPKI に限定し、Go／Node は private CA で検証します。ログ・資格・証明書は `.unframe/realtime-e2e/runs/` の private directory に残ります。共有・コミットしないでください。通常の `nix run .#realtime` はこの実サービス E2E を起動せず、GitHub Actions の `Realtime E2E` job が別途実行します。
+空きポートと run ごとの証明書・DB を使い、終了・失敗・中断時に子プロセスを停止します。Chromium のローカル証明書例外はその run の server key の SPKI に限定し、Go／Node は private CA で検証します。ログ・資格・証明書は `.unframe/realtime-e2e/runs/` の private directory に残ります。共有・コミットしないでください。E2E 用 Audience 開発サーバーからもこの directory の配信を拒否し、HTTP 403 を確認します。通常の `nix run .#realtime` はこの実サービス E2E を起動せず、GitHub Actions の `Realtime E2E` job が別途実行します。
+
+Unity を実行する CI には、Unity 6000.3.22f1 とライセンス、Nix を持つ同一リポジトリの self-hosted runner が必要です。`UNITY_E2E_RUNNER` に専用ラベル、`UNITY_E2E_BRANCH` に許可する PR の head branch、`UNITY_EDITOR_PATH` に Editor の絶対パスを repository variables として設定します。`unity-live` job は同一リポジトリ・指定ブランチの PR でだけ起動します。設定がない場合は skip されるため、通常の hosted E2E 成功だけで実 Unity の検証完了とは扱いません。

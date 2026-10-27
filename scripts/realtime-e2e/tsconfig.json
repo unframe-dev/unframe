@@ -9,5 +9,6 @@
     "types": ["node"],
     "typeRoots": ["../dev/node_modules/@types", "../../app/web/audience/node_modules/@types"]
   },
+  "files": ["../../app/web/audience/node_modules/vite/dist/vite/client.d.ts"],
   "include": ["./*.mts", "./*.ts", "../../app/web/audience/src/fiducials/*vendor.d.ts"]
 }

@@ -44,6 +44,9 @@ public sealed class QuestOnboardingApi : IDisposable
     [Serializable] private sealed class JoinRequest { public string joinCode; }
     [Serializable] private sealed class SessionRecord { public string id; }
     [Serializable] private sealed class CreateResponse { public SessionRecord session; public string joinCode; }
+    [Serializable] private sealed class RuntimePreparation { public string state; public string runtimeId; public ulong assignmentEpoch; public string leaseExpiresAt; }
+    [Serializable] private sealed class ApiError { public string code; }
+    [Serializable] private sealed class ApiErrorResponse { public ApiError error; }
 
     private readonly HttpClient client;
     private readonly Uri origin;
@@ -204,6 +207,44 @@ public sealed class QuestOnboardingApi : IDisposable
     {
         ValidateId(id);
         using (HttpResponseMessage response = await SendAsync("/sessions/" + Uri.EscapeDataString(id) + "/start", new object(), true, token)) RequireSuccess(response);
+    }
+
+    public async Task PrepareRuntimeAsync(string id, CancellationToken token)
+    {
+        ValidateId(id);
+        using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token))
+        {
+            deadline.CancelAfter(TimeSpan.FromSeconds(30));
+            bool requestAssignment = true;
+            try
+            {
+                while (true)
+                {
+                    using (HttpResponseMessage response = await SendAsync("/sessions/" + Uri.EscapeDataString(id) + "/runtime-preparation", requestAssignment ? new object() : null, true, deadline.Token))
+                    {
+                        string json = await response.Content.ReadAsStringAsync();
+                        if ((int)response.StatusCode == 409 && JsonUtility.FromJson<ApiErrorResponse>(json)?.error?.code == "runtime_unavailable")
+                            throw new QuestOnboardingApiException("runtime-unavailable");
+                        RequireSuccess(response);
+                        RuntimePreparation preparation = JsonUtility.FromJson<RuntimePreparation>(json);
+                        if (preparation?.state == "ended") throw new QuestOnboardingApiException("session-ended");
+                        if (preparation?.state == "unassigned") throw new QuestOnboardingApiException("runtime-unavailable");
+                        ValidateId(preparation?.runtimeId);
+                        if (preparation.assignmentEpoch == 0
+                            || !DateTimeOffset.TryParse(preparation.leaseExpiresAt, System.Globalization.CultureInfo.InvariantCulture,
+                                System.Globalization.DateTimeStyles.RoundtripKind, out DateTimeOffset expiresAt)
+                            || expiresAt <= DateTimeOffset.UtcNow
+                            || preparation.state != "ready" && preparation.state != "starting")
+                            throw new QuestOnboardingApiException("invalid-response");
+                        if (preparation.state == "ready") return;
+                    }
+                    requestAssignment = false;
+                    await Task.Delay(250, deadline.Token);
+                }
+            }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested && !lifetime.IsCancellationRequested)
+            { throw new QuestOnboardingApiException("runtime-preparation-timeout"); }
+        }
     }
 
     private async Task<HttpResponseMessage> SendAsync(string path, object body, bool authenticated, CancellationToken token)

@@ -17,6 +17,19 @@ export class AudienceConnectionError extends Error {
   }
 }
 
+export async function audienceResponseError(response: Response): Promise<AudienceConnectionError> {
+  if (
+    response.status === 410 &&
+    response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() ===
+      "application/json"
+  ) {
+    const body: unknown = await response.json().catch(() => null);
+    if (z.object({ error: z.object({ code: z.literal("session_ended") }) }).safeParse(body).success)
+      return new AudienceConnectionError("session-ended", 410);
+  }
+  return new AudienceConnectionError("http-error", response.status);
+}
+
 const identifier = z
   .string()
   .min(1)
@@ -118,7 +131,7 @@ export function createAudienceHttpClient(
       throw new AudienceConnectionError(signal?.aborted ? "aborted" : "network-error");
     }
     if (signal?.aborted) throw new AudienceConnectionError("aborted");
-    if (response.status !== 200) throw new AudienceConnectionError("http-error", response.status);
+    if (response.status !== 200) throw await audienceResponseError(response);
     if (
       response.redirected ||
       response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== contentType

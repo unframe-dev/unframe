@@ -141,3 +141,14 @@ await applyD1Migrations(env.DB, [
       .filter(Boolean),
   },
 ]);
+
+import runtimeHostsMigration from "../migrations/0014_runtime_hosts.sql?raw";
+await applyD1Migrations(env.DB, [
+  {
+    name: "0014_runtime_hosts.sql",
+    queries: runtimeHostsMigration
+      .split(";")
+      .map((query: string) => query.trim())
+      .filter(Boolean),
+  },
+]);

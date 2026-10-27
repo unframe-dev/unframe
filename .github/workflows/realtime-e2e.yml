@@ -24,6 +24,9 @@ jobs:
       - name: Install Fixed Browser
         run: nix develop --command scripts/dev/install-presentation-browser.sh
 
+      - name: Verify declared Audience development CLI
+        run: nix develop --command pnpm --filter @unframe/audience exec vp --version
+
       - name: Allow Fixed Browser user namespace
         run: bash scripts/ci/allow-presentation-browser-userns.sh
 
@@ -32,3 +35,49 @@ jobs:
 
       - name: Mixed transport synchronization and recovery
         run: nix run .#realtime-e2e -- --race
+
+      - name: Upload non-secret process diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: realtime-e2e-process-diagnostics
+          path: .unframe/realtime-e2e/runs/*/diagnostics.jsonl
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+  unity-live:
+    name: realtime / Unity and Audience synchronization and recovery
+    if: >-
+      vars.UNITY_E2E_RUNNER != '' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == vars.UNITY_E2E_BRANCH
+    runs-on: [self-hosted, "${{ vars.UNITY_E2E_RUNNER }}"]
+    timeout-minutes: 45
+    env:
+      UNITY_EDITOR: ${{ vars.UNITY_EDITOR_PATH }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install JS dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: Install Fixed Browser
+        run: nix develop --command scripts/dev/install-presentation-browser.sh
+
+      - name: Verify declared Audience development CLI
+        run: nix develop --command pnpm --filter @unframe/audience exec vp --version
+
+      - name: Prepare isolated Opaque capture host
+        run: nix develop --command bash scripts/ci/setup-opaque-host.sh
+
+      - name: Real Unity and Audience synchronization and recovery
+        run: nix run .#realtime-e2e -- --unity --race
+
+      - name: Upload non-secret process diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: realtime-e2e-unity-process-diagnostics
+          path: .unframe/realtime-e2e/runs/*/diagnostics.jsonl
+          include-hidden-files: true
+          if-no-files-found: ignore

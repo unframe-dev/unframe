@@ -239,8 +239,10 @@ Before completing code changes:
 - Run `nix flake check` when changing `flake.nix`, `flake.lock`, or Nix setup.
 - Run the existing Unity EditMode tests in the Unity Editor for Unity behavior
   changes, and any relevant PlayMode tests if they are added. The repository
-  Unity workflow currently performs only static checks:
-  `dotnet format`, PowerShell analysis, and `.meta` integrity.
+  `unity.yml` performs static format, protobuf/dependency drift, and `.meta`
+  checks. `realtime-e2e.yml` also runs actual Unity / Audience synchronization
+  and recovery with `--unity --race` when a licensed self-hosted runner and
+  permitted PR branch are configured; a skipped job is not Unity validation.
 - Do not describe skipped checks as passing checks.
 - If a check cannot be run, report the exact command, reason, and alternative
   validation performed.

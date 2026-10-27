@@ -8,13 +8,17 @@ import { AudienceStage } from "../ui/AudienceStage";
 import { viewingPhase } from "../ui/viewing-phase";
 import { createAnchorSession, type AnchorSessionSnapshot } from "./anchor-session";
 import { createViewingSession, type RuntimeInput, type ViewingSnapshot } from "./viewing-session";
+import type { createTrackingAdapter } from "../tracking/adapter";
 
 export interface ViewerExperienceProps {
   connection: PreparedConnection;
   onLeave(): void;
   onRefresh(): void;
+  onReconnect(): Promise<void>;
   refreshing: boolean;
   refreshError: string | null;
+  trackingAdapter?: typeof createTrackingAdapter;
+  onViewingSnapshot?(snapshot: ViewingSnapshot): void;
   onRuntimeInput?(
     input: RuntimeInput,
     connection: PreparedConnection,
@@ -104,6 +108,7 @@ export function ViewerExperience(props: ViewerExperienceProps) {
       canvas: canvas.current,
       config,
       showGuides: false,
+      ...(props.trackingAdapter ? { trackingAdapter: props.trackingAdapter } : {}),
       fetcher: createAudienceAssetFetch(() => currentConnection.current),
       onChange: (state) => {
         if (active) setAnchor(state);
@@ -125,11 +130,18 @@ export function ViewerExperience(props: ViewerExperienceProps) {
       if (viewer.current === next) viewer.current = null;
       if (host.current === nextHost) host.current = null;
     };
-  }, [config]);
+  }, [config, props.trackingAdapter]);
 
   useEffect(() => {
-    viewer.current?.updateDelivery(props.connection.delivery);
+    const target = viewer.current;
+    const disconnected = target?.getSnapshot().phase === "disconnected";
+    target?.updateDelivery(props.connection.delivery);
+    if (disconnected && !target?.getInput()) target?.restartInput();
   }, [config, props.connection]);
+
+  useEffect(() => {
+    if (viewing) props.onViewingSnapshot?.(viewing);
+  }, [viewing, props.onViewingSnapshot]);
 
   useEffect(() => {
     const input = viewer.current?.getInput() ?? null;
@@ -198,10 +210,10 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   }, [viewing, props.onRecoveryRequest]);
 
   useEffect(() => {
-    if (viewing?.phase !== "disconnected" || !props.onRuntimeInput) return;
-    const timer = setTimeout(() => viewer.current?.restartInput(), 2000);
+    if (viewing?.phase !== "disconnected" || !props.onRuntimeInput || props.refreshing) return;
+    const timer = setTimeout(() => void props.onReconnect(), 2000);
     return () => clearTimeout(timer);
-  }, [viewing?.phase, props.onRuntimeInput]);
+  }, [viewing?.phase, props.onRuntimeInput, props.refreshing, props.onReconnect]);
 
   async function start() {
     const target = viewer.current;
@@ -212,7 +224,7 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   }
   function reconnect() {
     setError(null);
-    viewer.current?.restartInput();
+    void props.onReconnect();
   }
   function download() {
     const payload = buildViewerDiagnostic({

@@ -33,23 +33,29 @@ type environment struct {
 	PresenterCredential         string            `json:"presenterCredential"`
 	CAFile                      string            `json:"caFile"`
 	RuntimeBinary               string            `json:"runtimeBinary"`
+	HostBinary                  string            `json:"hostBinary"`
 	RuntimeEnv                  map[string]string `json:"runtimeEnv"`
 	StateDirectory              string            `json:"stateDirectory"`
 	RepositoryRoot              string            `json:"repositoryRoot"`
 	BrowserStatusFile           string            `json:"browserStatusFile"`
+	UnityEnabled                bool              `json:"unityEnabled"`
+	UnityStatusFile             string            `json:"unityStatusFile"`
+	UnityCommandFile            string            `json:"unityCommandFile"`
+	BrowserCommandFile          string            `json:"browserCommandFile"`
 }
 
 type fixture struct {
-	t        *testing.T
-	owner    *testing.T
-	env      environment
-	ctx      context.Context
-	client   *http.Client
-	tls      *tls.Config
-	run      *exec.Cmd
-	runLog   *os.File
-	runDone  chan struct{}
-	runError error
+	t             *testing.T
+	owner         *testing.T
+	env           environment
+	ctx           context.Context
+	client        *http.Client
+	tls           *tls.Config
+	run           *exec.Cmd
+	runLog        *os.File
+	runDone       chan struct{}
+	runError      error
+	unityCommands int
 }
 
 func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
@@ -74,7 +80,7 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 	if env.SessionID == "" || env.JoinCode == "" || env.PresenterCredential == "" || env.AudienceCapabilityProfileID == "" || len(env.RuntimeEnv) == 0 {
 		t.Fatal("E2E environment is missing a session, credential, capability, or Runtime environment")
 	}
-	for _, path := range []string{env.CAFile, env.RuntimeBinary, env.StateDirectory, env.RepositoryRoot, env.BrowserStatusFile} {
+	for _, path := range []string{env.CAFile, env.RuntimeBinary, env.HostBinary, env.StateDirectory, env.RepositoryRoot, env.BrowserStatusFile} {
 		if !filepath.IsAbs(path) {
 			t.Fatal("E2E environment paths must be absolute")
 		}
@@ -90,15 +96,26 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 	if !roots.AppendCertsFromPEM(ca) {
 		t.Fatal("E2E CA file contains no certificates")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
+	duration := 150 * time.Second
+	if env.UnityEnabled {
+		duration = 9 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	t.Cleanup(cancel)
 	f := &fixture{t: t, owner: t, env: env, ctx: ctx, tls: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}
 	f.client = &http.Client{Transport: &http.Transport{TLSClientConfig: f.tls}, Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	t.Cleanup(f.client.CloseIdleConnections)
-	f.request(http.MethodPost, "/sessions/"+env.SessionID+"/start", env.PresenterCredential, map[string]any{}, http.StatusOK)
-	t.Cleanup(f.stopRuntime)
-	f.startRuntime()
+	if !env.UnityEnabled {
+		f.request(http.MethodPost, "/sessions/"+env.SessionID+"/start", env.PresenterCredential, map[string]any{}, http.StatusOK)
+	}
+	t.Cleanup(f.stopRuntimeHost)
+	f.startRuntimeHost()
 	f.startBrowser(configPath)
+	if env.UnityEnabled {
+		f.startUnity(configPath)
+		f.runUnityScenarios(t)
+		return
+	}
 
 	presenter := f.connectNative(nil)
 	viewer := f.connectViewer("")
@@ -119,6 +136,7 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 			peer.waitView("pause replicated", "start", true)
 		}
 		f.waitBrowser("browser pause", "start", true)
+		f.rejoinBrowser("start", true)
 		late := f.connectViewer("")
 		late.waitView("late Viewer paused Snapshot", "start", true)
 		assertSameSharedView(t, presenter, viewer, viewer2, late)
@@ -203,12 +221,12 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 		}
 		connectionsBefore := decodeJSON[browserStatus](t, browserBefore).Connections
 		before := viewer.snapshot()
-		f.stopRuntime()
+		crashedPID := f.crashRuntime()
 		for _, peer := range []*peer{presenter, viewer, viewer2} {
 			peer.waitClosed("Runtime process stopped")
 			peer.close()
 		}
-		f.startRuntime()
+		f.waitRuntimeRestarted(crashedPID)
 		presenter = f.connectNative(nil)
 		viewer = f.connectViewer(viewer.apiCredential)
 		viewer2 = f.connectViewer(viewer2.apiCredential)
@@ -243,7 +261,8 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 		}
 		f.request(http.MethodPost, "/sessions/"+env.SessionID+"/bootstrap", env.PresenterCredential, map[string]any{}, http.StatusConflict)
 		f.request(http.MethodPost, "/viewer-credentials", "", map[string]any{"joinCode": env.JoinCode}, http.StatusNotFound)
-		f.waitRuntimeNotServing()
+		f.waitAssignedChildStopped()
+		f.prepareReplacementSession(presenter.manifest.Publication.PresentationId)
 		f.assertRejectedStaleConnection(staleToken, viewer.manifest.ProjectionProfile.RequiredRuntimeCapabilities)
 		f.assertRejectedNativeConnection(stalePresenterToken, presenter.manifest.ProjectionProfile.RequiredRuntimeCapabilities, nil)
 		f.assertRejectedNativeConnection(stalePresenterToken, presenter.manifest.ProjectionProfile.RequiredRuntimeCapabilities, &realtime.ResumeCursor{PriorConnectionId: prior.connectionID, AppliedReliableSequence: prior.sequence, Fence: prior.fence})
@@ -252,6 +271,14 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 }
 
 func (f *fixture) request(method, path, bearer string, value any, status int) []byte {
+	data, received := f.requestRaw(method, path, bearer, value)
+	if received != status {
+		f.t.Fatalf("API %s %s returned %d, want %d", method, path, received, status)
+	}
+	return data
+}
+
+func (f *fixture) requestRaw(method, path, bearer string, value any) ([]byte, int) {
 	f.t.Helper()
 	var body io.Reader
 	if value != nil {
@@ -281,13 +308,10 @@ func (f *fixture) request(method, path, bearer string, value any, status int) []
 	if err != nil {
 		f.t.Fatal("read API response:", err)
 	}
-	if response.StatusCode != status {
-		f.t.Fatalf("API %s %s returned %d, want %d", method, path, response.StatusCode, status)
-	}
 	if response.Header.Get("Access-Control-Allow-Origin") != f.env.AudienceOrigin {
 		f.t.Fatalf("API %s CORS origin mismatch", path)
 	}
-	return data
+	return data, response.StatusCode
 }
 
 func decodeJSON[T any](t *testing.T, data []byte) T {
@@ -307,18 +331,23 @@ func eventID(epoch uint64, label string) string {
 }
 
 type browserStatus struct {
-	Phase            string  `json:"phase"`
-	StepID           string  `json:"stepId"`
-	Paused           bool    `json:"paused"`
-	ReliableSequence string  `json:"reliableSequence"`
-	StateSequence    string  `json:"stateSequence"`
-	Connections      int     `json:"connections"`
-	Assets           int     `json:"assets"`
-	Error            string  `json:"error"`
-	Continued        *bool   `json:"continued"`
-	SurfaceState     string  `json:"surfaceState"`
-	Opacity          float64 `json:"opacity"`
-	HTTPStatus       int     `json:"httpStatus"`
+	Phase             string  `json:"phase"`
+	StepID            string  `json:"stepId"`
+	Paused            bool    `json:"paused"`
+	ReliableSequence  string  `json:"reliableSequence"`
+	StateSequence     string  `json:"stateSequence"`
+	Connections       int     `json:"connections"`
+	Assets            int     `json:"assets"`
+	Error             string  `json:"error"`
+	Continued         *bool   `json:"continued"`
+	SurfaceState      string  `json:"surfaceState"`
+	Opacity           float64 `json:"opacity"`
+	DrawCalls         int     `json:"drawCalls"`
+	TexturedRenderers int     `json:"texturedRenderers"`
+	RenderedOpacity   float64 `json:"renderedOpacity"`
+	RenderedPixels    int     `json:"renderedPixels"`
+	CommandID         string  `json:"commandId"`
+	CommandResult     string  `json:"commandResult"`
 }
 
 func (f *fixture) startBrowser(configPath string) {
@@ -337,14 +366,26 @@ func (f *fixture) startBrowser(configPath string) {
 		f.t.Fatal("start browser companion:", err)
 	}
 	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	f.t.Cleanup(func() {
-		_ = cmd.Process.Signal(os.Interrupt)
+	go func() { done <- cmd.Wait(); close(done) }()
+	f.owner.Cleanup(func() {
+		var result error
 		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			_ = cmd.Process.Kill()
-			<-done
+		case result = <-done:
+			if f.ctx.Err() == nil && !f.owner.Failed() {
+				f.owner.Error("product Audience companion exited before test cleanup")
+			}
+		default:
+			_ = cmd.Process.Signal(os.Interrupt)
+			select {
+			case result = <-done:
+			case <-time.After(5 * time.Second):
+				_ = cmd.Process.Kill()
+				result = <-done
+				f.owner.Error("product Audience companion exceeded its graceful shutdown budget")
+			}
+		}
+		if result != nil {
+			f.owner.Errorf("product Audience companion failed: %v; inspect private browser log", result)
 		}
 		_ = log.Close()
 	})
@@ -368,14 +409,11 @@ func (f *fixture) waitBrowserAfter(label, step string, paused bool, previousConn
 		if state.Phase == "error" {
 			f.t.Fatal("browser companion failed; inspect private browser log")
 		}
-		if state.Phase == "rejected" {
-			f.t.Fatalf("%s: browser connection rejected with HTTP %d", label, state.HTTPStatus)
-		}
 		wantState, wantOpacity := "reference-surface:default", 1.0
 		if step == "finished" {
 			wantState, wantOpacity = "reference-surface:inactive", 0.5
 		}
-		return state.Phase == "ready" && state.StepID == step && state.Paused == paused && state.Assets > 0 && state.Connections > previousConnections && state.Continued == nil && state.SurfaceState == wantState && state.Opacity == wantOpacity
+		return state.Phase == "ready" && state.StepID == step && state.Paused == paused && state.Assets > 0 && state.Connections > previousConnections && state.Continued == nil && state.SurfaceState == wantState && state.Opacity == wantOpacity && state.DrawCalls > 0 && state.TexturedRenderers > 0 && state.RenderedOpacity == wantOpacity && state.RenderedPixels > 0
 	})
 }
 
@@ -393,20 +431,17 @@ func (f *fixture) waitBrowserEnded() {
 		if state.Phase == "ended" {
 			return true
 		}
-		if state.Phase == "rejected" {
-			switch state.HTTPStatus {
-			case 401, 403, 404, 409, 410:
-				f.t.Logf("browser reentry rejected after Session end: HTTP %d", state.HTTPStatus)
-				return true
-			}
-		}
 		return false
 	})
 }
 
 func (f *fixture) wait(label string, ready func() bool) {
+	f.waitFor(label, 15*time.Second, ready)
+}
+
+func (f *fixture) waitFor(label string, timeout time.Duration, ready func() bool) {
 	f.t.Helper()
-	timer := time.NewTimer(15 * time.Second)
+	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
