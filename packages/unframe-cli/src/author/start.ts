@@ -65,7 +65,7 @@ export const startDistPreviewHost = async (
   const assets =
     options.assets ??
     (await loadAuthorAssets(
-      fileURLToPath(new URL("../../../../app/local-editor/dist/", import.meta.url)),
+      fileURLToPath(new URL("../../../../app/web/local-editor/dist/", import.meta.url)),
     ));
   const files = new Map(assets);
   const page = files.get("/");
@@ -178,7 +178,7 @@ export const runAuthorProcess = async (
   const assets = development
     ? new Map<string, { bytes: Uint8Array; mediaType: string }>()
     : await loadAuthorAssets(
-        fileURLToPath(new URL("../../../../app/local-editor/dist/", import.meta.url)),
+        fileURLToPath(new URL("../../../../app/web/local-editor/dist/", import.meta.url)),
       );
   const unity = await loadUnityPreviewAssets(
     fileURLToPath(new URL("../../../../.unframe/unity-preview/UnframePreview/", import.meta.url)),

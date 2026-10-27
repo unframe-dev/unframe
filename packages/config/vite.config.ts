@@ -2,12 +2,15 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   lint: {
-    ignorePatterns: ["app/audience/vendor/**", "app/audience/src/fiducials/generated-posit.mjs"],
+    ignorePatterns: [
+      "app/web/audience/vendor/**",
+      "app/web/audience/src/fiducials/generated-posit.mjs",
+    ],
   },
   fmt: {
     ignorePatterns: [
-      "app/audience/vendor/**",
-      "app/audience/src/fiducials/generated-posit.mjs",
+      "app/web/audience/vendor/**",
+      "app/web/audience/src/fiducials/generated-posit.mjs",
       "app/server/control-plane/src/worker-configuration.d.ts",
       "packages/contracts/openapi/control-plane.openapi.json",
       "packages/contracts/src/control-plane.openapi.ts",

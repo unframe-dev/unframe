@@ -16,7 +16,7 @@ app/unity/Assets/Contracts/Proto/**/*.proto linguist-generated=true
 
 # Generated Cloudflare bindings
 app/server/control-plane/src/worker-configuration.d.ts linguist-generated=true
-app/web/worker-configuration.d.ts linguist-generated=true
+app/web/console/worker-configuration.d.ts linguist-generated=true
 
 # Generated OpenAPI contract and types
 packages/contracts/openapi/control-plane.openapi.json linguist-generated=true

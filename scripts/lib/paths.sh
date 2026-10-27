@@ -10,14 +10,14 @@ export CONTROL_PLANE_DIR="${REPO_ROOT}/app/server/control-plane"
 export CONTROL_PLANE_FILTER="@unframe/control-plane"
 # app/server/realtime (Go gRPC backend)
 export REALTIME_SERVER_DIR="${REPO_ROOT}/app/server/realtime"
-# app/web (React management SPA)
-export WEB_DIR="${REPO_ROOT}/app/web"
-export WEB_FILTER="@unframe/web"
-# app/local-editor (React local authoring UI)
-export LOCAL_EDITOR_DIR="${REPO_ROOT}/app/local-editor"
+# app/web/console (React management SPA)
+export CONSOLE_DIR="${REPO_ROOT}/app/web/console"
+export CONSOLE_FILTER="@unframe/console"
+# app/web/local-editor (React local authoring UI)
+export LOCAL_EDITOR_DIR="${REPO_ROOT}/app/web/local-editor"
 export LOCAL_EDITOR_FILTER="@unframe/local-editor"
-# app/audience (Web XR viewer)
-export AUDIENCE_DIR="${REPO_ROOT}/app/audience"
+# app/web/audience (Web XR viewer)
+export AUDIENCE_DIR="${REPO_ROOT}/app/web/audience"
 export AUDIENCE_FILTER="@unframe/audience"
 # lp (SvelteKit SSG)
 export LP_DIR="${REPO_ROOT}/lp"

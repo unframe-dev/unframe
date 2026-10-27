@@ -35,7 +35,7 @@ build/
 .unframe/unity-preview/
 .unframe/local-editor-e2e/
 .unframe/native-editor/
-app/local-editor/dist/
+app/web/local-editor/dist/
 app/server/control-plane/.generated/
 
 # テストカバレッジ (vitest --coverage の出力)

@@ -22,7 +22,7 @@ if (process.env["UNFRAME_WEBGL_FIXTURE"] === "media") {
 }
 const service = await createAuthorService(directory);
 const previews = createLocalPreviewService(directory);
-const assets = await loadAuthorAssets(join(repository, "app/local-editor/dist"));
+const assets = await loadAuthorAssets(join(repository, "app/web/local-editor/dist"));
 for (const [path, asset] of await loadUnityPreviewAssets(
   join(repository, ".unframe/unity-preview/UnframePreview"),
 ))

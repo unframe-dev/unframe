@@ -314,9 +314,9 @@
             name = "local-editor";
             script = "ci/local-editor.sh";
           };
-          web = mkApp {
-            name = "web";
-            script = "ci/web.sh";
+          console = mkApp {
+            name = "console";
+            script = "ci/console.sh";
           };
           audience = mkApp {
             name = "audience";

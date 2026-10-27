@@ -228,14 +228,14 @@ importers:
         specifier: 4.6.5
         version: 4.6.5
 
-  app/audience:
+  app/web/audience:
     dependencies:
       '@8thwall/engine-binary':
         specifier: 1.0.0
         version: 1.0.0
       '@unframe/contracts':
         specifier: workspace:*
-        version: link:../../packages/contracts
+        version: link:../../../packages/contracts
       js-aruco2:
         specifier: 2.0.0
         version: 2.0.0
@@ -286,7 +286,7 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.19.0)(@vitest/browser-preview@4.1.11)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))(jsdom@30.1.1(@noble/hashes@2.3.0))
 
-  app/local-editor:
+  app/web/local-editor:
     dependencies:
       '@base-ui/react':
         specifier: 1.7.0
@@ -296,10 +296,10 @@ importers:
         version: 2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@unframe/contracts':
         specifier: workspace:*
-        version: link:../../packages/contracts
+        version: link:../../../packages/contracts
       '@unframe/unframe-cli':
         specifier: workspace:*
-        version: link:../../packages/unframe-cli
+        version: link:../../../packages/unframe-cli
       react:
         specifier: ^19.2.7
         version: 19.2.8
@@ -414,7 +414,7 @@ importers:
         specifier: 4.6.5
         version: 4.6.5
 
-  app/web:
+  app/web/console:
     dependencies:
       '@base-ui/react':
         specifier: ^1.7.0
@@ -433,10 +433,10 @@ importers:
         version: 1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@unframe/api-client-typescript':
         specifier: workspace:*
-        version: link:../../packages/api-client-typescript
+        version: link:../../../packages/api-client-typescript
       '@unframe/contracts':
         specifier: workspace:*
-        version: link:../../packages/contracts
+        version: link:../../../packages/contracts
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

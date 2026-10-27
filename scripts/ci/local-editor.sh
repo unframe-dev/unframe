@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# app/local-editor (local Source editor) の品質処理。
+# app/web/local-editor (local Source editor) の品質処理。
 #   check (既定): check / test / build
 #   fix         : vp fmt (format)
 # fix の結果は autofix.yml が commit する。

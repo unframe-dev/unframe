@@ -22,7 +22,7 @@ vi.mock("node:url", async (importOriginal) => {
     ...original,
     fileURLToPath: (url: string | URL) => {
       const value = String(url);
-      if (value.endsWith("/app/local-editor/dist/")) return boundary.editor;
+      if (value.endsWith("/app/web/local-editor/dist/")) return boundary.editor;
       if (value.endsWith("/.unframe/unity-preview/UnframePreview/")) return boundary.unity;
       return original.fileURLToPath(url);
     },

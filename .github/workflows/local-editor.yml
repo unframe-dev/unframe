@@ -1,6 +1,6 @@
 name: Local Editor
 
-# app/local-editor (local Source editor) の品質ゲート。ci.yml から呼ばれる reusable workflow。
+# app/web/local-editor (local Source editor) の品質ゲート。ci.yml から呼ばれる reusable workflow。
 # Node ロジックテストと型検査・build を実行する。
 on:
   workflow_call:

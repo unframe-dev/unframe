@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# app/audience の品質処理と開発サーバー。
+# app/web/audience の品質処理と開発サーバー。
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/paths.sh

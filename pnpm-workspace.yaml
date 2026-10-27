@@ -1,5 +1,6 @@
 packages:
   - "app/*"
+  - "app/web/*"
   - "app/server/control-plane"
   - "app/unity/scripts"
   - "lp"
@@ -22,7 +23,7 @@ peerDependencyRules:
     vitest: "*"
 
 # @hookform/resolvers/zod imports zod but the package does not declare it as a peer.
-# Declare the missing edge so pnpm's strict linker connects the Web-owned dependency.
+# Declare the missing edge so pnpm's strict linker connects the Console-owned dependency.
 packageExtensions:
   "@hookform/resolvers@*":
     peerDependencies:

@@ -44,7 +44,7 @@ const installFrozenGraph = async (directory: string) => {
       }
     >;
   };
-  const web = lock.importers["app/local-editor"]!;
+  const web = lock.importers["app/web/local-editor"]!;
   const runtimeNames = ["react", "react-dom"];
   const typeNames = ["@types/react", "@types/react-dom"];
   const dependencies = Object.fromEntries(

@@ -6,9 +6,11 @@
     "lib": ["ES2022", "DOM"],
     "noPropertyAccessFromIndexSignature": false,
     "paths": {
-      "react": ["../../../../app/web/node_modules/@types/react"],
-      "react/jsx-runtime": ["../../../../app/web/node_modules/@types/react/jsx-runtime"],
-      "react/jsx-dev-runtime": ["../../../../app/web/node_modules/@types/react/jsx-dev-runtime"]
+      "react": ["../../../../app/web/console/node_modules/@types/react"],
+      "react/jsx-runtime": ["../../../../app/web/console/node_modules/@types/react/jsx-runtime"],
+      "react/jsx-dev-runtime": [
+        "../../../../app/web/console/node_modules/@types/react/jsx-dev-runtime"
+      ]
     }
   },
   "include": ["./*.ts", "./*.tsx"]

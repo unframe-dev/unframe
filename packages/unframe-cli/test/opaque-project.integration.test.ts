@@ -59,7 +59,7 @@ const installFrozenGraph = async (directory: string) => {
       }
     >;
   };
-  const web = lock.importers["app/web"]!;
+  const web = lock.importers["app/web/console"]!;
   const runtimeNames = ["@base-ui/react", "react", "react-dom"];
   const typeNames = ["@types/react", "@types/react-dom"];
   const dependencies = Object.fromEntries(

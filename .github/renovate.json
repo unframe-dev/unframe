@@ -1,11 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    ":dependencyDashboard",
-    ":semanticCommits",
-    "group:all"
-  ],
+  "extends": ["config:recommended", ":dependencyDashboard", ":semanticCommits", "group:all"],
   "timezone": "Asia/Tokyo",
   "schedule": ["before 9am on monday"],
   "labels": ["dependencies"],
@@ -26,7 +21,7 @@
       "semanticCommitScope": "realtime"
     },
     {
-      "description": "control-plane / app/web / lp / packages (npm/pnpm)",
+      "description": "control-plane / app/web/* / lp / packages (npm/pnpm)",
       "matchManagers": ["npm"],
       "semanticCommitScope": "deps",
       "minimumReleaseAge": "12 hours",
