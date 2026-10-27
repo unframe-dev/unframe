@@ -201,3 +201,22 @@ func currentClaim() AssignmentClaim {
 		PresentationRevision: 1,
 	}
 }
+
+func TestRevokedAssignmentRejectsOperationsAndCannotBeRenewed(t *testing.T) {
+	now := time.Now()
+	guard := newTestGuard(t, &now)
+	guard.Revoke()
+	guard.Revoke()
+	for name, operation := range map[string]func(AssignmentClaim) error{"connect": guard.AllowNewConnection, "command": guard.AllowCommand, "delivery": guard.AllowReliableDelivery, "state": guard.AllowStateUpdate, "checkpoint": guard.AllowCheckpoint} {
+		t.Run(name, func(t *testing.T) {
+			if err := operation(currentClaim()); !errors.Is(err, ErrInvalidAssignment) {
+				t.Fatalf("revoked assignment accepted: %v", err)
+			}
+		})
+	}
+	renewal := guard.Assignment()
+	renewal.LeaseExpiresAt = renewal.LeaseExpiresAt.Add(time.Minute)
+	if err := guard.Renew(renewal); !errors.Is(err, ErrInvalidAssignment) {
+		t.Fatalf("revoked assignment renewed: %v", err)
+	}
+}

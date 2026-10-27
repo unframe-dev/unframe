@@ -16,9 +16,11 @@ go run ./cmd/server
 
 `REALTIME_LISTEN_ADDR` で listen address を指定でき、既定値は `:9090` です。起動には `REALTIME_ISSUER`、Control Planeと共通の`REALTIME_AUDIENCE=unframe-realtime-runtime`、`REALTIME_JWKS_URL` と、Control Plane が発行した assignment の `REALTIME_SESSION_ID`、`REALTIME_RUNTIME_ID`、`REALTIME_RUNTIME_KIND`、`REALTIME_RUNTIME_ENDPOINT`、`REALTIME_ASSIGNMENT_EPOCH`、`REALTIME_PRESENTATION_REVISION`、`REALTIME_ASSIGNMENT_ISSUED_AT`、`REALTIME_LEASE_EXPIRES_AT` が必要です。lease duration は Runtime 側で補完せず、Control Plane の値をそのまま使用します。`REALTIME_CONTROL_PLANE_URL` と32文字以上の `REALTIME_SERVICE_IDENTITY` も必須です。起動時に service Bearer で Control Plane の internal bootstrap を取得し、publication-pinned Definition を検証して service を登録します。service identity をログやクライアントへ渡してはいけません。起動前に bootstrap の検証済み lease を guard へ反映します。5秒間隔の定期更新（要求timeoutは5秒）と明示 resume には `GET /internal/runtime/lease` を使い、assignment と publication fence だけを取得します。Definition、RenderBundle、checkpoint は再取得しません。
 
-ブラウザ Audience の Viewer は同じ listener の `/browser/control` と `/browser/state` に WebSocket 接続します。`REALTIME_BROWSER_ORIGINS` に許可する HTTPS origin をカンマ区切りで指定してください。未設定時はブラウザ接続を無効にし、Origin のない要求も拒否します。HTTPS ingress は同じ advertised endpoint の native gRPC（HTTP/2）と WebSocket upgrade（HTTP/1.1）の両方をこのポートへ転送する必要があります。TLS は ingress で終端します。パス prefix は使用しません。接続フレームと認証の契約は [browser-realtime.md](../../../packages/contracts/browser-realtime.md) を参照してください。停止時はブラウザ接続を閉じて Runtime の参加状態を解放し、native gRPC は従来の graceful drain を行います。
+ブラウザ Audience の Viewer は同じ listener の `/browser/control` と `/browser/state` に WebSocket 接続します。`REALTIME_BROWSER_ORIGINS` に許可する HTTPS origin をカンマ区切りで指定してください。未設定時はブラウザ接続を無効にし、Origin のない要求も拒否します。HTTPS ingress は同じ advertised endpoint の native gRPC（HTTP/2）と WebSocket upgrade（HTTP/1.1）の両方をこのポートへ転送する必要があります。Cloud の TLS は ingress で終端し、Venue Edge は自身の HTTPS listener で終端します。パス prefix は使用しません。接続フレームと認証の契約は [browser-realtime.md](../../../packages/contracts/browser-realtime.md) を参照してください。停止時はブラウザ接続を閉じて Runtime の参加状態を解放し、native gRPC は従来の graceful drain を行います。
 
-標準 gRPC Health Checking service は process 起動だけでは `SERVING` になりません。composition root が local assignment lease と JWKS cache を期限付きで確認した後に application ready を公開し、稼働中も再評価して依存障害時または shutdown 開始時に `NOT_SERVING` へ戻します。assignment guard は期限後の command / reliable delivery を拒否しますが、`NOT_SERVING` 遷移時に既存の idle stream を閉じて Session Runtime を pause する lifecycle 接続は未実装です。`SIGINT` または `SIGTERM` を受け取ると、10秒を上限に graceful shutdown します。
+Session 終了・assignment 解放は次の lease 要求に対する Control Plane の 409 応答で検出します。401 / 403 / 404 / 409 / 410、無効な lease 応答、assignment / publication fence の変更を受け取ると、保持中 lease の期限を待たずに guard を不可逆に失効させます。同じ process での lease 更新や明示 resume では復活せず、有効な assignment で process を起動し直す必要があります。通信障害、timeout、429、5xx では保持中 lease の期限を上限に継続し、期限後は停止します。Control Plane の変更から検出までには5秒周期と要求完了までの遅延があり、push 通知による即時停止ではありません。
+
+標準 gRPC Health Checking service は process 起動だけでは `SERVING` になりません。composition root が local assignment lease と JWKS cache を期限付きで確認した後に application ready を公開し、稼働中も再評価して依存障害時または shutdown 開始時に `NOT_SERVING` へ戻します。assignment guard は lease 期限切れ・失効後の新規接続、再接続、command / reliable delivery を拒否します。Runtime clock は20ms周期で停止条件を確認し、lease が無効なら `assignmentLeaseExpired` で pause します。既存 Control / State 接続は idle、handshake 待ち、送信待ちも含めて停止条件を再検証し、失効検出後は通常のスケジューリング下で最大1秒以内に閉じます。JWKS のみの障害による `NOT_SERVING` は既存接続を閉じません。`SIGINT` または `SIGTERM` を受け取ると、10秒を上限に graceful shutdown します。
 
 `SSL_CERT_FILE` に PEM 形式の CA 証明書ファイルを指定すると、macOS を含む各 OS で HTTP client の信頼ストアにシステム証明書と併せて読み込み、JWKS と Control Plane の HTTPS 通信に使用します。ホスト名と証明書の検証は維持します。未設定時は標準の HTTP client を使用し、指定ファイルが読めない場合や有効な証明書を含まない場合は起動を中止します。
 
@@ -45,7 +47,7 @@ Outcome と共有状態は同じ checkpoint に保存し、同じ ID・内容の
 
 接続の session、participant、role、Runtime ID / kind、assignment epoch、Presentation revision は message payload ではなく、認証 interceptor が検証して stream context へ設定した identity から取得します。gRPC server は JWT verifier、assignment guard、Realtime service なしでは構築できません。
 
-composition root は単一 Session の assignment を環境変数から読み、Control Plane の internal bootstrap で publication と Definition を照合します。同じassignment / publicationのlease延長をControl Planeで再検証し、期限切れ時はclockと入力を停止します。lease更新だけではRuntimeを再開せず、明示resumeで再検証します。Venue Edge の v2 Asset Gateway は未実装です。`internal/state` の mailbox は transport に未接続の独立した primitive です。現在の Unity Baked Web 経路は Control Plane が発行した Asset URL から直接取得します。
+composition root は単一 Session の assignment を環境変数から読み、Control Plane の internal bootstrap で publication と Definition を照合します。同じassignment / publicationのlease延長をControl Planeで再検証し、期限切れ時はclockと入力を停止します。lease更新だけではRuntimeを再開せず、明示resumeで再検証します。Venue Edge は同じ Runtime endpoint に TLS / HTTP2 listener と認可付き Asset Gateway を公開します。`internal/state` の mailbox は transport に未接続の独立した primitive です。Unity は Cloud 割当では Cloud URL、VenueEdge 割当では会場内 Asset URL へ Runtime Bearer を付けて取得します。
 
 `fly.toml` は TLS 終端から H2C backend へ接続する共通 service profile だけを定義します。app、region、Machine 構成、autoscaling、Runtime identity、health routing は未決定であり、この repository では固定していません。
 
@@ -66,3 +68,5 @@ nix run .#realtime -- fix
 docker build -t unframe-realtime app/server/realtime
 docker run --rm -p 9090:9090 unframe-realtime
 ```
+
+Venue Edge の素材 cache、TLS listener、環境変数、証明書更新と会場試験は [会場検証手順](../../../docs/validation/venue-edge-asset-delivery.md) を参照してください。実機結果は未取得です。

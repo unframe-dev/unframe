@@ -156,8 +156,8 @@ namespace Unframe.ControlPlane.Client
                 return CallbacksCompletionsPostRequest.RuntimeKindEnumToJsonValue(callbacksCompletionsPostRequestRuntimeKindEnum);
             if (obj is CallbacksCompletionsPostRequestParticipantsInner.RoleEnum callbacksCompletionsPostRequestParticipantsInnerRoleEnum)
                 return CallbacksCompletionsPostRequestParticipantsInner.RoleEnumToJsonValue(callbacksCompletionsPostRequestParticipantsInnerRoleEnum);
-            if (obj is InternalRuntimeBootstrapGet200ResponseAssignment.RuntimeKindEnum internalRuntimeBootstrapGet200ResponseAssignmentRuntimeKindEnum)
-                return InternalRuntimeBootstrapGet200ResponseAssignment.RuntimeKindEnumToJsonValue(internalRuntimeBootstrapGet200ResponseAssignmentRuntimeKindEnum);
+            if (obj is InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnum internalRuntimeAssetsGet200ResponseAssignmentRuntimeKindEnum)
+                return InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnumToJsonValue(internalRuntimeAssetsGet200ResponseAssignmentRuntimeKindEnum);
             if (obj is InternalRuntimeProjectionGet200Response.RoleEnum internalRuntimeProjectionGet200ResponseRoleEnum)
                 return InternalRuntimeProjectionGet200Response.RoleEnumToJsonValue(internalRuntimeProjectionGet200ResponseRoleEnum);
             if (obj is PresentationsGet200ResponsePresentationsInnerDefinition.SchemaVersionEnum presentationsGet200ResponsePresentationsInnerDefinitionSchemaVersionEnum)

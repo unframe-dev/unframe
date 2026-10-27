@@ -86,6 +86,29 @@ func (s *Server) GRPCServer() *grpcgo.Server {
 	return s.server
 }
 
+// BrowserHandler exposes the authenticated WebSocket routes to a shared HTTPS listener.
+func (s *Server) BrowserHandler() http.Handler {
+	if s.browserHandler == nil {
+		return http.NotFoundHandler()
+	}
+	return s.browserHandler
+}
+
+// ShutdownBrowser closes hijacked WebSockets, which HTTP server shutdown does not drain.
+func (s *Server) ShutdownBrowser(ctx context.Context) error {
+	if s.browserHandler == nil {
+		return nil
+	}
+	done := s.browserHandler.stop()
+	s.browserCancel()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // SetApplicationReady publishes readiness only after the Runtime Core and its
 // external verification dependencies have been checked by the composition root.
 func (s *Server) SetApplicationReady(ready bool) {

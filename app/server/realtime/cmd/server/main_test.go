@@ -2,8 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -290,5 +297,79 @@ func TestLoadConfigBrowserOrigins(t *testing.T) {
 				t.Fatalf("origins=%v", config.browserOrigins)
 			}
 		})
+	}
+}
+
+func TestLeaseRefreshRevokesRejectedAssignmentBeforeHeldLeaseExpires(t *testing.T) {
+	for _, status := range []int{401, 403, 404, 409, 410, 429, 503} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			now := time.Now()
+			initial := assignment.RuntimeAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, Endpoint: "localhost:9090", AssignmentEpoch: 2, PresentationRevision: 4, IssuedAt: now.Add(-time.Minute), LeaseExpiresAt: now.Add(time.Hour)}
+			guard, err := assignment.NewAssignmentGuard(initial, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(status) }))
+			defer server.Close()
+			client := persistencehttp.NewClient(persistencehttp.Config{BaseURL: server.URL, ServiceIdentity: "service-token", AllowInsecureLoopback: true})
+			request := persistencehttp.BootstrapRequest{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
+			if err := refreshV2Lease(context.Background(), client, guard, request, persistencehttp.BootstrapPublication{}); err == nil {
+				t.Fatal("rejected lease accepted")
+			}
+			claim := assignment.AssignmentClaim{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
+			err = guard.AllowCommand(claim)
+			if status == 429 || status >= 500 {
+				if err != nil {
+					t.Fatalf("transient failure revoked lease: %v", err)
+				}
+				return
+			}
+			if !errors.Is(err, assignment.ErrInvalidAssignment) {
+				t.Fatalf("rejected assignment remained active: %v", err)
+			}
+			renewal := initial
+			renewal.LeaseExpiresAt = renewal.LeaseExpiresAt.Add(time.Hour)
+			if err := guard.Renew(renewal); !errors.Is(err, assignment.ErrInvalidAssignment) {
+				t.Fatalf("revoked assignment resumed: %v", err)
+			}
+		})
+	}
+}
+
+func TestRevokedLeasePausesRuntimeClockAndRejectsResume(t *testing.T) {
+	now := time.Now()
+	initial := assignment.RuntimeAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, Endpoint: "localhost:9090", AssignmentEpoch: 2, PresentationRevision: 4, IssuedAt: now.Add(-time.Minute), LeaseExpiresAt: now.Add(time.Hour)}
+	guard, err := assignment.NewAssignmentGuard(initial, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := runtimecore.NewV2Session(json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := persistencehttp.BootstrapRequest{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
+	claim := assignment.AssignmentClaim{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
+	reader := leaseReaderFunc(func(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeLease, error) {
+		return persistencehttp.RuntimeLease{}, &persistencehttp.ResponseError{Operation: "lease", StatusCode: 409}
+	})
+	runtime.ConfigureResumeValidation(func(ctx context.Context) error {
+		return refreshV2Lease(ctx, reader, guard, request, persistencehttp.BootstrapPublication{})
+	})
+	if err := refreshV2Lease(context.Background(), reader, guard, request, persistencehttp.BootstrapPublication{}); err == nil {
+		t.Fatal("ended Session lease accepted")
+	}
+	before := runtime.Snapshot().Clock.RuntimeTimeMs
+	for _, tick := range []time.Time{now.Add(time.Second), now.Add(time.Hour)} {
+		if err := advanceV2Runtime(context.Background(), runtime, guard, claim, tick); !errors.Is(err, assignment.ErrInvalidAssignment) {
+			t.Fatalf("invalidated runtime advance: %v", err)
+		}
+	}
+	snapshot := runtime.Snapshot()
+	if snapshot.Clock.RuntimeTimeMs != before || snapshot.Clock.GetPaused().GetReason() != realtimev2.PauseReason_PAUSE_REASON_ASSIGNMENT_LEASE_EXPIRED {
+		t.Fatalf("runtime continued after revocation: %v", snapshot.Clock)
+	}
+	command := &realtimev2.RuntimeControlCommand{ClientEventId: "1:12345678-1234-4123-8123-123456789abc", CommandEpoch: 1, PresentationOriginVersion: snapshot.PresentationOrigin.Version, Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME}
+	if _, events, err := runtime.RuntimeControl(context.Background(), session.Identity{ParticipantID: "presenter-1", Role: session.RolePresenter}, command); !errors.Is(err, assignment.ErrInvalidAssignment) || len(events) != 0 {
+		t.Fatalf("revoked runtime resume: events=%v err=%v", events, err)
 	}
 }

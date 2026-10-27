@@ -36,6 +36,7 @@ namespace Unframe.Unity.PresentationRuntime
             internal double ClockReceivedAt;
             internal ulong Sequence;
             internal bool Prepared;
+            internal bool Faulted;
             private bool disposed;
 
             internal Scene(PresentationLocalPreviewInput input, Transform parent, Func<IPresentationVideoDecoder> createDecoder)
@@ -50,7 +51,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 if (disposed) return;
                 disposed = true;
-                Root.SetActive(false);
+                if (Root != null) Root.SetActive(false);
                 Playback.Clear();
                 Renderer?.Dispose();
                 Models.Dispose();
@@ -81,6 +82,10 @@ namespace Unframe.Unity.PresentationRuntime
             this.createDecoder = createDecoder;
             mainThread = Thread.CurrentThread.ManagedThreadId;
         }
+        public bool PlaybackRejected { get; private set; }
+        public bool PlaybackFaulted { get { return current?.Faulted == true; } }
+        public string PlaybackRequestId { get { return playbackRequestId; } }
+        public ulong PlaybackSequence { get { return current?.Sequence ?? 0; } }
         public string LoadedRequestId { get { return current?.Input.RequestId; } }
         public string LoadedBuildIdentity { get { return current?.Input.BuildIdentity; } }
         public string PreparedRequestId { get { return candidate?.Prepared == true ? candidate.Input.RequestId : null; } }
@@ -191,7 +196,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (!candidate.Textures.IsReady(candidate.Input.TextureBindings)) throw new InvalidOperationException("asset_residency_lost");
             Scene old = current;
             Scene next = candidate;
-            if (old != null) old.Root.SetActive(false);
+            if (old?.Root != null) old.Root.SetActive(false);
             next.Root.SetActive(true);
             current = next;
             playbackRequestId = next.Input.RequestId;
@@ -203,28 +208,93 @@ namespace Unframe.Unity.PresentationRuntime
 
         public bool TryPlayback(LocalPreviewPlaybackState state, double now, out string error)
         {
+            return TryApplyPlayback(state, now, false, out error);
+        }
+
+        public bool TryRestore(LocalPreviewPlaybackState state, double now, out string error)
+        {
+            return TryApplyPlayback(state, now, true, out error);
+        }
+
+        private bool TryApplyPlayback(LocalPreviewPlaybackState state, double now, bool restoring, out string error)
+        {
             CheckAccess();
+            PlaybackRejected = true;
             error = "preview.playback-request-mismatch";
             if (current == null || state == null || state.RequestId != playbackRequestId) return false;
             error = "preview.playback-sequence-stale";
             if (state.Sequence == 0 || state.Sequence <= current.Sequence) return false;
-            error = "asset_residency_lost";
-            if (!current.Textures.IsReady(current.Input.TextureBindings)) return false;
-            if (!PresentationPreviewPlaybackValidation.TryApply(current.Input, state, out error)) return false;
-            current.Sequence = state.Sequence;
-            current.Clock = state.Clock.Clone();
-            current.ClockReceivedAt = now;
-            return current.Playback.TryRefresh(current.Input, current.Hierarchy, current.Renderer, current.Textures,
-                current.Clock.RuntimeTimeMs, out error, current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running);
+            error = "preview.playback-recovery-required";
+            if (current.Faulted && !restoring) return false;
+            error = "preview.playback-restore-must-pause";
+            if (restoring && (state.Clock == null || state.Clock.StatusCase != RuntimeClockSnapshot.StatusOneofCase.Paused)) return false;
+            try
+            {
+                error = "asset_residency_lost";
+                if (current.Root == null || !current.Textures.IsReady(current.Input.TextureBindings))
+                {
+                    PlaybackRejected = false;
+                    StopPlayback();
+                    return false;
+                }
+                if (!PresentationPreviewPlaybackValidation.TryApply(current.Input, state, out error)) return false;
+                PlaybackRejected = false;
+                // The delivery sequence stays consumed even when rendering only partially applies the snapshot.
+                current.Sequence = state.Sequence;
+                current.Clock = state.Clock.Clone();
+                current.ClockReceivedAt = now;
+                if (restoring) current.Playback.Clear();
+                if (!current.Playback.TryRefresh(current.Input, current.Hierarchy, current.Renderer, current.Textures,
+                    current.Clock.RuntimeTimeMs, out error, current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running))
+                {
+                    if (error == "video-user-activation-required")
+                    {
+                        PlaybackRejected = true;
+                        current.Videos.Pause();
+                        return false;
+                    }
+                    StopPlayback();
+                    return false;
+                }
+                current.Faulted = false;
+                current.Root.SetActive(true);
+                return true;
+            }
+            catch (Exception)
+            {
+                PlaybackRejected = false;
+                StopPlayback();
+                error = restoring ? "preview.playback-restore-failed" : "preview.playback-apply-failed";
+                return false;
+            }
         }
 
         public bool TryUpdate(double now, out string error)
         {
             CheckAccess();
             error = null;
-            if (current == null || playbackRequestId == null) return true;
-            double time = PresentationPlaybackPlayer.SampleRuntimeTimeMs(current.Clock, current.ClockReceivedAt, now);
-            return current.Playback.TryUpdate(current.Input, current.Hierarchy, current.Renderer, current.Textures, time, out error, current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running);
+            if (current == null || playbackRequestId == null || current.Faulted) return true;
+            try
+            {
+                double time = PresentationPlaybackPlayer.SampleRuntimeTimeMs(current.Clock, current.ClockReceivedAt, now);
+                if (current.Playback.TryUpdate(current.Input, current.Hierarchy, current.Renderer, current.Textures, time, out error,
+                    current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)) return true;
+                if (error == "video-user-activation-required")
+                {
+                    current.Videos.Pause();
+                    return false;
+                }
+            }
+            catch (Exception) { error = "preview.playback-update-failed"; }
+            StopPlayback();
+            return false;
+        }
+
+        private void StopPlayback()
+        {
+            current.Faulted = true;
+            current.Videos.Pause();
+            if (current.Root != null) current.Root.SetActive(false);
         }
 
         public bool Discard(string requestId)

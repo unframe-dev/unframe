@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./author-contract": "./src/author-contract.ts",
-    "./tui": "./src/tui/run.tsx"
+    "./tui": "./src/tui/run.tsx",
+    "./preview-contract": "./src/author/preview-contract.ts"
   },
   "scripts": {
     "dev": "bun src/process/editor-dev.ts",

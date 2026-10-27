@@ -12,6 +12,8 @@ import { createVideoPresentation } from "./video-presentation";
 import { createModelPresentation } from "./model-presentation";
 import { evaluateAnimationView } from "../runtime/animation-view";
 import { loadPngTexture } from "../assets/png-texture";
+import { loadVideoAsset } from "../assets/video-asset";
+import { loadModelAsset } from "../assets/model-asset";
 import { admitPngMemory } from "./png-memory";
 
 export function hasMediaResources(delivery: DeliveryManifestWire): boolean {
@@ -60,9 +62,14 @@ export async function createPresentation(options: {
   view: unknown;
   signal?: AbortSignal;
   residentCpuBytes?: number;
+  fetcher?: typeof fetch;
 }) {
+  const fetcher = options.fetcher ?? globalThis.fetch;
   if (!hasMediaResources(options.delivery)) {
-    const png = await createPngPresentation(options);
+    const png = await createPngPresentation({
+      ...options,
+      loadTexture: (asset, loadOptions) => loadPngTexture(asset, { ...loadOptions, fetcher }),
+    });
     return {
       root: png.root,
       get retainedCpuBytes() {
@@ -116,9 +123,11 @@ export async function createPresentation(options: {
       host,
       attachRoot: false,
       playbackEnabled: false,
+      loadAsset: (asset, loadOptions) => loadVideoAsset(asset, { ...loadOptions, fetcher }),
     });
     model = await createModelPresentation({
       ...options,
+      loadAsset: (asset, loadOptions) => loadModelAsset(asset, { ...loadOptions, fetcher }),
       host,
       reservedTextureResources: {
         gpuBytes: pngGpuBytes,
@@ -135,7 +144,7 @@ export async function createPresentation(options: {
           (surface) => surface.surfaceId === surfaceId && surface.hasVideo,
         ) || !!nextView.mediaStates[surfaceId],
       async loadTexture(asset, loadOptions) {
-        if (!asset.textureKey) return loadPngTexture(asset, loadOptions);
+        if (!asset.textureKey) return loadPngTexture(asset, { ...loadOptions, fetcher });
         const loaded = video!.getLoadedAssets().get(asset.assetId);
         if (!loaded) throw new Error("Video texture missing");
         return { texture: loaded.texture, dispose() {} };

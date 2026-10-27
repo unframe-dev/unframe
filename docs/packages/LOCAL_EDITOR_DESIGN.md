@@ -2,7 +2,7 @@
 
 [ADR-0025](../decisions/0025-local-editor-unity-preview.md) に基づく Source 編集、Dev／Dist generation、Unity Preview、表示済み Dist の公開経路の実装契約。想定読者は CLI、Core、Web、Unity の実装担当者。実ブラウザー・native Unity・実サービスの E2E は別途検証し、その成功を本書だけから判断しない。
 
-保存済み Step・Cue・アニメーションの閲覧範囲は [読み取り専用 Timeline 仕様](./LOCAL_EDITOR_TIMELINE_SPEC.md) を参照。
+保存済み Step・Cue・アニメーションの閲覧とシークは [Cue 時間軸仕様](./LOCAL_EDITOR_TIMELINE_SPEC.md) を参照。
 
 ## 1. 目標と初期範囲
 
@@ -10,7 +10,7 @@
 
 Preview は Structured／Opaque Source から生成した canonical baked-web Surface、Stage／container 配下の配置、Step／Cue／Timeline、Surface の遷移、カメラの視点操作を扱う。表示の初期値とローカル進行は Core の既存規則から導出する。公開後の本番読み込み E2E は native Unity Editor で実 Realtime Snapshot を受け取る。WebGL の本番 Realtime 接続、Quest 実機は別の検証対象とする。未対応描画入力である Model、video、native-ui、tracking anchor などは load error にする。
 
-Web UI は Local Host の project 読み込み、Props／Transform の保存、診断表示を扱う。Inspector 編集は対応する React scene に限る。編集用 metadata を得られない Source も Compiler の検証を通れば build・表示でき、UI は閲覧と診断を提供する。その他の Source は外部 editor で保存して Dev Preview に反映する。Unity 上の選択・Gizmo・Component 配置は拡張目標であり、初期の完了条件に含めない。
+Web UI は Local Host の project 読み込み、公開 Props の保存、診断表示を扱う。Inspector 編集は対応する React scene に限る。編集用 metadata を得られない Source も Compiler の検証を通れば build・表示でき、UI は閲覧と診断を提供する。その他の Source は外部 editor で保存して Dev Preview に反映する。Unity 上の選択・Gizmo・Component 配置は拡張目標であり、初期の完了条件に含めない。
 
 ## 2. 所有権とデータ経路
 
@@ -44,7 +44,9 @@ Definition + RenderBundle + AssetSet + BuildManifest + assets
 
 ### Local Editor と管理 Web
 
-`app/local-editor/src/features/editor/` が Source Inspector、保存・Undo／Redo、診断、Dev／Dist 選択、Unity lifecycle、公開 UI を所有する。`index.html` から `dist` を生成し、Local Host が同一 origin で配信する。旧 Author entry、Slide／Element 文書、localStorage 文書保存、React 3D viewport は編集経路から撤去した。
+`app/local-editor/src/app/main.tsx` が token を取り出し、workspace を生成する。`workspace/create-workspace.ts` が project／preview／publication controller と workspace 単位の Zustand vanilla store を組み立て、commands が feature 間の操作を接続する。React は selector 購読と入力・focus を所有し、HTTP／build・認証 polling／Unity 配送は controller と `infra/` の adapter が所有する。Unity canvas は固定 viewport に一つだけ接続し、テーマやパネル操作では作り直さない。`dispose` で通信・timer・通知待ち・Unity を終了する。
+
+公開 Props の draft は project controller が管理する。保存は直列で、保存完了後に履歴を確定する。結果不明の保存は同一 command ID・基準 revision・command で再送する。外部変更で draft を消さず、競合時には自動上書きしない。Transform の編集 UI は提供しない。`index.html` から `dist` を生成し、Local Host が同一 origin で配信する。旧 Author entry、Slide／Element 文書、localStorage 文書保存、React 3D viewport は編集経路から撤去した。
 
 対象は CLI 起動時に指定した project であり、ブラウザーから任意 filesystem path を開く API はない。管理 Web は認証・device 承認・account settings、公開済み Dist の確認とルーム作成を担当する。ローカル Editor の起動・保存・Preview はログインなしで利用する。
 
@@ -87,9 +89,26 @@ role は presenter、capability は Web Preview の実装済み機能を表す�
 
 ### ローカル再生
 
-Local Host は commit 済み request ごとに Core の Cue state と単調時計を持つ。`POST /api/preview-playback` は `requestId` と `command`（`poll`／`play`／`pause`／`reset`／`input`）を受け、`input` のみ現在実行可能な `cueId` を指定する。任意の状態や時刻は受け付けない。入力候補と guard・競合・完了・timer の評価は Core に委譲する。既存の Bearer／Origin 検証を適用し、古い request と実行不能な入力は `409` で拒否する。
+Local Host は commit 済み request ごとに Core の Cue state と単調時計を持つ。`POST /api/preview-playback` は `requestId` と `command`（`poll`／`play`／`pause`／`reset`／`input` と下記の確認・復旧 command）を受け、`input` のみ現在実行可能な `cueId` を指定する。通常再生では任意の状態・時刻を受け付けない。入力候補と guard・競合・完了・timer の評価は Core に委譲する。既存の Bearer／Origin 検証を適用し、古い request と実行不能な入力は `409` で拒否する。
 
 応答は `LocalPreviewPlaybackState`（request、sequence、現在の Group、Node／Surface 状態、ActiveRuns、RuntimeClock）と現在の Group／Step・入力候補・終了状態を返す。Web は約100ms間隔で直列に取得し、Unity の `Playback` acknowledgement を待つ。Unity は catalog と sequence を検証して状態を適用し、共通プレイヤーを毎 frame 更新する。reset は時刻をゼロに戻し、run の識別子を更新するが sequence は戻さない。新しい load・invalidate・終了で再生要求を無効化し、古い応答を破棄する。再生状態は Source や Dist へ保存しない。
+
+### Cue 確認と適用確認
+
+Core の `executeCueEvent`／`advanceCueClock` は `{ capture: true }` の明示指定時だけ accepted Cue の actions 適用後・遷移前の checkpoint を返す。Host は request と Group／Step entry に結び付け、同じ Cue の最新 occurrence を保持する。候補評価・guard 拒否は記録しない。
+
+| command             | 入力と意味                                                                  |
+| ------------------- | --------------------------------------------------------------------------- |
+| `inspectCue`        | occurrence ID と確認 ID。通常再生を退避し、発火直後の状態へ入る             |
+| `seekCue`           | 確認 ID と有限の安全な非負整数 `timeMilliseconds`。duration 以下の絶対時刻  |
+| `leaveInspection`   | 確認 ID。退避した通常位置へ一時停止で戻る                                   |
+| `applied`           | request と sequence。Unity の適用成功後に Host の正常表示 checkpoint を確定 |
+| `recover`           | 故障 sequence。最後の正常 checkpoint を新 sequence・一時停止で返す          |
+| `invalidateDisplay` | request の表示・再生・確認記録を失効する                                    |
+
+応答は `mode`、`inspection`、最新 `occurrences` と完全 playback state を含む。確認中の play／poll は確認範囲だけを進め、timer／completion による後続進行を行わない。reset／load／invalidate は記録を失効する。重複開始・終了は同じ session を再実行せず、終了済み ID や置換済み occurrence は409で拒否する。不正時刻は400で、範囲を暗黙 clamp しない。
+
+ブラウザーは HTTP と Unity の acknowledgement を直列に待ち、適用成功後だけ `applied` を送る。`prepared`／`committed` は build identity、`playback`／`restored` は request・sequence を照合する。`failed` の `outcome`（入力拒否 `rejected`／適用故障 `failed`）と `phase`（apply／update／restore）を区別する。入力拒否だけでは正常 scene の復旧を開始しない。部分適用・後続 frame 故障・通知 timeout は操作と公開を止め、`recover` → Unity `Restore` → `restored` → Host `applied` の順に復旧する。復元失敗は receipt と request を失効し、明示再読込で新 request を作る。初期適用未確認・復旧中・復旧失敗の receipt は公開に使えない。
 
 ### Local Preview Adapter
 
@@ -139,18 +158,11 @@ revision は config・Source・lock の bytes を含む。refresh は開始時�
 
 ## 5. 検証と残る実証
 
-| 境界                                         | 実装・検証入口                                                  |
-| -------------------------------------------- | --------------------------------------------------------------- |
-| generation・保存競合・固定 Dist 公開         | CLI の Local Preview／Publication 関連テスト、`author/` service |
-| 最新要求・commit acknowledgement・失敗時保持 | Web の `preview-session`／`unity-preview`／`editor-app` テスト  |
-| 共通描画・素材 integrity・交換時 budget      | Unity の Preview／Rendering EditMode テスト                     |
-| Proto drift                                  | Contracts の `check:wire-*`、`nix run .#unity-proto -- check`   |
-| 実ブラウザー・公開・native 読み込み          | `nix run .#local-editor-e2e`                                    |
+| 境界                                             | 検証入口                                                                    |
+| ------------------------------------------------ | --------------------------------------------------------------------------- |
+| 保存・履歴・最新要求・確認・復旧・公開条件       | Local Editor 各層 `tests/` の Node ロジックテスト、`nix run .#local-editor` |
+| accepted 発火境界・確認投影・退避と失効・receipt | Core／CLI の Cue／Local Playback／Local Preview テスト                      |
+| 共通描画・素材 integrity・交換・故障と復元通知   | Unity の Preview／Rendering EditMode テスト                                 |
+| Proto drift                                      | Contracts の `check:wire-*`、`nix run .#unity-proto -- check`               |
 
-`local-editor-e2e` は隔離したローカル D1／R2、Control Plane、Realtime、承認用 Web、Local Host を起動し、実 WebGL の Dist commit、device 承認、公開 hash、Delivery／素材取得、Snapshot／StateReady を経由する native Unity Editor 描画を検査する。素材と Realtime は実行ごとのローカル CA を用いる HTTPS 経路で接続する。fixture のアカウント／session は試験が準備する。クラウドへの deploy や本番 upload は行わない。
-
-2026-10-07 に実 WebGL の Structured／Opaque Dev・Dist 描画、contain／alpha、Transform 保存後の画素変化を確認した。証拠は `.unframe/actual-webgl-evidence/` の画像と `pixel-evidence.json`。復旧 Snapshot の進行状態保持と Publication／profile／assignment 不一致の拒否は実 Editor fixture で検証した。同日にローカル実 D1／R2・Control Plane・Realtime の E2E も成功し、device 承認、固定 Dist 公開、Delivery／HTTPS 素材、Snapshot／StateReady、native Unity の実画素まで確認した。結果は `.unframe/unity-preview/e2e/20261007T160533-371594/result.json`、native の画像は同 directory の `native.png`。当日の E2E はローカル Preview の Cue／Timeline 再生を検証していない。Quest 実機、WebGL の本番 Realtime 接続、入力・性能の実機確認は別の検証対象。
-
-実行前提・生成物・ログの位置は [scripts README](../../scripts/README.md#local-editor-と-unity) を参照する。公開時認証の取り消し・期限切れでも保存と Preview は継続できる。Source のみ更新した後の固定 Dist 公開と、権限のない ID 再利用・古い PublicationFence の拒否も E2E の対象である。
-
-2026-10-18 に `examples/presentation` の実 WebGL Preview で、`continue` 入力、フェード途中の一時停止・再開、`finished` への進行、リセット、Dev／Dist の表示を確認した。画像は `.unframe/actual-webgl-evidence/structured-paused.png` と `structured-faded.png`。共通再生・Preview の EditMode テスト10件も成功した。この確認は本番 Realtime 接続と Quest 実機を含まない。
+Local Editor の E2E／component test と専用実行経路は撤去した。controller の test double や EditMode の成功は、実 WebGL／Quest の描画、固定 Browser／CSP、認証画面の手動操作を保証しない。再設計時の検証・未確認事項は [実装記録](../plans/local-editor-preview-ui-refactor-notes.md) を参照する。Unity player はコード変更後に `nix run .#unity-preview` で再生成する。

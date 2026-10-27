@@ -42,6 +42,7 @@ export function createAnchorSession(options: {
   diagnostics?: ReturnType<typeof createDiagnostics>;
   requestPermissions?: () => Promise<void>;
   showGuides?: boolean;
+  fetcher?: typeof fetch;
 }) {
   const { canvas: surface, config } = options;
   const diagnostics = options.diagnostics ?? createDiagnostics();
@@ -78,6 +79,7 @@ export function createAnchorSession(options: {
     options.onChange(snapshot);
   };
   const presentationSession = createPresentationSession({
+    fetcher: options.fetcher ?? globalThis.fetch,
     canPlay: () =>
       !document.hidden &&
       snapshot.tracking === "NORMAL" &&

@@ -2,8 +2,8 @@
 
 ブラウザ Audience の Viewer は、bootstrap の `endpoint` の origin から scheme を
 `wss:` に変換し、`/browser/control` と `/browser/state` に接続する。
-endpoint のパスは引き継がない。TLS は既存の HTTPS ingress で終端し、native gRPC
-と WebSocket は同じ advertised endpoint と Runtime を使用する。
+endpoint のパスは引き継がない。Cloud の TLS は HTTPS ingress、Venue Edge の TLS は
+自身の HTTPS listener で終端する。native gRPC と WebSocket は同じ advertised endpoint と Runtime を使用する。
 
 - WebSocket subprotocol は `unframe.realtime.v3` のみ。
 - 接続ごとに最初の message は text JSON `{"credential":"<Runtime JWT>"}`。

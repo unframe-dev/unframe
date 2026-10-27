@@ -30,4 +30,6 @@ HTTP の生成元は [openapi.ts](../../server/control-plane/src/openapi.ts)、�
 | Realtime      | `REALTIME_BROWSER_ORIGINS` に Audience の HTTPS origin。bootstrap endpoint と同じ host で `/browser/control`、`/browser/state` を同じ Runtime ポートへ転送し、WebSocket upgrade を許可 |
 | 素材配信      | Audience origin から PNG／MP4／GLB の CORS 取得を許可。MIME・サイズ・checksum・期限が Delivery と一致すること                                                                          |
 
+Venue Edge では `VENUE_EDGE_WEB_ORIGIN` に Audience の HTTPS origin を指定する。素材取得には現在の Runtime JWT を使い、bootstrap endpoint と同一 origin の Session 素材 URL にだけ付与する。
+
 会場タグは引き続き `/poc-config.json`。session ごとの会場設定配布、時計の通信遅延補償、スマートフォンの負荷・長時間視聴は未検証。profile の資源予算はクライアントが拒否に使う上限であり、端末の動作保証値ではない。

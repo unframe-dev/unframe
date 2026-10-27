@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { PreparedConnection } from "../connection/join-controller";
+import { createAudienceAssetFetch } from "../connection/asset-fetch";
 import { loadBoardConfig, type BoardConfig } from "../fiducials/config";
 import { buildViewerDiagnostic } from "../diagnostics/viewer-diagnostic";
 import { SdkProgress } from "../SdkProgress";
@@ -103,6 +104,7 @@ export function ViewerExperience(props: ViewerExperienceProps) {
       canvas: canvas.current,
       config,
       showGuides: false,
+      fetcher: createAudienceAssetFetch(() => currentConnection.current),
       onChange: (state) => {
         if (active) setAnchor(state);
       },

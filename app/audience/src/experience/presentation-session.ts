@@ -9,6 +9,7 @@ type SceneRenderer = Pick<WebGLRenderer, "resetState">;
 
 export function createPresentationSession(options: {
   canPlay(): boolean;
+  fetcher?: typeof fetch;
   onPlaybackBlocked(blocked: boolean): void;
 }) {
   let active = true;
@@ -62,6 +63,7 @@ export function createPresentationSession(options: {
         view,
         signal: pending.signal,
         residentCpuBytes: presentation?.retainedCpuBytes ?? 0,
+        fetcher: options.fetcher ?? globalThis.fetch,
       });
       if (!active || pending.signal.aborted || host !== currentHost) {
         next.dispose();

@@ -2,15 +2,15 @@
 
 タスクの実処理を置くディレクトリです。公式な実行入口は `flake.nix` の apps で、`flake.nix` はここにあるスクリプトをラップします。
 
-| ディレクトリ    | 役割                                      |
-| --------------- | ----------------------------------------- |
-| `lib/`          | 共有ヘルパ（パス定数 `paths.sh` など）    |
-| `ci/`           | 品質ゲート                                |
-| `contracts/`    | 契約生成と生成物の差分検査                |
-| `dev/`          | 依存関係・Git hook のセットアップ         |
-| `docs/`         | Notion → `docs/notion/` 同期              |
-| `unity/`        | Unity Editor の起動と WebGL Preview build |
-| `local-editor/` | ローカル実サービスと Unity の E2E         |
+| ディレクトリ           | 役割                                      |
+| ---------------------- | ----------------------------------------- |
+| `lib/`                 | 共有ヘルパ（パス定数 `paths.sh` など）    |
+| `ci/`                  | 品質ゲート                                |
+| `contracts/`           | 契約生成と生成物の差分検査                |
+| `dev/`                 | 依存関係・Git hook のセットアップ         |
+| `docs/`                | Notion → `docs/notion/` 同期              |
+| `unity/`               | Unity Editor の起動と WebGL Preview build |
+| `presentation-sample/` | Unity Editor 向けサンプル配信             |
 
 ```bash
 nix develop
@@ -89,8 +89,6 @@ Local Editor の開発は、Local Editor の `dev` と CLI の `dev` を別タ�
 ```bash
 nix run .#unity-editor -- -projectPath "$PWD/app/unity"
 nix run .#unity-preview
-nix run .#local-editor-e2e
-nix run .#local-editor-e2e -- --showcase
 nix run .#presentation-sample
 ```
 
@@ -106,10 +104,4 @@ WebGL playerは不要です。終了はCtrl+Cです。Quest用のLAN配信・マ
 
 共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。 本番の共通再生・配信受信・Native UI・モデルの回帰は `nix develop --command bash scripts/unity/test-native-editor.sh rendering` を使用し、同じdirectoryの `rendering.xml` と `rendering.log` を確認します。WebGL PreviewはBaked描画と共通再生・検証だけを取り込み、本番専用のメディア実装を含めません。
 
-`local-editor-e2e` は生成済み WebGL player と固定 Browser の provision を必要とします。Chromium 実行ファイルは既定で renderer の managed headless shell を使用し、`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` で明示指定できます。OS 別の Opaque capture の隔離要件も満たしてください。
-
-試験は `.unframe/unity-preview/e2e/<run>` に隔離した D1／R2、実行専用 CA・証明書、ログ・結果を作り、ローカル Control Plane、Realtime、管理 Web と Host を起動します。実 WebGL Dist commit、device 承認、固定 Dist 公開と hash、Web の公開情報確認・ルーム作成と固定 publication、権限・PublicationFence 拒否、HTTPS 素材と実 Snapshot／StateReady を用いる native Unity 描画を検査します。実行 directory は秘密情報を含むため共有・commit しないでください。
-
-`--showcase` は `examples/local-editor-showcase` の5枚構成を使用し、実 Surface interaction → Cue → Step／状態更新と Timeline、カメラの周回・パン・ズームを native Unity で収録します。`ffmpeg` が必要で、`UNFRAME_FFMPEG_EXECUTABLE_PATH` で指定できます。run 内の `showcase.mp4` は1280×720・24fps・36秒、`native.json` は各入力の Cue・Step・状態・sequence と描画フレームの観測結果です。動画は実カメラの連番フレームから生成します。
-
-各プロセスは終了時に停止しますが、結果 directory は診断用に残ります。失敗時はその run のログを確認してください。build や unit test の成功と、この E2E の成功は分けて記録します。分離前の検証は 2026-10-07 に成功し、証拠は `.unframe/unity-preview/e2e/20261007T160533-371594/result.json` と `native.png` に保存しました。Quest 実機と WebGL の本番 Realtime 接続はこの試験に含みません。
+Local Editor の品質ゲートは `nix run .#local-editor`（型検査・Node ロジックテスト・build）です。Local Editor の E2E と専用 Nix app は撤去しました。実 WebGL の画面・認証・公開操作は自動ロジック検証と分けて手動確認してください。

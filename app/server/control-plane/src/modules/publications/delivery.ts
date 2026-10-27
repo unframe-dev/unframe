@@ -121,16 +121,19 @@ export class DeliveryService {
         buildId: artifacts.buildManifest.buildId,
         assetId: asset.assetId,
       };
-      const url = this.config.PUBLICATION_ASSET_ORIGIN
-        ? await new PublicationAssetAccess(this.config.SERVICE_IDENTITY_SECRET, () =>
-            this.now().getTime(),
-          ).issue(this.config.PUBLICATION_ASSET_ORIGIN, target, expiresAt)
-        : (
-            await presigner.issueDownload({
-              objectKey: `publication-builds/${target.presentationId}/${target.buildId}/${target.assetId}`,
-              expiresAt: new Date(expiresAt),
-            })
-          ).url;
+      const url =
+        assignment.runtimeKind === "VenueEdge"
+          ? `${new URL(assignment.endpoint).origin}/sessions/${encodeURIComponent(sessionId)}/assets/${encodeURIComponent(asset.assetId)}`
+          : this.config.PUBLICATION_ASSET_ORIGIN
+            ? await new PublicationAssetAccess(this.config.SERVICE_IDENTITY_SECRET, () =>
+                this.now().getTime(),
+              ).issue(this.config.PUBLICATION_ASSET_ORIGIN, target, expiresAt)
+            : (
+                await presigner.issueDownload({
+                  objectKey: `publication-builds/${target.presentationId}/${target.buildId}/${target.assetId}`,
+                  expiresAt: new Date(expiresAt),
+                })
+              ).url;
       assetAccess[asset.assetId] = { url, expiresAtUnixMilliseconds: expiresAt };
     }
     let manifest;

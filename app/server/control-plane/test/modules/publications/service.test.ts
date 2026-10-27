@@ -706,6 +706,65 @@ describe("publication service", () => {
         new Uint8Array(bytes[deliveryAsset.assetId!]!),
       );
     }
+    await env.DB.prepare(
+      `INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at)
+       VALUES ('delivery-edge', 'runtime-demo', 'active', 'test', 'v3', 1, 'https://venue.example.test:9443', ?, 'healthy', ?, ?, ?)`,
+    )
+      .bind(
+        `sha256:${"a".repeat(64)}`,
+        new Date().toISOString(),
+        new Date().toISOString(),
+        new Date().toISOString(),
+      )
+      .run();
+    await env.DB.prepare(
+      "UPDATE runtime_assignments SET runtime_kind = 'VenueEdge', endpoint = 'https://venue.example.test:9443', provisioning_edge_id = 'delivery-edge', certificate_fingerprint = ? WHERE session_id = 'publication-runtime-session'",
+    )
+      .bind(`sha256:${"a".repeat(64)}`)
+      .run();
+    const edgeDelivery = decodeWireMessage(
+      "unframe.delivery.DeliveryManifest",
+      await new DeliveryService(validateConfig(environment)).manifest(
+        owner,
+        "publication-runtime-session",
+        "quest-baked-web-v1",
+      ),
+    ) as DeliveryManifestWire;
+    expect(edgeDelivery.assetAccess![0]!.url).toBe(
+      `https://venue.example.test:9443/sessions/publication-runtime-session/assets/${encodeURIComponent(edgeDelivery.assetAccess![0]!.assetId!)}`,
+    );
+    const resolveAsset = (overrides: Record<string, string> = {}, authorized = true) =>
+      app.fetch(
+        new Request(
+          `https://example.test/internal/runtime/assets?${new URLSearchParams({ sessionId: "publication-runtime-session", runtimeId: "runtime-demo", assignmentEpoch: "1", participantId: owner.userId, assetId: edgeDelivery.assetAccess![0]!.assetId!, ...overrides })}`,
+          {
+            headers: authorized
+              ? { authorization: `Bearer ${environment.SERVICE_IDENTITY_SECRET}` }
+              : {},
+          },
+        ),
+        environment,
+      );
+    const resolved = await resolveAsset();
+    expect(resolved.status).toBe(200);
+    await expect(resolved.json()).resolves.toMatchObject({
+      checksum: edgeDelivery.assetAccess![0]!.checksum,
+      size: Number(edgeDelivery.assetAccess![0]!.encodedSizeBytes),
+      mediaType: edgeDelivery.assetAccess![0]!.mediaType,
+      publication: { publicationManifestHash: manifest.publicationManifestHash },
+    });
+    expect((await resolveAsset({}, false)).status).toBe(401);
+    expect((await resolveAsset({ assignmentEpoch: "2" })).status).toBe(409);
+    expect((await resolveAsset({ participantId: "missing" })).status).toBe(403);
+    expect((await resolveAsset({ assetId: "missing" })).status).toBe(403);
+    await env.DB.prepare(
+      "UPDATE venue_edges SET status = 'revoked' WHERE id = 'delivery-edge'",
+    ).run();
+    expect((await resolveAsset()).status).toBe(409);
+    await env.DB.prepare(
+      "UPDATE runtime_assignments SET runtime_kind = 'Cloud', endpoint = 'https://runtime.example.test', provisioning_edge_id = NULL, certificate_fingerprint = NULL WHERE session_id = 'publication-runtime-session'",
+    ).run();
+    await env.DB.prepare("DELETE FROM venue_edges WHERE id = 'delivery-edge'").run();
     const publishedArtifacts = PublicationService.prototype.publishedArtifacts;
     const artifactRead = vi
       .spyOn(PublicationService.prototype, "publishedArtifacts")

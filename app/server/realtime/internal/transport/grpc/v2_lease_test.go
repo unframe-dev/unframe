@@ -82,47 +82,54 @@ func newV2LeaseTestService(t *testing.T, assignments AssignmentAuthorizer) (*V2S
 	return service, profile
 }
 
-func TestV2BlockedReliableSendStopsAtLeaseDeadline(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	service, profile := newV2LeaseTestService(t, deadlineAssignment{deadline: time.Now().Add(200 * time.Millisecond)})
-	inputs := make(chan *realtimev2.ControlClientItem, 2)
-	inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}
-	blocked := make(chan struct{})
-	var once sync.Once
-	stream := &v2LeaseStream[realtimev2.ControlClientItem, realtimev2.ControlServerItem]{ctx: ctx, receive: func() (*realtimev2.ControlClientItem, error) {
-		select {
-		case item := <-inputs:
-			return item, nil
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}, send: func(item *realtimev2.ControlServerItem) error {
-		if syncState := item.GetPresenterInputSynchronization(); syncState != nil && syncState.Phase == realtimev2.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_REQUIRED {
-			inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_InputSynchronizationAck{InputSynchronizationAck: v3TestAck(syncState)}}
-			inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_LogicalInput{LogicalInput: &realtimev2.LogicalInputCommand{ClientEventId: v3TestEventID(1, "blocked-send"), CommandEpoch: 1, InputContext: service.runtime.InputSynchronization().InputContext, LogicalEventName: "next"}}}
-		}
-		if item.GetReliableEvent() != nil {
-			once.Do(func() { close(blocked) })
-			<-ctx.Done()
-			return ctx.Err()
-		}
-		return nil
-	}}
-	done := make(chan error, 1)
-	go func() { done <- service.ConnectControl(stream) }()
-	select {
-	case <-blocked:
-	case <-time.After(time.Second):
-		t.Fatal("reliable event did not reach send")
-	}
-	select {
-	case err := <-done:
-		if status.Code(err) != codes.FailedPrecondition {
-			t.Fatalf("error=%v", err)
-		}
-	case <-time.After(400 * time.Millisecond):
-		t.Fatal("blocked reliable send outlived lease")
+func TestV2BlockedReliableSendStopsAtLeaseDeadlineOrRevocation(t *testing.T) {
+	for _, revoked := range []bool{false, true} {
+		t.Run(map[bool]string{false: "expiry", true: "revocation"}[revoked], func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			assignments, revoke := newV2StoppingAssignment(t, revoked, 200*time.Millisecond)
+			service, profile := newV2LeaseTestService(t, assignments)
+			inputs := make(chan *realtimev2.ControlClientItem, 2)
+			inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}
+			blocked := make(chan struct{})
+			var once sync.Once
+			stream := &v2LeaseStream[realtimev2.ControlClientItem, realtimev2.ControlServerItem]{ctx: ctx, receive: func() (*realtimev2.ControlClientItem, error) {
+				select {
+				case item := <-inputs:
+					return item, nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}, send: func(item *realtimev2.ControlServerItem) error {
+				if syncState := item.GetPresenterInputSynchronization(); syncState != nil && syncState.Phase == realtimev2.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_REQUIRED {
+					inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_InputSynchronizationAck{InputSynchronizationAck: v3TestAck(syncState)}}
+					inputs <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_LogicalInput{LogicalInput: &realtimev2.LogicalInputCommand{ClientEventId: v3TestEventID(1, "blocked-send"), CommandEpoch: 1, InputContext: service.runtime.InputSynchronization().InputContext, LogicalEventName: "next"}}}
+				}
+				if item.GetReliableEvent() != nil {
+					once.Do(func() { close(blocked) })
+					<-ctx.Done()
+					return ctx.Err()
+				}
+				return nil
+			}}
+			done := make(chan error, 1)
+			go func() { done <- service.ConnectControl(stream) }()
+			select {
+			case <-blocked:
+				revoke()
+			case <-time.After(time.Second):
+				t.Fatal("reliable event did not reach send")
+			}
+			select {
+			case err := <-done:
+				if status.Code(err) != codes.FailedPrecondition {
+					t.Fatalf("error=%v", err)
+				}
+			case <-time.After(400 * time.Millisecond):
+				t.Fatal("blocked reliable send outlived lease")
+			}
+
+		})
 	}
 }
 
@@ -187,58 +194,65 @@ func TestV2HandshakeRechecksLeaseAfterReceive(t *testing.T) {
 	}
 }
 
-func TestV2StateStopsAtLeaseDeadline(t *testing.T) {
-	for _, stage := range []string{"connected_send", "ready_wait", "frame_send"} {
-		t.Run(stage, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			service, profile := newV2LeaseTestService(t, deadlineAssignment{deadline: time.Now().Add(100 * time.Millisecond)})
-			identity, _ := service.identities.Resolve(ctx)
-			control := &v2Control{identity: identity, profile: profile, fence: &presentationv2.RuntimeProjectionFence{}, ready: make(chan struct{}), done: make(chan struct{}), stateDetached: make(chan struct{}, 1), faultGeneration: service.runtime.FaultGeneration()}
-			if stage == "frame_send" {
-				close(control.ready)
+func TestV2StateStopsAtLeaseDeadlineOrRevocation(t *testing.T) {
+	for _, revoked := range []bool{false, true} {
+		t.Run(map[bool]string{false: "expiry", true: "revocation"}[revoked], func(t *testing.T) {
+			for _, stage := range []string{"connected_send", "ready_wait", "frame_send"} {
+				t.Run(stage, func(t *testing.T) {
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					assignments, revoke := newV2StoppingAssignment(t, revoked, 100*time.Millisecond)
+					service, profile := newV2LeaseTestService(t, assignments)
+					identity, _ := service.identities.Resolve(ctx)
+					control := &v2Control{identity: identity, profile: profile, fence: &presentationv2.RuntimeProjectionFence{}, ready: make(chan struct{}), done: make(chan struct{}), stateDetached: make(chan struct{}, 1), faultGeneration: service.runtime.FaultGeneration()}
+					if stage == "frame_send" {
+						close(control.ready)
+					}
+					service.controls["connection-1"] = control
+					nonce, err := service.nonces.Issue("connection-1", identity.ParticipantID)
+					if err != nil {
+						t.Fatal(err)
+					}
+					first := true
+					reached := make(chan struct{})
+					var once sync.Once
+					stream := &v2LeaseStream[realtimev2.StateClientItem, realtimev2.StateServerItem]{ctx: ctx, receive: func() (*realtimev2.StateClientItem, error) {
+						if !first {
+							<-ctx.Done()
+							return nil, ctx.Err()
+						}
+						first = false
+						return &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: "connection-1", StateConnectionNonce: nonce}}}, nil
+					}, send: func(item *realtimev2.StateServerItem) error {
+						if (stage == "connected_send" && item.GetConnected() != nil) || (stage == "frame_send" && item.GetStateFrame() != nil) {
+							once.Do(func() { close(reached) })
+							<-ctx.Done()
+							return ctx.Err()
+						}
+						if stage == "ready_wait" && item.GetConnected() != nil {
+							once.Do(func() { close(reached) })
+						}
+						return nil
+					}}
+					done := make(chan error, 1)
+					go func() { done <- service.ConnectState(stream) }()
+					select {
+					case <-reached:
+						revoke()
+					case <-time.After(time.Second):
+						t.Fatal("state did not reach blocked stage")
+					}
+					select {
+					case err := <-done:
+						if status.Code(err) != codes.FailedPrecondition {
+							t.Fatalf("lease error=%v", err)
+						}
+					case <-time.After(300 * time.Millisecond):
+						t.Fatal("state outlived assignment lease")
+					}
+				})
 			}
-			service.controls["connection-1"] = control
-			nonce, err := service.nonces.Issue("connection-1", identity.ParticipantID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			first := true
-			reached := make(chan struct{})
-			var once sync.Once
-			stream := &v2LeaseStream[realtimev2.StateClientItem, realtimev2.StateServerItem]{ctx: ctx, receive: func() (*realtimev2.StateClientItem, error) {
-				if !first {
-					<-ctx.Done()
-					return nil, ctx.Err()
-				}
-				first = false
-				return &realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: "connection-1", StateConnectionNonce: nonce}}}, nil
-			}, send: func(item *realtimev2.StateServerItem) error {
-				if (stage == "connected_send" && item.GetConnected() != nil) || (stage == "frame_send" && item.GetStateFrame() != nil) {
-					once.Do(func() { close(reached) })
-					<-ctx.Done()
-					return ctx.Err()
-				}
-				if stage == "ready_wait" && item.GetConnected() != nil {
-					once.Do(func() { close(reached) })
-				}
-				return nil
-			}}
-			done := make(chan error, 1)
-			go func() { done <- service.ConnectState(stream) }()
-			select {
-			case <-reached:
-			case <-time.After(time.Second):
-				t.Fatal("state did not reach blocked stage")
-			}
-			select {
-			case err := <-done:
-				if status.Code(err) != codes.FailedPrecondition {
-					t.Fatalf("lease error=%v", err)
-				}
-			case <-time.After(300 * time.Millisecond):
-				t.Fatal("state outlived assignment lease")
-			}
+
 		})
 	}
 }
@@ -322,4 +336,61 @@ func (a *renewableDeadlineAssignment) currentDeadline() time.Time {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.deadline
+}
+
+func TestV2PendingConnectionsStopWhenAssignmentIsRevoked(t *testing.T) {
+	for _, state := range []bool{false, true} {
+		t.Run(map[bool]string{false: "Control", true: "State"}[state], func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			now := time.Now()
+			guard, err := assignment.NewAssignmentGuard(assignment.RuntimeAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, Endpoint: "localhost:9090", AssignmentEpoch: 3, PresentationRevision: 4, IssuedAt: now.Add(-time.Minute), LeaseExpiresAt: now.Add(time.Hour)}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			service, _ := newV2LeaseTestService(t, guard)
+			received := make(chan struct{})
+			done := make(chan error, 1)
+			if state {
+				stream := &v2LeaseStream[realtimev2.StateClientItem, realtimev2.StateServerItem]{ctx: ctx, receive: func() (*realtimev2.StateClientItem, error) { close(received); <-ctx.Done(); return nil, ctx.Err() }}
+				go func() { done <- service.ConnectState(stream) }()
+			} else {
+				stream := &v2LeaseStream[realtimev2.ControlClientItem, realtimev2.ControlServerItem]{ctx: ctx, receive: func() (*realtimev2.ControlClientItem, error) { close(received); <-ctx.Done(); return nil, ctx.Err() }}
+				go func() { done <- service.ConnectControl(stream) }()
+			}
+			<-received
+			guard.Revoke()
+			select {
+			case err := <-done:
+				if status.Code(err) != codes.FailedPrecondition {
+					t.Fatalf("revoked connection error=%v", err)
+				}
+			case <-time.After(250 * time.Millisecond):
+				t.Fatal("pending connection outlived assignment revocation")
+			}
+			// New connections and reconnects must fail before waiting for another handshake.
+			for range 2 {
+				stream := &v2LeaseStream[realtimev2.ControlClientItem, realtimev2.ControlServerItem]{ctx: ctx, receive: func() (*realtimev2.ControlClientItem, error) {
+					t.Error("revoked assignment read a new handshake")
+					return nil, io.EOF
+				}}
+				if err := service.ConnectControl(stream); status.Code(err) != codes.FailedPrecondition {
+					t.Fatalf("revoked reconnect error=%v", err)
+				}
+			}
+		})
+	}
+}
+
+func newV2StoppingAssignment(t *testing.T, revoked bool, duration time.Duration) (AssignmentAuthorizer, func()) {
+	t.Helper()
+	if !revoked {
+		return deadlineAssignment{deadline: time.Now().Add(duration)}, func() {}
+	}
+	now := time.Now()
+	guard, err := assignment.NewAssignmentGuard(assignment.RuntimeAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, Endpoint: "localhost:9090", AssignmentEpoch: 3, PresentationRevision: 4, IssuedAt: now.Add(-time.Minute), LeaseExpiresAt: now.Add(time.Hour)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return guard, guard.Revoke
 }

@@ -39,7 +39,7 @@ namespace Unframe.ControlPlane.Model
         /// <param name="renderBundle">RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash</param>
         /// <param name="checkpoint">checkpoint</param>
         [JsonConstructor]
-        public InternalRuntimeBootstrapGet200Response(InternalRuntimeBootstrapGet200ResponseAssignment assignment, InternalRuntimeBootstrapGet200ResponsePublication publication, Dictionary<string, Object> definition, Dictionary<string, Object> renderBundle, Dictionary<string, Object>? checkpoint = default)
+        public InternalRuntimeBootstrapGet200Response(InternalRuntimeAssetsGet200ResponseAssignment assignment, InternalRuntimeAssetsGet200ResponsePublication publication, Dictionary<string, Object> definition, Dictionary<string, Object> renderBundle, Dictionary<string, Object>? checkpoint = default)
         {
             Assignment = assignment;
             Publication = publication;
@@ -55,13 +55,13 @@ namespace Unframe.ControlPlane.Model
         /// Gets or Sets Assignment
         /// </summary>
         [JsonPropertyName("assignment")]
-        public InternalRuntimeBootstrapGet200ResponseAssignment Assignment { get; set; }
+        public InternalRuntimeAssetsGet200ResponseAssignment Assignment { get; set; }
 
         /// <summary>
         /// Gets or Sets Publication
         /// </summary>
         [JsonPropertyName("publication")]
-        public InternalRuntimeBootstrapGet200ResponsePublication Publication { get; set; }
+        public InternalRuntimeAssetsGet200ResponsePublication Publication { get; set; }
 
         /// <summary>
         /// PresentationDefinition; strict schema validated at storage boundary
@@ -133,8 +133,8 @@ namespace Unframe.ControlPlane.Model
 
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
-            Option<InternalRuntimeBootstrapGet200ResponseAssignment?> assignment = default;
-            Option<InternalRuntimeBootstrapGet200ResponsePublication?> publication = default;
+            Option<InternalRuntimeAssetsGet200ResponseAssignment?> assignment = default;
+            Option<InternalRuntimeAssetsGet200ResponsePublication?> publication = default;
             Option<Dictionary<string, Object>?> definition = default;
             Option<Dictionary<string, Object>?> renderBundle = default;
             Option<Dictionary<string, Object>?> checkpoint = default;
@@ -155,10 +155,10 @@ namespace Unframe.ControlPlane.Model
                     switch (localVarJsonPropertyName)
                     {
                         case "assignment":
-                            assignment = new Option<InternalRuntimeBootstrapGet200ResponseAssignment?>(JsonSerializer.Deserialize<InternalRuntimeBootstrapGet200ResponseAssignment>(ref utf8JsonReader, jsonSerializerOptions)!);
+                            assignment = new Option<InternalRuntimeAssetsGet200ResponseAssignment?>(JsonSerializer.Deserialize<InternalRuntimeAssetsGet200ResponseAssignment>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
                         case "publication":
-                            publication = new Option<InternalRuntimeBootstrapGet200ResponsePublication?>(JsonSerializer.Deserialize<InternalRuntimeBootstrapGet200ResponsePublication>(ref utf8JsonReader, jsonSerializerOptions)!);
+                            publication = new Option<InternalRuntimeAssetsGet200ResponsePublication?>(JsonSerializer.Deserialize<InternalRuntimeAssetsGet200ResponsePublication>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
                         case "definition":
                             definition = new Option<Dictionary<string, Object>?>(JsonSerializer.Deserialize<Dictionary<string, Object>>(ref utf8JsonReader, jsonSerializerOptions)!);
