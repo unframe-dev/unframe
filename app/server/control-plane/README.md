@@ -71,3 +71,9 @@ Product-owned D1 tables の通常の CRUD・一覧・lookup は Drizzle ORM を�
 ## TODO
 
 - Presentation CRUD API の旧 `groups / elements` 定義を共有 v2 Definition 契約へ更新し、Web の作成・保存と生成クライアントを揃える。既存 v1 データの移行・互換読み込みは行わない。この更新は Delivery / Realtime の v2 専用化とは別途実施する。
+
+## Audience のブラウザー接続
+
+`AUDIENCE_ORIGIN` は任意の origin URL です。設定すると `WEB_ORIGIN` に加えてその origin の CORS を許可します。匿名 Viewer はメモリ上の bearer credential を使い、Better Auth のログインや cookie を必要としません。
+
+`POST /viewer-credentials` に `joinCode` を渡すと、その Session に Viewer として参加し、1 時間有効な資格を発行します。既存の join と同じコード・IP 制限と参加人数上限を適用します。`POST /viewer-credentials/refresh` は有効な bearer 資格を更新し、旧 token を直ちに失効させます。発行から 24 時間を超えて更新できません。`DELETE /viewer-credentials` は資格を失効させ、参加枠と専用の匿名ユーザー行を解放します。期限切れの匿名 Viewer は、同じ Session の次回資格発行時に回収します。発行後の `/sessions/join` は既存の参加結果を返し、参加制限を二重に消費しません。Session 終了時も資格を受理しません。匿名資格は対象 Session の join・取得・delivery・bootstrap に限定し、編集・管理 API には使用できません。

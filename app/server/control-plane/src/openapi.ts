@@ -377,6 +377,7 @@ export const publicRoutes = [
         content: { "application/json": { schema: sessionResourceSchema } },
       },
       400: errorResponse("Invalid join code"),
+      403: errorResponse("Viewer credential is scoped to another session"),
       401: errorResponse("Unauthorized"),
       404: errorResponse("Not found"),
       409: errorResponse("Session full"),
@@ -1021,6 +1022,53 @@ export const downloadPublicationAssetRoute = createRoute({
   },
 });
 
+const viewerCredentialSchema = z.object({
+  token: z.string(),
+  expiresAt: z.string().datetime(),
+  sessionId: z.string(),
+  participantId: z.string(),
+});
+export const issueViewerCredentialRoute = createRoute({
+  method: "post",
+  path: "/viewer-credentials",
+  description:
+    "Join as an anonymous viewer. Bearer credentials expire after one hour and may be rotated for up to 24 hours.",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: z.object({ joinCode: joinCodeSchema }).strict() } },
+    },
+  },
+  responses: {
+    201: {
+      description: "Viewer credential",
+      content: { "application/json": { schema: viewerCredentialSchema } },
+    },
+    400: errorResponse("Invalid request"),
+    404: errorResponse("Invalid join code"),
+    409: errorResponse("Session full"),
+    429: errorResponse("Join rate limited"),
+  },
+});
+export const refreshViewerCredentialRoute = createRoute({
+  method: "post",
+  path: "/viewer-credentials/refresh",
+  security: [{ bearerAuth: [] }],
+  description: "Rotate a valid viewer credential. The previous token is immediately invalidated.",
+  responses: {
+    200: {
+      description: "Rotated credential",
+      content: { "application/json": { schema: viewerCredentialSchema } },
+    },
+    401: errorResponse("Expired or revoked credential"),
+  },
+});
+export const revokeViewerCredentialRoute = createRoute({
+  method: "delete",
+  path: "/viewer-credentials",
+  security: [{ bearerAuth: [] }],
+  responses: { 204: { description: "Revoked" }, 401: errorResponse("Invalid credential") },
+});
 export const internalRuntimeAssetRoute = createRoute({
   method: "get",
   path: "/internal/runtime/assets",

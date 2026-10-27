@@ -12,6 +12,7 @@ Unframe は次のコンポーネントからなるモノレポです。
 | ----------------------------- | ------------------------------------------ |
 | `app/web/`                    | React 19 管理 Web（WIP）                   |
 | `app/local-editor/`           | ローカル Source 編集・Unity Preview（WIP） |
+| `app/audience/`               | 観客向け Web XR 位置合わせ PoC             |
 | `app/server/`                 | Control Plane / Realtime Backend（WIP）    |
 | `app/server/realtime/`        | Go / gRPC Realtime Backend（WIP）          |
 | `app/unity/`                  | Unity MR Application（WIP）                |
@@ -50,6 +51,7 @@ assignment fencing、page-change の in-memory fan-out を実装しています�
 アプリケーション固有のコードは、それを所有するディレクトリに置きます。
 
 - 管理 Web は `app/web/`、ローカル Source Editor は `app/local-editor/` に置く。
+- 観客向け React、追跡、位置合わせ、Three.js 描画は `app/audience/` に置く。
 - Control Plane は `app/server/control-plane/`、Realtime Go backend は
   `app/server/realtime/` に置く。
 - Unity / C# のコードは `app/unity/` に置く。
@@ -89,17 +91,20 @@ nix run .#setup
 公式のタスク入口は Nix flake apps です。複雑な処理の実体は `scripts/` にあり、
 通常は内部スクリプトを直接実行せず、次の入口を使用します。
 
-| 用途                                 | コマンド                  |
-| ------------------------------------ | ------------------------- |
-| 開発環境                             | `nix develop`             |
-| 依存関係と hook のセットアップ       | `nix run .#setup`         |
-| 全体品質ゲート                       | `nix run .#check`         |
-| Control Plane check / test / build   | `nix run .#control-plane` |
-| Realtime check / test / build / race | `nix run .#realtime`      |
-| Web check / test / build             | `nix run .#web`           |
-| LP test / check / build              | `nix run .#lp`            |
-| Notion 同期                          | `nix run .#notion-sync`   |
-| flake の評価と formatter 検証        | `nix flake check`         |
+| 用途                                 | コマンド                                                      |
+| ------------------------------------ | ------------------------------------------------------------- |
+| 開発環境                             | `nix develop`                                                 |
+| 依存関係と hook のセットアップ       | `nix run .#setup`                                             |
+| 全体品質ゲート                       | `nix run .#check`                                             |
+| Control Plane check / test / build   | `nix run .#control-plane`                                     |
+| Realtime check / test / build / race | `nix run .#realtime`                                          |
+| Web check / test / build             | `nix run .#web`                                               |
+| Local Editor check / test / build    | `nix run .#local-editor`                                      |
+| Audience check / test / build        | `nix run .#audience`                                          |
+| Audience 開発 / build preview        | `nix run .#audience -- dev` / `nix run .#audience -- preview` |
+| LP test / check / build              | `nix run .#lp`                                                |
+| Notion 同期                          | `nix run .#notion-sync`                                       |
+| flake の評価と formatter 検証        | `nix flake check`                                             |
 
 `nix flake check` は flake の評価と formatter を検証します。アプリケーションの
 品質ゲートではありません。コード変更時の全体品質ゲートは
@@ -134,6 +139,7 @@ generated-file notice を保持します。C# generator は未接続のため、
 
 | 対象                   | 現在のテスト                               | 今後の方針                                  |
 | ---------------------- | ------------------------------------------ | ------------------------------------------- |
+| `app/audience/`        | Vitest（較正・SDK境界・UI）                | カメラ・SLAM は実機確認が必要               |
 | `app/web/`             | package script で実行                      | 機能追加に合わせて拡張                      |
 | `app/server/realtime/` | Go `testing`、race detector                | gRPC contract と session 実装に合わせて拡張 |
 | `lp/`                  | package script、`svelte-check`、静的 build | ページ追加に合わせて拡張                    |
@@ -148,7 +154,7 @@ TypeScript のテストは公開境界、重要な分岐、失敗モードを変
 - `.test.ts` へ移すためだけに hook・interface・状態管理層を追加しません。拡張子だけを変える移動も行いません。
 - test double は外部サービスや高コストな依存の境界に置き、必要な統合確認で補います。
 
-`nix run .#check` は現在、Control Plane、Presentation packages、Realtime、LP、Web
+`nix run .#check` は現在、Control Plane、Presentation packages、Realtime、LP、Web、Local Editor、Audience
 の検証を実行します。Presentation gate は共有 `packages/config` の hook fixture と設定
 check も実行します。現在は Unity Editor テストを実行しません。ドキュメント link
 check や security check も、この品質ゲートには含まれません。
@@ -173,6 +179,8 @@ nix run .#presentation -- fix
 nix run .#realtime -- fix
 nix run .#lp -- fix
 nix run .#web -- fix
+nix run .#local-editor -- fix
+nix run .#audience -- fix
 ```
 
 Pull Request では `autofix.yml` が format と lint の自動修正を行う場合があります。
@@ -211,6 +219,7 @@ scope は主な変更対象に合わせます。
 | scope          | 対象                                             |
 | -------------- | ------------------------------------------------ |
 | `web`          | `app/web/`                                       |
+| `audience`     | `app/audience/`                                  |
 | `local-editor` | `app/local-editor/`                              |
 | `server`       | `app/server/`                                    |
 | `realtime`     | `app/server/realtime/`                           |

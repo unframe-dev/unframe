@@ -1,0 +1,27 @@
+{
+  "repository": "https://github.com/arenaxr/apriltag-js-standalone",
+  "commit": "f0fe55676265a1251ad36f18bac9939206a59e19",
+  "apriltagCommit": "4cdba6a8c6cf4efeb032fa5542da927d4677c035",
+  "files": [
+    {
+      "name": "apriltag_wasm.js",
+      "url": "https://raw.githubusercontent.com/arenaxr/apriltag-js-standalone/f0fe55676265a1251ad36f18bac9939206a59e19/html/apriltag_wasm.js",
+      "sha256": "587c3b98f7e9a312d9f69dbb541c91741f9ee2df10c356362b05243041e3ddea"
+    },
+    {
+      "name": "apriltag_wasm.wasm",
+      "url": "https://raw.githubusercontent.com/arenaxr/apriltag-js-standalone/f0fe55676265a1251ad36f18bac9939206a59e19/html/apriltag_wasm.wasm",
+      "sha256": "0283215c40f3bcd265d2650aeb0d4419e87222830fe8a31a1978401a4cac77aa"
+    },
+    {
+      "name": "LICENSE.wrapper",
+      "url": "https://raw.githubusercontent.com/arenaxr/apriltag-js-standalone/f0fe55676265a1251ad36f18bac9939206a59e19/LICENSE",
+      "sha256": "14b8f722e667e13c43a3b5e15283e92ec9a8e3b9d728eca6571d4d3a73a723a7"
+    },
+    {
+      "name": "LICENSE.apriltag",
+      "url": "https://raw.githubusercontent.com/WiseLabCMU/apriltag/4cdba6a8c6cf4efeb032fa5542da927d4677c035/LICENSE.md",
+      "sha256": "3a99f2b7797dfbe2fd36e374e0123c06089fa49e6d7e44b3406570f758105d0b"
+    }
+  ]
+}

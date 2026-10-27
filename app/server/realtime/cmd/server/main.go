@@ -228,7 +228,7 @@ func main() {
 	}
 	metrics := &observability.Metrics{}
 	dependencies := transportgrpc.Dependencies{
-		Verifier: verifier, Guard: core.Assignments(), V2: v2Service, Logger: slog.Default(), Metrics: metrics,
+		Verifier: verifier, Guard: core.Assignments(), V2: v2Service, Logger: slog.Default(), Metrics: metrics, BrowserOrigins: config.browserOrigins,
 	}
 	readiness := func(ctx context.Context) error {
 		if err := core.Ready(); err != nil {

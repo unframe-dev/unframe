@@ -3,6 +3,7 @@ module github.com/unframe-dev/unframe/app/server/realtime
 go 1.25.7
 
 require (
+	github.com/coder/websocket v1.8.15
 	google.golang.org/grpc v1.83.1
 	google.golang.org/protobuf v1.36.11
 )

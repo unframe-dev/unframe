@@ -5,12 +5,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"github.com/coder/websocket"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,6 +48,7 @@ func TestVenueEdgeMultiplexesHTTPSAssetsAndGRPCHealth(t *testing.T) {
 	}
 	defer func() { _ = listener.Close() }()
 	deps := testDependencies(t)
+	deps.BrowserOrigins = []string{"https://audience.example"}
 	value := deps.Guard.Assignment()
 	value.RuntimeKind = assignment.RuntimeKindVenueEdge
 	value.Endpoint = "https://" + listener.Addr().String()
@@ -83,7 +86,25 @@ func TestVenueEdgeMultiplexesHTTPSAssetsAndGRPCHealth(t *testing.T) {
 	if err != nil || health.GetStatus() != healthv1.HealthCheckResponse_SERVING {
 		t.Fatalf("TLS HTTP2 health=%v err=%v", health, err)
 	}
+	browserConnections := []*websocket.Conn{}
+	for _, path := range []string{"/browser/control", "/browser/state"} {
+		connection, _, err := websocket.Dial(checkCtx, "wss"+strings.TrimPrefix(value.Endpoint, "https")+path, &websocket.DialOptions{HTTPClient: client, HTTPHeader: http.Header{"Origin": []string{"https://audience.example"}}, Subprotocols: []string{"unframe.realtime.v3"}})
+		if err != nil {
+			t.Fatalf("Venue Edge browser route %s: %v", path, err)
+		}
+		defer func() { _ = connection.CloseNow() }()
+		browserConnections = append(browserConnections, connection)
+	}
 	cancel()
+	for _, connection := range browserConnections {
+		readCtx, stop := context.WithTimeout(context.Background(), time.Second)
+		_, _, err := connection.Read(readCtx)
+		timedOut := readCtx.Err() != nil
+		stop()
+		if err == nil || timedOut {
+			t.Fatalf("browser connection remained open after shutdown: %v", err)
+		}
+	}
 	select {
 	case err := <-done:
 		if err != nil {

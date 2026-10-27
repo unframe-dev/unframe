@@ -145,33 +145,47 @@ func (v *BearerTokenVerifier) VerifyBearer(ctx context.Context, authorization st
 // Verify validates a raw compact JWT and maps its verified claims to a
 // transport-independent session identity.
 func (v *BearerTokenVerifier) Verify(ctx context.Context, token string, requiredScopes ...string) (session.Identity, error) {
+	credential, err := v.VerifyCredential(ctx, token, requiredScopes...)
+	return credential.Identity, err
+}
+
+// VerifiedCredential retains the authenticated expiration for transports that
+// must bound a live connection by the credential lifetime.
+type VerifiedCredential struct {
+	Identity  session.Identity
+	ExpiresAt time.Time
+}
+
+// VerifyCredential validates the same token and scopes as Verify and returns
+// its expiry only after signature and claim validation have succeeded.
+func (v *BearerTokenVerifier) VerifyCredential(ctx context.Context, token string, requiredScopes ...string) (VerifiedCredential, error) {
 	headerSegment, claimsSegment, signatureSegment, ok := splitCompactJWT(token)
 	if !ok {
-		return session.Identity{}, ErrInvalidToken
+		return VerifiedCredential{}, ErrInvalidToken
 	}
 	header, err := decodeJWTHeader(headerSegment)
 	if err != nil {
-		return session.Identity{}, err
+		return VerifiedCredential{}, err
 	}
 	publicKey, err := v.keyFor(ctx, header.Kid)
 	if err != nil {
-		return session.Identity{}, err
+		return VerifiedCredential{}, err
 	}
 	signature, err := base64.RawURLEncoding.DecodeString(signatureSegment)
 	if err != nil || !ed25519.Verify(publicKey, []byte(headerSegment+"."+claimsSegment), signature) {
-		return session.Identity{}, ErrInvalidTokenSignature
+		return VerifiedCredential{}, ErrInvalidTokenSignature
 	}
 	claimsJSON, err := base64.RawURLEncoding.DecodeString(claimsSegment)
 	if err != nil {
-		return session.Identity{}, ErrInvalidToken
+		return VerifiedCredential{}, ErrInvalidToken
 	}
 	identity, scopes, err := v.validateClaims(claimsJSON)
 	if err != nil {
-		return session.Identity{}, err
+		return VerifiedCredential{}, err
 	}
 	for _, requiredScope := range requiredScopes {
 		if requiredScope == "" || !scopes[requiredScope] {
-			return session.Identity{}, ErrInsufficientScope
+			return VerifiedCredential{}, ErrInsufficientScope
 		}
 	}
 	return identity, nil
@@ -324,14 +338,14 @@ func sameOrigin(trusted, actual *url.URL) bool {
 		strings.EqualFold(trusted.Host, actual.Host)
 }
 
-func (v *BearerTokenVerifier) validateClaims(claimsJSON []byte) (session.Identity, map[string]bool, error) {
+func (v *BearerTokenVerifier) validateClaims(claimsJSON []byte) (VerifiedCredential, map[string]bool, error) {
 	var claims map[string]json.RawMessage
 	if err := json.Unmarshal(claimsJSON, &claims); err != nil {
-		return session.Identity{}, nil, ErrInvalidTokenClaims
+		return VerifiedCredential{}, nil, ErrInvalidTokenClaims
 	}
 	issuer, ok := requiredString(claims, "iss")
 	if !ok || issuer != v.issuer || !hasAudience(claims["aud"], v.audience) {
-		return session.Identity{}, nil, ErrInvalidTokenClaims
+		return VerifiedCredential{}, nil, ErrInvalidTokenClaims
 	}
 	participantID, participantOK := requiredString(claims, "sub")
 	sessionID, sessionOK := requiredString(claims, "session_id")
@@ -348,9 +362,9 @@ func (v *BearerTokenVerifier) validateClaims(claimsJSON []byte) (session.Identit
 	scopes, scopesOK := parseScopes(claims["scope"])
 	now := v.clock()
 	if !participantOK || !sessionOK || !runtimeOK || !runtimeKindOK || !presentationOK || !roleOK || !epochOK || !revisionOK || !protocolOK || !expiresOK || !notBeforeOK || !scopesOK || !expiresAt.After(notBefore) || !now.Before(expiresAt) || now.Before(notBefore) {
-		return session.Identity{}, nil, ErrInvalidTokenClaims
+		return VerifiedCredential{}, nil, ErrInvalidTokenClaims
 	}
-	return session.Identity{
+	return VerifiedCredential{ExpiresAt: expiresAt, Identity: session.Identity{
 		SessionID:            sessionID,
 		ParticipantID:        participantID,
 		Role:                 role,
@@ -360,7 +374,7 @@ func (v *BearerTokenVerifier) validateClaims(claimsJSON []byte) (session.Identit
 		PresentationID:       presentationID,
 		PresentationRevision: revision,
 		ProtocolVersion:      protocolVersion,
-	}, scopes, nil
+	}}, scopes, nil
 }
 
 type jwtHeader struct {

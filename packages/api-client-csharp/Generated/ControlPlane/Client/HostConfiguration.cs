@@ -55,9 +55,10 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new CallbacksCheckpointsPostRequestPayloadJsonConverter());
             _jsonOptions.Converters.Add(new CallbacksCompletionsPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new CallbacksCompletionsPostRequestParticipantsInnerJsonConverter());
+            _jsonOptions.Converters.Add(new InternalRuntimeAssetsGet200ResponseJsonConverter());
+            _jsonOptions.Converters.Add(new InternalRuntimeAssetsGet200ResponseAssignmentJsonConverter());
+            _jsonOptions.Converters.Add(new InternalRuntimeAssetsGet200ResponsePublicationJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeBootstrapGet200ResponseJsonConverter());
-            _jsonOptions.Converters.Add(new InternalRuntimeBootstrapGet200ResponseAssignmentJsonConverter());
-            _jsonOptions.Converters.Add(new InternalRuntimeBootstrapGet200ResponsePublicationJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeLeaseGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeProjectionGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsGet200ResponseJsonConverter());
@@ -126,6 +127,7 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new VenueEdgesPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new VenueEdgesPost201ResponseEdgeJsonConverter());
             _jsonOptions.Converters.Add(new VenueEdgesPostRequestJsonConverter());
+            _jsonOptions.Converters.Add(new ViewerCredentialsPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new WellKnownJwksJsonGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new WellKnownJwksJsonGet200ResponseKeysInnerJsonConverter());
             JsonSerializerOptionsProvider jsonSerializerOptionsProvider = new(_jsonOptions);

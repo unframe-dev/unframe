@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 品質ゲートの集約 (ローカル用の nix run .#check)。
-# ローカルでは Control Plane、Presentation packages、Realtime、LP、Web、Local Editor の品質処理を集約する。CI は ci.yml が領域別 workflow を呼び分ける。
+# ローカルでは Control Plane、Presentation packages、Realtime、LP、Web、Local Editor、Audience の品質処理を集約する。CI は ci.yml が領域別 workflow を呼び分ける。
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/paths.sh
@@ -13,5 +13,6 @@ source "${DIR}/../lib/paths.sh"
 "${DIR}/lp.sh" check
 "${DIR}/web.sh" check
 "${DIR}/local-editor.sh" check
+"${DIR}/audience.sh" check
 
 log "すべてのチェックが完了"

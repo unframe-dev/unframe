@@ -54,7 +54,7 @@ jobs:
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Apply autofix (control-plane / realtime / presentation / lp / web / local-editor)
+      - name: Apply autofix (control-plane / realtime / presentation / lp / web / local-editor / audience)
         run: |
           nix run .#control-plane -- fix
           nix run .#realtime -- fix
@@ -62,6 +62,7 @@ jobs:
           nix run .#lp -- fix
           nix run .#web -- fix
           nix run .#local-editor -- fix
+          nix run .#audience -- fix
 
       # GH_TOKEN 環境変数は PR 制御コードの実行後、この step でのみ設定する。
       # GITHUB_TOKEN による push は workflow を起動しないため、push 後に CI を明示的に起動する。

@@ -26,12 +26,12 @@ using Unframe.ControlPlane.Client;
 namespace Unframe.ControlPlane.Model
 {
     /// <summary>
-    /// InternalRuntimeBootstrapGet200ResponsePublication
+    /// InternalRuntimeAssetsGet200ResponsePublication
     /// </summary>
-    public partial class InternalRuntimeBootstrapGet200ResponsePublication : IValidatableObject
+    public partial class InternalRuntimeAssetsGet200ResponsePublication : IValidatableObject
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="InternalRuntimeBootstrapGet200ResponsePublication" /> class.
+        /// Initializes a new instance of the <see cref="InternalRuntimeAssetsGet200ResponsePublication" /> class.
         /// </summary>
         /// <param name="presentationId">presentationId</param>
         /// <param name="publicationEpoch">publicationEpoch</param>
@@ -39,7 +39,7 @@ namespace Unframe.ControlPlane.Model
         /// <param name="definitionHash">definitionHash</param>
         /// <param name="renderBundleHash">renderBundleHash</param>
         [JsonConstructor]
-        public InternalRuntimeBootstrapGet200ResponsePublication(string presentationId, long publicationEpoch, string publicationManifestHash, string definitionHash, string renderBundleHash)
+        public InternalRuntimeAssetsGet200ResponsePublication(string presentationId, long publicationEpoch, string publicationManifestHash, string definitionHash, string renderBundleHash)
         {
             PresentationId = presentationId;
             PublicationEpoch = publicationEpoch;
@@ -88,7 +88,7 @@ namespace Unframe.ControlPlane.Model
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("class InternalRuntimeBootstrapGet200ResponsePublication {\n");
+            sb.Append("class InternalRuntimeAssetsGet200ResponsePublication {\n");
             sb.Append("  PresentationId: ").Append(PresentationId).Append("\n");
             sb.Append("  PublicationEpoch: ").Append(PublicationEpoch).Append("\n");
             sb.Append("  PublicationManifestHash: ").Append(PublicationManifestHash).Append("\n");
@@ -138,19 +138,19 @@ namespace Unframe.ControlPlane.Model
     }
 
     /// <summary>
-    /// A Json converter for type <see cref="InternalRuntimeBootstrapGet200ResponsePublication" />
+    /// A Json converter for type <see cref="InternalRuntimeAssetsGet200ResponsePublication" />
     /// </summary>
-    public class InternalRuntimeBootstrapGet200ResponsePublicationJsonConverter : JsonConverter<InternalRuntimeBootstrapGet200ResponsePublication>
+    public class InternalRuntimeAssetsGet200ResponsePublicationJsonConverter : JsonConverter<InternalRuntimeAssetsGet200ResponsePublication>
     {
         /// <summary>
-        /// Deserializes json to <see cref="InternalRuntimeBootstrapGet200ResponsePublication" />
+        /// Deserializes json to <see cref="InternalRuntimeAssetsGet200ResponsePublication" />
         /// </summary>
         /// <param name="utf8JsonReader"></param>
         /// <param name="typeToConvert"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <returns></returns>
         /// <exception cref="JsonException"></exception>
-        public override InternalRuntimeBootstrapGet200ResponsePublication Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
+        public override InternalRuntimeAssetsGet200ResponsePublication Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
         {
             int currentDepth = utf8JsonReader.CurrentDepth;
 
@@ -202,83 +202,83 @@ namespace Unframe.ControlPlane.Model
             }
 
             if (!presentationId.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponsePublication.", nameof(presentationId));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponsePublication.", nameof(presentationId));
 
             if (!publicationEpoch.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponsePublication.", nameof(publicationEpoch));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponsePublication.", nameof(publicationEpoch));
 
             if (!publicationManifestHash.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponsePublication.", nameof(publicationManifestHash));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponsePublication.", nameof(publicationManifestHash));
 
             if (!definitionHash.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponsePublication.", nameof(definitionHash));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponsePublication.", nameof(definitionHash));
 
             if (!renderBundleHash.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponsePublication.", nameof(renderBundleHash));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponsePublication.", nameof(renderBundleHash));
 
             if (presentationId.IsSet && presentationId.Value == null)
-                throw new ArgumentNullException(nameof(presentationId), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponsePublication.");
+                throw new ArgumentNullException(nameof(presentationId), "Property is not nullable for class InternalRuntimeAssetsGet200ResponsePublication.");
 
             if (publicationEpoch.IsSet && publicationEpoch.Value == null)
-                throw new ArgumentNullException(nameof(publicationEpoch), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponsePublication.");
+                throw new ArgumentNullException(nameof(publicationEpoch), "Property is not nullable for class InternalRuntimeAssetsGet200ResponsePublication.");
 
             if (publicationManifestHash.IsSet && publicationManifestHash.Value == null)
-                throw new ArgumentNullException(nameof(publicationManifestHash), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponsePublication.");
+                throw new ArgumentNullException(nameof(publicationManifestHash), "Property is not nullable for class InternalRuntimeAssetsGet200ResponsePublication.");
 
             if (definitionHash.IsSet && definitionHash.Value == null)
-                throw new ArgumentNullException(nameof(definitionHash), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponsePublication.");
+                throw new ArgumentNullException(nameof(definitionHash), "Property is not nullable for class InternalRuntimeAssetsGet200ResponsePublication.");
 
             if (renderBundleHash.IsSet && renderBundleHash.Value == null)
-                throw new ArgumentNullException(nameof(renderBundleHash), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponsePublication.");
+                throw new ArgumentNullException(nameof(renderBundleHash), "Property is not nullable for class InternalRuntimeAssetsGet200ResponsePublication.");
 
-            return new InternalRuntimeBootstrapGet200ResponsePublication(presentationId.Value!, publicationEpoch.Value!.Value!, publicationManifestHash.Value!, definitionHash.Value!, renderBundleHash.Value!);
+            return new InternalRuntimeAssetsGet200ResponsePublication(presentationId.Value!, publicationEpoch.Value!.Value!, publicationManifestHash.Value!, definitionHash.Value!, renderBundleHash.Value!);
         }
 
         /// <summary>
-        /// Serializes a <see cref="InternalRuntimeBootstrapGet200ResponsePublication" />
+        /// Serializes a <see cref="InternalRuntimeAssetsGet200ResponsePublication" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="internalRuntimeBootstrapGet200ResponsePublication"></param>
+        /// <param name="internalRuntimeAssetsGet200ResponsePublication"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public override void Write(Utf8JsonWriter writer, InternalRuntimeBootstrapGet200ResponsePublication internalRuntimeBootstrapGet200ResponsePublication, JsonSerializerOptions jsonSerializerOptions)
+        public override void Write(Utf8JsonWriter writer, InternalRuntimeAssetsGet200ResponsePublication internalRuntimeAssetsGet200ResponsePublication, JsonSerializerOptions jsonSerializerOptions)
         {
             writer.WriteStartObject();
 
-            WriteProperties(writer, internalRuntimeBootstrapGet200ResponsePublication, jsonSerializerOptions);
+            WriteProperties(writer, internalRuntimeAssetsGet200ResponsePublication, jsonSerializerOptions);
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Serializes the properties of <see cref="InternalRuntimeBootstrapGet200ResponsePublication" />
+        /// Serializes the properties of <see cref="InternalRuntimeAssetsGet200ResponsePublication" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="internalRuntimeBootstrapGet200ResponsePublication"></param>
+        /// <param name="internalRuntimeAssetsGet200ResponsePublication"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void WriteProperties(Utf8JsonWriter writer, InternalRuntimeBootstrapGet200ResponsePublication internalRuntimeBootstrapGet200ResponsePublication, JsonSerializerOptions jsonSerializerOptions)
+        public void WriteProperties(Utf8JsonWriter writer, InternalRuntimeAssetsGet200ResponsePublication internalRuntimeAssetsGet200ResponsePublication, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (internalRuntimeBootstrapGet200ResponsePublication.PresentationId == null)
-                throw new ArgumentNullException(nameof(internalRuntimeBootstrapGet200ResponsePublication.PresentationId), "Property is required for class InternalRuntimeBootstrapGet200ResponsePublication.");
+            if (internalRuntimeAssetsGet200ResponsePublication.PresentationId == null)
+                throw new ArgumentNullException(nameof(internalRuntimeAssetsGet200ResponsePublication.PresentationId), "Property is required for class InternalRuntimeAssetsGet200ResponsePublication.");
 
-            if (internalRuntimeBootstrapGet200ResponsePublication.PublicationManifestHash == null)
-                throw new ArgumentNullException(nameof(internalRuntimeBootstrapGet200ResponsePublication.PublicationManifestHash), "Property is required for class InternalRuntimeBootstrapGet200ResponsePublication.");
+            if (internalRuntimeAssetsGet200ResponsePublication.PublicationManifestHash == null)
+                throw new ArgumentNullException(nameof(internalRuntimeAssetsGet200ResponsePublication.PublicationManifestHash), "Property is required for class InternalRuntimeAssetsGet200ResponsePublication.");
 
-            if (internalRuntimeBootstrapGet200ResponsePublication.DefinitionHash == null)
-                throw new ArgumentNullException(nameof(internalRuntimeBootstrapGet200ResponsePublication.DefinitionHash), "Property is required for class InternalRuntimeBootstrapGet200ResponsePublication.");
+            if (internalRuntimeAssetsGet200ResponsePublication.DefinitionHash == null)
+                throw new ArgumentNullException(nameof(internalRuntimeAssetsGet200ResponsePublication.DefinitionHash), "Property is required for class InternalRuntimeAssetsGet200ResponsePublication.");
 
-            if (internalRuntimeBootstrapGet200ResponsePublication.RenderBundleHash == null)
-                throw new ArgumentNullException(nameof(internalRuntimeBootstrapGet200ResponsePublication.RenderBundleHash), "Property is required for class InternalRuntimeBootstrapGet200ResponsePublication.");
+            if (internalRuntimeAssetsGet200ResponsePublication.RenderBundleHash == null)
+                throw new ArgumentNullException(nameof(internalRuntimeAssetsGet200ResponsePublication.RenderBundleHash), "Property is required for class InternalRuntimeAssetsGet200ResponsePublication.");
 
-            writer.WriteString("presentationId", internalRuntimeBootstrapGet200ResponsePublication.PresentationId);
+            writer.WriteString("presentationId", internalRuntimeAssetsGet200ResponsePublication.PresentationId);
 
-            writer.WriteNumber("publicationEpoch", internalRuntimeBootstrapGet200ResponsePublication.PublicationEpoch);
+            writer.WriteNumber("publicationEpoch", internalRuntimeAssetsGet200ResponsePublication.PublicationEpoch);
 
-            writer.WriteString("publicationManifestHash", internalRuntimeBootstrapGet200ResponsePublication.PublicationManifestHash);
+            writer.WriteString("publicationManifestHash", internalRuntimeAssetsGet200ResponsePublication.PublicationManifestHash);
 
-            writer.WriteString("definitionHash", internalRuntimeBootstrapGet200ResponsePublication.DefinitionHash);
+            writer.WriteString("definitionHash", internalRuntimeAssetsGet200ResponsePublication.DefinitionHash);
 
-            writer.WriteString("renderBundleHash", internalRuntimeBootstrapGet200ResponsePublication.RenderBundleHash);
+            writer.WriteString("renderBundleHash", internalRuntimeAssetsGet200ResponsePublication.RenderBundleHash);
         }
     }
 }

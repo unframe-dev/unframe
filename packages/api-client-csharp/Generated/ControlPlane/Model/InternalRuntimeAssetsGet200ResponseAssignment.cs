@@ -26,12 +26,12 @@ using Unframe.ControlPlane.Client;
 namespace Unframe.ControlPlane.Model
 {
     /// <summary>
-    /// InternalRuntimeBootstrapGet200ResponseAssignment
+    /// InternalRuntimeAssetsGet200ResponseAssignment
     /// </summary>
-    public partial class InternalRuntimeBootstrapGet200ResponseAssignment : IValidatableObject
+    public partial class InternalRuntimeAssetsGet200ResponseAssignment : IValidatableObject
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="InternalRuntimeBootstrapGet200ResponseAssignment" /> class.
+        /// Initializes a new instance of the <see cref="InternalRuntimeAssetsGet200ResponseAssignment" /> class.
         /// </summary>
         /// <param name="sessionId">sessionId</param>
         /// <param name="runtimeId">runtimeId</param>
@@ -40,7 +40,7 @@ namespace Unframe.ControlPlane.Model
         /// <param name="presentationRevision">presentationRevision</param>
         /// <param name="leaseExpiresAt">leaseExpiresAt</param>
         [JsonConstructor]
-        public InternalRuntimeBootstrapGet200ResponseAssignment(string sessionId, string runtimeId, RuntimeKindEnum runtimeKind, long assignmentEpoch, long presentationRevision, DateTime leaseExpiresAt)
+        public InternalRuntimeAssetsGet200ResponseAssignment(string sessionId, string runtimeId, RuntimeKindEnum runtimeKind, long assignmentEpoch, long presentationRevision, DateTime leaseExpiresAt)
         {
             SessionId = sessionId;
             RuntimeId = runtimeId;
@@ -162,7 +162,7 @@ namespace Unframe.ControlPlane.Model
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("class InternalRuntimeBootstrapGet200ResponseAssignment {\n");
+            sb.Append("class InternalRuntimeAssetsGet200ResponseAssignment {\n");
             sb.Append("  SessionId: ").Append(SessionId).Append("\n");
             sb.Append("  RuntimeId: ").Append(RuntimeId).Append("\n");
             sb.Append("  RuntimeKind: ").Append(RuntimeKind).Append("\n");
@@ -241,9 +241,9 @@ namespace Unframe.ControlPlane.Model
     }
 
     /// <summary>
-    /// A Json converter for type <see cref="InternalRuntimeBootstrapGet200ResponseAssignment" />
+    /// A Json converter for type <see cref="InternalRuntimeAssetsGet200ResponseAssignment" />
     /// </summary>
-    public class InternalRuntimeBootstrapGet200ResponseAssignmentJsonConverter : JsonConverter<InternalRuntimeBootstrapGet200ResponseAssignment>
+    public class InternalRuntimeAssetsGet200ResponseAssignmentJsonConverter : JsonConverter<InternalRuntimeAssetsGet200ResponseAssignment>
     {
         /// <summary>
         /// The format to use to serialize LeaseExpiresAt
@@ -251,14 +251,14 @@ namespace Unframe.ControlPlane.Model
         public static string LeaseExpiresAtFormat { get; set; } = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffffffK";
 
         /// <summary>
-        /// Deserializes json to <see cref="InternalRuntimeBootstrapGet200ResponseAssignment" />
+        /// Deserializes json to <see cref="InternalRuntimeAssetsGet200ResponseAssignment" />
         /// </summary>
         /// <param name="utf8JsonReader"></param>
         /// <param name="typeToConvert"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <returns></returns>
         /// <exception cref="JsonException"></exception>
-        public override InternalRuntimeBootstrapGet200ResponseAssignment Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
+        public override InternalRuntimeAssetsGet200ResponseAssignment Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
         {
             int currentDepth = utf8JsonReader.CurrentDepth;
 
@@ -269,7 +269,7 @@ namespace Unframe.ControlPlane.Model
 
             Option<string?> sessionId = default;
             Option<string?> runtimeId = default;
-            Option<InternalRuntimeBootstrapGet200ResponseAssignment.RuntimeKindEnum?> runtimeKind = default;
+            Option<InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnum?> runtimeKind = default;
             Option<long?> assignmentEpoch = default;
             Option<long?> presentationRevision = default;
             Option<DateTime?> leaseExpiresAt = default;
@@ -298,7 +298,7 @@ namespace Unframe.ControlPlane.Model
                         case "runtimeKind":
                             string? runtimeKindRawValue = utf8JsonReader.GetString();
                             if (runtimeKindRawValue != null)
-                                runtimeKind = new Option<InternalRuntimeBootstrapGet200ResponseAssignment.RuntimeKindEnum?>(InternalRuntimeBootstrapGet200ResponseAssignment.RuntimeKindEnumFromStringOrDefault(runtimeKindRawValue));
+                                runtimeKind = new Option<InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnum?>(InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnumFromStringOrDefault(runtimeKindRawValue));
                             break;
                         case "assignmentEpoch":
                             assignmentEpoch = new Option<long?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
@@ -316,85 +316,85 @@ namespace Unframe.ControlPlane.Model
             }
 
             if (!sessionId.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponseAssignment.", nameof(sessionId));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponseAssignment.", nameof(sessionId));
 
             if (!runtimeId.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponseAssignment.", nameof(runtimeId));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponseAssignment.", nameof(runtimeId));
 
             if (!runtimeKind.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponseAssignment.", nameof(runtimeKind));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponseAssignment.", nameof(runtimeKind));
 
             if (!assignmentEpoch.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponseAssignment.", nameof(assignmentEpoch));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponseAssignment.", nameof(assignmentEpoch));
 
             if (!presentationRevision.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponseAssignment.", nameof(presentationRevision));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponseAssignment.", nameof(presentationRevision));
 
             if (!leaseExpiresAt.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200ResponseAssignment.", nameof(leaseExpiresAt));
+                throw new ArgumentException("Property is required for class InternalRuntimeAssetsGet200ResponseAssignment.", nameof(leaseExpiresAt));
 
             if (sessionId.IsSet && sessionId.Value == null)
-                throw new ArgumentNullException(nameof(sessionId), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(sessionId), "Property is not nullable for class InternalRuntimeAssetsGet200ResponseAssignment.");
 
             if (runtimeId.IsSet && runtimeId.Value == null)
-                throw new ArgumentNullException(nameof(runtimeId), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(runtimeId), "Property is not nullable for class InternalRuntimeAssetsGet200ResponseAssignment.");
 
             if (runtimeKind.IsSet && runtimeKind.Value == null)
-                throw new ArgumentNullException(nameof(runtimeKind), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(runtimeKind), "Property is not nullable for class InternalRuntimeAssetsGet200ResponseAssignment.");
 
             if (assignmentEpoch.IsSet && assignmentEpoch.Value == null)
-                throw new ArgumentNullException(nameof(assignmentEpoch), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(assignmentEpoch), "Property is not nullable for class InternalRuntimeAssetsGet200ResponseAssignment.");
 
             if (presentationRevision.IsSet && presentationRevision.Value == null)
-                throw new ArgumentNullException(nameof(presentationRevision), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(presentationRevision), "Property is not nullable for class InternalRuntimeAssetsGet200ResponseAssignment.");
 
             if (leaseExpiresAt.IsSet && leaseExpiresAt.Value == null)
-                throw new ArgumentNullException(nameof(leaseExpiresAt), "Property is not nullable for class InternalRuntimeBootstrapGet200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(leaseExpiresAt), "Property is not nullable for class InternalRuntimeAssetsGet200ResponseAssignment.");
 
-            return new InternalRuntimeBootstrapGet200ResponseAssignment(sessionId.Value!, runtimeId.Value!, runtimeKind.Value!.Value!, assignmentEpoch.Value!.Value!, presentationRevision.Value!.Value!, leaseExpiresAt.Value!.Value!);
+            return new InternalRuntimeAssetsGet200ResponseAssignment(sessionId.Value!, runtimeId.Value!, runtimeKind.Value!.Value!, assignmentEpoch.Value!.Value!, presentationRevision.Value!.Value!, leaseExpiresAt.Value!.Value!);
         }
 
         /// <summary>
-        /// Serializes a <see cref="InternalRuntimeBootstrapGet200ResponseAssignment" />
+        /// Serializes a <see cref="InternalRuntimeAssetsGet200ResponseAssignment" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="internalRuntimeBootstrapGet200ResponseAssignment"></param>
+        /// <param name="internalRuntimeAssetsGet200ResponseAssignment"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public override void Write(Utf8JsonWriter writer, InternalRuntimeBootstrapGet200ResponseAssignment internalRuntimeBootstrapGet200ResponseAssignment, JsonSerializerOptions jsonSerializerOptions)
+        public override void Write(Utf8JsonWriter writer, InternalRuntimeAssetsGet200ResponseAssignment internalRuntimeAssetsGet200ResponseAssignment, JsonSerializerOptions jsonSerializerOptions)
         {
             writer.WriteStartObject();
 
-            WriteProperties(writer, internalRuntimeBootstrapGet200ResponseAssignment, jsonSerializerOptions);
+            WriteProperties(writer, internalRuntimeAssetsGet200ResponseAssignment, jsonSerializerOptions);
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Serializes the properties of <see cref="InternalRuntimeBootstrapGet200ResponseAssignment" />
+        /// Serializes the properties of <see cref="InternalRuntimeAssetsGet200ResponseAssignment" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="internalRuntimeBootstrapGet200ResponseAssignment"></param>
+        /// <param name="internalRuntimeAssetsGet200ResponseAssignment"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void WriteProperties(Utf8JsonWriter writer, InternalRuntimeBootstrapGet200ResponseAssignment internalRuntimeBootstrapGet200ResponseAssignment, JsonSerializerOptions jsonSerializerOptions)
+        public void WriteProperties(Utf8JsonWriter writer, InternalRuntimeAssetsGet200ResponseAssignment internalRuntimeAssetsGet200ResponseAssignment, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (internalRuntimeBootstrapGet200ResponseAssignment.SessionId == null)
-                throw new ArgumentNullException(nameof(internalRuntimeBootstrapGet200ResponseAssignment.SessionId), "Property is required for class InternalRuntimeBootstrapGet200ResponseAssignment.");
+            if (internalRuntimeAssetsGet200ResponseAssignment.SessionId == null)
+                throw new ArgumentNullException(nameof(internalRuntimeAssetsGet200ResponseAssignment.SessionId), "Property is required for class InternalRuntimeAssetsGet200ResponseAssignment.");
 
-            if (internalRuntimeBootstrapGet200ResponseAssignment.RuntimeId == null)
-                throw new ArgumentNullException(nameof(internalRuntimeBootstrapGet200ResponseAssignment.RuntimeId), "Property is required for class InternalRuntimeBootstrapGet200ResponseAssignment.");
+            if (internalRuntimeAssetsGet200ResponseAssignment.RuntimeId == null)
+                throw new ArgumentNullException(nameof(internalRuntimeAssetsGet200ResponseAssignment.RuntimeId), "Property is required for class InternalRuntimeAssetsGet200ResponseAssignment.");
 
-            writer.WriteString("sessionId", internalRuntimeBootstrapGet200ResponseAssignment.SessionId);
+            writer.WriteString("sessionId", internalRuntimeAssetsGet200ResponseAssignment.SessionId);
 
-            writer.WriteString("runtimeId", internalRuntimeBootstrapGet200ResponseAssignment.RuntimeId);
+            writer.WriteString("runtimeId", internalRuntimeAssetsGet200ResponseAssignment.RuntimeId);
 
-            var runtimeKindRawValue = InternalRuntimeBootstrapGet200ResponseAssignment.RuntimeKindEnumToJsonValue(internalRuntimeBootstrapGet200ResponseAssignment.RuntimeKind);
+            var runtimeKindRawValue = InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnumToJsonValue(internalRuntimeAssetsGet200ResponseAssignment.RuntimeKind);
             writer.WriteString("runtimeKind", runtimeKindRawValue);
-            writer.WriteNumber("assignmentEpoch", internalRuntimeBootstrapGet200ResponseAssignment.AssignmentEpoch);
+            writer.WriteNumber("assignmentEpoch", internalRuntimeAssetsGet200ResponseAssignment.AssignmentEpoch);
 
-            writer.WriteNumber("presentationRevision", internalRuntimeBootstrapGet200ResponseAssignment.PresentationRevision);
+            writer.WriteNumber("presentationRevision", internalRuntimeAssetsGet200ResponseAssignment.PresentationRevision);
 
-            writer.WriteString("leaseExpiresAt", internalRuntimeBootstrapGet200ResponseAssignment.LeaseExpiresAt.ToString(LeaseExpiresAtFormat));
+            writer.WriteString("leaseExpiresAt", internalRuntimeAssetsGet200ResponseAssignment.LeaseExpiresAt.ToString(LeaseExpiresAtFormat));
         }
     }
 }

@@ -1,3 +1,4 @@
+import { viewerIdentity, viewerToken } from "../viewer-credentials/identity";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -65,6 +66,7 @@ async function boundedBuildEnvelope(request: Request): Promise<Request> {
   return new Request(request, { method: "POST", body: bytes });
 }
 export type PublicationRouteOptions = {
+  now?: () => Date;
   identityProvider: (context: AppContext) => Promise<Identity | undefined>;
 };
 
@@ -79,7 +81,10 @@ export function createPublicationRoutes(options: PublicationRouteOptions) {
     context: AppContext,
     action: (identity: Identity, service: PublicationService) => Promise<T>,
   ) => {
-    const identity = await options.identityProvider(context);
+    const identity =
+      context.req.path.startsWith("/sessions/") && viewerToken(context)
+        ? await viewerIdentity(context, options.now?.())
+        : await options.identityProvider(context);
     if (!identity)
       throw new HTTPException(401, {
         res: context.json({ error: { code: "unauthorized", message: "Unauthorized" } }, 401),

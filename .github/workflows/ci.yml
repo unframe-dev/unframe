@@ -2,7 +2,7 @@ name: CI
 
 # オーケストレーション。変更のあった領域だけ reusable workflow を呼び、
 # 最後に集約ゲート (job: ci) を必須チェックにする。
-# 各領域の実体: control-plane.yml / presentation.yml / realtime.yml / web.yml / local-editor.yml / lp.yml / unity.yml。
+# 各領域の実体: control-plane.yml / presentation.yml / realtime.yml / web.yml / local-editor.yml / audience.yml / lp.yml / unity.yml。
 #
 # paths-ignore は設けない。docs-only PR でも workflow を起動し、changes で全領域が
 # skip → 集約 job `CI` が成功することで、必須ステータスチェックが常に報告される。
@@ -39,6 +39,7 @@ jobs:
       realtime: ${{ steps.filter.outputs.realtime }}
       web: ${{ steps.filter.outputs.web }}
       local-editor: ${{ steps.filter.outputs.local-editor }}
+      audience: ${{ steps.filter.outputs.audience }}
       presentation: ${{ steps.filter.outputs.presentation }}
       lp: ${{ steps.filter.outputs.lp }}
       unity: ${{ steps.filter.outputs.unity }}
@@ -94,6 +95,11 @@ jobs:
               - 'app/local-editor/**'
               - 'packages/unframe-*/**'
               - 'packages/contracts/**'
+            audience:
+              - *shared
+              - *js-shared
+              - '.github/workflows/audience.yml'
+              - 'app/audience/**'
             presentation:
               - *shared
               - *js-shared
@@ -141,6 +147,12 @@ jobs:
     if: needs.changes.outputs.local-editor == 'true'
     uses: ./.github/workflows/local-editor.yml
 
+  audience:
+    name: Audience
+    needs: changes
+    if: needs.changes.outputs.audience == 'true'
+    uses: ./.github/workflows/audience.yml
+
   presentation:
     name: Presentation Packages
     needs: changes
@@ -162,7 +174,7 @@ jobs:
   ci:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
-    needs: [changes, control-plane, realtime, web, local-editor, presentation, lp, unity]
+    needs: [changes, control-plane, realtime, web, local-editor, audience, presentation, lp, unity]
     if: always()
     runs-on: ubuntu-latest
     steps:

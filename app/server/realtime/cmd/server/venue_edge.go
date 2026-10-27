@@ -67,9 +67,19 @@ func runVenueEdge(ctx context.Context, listener net.Listener, deps transportgrpc
 	if err != nil {
 		return err
 	}
+	defer func() {
+		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = server.ShutdownBrowser(shutdown)
+		server.GRPCServer().Stop()
+	}()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
 			server.GRPCServer().ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/browser/control" || r.URL.Path == "/browser/state" {
+			server.BrowserHandler().ServeHTTP(w, r)
 			return
 		}
 		gateway.ServeHTTP(w, r)
@@ -99,6 +109,9 @@ func runVenueEdge(ctx context.Context, listener net.Listener, deps transportgrpc
 		server.GRPCServer().Stop()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+		if err := server.ShutdownBrowser(shutdown); err != nil {
+			return err
+		}
 		return httpServer.Shutdown(shutdown)
 	}
 }

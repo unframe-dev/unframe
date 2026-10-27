@@ -1,3 +1,4 @@
+import { createViewerCredentialRoutes } from "./modules/viewer-credentials/routes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
@@ -43,6 +44,7 @@ const productRoutePrefixes = [
   "/presentations",
   "/assets",
   "/sessions",
+  "/viewer-credentials",
   "/venue-edges",
   "/callbacks",
   "/internal/runtime",
@@ -82,7 +84,8 @@ export function createProductApi(options: AppOptions = {}) {
       ...(options.joinCode ? { joinCode: options.joinCode } : {}),
     }),
   );
-  const runtimeAssignments = sessions.route(
+  const viewerCredentials = sessions.route("/", createViewerCredentialRoutes(options.sessionNow));
+  const runtimeAssignments = viewerCredentials.route(
     "/",
     createRuntimeAssignmentRoutes({
       identityProvider,
@@ -99,7 +102,13 @@ export function createProductApi(options: AppOptions = {}) {
     }),
   );
   const callbacks = venueEdges.route("/", createPersistenceCallbackRoutes());
-  const publications = callbacks.route("/", createPublicationRoutes({ identityProvider }));
+  const publications = callbacks.route(
+    "/",
+    createPublicationRoutes({
+      identityProvider,
+      ...(options.sessionNow ? { now: options.sessionNow } : {}),
+    }),
+  );
   const publicationAssets = publications.route("/", createPublicationAssetRoutes());
   const runtimePublication = publicationAssets.route("/", createRuntimePublicationRoutes());
   return runtimePublication.openapi(jwksRoute, async (context) => {
@@ -189,9 +198,9 @@ export function createApp(options: AppOptions = {}) {
     ) {
       return context.json(forbidden, 403);
     }
-    if (origin && origin === config.WEB_ORIGIN) {
+    if (origin && (origin === config.WEB_ORIGIN || origin === config.AUDIENCE_ORIGIN)) {
       return cors({
-        origin: config.WEB_ORIGIN,
+        origin,
         credentials: true,
         allowHeaders: ["Content-Type", "Authorization"],
         allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

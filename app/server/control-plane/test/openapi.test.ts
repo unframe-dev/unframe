@@ -14,6 +14,7 @@ describe("Control Plane OpenAPI", () => {
               route.path.startsWith("/publication-assets") ||
               route.path.startsWith("/assets") ||
               route.path.startsWith("/sessions") ||
+              route.path.startsWith("/viewer-credentials") ||
               route.path.startsWith("/venue-edges") ||
               route.path.startsWith("/callbacks") ||
               route.path.startsWith("/internal/runtime") ||

@@ -266,6 +266,40 @@ func TestBootstrapRenewsExpiredEnvironmentLeaseBeforeReadiness(t *testing.T) {
 	}
 }
 
+func TestLoadConfigBrowserOrigins(t *testing.T) {
+	values := map[string]string{
+		"REALTIME_ISSUER":                "https://control-plane.example.test",
+		"REALTIME_AUDIENCE":              "realtime-runtime-test",
+		"REALTIME_JWKS_URL":              "https://control-plane.example.test/.well-known/jwks.json",
+		"REALTIME_CONTROL_PLANE_URL":     "https://control-plane.example.test",
+		"REALTIME_SERVICE_IDENTITY":      "test-service-secret-at-least-32-bytes",
+		"REALTIME_SESSION_ID":            "session-1",
+		"REALTIME_RUNTIME_ID":            "runtime-1",
+		"REALTIME_RUNTIME_KIND":          "Cloud",
+		"REALTIME_RUNTIME_ENDPOINT":      "runtime.internal:9090",
+		"REALTIME_ASSIGNMENT_EPOCH":      "2",
+		"REALTIME_PRESENTATION_REVISION": "4",
+		"REALTIME_ASSIGNMENT_ISSUED_AT":  "2026-08-20T12:00:00Z",
+		"REALTIME_LEASE_EXPIRES_AT":      "2026-08-20T12:01:00Z",
+	}
+	for _, test := range []struct {
+		origins string
+		valid   bool
+		count   int
+	}{{"", true, 0}, {"https://audience.example, https://second.example:444", true, 2}, {"http://audience.example", false, 0}, {"https://audience.example/path", false, 0}, {"https://user@audience.example", false, 0}, {"https://audience.example?token=secret", false, 0}, {"null", false, 0}} {
+		t.Run(test.origins, func(t *testing.T) {
+			values["REALTIME_BROWSER_ORIGINS"] = test.origins
+			config, err := loadConfig(func(name string) string { return values[name] })
+			if (err == nil) != test.valid {
+				t.Fatalf("origins accepted=%v want=%v", err == nil, test.valid)
+			}
+			if err == nil && len(config.browserOrigins) != test.count {
+				t.Fatalf("origins=%v", config.browserOrigins)
+			}
+		})
+	}
+}
+
 func TestLeaseRefreshRevokesRejectedAssignmentBeforeHeldLeaseExpires(t *testing.T) {
 	for _, status := range []int{401, 403, 404, 409, 410, 429, 503} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
