@@ -7,6 +7,23 @@ using Unframe.Unity.PresentationRuntime;
 public sealed class QuestOnboardingFlowTests
 {
     [Test]
+    public void CanceledStartDoesNotSendAStartOrResumeRequest()
+    {
+        using (var cancellation = new CancellationTokenSource())
+        {
+            cancellation.Cancel();
+            bool started = false, resumed = false;
+            Assert.That(async () => await QuestOnboardingStart.BeginPresenterAsync(
+                () => { started = true; return Task.CompletedTask; },
+                () => true, () => true, () => false, () => "Paused",
+                () => { resumed = true; return Task.CompletedTask; },
+                TimeSpan.FromSeconds(1), cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(started, Is.False);
+            Assert.That(resumed, Is.False);
+        }
+    }
+
+    [Test]
     public void CalibrationIsRequiredBeforeEitherRoleCanEnter()
     {
         Assert.That(QuestOnboardingStart.CanAdvance(QuestOnboardingRole.Presenter, false, true, true), Is.False);
