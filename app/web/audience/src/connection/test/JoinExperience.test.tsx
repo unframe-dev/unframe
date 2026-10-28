@@ -17,6 +17,7 @@ function makeController(initial: JoinSnapshot = { phase: "idle" }) {
     },
     join: vi.fn(async () => {}),
     refresh: vi.fn(async () => {}),
+    reconnect: vi.fn(async () => {}),
     cancel: vi.fn(),
     leave: vi.fn(),
     getPrepared: () => null,

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Button } from "@/shared/ui/button";
@@ -8,6 +8,10 @@ import {
   getPresentation,
   getPublication,
   getRoom,
+  getRuntimePreparation,
+  prepareRuntime,
+  startRoom,
+  endRoom,
   type Presentation,
   type Publication,
   type Room,
@@ -165,22 +169,25 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
 }
 
 export function RoomPage({ sessionId }: { sessionId: string }) {
+  const pendingActions = useIsMutating({ mutationKey: ["room-action", sessionId] });
   const query = useQuery({
     queryKey: ["room", sessionId],
-    queryFn: () => getRoom(sessionId),
+    queryFn: ({ signal }) => getRoom(sessionId, signal),
     retry: false,
+    refetchInterval: (query) =>
+      pendingActions || query.state.data?.state === "Ended" ? false : 5000,
   });
   return (
     <main id="main-content" className={styles["main"]}>
       <header className={styles["heading"]}>
         <h1>ルームの詳細</h1>
-        <p>保存された Session と固定 publication を確認します。</p>
+        <p>発表環境を準備して、発表を開始・終了します。</p>
       </header>
       <section className="grid gap-5 py-8">
         <div>
           <Button
             variant="outline"
-            disabled={query.isFetching}
+            disabled={query.isFetching || pendingActions > 0}
             onClick={() => void query.refetch()}
           >
             ルーム情報を再取得
@@ -191,6 +198,7 @@ export function RoomPage({ sessionId }: { sessionId: string }) {
         {query.isSuccess ? (
           <>
             <RoomDetails room={query.data} />
+            <RoomControls key={sessionId} room={query.data} />
             <p className="text-sm">
               Join Code は再取得できません。作成直後の画面だけに表示されます。
             </p>
@@ -198,5 +206,108 @@ export function RoomPage({ sessionId }: { sessionId: string }) {
         ) : null}
       </section>
     </main>
+  );
+}
+
+function RoomControls({ room }: { room: Room }) {
+  const client = useQueryClient();
+  const submitting = useRef(false);
+  const preparationKey = ["runtime-preparation", room.id];
+  const roomKey = ["room", room.id];
+  const mutation = useMutation({
+    mutationKey: ["room-action", room.id],
+    mutationFn: async (action: "prepare" | "start" | "end") => {
+      if (action === "prepare") return { action, value: await prepareRuntime(room.id) } as const;
+      return {
+        action,
+        value: await (action === "start" ? startRoom(room.id) : endRoom(room.id)),
+      } as const;
+    },
+    retry: false,
+    onMutate: async () => {
+      await client.cancelQueries({ queryKey: preparationKey });
+      await client.cancelQueries({ queryKey: roomKey });
+    },
+    onSuccess: (result) => {
+      if (result.action === "prepare") client.setQueryData(preparationKey, result.value);
+      else {
+        client.setQueryData(roomKey, result.value);
+        if (result.value.state === "Ended") client.setQueryData(preparationKey, { state: "ended" });
+      }
+    },
+    onError: async (_error, action) => {
+      if (action !== "prepare") {
+        await Promise.all([
+          client.invalidateQueries({ queryKey: roomKey }),
+          client.invalidateQueries({ queryKey: preparationKey }),
+        ]);
+      }
+    },
+    onSettled: () => {
+      submitting.current = false;
+    },
+  });
+  const preparation = useQuery({
+    queryKey: preparationKey,
+    queryFn: ({ signal }) => getRuntimePreparation(room.id, signal),
+    enabled: room.state !== "Ended",
+    retry: false,
+    refetchInterval: (query) =>
+      mutation.isPending || query.state.status === "error" || query.state.data?.state === "ended"
+        ? false
+        : query.state.data?.state === "starting"
+          ? 1000
+          : 5000,
+  });
+  const ended = room.state === "Ended" || preparation.data?.state === "ended";
+  const ready = preparation.data?.state === "ready" && !preparation.isError;
+  const starting = preparation.data?.state === "starting" && !preparation.isError;
+  const busy = mutation.isPending;
+  const submit = (action: "prepare" | "start" | "end") => {
+    if (ended || submitting.current || (action === "start" && (room.state !== "Waiting" || !ready)))
+      return;
+    submitting.current = true;
+    mutation.mutate(action);
+  };
+  const error = mutation.error ?? preparation.error;
+  const message =
+    error instanceof ManagementError && error.code === "runtime_unavailable"
+      ? "利用できる発表環境がありません。時間をおいて、もう一度準備してください。"
+      : error instanceof ManagementError && error.code === "session_ended"
+        ? "このルームの発表は終了しています。ルーム情報を再取得してください。"
+        : error instanceof ManagementError && error.status === 409
+          ? "ルームの状態が変わりました。ルーム情報を再取得して、もう一度操作してください。"
+          : managementErrorMessage(error);
+  return (
+    <section className="grid gap-4" aria-label="発表の操作">
+      {ended ? (
+        <p>このルームの発表は終了しました。</p>
+      ) : (
+        <>
+          {starting || (busy && mutation.variables === "prepare") ? (
+            <p role="status">発表環境を準備しています。</p>
+          ) : null}
+          {ready ? <p role="status">発表環境の準備ができました。</p> : null}
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              disabled={busy || starting || ready || preparation.isPending}
+              onClick={() => submit("prepare")}
+            >
+              発表環境を準備
+            </Button>
+            {room.state === "Waiting" ? (
+              <Button disabled={busy || !ready} onClick={() => submit("start")}>
+                発表を開始
+              </Button>
+            ) : null}
+            <Button variant="outline" disabled={busy} onClick={() => submit("end")}>
+              発表を終了
+            </Button>
+          </div>
+        </>
+      )}
+      {error ? <p role="alert">{message}</p> : null}
+    </section>
   );
 }

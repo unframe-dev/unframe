@@ -1,3 +1,6 @@
+import { eq } from "drizzle-orm";
+import { createD1Database } from "../adapters/d1/database";
+import { authDeviceCodes, authVerifications, authSessions } from "../adapters/d1/viewer-schema";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { dash } from "@better-auth/infra";
 import { bearer, twoFactor } from "better-auth/plugins";
@@ -130,10 +133,11 @@ export function createAuth(
     createAuthOptions(configuration, DB, {
       ...runtime,
       onPasswordReset: async (userId) => {
-        await DB.batch([
-          DB.prepare("DELETE FROM deviceCode WHERE userId = ?").bind(userId),
-          DB.prepare("DELETE FROM verification WHERE value = ?").bind(userId),
-          DB.prepare("DELETE FROM session WHERE userId = ?").bind(userId),
+        const db = createD1Database(DB);
+        await db.batch([
+          db.delete(authDeviceCodes).where(eq(authDeviceCodes.userId, userId)),
+          db.delete(authVerifications).where(eq(authVerifications.value, userId)),
+          db.delete(authSessions).where(eq(authSessions.userId, userId)),
         ]);
       },
     }),

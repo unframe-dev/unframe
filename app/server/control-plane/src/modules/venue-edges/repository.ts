@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { createD1Database } from "../../adapters/d1/database";
-import { venueEdgeCredentials, venueEdges } from "../../adapters/d1/schema";
+import { runtimeAssignments, venueEdgeCredentials, venueEdges } from "../../adapters/d1/schema";
 
 export type VenueEdgeRecord = {
   id: string;
@@ -78,11 +78,12 @@ export class D1VenueEdgeRepository implements VenueEdgeRepository {
     );
   }
   async touchCredential(edgeId: string, tokenId: string, usedAt: string) {
-    await this.database
-      .prepare(
-        "UPDATE venue_edge_credentials SET last_used_at = ? WHERE edge_id = ? AND token_id = ?",
+    await this.db
+      .update(venueEdgeCredentials)
+      .set({ lastUsedAt: usedAt })
+      .where(
+        and(eq(venueEdgeCredentials.edgeId, edgeId), eq(venueEdgeCredentials.tokenId, tokenId)),
       )
-      .bind(usedAt, edgeId, tokenId)
       .run();
   }
   async rotateCredential({
@@ -90,47 +91,55 @@ export class D1VenueEdgeRepository implements VenueEdgeRepository {
     previousExpiresAt,
     credential,
   }: Parameters<VenueEdgeRepository["rotateCredential"]>[0]) {
-    const result = await this.database.batch([
-      this.database
-        .prepare(
-          "UPDATE venue_edge_credentials SET expires_at = ? WHERE edge_id = ? AND status = 'active' AND expires_at > ?",
-        )
-        .bind(previousExpiresAt, edgeId, previousExpiresAt),
-      this.database
-        .prepare(
-          "INSERT INTO venue_edge_credentials (edge_id, token_id, token_hash, status, created_at, expires_at, last_used_at, revoked_at) SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND status = 'active')",
-        )
-        .bind(
-          credential.edgeId,
-          credential.tokenId,
-          credential.tokenHash,
-          credential.status,
-          credential.createdAt,
-          credential.expiresAt,
-          credential.lastUsedAt,
-          credential.revokedAt,
-          edgeId,
+    const expiry = this.db
+      .update(venueEdgeCredentials)
+      .set({ expiresAt: previousExpiresAt })
+      .where(
+        and(
+          eq(venueEdgeCredentials.edgeId, edgeId),
+          eq(venueEdgeCredentials.status, "active"),
+          gt(venueEdgeCredentials.expiresAt, previousExpiresAt),
         ),
-    ]);
+      );
+    const replacement = this.db.insert(venueEdgeCredentials).select(
+      this.db
+        .select({
+          edgeId: sql<string>`${credential.edgeId}`.as("edgeId"),
+          tokenId: sql<string>`${credential.tokenId}`.as("tokenId"),
+          tokenHash: sql<string>`${credential.tokenHash}`.as("tokenHash"),
+          status: sql<VenueEdgeCredentialRecord["status"]>`${credential.status}`.as("status"),
+          createdAt: sql<string>`${credential.createdAt}`.as("createdAt"),
+          expiresAt: sql<string>`${credential.expiresAt}`.as("expiresAt"),
+          lastUsedAt: sql<string | null>`${credential.lastUsedAt}`.as("lastUsedAt"),
+          revokedAt: sql<string | null>`${credential.revokedAt}`.as("revokedAt"),
+        })
+        .from(venueEdges)
+        .where(and(eq(venueEdges.id, edgeId), eq(venueEdges.status, "active"))),
+    );
+    const result = await this.db.batch([expiry, replacement]);
     return result[1]?.meta.changes === 1;
   }
   async revokeEdge(edgeId: string, revokedAt: string) {
-    const [edge] = await this.database.batch([
-      this.database
-        .prepare(
-          "UPDATE venue_edges SET status = 'revoked', revoked_at = ? WHERE id = ? AND status = 'active'",
-        )
-        .bind(revokedAt, edgeId),
-      this.database
-        .prepare(
-          "UPDATE venue_edge_credentials SET status = 'revoked', revoked_at = ? WHERE edge_id = ? AND status = 'active'",
-        )
-        .bind(revokedAt, edgeId),
-      this.database
-        .prepare(
-          "UPDATE runtime_assignments SET released_at = ? WHERE provisioning_edge_id = ? AND released_at IS NULL",
-        )
-        .bind(revokedAt, edgeId),
+    const [edge] = await this.db.batch([
+      this.db
+        .update(venueEdges)
+        .set({ status: "revoked", revokedAt })
+        .where(and(eq(venueEdges.id, edgeId), eq(venueEdges.status, "active"))),
+      this.db
+        .update(venueEdgeCredentials)
+        .set({ status: "revoked", revokedAt })
+        .where(
+          and(eq(venueEdgeCredentials.edgeId, edgeId), eq(venueEdgeCredentials.status, "active")),
+        ),
+      this.db
+        .update(runtimeAssignments)
+        .set({ releasedAt: revokedAt })
+        .where(
+          and(
+            eq(runtimeAssignments.provisioningEdgeId, edgeId),
+            isNull(runtimeAssignments.releasedAt),
+          ),
+        ),
     ]);
     return edge?.meta.changes === 1;
   }

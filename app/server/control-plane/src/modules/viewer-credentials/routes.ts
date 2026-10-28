@@ -1,3 +1,7 @@
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { createD1Database } from "../../adapters/d1/database";
+import { sessionParticipants } from "../../adapters/d1/schema";
+import { authUsers, anonymousViewerCredentials } from "../../adapters/d1/viewer-schema";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   issueViewerCredentialRoute,
@@ -45,29 +49,39 @@ export function createViewerCredentialRoutes(now = () => new Date()) {
         return context.json({ error: { code: "not_found", message: "not found" } }, 404);
       const token = tokenValue();
       const expiresAt = new Date(timestamp.getTime() + hour).toISOString();
-      const [, inserted] = await DB.batch([
+      const db = createD1Database(DB);
+      const [, inserted] = await db.batch([
         inactiveViewerCleanup(DB, session.id, timestamp.toISOString()),
-        DB.prepare(`INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
-        SELECT ?, 'Anonymous viewer', ?, 0, ?, ? FROM presentation_sessions
-        WHERE id = ? AND state != 'Ended' AND (SELECT count(*) FROM session_participants WHERE session_id = ?) < max_participants`).bind(
-          userId,
-          `${crypto.randomUUID()}@anonymous.invalid`,
-          timestamp.toISOString(),
-          timestamp.toISOString(),
-          session.id,
-          session.id,
+        db.insert(authUsers)
+          .select(sql`SELECT ${userId}, 'Anonymous viewer', ${`${crypto.randomUUID()}@anonymous.invalid`}, 0, ${timestamp.toISOString()}, ${timestamp.toISOString()} FROM presentation_sessions
+        WHERE id = ${session.id} AND state != 'Ended' AND (SELECT count(*) FROM session_participants WHERE session_id = ${session.id}) < max_participants`),
+        db.insert(anonymousViewerCredentials).select(
+          db
+            .select({
+              userId: authUsers.id,
+              sessionId: sql<string>`${session.id}`.as("session_id"),
+              tokenHash: sql<string>`${await sha256JoinCode(token)}`.as("token_hash"),
+              expiresAt: sql<string>`${expiresAt}`.as("expires_at"),
+              renewableUntil:
+                sql<string>`${new Date(timestamp.getTime() + 24 * hour).toISOString()}`.as(
+                  "renewable_until",
+                ),
+              revokedAt: sql<null>`NULL`.as("revoked_at"),
+            })
+            .from(authUsers)
+            .where(eq(authUsers.id, userId)),
         ),
-        DB.prepare(`INSERT INTO anonymous_viewer_credentials (user_id, session_id, token_hash, expires_at, renewable_until)
-        SELECT id, ?, ?, ?, ? FROM user WHERE id = ?`).bind(
-          session.id,
-          await sha256JoinCode(token),
-          expiresAt,
-          new Date(timestamp.getTime() + 24 * hour).toISOString(),
-          userId,
+        db.insert(sessionParticipants).select(
+          db
+            .select({
+              sessionId: anonymousViewerCredentials.sessionId,
+              userId: anonymousViewerCredentials.userId,
+              role: sql<"viewer">`'viewer'`.as("role"),
+              joinedAt: sql<string>`${timestamp.toISOString()}`.as("joined_at"),
+            })
+            .from(anonymousViewerCredentials)
+            .where(eq(anonymousViewerCredentials.userId, userId)),
         ),
-        DB.prepare(
-          `INSERT INTO session_participants (session_id, user_id, role, joined_at) SELECT session_id, user_id, 'viewer', ? FROM anonymous_viewer_credentials WHERE user_id = ?`,
-        ).bind(timestamp.toISOString(), userId),
         updateParticipantCount(DB, session.id),
       ]);
       if (inserted?.meta.changes !== 1)
@@ -83,16 +97,15 @@ export function createViewerCredentialRoutes(now = () => new Date()) {
       const expiresAt = new Date(
         Math.min(timestamp.getTime() + hour, Date.parse(credential.renewableUntil)),
       ).toISOString();
-      const result = await context
-        .get("config")
-        .DB.prepare(
-          `UPDATE anonymous_viewer_credentials SET token_hash = ?, expires_at = ? WHERE user_id = ? AND token_hash = ? AND revoked_at IS NULL`,
-        )
-        .bind(
-          await sha256JoinCode(token),
-          expiresAt,
-          credential.userId,
-          await sha256JoinCode(viewerToken(context)!),
+      const result = await createD1Database(context.get("config").DB)
+        .update(anonymousViewerCredentials)
+        .set({ tokenHash: await sha256JoinCode(token), expiresAt })
+        .where(
+          and(
+            eq(anonymousViewerCredentials.userId, credential.userId),
+            eq(anonymousViewerCredentials.tokenHash, await sha256JoinCode(viewerToken(context)!)),
+            isNull(anonymousViewerCredentials.revokedAt),
+          ),
         )
         .run();
       if (result.meta.changes !== 1)
@@ -108,11 +121,12 @@ export function createViewerCredentialRoutes(now = () => new Date()) {
       if (!credential)
         return context.json({ error: { code: "unauthorized", message: "Unauthorized" } }, 401);
       const { DB } = context.get("config");
-      await DB.batch([
-        DB.prepare("UPDATE anonymous_viewer_credentials SET revoked_at = ? WHERE user_id = ?").bind(
-          timestamp,
-          credential.userId,
-        ),
+      const db = createD1Database(DB);
+      await db.batch([
+        db
+          .update(anonymousViewerCredentials)
+          .set({ revokedAt: timestamp })
+          .where(eq(anonymousViewerCredentials.userId, credential.userId)),
         inactiveViewerCleanup(DB, credential.sessionId, timestamp),
         updateParticipantCount(DB, credential.sessionId),
       ]);

@@ -1,5 +1,8 @@
 export class ManagementError extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly code?: string,
+  ) {
     super(`Control Plane request failed (${status})`);
   }
 }

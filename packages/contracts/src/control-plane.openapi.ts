@@ -2402,6 +2402,21 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Session ended */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                /** @enum {string} */
+                                code: "session_ended";
+                                message: string;
+                            };
+                        };
+                    };
+                };
                 /** @description Rate limited */
                 429: {
                     headers: {
@@ -2520,6 +2535,21 @@ export interface paths {
                         "application/json": {
                             error: {
                                 code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Session ended */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                /** @enum {string} */
+                                code: "session_ended";
                                 message: string;
                             };
                         };
@@ -2903,6 +2933,21 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Session ended */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                /** @enum {string} */
+                                code: "session_ended";
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
         };
         delete?: never;
@@ -3039,6 +3084,21 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Session ended */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                /** @enum {string} */
+                                code: "session_ended";
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
         };
         options?: never;
@@ -3089,6 +3149,21 @@ export interface paths {
                         "application/json": {
                             error: {
                                 code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Session ended */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                /** @enum {string} */
+                                code: "session_ended";
                                 message: string;
                             };
                         };
@@ -3298,6 +3373,298 @@ export interface paths {
                     };
                 };
                 /** @description Active assignment exists */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/runtime/hosts/{runtimeId}/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    runtimeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                        accepting: boolean;
+                        serving?: {
+                            sessionId: string;
+                            assignmentEpoch: number;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Current Cloud assignment; null means stop the Runtime */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            assignment: {
+                                sessionId: string;
+                                runtimeId: string;
+                                /** @enum {string} */
+                                runtimeKind: "Cloud" | "VenueEdge";
+                                /** Format: uri */
+                                endpoint: string;
+                                certificateFingerprint: string | null;
+                                provisioningEdgeId: string | null;
+                                assignmentEpoch: number;
+                                presentationRevision: number;
+                                /** Format: date-time */
+                                issuedAt: string;
+                                /** Format: date-time */
+                                leaseExpiresAt: string;
+                                /** Format: date-time */
+                                releasedAt: string | null;
+                            } | null;
+                        };
+                    };
+                };
+                /** @description Invalid host heartbeat */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized service */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Runtime identity or endpoint conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/runtime-preparation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Runtime preparation status */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            state: "unassigned";
+                        } | {
+                            /** @enum {string} */
+                            state: "ended";
+                        } | {
+                            /** @enum {string} */
+                            state: "starting" | "ready";
+                            runtimeId: string;
+                            assignmentEpoch: number;
+                            /** Format: date-time */
+                            leaseExpiresAt: string;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Session not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Runtime preparation status */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            state: "unassigned";
+                        } | {
+                            /** @enum {string} */
+                            state: "ended";
+                        } | {
+                            /** @enum {string} */
+                            state: "starting" | "ready";
+                            runtimeId: string;
+                            assignmentEpoch: number;
+                            /** Format: date-time */
+                            leaseExpiresAt: string;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Session not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Runtime unavailable, unpublished or ended Session */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -4796,6 +5163,21 @@ export interface paths {
                         "application/json": {
                             error: {
                                 code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Session ended */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                /** @enum {string} */
+                                code: "session_ended";
                                 message: string;
                             };
                         };

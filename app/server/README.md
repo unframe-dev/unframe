@@ -9,8 +9,8 @@ app/server/
 ├── control-plane/
 │   └── ARCHITECTURE.md  # Cloudflare Workers / TypeScript / Hono / D1 / R2
 ├── realtime/
-│   └── ARCHITECTURE.md  # Go / gRPC / Venue Edge Runtime
-└── integration/    # planned: component 間 E2E テスト
+│   ├── ARCHITECTURE.md  # Go / gRPC / Cloud / Venue Edge Runtime
+│   └── e2e/            # 実サービスの同期・復旧検証
 ```
 
 - `control-plane/` の目標責務は認証・認可、durable resource、D1/R2、session bootstrap のauthorityです。
@@ -31,3 +31,9 @@ pnpm --filter @unframe/control-plane run dev
 `nix run .#control-plane` は binding 型、TypeScript、lint、Workers runtime test、OpenAPI / TypeScript client drift、deploy dry-runを検証します。実環境の resource ID と secret を設定する手順は [`control-plane/README.md`](./control-plane/README.md) を参照してください。
 
 `PUBLICATION_ASSET_ORIGIN` は任意の HTTPS origin（path・query・credentials なし）です。設定すると、Delivery の素材 URL は同じ Control Plane の `ASSETS` binding を読む `/publication-assets/{presentationId}/{buildId}/{assetId}` へ向き、対象素材と最大5分の期限を `SERVICE_IDENTITY_SECRET` の用途別 HMAC で拘束します。返送前に公開済み build の media type・size・checksum を照合します。未設定時は既存 R2 backend の署名 URL を使用します。ローカル検証では Worker と同じストレージへ接続する HTTPS 入口をこの origin に指定してください。
+
+## Cloud Runtime の起動と準備
+
+運用者は `nix run .#runtime-host` で Cloud Host supervisor を起動します。Host が割り当てに従って Runtime を起動・監視し、稼働確認後に ready を報告します。設定・リース・停止と復旧の挙動は [Realtime の起動手順](realtime/README.md#cloud-host-supervisor) を参照してください。
+
+Console と Quest は `POST /sessions/{id}/runtime-preparation` で準備を要求し、同じ URL の GET が `ready` になるまで待ちます。対象 Session の Presenter または admin が操作でき、準備の再要求は既存割り当てを返します。空いている Host がなければ `409 runtime_unavailable` です。Host を起動してから同じ Session を再試行できます。GET は割り当てを作りません。Cloud VM の作成・TLS 入口の構築は運用者が行います。

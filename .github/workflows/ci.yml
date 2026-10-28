@@ -103,6 +103,7 @@ jobs:
             presentation:
               - *shared
               - *js-shared
+              - 'examples/presentation/**'
               - '.github/workflows/presentation.yml'
               - 'scripts/ci/presentation.sh'
               - 'packages/contracts/**'

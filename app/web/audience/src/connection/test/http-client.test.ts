@@ -114,6 +114,33 @@ describe("Audience HTTP client", () => {
       expect(String(error)).not.toContain("private-credential");
     },
   );
+  it("recognizes only the explicit session_ended response as an ended Session", async () => {
+    const { client } = setup(
+      Response.json(
+        { error: { code: "session_ended", message: "Session ended" } },
+        { status: 410 },
+      ),
+    );
+    await expect(client.bootstrap("session")).rejects.toMatchObject({
+      code: "session-ended",
+      status: 410,
+    });
+  });
+  it.each([401, 403, 404, 409, 500])("does not infer Session end from HTTP%s", async (status) => {
+    const { client } = setup(Response.json({ error: { code: "session_ended" } }, { status }));
+    await expect(client.bootstrap("session")).rejects.toMatchObject({ code: "http-error", status });
+  });
+  it.each([
+    Response.json({ error: { code: "unknown" } }, { status: 410 }),
+    new Response("{", { status: 410, headers: { "content-type": "application/json" } }),
+    new Response('{"error":{"code":"session_ended"}}', { status: 410 }),
+  ])("does not infer Session end without the explicit JSON error contract", async (response) => {
+    const { client } = setup(response);
+    await expect(client.bootstrap("session")).rejects.toMatchObject({
+      code: "http-error",
+      status: 410,
+    });
+  });
   it.each([
     new Response("{}", { headers: { "content-type": "text/html" } }),
     Response.json({}),

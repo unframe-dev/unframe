@@ -14,6 +14,7 @@ import { createAssetRoutes, type AssetRouteOptions } from "./modules/assets/rout
 import { createPersistenceCallbackRoutes } from "./modules/persistence-callback/routes";
 import { RealtimeBootstrapCredentials } from "./modules/realtime-bootstrap/credential";
 import { createSessionRoutes, type SessionRouteOptions } from "./modules/sessions/routes";
+import { createRuntimeHostRoutes } from "./modules/runtime-hosts/routes";
 import { createRuntimeAssignmentRoutes } from "./modules/runtime-assignments/routes";
 import { createVenueEdgeRoutes, type VenueEdgeRouteOptions } from "./modules/venue-edges/routes";
 import { jwksRoute } from "./openapi";
@@ -92,7 +93,14 @@ export function createProductApi(options: AppOptions = {}) {
       ...(options.sessionNow ? { now: options.sessionNow } : {}),
     }),
   );
-  const venueEdges = runtimeAssignments.route(
+  const runtimeHosts = runtimeAssignments.route(
+    "/",
+    createRuntimeHostRoutes({
+      identityProvider,
+      ...(options.sessionNow ? { now: options.sessionNow } : {}),
+    }),
+  );
+  const venueEdges = runtimeHosts.route(
     "/",
     createVenueEdgeRoutes({
       identityProvider,

@@ -1,6 +1,10 @@
 import type { paths } from "@unframe/contracts/control-plane";
 import { z } from "zod";
-import { AudienceConnectionError, createAudienceHttpClient } from "./http-client";
+import {
+  AudienceConnectionError,
+  audienceResponseError,
+  createAudienceHttpClient,
+} from "./http-client";
 
 type ViewerCredential =
   paths["/viewer-credentials"]["post"]["responses"][201]["content"]["application/json"];
@@ -62,7 +66,7 @@ export function createAnonymousAudienceClient(
       throw new AudienceConnectionError(signal?.aborted ? "aborted" : "network-error");
     }
     if (response.status !== (method === "DELETE" ? 204 : path.endsWith("refresh") ? 200 : 201))
-      throw new AudienceConnectionError("http-error", response.status);
+      throw await audienceResponseError(response);
     return response;
   }
   async function read(response: Response): Promise<ViewerCredential> {

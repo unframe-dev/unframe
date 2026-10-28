@@ -1,5 +1,8 @@
 using System;
+using System.IO;
+using System.Net.Http;
 using System.Reflection;
+using Google.Protobuf;
 using Grpc.Core;
 using NUnit.Framework;
 using Unframe.Presentation;
@@ -8,6 +11,31 @@ using Unframe.Unity.PresentationRuntime;
 
 public sealed class PresentationRealtimeResyncEditModeTests
 {
+    [TestCase(StatusCode.Unavailable, true)]
+    [TestCase(StatusCode.Internal, false)]
+    [TestCase(StatusCode.FailedPrecondition, false)]
+    [TestCase(StatusCode.PermissionDenied, false)]
+    [TestCase(StatusCode.Cancelled, false)]
+    public void RemoteStatusDoesNotConvertProtocolOrAuthorizationFailuresIntoTransportRetries(StatusCode code, bool retryable)
+    {
+        Assert.That(PresentationConnectionErrors.CanRetryRealtimeTransport(new RpcException(new Status(code, "server-result"))), Is.EqualTo(retryable));
+    }
+
+    [Test]
+    public void ManagedHttp2ReadResetIsATransportRetry()
+    {
+        var failure = new RpcException(new Status(StatusCode.Internal, "read-reset", new HttpRequestException("body read", new IOException("connection reset"))));
+        Assert.That(PresentationConnectionErrors.CanRetryRealtimeTransport(failure), Is.True);
+    }
+
+    [Test]
+    public void InvalidProtobufIsFatalEvenWhenTheCodecExceptionIsAnIOException()
+    {
+        var malformed = Assert.Throws<InvalidProtocolBufferException>(() => ControlServerItem.Parser.ParseFrom(new byte[] { 0x0a, 0x05, 0x01 }));
+        var failure = new RpcException(new Status(StatusCode.Internal, "invalid-protobuf", malformed));
+        Assert.That(PresentationConnectionErrors.CanRetryRealtimeTransport(failure), Is.False);
+    }
+
     [TestCase(ResyncReason.ReplayRangeUnavailable)]
     [TestCase(ResyncReason.PresentationOriginChanged)]
     [TestCase(ResyncReason.SnapshotCatchUpExhausted)]

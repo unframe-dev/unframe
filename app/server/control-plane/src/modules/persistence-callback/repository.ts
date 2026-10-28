@@ -1,11 +1,20 @@
+import { and, eq, or } from "drizzle-orm";
+
+import { createD1Database } from "../../adapters/d1/database";
+import { presentationSessions } from "../../adapters/d1/schema";
+import { sessionCheckpoints, sessionCompletions } from "../../adapters/d1/persistence-schema";
 import type { CompletionInput, CheckpointInput } from "./schema";
 import type { PersistenceCallbackRepository, PersistenceResult } from "./service";
 
 export class D1PersistenceCallbackRepository implements PersistenceCallbackRepository {
+  private readonly db;
+
   constructor(
     private readonly database: D1Database,
     private readonly now: () => string = () => new Date().toISOString(),
-  ) {}
+  ) {
+    this.db = createD1Database(database);
+  }
 
   async applyCheckpoint(input: CheckpointInput): Promise<PersistenceResult> {
     const receivedAt = this.now();
@@ -115,20 +124,28 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
 
   private async sessionExists(sessionId: string) {
     return Boolean(
-      await this.database
-        .prepare("SELECT 1 FROM presentation_sessions WHERE id = ?")
-        .bind(sessionId)
-        .first(),
+      await this.db
+        .select({ id: presentationSessions.id })
+        .from(presentationSessions)
+        .where(eq(presentationSessions.id, sessionId))
+        .get(),
     );
   }
   private async checkpointFailure(input: CheckpointInput): Promise<PersistenceResult> {
     if (
-      await this.database
-        .prepare(
-          "SELECT 1 FROM session_checkpoints WHERE session_id = ? AND (version = ? OR idempotency_key = ?)",
+      await this.db
+        .select({ sessionId: sessionCheckpoints.sessionId })
+        .from(sessionCheckpoints)
+        .where(
+          and(
+            eq(sessionCheckpoints.sessionId, input.sessionId),
+            or(
+              eq(sessionCheckpoints.version, input.version),
+              eq(sessionCheckpoints.idempotencyKey, input.idempotencyKey),
+            ),
+          ),
         )
-        .bind(input.sessionId, input.version, input.idempotencyKey)
-        .first()
+        .get()
     )
       return "duplicate";
     return (await this.sessionExists(input.sessionId)) ? "conflict" : "not_found";
@@ -136,10 +153,11 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
 
   private async completionFailure(input: CompletionInput): Promise<PersistenceResult> {
     if (
-      await this.database
-        .prepare("SELECT 1 FROM session_completions WHERE session_id = ?")
-        .bind(input.sessionId)
-        .first()
+      await this.db
+        .select({ sessionId: sessionCompletions.sessionId })
+        .from(sessionCompletions)
+        .where(eq(sessionCompletions.sessionId, input.sessionId))
+        .get()
     )
       return "duplicate";
     return (await this.sessionExists(input.sessionId)) ? "conflict" : "not_found";

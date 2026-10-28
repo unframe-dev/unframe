@@ -150,7 +150,7 @@ namespace Unframe.Unity.PresentationRuntime
                 case QuestOnboardingPage.Preparation:
                     Title("発表の準備", selected?.Title ?? "画面プレビュー");
                     Label("Room", room == null ? "準備ができたらルームを作成します" : "共有するルームコード\n" + room.JoinCode, new Vector2(0, 70), new Vector2(920, 150), 32, QuestUiTheme.Primary);
-                    Button("Prepare", room == null ? "ルームを作成して接続" : "接続を確認", 0, -110, 820, () => Run(Prepare));
+                    Button("Prepare", room == null ? "ルームを作成して接続" : "準備を再試行", 0, -110, 820, () => Run(Prepare));
                     break;
                 case QuestOnboardingPage.Join:
                     Title("このルームに参加しますか？", FormatRoomCode());
@@ -191,7 +191,7 @@ namespace Unframe.Unity.PresentationRuntime
                                     if (!sessionStarted) { await api.StartSessionAsync(room.SessionId, token); sessionStarted = true; }
                                 }, () => entry.SessionReady, () => entry.ControlReady,
                                     () => entry.ConnectionStage == PresentationConnectionStage.Failed,
-                                    () => entry.PlaybackStatus, () => entry.ResumeAsync(), TimeSpan.FromSeconds(30), token);
+                                    () => entry.PlaybackStatus, () => entry.ControlConfirmedAsync(Unframe.Realtime.RuntimeControlKind.Resume, token), TimeSpan.FromSeconds(30), token);
                             }
                             token.ThrowIfCancellationRequested(); IsComplete = true; panel.SetActive(false); Completed?.Invoke();
                         });
@@ -221,6 +221,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (flow.IsDebugPreview || selected == null || api == null) return;
             if (room == null) { var created = await api.CreateSessionAsync(selected.Id, token); token.ThrowIfCancellationRequested(); room = created; }
+            await api.PrepareRuntimeAsync(room.SessionId, token);
             await Connect(token);
         }
         private async Task Join(CancellationToken token)

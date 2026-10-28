@@ -11,6 +11,7 @@ const mock = vi.hoisted(() => ({
   connection: { delivery: { sessionId: "test" }, bootstrap: {} },
   getPrepared: vi.fn(),
   refresh: vi.fn(),
+  reconnect: vi.fn(async () => {}),
   mounts: vi.fn(),
   unmounts: vi.fn(),
   listener: null as (() => void) | null,
@@ -37,6 +38,7 @@ vi.mock("../join-controller", () => ({
     leave: mock.leave,
     getPrepared: mock.getPrepared,
     refresh: mock.refresh,
+    reconnect: mock.reconnect,
   }),
 }));
 vi.mock("../JoinExperience", () => ({ JoinExperience: () => <p>ルーム入力</p> }));

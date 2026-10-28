@@ -150,16 +150,11 @@ export function createAudienceRealtime(
             if (item.connectionSnapshot) {
               if (cut) throw new Error("duplicate-snapshot");
               const snapshot = item.connectionSnapshot;
-              if (
-                !snapshot.connectionId ||
-                !snapshot.reliableSequence ||
-                !snapshot.fence?.presentationOriginVersion
-              )
-                throw new Error("invalid-snapshot");
+              if (!snapshot.connectionId || !snapshot.fence) throw new Error("invalid-snapshot");
               connectionId = snapshot.connectionId;
               cut = {
-                appliedReliableSequence: snapshot.reliableSequence,
-                presentationOriginVersion: snapshot.fence.presentationOriginVersion,
+                appliedReliableSequence: snapshot.reliableSequence ?? "0",
+                presentationOriginVersion: snapshot.fence.presentationOriginVersion ?? "0",
               };
             }
             input.applyControl(item);

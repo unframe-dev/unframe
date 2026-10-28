@@ -1,3 +1,10 @@
+import { and, eq, ne } from "drizzle-orm";
+import { createD1Database } from "../../adapters/d1/database";
+import {
+  presentationSessions,
+  sessionParticipants,
+  sessionParticipantCapabilities,
+} from "../../adapters/d1/schema";
 import { encodeWireMessage, type CapabilityProfile } from "@unframe/contracts/presentation";
 import {
   buildDeliveryManifest,
@@ -20,21 +27,31 @@ type SessionChoice = {
 };
 
 export class DeliveryService {
+  private readonly db;
   constructor(
     private readonly config: RuntimeConfig,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) {
+    this.db = createD1Database(config.DB);
+  }
 
   private async participant(sessionId: string, userId: string): Promise<SessionChoice> {
-    const row = await this.config.DB.prepare(
-      `SELECT session.presentation_id AS presentationId,
-              session.publication_epoch AS publicationEpoch, participant.role AS role
-       FROM presentation_sessions AS session JOIN session_participants AS participant
-         ON participant.session_id = session.id
-       WHERE session.id = ? AND participant.user_id = ? AND session.state != 'Ended'`,
-    )
-      .bind(sessionId, userId)
-      .first<SessionChoice>();
+    const row = await this.db
+      .select({
+        presentationId: presentationSessions.presentationId,
+        publicationEpoch: presentationSessions.publicationEpoch,
+        role: sessionParticipants.role,
+      })
+      .from(presentationSessions)
+      .innerJoin(sessionParticipants, eq(sessionParticipants.sessionId, presentationSessions.id))
+      .where(
+        and(
+          eq(presentationSessions.id, sessionId),
+          eq(sessionParticipants.userId, userId),
+          ne(presentationSessions.state, "Ended"),
+        ),
+      )
+      .get();
     if (!row) throw new PublicationError("forbidden");
     if (row.publicationEpoch === null) throw new PublicationError("conflict");
     return row;
@@ -77,11 +94,19 @@ export class DeliveryService {
       )
       .run();
     if (result.meta.changes !== 1) {
-      const stored = await this.config.DB.prepare(
-        "SELECT capability_profile_id AS capabilityProfileId, projection_profile_id AS projectionProfileId FROM session_participant_capabilities WHERE session_id = ? AND user_id = ?",
-      )
-        .bind(sessionId, identity.userId)
-        .first<{ capabilityProfileId: string; projectionProfileId: string }>();
+      const stored = await this.db
+        .select({
+          capabilityProfileId: sessionParticipantCapabilities.capabilityProfileId,
+          projectionProfileId: sessionParticipantCapabilities.projectionProfileId,
+        })
+        .from(sessionParticipantCapabilities)
+        .where(
+          and(
+            eq(sessionParticipantCapabilities.sessionId, sessionId),
+            eq(sessionParticipantCapabilities.userId, identity.userId),
+          ),
+        )
+        .get();
       if (
         stored?.capabilityProfileId !== capability.capabilityProfileId ||
         stored.projectionProfileId !== profile.projectionProfileId

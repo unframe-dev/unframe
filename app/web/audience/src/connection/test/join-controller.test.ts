@@ -76,6 +76,53 @@ test("失敗した工程の後を呼ばずHTTP資格エラーを表示用コー�
   expect(controller.getPrepared()).toBeNull();
 });
 
+test.each([401, 403, 404, 410])(
+  "確定拒否HTTP%sでは古い接続を破棄して再接続を停止する",
+  async (status) => {
+    const { controller, client } = setup();
+    await controller.join("ABCD-EFGH");
+    client.delivery.mockRejectedValue(new AudienceConnectionError("http-error", status));
+    await controller.refresh();
+    expect(controller.getSnapshot().phase).toBe("error");
+    expect(controller.getPrepared()).toBeNull();
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(client.delivery).toHaveBeenCalledTimes(2);
+    controller.dispose();
+  },
+);
+
+test("明示的なSession終了では資格とtimerを破棄して終了状態を公開する", async () => {
+  const { controller, client, session } = setup();
+  await controller.join("ABCD-EFGH");
+  client.delivery.mockRejectedValue(new AudienceConnectionError("session-ended", 410));
+  await controller.refresh();
+  expect(controller.getSnapshot()).toEqual({
+    phase: "ended",
+    session: { id: session.id, state: "Ended" },
+  });
+  expect(controller.getPrepared()).toBeNull();
+  await vi.advanceTimersByTimeAsync(180_000);
+  expect(client.delivery).toHaveBeenCalledTimes(2);
+  controller.leave();
+  expect(controller.getSnapshot()).toEqual({ phase: "idle" });
+});
+
+test("切断復帰はDeliveryとbootstrapを再取得して新assignmentへ接続し直す", async () => {
+  const { controller, client, delivery, bootstrap } = setup();
+  await controller.join("ABCD-EFGH");
+  delivery.projectionInstance!.assignmentEpoch = "2";
+  bootstrap.assignmentEpoch = 2;
+  bootstrap.endpoint = "https://new-runtime.example.test";
+  await controller.reconnect();
+  expect(client.delivery).toHaveBeenCalledTimes(2);
+  expect(client.bootstrap).toHaveBeenCalledTimes(2);
+  expect(controller.getPrepared()?.bootstrap).toMatchObject({
+    assignmentEpoch: 2,
+    endpoint: "https://new-runtime.example.test",
+  });
+  controller.dispose();
+});
+
 test("取消後に旧要求が完了しても復帰させず再参加できる", async () => {
   const { controller, client, session } = setup();
   let resolve!: (value: Session) => void;
@@ -197,7 +244,7 @@ test("終了済sessionではDeliveryを要求しない", async () => {
   const { controller, session, client } = setup();
   session.state = "Ended";
   await controller.join("ABCD-EFGH");
-  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "session-ended" });
+  expect(controller.getSnapshot()).toMatchObject({ phase: "ended", session: { state: "Ended" } });
   expect(client.delivery).not.toHaveBeenCalled();
 });
 
