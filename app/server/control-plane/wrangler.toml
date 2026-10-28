@@ -22,6 +22,7 @@ required = [
 ]
 
 [vars]
+AUDIENCE_ORIGIN = "https://app.un-fra.me"
 BETTER_AUTH_URL = "https://api.un-fra.me"
 DEVICE_CLIENT_ID = "unframe-unity"
 WEB_ORIGIN = "https://un-fra.me"
