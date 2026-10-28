@@ -187,8 +187,9 @@ public sealed class QuestMotionGuideTests
             Assert.That(instruction.raycastTarget, Is.False);
             Assert.That(instruction.gameObject, Is.Not.SameAs(backplate.gameObject));
             Assert.That(instruction.transform.parent, Is.EqualTo(backplate.transform));
-            material = (Material)typeof(QuestMotionGuideView).GetField("material", flags).GetValue(view);
-            mesh = (Mesh)typeof(QuestMotionGuideView).GetField("ghostMesh", flags).GetValue(view);
+            var renderer = host.GetComponentInChildren<MeshRenderer>(true);
+            material = renderer.sharedMaterial;
+            mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
             Assert.That(material, Is.Not.Null);
             Assert.That(mesh, Is.Not.Null);
             typeof(QuestMotionGuideView).GetMethod("OnDestroy", flags).Invoke(view, null);
