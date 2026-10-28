@@ -71,6 +71,12 @@ public sealed class PresentationMediaStateEditModeTests
             out DeliveryManifest manifest, out string error), Is.True, error);
         Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(PresentationTestFixtures.Load("LocalSnapshot").text,
             out snapshot, out error), Is.True, error);
+        foreach (ProjectedSurfaceDefinition surface in manifest.ProjectionProfile.RuntimeCatalog.Surfaces)
+            if (surface.SurfaceId == "semantic-surface:text-greeting")
+            {
+                surface.HasVideo = true;
+                surface.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+            }
         var store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(manifest, out error), Is.True, error);
         return store;
