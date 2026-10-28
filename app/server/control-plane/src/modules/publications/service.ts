@@ -11,6 +11,14 @@ import {
   type PublishedPresentation,
 } from "@unframe/contracts/presentation";
 import type { z } from "zod";
+import { and, desc, eq, exists } from "drizzle-orm";
+import { createD1Database } from "../../adapters/d1/database";
+import {
+  presentations,
+  presentationMembers,
+  presentationBuilds,
+  presentationPublications,
+} from "../../adapters/d1/schema";
 
 import type { Identity } from "../../presentation/service";
 
@@ -51,23 +59,33 @@ const sha256 = async (bytes: ArrayBuffer) =>
     .join("")}`;
 
 export class PublicationService {
+  private readonly orm;
   constructor(
     private readonly db: D1Database,
     private readonly bucket: R2Bucket,
     private readonly now: () => string = () => new Date().toISOString(),
-  ) {}
+  ) {
+    this.orm = createD1Database(db);
+  }
 
   private async authorize(identity: Identity, presentationId: string, write: boolean) {
-    const record = await this.db
-      .prepare("SELECT revision FROM presentations WHERE id = ?")
-      .bind(presentationId)
-      .first<{ revision: number }>();
+    const record = await this.orm
+      .select({ revision: presentations.revision })
+      .from(presentations)
+      .where(eq(presentations.id, presentationId))
+      .get();
     if (!record) throw new PublicationError("not_found");
     if (identity.globalRole !== "admin") {
-      const member = await this.db
-        .prepare("SELECT role FROM presentation_members WHERE presentation_id = ? AND user_id = ?")
-        .bind(presentationId, identity.userId)
-        .first<{ role: string }>();
+      const member = await this.orm
+        .select({ role: presentationMembers.role })
+        .from(presentationMembers)
+        .where(
+          and(
+            eq(presentationMembers.presentationId, presentationId),
+            eq(presentationMembers.userId, identity.userId),
+          ),
+        )
+        .get();
       if (!member || (write && member.role !== "owner" && member.role !== "editor"))
         throw new PublicationError("forbidden");
     }
@@ -117,12 +135,16 @@ export class PublicationService {
       .run();
     if (result.meta.changes !== 1) {
       await this.authorize(identity, presentationId, true);
-      const existing = await this.db
-        .prepare(
-          "SELECT artifacts FROM presentation_builds WHERE presentation_id = ? AND build_id = ?",
+      const existing = await this.orm
+        .select({ artifacts: presentationBuilds.artifacts })
+        .from(presentationBuilds)
+        .where(
+          and(
+            eq(presentationBuilds.presentationId, presentationId),
+            eq(presentationBuilds.buildId, artifacts.buildManifest.buildId),
+          ),
         )
-        .bind(presentationId, artifacts.buildManifest.buildId)
-        .first<{ artifacts: string }>();
+        .get();
       if (
         !existing ||
         canonicalizeJsonPayload(JSON.parse(existing.artifacts)) !==
@@ -138,12 +160,16 @@ export class PublicationService {
 
   private async build(identity: Identity, presentationId: string, buildId: string, write: boolean) {
     await this.authorize(identity, presentationId, write);
-    const row = await this.db
-      .prepare(
-        "SELECT artifacts FROM presentation_builds WHERE presentation_id = ? AND build_id = ?",
+    const row = await this.orm
+      .select({ artifacts: presentationBuilds.artifacts })
+      .from(presentationBuilds)
+      .where(
+        and(
+          eq(presentationBuilds.presentationId, presentationId),
+          eq(presentationBuilds.buildId, buildId),
+        ),
       )
-      .bind(presentationId, buildId)
-      .first<{ artifacts: string }>();
+      .get();
     if (!row) throw new PublicationError("not_found");
     const parsed = verifyBuildIntegrity(JSON.parse(row.artifacts));
     if (!parsed.valid) throw new PublicationError("invalid_build");
@@ -151,17 +177,27 @@ export class PublicationService {
   }
 
   async downloadPublishedAsset(presentationId: string, buildId: string, assetId: string) {
-    const row = await this.db
-      .prepare(
-        `SELECT build.artifacts FROM presentation_builds AS build
-       WHERE build.presentation_id = ? AND build.build_id = ? AND EXISTS (
-         SELECT 1 FROM presentation_publications AS publication
-         WHERE publication.presentation_id = build.presentation_id
-           AND publication.build_id = build.build_id
-       )`,
+    const row = await this.orm
+      .select({ artifacts: presentationBuilds.artifacts })
+      .from(presentationBuilds)
+      .where(
+        and(
+          eq(presentationBuilds.presentationId, presentationId),
+          eq(presentationBuilds.buildId, buildId),
+          exists(
+            this.orm
+              .select({ epoch: presentationPublications.epoch })
+              .from(presentationPublications)
+              .where(
+                and(
+                  eq(presentationPublications.presentationId, presentationBuilds.presentationId),
+                  eq(presentationPublications.buildId, presentationBuilds.buildId),
+                ),
+              ),
+          ),
+        ),
       )
-      .bind(presentationId, buildId)
-      .first<{ artifacts: string }>();
+      .get();
     if (!row) throw new PublicationError("not_found");
     let input: unknown;
     try {
@@ -319,12 +355,13 @@ export class PublicationService {
 
   async latest(identity: Identity, presentationId: string) {
     await this.authorize(identity, presentationId, false);
-    const row = await this.db
-      .prepare(
-        "SELECT manifest FROM presentation_publications WHERE presentation_id = ? ORDER BY epoch DESC LIMIT 1",
-      )
-      .bind(presentationId)
-      .first<{ manifest: string }>();
+    const row = await this.orm
+      .select({ manifest: presentationPublications.manifest })
+      .from(presentationPublications)
+      .where(eq(presentationPublications.presentationId, presentationId))
+      .orderBy(desc(presentationPublications.epoch))
+      .limit(1)
+      .get();
     if (!row) throw new PublicationError("not_found");
     return JSON.parse(row.manifest) as PublishedPresentation;
   }
@@ -333,17 +370,28 @@ export class PublicationService {
     presentationId: string,
     epoch?: number,
   ): Promise<BuildArtifacts & { publishedPresentation: PublishedPresentation }> {
-    const row = await this.db
-      .prepare(
-        `SELECT build.artifacts AS artifacts, publication.manifest AS manifest
-       FROM presentation_publications AS publication
-       JOIN presentation_builds AS build
-         ON build.presentation_id = publication.presentation_id AND build.build_id = publication.build_id
-       WHERE publication.presentation_id = ? AND (? IS NULL OR publication.epoch = ?)
-       ORDER BY publication.epoch DESC LIMIT 1`,
+    const row = await this.orm
+      .select({
+        artifacts: presentationBuilds.artifacts,
+        manifest: presentationPublications.manifest,
+      })
+      .from(presentationPublications)
+      .innerJoin(
+        presentationBuilds,
+        and(
+          eq(presentationBuilds.presentationId, presentationPublications.presentationId),
+          eq(presentationBuilds.buildId, presentationPublications.buildId),
+        ),
       )
-      .bind(presentationId, epoch ?? null, epoch ?? null)
-      .first<{ artifacts: string; manifest: string }>();
+      .where(
+        and(
+          eq(presentationPublications.presentationId, presentationId),
+          epoch === undefined ? undefined : eq(presentationPublications.epoch, epoch),
+        ),
+      )
+      .orderBy(desc(presentationPublications.epoch))
+      .limit(1)
+      .get();
     if (!row) throw new PublicationError("not_found");
     const parsed = verifyPublicationIntegrity({
       ...JSON.parse(row.artifacts),

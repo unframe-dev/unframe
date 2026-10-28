@@ -62,7 +62,7 @@ Product-owned endpoint は `createRoute` と `OpenAPIHono` で実装・入力検
 未処理例外は route pattern、例外名、incident ID だけを構造化ログへ記録し、message、credential、signed URL を response やログへ出しません。
 OAuth codeやDevice Authorization user codeをqueryに含むため、Workers invocation logsと自動traceは無効化しています。
 
-Product-owned D1 tables の通常の CRUD・一覧・lookup は Drizzle ORM を使います。migration DDL / trigger、Better Auth の D1 接続、revision・status の比較更新と JSON1 / `NOT EXISTS` を含む競合安全な単一 statement は D1 SQL のまま維持しています。
+Product-owned D1 tables の通常の CRUD・一覧・lookup と単純な条件付き更新は Drizzle ORM を使います。migration DDL / trigger、Better Auth の D1 接続、JSON1 や複数テーブルの整合性・割当の排他条件を含む複雑な書き込みは D1 SQL を使います。SQL を残す理由は条件と書き込みを一つの文として読み取れることにあり、原子性が Drizzle では保てないという制約ではありません。Drizzle と SQL を同じ処理で使う場合も、既存の D1 batch による原子性を維持します。
 
 ## Validation boundary
 

@@ -51,13 +51,10 @@ export class D1AssetRepository implements AssetRepository {
   }
 
   async save(value: AssetRecord) {
-    const result = await this.database
-      .prepare(`
-        UPDATE assets
-        SET status = ?, updated_at = ?
-        WHERE id = ? AND status = 'pending'
-      `)
-      .bind(value.status, value.updatedAt.toISOString(), value.id)
+    const result = await this.db
+      .update(assets)
+      .set({ status: value.status, updatedAt: value.updatedAt.toISOString() })
+      .where(and(eq(assets.id, value.id), eq(assets.status, "pending")))
       .run();
     return result.meta.changes === 1;
   }

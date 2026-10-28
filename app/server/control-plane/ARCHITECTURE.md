@@ -230,7 +230,7 @@ D1 は Better Auth の schema に加え、次の product state を保持する�
 - Session directory、participant、join attempt
 - Realtime checkpoint と completion
 
-通常の CRUD、一覧、lookup は Drizzle ORM を使う。Migration DDL、Better Auth の D1 adapter、revision / status の conditional update、JSON1 や `NOT EXISTS` を含む競合安全な statement は直接 SQL を使用する。
+通常の CRUD、一覧、lookup と単純な conditional update は Drizzle ORM を使う。Migration DDL / trigger と Better Auth の D1 adapter に加え、JSON1 や複数テーブルの整合性・割当の排他条件を含む複雑な書き込みは、条件と更新を一つの文として読み取れるよう直接 SQL を使用する。原子性は ORM の有無ではなく statement と D1 batch の境界で保つ。Drizzle で生成した statement を既存の SQL と同じ D1 batch に組み込む場合も、この境界を変えない。
 
 複数 request が同じ resource を操作しても、revision、status、unique constraint、conditional write により二重適用や参照破壊を防ぐ。D1 migration は `migrations/` に追記し、既存 migration を書き換えない。
 

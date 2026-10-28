@@ -1,3 +1,7 @@
+import { and, desc, eq, gt, gte, isNull, ne, sql } from "drizzle-orm";
+
+import { createD1Database } from "../../adapters/d1/database";
+import { presentationSessions, runtimeAssignments, runtimeHosts } from "../../adapters/d1/schema";
 import {
   D1RuntimeAssignmentRepository,
   type RuntimeAssignment,
@@ -22,10 +26,51 @@ const healthyAfter = (now: Date) => new Date(now.getTime() - 60_000).toISOString
 const leaseUntil = (now: Date) => new Date(now.getTime() + 120_000).toISOString();
 
 export class RuntimeHostRepository {
-  constructor(private readonly db: D1Database) {}
+  private readonly queries;
+
+  constructor(private readonly db: D1Database) {
+    this.queries = createD1Database(db);
+  }
 
   async heartbeat(runtimeId: string, input: HostHeartbeat, now: Date) {
     const timestamp = now.toISOString();
+    const activeAssignment = this.queries
+      .select({
+        sessionId: sql<string>`${runtimeAssignments.sessionId}`.as("sessionId"),
+        runtimeId: sql<string>`${runtimeAssignments.runtimeId}`.as("runtimeId"),
+        runtimeKind: sql<RuntimeAssignment["runtimeKind"]>`${runtimeAssignments.runtimeKind}`.as(
+          "runtimeKind",
+        ),
+        endpoint: runtimeAssignments.endpoint,
+        certificateFingerprint: sql<string | null>`${runtimeAssignments.certificateFingerprint}`.as(
+          "certificateFingerprint",
+        ),
+        provisioningEdgeId: sql<string | null>`${runtimeAssignments.provisioningEdgeId}`.as(
+          "provisioningEdgeId",
+        ),
+        assignmentEpoch: sql<number>`${runtimeAssignments.epoch}`.as("assignmentEpoch"),
+        presentationRevision: sql<number>`${runtimeAssignments.revision}`.as(
+          "presentationRevision",
+        ),
+        issuedAt: sql<string>`${runtimeAssignments.issuedAt}`.as("issuedAt"),
+        leaseExpiresAt: sql<string>`${runtimeAssignments.leaseExpiresAt}`.as("leaseExpiresAt"),
+        releasedAt: sql<string | null>`${runtimeAssignments.releasedAt}`.as("releasedAt"),
+      })
+      .from(runtimeAssignments)
+      .innerJoin(presentationSessions, eq(presentationSessions.id, runtimeAssignments.sessionId))
+      .where(
+        and(
+          eq(runtimeAssignments.runtimeId, runtimeId),
+          eq(runtimeAssignments.runtimeKind, "Cloud"),
+          eq(runtimeAssignments.endpoint, input.endpoint),
+          isNull(runtimeAssignments.releasedAt),
+          gt(runtimeAssignments.leaseExpiresAt, timestamp),
+          ne(presentationSessions.state, "Ended"),
+        ),
+      )
+      .orderBy(desc(runtimeAssignments.issuedAt))
+      .limit(1)
+      .toSQL();
     const [registered, , , active] = await this.db.batch([
       this.db
         .prepare(
@@ -68,11 +113,7 @@ export class RuntimeHostRepository {
           input.endpoint,
           timestamp,
         ),
-      this.db
-        .prepare(
-          "SELECT assignment.session_id AS sessionId, assignment.runtime_id AS runtimeId, assignment.runtime_kind AS runtimeKind, assignment.endpoint, assignment.certificate_fingerprint AS certificateFingerprint, assignment.provisioning_edge_id AS provisioningEdgeId, assignment.epoch AS assignmentEpoch, assignment.revision AS presentationRevision, assignment.issued_at AS issuedAt, assignment.lease_expires_at AS leaseExpiresAt, assignment.released_at AS releasedAt FROM runtime_assignments AS assignment JOIN presentation_sessions AS session ON session.id = assignment.session_id WHERE assignment.runtime_id = ? AND assignment.runtime_kind = 'Cloud' AND assignment.endpoint = ? AND assignment.released_at IS NULL AND assignment.lease_expires_at > ? AND session.state != 'Ended' ORDER BY assignment.issued_at DESC LIMIT 1",
-        )
-        .bind(runtimeId, input.endpoint, timestamp),
+      this.db.prepare(activeAssignment.sql).bind(...activeAssignment.params),
     ]);
     if (!registered?.results.length) return undefined;
     return { assignment: (active?.results[0] as RuntimeAssignment | undefined) ?? null };
@@ -96,10 +137,11 @@ export class RuntimeHostRepository {
   }
 
   async status(sessionId: string, now: Date): Promise<RuntimePreparation> {
-    const session = await this.db
-      .prepare("SELECT state FROM presentation_sessions WHERE id = ?")
-      .bind(sessionId)
-      .first<{ state: string }>();
+    const session = await this.queries
+      .select({ state: presentationSessions.state })
+      .from(presentationSessions)
+      .where(eq(presentationSessions.id, sessionId))
+      .get();
     if (session?.state === "Ended") return { state: "ended" };
     const assignment = await new D1RuntimeAssignmentRepository(this.db).findActive(
       sessionId,
@@ -107,18 +149,20 @@ export class RuntimeHostRepository {
       healthyAfter(now),
     );
     if (!assignment) return { state: "unassigned" };
-    const ready = await this.db
-      .prepare(
-        "SELECT runtime_id FROM runtime_hosts WHERE runtime_id = ? AND endpoint = ? AND accepting = 1 AND last_seen_at >= ? AND serving_session_id = ? AND serving_assignment_epoch = ?",
+    const ready = await this.queries
+      .select({ runtimeId: runtimeHosts.runtimeId })
+      .from(runtimeHosts)
+      .where(
+        and(
+          eq(runtimeHosts.runtimeId, assignment.runtimeId),
+          eq(runtimeHosts.endpoint, assignment.endpoint),
+          eq(runtimeHosts.accepting, true),
+          gte(runtimeHosts.lastSeenAt, healthyAfter(now)),
+          eq(runtimeHosts.servingSessionId, sessionId),
+          eq(runtimeHosts.servingAssignmentEpoch, assignment.assignmentEpoch),
+        ),
       )
-      .bind(
-        assignment.runtimeId,
-        assignment.endpoint,
-        healthyAfter(now),
-        sessionId,
-        assignment.assignmentEpoch,
-      )
-      .first();
+      .get();
     return {
       state: ready ? "ready" : "starting",
       runtimeId: assignment.runtimeId,

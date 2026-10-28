@@ -1,3 +1,6 @@
+import { eq } from "drizzle-orm";
+import { createD1Database } from "../../adapters/d1/database";
+import { presentationSessions } from "../../adapters/d1/schema";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -28,11 +31,11 @@ export function createRuntimeHostRoutes(options: RuntimeAssignmentRouteOptions) 
   const authorize = async (context: AppContext, sessionId: string) => {
     const identity = await options.identityProvider(context);
     if (!identity) fail(context, 401, "unauthorized", "Unauthorized");
-    const session = await context
-      .get("config")
-      .DB.prepare("SELECT presenter_id AS presenterId FROM presentation_sessions WHERE id = ?")
-      .bind(sessionId)
-      .first<{ presenterId: string }>();
+    const session = await createD1Database(context.get("config").DB)
+      .select({ presenterId: presentationSessions.presenterId })
+      .from(presentationSessions)
+      .where(eq(presentationSessions.id, sessionId))
+      .get();
     if (!session) fail(context, 404, "not_found", "Session not found");
     if (identity.globalRole !== "admin" && identity.userId !== session.presenterId)
       fail(context, 403, "forbidden", "Forbidden");

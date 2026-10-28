@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNotNull, isNull, ne, or } from "drizzle-orm";
 
 import { createD1Database } from "../../adapters/d1/database";
-import { runtimeAssignments } from "../../adapters/d1/schema";
+import { presentationSessions, runtimeAssignments, venueEdges } from "../../adapters/d1/schema";
 
 export type RuntimeKind = "Cloud" | "VenueEdge";
 export type RuntimeAssignment = {
@@ -82,12 +82,52 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
   }
   async findActive(sessionId: string, now: string, edgeHealthyAfter: string) {
     return (
-      (await this.database
-        .prepare(
-          "SELECT assignment.session_id AS sessionId, assignment.runtime_id AS runtimeId, assignment.runtime_kind AS runtimeKind, assignment.endpoint, assignment.certificate_fingerprint AS certificateFingerprint, assignment.provisioning_edge_id AS provisioningEdgeId, assignment.epoch AS assignmentEpoch, assignment.revision AS presentationRevision, assignment.issued_at AS issuedAt, assignment.lease_expires_at AS leaseExpiresAt, assignment.released_at AS releasedAt FROM runtime_assignments AS assignment JOIN presentation_sessions AS session ON session.id = assignment.session_id LEFT JOIN venue_edges AS edge ON edge.id = assignment.provisioning_edge_id WHERE assignment.session_id = ? AND session.state != 'Ended' AND assignment.released_at IS NULL AND assignment.lease_expires_at > ? AND ((assignment.runtime_kind = 'Cloud' AND assignment.provisioning_edge_id IS NULL) OR (assignment.runtime_kind = 'VenueEdge' AND edge.runtime_id = assignment.runtime_id AND edge.status = 'active' AND edge.protocol_version = 'v3' AND edge.health = 'healthy' AND edge.registered_at IS NOT NULL AND edge.last_seen_at >= ? AND edge.capacity > 0 AND edge.local_endpoint = assignment.endpoint AND edge.certificate_fingerprint = assignment.certificate_fingerprint)) ORDER BY assignment.epoch DESC LIMIT 1",
+      (await this.db
+        .select({
+          sessionId: runtimeAssignments.sessionId,
+          runtimeId: runtimeAssignments.runtimeId,
+          runtimeKind: runtimeAssignments.runtimeKind,
+          endpoint: runtimeAssignments.endpoint,
+          certificateFingerprint: runtimeAssignments.certificateFingerprint,
+          provisioningEdgeId: runtimeAssignments.provisioningEdgeId,
+          assignmentEpoch: runtimeAssignments.epoch,
+          presentationRevision: runtimeAssignments.revision,
+          issuedAt: runtimeAssignments.issuedAt,
+          leaseExpiresAt: runtimeAssignments.leaseExpiresAt,
+          releasedAt: runtimeAssignments.releasedAt,
+        })
+        .from(runtimeAssignments)
+        .innerJoin(presentationSessions, eq(presentationSessions.id, runtimeAssignments.sessionId))
+        .leftJoin(venueEdges, eq(venueEdges.id, runtimeAssignments.provisioningEdgeId))
+        .where(
+          and(
+            eq(runtimeAssignments.sessionId, sessionId),
+            ne(presentationSessions.state, "Ended"),
+            isNull(runtimeAssignments.releasedAt),
+            gt(runtimeAssignments.leaseExpiresAt, now),
+            or(
+              and(
+                eq(runtimeAssignments.runtimeKind, "Cloud"),
+                isNull(runtimeAssignments.provisioningEdgeId),
+              ),
+              and(
+                eq(runtimeAssignments.runtimeKind, "VenueEdge"),
+                eq(venueEdges.runtimeId, runtimeAssignments.runtimeId),
+                eq(venueEdges.status, "active"),
+                eq(venueEdges.protocolVersion, "v3"),
+                eq(venueEdges.health, "healthy"),
+                isNotNull(venueEdges.registeredAt),
+                gte(venueEdges.lastSeenAt, edgeHealthyAfter),
+                gt(venueEdges.capacity, 0),
+                eq(venueEdges.localEndpoint, runtimeAssignments.endpoint),
+                eq(venueEdges.certificateFingerprint, runtimeAssignments.certificateFingerprint),
+              ),
+            ),
+          ),
         )
-        .bind(sessionId, now, edgeHealthyAfter)
-        .first<RuntimeAssignment>()) ?? null
+        .orderBy(desc(runtimeAssignments.epoch))
+        .limit(1)
+        .get()) ?? null
     );
   }
   async renew({
@@ -120,20 +160,28 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
     assignmentEpoch,
     now,
   }: Omit<LeaseRequest, "leaseExpiresAt">) {
-    const result = await this.database
-      .prepare(
-        "UPDATE runtime_assignments SET released_at = ? WHERE session_id = ? AND provisioning_edge_id = ? AND epoch = ? AND released_at IS NULL AND lease_expires_at > ?",
+    const result = await this.db
+      .update(runtimeAssignments)
+      .set({ releasedAt: now })
+      .where(
+        and(
+          eq(runtimeAssignments.sessionId, sessionId),
+          eq(runtimeAssignments.provisioningEdgeId, provisioningEdgeId),
+          eq(runtimeAssignments.epoch, assignmentEpoch),
+          isNull(runtimeAssignments.releasedAt),
+          gt(runtimeAssignments.leaseExpiresAt, now),
+        ),
       )
-      .bind(now, sessionId, provisioningEdgeId, assignmentEpoch, now)
       .run();
     return result.meta.changes === 1;
   }
   async releaseSession(sessionId: string, now: string) {
-    await this.database
-      .prepare(
-        "UPDATE runtime_assignments SET released_at = ? WHERE session_id = ? AND released_at IS NULL",
+    await this.db
+      .update(runtimeAssignments)
+      .set({ releasedAt: now })
+      .where(
+        and(eq(runtimeAssignments.sessionId, sessionId), isNull(runtimeAssignments.releasedAt)),
       )
-      .bind(now, sessionId)
       .run();
   }
   private async byEpoch(sessionId: string, epoch: number) {

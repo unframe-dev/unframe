@@ -1,3 +1,13 @@
+import { and, desc, eq, gt, isNull, ne } from "drizzle-orm";
+import { createD1Database } from "../../adapters/d1/database";
+import {
+  presentationSessions,
+  sessionParticipants,
+  sessionParticipantCapabilities,
+  runtimeAssignments,
+  presentationPublications,
+  sessionCheckpoints,
+} from "../../adapters/d1/schema";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   capabilityProfileSchema,
@@ -62,21 +72,33 @@ export function createRuntimePublicationRoutes() {
           assignment.assignmentEpoch !== query.assignmentEpoch
         )
           return conflict();
-        const participant = await config.DB.prepare(
-          `SELECT session.presentation_id AS presentationId, session.publication_epoch AS publicationEpoch,
-                  participant.role, selection.capability_profile_id AS capabilityProfileId
-           FROM presentation_sessions AS session
-           JOIN session_participants AS participant ON participant.session_id = session.id
-           JOIN session_participant_capabilities AS selection ON selection.session_id = session.id AND selection.user_id = participant.user_id
-           WHERE session.id = ? AND participant.user_id = ? AND session.state != 'Ended'`,
-        )
-          .bind(query.sessionId, query.participantId)
-          .first<{
-            presentationId: string;
-            publicationEpoch: number | null;
-            role: "presenter" | "viewer";
-            capabilityProfileId: string;
-          }>();
+        const participant = await createD1Database(config.DB)
+          .select({
+            presentationId: presentationSessions.presentationId,
+            publicationEpoch: presentationSessions.publicationEpoch,
+            role: sessionParticipants.role,
+            capabilityProfileId: sessionParticipantCapabilities.capabilityProfileId,
+          })
+          .from(presentationSessions)
+          .innerJoin(
+            sessionParticipants,
+            eq(sessionParticipants.sessionId, presentationSessions.id),
+          )
+          .innerJoin(
+            sessionParticipantCapabilities,
+            and(
+              eq(sessionParticipantCapabilities.sessionId, presentationSessions.id),
+              eq(sessionParticipantCapabilities.userId, sessionParticipants.userId),
+            ),
+          )
+          .where(
+            and(
+              eq(presentationSessions.id, query.sessionId),
+              eq(sessionParticipants.userId, query.participantId),
+              ne(presentationSessions.state, "Ended"),
+            ),
+          )
+          .get();
         if (!participant || participant.publicationEpoch === null) return forbidden();
         const artifacts = await new PublicationService(config.DB, config.ASSETS).publishedArtifacts(
           participant.presentationId,
@@ -94,19 +116,34 @@ export function createRuntimePublicationRoutes() {
           current.assignmentEpoch !== assignment.assignmentEpoch
         )
           return conflict();
-        const present = await config.DB.prepare(
-          `SELECT 1 FROM presentation_sessions AS session JOIN session_participants AS participant ON participant.session_id = session.id
-           JOIN session_participant_capabilities AS selection ON selection.session_id = session.id AND selection.user_id = participant.user_id
-           WHERE session.id = ? AND participant.user_id = ? AND participant.role = ? AND session.publication_epoch = ? AND session.state != 'Ended' AND selection.capability_profile_id = ?`,
-        )
-          .bind(
-            query.sessionId,
-            query.participantId,
-            participant.role,
-            participant.publicationEpoch,
-            participant.capabilityProfileId,
+        const present = await createD1Database(config.DB)
+          .select({ id: presentationSessions.id })
+          .from(presentationSessions)
+          .innerJoin(
+            sessionParticipants,
+            eq(sessionParticipants.sessionId, presentationSessions.id),
           )
-          .first();
+          .innerJoin(
+            sessionParticipantCapabilities,
+            and(
+              eq(sessionParticipantCapabilities.sessionId, presentationSessions.id),
+              eq(sessionParticipantCapabilities.userId, sessionParticipants.userId),
+            ),
+          )
+          .where(
+            and(
+              eq(presentationSessions.id, query.sessionId),
+              eq(sessionParticipants.userId, query.participantId),
+              eq(sessionParticipants.role, participant.role),
+              eq(presentationSessions.publicationEpoch, participant.publicationEpoch),
+              ne(presentationSessions.state, "Ended"),
+              eq(
+                sessionParticipantCapabilities.capabilityProfileId,
+                participant.capabilityProfileId,
+              ),
+            ),
+          )
+          .get();
         if (!present) return forbidden();
         const expiresAt = new Date(
           Math.min(Date.now() + 60_000, new Date(current.leaseExpiresAt).getTime()),
@@ -151,26 +188,27 @@ export function createRuntimePublicationRoutes() {
       const { sessionId, runtimeId, assignmentEpoch } = context.req.valid("query");
       const { DB, ASSETS } = context.get("config");
       const now = new Date().toISOString();
-      const row = await DB.prepare(
-        `SELECT session.presentation_id AS presentationId,
-                session.publication_epoch AS publicationEpoch,
-                assignment.runtime_kind AS runtimeKind,
-                assignment.revision AS presentationRevision,
-                assignment.lease_expires_at AS leaseExpiresAt
-         FROM presentation_sessions AS session
-         JOIN runtime_assignments AS assignment ON assignment.session_id = session.id
-         WHERE session.id = ? AND session.state != 'Ended'
-           AND assignment.runtime_id = ? AND assignment.epoch = ?
-           AND assignment.released_at IS NULL AND assignment.lease_expires_at > ?`,
-      )
-        .bind(sessionId, runtimeId, assignmentEpoch, now)
-        .first<{
-          presentationId: string;
-          publicationEpoch: number | null;
-          runtimeKind: "Cloud" | "VenueEdge";
-          presentationRevision: number;
-          leaseExpiresAt: string;
-        }>();
+      const row = await createD1Database(DB)
+        .select({
+          presentationId: presentationSessions.presentationId,
+          publicationEpoch: presentationSessions.publicationEpoch,
+          runtimeKind: runtimeAssignments.runtimeKind,
+          presentationRevision: runtimeAssignments.revision,
+          leaseExpiresAt: runtimeAssignments.leaseExpiresAt,
+        })
+        .from(presentationSessions)
+        .innerJoin(runtimeAssignments, eq(runtimeAssignments.sessionId, presentationSessions.id))
+        .where(
+          and(
+            eq(presentationSessions.id, sessionId),
+            ne(presentationSessions.state, "Ended"),
+            eq(runtimeAssignments.runtimeId, runtimeId),
+            eq(runtimeAssignments.epoch, assignmentEpoch),
+            isNull(runtimeAssignments.releasedAt),
+            gt(runtimeAssignments.leaseExpiresAt, now),
+          ),
+        )
+        .get();
       if (!row || row.publicationEpoch === null)
         return context.json(
           { error: { code: "conflict", message: "Runtime fence unavailable" } },
@@ -181,11 +219,13 @@ export function createRuntimePublicationRoutes() {
         row.publicationEpoch,
       );
       const publication = artifacts.publishedPresentation;
-      const checkpoint = await DB.prepare(
-        "SELECT payload FROM session_checkpoints WHERE session_id = ? ORDER BY version DESC LIMIT 1",
-      )
-        .bind(sessionId)
-        .first<{ payload: string }>();
+      const checkpoint = await createD1Database(DB)
+        .select({ payload: sessionCheckpoints.payload })
+        .from(sessionCheckpoints)
+        .where(eq(sessionCheckpoints.sessionId, sessionId))
+        .orderBy(desc(sessionCheckpoints.version))
+        .limit(1)
+        .get();
       let restoredCheckpoint: Record<string, unknown> | null = null;
       if (checkpoint) {
         restoredCheckpoint = await parseCheckpointJson(checkpoint.payload);
@@ -210,15 +250,22 @@ export function createRuntimePublicationRoutes() {
         renderBundle: artifacts.renderBundle,
         checkpoint: restoredCheckpoint,
       };
-      const current = await DB.prepare(
-        `SELECT 1 FROM presentation_sessions AS session
-         JOIN runtime_assignments AS assignment ON assignment.session_id = session.id
-         WHERE session.id = ? AND session.state != 'Ended' AND session.publication_epoch = ?
-           AND assignment.runtime_id = ? AND assignment.epoch = ?
-           AND assignment.released_at IS NULL AND assignment.lease_expires_at > ?`,
-      )
-        .bind(sessionId, row.publicationEpoch, runtimeId, assignmentEpoch, new Date().toISOString())
-        .first();
+      const current = await createD1Database(DB)
+        .select({ id: presentationSessions.id })
+        .from(presentationSessions)
+        .innerJoin(runtimeAssignments, eq(runtimeAssignments.sessionId, presentationSessions.id))
+        .where(
+          and(
+            eq(presentationSessions.id, sessionId),
+            ne(presentationSessions.state, "Ended"),
+            eq(presentationSessions.publicationEpoch, row.publicationEpoch),
+            eq(runtimeAssignments.runtimeId, runtimeId),
+            eq(runtimeAssignments.epoch, assignmentEpoch),
+            isNull(runtimeAssignments.releasedAt),
+            gt(runtimeAssignments.leaseExpiresAt, new Date().toISOString()),
+          ),
+        )
+        .get();
       if (!current)
         return context.json({ error: { code: "conflict", message: "Runtime fence changed" } }, 409);
       return context.json(result, 200);
@@ -226,31 +273,35 @@ export function createRuntimePublicationRoutes() {
     .openapi(internalRuntimeLeaseRoute, async (context) => {
       const { sessionId, runtimeId, assignmentEpoch } = context.req.valid("query");
       const { DB } = context.get("config");
-      const row = await DB.prepare(
-        `SELECT session.presentation_id AS presentationId,
-                session.publication_epoch AS publicationEpoch,
-                assignment.runtime_kind AS runtimeKind,
-                assignment.revision AS presentationRevision,
-                assignment.lease_expires_at AS leaseExpiresAt,
-                publication.manifest AS manifest
-         FROM presentation_sessions AS session
-         JOIN runtime_assignments AS assignment ON assignment.session_id = session.id
-         JOIN presentation_publications AS publication
-           ON publication.presentation_id = session.presentation_id
-           AND publication.epoch = session.publication_epoch
-         WHERE session.id = ? AND session.state != 'Ended'
-           AND assignment.runtime_id = ? AND assignment.epoch = ?
-           AND assignment.released_at IS NULL AND assignment.lease_expires_at > ?`,
-      )
-        .bind(sessionId, runtimeId, assignmentEpoch, new Date().toISOString())
-        .first<{
-          presentationId: string;
-          publicationEpoch: number;
-          runtimeKind: "Cloud" | "VenueEdge";
-          presentationRevision: number;
-          leaseExpiresAt: string;
-          manifest: string;
-        }>();
+      const row = await createD1Database(DB)
+        .select({
+          presentationId: presentationSessions.presentationId,
+          publicationEpoch: presentationPublications.epoch,
+          runtimeKind: runtimeAssignments.runtimeKind,
+          presentationRevision: runtimeAssignments.revision,
+          leaseExpiresAt: runtimeAssignments.leaseExpiresAt,
+          manifest: presentationPublications.manifest,
+        })
+        .from(presentationSessions)
+        .innerJoin(runtimeAssignments, eq(runtimeAssignments.sessionId, presentationSessions.id))
+        .innerJoin(
+          presentationPublications,
+          and(
+            eq(presentationPublications.presentationId, presentationSessions.presentationId),
+            eq(presentationPublications.epoch, presentationSessions.publicationEpoch),
+          ),
+        )
+        .where(
+          and(
+            eq(presentationSessions.id, sessionId),
+            ne(presentationSessions.state, "Ended"),
+            eq(runtimeAssignments.runtimeId, runtimeId),
+            eq(runtimeAssignments.epoch, assignmentEpoch),
+            isNull(runtimeAssignments.releasedAt),
+            gt(runtimeAssignments.leaseExpiresAt, new Date().toISOString()),
+          ),
+        )
+        .get();
       const conflict = () =>
         context.json({ error: { code: "conflict", message: "Runtime fence unavailable" } }, 409);
       if (!row) return conflict();
@@ -293,26 +344,31 @@ export function createRuntimePublicationRoutes() {
     .openapi(internalRuntimeProjectionRoute, async (context) => {
       const { sessionId, participantId } = context.req.valid("query");
       const { DB, ASSETS } = context.get("config");
-      const row = await DB.prepare(
-        `SELECT session.presentation_id AS presentationId,
-                session.publication_epoch AS publicationEpoch,
-                participant.role AS role,
-                selection.capability_json AS capabilityJson,
-                selection.projection_profile_id AS projectionProfileId
-         FROM presentation_sessions AS session
-         JOIN session_participants AS participant ON participant.session_id = session.id
-         JOIN session_participant_capabilities AS selection
-           ON selection.session_id = participant.session_id AND selection.user_id = participant.user_id
-         WHERE session.id = ? AND participant.user_id = ? AND session.state != 'Ended'`,
-      )
-        .bind(sessionId, participantId)
-        .first<{
-          presentationId: string;
-          publicationEpoch: number | null;
-          role: "presenter" | "viewer";
-          capabilityJson: string;
-          projectionProfileId: string;
-        }>();
+      const row = await createD1Database(DB)
+        .select({
+          presentationId: presentationSessions.presentationId,
+          publicationEpoch: presentationSessions.publicationEpoch,
+          role: sessionParticipants.role,
+          capabilityJson: sessionParticipantCapabilities.capabilityJson,
+          projectionProfileId: sessionParticipantCapabilities.projectionProfileId,
+        })
+        .from(presentationSessions)
+        .innerJoin(sessionParticipants, eq(sessionParticipants.sessionId, presentationSessions.id))
+        .innerJoin(
+          sessionParticipantCapabilities,
+          and(
+            eq(sessionParticipantCapabilities.sessionId, sessionParticipants.sessionId),
+            eq(sessionParticipantCapabilities.userId, sessionParticipants.userId),
+          ),
+        )
+        .where(
+          and(
+            eq(presentationSessions.id, sessionId),
+            eq(sessionParticipants.userId, participantId),
+            ne(presentationSessions.state, "Ended"),
+          ),
+        )
+        .get();
       if (!row || row.publicationEpoch === null)
         return context.json(
           { error: { code: "not_found", message: "Participant projection unavailable" } },
@@ -329,26 +385,30 @@ export function createRuntimePublicationRoutes() {
           { error: { code: "conflict", message: "Projection profile changed" } },
           409,
         );
-      const current = await DB.prepare(
-        `SELECT 1 FROM presentation_sessions AS session
-         JOIN session_participants AS participant ON participant.session_id = session.id
-         JOIN session_participant_capabilities AS selection
-           ON selection.session_id = participant.session_id AND selection.user_id = participant.user_id
-         WHERE session.id = ? AND participant.user_id = ? AND session.state != 'Ended'
-           AND session.presentation_id = ? AND session.publication_epoch = ?
-           AND participant.role = ? AND selection.capability_json = ?
-           AND selection.projection_profile_id = ?`,
-      )
-        .bind(
-          sessionId,
-          participantId,
-          row.presentationId,
-          row.publicationEpoch,
-          row.role,
-          row.capabilityJson,
-          row.projectionProfileId,
+      const current = await createD1Database(DB)
+        .select({ id: presentationSessions.id })
+        .from(presentationSessions)
+        .innerJoin(sessionParticipants, eq(sessionParticipants.sessionId, presentationSessions.id))
+        .innerJoin(
+          sessionParticipantCapabilities,
+          and(
+            eq(sessionParticipantCapabilities.sessionId, sessionParticipants.sessionId),
+            eq(sessionParticipantCapabilities.userId, sessionParticipants.userId),
+          ),
         )
-        .first();
+        .where(
+          and(
+            eq(presentationSessions.id, sessionId),
+            eq(sessionParticipants.userId, participantId),
+            ne(presentationSessions.state, "Ended"),
+            eq(presentationSessions.presentationId, row.presentationId),
+            eq(presentationSessions.publicationEpoch, row.publicationEpoch),
+            eq(sessionParticipants.role, row.role),
+            eq(sessionParticipantCapabilities.capabilityJson, row.capabilityJson),
+            eq(sessionParticipantCapabilities.projectionProfileId, row.projectionProfileId),
+          ),
+        )
+        .get();
       if (!current)
         return context.json(
           { error: { code: "conflict", message: "Participant projection changed" } },

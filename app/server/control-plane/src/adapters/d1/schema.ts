@@ -136,3 +136,7 @@ export const runtimeHosts = sqliteTable("runtime_hosts", {
   servingSessionId: text("serving_session_id"),
   servingAssignmentEpoch: integer("serving_assignment_epoch"),
 });
+
+export * from "./publication-schema";
+export * from "./persistence-schema";
+export * from "./viewer-schema";
