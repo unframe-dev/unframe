@@ -57,7 +57,7 @@ public sealed class ArucoOriginVisualizer : MonoBehaviour
                 referenceMarkerPosition = pose.position;
                 hasNearbyReference = true;
             }
-            if (nearbyOrigin == null) nearbyOrigin = CreateAxes("Nearby ArUco Measurement", Color.cyan, out _);
+            if (nearbyOrigin == null) nearbyOrigin = CreateAxes("Nearby AprilTag Measurement", Color.cyan, out _);
             UpdateNearbyPose();
             nearbyOrigin.gameObject.SetActive(true);
         }
@@ -84,7 +84,7 @@ public sealed class ArucoOriginVisualizer : MonoBehaviour
 
     private void CreateOrigin()
     {
-        origin = CreateAxes("ArUco ID 0 Origin (20 cm)", Color.yellow, out cubeMaterial);
+        origin = CreateAxes("AprilTag ID 0 Origin (15 cm)", Color.yellow, out cubeMaterial);
     }
 
     private Transform CreateAxes(string name, Color color, out Material cube)

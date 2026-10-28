@@ -12,35 +12,36 @@ public static class ArucoTestMarkerEditor
     [MenuItem("Unframe/Tools/Generate Printable Markers")]
     public static void GenerateMarkers()
     {
-        string directory = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "docs", "aruco-markers"));
+        string directory = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "docs", "apriltag-markers"));
         Directory.CreateDirectory(directory);
-        using (var dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_4X4_50))
+        File.WriteAllText(Path.Combine(directory, "tag36h11-id-0.svg"), CreateMarkerSvg(), new UTF8Encoding(false));
+        Debug.Log("[AprilTag Detection] Printable marker: " + directory);
+    }
+
+    public static string CreateMarkerSvg()
+    {
+        using (var dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_APRILTAG_36h11))
         using (var marker = new Mat())
         {
-            foreach (int id in new[] { 0, 23 })
+            Objdetect.generateImageMarker(dictionary, ArucoMarkerPoseEstimator.TargetMarkerId, 8, marker, 1);
+            Core.flip(marker, marker, -1);
+            var pixels = new byte[64];
+            marker.get(0, 0, pixels);
+            var svg = new StringBuilder();
+            svg.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"225mm\" height=\"225mm\" viewBox=\"0 0 150 150\"><title>tag36h11 ID 0 outer size 225mm; black boundary 150mm; white quiet zone 37.5mm</title><rect width=\"150\" height=\"150\" fill=\"white\"/><g fill=\"black\" shape-rendering=\"crispEdges\">");
+            for (int y = 0; y < 8; y++)
             {
-                Objdetect.generateImageMarker(dictionary, id, 6, marker, 1);
-                var pixels = new byte[36];
-                marker.get(0, 0, pixels);
-                var svg = new StringBuilder();
-                svg.AppendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"240mm\" height=\"260mm\" viewBox=\"0 0 240 260\">");
-                svg.AppendLine("<rect width=\"240\" height=\"260\" fill=\"white\"/>");
-                for (int y = 0; y < 6; y++)
+                for (int x = 0; x < 8; x++)
                 {
-                    for (int x = 0; x < 6; x++)
-                    {
-                        if (pixels[y * 6 + x] != 0) continue;
-                        svg.AppendLine(string.Format(CultureInfo.InvariantCulture,
-                            "<rect x=\"{0:F6}\" y=\"{1:F6}\" width=\"{2:F6}\" height=\"{2:F6}\" fill=\"black\"/>",
-                            20 + x * 200.0 / 6, 20 + y * 200.0 / 6, 200.0 / 6));
-                    }
+                    if (pixels[y * 8 + x] != 0) continue;
+                    svg.AppendFormat(CultureInfo.InvariantCulture,
+                        "<rect x=\"{0}\" y=\"{1}\" width=\"12.5\" height=\"12.5\"/>",
+                        25 + x * 12.5, 25 + y * 12.5);
                 }
-                svg.AppendLine($"<text x=\"120\" y=\"245\" font-family=\"sans-serif\" font-size=\"5\" text-anchor=\"middle\">DICT_4X4_50 / ID {id} / 200 mm</text>");
-                svg.AppendLine("</svg>");
-                File.WriteAllText(Path.Combine(directory, $"4x4-50-id-{id}.svg"), svg.ToString(), new UTF8Encoding(false));
             }
+            svg.Append("</g></svg>\n");
+            return svg.ToString();
         }
-        Debug.Log("[ArUco Detection] Printable markers: " + directory);
     }
 }
 #endif

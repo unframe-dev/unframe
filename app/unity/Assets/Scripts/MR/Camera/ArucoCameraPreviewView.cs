@@ -98,7 +98,7 @@ public sealed class ArucoCameraPreviewView : IDisposable
         previewAspect = image.AddComponent<AspectRatioFitter>();
         previewAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
         previewAspect.aspectRatio = 4f / 3f;
-        var overlay = new GameObject("ArUco Marker Outlines", typeof(RectTransform));
+        var overlay = new GameObject("AprilTag Marker Outlines", typeof(RectTransform));
         overlay.transform.SetParent(image.transform, false);
         var overlayRect = overlay.GetComponent<RectTransform>();
         overlayRect.anchorMin = Vector2.zero;

@@ -131,7 +131,7 @@ public sealed class ArucoMarkerPoseEstimatorTests
 
     private static float[] Project(Pose pose)
     {
-        const double half = 0.1;
+        const double half = 0.075;
         using (var objects = new MatOfPoint3f(new Point3(-half, half, 0), new Point3(half, half, 0), new Point3(half, -half, 0), new Point3(-half, -half, 0)))
         using (var rotation = new Mat(3, 3, CvType.CV_64FC1))
         using (var rvec = new Mat())

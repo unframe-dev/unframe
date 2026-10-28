@@ -30,9 +30,9 @@ public sealed class ArucoMarkerDetector
     : IDisposable
 #endif
 {
-    public const string DictionaryName = "DICT_4X4_50";
+    public const string DictionaryName = "DICT_APRILTAG_36h11";
 #if UNFRAME_OPENCV_FOR_UNITY
-    private readonly Dictionary dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_4X4_50);
+    private readonly Dictionary dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_APRILTAG_36h11);
     private readonly DetectorParameters parameters = new DetectorParameters();
     private readonly ArucoDetector detector;
     private readonly Mat ids = new Mat();
@@ -62,7 +62,13 @@ public sealed class ArucoMarkerDetector
             for (int i = 0; i < markerIds.Length; i++)
             {
                 corners[i].get(0, 0, quad);
-                Array.Copy(quad, 0, pixels, i * 8, 8);
+                // OpenCV's AprilTag dictionary is rotated 180 degrees from the Audience print convention.
+                for (int corner = 0; corner < 4; corner++)
+                {
+                    int source = (corner + 2) % 4 * 2;
+                    pixels[i * 8 + corner * 2] = quad[source];
+                    pixels[i * 8 + corner * 2 + 1] = quad[source + 1];
+                }
             }
             return new ArucoMarkerDetectionFrame(timestamp, new Vector2Int(grayscale.cols(), grayscale.rows()),
                 markerIds, pixels, watch.Elapsed.TotalMilliseconds);

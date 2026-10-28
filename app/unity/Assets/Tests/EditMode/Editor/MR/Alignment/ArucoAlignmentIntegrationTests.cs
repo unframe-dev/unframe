@@ -22,11 +22,12 @@ public sealed class ArucoAlignmentIntegrationTests
         try
         {
             Invoke(detection, "Awake");
-            using (var dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_4X4_50))
+            using (var dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_APRILTAG_36h11))
             using (var marker = new Mat())
             using (var image = new Mat(960, 1280, CvType.CV_8UC1, new Scalar(255)))
             {
                 Objdetect.generateImageMarker(dictionary, 0, 320, marker, 1);
+                Core.flip(marker, marker, -1);
                 using (var roi = image.submat(280, 600, 440, 760)) marker.copyTo(roi);
                 OpenCVMatUnityUtils.MatToTexture2D(image, texture);
             }
@@ -39,7 +40,7 @@ public sealed class ArucoAlignmentIntegrationTests
             Assert.That(detection.CurrentFrame.CornersPixels[0], Is.EqualTo(440).Within(2));
             Assert.That(detection.CurrentFrame.CornersPixels[1], Is.EqualTo(280).Within(2));
             Assert.That(detection.CurrentObservation.Estimate.IsValid, Is.True, detection.CurrentObservation.Estimate.RejectionReason);
-            Assert.That(detection.CurrentObservation.Estimate.CameraPose.position.z, Is.EqualTo(0.6).Within(0.01));
+            Assert.That(detection.CurrentObservation.Estimate.CameraPose.position.z, Is.EqualTo(0.45).Within(0.01));
             detection.ClearFeed();
             detection.SubmitFrame(texture, 2, geometry);
             detection.DrainReadbackBeforeCameraStops();
@@ -75,7 +76,7 @@ public sealed class ArucoAlignmentIntegrationTests
                 alignment.Observe(new ArucoPoseObservation(frame, estimate, new ArucoCameraGeometry(450, 450, 320, 240, Pose.identity)), i * 0.2);
             }
             Assert.That(alignment.IsConfirmed, Is.True);
-            var origin = GameObject.Find("ArUco ID 0 Origin (20 cm)");
+            var origin = GameObject.Find("AprilTag ID 0 Origin (15 cm)");
             Assert.That(origin, Is.Not.Null);
             Assert.That(Vector3.Distance(origin.transform.position, expected.position), Is.LessThan(0.001));
             int resetEvents = 0;

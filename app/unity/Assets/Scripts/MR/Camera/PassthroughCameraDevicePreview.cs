@@ -273,7 +273,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
     {
         SyncSessionState();
         if (!sessionState.CanStartAlignment) return;
-        alignment.ResetAlignment("Show ID 0 (20 cm) to align again", false);
+        alignment.ResetAlignment("Show ID 0 (15 cm) to align again", false);
         ApplyCameraState(true);
     }
 

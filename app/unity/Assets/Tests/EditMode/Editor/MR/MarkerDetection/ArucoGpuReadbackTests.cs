@@ -20,7 +20,7 @@ public sealed class ArucoGpuReadbackTests
         var texture = new Texture2D(400, 320, TextureFormat.RGBA32, false, true);
         AsyncGPUReadbackRequest request = default;
         bool requested = false;
-        using (var dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_4X4_50))
+        using (var dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_APRILTAG_36h11))
         using (var marker = new Mat())
         using (var source = new Mat(320, 400, CvType.CV_8UC1, new Scalar(255)))
         using (var rgba = new Mat(320, 400, CvType.CV_8UC4))
@@ -30,6 +30,7 @@ public sealed class ArucoGpuReadbackTests
             try
             {
                 Objdetect.generateImageMarker(dictionary, 23, 160, marker, 1);
+                Core.flip(marker, marker, -1);
                 using (var region = source.submat(60, 220, 100, 260)) marker.copyTo(region);
                 OpenCVMatUnityUtils.MatToTexture2D(source, texture);
                 request = AsyncGPUReadback.Request(texture, 0, GraphicsFormat.R8G8B8A8_UNorm);

@@ -1,14 +1,14 @@
-# ArUco Quest 実機テスト準備
+# AprilTag Quest 実機テスト準備
 
 ## 現在の範囲
 
-この手順は、カメラ・検出・位置推定の不具合を診断ログで切り分けるためのものです。[PCA 映像表示テスト](pca-device-preview.md)にカメラ取得と ArUco ID・四隅検出を接続しています。印刷マーカーによる確認は [ArUco 検出手順](aruco-marker-detection.md) を参照してください。ID 0・黒い一辺20cmのマーカーの位置姿勢推定と原点確定を実装しています。端末間同期は未実装です。
+この手順は、カメラ・検出・位置推定の不具合を診断ログで切り分けるためのものです。[PCA 映像表示テスト](pca-device-preview.md)にカメラ取得と AprilTag ID・四隅検出を接続しています。印刷マーカーによる確認は [AprilTag 検出手順](aruco-marker-detection.md) を参照してください。ID 0・黒い一辺15cmのマーカーの位置姿勢推定と原点確定を実装しています。端末間同期は未実装です。
 
 Unity プロジェクトは Unity 6000.3.22f1 です。`Packages/manifest.json` では Meta XR Core SDK / MRUK を 207.0.0 に固定しています。OpenCV for Unity は有料アセットとして各開発環境で導入し、配布物と同梱サンプルは Git 管理から除外します。PCA 映像表示シーンは MRUK を使い、`horizonos.permission.HEADSET_CAMERA` を宣言・要求します。Scene API の `USE_SCENE` 権限は、この映像表示テストには不要です。
 
 ## 診断ログ
 
-`ArucoTrackingDiagnosticSession` を ArUco テストシーンのルートに追加すると、起動時に `ArucoTrackingDiagnostics.CreateForCurrentDevice()` を呼び、`Application.persistentDataPath/ArucoDiagnostics/` にセッションごとの UTF-8 JSON Lines (`.jsonl`) ファイルを作ります。アプリの pause / resume とシーン終了も記録します。検出器は同じコンポーネントの `Diagnostics` プロパティからイベントを記録します。Unity Console にファイルパスも出します。各行にはスキーマ版、セッション ID、連番、UTC 時刻、単調経過時間、Unity / アプリ版、プラットフォーム、端末モデル、OS を記録します。端末固有 ID は記録しません。
+`ArucoTrackingDiagnosticSession` を AprilTag テストシーンのルートに追加すると、起動時に `ArucoTrackingDiagnostics.CreateForCurrentDevice()` を呼び、`Application.persistentDataPath/ArucoDiagnostics/` にセッションごとの UTF-8 JSON Lines (`.jsonl`) ファイルを作ります。アプリの pause / resume とシーン終了も記録します。検出器は同じコンポーネントの `Diagnostics` プロパティからイベントを記録します。Unity Console にファイルパスも出します。各行にはスキーマ版、セッション ID、連番、UTC 時刻、単調経過時間、Unity / アプリ版、プラットフォーム、端末モデル、OS を記録します。端末固有 ID は記録しません。
 
 カメラ連携側から `Record` に以下のイベントを渡します。
 
@@ -23,7 +23,7 @@ Unity プロジェクトは Unity 6000.3.22f1 です。`Packages/manifest.json` 
 
 ## 実機が使える段階での確認順
 
-参考: [Meta Passthrough Camera API](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation/) / [OpenCV ArUco 姿勢推定](https://docs.opencv.org/4.11.0/d5/dae/tutorial_aruco_detection.html)
+参考: [Meta Passthrough Camera API](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation/) / [OpenCV AprilTag 姿勢推定](https://docs.opencv.org/4.11.0/d5/dae/tutorial_aruco_detection.html)
 
 1. Meta XR Core SDK / MRUK のバージョンを固定し、Unity Editor でパッケージの解決と Android ビルドを確認する。
 2. `horizonos.permission.HEADSET_CAMERA` の manifest 宣言と実行時許可要求を追加し、拒否・再許可・設定からの再許可をそれぞれログに残す。Scene API の部屋モデル用権限で代用しない。

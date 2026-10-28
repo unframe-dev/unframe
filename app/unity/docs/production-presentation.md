@@ -91,7 +91,7 @@ Session作成の権限・端末参加・Runtime割当の条件は [サーバーR
 
 Unityで `Unframe > Presentation > Open Quest Presentation` を開きます。
 `Unframe > Presentation > Build Quest Presentation APK` が専用SceneからAPKを作ります。
-Android Build Support、IL2CPP、ARM64、ArUcoを使う場合はOpenCVの準備が必要です。
+Android Build Support、IL2CPP、ARM64、AprilTagを使う場合はOpenCVの準備が必要です。
 回帰テストのfixtureは `Assets/Tests/EditMode/Editor/FixturesData` に置き、Playerには含めません。
 旧ローカル用JSONの実行環境は削除しています。APKビルドはMetaのローカル接続設定を一時除外し、
 成功・失敗の両方で復元します。
@@ -127,7 +127,7 @@ UNITY_EDITOR="/Applications/Unity/Hub/Editor/6000.3.22f1/Unity.app/Contents/MacO
 対応するUnity Editorと有効なライセンスが必要です。端末の認識・カメラ・会場配置は対象外です。
 接続と開始判定の対象単体テストは`test-native-editor.sh realtime-unit`で実行します。
 正式なWebエディターのWebGL previewと回帰テストは維持します。
-ArUco単体診断は `Unframe > Diagnostics` に隔離し、本番入口と分けています。
+AprilTag単体診断は `Unframe > Diagnostics` に隔離し、本番入口と分けています。
 Quest・iPhone実機の受入や会場ネットワークの確認はEditorテストとは別に必要です。
 
 ## 本番Sessionの接続・操作UI

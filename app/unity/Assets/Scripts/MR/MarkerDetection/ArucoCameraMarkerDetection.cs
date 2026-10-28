@@ -57,10 +57,10 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
     {
         get
         {
-            if (error != null) return "ArUco ERROR: " + error;
+            if (error != null) return "AprilTag ERROR: " + error;
             var frame = CurrentFrame;
             string ids = frame == null ? "waiting" : frame.MarkerIds.Length == 0 ? "none" : string.Join(", ", frame.MarkerIds);
-            return $"ArUco {ArucoMarkerDetector.DictionaryName} | IDs: {ids} | {ProcessedFrames} samples"
+            return $"AprilTag {ArucoMarkerDetector.DictionaryName} | IDs: {ids} | {ProcessedFrames} samples"
                 + $" | {Phase} | {Metrics.LastTimings.TotalMilliseconds:F1} ms total | drops {Metrics.TimedOut + Metrics.Invalidated + Metrics.Failed} ({Metrics.LastOutcome})"
                 + (frame == null ? "" : $" | {frame.ProcessingMilliseconds:F1} ms detect / {ReadbackMilliseconds:F1} ms readback");
         }
@@ -237,7 +237,7 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
     {
         error = message;
         result = null;
-        Debug.LogError("[ArUco Detection] " + message, this);
+        Debug.LogError("[AprilTag Detection] " + message, this);
         Record(new ArucoTrackingDiagnosticEvent { eventType = "marker_detection_error", message = message });
     }
 
@@ -280,7 +280,7 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
     public bool IsProcessing => false;
     public ArucoPoseObservation CurrentObservation => null;
     public ArucoMarkerDetectionFrame CurrentFrame => null;
-    public string Summary => "ArUco DISABLED: install OpenCV for Unity and enable UNFRAME_OPENCV_FOR_UNITY.";
+    public string Summary => "AprilTag DISABLED: install OpenCV for Unity and enable UNFRAME_OPENCV_FOR_UNITY.";
 
     public void SubmitFrame(Texture texture, long captureTimestampTicks, ArucoCameraGeometry geometry) { }
     public void ClearFeed() { }
