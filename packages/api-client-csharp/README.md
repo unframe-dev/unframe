@@ -1,6 +1,6 @@
 # C# generated consumers
 
-`Generated/ControlPlane/` は Control Plane の OpenAPI 正本から OpenAPI Generator 7.22.0 が作る HTTP client と model、`Generated/Proto/` は Presentation / Delivery / Realtime v2 の `.proto` 正本から `protoc` 35.1 と Grpc.Tools 2.76.0 が作る message と gRPC service です。`Generated/provenance.sha256` に入力ハッシュと生成器バージョンを記録します。生成ファイルは編集せず、正本を更新して再生成します。
+`Generated/ControlPlane/` は Control Plane の OpenAPI 正本から OpenAPI Generator 7.22.0 が作る HTTP client と model、`Generated/Proto/` は Presentation / Delivery / Realtime v2 の `.proto` 正本から `protoc` 36.2 と Grpc.Tools 2.76.0 が作る message と gRPC service です。`Generated/provenance.sha256` に入力ハッシュと生成器バージョンを記録します。生成ファイルは編集せず、正本を更新して再生成します。OpenAPI Generator は 7.26.0 の数値 enum 生成で C# がコンパイルできないため、flake で 7.22.0 に固定しています。
 
 Nix 開発環境で次を実行します。
 

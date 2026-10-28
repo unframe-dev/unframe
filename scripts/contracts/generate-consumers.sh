@@ -10,8 +10,8 @@ source "${script_dir}/../lib/grpc-tools.sh"
 mode="${1:-generate}"
 case "${mode}" in generate|check) ;; *) echo "usage: generate-consumers.sh [generate|check]" >&2; exit 2 ;; esac
 
-test "$(protoc --version)" = "libprotoc 35.1"
-test "$(protoc-gen-go --version)" = "protoc-gen-go v1.36.11"
+test "$(protoc --version)" = "libprotoc 36.2"
+test "$(protoc-gen-go --version)" = "protoc-gen-go v1.36.12"
 test "$(protoc-gen-go-grpc --version)" = "protoc-gen-go-grpc 1.6.2"
 test "$(openapi-generator-cli version)" = "7.22.0"
 
