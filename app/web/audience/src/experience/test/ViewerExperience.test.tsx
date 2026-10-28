@@ -11,7 +11,7 @@ import {
 import type { AnchorSessionSnapshot } from "../anchor-session";
 import type { createRuntimePlayback } from "../../runtime/playback";
 import type { RuntimeInput } from "../viewing-session";
-import board from "../../../public/poc-config.json";
+import board from "../../fiducials/default-board.json";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import { ViewerExperience, type ViewerExperienceProps } from "../ViewerExperience";
 

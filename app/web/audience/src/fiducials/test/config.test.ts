@@ -1,7 +1,25 @@
-import { describe, expect, it } from "vitest";
-import { parseBoardConfig, selectedTagProfile, configureTagBoard } from "../config";
-import data from "../../../public/poc-config.json";
+import { describe, expect, it, vi } from "vitest";
+import {
+  parseBoardConfig,
+  loadBoardConfig,
+  selectedTagProfile,
+  configureTagBoard,
+} from "../config";
+import data from "../default-board.json";
 describe("fiducial board contract", () => {
+  it("loads the bundled interim board without a deleted public endpoint", async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error("Unexpected network request"));
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      const board = await loadBoardConfig();
+      expect(board).toEqual(parseBoardConfig(data));
+      board.markers[0]!.sizeMeters = 0.24;
+      expect((await loadBoardConfig()).markers[0]!.sizeMeters).toBe(0.15);
+      expect(fetcher).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it("uses one 15 cm marker at the venue origin", () => {
     const config = parseBoardConfig(data);
     expect(config.markers).toHaveLength(1);
