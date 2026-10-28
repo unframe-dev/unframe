@@ -95,7 +95,7 @@ public sealed class QuestOnboardingVisualTests
                     for (int x = Mathf.FloorToInt(lower.x * target.width); x < Mathf.CeilToInt(upper.x * target.width); x++)
                     {
                         Color32 pixel = colors[y * target.width + x];
-                        if (pixel.r < 100 && pixel.g < 100 && pixel.b < 130) headingPixels++;
+                        if (pixel.r > 180 && pixel.g > 180 && pixel.b > 180) headingPixels++;
                     }
                 Assert.That(headingPixels, Is.GreaterThan(300), "The Japanese heading produced no visible glyphs: " + expected[screen]);
                 if (screen == 0) Click(view, "Presenter");

@@ -348,7 +348,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 button.interactable = enabled;
                 Text label = button.GetComponentInChildren<Text>();
-                if (label != null) label.color = enabled ? (name == "Resume" || name == "Next" ? Color.white : QuestUiTheme.Text) : QuestUiTheme.Muted;
+                if (label != null) label.color = enabled ? (name == "Resume" || name == "Next" ? QuestUiTheme.OnPrimary : QuestUiTheme.Text) : QuestUiTheme.Muted;
             }
         }
 
@@ -499,7 +499,7 @@ namespace Unframe.Unity.PresentationRuntime
             text.color = QuestUiTheme.Text;
             text.raycastTarget = false;
             text.text = title;
-            if (name == "Resume" || name == "Next") text.color = Color.white;
+            if (name == "Resume" || name == "Next") text.color = QuestUiTheme.OnPrimary;
         }
 
         private void OnDisable()

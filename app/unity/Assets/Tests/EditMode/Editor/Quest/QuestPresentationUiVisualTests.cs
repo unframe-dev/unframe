@@ -92,7 +92,7 @@ public sealed class QuestPresentationUiVisualTests
             Directory.CreateDirectory(Path.GetDirectoryName(screenshot));
             File.WriteAllBytes(screenshot, pixels.EncodeToPNG());
             Color32[] colors = pixels.GetPixels32();
-            int readablePixels = colors.Count(pixel => pixel.r < 90 && pixel.g < 90 && pixel.b < 110);
+            int readablePixels = colors.Count(pixel => pixel.r > 180 && pixel.g > 180 && pixel.b > 180);
             Assert.That(readablePixels, Is.GreaterThan(4000), "The menu background rendered without readable labels.");
             var headingRect = view.Panel.transform.Find("Heading").GetComponent<RectTransform>();
             var headingCorners = new Vector3[4];
@@ -104,7 +104,7 @@ public sealed class QuestPresentationUiVisualTests
                 for (int x = Mathf.FloorToInt(lower.x * target.width); x < Mathf.CeilToInt(upper.x * target.width); x++)
                 {
                     Color32 pixel = colors[y * target.width + x];
-                    if (pixel.r < 90 && pixel.g < 90 && pixel.b < 110) headingPixels++;
+                    if (pixel.r > 180 && pixel.g > 180 && pixel.b > 180) headingPixels++;
                 }
             Assert.That(headingPixels, Is.GreaterThan(300), "The Japanese heading did not produce visible glyphs.");
 

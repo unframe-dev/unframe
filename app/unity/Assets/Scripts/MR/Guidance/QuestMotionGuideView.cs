@@ -127,7 +127,7 @@ namespace Unframe.Unity.PresentationRuntime
             Shader shader = Resources.Load<Shader>("PresentationMaterials/PresentationUnlit");
             if (shader == null) { enabled = false; return; }
             material = new Material(shader) { name = "Motion guide material" };
-            material.SetColor("_BaseColor", new Color(.25f, .9f, 1, .85f));
+            material.SetColor("_BaseColor", QuestUiTheme.Primary);
             visuals = new GameObject("Presenter motion guide");
             visuals.transform.SetParent(transform, false);
             ghostMesh = CreateGhostMesh();
@@ -155,7 +155,7 @@ namespace Unframe.Unity.PresentationRuntime
             instructionPanel.sizeDelta = new Vector2(900, 300);
             instructionPanel.localScale = Vector3.one * .0008f;
             var backplate = canvasHost.AddComponent<Image>();
-            backplate.color = new Color(.025f, .045f, .075f, .94f);
+            QuestUiTheme.ApplySurface(backplate);
             backplate.raycastTarget = false;
             var textHost = new GameObject("Instruction text", typeof(RectTransform));
             textHost.transform.SetParent(canvasHost.transform, false);
@@ -168,7 +168,7 @@ namespace Unframe.Unity.PresentationRuntime
             label.font = QuestPresentationUiFont.Load();
             label.fontSize = 30;
             label.alignment = TextAnchor.MiddleCenter;
-            label.color = Color.white;
+            label.color = QuestUiTheme.Text;
             label.raycastTarget = false;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
         }
