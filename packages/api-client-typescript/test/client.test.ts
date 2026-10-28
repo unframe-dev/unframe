@@ -273,6 +273,23 @@ describe("createControlPlaneAuthClient", () => {
     });
   });
 
+  it("preserves the authorization error returned by the Control Plane guard", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(
+        Response.json(
+          { error: { code: "unauthorized", message: "Unauthorized" } },
+          { status: 401 },
+        ),
+      );
+    const auth = createControlPlaneAuthClient({ baseUrl: "https://control-plane.example", fetch });
+
+    await expect(auth.verifyDeviceAuthorization("ABCD-EFGH")).resolves.toEqual({
+      data: null,
+      error: { error: "unauthorized", error_description: "Unauthorized" },
+    });
+  });
+
   it.each([
     { name: "null success", status: 200, body: "null" },
     { name: "null error", status: 400, body: "null" },

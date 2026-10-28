@@ -87,10 +87,18 @@ export function createAuthOptions(
     databaseHooks: {
       session: {
         create: {
-          before: async (session: Record<string, unknown>, context: { path?: string } | null) => {
+          before: async (
+            session: Record<string, unknown>,
+            context: {
+              path?: string | undefined;
+              params?: Record<string, string | undefined> | undefined;
+              body?: { provider?: string } | undefined;
+            } | null,
+          ) => {
             const path = context?.path;
             const assurance =
-              path === "/callback/google" || path === "/sign-in/social"
+              (path === "/callback/:id" && context?.params?.id === "google") ||
+              (path === "/sign-in/social" && context?.body?.provider === "google")
                 ? "google"
                 : path === "/device/token"
                   ? "device"
