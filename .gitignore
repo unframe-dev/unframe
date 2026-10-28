@@ -4,6 +4,7 @@ node_modules/
 # env
 .env*
 !.env.example
+!app/web/audience/.env.production
 
 # Cloudflare Wrangler — `.dev.vars` はローカル Worker の秘密値
 .dev.vars*

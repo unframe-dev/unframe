@@ -107,6 +107,33 @@ public sealed class QuestPresentationUiVisualTests
                     if (pixel.r > 180 && pixel.g > 180 && pixel.b > 180) headingPixels++;
                 }
             Assert.That(headingPixels, Is.GreaterThan(300), "The Japanese heading did not produce visible glyphs.");
+            string assistanceDirectory = Path.Combine(Path.GetDirectoryName(screenshot), "assistance");
+            Directory.CreateDirectory(assistanceDirectory);
+            view.FindButton("Details").onClick.Invoke();
+            view.Refresh();
+            Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "menu.png"));
+            view.FindButton("Exit").onClick.Invoke();
+            view.Refresh();
+            Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "exit.png"));
+            view.enabled = false;
+            var guide = host.AddComponent<QuestMotionGuideView>();
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            var show = typeof(QuestMotionGuideView).GetMethod("ShowInstruction", flags);
+            for (int mode = 0; mode < 2; mode++)
+            {
+                bool detailed = mode == 1;
+                var gesture = Unframe.Presentation.GestureKind.SpreadHands;
+                show.Invoke(guide, new object[] { QuestMotionGuideState.Description(gesture),
+                    "操作候補 1 / 2\n" + QuestMotionGuideState.InstructionFor(gesture, detailed) + "\nX：操作・設定・退出", detailed });
+                var instructionPanel = (RectTransform)typeof(QuestMotionGuideView).GetField("instructionPanel", flags).GetValue(guide);
+                instructionPanel.SetPositionAndRotation(new Vector3(.3f, -.14f, 1.5f), Quaternion.identity);
+                foreach (Transform child in host.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = 31;
+                Canvas.ForceUpdateCanvases();
+                foreach (Text text in guide.GetComponentsInChildren<Text>())
+                    Assert.That(text.preferredHeight, Is.LessThanOrEqualTo(text.rectTransform.rect.height + 1), text.name + " is vertically clipped.");
+                Capture(camera, target, pixels, Path.Combine(assistanceDirectory, detailed ? "guide-detailed.png" : "guide.png"));
+            }
+
 
         }
         finally
@@ -122,6 +149,17 @@ public sealed class QuestPresentationUiVisualTests
                 UnityEngine.SceneManagement.SceneManager.SetActiveScene(originalScene);
             if (scene.IsValid() && scene.isLoaded) UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
         }
+    }
+
+    private static void Capture(Camera camera, RenderTexture target, Texture2D pixels, string path)
+    {
+        Canvas.ForceUpdateCanvases();
+        RenderPipeline.SubmitRenderRequest(camera,
+            new UniversalRenderPipeline.SingleCameraRequest { destination = target });
+        RenderTexture.active = target;
+        pixels.ReadPixels(new Rect(0, 0, target.width, target.height), 0, 0);
+        pixels.Apply();
+        File.WriteAllBytes(path, pixels.EncodeToPNG());
     }
 
     [UnityTearDown]

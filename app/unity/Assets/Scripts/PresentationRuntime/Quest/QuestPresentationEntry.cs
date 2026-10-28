@@ -41,8 +41,9 @@ namespace Unframe.Unity.PresentationRuntime
         public bool CalibrationReady => runtime != null && runtime.CalibrationReady;
         public bool IsPresenter => IsRunning && runtime != null && runtime.IsPresenter;
         public bool CanControlPresentation => IsRunning && !commandPending && runtime != null && CanControl;
+        public bool HasLogicalAdvance => !String.IsNullOrWhiteSpace(logicalEventName);
         public bool CanAdvance => IsRunning && !commandPending && runtime != null && runtime.CanSendInput
-            && !String.IsNullOrWhiteSpace(logicalEventName) && (input == null || input.IsCompleted);
+            && HasLogicalAdvance && (input == null || input.IsCompleted);
         public string LastErrorCode { get; private set; }
         public string LastCommandOutcomeCode => ControlReady ? runtime.LastCommandOutcomeCode : null;
         public string PlaybackStatus => ControlReady ? runtime.PlaybackStatus : "Unknown";

@@ -24,6 +24,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly LineRenderer[] arrows = new LineRenderer[2];
         private readonly Transform[] ghosts = new Transform[2];
         private Text label;
+        private Text titleLabel;
         private RectTransform instructionPanel;
         private string framedCue;
         private ulong groupEpoch;
@@ -51,51 +52,49 @@ namespace Unframe.Unity.PresentationRuntime
             bool headTracked = QuestPresentationTracking.TrySample(XRNode.Head, TrackedTarget.Head, out _);
             bool leftTracked = QuestPresentationTracking.TrySample(XRNode.LeftHand, TrackedTarget.LeftHand, out _);
             bool rightTracked = QuestPresentationTracking.TrySample(XRNode.RightHand, TrackedTarget.RightHand, out _);
-            var progression = runtime?.DataStore.Progression;
-            state.Refresh(runtime?.InputSynchronization?.Catalog, progression,
-                runtime != null && runtime.IsPresenter && runtime.CanSendInput,
-                runtime != null && runtime.CalibrationReady, runtime?.DataStore.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running,
-                headTracked && head != null && trackingOrigin != null, leftTracked, rightTracked, ui == null || ui.MenuOpen);
-            if (state.Candidates.Count == 0) { Hide(); return; }
+            if (runtime == null || head == null || trackingOrigin == null || ui == null || !ui.MotionGuideEnabled
+                || !runtime.ControlReady || runtime.PlaybackStatus != "Running" && runtime.PlaybackStatus != "Paused") { Hide(); return; }
+            var progression = runtime.DataStore.Progression;
+            state.Refresh(runtime.InputSynchronization?.Catalog, progression,
+                runtime.IsPresenter,
+                runtime.CalibrationReady, runtime.DataStore.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running,
+                headTracked, leftTracked, rightTracked, ui.MenuOpen, runtime.CanSendInput);
+            if (!state.ShowHint) { Hide(); return; }
             int signature = 17;
             for (int candidate = 0; candidate < state.Candidates.Count; candidate++)
                 signature = unchecked(signature * 31 + (int)state.Candidates[candidate]);
-            if (candidateSignature != signature || groupEpoch != progression.GroupEntryEpoch || stepEpoch != progression.StepEntryEpoch)
+            if (candidateSignature != signature || groupEpoch != (progression?.GroupEntryEpoch ?? 0) || stepEpoch != (progression?.StepEntryEpoch ?? 0))
             {
                 candidateSignature = signature;
-                groupEpoch = progression.GroupEntryEpoch;
-                stepEpoch = progression.StepEntryEpoch;
+                groupEpoch = progression?.GroupEntryEpoch ?? 0;
+                stepEpoch = progression?.StepEntryEpoch ?? 0;
                 candidateStartedAt = Time.realtimeSinceStartupAsDouble;
                 framedCue = null;
             }
-            int index = (int)((Time.realtimeSinceStartupAsDouble - candidateStartedAt) / 6) % state.Candidates.Count;
-            GestureKind selected = state.Candidates[index];
-            bool candidateChanged = framedCue != selected.ToString();
+            int index = state.Candidates.Count == 0 ? 0 : (int)((Time.realtimeSinceStartupAsDouble - candidateStartedAt) / 6) % state.Candidates.Count;
+            GestureKind selected = state.Candidates.Count == 0 ? GestureKind.Unspecified : state.Candidates[index];
+            string cue = state.Candidates.Count == 0 ? state.Title : selected.ToString();
+            bool candidateChanged = framedCue != cue;
             QuestMotionGuideGeometry.GetFrame(head.rotation, out Vector3 currentForward, out Vector3 currentRight);
             if (candidateChanged || QuestMotionGuideGeometry.NeedsReframe(forward, currentForward))
             {
-                framedCue = selected.ToString();
+                framedCue = cue;
                 forward = currentForward;
                 right = currentRight;
-                anchor = head.position + forward * 1.05f - Vector3.up * .3f;
+                anchor = head.position + forward * 1.5f + right * .3f - Vector3.up * .24f;
             }
-            EnsureVisuals();
+            ShowInstruction(state.Candidates.Count == 0 ? state.Title : QuestMotionGuideState.Description(selected),
+                state.Candidates.Count == 0 ? state.Instruction : "操作候補 " + (index + 1) + " / " + state.Candidates.Count + "\n"
+                    + QuestMotionGuideState.InstructionFor(selected, ui.MotionGuideDetails) + "\nX：操作・設定・退出", ui.MotionGuideDetails);
             if (visuals == null) return;
-            visuals.SetActive(true);
-            instructionPanel.SetPositionAndRotation(anchor + Vector3.up * .3f, Quaternion.LookRotation(forward, Vector3.up));
+            instructionPanel.SetPositionAndRotation(anchor + Vector3.up * .1f, Quaternion.LookRotation(forward, Vector3.up));
+            if (state.Candidates.Count == 0)
+            {
+                for (int i = 0; i < arrows.Length; i++) { arrows[i].gameObject.SetActive(false); ghosts[i].gameObject.SetActive(false); }
+                return;
+            }
             QuestMotionGuideGeometry.Diagram((int)selected, ((int)selected >= 7 ? .25 : .18), out float startHalf, out float endHalf, out float scale);
             bool both = (int)selected >= 7;
-            if (candidateChanged)
-            {
-                var culture = System.Globalization.CultureInfo.InvariantCulture;
-                string distance = (((int)selected >= 7 ? .25 : .18) * 100).ToString("0.#", culture);
-                string seconds = "0.8";
-                label.text = "操作候補 " + (index + 1) + "/" + state.Candidates.Count + "　" + Description((int)selected)
-                    + "\n前を見る → " + (both ? "両手" : "左右いずれかの手") + "を0.15秒止める → 動かす"
-                    + "\n" + (both ? "両手の間隔を" : "手を") + distance + "cm以上 / " + seconds + "秒以内"
-                    + (both ? "\n開始間隔" + (startHalf * 200).ToString("0.#", culture) + "cm → 終了間隔" + (endHalf * 200).ToString("0.#", culture) + "cm" : "")
-                    + "\n方向の例・縮尺図（実寸ではありません）";
-            }
             bool firstLeft = leftTracked;
             float phase = Mathf.Repeat((float)Time.unscaledTimeAsDouble * .65f, 1);
             for (int i = 0; i < 2; i++)
@@ -105,7 +104,7 @@ namespace Unframe.Unity.PresentationRuntime
                 ghosts[i].gameObject.SetActive(shown);
                 if (!shown) continue;
                 bool left = both ? i == 0 : firstLeft;
-                Vector3 diagramOrigin = anchor - Vector3.up * .16f;
+                Vector3 diagramOrigin = anchor - Vector3.up * .34f;
                 Vector3 start = diagramOrigin + (both ? (left ? -right : right) * startHalf * scale : Vector3.zero);
                 Vector3 direction = QuestMotionGuideGeometry.Direction((int)selected, forward, right, left);
                 Vector3 end = both ? diagramOrigin + (left ? -right : right) * endHalf * scale : start + direction * endHalf * scale;
@@ -119,6 +118,17 @@ namespace Unframe.Unity.PresentationRuntime
                 arrows[i].SetPositions(points);
                 ghosts[i].position = Vector3.Lerp(start, end, phase);
             }
+        }
+
+        private void ShowInstruction(string title, string instruction, bool detailed)
+        {
+            EnsureVisuals();
+            if (visuals == null) return;
+            visuals.SetActive(true);
+            instructionPanel.sizeDelta = new Vector2(900, detailed ? 360 : 250);
+            titleLabel.rectTransform.anchoredPosition = new Vector2(0, instructionPanel.sizeDelta.y * .5f - 47);
+            titleLabel.text = title;
+            label.text = instruction;
         }
 
         private void EnsureVisuals()
@@ -152,25 +162,37 @@ namespace Unframe.Unity.PresentationRuntime
             canvasHost.transform.SetParent(visuals.transform, false);
             canvasHost.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
             instructionPanel = canvasHost.GetComponent<RectTransform>();
-            instructionPanel.sizeDelta = new Vector2(900, 300);
+            instructionPanel.sizeDelta = new Vector2(900, 250);
             instructionPanel.localScale = Vector3.one * .0008f;
             var backplate = canvasHost.AddComponent<Image>();
             QuestUiTheme.ApplySurface(backplate);
             backplate.raycastTarget = false;
+            var titleHost = new GameObject("Instruction title", typeof(RectTransform), typeof(Text));
+            titleHost.transform.SetParent(canvasHost.transform, false);
+            titleLabel = titleHost.GetComponent<Text>();
+            titleLabel.rectTransform.sizeDelta = new Vector2(850, 65);
+            titleLabel.rectTransform.anchoredPosition = new Vector2(0, 78);
+            titleLabel.font = QuestPresentationUiFont.Load();
+            titleLabel.fontSize = 34;
+            titleLabel.alignment = TextAnchor.MiddleCenter;
+            titleLabel.color = QuestUiTheme.Primary;
+            titleLabel.raycastTarget = false;
+            titleLabel.supportRichText = false;
             var textHost = new GameObject("Instruction text", typeof(RectTransform));
             textHost.transform.SetParent(canvasHost.transform, false);
             var textRect = textHost.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(20, 10);
-            textRect.offsetMax = new Vector2(-20, -10);
+            textRect.offsetMin = new Vector2(24, 14);
+            textRect.offsetMax = new Vector2(-24, -78);
             label = textHost.AddComponent<Text>();
             label.font = QuestPresentationUiFont.Load();
-            label.fontSize = 30;
+            label.fontSize = 27;
             label.alignment = TextAnchor.MiddleCenter;
             label.color = QuestUiTheme.Text;
             label.raycastTarget = false;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.supportRichText = false;
         }
 
         private static Mesh CreateGhostMesh()
@@ -196,22 +218,6 @@ namespace Unframe.Unity.PresentationRuntime
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             return mesh;
-        }
-
-        private static string Description(int preset)
-        {
-            switch (preset)
-            {
-                case 1: return "左へ動かす";
-                case 2: return "右へ動かす";
-                case 3: return "下へ動かす";
-                case 4: return "上へ動かす";
-                case 5: return "前へ押す";
-                case 6: return "手前へ引く";
-                case 7: return "両手を広げる";
-                case 8: return "両手を寄せる";
-                default: return String.Empty;
-            }
         }
 
         private void Hide() { if (visuals != null) visuals.SetActive(false); framedCue = null; candidateSignature = 0; }
