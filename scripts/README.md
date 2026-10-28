@@ -112,8 +112,6 @@ Fixed Browser を準備後、`nix run .#realtime-e2e` を実行します。`exam
 
 `nix run .#realtime-e2e -- --unity --race` は実 Unity Editor の製品 SDK・Runtime・描画処理を Presenter として実行し、製品 Audience と同期・復旧を検証します。Editor とライセンスは `unity-editor` と同じ準備が必要です。実機、時計補償、会場設定配布は対象外です。
 
-`nix run .#realtime-e2e -- --race` は Runtime binary と Go E2E の両方で race detector を有効にします。GitHub Actions はこの mode を実行します。
+`nix run .#realtime-e2e -- --race` は Runtime binary と Go E2E の両方で race detector を有効にします。
 
-空きポートと run ごとの証明書・DB を使い、終了・失敗・中断時に子プロセスを停止します。Chromium のローカル証明書例外はその run の server key の SPKI に限定し、Go／Node は private CA で検証します。ログ・資格・証明書は `.unframe/realtime-e2e/runs/` の private directory に残ります。共有・コミットしないでください。E2E 用 Audience 開発サーバーからもこの directory の配信を拒否し、HTTP 403 を確認します。通常の `nix run .#realtime` はこの実サービス E2E を起動せず、GitHub Actions の `Realtime E2E` job が別途実行します。
-
-Unity を実行する CI には、Unity 6000.3.22f1 とライセンス、Nix を持つ同一リポジトリの self-hosted runner が必要です。`UNITY_E2E_RUNNER` に専用ラベル、`UNITY_E2E_BRANCH` に許可する PR の head branch、`UNITY_EDITOR_PATH` に Editor の絶対パスを repository variables として設定します。`unity-live` job は同一リポジトリ・指定ブランチの PR でだけ起動します。設定がない場合は skip されるため、通常の hosted E2E 成功だけで実 Unity の検証完了とは扱いません。
+空きポートと run ごとの証明書・DB を使い、終了・失敗・中断時に子プロセスを停止します。Chromium のローカル証明書例外はその run の server key の SPKI に限定し、Go／Node は private CA で検証します。ログ・資格・証明書は `.unframe/realtime-e2e/runs/` の private directory に残ります。共有・コミットしないでください。E2E 用 Audience 開発サーバーからもこの directory の配信を拒否し、HTTP 403 を確認します。通常の `nix run .#realtime` はこの実サービス E2E を起動しません。Realtime E2E はローカルで手動実行します。

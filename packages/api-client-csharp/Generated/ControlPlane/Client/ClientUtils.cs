@@ -158,6 +158,8 @@ namespace Unframe.ControlPlane.Client
                 return CallbacksCompletionsPostRequestParticipantsInner.RoleEnumToJsonValue(callbacksCompletionsPostRequestParticipantsInnerRoleEnum);
             if (obj is InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnum internalRuntimeAssetsGet200ResponseAssignmentRuntimeKindEnum)
                 return InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnumToJsonValue(internalRuntimeAssetsGet200ResponseAssignmentRuntimeKindEnum);
+            if (obj is InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeKindEnum internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentRuntimeKindEnum)
+                return InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeKindEnumToJsonValue(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentRuntimeKindEnum);
             if (obj is InternalRuntimeProjectionGet200Response.RoleEnum internalRuntimeProjectionGet200ResponseRoleEnum)
                 return InternalRuntimeProjectionGet200Response.RoleEnumToJsonValue(internalRuntimeProjectionGet200ResponseRoleEnum);
             if (obj is PresentationsGet200ResponsePresentationsInnerDefinition.SchemaVersionEnum presentationsGet200ResponsePresentationsInnerDefinitionSchemaVersionEnum)
@@ -226,6 +228,14 @@ namespace Unframe.ControlPlane.Client
                 return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.ProjectionEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsProjectionEnum).ToString();
             if (obj is SessionsIdBootstrapPost200Response.RuntimeKindEnum sessionsIdBootstrapPost200ResponseRuntimeKindEnum)
                 return SessionsIdBootstrapPost200Response.RuntimeKindEnumToJsonValue(sessionsIdBootstrapPost200ResponseRuntimeKindEnum);
+            if (obj is SessionsIdRuntimePreparationGet200ResponseAnyOf.StateEnum sessionsIdRuntimePreparationGet200ResponseAnyOfStateEnum)
+                return SessionsIdRuntimePreparationGet200ResponseAnyOf.StateEnumToJsonValue(sessionsIdRuntimePreparationGet200ResponseAnyOfStateEnum);
+            if (obj is SessionsIdRuntimePreparationGet200ResponseAnyOf1.StateEnum sessionsIdRuntimePreparationGet200ResponseAnyOf1StateEnum)
+                return SessionsIdRuntimePreparationGet200ResponseAnyOf1.StateEnumToJsonValue(sessionsIdRuntimePreparationGet200ResponseAnyOf1StateEnum);
+            if (obj is SessionsIdRuntimePreparationGet200ResponseAnyOf2.StateEnum sessionsIdRuntimePreparationGet200ResponseAnyOf2StateEnum)
+                return SessionsIdRuntimePreparationGet200ResponseAnyOf2.StateEnumToJsonValue(sessionsIdRuntimePreparationGet200ResponseAnyOf2StateEnum);
+            if (obj is SessionsJoinPost410ResponseError.CodeEnum sessionsJoinPost410ResponseErrorCodeEnum)
+                return SessionsJoinPost410ResponseError.CodeEnumToJsonValue(sessionsJoinPost410ResponseErrorCodeEnum);
             if (obj is SessionsPost201ResponseSession.StateEnum sessionsPost201ResponseSessionStateEnum)
                 return SessionsPost201ResponseSession.StateEnumToJsonValue(sessionsPost201ResponseSessionStateEnum);
             if (obj is SessionsPost201ResponseSession.MaxParticipantsEnum sessionsPost201ResponseSessionMaxParticipantsEnum)
