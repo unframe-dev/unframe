@@ -103,6 +103,18 @@ func (s *V2Session) ConfigureDurability(writer V2CheckpointWriter, metadata *rea
 }
 
 func (s *V2Session) RestoreCheckpoint(envelope *realtimev2.DurableCheckpointEnvelope) error {
+	return s.restoreCheckpoint(envelope, nil)
+}
+
+// RestoreCheckpointFromAssignment restores a checkpoint authorized by the Control Plane.
+func (s *V2Session) RestoreCheckpointFromAssignment(envelope, source *realtimev2.DurableCheckpointEnvelope) error {
+	if source == nil {
+		return ErrV2RuntimeDefinition
+	}
+	return s.restoreCheckpoint(envelope, source)
+}
+
+func (s *V2Session) restoreCheckpoint(envelope, source *realtimev2.DurableCheckpointEnvelope) error {
 	s.operationMu.Lock()
 	defer s.operationMu.Unlock()
 	s.mu.Lock()
@@ -110,7 +122,13 @@ func (s *V2Session) RestoreCheckpoint(envelope *realtimev2.DurableCheckpointEnve
 	if s.checkpointWriter == nil || envelope == nil || len(s.events) != 0 || s.snapshot.ReliableSequence != 0 {
 		return ErrV2RuntimeDefinition
 	}
-	restored, err := protocolv2.DecodeCheckpoint(envelope, s.checkpointMetadata, s.checkpointCatalog)
+	var restored *realtimev2.CanonicalRuntimeSnapshot
+	var err error
+	if source == nil {
+		restored, err = protocolv2.DecodeCheckpoint(envelope, s.checkpointMetadata, s.checkpointCatalog)
+	} else {
+		restored, err = protocolv2.DecodeCheckpointFromAssignment(envelope, s.checkpointMetadata, source, s.checkpointCatalog)
+	}
 	if err != nil {
 		return err
 	}
@@ -130,7 +148,8 @@ func (s *V2Session) RestoreCheckpoint(envelope *realtimev2.DurableCheckpointEnve
 	if err := s.restoreV2Recovery(recovery); err != nil {
 		return err
 	}
-	s.committedRecovery = recovery
+	visible := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
+	previousSequence := s.checkpointMetadata.CheckpointSequence
 	s.snapshot = restored
 	s.lastCheckpointRuntimeTime = restored.Clock.RuntimeTimeMs
 	s.lastTick = time.Now()
@@ -140,9 +159,15 @@ func (s *V2Session) RestoreCheckpoint(envelope *realtimev2.DurableCheckpointEnve
 		s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PROCESS_RECOVERED}}
 	}
 	if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED, true); err != nil {
+		s.rollbackV2Fault(visible, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
+		s.checkpointMetadata.CheckpointSequence = previousSequence
 		return err
 	}
-	return s.commitV2Mutation(context.Background(), previous, nil)
+	if err := s.commitV2MutationVisible(context.Background(), previous, nil, visible); err != nil {
+		s.checkpointMetadata.CheckpointSequence = previousSequence
+		return err
+	}
+	return nil
 }
 
 func NewV2Session(raw json.RawMessage) (*V2Session, error) {
@@ -465,20 +490,26 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 }
 
 func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
+	return s.commitV2MutationVisible(ctx, previous, events, previous, previousTracking...)
+}
+
+// commitV2MutationVisible keeps recovery candidates private while preserving the
+// recovered cut as the basis for pause and synchronization semantics.
+func (s *V2Session) commitV2MutationVisible(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, visible *realtimev2.CanonicalRuntimeSnapshot, previousTracking ...v2TrackingEvaluator) error {
 	s.pruneV3FrozenAnchors()
 	var prepareErr error
 	events, prepareErr = s.prepareV3Pause(previous, events)
 	if prepareErr != nil {
-		s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
+		s.rollbackV2Fault(visible, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
 		return prepareErr
 	}
 	if err := s.ensureV3CutSynchronization(previous); err != nil {
-		s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
+		s.rollbackV2Fault(visible, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
 		return err
 	}
 	recovery := s.v2Recovery()
 	if protocolv2.KnownSize(s.snapshot) > protocolv2.MaximumCanonicalSnapshotBytes || protocolv2.KnownSize(recovery) > protocolv2.MaximumRecoveryMetadataBytes {
-		s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
+		s.rollbackV2Fault(visible, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
 		return ErrV2RuntimeDefinition
 	}
 	if s.checkpointWriter != nil {
@@ -489,7 +520,7 @@ func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.C
 		metadata.RecoveryPayload, _ = proto.MarshalOptions{Deterministic: true}.Marshal(recovery)
 		catalog := proto.Clone(s.checkpointCatalog).(*presentationv2.ProjectedRuntimeCatalog)
 		writer := s.checkpointWriter
-		s.snapshot = previous
+		s.snapshot = visible
 		if s.committedRecovery != nil {
 			_ = s.restoreV2Recovery(s.committedRecovery)
 		}
@@ -504,11 +535,11 @@ func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.C
 		}
 		s.mu.Lock()
 		if encodeErr != nil {
-			s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
+			s.rollbackV2Fault(visible, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
 			return encodeErr
 		}
 		if writeErr != nil {
-			s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED)
+			s.rollbackV2Fault(visible, realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED)
 			return fmt.Errorf("%w: %v", ErrV2PersistenceUnavailable, writeErr)
 		}
 		s.snapshot = candidate

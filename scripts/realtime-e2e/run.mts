@@ -264,6 +264,7 @@ ${audienceOrigin} {
       },
     },
   );
+  await launch("pnpm", ["--filter", "@unframe/audience", "run", "predev"], "audience-prepare");
   await launch(
     "pnpm",
     [

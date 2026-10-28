@@ -15331,6 +15331,38 @@
                       "additionalProperties": {
                         "nullable": true
                       }
+                    },
+                    "checkpointSource": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "runtimeId": {
+                          "type": "string"
+                        },
+                        "runtimeKind": {
+                          "type": "string",
+                          "enum": [
+                            "Cloud",
+                            "VenueEdge"
+                          ]
+                        },
+                        "assignmentEpoch": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "checkpointSequence": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        }
+                      },
+                      "required": [
+                        "runtimeId",
+                        "runtimeKind",
+                        "assignmentEpoch",
+                        "checkpointSequence"
+                      ]
                     }
                   },
                   "required": [
@@ -15338,7 +15370,8 @@
                     "publication",
                     "definition",
                     "renderBundle",
-                    "checkpoint"
+                    "checkpoint",
+                    "checkpointSource"
                   ]
                 }
               }

@@ -71,7 +71,7 @@ export class RuntimeHostRepository {
       .orderBy(desc(runtimeAssignments.issuedAt))
       .limit(1)
       .toSQL();
-    const [registered, , , active] = await this.db.batch([
+    const [registered, , , , active] = await this.db.batch([
       this.db
         .prepare(
           "INSERT INTO runtime_hosts (runtime_id, endpoint, accepting, last_seen_at, serving_session_id, serving_assignment_epoch) SELECT ?, ?, ?, ?, NULL, NULL WHERE NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE runtime_id = ? AND released_at IS NULL AND lease_expires_at > ? AND (runtime_kind != 'Cloud' OR endpoint != ?)) ON CONFLICT(runtime_id) DO UPDATE SET endpoint = excluded.endpoint, accepting = excluded.accepting, last_seen_at = excluded.last_seen_at, serving_session_id = NULL, serving_assignment_epoch = NULL RETURNING runtime_id",
@@ -97,6 +97,33 @@ export class RuntimeHostRepository {
           timestamp,
           runtimeId,
           input.endpoint,
+        ),
+      this.db
+        .prepare(
+          `INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at, released_at)
+           SELECT source.session_id, source.runtime_id, 'Cloud', source.endpoint, NULL, NULL, source.epoch + 1, source.revision, ?, ?, NULL
+           FROM runtime_assignments AS source
+           JOIN presentation_sessions AS session ON session.id = source.session_id
+           JOIN runtime_hosts AS host ON host.runtime_id = source.runtime_id
+           WHERE source.runtime_id = ? AND source.runtime_kind = 'Cloud' AND source.endpoint = ?
+             AND source.released_at IS NULL AND source.lease_expires_at <= ?
+             AND source.issued_at = (SELECT MAX(issued_at) FROM runtime_assignments WHERE runtime_id = source.runtime_id)
+             AND (SELECT COUNT(*) FROM runtime_assignments WHERE runtime_id = source.runtime_id AND issued_at = source.issued_at) = 1
+             AND source.epoch = (SELECT MAX(epoch) FROM runtime_assignments WHERE session_id = source.session_id)
+             AND session.state != 'Ended' AND session.publication_epoch IS NOT NULL
+             AND host.endpoint = source.endpoint AND host.accepting = 1 AND ? = 1
+             AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE runtime_id = source.runtime_id AND released_at IS NULL AND lease_expires_at > ?)
+             AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE session_id = source.session_id AND released_at IS NULL AND lease_expires_at > ?)`,
+        )
+        .bind(
+          timestamp,
+          leaseUntil(now),
+          runtimeId,
+          input.endpoint,
+          timestamp,
+          input.accepting ? 1 : 0,
+          timestamp,
+          timestamp,
         ),
       this.db
         .prepare(

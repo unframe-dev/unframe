@@ -822,7 +822,7 @@ Venue Edge 配置では同じ JWT を gRPC と local HTTPS で共用するが、
 
 Internet は session の正式な必須要件とする。障害時挙動は配置先で異なる。
 
-Cloud Runtime 配置では Quest と Runtime の経路自体が失われるため、client は同じ endpoint へ再接続し、Runtime は保持済み Snapshot / replay から復帰を試みる。Fly.io Machine 再配置をまたぐ Snapshot の durable 保存先と復元単位は未決定であり、復元不能時は session failure とする。
+Cloud Runtime 配置では Quest と Runtime の経路自体が失われるため、client は同じ endpoint へ再接続し、Runtime は保持済み Snapshot / replay から復帰を試みる。lease が失効し、再割り当ての条件を満たす場合は新しい assignment を発行する。保存済み checkpoint があれば、Control Plane の D1 から一時停止状態へ復元する。保存元の検証に失敗した場合は起動を拒否する。
 
 Venue Edge 配置では短時間の WAN 回線揺らぎで即座に発表を停止しないため、次の grace behavior を持てるようにする。
 
@@ -853,14 +853,14 @@ Internet 障害中の継続は best-effort であり、offline 対応を正式�
 ### 13.4 Runtime process 障害
 
 - 共通CanonicalRuntimeSnapshot、用途別DurableCheckpointEnvelope、環境固有checkpoint storeを分離する。
-- Cloud Runtime は Fly.io の再起動・再配置を使用し、Venue Edge は local process supervisor で自動再起動する。
-- Cloud の durable checkpoint store と書き込み頻度、Venue Edge の local checkpoint形式・保存先・破損回復は別途決定する。
+- Cloud Runtime の子プロセスは Runtime Host が再起動する。macOS の配備では launchd が Host を常駐させる。Venue Edge の OS 常駐方式は配置環境で定める。
+- durable checkpoint は Control Plane の D1 に保存する。Venue Edge 専用の local checkpoint store は未実装である。
 - 再起動後はassignment epoch、PublicationFence、presentation / bundle hash、schema versionを検証してCanonicalRuntimeSnapshotを復元する。checkpoint が `Running` でも自動進行せず、安全側の `Paused / processRecovered` として復元してpresenterのRuntime Resumeを待つ。
-- checkpointの`reliableSequence = S`以降を埋めるcontiguousなReliable Event log、または後続eventをすべて含む新しいcheckpointが必要である。復元不能なgapがある場合は古いcheckpointへ黙ってrollbackせず、Pausedのままsession failureを報告する。
+- Reliable Event は対応する checkpoint の保存成功後に公開する。復元するのは最後に保存された確定状態であり、未保存の変更は復元対象にしない。独立した durable Reliable Event log は実装していない。
 - connection registry、presence、raw Tracking Frame と認識器内部状態は復元しない。採用設計の凍結 Anchor と Step 開始状態履歴は checkpoint から復元し、Quest の再認証・世代同期後に認識を再開する。
-- v2では同じassignment epoch内のprocess recoveryだけを扱い、別Runtimeまたは新しいassignment epochへのlive migration入力としてcheckpointを流用しない。
+- lease 失効後の同一 Session 復旧では、Control Plane が保存元 assignment と固定 publication を検証した `checkpointSource` を返す。Runtime は保存元 fence で checkpoint を検証し、Run ID と全参照を新しい assignment epoch へ付け替えて再検証する。新しい fence で復元結果を保存してから接続を受け付ける。発表中の live migration は扱わない。
 - Quest は exponential backoff と jitter で同じ endpoint へ再接続する。
-- 復旧不能時は Cloud Control Plane へ session failure を報告する。
+- 復元に失敗した Runtime は起動を拒否し、Host は ready を報告しない。Control Plane への session failure の永続的な報告は未実装である。
 
 現行 process は `DurableCheckpointEnvelope` の検証・復元、logical clock、checkpoint / completion callback と bounded replay を接続している。Cloud / Edge の配置先をまたぐ durable recovery と実機再接続は未検証である。
 

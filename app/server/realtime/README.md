@@ -1,6 +1,6 @@
 # Unframe Realtime Runtime
 
-Go 1.25.7 と gRPC を使う、Control Plane から独立した Cloud / Venue Edge 共通 Realtime Runtime です。Control Plane の JWKS で session-bound Runtime JWT を検証し、assignment の session、Runtime ID / kind、epoch、Presentation revision、lease で接続と command を fencing します。JWKS cache は5分で失効し、refresh 失敗時は stale key を使用しません。Control / State service は publication-pinned Definition と participant projection を使い、Runtime JWT と handshake は v3 のみ受理します。旧入力・checkpoint の移行経路は設けません。
+Go 1.25.7 と gRPC を使う、Control Plane から独立した Cloud / Venue Edge 共通 Realtime Runtime です。Control Plane の JWKS で session-bound Runtime JWT を検証し、assignment の session、Runtime ID / kind、epoch、Presentation revision、lease で接続と command を fencing します。JWKS cache は5分で失効し、refresh 失敗時は stale key を使用しません。Control / State service は publication-pinned Definition と participant projection を使い、Runtime JWT と handshake は v3 のみ受理します。旧 wire / schema version の入力・checkpoint の移行経路は設けません。
 
 Realtime Backend / Venue Edge の目標設計は [ARCHITECTURE.md](./ARCHITECTURE.md)、Control Plane との authority handoff は [`../ARCHITECTURE.md`](../ARCHITECTURE.md) を参照してください。
 
@@ -36,7 +36,7 @@ repository root から `nix run .#runtime-host` で supervisor と Runtime を b
 
 Host は5秒ごとに `POST /internal/runtime/hosts/{runtimeId}/heartbeat` を送信し、Control Plane が割り当てた Cloud Session の Runtime を起動します。Session・epoch・revision・lease は応答から設定するため、運用者は手で指定しません。gRPC health が SERVING の場合だけ、次の heartbeat で ready を報告します。有効なリースは heartbeat で更新され、Host の異常終了から60秒を過ぎると新規割り当ての対象外になります。
 
-子の異常終了、割り当て変更、リース期限を検出すると子を停止・再構成します。checkpoint からの復旧は pause 状態です。終了した Session の子は次の heartbeat で停止します。Ctrl-C では受付を解除し、子を最大10秒で停止します。割り当てはリース期限まで保持されるので、同じ ID・endpoint で Host を再起動できます。VM 作成や TLS ingress の構築は行いません。
+子の異常終了、割り当て変更、リース期限を検出すると子を停止・再構成します。checkpoint からの復旧は pause 状態です。lease 失効後は、同じ Host / endpoint の直前の未終了 Session を新しい assignment epoch へ自動で再割り当てします。終了・明示解放済み、別 Host へ移動済み、保存元が曖昧な場合は自動復元しません。保存済み checkpoint があれば、その出所を検証して新 epoch で保存し直してから ready を報告します。checkpoint がなければ初期状態で起動します。終了した Session の子は次の heartbeat で停止します。Ctrl-C では受付を解除し、子を最大10秒で停止します。割り当てはリース期限まで保持されるので、同じ ID・endpoint で Host を再起動できます。VM 作成や TLS ingress の構築は行いません。
 
 `go run ./cmd/runtime-host` を直接使う場合は、実 Runtime binary の絶対パスを `REALTIME_SERVER_EXECUTABLE` に指定してください。通常の Nix 入口はこの値を設定します。
 
@@ -50,7 +50,7 @@ Quest / Audience ── gRPC / WSS ── realtime.un-fra.me (Caddy) ── HTTP
 Runtime Host / Runtime ── HTTPS ── Control Plane (Workers): heartbeat・lease・checkpoint
 ```
 
-この repository は [Caddy 設定例](ops/Caddyfile.example)、[Host 環境変数例](ops/runtime-host.env.example) と起動手順を管理します。適用する Caddy 設定の正本、DNS、自宅ホストへの Caddy 導入・常駐・firewall、証明書の永続保存は infra / ホスト設定 repository で管理します。秘密値と証明書の実データは Git へ保存しません。
+この repository は [Caddy 設定例](ops/Caddyfile.example)、[Host 環境変数例](ops/runtime-host.env.example)、起動手順と [macOS の Runtime Host 配備](ops/launchd.md) を管理します。適用する Caddy 設定の正本、DNS、自宅ホストへの Caddy 導入・常駐・firewall、証明書の永続保存は infra / ホスト設定 repository で管理します。秘密値と証明書の実データは Git へ保存しません。
 
 #### 公開前の準備
 
@@ -101,7 +101,7 @@ Host は登録後に割り当てを待ち、Session の準備要求を受けて 
 2. Session の bootstrap の `endpoint` が `https://realtime.un-fra.me` であることを確認し、外部回線の Quest で gRPC 接続、Audience でルーム参加から Control / State の WebSocket 接続・素材準備まで確認します。`ready` は Host 内の health 確認なので、公開経路の疎通確認は別に必要です。
 3. 発表を開始して進行・一時停止・再開が両端末へ反映されることを確認します。素材は Delivery に記載された URL から取得し、Caddy 設定例は素材配信を追加しません。
 
-手動起動した Host はそのターミナルの Ctrl-C で停止します。Caddy を手動起動した場合は別ターミナルの Ctrl-C で停止します。常駐・再起動・設定反映の運用は infra 側で管理します。
+手動起動した Host はそのターミナルの Ctrl-C で停止します。Caddy を手動起動した場合は別ターミナルの Ctrl-C で停止します。Mac の Runtime Host は [launchd 配備手順](ops/launchd.md) で常駐できます。Caddy の常駐・設定反映は infra 側で管理します。
 
 ## 構成
 
@@ -151,3 +151,5 @@ docker run --rm -p 9090:9090 unframe-realtime
 ```
 
 Venue Edge の素材 cache、TLS listener、環境変数、証明書更新と会場試験は [会場検証手順](../../../docs/validation/venue-edge-asset-delivery.md) を参照してください。実機結果は未取得です。
+
+自宅 Mac をポート開放なしで一時公開する場合は [Tailscale Funnel の起動手順](ops/funnel.md) を参照してください。

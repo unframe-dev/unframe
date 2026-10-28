@@ -20,6 +20,7 @@ import (
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
 	transportgrpc "github.com/unframe-dev/unframe/app/server/realtime/internal/transport/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type v2CheckpointCallback struct {
@@ -180,7 +181,24 @@ func main() {
 			slog.Error("parse durable checkpoint", "error", err)
 			os.Exit(1)
 		}
-		if err := v2Runtime.RestoreCheckpoint(envelope); err != nil {
+		source := proto.Clone(metadata).(*realtimev2.DurableCheckpointEnvelope)
+		if bootstrap.CheckpointSource == nil {
+			slog.Error("missing durable checkpoint source")
+			os.Exit(1)
+		}
+		source.RuntimeId = bootstrap.CheckpointSource.RuntimeID
+		source.AssignmentEpoch = bootstrap.CheckpointSource.AssignmentEpoch
+		source.CheckpointSequence = bootstrap.CheckpointSource.CheckpointSequence
+		switch bootstrap.CheckpointSource.RuntimeKind {
+		case assignment.RuntimeKindCloud:
+			source.RuntimeKind = realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD
+		case assignment.RuntimeKindVenueEdge:
+			source.RuntimeKind = realtimev2.RuntimeKind_RUNTIME_KIND_VENUE_EDGE
+		default:
+			slog.Error("invalid checkpoint source runtime kind")
+			os.Exit(1)
+		}
+		if err := v2Runtime.RestoreCheckpointFromAssignment(envelope, source); err != nil {
 			slog.Error("restore durable checkpoint", "error", err)
 			os.Exit(1)
 		}

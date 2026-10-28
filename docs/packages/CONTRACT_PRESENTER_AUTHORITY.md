@@ -133,4 +133,4 @@ Reliable log / Replay / catch-up、State buffer、microstep、tracking rate / fr
 
 契約テストは新旧 major、Gesture / Zone と通常入力の文脈、command ID の epoch 拘束、同期 ACK の構造、履歴・凍結表示の presence と投影隔離、serialized byte 境界、生成 drift と breaking 負例を検証する。
 
-Go / Unity / Authoring の移行では、保存済み Outcome の先返し、同期の中断・重複 ACK・READY 消失、同一 epoch process recovery、容量 preflight の rollback、到達履歴の不正参照・Run rebase・旧完了拒否、pause / fresh Pose の State 順序、非対応 profile 拒否を統合テストする。これらの動的処理と Quest 認識品質は、schema / codec テストの成功だけで実装済みと扱わない。
+Go / Unity / Authoring の移行では、保存済み Outcome の先返し、同期の中断・重複 ACK・READY 消失、同一 epoch process recovery と lease 失効後の新 assignment epoch での復元、容量 preflight の rollback、到達履歴の不正参照・Run rebase・旧完了拒否、pause / fresh Pose の State 順序、非対応 profile 拒否を統合テストする。これらの動的処理と Quest 認識品質は、schema / codec テストの成功だけで実装済みと扱わない。

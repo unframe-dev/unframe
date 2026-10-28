@@ -954,6 +954,14 @@ export const internalRuntimeBootstrapRoute = createRoute({
                 "RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash",
               ),
             checkpoint: z.record(z.string(), z.unknown()).nullable(),
+            checkpointSource: z
+              .object({
+                runtimeId: z.string(),
+                runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+                assignmentEpoch: z.number().int().positive(),
+                checkpointSequence: z.number().int().positive(),
+              })
+              .nullable(),
           }),
         },
       },

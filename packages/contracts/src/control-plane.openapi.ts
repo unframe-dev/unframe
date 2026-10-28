@@ -5478,6 +5478,13 @@ export interface paths {
                             checkpoint: {
                                 [key: string]: unknown;
                             } | null;
+                            checkpointSource: {
+                                runtimeId: string;
+                                /** @enum {string} */
+                                runtimeKind: "Cloud" | "VenueEdge";
+                                assignmentEpoch: number;
+                                checkpointSequence: number;
+                            } | null;
                         };
                     };
                 };

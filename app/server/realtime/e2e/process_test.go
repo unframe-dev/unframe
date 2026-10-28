@@ -23,6 +23,12 @@ func (f *fixture) runtimePIDPath() string { return filepath.Join(f.env.StateDire
 
 func (f *fixture) startRuntimeHost() {
 	f.t.Helper()
+	f.startRuntimeHostProcess()
+	f.prepareAssignedRuntime(f.env.SessionID)
+}
+
+func (f *fixture) startRuntimeHostProcess() {
+	f.t.Helper()
 	log, err := os.OpenFile(filepath.Join(f.env.StateDirectory, "realtime.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		f.t.Fatal(err)
@@ -60,7 +66,6 @@ func (f *fixture) startRuntimeHost() {
 	done := make(chan struct{})
 	f.runDone = done
 	go func() { f.runError = cmd.Wait(); close(done) }()
-	f.prepareAssignedRuntime(f.env.SessionID)
 }
 
 type runtimePreparation struct {
@@ -72,7 +77,12 @@ type runtimePreparation struct {
 
 func (f *fixture) prepareAssignedRuntime(sessionID string) {
 	f.t.Helper()
-	assigned := false
+	f.waitPreparedRuntime(sessionID, true)
+}
+
+func (f *fixture) waitPreparedRuntime(sessionID string, assign bool) {
+	f.t.Helper()
+	assigned := !assign
 	f.waitFor("Runtime Host assignment and application readiness", 30*time.Second, func() bool {
 		select {
 		case <-f.runDone:
@@ -101,6 +111,9 @@ func (f *fixture) prepareAssignedRuntime(sessionID string) {
 			f.t.Fatalf("Runtime preparation returned %d", status)
 		}
 		preparation := decodeJSON[runtimePreparation](f.t, data)
+		if !assign && preparation.State == "unassigned" {
+			return false
+		}
 		if preparation.State != "starting" && preparation.State != "ready" {
 			f.t.Fatalf("Runtime preparation returned unexpected state %s", preparation.State)
 		}
@@ -236,5 +249,16 @@ func (f *fixture) stopRuntimeHost() {
 	}
 	if strings.Contains(string(data), "WARNING: DATA RACE") {
 		f.t.Error("Runtime or Host race detector reported a data race; inspect private Runtime log")
+	}
+}
+
+// Expire only the isolated local D1 assignment; no production resource is used.
+func (f *fixture) expireLocalAssignment() {
+	f.t.Helper()
+	query := "UPDATE runtime_assignments SET lease_expires_at = '2000-01-01T00:00:00.000Z' WHERE session_id = '" + strings.ReplaceAll(f.env.SessionID, "'", "''") + "'"
+	cmd := exec.CommandContext(f.ctx, "pnpm", "--filter", "@unframe/control-plane", "exec", "wrangler", "d1", "execute", "unframe-realtime-e2e", "--local", "--persist-to", filepath.Join(f.env.StateDirectory, "persist"), "--config", filepath.Join(f.env.StateDirectory, "wrangler.toml"), "--command", query)
+	cmd.Dir = f.env.RepositoryRoot
+	if _, err := cmd.CombinedOutput(); err != nil {
+		f.t.Fatal("expire isolated local Runtime assignment:", err)
 	}
 }

@@ -50,12 +50,20 @@ type BootstrapPublication struct {
 	RenderBundleHash        string `json:"renderBundleHash"`
 }
 
+type BootstrapCheckpointSource struct {
+	RuntimeID          string                 `json:"runtimeId"`
+	RuntimeKind        assignment.RuntimeKind `json:"runtimeKind"`
+	AssignmentEpoch    uint64                 `json:"assignmentEpoch"`
+	CheckpointSequence uint64                 `json:"checkpointSequence"`
+}
+
 type RuntimeBootstrap struct {
-	Assignment   BootstrapAssignment  `json:"assignment"`
-	Publication  BootstrapPublication `json:"publication"`
-	Definition   json.RawMessage      `json:"definition"`
-	RenderBundle json.RawMessage      `json:"renderBundle"`
-	Checkpoint   json.RawMessage      `json:"checkpoint"`
+	CheckpointSource *BootstrapCheckpointSource `json:"checkpointSource"`
+	Assignment       BootstrapAssignment        `json:"assignment"`
+	Publication      BootstrapPublication       `json:"publication"`
+	Definition       json.RawMessage            `json:"definition"`
+	RenderBundle     json.RawMessage            `json:"renderBundle"`
+	Checkpoint       json.RawMessage            `json:"checkpoint"`
 }
 
 type ProjectionRequest struct {
@@ -86,9 +94,11 @@ func (c *Client) Bootstrap(ctx context.Context, request BootstrapRequest) (Runti
 		if len(value.Checkpoint) > 1572864 {
 			return RuntimeBootstrap{}, ErrInvalidBootstrap
 		}
-		if err := protojson.Unmarshal(value.Checkpoint, checkpoint); err != nil || !validCheckpointEnvelope(checkpoint) {
+		if err := protojson.Unmarshal(value.Checkpoint, checkpoint); err != nil || !validCheckpointEnvelope(checkpoint) || !validBootstrapCheckpoint(value, checkpoint) {
 			return RuntimeBootstrap{}, ErrInvalidBootstrap
 		}
+	} else if value.CheckpointSource != nil {
+		return RuntimeBootstrap{}, ErrInvalidBootstrap
 	}
 	return value, nil
 }
@@ -149,4 +159,24 @@ func (c *Client) getBounded(ctx context.Context, operation, path string, query u
 		return nil, ErrInvalidBootstrap
 	}
 	return body, nil
+}
+
+func validBootstrapCheckpoint(value RuntimeBootstrap, checkpoint *realtimev2.DurableCheckpointEnvelope) bool {
+	source := value.CheckpointSource
+	if source == nil || source.RuntimeID == "" || source.AssignmentEpoch == 0 || source.AssignmentEpoch > value.Assignment.AssignmentEpoch || source.CheckpointSequence == 0 {
+		return false
+	}
+	var kind realtimev2.RuntimeKind
+	switch source.RuntimeKind {
+	case assignment.RuntimeKindCloud:
+		kind = realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD
+	case assignment.RuntimeKindVenueEdge:
+		kind = realtimev2.RuntimeKind_RUNTIME_KIND_VENUE_EDGE
+	default:
+		return false
+	}
+	if source.AssignmentEpoch == value.Assignment.AssignmentEpoch && (source.RuntimeID != value.Assignment.RuntimeID || source.RuntimeKind != value.Assignment.RuntimeKind) {
+		return false
+	}
+	return checkpoint.SessionId == value.Assignment.SessionID && checkpoint.RuntimeId == source.RuntimeID && checkpoint.RuntimeKind == kind && checkpoint.AssignmentEpoch == source.AssignmentEpoch && checkpoint.CheckpointSequence == source.CheckpointSequence && checkpoint.Publication.GetPresentationId() == value.Publication.PresentationID && checkpoint.Publication.GetPublicationEpoch() == value.Publication.PublicationEpoch && checkpoint.Publication.GetPublicationManifestHash() == value.Publication.PublicationManifestHash && checkpoint.DefinitionHash == value.Publication.DefinitionHash && checkpoint.RenderBundleHash == value.Publication.RenderBundleHash
 }
