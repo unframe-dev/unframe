@@ -24,6 +24,8 @@ public sealed class QuestPresentationSession : MonoBehaviour
     public string ControlPlaneOrigin => origin?.AbsoluteUri ?? String.Empty;
     public string SessionId => sessionId ?? String.Empty;
     public string LastErrorCode { get; private set; } = String.Empty;
+    public PresentationSessionDiagnostics Diagnostics { get; } = new PresentationSessionDiagnostics();
+    public string ExportDiagnostics() => Diagnostics.ExportToDirectory(System.IO.Path.Combine(Application.persistentDataPath, "SessionDiagnostics"));
 
     public void ConfigureConnection(Uri controlPlaneOrigin, string targetSessionId,
         Func<CancellationToken, Task<string>> provider, string advanceLogicalEventName = null)
@@ -47,7 +49,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
         EnsureTrackingOrigin();
         if (IsBusy || entry.IsRunning) throw new InvalidOperationException("Stop the active session before connecting again.");
         ConfigureConnection(controlPlaneOrigin, targetSessionId, provider, advanceLogicalEventName);
-        entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName);
+        entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics);
     }
 
     public Task RetryAsync() => ConnectAsync();
@@ -66,7 +68,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
                 if (!HasConnectionSettings) { LastErrorCode = "connection-settings-required"; return; }
                 await entry.StopAsync();
                 if (requestedGeneration != generation || !isActiveAndEnabled) return;
-                entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName);
+                entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics);
                 LastErrorCode = String.Empty;
             }
             finally { operationGate.Release(); }
@@ -80,6 +82,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
 
     public async Task ExitAsync()
     {
+        Diagnostics.ForSession(sessionId).Record("connection.closed", code: "local-exit");
         ClearConnection();
         Interlocked.Increment(ref pendingOperations);
         try
@@ -124,7 +127,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
             QuestOnboardingApi api = null;
             if (!String.IsNullOrWhiteSpace(controlPlaneEndpoint) && !String.IsNullOrWhiteSpace(webEndpoint))
             {
-                try { api = new QuestOnboardingApi(new Uri(controlPlaneEndpoint), new Uri(webEndpoint), deviceClientId); }
+                try { api = new QuestOnboardingApi(new Uri(controlPlaneEndpoint), new Uri(webEndpoint), deviceClientId, diagnostics: Diagnostics); }
                 catch (Exception exception) when (exception is ArgumentException || exception is UriFormatException) { LastErrorCode = "application-endpoint-invalid"; }
             }
             var onboarding = GetComponent<QuestOnboardingView>();

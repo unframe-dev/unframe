@@ -28,6 +28,7 @@ namespace Unframe.Unity.PresentationRuntime
         private bool sessionStarted, ownsConnection, lastCalibrationValid, lastCanAdvance;
         private Task stopTask = Task.CompletedTask;
         private string message = "", roomCode = "";
+        private string diagnosticExportMessage = "";
         private Text inputText;
         public bool IsComplete { get; private set; }
         public QuestOnboardingFlow Flow => flow;
@@ -53,6 +54,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void CancelOperation(bool disconnect = true)
         {
+            diagnosticExportMessage = "";
             revision++; cancellation.Cancel(); cancellation.Dispose(); cancellation = new CancellationTokenSource(); busy = false;
             if (disconnect && ownsConnection && session != null) { ownsConnection = false; stopTask = session.ExitAsync(); }
         }
@@ -83,13 +85,14 @@ namespace Unframe.Unity.PresentationRuntime
                 Quaternion yaw = Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward : Vector3.forward);
                 panel.transform.SetPositionAndRotation(head.position + yaw * new Vector3(0, -0.08f, 1.5f), yaw);
             }
-            Label("Brand", "unframe", new Vector2(0, 365), new Vector2(920, 60), 28, QuestUiTheme.Primary);
+            Label("Brand", "unframe", new Vector2(-300, 365), new Vector2(300, 60), 28, QuestUiTheme.Primary);
             DrawPage();
-            Label("Message", busy ? "処理しています…" : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
+            Label("Message", !String.IsNullOrEmpty(diagnosticExportMessage) ? diagnosticExportMessage : busy ? "処理しています…" : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
             if (flow.Page != QuestOnboardingPage.Role)
                 Button("Back", "戻る", -350, -350, 220, Back, false);
             if ((Application.isEditor || Debug.isDebugBuild) && flow.Role == QuestOnboardingRole.Presenter)
                 Button("DebugNext", "デバッグ：次の画面", 230, -350, 440, () => { CancelOperation(); flow.DebugNext(); message = "画面プレビュー：認証・接続・再生は実行されません"; Draw(); }, false);
+            Button("SaveDiagnostics", "テストログを保存", 300, 365, 300, SaveDiagnostics, false, 52, 22);
             leftAim = Aim("Left aim"); rightAim = Aim("Right aim");
         }
 
@@ -201,6 +204,21 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
+        private void SaveDiagnostics()
+        {
+            try
+            {
+                if (session == null) throw new InvalidOperationException();
+                string path = session.ExportDiagnostics();
+                diagnosticExportMessage = "SessionDiagnostics に保存しました\n" + System.IO.Path.GetFileName(path);
+#if UNITY_EDITOR
+                Debug.Log(path);
+#endif
+            }
+            catch (Exception) { diagnosticExportMessage = "ログを保存できませんでした（diagnostic-export-failed）"; }
+            Draw();
+        }
+
         private void Choose(QuestOnboardingRole role)
         {
             flow.SelectRole(role); message = "";
@@ -250,6 +268,7 @@ namespace Unframe.Unity.PresentationRuntime
         private async void Run(Func<CancellationToken, Task> action)
         {
             if (busy || flow.IsDebugPreview) return;
+            diagnosticExportMessage = "";
             int current = revision; CancellationToken token = cancellation.Token; busy = true; message = ""; Draw();
             try { await action(token); }
             catch (OperationCanceledException) { }

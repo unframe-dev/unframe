@@ -13,6 +13,9 @@ node_modules/
 .wrangler/
 
 # logs
+unframe-session-diagnostic-*.json
+unframe-*-session-diagnostic*.json
+SessionDiagnostics/
 .playwright-mcp/
 *.log
 npm-debug.log*

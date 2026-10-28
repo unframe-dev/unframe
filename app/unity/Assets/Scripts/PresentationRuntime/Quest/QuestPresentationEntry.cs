@@ -66,6 +66,8 @@ namespace Unframe.Unity.PresentationRuntime
             : !SessionReady ? "Synchronizing session"
             : IsPresenter ? "Ready: Presenter" : "Ready: Viewer";
         private string logicalEventName;
+        private PresentationSessionDiagnostics diagnostics;
+        private PresentationConnectionStage? diagnosticStage;
         private readonly QuestPresentationButtonEdges buttons = new QuestPresentationButtonEdges();
         private readonly QuestPresentationButtonEdges uiButtons = new QuestPresentationButtonEdges();
         private double lastTrackingAt;
@@ -117,15 +119,17 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         public void Configure(Uri controlPlaneOrigin, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
-            PresentationCalibrationState calibrationState, string advanceLogicalEventName)
+            PresentationCalibrationState calibrationState, string advanceLogicalEventName, PresentationSessionDiagnostics diagnosticLog = null)
         {
             if (!isActiveAndEnabled) throw new InvalidOperationException("The Quest presentation entry must be active.");
             if (lifetime != null) throw new InvalidOperationException("A Quest presentation is already configured.");
             if (runtime == null) runtime = GetComponent<PresentationBakedRuntime>();
             if (calibrationState == null || questTrackingOrigin == null)
                 throw new ArgumentException("Calibration state and XR tracking origin are required.");
+            diagnostics = diagnosticLog?.ForSession(sessionId);
+            diagnosticStage = null;
             connection = new PresentationControlPlaneConnection(controlPlaneOrigin, sessionId, credentialProvider,
-                reportStage: stage => connectionStage = stage);
+                reportStage: stage => { connectionStage = stage; diagnostics?.Record("connection.stage", stage: stage.ToString()); }, diagnostics: diagnostics);
             LastErrorCode = null;
             commandPending = false;
             connectionStage = PresentationConnectionStage.Connecting;
@@ -151,6 +155,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 LastErrorCode = PresentationConnectionErrors.FromException(exception);
                 connectionStage = PresentationConnectionStage.Failed;
+                diagnostics?.Record("connection.closed", code: LastErrorCode);
             }
             finally
             {
@@ -231,6 +236,12 @@ namespace Unframe.Unity.PresentationRuntime
         private void Update()
         {
             SubscribeTrackingOrigins();
+            var currentStage = ConnectionStage;
+            if (diagnosticStage != currentStage)
+            {
+                diagnosticStage = currentStage;
+                diagnostics?.Record("connection.stage", stage: currentStage.ToString());
+            }
             bool nextLeft = IsPressed(XRNode.LeftHand, CommonUsages.triggerButton);
             bool nextRight = IsPressed(XRNode.RightHand, CommonUsages.triggerButton);
             bool nextPrimary = IsPressed(XRNode.RightHand, CommonUsages.primaryButton);

@@ -42,6 +42,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly Func<HttpMessageHandler> httpHandlerFactory;
         private readonly Func<YetAnotherHttpHandler> realtimeHandlerFactory;
         private readonly Action<PresentationConnectionStage> reportStage;
+        private readonly PresentationSessionDiagnostics diagnostics;
         private readonly object runGate = new object();
         private CancellationTokenSource activeRun;
         private TaskCompletionSource<bool> runFinished;
@@ -50,7 +51,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public PresentationControlPlaneConnection(Uri controlPlane, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
             PresentationRuntimeHost runtimeHost = null, Func<HttpMessageHandler> httpHandlerFactory = null,
-            Func<YetAnotherHttpHandler> realtimeHandlerFactory = null, Action<PresentationConnectionStage> reportStage = null)
+            Func<YetAnotherHttpHandler> realtimeHandlerFactory = null, Action<PresentationConnectionStage> reportStage = null, PresentationSessionDiagnostics diagnostics = null)
         {
             if (controlPlane == null || !controlPlane.IsAbsoluteUri || controlPlane.Scheme != "https"
                 || controlPlane.AbsolutePath != "/" || !string.IsNullOrEmpty(controlPlane.UserInfo)
@@ -58,6 +59,7 @@ namespace Unframe.Unity.PresentationRuntime
                 || string.IsNullOrEmpty(sessionId) || credentialProvider == null)
                 throw new ArgumentException("An authenticated HTTPS Control Plane origin and session are required.");
             this.reportStage = reportStage;
+            this.diagnostics = diagnostics?.ForSession(sessionId);
             this.controlPlane = controlPlane;
             this.sessionId = sessionId;
             this.credentialProvider = credentialProvider;
@@ -88,6 +90,7 @@ namespace Unframe.Unity.PresentationRuntime
                             try
                             {
                                 reportStage?.Invoke(PresentationConnectionStage.Connecting);
+                                if (attempt > 0) diagnostics?.Record("connection.retry", kind: "DeliveryReload");
                                 DeliveryManifest delivery = await LoadDeliveryAsync(client, lifetime.Token);
                                 host.PrepareDelivery(delivery);
                                 lock (runGate) selectedParticipantId = delivery.ProjectionInstance.ParticipantId;
@@ -104,7 +107,8 @@ namespace Unframe.Unity.PresentationRuntime
                                     return current.credential;
                                 }
                                 reportStage?.Invoke(PresentationConnectionStage.LoadingAssets);
-                                await runtime.RunAsync(delivery, new Uri(endpoint), RefreshCredential, lifetime.Token, fingerprint, host.EncodedCache, httpHandlerFactory, realtimeHandlerFactory);
+                                await runtime.RunAsync(delivery, new Uri(endpoint), RefreshCredential, lifetime.Token, fingerprint, host.EncodedCache, httpHandlerFactory, realtimeHandlerFactory,
+                                    diagnostics?.ForRuntime(runtimeId, initial.assignmentEpoch, initial.publicationFence.publicationEpoch));
                                 return;
                             }
                             catch (PresentationDeliveryReloadRequiredException) when (attempt < 5)
@@ -153,8 +157,10 @@ namespace Unframe.Unity.PresentationRuntime
             using (HttpRequestMessage request = await RequestAsync(HttpMethod.Post, "delivery", token))
             {
                 request.Content = new StringContent("{\"capabilityProfileId\":\"quest-presentation-v2\"}", System.Text.Encoding.UTF8, "application/json");
+                diagnostics?.Record("http.request", kind: "Delivery", direction: "send");
                 using (HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token))
                 {
+                    diagnostics?.Record("http.response", kind: "Delivery", direction: "receive", code: "http-" + (int)response.StatusCode);
                     if (!response.IsSuccessStatusCode) throw new PresentationConnectionException(PresentationConnectionErrors.FromHttpStatus(response.StatusCode));
                     if (response.Content.Headers.ContentType?.MediaType != "application/x-protobuf")
                         throw new PresentationConnectionException("delivery-incompatible");
@@ -164,6 +170,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (delivery.SessionId != sessionId || delivery.CapabilityProfile?.CapabilityProfileId != "quest-presentation-v2"
                         || !validator.TryReceiveDelivery(delivery, out _))
                         throw new InvalidOperationException("Control Plane Delivery is incompatible.");
+                    diagnostics?.Record("delivery.received", direction: "receive", count: delivery.AssetAccess.Count);
                     return delivery;
                 }
             }
@@ -171,9 +178,11 @@ namespace Unframe.Unity.PresentationRuntime
 
         private async Task<Bootstrap> LoadBootstrapAsync(HttpClient client, DeliveryManifest delivery, CancellationToken token)
         {
+            diagnostics?.Record("http.request", kind: "Bootstrap", direction: "send");
             using (HttpRequestMessage request = await RequestAsync(HttpMethod.Post, "bootstrap", token))
             using (HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token))
             {
+                diagnostics?.Record("http.response", kind: "Bootstrap", direction: "receive", code: "http-" + (int)response.StatusCode);
                 if (!response.IsSuccessStatusCode) throw new PresentationConnectionException(PresentationConnectionErrors.FromHttpStatus(response.StatusCode));
                 if (response.Content.Headers.ContentType?.MediaType != "application/json")
                     throw new PresentationConnectionException("bootstrap-incompatible");
@@ -192,6 +201,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (result.assignmentEpoch != delivery.ProjectionInstance.AssignmentEpoch
                     || result.projectionProfileId != delivery.ProjectionProfile.ProjectionProfileId)
                     throw new PresentationDeliveryReloadRequiredException(ResyncReason.ProjectionChanged);
+                diagnostics?.ForRuntime(result.runtimeId, result.assignmentEpoch, result.publicationFence.publicationEpoch).Record("bootstrap.received", direction: "receive");
                 return result;
             }
         }

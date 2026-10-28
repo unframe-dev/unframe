@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using Unframe.Unity.PresentationRuntime;
 
 public sealed class QuestOnboardingAuthorization
 {
@@ -49,6 +50,7 @@ public sealed class QuestOnboardingApi : IDisposable
     [Serializable] private sealed class ApiErrorResponse { public ApiError error; }
 
     private readonly HttpClient client;
+    private readonly PresentationSessionDiagnostics diagnostics;
     private readonly Uri origin;
     private readonly Uri webOrigin;
     private readonly string clientId;
@@ -64,12 +66,13 @@ public sealed class QuestOnboardingApi : IDisposable
     public Uri Origin => origin;
     public bool IsAuthenticated => !disposed && !String.IsNullOrEmpty(credential) && DateTimeOffset.UtcNow < credentialExpiresAt;
 
-    public QuestOnboardingApi(Uri origin, Uri webOrigin, string clientId, HttpMessageHandler handler = null)
+    public QuestOnboardingApi(Uri origin, Uri webOrigin, string clientId, HttpMessageHandler handler = null, PresentationSessionDiagnostics diagnostics = null)
     {
         ValidateOrigin(origin);
         ValidateOrigin(webOrigin);
         if (String.IsNullOrWhiteSpace(clientId) || clientId.Length > 256) throw new ArgumentException("Device client ID is required.");
         this.origin = origin;
+        this.diagnostics = diagnostics;
         this.webOrigin = webOrigin;
         this.clientId = clientId;
         client = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false })
@@ -186,6 +189,7 @@ public sealed class QuestOnboardingApi : IDisposable
             CreateResponse data = JsonUtility.FromJson<CreateResponse>(await response.Content.ReadAsStringAsync());
             ValidateId(data?.session?.id);
             ValidateJoinCode(data.joinCode);
+            diagnostics?.ForSession(data.session.id).Record("session.create", direction: "receive");
             return new QuestOnboardingRoom { SessionId = data.session.id, JoinCode = data.joinCode };
         }
     }
@@ -199,6 +203,7 @@ public sealed class QuestOnboardingApi : IDisposable
             RequireSuccess(response);
             SessionRecord data = JsonUtility.FromJson<SessionRecord>(await response.Content.ReadAsStringAsync());
             ValidateId(data?.id);
+            diagnostics?.ForSession(data.id).Record("session.join", direction: "receive");
             return new QuestOnboardingRoom { SessionId = data.id, JoinCode = code };
         }
     }
@@ -206,7 +211,7 @@ public sealed class QuestOnboardingApi : IDisposable
     public async Task StartSessionAsync(string id, CancellationToken token)
     {
         ValidateId(id);
-        using (HttpResponseMessage response = await SendAsync("/sessions/" + Uri.EscapeDataString(id) + "/start", new object(), true, token)) RequireSuccess(response);
+        using (HttpResponseMessage response = await SendAsync("/sessions/" + Uri.EscapeDataString(id) + "/start", new object(), true, token, id)) RequireSuccess(response);
     }
 
     public async Task PrepareRuntimeAsync(string id, CancellationToken token)
@@ -220,7 +225,7 @@ public sealed class QuestOnboardingApi : IDisposable
             {
                 while (true)
                 {
-                    using (HttpResponseMessage response = await SendAsync("/sessions/" + Uri.EscapeDataString(id) + "/runtime-preparation", requestAssignment ? new object() : null, true, deadline.Token))
+                    using (HttpResponseMessage response = await SendAsync("/sessions/" + Uri.EscapeDataString(id) + "/runtime-preparation", requestAssignment ? new object() : null, true, deadline.Token, id))
                     {
                         string json = await response.Content.ReadAsStringAsync();
                         if ((int)response.StatusCode == 409 && JsonUtility.FromJson<ApiErrorResponse>(json)?.error?.code == "runtime_unavailable")
@@ -247,7 +252,7 @@ public sealed class QuestOnboardingApi : IDisposable
         }
     }
 
-    private async Task<HttpResponseMessage> SendAsync(string path, object body, bool authenticated, CancellationToken token)
+    private async Task<HttpResponseMessage> SendAsync(string path, object body, bool authenticated, CancellationToken token, string diagnosticSessionId = null)
     {
         ThrowIfDisposed();
         using (var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token))
@@ -255,7 +260,22 @@ public sealed class QuestOnboardingApi : IDisposable
         {
             if (body != null) request.Content = new StringContent(JsonUtility.ToJson(body), Encoding.UTF8, "application/json");
             if (authenticated) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await CredentialAsync(linked.Token));
-            return await client.SendAsync(request, linked.Token);
+            string kind = path == "/sessions" ? "SessionCreate" : path == "/sessions/join" ? "SessionJoin"
+                : path.EndsWith("/runtime-preparation", StringComparison.Ordinal) ? "RuntimePreparation"
+                : path.EndsWith("/start", StringComparison.Ordinal) ? "SessionStart" : path == "/presentations" ? "Presentations" : "DeviceAuthorization";
+            var diagnosticScope = diagnosticSessionId == null ? diagnostics : diagnostics?.ForSession(diagnosticSessionId);
+            diagnosticScope?.Record("http.request", direction: "send", kind: kind);
+            try
+            {
+                HttpResponseMessage response = await client.SendAsync(request, linked.Token);
+                diagnosticScope?.Record("http.response", direction: "receive", kind: kind, code: "http-" + (int)response.StatusCode);
+                return response;
+            }
+            catch (Exception)
+            {
+                diagnosticScope?.Record("http.response", direction: "receive", kind: kind, code: "request-failed");
+                throw;
+            }
         }
     }
 

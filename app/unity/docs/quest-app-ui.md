@@ -110,3 +110,7 @@ Meta公式の[カメラ対応条件](https://developers.meta.com/vr/documentatio
 これらのEditor試験はQuest実機の快適性や認識精度の代替ではありません。
 
 デザイン参考：[Material 3 Color roles](https://m3.material.io/styles/color/the-color-system)、[Material 3のテーマ設計](https://developer.android.com/codelabs/m3-design-theming)。
+
+## 複数端末テストの接続ログ
+
+「テストログを保存」（MR）／「接続テストログを保存」（WebXR）から、接続・取得・送受信・同期の履歴をJSONで保存できます。保存先と端末間の比較手順は[複数端末の検証手順](../../../docs/validation/multi-device-session-diagnostics.md)を参照してください。認証情報・素材URL・カメラ画像は含みません。

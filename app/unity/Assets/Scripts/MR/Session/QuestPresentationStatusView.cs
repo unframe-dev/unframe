@@ -37,6 +37,7 @@ namespace Unframe.Unity.PresentationRuntime
         public bool MotionGuideEnabled { get; private set; } = true;
         public bool MotionGuideDetails { get; private set; }
         private Text details;
+        private string diagnosticExportMessage = "";
         private Text heading;
         private GameObject notice;
         private Text noticeText;
@@ -104,7 +105,7 @@ namespace Unframe.Unity.PresentationRuntime
                 : entry.PlaybackStatus == "Paused" ? "再生準備完了・一時停止中"
                 : entry.PlaybackStatus == "Terminating" ? "プレゼンを終了しています…" : "準備完了";
             if (panel == null && head != null) CreatePanel();
-            if (status != null) status.text = confirmEnd ? "全員の発表を終了します。\nこのルームの再生を終了してよいですか？"
+            if (status != null) status.text = !confirming && !String.IsNullOrEmpty(diagnosticExportMessage) ? diagnosticExportMessage : confirmEnd ? "全員の発表を終了します。\nこのルームの再生を終了してよいですか？"
                 : confirmExit ? "この端末だけルームから退出します。\n他の参加者の発表は終了しません。" : StatusText;
             if (heading != null) heading.text = confirmEnd ? "全員の発表を終了" : confirmExit ? "ルームから退出" : stepsOpen ? "到達済みの場面に戻る" : detailsOpen ? "ガイドと設定" : AudienceMode ? "鑑賞メニュー" : "発表者メニュー";
             if (panel != null)
@@ -168,6 +169,8 @@ namespace Unframe.Unity.PresentationRuntime
             if (guideButton != null) guideButton.GetComponentInChildren<Text>().text = "動作ガイド\n" + (MotionGuideEnabled ? "表示" : "非表示");
             var guideDetailsButton = FindButton("GuideDetails");
             if (guideDetailsButton != null) guideDetailsButton.GetComponentInChildren<Text>().text = "動作の説明\n" + (MotionGuideDetails ? "詳しく" : "シンプル");
+            SetVisible("SaveDiagnostics", !confirming && detailsOpen && !stepsOpen);
+            SetEnabled("SaveDiagnostics", !busy && session != null);
             SetVisible("Steps", !AudienceMode && !confirming && detailsOpen);
             SetEnabled("Steps", !busy && entry?.CanControl == true && entry.ReachedSteps.Count > 0);
             SetVisible("PreviousSteps", stepsOpen && !AudienceMode && !confirming);
@@ -187,7 +190,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         private static readonly string[] ConfirmActions = { "ConfirmEnd", "ConfirmExit", "CancelEnd" };
-        private static readonly string[] SettingsActions = { "Guide", "GuideDetails", "Align", "CameraPermission", "Retry", "Connect", "Steps", "End", "Details" };
+        private static readonly string[] SettingsActions = { "Guide", "GuideDetails", "Align", "CameraPermission", "Retry", "Connect", "Steps", "End", "SaveDiagnostics", "Details" };
         private static readonly string[] StepActions = { "Step0", "Step1", "Step2", "PreviousSteps", "MoreSteps", "Details" };
         private static readonly string[] MainActions = { "Resume", "Pause", "Next", "Close", "Align", "CameraPermission", "Retry", "Details", "Exit" };
 
@@ -215,6 +218,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public void SetMenuOpen(bool open)
         {
+            diagnosticExportMessage = "";
             menuOpen = open;
             confirmEnd = false;
             confirmExit = false;
@@ -369,8 +373,23 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
+        private void SaveDiagnostics()
+        {
+            try
+            {
+                string path = session.ExportDiagnostics();
+                diagnosticExportMessage = "SessionDiagnostics に保存しました\n" + System.IO.Path.GetFileName(path);
+#if UNITY_EDITOR
+                Debug.Log(path);
+#endif
+            }
+            catch (Exception) { diagnosticExportMessage = "diagnostic-export-failed"; }
+            Refresh();
+        }
+
         private void RunOperation(Func<Task> action)
         {
+            diagnosticExportMessage = "";
             if (operation != null && !operation.IsCompleted) return;
             operation = ExecuteOperation(action);
         }
@@ -432,6 +451,7 @@ namespace Unframe.Unity.PresentationRuntime
                 confirmExit = false;
                 RunOperation(async () => { await session.ExitAsync(); onboarding?.ResetFlow(); });
             });
+            AddButton("SaveDiagnostics", "テストログを保存", 0, SaveDiagnostics);
             AddButton("Guide", "動作ガイド", 0, () => { MotionGuideEnabled = !MotionGuideEnabled; Refresh(); });
             AddButton("GuideDetails", "動作の説明", 0, () => { MotionGuideDetails = !MotionGuideDetails; Refresh(); });
             AddButton("CameraPermission", "カメラを許可", 10, () => cameraPreview.RetryCameraPermission());
