@@ -71,9 +71,17 @@ const installFrozenGraph = async (directory: string) => {
     }),
   );
   await writeFile(join(directory, "pnpm-lock.yaml"), stringify(lock));
+  // The fixture reuses the installed repository lock; policy rechecks need registry metadata.
   await execute(
     "pnpm",
-    ["install", "--frozen-lockfile", "--offline", "--ignore-scripts", "--ignore-pnpmfile"],
+    [
+      "install",
+      "--frozen-lockfile",
+      "--offline",
+      "--ignore-scripts",
+      "--ignore-pnpmfile",
+      "--trust-lockfile",
+    ],
     { cwd: directory, timeout: 120_000 },
   ).catch((error: Error & { stderr?: string; stdout?: string }) => {
     throw new Error(`${error.stderr ?? ""}\n${error.stdout ?? ""}\n${error.message}`);
