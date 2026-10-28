@@ -6,6 +6,54 @@ import { createVideoPresentation } from "../video-presentation";
 import type { loadVideoAsset } from "../../assets/video-asset";
 
 describe("video presentation", () => {
+  it("keeps the loaded decoder and playback when only signed access is refreshed", async () => {
+    const f = videoFixture();
+    const view = participantRuntimeViewSchema.parse(f.view);
+    const loaded = {
+      texture: new VideoTexture({} as HTMLVideoElement),
+      video: {} as HTMLVideoElement,
+      synchronize: vi.fn(),
+      dispose: vi.fn(),
+      playbackBlocked: false,
+      resumePlayback: vi.fn(async () => undefined),
+    };
+    const loadAsset = vi.fn(async () => loaded);
+    const presentation = await createVideoPresentation({
+      host: { contentRoot: new Group(), setPresentationOrigin: vi.fn() },
+      delivery: f.delivery,
+      view,
+      loadAsset: loadAsset as typeof loadVideoAsset,
+    });
+    try {
+      const access = f.delivery.assetAccess![0]!;
+      access.url = "https://assets.test/v.mp4?signature=renewed";
+      access.expiresAtUnixMs = "20000";
+      view.mediaStates[f.id] = {
+        kind: "active",
+        runId: { assignmentEpoch: 1, runSequence: 1 },
+        playback: {
+          kind: "playing",
+          positionAtReferenceMilliseconds: 500,
+          referenceRuntimeTimeMilliseconds: 1000,
+        },
+      };
+      expect(presentation.applyView(view)).toBe(true);
+      presentation.applyAnimationFrame(view, 2000);
+      expect(loaded.synchronize).toHaveBeenLastCalledWith(1.5, true);
+      expect(loadAsset).toHaveBeenCalledOnce();
+      expect([...presentation.getLoadedAssets().values()]).toEqual([loaded]);
+      expect(loaded.dispose).not.toHaveBeenCalled();
+
+      access.checksum = `sha256:${"2".repeat(64)}`;
+      f.delivery.projectionProfile!.renderSurfaces![0]!.artifacts![0]!.video!.checksum =
+        access.checksum;
+      expect(presentation.applyView(view)).toBe(false);
+      expect(loaded.dispose).not.toHaveBeenCalled();
+    } finally {
+      presentation.dispose();
+    }
+  });
+
   it("synchronizes late joins, paused clock and document visibility without relocating the stage", async () => {
     const f = videoFixture();
     const view = participantRuntimeViewSchema.parse(f.view);
