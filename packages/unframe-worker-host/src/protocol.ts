@@ -89,7 +89,8 @@ export const workerProtocol = (
     });
     if (signal?.aborted) onAbort();
     child.once("error", (error) => fail(error));
-    child.once("exit", (code, signal) =>
+    // Process exit can precede delivery of the final stdout messages.
+    child.once("close", (code, signal) =>
       fail(
         new WorkerIsolationError(
           phase === "result" ? "opaque-capture-failed" : "opaque-isolation-unavailable",

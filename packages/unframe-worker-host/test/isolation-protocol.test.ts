@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
+import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import { workerProtocol } from "../src/protocol.js";
 
@@ -67,6 +68,33 @@ describe("opaque worker protocol", () => {
     await expect(workerProtocol(child, () => {}, {})).rejects.toMatchObject({
       code: "opaque-capture-failed",
     });
+  });
+
+  it("classifies buffered malformed output before reporting worker termination", async () => {
+    const child = new ChildProcess();
+    const stdout = new PassThrough();
+    child.stdout = stdout;
+    const result = workerProtocol(child, () => {}, {});
+
+    child.emit("exit", 0, null);
+    stdout.end("not-json\n");
+    child.emit("close", 0, null);
+
+    await expect(result).rejects.toMatchObject({ code: "opaque-capture-failed" });
+  });
+
+  it("accepts a buffered result after exit and before the output closes", async () => {
+    const child = new ChildProcess();
+    const stdout = new PassThrough();
+    child.stdout = stdout;
+    const result = workerProtocol(child, () => {}, {});
+    stdout.write('{"type":"bootstrap"}\n{"type":"ready"}\n');
+
+    child.emit("exit", 0, null);
+    stdout.end('{"type":"result","value":"captured"}\n');
+    child.emit("close", 0, null);
+
+    await expect(result).resolves.toBe("captured");
   });
 });
 
