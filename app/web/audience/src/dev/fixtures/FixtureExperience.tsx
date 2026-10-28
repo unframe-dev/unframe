@@ -253,9 +253,10 @@ export function FixtureExperience() {
                 <option value="36">24 cm</option>
               </select>
             </label>
-            <a href={`/print-target.html?size=${size}`} target="_blank" rel="noreferrer">
+            <a href={`/markers/april-single-${size}.svg`} target="_blank" rel="noreferrer">
               AprilTagを表示・印刷
             </a>
+            <p>印刷倍率は100%にし、黒い外周の実寸を測り、白余白を残してください。</p>
             <p>
               {busy ? "表示を準備中" : playback?.rendering === "ready" ? "表示準備完了" : "待機中"}
             </p>

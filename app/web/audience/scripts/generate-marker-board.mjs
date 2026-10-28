@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const { AR } = require("js-aruco2");
 require("js-aruco2/src/dictionaries/apriltag_36h11.js");
 const config = JSON.parse(
-  await readFile(new URL("../public/poc-config.json", import.meta.url), "utf8"),
+  await readFile(new URL("../src/fiducials/default-board.json", import.meta.url), "utf8"),
 );
 if (config.markers.length !== 1 || config.markers[0].id !== 0)
   throw new Error("Print assets require a single registered marker ID 0.");

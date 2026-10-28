@@ -96,12 +96,15 @@ export function AnchorExperienceView(props: AnchorExperienceViewProps) {
                 <p>会場設定の配布元は未確定のため、現在はローカル設定を使用しています。</p>
               ) : (
                 <a
-                  href={`/print-target.html?size=${profile?.sizeCm ?? 22.5}`}
+                  href={`/markers/april-single-${profile?.sizeCm ?? 22.5}.svg`}
                   target="_blank"
                   rel="noreferrer"
                 >
                   マーカーを表示・印刷
                 </a>
+              )}
+              {props.mode !== "viewer" && (
+                <p>印刷倍率は100%にし、印刷後に黒い外周の実寸を測り、白余白を残してください。</p>
               )}
               <p>
                 タグ採用 {props.anchorUpdateCount}回 ／{" "}

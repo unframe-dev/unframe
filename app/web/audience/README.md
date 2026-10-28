@@ -19,7 +19,7 @@ SDKはabsolute。NORMALが連続5秒続いた後に検出器を準備し、最�
 
 サイトの `/` はルーム参加画面。位置合わせ単独の検証は開発時の `/?tracking=1` を開き、必要ならサイズを選び「カメラを開始」。検出器の選択はない。詳細メニューにSDK状態・理由、タグ採用回数、実効検出Hzと診断を表示する。
 
-黒い外周15cm・白余白込み22.5cmが既定。`/?tracking=1&size=22.5|36|50|60|70`で余白込み外寸cmを指定する。黒い境界は外寸の2/3。黒外周240mmの検証には`/?tracking=1&size=36`（余白込み360mm）を使う。サイズ選択は即反映し、変更時は前のアンカー・保存画像を消す。印刷ページは`/print-target.html?size=22.5`。画面表示・印刷後は実寸を測り、白余白を残す。
+黒い外周15cm・白余白込み22.5cmが既定。`/?tracking=1&size=22.5|36|50|60|70`で余白込み外寸cmを指定する。黒い境界は外寸の2/3。黒外周240mmの検証には`/?tracking=1&size=36`（余白込み360mm）を使う。サイズ選択は即反映し、変更時は前のアンカー・保存画像を消す。印刷は各サイズのSVGを直接開く（既定は`/markers/april-single-22.5.svg`）。印刷倍率は100%にする。画面表示・印刷後は実寸を測り、白余白を残す。
 
 ArUco、タグ単独、SDK単独、負荷切替、比較画像、静止／回転／移動の区間指定、合成ラボ、旧複数マーカーボードは撤去した。旧mode/detector/strategy/correctionによる分岐はない。過去の実証は`docs/experiments/`に履歴として残す。
 
@@ -124,7 +124,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ## 会場設定
 
-製品視聴ではロードした設定のboard ID・revision・黒外周実寸・配置・presentationToVenueを保持し、size queryやサイズ編集で上書きしない。現在の配布元はローカル `/poc-config.json` の暫定設定。ルームごとの設定配布元・取得権限・revision更新時の扱いは外部担当と確定する。
+製品視聴ではロードした設定のboard ID・revision・黒外周実寸・配置・presentationToVenueを保持し、size queryやサイズ編集で上書きしない。現在は `src/fiducials/default-board.json` の暫定設定をbundleから読み込む。会場原点とpresentationToVenueはidentity、黒外周15cm・ID 0で固定され、session固有の校正設定ではない。ルームごとの設定配布元・取得権限・revision更新時の扱いは外部担当と確定する。
 
 検証用の `/?tracking=1` とfixtureでは従来のsize指定を使う。`showGuides`は箱・軸等の描画可否だけを表し、設定モードを推測しない。
 

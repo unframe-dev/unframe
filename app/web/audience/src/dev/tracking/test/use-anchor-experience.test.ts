@@ -13,7 +13,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { useAnchorExperience } from "../use-anchor-experience";
 import { AnchorExperienceView } from "../AnchorExperienceView";
 import { loadBoardConfig } from "../../../fiducials/config";
-import board from "../../../../public/poc-config.json";
+import board from "../../../fiducials/default-board.json";
 
 vi.mock("../../../fiducials/config", async (original) => ({
   ...(await original<typeof import("../../../fiducials/config")>()),
@@ -36,6 +36,12 @@ test.each(["tracking=1", "fixture=1"])(
     expect(window.location.search).toBe(`?${route}&size=36&note=keep`);
     expect(window.location.hash).toBe("#camera");
     expect(result.current.profile?.markerSizeMeters).toBe(0.24);
+    render(createElement(AnchorExperienceView, result.current));
+    fireEvent.click(screen.getByRole("button", { name: "メニューを開く" }));
+    expect(screen.getByRole("link", { name: "マーカーを表示・印刷" }).getAttribute("href")).toBe(
+      "/markers/april-single-36.svg",
+    );
+    expect(screen.getByText(/印刷倍率は100%/)).toBeTruthy();
   },
 );
 
