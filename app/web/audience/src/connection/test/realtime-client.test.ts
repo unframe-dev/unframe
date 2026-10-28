@@ -121,6 +121,46 @@ it("closes both streams and rejects late input after disposal", () => {
   expect(h.input.applyControl).not.toHaveBeenCalled();
   expect(control.readyState).toBe(3);
 });
+it.each([
+  { fields: { reliableSequence: "5" }, expectedSequence: "5" },
+  { fields: {}, expectedSequence: "0" },
+])(
+  "attaches State with omitted protobuf zero scalars ($expectedSequence)",
+  async ({ fields, expectedSequence }) => {
+    const h = setup();
+    try {
+      const control = h.sockets[0]!;
+      control.open();
+      control.receive("unframe.realtime.ControlServerItem", {
+        connectionSnapshot: {
+          schemaVersion: 3,
+          connectionId: "connection",
+          ...fields,
+          fence: { sessionId: "session" },
+        },
+      });
+      control.receive("unframe.realtime.ControlServerItem", {
+        stateConnectionNonce: { nonce: new Uint8Array([1]), expiresInMs: 30000 },
+      });
+      expect(h.urls[1]).toBe("wss://runtime.example/browser/state");
+      const state = h.sockets[1]!;
+      state.open();
+      state.receive("unframe.realtime.StateServerItem", {
+        connected: { connectionId: "connection", nextStateFrameSequence: "1" },
+      });
+      h.setReady();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(
+        decodeWireMessage("unframe.realtime.ControlClientItem", control.sent[2] as Uint8Array),
+      ).toEqual({
+        stateReady: { appliedReliableSequence: expectedSequence, presentationOriginVersion: "0" },
+      });
+      expect(h.input.disconnected).not.toHaveBeenCalled();
+    } finally {
+      h.cleanup();
+    }
+  },
+);
 it("fails closed on nonbinary server data without exposing it", () => {
   const h = setup();
   try {

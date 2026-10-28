@@ -310,6 +310,18 @@
             name = "realtime";
             script = "ci/realtime.sh";
           };
+          runtime-host = mkApp {
+            name = "runtime-host";
+            script = "runtime-host/run.sh";
+          };
+          realtime-e2e = mkApp {
+            name = "realtime-e2e";
+            script = "realtime-e2e/run.sh";
+            extraRuntimeInputs = [
+              pkgs.openssl
+              pkgs.caddy
+            ];
+          };
           local-editor = mkApp {
             name = "local-editor";
             script = "ci/local-editor.sh";

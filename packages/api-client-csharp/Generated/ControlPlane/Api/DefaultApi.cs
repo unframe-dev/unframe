@@ -263,6 +263,31 @@ namespace Unframe.ControlPlane.Api
         ///
         /// </remarks>
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPostRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>&gt;</returns>
+        Task<IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse> InternalRuntimeHostsRuntimeIdHeartbeatPostAsync(string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPostRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>?&gt;</returns>
+        Task<IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse?> InternalRuntimeHostsRuntimeIdHeartbeatPostOrDefaultAsync(string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
         /// <param name="assignmentEpoch"></param>
@@ -626,6 +651,52 @@ namespace Unframe.ControlPlane.Api
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdGetApiResponse"/>?&gt;</returns>
         Task<ISessionsIdGetApiResponse?> SessionsIdGetOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdRuntimePreparationGetApiResponse"/>&gt;</returns>
+        Task<ISessionsIdRuntimePreparationGetApiResponse> SessionsIdRuntimePreparationGetAsync(string id, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdRuntimePreparationGetApiResponse"/>?&gt;</returns>
+        Task<ISessionsIdRuntimePreparationGetApiResponse?> SessionsIdRuntimePreparationGetOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdRuntimePreparationPostApiResponse"/>&gt;</returns>
+        Task<ISessionsIdRuntimePreparationPostApiResponse> SessionsIdRuntimePreparationPostAsync(string id, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdRuntimePreparationPostApiResponse"/>?&gt;</returns>
+        Task<ISessionsIdRuntimePreparationPostApiResponse?> SessionsIdRuntimePreparationPostOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -1369,6 +1440,36 @@ namespace Unframe.ControlPlane.Api
     }
 
     /// <summary>
+    /// The <see cref="IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>
+    /// </summary>
+    public interface IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdHeartbeatPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
+    }
+
+    /// <summary>
     /// The <see cref="IInternalRuntimeLeaseGetApiResponse"/>
     /// </summary>
     public interface IInternalRuntimeLeaseGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeLeaseGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet401Response?>
@@ -1821,7 +1922,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdBootstrapPostApiResponse"/>
     /// </summary>
-    public interface ISessionsIdBootstrapPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdBootstrapPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdBootstrapPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdBootstrapPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1858,6 +1959,12 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsConflict { get; }
+
+        /// <summary>
+        /// Returns true if the response is 410 Gone
+        /// </summary>
+        /// <returns></returns>
+        bool IsGone { get; }
     }
 
     /// <summary>
@@ -1905,7 +2012,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdGetApiResponse"/>
     /// </summary>
-    public interface ISessionsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsPost201ResponseSession?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsPost201ResponseSession?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1936,6 +2043,78 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsNotFound { get; }
+
+        /// <summary>
+        /// Returns true if the response is 410 Gone
+        /// </summary>
+        /// <returns></returns>
+        bool IsGone { get; }
+    }
+
+    /// <summary>
+    /// The <see cref="ISessionsIdRuntimePreparationGetApiResponse"/>
+    /// </summary>
+    public interface ISessionsIdRuntimePreparationGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 403 Forbidden
+        /// </summary>
+        /// <returns></returns>
+        bool IsForbidden { get; }
+
+        /// <summary>
+        /// Returns true if the response is 404 NotFound
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotFound { get; }
+    }
+
+    /// <summary>
+    /// The <see cref="ISessionsIdRuntimePreparationPostApiResponse"/>
+    /// </summary>
+    public interface ISessionsIdRuntimePreparationPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 403 Forbidden
+        /// </summary>
+        /// <returns></returns>
+        bool IsForbidden { get; }
+
+        /// <summary>
+        /// Returns true if the response is 404 NotFound
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotFound { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
     }
 
     /// <summary>
@@ -1983,7 +2162,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsJoinPostApiResponse"/>
     /// </summary>
-    public interface ISessionsJoinPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsPost201ResponseSession?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, ITooManyRequests<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsJoinPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsPost201ResponseSession?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>, ITooManyRequests<Unframe.ControlPlane.Model.PresentationsGet401Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2020,6 +2199,12 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsConflict { get; }
+
+        /// <summary>
+        /// Returns true if the response is 410 Gone
+        /// </summary>
+        /// <returns></returns>
+        bool IsGone { get; }
 
         /// <summary>
         /// Returns true if the response is 429 TooManyRequests
@@ -2073,7 +2258,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsSessionIdDeliveryPostApiResponse"/>
     /// </summary>
-    public interface ISessionsSessionIdDeliveryPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<System.IO.Stream?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsSessionIdDeliveryPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<System.IO.Stream?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet401Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2110,6 +2295,12 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsConflict { get; }
+
+        /// <summary>
+        /// Returns true if the response is 410 Gone
+        /// </summary>
+        /// <returns></returns>
+        bool IsGone { get; }
 
         /// <summary>
         /// Returns true if the response is 422 UnprocessableContent
@@ -2403,7 +2594,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IViewerCredentialsDeleteApiResponse"/>
     /// </summary>
-    public interface IViewerCredentialsDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IViewerCredentialsDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
     {
         /// <summary>
         /// Returns true if the response is 204 NoContent
@@ -2416,6 +2607,12 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 410 Gone
+        /// </summary>
+        /// <returns></returns>
+        bool IsGone { get; }
     }
 
     /// <summary>
@@ -2457,7 +2654,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IViewerCredentialsRefreshPostApiResponse"/>
     /// </summary>
-    public interface IViewerCredentialsRefreshPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.ViewerCredentialsPost201Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IViewerCredentialsRefreshPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.ViewerCredentialsPost201Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2470,6 +2667,12 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 410 Gone
+        /// </summary>
+        /// <returns></returns>
+        bool IsGone { get; }
     }
 
     /// <summary>
@@ -2667,6 +2870,26 @@ namespace Unframe.ControlPlane.Api
         internal void ExecuteOnErrorInternalRuntimeBootstrapGet(Exception exception)
         {
             OnErrorInternalRuntimeBootstrapGet?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnInternalRuntimeHostsRuntimeIdHeartbeatPost;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorInternalRuntimeHostsRuntimeIdHeartbeatPost;
+
+        internal void ExecuteOnInternalRuntimeHostsRuntimeIdHeartbeatPost(DefaultApi.InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse apiResponse)
+        {
+            OnInternalRuntimeHostsRuntimeIdHeartbeatPost?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorInternalRuntimeHostsRuntimeIdHeartbeatPost(Exception exception)
+        {
+            OnErrorInternalRuntimeHostsRuntimeIdHeartbeatPost?.Invoke(this, new ExceptionEventArgs(exception));
         }
 
         /// <summary>
@@ -2967,6 +3190,46 @@ namespace Unframe.ControlPlane.Api
         internal void ExecuteOnErrorSessionsIdGet(Exception exception)
         {
             OnErrorSessionsIdGet?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnSessionsIdRuntimePreparationGet;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorSessionsIdRuntimePreparationGet;
+
+        internal void ExecuteOnSessionsIdRuntimePreparationGet(DefaultApi.SessionsIdRuntimePreparationGetApiResponse apiResponse)
+        {
+            OnSessionsIdRuntimePreparationGet?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorSessionsIdRuntimePreparationGet(Exception exception)
+        {
+            OnErrorSessionsIdRuntimePreparationGet?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnSessionsIdRuntimePreparationPost;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorSessionsIdRuntimePreparationPost;
+
+        internal void ExecuteOnSessionsIdRuntimePreparationPost(DefaultApi.SessionsIdRuntimePreparationPostApiResponse apiResponse)
+        {
+            OnSessionsIdRuntimePreparationPost?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorSessionsIdRuntimePreparationPost(Exception exception)
+        {
+            OnErrorSessionsIdRuntimePreparationPost?.Invoke(this, new ExceptionEventArgs(exception));
         }
 
         /// <summary>
@@ -7273,6 +7536,396 @@ namespace Unframe.ControlPlane.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)413);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatInternalRuntimeHostsRuntimeIdHeartbeatPost(ref string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPostRequest"></param>
+        /// <returns></returns>
+        private void ValidateInternalRuntimeHostsRuntimeIdHeartbeatPost(string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest)
+        {
+            if (runtimeId == null)
+                throw new ArgumentNullException(nameof(runtimeId));
+
+            if (internalRuntimeHostsRuntimeIdHeartbeatPostRequest == null)
+                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPostRequest));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPostRequest"></param>
+        private void AfterInternalRuntimeHostsRuntimeIdHeartbeatPostDefaultImplementation(IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse apiResponseLocalVar, string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest)
+        {
+            bool suppressDefaultLog = false;
+            AfterInternalRuntimeHostsRuntimeIdHeartbeatPost(ref suppressDefaultLog, apiResponseLocalVar, runtimeId, internalRuntimeHostsRuntimeIdHeartbeatPostRequest);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPostRequest"></param>
+        partial void AfterInternalRuntimeHostsRuntimeIdHeartbeatPost(ref bool suppressDefaultLog, IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse apiResponseLocalVar, string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPostRequest"></param>
+        private void OnErrorInternalRuntimeHostsRuntimeIdHeartbeatPostDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorInternalRuntimeHostsRuntimeIdHeartbeatPost(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, runtimeId, internalRuntimeHostsRuntimeIdHeartbeatPostRequest);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPostRequest"></param>
+        partial void OnErrorInternalRuntimeHostsRuntimeIdHeartbeatPost(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPostRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>&gt;</returns>
+        public async Task<IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse?> InternalRuntimeHostsRuntimeIdHeartbeatPostOrDefaultAsync(string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await InternalRuntimeHostsRuntimeIdHeartbeatPostAsync(runtimeId, internalRuntimeHostsRuntimeIdHeartbeatPostRequest, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPostRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>&gt;</returns>
+        public async Task<IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse> InternalRuntimeHostsRuntimeIdHeartbeatPostAsync(string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidateInternalRuntimeHostsRuntimeIdHeartbeatPost(runtimeId, internalRuntimeHostsRuntimeIdHeartbeatPostRequest);
+
+                FormatInternalRuntimeHostsRuntimeIdHeartbeatPost(ref runtimeId, internalRuntimeHostsRuntimeIdHeartbeatPostRequest);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/internal/runtime/hosts/{runtimeId}/heartbeat"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/internal/runtime/hosts/{runtimeId}/heartbeat");
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BruntimeId%7D", Uri.EscapeDataString(runtimeId.ToString()));
+
+                    httpRequestMessageLocalVar.Content = (internalRuntimeHostsRuntimeIdHeartbeatPostRequest as object) is System.IO.Stream stream
+                        ? httpRequestMessageLocalVar.Content = new StreamContent(stream)
+                        : httpRequestMessageLocalVar.Content = new StringContent(JsonSerializer.Serialize(internalRuntimeHostsRuntimeIdHeartbeatPostRequest, _jsonSerializerOptions));
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] contentTypes = new string[] {
+                        "application/json"
+                    };
+
+                    string? contentTypeLocalVar = ClientUtils.SelectHeaderContentType(contentTypes);
+
+                    if (contentTypeLocalVar != null && httpRequestMessageLocalVar.Content != null)
+                        httpRequestMessageLocalVar.Content.Headers.ContentType = new MediaTypeHeaderValue(contentTypeLocalVar);
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Post;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse>();
+                        InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/internal/runtime/hosts/{runtimeId}/heartbeat", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterInternalRuntimeHostsRuntimeIdHeartbeatPostDefaultImplementation(apiResponseLocalVar, runtimeId, internalRuntimeHostsRuntimeIdHeartbeatPostRequest);
+
+                        Events.ExecuteOnInternalRuntimeHostsRuntimeIdHeartbeatPost(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorInternalRuntimeHostsRuntimeIdHeartbeatPostDefaultImplementation(e, "/internal/runtime/hosts/{runtimeId}/heartbeat", uriBuilderLocalVar.Path, runtimeId, internalRuntimeHostsRuntimeIdHeartbeatPostRequest);
+                Events.ExecuteOnErrorInternalRuntimeHostsRuntimeIdHeartbeatPost(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>
+        /// </summary>
+        public partial class InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse : Unframe.ControlPlane.Client.ApiResponse, IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse(ILogger<InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse(ILogger<InternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdHeartbeatPost200Response? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdHeartbeatPost200Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdHeartbeatPost200Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
                 }
 
                 return result != null;
@@ -12830,6 +13483,44 @@ namespace Unframe.ControlPlane.Api
                 return result != null;
             }
 
+            /// <summary>
+            /// Returns true if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public bool IsGone => 410 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsJoinPost410Response? Gone()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsGone
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsJoinPost410Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryGone([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsJoinPost410Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Gone();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)410);
+                }
+
+                return result != null;
+            }
+
             private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
             {
                 bool suppressDefaultLog = false;
@@ -13673,6 +14364,816 @@ namespace Unframe.ControlPlane.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)404);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public bool IsGone => 410 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsJoinPost410Response? Gone()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsGone
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsJoinPost410Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryGone([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsJoinPost410Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Gone();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)410);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatSessionsIdRuntimePreparationGet(ref string id);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        private void ValidateSessionsIdRuntimePreparationGet(string id)
+        {
+            if (id == null)
+                throw new ArgumentNullException(nameof(id));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="id"></param>
+        private void AfterSessionsIdRuntimePreparationGetDefaultImplementation(ISessionsIdRuntimePreparationGetApiResponse apiResponseLocalVar, string id)
+        {
+            bool suppressDefaultLog = false;
+            AfterSessionsIdRuntimePreparationGet(ref suppressDefaultLog, apiResponseLocalVar, id);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="id"></param>
+        partial void AfterSessionsIdRuntimePreparationGet(ref bool suppressDefaultLog, ISessionsIdRuntimePreparationGetApiResponse apiResponseLocalVar, string id);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="id"></param>
+        private void OnErrorSessionsIdRuntimePreparationGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string id)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorSessionsIdRuntimePreparationGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, id);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="id"></param>
+        partial void OnErrorSessionsIdRuntimePreparationGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string id);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdRuntimePreparationGetApiResponse"/>&gt;</returns>
+        public async Task<ISessionsIdRuntimePreparationGetApiResponse?> SessionsIdRuntimePreparationGetOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await SessionsIdRuntimePreparationGetAsync(id, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdRuntimePreparationGetApiResponse"/>&gt;</returns>
+        public async Task<ISessionsIdRuntimePreparationGetApiResponse> SessionsIdRuntimePreparationGetAsync(string id, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidateSessionsIdRuntimePreparationGet(id);
+
+                FormatSessionsIdRuntimePreparationGet(ref id);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/sessions/{id}/runtime-preparation"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/sessions/{id}/runtime-preparation");
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7Bid%7D", Uri.EscapeDataString(id.ToString()));
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Get;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<SessionsIdRuntimePreparationGetApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<SessionsIdRuntimePreparationGetApiResponse>();
+                        SessionsIdRuntimePreparationGetApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/sessions/{id}/runtime-preparation", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterSessionsIdRuntimePreparationGetDefaultImplementation(apiResponseLocalVar, id);
+
+                        Events.ExecuteOnSessionsIdRuntimePreparationGet(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorSessionsIdRuntimePreparationGetDefaultImplementation(e, "/sessions/{id}/runtime-preparation", uriBuilderLocalVar.Path, id);
+                Events.ExecuteOnErrorSessionsIdRuntimePreparationGet(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="SessionsIdRuntimePreparationGetApiResponse"/>
+        /// </summary>
+        public partial class SessionsIdRuntimePreparationGetApiResponse : Unframe.ControlPlane.Client.ApiResponse, ISessionsIdRuntimePreparationGetApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<SessionsIdRuntimePreparationGetApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="SessionsIdRuntimePreparationGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsIdRuntimePreparationGetApiResponse(ILogger<SessionsIdRuntimePreparationGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="SessionsIdRuntimePreparationGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsIdRuntimePreparationGetApiResponse(ILogger<SessionsIdRuntimePreparationGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public bool IsForbidden => 403 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsForbidden
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Forbidden();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotFound => 404 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsNotFound
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = NotFound();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)404);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatSessionsIdRuntimePreparationPost(ref string id);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        private void ValidateSessionsIdRuntimePreparationPost(string id)
+        {
+            if (id == null)
+                throw new ArgumentNullException(nameof(id));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="id"></param>
+        private void AfterSessionsIdRuntimePreparationPostDefaultImplementation(ISessionsIdRuntimePreparationPostApiResponse apiResponseLocalVar, string id)
+        {
+            bool suppressDefaultLog = false;
+            AfterSessionsIdRuntimePreparationPost(ref suppressDefaultLog, apiResponseLocalVar, id);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="id"></param>
+        partial void AfterSessionsIdRuntimePreparationPost(ref bool suppressDefaultLog, ISessionsIdRuntimePreparationPostApiResponse apiResponseLocalVar, string id);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="id"></param>
+        private void OnErrorSessionsIdRuntimePreparationPostDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string id)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorSessionsIdRuntimePreparationPost(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, id);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="id"></param>
+        partial void OnErrorSessionsIdRuntimePreparationPost(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string id);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdRuntimePreparationPostApiResponse"/>&gt;</returns>
+        public async Task<ISessionsIdRuntimePreparationPostApiResponse?> SessionsIdRuntimePreparationPostOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await SessionsIdRuntimePreparationPostAsync(id, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdRuntimePreparationPostApiResponse"/>&gt;</returns>
+        public async Task<ISessionsIdRuntimePreparationPostApiResponse> SessionsIdRuntimePreparationPostAsync(string id, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidateSessionsIdRuntimePreparationPost(id);
+
+                FormatSessionsIdRuntimePreparationPost(ref id);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/sessions/{id}/runtime-preparation"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/sessions/{id}/runtime-preparation");
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7Bid%7D", Uri.EscapeDataString(id.ToString()));
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Post;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<SessionsIdRuntimePreparationPostApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<SessionsIdRuntimePreparationPostApiResponse>();
+                        SessionsIdRuntimePreparationPostApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/sessions/{id}/runtime-preparation", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterSessionsIdRuntimePreparationPostDefaultImplementation(apiResponseLocalVar, id);
+
+                        Events.ExecuteOnSessionsIdRuntimePreparationPost(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorSessionsIdRuntimePreparationPostDefaultImplementation(e, "/sessions/{id}/runtime-preparation", uriBuilderLocalVar.Path, id);
+                Events.ExecuteOnErrorSessionsIdRuntimePreparationPost(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="SessionsIdRuntimePreparationPostApiResponse"/>
+        /// </summary>
+        public partial class SessionsIdRuntimePreparationPostApiResponse : Unframe.ControlPlane.Client.ApiResponse, ISessionsIdRuntimePreparationPostApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<SessionsIdRuntimePreparationPostApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="SessionsIdRuntimePreparationPostApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsIdRuntimePreparationPostApiResponse(ILogger<SessionsIdRuntimePreparationPostApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="SessionsIdRuntimePreparationPostApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsIdRuntimePreparationPostApiResponse(ILogger<SessionsIdRuntimePreparationPostApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public bool IsForbidden => 403 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsForbidden
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Forbidden();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotFound => 404 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsNotFound
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = NotFound();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)404);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
                 }
 
                 return result != null;
@@ -14571,6 +16072,44 @@ namespace Unframe.ControlPlane.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public bool IsGone => 410 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsJoinPost410Response? Gone()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsGone
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsJoinPost410Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryGone([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsJoinPost410Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Gone();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)410);
                 }
 
                 return result != null;
@@ -15539,6 +17078,44 @@ namespace Unframe.ControlPlane.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public bool IsGone => 410 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsJoinPost410Response? Gone()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsGone
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsJoinPost410Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryGone([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsJoinPost410Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Gone();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)410);
                 }
 
                 return result != null;
@@ -19063,6 +20640,44 @@ namespace Unframe.ControlPlane.Api
                 return result != null;
             }
 
+            /// <summary>
+            /// Returns true if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public bool IsGone => 410 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsJoinPost410Response? Gone()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsGone
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsJoinPost410Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryGone([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsJoinPost410Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Gone();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)410);
+                }
+
+                return result != null;
+            }
+
             private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
             {
                 bool suppressDefaultLog = false;
@@ -19731,6 +21346,44 @@ namespace Unframe.ControlPlane.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public bool IsGone => 410 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 410 Gone
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsJoinPost410Response? Gone()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsGone
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsJoinPost410Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 410 Gone and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryGone([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsJoinPost410Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Gone();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)410);
                 }
 
                 return result != null;

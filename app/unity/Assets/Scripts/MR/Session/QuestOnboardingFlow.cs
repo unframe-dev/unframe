@@ -16,20 +16,22 @@ namespace Unframe.Unity.PresentationRuntime
             Func<bool> controlReady, Func<bool> connectionFailed, Func<string> playbackStatus,
             Func<Task> resume, TimeSpan timeout, CancellationToken token)
         {
+            if (timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
+            token.ThrowIfCancellationRequested();
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
             await start();
-            DateTime deadline = DateTime.UtcNow.Add(timeout);
             bool resumeRequested = false;
             while (true)
             {
                 token.ThrowIfCancellationRequested();
+                if (connectionFailed() || elapsed.Elapsed >= timeout)
+                    throw new InvalidOperationException("presentation-not-ready");
                 if (!resumeRequested && controlReady() && playbackStatus() == "Paused")
                 {
                     await resume();
                     resumeRequested = true;
                 }
-                if (sessionReady()) break;
-                if (connectionFailed() || DateTime.UtcNow >= deadline)
-                    throw new InvalidOperationException("presentation-not-ready");
+                if (sessionReady() && playbackStatus() == "Running") break;
                 await Task.Delay(100, token);
             }
             token.ThrowIfCancellationRequested();

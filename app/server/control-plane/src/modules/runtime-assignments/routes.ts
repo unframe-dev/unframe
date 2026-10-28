@@ -1,3 +1,6 @@
+import { and, eq, gt, isNotNull } from "drizzle-orm";
+import { createD1Database } from "../../adapters/d1/database";
+import { venueEdges } from "../../adapters/d1/schema";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -59,12 +62,27 @@ export function createRuntimeAssignmentRoutes(options: RuntimeAssignmentRouteOpt
       let certificateFingerprint: string | null = null;
       let provisioningEdgeId: string | null = null;
       if (input.runtimeKind === "VenueEdge") {
-        const edge = await config.DB.prepare(
-          "SELECT id, local_endpoint AS endpoint, certificate_fingerprint AS certificateFingerprint FROM venue_edges WHERE runtime_id = ? AND status = 'active' AND protocol_version = 'v3' AND health = 'healthy' AND registered_at IS NOT NULL AND capacity > 0 AND local_endpoint IS NOT NULL AND certificate_fingerprint IS NOT NULL",
-        )
-          .bind(input.runtimeId)
-          .first<{ id: string; endpoint: string; certificateFingerprint: string }>();
-        if (!edge) {
+        const edge = await createD1Database(config.DB)
+          .select({
+            id: venueEdges.id,
+            endpoint: venueEdges.localEndpoint,
+            certificateFingerprint: venueEdges.certificateFingerprint,
+          })
+          .from(venueEdges)
+          .where(
+            and(
+              eq(venueEdges.runtimeId, input.runtimeId),
+              eq(venueEdges.status, "active"),
+              eq(venueEdges.protocolVersion, "v3"),
+              eq(venueEdges.health, "healthy"),
+              isNotNull(venueEdges.registeredAt),
+              gt(venueEdges.capacity, 0),
+              isNotNull(venueEdges.localEndpoint),
+              isNotNull(venueEdges.certificateFingerprint),
+            ),
+          )
+          .get();
+        if (!edge || edge.endpoint === null || edge.certificateFingerprint === null) {
           throw new HTTPException(409, {
             res: context.json({ error: { code: "conflict", message: "conflict" } }, 409),
           });

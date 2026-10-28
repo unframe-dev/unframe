@@ -19,7 +19,8 @@ export type JoinSnapshot =
       refreshing: boolean;
       refreshError: string | null;
     }
-  | { phase: "error"; error: string; session?: PublicSession };
+  | { phase: "error"; error: string; session?: PublicSession }
+  | { phase: "ended"; session: PublicSession };
 export interface PreparedConnection {
   session: Session;
   delivery: DeliveryManifestWire;
@@ -96,6 +97,7 @@ function displayError(error: unknown): string {
         403: "forbidden",
         404: "not-found",
         409: "conflict",
+        410: "connection-unavailable",
         429: "rate-limited",
       } as Record<number, string>
     )[error.status ?? 0] ?? "server-error"
@@ -193,7 +195,7 @@ export function createJoinController(options: {
       Math.min(delay, 2_147_483_647),
     );
   }
-  function acquire(code?: string): Promise<void> {
+  function acquire(code?: string, reconnecting = false): Promise<void> {
     if (disposed) return Promise.resolve();
     if (code === undefined) {
       expire();
@@ -245,11 +247,31 @@ export function createJoinController(options: {
         publishPrepared(false);
       } catch (error) {
         if (!current()) return;
+        if (
+          error instanceof AudienceConnectionError &&
+          (error.code === "session-ended" ||
+            error.code === "unauthorized" ||
+            (error.code === "http-error" && [401, 403, 404, 410].includes(error.status ?? 0)))
+        ) {
+          const session = joinedSession;
+          stop();
+          releaseIdentity();
+          joinedSession = null;
+          if (error.code === "session-ended" && session)
+            publish({ phase: "ended", session: { id: session.id, state: "Ended" } });
+          else
+            publish({
+              phase: "error",
+              error: displayError(error),
+              ...(session ? { session: { id: session.id, state: session.state } } : {}),
+            });
+          return;
+        }
         expire();
         if (!current()) return;
         if (prepared) {
           publishPrepared(false, displayError(error));
-          scheduleRefresh(true);
+          if (!reconnecting) scheduleRefresh(true);
         } else {
           publish({
             phase: "error",
@@ -289,6 +311,9 @@ export function createJoinController(options: {
     },
     refresh() {
       return acquire();
+    },
+    reconnect() {
+      return acquire(undefined, true);
     },
     cancel() {
       stop();

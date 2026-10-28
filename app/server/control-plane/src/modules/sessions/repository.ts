@@ -1,9 +1,15 @@
 import { publicationFenceSchema } from "@unframe/contracts/presentation";
 import type { z } from "zod";
-import { and, eq, ne, sql, getTableColumns } from "drizzle-orm";
+import { and, count, eq, exists, isNull, lt, ne, sql, getTableColumns } from "drizzle-orm";
 
 import { createD1Database } from "../../adapters/d1/database";
-import { presentationSessions, sessionParticipants } from "../../adapters/d1/schema";
+import {
+  presentationPublications,
+  presentationSessions,
+  runtimeAssignments,
+  sessionJoinAttempts,
+  sessionParticipants,
+} from "../../adapters/d1/schema";
 import type { SessionRole, SessionState } from "./schema";
 
 export type SessionRecord = {
@@ -56,6 +62,20 @@ export class D1SessionRepository implements SessionRepository {
   }
 
   async create(record: SessionCreateRecord, presenter: SessionParticipant) {
+    const participant = this.db
+      .insert(sessionParticipants)
+      .select(
+        this.db
+          .select({
+            sessionId: sql<string>`${presenter.sessionId}`.as("sessionId"),
+            userId: sql<string>`${presenter.userId}`.as("userId"),
+            role: sql<SessionRole>`${presenter.role}`.as("role"),
+            joinedAt: sql<string>`${presenter.joinedAt}`.as("joinedAt"),
+          })
+          .from(presentationSessions)
+          .where(eq(presentationSessions.id, record.id)),
+      )
+      .toSQL();
     const [inserted] = await this.database.batch([
       this.database
         .prepare(
@@ -79,11 +99,7 @@ export class D1SessionRepository implements SessionRepository {
           record.presentationId,
           record.presentationId,
         ),
-      this.database
-        .prepare(
-          "INSERT INTO session_participants (session_id, user_id, role, joined_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM presentation_sessions WHERE id = ?)",
-        )
-        .bind(presenter.sessionId, presenter.userId, presenter.role, presenter.joinedAt, record.id),
+      this.database.prepare(participant.sql).bind(...participant.params),
     ]);
     return inserted?.meta.changes === 1 ? this.findById(record.id) : null;
   }
@@ -91,9 +107,7 @@ export class D1SessionRepository implements SessionRepository {
   private selection() {
     return {
       ...getTableColumns(presentationSessions),
-      publicationManifest: sql<
-        string | null
-      >`(SELECT manifest FROM presentation_publications AS publication WHERE publication.presentation_id = presentation_sessions.presentation_id AND publication.epoch = presentation_sessions.publication_epoch)`,
+      publicationManifest: presentationPublications.manifest,
     };
   }
 
@@ -101,6 +115,13 @@ export class D1SessionRepository implements SessionRepository {
     const row = await this.db
       .select(this.selection())
       .from(presentationSessions)
+      .leftJoin(
+        presentationPublications,
+        and(
+          eq(presentationPublications.presentationId, presentationSessions.presentationId),
+          eq(presentationPublications.epoch, presentationSessions.publicationEpoch),
+        ),
+      )
       .where(eq(presentationSessions.id, id))
       .get();
     return row ? sessionRecord(row) : null;
@@ -110,6 +131,13 @@ export class D1SessionRepository implements SessionRepository {
     const row = await this.db
       .select(this.selection())
       .from(presentationSessions)
+      .leftJoin(
+        presentationPublications,
+        and(
+          eq(presentationPublications.presentationId, presentationSessions.presentationId),
+          eq(presentationPublications.epoch, presentationSessions.publicationEpoch),
+        ),
+      )
       .where(
         and(
           eq(presentationSessions.joinCodeHash, joinCodeHash),
@@ -135,6 +163,15 @@ export class D1SessionRepository implements SessionRepository {
   async join(sessionId: string, userId: string, joinedAt: string): Promise<JoinResult> {
     const existing = await this.participantFor(sessionId, userId);
     if (existing) return "existing";
+    const participants = this.db
+      .select({ value: count() })
+      .from(sessionParticipants)
+      .where(eq(sessionParticipants.sessionId, sessionId));
+    const participantCount = this.db
+      .update(presentationSessions)
+      .set({ participantCount: sql`(${participants})` })
+      .where(eq(presentationSessions.id, sessionId))
+      .toSQL();
     const [inserted] = await this.database.batch([
       this.database
         .prepare(
@@ -146,13 +183,7 @@ export class D1SessionRepository implements SessionRepository {
              AND (SELECT count(*) FROM session_participants WHERE session_id = ?) < max_participants`,
         )
         .bind(userId, joinedAt, sessionId, sessionId),
-      this.database
-        .prepare(
-          `UPDATE presentation_sessions
-           SET participant_count = (SELECT count(*) FROM session_participants WHERE session_id = ?)
-           WHERE id = ?`,
-        )
-        .bind(sessionId, sessionId),
+      this.database.prepare(participantCount.sql).bind(...participantCount.params),
     ]);
     if (inserted?.meta.changes === 1) return "joined";
     const session = await this.findById(sessionId);
@@ -168,10 +199,12 @@ export class D1SessionRepository implements SessionRepository {
     attemptedAt,
     windowStart,
   }: Parameters<SessionRepository["consumeJoinAttempt"]>[0]) {
+    const cleanup = this.db
+      .delete(sessionJoinAttempts)
+      .where(lt(sessionJoinAttempts.attemptedAt, windowStart))
+      .toSQL();
     const [, result] = await this.database.batch([
-      this.database
-        .prepare("DELETE FROM session_join_attempts WHERE attempted_at < ?")
-        .bind(windowStart),
+      this.database.prepare(cleanup.sql).bind(...cleanup.params),
       this.database
         .prepare(
           `INSERT INTO session_join_attempts(code_hash, user_id, ip_address, attempted_at)
@@ -197,27 +230,39 @@ export class D1SessionRepository implements SessionRepository {
   }
 
   async start(id: string) {
-    const result = await this.database
-      .prepare(
-        "UPDATE presentation_sessions SET state = 'Presenting' WHERE id = ? AND state = 'Waiting' AND EXISTS (SELECT 1 FROM presentation_publications WHERE presentation_id = presentation_sessions.presentation_id AND epoch = presentation_sessions.publication_epoch)",
+    const publication = this.db
+      .select({ epoch: presentationPublications.epoch })
+      .from(presentationPublications)
+      .where(
+        and(
+          eq(presentationPublications.presentationId, presentationSessions.presentationId),
+          eq(presentationPublications.epoch, presentationSessions.publicationEpoch),
+        ),
+      );
+    const result = await this.db
+      .update(presentationSessions)
+      .set({ state: "Presenting" })
+      .where(
+        and(
+          eq(presentationSessions.id, id),
+          eq(presentationSessions.state, "Waiting"),
+          exists(publication),
+        ),
       )
-      .bind(id)
       .run();
     return result.meta.changes === 1 ? this.findById(id) : null;
   }
 
   async end(id: string, endedAt: string) {
-    await this.database.batch([
-      this.database
-        .prepare(
-          "UPDATE presentation_sessions SET state = 'Ended', ended_at = ? WHERE id = ? AND state != 'Ended'",
-        )
-        .bind(endedAt, id),
-      this.database
-        .prepare(
-          "UPDATE runtime_assignments SET released_at = ? WHERE session_id = ? AND released_at IS NULL",
-        )
-        .bind(endedAt, id),
+    await this.db.batch([
+      this.db
+        .update(presentationSessions)
+        .set({ state: "Ended", endedAt })
+        .where(and(eq(presentationSessions.id, id), ne(presentationSessions.state, "Ended"))),
+      this.db
+        .update(runtimeAssignments)
+        .set({ releasedAt: endedAt })
+        .where(and(eq(runtimeAssignments.sessionId, id), isNull(runtimeAssignments.releasedAt))),
     ]);
     return this.findById(id);
   }

@@ -85,6 +85,18 @@ namespace Unframe.Unity.PresentationRuntime
                 runtime.InputSynchronization.CommandEpoch, groupId, stepId), lifetime.Token);
         }
 
+        public async Task ControlConfirmedAsync(RuntimeControlKind kind, CancellationToken token)
+        {
+            if (!CanControl || lifetime == null) throw new InvalidOperationException("Presenter control is unavailable.");
+            using (var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token))
+            {
+                CommandOutcome outcome = await runtime.SendConfirmedAsync(QuestPresentationInput.CreateControl(kind,
+                    runtime.PresentationOriginVersion, runtime.InputSynchronization.CommandEpoch), linked.Token);
+                if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted)
+                    throw new InvalidOperationException("Presenter control was not accepted: " + outcome.ResultCase);
+            }
+        }
+
 
         private void Awake()
         {

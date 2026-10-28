@@ -106,7 +106,10 @@ Android launch Intentから `unframe.controlPlaneOrigin`、`unframe.sessionId`�
 `unframe.credential`、任意の `unframe.advanceLogicalEvent` を渡す一時接続もあります。
 Sceneにcredentialを保存しないでください。Intent経路はtoken更新機構を提供しないため、
 継続運用には呼び出し元のcredential providerを使用します。
-端末内ログイン・Session選択UI、iPhone用AR Sceneは未実装です。
+通常起動では端末コード認証、資料選択・ルーム参加のUIを使用します。Presenterはルーム作成後に
+Runtime準備APIが`ready`になるまで待って接続し、準備失敗時は同じルームで再試行します。
+発表開始はSession開始と、必要なResumeの受理・Runningへの移行を確認してから完了します。
+iPhone用AR Sceneは含みません。
 校正と複数台の手順は [Session校正](session-calibration.md) を参照してください。
 
 ## 検証と診断
@@ -119,12 +122,10 @@ UNITY_EDITOR="/Applications/Unity/Hub/Editor/6000.3.22f1/Unity.app/Contents/MacO
   nix develop --command bash scripts/unity/test-native-editor.sh rendering
 ```
 
-既存の `nix run .#local-editor-e2e` は、正式compiler build・公開・HTTPS素材配信・Realtime・
-Unity native Editor描画を通すサービス受入テストです。
-LinuxとmacOS arm64のnative実行経路を提供します。Linuxはsystemd/cgroup、macOSは
-専用のfilesystem helper・Seatbelt・Chromium launcherを使用するため、Nixの正式な環境で実行します。
-対応範囲と既存の受入結果は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。
-その記録と、作業中のUnity変更を含めた今回の検証結果は区別してください。
+`nix run .#realtime-e2e -- --unity` は正式compiler build・公開・HTTPS素材配信から、
+実Unity Editorの製品SDK・描画とAudience UIの同期、Runtime再起動・終了まで検査します。
+対応するUnity Editorと有効なライセンスが必要です。端末の認識・カメラ・会場配置は対象外です。
+接続と開始判定の対象単体テストは`test-native-editor.sh realtime-unit`で実行します。
 正式なWebエディターのWebGL previewと回帰テストは維持します。
 ArUco単体診断は `Unframe > Diagnostics` に隔離し、本番入口と分けています。
 Quest・iPhone実機の受入や会場ネットワークの確認はEditorテストとは別に必要です。

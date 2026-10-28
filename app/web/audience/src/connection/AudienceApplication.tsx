@@ -4,6 +4,8 @@ import { readConnectionConfig } from "./application-config";
 import { createAudienceRealtime } from "./realtime-client";
 import { createAnonymousAudienceClient } from "./anonymous-client";
 import { createJoinController, type PreparedConnection } from "./join-controller";
+import type { createTrackingAdapter } from "../tracking/adapter";
+import type { ViewingSnapshot } from "../experience/viewing-session";
 
 const ViewerExperience = lazy(() =>
   import("../experience/ViewerExperience").then((module) => ({ default: module.ViewerExperience })),
@@ -13,7 +15,12 @@ const idleSnapshot = { phase: "idle" } as const;
 const idleSubscribe = () => () => {};
 const getIdleSnapshot = () => idleSnapshot;
 
-export function AudienceApplication() {
+export function AudienceApplication(
+  props: {
+    trackingAdapter?: typeof createTrackingAdapter;
+    onViewingSnapshot?(snapshot: ViewingSnapshot): void;
+  } = {},
+) {
   const [state] = useState(() => {
     const settings = readConnectionConfig(import.meta.env);
     return {
@@ -51,6 +58,17 @@ export function AudienceApplication() {
   useEffect(() => {
     setConnection(revision === null ? null : (state.controller?.getPrepared() ?? null));
   }, [revision, state]);
+  useEffect(() => {
+    if (snapshot.phase === "ended")
+      props.onViewingSnapshot?.({ phase: "ended", runtime: null, recovery: null, error: null });
+    else if (snapshot.phase === "error")
+      props.onViewingSnapshot?.({
+        phase: "error",
+        runtime: null,
+        recovery: null,
+        error: snapshot.error,
+      });
+  }, [snapshot, props.onViewingSnapshot]);
   if (snapshot.phase === "prepared" && state.controller && connection)
     return (
       <Suspense fallback={<p role="status">視聴画面を準備しています。</p>}>
@@ -58,6 +76,9 @@ export function AudienceApplication() {
           connection={connection}
           onRuntimeInput={realtime.install}
           onRecoveryRequest={realtime.recover}
+          onReconnect={state.controller.reconnect}
+          {...(props.trackingAdapter ? { trackingAdapter: props.trackingAdapter } : {})}
+          {...(props.onViewingSnapshot ? { onViewingSnapshot: props.onViewingSnapshot } : {})}
           refreshing={snapshot.refreshing}
           refreshError={snapshot.refreshError}
           onRefresh={() => {

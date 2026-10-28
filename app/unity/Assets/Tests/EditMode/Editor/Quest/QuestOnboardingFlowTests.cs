@@ -26,7 +26,7 @@ public sealed class QuestOnboardingFlowTests
         bool resumed = false;
         await QuestOnboardingStart.BeginPresenterAsync(
             () => Task.CompletedTask,
-            () => resumed, () => true, () => false, () => "Paused",
+            () => resumed, () => true, () => false, () => resumed ? "Running" : "Paused",
             () => { resumed = true; return Task.CompletedTask; },
             TimeSpan.FromSeconds(1), CancellationToken.None);
         Assert.That(resumed, Is.True);
@@ -38,10 +38,56 @@ public sealed class QuestOnboardingFlowTests
         bool resumed = false;
         await QuestOnboardingStart.BeginPresenterAsync(
             () => Task.CompletedTask,
-            () => true, () => true, () => false, () => "Paused",
+            () => true, () => true, () => false, () => resumed ? "Running" : "Paused",
             () => { resumed = true; return Task.CompletedTask; },
             TimeSpan.FromSeconds(1), CancellationToken.None);
         Assert.That(resumed, Is.True);
+    }
+
+    [Test]
+    public async Task PausedReadyFrameAndCompletedWriteDoNotFinishPresenterStart()
+    {
+        string playback = "Paused";
+        bool wroteResume = false;
+        Task begin = QuestOnboardingStart.BeginPresenterAsync(
+            () => Task.CompletedTask, () => true, () => true, () => false, () => playback,
+            () => { wroteResume = true; return Task.CompletedTask; }, TimeSpan.FromSeconds(2), CancellationToken.None);
+        await Task.Delay(150);
+        Assert.That(wroteResume, Is.True);
+        Assert.That(begin.IsCompleted, Is.False, "A paused Snapshot and a successful transport write are not proof that playback started.");
+        playback = "Running";
+        await begin;
+    }
+
+    [Test]
+    public async Task PresenterStartTimesOutWhenAcceptedResumeDoesNotReachRunning()
+    {
+        Exception failure = null;
+        try
+        {
+            await QuestOnboardingStart.BeginPresenterAsync(
+            () => Task.CompletedTask, () => true, () => true, () => false, () => "Paused",
+            () => Task.CompletedTask, TimeSpan.FromMilliseconds(30), CancellationToken.None);
+        }
+        catch (Exception exception) { failure = exception; }
+        Assert.That(failure, Is.TypeOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public void PresenterStartPropagatesRejectedResumeEvenWithAnExistingReadyFrame()
+    {
+        var rejection = new InvalidOperationException("command-rejected");
+        Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () => await QuestOnboardingStart.BeginPresenterAsync(
+            () => Task.CompletedTask, () => true, () => true, () => false, () => "Paused",
+            () => Task.FromException(rejection), TimeSpan.FromSeconds(1), CancellationToken.None)), Is.SameAs(rejection));
+    }
+
+    [Test]
+    public void AFailedConnectionCannotCompletePresenterStartFromAnOldReadyFrame()
+    {
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await QuestOnboardingStart.BeginPresenterAsync(
+            () => Task.CompletedTask, () => true, () => true, () => true, () => "Running",
+            () => Task.CompletedTask, TimeSpan.FromSeconds(1), CancellationToken.None));
     }
     [Test]
     public void RoleRoutesAndBackKeepAudienceOutOfPresentationSelection()

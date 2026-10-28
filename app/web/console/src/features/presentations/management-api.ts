@@ -6,8 +6,9 @@ import {
 import { z } from "zod";
 import { ManagementError, mapConcurrent } from "./management-model";
 
+const baseUrl = import.meta.env["VITE_CONTROL_PLANE_URL"] || "https://api.un-fra.me";
 const client = createControlPlaneClient({
-  baseUrl: import.meta.env["VITE_CONTROL_PLANE_URL"] || "https://api.un-fra.me",
+  baseUrl,
   credentials: "include",
 });
 const presentationSchema = z.object({ id: z.string(), name: z.string() });
@@ -27,7 +28,12 @@ export type PublicationResult = { presentation: Presentation } & (
 );
 
 async function readJson(response: Pick<Response, "ok" | "status" | "json">): Promise<unknown> {
-  if (!response.ok) throw new ManagementError(response.status);
+  if (!response.ok) {
+    const error = z
+      .object({ error: z.object({ code: z.string() }) })
+      .safeParse(await response.json().catch(() => null));
+    throw new ManagementError(response.status, error.success ? error.data.error.code : undefined);
+  }
   return response.json();
 }
 export async function listPresentations() {
@@ -80,6 +86,46 @@ export async function createRoom(presentationId: string) {
     .object({ session: sessionSchema, joinCode: z.string() })
     .parse(await readJson(await client.sessions.$post({ json: { presentationId } })));
 }
-export async function getRoom(id: string) {
-  return sessionSchema.parse(await readJson(await client.sessions[":id"].$get({ param: { id } })));
+export async function getRoom(id: string, signal?: AbortSignal) {
+  return sessionSchema.parse(
+    await readJson(
+      await client.sessions[":id"].$get({ param: { id } }, { init: { signal: signal ?? null } }),
+    ),
+  );
+}
+const assignedRuntimeSchema = z.object({
+  runtimeId: z.string().min(1),
+  assignmentEpoch: z.number().int().positive(),
+  leaseExpiresAt: z.iso.datetime(),
+});
+const runtimePreparationSchema = z.discriminatedUnion("state", [
+  z.object({ state: z.literal("unassigned") }),
+  z.object({ state: z.literal("ended") }),
+  assignedRuntimeSchema.extend({ state: z.literal("starting") }),
+  assignedRuntimeSchema.extend({ state: z.literal("ready") }),
+]);
+export async function getRuntimePreparation(id: string, signal?: AbortSignal) {
+  return runtimePreparationSchema.parse(
+    await readJson(
+      await client.sessions[":id"]["runtime-preparation"].$get(
+        { param: { id } },
+        { init: { signal: signal ?? null } },
+      ),
+    ),
+  );
+}
+export async function prepareRuntime(id: string) {
+  return runtimePreparationSchema.parse(
+    await readJson(await client.sessions[":id"]["runtime-preparation"].$post({ param: { id } })),
+  );
+}
+export async function startRoom(id: string) {
+  return sessionSchema.parse(
+    await readJson(await client.sessions[":id"].start.$post({ param: { id } })),
+  );
+}
+export async function endRoom(id: string) {
+  return sessionSchema.parse(
+    await readJson(await client.sessions[":id"].end.$post({ param: { id } })),
+  );
 }

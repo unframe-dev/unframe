@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { createD1Database } from "../adapters/d1/database";
 import { assets, presentationMembers, presentations } from "../adapters/d1/schema";
@@ -38,27 +38,27 @@ export class D1PresentationRepository implements PresentationRepository {
   }
 
   async create(record: PresentationRecord) {
-    await this.database.batch([
-      this.database
-        .prepare(
-          "INSERT OR IGNORE INTO presentations (id, owner_id, name, revision, definition, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    await this.db.batch([
+      this.db
+        .insert(presentations)
+        .values({
+          ...record,
+          definition: sql`${JSON.stringify(record.definition)}`,
+        })
+        .onConflictDoNothing(),
+      this.db
+        .insert(presentationMembers)
+        .select(
+          this.db
+            .select({
+              presentationId: sql<string>`${record.id}`.as("presentationId"),
+              userId: sql<string>`${record.ownerId}`.as("userId"),
+              role: sql<"owner">`'owner'`.as("role"),
+            })
+            .from(presentations)
+            .where(and(eq(presentations.id, record.id), eq(presentations.ownerId, record.ownerId))),
         )
-        .bind(
-          record.id,
-          record.ownerId,
-          record.name,
-          record.revision,
-          JSON.stringify(record.definition),
-          record.createdAt,
-          record.updatedAt,
-        ),
-      this.database
-        .prepare(
-          `INSERT OR IGNORE INTO presentation_members (presentation_id, user_id, role)
-         SELECT ?, ?, 'owner' WHERE EXISTS
-         (SELECT 1 FROM presentations WHERE id = ? AND owner_id = ?)`,
-        )
-        .bind(record.id, record.ownerId, record.id, record.ownerId),
+        .onConflictDoNothing(),
     ]);
   }
 

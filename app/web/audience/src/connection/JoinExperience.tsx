@@ -13,6 +13,7 @@ const progressText: Record<JoinSnapshot["phase"], string> = {
   bootstrap: "接続情報を取得中…",
   prepared: "接続準備完了。カメラを開始してください。",
   error: "接続準備を完了できませんでした。",
+  ended: "このルームの配信は終了しています。",
 };
 
 const errorText: Record<string, string> = {
@@ -26,6 +27,7 @@ const errorText: Record<string, string> = {
   forbidden: "このルームを視聴する権限がありません。",
   "not-found": "ルームが見つかりません。コードを確認してください。",
   conflict: "ルームの状態が変わりました。もう一度参加してください。",
+  "connection-unavailable": "この接続は利用できません。もう一度ルームへ参加してください。",
   "rate-limited": "参加の試行が多すぎます。時間を置いて再試行してください。",
   "server-error": "サーバーで問題が発生しました。時間を置いて再試行してください。",
   "invalid-response": "サーバーの応答を確認できません。",
@@ -70,7 +72,9 @@ export function JoinExperience({ controller }: { controller: JoinController | nu
           </svg>
         </div>
         <p className="audience-join__eyebrow">会場のプレゼンテーションへ</p>
-        <h1 id="audience-join-title">ルームに参加</h1>
+        <h1 id="audience-join-title">
+          {snapshot.phase === "ended" ? "配信は終了しました" : "ルームに参加"}
+        </h1>
         <p className="audience-join__intro">会場で案内されたルームコードを入力してください。</p>
         {!controller && (
           <p className="audience-join__notice">

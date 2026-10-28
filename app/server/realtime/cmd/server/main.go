@@ -221,7 +221,7 @@ func main() {
 		}
 	}()
 
-	listener, err := net.Listen("tcp", address)
+	listener, err := runtimeListener(address, os.Getenv)
 	if err != nil {
 		slog.Error("listen for realtime gRPC server", "address", address, "error", err)
 		os.Exit(1)

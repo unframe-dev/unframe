@@ -1,0 +1,14 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "ESNext.Disposable", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "noPropertyAccessFromIndexSignature": false,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "typeRoots": ["../dev/node_modules/@types", "../../app/web/audience/node_modules/@types"]
+  },
+  "files": ["../../app/web/audience/node_modules/vite/dist/vite/client.d.ts"],
+  "include": ["./*.mts", "./*.ts", "../../app/web/audience/src/fiducials/*vendor.d.ts"]
+}

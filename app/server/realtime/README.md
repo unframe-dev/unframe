@@ -24,6 +24,22 @@ Session 終了・assignment 解放は次の lease 要求に対する Control Pla
 
 `SSL_CERT_FILE` に PEM 形式の CA 証明書ファイルを指定すると、macOS を含む各 OS で HTTP client の信頼ストアにシステム証明書と併せて読み込み、JWKS と Control Plane の HTTPS 通信に使用します。ホスト名と証明書の検証は維持します。未設定時は標準の HTTP client を使用し、指定ファイルが読めない場合や有効な証明書を含まない場合は起動を中止します。
 
+## Cloud Host supervisor
+
+repository root から `nix run .#runtime-host` で supervisor と Runtime を build・起動します。事前に次の環境変数を設定してください。
+
+- `REALTIME_CONTROL_PLANE_URL`、`REALTIME_SERVICE_IDENTITY`: Control Plane の HTTPS origin と service identity。
+- `REALTIME_RUNTIME_ID`、`REALTIME_RUNTIME_ENDPOINT`: Host 固有 ID と、同じ listener へ native gRPC／WebSocket を転送する HTTPS origin。
+- `REALTIME_LISTEN_ADDR`: Runtime 子プロセスの bind address（例 `127.0.0.1:9090`）。
+- `REALTIME_ISSUER`、`REALTIME_AUDIENCE`、`REALTIME_JWKS_URL`: Runtime と共通の認証設定。
+- `REALTIME_BROWSER_ORIGINS`: 許可する Audience の HTTPS origin。独自 CA の場合は `SSL_CERT_FILE`。
+
+Host は5秒ごとに `POST /internal/runtime/hosts/{runtimeId}/heartbeat` を送信し、Control Plane が割り当てた Cloud Session の Runtime を起動します。Session・epoch・revision・lease は応答から設定するため、運用者は手で指定しません。gRPC health が SERVING の場合だけ、次の heartbeat で ready を報告します。有効なリースは heartbeat で更新され、Host の異常終了から60秒を過ぎると新規割り当ての対象外になります。
+
+子の異常終了、割り当て変更、リース期限を検出すると子を停止・再構成します。checkpoint からの復旧は pause 状態です。終了した Session の子は次の heartbeat で停止します。Ctrl-C では受付を解除し、子を最大10秒で停止します。割り当てはリース期限まで保持されるので、同じ ID・endpoint で Host を再起動できます。VM 作成や TLS ingress の構築は行いません。
+
+`go run ./cmd/runtime-host` を直接使う場合は、実 Runtime binary の絶対パスを `REALTIME_SERVER_EXECUTABLE` に指定してください。通常の Nix 入口はこの値を設定します。
+
 ## 構成
 
 - `cmd/server`: listener と signal handling を組み立てる composition root
@@ -59,6 +75,8 @@ nix run .#realtime -- fix
 ```
 
 `nix run .#realtime`はRealtime専用のvet、lint、test、build、race detectorを実行する。lint設定とDocker build contextも`app/server/realtime/`内で完結し、移行元のGo HTTP backendを必要としない。
+
+実 Control Plane／D1／R2 と TLS ingress を使う同期・復旧 E2E は、repository root で `nix run .#realtime-e2e` を実行します。Fixed Browser の事前準備が必要です。gRPC 検証クライアントと複数の WebSocket Viewer、Chromium 上の製品 Audience を接続し、進行・pause／resume・途中参加・切断復帰・checkpoint 復元・Session 終了を検証します。`--unity --race` を付けると、実 Unity Editor の製品 SDK・Runtime・描画処理を Presenter として使用します。`e2e/` は通常の Go test では skip し、この専用入口から設定を渡したときだけ実行します。[準備と検証範囲](../../../scripts/README.md#realtime-の同期復旧-e2e)を参照してください。
 
 ## コンテナ
 

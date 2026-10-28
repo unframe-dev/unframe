@@ -43,6 +43,7 @@ export function createAnchorSession(options: {
   requestPermissions?: () => Promise<void>;
   showGuides?: boolean;
   fetcher?: typeof fetch;
+  trackingAdapter?: typeof createTrackingAdapter;
 }) {
   const { canvas: surface, config } = options;
   const diagnostics = options.diagnostics ?? createDiagnostics();
@@ -122,7 +123,7 @@ export function createAnchorSession(options: {
     publish();
     log("anchor.cleared", { reason });
   };
-  const controller = createTrackingAdapter({
+  const controller = (options.trackingAdapter ?? createTrackingAdapter)({
     canvas: surface,
     callbacks: {
       onScene(scene, _camera, renderer) {

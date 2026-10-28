@@ -16,10 +16,11 @@ pnpm --filter @unframe/console dev
 
 - `/home`: 閲覧可能な Presentation と最新公開 Dist を確認します。公開情報のない Presentation と取得エラーを区別します。
 - `/rooms`: 公開済み Presentation からルーム（Session）を作成します。作成時点の最新公開版が固定され、結果の publication fence を表示します。Join Code は作成直後だけ表示し、再読み込み後に再取得できません。
+- `/rooms/{id}`: 発表環境を準備し、準備完了後に発表を開始します。準備失敗は同じルームで再試行でき、発表終了後は準備・開始できません。
 - `/login`・`/signup`・`/recover`・`/recover/reset`・`/device`: 認証と device 承認。
 - `/settings/profile`・`/settings/security`: アカウント設定。`/devices` は準備画面です。
 
-ルームの参加・Runtime 配置・発表開始停止はConsole の対象外です。作成応答が不明な場合は自動再送しません。未終了の Session がある Presentation の再公開は Control Plane が拒否します。
+発表環境の準備には、運用者が Cloud Host を登録・起動しておく必要があります。ルームへの参加は Audience と Unity が担当します。作成応答が不明な場合は自動再送しません。未終了の Session がある Presentation の再公開は Control Plane が拒否します。
 
 ## 検証
 

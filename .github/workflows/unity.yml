@@ -8,10 +8,6 @@ name: Unity CI (static)
 #   - protobuf      : C# generation / copied source drift と managed dependency scripts の型・テスト・checksum 検証
 #   - meta-check    : Unity プロジェクト初期化後のみ実行する .meta 整合性チェック
 #
-# Editor 起動を伴うテスト/ビルドはローカルの Unity Editor で実行する。
-# Self-hosted runner や Unity Student/Pro ライセンスが揃った時点で
-# 別 workflow として再導入する。
-
 # ci.yml から呼ばれる reusable workflow。変更検出とオーケストレーションは ci.yml が担う。
 on:
   workflow_call:

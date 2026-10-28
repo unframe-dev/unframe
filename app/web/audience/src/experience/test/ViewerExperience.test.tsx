@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import type { PreparedConnection } from "../../connection/join-controller";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { createJoinController, type PreparedConnection } from "../../connection/join-controller";
+import {
+  AudienceConnectionError,
+  type Bootstrap,
+  type Session,
+} from "../../connection/http-client";
 import type { AnchorSessionSnapshot } from "../anchor-session";
 import type { createRuntimePlayback } from "../../runtime/playback";
 import type { RuntimeInput } from "../viewing-session";
@@ -111,7 +117,14 @@ function setup() {
   } as unknown as PreparedConnection;
   const onLeave = vi.fn(),
     onRefresh = vi.fn();
-  return { connection, onLeave, onRefresh, refreshing: false, refreshError: null };
+  return {
+    connection,
+    onLeave,
+    onRefresh,
+    onReconnect: vi.fn(async () => {}),
+    refreshing: false,
+    refreshError: null,
+  };
 }
 afterEach(() => {
   cleanup();
@@ -201,10 +214,109 @@ test("assignment更新と切断後の再接続はinputを交換し古いinputを
   expect(screen.getByText("接続が切れました")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "メニューを開く" }));
   fireEvent.click(screen.getByRole("button", { name: "再接続" }));
+  expect(props.onReconnect).toHaveBeenCalledOnce();
+  expect(inputs).toHaveLength(2);
+  const refreshed = structuredClone(next);
+  refreshed.bootstrap.credential = "private-refreshed";
+  ui.rerender(
+    <ViewerExperience {...props} connection={refreshed} onRuntimeInput={onRuntimeInput} />,
+  );
   await waitFor(() => expect(inputs).toHaveLength(3));
   expect(mock.start).toHaveBeenCalledTimes(1);
   expect(cleanups[1]).toHaveBeenCalledTimes(1);
 });
+test.each(["delivery", "bootstrap"] as const)(
+  "自動再接続の%sが一時失敗しても再試行を続け、成功した新入力で復帰する",
+  async (failedRequest) => {
+    const props = setup();
+    const deadline = new Date(Date.now() + 120_000).toISOString();
+    const delivery = props.connection.delivery;
+    delivery.projectionProfile!.key!.role = 2;
+    delivery.assetAccess!.forEach((asset) => {
+      asset.expiresAtUnixMs = String(Date.parse(deadline));
+    });
+    const publication = {
+      presentationId: delivery.publication!.presentationId!,
+      publicationEpoch: Number(delivery.publication!.publicationEpoch),
+      publicationManifestHash: delivery.publication!.publicationManifestHash!,
+    };
+    const session: Session = {
+      id: delivery.sessionId!,
+      presentationId: publication.presentationId!,
+      presenterId: "presenter",
+      state: "Presenting",
+      participantCount: 2,
+      maxParticipants: 50,
+      createdAt: new Date().toISOString(),
+      endedAt: null,
+      publicationFence: publication,
+    };
+    const bootstrap: Bootstrap = {
+      endpoint: "https://runtime.example.test",
+      fingerprint: null,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud",
+      assignmentEpoch: Number(delivery.projectionInstance!.assignmentEpoch),
+      presentationId: session.presentationId,
+      presentationRevision: 1,
+      credential: "private-current",
+      expiresAt: deadline,
+      publicationFence: publication,
+      projectionProfileId: delivery.projectionProfile!.projectionProfileId!,
+    };
+    const client = {
+      join: vi.fn(async () => session),
+      delivery: vi.fn(async () => delivery),
+      bootstrap: vi.fn(async () => bootstrap),
+    };
+    const controller = createJoinController({ client, capabilityProfileId: "synthetic-test-only" });
+    await controller.join("ABCD-EFGH");
+    expect(controller.getSnapshot().phase).toBe("prepared");
+    const inputs: RuntimeInput[] = [];
+    const onRuntimeInput = vi.fn((input: RuntimeInput) => {
+      inputs.push(input);
+    });
+    function ConnectedViewer() {
+      const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+      const [connection, setConnection] = useState(() => controller.getPrepared()!);
+      const revision = snapshot.phase === "prepared" ? snapshot.revision : null;
+      useEffect(() => {
+        if (revision !== null) setConnection(controller.getPrepared()!);
+      }, [revision]);
+      return (
+        <ViewerExperience
+          {...props}
+          connection={connection}
+          refreshing={snapshot.phase === "prepared" && snapshot.refreshing}
+          onReconnect={controller.reconnect}
+          onRuntimeInput={onRuntimeInput}
+        />
+      );
+    }
+    const ui = render(<ConnectedViewer />);
+    try {
+      await start();
+      client[failedRequest].mockRejectedValueOnce(new AudienceConnectionError("http-error", 503));
+      act(() => inputs[0]!.disconnected());
+      await waitFor(() => expect(client[failedRequest]).toHaveBeenCalledTimes(3), {
+        timeout: 6500,
+      });
+      await waitFor(() => expect(inputs).toHaveLength(2));
+      expect(client.join).toHaveBeenCalledTimes(1);
+      expect(controller.getSnapshot()).toMatchObject({
+        phase: "prepared",
+        revision: 2,
+        refreshing: false,
+        refreshError: null,
+      });
+      expect(mock.start).toHaveBeenCalledTimes(1);
+    } finally {
+      ui.unmount();
+      controller.dispose();
+    }
+  },
+  10_000,
+);
 test("再同期要求はidごとに一回通知し、接続callback例外を秘密値なしで表示する", async () => {
   const props = setup();
   let input!: RuntimeInput;
@@ -372,6 +484,15 @@ test("旧installer・切断・停止・assignment変更・退出後のgetterは�
   expect(() => getters[1]!()).toThrow("viewing-input-inactive");
   fireEvent.click(screen.getByRole("button", { name: "メニューを開く" }));
   fireEvent.click(screen.getByRole("button", { name: "再接続" }));
+  expect(props.onReconnect).toHaveBeenCalledOnce();
+  expect(getters).toHaveLength(2);
+  ui.rerender(
+    <ViewerExperience
+      {...props}
+      connection={structuredClone(props.connection)}
+      onRuntimeInput={replacement}
+    />,
+  );
   await waitFor(() => expect(getters).toHaveLength(3));
   const next = structuredClone(props.connection);
   next.delivery.projectionInstance!.assignmentEpoch = "2";

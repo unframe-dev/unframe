@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Bound the bundled LicensingClient CLR in isolated Editor test processes.
+export DOTNET_GCHeapHardLimit="${DOTNET_GCHeapHardLimit:-40000000}"
+export DOTNET_gcServer="${DOTNET_gcServer:-0}"
+export DOTNET_EnableDiagnostics="${DOTNET_EnableDiagnostics:-0}"
+export COMPlus_EnableDiagnostics="${COMPlus_EnableDiagnostics:-0}"
 root="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
 # shellcheck source=../lib/native-host.sh
 source "$root/scripts/lib/native-host.sh"
 host="$(native_host)"
 mode="${1:-e2e}"
-case "$mode" in unit|regression|playback|rendering|e2e|showcase) ;; *) echo "Expected unit, regression, playback, rendering, e2e or showcase." >&2; exit 1 ;; esac
+case "$mode" in unit|regression|playback|rendering|realtime-unit|realtime-e2e|e2e|showcase) ;; *) echo "Expected unit, regression, playback, rendering, realtime-unit, realtime-e2e, e2e or showcase." >&2; exit 1 ;; esac
 project="$root/.unframe/native-editor/project"
 if [[ "$mode" == regression ]]; then project="$root/.unframe/native-editor-regression/project"; fi
 if [[ "$mode" == playback ]]; then project="$root/.unframe/native-editor-playback/project"; fi
+if [[ "$mode" == realtime-unit ]]; then project="$root/.unframe/native-editor-realtime-unit/project"; fi
+if [[ "$mode" == realtime-e2e ]]; then project="$root/.unframe/native-editor-realtime-e2e/project"; fi
 assets="$project/Assets"
 mkdir -p "$assets" "$project/Packages" "$project/ProjectSettings" "$root/.unframe/local-editor-e2e/logs"
 rm -rf "$assets/Unframe" "$assets/Tests"
@@ -22,6 +29,7 @@ mkdir -p "$assets/Unframe/Scripts/Quest"
 for file in PresentationCalibrationState PresentationCalibrationMath QuestPresentationTracking QuestPresentationInput PresenterInputSynchronizationState PresenterRecognition; do
   cp "$runtime/Quest/$file.cs" "$assets/Unframe/Scripts/Quest/"
 done
+cp "$root/app/unity/Assets/Scripts/MR/Session/QuestOnboardingFlow.cs" "$assets/Unframe/Scripts/Quest/"
 find "$root/app/unity/Assets/Plugins" -maxdepth 1 -type f \( -name '*.dll' -o -name '*.dll.meta' \) -exec cp {} "$assets/Unframe/Plugins/" \;
 cp "$root/app/unity/Assets/Resources/BakedSurface.shader" "$assets/Unframe/Resources/"
 mkdir -p "$assets/Tests/EditMode/Editor"
@@ -45,7 +53,21 @@ cat > "$assets/Unframe/UnframeNativeRuntime.asmdef" <<'JSON'
 JSON
 bun "$root/scripts/unity/prepare-native-editor.ts" "$root" "$project"
 cp "$root/app/unity/ProjectSettings/ProjectVersion.txt" "$project/ProjectSettings/"
-if [[ "$mode" == playback ]]; then
+if [[ "$mode" == realtime-unit ]]; then
+  cp "$root/app/unity/Assets/Scripts/MR/Session/QuestOnboardingApi.cs" "$assets/Unframe/Scripts/Quest/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Quest/QuestOnboardingFlowTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Quest/QuestRuntimePreparationTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Quest/QuestPresentationInputOriginTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Transport/PresentationRealtimeResyncEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Transport/PresentationRealtimeConnectionEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationTextureResidencyEditModeTests.cs" "$assets/Tests/Editor/"
+  filter='QuestOnboardingFlowTests|QuestRuntimePreparationTests|QuestPresentationInputOriginTests|PresentationRealtimeResyncEditModeTests|PresentationRealtimeConnectionEditModeTests'
+  graphics=(-nographics)
+elif [[ "$mode" == realtime-e2e ]]; then
+  [[ -n "${UNFRAME_REALTIME_E2E_CONFIG:-}" ]] || { echo "Missing UNFRAME_REALTIME_E2E_CONFIG." >&2; exit 1; }
+  filter='PresentationRealtimeServiceE2ETests'
+  if [[ "$host" == linux ]]; then graphics=(-force-glcore); else graphics=(); fi
+elif [[ "$mode" == playback ]]; then
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTestFixture.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewPlaybackEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTransactionEditModeTests.cs" "$assets/Tests/Editor/"

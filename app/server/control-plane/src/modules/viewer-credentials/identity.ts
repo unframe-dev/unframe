@@ -1,3 +1,7 @@
+import { and, eq, gt, isNull } from "drizzle-orm";
+import { createD1Database } from "../../adapters/d1/database";
+import { presentationSessions, sessionParticipants } from "../../adapters/d1/schema";
+import { anonymousViewerCredentials } from "../../adapters/d1/viewer-schema";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { AppEnvironment } from "../../config";
@@ -12,20 +16,48 @@ export const viewerToken = (context: Context<AppEnvironment>) => {
 export async function viewerCredential(context: Context<AppEnvironment>, now = new Date()) {
   const token = viewerToken(context);
   if (!token) return null;
-  return context
-    .get("config")
-    .DB.prepare(
-      `SELECT credential.user_id AS userId, credential.session_id AS sessionId,
-            credential.renewable_until AS renewableUntil
-     FROM anonymous_viewer_credentials AS credential
-     JOIN presentation_sessions AS session ON session.id = credential.session_id
-     JOIN session_participants AS participant ON participant.session_id = session.id AND participant.user_id = credential.user_id
-     WHERE credential.token_hash = ? AND credential.revoked_at IS NULL
-       AND credential.expires_at > ? AND credential.renewable_until > ?
-       AND session.state != 'Ended' AND participant.role = 'viewer'`,
+  const credential = await createD1Database(context.get("config").DB)
+    .select({
+      userId: anonymousViewerCredentials.userId,
+      sessionId: anonymousViewerCredentials.sessionId,
+      renewableUntil: anonymousViewerCredentials.renewableUntil,
+      sessionState: presentationSessions.state,
+    })
+    .from(anonymousViewerCredentials)
+    .innerJoin(
+      presentationSessions,
+      eq(presentationSessions.id, anonymousViewerCredentials.sessionId),
     )
-    .bind(await sha256JoinCode(token), now.toISOString(), now.toISOString())
-    .first<{ userId: string; sessionId: string; renewableUntil: string }>();
+    .innerJoin(
+      sessionParticipants,
+      and(
+        eq(sessionParticipants.sessionId, presentationSessions.id),
+        eq(sessionParticipants.userId, anonymousViewerCredentials.userId),
+      ),
+    )
+    .where(
+      and(
+        eq(anonymousViewerCredentials.tokenHash, await sha256JoinCode(token)),
+        isNull(anonymousViewerCredentials.revokedAt),
+        gt(anonymousViewerCredentials.expiresAt, now.toISOString()),
+        gt(anonymousViewerCredentials.renewableUntil, now.toISOString()),
+        eq(sessionParticipants.role, "viewer"),
+      ),
+    )
+    .get();
+  if (!credential) return null;
+  const sessionId = context.req.param("id") ?? context.req.param("sessionId");
+  if (sessionId && sessionId !== credential.sessionId) {
+    throw new HTTPException(403, {
+      res: context.json({ error: { code: "forbidden", message: "forbidden" } }, 403),
+    });
+  }
+  if (credential.sessionState === "Ended") {
+    throw new HTTPException(410, {
+      res: context.json({ error: { code: "session_ended", message: "Session ended" } }, 410),
+    });
+  }
+  return credential;
 }
 
 export async function viewerIdentity(
@@ -34,11 +66,5 @@ export async function viewerIdentity(
 ): Promise<Identity | undefined> {
   const credential = await viewerCredential(context, now);
   if (!credential) return undefined;
-  const sessionId = context.req.param("id") ?? context.req.param("sessionId");
-  if (sessionId && sessionId !== credential.sessionId) {
-    throw new HTTPException(403, {
-      res: context.json({ error: { code: "forbidden", message: "forbidden" } }, 403),
-    });
-  }
   return { userId: credential.userId, globalRole: "user" };
 }
