@@ -21,7 +21,7 @@ SDKはabsolute。NORMALが連続5秒続いた後に検出器を準備し、最�
 
 黒い外周15cm・白余白込み22.5cmが既定。`/?tracking=1&size=22.5|36|50|60|70`で余白込み外寸cmを指定する。黒い境界は外寸の2/3。黒外周240mmの検証には`/?tracking=1&size=36`（余白込み360mm）を使う。サイズ選択は即反映し、変更時は前のアンカー・保存画像を消す。印刷ページは`/print-target.html?size=22.5`。画面表示・印刷後は実寸を測り、白余白を残す。
 
-ArUco、タグ単独、SDK単独、負荷切替、比較画像、静止／回転／移動の区間指定、合成ラボ、旧複数マーカーボードは撤去した。旧mode/detector/strategy/correctionによる分岐はない。過去の実証は`docs/experiments/`に履歴として残す。
+ArUco、タグ単独、SDK単独、負荷切替、比較画像、静止／回転／移動の区間指定、合成ラボ、旧複数マーカーボードは撤去した。旧mode/detector/strategy/correctionによる分岐はない。
 
 ## 開発
 
@@ -77,7 +77,7 @@ nix run .#audience -- preview
 
 SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハッシュを保持する。AprilTag wrapper、AprilTag本体、POSIT/SVD、辞書の必要なライセンスを画面から参照できる。
 
-[採用方式と整理記録](docs/experiments/audience-apriltag-adopted.md)、[接続・配信・実機受入計画](../../../docs/plans/audience-web-app-plan.md)。
+[接続・配信・実機受入計画](../../../docs/plans/audience-web-app-plan.md)。
 
 ## 表示の小揺れ補正
 
