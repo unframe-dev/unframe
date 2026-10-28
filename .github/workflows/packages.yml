@@ -1,4 +1,4 @@
-name: Presentation Packages
+name: Packages
 
 on:
   workflow_call:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   check:
-    name: presentation / check (ubuntu-latest)
+    name: check (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -31,7 +31,7 @@ jobs:
         run: nix run .#presentation
 
   opaque-capture:
-    name: presentation / opaque-capture (${{ matrix.suite }}, ubuntu-latest)
+    name: opaque-capture (${{ matrix.suite }}, ubuntu-latest)
     strategy:
       fail-fast: false
       matrix:
@@ -60,7 +60,7 @@ jobs:
         run: nix develop --command scripts/ci/opaque-capture.sh "${{ matrix.suite }}"
 
   macos:
-    name: presentation / platform (macos-15)
+    name: platform (macos-15)
     runs-on: macos-15
     timeout-minutes: 45
     steps:

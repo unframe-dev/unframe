@@ -2,7 +2,7 @@ name: CI
 
 # オーケストレーション。変更のあった領域だけ reusable workflow を呼び、
 # 最後に集約ゲート (job: ci) を必須チェックにする。
-# 各領域の実体: control-plane.yml / presentation.yml / realtime.yml / console.yml / local-editor.yml / audience.yml / lp.yml / unity.yml。
+# 各領域の実体: control-plane.yml / packages.yml / realtime.yml / console.yml / local-editor.yml / audience.yml / lp.yml / unity.yml。
 #
 # paths-ignore は設けない。docs-only PR でも workflow を起動し、changes で全領域が
 # skip → 集約 job `CI` が成功することで、必須ステータスチェックが常に報告される。
@@ -40,7 +40,7 @@ jobs:
       console: ${{ steps.filter.outputs.console }}
       local-editor: ${{ steps.filter.outputs.local-editor }}
       audience: ${{ steps.filter.outputs.audience }}
-      presentation: ${{ steps.filter.outputs.presentation }}
+      packages: ${{ steps.filter.outputs.packages }}
       lp: ${{ steps.filter.outputs.lp }}
       unity: ${{ steps.filter.outputs.unity }}
     steps:
@@ -100,11 +100,11 @@ jobs:
               - *js-shared
               - '.github/workflows/audience.yml'
               - 'app/web/audience/**'
-            presentation:
+            packages:
               - *shared
               - *js-shared
               - 'examples/presentation/**'
-              - '.github/workflows/presentation.yml'
+              - '.github/workflows/packages.yml'
               - 'scripts/ci/presentation.sh'
               - 'packages/contracts/**'
               - 'packages/api-client-csharp/**'
@@ -154,11 +154,11 @@ jobs:
     if: needs.changes.outputs.audience == 'true'
     uses: ./.github/workflows/audience.yml
 
-  presentation:
-    name: Presentation Packages
+  packages:
+    name: Packages
     needs: changes
-    if: needs.changes.outputs.presentation == 'true'
-    uses: ./.github/workflows/presentation.yml
+    if: needs.changes.outputs.packages == 'true'
+    uses: ./.github/workflows/packages.yml
 
   lp:
     name: LP
@@ -175,8 +175,7 @@ jobs:
   ci:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
-    needs:
-      [changes, control-plane, realtime, console, local-editor, audience, presentation, lp, unity]
+    needs: [changes, control-plane, realtime, console, local-editor, audience, packages, lp, unity]
     if: always()
     runs-on: ubuntu-latest
     steps:
