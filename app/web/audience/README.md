@@ -41,7 +41,9 @@ nix run .#audience -- preview
 
 ### Cloudflare Workers
 
-`wrangler.toml` は `dist/` を `unframe-audience` Worker で配信する。Workers Builds のルートを `app/web/audience`、ビルドコマンドを `pnpm run build`、デプロイコマンドを `pnpm run cf:deploy` に設定する。ローカルではリポジトリルートから次を実行する。
+`wrangler.toml` は `dist/` を `unframe-audience` Worker で配信する。公開ドメインは `app.un-fra.me`。Wrangler の Custom Domain 設定により、デプロイ時に Workers が DNS レコードと証明書を作成・管理する。
+
+Workers Builds のルートを `app/web/audience`、ビルドコマンドを `pnpm run build`、デプロイコマンドを `pnpm run cf:deploy` に設定する。ローカルではリポジトリルートから次を実行する。
 
 ```bash
 pnpm --filter @unframe/audience run build

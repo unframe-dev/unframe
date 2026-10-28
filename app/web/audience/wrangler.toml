@@ -5,7 +5,9 @@ main = "./worker/index.js"
 compatibility_date = "2026-10-03"
 workers_dev = false
 
-# DNS records and Worker routes are managed in the sibling unframe-dev/infra repository.
+[[routes]]
+pattern = "app.un-fra.me"
+custom_domain = true
 
 [assets]
 directory = "./dist"
