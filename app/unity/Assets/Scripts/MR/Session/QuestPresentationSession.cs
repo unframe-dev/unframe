@@ -17,6 +17,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
     [NonSerialized] private string sessionId;
     [NonSerialized] private string logicalEventName;
     [NonSerialized] private Func<CancellationToken, Task<string>> credentialProvider;
+    private bool externalConnection;
     private int generation;
     private int pendingOperations;
     public bool HasConnectionSettings => origin != null && credentialProvider != null;
@@ -26,13 +27,14 @@ public sealed class QuestPresentationSession : MonoBehaviour
     public string LastErrorCode { get; private set; } = String.Empty;
 
     public void ConfigureConnection(Uri controlPlaneOrigin, string targetSessionId,
-        Func<CancellationToken, Task<string>> provider, string advanceLogicalEventName = null)
+        Func<CancellationToken, Task<string>> provider, string advanceLogicalEventName = null, bool managedByOnboarding = false)
     {
         if (controlPlaneOrigin == null || !controlPlaneOrigin.IsAbsoluteUri || controlPlaneOrigin.Scheme != "https"
             || controlPlaneOrigin.AbsolutePath != "/" || !String.IsNullOrEmpty(controlPlaneOrigin.UserInfo)
             || !String.IsNullOrEmpty(controlPlaneOrigin.Query) || !String.IsNullOrEmpty(controlPlaneOrigin.Fragment)
             || String.IsNullOrWhiteSpace(targetSessionId) || provider == null)
             throw new ArgumentException("An authenticated HTTPS Control Plane origin and session are required.");
+        externalConnection = !managedByOnboarding;
         generation++;
         origin = controlPlaneOrigin;
         sessionId = targetSessionId;
@@ -48,6 +50,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
         if (IsBusy || entry.IsRunning) throw new InvalidOperationException("Stop the active session before connecting again.");
         ConfigureConnection(controlPlaneOrigin, targetSessionId, provider, advanceLogicalEventName);
         entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName);
+        CompleteExternalConnection();
     }
 
     public Task RetryAsync() => ConnectAsync();
@@ -67,6 +70,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
                 await entry.StopAsync();
                 if (requestedGeneration != generation || !isActiveAndEnabled) return;
                 entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName);
+                CompleteExternalConnection();
                 LastErrorCode = String.Empty;
             }
             finally { operationGate.Release(); }
@@ -99,9 +103,15 @@ public sealed class QuestPresentationSession : MonoBehaviour
             throw new InvalidOperationException("Session and marker calibration must use the same active tracking origin.");
     }
 
+    private void CompleteExternalConnection()
+    {
+        if (externalConnection) GetComponent<QuestOnboardingView>()?.CompleteExternalConnection();
+    }
+
     private void ClearConnection()
     {
         generation++;
+        externalConnection = false;
         credentialProvider = null;
         origin = null;
         sessionId = null;
@@ -132,6 +142,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
             onboarding.Configure(this, entry, calibrationSource, view.Head, api);
             onboarding.Completed += () => view.SetMenuOpen(false);
             view.AttachOnboarding(onboarding);
+            if (entry.IsRunning) CompleteExternalConnection();
         }
         if (runtime != null && view != null && view.Head != null && calibrationSource != null)
         {

@@ -408,7 +408,7 @@ namespace Unframe.Unity.PresentationRuntime
             AddButton("Align", "位置合わせ", 5, ResetCalibration);
             AddButton("Close", "資料を見る", 6, () => SetMenuOpen(false));
             AddButton("Details", "詳細と再接続", 7, () => { if (stepsOpen) stepsOpen = false; else detailsOpen = !detailsOpen; Refresh(); });
-            AddButton("Retry", "再接続", 8, () => RunOperation(() => session.RetryAsync()));
+            AddButton("Retry", "再接続", 8, () => RunOperation(() => onboarding != null ? onboarding.RetryConnectionAsync() : session.RetryAsync()));
             AddButton("Exit", "接続を解除", 9, () =>
             {
                 operationRevision++;

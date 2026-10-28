@@ -35,6 +35,20 @@ namespace Unframe.Unity.PresentationRuntime
         public Button FindButton(string name) => buttons.Find(button => button != null && button.name == name);
         public void Refresh() => Draw();
         public event Action Completed;
+        public bool NeedsReauthentication => api != null && room != null && !flow.IsDebugPreview
+            && (!api.IsAuthenticated || entry?.LastErrorCode == "authentication-required");
+
+        public async Task RetryConnectionAsync()
+        {
+            if (!NeedsReauthentication) { if (session != null) await session.RetryAsync(); return; }
+            CancelOperation(false);
+            IsComplete = false; authorization = null; ownsConnection = false;
+            flow.RequireAuthentication();
+            message = "認証をもう一度承認すると、同じルームへ接続します。";
+            Draw();
+            if (session != null) stopTask = session.ExitAsync();
+            await stopTask;
+        }
 
         public void Configure(QuestPresentationSession controller, QuestPresentationEntry sessionEntry,
             ArucoPresentationCalibration source, Transform headTransform, QuestOnboardingApi service)
@@ -44,11 +58,24 @@ namespace Unframe.Unity.PresentationRuntime
             Draw();
         }
 
+        public void CompleteExternalConnection()
+        {
+            CancelOperation(false);
+            IsComplete = true;
+            if (panel != null) panel.SetActive(false);
+            Completed?.Invoke();
+        }
+
         public void ResetFlow()
+        {
+            ResetFlowState();
+            Draw();
+        }
+
+        private void ResetFlowState()
         {
             CancelOperation(); flow.Reset(); IsComplete = false; authorization = null;
             selected = null; room = null; sessionStarted = false; roomCode = ""; message = "";
-            Draw();
         }
 
         private void CancelOperation(bool disconnect = true)
@@ -59,6 +86,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void Back()
         {
+            if (flow.IsReturningToRoom) { ResetFlow(); return; }
             CancelOperation(flow.Page != QuestOnboardingPage.Ready); message = "";
             flow.Back();
             Draw();
@@ -69,7 +97,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (head == null || IsComplete) return;
             Vector3 position = Vector3.zero; Quaternion rotation = Quaternion.identity;
             bool hadPanel = panel != null;
-            if (hadPanel) { position = panel.transform.position; rotation = panel.transform.rotation; panel.SetActive(false); Destroy(panel); }
+            if (hadPanel) { position = panel.transform.position; rotation = panel.transform.rotation; panel.SetActive(false); if (Application.isPlaying) Destroy(panel); else DestroyImmediate(panel); }
             buttons.Clear(); inputText = null;
             panel = new GameObject("Unframe • Welcome", typeof(RectTransform), typeof(Canvas), typeof(Image));
             panel.transform.SetParent(transform, false); panel.transform.localScale = Vector3.one * 0.001f;
@@ -204,6 +232,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private async Task AfterAuthentication(CancellationToken token)
         {
+            if (flow.IsReturningToRoom) { await Connect(token); token.ThrowIfCancellationRequested(); return; }
             if (flow.Role == QuestOnboardingRole.Presenter) { await LoadPresentations(token); token.ThrowIfCancellationRequested(); flow.GoTo(QuestOnboardingPage.Presentations); }
             else flow.GoTo(QuestOnboardingPage.Join);
         }
@@ -230,7 +259,7 @@ namespace Unframe.Unity.PresentationRuntime
             await stopTask; token.ThrowIfCancellationRequested();
             if (!ownsConnection || !entry.IsRunning || entry.ConnectionStage == PresentationConnectionStage.Failed)
             {
-                session.ConfigureConnection(api.Origin, room.SessionId, api.CredentialAsync);
+                session.ConfigureConnection(api.Origin, room.SessionId, api.CredentialAsync, managedByOnboarding: true);
                 ownsConnection = true;
                 await session.ConnectAsync(); token.ThrowIfCancellationRequested();
             }
@@ -238,9 +267,10 @@ namespace Unframe.Unity.PresentationRuntime
             while (!entry.ControlReady && entry.ConnectionStage != PresentationConnectionStage.Failed && DateTime.UtcNow < deadline)
                 await Task.Delay(100, token);
             token.ThrowIfCancellationRequested();
+            if (!entry.ControlReady && NeedsReauthentication) throw new QuestOnboardingApiException("authentication-required");
             if (!entry.ControlReady) { message = "ルームの準備を待っています。しばらくして接続を確認してください。"; return; }
             if ((flow.Role == QuestOnboardingRole.Presenter) != entry.IsPresenter) throw new InvalidOperationException("role-mismatch");
-            flow.GoTo(QuestOnboardingPage.Calibration);
+            flow.ConnectionReady();
         }
         private async void Run(Func<CancellationToken, Task> action)
         {
@@ -255,7 +285,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (exception.Code == "authentication-required" || exception.Code == "authorization-expired" || exception.Code == "authorization-denied")
                     {
                         authorization = null;
-                        flow.GoTo(QuestOnboardingPage.Authentication);
+                        if (room != null) flow.RequireAuthentication(); else flow.GoTo(QuestOnboardingPage.Authentication);
                     }
                     message = "承認またはルームの状態を確認して、もう一度お試しください。";
                 }
@@ -328,12 +358,13 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private void Update()
         {
+            if (IsComplete && !busy && NeedsReauthentication) { _ = RetryConnectionAsync(); return; }
             bool valid = calibration?.Calibration?.IsValid == true;
             if (valid != lastCalibrationValid && flow.Page == QuestOnboardingPage.Calibration && !busy) Draw();
             lastCalibrationValid = valid;
         }
-        private void OnDisable() { CancelOperation(); if (panel != null) panel.SetActive(false); }
-        private void OnEnable() { if (panel != null && !IsComplete) panel.SetActive(true); }
-        private void OnDestroy() { cancellation.Cancel(); cancellation.Dispose(); api?.Dispose(); if (panel != null) Destroy(panel); }
+        private void OnDisable() { ResetFlowState(); if (panel != null) panel.SetActive(false); }
+        private void OnEnable() { if (head != null && !IsComplete) Draw(); }
+        private void OnDestroy() { cancellation.Cancel(); cancellation.Dispose(); api?.Dispose(); if (panel != null) { if (Application.isPlaying) Destroy(panel); else DestroyImmediate(panel); } }
     }
 }

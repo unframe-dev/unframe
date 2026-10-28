@@ -11,6 +11,58 @@ using UnityEngine;
 public sealed class QuestPresentationSessionTests
 {
     [Test]
+    public async Task DirectConnectionReleasesOnboardingWithoutGrantingUncalibratedInput()
+    {
+        var host = new GameObject("External session");
+        var head = new GameObject("Head", typeof(Camera));
+        QuestPresentationEntry entry = null;
+        try
+        {
+            entry = host.AddComponent<QuestPresentationEntry>();
+            var alignment = host.AddComponent<ArucoOriginAlignment>();
+            var source = host.AddComponent<ArucoPresentationCalibration>();
+            source.Configure(alignment, host.transform);
+            var session = host.AddComponent<QuestPresentationSession>();
+            SetReference(entry, "questTrackingOrigin", host.transform);
+            SetReference(session, "entry", entry);
+            SetReference(session, "calibrationSource", source);
+            var onboarding = host.AddComponent<QuestOnboardingView>();
+            onboarding.Configure(session, entry, source, head.transform, null);
+            async Task<string> Wait(CancellationToken token) { await Task.Delay(Timeout.Infinite, token); return "unused"; }
+            session.Connect(new Uri("https://api.example.com/"), "session", Wait);
+            Assert.That(onboarding.IsComplete, Is.True);
+            Assert.That(onboarding.Panel.activeSelf, Is.False);
+            Assert.That(host.GetComponent<PresentationBakedRuntime>().CanSendInput, Is.False);
+            await session.ExitAsync();
+        }
+        finally
+        {
+            if (entry != null) await entry.StopAsync();
+            UnityEngine.Object.DestroyImmediate(host);
+            UnityEngine.Object.DestroyImmediate(head);
+        }
+    }
+
+    [Test]
+    public void DisablingEnteredOnboardingRestoresRoleSelectionOnEnable()
+    {
+        var host = new GameObject("Disabled session");
+        var head = new GameObject("Head", typeof(Camera));
+        try
+        {
+            var onboarding = host.AddComponent<QuestOnboardingView>();
+            onboarding.Configure(null, null, null, head.transform, null);
+            typeof(QuestOnboardingView).GetProperty("IsComplete").SetValue(onboarding, true);
+            typeof(QuestOnboardingView).GetMethod("OnDisable", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(onboarding, null);
+            typeof(QuestOnboardingView).GetMethod("OnEnable", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(onboarding, null);
+            Assert.That(onboarding.IsComplete, Is.False);
+            Assert.That(onboarding.Flow.Page, Is.EqualTo(QuestOnboardingPage.Role));
+            Assert.That(onboarding.Panel.activeSelf, Is.True);
+        }
+        finally { UnityEngine.Object.DestroyImmediate(host); UnityEngine.Object.DestroyImmediate(head); }
+    }
+
+    [Test]
     public async Task ConnectionUsesSharedMarkerStateAndCanLoadWhileCalibrationIsPending()
     {
         var host = new GameObject("Session");

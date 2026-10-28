@@ -42,7 +42,7 @@ public sealed class QuestOnboardingApi : IDisposable
     [Serializable] private sealed class PresentationList { public PresentationRecord[] presentations; }
     [Serializable] private sealed class CreateRequest { public string presentationId; }
     [Serializable] private sealed class JoinRequest { public string joinCode; }
-    [Serializable] private sealed class SessionRecord { public string id; }
+    [Serializable] private sealed class SessionRecord { public string id; public string state; }
     [Serializable] private sealed class CreateResponse { public SessionRecord session; public string joinCode; }
     [Serializable] private sealed class RuntimePreparation { public string state; public string runtimeId; public ulong assignmentEpoch; public string leaseExpiresAt; }
     [Serializable] private sealed class ApiError { public string code; }
@@ -206,7 +206,26 @@ public sealed class QuestOnboardingApi : IDisposable
     public async Task StartSessionAsync(string id, CancellationToken token)
     {
         ValidateId(id);
-        using (HttpResponseMessage response = await SendAsync("/sessions/" + Uri.EscapeDataString(id) + "/start", new object(), true, token)) RequireSuccess(response);
+        string state = await SessionStateAsync(id, token);
+        if (state == "Presenting") return;
+        if (state != "Waiting") throw new QuestOnboardingApiException("not-ready");
+        using (HttpResponseMessage response = await SendAsync("/sessions/" + Uri.EscapeDataString(id) + "/start", new object(), true, token))
+        {
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict && await SessionStateAsync(id, token) == "Presenting") return;
+            RequireSuccess(response);
+        }
+    }
+
+    private async Task<string> SessionStateAsync(string id, CancellationToken token)
+    {
+        using (HttpResponseMessage response = await SendAsync("/sessions/" + Uri.EscapeDataString(id), null, true, token))
+        {
+            RequireSuccess(response);
+            SessionRecord data = JsonUtility.FromJson<SessionRecord>(await response.Content.ReadAsStringAsync());
+            if (data?.id != id || data.state != "Waiting" && data.state != "Presenting" && data.state != "Ended")
+                throw new QuestOnboardingApiException("invalid-response");
+            return data.state;
+        }
     }
 
     public async Task PrepareRuntimeAsync(string id, CancellationToken token)
