@@ -7,6 +7,43 @@ using Unframe.Unity.PresentationRuntime;
 public sealed class QuestOnboardingFlowTests
 {
     [Test]
+    public void CanceledStartDoesNotSendAStartOrResumeRequest()
+    {
+        using (var cancellation = new CancellationTokenSource())
+        {
+            cancellation.Cancel();
+            bool started = false, resumed = false;
+            Assert.That(async () => await QuestOnboardingStart.BeginPresenterAsync(
+                () => { started = true; return Task.CompletedTask; },
+                () => true, () => true, () => false, () => "Paused",
+                () => { resumed = true; return Task.CompletedTask; },
+                TimeSpan.FromSeconds(1), cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(started, Is.False);
+            Assert.That(resumed, Is.False);
+        }
+    }
+
+    [Test]
+    public void CalibrationIsRequiredBeforeEitherRoleCanEnter()
+    {
+        Assert.That(QuestOnboardingStart.CanAdvance(QuestOnboardingRole.Presenter, false, true, true), Is.False);
+        Assert.That(QuestOnboardingStart.CanAdvance(QuestOnboardingRole.Audience, false, true, true), Is.False);
+    }
+
+    [Test]
+    public void ReturningAuthenticationPreservesRoleAndBackAbandonsTheRoom()
+    {
+        var flow = new QuestOnboardingFlow();
+        flow.SelectRole(QuestOnboardingRole.Audience);
+        flow.RequireAuthentication();
+        Assert.That(flow.IsReturningToRoom, Is.True);
+        Assert.That(flow.Role, Is.EqualTo(QuestOnboardingRole.Audience));
+        flow.Back();
+        Assert.That(flow.Page, Is.EqualTo(QuestOnboardingPage.Role));
+        Assert.That(flow.IsReturningToRoom, Is.False);
+    }
+
+    [Test]
     public async Task PresenterStartsBeforeWaitingForFirstFrame()
     {
         bool started = false;

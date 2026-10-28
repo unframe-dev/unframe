@@ -120,3 +120,13 @@ Meta公式の[カメラ対応条件](https://developers.meta.com/vr/documentatio
 `Unframe > Presentation > Preview Motion Guide` は、製品UIと同じ腕の描画・操作説明を独立したPreview Sceneで表示します。Play、Quest、マーカー、サーバー接続は不要です。8種類の動作、片手動作の左右、説明の詳細表示、アニメーションの停止と進行位置を切り替えられます。ウィンドウを閉じるとScene、カメラ、描画先とガイドのリソースを破棄します。
 
 このプレビューは見た目と動きの確認用です。入力認識、カメラ校正、接続・同期やQuest上での表示品質は別に確認してください。
+
+## 開始の再試行と外部接続
+
+開始前にSessionの状態を確認し、既にPresentingなら開始POSTを重ねません。開始POSTが競合した場合も状態を再確認し、Presentingへの遷移が確認できた場合だけ継続します。終了済みSessionや不正な応答では開始しません。通信が切れて開始応答だけを失った場合は、再試行で現在状態を確認できます。
+
+外部から認証済み接続を設定した場合は入場UIを完了させ、進行メニューへ移ります。入場UI自身が管理する接続では校正と開始確認を継続します。入口を無効化した場合は途中の入場状態を破棄し、再表示時に選択からやり直します。
+
+回帰条件は `QuestOnboardingStartApiTests`、`QuestOnboardingFlowTests`、`QuestPresentationSessionTests` で検証します。
+
+認証期限切れまたはサーバーの認証拒否時は、元のルームと役割を保持して再承認画面へ戻ります。再承認後は同じSessionへ再接続し、校正と準備状態を確認します。再承認画面から「戻る」を選ぶとルームの保持を解除し、役割選択へ戻ります。`QuestOnboardingRecoveryTests` がこの回帰条件です。
