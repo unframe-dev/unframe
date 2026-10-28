@@ -57,8 +57,10 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 var item = new JObject
                 {
-                    ["index"] = recording.NextIndex++, ["atUtc"] = Utc(recording.Now()),
-                    ["elapsedMs"] = Math.Max(0, recording.Elapsed()), ["event"] = eventName
+                    ["index"] = recording.NextIndex++,
+                    ["atUtc"] = Utc(recording.Now()),
+                    ["elapsedMs"] = Math.Max(0, recording.Elapsed()),
+                    ["event"] = eventName
                 };
                 Add(item, "sessionId", sessionId); Add(item, "runtimeId", runtimeId);
                 AddSequence(item, "assignmentEpoch", assignmentEpoch); AddSequence(item, "publicationEpoch", publicationEpoch);
@@ -101,9 +103,14 @@ namespace Unframe.Unity.PresentationRuntime
             lock (recording.Gate)
                 return new JObject
                 {
-                    ["schemaVersion"] = 1, ["mode"] = "unframe-session-diagnostic", ["client"] = "mr",
-                    ["recordingId"] = recording.Id, ["startedAtUtc"] = recording.Started, ["exportedAtUtc"] = Utc(recording.Now()),
-                    ["droppedEvents"] = recording.Dropped, ["events"] = new JArray(recording.Events)
+                    ["schemaVersion"] = 1,
+                    ["mode"] = "unframe-session-diagnostic",
+                    ["client"] = "mr",
+                    ["recordingId"] = recording.Id,
+                    ["startedAtUtc"] = recording.Started,
+                    ["exportedAtUtc"] = Utc(recording.Now()),
+                    ["droppedEvents"] = recording.Dropped,
+                    ["events"] = new JArray(recording.Events)
                 }.ToString(Formatting.Indented);
         }
         public string ExportToDirectory(string directory)
