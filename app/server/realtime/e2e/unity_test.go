@@ -89,10 +89,10 @@ func (f *fixture) startUnity(configPath string) {
 			case <-time.After(20 * time.Second):
 				_ = cmd.Process.Signal(os.Interrupt)
 				select {
-				case <-done:
+				case <-done: //nolint:errcheck // The shutdown timeout is reported below regardless of the exit error.
 				case <-time.After(5 * time.Second):
 					_ = cmd.Process.Kill()
-					<-done
+					<-done //nolint:errcheck // The shutdown timeout is reported below regardless of the exit error.
 				}
 				if !f.owner.Failed() {
 					f.owner.Error("Unity Editor did not exit after its stop command")
