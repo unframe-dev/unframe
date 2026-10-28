@@ -45,6 +45,31 @@ const waitingWorker = `
 `;
 
 describe.skipIf(process.platform !== "linux")("isolated opaque worker", () => {
+  it("receives the final result from a worker that exits immediately after writing it", async () => {
+    const fixture = isolatedFixture(`
+      import { createInterface } from "node:readline";
+      process.stdout.write(JSON.stringify({type:"bootstrap"})+"\\n");
+      for await (const line of createInterface({input:process.stdin})) {
+        const message=JSON.parse(line);
+        if(message.type==="launch") process.stdout.write(JSON.stringify({type:"ready"})+"\\n");
+        if(message.type==="capture") {
+          process.stdout.write(JSON.stringify({type:"result",value:message.input})+"\\n", () => process.exit(0));
+        }
+      }
+    `);
+    const input = { payload: "x".repeat(256 * 1024) };
+    try {
+      await expect(runIsolatedOpaqueWorker({ ...fixture, input })).resolves.toEqual(input);
+      expect(
+        readdirSync(process.env.UNFRAME_OPAQUE_CGROUP_ROOT!).filter((name) =>
+          name.startsWith("unframe-worker-"),
+        ),
+      ).toEqual([]);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   it("reports an unavailable isolate when bootstrap exits before accepting input", async () => {
     const fixture = isolatedFixture("process.exit(1);");
     try {

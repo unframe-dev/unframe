@@ -243,7 +243,7 @@ export const runLinuxWorker = async (
     barrier.on("error", () => undefined);
     if (!child.pid) throw unavailable("trusted bootstrap did not start");
     writeFileSync(join(group, "cgroup.procs"), String(child.pid));
-    verifyMembership(child.pid, groupRelative);
+    verifyMembership(child.pid, groupRelative, "ready");
     barrier.write("go\n");
     barrier.end();
     const deadline = new Promise<never>((_, reject) => {
@@ -256,7 +256,7 @@ export const runLinuxWorker = async (
     value = await Promise.race([
       workerProtocol(
         worker,
-        () => verifyMembership(worker.pid!, groupRelative),
+        (phase) => verifyMembership(worker.pid!, groupRelative, phase),
         input.input,
         options.signal,
       ),
