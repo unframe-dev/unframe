@@ -43,7 +43,7 @@ public sealed class ArucoMarkerPoseEstimate
 
 public sealed class ArucoMarkerPoseEstimator
 {
-    public const double MarkerSizeMeters = 0.2;
+    public const double MarkerSizeMeters = 0.15;
     public const int TargetMarkerId = 0;
 
 #if UNFRAME_OPENCV_FOR_UNITY

@@ -10,13 +10,14 @@ public sealed class ArucoFrameProcessorCandidateTests
     [Test]
     public void DetectedMarkerAtTheImageEdgeStillProducesADiagnosticCandidate()
     {
-        using (var dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_4X4_50))
+        using (var dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_APRILTAG_36h11))
         using (var marker = new Mat())
         using (var image = new Mat(320, 400, CvType.CV_8UC1, new Scalar(255)))
         using (var rgba = new Mat())
         using (var processor = new ArucoFrameProcessor())
         {
             Objdetect.generateImageMarker(dictionary, 0, 160, marker, 1);
+            Core.flip(marker, marker, -1);
             using (var region = image.submat(60, 220, 3, 163)) marker.copyTo(region);
             Imgproc.cvtColor(image, rgba, Imgproc.COLOR_GRAY2RGBA);
             Core.flip(rgba, rgba, 0);

@@ -5,9 +5,17 @@ using UnityEngine;
 public sealed class ArucoOptionalBackendTests
 {
     [Test]
+    public void SharedMarkerContractDoesNotDependOnTheOptionalBackend()
+    {
+        Assert.That(ArucoMarkerDetector.DictionaryName, Is.EqualTo("DICT_APRILTAG_36h11"));
+        Assert.That(ArucoMarkerPoseEstimator.TargetMarkerId, Is.Zero);
+        Assert.That(ArucoMarkerPoseEstimator.MarkerSizeMeters, Is.EqualTo(0.15));
+    }
+
+    [Test]
     public void MissingBackendShowsSetupRequirementAndNeverProducesAnObservation()
     {
-        var host = new GameObject("ArUco Without Optional Backend");
+        var host = new GameObject("AprilTag Without Optional Backend");
         var texture = new Texture2D(2, 2);
         try
         {

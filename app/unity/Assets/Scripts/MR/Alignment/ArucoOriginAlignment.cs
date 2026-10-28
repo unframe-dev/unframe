@@ -32,7 +32,7 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
     private OVRCameraRig rig;
     private long lastTimestamp;
     private double loggedAt = double.NegativeInfinity;
-    private string reason = "Show ID 0 (20 cm); hold still or tilt the marker slightly";
+    private string reason = "Show ID 0 (15 cm); hold still or tilt the marker slightly";
     public event Action ResetRequested;
     public event Action AlignmentInvalidated;
     public bool IsConfirmed => stability.IsConfirmed;
@@ -41,7 +41,7 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
         (float)(stability.StableDurationSeconds / ArucoOriginStability.MinimumStableDurationSeconds)));
     public bool TrackingAvailable { get; private set; } = true;
     public Pose OriginPose => stability.Pose;
-    public string Summary => IsConfirmed ? "ALIGNED | ID 0 / 20 cm | camera stopped | X red / Y green / Z blue"
+    public string Summary => IsConfirmed ? "ALIGNED | ID 0 / 15 cm | camera stopped | X red / Y green / Z blue"
         : $"ALIGNING | {stability.SampleCount}/8 samples | {stability.StableDurationSeconds:F1}s | {reason}";
 
     private void Awake()

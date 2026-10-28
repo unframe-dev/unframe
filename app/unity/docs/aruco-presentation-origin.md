@@ -1,6 +1,6 @@
 # マーカー原点とプレゼン表示の接続
 
-20cmのID 0マーカーで端末を位置合わせし、Delivery v2のローカルfixtureを配置する検証シーンです。マーカー検出には[OpenCVの有効化手順](../README.md#aruco・カメラの実機検証)が必要です。カメラ単体検証とEditor専用の旧SceneはこのSceneへ集約しています。実際のSurface artifact描画・サーバー通信・複数端末同期・authoritative hit-testはこのシーンでは実装していません。表示は既存のDelivery placeholder rendererです。
+15cmのID 0マーカーで端末を位置合わせし、Delivery v2のローカルfixtureを配置する検証シーンです。マーカー検出には[OpenCVの有効化手順](../README.md#apriltagカメラの実機検証)が必要です。カメラ単体検証とEditor専用の旧SceneはこのSceneへ集約しています。実際のSurface artifact描画・サーバー通信・複数端末同期・authoritative hit-testはこのシーンでは実装していません。表示は既存のDelivery placeholder rendererです。
 
 ## 座標と状態の責務
 
@@ -32,9 +32,9 @@ ShapeはDelivery内のUnlit材のsRGBA色・両面指定をURP対応シェーダ
 
 ## 実機で確認する
 
-1. `Unframe > Diagnostics > ArUco > Open Presentation Test Scene` で `ArucoPresentationTest` を準備する。
+1. `Unframe > Diagnostics > AprilTag > Open Presentation Test Scene` で `ArucoPresentationTest` を準備する。
 2. `Build and Run Presentation on Quest` を実行する。Android IL2CPP / ARM64が必要です。ローカル認証設定はPCA専用builderと同じ除外処理を経由します。
-3. 20cmマーカーで `ALIGNED` になるまで静止する。確定前はプレゼン非表示、確定後はマーカー基準のfixture表示になる。
+3. 15cmマーカーで `ALIGNED` になるまで静止する。確定前はプレゼン非表示、確定後はマーカー基準のfixture表示になる。
 4. 頭を動かし、マーカーを隠しても配置が保たれることを確認する。
 5. 校正確定後、右コントローラーのAでローカルfixtureの次のeventへ進み、左のXで先頭へ戻す。編集中のKeyboard入力は既存RunnerのSpace/Enterです。
 6. B/Yで再測定する。非表示になり、新しいマーカー位置で確定後に再表示されることを確認する。追跡喪失・休止・再センタリングも確認する。
