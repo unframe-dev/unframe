@@ -9,11 +9,14 @@
     "prebuild": "node scripts/prepare-engine.mjs && node scripts/prepare-detectors.mjs",
     "build": "vp build",
     "preview": "vp preview",
-    "check": "tsc --noEmit && vp lint src scripts vite.config.ts vitest.config.ts",
+    "check": "tsc --noEmit && vp lint src scripts worker vite.config.ts vitest.config.ts",
     "test": "vp test run",
     "markers:generate": "node scripts/generate-marker-board.mjs",
     "precheck": "node scripts/prepare-detectors.mjs",
-    "pretest": "node scripts/prepare-detectors.mjs"
+    "pretest": "node scripts/prepare-detectors.mjs",
+    "cf:deploy": "wrangler deploy --config wrangler.toml",
+    "cf:deploy:dry-run": "wrangler deploy --config wrangler.toml --dry-run",
+    "cf:tail": "wrangler tail --config wrangler.toml"
   },
   "dependencies": {
     "@8thwall/engine-binary": "1.0.0",
@@ -35,6 +38,7 @@
     "jsdom": "30.1.1",
     "typescript": "^7.0.0",
     "vite": "catalog:",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "wrangler": "4.142.0"
   }
 }

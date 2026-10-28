@@ -39,6 +39,19 @@ nix run .#audience -- preview
 
 マーカー資産再生成：`nix develop --command pnpm --filter @unframe/audience run markers:generate`。
 
+### Cloudflare Workers
+
+`wrangler.toml` は `dist/` を `unframe-audience` Worker で配信する。公開ドメインは `app.un-fra.me`。Wrangler の Custom Domain 設定により、デプロイ時に Workers が DNS レコードと証明書を作成・管理する。
+
+Workers Builds のルートを `app/web/audience`、ビルドコマンドを `pnpm run build`、デプロイコマンドを `pnpm run cf:deploy` に設定する。ローカルではリポジトリルートから次を実行する。
+
+```bash
+pnpm --filter @unframe/audience run build
+pnpm --filter @unframe/audience run cf:deploy:dry-run
+```
+
+全リクエストを Worker 経由で配信し、呼び出しログを100%のサンプリング率で保存する。Cloudflare の対象 Worker の Observability、または `pnpm --filter @unframe/audience run cf:tail` で確認できる。ログの URL からクエリ文字列を除去する。ブラウザ内の console／追跡診断は送信しない。Worker 経由の配信には Workers のリクエスト上限・課金が適用される。
+
 ## 構成
 
 - `src/dev/fixtures/`: 開発用の素材表示画面、シナリオ、PNG・動画・GLB。
