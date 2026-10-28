@@ -240,9 +240,9 @@ Before completing code changes:
 - Run the existing Unity EditMode tests in the Unity Editor for Unity behavior
   changes, and any relevant PlayMode tests if they are added. The repository
   `unity.yml` performs static format, protobuf/dependency drift, and `.meta`
-  checks. `realtime-e2e.yml` also runs actual Unity / Audience synchronization
-  and recovery with `--unity --race` when a licensed self-hosted runner and
-  permitted PR branch are configured; a skipped job is not Unity validation.
+  checks. Run actual Unity / Audience synchronization and recovery locally with
+  `nix run .#realtime-e2e -- --unity --race` when a licensed Unity Editor is available;
+  the static CI checks do not validate Unity behavior.
 - Do not describe skipped checks as passing checks.
 - If a check cannot be run, report the exact command, reason, and alternative
   validation performed.

@@ -8,9 +8,6 @@ name: Unity CI (static)
 #   - protobuf      : C# generation / copied source drift と managed dependency scripts の型・テスト・checksum 検証
 #   - meta-check    : Unity プロジェクト初期化後のみ実行する .meta 整合性チェック
 #
-# Editor 起動を伴う同期・復旧 E2E は realtime-e2e.yml の unity-live job が
-# Unity とライセンスを持つ指定 self-hosted runner で実行する。
-
 # ci.yml から呼ばれる reusable workflow。変更検出とオーケストレーションは ci.yml が担う。
 on:
   workflow_call:
