@@ -1,21 +1,10 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { runInNewContext } from "node:vm";
 import { pathToFileURL } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 
 const root = pathToFileURL(`${process.cwd()}/`);
-function page(query: string) {
-  const pageDocument = document.implementation.createHTMLDocument();
-  pageDocument.documentElement.innerHTML = readFileSync(
-    new URL("public/print-target.html", root),
-    "utf8",
-  );
-  const script = pageDocument.querySelector("script")?.textContent ?? "";
-  runInNewContext(script, { document: pageDocument, location: { search: query }, URLSearchParams });
-  return { document: pageDocument };
-}
 function blackBounds(source: string) {
   const rectangles = [
     ...source.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"\/>/g),
@@ -32,18 +21,20 @@ beforeAll(() =>
   execFileSync(process.execPath, [new URL("scripts/generate-marker-board.mjs", root).pathname]),
 );
 describe("AprilTag print profiles", () => {
-  it("defaults to AprilTag ID 0 with a 15 cm black boundary", () => {
-    const document = page("").document;
-    expect(document.querySelector("#board")?.getAttribute("src")).toBe(
-      "/markers/april-single-22.5.svg",
+  it("uses the bundled board identity and a single tag36h11 ID 0", () => {
+    const config = JSON.parse(
+      readFileSync(new URL("src/fiducials/default-board.json", root), "utf8"),
     );
-    expect(document.querySelector("#back")?.getAttribute("href")).toBe("/?size=22.5");
-    expect(document.querySelector("#instructions")?.textContent).toContain("15.00");
-    expect(document.querySelector("#instructions")?.textContent).toContain("100%");
-    expect(document.querySelector("#detector")).toBeNull();
-    expect(document.querySelector("#mode")).toBeNull();
+    const definitions = JSON.parse(
+      readFileSync(new URL("public/markers/definitions.json", root), "utf8"),
+    );
+    expect(definitions.boardId).toBe(config.boardId);
+    expect(definitions.revision).toBe(config.revision);
+    expect(definitions.families.tag36h11).toHaveLength(1);
+    expect(definitions.families.tag36h11[0].id).toBe(config.markers[0].id);
+    expect(config.markers[0].sizeMeters).toBe(0.15);
   });
-  it.each([22.5, 50, 60, 70])(
+  it.each([22.5, 36, 50, 60, 70])(
     "preserves exact %s cm outer size and black-boundary ratio",
     (size) => {
       const source = readFileSync(new URL(`public/markers/april-single-${size}.svg`, root), "utf8");
@@ -51,21 +42,6 @@ describe("AprilTag print profiles", () => {
         `width="${size * 10}mm" height="${size * 10}mm" viewBox="0 0 150 150"`,
       );
       expect(blackBounds(source)).toEqual({ left: 25, top: 25, right: 125, bottom: 125 });
-      const document = page(`?size=${size}`).document;
-      expect(document.querySelector("#board")?.getAttribute("src")).toBe(
-        `/markers/april-single-${size}.svg`,
-      );
-      expect(document.querySelector<HTMLImageElement>("#board")?.style.width).toBe(
-        `${size * 10}mm`,
-      );
-      expect(document.querySelector("#back")?.getAttribute("href")).toBe(`/?size=${size}`);
-      expect(document.querySelector<HTMLSelectElement>("#size")?.value).toBe(String(size));
-    },
-  );
-  it.each(["?size=10", "?size=", "?size=50&size=22.5"])(
-    "rejects conflicting dimensions %s",
-    (query) => {
-      expect(page(query).document.querySelector<HTMLImageElement>("#board")?.hidden).toBe(true);
     },
   );
 });

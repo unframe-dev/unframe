@@ -33,4 +33,4 @@ HTTP の生成元は [openapi.ts](../../../server/control-plane/src/openapi.ts)�
 
 Venue Edge では `VENUE_EDGE_WEB_ORIGIN` に Audience の HTTPS origin を指定する。素材取得には現在の Runtime JWT を使い、bootstrap endpoint と同一 origin の Session 素材 URL にだけ付与する。
 
-会場タグは引き続き `/poc-config.json`。session ごとの会場設定配布、時計の通信遅延補償、スマートフォンの負荷・長時間視聴は未検証。profile の資源予算はクライアントが拒否に使う上限であり、端末の動作保証値ではない。
+会場タグは `src/fiducials/default-board.json` をbundleから読み込む暫定固定設定（ID 0・黒外周15cm・identity座標）で、session固有の設定ではない。session ごとの会場設定配布、時計の通信遅延補償、スマートフォンの負荷・長時間視聴は未検証。profile の資源予算はクライアントが拒否に使う上限であり、端末の動作保証値ではない。

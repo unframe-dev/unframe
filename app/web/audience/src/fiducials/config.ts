@@ -1,4 +1,5 @@
 import { z } from "zod";
+import defaultBoard from "./default-board.json";
 const finite = z.number().finite();
 const pose = z.strictObject({
   position: z.strictObject({ x: finite, y: finite, z: finite }),
@@ -39,10 +40,8 @@ export const detectorImplementations = {
 export function parseBoardConfig(value: unknown): BoardConfig {
   return schema.parse(value);
 }
-export async function loadBoardConfig(fetcher: typeof fetch = fetch): Promise<BoardConfig> {
-  const response = await fetcher("/poc-config.json", { cache: "no-store" });
-  if (!response.ok) throw new Error(`ボード設定を取得できません（HTTP ${response.status}）。`);
-  return parseBoardConfig(await response.json());
+export async function loadBoardConfig(): Promise<BoardConfig> {
+  return parseBoardConfig(defaultBoard);
 }
 export type TagProfile = {
   id: string;
