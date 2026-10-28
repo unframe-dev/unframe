@@ -20,9 +20,19 @@ const exited = (pid: number): boolean => {
   }
 };
 
-export const verifyMembership = (pid: number, group: string): void => {
+const processIds = (contents: string): number[] => {
+  const entries = contents.trim().split(/\s+/).filter(Boolean);
+  if (entries.some((entry) => !/^[1-9][0-9]*$/.test(entry) || !Number.isSafeInteger(Number(entry))))
+    throw unavailable("worker process identifiers are unavailable");
+  return entries.map(Number);
+};
+
+export const verifyMembership = (pid: number, group: string, phase: "ready" | "result"): void => {
   const seen = new Set<number>();
   const pending = [pid];
+  // Orphaned descendants remain in the cgroup after the root's proc entries disappear.
+  if (phase === "result")
+    pending.push(...processIds(readFileSync(`/sys/fs/cgroup${group}/cgroup.procs`, "utf8")));
   while (pending.length > 0) {
     const current = pending.pop()!;
     if (seen.has(current)) continue;
@@ -30,20 +40,13 @@ export const verifyMembership = (pid: number, group: string): void => {
     try {
       if (cgroupFor(current) !== group)
         throw unavailable("a browser descendant escaped the resource cgroup");
-      const children = readFileSync(`/proc/${current}/task/${current}/children`, "utf8")
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean);
-      if (
-        children.some(
-          (child) => !/^[1-9][0-9]*$/.test(child) || !Number.isSafeInteger(Number(child)),
-        )
-      )
-        throw unavailable("worker descendants are unavailable");
-      pending.push(...children.map(Number));
+      pending.push(
+        ...processIds(readFileSync(`/proc/${current}/task/${current}/children`, "utf8")),
+      );
     } catch (error) {
       // Proc entries can disappear after enumeration. A missing task alone does not prove exit.
-      if (current !== pid && hasCode(error, "ENOENT") && exited(current)) continue;
+      if ((current !== pid || phase === "result") && hasCode(error, "ENOENT") && exited(current))
+        continue;
       throw error;
     }
   }

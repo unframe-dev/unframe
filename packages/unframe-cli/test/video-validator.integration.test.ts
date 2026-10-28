@@ -40,7 +40,7 @@ it.each([
     const bytes = new Uint8Array(
       await readFile(
         new URL(
-          `../../../app/unity/Assets/Resources/PresentationFixtures/${name}.bytes`,
+          `../../../app/unity/Assets/Tests/EditMode/Editor/FixturesData/${name}.bytes`,
           import.meta.url,
         ),
       ),
