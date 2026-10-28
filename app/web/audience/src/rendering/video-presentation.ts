@@ -220,7 +220,14 @@ export async function createVideoPresentation(options: {
       if (
         next.assets.some((a) => {
           const previous = metadata.get(a.assetId);
-          return !previous || JSON.stringify(previous) !== JSON.stringify(a);
+          if (!previous) return true;
+          const {
+            url: _previousUrl,
+            expiresAtUnixMs: _previousExpiry,
+            ...previousContent
+          } = previous;
+          const { url: _nextUrl, expiresAtUnixMs: _nextExpiry, ...nextContent } = a;
+          return JSON.stringify(previousContent) !== JSON.stringify(nextContent);
         })
       )
         return false;
