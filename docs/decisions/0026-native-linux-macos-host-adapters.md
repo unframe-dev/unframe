@@ -30,7 +30,7 @@ macOS の `sandbox-exec` は非推奨であり、OS 更新ごとに native integ
 
 ## Adoption and Exceptions
 
-Presentation CI は Linux と macOS arm64 の native runner を使い、同じ入力の再 build hash、wire の自己整合、filesystem / network 拒否、deadline / cancel と回収を検証する。共有 wire fixture の codec 検証を、OS 固有の描画 hash との比較に用いない。
+Presentation CI は Linux と macOS arm64 の native runner を使う。共通の型・lint・単体テスト、wire の自己整合、CLI の編集・診断・成果物保全シナリオは Ubuntu で検証し、重い結合テストは独立したジョブへ分割する。macOS は native filesystem と worker の隔離・資源制限・回収、固定 Browser・font・native style 依存の実機検証に限定する。両 OS で同じ実行環境内の描画再現性、filesystem / network 拒否、deadline / cancel と回収を検証する。共有 wire fixture の codec 検証を、OS 固有の描画 hash との比較に用いない。
 
 2026-10-18 の macOS 27.0.1 arm64 実機検証では、通常の Presentation check、参照 project の二回 build hash 一致、Unity WebGL Preview build、Local Editor から Unity native runtime への接続・描画 E2E が成功した。Opaque capture も native 隔離、画素の再現性、font、network 拒否、deadline / cancel と回収、CLI の編集・保存・再 build と失敗時の成果物保持が成功した。Linux 専用の隔離試験は macOS の検証対象に含めない。隔離 capability が欠ける場合は実行前に拒否し、sandbox 無効化による代替経路は設けない。
 

@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check": "pnpm typecheck && pnpm test",
-    "test": "node --test native-host.test.ts ../presentation-sample/lifecycle.test.mts"
+    "test": "node --test native-host.test.ts ../presentation-sample/lifecycle.test.mts ../ci/opaque-capture.test.mts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
