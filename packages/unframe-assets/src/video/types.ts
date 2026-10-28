@@ -12,7 +12,7 @@ export type VideoMetadata = {
 
 export const VIDEO_VALIDATION_IDENTITY = Object.freeze({
   validatorId: "unframe-mp4",
-  version: "1",
+  version: "2",
   profile: "avc-high-l41-yuv420p-progressive-aac-lc-48k",
-  duration: "edit-list-packet-end-v1",
+  duration: "edit-list-packet-end-v2",
 });

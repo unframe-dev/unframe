@@ -145,7 +145,7 @@ AAC-LC（MPEG-4 Audio Object Type 2）、48 kHz、mono または stereo に限�
 container と各 elementary stream を parse してこの値を検証し、file extension や codec 名だけで
 判定しない。
 
-MP4のdurationはedit list適用後のpacket endから音声discard paddingを除いて有理数で算出し、stream/containerと一致させた後にミリ秒へ切り上げる。DTSとdecoded frame PTSは各trackで単調増加し、B-frameによるpacket PTSの並べ替えは許可する。
+MP4のdurationはedit list適用後のpacket end（PTS + duration）を有理数で算出し、stream/containerと一致させた後にミリ秒へ切り上げる。packet durationは音声末尾のpaddingを反映済みのため、decoder向けのdiscard_paddingを再度減算しない。DTSとdecoded frame PTSは各trackで単調増加し、B-frameによるpacket PTSの並べ替えは許可する。
 
 Modelはimport前にGLBのencoded/accessor展開bytesを各64 MiB、JSONを4 MiB / 100万token / depth64、Node階層を256に制限する。全meshのdecoded geometryには `Σ(vertices × (160 + morphTargets × 48) + indices × 4) ≤ 64 MiB` の絶対上限を適用する。animation曲線もchannelごとにkey数×curve成分数×64 bytesを合計して64 MiBまでとする。weightsの成分数はmorph幅×primitive数、targetNamesはmorph幅と一致させる。selected sceneのdescriptorに含まれないresourceもimporterのallocation検査から除外しない。
 

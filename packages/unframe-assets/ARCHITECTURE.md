@@ -102,7 +102,7 @@ mipmap、temporary workspace、font変換、cache、Surface State binding、Rend
 
 ### MP4 inspection validation
 
-`validateMp4Inspection`はowned bytesと信頼するhostが取得したJSON検査結果を受け取る。H.264 High / level ≤4.1 / yuv420p / progressive、任意のAAC-LC 48 kHz mono/stereo、単一映像trackを検証し、codec・寸法・audio・checksum・durationを返す。途中のSPS / frame条件の変化、decode失敗、timestamp不整合を拒否する。durationはedit list適用後のpacket endを有理数で集計し、音声のdiscard paddingを除き、stream/containerと照合してミリ秒へ切り上げる。FFmpegの実行・隔離・取消・tool identityはCLIが所有する。
+`validateMp4Inspection`はowned bytesと信頼するhostが取得したJSON検査結果を受け取る。H.264 High / level ≤4.1 / yuv420p / progressive、任意のAAC-LC 48 kHz mono/stereo、単一映像trackを検証し、codec・寸法・audio・checksum・durationを返す。途中のSPS / frame条件の変化、decode失敗、timestamp不整合を拒否する。durationはedit list適用後のpacket end（PTS + duration）を有理数で集計し、stream/containerと照合してミリ秒へ切り上げる。packet durationは音声末尾のpaddingを反映済みのため、decoder向けのdiscard_paddingを再度減算しない。FFmpegの実行・隔離・取消・tool identityはCLIが所有する。
 
 ## 9. Deferred decisions
 
