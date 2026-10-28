@@ -9,6 +9,7 @@ using Unframe.Delivery;
 using Unframe.Presentation;
 using Unframe.Realtime;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Unframe.Unity.PresentationRuntime
 {
@@ -57,6 +58,7 @@ namespace Unframe.Unity.PresentationRuntime
             internal double Width, Height;
         }
         private readonly List<Entry> entries = new List<Entry>();
+        private readonly List<SortingGroup> sortingGroups = new List<SortingGroup>();
         private readonly Dictionary<string, Resource> resources = new Dictionary<string, Resource>();
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
         private readonly Func<IPresentationVideoDecoder> createDecoder;
@@ -80,6 +82,7 @@ namespace Unframe.Unity.PresentationRuntime
         public async Task BuildAsync(IPresentationRenderView view, PresentationNodeHierarchy hierarchy,
             Func<string, CancellationToken, Task<PresentationPreviewAssetData>> provider, CancellationToken token)
         {
+            var order = new PresentationSurfaceOrder(view);
             ulong encodedTotal = 0;
             foreach (var surface in view.RenderSurfaces)
             {
@@ -115,13 +118,15 @@ namespace Unframe.Unity.PresentationRuntime
                         || resource.Metadata.DurationMs != artifact.DurationMs || resource.Metadata.HasAudio != artifact.HasAudio) throw new InvalidOperationException("video-metadata-mismatch");
                     entry.Sources.Add(artifact.ArtifactId, new Source { Artifact = artifact.Clone(), Resource = resource });
                 }
+                if (host.GetComponent<SortingGroup>() == null) sortingGroups.Add(host.AddComponent<SortingGroup>());
                 entry.Object = PresentationBakedSurfaceRenderer.CreateQuad(); entry.Object.name = surface.RenderSurfaceId;
+                entry.Object.GetComponent<MeshRenderer>().sortingOrder = order.Resolve(surface);
                 entry.Object.transform.SetParent(host.transform, false);
                 var bounds = surface.LogicalBounds; double sx = semantic.PhysicalSizeMeters.X / semantic.LogicalSize.X, sy = semantic.PhysicalSizeMeters.Y / semantic.LogicalSize.Y;
                 if (semantic.Fit == SurfaceFit.Contain) sx = sy = Math.Min(sx, sy); if (semantic.Fit == SurfaceFit.Cover) sx = sy = Math.Max(sx, sy);
                 entry.Width = bounds.Width * sx; entry.Height = bounds.Height * sy;
                 entry.Object.transform.localPosition = new UnityEngine.Vector3((float)((bounds.X + bounds.Width / 2 - semantic.LogicalSize.X / 2) * sx),
-                    (float)((semantic.LogicalSize.Y / 2 - bounds.Y - bounds.Height / 2) * sy), -(float)surface.Layer * .0001f);
+                    (float)((semantic.LogicalSize.Y / 2 - bounds.Y - bounds.Height / 2) * sy), 0);
                 entry.Mesh = entry.Object.GetComponent<MeshFilter>().sharedMesh; entry.Object.GetComponent<MeshFilter>().sharedMesh = entry.Mesh; entry.Uvs = entry.Mesh.uv;
                 entry.Material = new Material(Resources.Load<Shader>("BakedSurface")); entry.Object.GetComponent<MeshRenderer>().sharedMaterial = entry.Material;
                 entry.Object.GetComponent<MeshRenderer>().enabled = false;
@@ -236,6 +241,36 @@ namespace Unframe.Unity.PresentationRuntime
             }
             return true;
         }
+        public bool TryPickInteraction(Ray ray, IPresentationRenderView view,
+            out string surfaceId, out string interactionId, out float surfaceDistance)
+        {
+            surfaceId = interactionId = null;
+            surfaceDistance = float.PositiveInfinity;
+            PresentationNormalizedPoint point = default;
+            foreach (Entry entry in entries)
+            {
+                if (entry.Object == null || !entry.Object.activeInHierarchy || !entry.Object.GetComponent<MeshRenderer>().enabled
+                    || entry.Attempt?.Decoder?.IsPrepared != true || entry.Selected == null
+                    || !view.TryGetNodeState(entry.HostNodeId, out var node) || !node.Active || !node.Visible || node.Opacity <= 0
+                    || !view.TryGetSurface(entry.SurfaceId, out var semantic) || !ReferenceEquals(Desired(entry, view), entry.Selected)) continue;
+                if (!PresentationSurfacePicking.TryIntersect(ray, entry.Object.transform, entry.Surface.LogicalBounds,
+                    semantic.LogicalSize.X, semantic.LogicalSize.Y, out _, out float distance)) continue;
+                // Contain changes the visible quad size, while interaction bounds remain in semantic surface coordinates.
+                var transform = entry.Object.transform;
+                Matrix4x4 semanticQuad = transform.parent.localToWorldMatrix * Matrix4x4.TRS(transform.localPosition,
+                    transform.localRotation, new UnityEngine.Vector3((float)entry.Width, (float)entry.Height, 1));
+                if (!PresentationSurfacePicking.TryIntersect(ray, semanticQuad, entry.Surface.LogicalBounds,
+                    semantic.LogicalSize.X, semantic.LogicalSize.Y, out var candidate, out _)
+                    || distance > surfaceDistance || distance == surfaceDistance && surfaceId != null
+                        && StringComparer.Ordinal.Compare(entry.SurfaceId, surfaceId) >= 0) continue;
+                surfaceId = entry.SurfaceId; surfaceDistance = distance; point = candidate;
+            }
+            if (surfaceId == null) return false;
+            foreach (ProjectedSemanticSurface semantic in view.SemanticSurfaces)
+                if (semantic.SemanticSurfaceId == surfaceId && view.TryGetSurfaceState(surfaceId, out var state))
+                    return PresentationSurfacePicking.TryResolve(semantic, state.StateId, point, out interactionId);
+            return false;
+        }
         public void Pause()
         {
             foreach (var entry in entries) entry.Attempt?.Decoder?.Pause();
@@ -248,6 +283,8 @@ namespace Unframe.Unity.PresentationRuntime
                 ReleaseDecoder(entry); PresentationTextureResidency.Destroy(entry.Mesh); PresentationTextureResidency.Destroy(entry.Object); PresentationTextureResidency.Destroy(entry.Material);
             }
             foreach (var resource in resources.Values) if (resource.File != null && File.Exists(resource.File)) File.Delete(resource.File);
+            foreach (SortingGroup group in sortingGroups) PresentationTextureResidency.Destroy(group);
+            sortingGroups.Clear();
             entries.Clear(); resources.Clear(); lifetime.Dispose();
         }
     }

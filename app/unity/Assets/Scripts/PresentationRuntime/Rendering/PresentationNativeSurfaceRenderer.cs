@@ -7,6 +7,7 @@ using Unframe.Presentation;
 using Unframe.Realtime;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Rendering;
 using TMPro;
 using UnityEngine.TextCore.LowLevel;
 
@@ -21,10 +22,12 @@ namespace Unframe.Unity.PresentationRuntime
             internal GameObject Root;
             internal CanvasGroup Visibility;
             internal Canvas Canvas;
+            internal readonly Dictionary<TextMeshProUGUI, PresentationNativeTextMesh> Meshes = new Dictionary<TextMeshProUGUI, PresentationNativeTextMesh>();
             internal readonly Dictionary<string, GameObject> Artifacts = new Dictionary<string, GameObject>();
             internal readonly List<KeyValuePair<NativeUiText, TextMeshProUGUI>> Texts = new List<KeyValuePair<NativeUiText, TextMeshProUGUI>>();
         }
         private readonly List<Partition> partitions = new List<Partition>();
+        private readonly List<SortingGroup> sortingGroups = new List<SortingGroup>();
         private readonly Dictionary<string, TMP_FontAsset> fonts = new Dictionary<string, TMP_FontAsset>();
 
         public bool IsReady
@@ -35,6 +38,7 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     if (partition.Root == null || partition.Visibility == null || partition.Canvas == null) return false;
                     foreach (var text in partition.Texts) if (text.Value == null || text.Value.font == null) return false;
+                    foreach (var mesh in partition.Meshes.Values) if (!mesh.IsReady) return false;
                 }
                 foreach (TMP_FontAsset font in fonts.Values)
                 {
@@ -51,18 +55,23 @@ namespace Unframe.Unity.PresentationRuntime
             Clear();
             try
             {
+                var order = new PresentationSurfaceOrder(store);
                 foreach (DeliveredRenderSurface surface in store.RenderSurfaces)
                 {
                     if (surface.RendererKind != RendererKind.NativeUi) continue;
                     if (!store.TryGetSurface(surface.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
                         || !hierarchy.Registry.TryGet(semantic.HostNodeId, out GameObject host))
                         throw new InvalidOperationException("native-ui-host-absent");
+                    if (host.GetComponent<SortingGroup>() == null) sortingGroups.Add(host.AddComponent<SortingGroup>());
                     var partition = new Partition { Definition = surface, HostId = semantic.HostNodeId };
                     partitions.Add(partition);
                     partition.Root = new GameObject(surface.RenderSurfaceId, typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup));
                     partition.Root.transform.SetParent(host.transform, false);
                     Canvas canvas = partition.Root.GetComponent<Canvas>();
                     canvas.renderMode = RenderMode.WorldSpace;
+                    canvas.overrideSorting = true;
+                    canvas.sortingOrder = order.Resolve(surface);
+                    partition.Root.AddComponent<SortingGroup>().sortingOrder = canvas.sortingOrder;
                     partition.Canvas = canvas;
                     partition.Visibility = partition.Root.GetComponent<CanvasGroup>();
                     partition.Visibility.blocksRaycasts = false;
@@ -73,7 +82,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (semantic.Fit == SurfaceFit.Contain) scaleX = scaleY = Math.Min(scaleX, scaleY);
                     if (semantic.Fit == SurfaceFit.Cover) scaleX = scaleY = Math.Max(scaleX, scaleY);
                     rect.localScale = new UnityEngine.Vector3((float)scaleX, (float)scaleY, 1);
-                    rect.localPosition = new UnityEngine.Vector3(0, 0, -(float)surface.Layer * 0.0001f);
+                    rect.localPosition = UnityEngine.Vector3.zero;
                     // Canvas faces local -Z, matching the contract surface normal after coordinate conversion.
                     foreach (DeliveredArtifact delivered in surface.Artifacts)
                     {
@@ -152,10 +161,12 @@ namespace Unframe.Unity.PresentationRuntime
             text.color = new Color((float)definition.Color.Red, (float)definition.Color.Green, (float)definition.Color.Blue, (float)definition.Color.Alpha);
             child.AddComponent<RectMask2D>();
             partition.Texts.Add(new KeyValuePair<NativeUiText, TextMeshProUGUI>(definition, text));
+            partition.Meshes.Add(text, new PresentationNativeTextMesh(text, partition.Texts.Count - 1));
         }
 
         public bool TryRefresh(PresentationRuntimeDataStore store, double runtimeTimeMs, out string error)
         {
+            if (!IsReady) { Disable(); error = "asset_residency_lost"; return false; }
             foreach (Partition partition in partitions)
             {
                 string artifactId = null;
@@ -168,7 +179,7 @@ namespace Unframe.Unity.PresentationRuntime
                 partition.Visibility.alpha = host == null ? 0 : (float)host.Opacity;
                 foreach (var entry in partition.Texts)
                 {
-                    if (!entry.Value.gameObject.activeInHierarchy) continue;
+                    if (!entry.Value.gameObject.activeInHierarchy) { partition.Meshes[entry.Value].Disable(); continue; }
                     if (!TryResolveText(entry.Key.Value, id => store.TryGetVariableState(id, out VariableState variable) ? variable : null, out string text))
                     { Disable(); error = "native-ui-text-value-unavailable"; return false; }
                     if (CountCodePoints(text) > entry.Key.MaxCodePoints)
@@ -176,6 +187,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (!entry.Value.font.HasCharacters(text, out uint[] missing, false, false))
                     { Disable(); error = "native-ui-font-glyph-unavailable"; return false; }
                     entry.Value.text = text;
+                    partition.Meshes[entry.Value].Refresh(visible, partition.Visibility.alpha);
                 }
             }
             error = null;
@@ -245,11 +257,18 @@ namespace Unframe.Unity.PresentationRuntime
             return text != null;
         }
 
-        public void Disable() { foreach (Partition partition in partitions) if (partition.Canvas != null) partition.Canvas.enabled = false; }
+        public void Disable()
+        {
+            foreach (Partition partition in partitions)
+            { if (partition.Canvas != null) partition.Canvas.enabled = false; foreach (var mesh in partition.Meshes.Values) mesh.Disable(); }
+        }
         private void Clear()
         {
-            foreach (Partition partition in partitions) PresentationTextureResidency.Destroy(partition.Root);
+            foreach (Partition partition in partitions)
+            { foreach (var mesh in partition.Meshes.Values) mesh.Dispose(); PresentationTextureResidency.Destroy(partition.Root); }
             partitions.Clear();
+            foreach (SortingGroup group in sortingGroups) PresentationTextureResidency.Destroy(group);
+            sortingGroups.Clear();
             foreach (TMP_FontAsset font in fonts.Values)
             {
                 if (font == null) continue;

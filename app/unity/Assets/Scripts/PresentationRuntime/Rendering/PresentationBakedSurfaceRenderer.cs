@@ -34,24 +34,9 @@ namespace Unframe.Unity.PresentationRuntime
             Clear();
             error = "baked surface cannot be rendered.";
             if (view == null || view.Catalog == null || hierarchy == null || hierarchy.Registry == null) return false;
-            var distinctLayers = new Dictionary<string, SortedSet<uint>>();
-            foreach (DeliveredRenderSurface surface in view.RenderSurfaces)
-            {
-                if (surface.RendererKind != RendererKind.BakedWeb) continue;
-                if (!distinctLayers.TryGetValue(surface.SemanticSurfaceId, out SortedSet<uint> layers))
-                {
-                    layers = new SortedSet<uint>();
-                    distinctLayers.Add(surface.SemanticSurfaceId, layers);
-                }
-                layers.Add(surface.Layer);
-            }
-            var layersBySurface = new Dictionary<string, List<uint>>();
-            foreach (KeyValuePair<string, SortedSet<uint>> layers in distinctLayers)
-            {
-                // Unity uses signed 16-bit sorting orders; contract layers are uint32.
-                if (layers.Value.Count > 65536) { error = "baked surface has too many distinct layers."; return false; }
-                layersBySurface.Add(layers.Key, new List<uint>(layers.Value));
-            }
+            PresentationSurfaceOrder order;
+            try { order = new PresentationSurfaceOrder(view); }
+            catch (InvalidOperationException exception) { error = exception.Message; return false; }
             foreach (DeliveredRenderSurface surface in view.RenderSurfaces)
             {
                 if (surface.RendererKind != RendererKind.BakedWeb) continue;
@@ -77,7 +62,7 @@ namespace Unframe.Unity.PresentationRuntime
                 quad.transform.localPosition = new UnityEngine.Vector3((float)((bounds.X + bounds.Width / 2 - semantic.LogicalSize.X / 2) * fitX),
                     (float)((semantic.LogicalSize.Y / 2 - bounds.Y - bounds.Height / 2) * fitY), 0);
                 MeshRenderer renderer = quad.GetComponent<MeshRenderer>();
-                renderer.sortingOrder = layersBySurface[surface.SemanticSurfaceId].BinarySearch(surface.Layer) - 32768;
+                renderer.sortingOrder = order.Resolve(surface);
                 renderer.sharedMaterial = material;
                 renderer.enabled = false;
                 partitions.Add(new Partition { Surface = surface, HostNodeId = semantic.HostNodeId, Renderer = renderer, Object = quad });

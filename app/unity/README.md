@@ -75,3 +75,9 @@ AprilTag検出への移行後も、Unityの既存クラス名 `Aruco*`、Scene�
 ## Model / Video authoring example
 
 [media-presentation](../../examples/media-presentation/README.md)をLocal Editorで開くと、同素材の2つのModel、音声付きVideoと操作Cueを使用できます。WebGLの音声開始はEditorの「再生」クリックでbrowser activationを取得します。再生拒否時はエラーを表示してLocalの時計を一時停止し、次の再生クリックで再試行できます。MP4 bytesは全選択素材を検証し、decoderとRenderTextureは現在Group / Surface Stateの動画だけを準備します。通常Runtimeは初回decoder準備をStateReady前に待ち、切替中は入力を止めてstate受信を続けます。GLB importer、VideoPlayer、RenderTexture、Blob URLはcandidateの破棄・表示切替・Runtime停止で解放します。Quest固有のGPU、decoder、音声出力は別の実機検証範囲です。
+
+### 混在Surfaceの重なりと操作
+
+PNG・Native UI文字・動画は、同じSemantic Surface内のLayer順序を共通の描画順位へ変換します。Native文字はTMPのレイアウトを使用し、矩形clipとopacityを反映したMeshで描画します。準備済みの動画もSemantic Surfaceの座標で操作判定を行い、表示不能・未準備の動画は入力対象にしません。
+
+`PresentationMixedSurfaceTests`、`PresentationNativeSurfaceRenderingTests`、`PresentationMeshClipTests` が順位・操作・clipの回帰条件です。Quest実機での透明物重なりとコントローラー操作は別途確認が必要です。
