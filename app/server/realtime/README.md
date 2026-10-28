@@ -40,6 +40,69 @@ Host は5秒ごとに `POST /internal/runtime/hosts/{runtimeId}/heartbeat` を�
 
 `go run ./cmd/runtime-host` を直接使う場合は、実 Runtime binary の絶対パスを `REALTIME_SERVER_EXECUTABLE` に指定してください。通常の Nix 入口はこの値を設定します。
 
+### 自宅 Caddy 経由で公開する
+
+`realtime.un-fra.me` で Quest の native gRPC と Audience の WebSocket を受け、自宅の Caddy から同じマシンの Runtime へ転送する構成です。
+
+```text
+Quest / Audience ── HTTPS ── Control Plane (Workers): 認証・参加・Delivery・bootstrap
+Quest / Audience ── gRPC / WSS ── realtime.un-fra.me (Caddy) ── HTTP / H2C ── Runtime
+Runtime Host / Runtime ── HTTPS ── Control Plane (Workers): heartbeat・lease・checkpoint
+```
+
+この repository は [Caddy 設定例](ops/Caddyfile.example)、[Host 環境変数例](ops/runtime-host.env.example) と起動手順を管理します。適用する Caddy 設定の正本、DNS、自宅ホストへの Caddy 導入・常駐・firewall、証明書の永続保存は infra / ホスト設定 repository で管理します。秘密値と証明書の実データは Git へ保存しません。
+
+#### 公開前の準備
+
+- Control Plane に Runtime Host API と D1 migration（`0014_runtime_hosts.sql` を含む）が適用され、公開済み Dist から Session を作成できることを確認します。
+- `realtime.un-fra.me` の DNS と自宅への TCP 443 の到達性を infra 側で準備し、確認してから起動します。直接公開できない回線では native gRPC と WebSocket を通せる中継経路が必要です。
+- infra 側の Caddy 設定へ設定例の site block を反映し、公開証明書の取得・更新、listen port の権限と永続保存先を設定します。[Caddy の自動 HTTPS](https://caddyserver.com/docs/automatic-https) の到達条件も確認してください。
+- Audience の HTTPS origin を Control Plane の `AUDIENCE_ORIGIN` と Host の `REALTIME_BROWSER_ORIGINS` に設定します。Audience の `VITE_AUDIENCE_API_ORIGIN` は Control Plane の HTTPS origin にします。
+
+Caddy 設定例は `/browser/*` を HTTP / WebSocket、それ以外を H2C の gRPC として `127.0.0.1:9090` へ転送し、path と Origin を保持します。公開 endpoint に path prefix を追加しません。Caddy と Runtime を同じマシンで動かし、Runtime の port は loopback のみに bind します。[Caddy の reverse_proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy) が WebSocket upgrade と H2C を扱います。
+
+#### 起動
+
+repository root から、環境変数例を Git 外へコピーします。
+
+```sh
+mkdir -p "$HOME/.config/unframe"
+cp -n app/server/realtime/ops/runtime-host.env.example "$HOME/.config/unframe/runtime-host.env"
+chmod 600 "$HOME/.config/unframe/runtime-host.env"
+```
+
+コピー先の `REALTIME_SERVICE_IDENTITY` に Control Plane の `SERVICE_IDENTITY_SECRET` と同じ32文字以上の値を設定し、`REALTIME_BROWSER_ORIGINS` の仮 origin を実際の Audience origin へ置き換えます。Control Plane の接続先を変える場合は URL・issuer・JWKS URL をその環境と揃えます。Host ID はホスト固有の安定した値にし、`REALTIME_RUNTIME_ENDPOINT` を Caddy の公開 origin と一致させます。
+
+このファイルは shell で読み込むため、秘密値は単一引用符で囲みます（`REALTIME_SERVICE_IDENTITY='...'`）。値に単一引用符が含まれる場合は、その位置を `'\''` に置き換えます。
+
+infra 側に配置した設定を Caddy の実行ユーザーで検証・起動します。次の `/path/to/infra/Caddyfile` は実際の設定ファイルへ置き換えてください。
+
+```sh
+caddy validate --config /path/to/infra/Caddyfile --adapter caddyfile
+caddy run --config /path/to/infra/Caddyfile --adapter caddyfile
+```
+
+別のターミナルで、repository root から Host を起動します。
+
+```sh
+(
+  set -a
+  . "$HOME/.config/unframe/runtime-host.env"
+  set +a
+  nix run .#runtime-host
+)
+```
+
+Host は登録後に割り当てを待ち、Session の準備要求を受けて Runtime を起動します。未割り当ての間は `9090` の listener がなく、Caddy 経由の接続も成功しません。Session ID・epoch・revision・lease を環境変数へ追加する必要はありません。
+
+#### 接続確認と停止
+
+1. 発表者または管理者として Console にログインし、公開済み Presentation の Session を作成します。ルーム画面の「発表環境を準備」を押し、「発表環境の準備ができました。」を確認します。API を直接使う場合も発表者または管理者の認証が必要で、`POST /sessions/{id}/runtime-preparation` の後、同 URL の GET が `ready` になることを確認します。空き Host がない場合は `409 runtime_unavailable` です。Quest の発表者導線でも Session 作成後に準備を要求します。
+2. Session の bootstrap の `endpoint` が `https://realtime.un-fra.me` であることを確認し、外部回線の Quest で gRPC 接続、Audience でルーム参加から Control / State の WebSocket 接続・素材準備まで確認します。`ready` は Host 内の health 確認なので、公開経路の疎通確認は別に必要です。
+3. 発表を開始して進行・一時停止・再開が両端末へ反映されることを確認します。素材は Delivery に記載された URL から取得し、Caddy 設定例は素材配信を追加しません。
+
+手動起動した Host はそのターミナルの Ctrl-C で停止します。Caddy を手動起動した場合は別ターミナルの Ctrl-C で停止します。常駐・再起動・設定反映の運用は infra 側で管理します。
+
 ## 構成
 
 - `cmd/server`: listener と signal handling を組み立てる composition root
