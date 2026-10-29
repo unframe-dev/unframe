@@ -16,7 +16,7 @@ namespace Unframe.Unity.PresentationRuntime
     {
         [SerializeField] private QuestPresentationEntry entry;
         [SerializeField] private QuestPresentationSession session;
-        [SerializeField] private ArucoPresentationCalibration calibrationSource;
+        [SerializeField] private AprilTagPresentationCalibration calibrationSource;
         [SerializeField] private Transform head;
         [SerializeField] private PassthroughCameraDevicePreview cameraPreview;
         private GameObject panel;
@@ -50,12 +50,12 @@ namespace Unframe.Unity.PresentationRuntime
         public Button FindButton(string name) => buttons.Find(button => button != null && button.name == name);
         public string StatusText { get; private set; }
 
-        public void Configure(QuestPresentationEntry sessionEntry, ArucoPresentationCalibration source, Transform headTransform)
+        public void Configure(QuestPresentationEntry sessionEntry, AprilTagPresentationCalibration source, Transform headTransform)
         {
             Configure(sessionEntry, source, headTransform, sessionEntry != null ? sessionEntry.GetComponent<QuestPresentationSession>() : null);
         }
 
-        public void Configure(QuestPresentationEntry sessionEntry, ArucoPresentationCalibration source, Transform headTransform, QuestPresentationSession controller)
+        public void Configure(QuestPresentationEntry sessionEntry, AprilTagPresentationCalibration source, Transform headTransform, QuestPresentationSession controller)
         {
             UnregisterRayHandler();
             DestroyPanel();

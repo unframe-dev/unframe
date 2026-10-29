@@ -13,20 +13,20 @@ public sealed class PassthroughCameraPreviewLifecycleTests
         var preview = host.AddComponent<PassthroughCameraDevicePreview>();
         try
         {
-            var alignment = host.GetComponent<ArucoOriginAlignment>();
-            typeof(ArucoOriginAlignment).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+            var alignment = host.GetComponent<AprilTagOriginAlignment>();
+            typeof(AprilTagOriginAlignment).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(alignment, null);
             for (int i = 0; i < 8; i++)
             {
-                var frame = new ArucoMarkerDetectionFrame(i + 1, new Vector2Int(640, 480), new[] { 0 }, new float[8], 1);
-                var estimate = new ArucoMarkerPoseEstimate(true, null, Pose.identity, 0.1, 1, 2);
-                alignment.Observe(new ArucoPoseObservation(frame, estimate,
-                    new ArucoCameraGeometry(450, 450, 320, 240, Pose.identity)), i * 0.2);
+                var frame = new AprilTagMarkerDetectionFrame(i + 1, new Vector2Int(640, 480), new[] { 0 }, new float[8], 1);
+                var estimate = new AprilTagMarkerPoseEstimate(true, null, Pose.identity, 0.1, 1, 2);
+                alignment.Observe(new AprilTagPoseObservation(frame, estimate,
+                    new AprilTagCameraGeometry(450, 450, 320, 240, Pose.identity)), i * 0.2);
             }
             Assert.That(alignment.IsConfirmed, Is.True);
             SetField(preview, "alignment", alignment);
             SetField(preview, "handleRemeasurementInput", handleInput);
-            var session = (ArucoCameraSessionState)typeof(PassthroughCameraDevicePreview)
+            var session = (AprilTagCameraSessionState)typeof(PassthroughCameraDevicePreview)
                 .GetField("sessionState", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(preview);
             session.Supported = true;
             session.PermissionGranted = true;
@@ -63,10 +63,10 @@ public sealed class PassthroughCameraPreviewLifecycleTests
         try
         {
             SetField(preview, "cameraAccess", camera);
-            var alignment = dependencyHost.AddComponent<ArucoOriginAlignment>();
-            var detection = dependencyHost.AddComponent<ArucoCameraMarkerDetection>();
-            SetField(preview, "alignment", destroyAlignment ? alignment : host.GetComponent<ArucoOriginAlignment>());
-            SetField(preview, "markerDetection", destroyDetection ? detection : host.GetComponent<ArucoCameraMarkerDetection>());
+            var alignment = dependencyHost.AddComponent<AprilTagOriginAlignment>();
+            var detection = dependencyHost.AddComponent<AprilTagCameraMarkerDetection>();
+            SetField(preview, "alignment", destroyAlignment ? alignment : host.GetComponent<AprilTagOriginAlignment>());
+            SetField(preview, "markerDetection", destroyDetection ? detection : host.GetComponent<AprilTagCameraMarkerDetection>());
             SetField(preview, "started", true);
             Object.DestroyImmediate(cameraHost);
             Object.DestroyImmediate(dependencyHost);
@@ -91,7 +91,7 @@ public sealed class PassthroughCameraPreviewLifecycleTests
         var preview = host.AddComponent<PassthroughCameraDevicePreview>();
         try
         {
-            var detection = host.GetComponent<ArucoCameraMarkerDetection>();
+            var detection = host.GetComponent<AprilTagCameraMarkerDetection>();
             SetField(preview, "cameraAccess", camera);
             SetField(preview, "markerDetection", detection);
             Object.DestroyImmediate(cameraHost);
@@ -108,7 +108,7 @@ public sealed class PassthroughCameraPreviewLifecycleTests
     public void PreviewViewCanBeStoppedAndDisposedAfterItsParentWasDestroyed()
     {
         var head = new GameObject("Preview Parent Teardown Test");
-        var view = new ArucoCameraPreviewView(head.transform);
+        var view = new AprilTagCameraPreviewView(head.transform);
         Object.DestroyImmediate(head);
         Assert.DoesNotThrow(() => view.ClearFeed());
         Assert.DoesNotThrow(() => view.SetVisible(false));
@@ -122,11 +122,11 @@ public sealed class PassthroughCameraPreviewLifecycleTests
     public void MeasurementDetailsFitBelowTheFeedAndDisappearFromTheConfirmedPanel()
     {
         var head = new GameObject("Measurement Panel Test");
-        var view = new ArucoCameraPreviewView(head.transform);
+        var view = new AprilTagCameraPreviewView(head.transform);
         try
         {
             const string measurement = "Unity world | m / deg\nLatest: P (1, 2, 3)\nAverage: P (1, 2, 3)";
-            view.ShowStatus(new ArucoCameraPreviewStatus { MeasurementSummary = measurement, MeasurementPreviewEnabled = true });
+            view.ShowStatus(new AprilTagCameraPreviewStatus { MeasurementSummary = measurement, MeasurementPreviewEnabled = true });
             var panel = head.transform.Find("PCA Preview Panel");
             var details = panel.Find("Diagnostics").GetComponent<UnityEngine.UI.Text>();
             StringAssert.Contains(measurement, details.text);
@@ -141,7 +141,7 @@ public sealed class PassthroughCameraPreviewLifecycleTests
             Assert.That(detailsTop, Is.LessThan(feedBottom));
             Assert.That(details.rectTransform.anchoredPosition.y + details.rectTransform.rect.yMin,
                 Is.GreaterThanOrEqualTo(panel.GetComponent<RectTransform>().rect.yMin));
-            view.ShowStatus(new ArucoCameraPreviewStatus
+            view.ShowStatus(new AprilTagCameraPreviewStatus
             {
                 AlignmentConfirmed = true,
                 AlignmentSummary = "ALIGNED",

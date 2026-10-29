@@ -21,7 +21,7 @@ public sealed class QuestPresentationStatusViewTests
     {
         host = new GameObject("Session");
         var entry = host.AddComponent<QuestPresentationEntry>();
-        var calibration = host.AddComponent<ArucoPresentationCalibration>();
+        var calibration = host.AddComponent<AprilTagPresentationCalibration>();
         var view = host.AddComponent<QuestPresentationStatusView>();
         head = new GameObject("Head", typeof(Camera));
         view.Configure(entry, calibration, head.transform);
@@ -141,7 +141,7 @@ public sealed class QuestPresentationStatusViewTests
         head = new GameObject("Head", typeof(Camera));
         view.Configure(null, null, head.transform);
         Assert.That(view.FindButton("CameraPermission").gameObject.activeSelf, Is.False);
-        var state = (ArucoCameraSessionState)typeof(PassthroughCameraDevicePreview)
+        var state = (AprilTagCameraSessionState)typeof(PassthroughCameraDevicePreview)
             .GetField("sessionState", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(preview);
         state.Supported = true;
         state.PermissionGranted = false;
@@ -168,7 +168,7 @@ public sealed class QuestPresentationStatusViewTests
     public void RemeasurementInvalidatesCalibrationBeforeSessionIsConnected()
     {
         host = new GameObject("Session");
-        var calibration = host.AddComponent<ArucoPresentationCalibration>();
+        var calibration = host.AddComponent<AprilTagPresentationCalibration>();
         var view = host.AddComponent<QuestPresentationStatusView>();
         head = new GameObject("Head");
         view.Configure(null, calibration, head.transform);

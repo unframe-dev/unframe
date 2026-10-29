@@ -11,7 +11,7 @@ public sealed class QuestPresentationDiagnosticsVisibilityTests
         try
         {
             var preview = host.AddComponent<PassthroughCameraDevicePreview>();
-            var visualizer = host.GetComponent<ArucoOriginVisualizer>();
+            var visualizer = host.GetComponent<AprilTagOriginVisualizer>();
             Assert.That(preview.DiagnosticUiVisible, Is.True);
             Assert.That(preview.DiagnosticInputEnabled, Is.True);
             Assert.That(visualizer.Visible, Is.True);
@@ -22,7 +22,7 @@ public sealed class QuestPresentationDiagnosticsVisibilityTests
             Assert.That(preview.DiagnosticInputEnabled, Is.False);
             visualizer.Show(Pose.identity);
             visualizer.ShowProvisional(Pose.identity);
-            Assert.That(typeof(ArucoOriginVisualizer).GetField("origin", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(visualizer), Is.Null);
+            Assert.That(typeof(AprilTagOriginVisualizer).GetField("origin", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(visualizer), Is.Null);
         }
         finally { DestroyHost(host); }
     }
@@ -34,12 +34,12 @@ public sealed class QuestPresentationDiagnosticsVisibilityTests
         try
         {
             var preview = host.AddComponent<PassthroughCameraDevicePreview>();
-            var alignment = host.GetComponent<ArucoOriginAlignment>();
+            var alignment = host.GetComponent<AprilTagOriginAlignment>();
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-            var stability = (ArucoOriginStability)typeof(ArucoOriginAlignment).GetField("stability", flags).GetValue(alignment);
+            var stability = (AprilTagOriginStability)typeof(AprilTagOriginAlignment).GetField("stability", flags).GetValue(alignment);
             for (var index = 0; index < 8; index++) stability.Observe(Pose.identity, index + 1, index * 0.2);
             typeof(PassthroughCameraDevicePreview).GetField("alignment", flags).SetValue(preview, alignment);
-            var session = (ArucoCameraSessionState)typeof(PassthroughCameraDevicePreview).GetField("sessionState", flags).GetValue(preview);
+            var session = (AprilTagCameraSessionState)typeof(PassthroughCameraDevicePreview).GetField("sessionState", flags).GetValue(preview);
             session.Supported = true;
             session.PermissionGranted = true;
             preview.DiagnosticInputEnabled = false;
@@ -55,9 +55,9 @@ public sealed class QuestPresentationDiagnosticsVisibilityTests
         var host = new GameObject("Diagnostic axes visibility");
         try
         {
-            var visualizer = host.AddComponent<ArucoOriginVisualizer>();
+            var visualizer = host.AddComponent<AprilTagOriginVisualizer>();
             visualizer.Show(Pose.identity);
-            var origin = ((Transform)typeof(ArucoOriginVisualizer).GetField("origin", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(visualizer)).gameObject;
+            var origin = ((Transform)typeof(AprilTagOriginVisualizer).GetField("origin", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(visualizer)).gameObject;
             Assert.That(origin, Is.Not.Null);
             visualizer.Visible = false;
             Assert.That(origin.activeSelf, Is.False);
@@ -73,8 +73,8 @@ public sealed class QuestPresentationDiagnosticsVisibilityTests
         var host = new GameObject("Calibration progress");
         try
         {
-            var alignment = host.AddComponent<ArucoOriginAlignment>();
-            var stability = (ArucoOriginStability)typeof(ArucoOriginAlignment)
+            var alignment = host.AddComponent<AprilTagOriginAlignment>();
+            var stability = (AprilTagOriginStability)typeof(AprilTagOriginAlignment)
                 .GetField("stability", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(alignment);
             Assert.That(alignment.CalibrationProgress, Is.Zero);
             for (var index = 0; index < 5; index++) stability.Observe(Pose.identity, index + 1, index * 0.1);
@@ -89,9 +89,9 @@ public sealed class QuestPresentationDiagnosticsVisibilityTests
     private static void DestroyHost(GameObject host)
     {
         // EditMode does not dispatch lifecycle callbacks for ordinary MonoBehaviours.
-        var visualizer = host.GetComponent<ArucoOriginVisualizer>();
+        var visualizer = host.GetComponent<AprilTagOriginVisualizer>();
         if (visualizer != null)
-            typeof(ArucoOriginVisualizer).GetMethod("OnDestroy", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(visualizer, null);
+            typeof(AprilTagOriginVisualizer).GetMethod("OnDestroy", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(visualizer, null);
         Object.DestroyImmediate(host);
     }
 

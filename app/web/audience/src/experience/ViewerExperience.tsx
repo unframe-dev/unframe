@@ -1,7 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PreparedConnection } from "../connection/join-controller";
 import { createAudienceAssetFetch } from "../connection/asset-fetch";
-import { loadBoardConfig, type BoardConfig } from "../fiducials/config";
+import {
+  configureMarkerSize,
+  markerSizesMillimeters,
+  loadBoardConfig,
+  type BoardConfig,
+} from "../fiducials/config";
 import { buildViewerDiagnostic } from "../diagnostics/viewer-diagnostic";
 import { SdkProgress } from "../SdkProgress";
 import { AudienceStage } from "../ui/AudienceStage";
@@ -67,7 +72,14 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   const recovery = useRef<{ input: RuntimeInput; id: number } | null>(null);
   currentConnection.current = props.connection;
   installer.current = props.onRuntimeInput;
-  const [config, setConfig] = useState<BoardConfig | null>(null);
+  const [boardConfig, setConfig] = useState<BoardConfig | null>(null);
+  const [markerSize, setMarkerSize] = useState<number | null>(null);
+  const config = useMemo(
+    () =>
+      boardConfig &&
+      (markerSize === null ? boardConfig : configureMarkerSize(boardConfig, markerSize)),
+    [boardConfig, markerSize],
+  );
   const [anchor, setAnchor] = useState<AnchorSessionSnapshot | null>(null);
   const [viewing, setViewing] = useState<ViewingSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -303,6 +315,25 @@ export function ViewerExperience(props: ViewerExperienceProps) {
                   : "プレゼンテーションの再同期を待っています。"}
               </p>
             )}
+            <label>
+              マーカーサイズ（黒い外周）
+              <select
+                value={
+                  markerSize ?? (config ? Math.round(config.markers[0]!.sizeMeters * 1000) : 150)
+                }
+                disabled={!config}
+                onChange={(event) => setMarkerSize(Number(event.target.value))}
+              >
+                {markerSizesMillimeters.map((size) => (
+                  <option key={size} value={size}>
+                    {size} mm
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p>
+              白余白を除く一辺の実寸です。登壇側と同じサイズを選んでください。変更後はカメラを開始し、位置合わせをやり直してください。
+            </p>
             <div className="audience-stage__test-controls">
               {(anchor?.stage === "running" || anchor?.stage === "starting") && (
                 <button onClick={() => viewer.current?.stop()}>停止</button>
