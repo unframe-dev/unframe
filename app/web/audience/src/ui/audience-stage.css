@@ -58,6 +58,7 @@
   place-items: center;
   width: 64px;
   height: 64px;
+  margin-inline: auto;
   border-radius: 20px;
   background: #fbeded;
   color: var(--audience-primary);
