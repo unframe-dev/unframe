@@ -27,14 +27,25 @@ public sealed class QuestOnboardingStartApiTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"session\",\"state\":\"" + State + "\"}") });
         }
     }
-    private static QuestOnboardingApi Create(Handler handler)
+    private static QuestOnboardingApi Create(Handler handler, Unframe.Unity.PresentationRuntime.PresentationSessionDiagnostics diagnostics = null)
     {
-        var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler);
+        var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler, diagnostics);
         var flags = BindingFlags.Instance | BindingFlags.NonPublic;
         typeof(QuestOnboardingApi).GetField("credential", flags).SetValue(api, "test-token");
         typeof(QuestOnboardingApi).GetField("credentialExpiresAt", flags).SetValue(api, DateTimeOffset.UtcNow.AddHours(1));
         return api;
     }
+    [Test]
+    public async Task StartDiagnosticsDistinguishTheStateReadFromTheStartRequest()
+    {
+        var diagnostics = new Unframe.Unity.PresentationRuntime.PresentationSessionDiagnostics();
+        using (var api = Create(new Handler(), diagnostics)) await api.StartSessionAsync("session", CancellationToken.None);
+        var events = Newtonsoft.Json.Linq.JObject.Parse(diagnostics.ExportJson())["events"];
+        Assert.That((string)events[0]["kind"], Is.EqualTo("SessionRead"));
+        Assert.That((string)events[2]["kind"], Is.EqualTo("SessionStart"));
+        foreach (var item in events) Assert.That((string)item["sessionId"], Is.EqualTo("session"));
+    }
+
     [Test]
     public async Task LostStartResponseCanRetryWithoutStartingTwice()
     {

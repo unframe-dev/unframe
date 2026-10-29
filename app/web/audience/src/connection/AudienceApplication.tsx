@@ -1,3 +1,4 @@
+import { createSessionRecorder, downloadSessionDiagnostic } from "../diagnostics/session-recorder";
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { JoinExperience } from "./JoinExperience";
 import { readConnectionConfig } from "./application-config";
@@ -21,6 +22,7 @@ export function AudienceApplication(
     onViewingSnapshot?(snapshot: ViewingSnapshot): void;
   } = {},
 ) {
+  const [recorder] = useState(() => createSessionRecorder());
   const [state] = useState(() => {
     const settings = readConnectionConfig(import.meta.env);
     return {
@@ -28,13 +30,14 @@ export function AudienceApplication(
       controller:
         settings.status === "configured"
           ? createJoinController({
+              recorder,
               client: createAnonymousAudienceClient(settings.config),
               capabilityProfileId: settings.config.capabilityProfileId,
             })
           : null,
     };
   });
-  const [realtime] = useState(() => createAudienceRealtime());
+  const [realtime] = useState(() => createAudienceRealtime({ recorder }));
   useEffect(
     () => () => {
       state.controller?.dispose();
@@ -78,6 +81,7 @@ export function AudienceApplication(
     return (
       <Suspense fallback={<p role="status">視聴画面を準備しています。</p>}>
         <ViewerExperience
+          recorder={recorder}
           connection={connection}
           onRuntimeInput={realtime.install}
           onRecoveryRequest={realtime.recover}
@@ -100,6 +104,7 @@ export function AudienceApplication(
         <p role="alert">現在ルームに接続できません。会場スタッフにご確認ください。</p>
       )}
       <JoinExperience controller={state.controller} />
+      <button onClick={() => downloadSessionDiagnostic(recorder)}>接続テストログを保存</button>
       {import.meta.env.DEV && (
         <nav className="audience-development-links" aria-label="開発用テスト">
           <a href="?fixture=1">fixture表示テスト</a>

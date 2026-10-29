@@ -142,6 +142,16 @@ test("背景から戻る際に利用期限を再確認して失効した視聴�
   expect(mock.unmounts).toHaveBeenCalledOnce();
 });
 
+test("入室前と接続失敗でViewerがない時にも接続テストログを保存できる", () => {
+  render(<AudienceApplication />);
+  expect(screen.getByRole("button", { name: "接続テストログを保存" })).toBeTruthy();
+  act(() => {
+    mock.snapshot = { phase: "error" };
+    mock.listener?.();
+  });
+  expect(screen.getByRole("button", { name: "接続テストログを保存" })).toBeTruthy();
+});
+
 test("Runtime復旧待ちでもカメラ画面を維持し新assignmentで再利用する", async () => {
   mock.getPrepared.mockReturnValue(mock.connection);
   render(<AudienceApplication />);

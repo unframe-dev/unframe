@@ -1,3 +1,4 @@
+import { createSessionRecorder } from "../../diagnostics/session-recorder";
 import { afterEach, expect, it, vi } from "vitest";
 import { decodeWireMessage, encodeWireMessage } from "@unframe/contracts/presentation";
 import type { PreparedConnection } from "../join-controller";
@@ -28,8 +29,13 @@ function setup() {
   vi.useFakeTimers();
   const sockets: Socket[] = [];
   const urls: string[] = [];
+  const recorder = createSessionRecorder();
   const connection = {
+    session: { id: "old-session" },
     bootstrap: {
+      runtimeId: "old-runtime",
+      assignmentEpoch: 1,
+      publicationFence: { publicationEpoch: 1 },
       endpoint: "https://runtime.example/realtime",
       credential: "private-token",
       expiresAt: "2099-01-01T00:00:00Z",
@@ -46,6 +52,7 @@ function setup() {
   } as RuntimeInput;
   const restart = vi.fn(() => null);
   const client = createAudienceRealtime({
+    recorder,
     socket: (url, protocol) => {
       expect(protocol).toBe("unframe.realtime.v3");
       urls.push(url);
@@ -56,6 +63,7 @@ function setup() {
   });
   const cleanup = client.install(input, connection, () => connection, restart);
   return {
+    recorder,
     sockets,
     urls,
     input,
@@ -231,4 +239,15 @@ it("keeps Control and rendered state while replacing a lost State attachment", (
   } finally {
     h.cleanup();
   }
+});
+
+it("旧socketの診断は新Sessionに混ざらず資格やendpointを含めない", () => {
+  const h = setup();
+  h.recorder.setContext({ sessionId: "new-session", runtimeId: "new-runtime" });
+  h.sockets[0]!.open();
+  const events = h.recorder.export().events;
+  expect(events.some((e) => e.event === "connection.stage" && e.stage === "open")).toBe(true);
+  expect(events.every((e) => e.sessionId === "old-session")).toBe(true);
+  expect(JSON.stringify(events)).not.toMatch(/private-token|https:|runtime.example/);
+  h.cleanup();
 });

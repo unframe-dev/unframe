@@ -17,12 +17,12 @@ public sealed class QuestMotionGuideTests
         catalog.Gestures.Add((GestureKind)999);
         var state = new QuestMotionGuideState();
         var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
-        state.Refresh(catalog, progression, true, true, true, true, true, false, false);
+        state.Refresh(catalog, progression, true, true, true, true, true, false, false, true);
         Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft }));
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false);
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
         Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft, GestureKind.SpreadHands }));
         progression.Transitioning = new TransitioningProgression();
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false);
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
         Assert.That(state.Candidates, Is.Empty);
     }
 
@@ -37,8 +37,85 @@ public sealed class QuestMotionGuideTests
         var catalog = new PresenterRecognitionCatalog();
         catalog.Gestures.Add(GestureKind.SwipeLeft);
         var state = new QuestMotionGuideState();
-        state.Refresh(catalog, new ProgressionRuntimeState { Stable = new StableProgression() }, presenter, calibrated, running, head, left, right, menu);
+        state.Refresh(catalog, new ProgressionRuntimeState { Stable = new StableProgression() }, presenter, calibrated, running, head, left, right, menu, true);
         Assert.That(state.Candidates, Is.Empty);
+    }
+
+    [TestCase(false, true, true, true, "位置合わせ")]
+    [TestCase(true, false, true, true, "一時停止")]
+    [TestCase(true, true, false, true, "頭")]
+    [TestCase(true, true, true, false, "同期")]
+    public void UnavailableInputExplainsTheRequiredAction(bool calibrated, bool running, bool head, bool ready, string expected)
+    {
+        var catalog = new PresenterRecognitionCatalog();
+        catalog.Gestures.Add(GestureKind.SwipeLeft);
+        var state = new QuestMotionGuideState();
+        state.Refresh(catalog, new ProgressionRuntimeState { Stable = new StableProgression() }, true,
+            calibrated, running, head, true, true, false, ready);
+        Assert.That(state.ShowHint, Is.True);
+        Assert.That(state.Title + state.Instruction, Does.Contain(expected));
+        Assert.That(state.Candidates, Is.Empty);
+    }
+
+    [Test]
+    public void TransitionAndMissingHandsExplainTheWait()
+    {
+        var catalog = new PresenterRecognitionCatalog();
+        catalog.Gestures.Add(GestureKind.SpreadHands);
+        var state = new QuestMotionGuideState();
+        var progression = new ProgressionRuntimeState { Transitioning = new TransitioningProgression() };
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
+        Assert.That(state.Title, Does.Contain("切り替え"));
+        Assert.That(state.Candidates, Is.Empty);
+        progression.Stable = new StableProgression();
+        state.Refresh(catalog, progression, true, true, true, true, true, false, false, true);
+        Assert.That(state.Title + state.Instruction, Does.Contain("両手"));
+        Assert.That(state.Candidates, Is.Empty);
+    }
+
+    [Test]
+    public void EmptyCatalogDoesNotClaimCompletionAndZonesExplainPositionInput()
+    {
+        var catalog = new PresenterRecognitionCatalog();
+        var state = new QuestMotionGuideState();
+        var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
+        Assert.That(state.ShowHint, Is.True);
+        Assert.That(state.Title + state.Instruction, Does.Not.Contain("完了"));
+        Assert.That(state.Candidates, Is.Empty);
+        catalog.Zones.Add(new PresenterRecognitionZone { ZoneId = "stage", Center = new Unframe.Presentation.Vector3() });
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
+        Assert.That(state.Title + state.Instruction, Does.Contain("立ち位置"));
+    }
+
+    [Test]
+    public void MenuOrAudienceClearsPreviousHint()
+    {
+        var state = new QuestMotionGuideState();
+        var catalog = new PresenterRecognitionCatalog();
+        var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
+        Assert.That(state.ShowHint, Is.True);
+        state.Refresh(catalog, progression, true, true, true, true, true, true, true, true);
+        Assert.That(state.ShowHint, Is.False);
+        Assert.That(state.Title, Is.Empty);
+        Assert.That(state.Instruction, Is.Empty);
+        state.Refresh(catalog, progression, false, true, true, true, true, true, false, true);
+        Assert.That(state.ShowHint, Is.False);
+    }
+
+    [TestCase(GestureKind.SwipeLeft, "左", "片手", "18cm")]
+    [TestCase(GestureKind.SpreadHands, "広げ", "両手", "25cm")]
+    public void DetailedInstructionsExplainMeasurements(GestureKind gesture, string direction, string hands, string distance)
+    {
+        Assert.That(QuestMotionGuideState.Description(gesture), Does.Contain(direction));
+        string brief = QuestMotionGuideState.InstructionFor(gesture, false);
+        string detailed = QuestMotionGuideState.InstructionFor(gesture, true);
+        Assert.That(brief, Does.Contain(hands));
+        Assert.That(brief, Does.Not.Contain("cm"));
+        Assert.That(detailed, Does.Contain(distance));
+        Assert.That(detailed, Does.Contain("0.8秒"));
+        Assert.That(detailed, Does.Contain("0.15秒"));
     }
 
     [Test]
@@ -110,8 +187,9 @@ public sealed class QuestMotionGuideTests
             Assert.That(instruction.raycastTarget, Is.False);
             Assert.That(instruction.gameObject, Is.Not.SameAs(backplate.gameObject));
             Assert.That(instruction.transform.parent, Is.EqualTo(backplate.transform));
-            material = (Material)typeof(QuestMotionGuideView).GetField("material", flags).GetValue(view);
-            mesh = (Mesh)typeof(QuestMotionGuideView).GetField("ghostMesh", flags).GetValue(view);
+            var renderer = host.GetComponentInChildren<MeshRenderer>(true);
+            material = renderer.sharedMaterial;
+            mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
             Assert.That(material, Is.Not.Null);
             Assert.That(mesh, Is.Not.Null);
             typeof(QuestMotionGuideView).GetMethod("OnDestroy", flags).Invoke(view, null);

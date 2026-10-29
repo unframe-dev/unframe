@@ -266,8 +266,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::QuestPresentationSession
   entry: {fileID: 602880476}
   calibrationSource: {fileID: 602880477}
-  controlPlaneEndpoint:
-  webEndpoint:
+  controlPlaneEndpoint: https://api.un-fra.me
+  webEndpoint: https://un-fra.me
   deviceClientId: unframe-unity
 --- !u!114 &602880476
 MonoBehaviour:

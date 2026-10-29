@@ -145,3 +145,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 製品側の接続制御はテストダブルで検証し、fixtureも同じ視聴セッションを通す。Chrome／SwiftShaderではPNG合成と動画・GLB通常／途中参加を確認済み。iPhone Safariのカメラ・動画・音声同時負荷、長時間メモリ、繰り返し入退場、公開環境での Realtime 同期は別途端末受入が必要。Galaxy ChromeのNORMAL待機は起動診断ログで調査中で、修正済みとは扱わない。実機測定なしにQuest／Unityの資源上限をAudience profileへ転用しない。
 
 検証結果・過去の実装時点の制約は[実装履歴](docs/implementation-history.md)へ分離した。[契約適合](docs/contract-compatibility.md)と[外部接続境界](docs/connection-boundaries.md)も参照する。
+
+## 複数端末テストの接続ログ
+
+「テストログを保存」（MR）／「接続テストログを保存」（WebXR）から、接続・取得・送受信・同期の履歴をJSONで保存できます。保存先と端末間の比較手順は[複数端末の検証手順](../../../docs/validation/multi-device-session-diagnostics.md)を参照してください。認証情報・素材URL・カメラ画像は含みません。

@@ -1,3 +1,4 @@
+import type { SessionRecorder } from "../diagnostics/session-recorder";
 import {
   decodeWireMessage,
   encodeWireMessage,
@@ -21,6 +22,7 @@ const stateType = "unframe.realtime.StateServerItem";
 export function createAudienceRealtime(
   options: {
     socket?: (url: string, protocol: string) => WebSocket;
+    recorder?: SessionRecorder;
   } = {},
 ) {
   const openSocket = options.socket ?? ((url, subprotocol) => new WebSocket(url, subprotocol));
@@ -33,6 +35,12 @@ export function createAudienceRealtime(
       restart: Restart,
     ) {
       active?.close();
+      const scope = {
+        sessionId: connection.session?.id,
+        runtimeId: connection.bootstrap.runtimeId,
+        assignmentEpoch: String(connection.bootstrap.assignmentEpoch),
+        publicationEpoch: String(connection.bootstrap.publicationFence?.publicationEpoch),
+      };
       const endpoint = new URL(connection.bootstrap.endpoint);
       if (
         endpoint.protocol !== "https:" ||
@@ -58,6 +66,7 @@ export function createAudienceRealtime(
       const close = () => {
         if (closed) return;
         closed = true;
+        options.recorder?.record("connection.stage", { ...scope, stage: "closed" });
         clearInterval(timer);
         control?.close(1000);
         state?.close(1000);
@@ -72,6 +81,11 @@ export function createAudienceRealtime(
         if (socket.readyState !== 1 || socket.bufferedAmount > 1 << 20)
           throw new Error("realtime-backpressure");
         socket.send(new Uint8Array(encodeWireMessage(type, value)));
+        options.recorder?.record("control.sent", {
+          ...scope,
+          direction: "send",
+          kind: Object.keys(value)[0] ?? "unknown",
+        });
       };
       const connect = (
         path: string,
@@ -86,6 +100,11 @@ export function createAudienceRealtime(
         socket.addEventListener("open", () => {
           if (closed || (path.endsWith("/state") && state !== socket)) return;
           try {
+            options.recorder?.record("connection.stage", {
+              ...scope,
+              stage: "open",
+              kind: path.endsWith("/state") ? "state" : "control",
+            });
             socket.send(JSON.stringify({ credential: getConnection().bootstrap.credential }));
             send(socket, type.replace("Server", "Client"), { handshake });
           } catch {
@@ -97,7 +116,13 @@ export function createAudienceRealtime(
           try {
             if (!(event.data instanceof ArrayBuffer) || event.data.byteLength > 1 << 20)
               throw new Error("invalid-realtime-frame");
-            receive(decodeWireMessage(type, new Uint8Array(event.data)));
+            const decoded = decodeWireMessage(type, new Uint8Array(event.data));
+            options.recorder?.record("transport.received", {
+              ...scope,
+              direction: "receive",
+              kind: Object.keys(decoded)[0] ?? "unknown",
+            });
+            receive(decoded);
           } catch {
             fail();
           }
@@ -121,6 +146,7 @@ export function createAudienceRealtime(
         close,
         recover(kind) {
           if (closed) return;
+          options.recorder?.record("connection.retry", { ...scope, kind });
           if (kind === "snapshot") {
             fail();
           } else if (receivedState && state && !recoveringState) {

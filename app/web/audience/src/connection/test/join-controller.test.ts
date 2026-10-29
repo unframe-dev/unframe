@@ -1,3 +1,4 @@
+import { createSessionRecorder } from "../../diagnostics/session-recorder";
 import { afterEach, expect, test, vi } from "vitest";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import { createJoinController } from "../join-controller";
@@ -50,8 +51,13 @@ function setup() {
     delivery: vi.fn<ReturnType<typeof createAudienceHttpClient>["delivery"]>(async () => delivery),
     bootstrap: vi.fn(async () => bootstrap),
   };
-  const controller = createJoinController({ client, capabilityProfileId: "synthetic-test-only" });
-  return { controller, client, session, delivery, bootstrap };
+  const recorder = createSessionRecorder();
+  const controller = createJoinController({
+    client,
+    capabilityProfileId: "synthetic-test-only",
+    recorder,
+  });
+  return { controller, client, session, delivery, bootstrap, recorder };
 }
 afterEach(() => vi.useRealTimers());
 
@@ -406,12 +412,36 @@ test("timerが止まった間に旧期限を過ぎた更新結果は新期限が
   expect(controller.getPrepared()).toBeNull();
 });
 
+test("接続履歴は取得結果を相関し資格やURLを記録せず退出後も保持する", async () => {
+  const { controller, recorder, bootstrap } = setup();
+  await controller.join("ABCD-EFGH");
+  controller.leave();
+  const data = recorder.export();
+  expect(data.events.map((e) => e.event)).toEqual(
+    expect.arrayContaining(["session.join", "delivery.received", "bootstrap.received"]),
+  );
+  expect(
+    data.events.find((e) => e.event === "bootstrap.received" && e.stage === "success"),
+  ).toMatchObject({ runtimeId: bootstrap.runtimeId, assignmentEpoch: "1", publicationEpoch: "1" });
+  expect(JSON.stringify(data)).not.toMatch(/secret-credential|https:|ABCD-EFGH/);
+});
+
 test("Runtime復旧待ちは旧資格の期限を越えて再取得し新assignmentへ接続する", async () => {
-  const { controller, client, delivery, bootstrap } = setup();
+  const { controller, client, delivery, bootstrap, recorder } = setup();
   await controller.join("ABCD-EFGH");
   client.delivery.mockRejectedValue(new AudienceConnectionError("runtime-unavailable", 409));
   await controller.reconnect();
   expect(controller.getSnapshot().phase).toBe("recovering");
+  expect(recorder.export().events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        event: "connection.stage",
+        stage: "failure",
+        code: "runtime-unavailable",
+      }),
+      expect.objectContaining({ event: "connection.stage", stage: "recovering" }),
+    ]),
+  );
   expect(controller.getPrepared()).toBeNull();
   await vi.advanceTimersByTimeAsync(125_000);
   expect(controller.getSnapshot().phase).toBe("recovering");
