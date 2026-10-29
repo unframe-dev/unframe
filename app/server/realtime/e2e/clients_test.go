@@ -613,7 +613,7 @@ func (f *fixture) assertRejectedNativeConnection(token string, capabilities []pr
 			if nativeRejection(err) {
 				return
 			}
-			f.t.Fatalf("native reentry did not return an assignment/authentication rejection: %v", err)
+			f.t.Fatalf("native reentry was not refused before handshake: %v", err)
 		}
 		if item.GetConnected() != nil || item.GetConnectionSnapshot() != nil {
 			f.t.Fatal("ended Session accepted native connection/reconnect")
@@ -622,6 +622,9 @@ func (f *fixture) assertRejectedNativeConnection(token string, capabilities []pr
 }
 
 func nativeRejection(err error) bool {
+	if status.Code(err) == codes.Unavailable && status.Convert(err).Message() == "runtime session is not ready" {
+		return true
+	}
 	switch status.Code(err) {
 	case codes.Unauthenticated, codes.PermissionDenied, codes.FailedPrecondition:
 		return true

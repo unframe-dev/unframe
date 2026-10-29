@@ -151,3 +151,29 @@ test("入室前と接続失敗でViewerがない時にも接続テストログ�
   });
   expect(screen.getByRole("button", { name: "接続テストログを保存" })).toBeTruthy();
 });
+
+test("Runtime復旧待ちでもカメラ画面を維持し新assignmentで再利用する", async () => {
+  mock.getPrepared.mockReturnValue(mock.connection);
+  render(<AudienceApplication />);
+  act(() => {
+    mock.snapshot = { phase: "prepared", revision: 1, refreshing: false };
+    mock.listener?.();
+  });
+  await screen.findByText("カメラ準備・配信待機:test");
+  const mounts = mock.mounts.mock.calls.length;
+  mock.getPrepared.mockReturnValue(null);
+  act(() => {
+    mock.snapshot = { phase: "recovering" };
+    mock.listener?.();
+  });
+  expect(screen.getByText("カメラ準備・配信待機:test")).toBeTruthy();
+  expect(screen.getByText("更新中")).toBeTruthy();
+  expect(mock.unmounts).not.toHaveBeenCalled();
+  mock.getPrepared.mockReturnValue(mock.connection);
+  act(() => {
+    mock.snapshot = { phase: "prepared", revision: 2, refreshing: false };
+    mock.listener?.();
+  });
+  expect(mock.mounts).toHaveBeenCalledTimes(mounts);
+  expect(screen.getByText("更新待機")).toBeTruthy();
+});

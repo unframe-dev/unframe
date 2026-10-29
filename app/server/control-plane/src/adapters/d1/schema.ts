@@ -124,6 +124,11 @@ export const runtimeAssignments = sqliteTable(
     issuedAt: text("issued_at").notNull(),
     leaseExpiresAt: text("lease_expires_at").notNull(),
     releasedAt: text("released_at"),
+    hostGeneration: integer("host_generation"),
+    executionBootId: text("execution_boot_id"),
+    executionState: text("execution_state")
+      .$type<"starting" | "recovering" | "ready" | "stopping" | "stopped" | "failed">()
+      .notNull(),
   },
   (table) => [primaryKey({ columns: [table.sessionId, table.epoch] })],
 );
@@ -133,8 +138,10 @@ export const runtimeHosts = sqliteTable("runtime_hosts", {
   endpoint: text().notNull(),
   accepting: integer({ mode: "boolean" }).notNull(),
   lastSeenAt: text("last_seen_at").notNull(),
-  servingSessionId: text("serving_session_id"),
-  servingAssignmentEpoch: integer("serving_assignment_epoch"),
+  bootId: text("boot_id").notNull(),
+  bootStartedAt: text("boot_started_at").notNull(),
+  generation: integer().notNull(),
+  capacity: integer().notNull(),
 });
 
 export * from "./publication-schema";

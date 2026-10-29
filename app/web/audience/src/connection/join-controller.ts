@@ -11,7 +11,7 @@ import {
 type PublicSession = Pick<Session, "id" | "state">;
 export type JoinSnapshot =
   | { phase: "idle" | "joining" }
-  | { phase: "delivery" | "bootstrap"; session: PublicSession }
+  | { phase: "delivery" | "bootstrap" | "recovering"; session: PublicSession }
   | {
       phase: "prepared";
       session: PublicSession;
@@ -124,6 +124,8 @@ export function createJoinController(options: {
   let pendingWork: Promise<void> | null = null;
   let revision = 0;
   let retryCount = 0;
+  let recoveryAttempt = 0;
+  let recovering = false;
   function publish(next: JoinSnapshot) {
     snapshot = next;
     options.recorder?.record("connection.stage", {
@@ -147,6 +149,8 @@ export function createJoinController(options: {
     refreshTimer = undefined;
     prepared = null;
     retryCount = 0;
+    recoveryAttempt = 0;
+    recovering = false;
   }
   function publishPrepared(refreshing: boolean, refreshError: string | null = null) {
     if (!prepared) return;
@@ -202,6 +206,21 @@ export function createJoinController(options: {
       Math.min(delay, 2_147_483_647),
     );
   }
+  function waitForRuntime() {
+    if (!joinedSession || disposed) return;
+    prepared = null;
+    recovering = true;
+    clearTimeout(expiryTimer);
+    clearTimeout(refreshTimer);
+    expiryTimer = undefined;
+    publish({ phase: "recovering", session: { id: joinedSession.id, state: joinedSession.state } });
+    const delay = Math.min(5000, 250 * 2 ** recoveryAttempt);
+    recoveryAttempt = Math.min(5, recoveryAttempt + 1);
+    refreshTimer = setTimeout(() => {
+      refreshTimer = undefined;
+      void acquire(undefined, true);
+    }, delay);
+  }
   function acquire(code?: string, reconnecting = false): Promise<void> {
     if (disposed) return Promise.resolve();
     if (code === undefined) {
@@ -242,7 +261,7 @@ export function createJoinController(options: {
         }
         if (session.state === "Ended") throw new AudienceConnectionError("session-ended");
         const publicSession = { id: session.id, state: session.state };
-        if (!retaining) publish({ phase: "delivery", session: publicSession });
+        if (!retaining && !recovering) publish({ phase: "delivery", session: publicSession });
         options.recorder?.record("delivery.received", { stage: retaining ? "refresh" : "request" });
         options.recorder?.record("http.request", { direction: "send", kind: "delivery" });
         const delivery = await options.client.delivery(session.id, pending.signal);
@@ -257,7 +276,7 @@ export function createJoinController(options: {
           stage: "success",
           publicationEpoch: delivery.publication?.publicationEpoch,
         });
-        if (!retaining) publish({ phase: "bootstrap", session: publicSession });
+        if (!retaining && !recovering) publish({ phase: "bootstrap", session: publicSession });
         options.recorder?.record("bootstrap.received", {
           stage: retaining ? "refresh" : "request",
         });
@@ -285,6 +304,8 @@ export function createJoinController(options: {
         joinedSession = nextSession;
         prepared = connection;
         revision++;
+        recovering = false;
+        recoveryAttempt = 0;
         retryCount = 0;
         scheduleExpiry();
         scheduleRefresh();
@@ -295,6 +316,17 @@ export function createJoinController(options: {
           stage: "failure",
           code: displayError(error),
         });
+        if (
+          error instanceof AudienceConnectionError &&
+          (error.code === "runtime-unavailable" ||
+            ((recovering || reconnecting) &&
+              (error.code === "network-error" ||
+                (error.code === "http-error" &&
+                  (error.status === 429 || (error.status ?? 0) >= 500)))))
+        ) {
+          waitForRuntime();
+          return;
+        }
         if (
           error instanceof AudienceConnectionError &&
           (error.code === "session-ended" ||

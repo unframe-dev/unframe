@@ -4,7 +4,7 @@ const maximumRenewedLeaseDurationMs = 5 * 60 * 1000;
 const maximumEdgeHeartbeatAgeMs = 60 * 1000;
 
 export class RuntimeAssignmentError extends Error {
-  constructor(readonly code: "conflict") {
+  constructor(readonly code: "conflict" | "runtime_unavailable") {
     super(code);
   }
 }
@@ -34,6 +34,16 @@ export class RuntimeAssignmentService {
       new Date(now.getTime() - maximumEdgeHeartbeatAgeMs).toISOString(),
     );
     if (!result) throw new RuntimeAssignmentError("conflict");
+    return result;
+  }
+  async connectable(sessionId: string) {
+    const now = this.now();
+    const result = await this.repository.findConnectable(
+      sessionId,
+      now.toISOString(),
+      new Date(now.getTime() - maximumEdgeHeartbeatAgeMs).toISOString(),
+    );
+    if (!result) throw new RuntimeAssignmentError("runtime_unavailable");
     return result;
   }
   async renew(input: Omit<LeaseRequest, "now"> & { leaseExpiresAt: string }) {

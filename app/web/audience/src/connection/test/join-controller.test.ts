@@ -425,3 +425,65 @@ test("接続履歴は取得結果を相関し資格やURLを記録せず退出�
   ).toMatchObject({ runtimeId: bootstrap.runtimeId, assignmentEpoch: "1", publicationEpoch: "1" });
   expect(JSON.stringify(data)).not.toMatch(/secret-credential|https:|ABCD-EFGH/);
 });
+
+test("Runtime復旧待ちは旧資格の期限を越えて再取得し新assignmentへ接続する", async () => {
+  const { controller, client, delivery, bootstrap, recorder } = setup();
+  await controller.join("ABCD-EFGH");
+  client.delivery.mockRejectedValue(new AudienceConnectionError("runtime-unavailable", 409));
+  await controller.reconnect();
+  expect(controller.getSnapshot().phase).toBe("recovering");
+  expect(recorder.export().events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        event: "connection.stage",
+        stage: "failure",
+        code: "runtime-unavailable",
+      }),
+      expect.objectContaining({ event: "connection.stage", stage: "recovering" }),
+    ]),
+  );
+  expect(controller.getPrepared()).toBeNull();
+  await vi.advanceTimersByTimeAsync(125_000);
+  expect(controller.getSnapshot().phase).toBe("recovering");
+  expect(client.join).toHaveBeenCalledTimes(1);
+  expect(client.delivery.mock.calls.length).toBeGreaterThan(20);
+  delivery.projectionInstance!.assignmentEpoch = "2";
+  bootstrap.assignmentEpoch = 2;
+  bootstrap.expiresAt = new Date(clock + 240_000).toISOString();
+  delivery.assetAccess!.forEach((asset) => {
+    asset.expiresAtUnixMs = String(clock + 240_000);
+  });
+  client.delivery.mockResolvedValue(delivery);
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(controller.getSnapshot().phase).toBe("prepared");
+  expect(controller.getPrepared()?.bootstrap.assignmentEpoch).toBe(2);
+  controller.dispose();
+});
+
+test("Runtime復旧待ちのcancelは後続retryを止める", async () => {
+  const { controller, client } = setup();
+  client.delivery.mockRejectedValue(new AudienceConnectionError("runtime-unavailable", 409));
+  await controller.join("ABCD-EFGH");
+  expect(controller.getSnapshot().phase).toBe("recovering");
+  controller.cancel();
+  await vi.advanceTimersByTimeAsync(130_000);
+  expect(controller.getSnapshot().phase).toBe("idle");
+  expect(client.delivery).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  new AudienceConnectionError("network-error"),
+  new AudienceConnectionError("http-error", 429),
+  new AudienceConnectionError("http-error", 503),
+])("切断後の一時的な再取得失敗でも資格の期限を越えて復旧を待つ (%s)", async (failure) => {
+  const { controller, client } = setup();
+  await controller.join("ABCD-EFGH");
+  client.delivery.mockRejectedValue(failure);
+  await controller.reconnect();
+  expect(controller.getPrepared()).toBeNull();
+  expect(controller.getSnapshot().phase).toBe("recovering");
+  await vi.advanceTimersByTimeAsync(125_000);
+  expect(controller.getSnapshot().phase).toBe("recovering");
+  expect(client.delivery.mock.calls.length).toBeGreaterThan(20);
+  controller.dispose();
+});

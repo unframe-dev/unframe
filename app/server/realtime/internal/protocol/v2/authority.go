@@ -173,15 +173,15 @@ func validateAuthority(message protoreflect.Message, path string) error {
 		if started, err := time.Parse(time.RFC3339Nano, get("started_at").String()); err != nil || started.IsZero() {
 			return invalid()
 		}
+		sync := get("input_synchronization").Message()
 		participants := get("participants").List()
-		if participants.Len() == 0 {
+		commands := get("commands").List()
+		if participants.Len() == 0 && (commands.Len() != 0 || sync.Get(sync.Descriptor().Fields().ByName("reliable_sequence")).Uint() != 0) {
 			return invalid()
 		}
-		sync := get("input_synchronization").Message()
 		if sync.Get(sync.Descriptor().Fields().ByName("command_epoch")).Uint() != get("command_epoch").Uint() {
 			return invalid()
 		}
-		commands := get("commands").List()
 		if commands.Len() > MaximumCommandHistoryCount {
 			return invalid()
 		}

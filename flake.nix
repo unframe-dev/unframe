@@ -20,6 +20,20 @@
           config.allowUnfree = true;
         };
 
+        # 7.26.0 emits empty numeric enum serializers for the C# generichost client.
+        openapiGenerator = pkgs.writeShellApplication {
+          name = "openapi-generator-cli";
+          runtimeInputs = [ pkgs.jre_headless ];
+          text = ''
+            exec java -jar ${
+              pkgs.fetchurl {
+                url = "https://repo.maven.apache.org/maven2/org/openapitools/openapi-generator-cli/7.22.0/openapi-generator-cli-7.22.0.jar";
+                hash = "sha256-Px5s5catTxUkLGFwq0Oq1LrXcWImF+7s5KfU9y/68yk=";
+              }
+            } "$@"
+          '';
+        };
+
         # ツールチェイン。旧 mise.toml のツール固定を置換する。
         toolchain = [
           (pkgs.callPackage ./packages/config/bun.nix { })
@@ -31,7 +45,7 @@
           pkgs.protoc-gen-go
           pkgs.protoc-gen-go-grpc
           pkgs.dotnet-sdk_8
-          pkgs.openapi-generator-cli
+          openapiGenerator
           pkgs.buf
           pkgs.git
           pkgs.git-lfs
@@ -313,6 +327,26 @@
           runtime-host = mkApp {
             name = "runtime-host";
             script = "runtime-host/run.sh";
+          };
+          runtime-host-funnel = mkApp {
+            name = "runtime-host-funnel";
+            script = "runtime-host/funnel.sh";
+            extraRuntimeInputs = [
+              pkgs.tailscale
+              pkgs.caddy
+            ];
+          };
+          runtime-host-funnel-deploy = mkApp {
+            name = "runtime-host-funnel-deploy";
+            script = "runtime-host/funnel-launchd-prepare.sh";
+            extraRuntimeInputs = [
+              pkgs.tailscale
+              pkgs.caddy
+            ];
+          };
+          runtime-host-deploy = mkApp {
+            name = "runtime-host-deploy";
+            script = "runtime-host/deploy.sh";
           };
           realtime-e2e = mkApp {
             name = "realtime-e2e";

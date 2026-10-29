@@ -114,7 +114,13 @@ public sealed class PresentationNativeSurfaceRenderingTests
     [Test]
     public void NativeUiRefreshPreservesContractColorVisibilityAndNonAccumulatingOpacity() => VerifyNativeText(true);
 
-    private static void VerifyNativeText(bool verifyRefresh)
+    [TestCase("mesh")]
+    [TestCase("material")]
+    [TestCase("mesh-binding")]
+    [TestCase("material-binding")]
+    public void LostNativeProxyResourcesFailClosed(string resource) => VerifyNativeText(true, resource);
+
+    private static void VerifyNativeText(bool verifyRefresh, string lostResource = null)
     {
         TMP_FontAsset previousDefault = TMP_Settings.defaultFontAsset;
         TMP_Settings.defaultFontAsset = null;
@@ -204,6 +210,42 @@ public sealed class PresentationNativeSurfaceRenderingTests
                     Assert.That(text.color, Is.EqualTo(new Color(0.2f, 0.4f, 0.6f, 0.5f)));
                     Assert.That(opacity.alpha * text.color.a, Is.EqualTo(0.2f).Within(0.001f));
                     Assert.That(canvas.enabled, Is.True);
+                    var proxy = text.GetComponentInChildren<MeshRenderer>();
+                    Assert.That(proxy, Is.Not.Null);
+                    Assert.That(text.enabled, Is.False, "The Canvas layout source must not draw a second copy.");
+                    Assert.That(proxy.GetComponent<MeshFilter>().sharedMesh.colors[0].a, Is.EqualTo(.2f).Within(.003f));
+                    int regenerated = 0;
+                    System.Action<Object> onTextChanged = changedText => { if (changedText == text) regenerated++; };
+                    TMPro_EventManager.TEXT_CHANGED_EVENT.Add(onTextChanged);
+                    try
+                    {
+                        for (int refresh = 0; refresh < 3; refresh++) Assert.That(renderer.TryRefresh(store, refresh, out error), Is.True, error);
+                        Assert.That(regenerated, Is.Zero, "An unchanged Native surface must retain its generated glyph geometry.");
+                        Assert.That(store.TryGetNodeState("node:text-greeting", out var alphaNode), Is.True);
+                        alphaNode.Opacity = .6;
+                        for (int refresh = 0; refresh < 3; refresh++) Assert.That(renderer.TryRefresh(store, refresh, out error), Is.True, error);
+                        Assert.That(proxy.GetComponent<MeshFilter>().sharedMesh.colors[0].a, Is.EqualTo(.3f).Within(.003f));
+                        Assert.That(regenerated, Is.Zero, "Opacity updates reuse TMP layout without accumulating alpha.");
+                        var submesh = TMP_SubMeshUI.AddSubTextObject(text, new MaterialReference(1, text.font, null, text.fontSharedMaterial, 0));
+                        text.fontSize += 1;
+                        Assert.That(renderer.TryRefresh(store, 0, out error), Is.True, error);
+                        Assert.That(regenerated, Is.GreaterThan(0), "Layout changes must invalidate the glyph cache.");
+                        Assert.That(submesh.enabled, Is.False, "TMP atlas submeshes must not submit a second Canvas copy.");
+                        text.transform.parent.gameObject.SetActive(false); text.transform.parent.gameObject.SetActive(true);
+                        Assert.That(renderer.TryRefresh(store, 0, out error), Is.True, error);
+                        Assert.That(submesh.enabled, Is.False, "Reactivating an artifact must keep Canvas submeshes suppressed.");
+                        int beforeAtlasChange = regenerated;
+                        Assert.That(text.font.TryAddCharacters("A"), Is.True);
+                        Assert.That(renderer.TryRefresh(store, 0, out error), Is.True, error);
+                        Assert.That(regenerated, Is.GreaterThan(beforeAtlasChange), "Changing a shared glyph atlas must refresh dependent Native meshes.");
+                        render.Artifacts[0].NativeUi.Nodes[0].Text.Value.Literal.Value = "";
+                        for (int refresh = 0; refresh < 2; refresh++) Assert.That(renderer.TryRefresh(store, refresh, out error), Is.True, error);
+                        foreach (MeshRenderer part in text.GetComponentsInChildren<MeshRenderer>()) Assert.That(part.enabled, Is.False, "Clearing text must not restore cached glyphs.");
+                        render.Artifacts[0].NativeUi.Nodes[0].Text.Value.Literal.Value = "123";
+                        Assert.That(renderer.TryRefresh(store, 0, out error), Is.True, error);
+                        Assert.That(proxy.enabled, Is.True);
+                    }
+                    finally { TMPro_EventManager.TEXT_CHANGED_EVENT.Remove(onTextChanged); }
                     Assert.That(store.TryGetNodeState("node:text-greeting", out NodeRuntimeState current), Is.True);
                     NodeRuntimeState changed = current.Clone();
                     changed.Opacity = 0.6;
@@ -232,6 +274,20 @@ public sealed class PresentationNativeSurfaceRenderingTests
                         Assert.That(opacity.alpha * text.color.a, Is.EqualTo(0.3f).Within(0.001f),
                             "Refresh must apply authoritative opacity without multiplying the previous alpha.");
                     }
+                }
+                if (lostResource != null)
+                {
+                    var meshRenderer = text.GetComponentInChildren<MeshRenderer>(); var filter = meshRenderer.GetComponent<MeshFilter>();
+                    switch (lostResource)
+                    {
+                        case "mesh": UnityEngine.Object.DestroyImmediate(filter.sharedMesh); break;
+                        case "material": UnityEngine.Object.DestroyImmediate(meshRenderer.sharedMaterial); break;
+                        case "mesh-binding": filter.sharedMesh = null; break;
+                        case "material-binding": meshRenderer.sharedMaterial = null; break;
+                    }
+                    Assert.That(renderer.IsReady, Is.False);
+                    Assert.That(renderer.TryRefresh(store, 0, out error), Is.False);
+                    Assert.That(error, Is.EqualTo("asset_residency_lost"));
                 }
                 UnityEngine.Object.DestroyImmediate(text.gameObject);
                 Assert.That(renderer.IsReady, Is.False);

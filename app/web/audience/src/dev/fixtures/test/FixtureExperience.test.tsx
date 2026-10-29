@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
   const runtimeSnapshot = {
     phase: "ready",
     rendering: "ready",
+    reliableSequence: "0",
     error: null as string | null,
     reason: null as string | null,
     view: null,
@@ -139,6 +140,7 @@ test("描画エラーを表示し初期状態へ再試行できる", async () =>
   mocks.runtime.getSnapshot.mockReturnValue({
     phase: "ready",
     rendering: "error",
+    reliableSequence: "0",
     error: "presentation-render-failed",
     reason: null,
     view: null,

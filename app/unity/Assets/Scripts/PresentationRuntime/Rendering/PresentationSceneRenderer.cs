@@ -15,6 +15,7 @@ namespace Unframe.Unity.PresentationRuntime
         public PresentationModelResidency Models { get; private set; }
         private PresentationRuntimeAssetFiles files;
         private bool loaded;
+        private bool interactionsEnabled;
         public PresentationTextureResidency Textures { get; private set; }
 
         public bool HasResidentAssets(PresentationRuntimeDataStore store)
@@ -86,7 +87,8 @@ namespace Unframe.Unity.PresentationRuntime
         {
             error = "asset_residency_lost";
             if (!HasResidentAssets(store)) { Disable(); return false; }
-            if (baked.TryRefresh(store, Textures, time, out error) && native.TryRefresh(store, time, out error)) return true;
+            if (baked.TryRefresh(store, Textures, time, out error) && native.TryRefresh(store, time, out error))
+            { interactionsEnabled = true; return true; }
             Disable();
             return false;
         }
@@ -95,22 +97,27 @@ namespace Unframe.Unity.PresentationRuntime
         {
             surfaceId = null;
             interactionId = null;
-            if (!loaded) return false;
-            bool bakedPicked = baked.TryPickInteraction(ray, store, Textures, out string bakedSurface, out string bakedInteraction, out float bakedDistance);
+            if (!loaded || !interactionsEnabled) return false;
+            bool picked = baked.TryPickInteraction(ray, store, Textures, out string selectedSurface, out string selectedInteraction, out float nearest);
             bool nativePicked = native.TryPickInteraction(ray, store, out string nativeSurface, out string nativeInteraction, out float nativeDistance);
-            bool useNative = nativeDistance < bakedDistance || nativeDistance == bakedDistance && nativeSurface != null
-                && (bakedSurface == null || StringComparer.Ordinal.Compare(nativeSurface, bakedSurface) < 0);
-            if (useNative ? !nativePicked : !bakedPicked) return false;
-            surfaceId = useNative ? nativeSurface : bakedSurface;
-            interactionId = useNative ? nativeInteraction : bakedInteraction;
+            if (IsNearer(nativeSurface, nativeDistance, selectedSurface, nearest))
+            { picked = nativePicked; selectedSurface = nativeSurface; selectedInteraction = nativeInteraction; nearest = nativeDistance; }
+            bool videoPicked = Videos.TryPickInteraction(ray, store, out string videoSurface, out string videoInteraction, out float videoDistance);
+            if (IsNearer(videoSurface, videoDistance, selectedSurface, nearest))
+            { picked = videoPicked; selectedSurface = videoSurface; selectedInteraction = videoInteraction; }
+            if (!picked) return false;
+            surfaceId = selectedSurface; interactionId = selectedInteraction;
             return true;
         }
 
-        public void Disable() { baked?.Disable(); native?.Disable(); Videos?.Pause(); }
+        private static bool IsNearer(string candidate, float distance, string selected, float nearest) =>
+            candidate != null && (distance < nearest || distance == nearest && (selected == null || StringComparer.Ordinal.Compare(candidate, selected) < 0));
+
+        public void Disable() { interactionsEnabled = false; baked?.Disable(); native?.Disable(); Videos?.Pause(); }
 
         public void Dispose()
         {
-            loaded = false;
+            loaded = interactionsEnabled = false;
             Videos?.Dispose(); Videos = null;
             Models?.Dispose(); Models = null;
             native?.Dispose(); native = null;

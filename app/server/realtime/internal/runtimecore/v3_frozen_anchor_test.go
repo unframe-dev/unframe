@@ -57,6 +57,7 @@ func TestV3PausePersistsAvailableAnchorAndPublishesAtomicReplacement(t *testing.
 	if len(events) != 1 || events[0].GetRuntimeViewReplaced() == nil || events[0].GetRuntimeViewReplaced().RuntimeView.BaseReliableSequence != events[0].Sequence {
 		t.Fatalf("pause events=%v", events)
 	}
+	flushV2(t, core)
 	if writer.envelope == nil {
 		t.Fatal("frozen Anchor not persisted")
 	}
@@ -66,7 +67,7 @@ func TestV3PausePersistsAvailableAnchorAndPublishesAtomicReplacement(t *testing.
 	}
 }
 
-func TestV3ResumeKeepsFrozenUntilValidPoseIsDurablyCommitted(t *testing.T) {
+func TestV3ResumeThawsOnValidPoseDespiteSaveFailure(t *testing.T) {
 	core, writer := v3FrozenCore(t)
 	v3SeedAnchor(t, core, 1, 3)
 	v3FrozenControl(t, core, "pause", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE)
@@ -78,17 +79,13 @@ func TestV3ResumeKeepsFrozenUntilValidPoseIsDurablyCommitted(t *testing.T) {
 	}
 	core.checkpointWriter = failingV2Checkpoint{}
 	frame := trackingTestFrame(2, trackingTestPose(0, 0, 0), trackingTestSample(realtimev2.TrackedTarget_TRACKED_TARGET_BODY, trackingTestPose(7, 0, 0)))
-	if _, _, err := core.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, frame, time.Now(), 2); err == nil {
-		t.Fatal("failed thaw checkpoint accepted Pose")
-	}
-	if len(core.Snapshot().FrozenAnchors) != 1 || core.Snapshot().FrozenAnchors[0].Position.X != 3 {
-		t.Fatal("failed thaw changed frozen position")
-	}
-	core.checkpointWriter = writer
-	v3FrozenControl(t, core, "resume-after-failure", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME)
 	if _, _, err := core.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, frame, time.Now(), 2); err != nil {
 		t.Fatal(err)
 	}
+	if err := core.FlushCheckpoint(context.Background()); err == nil {
+		t.Fatal("expected save failure")
+	}
+	core.checkpointWriter = writer
 	if len(core.Snapshot().FrozenAnchors) != 0 {
 		t.Fatal("fresh Pose did not clear canonical frozen state")
 	}
@@ -106,6 +103,7 @@ func TestV3PausedTrackingDoesNotMoveFrozenDisplayAndResumeUsesFreshPose(t *testi
 	core, writer := v3FrozenCore(t)
 	v3SeedAnchor(t, core, 1, 3)
 	v3FrozenControl(t, core, "pause", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE)
+	flushV2(t, core)
 	sequence := writer.envelope.CheckpointSequence
 	v3SeedAnchor(t, core, 2, 7)
 	patches, err := core.ProjectedAnchorBindings(core.Snapshot().NodeStates, 2)
@@ -120,6 +118,7 @@ func TestV3PausedTrackingDoesNotMoveFrozenDisplayAndResumeUsesFreshPose(t *testi
 	if err != nil || patches[0].GetSample().GetPosition().GetX() != 7 {
 		t.Fatalf("resumed tracking patches=%v error=%v", patches, err)
 	}
+	flushV2(t, core)
 	persisted := &realtimev2.CanonicalRuntimeSnapshot{}
 	if err := proto.Unmarshal(writer.envelope.CanonicalSnapshotPayload, persisted); err != nil {
 		t.Fatal(err)
@@ -133,6 +132,7 @@ func TestV3PauseSnapshotReplayAndRecoveryKeepFrozenWithoutRawPose(t *testing.T) 
 	core, writer := v3FrozenCore(t)
 	v3SeedAnchor(t, core, 1, 3)
 	v3FrozenControl(t, core, "pause", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE)
+	flushV2(t, core)
 	checkpoint := proto.Clone(writer.envelope).(*realtimev2.DurableCheckpointEnvelope)
 	v3SeedAnchor(t, core, 2, 7)
 	replay, err := core.Replay(0)
@@ -182,21 +182,28 @@ func TestV3FrozenProjectionFiltersHiddenNodeAndKeepsReplacementCut(t *testing.T)
 	}
 }
 
-func TestV3PauseFailureDoesNotPublishCandidateFrozenDisplay(t *testing.T) {
+func TestV3PausePublishesFrozenDisplayDespiteSaveFailure(t *testing.T) {
 	core, _ := v3FrozenCore(t)
 	v3SeedAnchor(t, core, 1, 3)
 	core.checkpointWriter = failingV2Checkpoint{}
 	_, stream, closeSub := core.SnapshotAndSubscribe()
 	defer closeSub()
 	out, events, err := core.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "pause", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE}))
-	if err == nil || out != nil || len(events) != 0 || len(core.Snapshot().FrozenAnchors) != 0 || core.Snapshot().ReliableSequence != 0 || len(core.outcomes) != 0 {
-		t.Fatalf("failed pause outcome=%v events=%v error=%v", out, events, err)
+	if err != nil || out.GetAccepted() == nil || len(events) != 1 || len(core.Snapshot().FrozenAnchors) != 1 || core.Snapshot().ReliableSequence != 1 || len(core.outcomes) != 1 {
+		t.Fatalf("pause memory commit: %v %v", out, err)
+	}
+	if err := core.FlushCheckpoint(context.Background()); err == nil {
+		t.Fatal("expected save failure")
 	}
 	select {
 	case event := <-stream:
-		t.Fatalf("uncommitted replacement published: %v", event)
+		if event.GetRuntimeViewReplaced() == nil {
+			t.Fatal("replacement missing")
+		}
 	default:
+		t.Fatal("committed replacement missing")
 	}
+
 }
 
 func TestV3PausedBindingCutRejectsOlderSnapshot(t *testing.T) {
@@ -293,6 +300,7 @@ func TestV3ReconnectPersistsFrozenBeforeDiscardingRawPose(t *testing.T) {
 	default:
 		t.Fatal("reconnect replacement missing")
 	}
+	flushV2(t, core)
 	persisted := &realtimev2.CanonicalRuntimeSnapshot{}
 	if err := proto.Unmarshal(writer.envelope.CanonicalSnapshotPayload, persisted); err != nil {
 		t.Fatal(err)
@@ -402,6 +410,7 @@ func TestV3PausePreservesTimelineTimerMediaAndModelAtOneLogicalCut(t *testing.T)
 	if !proto.Equal(paused, core.Snapshot()) {
 		t.Fatal("paused Timer/Timeline/Media/Model/Anchor state advanced")
 	}
+	flushV2(t, core)
 	persisted := &realtimev2.CanonicalRuntimeSnapshot{}
 	if err := proto.Unmarshal(writer.envelope.CanonicalSnapshotPayload, persisted); err != nil {
 		t.Fatal(err)

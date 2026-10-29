@@ -17,6 +17,9 @@ case "${mode}" in
     ;;
   check)
     log "realtime(check): vet / lint / test / build / race"
+    if [[ $(uname -s) == Darwin ]]; then
+      (cd "${REPO_ROOT}" && node --test scripts/runtime-host/deploy.test.mjs scripts/runtime-host/funnel.test.mjs scripts/runtime-host/funnel-launchd.test.mjs)
+    fi
     "${DIR}/../contracts/generate-proto.sh" check
     (cd "${REALTIME_SERVER_DIR}" && go vet ./...)
     (cd "${REALTIME_SERVER_DIR}" && golangci-lint run)

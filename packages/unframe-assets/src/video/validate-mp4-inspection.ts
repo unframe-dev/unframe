@@ -104,7 +104,6 @@ const rational = (n: bigint, d: bigint): Rational => {
   return { n, d };
 };
 const compare = (a: Rational, b: Rational) => a.n * b.d - b.n * a.d;
-const subtract = (a: Rational, b: Rational): Rational => rational(a.n * b.d - b.n * a.d, a.d * b.d);
 const timeBase = (text: string) => {
   const [n, d] = text.split("/").map(BigInt);
   if (!n || !d) throw new Error("Invalid time base.");
@@ -233,14 +232,11 @@ export const validateMp4Inspection = (input: unknown): ValidationResult<VideoMet
             "Packets require positive duration and increasing decode timestamps.",
           );
         previousDts = packet.dts;
-        let current = rational((packet.pts + packet.duration) * base.n, base.d);
-        const padding =
-          packet.side_data_list?.reduce((sum, data) => sum + (data.discard_padding ?? 0), 0) ?? 0;
-        if (padding) {
-          if (stream.codec_type !== "audio")
-            return failure("video-timing-invalid", "Unexpected video sample padding.");
-          current = subtract(current, rational(BigInt(padding), 48000n));
-        }
+        const hasPadding = packet.side_data_list?.some((data) => (data.discard_padding ?? 0) > 0);
+        if (hasPadding && stream.codec_type !== "audio")
+          return failure("video-timing-invalid", "Unexpected video sample padding.");
+        // MP4 packet duration already excludes AAC end padding; discard_padding trims decoder output.
+        const current = rational((packet.pts + packet.duration) * base.n, base.d);
         if (!packetEnd || compare(current, packetEnd) > 0n) packetEnd = current;
       }
       if (!packetEnd || compare(packetEnd, end) !== 0n)

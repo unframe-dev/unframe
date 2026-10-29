@@ -18,9 +18,7 @@ import (
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	grpcgo "google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -33,7 +31,7 @@ func (w *switchableV2Checkpoint) WriteCheckpoint(context.Context, *realtimev2.Du
 	return nil
 }
 
-func TestV2PrivateCheckpointFaultClosesStreamsAndForcesFreshPausedSnapshot(t *testing.T) {
+func TestV2CheckpointFailureKeepsControlAndStateStreamsLive(t *testing.T) {
 	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
@@ -107,57 +105,35 @@ func TestV2PrivateCheckpointFaultClosesStreamsAndForcesFreshPausedSnapshot(t *te
 		t.Fatal(err)
 	}
 	writer.fail.Store(true)
-	if _, _, err := v3TestLogicalInput(t, runtime, identity, "fault-input", "next"); err == nil {
-		t.Fatal("checkpoint failure did not fault")
+	_, events, err := v3TestLogicalInput(t, runtime, identity, "applied-input", "next")
+	if err != nil || len(events) == 0 {
+		t.Fatalf("input did not commit in memory: events=%v err=%v", events, err)
 	}
-	if _, err := control.Recv(); status.Code(err) != codes.FailedPrecondition {
-		t.Fatalf("control fault=%v", err)
+	if err := runtime.FlushCheckpoint(ctx); err == nil {
+		t.Fatal("unavailable checkpoint was reported as saved")
 	}
-	if reason := control.Trailer().Get("unframe-reason"); len(reason) != 1 || reason[0] != "runtime_snapshot_required" {
-		t.Fatalf("control reason=%v", reason)
+	if runtime.Snapshot().Clock.GetRunning() == nil {
+		t.Fatal("checkpoint failure paused progression")
 	}
-	if _, err := state.Recv(); status.Code(err) != codes.FailedPrecondition {
-		t.Fatalf("state fault=%v", err)
+	wanted := runtime.Snapshot().ReliableSequence
+	for {
+		item, err := control.Recv()
+		if err != nil {
+			t.Fatalf("checkpoint failure closed control: %v", err)
+		}
+		if item.GetReliableEvent().GetSequence() >= wanted {
+			break
+		}
 	}
-	if reason := state.Trailer().Get("unframe-reason"); len(reason) != 1 || reason[0] != "runtime_snapshot_required" {
-		t.Fatalf("state reason=%v", reason)
+	if item, err := state.Recv(); err != nil || item.GetStateFrame() == nil {
+		t.Fatalf("checkpoint failure closed state: item=%v err=%v", item, err)
 	}
 	writer.fail.Store(false)
-	resume, err := v3TestConnectControl(ctx, client)
-	if err != nil {
+	if err := runtime.FlushCheckpoint(ctx); err != nil {
 		t.Fatal(err)
 	}
-	resumeHandshake := &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: profile.RequiredRuntimeCapabilities, Resume: &realtimev2.ResumeCursor{PriorConnectionId: connected.GetConnected().ConnectionId, AppliedReliableSequence: cut.GetConnectionSnapshot().ReliableSequence, Fence: cut.GetConnectionSnapshot().Fence}}
-	if err := resume.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: resumeHandshake}}); err != nil {
-		t.Fatal(err)
-	}
-	if item, err := resume.Recv(); err != nil || item.GetResyncRequired() == nil {
-		t.Fatalf("stale resume=%v err=%v", item, err)
-	}
-	fresh, err := v3TestConnectControl(ctx, client)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := fresh.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: handshake}}); err != nil {
-		t.Fatal(err)
-	}
-	if item, err := fresh.Recv(); err != nil || item.GetConnected() == nil {
-		t.Fatalf("fresh connected=%v err=%v", item, err)
-	}
-	paused, err := fresh.Recv()
-	if err != nil || paused.GetConnectionSnapshot().Snapshot.RuntimeView.Clock.GetPaused() == nil {
-		t.Fatalf("fresh paused=%v err=%v", paused, err)
-	}
-	if item, err := fresh.Recv(); err != nil || item.GetStateConnectionNonce() == nil {
-		t.Fatalf("fresh nonce=%v err=%v", item, err)
-	}
-	if err := fresh.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_LogicalInput{LogicalInput: &realtimev2.LogicalInputCommand{LogicalEventName: "next"}}}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := fresh.Recv(); status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("malformed input status=%v", err)
-	}
-	if reason := fresh.Trailer().Get("unframe-reason"); len(reason) != 1 || reason[0] != "message_invalid" {
-		t.Fatalf("malformed input reason=%v", reason)
+	saved := runtime.CheckpointStatus()
+	if saved.SavedReliableSequence != runtime.Snapshot().ReliableSequence {
+		t.Fatalf("checkpoint did not catch up: %+v", saved)
 	}
 }

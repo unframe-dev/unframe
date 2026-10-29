@@ -77,6 +77,27 @@ function createDeviceAuthorizationVerifier({
       return { data: { user_code: body["user_code"], status: body["status"] }, error: null };
     }
 
+    const apiError = body["error"];
+    if (
+      !response.ok &&
+      apiError !== null &&
+      typeof apiError === "object" &&
+      !Array.isArray(apiError)
+    ) {
+      const detail = apiError as Record<string, unknown>;
+      if (typeof detail["code"] === "string") {
+        return {
+          data: null,
+          error: {
+            error: detail["code"],
+            ...(typeof detail["message"] === "string"
+              ? { error_description: detail["message"] }
+              : {}),
+          },
+        };
+      }
+    }
+
     return {
       data: null,
       error: {

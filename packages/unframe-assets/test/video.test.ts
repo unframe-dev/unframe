@@ -82,6 +82,44 @@ const inspection = () => ({
   fullDecodeSucceeded: true,
 });
 
+const audioInspection = (discardPadding?: number) => {
+  const input = inspection();
+  const probe = JSON.parse(input.probeJson);
+  probe.streams.push({
+    index: 1,
+    codec_type: "audio",
+    codec_name: "aac",
+    profile: "LC",
+    sample_rate: "48000",
+    channels: 2,
+    time_base: "1/48000",
+    start_pts: 0,
+    duration_ts: 48000,
+  });
+  const packets = Array.from({ length: 47 }, (_, index) => ({
+    stream_index: 1,
+    pts: index * 1024,
+    dts: index * 1024,
+    duration: Math.min(1024, 48000 - index * 1024),
+  }));
+  probe.packets.push(...packets);
+  if (discardPadding !== undefined)
+    probe.packets.at(-1).side_data_list = [{ discard_padding: discardPadding }];
+  input.probeJson = JSON.stringify(probe);
+  const frames = JSON.parse(input.framesJson);
+  frames.frames.push(
+    ...packets.map(({ pts }) => ({
+      media_type: "audio",
+      stream_index: 1,
+      pts,
+      sample_rate: "48000",
+      channels: 2,
+    })),
+  );
+  input.framesJson = JSON.stringify(frames);
+  return input;
+};
+
 describe("MP4 inspection", () => {
   it("derives integer duration and codec requirements from inspected source bytes", () => {
     expect(validateMp4Inspection(inspection())).toMatchObject({
@@ -138,6 +176,38 @@ describe("MP4 inspection", () => {
     const input = inspection();
     const probe = JSON.parse(input.probeJson);
     probe.packets[0].duration = 50;
+    input.probeJson = JSON.stringify(probe);
+    expect(validateMp4Inspection(input)).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "video-timing-invalid" }],
+    });
+  });
+  it.each([
+    ["without decoder padding", undefined],
+    ["with decoder padding", 128],
+  ] as const)("accepts shortened AAC packet duration %s", (_name, padding) => {
+    expect(validateMp4Inspection(audioInspection(padding))).toMatchObject({
+      valid: true,
+      value: { durationMilliseconds: 1000, audio: true },
+    });
+  });
+  it.each([895, 897, 1024])(
+    "rejects an AAC packet end mismatch even with decoder padding: %i ticks",
+    (duration) => {
+      const input = audioInspection(128);
+      const probe = JSON.parse(input.probeJson);
+      probe.packets.at(-1).duration = duration;
+      input.probeJson = JSON.stringify(probe);
+      expect(validateMp4Inspection(input)).toMatchObject({
+        valid: false,
+        diagnostics: [{ code: "video-timing-invalid" }],
+      });
+    },
+  );
+  it("rejects decoder padding on a video packet", () => {
+    const input = inspection();
+    const probe = JSON.parse(input.probeJson);
+    probe.packets.at(-1).side_data_list = [{ discard_padding: 1 }];
     input.probeJson = JSON.stringify(probe);
     expect(validateMp4Inspection(input)).toMatchObject({
       valid: false,

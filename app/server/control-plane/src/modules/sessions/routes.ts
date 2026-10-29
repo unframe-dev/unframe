@@ -112,7 +112,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
       return await operation(identity, dependencies(context));
     } catch (error) {
       if (error instanceof SessionError || error instanceof RuntimeAssignmentError) {
-        const status = errorStatuses[error.code as SessionError["code"]] ?? 409;
+        const status = error instanceof RuntimeAssignmentError ? 409 : errorStatuses[error.code];
         throw new HTTPException(status, {
           res: context.json(
             { error: { code: error.code, message: error.code.replaceAll("_", " ") } },
@@ -178,7 +178,6 @@ export function createSessionRoutes(options: SessionRouteOptions) {
         async (identity, { credentials, assignments, service }) => {
           const id = context.req.valid("param").id;
           const { participant, session } = await service.bootstrap(identity, id);
-          const assignment = await assignments.active(id);
           const db = createD1Database(context.get("config").DB);
           const publication = await db
             .select({
@@ -210,6 +209,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
             !publication.projectionProfileId
           )
             throw new SessionError("conflict");
+          const assignment = await assignments.connectable(id);
           const expiresAt = Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000);
           if (expiresAt <= Math.floor(now().getTime() / 1_000)) {
             throw new SessionError("conflict");
@@ -237,7 +237,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
             throw error;
           }
           const current = await service.bootstrap(identity, id);
-          const currentAssignment = await assignments.active(id);
+          const currentAssignment = await assignments.connectable(id);
           const currentPublication = await db
             .select({
               publicationEpoch: presentationSessions.publicationEpoch,

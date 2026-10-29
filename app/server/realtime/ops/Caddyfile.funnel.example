@@ -1,0 +1,16 @@
+{
+	admin off
+	auto_https disable_redirects
+}
+
+https://{$FUNNEL_HOSTNAME}:8443 {
+	bind 127.0.0.1
+
+	handle /browser/* {
+		reverse_proxy http://127.0.0.1:9090
+	}
+
+	handle {
+		reverse_proxy h2c://127.0.0.1:9090
+	}
+}

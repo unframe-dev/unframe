@@ -1,8 +1,13 @@
 import { downloadSessionDiagnostic, type SessionRecorder } from "../diagnostics/session-recorder";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PreparedConnection } from "../connection/join-controller";
 import { createAudienceAssetFetch } from "../connection/asset-fetch";
-import { loadBoardConfig, type BoardConfig } from "../fiducials/config";
+import {
+  configureMarkerSize,
+  markerSizesMillimeters,
+  loadBoardConfig,
+  type BoardConfig,
+} from "../fiducials/config";
 import { buildViewerDiagnostic } from "../diagnostics/viewer-diagnostic";
 import { SdkProgress } from "../SdkProgress";
 import { AudienceStage } from "../ui/AudienceStage";
@@ -18,6 +23,7 @@ export interface ViewerExperienceProps {
   onRefresh(): void;
   onReconnect(): Promise<void>;
   refreshing: boolean;
+  recovering?: boolean;
   refreshError: string | null;
   trackingAdapter?: typeof createTrackingAdapter;
   onViewingSnapshot?(snapshot: ViewingSnapshot): void;
@@ -69,7 +75,14 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   currentConnection.current = props.connection;
   installer.current = props.onRuntimeInput;
   const lastRendering = useRef<string | undefined>(undefined);
-  const [config, setConfig] = useState<BoardConfig | null>(null);
+  const [boardConfig, setConfig] = useState<BoardConfig | null>(null);
+  const [markerSize, setMarkerSize] = useState<number | null>(null);
+  const config = useMemo(
+    () =>
+      boardConfig &&
+      (markerSize === null ? boardConfig : configureMarkerSize(boardConfig, markerSize)),
+    [boardConfig, markerSize],
+  );
   const [anchor, setAnchor] = useState<AnchorSessionSnapshot | null>(null);
   const [viewing, setViewing] = useState<ViewingSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -136,11 +149,16 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   }, [config, props.trackingAdapter]);
 
   useEffect(() => {
+    if (props.recovering) {
+      clearBinding(false);
+      viewer.current?.getInput()?.disconnected();
+      return;
+    }
     const target = viewer.current;
     const disconnected = target?.getSnapshot().phase === "disconnected";
     target?.updateDelivery(props.connection.delivery);
     if (disconnected && !target?.getInput()) target?.restartInput();
-  }, [config, props.connection]);
+  }, [config, props.connection, props.recovering]);
 
   useEffect(() => {
     if (viewing) {
@@ -242,6 +260,7 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   }, [viewing?.phase, props.onRuntimeInput, props.refreshing, props.onReconnect]);
 
   async function start() {
+    if (props.recovering) return;
     const target = viewer.current;
     if (!target) return;
     setError(null);
@@ -305,7 +324,11 @@ export function ViewerExperience(props: ViewerExperienceProps) {
             {!props.onRuntimeInput && (
               <p>ライブ受信は未接続です。接続仕様の提供後に受信処理を接続します。</p>
             )}
-            {props.refreshing && <p role="status">接続情報を更新しています。</p>}
+            {props.refreshing && (
+              <p role="status">
+                {props.recovering ? "配信の接続復旧を待っています。" : "接続情報を更新しています。"}
+              </p>
+            )}
             {props.refreshError && (
               <p role="status">
                 接続情報を更新できませんでした。有効期限内の情報で視聴を続けています。
@@ -318,6 +341,25 @@ export function ViewerExperience(props: ViewerExperienceProps) {
                   : "プレゼンテーションの再同期を待っています。"}
               </p>
             )}
+            <label>
+              マーカーサイズ（黒い外周）
+              <select
+                value={
+                  markerSize ?? (config ? Math.round(config.markers[0]!.sizeMeters * 1000) : 150)
+                }
+                disabled={!config}
+                onChange={(event) => setMarkerSize(Number(event.target.value))}
+              >
+                {markerSizesMillimeters.map((size) => (
+                  <option key={size} value={size}>
+                    {size} mm
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p>
+              白余白を除く一辺の実寸です。登壇側と同じサイズを選んでください。変更後はカメラを開始し、位置合わせをやり直してください。
+            </p>
             <div className="audience-stage__test-controls">
               {(anchor?.stage === "running" || anchor?.stage === "starting") && (
                 <button onClick={() => viewer.current?.stop()}>停止</button>

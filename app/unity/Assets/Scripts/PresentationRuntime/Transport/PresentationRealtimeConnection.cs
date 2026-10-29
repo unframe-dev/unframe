@@ -83,7 +83,7 @@ namespace Unframe.Unity.PresentationRuntime
             try
             {
                 int snapshotRetries = 0;
-                for (int attempt = 0; ; attempt++)
+                for (int attempt = 0; ; attempt = Math.Min(5, attempt + 1))
                 {
                     RequireResidency();
                     diagnostics?.Record(attempt == 0 ? "connection.stage" : "connection.retry", stage: "Connecting", kind: "Realtime");
@@ -107,7 +107,7 @@ namespace Unframe.Unity.PresentationRuntime
                         await bearerProvider(lifetime.Token);
                         throw;
                     }
-                    catch (RpcException exception) when (PresentationConnectionErrors.CanRetryRealtimeTransport(exception) && attempt < 5 && !lifetime.IsCancellationRequested)
+                    catch (RpcException exception) when (PresentationConnectionErrors.CanRetryRealtimeTransport(exception) && !lifetime.IsCancellationRequested)
                     {
                         await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(5000, 250 * (1 << attempt))), lifetime.Token);
                     }

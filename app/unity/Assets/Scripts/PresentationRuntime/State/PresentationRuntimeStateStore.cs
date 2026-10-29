@@ -31,6 +31,8 @@ namespace Unframe.Unity.PresentationRuntime
         private PresentationOrigin presentationOrigin;
         private readonly Dictionary<string, ProjectedParticipantPresence> participants = new Dictionary<string, ProjectedParticipantPresence>();
         private ConnectionSnapshotEnvelope lastConnectionSnapshot;
+        private RuntimeProjectionFence reliableFence;
+        private ulong minimumReliableSequence;
         private RuntimeClockSnapshot clock;
         private ProgressionRuntimeState progression;
         private readonly Dictionary<string, RuntimeRunSnapshot> activeRuns = new Dictionary<string, RuntimeRunSnapshot>();
@@ -102,6 +104,11 @@ namespace Unframe.Unity.PresentationRuntime
 
         internal void Reset()
         {
+            if (lastConnectionSnapshot != null)
+            {
+                reliableFence = lastConnectionSnapshot.Fence.Clone();
+                minimumReliableSequence = LastReliableSequence;
+            }
             ClearCommandOutcome();
             nodeStates.Clear();
             surfaceStates.Clear();
@@ -219,6 +226,17 @@ namespace Unframe.Unity.PresentationRuntime
                 || envelope.Snapshot == null || envelope.Snapshot.RuntimeView == null || !HasMatchingDeliveryFence(envelope.Fence))
             {
                 error = "realtime.snapshot is missing, incompatible, or fenced for another delivery.";
+                return false;
+            }
+
+            if (hasSnapshot && envelope.ReliableSequence < LastReliableSequence
+                || reliableFence != null && reliableFence.SessionId == envelope.Fence.SessionId
+                && reliableFence.AssignmentEpoch == envelope.Fence.AssignmentEpoch
+                && reliableFence.ProjectionProfileId == envelope.Fence.ProjectionProfileId
+                && Equals(reliableFence.Publication, envelope.Fence.Publication)
+                && envelope.ReliableSequence < minimumReliableSequence)
+            {
+                error = "realtime.snapshot sequence regressed within the same assignment.";
                 return false;
             }
 

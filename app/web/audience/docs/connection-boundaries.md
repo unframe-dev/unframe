@@ -4,6 +4,8 @@
 
 ## 接続順
 
+参加画面ではルームコードをハイフンなしの8文字で入力する。英字は大文字へ、ハイフン付きコードの貼り付けは8文字へ正規化する。使用可能な文字は `A-H`、`J-N`、`P-Z`、`2-9`。送信時に既存API契約の `XXXX-XXXX` 形式へ変換する。
+
 1. `POST /viewer-credentials` に `{joinCode}` を送り、Viewer 登録と匿名 API 資格を取得する。
 2. 同資格で `POST /sessions/join`、`POST /sessions/{id}/delivery`、`POST /sessions/{id}/bootstrap` を呼ぶ。Delivery の profile ID は共有のAudience定義から算出する。
 3. bootstrap の endpoint origin から `/browser/control` へ接続し、既存 v3 ControlHandshake と Snapshot を受ける。

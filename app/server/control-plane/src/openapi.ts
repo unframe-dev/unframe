@@ -460,7 +460,9 @@ export const publicRoutes = [
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Not found"),
-      409: errorResponse("Session ended"),
+      409: errorResponse(
+        "Session conflict; runtime_unavailable is retryable while Runtime is unavailable",
+      ),
       410: sessionEndedResponse,
     },
   }),
@@ -904,7 +906,9 @@ export const deliveryManifestRoute = createRoute({
     401: errorResponse("Unauthorized"),
     403: errorResponse("Not a session participant"),
     404: errorResponse("Publication not found"),
-    409: errorResponse("Session or assignment changed"),
+    409: errorResponse(
+      "Session or assignment conflict; runtime_unavailable is retryable while Runtime is unavailable",
+    ),
     410: sessionEndedResponse,
     422: errorResponse("Unsupported capability"),
   },
@@ -938,7 +942,16 @@ export const internalRuntimeBootstrapRoute = createRoute({
   method: "get",
   path: "/internal/runtime/bootstrap",
   security: serviceSecurity,
-  request: { query: runtimeBootstrapQuery },
+  request: {
+    query: runtimeBootstrapQuery.extend({
+      executionBootId: z
+        .string()
+        .min(1)
+        .max(128)
+        .optional()
+        .describe("Required for Venue Edge process startup; forbidden for managed Cloud Runtime"),
+    }),
+  },
   responses: {
     200: {
       description: "Trusted Runtime v3 bootstrap",
@@ -954,6 +967,14 @@ export const internalRuntimeBootstrapRoute = createRoute({
                 "RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash",
               ),
             checkpoint: z.record(z.string(), z.unknown()).nullable(),
+            checkpointSource: z
+              .object({
+                runtimeId: z.string(),
+                runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+                assignmentEpoch: z.number().int().positive(),
+                checkpointSequence: z.number().int().positive(),
+              })
+              .nullable(),
           }),
         },
       },
@@ -1157,30 +1178,81 @@ export const prepareRuntimeRoute = createRoute({
     409: errorResponse("Runtime unavailable, unpublished or ended Session"),
   },
 });
+const runtimeHostRegistrationSchema = z.object({
+  endpoint: httpsUrlSchema.refine(
+    (value: string) => new URL(value).origin === value,
+    "HTTPS origin required",
+  ),
+  bootId: z.string().min(1).max(128),
+  capacity: z.number().int().min(1).max(256),
+  accepting: z.boolean(),
+});
+const hostParams = z.object({ runtimeId: identifierSchema }).strict();
+export const runtimeHostStartRoute = createRoute({
+  method: "post",
+  path: "/internal/runtime/hosts/{runtimeId}/start",
+  security: serviceSecurity,
+  request: {
+    params: hostParams,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: runtimeHostRegistrationSchema
+            .extend({ bootStartedAt: z.string().datetime() })
+            .strict(),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Registered Host execution generation",
+      content: {
+        "application/json": { schema: z.object({ generation: z.number().int().positive() }) },
+      },
+    },
+    400: errorResponse("Invalid host registration"),
+    401: errorResponse("Unauthorized service"),
+    409: errorResponse("Stale boot or endpoint conflict"),
+  },
+});
 export const runtimeHostHeartbeatRoute = createRoute({
   method: "post",
   path: "/internal/runtime/hosts/{runtimeId}/heartbeat",
   security: serviceSecurity,
   request: {
-    params: z.object({ runtimeId: identifierSchema }).strict(),
+    params: hostParams,
     body: {
       required: true,
       content: {
         "application/json": {
-          schema: z
-            .object({
-              endpoint: httpsUrlSchema.refine(
-                (value: string) => new URL(value).origin === value,
-                "HTTPS origin required",
-              ),
-              accepting: z.boolean(),
-              serving: z
-                .object({
-                  sessionId: identifierSchema,
-                  assignmentEpoch: z.number().int().positive(),
-                })
-                .strict()
-                .optional(),
+          schema: runtimeHostRegistrationSchema
+            .extend({
+              generation: z.number().int().positive(),
+              sessions: z
+                .array(
+                  z
+                    .object({
+                      sessionId: identifierSchema,
+                      assignmentEpoch: z.number().int().positive(),
+                      state: z.enum([
+                        "starting",
+                        "recovering",
+                        "ready",
+                        "stopping",
+                        "stopped",
+                        "failed",
+                      ]),
+                    })
+                    .strict(),
+                )
+                .max(256)
+                .refine(
+                  (sessions) =>
+                    new Set(sessions.map((session) => session.sessionId)).size === sessions.length,
+                  "Duplicate Session report",
+                ),
             })
             .strict(),
         },
@@ -1189,13 +1261,18 @@ export const runtimeHostHeartbeatRoute = createRoute({
   },
   responses: {
     200: {
-      description: "Current Cloud assignment; null means stop the Runtime",
+      description: "Assignments owned by this Host execution generation",
       content: {
-        "application/json": { schema: z.object({ assignment: assignmentSchema.nullable() }) },
+        "application/json": {
+          schema: z.object({
+            generation: z.number().int().positive(),
+            assignments: z.array(assignmentSchema.extend({ recovery: z.boolean() })),
+          }),
+        },
       },
     },
     400: errorResponse("Invalid host heartbeat"),
     401: errorResponse("Unauthorized service"),
-    409: errorResponse("Runtime identity or endpoint conflict"),
+    409: errorResponse("Stale Host generation or endpoint conflict"),
   },
 });

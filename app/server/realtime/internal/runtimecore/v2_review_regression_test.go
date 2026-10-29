@@ -47,6 +47,7 @@ func TestV2WallTickCheckpointsAtBoundedCadence(t *testing.T) {
 	if _, err := s.AdvanceFromWall(context.Background(), start.Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
+	flushV2(t, s)
 	if w.envelope == nil {
 		t.Fatal("clock checkpoint missing at cadence")
 	}
@@ -119,6 +120,7 @@ func TestV2RecoveryRetainsCompletionHistoryAndCommandOutcome(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	flushV2(t, s)
 	restored, _ := reviewSession(t)
 	if err := restored.RestoreCheckpoint(w.envelope); err != nil {
 		t.Fatal(err)
@@ -148,6 +150,7 @@ func TestV3RecoveryRetainsOutcomeWithoutExpiration(t *testing.T) {
 	if _, _, err := s.RuntimeControl(context.Background(), identity, command); err != nil {
 		t.Fatal(err)
 	}
+	flushV2(t, s)
 	snapshot := s.Snapshot()
 	recovery, err := protocolv2.DecodeRecoveryMetadata(w.envelope)
 	if err != nil {
@@ -169,20 +172,24 @@ func TestV3RecoveryRetainsOutcomeWithoutExpiration(t *testing.T) {
 		t.Fatal("accepted outcome was lost")
 	}
 }
-func TestV2FailedOutcomeCommitDoesNotRetainCommand(t *testing.T) {
+func TestV2SaveFailureRetainsAppliedOutcome(t *testing.T) {
 	s, _ := reviewSession(t)
 	s.checkpointWriter = failingV2Checkpoint{}
 	identity := session.Identity{ParticipantID: "presenter-1", Role: session.RolePresenter}
 	command := v3TestRuntimeControl(s, &realtimev2.RuntimeControlCommand{ClientEventId: "pause", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE})
-	if _, _, err := s.RuntimeControl(context.Background(), identity, command); err == nil {
-		t.Fatal("failed checkpoint accepted")
+	first, _, err := s.RuntimeControl(context.Background(), identity, command)
+	if err != nil {
+		t.Fatal(err)
 	}
-	s.checkpointWriter = &recordingV2Checkpoint{}
-	result, _, err := s.RuntimeControl(context.Background(), identity, command)
-	if err != nil || result.GetNoOp() == nil {
-		t.Fatalf("uncommitted outcome survived: %v %v", result, err)
+	if err := s.FlushCheckpoint(context.Background()); err == nil {
+		t.Fatal("expected failure")
+	}
+	result, events, err := s.RuntimeControl(context.Background(), identity, command)
+	if err != nil || !proto.Equal(first, result) || len(events) != 0 {
+		t.Fatalf("applied outcome changed: %v %v", result, err)
 	}
 }
+
 func TestV2RestoreRejectsMissingRecoveryHistory(t *testing.T) {
 	s, _ := reviewSession(t)
 	snapshot := s.Snapshot()
@@ -232,6 +239,7 @@ func TestV2RecoveryRetainsRejectedAndNoOpOutcomes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			flushV2(t, s)
 			if w.envelope == nil {
 				t.Fatal("outcome did not persist")
 			}
@@ -269,6 +277,7 @@ func TestV2DurableCommandFingerprintsFollowWireContract(t *testing.T) {
 			case "runtime_control":
 				_, _, _ = s.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(s, &realtimev2.RuntimeControlCommand{ClientEventId: "hash", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE, PresentationOriginVersion: test.origin}))
 			}
+			flushV2(t, s)
 			recovery, err := protocolv2.DecodeRecoveryMetadata(w.envelope)
 			if err != nil {
 				t.Fatal(err)
@@ -293,6 +302,7 @@ func TestV2GuardFalseTimerPersistsFiredStateBeforeClockCadence(t *testing.T) {
 	if events, err := timerSession.AdvanceFromWall(context.Background(), timerSession.lastTick.Add(20*time.Millisecond)); err != nil || len(events) != 0 {
 		t.Fatalf("guard false timer: %v %v", events, err)
 	}
+	flushV2(t, timerSession)
 	if w.envelope == nil {
 		t.Fatal("timer fired without immediate checkpoint")
 	}

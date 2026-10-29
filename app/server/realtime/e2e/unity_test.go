@@ -20,6 +20,8 @@ type unityStatus struct {
 	Phase                   string  `json:"phase"`
 	ConnectionID            string  `json:"connectionId"`
 	OriginVersion           string  `json:"originVersion"`
+	AssignmentEpoch         string  `json:"assignmentEpoch"`
+	PauseReason             string  `json:"pauseReason"`
 	StepID                  string  `json:"stepId"`
 	Paused                  bool    `json:"paused"`
 	ControlReady            bool    `json:"controlReady"`
@@ -89,10 +91,10 @@ func (f *fixture) startUnity(configPath string) {
 			case <-time.After(20 * time.Second):
 				_ = cmd.Process.Signal(os.Interrupt)
 				select {
-				case <-done:
+				case <-done: //nolint:errcheck // The shutdown timeout is reported below regardless of the exit error.
 				case <-time.After(5 * time.Second):
 					_ = cmd.Process.Kill()
-					<-done
+					<-done //nolint:errcheck // The shutdown timeout is reported below regardless of the exit error.
 				}
 				if !f.owner.Failed() {
 					f.owner.Error("Unity Editor did not exit after its stop command")
@@ -188,6 +190,10 @@ func (f *fixture) runUnityScenarios(t *testing.T) {
 	viewer := f.connectViewer("")
 	viewer.waitView("supplemental WS Viewer initial view", "start", false)
 	f.waitBrowser("product Audience initial viewing", "start", false)
+	f.runTest(t, "product_concurrent_sessions_are_isolated", func(t *testing.T) { f.assertConcurrentSessionIsolation(viewer) })
+	if t.Failed() {
+		return
+	}
 	f.assertCheckpoint("start", false)
 	f.runTest(t, "product_pause_begin_and_late_join", func(t *testing.T) {
 		f.unityCommand("pause")
@@ -221,7 +227,7 @@ func (f *fixture) runUnityScenarios(t *testing.T) {
 	if t.Failed() {
 		return
 	}
-	f.runTest(t, "product_runtime_restart_rejects_resume_and_recovers_fresh_snapshot", func(t *testing.T) {
+	f.runTest(t, "product_host_restart_rebootstraps_and_recovers_fresh_snapshot", func(t *testing.T) {
 		f.unityCommand("pause")
 		before := f.waitUnity("product Unity durable pause", "finished", true, 0)
 		f.waitBrowser("product Audience durable pause", "finished", true)
@@ -234,9 +240,11 @@ func (f *fixture) runUnityScenarios(t *testing.T) {
 		viewer.waitClosed("Runtime crash closes the supplemental Viewer")
 		viewer.close()
 		f.waitRuntimeRestarted(crashedPID)
-		recovered := f.waitUnity("real Unity SDK rejects its old Resume then applies a fresh paused Snapshot", "finished", true, before.Connections)
-		if recovered.Resynchronizations <= before.Resynchronizations || recovered.ResynchronizationReason != "ReplayRangeUnavailable" {
-			t.Fatal("real Unity did not observe a recoverable Resume rejection")
+		recovered := f.waitUnity("real Unity SDK reboots into a fresh paused assignment Snapshot", "finished", true, before.Connections)
+		oldEpoch, oldErr := strconv.ParseUint(before.AssignmentEpoch, 10, 64)
+		newEpoch, newErr := strconv.ParseUint(recovered.AssignmentEpoch, 10, 64)
+		if oldErr != nil || newErr != nil || newEpoch <= oldEpoch || recovered.PauseReason != "ProcessRecovered" {
+			t.Fatalf("Unity did not replace the previous execution with a fresh recovered Snapshot: oldEpoch=%s newEpoch=%s pauseReason=%s", before.AssignmentEpoch, recovered.AssignmentEpoch, recovered.PauseReason)
 		}
 		viewer = f.connectViewer(viewer.apiCredential)
 		viewer.waitView("Viewer checkpoint recovery", "finished", true)
@@ -272,7 +280,7 @@ func (f *fixture) runUnityScenarios(t *testing.T) {
 			return ok && !status.ControlReady && status.Completed && status.Error == "session-not-available"
 		})
 		f.waitBrowserEnded()
-		f.waitAssignedChildStopped()
+		f.waitAssignedSessionReleased()
 		f.prepareReplacementSession(manifest.Publication.PresentationId)
 		f.assertRejectedStaleConnection(staleViewerToken, viewer.manifest.ProjectionProfile.RequiredRuntimeCapabilities)
 		f.assertRejectedNativeConnection(bootstrap.Credential, manifest.ProjectionProfile.RequiredRuntimeCapabilities, nil)

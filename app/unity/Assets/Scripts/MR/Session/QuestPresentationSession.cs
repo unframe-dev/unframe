@@ -7,7 +7,7 @@ using UnityEngine;
 public sealed class QuestPresentationSession : MonoBehaviour
 {
     [SerializeField] private QuestPresentationEntry entry;
-    [SerializeField] private ArucoPresentationCalibration calibrationSource;
+    [SerializeField] private AprilTagPresentationCalibration calibrationSource;
     [Header("Application connection")]
     [SerializeField] private string controlPlaneEndpoint;
     [SerializeField] private string webEndpoint;

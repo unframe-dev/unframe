@@ -11,6 +11,7 @@
   "include": [
     "*.ts",
     "../presentation-sample/lifecycle.mts",
-    "../presentation-sample/lifecycle.test.mts"
+    "../presentation-sample/lifecycle.test.mts",
+    "../ci/opaque-capture.test.mts"
   ]
 }

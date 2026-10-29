@@ -12,8 +12,8 @@ public sealed class PassthroughCameraDeviceSceneTests
     [Test]
     public void SavedLocalPresentationSceneIncludesDetectionAndAlignmentComponents()
     {
-        string serialized = File.ReadAllText(ArucoPresentationTestEditor.ScenePath);
-        foreach (string script in new[] { "MarkerDetection/ArucoCameraMarkerDetection", "Alignment/ArucoOriginAlignment", "Alignment/ArucoOriginVisualizer" })
+        string serialized = File.ReadAllText(AprilTagPresentationTestEditor.ScenePath);
+        foreach (string script in new[] { "MarkerDetection/AprilTagCameraMarkerDetection", "Alignment/AprilTagOriginAlignment", "Alignment/AprilTagOriginVisualizer" })
         {
             string guid = AssetDatabase.AssetPathToGUID("Assets/Scripts/MR/" + script + ".cs");
             Assert.That(guid.Length, Is.EqualTo(32), script + " must be imported before preparing the scene.");
@@ -24,7 +24,7 @@ public sealed class PassthroughCameraDeviceSceneTests
     [Test]
     public void LocalPresentationSceneHasAPermissionGatedCameraAndTransparentXrBackground()
     {
-        var scene = EditorSceneManager.OpenScene(ArucoPresentationTestEditor.ScenePath, OpenSceneMode.Additive);
+        var scene = EditorSceneManager.OpenScene(AprilTagPresentationTestEditor.ScenePath, OpenSceneMode.Additive);
         try
         {
             var roots = scene.GetRootGameObjects();
@@ -41,8 +41,8 @@ public sealed class PassthroughCameraDeviceSceneTests
             Assert.That(head, Is.Not.Null);
             Assert.That(head.GetComponent<Camera>().backgroundColor.a, Is.Zero);
             Assert.That(head.GetComponent<Camera>().clearFlags, Is.EqualTo(CameraClearFlags.SolidColor));
-            Assert.That(preview.GetComponent<ArucoTrackingDiagnosticSession>(), Is.Not.Null);
-            Assert.That(preview.GetComponent<ArucoCameraMarkerDetection>(), Is.Not.Null);
+            Assert.That(preview.GetComponent<AprilTagTrackingDiagnosticSession>(), Is.Not.Null);
+            Assert.That(preview.GetComponent<AprilTagCameraMarkerDetection>(), Is.Not.Null);
             var manager = roots.SelectMany(root => root.GetComponentsInChildren<OVRManager>(true)).Single();
             Assert.That(manager.isInsightPassthroughEnabled, Is.True);
             Assert.That(new SerializedObject(manager).FindProperty("requestPassthroughCameraAccessPermissionOnStartup").boolValue, Is.False);

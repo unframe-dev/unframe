@@ -40,6 +40,70 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
         }
     }
 
+    [TestCase("runtime_unavailable", "runtime-unavailable")]
+    [TestCase("conflict", "session-not-available")]
+    [TestCase("session_ended", "session-not-available")]
+    public void ConflictResponseDistinguishesTemporaryRuntimeUnavailability(string code, string expected)
+    {
+        var worker = new Worker
+        {
+            Respond = _ => new HttpResponseMessage(HttpStatusCode.Conflict)
+            { Content = new StringContent("{\"error\":{\"code\":\"" + code + "\",\"message\":\"private details\"}}", System.Text.Encoding.UTF8, "application/json") }
+        };
+        using (var client = new HttpClient(worker))
+        {
+            var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session", _ => Task.FromResult("private-token"));
+            var error = Assert.ThrowsAsync<PresentationConnectionException>(() => connection.LoadDeliveryAsync(client, CancellationToken.None));
+            Assert.That(error.ErrorCode, Is.EqualTo(expected));
+            Assert.That(error.ToString(), Does.Not.Contain("private"));
+        }
+    }
+
+    [TestCase("runtime")]
+    [TestCase("busy")]
+    [TestCase("unavailable")]
+    [TestCase("network")]
+    [TestCase("timeout")]
+    public async Task TemporaryControlPlaneFailuresKeepRetryingUntilLocalCancellation(string failure)
+    {
+        int requests = 0;
+        using (var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+        {
+            var worker = new Worker
+            {
+                Respond = _ =>
+                {
+                    requests++;
+                    if (requests == 2)
+                    {
+                        cancellation.Cancel();
+                        cancellation.Token.ThrowIfCancellationRequested();
+                    }
+                    if (failure == "network") throw new HttpRequestException("offline");
+                    if (failure == "timeout") throw new TaskCanceledException("request timeout");
+                    if (failure == "busy") return new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+                    if (failure == "unavailable") return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+                    return new HttpResponseMessage(HttpStatusCode.Conflict)
+                    { Content = new StringContent("{\"error\":{\"code\":\"runtime_unavailable\"}}", System.Text.Encoding.UTF8, "application/json") };
+                }
+            };
+            var gameObject = new UnityEngine.GameObject("runtime-recovery-test");
+            try
+            {
+                var runtime = gameObject.AddComponent<PresentationBakedRuntime>();
+                var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session", _ => Task.FromResult("private-token"), httpHandlerFactory: () => worker);
+                Task run = connection.RunAsync(runtime, cancellation.Token);
+                Task completed = await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(5)));
+                Assert.That(completed, Is.SameAs(run));
+                Assert.That(run.Exception, Is.Null);
+                Assert.That(run.IsCanceled, Is.True);
+                Assert.That(requests, Is.EqualTo(2));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(gameObject); }
+        }
+        await Task.CompletedTask;
+    }
+
     [Test]
     public void ControlPlaneConnectionRejectsAnInsecureOrigin()
     {

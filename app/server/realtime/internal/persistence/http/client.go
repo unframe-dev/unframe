@@ -97,6 +97,8 @@ type ResponseError struct {
 	StatusCode int
 }
 
+func (e *ResponseError) Retryable() bool { return e.StatusCode == 429 || e.StatusCode >= 500 }
+
 func (e *ResponseError) Error() string {
 	return fmt.Sprintf("persistence callback %s failed with HTTP status %d", e.Operation, e.StatusCode)
 }

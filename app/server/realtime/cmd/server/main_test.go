@@ -69,7 +69,7 @@ func TestRunReturnsServeFailure(t *testing.T) {
 		t.Fatalf("close listener: %v", err)
 	}
 
-	if err := run(context.Background(), listener, testDependencies(t), func(context.Context) error { return nil }); err == nil {
+	if err := run(context.Background(), listener, testDependencies(t), func(context.Context) error { return nil }, testShutdownBudget(t)); err == nil {
 		t.Fatal("run() error = nil, want Serve failure")
 	}
 }
@@ -82,7 +82,7 @@ func TestRunRejectsFailedApplicationReadiness(t *testing.T) {
 		t.Fatalf("listen: %v", err)
 	}
 	readinessErr := errors.New("jwks unavailable")
-	if err := run(context.Background(), listener, testDependencies(t), func(context.Context) error { return readinessErr }); !errors.Is(err, readinessErr) {
+	if err := run(context.Background(), listener, testDependencies(t), func(context.Context) error { return readinessErr }, testShutdownBudget(t)); !errors.Is(err, readinessErr) {
 		t.Fatalf("run() error = %v, want %v", err, readinessErr)
 	}
 }
@@ -371,5 +371,34 @@ func TestRevokedLeasePausesRuntimeClockAndRejectsResume(t *testing.T) {
 	command := &realtimev2.RuntimeControlCommand{ClientEventId: "1:12345678-1234-4123-8123-123456789abc", CommandEpoch: 1, PresentationOriginVersion: snapshot.PresentationOrigin.Version, Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME}
 	if _, events, err := runtime.RuntimeControl(context.Background(), session.Identity{ParticipantID: "presenter-1", Role: session.RolePresenter}, command); !errors.Is(err, assignment.ErrInvalidAssignment) || len(events) != 0 {
 		t.Fatalf("revoked runtime resume: events=%v err=%v", events, err)
+	}
+}
+
+func TestStandaloneCloudRuntimeRequiresManagedFreshAssignment(t *testing.T) {
+	if err := validateStandaloneRuntimeKind(assignment.RuntimeKindCloud); err == nil {
+		t.Fatal("standalone Cloud could reuse an execution epoch")
+	}
+	if err := validateStandaloneRuntimeKind(assignment.RuntimeKindVenueEdge); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func testShutdownBudget(t *testing.T) func() context.Context {
+	get, cancel := newShutdownBudget()
+	t.Cleanup(cancel)
+	return get
+}
+func TestListenerAndCheckpointShareShutdownDeadline(t *testing.T) {
+	get, cancel := newShutdownBudget()
+	defer cancel()
+	first, second := get(), get()
+	a, _ := first.Deadline()
+	b, _ := second.Deadline()
+	if first != second || !a.Equal(b) {
+		t.Fatal("shutdown stages did not share one budget")
+	}
+	cancel()
+	if first.Err() != context.Canceled || second.Err() != context.Canceled {
+		t.Fatal("shared shutdown did not cancel both stages")
 	}
 }

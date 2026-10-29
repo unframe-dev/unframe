@@ -85,6 +85,7 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     using (HttpClient client = new HttpClient(httpHandlerFactory == null ? new HttpClientHandler { AllowAutoRedirect = false } : httpHandlerFactory()) { Timeout = TimeSpan.FromSeconds(30) })
                     {
+                        int unavailableAttempt = 0;
                         for (int attempt = 0; ; attempt++)
                         {
                             try
@@ -110,6 +111,12 @@ namespace Unframe.Unity.PresentationRuntime
                                 await runtime.RunAsync(delivery, new Uri(endpoint), RefreshCredential, lifetime.Token, fingerprint, host.EncodedCache, httpHandlerFactory, realtimeHandlerFactory,
                                     diagnostics?.ForRuntime(runtimeId, initial.assignmentEpoch, initial.publicationFence.publicationEpoch));
                                 return;
+                            }
+                            catch (Exception exception) when (PresentationConnectionErrors.CanRetryControlPlane(exception) && !lifetime.IsCancellationRequested)
+                            {
+                                await Task.Delay(Math.Min(5000, 250 * (1 << unavailableAttempt)), lifetime.Token);
+                                unavailableAttempt = Math.Min(5, unavailableAttempt + 1);
+                                attempt = -1;
                             }
                             catch (PresentationDeliveryReloadRequiredException) when (attempt < 5)
                             {
@@ -161,7 +168,7 @@ namespace Unframe.Unity.PresentationRuntime
                 using (HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token))
                 {
                     diagnostics?.Record("http.response", kind: "Delivery", direction: "receive", code: "http-" + (int)response.StatusCode);
-                    if (!response.IsSuccessStatusCode) throw new PresentationConnectionException(PresentationConnectionErrors.FromHttpStatus(response.StatusCode));
+                    if (!response.IsSuccessStatusCode) throw await ResponseFailureAsync(response, token);
                     if (response.Content.Headers.ContentType?.MediaType != "application/x-protobuf")
                         throw new PresentationConnectionException("delivery-incompatible");
                     byte[] bytes = await ReadBoundedAsync(response.Content, 16 * 1024 * 1024, token);
@@ -183,7 +190,7 @@ namespace Unframe.Unity.PresentationRuntime
             using (HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token))
             {
                 diagnostics?.Record("http.response", kind: "Bootstrap", direction: "receive", code: "http-" + (int)response.StatusCode);
-                if (!response.IsSuccessStatusCode) throw new PresentationConnectionException(PresentationConnectionErrors.FromHttpStatus(response.StatusCode));
+                if (!response.IsSuccessStatusCode) throw await ResponseFailureAsync(response, token);
                 if (response.Content.Headers.ContentType?.MediaType != "application/json")
                     throw new PresentationConnectionException("bootstrap-incompatible");
                 byte[] bytes = await ReadBoundedAsync(response.Content, 64 * 1024, token);
@@ -204,6 +211,26 @@ namespace Unframe.Unity.PresentationRuntime
                 diagnostics?.ForRuntime(result.runtimeId, result.assignmentEpoch, result.publicationFence.publicationEpoch).Record("bootstrap.received", direction: "receive");
                 return result;
             }
+        }
+
+        private static async Task<PresentationConnectionException> ResponseFailureAsync(HttpResponseMessage response, CancellationToken token)
+        {
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict
+                && string.Equals(response.Content.Headers.ContentType?.MediaType, "application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    byte[] bytes = await ReadBoundedAsync(response.Content, 64 * 1024, token);
+                    Struct body = JsonParser.Default.Parse<Struct>(System.Text.Encoding.UTF8.GetString(bytes));
+                    if (body.Fields.TryGetValue("error", out Value error) && error.KindCase == Value.KindOneofCase.StructValue
+                        && error.StructValue.Fields.TryGetValue("code", out Value code) && code.KindCase == Value.KindOneofCase.StringValue
+                        && code.StringValue == "runtime_unavailable")
+                        return new PresentationConnectionException("runtime-unavailable");
+                }
+                catch (Exception) when (!token.IsCancellationRequested) { }
+            }
+            token.ThrowIfCancellationRequested();
+            return new PresentationConnectionException(PresentationConnectionErrors.FromHttpStatus(response.StatusCode));
         }
 
         private static Bootstrap ParseBootstrap(string json)

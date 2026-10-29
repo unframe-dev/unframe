@@ -1,6 +1,7 @@
+import { seedCloudHost } from "../../fixtures/runtime-host";
 import { checkpointEnvelope } from "../../fixtures/checkpoint";
 import { env } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi, assert } from "vitest";
 import definition from "../../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../../../../packages/contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../../../../packages/contracts/presentation/fixtures/asset-set-manifest.json";
@@ -116,6 +117,8 @@ const seed = async () => {
 describe("publication service", () => {
   beforeAll(seed);
   beforeEach(async () => {
+    await seedCloudHost("runtime-demo", "https://runtime.example.test");
+    await seedCloudHost("new-runtime", "https://new.test");
     await env.DB.batch([
       env.DB.prepare("DELETE FROM presentation_sessions WHERE presentation_id = 'demo'"),
       env.DB.prepare("DELETE FROM presentation_publications WHERE presentation_id = 'demo'"),
@@ -143,7 +146,7 @@ describe("publication service", () => {
         "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, created_at, publication_epoch) VALUES ('anonymous-live', 'demo', ?, ?, 'Presenting', '2026', 1)",
       ).bind(owner.userId, await sha256JoinCode("PLAY-ABCD")),
       env.DB.prepare(
-        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES ('anonymous-live', 'runtime-demo', 'Cloud', 'https://runtime.example.test', 1, 1, '2026', '2099-01-01T00:00:00.000Z')",
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at, host_generation) VALUES ('anonymous-live', 'runtime-demo', 'Cloud', 'https://runtime.example.test', 1, 1, '2026', '2099-01-01T00:00:00.000Z', 1)",
       ),
     ]);
     const app = createApp();
@@ -165,6 +168,27 @@ describe("publication service", () => {
     expect(
       (await request("/sessions/join", { joinCode: "PLAY-ABCD" }, credential.token)).status,
     ).toBe(200);
+    const preparingDelivery = await request(
+      "/sessions/anonymous-live/delivery",
+      { capabilityProfileId: audienceWebCapabilityProfileId },
+      credential.token,
+    );
+    expect(preparingDelivery.status).toBe(409);
+    await expect(preparingDelivery.json()).resolves.toMatchObject({
+      error: { code: "runtime_unavailable" },
+    });
+    const preparingBootstrap = await request(
+      "/sessions/anonymous-live/bootstrap",
+      {},
+      credential.token,
+    );
+    expect(preparingBootstrap.status).toBe(409);
+    await expect(preparingBootstrap.json()).resolves.toMatchObject({
+      error: { code: "runtime_unavailable" },
+    });
+    await env.DB.prepare(
+      "UPDATE runtime_assignments SET execution_state = 'ready' WHERE session_id = 'anonymous-live'",
+    ).run();
     const delivery = await request(
       "/sessions/anonymous-live/delivery",
       { capabilityProfileId: audienceWebCapabilityProfileId },
@@ -189,6 +213,33 @@ describe("publication service", () => {
       .bind(credential.participantId)
       .first();
     expect(participant).toEqual({ role: "viewer" });
+    await env.DB.prepare(
+      "DELETE FROM runtime_assignments WHERE session_id = 'anonymous-live'",
+    ).run();
+    const recovering = await request("/sessions/anonymous-live/bootstrap", {}, credential.token);
+    expect(recovering.status).toBe(409);
+    await expect(recovering.json()).resolves.toMatchObject({
+      error: { code: "runtime_unavailable" },
+    });
+    const unavailableDelivery = await request(
+      "/sessions/anonymous-live/delivery",
+      { capabilityProfileId: audienceWebCapabilityProfileId },
+      credential.token,
+    );
+    expect(unavailableDelivery.status).toBe(409);
+    await expect(unavailableDelivery.json()).resolves.toMatchObject({
+      error: { code: "runtime_unavailable" },
+    });
+    await env.DB.prepare(
+      "UPDATE presentation_sessions SET publication_epoch = NULL WHERE id = 'anonymous-live'",
+    ).run();
+    const invalidSession = await request(
+      "/sessions/anonymous-live/bootstrap",
+      {},
+      credential.token,
+    );
+    expect(invalidSession.status).toBe(409);
+    await expect(invalidSession.json()).resolves.toMatchObject({ error: { code: "conflict" } });
   });
   it("accepts a canonical build through the bounded HTTP route", async () => {
     const response = await createApp({ identityProvider: async () => owner }).fetch(
@@ -435,6 +486,70 @@ describe("publication service", () => {
     ).rejects.toMatchObject({ code: "conflict" });
   });
 
+  it("claims a Venue Edge execution once per assignment epoch, including before the first checkpoint", async () => {
+    const service = new PublicationService(env.DB, env.ASSETS);
+    const { copy, bytes } = await publishable();
+    await service.createBuild(owner, "demo", upload(copy));
+    for (const [id, descriptor] of Object.entries(copy.assetSet.assets)) {
+      await service.uploadAsset(
+        owner,
+        "demo",
+        copy.buildManifest.buildId,
+        id,
+        bytes[id]!,
+        descriptor.mediaType,
+      );
+    }
+    await service.publish(owner, "demo", copy.buildManifest.buildId, null);
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO venue_edges (id,runtime_id,status,last_seen_at,created_at) VALUES ('execution-edge','edge-runtime','active','2099','2026')",
+      ),
+      env.DB.prepare(
+        "INSERT INTO presentation_sessions (id,presentation_id,presenter_id,join_code_hash,state,created_at,publication_epoch) VALUES ('edge-execution-session','demo',?,'execution-hash','Presenting','2026',1)",
+      ).bind(owner.userId),
+      env.DB.prepare(
+        "INSERT INTO runtime_assignments (session_id,runtime_id,runtime_kind,endpoint,provisioning_edge_id,epoch,revision,issued_at,lease_expires_at) VALUES ('edge-execution-session','edge-runtime','VenueEdge','https://edge.test','execution-edge',1,1,'2026','2099')",
+      ),
+    ]);
+    const app = createApp();
+    const path =
+      "https://example.test/internal/runtime/bootstrap?sessionId=edge-execution-session&runtimeId=edge-runtime&assignmentEpoch=1";
+    const bootstrap = (bootId?: string) =>
+      app.fetch(
+        new Request(`${path}${bootId ? `&executionBootId=${bootId}` : ""}`, {
+          headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` },
+        }),
+        runtimeEnvironment(),
+      );
+    expect((await bootstrap()).status).toBe(409);
+    const claims = await Promise.all([bootstrap("first-process"), bootstrap("concurrent-process")]);
+    expect(claims.map((response) => response.status).sort()).toEqual([200, 409]);
+    const winningBoot = claims[0]!.status === 200 ? "first-process" : "concurrent-process";
+    const first = claims.find((response) => response.status === 200);
+    assert.isDefined(first);
+    await expect(first.json()).resolves.toMatchObject({ checkpoint: null });
+    expect((await bootstrap(winningBoot)).status).toBe(200);
+    expect((await bootstrap("restarted-process")).status).toBe(409);
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE runtime_assignments SET released_at = '2026' WHERE session_id = 'edge-execution-session' AND epoch = 1",
+      ),
+      env.DB.prepare(
+        "INSERT INTO runtime_assignments (session_id,runtime_id,runtime_kind,endpoint,provisioning_edge_id,epoch,revision,issued_at,lease_expires_at) SELECT session_id,runtime_id,runtime_kind,endpoint,provisioning_edge_id,2,revision,issued_at,lease_expires_at FROM runtime_assignments WHERE session_id = 'edge-execution-session' AND epoch = 1",
+      ),
+    ]);
+    const newEpoch = await app.fetch(
+      new Request(
+        `${path.replace("assignmentEpoch=1", "assignmentEpoch=2")}&executionBootId=restarted-process`,
+        { headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` } },
+      ),
+      runtimeEnvironment(),
+    );
+    expect(newEpoch.status).toBe(200);
+    expect((await bootstrap(winningBoot)).status).toBe(409);
+  });
+
   it("validates stored v3 checkpoints and byte limits before runtime bootstrap", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);
     const { copy, bytes } = await publishable();
@@ -455,16 +570,45 @@ describe("publication service", () => {
         "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, created_at, publication_epoch) VALUES ('publication-runtime-session', 'demo', ?, 'publication-runtime-hash', 'Presenting', '2026', 1)",
       ).bind(owner.userId),
       env.DB.prepare(
-        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES ('publication-runtime-session', 'runtime-demo', 'Cloud', 'https://runtime.example.test', 1, 1, '2026', '2099-01-01T00:00:00.000Z')",
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at, host_generation, execution_state) VALUES ('publication-runtime-session', 'runtime-demo', 'Cloud', 'https://runtime.example.test', 1, 1, '2026', '2099-01-01T00:00:00.000Z', 1, 'ready')",
       ),
     ]);
     const app = createApp();
     const runtimePath =
       "https://example.test/internal/runtime/bootstrap?sessionId=publication-runtime-session&runtimeId=runtime-demo&assignmentEpoch=1";
-    const storedEnvelope = await checkpointEnvelope("publication-runtime-session");
+    const invalidCloudBoot = await app.fetch(
+      new Request(`${runtimePath}&executionBootId=standalone-process`, {
+        headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` },
+      }),
+      runtimeEnvironment(),
+    );
+    expect(invalidCloudBoot.status).toBe(409);
+    const initial = await app.fetch(
+      new Request(runtimePath, {
+        headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` },
+      }),
+      runtimeEnvironment(),
+    );
+    expect(initial.status).toBe(200);
+    await expect(initial.json()).resolves.toMatchObject({
+      checkpoint: null,
+      checkpointSource: null,
+    });
+    const pinned = (await service.publishedArtifacts("demo", 1)).publishedPresentation;
+    const storedEnvelope = {
+      ...(await checkpointEnvelope("publication-runtime-session")),
+      runtimeId: "runtime-demo",
+      publication: {
+        presentationId: pinned.presentationId,
+        publicationEpoch: String(pinned.publicationEpoch),
+        publicationManifestHash: pinned.publicationManifestHash,
+      },
+      definitionHash: pinned.definitionHash,
+      renderBundleHash: pinned.renderBundleHash,
+    };
     for (const [payload, status] of [
-      [JSON.stringify("あ".repeat(524288)), 413],
-      [JSON.stringify({ ...storedEnvelope, schemaVersion: 2 }), 400],
+      [JSON.stringify("あ".repeat(524288)), 409],
+      [JSON.stringify({ ...storedEnvelope, schemaVersion: 2 }), 409],
       [JSON.stringify(storedEnvelope), 200],
     ] as const) {
       await env.DB.prepare(
@@ -479,11 +623,63 @@ describe("publication service", () => {
         runtimeEnvironment(),
       );
       expect(restored.status).toBe(status);
-      if (status === 413)
-        await expect(restored.json()).resolves.toMatchObject({
-          error: { code: "checkpoint_payload_too_large" },
-        });
     }
+    for (const corrupt of [
+      { ...storedEnvelope, sessionId: "other-session" },
+      { ...storedEnvelope, checkpointSequence: "2" },
+      { ...storedEnvelope, reliableSequence: "6" },
+      { ...storedEnvelope, runtimeId: "missing-runtime" },
+      { ...storedEnvelope, runtimeKind: "RUNTIME_KIND_VENUE_EDGE" },
+      { ...storedEnvelope, assignmentEpoch: "2" },
+      { ...storedEnvelope, definitionHash: `sha256:${"0".repeat(64)}` },
+      { ...storedEnvelope, renderBundleHash: `sha256:${"0".repeat(64)}` },
+      { ...storedEnvelope, publication: { ...storedEnvelope.publication, publicationEpoch: "2" } },
+    ]) {
+      await env.DB.prepare(
+        "UPDATE session_checkpoints SET payload = ? WHERE session_id = 'publication-runtime-session'",
+      )
+        .bind(JSON.stringify(corrupt))
+        .run();
+      const response = await app.fetch(
+        new Request(runtimePath, {
+          headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` },
+        }),
+        runtimeEnvironment(),
+      );
+      expect(response.status).toBe(409);
+    }
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE session_checkpoints SET payload = ? WHERE session_id = 'publication-runtime-session'",
+      ).bind(JSON.stringify(storedEnvelope)),
+      env.DB.prepare(
+        "UPDATE runtime_assignments SET released_at = '2026' WHERE session_id = 'publication-runtime-session'",
+      ),
+      env.DB.prepare(
+        "INSERT INTO runtime_assignments (session_id,runtime_id,runtime_kind,endpoint,epoch,revision,issued_at,lease_expires_at,host_generation) VALUES ('publication-runtime-session','new-runtime','Cloud','https://new.test',2,1,'2026','2099',1)",
+      ),
+    ]);
+    const restored = await app.fetch(
+      new Request(
+        runtimePath.replace(
+          "runtimeId=runtime-demo&assignmentEpoch=1",
+          "runtimeId=new-runtime&assignmentEpoch=2",
+        ),
+        { headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` } },
+      ),
+      runtimeEnvironment(),
+    );
+    expect(restored.status).toBe(200);
+    await expect(restored.json()).resolves.toMatchObject({
+      assignment: { runtimeId: "new-runtime", assignmentEpoch: 2 },
+      checkpoint: storedEnvelope,
+      checkpointSource: {
+        runtimeId: "runtime-demo",
+        runtimeKind: "Cloud",
+        assignmentEpoch: 1,
+        checkpointSequence: 1,
+      },
+    });
   });
   it("publishes verified R2 bytes atomically and refuses updates during active use", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);
@@ -624,8 +820,8 @@ describe("publication service", () => {
       ).bind(owner.userId),
       env.DB.prepare(
         `INSERT INTO runtime_assignments
-         (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at)
-         VALUES ('publication-runtime-session', 'runtime-demo', 'Cloud', 'https://runtime.example.test', 1, 1, '2026-01-01T00:00:00.000Z', '2099-01-01T00:00:00.000Z')`,
+         (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at, host_generation, execution_state)
+         VALUES ('publication-runtime-session', 'runtime-demo', 'Cloud', 'https://runtime.example.test', 1, 1, '2026-01-01T00:00:00.000Z', '2099-01-01T00:00:00.000Z', 1, 'ready')`,
       ),
     ]);
     const runtimePath =

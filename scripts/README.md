@@ -2,15 +2,16 @@
 
 タスクの実処理を置くディレクトリです。公式な実行入口は `flake.nix` の apps で、`flake.nix` はここにあるスクリプトをラップします。
 
-| ディレクトリ           | 役割                                      |
-| ---------------------- | ----------------------------------------- |
-| `lib/`                 | 共有ヘルパ（パス定数 `paths.sh` など）    |
-| `ci/`                  | 品質ゲート                                |
-| `contracts/`           | 契約生成と生成物の差分検査                |
-| `dev/`                 | 依存関係・Git hook のセットアップ         |
-| `unity/`               | Unity Editor の起動と WebGL Preview build |
-| `presentation-sample/` | Unity Editor 向けサンプル配信             |
-| `realtime-e2e/`        | 実サービスでの混在接続・同期・復旧 E2E    |
+| ディレクトリ           | 役割                                        |
+| ---------------------- | ------------------------------------------- |
+| `lib/`                 | 共有ヘルパ（パス定数 `paths.sh` など）      |
+| `ci/`                  | 品質ゲート                                  |
+| `contracts/`           | 契約生成と生成物の差分検査                  |
+| `dev/`                 | 依存関係・Git hook のセットアップ           |
+| `unity/`               | Unity Editor の起動と WebGL Preview build   |
+| `presentation-sample/` | Unity Editor 向けサンプル配信               |
+| `realtime-e2e/`        | 実サービスでの混在接続・同期・復旧 E2E      |
+| `runtime-host/`        | Cloud Runtime Host の起動・macOS 配備物生成 |
 
 ```bash
 nix develop
@@ -20,6 +21,10 @@ nix run .#control-plane
 nix run .#presentation
 nix run .#unity-proto -- check
 nix run .#realtime
+nix run .#runtime-host
+nix run .#runtime-host-deploy -- "$PWD/.unframe/realtime-release" t4ko
+nix run .#runtime-host-funnel
+nix run .#runtime-host-funnel-deploy -- "$HOME/Library/Application Support/Unframe/Funnel" "$(id -un)"
 nix run .#realtime-e2e
 nix run .#console
 nix run .#local-editor
@@ -72,7 +77,11 @@ Opaque React capture は Linux では user namespace と memory / pids controlle
 nix develop --command scripts/ci/opaque-capture.sh
 ```
 
-通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。Linux では delegated scope を作り、macOS では native adapter を直接使用します。Opaque integration は通常の package unit test から分離しています。GitHub Actions では Linux / macOS ともに通常の品質チェックと Opaque 受入テストを独立した job（各上限45分）で並列実行し、両方の成功を集約 CI で必須とします。GitHub Actions の AppArmor 許可は Linux の専用 step の executable path に限定します。
+通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。Linux では delegated scope を作り、macOS では native adapter を直接使用します。Opaque integration は通常の package unit test から分離しています。GitHub Actions の AppArmor 許可は Linux の専用 step の executable path に限定します。
+
+Presentation CI の型・lint・共通単体テスト、契約生成・wire 互換性検査、参照 project の二回 build は Ubuntu で実行します。Ubuntu の Opaque integration は `renderer`、`cli-project`、`cli-author`、`cli-styles` の独立した4ジョブで並列実行し、各ジョブ内は直列にして cgroup の回収検査との競合を防ぎます。macOS は native filesystem、Darwin の隔離・回収、固定 Browser・locked font の描画、native Tailwind worker の検証に限定します。各ジョブの上限は45分で、集約 CI はすべての成功を必須とします。
+
+個別に実行する場合は `nix develop --command scripts/ci/opaque-capture.sh <suite>` を使います。Ubuntu 用の suite は上記4つ、macOS 用は `macos` です。引数省略時は、その OS の全 Opaque integration を実行します。
 
 PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と依存も固定します。OS を切り替えた場合は、移行先の同じ隔離 profile 内で `pnpm --filter @unframe/unframe-cli run presentation lock update <absolute-project-directory>` を実行します。`lock refresh` では runtime を切り替えません。
 

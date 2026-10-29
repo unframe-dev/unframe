@@ -9,6 +9,7 @@ import {
   getRuntimePreparationRoute,
   prepareRuntimeRoute,
   runtimeHostHeartbeatRoute,
+  runtimeHostStartRoute,
 } from "../../openapi";
 import type { RuntimeAssignmentRouteOptions } from "../runtime-assignments/routes";
 import { ServiceIdentity } from "../persistence-callback/service-identity";
@@ -41,6 +42,21 @@ export function createRuntimeHostRoutes(options: RuntimeAssignmentRouteOptions) 
       fail(context, 403, "forbidden", "Forbidden");
   };
   return app
+    .openapi(runtimeHostStartRoute, async (context) => {
+      if (
+        !(await new ServiceIdentity(context.get("config").SERVICE_IDENTITY_SECRET).authenticate(
+          context.req.raw,
+        ))
+      )
+        fail(context, 401, "unauthorized", "Unauthorized");
+      const result = await repository(context).start(
+        context.req.valid("param").runtimeId,
+        context.req.valid("json"),
+        now(),
+      );
+      if (!result) fail(context, 409, "conflict", "Stale boot or endpoint conflict");
+      return context.json(result, 200);
+    })
     .openapi(runtimeHostHeartbeatRoute, async (context) => {
       if (
         !(await new ServiceIdentity(context.get("config").SERVICE_IDENTITY_SECRET).authenticate(

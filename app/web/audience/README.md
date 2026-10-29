@@ -118,15 +118,13 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 既存Delivery／bootstrapを期限前に再取得する。初回は最短期限の30秒前、短い寿命では残り時間の半分を目安にし、最低1秒間隔。失敗時は元の有効接続を維持し、1／2／4秒の最大3回再試行する。期限到達・取消・退出・破棄では失効を優先し、遅延応答を受理しない。
 
-同じDelivery構造・assignmentの更新ではassetAccessだけを交換し、読み込み済み表示とカメラを維持する。新しいURLは以後の素材要求に使う。assignmentなどの変更時はカメラを維持しながらRuntimeを作り直し、新しいSnapshotを待つ。異なるpublication／profileの混在はHTTP接続制御で拒否する。API 資格も期限前に更新する。Runtime JWT の交換ではカメラを維持し、新 Snapshot と素材を再適用する。
+同じDelivery構造・assignmentの更新ではassetAccessだけを交換し、読み込み済み表示とカメラを維持する。新しいURLは以後の素材要求に使う。動画も署名付きURLと期限だけの更新では読み込み済みデコーダーと再生状態を維持し、checksumなど素材情報が変わった場合は再読み込みする。assignmentなどの変更時はカメラを維持しながらRuntimeを作り直し、新しいSnapshotを待つ。異なるpublication／profileの混在はHTTP接続制御で拒否する。API 資格も期限前に更新する。Runtime JWT の交換ではカメラを維持し、新 Snapshot と素材を再適用する。
 
-production build は追跡済み `.env.production` により `https://api.un-fra.me` へ接続します。別環境ではビルド時に `VITE_AUDIENCE_API_ORIGIN` を指定します。開発時は `.env.example` を基にローカル設定を用意してください。
-
-接続設定は `VITE_AUDIENCE_API_ORIGIN`（HTTPS origin）のみ。未設定なら参加不可として案内する。対応形式と資源予算は共有定義で管理し、profile IDはその内容のSHA-256から算出する。環境変数でprofileを選択しない。資格はメモリのみで、永続保存・リロード後の自動復帰は実装しない。
+接続設定は `VITE_AUDIENCE_API_ORIGIN`（HTTPS origin）のみ。 production build は `.env.production` の `https://api.un-fra.me` を使用する。別環境へ接続する場合は build 時の環境変数で上書きする。未設定なら参加不可として案内する。対応形式と資源予算は共有定義で管理し、profile IDはその内容のSHA-256から算出する。環境変数でprofileを選択しない。資格はメモリのみで、永続保存・リロード後の自動復帰は実装しない。
 
 ## 会場設定
 
-製品視聴ではロードした設定のboard ID・revision・黒外周実寸・配置・presentationToVenueを保持し、size queryやサイズ編集で上書きしない。現在は `src/fiducials/default-board.json` の暫定設定をbundleから読み込む。会場原点とpresentationToVenueはidentity、黒外周15cm・ID 0で固定され、session固有の校正設定ではない。ルームごとの設定配布元・取得権限・revision更新時の扱いは外部担当と確定する。
+製品視聴ではロードした設定のboard ID・revision・配置・presentationToVenueを保持し、size queryでは上書きしない。視聴メニューで黒いマーカー外周の一辺を500・400・250・150mmから選択できる（既定150mm）。白余白は寸法に含めず、Unity MRの登壇側と同じ実寸を選ぶ。変更時は既存の追跡・位置合わせ・Runtime受信を破棄するため、カメラを開始して位置合わせをやり直す。選択はこの視聴画面内だけに適用し、サーバーへ配布・保存しない。現在は `src/fiducials/default-board.json` の暫定設定をbundleから読み込む。会場原点とpresentationToVenueはidentity、初期値は黒外周15cm・ID 0であり、session固有の校正設定ではない。ルームごとの設定配布元・取得権限・revision更新時の扱いは外部担当と確定する。
 
 検証用の `/?tracking=1` とfixtureでは従来のsize指定を使う。`showGuides`は箱・軸等の描画可否だけを表し、設定モードを推測しない。
 

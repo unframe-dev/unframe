@@ -1,3 +1,4 @@
+import { seedCloudHost } from "../../fixtures/runtime-host";
 import { env } from "cloudflare:test";
 import { describe, expect, it, assert } from "vitest";
 import { createApp } from "../../../src/app";
@@ -6,6 +7,7 @@ import { runtimeEnvironment } from "../../runtime-environment";
 
 const seedSession = async () => {
   const sessionId = crypto.randomUUID();
+  await seedCloudHost("runtime", "https://runtime.example.com");
   const userId = `owner-${sessionId}`;
   const presentationId = `presentation-${sessionId}`;
   await env.DB.batch([
@@ -28,10 +30,28 @@ const seedSession = async () => {
     .bind(sessionId, presentationId, userId, `hash-${sessionId}`, "2026-01-01")
     .run();
   await env.DB.prepare(
-    "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES (?, 'runtime', 'Cloud', 'https://runtime.example.com', 1, 1, '2026-01-01', '2099-01-01')",
+    "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at, host_generation) VALUES (?, 'runtime', 'Cloud', 'https://runtime.example.com', 1, 1, '2026-01-01', '2099-01-01', 1)",
   )
     .bind(sessionId)
     .run();
+  await env.DB.batch([
+    env.DB.prepare(
+      "INSERT INTO presentation_builds (presentation_id,build_id,target_revision,artifacts,created_at) VALUES (?, 'build', 1, '{}', '2026')",
+    ).bind(presentationId),
+    env.DB.prepare(
+      "INSERT INTO presentation_publications (presentation_id,epoch,build_id,manifest,published_at) VALUES (?, 1, 'build', ?, '2026')",
+    ).bind(
+      presentationId,
+      JSON.stringify({
+        publicationManifestHash: `sha256:${"a".repeat(64)}`,
+        definitionHash: `sha256:${"b".repeat(64)}`,
+        renderBundleHash: `sha256:${"c".repeat(64)}`,
+      }),
+    ),
+    env.DB.prepare("UPDATE presentation_sessions SET publication_epoch = 1 WHERE id = ?").bind(
+      sessionId,
+    ),
+  ]);
   return sessionId;
 };
 
@@ -61,7 +81,14 @@ describe("persistence callback HTTP boundary", () => {
       version: 1,
       lastSequence: 5,
       idempotencyKey: "cp-1",
-      payload: await checkpointEnvelope(sessionId),
+      payload: {
+        ...(await checkpointEnvelope(sessionId)),
+        publication: {
+          presentationId: `presentation-${sessionId}`,
+          publicationEpoch: "1",
+          publicationManifestHash: `sha256:${"a".repeat(64)}`,
+        },
+      },
     };
     expect((await callback("/callbacks/checkpoints", checkpoint, "wrong-secret")).status).toBe(401);
     await expect((await callback("/callbacks/checkpoints", checkpoint)).json()).resolves.toEqual({

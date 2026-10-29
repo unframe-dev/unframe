@@ -19,8 +19,8 @@ public sealed class QuestPresentationSessionTests
         try
         {
             entry = host.AddComponent<QuestPresentationEntry>();
-            var alignment = host.AddComponent<ArucoOriginAlignment>();
-            var source = host.AddComponent<ArucoPresentationCalibration>();
+            var alignment = host.AddComponent<AprilTagOriginAlignment>();
+            var source = host.AddComponent<AprilTagPresentationCalibration>();
             source.Configure(alignment, host.transform);
             var session = host.AddComponent<QuestPresentationSession>();
             SetReference(entry, "questTrackingOrigin", host.transform);
@@ -70,8 +70,8 @@ public sealed class QuestPresentationSessionTests
         try
         {
             entry = host.AddComponent<QuestPresentationEntry>();
-            var alignment = host.AddComponent<ArucoOriginAlignment>();
-            var source = host.AddComponent<ArucoPresentationCalibration>();
+            var alignment = host.AddComponent<AprilTagOriginAlignment>();
+            var source = host.AddComponent<AprilTagPresentationCalibration>();
             source.Configure(alignment, host.transform);
             var session = host.AddComponent<QuestPresentationSession>();
             SetReference(entry, "questTrackingOrigin", host.transform);
@@ -107,8 +107,8 @@ public sealed class QuestPresentationSessionTests
         try
         {
             var entry = host.AddComponent<QuestPresentationEntry>();
-            var alignment = host.AddComponent<ArucoOriginAlignment>();
-            var source = host.AddComponent<ArucoPresentationCalibration>();
+            var alignment = host.AddComponent<AprilTagOriginAlignment>();
+            var source = host.AddComponent<AprilTagPresentationCalibration>();
             source.Configure(alignment, other.transform);
             var session = host.AddComponent<QuestPresentationSession>();
             SetReference(entry, "questTrackingOrigin", host.transform);
@@ -164,8 +164,8 @@ public sealed class QuestPresentationSessionTests
         try
         {
             entry = host.AddComponent<QuestPresentationEntry>();
-            var alignment = host.AddComponent<ArucoOriginAlignment>();
-            var source = host.AddComponent<ArucoPresentationCalibration>();
+            var alignment = host.AddComponent<AprilTagOriginAlignment>();
+            var source = host.AddComponent<AprilTagPresentationCalibration>();
             source.Configure(alignment, host.transform);
             var session = host.AddComponent<QuestPresentationSession>();
             SetReference(entry, "questTrackingOrigin", host.transform);

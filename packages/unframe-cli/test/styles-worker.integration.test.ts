@@ -43,10 +43,18 @@ beforeAll(async () => {
       },
     }),
   );
+  // The fixture reuses the installed repository lock; policy rechecks can fetch registry metadata.
   await execute(
     "pnpm",
-    ["install", "--ignore-scripts", "--ignore-pnpmfile", "--frozen-lockfile", "--offline"],
-    { cwd: installed, timeout: 120_000 },
+    [
+      "install",
+      "--ignore-scripts",
+      "--ignore-pnpmfile",
+      "--frozen-lockfile",
+      "--offline",
+      "--trust-lockfile",
+    ],
+    { cwd: installed, timeout: 60_000 },
   ).catch((error) => {
     throw new Error(`${error.message}\n${error.stdout}\n${error.stderr}`);
   });

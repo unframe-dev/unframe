@@ -32,7 +32,7 @@ export const getWorkerIsolationIdentity = () => {
   if (process.platform === "linux")
     return {
       backend: "bubblewrap-cgroup-v2",
-      policyVersion: 1,
+      policyVersion: 2,
       resources: {
         hardSubtreeLimits: true,
         memoryBytes: 1073741824,
@@ -43,7 +43,7 @@ export const getWorkerIsolationIdentity = () => {
   if (process.platform === "darwin" && process.arch === "arm64")
     return {
       backend: "seatbelt-process-group-monitor",
-      policyVersion: 5,
+      policyVersion: 6,
       resources: darwinResourceContract,
     } as const;
   throw unavailable("opaque capture requires Linux or macOS Apple Silicon");

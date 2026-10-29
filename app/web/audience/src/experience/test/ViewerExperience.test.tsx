@@ -384,7 +384,7 @@ test("素材準備中と終了を区別し、更新操作と退出をメニュ�
   act(() => input.applyControl({ connected: { connectionId: "test" } }));
   expect(screen.getByText("プレゼンテーションを準備しています")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "メニューを開く" }));
-  expect(screen.queryByRole("combobox")).toBeNull();
+  expect(screen.getByRole("combobox", { name: "マーカーサイズ（黒い外周）" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "接続情報を更新" }));
   expect(props.onRefresh).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "ルームから退出" }));
@@ -556,4 +556,68 @@ test("Snapshot再同期は明示restartで新inputへ復旧し古い回復callba
   expect(mock.applyControl).not.toHaveBeenCalled();
   await act(async () => inputs[1]!.applyControl(control));
   expect(document.querySelector("[data-phase]")?.getAttribute("data-phase")).toBe("viewing");
+});
+
+test("Runtime復旧待ちは旧受信を止めカメラを保持し新assignmentで受信を再開する", async () => {
+  const props = setup();
+  let previous!: RuntimeInput;
+  const release = vi.fn();
+  const onRuntimeInput = vi.fn((input: RuntimeInput) => {
+    previous = input;
+    return release;
+  });
+  const ui = render(<ViewerExperience {...props} onRuntimeInput={onRuntimeInput} />);
+  await start();
+  const oldInput = previous;
+  ui.rerender(
+    <ViewerExperience {...props} recovering refreshing onRuntimeInput={onRuntimeInput} />,
+  );
+  expect(release).toHaveBeenCalledOnce();
+  expect(mock.stop).not.toHaveBeenCalled();
+  expect(mock.dispose).not.toHaveBeenCalled();
+  act(() => oldInput.applyControl({ connected: { connectionId: "old" } }));
+  expect(mock.applyControl).not.toHaveBeenCalled();
+  const next = structuredClone(props.connection);
+  next.delivery.projectionInstance!.assignmentEpoch = "2";
+  next.bootstrap.assignmentEpoch = 2;
+  ui.rerender(<ViewerExperience {...props} connection={next} onRuntimeInput={onRuntimeInput} />);
+  expect(onRuntimeInput).toHaveBeenCalledTimes(2);
+  expect(mock.start).toHaveBeenCalledOnce();
+});
+
+test("マーカーの黒外周4サイズを選び、変更時に古い追跡とRuntime入力を破棄する", async () => {
+  const props = setup();
+  const disconnect = vi.fn();
+  let oldInput!: RuntimeInput;
+  render(
+    <ViewerExperience
+      {...props}
+      onRuntimeInput={(input) => {
+        oldInput = input;
+        return disconnect;
+      }}
+    />,
+  );
+  await start();
+  fireEvent.click(screen.getByRole("button", { name: "メニューを開く" }));
+  const select = screen.getByRole("combobox", { name: "マーカーサイズ（黒い外周）" });
+  expect(Array.from(select.querySelectorAll("option")).map((item) => item.value)).toEqual([
+    "500",
+    "400",
+    "250",
+    "150",
+  ]);
+  for (const size of [500, 400, 250, 150]) {
+    fireEvent.change(select, { target: { value: String(size) } });
+    await waitFor(() =>
+      expect(mock.configuredBoard).toMatchObject({
+        markers: [{ id: 0, sizeMeters: size / 1000 }],
+      }),
+    );
+  }
+  expect(disconnect).toHaveBeenCalled();
+  expect(mock.dispose).toHaveBeenCalled();
+  mock.applyControl.mockClear();
+  act(() => oldInput.applyControl({ connected: { connectionId: "stale" } }));
+  expect(mock.applyControl).not.toHaveBeenCalled();
 });

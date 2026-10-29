@@ -24,8 +24,8 @@ func main() {
 	defer client.CloseIdleConnections()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	supervisor := host.Supervisor{RuntimeID: config.RuntimeID, Endpoint: config.Endpoint, ControlPlane: host.HTTPControlPlane{Origin: config.ControlPlaneURL, RuntimeID: config.RuntimeID, ServiceIdentity: config.ServiceIdentity, Client: client}, Start: host.ProcessStarter(config)}
-	if err := supervisor.Run(ctx); err != nil {
+
+	if err := host.Run(ctx, config, client); err != nil {
 		slog.Error("Runtime Host stopped", "error", err)
 		os.Exit(1)
 	}

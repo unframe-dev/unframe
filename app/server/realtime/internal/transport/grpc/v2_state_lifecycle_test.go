@@ -61,7 +61,7 @@ func newV3LifecycleConnection(t *testing.T, service *V2Service, profile *deliver
 	t.Cleanup(func() {
 		cancel()
 		select {
-		case <-controlDone:
+		case <-controlDone: //nolint:errcheck // Cancellation ends the connection; cleanup only waits for completion.
 		case <-time.After(time.Second):
 			t.Error("Control did not close")
 		}
@@ -106,7 +106,7 @@ func newV3LifecycleConnection(t *testing.T, service *V2Service, profile *deliver
 	t.Cleanup(func() {
 		cancel()
 		select {
-		case <-stateDone:
+		case <-stateDone: //nolint:errcheck // Cancellation ends the connection; cleanup only waits for completion.
 		case <-time.After(time.Second):
 			t.Error("State did not close")
 		}

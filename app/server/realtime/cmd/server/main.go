@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -20,6 +22,7 @@ import (
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
 	transportgrpc "github.com/unframe-dev/unframe/app/server/realtime/internal/transport/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type v2CheckpointCallback struct {
@@ -101,9 +104,18 @@ const (
 	readinessCheckTimeout  = 5 * time.Second
 )
 
+func validateStandaloneRuntimeKind(kind assignment.RuntimeKind) error {
+	if kind == assignment.RuntimeKindCloud {
+		return errors.New("cloud runtime requires runtime-host to obtain a fresh assignment epoch")
+	}
+	return nil
+}
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	shutdownContext, releaseShutdown := newShutdownBudget()
+	defer releaseShutdown()
 
 	address := os.Getenv("REALTIME_LISTEN_ADDR")
 	if address == "" {
@@ -112,6 +124,10 @@ func main() {
 	config, err := loadConfig(os.Getenv)
 	if err != nil {
 		slog.Error("load realtime server configuration", "error", err)
+		os.Exit(1)
+	}
+	if err := validateStandaloneRuntimeKind(config.assignment.RuntimeKind); err != nil {
+		slog.Error("start realtime runtime", "error", err)
 		os.Exit(1)
 	}
 	httpClient, err := newHTTPClient(os.Getenv("SSL_CERT_FILE"))
@@ -136,7 +152,12 @@ func main() {
 		os.Exit(1)
 	}
 	persistence := persistencehttp.NewClient(persistencehttp.Config{BaseURL: config.controlPlaneURL, ServiceIdentity: config.serviceIdentity, HTTPClient: httpClient})
-	bootstrapRequest := persistencehttp.BootstrapRequest{SessionID: config.assignment.SessionID, RuntimeID: config.assignment.RuntimeID, RuntimeKind: config.assignment.RuntimeKind, AssignmentEpoch: config.assignment.AssignmentEpoch, PresentationRevision: config.assignment.PresentationRevision}
+	var executionBootID [16]byte
+	if _, err := rand.Read(executionBootID[:]); err != nil {
+		slog.Error("create runtime execution identity", "error", err)
+		os.Exit(1)
+	}
+	bootstrapRequest := persistencehttp.BootstrapRequest{ExecutionBootID: hex.EncodeToString(executionBootID[:]), SessionID: config.assignment.SessionID, RuntimeID: config.assignment.RuntimeID, RuntimeKind: config.assignment.RuntimeKind, AssignmentEpoch: config.assignment.AssignmentEpoch, PresentationRevision: config.assignment.PresentationRevision}
 	bootstrap, err := loadV2Bootstrap(ctx, persistence, guard, bootstrapRequest)
 	if err != nil {
 		slog.Error("load verified runtime bootstrap", "error", err)
@@ -180,11 +201,45 @@ func main() {
 			slog.Error("parse durable checkpoint", "error", err)
 			os.Exit(1)
 		}
-		if err := v2Runtime.RestoreCheckpoint(envelope); err != nil {
+		source := proto.Clone(metadata).(*realtimev2.DurableCheckpointEnvelope)
+		if bootstrap.CheckpointSource == nil {
+			slog.Error("missing durable checkpoint source")
+			os.Exit(1)
+		}
+		source.RuntimeId = bootstrap.CheckpointSource.RuntimeID
+		source.AssignmentEpoch = bootstrap.CheckpointSource.AssignmentEpoch
+		source.CheckpointSequence = bootstrap.CheckpointSource.CheckpointSequence
+		switch bootstrap.CheckpointSource.RuntimeKind {
+		case assignment.RuntimeKindCloud:
+			source.RuntimeKind = realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD
+		case assignment.RuntimeKindVenueEdge:
+			source.RuntimeKind = realtimev2.RuntimeKind_RUNTIME_KIND_VENUE_EDGE
+		default:
+			slog.Error("invalid checkpoint source runtime kind")
+			os.Exit(1)
+		}
+		if err := v2Runtime.RestoreCheckpointFromAssignmentContext(ctx, envelope, source); err != nil {
 			slog.Error("restore durable checkpoint", "error", err)
 			os.Exit(1)
 		}
 	}
+	if (len(bootstrap.Checkpoint) == 0 || string(bootstrap.Checkpoint) == "null") && config.assignment.AssignmentEpoch > 1 {
+		if err := v2Runtime.RecoverWithoutCheckpoint(ctx); err != nil {
+			slog.Error("recover runtime without checkpoint", "error", err)
+			os.Exit(1)
+		}
+	}
+	go func() {
+		if err := v2Runtime.RunCheckpointWorker(ctx, nil); err != nil && !errors.Is(err, context.Canceled) {
+			slog.Warn("checkpoint worker stopped", "error", err)
+		}
+	}()
+	defer func() {
+		shutdown := shutdownContext()
+		if err := v2Runtime.FlushCheckpoint(shutdown); err != nil {
+			slog.Warn("flush runtime checkpoint on shutdown", "error", err)
+		}
+	}()
 	v2Service, err := transportgrpc.NewV2Service(v2Runtime, bootstrap, persistence, auth.ContextIdentityResolver{}, guard)
 	if err != nil {
 		slog.Error("create v2 realtime service", "error", err)
@@ -237,19 +292,19 @@ func main() {
 		return verifier.Ready(ctx)
 	}
 	if config.assignment.RuntimeKind == assignment.RuntimeKindVenueEdge {
-		if err := runVenueEdge(ctx, listener, dependencies, readiness, persistence, bootstrap.Publication, httpClient); err != nil {
+		if err := runVenueEdge(ctx, listener, dependencies, readiness, persistence, bootstrap.Publication, httpClient, shutdownContext); err != nil {
 			slog.Error("venue edge stopped", "error", err)
 			os.Exit(1)
 		}
 		return
 	}
-	if err := run(ctx, listener, dependencies, readiness); err != nil {
+	if err := run(ctx, listener, dependencies, readiness, shutdownContext); err != nil {
 		slog.Error("realtime gRPC server stopped", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, listener net.Listener, dependencies transportgrpc.Dependencies, readiness func(context.Context) error) error {
+func run(ctx context.Context, listener net.Listener, dependencies transportgrpc.Dependencies, readiness func(context.Context) error, shutdownContext func() context.Context) error {
 	if readiness == nil {
 		return fmt.Errorf("application readiness check is required")
 	}
@@ -261,8 +316,7 @@ func run(ctx context.Context, listener net.Listener, dependencies transportgrpc.
 		return err
 	}
 	if err := checkApplicationReadiness(ctx, readinessCheckTimeout, readiness); err != nil {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+		shutdownCtx := shutdownContext()
 		_ = server.Shutdown(shutdownCtx)
 		return fmt.Errorf("realtime application is not ready: %w", err)
 	}
@@ -283,8 +337,7 @@ func run(ctx context.Context, listener net.Listener, dependencies transportgrpc.
 	case err := <-serveResult:
 		return err
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+		shutdownCtx := shutdownContext()
 		return server.Shutdown(shutdownCtx)
 	}
 }

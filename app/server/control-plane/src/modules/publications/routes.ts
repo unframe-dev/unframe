@@ -98,6 +98,7 @@ export function createPublicationRoutes(options: PublicationRouteOptions) {
           not_found: 404,
           forbidden: 403,
           conflict: 409,
+          runtime_unavailable: 409,
           invalid_build: 422,
           invalid_asset: 422,
         }[error.code] as 403 | 404 | 409 | 422;

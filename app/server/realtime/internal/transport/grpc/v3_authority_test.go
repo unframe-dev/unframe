@@ -46,7 +46,7 @@ func TestV3ControlSynchronizesPresenterAndDispatchesRecognizedInputs(t *testing.
 	t.Cleanup(func() {
 		cancel()
 		select {
-		case <-done:
+		case <-done: //nolint:errcheck // Cancellation ends the connection; cleanup only waits for completion.
 		case <-time.After(time.Second):
 			t.Error("control did not close")
 		}

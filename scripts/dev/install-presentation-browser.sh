@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Presentation Fixed Browser の明示的なローカル provision。通常の check は Browser を起動しない。
+# Presentation Fixed Browser の明示的なローカル provision。
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/paths.sh

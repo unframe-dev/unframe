@@ -158,43 +158,28 @@ func TestV3EntryHistoryCapacityRollsBackAndPauses(t *testing.T) {
 	}
 }
 
-func TestV3SelectStepFailureDoesNotPublishCandidate(t *testing.T) {
+func TestV3SelectStepPublishesBeforeCheckpointSave(t *testing.T) {
 	core, _ := reviewSession(t)
 	before, stream, closeStream := core.SnapshotAndSubscribe()
 	defer closeStream()
 	core.checkpointWriter = failingV2Checkpoint{}
-	outcome, events, err := core.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "failed-select", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_SELECT_STEP, StepSelection: &realtimev2.StepSelection{GroupId: "intro", StepId: "start"}}))
-	if err == nil || outcome != nil || len(events) != 0 || core.Snapshot().Progression.StepEntryEpoch != before.Progression.StepEntryEpoch || core.Snapshot().ReliableSequence != before.ReliableSequence || len(core.outcomes) != 0 {
-		t.Fatalf("out=%v events=%v err=%v", outcome, events, err)
+	outcome, events, err := core.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "select", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_SELECT_STEP, StepSelection: &realtimev2.StepSelection{GroupId: "intro", StepId: "start"}}))
+	if err != nil || outcome.GetAccepted() == nil || len(events) != 1 || core.Snapshot().Progression.StepEntryEpoch <= before.Progression.StepEntryEpoch {
+		t.Fatalf("memory select: %v %v", outcome, err)
+	}
+	if err := core.FlushCheckpoint(context.Background()); err == nil {
+		t.Fatal("expected save failure")
 	}
 	select {
 	case event := <-stream:
-		t.Fatalf("published uncommitted replacement: %v", event)
+		if event.GetRuntimeViewReplaced() == nil {
+			t.Fatal("replacement missing")
+		}
 	default:
+		t.Fatal("committed replacement not published")
 	}
-}
-
-func TestV3SelectStepCandidateIsHiddenWhileCheckpointWrites(t *testing.T) {
-	core, _ := reviewSession(t)
-	before := core.Snapshot()
-	entered, release := make(chan struct{}), make(chan struct{})
-	core.checkpointWriter = checkpointCommitObserver(func(*realtimev2.DurableCheckpointEnvelope) error { close(entered); <-release; return nil })
-	done := make(chan error, 1)
-	go func() {
-		_, _, err := core.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "pending-select", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_SELECT_STEP, StepSelection: &realtimev2.StepSelection{GroupId: "intro", StepId: "start"}}))
-		done <- err
-	}()
-	<-entered
-	observed := core.Snapshot()
-	close(release)
-	if err := <-done; err != nil {
-		t.Fatal(err)
-	}
-	if !proto.Equal(before, observed) {
-		t.Fatalf("candidate leaked: %v", observed)
-	}
-	if core.Snapshot().Clock.GetPaused() == nil || core.Snapshot().Progression.StepEntryEpoch <= before.Progression.StepEntryEpoch {
-		t.Fatal("committed replacement missing")
+	if core.Snapshot().Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_EXPLICIT_PAUSE {
+		t.Fatal("save failure changed pause")
 	}
 }
 
@@ -394,6 +379,7 @@ func TestV3CapacityFaultSurvivesCheckpointRecovery(t *testing.T) {
 	}
 	identity := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
 	out, _, err := core.LogicalInput(identity, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "capacity-recovery", LogicalEventName: "large"}))
+	flushV2(t, core)
 	if err != nil || out.GetRejected() == nil || writer.envelope == nil {
 		t.Fatalf("out=%v err=%v", out, err)
 	}
@@ -419,30 +405,23 @@ func TestV3CapacityFaultSurvivesCheckpointRecovery(t *testing.T) {
 	if err := recovered.JoinParticipant(context.Background(), identity); err != nil {
 		t.Fatalf("capacity fault reconnect: %v", err)
 	}
-	if recovered.Snapshot().Clock.GetPaused().GetReason() != realtimev2.PauseReason_PAUSE_REASON_PRESENTER_DISCONNECTED {
-		t.Fatal("reconnect did not change pause reason")
+	if recovered.Snapshot().Clock.GetPaused().GetReason() != realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION {
+		t.Fatal("reconnect did not preserve invariant fault")
 	}
 	if _, _, err := recovered.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(recovered, &realtimev2.RuntimeControlCommand{ClientEventId: "reconnect-resume", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME})); !errors.Is(err, ErrV3RuntimeCapacity) {
 		t.Fatalf("reconnect lost fault: %v", err)
 	}
 	recovered.checkpointWriter = failingV2Checkpoint{}
-	if _, _, err := recovered.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(recovered, &realtimev2.RuntimeControlCommand{ClientEventId: "failed-fault-select", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_SELECT_STEP, StepSelection: &realtimev2.StepSelection{GroupId: "intro", StepId: "start"}})); !errors.Is(err, ErrV2PersistenceUnavailable) {
-		t.Fatalf("failed select: %v", err)
+	if _, _, err := recovered.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(recovered, &realtimev2.RuntimeControlCommand{ClientEventId: "fault-select", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_SELECT_STEP, StepSelection: &realtimev2.StepSelection{GroupId: "intro", StepId: "start"}})); err != nil {
+		t.Fatal(err)
 	}
-	if recovered.Snapshot().Clock.GetPaused().GetReason() != realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED {
-		t.Fatal("failed select did not pause")
+	if err := recovered.FlushCheckpoint(context.Background()); err == nil {
+		t.Fatal("expected save failure")
 	}
-	saved := &recordingV2Checkpoint{}
-	recovered.checkpointWriter = saved
-	if err := recovered.JoinParticipant(context.Background(), session.Identity{Role: session.RoleViewer, ParticipantID: "viewer-after-failure"}); err != nil {
-		t.Fatalf("failed select fault persistence: %v", err)
+	if recovered.Snapshot().Clock.GetPaused() == nil {
+		t.Fatal("step select must remain paused")
 	}
-	if recovery, err := protocolv2.DecodeRecoveryMetadata(saved.envelope); err != nil || recovery.GetCapacityFault() == nil {
-		t.Fatalf("failed select discarded capacity fault: %v", err)
-	}
-	if _, _, err := recovered.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(recovered, &realtimev2.RuntimeControlCommand{ClientEventId: "failed-select-resume", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME})); !errors.Is(err, ErrV3RuntimeCapacity) {
-		t.Fatalf("failed select lost fault: %v", err)
-	}
+
 }
 
 func TestV3CheckpointRejectsHistoryForUnknownStep(t *testing.T) {
@@ -451,6 +430,7 @@ func TestV3CheckpointRejectsHistoryForUnknownStep(t *testing.T) {
 	if _, _, err := core.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "persist-history", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE})); err != nil {
 		t.Fatal(err)
 	}
+	flushV2(t, core)
 	malformed := core.Snapshot()
 	malformed.StepStartHistory[0].StepId = "unknown"
 	envelope, err := protocolv2.EncodeCheckpoint(malformed, writer.envelope, core.validationCatalog)

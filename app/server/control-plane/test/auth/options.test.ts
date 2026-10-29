@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../../src/app";
 import { createAuth, createAuthOptions } from "../../src/auth/options";
 import type { AuthMailer } from "../../src/auth/mail";
@@ -614,6 +614,82 @@ describe("Better Auth device authorization", () => {
     expect(authorizationUrl.searchParams.get("redirect_uri")).toBe(
       "https://example.com/api/auth/callback/google",
     );
+  });
+
+  it("establishes Google assurance through the OAuth callback and allows device authorization", async () => {
+    const email = `${crypto.randomUUID()}@example.com`;
+    const profile = { sub: crypto.randomUUID(), email, email_verified: true, name: "Google User" };
+    const idToken = `eyJhbGciOiJSUzI1NiJ9.${btoa(JSON.stringify(profile))}.test-signature`;
+    const originalFetch = globalThis.fetch;
+    const providerFetch = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url === "https://oauth2.googleapis.com/token") {
+        return Promise.resolve(
+          Response.json({
+            access_token: "test-google-token",
+            token_type: "Bearer",
+            id_token: idToken,
+          }),
+        );
+      }
+      return originalFetch(input, init);
+    });
+    try {
+      const signIn = await requestAuth("/sign-in/social", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          provider: "google",
+          callbackURL: "https://un-fra.me/device",
+          disableRedirect: true,
+        }),
+      });
+      const authorization = new URL(((await signIn.json()) as { url: string }).url);
+      const stateCookie = signIn.headers.get("set-cookie")!.split(";", 1)[0]!;
+      const callback = await requestAuth(
+        `/callback/google?code=test-code&state=${authorization.searchParams.get("state")}`,
+        {
+          headers: { cookie: stateCookie },
+        },
+      );
+      expect(callback.status).toBe(302);
+      expect(callback.headers.get("location")).toBe("https://un-fra.me/device");
+      const stored = await env.DB.prepare(
+        "SELECT session.assurance FROM session JOIN user ON session.userId = user.id WHERE user.email = ?",
+      )
+        .bind(email)
+        .first();
+      expect(stored).toMatchObject({ assurance: "google" });
+      const cookie = callback.headers
+        .get("set-cookie")!
+        .split(",")
+        .map((value) => value.trim().split(";", 1)[0])
+        .find((value) => value?.startsWith("__Secure-better-auth.session_token="));
+      expect(cookie).toBeTruthy();
+      const device = await issueDeviceCode();
+      const response = await createApp().fetch(
+        new Request(`https://example.com/api/auth/device?user_code=${device.user_code}`, {
+          headers: { cookie: cookie! },
+        }),
+        testEnvironment() as unknown as CloudflareBindings,
+      );
+      expect(response.status).toBe(200);
+      const approval = await createApp().fetch(
+        new Request("https://example.com/api/auth/device/approve", {
+          method: "POST",
+          headers: {
+            cookie: cookie!,
+            "content-type": "application/json",
+            origin: "https://un-fra.me",
+          },
+          body: JSON.stringify({ userCode: device.user_code }),
+        }),
+        testEnvironment() as unknown as CloudflareBindings,
+      );
+      expect(approval.status).toBe(200);
+    } finally {
+      providerFetch.mockRestore();
+    }
   });
 
   it("allows credentialed CORS only from the web origin", async () => {

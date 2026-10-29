@@ -63,10 +63,10 @@ public static class QuestMrSceneBuild
 
     private static void PrepareDiagnosticMaterial()
     {
-        const string path = "Assets/Resources/ArucoDiagnosticUnlit.mat";
+        const string path = "Assets/Resources/AprilTagDiagnosticUnlit.mat";
         if (AssetDatabase.LoadAssetAtPath<Material>(path) != null) return;
         var shader = Shader.Find("Universal Render Pipeline/Unlit");
-        if (shader == null) throw new InvalidOperationException("URP Unlit shader is required for the ArUco origin visualization.");
+        if (shader == null) throw new InvalidOperationException("URP Unlit shader is required for the AprilTag origin visualization.");
         var material = new Material(shader);
         AssetDatabase.CreateAsset(material, path);
         AssetDatabase.SaveAssets();
