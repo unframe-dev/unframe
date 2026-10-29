@@ -3,15 +3,16 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   lint: {
     ignorePatterns: [
+      "*.d.ts",
       "app/web/audience/vendor/**",
-      "app/web/audience/src/fiducials/generated-posit.mjs",
+      "packages/contracts/openapi/control-plane.openapi.json",
+      "packages/contracts/src/control-plane.openapi.ts",
     ],
   },
   fmt: {
     ignorePatterns: [
+      "*.d.ts",
       "app/web/audience/vendor/**",
-      "app/web/audience/src/fiducials/generated-posit.mjs",
-      "app/server/control-plane/src/worker-configuration.d.ts",
       "packages/contracts/openapi/control-plane.openapi.json",
       "packages/contracts/src/control-plane.openapi.ts",
     ],
