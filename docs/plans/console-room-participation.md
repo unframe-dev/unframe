@@ -1,6 +1,6 @@
 # Console からの Room 管理と参加導線
 
-更新日: 2026-10-30。状態: 段階的に実装中。Control Plane の Room 管理、Console／Audience の共有導線、Quest の認証保持・既存 Room／匿名参加を実装。無人終了は後続。
+更新日: 2026-10-30。状態: Room 管理、Console／Audience の共有導線、Quest の認証保持・参加、無人10分終了を実装。公開環境と実機での受入は未実施。
 
 Console・Quest・Audience・サーバーの実装担当者向けに、Room 作成から認証・参加・共有・終了までの到達点をまとめる。確定した要件と、後続の詳細計画で判断する事項を分ける。
 
@@ -57,12 +57,16 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 
 - Room 作成時刻から一定時間経過したことを理由には自動終了しない。作成後まだ誰も接続していない Room に、作成時刻起点のタイマーは設けない。
 - 実際に接続している参加者がゼロになった時点から、誰も再入室しない状態が10分続いたら Room を `Ended` にし、Runtime の割り当て・実行資源を解放する。登録済み参加者数では判定しない。
-- 10分以内に誰かが再入室したら無人タイマーを解除する。再びゼロになった時点から新たに10分を計測する。
+- 10分が経過する前に誰かが再入室したら無人タイマーを解除する。再びゼロになった時点から新たに10分を計測する。
 - Presenter の切断や一時停止だけでは、Viewer が接続している Room を終了しない。
 - Cloud Runtime Host は同一プロセス・接続先で複数 Room を扱い、Room ごとの状態を分離する。Room 作成と割り当ては別で、発表環境の準備から Host の枠を使う既存方式を維持する。
 - 配備設定例の `REALTIME_HOST_CAPACITY` は5に変更済み。稼働環境への反映・5 Room の収容負荷確認は未実施。Venue Edge の複数 Room 管理は今回の対象に含めない。
 
-## 現行実装との差分
+実接続は Realtime の Control 接続で判定する。初接続の履歴・最後の切断時刻・再入室による解除を永続化し、期限確認と入退室を直列化する。保存済みの無人開始時刻は再起動後も引き継ぐ。接続中のクラッシュなどで切断時刻を保存できなかった場合は復旧時から計時し、一度も接続していない Room では開始しない。
+
+終了は Control Plane が最終 checkpoint と割り当て解放を受理した時点で確定する。失敗時は終了確定を再試行し、確定後に対象 Room の Host 実行資源を停止する。未定義の `pauseTimeout` policy とは別の終了条件として扱う。
+
+## 実装状況
 
 以下はコード上の実装状況。公開環境・Quest 実機・QR 撮影での総合受入は未実施。
 
@@ -73,7 +77,7 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 | Quest                | Android の認証保持、所有 Room のページング一覧と Presenter 参加、資料からの新規作成、コードによる匿名 Viewer 参加・資格更新・退出を実装済み。実機の Keystore／JNI・接続受入は未実施。       |
 | Audience             | `/#join=ABCD-EFGH` を読み取り、入力済みの確認画面から匿名参加する。コードを読み取った後は URL の `join` を除く。手入力参加と明示カメラ開始も維持する。                                      |
 | Control Plane        | 作成・コード参加・取得・開始・終了に加え、作成者の Room 一覧と現在コードの取得・更新を提供する。コードは通常の Session 応答には含めず、更新後の旧コードは新規参加に使えない。               |
-| Realtime             | Presenter 切断時は実行を一時停止する。実接続者がゼロになってから10分後に Room を終了する機能はない。                                                                                        |
+| Realtime             | Presenter 切断時の一時停止に加え、実接続者ゼロから10分で終了・割り当て解放を行う。再入室・期限の永続化と復旧・終了再送を扱い、無人終了確定後に対象 Room の Host 実行資源を停止する。        |
 
 確認先: [Console](../../app/web/console/README.md)、[Quest onboarding](../../app/unity/Assets/Scripts/MR/Session/QuestOnboardingView.cs)、[Audience 入口](../../app/web/audience/src/connection/AudienceApplication.tsx)、[Session API](../../app/server/control-plane/src/modules/sessions/routes.ts)、[Runtime presence](../../app/server/realtime/internal/runtimecore/v2_presence.go)。
 
@@ -82,6 +86,5 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 次は会話中の候補・実装案であり、確定要件として扱わない。
 
 - 端末固有の識別・名称を管理する台帳と、認証セッションの個別失効 UI。現在は既存の認証セッション一覧と他セッション一括失効を使う。
-- 無人判定の信頼境界、切断検知、再入室と終了の競合、Host 再起動・障害時の計時と終了確定。
 
-後続では無人終了の永続化と競合制御を具体化し、実機・公開環境で受け入れを確認する。実装経緯は [複数 Session 管理](realtime-runtime-redesign.md) と [Presenter 認識の残作業](presenter-recognition-runtime-authority-refactor.md) を参照する。
+実機・公開環境での総合受入と5 Room の収容負荷確認が残る。実装経緯は [複数 Session 管理](realtime-runtime-redesign.md) と [Presenter 認識の残作業](presenter-recognition-runtime-authority-refactor.md) を参照する。

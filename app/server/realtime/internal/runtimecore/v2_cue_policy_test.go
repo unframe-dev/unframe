@@ -3,6 +3,7 @@ package runtimecore
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -37,8 +38,8 @@ func TestV2LeaveFailureReleasesPresence(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.checkpointWriter = failingV2Checkpoint{}
-	if err := s.LeaveParticipant(context.Background(), id); err != nil {
-		t.Fatal(err)
+	if err := s.LeaveParticipant(context.Background(), id); !errors.Is(err, ErrV2PersistenceUnavailable) {
+		t.Fatalf("disconnect durability failure: %v", err)
 	}
 	_, presence, _, closeSub, _ := s.SnapshotPresenceAndSubscribe()
 	defer closeSub()

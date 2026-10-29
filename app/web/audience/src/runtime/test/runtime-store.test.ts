@@ -78,6 +78,37 @@ function setup() {
 }
 
 describe("runtime store", () => {
+  it("opens an idle-timeout snapshot as an ended room", () => {
+    const { store, snapshot } = setup();
+    snapshot.snapshot!.runtimeView!.clock = { runtimeTimeMs: "0", terminating: { reason: 4 } };
+    store.applyControl({ connectionSnapshot: snapshot });
+    expect(store.getSnapshot().phase).toBe("ended");
+    expect(store.getSnapshot().view?.clock.lifecycle).toEqual({
+      kind: "terminating",
+      reason: "idle-timeout",
+    });
+  });
+  it.each([
+    ["status", { runtimeStatusChanged: { terminating: { reason: 4 } } }],
+    ["completion", { presentationEnded: { reason: 4 } }],
+  ] as const)("applies an idle-timeout %s event without requesting resync", (_name, event) => {
+    const { store, snapshot, fence } = setup();
+    store.applyControl({ connectionSnapshot: snapshot });
+    store.applyControl({
+      reliableEvent: {
+        fence,
+        sequence: "1",
+        eventId: "idle-end",
+        occurredAtRuntimeTimeMs: "0",
+        ...event,
+      },
+    });
+    expect(store.getSnapshot().phase).toBe("ended");
+    expect(store.getSnapshot().view?.clock.lifecycle).toEqual({
+      kind: "terminating",
+      reason: "idle-timeout",
+    });
+  });
   it("replays independent Runtime branches without changing their shared starting state", () => {
     const { delivery, snapshot, fence } = setup();
     const reduce = createRuntimeReducer(delivery);
