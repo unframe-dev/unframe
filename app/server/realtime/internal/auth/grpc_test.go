@@ -18,7 +18,7 @@ import (
 func TestBearerStreamServerInterceptorBindsVerifiedIdentity(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	now := time.Now()
 	privateKey, publicKey := testKey(t)
 	server := newJWKSServer(t, "key-1", publicKey)
 	defer server.Close()
@@ -95,3 +95,82 @@ type testServerStream struct {
 }
 
 func (s testServerStream) Context() context.Context { return s.ctx }
+
+func TestBearerStreamServerInterceptorUsesEarlierCredentialOrClientDeadline(t *testing.T) {
+	now := time.Now()
+	private, public := testKey(t)
+	server := newJWKSServer(t, "key-1", public)
+	defer server.Close()
+	verifier := newTestVerifier(t, server.URL, &now)
+	claims := validClaims(now)
+	expires := time.Unix(claims["exp"].(int64), 0)
+	token := issueToken(t, private, "key-1", claims)
+	for _, test := range []struct {
+		name     string
+		deadline time.Time
+		want     time.Time
+	}{
+		{name: "credential", deadline: now.Add(time.Hour), want: expires},
+		{name: "client", deadline: now.Add(10 * time.Second), want: now.Add(10 * time.Second)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithDeadline(context.Background(), test.deadline)
+			defer cancel()
+			stream := testServerStream{ctx: metadata.NewIncomingContext(ctx, metadata.Pairs("authorization", "Bearer "+token))}
+			err := NewBearerStreamServerInterceptor(verifier)(nil, stream, nil, func(_ any, stream grpcgo.ServerStream) error {
+				deadline, ok := stream.Context().Deadline()
+				if !ok || !deadline.Equal(test.want) {
+					t.Errorf("deadline = %v, want %v", deadline, test.want)
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+type testTransferStream struct {
+	testServerStream
+	transfer func(any) error
+}
+
+func (s testTransferStream) SendMsg(message any) error { return s.transfer(message) }
+func (s testTransferStream) RecvMsg(message any) error { return s.transfer(message) }
+
+func TestBearerStreamServerInterceptorRejectsCanceledTransfers(t *testing.T) {
+	now := time.Now()
+	private, public := testKey(t)
+	server := newJWKSServer(t, "key-1", public)
+	defer server.Close()
+	verifier := newTestVerifier(t, server.URL, &now)
+	token := issueToken(t, private, "key-1", validClaims(now))
+	for _, operation := range []string{"send", "receive"} {
+		for _, when := range []string{"before", "during"} {
+			t.Run(operation+"/"+when, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				stream := testTransferStream{testServerStream: testServerStream{ctx: metadata.NewIncomingContext(ctx, metadata.Pairs("authorization", "Bearer "+token))}, transfer: func(any) error {
+					if when == "before" {
+						t.Error("canceled transfer reached transport")
+					}
+					cancel()
+					return nil
+				}}
+				err := NewBearerStreamServerInterceptor(verifier)(nil, stream, nil, func(_ any, stream grpcgo.ServerStream) error {
+					if when == "before" {
+						cancel()
+					}
+					if operation == "send" {
+						return stream.SendMsg(nil)
+					}
+					return stream.RecvMsg(nil)
+				})
+				if status.Code(err) != codes.Canceled {
+					t.Fatalf("canceled transfer error = %v", err)
+				}
+			})
+		}
+	}
+}
