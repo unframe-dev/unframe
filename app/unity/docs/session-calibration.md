@@ -12,7 +12,7 @@ Session の pause は共有演出を停止する操作であり、端末のア�
 
 ## 座標と描画
 
-`ArucoPresentationCalibration.Configure(alignment, questTrackingOrigin)` に確定マーカーのsourceとXRのtracking-origin Transformを渡します。ネットワークSceneでは単一の `OVRCameraRig.trackingSpace` を使用します。Head/HandのdevicePositionが属する座標frameと同じものを指定します。マーカーposeはUnity world座標です。
+`AprilTagPresentationCalibration.Configure(alignment, questTrackingOrigin)` に確定マーカーのsourceとXRのtracking-origin Transformを渡します。ネットワークSceneでは単一の `OVRCameraRig.trackingSpace` を使用します。Head/HandのdevicePositionが属する座標frameと同じものを指定します。マーカーposeはUnity world座標です。
 
 ```text
 presentationFromQuestLocal = inverse(worldFromPresentation) * worldFromQuestLocal

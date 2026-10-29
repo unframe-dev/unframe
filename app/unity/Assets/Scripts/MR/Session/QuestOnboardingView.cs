@@ -11,7 +11,7 @@ namespace Unframe.Unity.PresentationRuntime
     {
         private QuestPresentationSession session;
         private QuestPresentationEntry entry;
-        private ArucoPresentationCalibration calibration;
+        private AprilTagPresentationCalibration calibration;
         private Transform head;
         private QuestOnboardingApi api;
         private readonly QuestOnboardingFlow flow = new QuestOnboardingFlow();
@@ -52,7 +52,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         public void Configure(QuestPresentationSession controller, QuestPresentationEntry sessionEntry,
-            ArucoPresentationCalibration source, Transform headTransform, QuestOnboardingApi service)
+            AprilTagPresentationCalibration source, Transform headTransform, QuestOnboardingApi service)
         {
             if (api != null && !ReferenceEquals(api, service)) api.Dispose();
             session = controller; entry = sessionEntry; calibration = source; head = headTransform; api = service;

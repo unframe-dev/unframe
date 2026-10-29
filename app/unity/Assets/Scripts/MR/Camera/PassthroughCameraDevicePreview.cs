@@ -4,9 +4,9 @@ using Meta.XR;
 using UnityEngine;
 using UnityEngine.Android;
 
-[RequireComponent(typeof(ArucoTrackingDiagnosticSession))]
-[RequireComponent(typeof(ArucoCameraMarkerDetection))]
-[RequireComponent(typeof(ArucoOriginAlignment))]
+[RequireComponent(typeof(AprilTagTrackingDiagnosticSession))]
+[RequireComponent(typeof(AprilTagCameraMarkerDetection))]
+[RequireComponent(typeof(AprilTagOriginAlignment))]
 public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 {
     [SerializeField] private PassthroughCameraAccess cameraAccess;
@@ -59,11 +59,11 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
     private const string CameraPermission = OVRPermissionsRequester.PassthroughCameraAccessPermission;
     private readonly PassthroughCameraPreviewHealth health = new PassthroughCameraPreviewHealth();
-    private readonly ArucoCameraSessionState sessionState = new ArucoCameraSessionState();
-    private ArucoCameraPreviewView view;
-    private ArucoCameraMarkerDetection markerDetection;
-    private ArucoOriginAlignment alignment;
-    private ArucoTrackingDiagnosticSession diagnosticSession;
+    private readonly AprilTagCameraSessionState sessionState = new AprilTagCameraSessionState();
+    private AprilTagCameraPreviewView view;
+    private AprilTagCameraMarkerDetection markerDetection;
+    private AprilTagOriginAlignment alignment;
+    private AprilTagTrackingDiagnosticSession diagnosticSession;
     private PermissionCallbacks permissionCallbacks;
     private bool? lastAcquisitionAllowed;
     private bool started;
@@ -78,9 +78,9 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
     private void Start()
     {
-        diagnosticSession = GetComponent<ArucoTrackingDiagnosticSession>();
-        markerDetection = GetComponent<ArucoCameraMarkerDetection>();
-        alignment = GetComponent<ArucoOriginAlignment>();
+        diagnosticSession = GetComponent<AprilTagTrackingDiagnosticSession>();
+        markerDetection = GetComponent<AprilTagCameraMarkerDetection>();
+        alignment = GetComponent<AprilTagOriginAlignment>();
         alignment.ResetRequested += OnAlignmentReset;
         if (cameraAccess == null || head == null)
         {
@@ -90,9 +90,9 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         }
 
         cameraAccess.enabled = false;
-        view = new ArucoCameraPreviewView(head);
+        view = new AprilTagCameraPreviewView(head);
         view.SetVisible(diagnosticUiVisible && isActiveAndEnabled);
-        GetComponent<ArucoOriginVisualizer>().SetPreviewHead(head);
+        GetComponent<AprilTagOriginVisualizer>().SetPreviewHead(head);
         started = true;
         health.Reset(Time.realtimeSinceStartupAsDouble);
         Debug.Log($"[PCA Preview] Application: {Application.identifier}", this);
@@ -146,8 +146,8 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         if (live && newFrame)
         {
             var intrinsics = cameraAccess.Intrinsics;
-            var resolution = ArucoCameraMarkerDetection.DetectionResolution(texture.width, texture.height);
-            var geometry = ArucoCameraGeometry.FromSensor(intrinsics.FocalLength, intrinsics.PrincipalPoint,
+            var resolution = AprilTagCameraMarkerDetection.DetectionResolution(texture.width, texture.height);
+            var geometry = AprilTagCameraGeometry.FromSensor(intrinsics.FocalLength, intrinsics.PrincipalPoint,
                 intrinsics.SensorResolution, resolution, cameraAccess.GetCameraPose());
             markerDetection.SubmitFrame(texture, cameraAccess.Timestamp.Ticks, geometry);
         }
@@ -169,7 +169,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
             if (health.FrameCount > 0)
             {
                 var intrinsics = cameraAccess.Intrinsics;
-                Record(new ArucoTrackingDiagnosticEvent
+                Record(new AprilTagTrackingDiagnosticEvent
                 {
                     eventType = "camera_frame_summary",
                     message = cameraAccess.CameraPosition.ToString(),
@@ -257,13 +257,13 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         lastAcquisitionAllowed = sessionState.ShouldRunCamera;
         switch (sessionState.GetAction(cameraAccess.enabled, restart))
         {
-            case ArucoCameraAction.Start:
+            case AprilTagCameraAction.Start:
                 StopCamera();
                 ResetHealth();
                 cameraAccess.enabled = true;
                 Record("camera_state", "Camera started");
                 break;
-            case ArucoCameraAction.Stop:
+            case AprilTagCameraAction.Stop:
                 StopCamera();
                 break;
         }
@@ -362,7 +362,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         string timestamp = health.FrameCount > 0 ? cameraAccess.Timestamp.ToString("HH:mm:ss.fff 'UTC'") : "-";
         string logFile = diagnosticSession.LoggingFailed ? "Stopped"
             : diagnosticSession.Diagnostics != null ? Path.GetFileName(diagnosticSession.Diagnostics.FilePath) : "Unavailable";
-        view.ShowStatus(new ArucoCameraPreviewStatus
+        view.ShowStatus(new AprilTagCameraPreviewStatus
         {
             State = state,
             PermissionStatus = permissionStatus,
@@ -406,10 +406,10 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
     private void Record(string eventType, string message)
     {
-        Record(new ArucoTrackingDiagnosticEvent { eventType = eventType, message = message });
+        Record(new AprilTagTrackingDiagnosticEvent { eventType = eventType, message = message });
     }
 
-    private void Record(ArucoTrackingDiagnosticEvent diagnosticEvent)
+    private void Record(AprilTagTrackingDiagnosticEvent diagnosticEvent)
     {
         diagnosticSession?.TryRecord(diagnosticEvent);
     }
