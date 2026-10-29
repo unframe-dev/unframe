@@ -1,7 +1,8 @@
 import { audienceWebCapabilityProfileId } from "@unframe/contracts/presentation";
 import { createServer } from "node:http";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, assert, expect, it, vi } from "vitest";
 import { createAnonymousAudienceClient } from "../anonymous-client";
+import { readSharedJoinCode } from "../shared-join-code";
 
 const config = {
   apiOrigin: "https://api.example",
@@ -20,7 +21,7 @@ const session = {
 };
 const now = Date.parse("2026-10-27T00:00:00Z");
 afterEach(() => vi.useRealTimers());
-it("issues a scoped identity before join, rotates near expiry, and revokes on leave through HTTP", async () => {
+it("uses the shared URL to issue a scoped identity, then rotates and revokes it through HTTP", async () => {
   const requests: { path: string; auth: string | undefined; cookie: string | undefined }[] = [];
   let clock = now;
   const server = createServer((req, res) => {
@@ -58,7 +59,9 @@ it("issues a scoped identity before join, rotates near expiry, and revokes on le
       fetch(`http://127.0.0.1:${address.port}${new URL(String(url)).pathname}`, init),
   });
   try {
-    expect(await client.join("ABCD-EFGH")).toEqual(session);
+    const code = readSharedJoinCode(new URL("https://app.example/#join=ABCD-EFGH").hash);
+    assert.isNotNull(code);
+    expect(await client.join(code)).toEqual(session);
     clock += 58 * 60000;
     await expect(client.delivery("session")).rejects.toMatchObject({ status: 409 });
     await client.leave();

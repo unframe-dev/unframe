@@ -10,13 +10,15 @@ nix develop
 pnpm --filter @unframe/console dev
 ```
 
+`VITE_AUDIENCE_URL` は参加先の HTTPS origin（path・query・ユーザー情報なし）で、未設定時は `https://app.un-fra.me` を使います。参加 URL は `/#join=参加コード` 形式で、QR は同じ URL をブラウザー内で生成します。
+
 `VITE_CONTROL_PLANE_URL` は Control Plane API の origin で、未設定時は `https://api.un-fra.me` を使います。ブラウザー認証は Better Auth client、製品 API は `@unframe/api-client-typescript` の Hono RPC client と TanStack Query を使い、cookie を送信します。
 
 ## 管理画面
 
 - `/home`: 閲覧可能な Presentation と最新公開 Dist を確認します。公開情報のない Presentation と取得エラーを区別します。
-- `/rooms`: 公開済み Presentation からルーム（Session）を作成します。作成時点の最新公開版が固定され、結果の publication fence を表示します。Join Code は作成直後だけ表示し、再読み込み後に再取得できません。
-- `/rooms/{id}`: 発表環境を準備し、準備完了後に発表を開始します。準備失敗は同じルームで再試行でき、発表終了後は準備・開始できません。
+- `/rooms`: 自分が作成したルーム（Session）の一覧・再取得・ページ送りと、公開済み Presentation からの新規作成を扱います。作成後は詳細へ進みます。
+- `/rooms/{id}`: 現在の参加コードを取得・更新し、匿名 Viewer の参加 URL と QR を共有します。更新結果が不明な場合は共有を止め、現在のコードを再取得します。終了後は共有できません。発表環境を準備し、準備完了後に発表を開始します。準備失敗は同じルームで再試行でき、発表終了後は準備・開始できません。
 - `/login`・`/signup`・`/recover`・`/recover/reset`・`/device`: 認証と device 承認。
 - `/settings/profile`・`/settings/security`: アカウント設定。`/devices` は準備画面です。
 

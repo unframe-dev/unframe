@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { JoinExperience } from "./JoinExperience";
 import { createAudienceSession } from "./audience-session";
+import { readSharedJoinCode } from "./shared-join-code";
 import type { createTrackingAdapter } from "../tracking/adapter";
 import type { ViewingSnapshot } from "../experience/viewing-session";
 
@@ -15,13 +16,29 @@ export function AudienceApplication(
     onViewingSnapshot?(snapshot: ViewingSnapshot): void;
   } = {},
 ) {
+  const [sharedJoin] = useState(() => ({
+    fragment: window.location.hash,
+    code: readSharedJoinCode(window.location.hash),
+  }));
   const [application] = useState(() =>
     createAudienceSession({ environment: import.meta.env, ...props }),
   );
   useEffect(() => {
+    if (window.location.hash === sharedJoin.fragment) {
+      const fragment = new URLSearchParams(sharedJoin.fragment.slice(1));
+      if (fragment.has("join")) {
+        fragment.delete("join");
+        const remaining = fragment.toString();
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${window.location.pathname}${window.location.search}${remaining ? `#${remaining}` : ""}`,
+        );
+      }
+    }
     application.start();
     return application.dispose;
-  }, [application]);
+  }, [application, sharedJoin]);
   const screen = useStore(application.store, (state) => state.screen);
   const invalid = useStore(application.store, (state) => state.invalid);
   const loadError = useStore(application.store, (state) => state.loadError);
@@ -39,7 +56,7 @@ export function AudienceApplication(
       {loadError && (
         <p role="alert">視聴画面を読み込めません。通信環境を確認し、もう一度参加してください。</p>
       )}
-      <JoinExperience controller={application.controller} />
+      <JoinExperience controller={application.controller} initialJoinCode={sharedJoin.code} />
       <button onClick={application.downloadDiagnostic}>接続テストログを保存</button>
       {import.meta.env.DEV && (
         <nav className="audience-development-links" aria-label="開発用テスト">
