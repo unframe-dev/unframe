@@ -63,9 +63,6 @@ public sealed class QuestOnboardingVisualTests
             for (int screen = 0; screen < expected.Length; screen++)
             {
                 Assert.That(view.Flow.Page, Is.EqualTo(expected[screen]));
-                if (expected[screen] == QuestOnboardingPage.Presentations)
-                    Assert.That(view.Panel.GetComponentsInChildren<Text>().Any(text => text.text == QuestDemoPresentation.DisplayTitle), Is.True,
-                        "The bundled demo must be selectable without a pre-existing server presentation.");
                 foreach (Transform child in host.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = 31;
                 for (int frame = 0; frame < 3; frame++) yield return null;
                 Canvas.ForceUpdateCanvases();

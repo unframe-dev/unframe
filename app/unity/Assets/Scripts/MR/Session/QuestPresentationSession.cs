@@ -9,8 +9,8 @@ public sealed class QuestPresentationSession : MonoBehaviour
     [SerializeField] private QuestPresentationEntry entry;
     [SerializeField] private ArucoPresentationCalibration calibrationSource;
     [Header("Application connection")]
-    [SerializeField] private string controlPlaneEndpoint = "https://api.un-fra.me";
-    [SerializeField] private string webEndpoint = "https://un-fra.me";
+    [SerializeField] private string controlPlaneEndpoint;
+    [SerializeField] private string webEndpoint;
     [SerializeField] private string deviceClientId = "unframe-unity";
     private readonly SemaphoreSlim operationGate = new SemaphoreSlim(1, 1);
     [NonSerialized] private Uri origin;

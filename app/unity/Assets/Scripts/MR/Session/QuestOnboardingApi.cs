@@ -18,7 +18,6 @@ public sealed class QuestOnboardingPresentation
 {
     public string Id { get; internal set; }
     public string Title { get; internal set; }
-    public bool IsBundledDemo { get; internal set; }
 }
 
 public sealed class QuestOnboardingRoom
@@ -48,10 +47,6 @@ public sealed class QuestOnboardingApi : IDisposable
     [Serializable] private sealed class RuntimePreparation { public string state; public string runtimeId; public ulong assignmentEpoch; public string leaseExpiresAt; }
     [Serializable] private sealed class ApiError { public string code; }
     [Serializable] private sealed class ApiErrorResponse { public ApiError error; }
-    [Serializable] private sealed class RegistrationRequest { public string id; public string name; }
-    [Serializable] private sealed class BuildRequest { public string definitionJson; public string renderBundleJson; public string assetSetJson; public string buildManifestJson; }
-    [Serializable] private sealed class BuildResponse { public string buildId; }
-    [Serializable] private sealed class PublicationResponse { public string presentationId; public string buildId; }
 
     private readonly HttpClient client;
     private readonly Uri origin;
@@ -195,61 +190,6 @@ public sealed class QuestOnboardingApi : IDisposable
         }
     }
 
-    public async Task PublishDemoAsync(QuestDemoPresentationBuild build, CancellationToken token)
-    {
-        if (build == null) throw new ArgumentNullException(nameof(build));
-        ValidateId(build.PresentationId);
-        ValidateId(build.BuildId);
-        string path = "/presentations/" + Uri.EscapeDataString(build.PresentationId);
-        using (HttpResponseMessage response = await SendAsync("/presentations", new RegistrationRequest { id = build.PresentationId, name = build.Title }, true, token))
-        {
-            RequireSuccess(response);
-            var registered = JsonUtility.FromJson<PresentationRecord>(await response.Content.ReadAsStringAsync());
-            if (registered?.id != build.PresentationId) throw new QuestOnboardingApiException("invalid-response");
-        }
-        using (HttpResponseMessage response = await SendAsync(path + "/publication", null, true, token))
-        {
-            if (response.IsSuccessStatusCode)
-            {
-                ValidateDemoPublication(build, await response.Content.ReadAsStringAsync());
-                return;
-            }
-            if (response.StatusCode != System.Net.HttpStatusCode.NotFound) RequireSuccess(response);
-        }
-        using (HttpResponseMessage response = await SendAsync(path + "/builds", new BuildRequest
-        {
-            definitionJson = build.DefinitionJson, renderBundleJson = build.RenderBundleJson,
-            assetSetJson = build.AssetSetJson, buildManifestJson = build.BuildManifestJson
-        }, true, token))
-        {
-            RequireSuccess(response);
-            var uploaded = JsonUtility.FromJson<BuildResponse>(await response.Content.ReadAsStringAsync());
-            if (uploaded?.buildId != build.BuildId) throw new QuestOnboardingApiException("invalid-response");
-        }
-        foreach (var asset in build.Assets)
-        {
-            var content = new ByteArrayContent(asset.Bytes);
-            content.Headers.ContentType = new MediaTypeHeaderValue(asset.MediaType);
-            using (HttpResponseMessage response = await SendContentAsync(path + "/builds/" + Uri.EscapeDataString(build.BuildId)
-                + "/assets/" + Uri.EscapeDataString(asset.AssetId), HttpMethod.Put, content, true, token)) RequireSuccess(response);
-        }
-        // JsonUtility does not preserve a null object field required by the publication contract.
-        string publication = "{\"buildId\":\"" + build.BuildId + "\",\"expectedPublicationFence\":null}";
-        using (HttpResponseMessage response = await SendContentAsync(path + "/publications", HttpMethod.Post,
-            new StringContent(publication, Encoding.UTF8, "application/json"), true, token))
-        {
-            RequireSuccess(response);
-            ValidateDemoPublication(build, await response.Content.ReadAsStringAsync());
-        }
-    }
-
-    private static void ValidateDemoPublication(QuestDemoPresentationBuild build, string json)
-    {
-        var published = JsonUtility.FromJson<PublicationResponse>(json);
-        if (published?.presentationId != build.PresentationId || published.buildId != build.BuildId)
-            throw new QuestOnboardingApiException("invalid-response");
-    }
-
     public async Task<QuestOnboardingRoom> JoinSessionAsync(string code, CancellationToken token)
     {
         code = (code ?? String.Empty).Trim().ToUpperInvariant();
@@ -326,19 +266,13 @@ public sealed class QuestOnboardingApi : IDisposable
         }
     }
 
-    private Task<HttpResponseMessage> SendAsync(string path, object body, bool authenticated, CancellationToken token)
-    {
-        return SendContentAsync(path, body == null ? HttpMethod.Get : HttpMethod.Post,
-            body == null ? null : new StringContent(JsonUtility.ToJson(body), Encoding.UTF8, "application/json"), authenticated, token);
-    }
-
-    private async Task<HttpResponseMessage> SendContentAsync(string path, HttpMethod method, HttpContent content, bool authenticated, CancellationToken token)
+    private async Task<HttpResponseMessage> SendAsync(string path, object body, bool authenticated, CancellationToken token)
     {
         ThrowIfDisposed();
         using (var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token))
-        using (var request = new HttpRequestMessage(method, new Uri(origin, path)))
+        using (var request = new HttpRequestMessage(body == null ? HttpMethod.Get : HttpMethod.Post, new Uri(origin, path)))
         {
-            request.Content = content;
+            if (body != null) request.Content = new StringContent(JsonUtility.ToJson(body), Encoding.UTF8, "application/json");
             if (authenticated) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await CredentialAsync(linked.Token));
             return await client.SendAsync(request, linked.Token);
         }

@@ -308,10 +308,6 @@
             name = "unity-preview";
             script = "unity/build-preview.sh";
           };
-          quest-demo = mkApp {
-            name = "quest-demo";
-            script = "unity/generate-quest-demo.sh";
-          };
           presentation-sample = mkApp {
             name = "presentation-sample";
             script = "presentation-sample/serve.sh";
