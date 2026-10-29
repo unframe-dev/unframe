@@ -9,6 +9,8 @@ import {
   type Vector3Wire,
 } from "@unframe/contracts/presentation";
 
+import { canonicalQuaternionSchema, parseWireUInt } from "./wire-validation";
+
 function fail(message: string): never {
   throw new Error(`Participant runtime view: ${message}`);
 }
@@ -16,11 +18,8 @@ function required<T>(value: T | undefined, name: string): T {
   return value ?? fail(`missing ${name}`);
 }
 function uint(value: string | undefined): number {
-  const text = value ?? "0";
-  if (typeof text !== "string" || !/^(0|[1-9]\d*)$/.test(text)) fail("invalid unsigned integer");
-  const number = Number(text);
-  if (!Number.isSafeInteger(number)) fail("unsafe unsigned integer");
-  return number;
+  const result = parseWireUInt(value);
+  return result.success ? result.value : fail(`${result.reason} unsigned integer`);
 }
 function vector(value: Vector3Wire | undefined): [number, number, number] {
   const v = required(value, "vector");
@@ -29,12 +28,7 @@ function vector(value: Vector3Wire | undefined): [number, number, number] {
 function rotation(value: QuaternionWire | undefined): [number, number, number, number] {
   const q = required(value, "rotation");
   const result: [number, number, number, number] = [q.x ?? 0, q.y ?? 0, q.z ?? 0, q.w ?? 0];
-  if (
-    !result.every(Number.isFinite) ||
-    Math.abs(Math.hypot(...result) - 1) > 1e-9 ||
-    (result[3] === 0 ? (result.slice(0, 3).find((v) => v !== 0) ?? 0) < 0 : result[3] < 0)
-  )
-    fail("non-canonical rotation");
+  if (!canonicalQuaternionSchema.safeParse(result).success) fail("non-canonical rotation");
   return result;
 }
 function record<T, R>(

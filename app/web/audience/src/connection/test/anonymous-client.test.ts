@@ -83,6 +83,67 @@ it("does not allocate identity for invalid join codes", async () => {
   await expect(client.join("invalid")).rejects.toMatchObject({ code: "invalid-join-code" });
   expect(fetch).not.toHaveBeenCalled();
 });
+it("rechecks credential expiry when dispatching after asynchronous preparation", async () => {
+  let clock = now;
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          token: "viewer_private",
+          expiresAt: new Date(now + 3600000).toISOString(),
+          sessionId: "session",
+          participantId: "anonymous_test",
+        },
+        { status: 201 },
+      ),
+    )
+    .mockResolvedValueOnce(Response.json(session));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => clock });
+  await client.join("ABCD-EFGH");
+  const delivery = client.delivery("session");
+  clock += 3600000;
+  await expect(delivery).rejects.toMatchObject({ code: "unauthorized" });
+  expect(requestFetch).toHaveBeenCalledTimes(2);
+});
+it("does not revive a credential when rotation completes after the old expiry", async () => {
+  let clock = now;
+  let complete!: (response: Response) => void;
+  const credential = (token: string, expiresAt: number, status: number) =>
+    Response.json(
+      {
+        token,
+        expiresAt: new Date(expiresAt).toISOString(),
+        sessionId: "session",
+        participantId: "anonymous_test",
+      },
+      { status },
+    );
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(credential("viewer_old", now + 3600000, 201))
+    .mockResolvedValueOnce(Response.json(session))
+    .mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          complete = resolve;
+        }),
+    )
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => clock });
+  await client.join("ABCD-EFGH");
+  clock += 58 * 60000;
+  const delivery = client.delivery("session");
+  await vi.waitFor(() => expect(requestFetch).toHaveBeenCalledTimes(3));
+  clock = now + 3600000;
+  complete(credential("viewer_late", clock + 3600000, 200));
+  await expect(delivery).rejects.toMatchObject({ code: "unauthorized" });
+  expect(requestFetch).toHaveBeenLastCalledWith(
+    "https://api.example/viewer-credentials",
+    expect.objectContaining({ method: "DELETE" }),
+  );
+  await expect(client.bootstrap("session")).rejects.toMatchObject({ code: "unauthorized" });
+});
 it("rejects a credential response bound to a different session and never stores secrets persistently", async () => {
   const fetch = vi
     .fn<typeof globalThis.fetch>()
@@ -135,4 +196,62 @@ it("cancels a superseded join while its prior credential revocation is pending",
   revoked(new Response(null, { status: 204 }));
   await rejected;
   expect(requestFetch).toHaveBeenCalledTimes(5);
+});
+it("rejects a credential that expires while the session response is in flight", async () => {
+  let clock = now;
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          token: "viewer_expiring",
+          expiresAt: new Date(now + 1000).toISOString(),
+          sessionId: "session",
+          participantId: "anonymous_test",
+        },
+        { status: 201 },
+      ),
+    )
+    .mockImplementationOnce(async () => {
+      clock += 1000;
+      return Response.json(session);
+    })
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => clock });
+  await expect(client.join("ABCD-EFGH")).rejects.toMatchObject({ code: "unauthorized" });
+  await expect(client.delivery("session")).rejects.toMatchObject({ code: "unauthorized" });
+});
+it("does not complete a join after the viewer has left while the session response is pending", async () => {
+  let completeJoin!: (response: Response) => void;
+  let sessionRequested!: () => void;
+  const sessionRequest = new Promise<void>((resolve) => {
+    sessionRequested = resolve;
+  });
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          token: "viewer_leaving",
+          expiresAt: new Date(now + 3600000).toISOString(),
+          sessionId: "session",
+          participantId: "anonymous_test",
+        },
+        { status: 201 },
+      ),
+    )
+    .mockImplementationOnce(() => {
+      sessionRequested();
+      return new Promise<Response>((resolve) => {
+        completeJoin = resolve;
+      });
+    })
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => now });
+  const joining = client.join("ABCD-EFGH");
+  await sessionRequest;
+  await client.leave();
+  completeJoin(Response.json(session));
+  await expect(joining).rejects.toMatchObject({ code: "aborted" });
+  await expect(client.bootstrap("session")).rejects.toMatchObject({ code: "unauthorized" });
 });

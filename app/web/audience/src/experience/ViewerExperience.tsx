@@ -1,45 +1,12 @@
-import { downloadSessionDiagnostic, type SessionRecorder } from "../diagnostics/session-recorder";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { PreparedConnection } from "../connection/join-controller";
-import { createAudienceAssetFetch } from "../connection/asset-fetch";
-import {
-  configureMarkerSize,
-  markerSizesMillimeters,
-  loadBoardConfig,
-  type BoardConfig,
-} from "../fiducials/config";
-import { buildViewerDiagnostic } from "../diagnostics/viewer-diagnostic";
+import { useEffect, useRef } from "react";
+import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+import { markerSizesMillimeters } from "../fiducials/config";
 import { SdkProgress } from "../SdkProgress";
 import { AudienceStage } from "../ui/AudienceStage";
 import { viewingPhase } from "../ui/viewing-phase";
-import { createAnchorSession, type AnchorSessionSnapshot } from "./anchor-session";
-import { createViewingSession, type RuntimeInput, type ViewingSnapshot } from "./viewing-session";
-import type { createTrackingAdapter } from "../tracking/adapter";
-
-export interface ViewerExperienceProps {
-  recorder?: SessionRecorder;
-  connection: PreparedConnection;
-  onLeave(): void;
-  onRefresh(): void;
-  onReconnect(): Promise<void>;
-  refreshing: boolean;
-  recovering?: boolean;
-  refreshError: string | null;
-  trackingAdapter?: typeof createTrackingAdapter;
-  onViewingSnapshot?(snapshot: ViewingSnapshot): void;
-  onRuntimeInput?(
-    input: RuntimeInput,
-    connection: PreparedConnection,
-    getConnection: () => PreparedConnection,
-    restartInput: () => RuntimeInput | null,
-  ): void | (() => void);
-  onRecoveryRequest?(
-    request: NonNullable<ViewingSnapshot["recovery"]>,
-    input: RuntimeInput,
-    restartInput: () => RuntimeInput | null,
-  ): void;
-}
-const connectionFailure = "配信の接続準備に失敗しました。もう一度お試しください。";
+import type { ViewerApplication } from "./viewer-application";
+import type { ViewingSnapshot } from "./viewing-session";
 
 function waitingCopy(phase: ViewingSnapshot["phase"] | undefined, connected: boolean) {
   if (phase === "disconnected")
@@ -60,378 +27,181 @@ function waitingCopy(phase: ViewingSnapshot["phase"] | undefined, connected: boo
   };
 }
 
-export function ViewerExperience(props: ViewerExperienceProps) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const host = useRef<ReturnType<typeof createAnchorSession> | null>(null);
-  const viewer = useRef<ReturnType<typeof createViewingSession> | null>(null);
-  const currentConnection = useRef(props.connection);
-  const installer = useRef(props.onRuntimeInput);
-  const binding = useRef<{
-    input: RuntimeInput;
-    installer: ViewerExperienceProps["onRuntimeInput"];
-    cleanup?: () => void;
-  } | null>(null);
-  const recovery = useRef<{ input: RuntimeInput; id: number } | null>(null);
-  currentConnection.current = props.connection;
-  installer.current = props.onRuntimeInput;
-  const lastRendering = useRef<string | undefined>(undefined);
-  const [boardConfig, setConfig] = useState<BoardConfig | null>(null);
-  const [markerSize, setMarkerSize] = useState<number | null>(null);
-  const config = useMemo(
-    () =>
-      boardConfig &&
-      (markerSize === null ? boardConfig : configureMarkerSize(boardConfig, markerSize)),
-    [boardConfig, markerSize],
+function ViewerMenu({ application }: { application: ViewerApplication }) {
+  const {
+    anchor,
+    config,
+    markerSize,
+    refreshing,
+    recovering,
+    refreshError,
+    live,
+    diagnosticsEnabled,
+  } = useStore(application.store);
+  const viewing = useStore(
+    application.viewingStore,
+    useShallow((state) => ({ phase: state.phase, recovery: state.recovery })),
   );
-  const [anchor, setAnchor] = useState<AnchorSessionSnapshot | null>(null);
-  const [viewing, setViewing] = useState<ViewingSnapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [reload, setReload] = useState(0);
+  return (
+    <>
+      {!live && <p>ライブ受信は未接続です。接続仕様の提供後に受信処理を接続します。</p>}
+      {refreshing && (
+        <p role="status">
+          {recovering ? "配信の接続復旧を待っています。" : "接続情報を更新しています。"}
+        </p>
+      )}
+      {refreshError && (
+        <p role="status">接続情報を更新できませんでした。有効期限内の情報で視聴を続けています。</p>
+      )}
+      {viewing?.recovery && (
+        <p role="status">
+          {viewing.recovery.kind === "keyframe"
+            ? "表示状態の再同期を待っています。"
+            : "プレゼンテーションの再同期を待っています。"}
+        </p>
+      )}
+      <label>
+        マーカーサイズ（黒い外周）
+        <select
+          value={markerSize ?? (config ? Math.round(config.markers[0]!.sizeMeters * 1000) : 150)}
+          disabled={!config}
+          onChange={(event) => application.setMarkerSize(Number(event.target.value))}
+        >
+          {markerSizesMillimeters.map((size) => (
+            <option key={size} value={size}>
+              {size} mm
+            </option>
+          ))}
+        </select>
+      </label>
+      <p>
+        白余白を除く一辺の実寸です。登壇側と同じサイズを選んでください。変更後はカメラを開始し、位置合わせをやり直してください。
+      </p>
+      <div className="audience-stage__test-controls">
+        {(anchor?.stage === "running" || anchor?.stage === "starting") && (
+          <button onClick={() => application.stop()}>停止</button>
+        )}
+        <button onClick={application.refresh} disabled={refreshing}>
+          接続情報を更新
+        </button>
+        {(viewing?.phase === "disconnected" || viewing?.phase === "resync-required") && (
+          <button onClick={application.reconnect}>再接続</button>
+        )}
+        <button onClick={application.downloadDiagnostic}>状態をJSON保存</button>
+        {diagnosticsEnabled && (
+          <button onClick={() => application.downloadConnectionDiagnostic()}>
+            接続テストログを保存
+          </button>
+        )}
+        <button onClick={application.leave}>ルームから退出</button>
+      </div>
+      <details>
+        <summary>設定・診断</summary>
+        <p>
+          黒いマーカー外周 {config ? (config.markers[0]!.sizeMeters * 100).toFixed(1) : "—"} cm ／
+          設定revision {config?.revision ?? "—"}
+        </p>
+        <p>
+          タグ採用 {anchor?.anchorUpdateCount ?? 0}回 ／{" "}
+          {anchor?.completionHz == null ? "検出開始待ち" : `${anchor.completionHz.toFixed(1)} Hz`}
+        </p>
+        <SdkProgress
+          {...(anchor?.sdkProgress ? { progress: anchor.sdkProgress } : {})}
+          nowMs={anchor?.nowMs ?? 0}
+        />
+        <button onClick={() => void application.reload()}>設定を再読み込み</button>
+      </details>
+      <details>
+        <summary>ライセンス</summary>
+        <p>XR Engine: Niantic Spatial, Inc. Copyright © 2026. All rights reserved.</p>
+        <p>
+          <a href="/external/xr/LICENSE">XR Engine License Agreement</a>
+        </p>
+        <p>
+          <a href="/external/detectors/LICENSE.wrapper">AprilTag wrapper BSD-3</a>
+        </p>
+        <p>
+          <a href="/external/detectors/LICENSE.apriltag">AprilTag BSD-2</a>
+        </p>
+        <p>
+          <a href="/external/detectors/LICENSE.posit">POSIT・SVD MIT</a>
+        </p>
+        <p>
+          <a href="/external/detectors/apriltag_36h11.js">AprilTag dictionary BSD-3</a>
+        </p>
+        <p>
+          <a href="/external/detectors/provenance.json">取得元・SHA-256</a>
+        </p>
+        <p>
+          <a href="/external/engine-manifest.json">XR Engine配布物ハッシュ</a>
+        </p>
+      </details>
+    </>
+  );
+}
 
-  function clearBinding(reportError: boolean) {
-    const previous = binding.current;
-    binding.current = null;
-    try {
-      previous?.cleanup?.();
-      return true;
-    } catch {
-      if (reportError) setError(connectionFailure);
-      return false;
-    }
-  }
-
+export function ViewerExperience({ application }: { application: ViewerApplication }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    let active = true;
-    setConfig(null);
-    setError(null);
-    void loadBoardConfig()
-      .then((board) => {
-        if (active) setConfig(board);
-      })
-      .catch(() => {
-        if (active)
-          setError("会場の設定を読み込めません。メニューから設定を再読み込みしてください。");
-      });
-    return () => {
-      active = false;
-    };
-  }, [reload]);
-
-  useEffect(() => {
-    if (!config || !canvas.current) return;
-    let active = true;
-    const nextHost = createAnchorSession({
-      canvas: canvas.current,
-      config,
-      showGuides: false,
-      ...(props.trackingAdapter ? { trackingAdapter: props.trackingAdapter } : {}),
-      fetcher: createAudienceAssetFetch(() => currentConnection.current),
-      onChange: (state) => {
-        if (active) setAnchor(state);
-      },
-    });
-    const next = createViewingSession(nextHost);
-    host.current = nextHost;
-    viewer.current = next;
-    setAnchor(nextHost.getSnapshot());
-    setViewing(next.getSnapshot());
-    const unsubscribe = next.subscribe(() => {
-      if (active) setViewing(next.getSnapshot());
-    });
-    return () => {
-      active = false;
-      clearBinding(false);
-      unsubscribe();
-      next.dispose();
-      if (viewer.current === next) viewer.current = null;
-      if (host.current === nextHost) host.current = null;
-    };
-  }, [config, props.trackingAdapter]);
-
-  useEffect(() => {
-    if (props.recovering) {
-      clearBinding(false);
-      viewer.current?.getInput()?.disconnected();
-      return;
-    }
-    const target = viewer.current;
-    const disconnected = target?.getSnapshot().phase === "disconnected";
-    target?.updateDelivery(props.connection.delivery);
-    if (disconnected && !target?.getInput()) target?.restartInput();
-  }, [config, props.connection, props.recovering]);
-
-  useEffect(() => {
-    if (viewing) {
-      props.onViewingSnapshot?.(viewing);
-      const runtime = viewing.runtime;
-      if (runtime?.rendering !== lastRendering.current) {
-        lastRendering.current = runtime?.rendering;
-        if (runtime?.rendering)
-          props.recorder?.record("assets.ready", {
-            stage: runtime.rendering,
-            sessionId: props.connection.session?.id,
-          });
-      }
-      props.recorder?.observe({
-        sessionId: props.connection.session?.id,
-        runtimeId: props.connection.bootstrap.runtimeId,
-        assignmentEpoch: String(props.connection.bootstrap.assignmentEpoch),
-        publicationEpoch: String(props.connection.bootstrap.publicationFence?.publicationEpoch),
-        groupId: runtime?.view?.progression.currentGroupId,
-        stepId: runtime?.view?.progression.currentStepId,
-        stage: viewing.phase,
-        reliableSequence: runtime?.reliableSequence,
-        stateSequence: runtime?.stateSequence,
-        runtimeTimeMs: runtime?.view?.clock.runtimeTimeMilliseconds,
-      });
-    }
-  }, [viewing, props.onViewingSnapshot]);
-
-  useEffect(() => {
-    const input = viewer.current?.getInput() ?? null;
-    const currentInstaller = installer.current;
-    if (
-      (input === binding.current?.input && currentInstaller === binding.current.installer) ||
-      (!input && !binding.current)
-    )
-      return;
-    if (!clearBinding(true)) {
-      input?.disconnected();
-      return;
-    }
-    if (!input) return;
-    const installed: NonNullable<typeof binding.current> = { input, installer: currentInstaller };
-    binding.current = installed;
-    try {
-      const target = viewer.current;
-      const cleanup = installer.current?.(
-        input,
-        structuredClone(currentConnection.current),
-        () => {
-          if (binding.current !== installed || viewer.current?.getInput() !== input)
-            throw new Error("viewing-input-inactive");
-          return structuredClone(currentConnection.current);
-        },
-        () => {
-          if (
-            binding.current !== installed ||
-            viewer.current !== target ||
-            target?.getInput() !== input
-          )
-            return null;
-          return target.restartInput();
-        },
-      );
-      if (cleanup) installed.cleanup = cleanup;
-    } catch {
-      setError(connectionFailure);
-      input.disconnected();
-    }
-  }, [viewing, props.onRuntimeInput]);
-
-  useEffect(() => {
-    const request = viewing?.recovery;
-    const input = viewer.current?.getInput();
-    if (!request || !input || !props.onRecoveryRequest) return;
-    if (recovery.current?.input === input && recovery.current.id === request.id) return;
-    recovery.current = { input, id: request.id };
-    try {
-      const target = viewer.current;
-      props.onRecoveryRequest(request, input, () => {
-        if (
-          !target ||
-          viewer.current !== target ||
-          target.getInput() !== input ||
-          target.getSnapshot().recovery?.id !== request.id
-        )
-          return null;
-        return target.restartInput();
-      });
-    } catch {
-      setError(connectionFailure);
-      input.disconnected();
-    }
-  }, [viewing, props.onRecoveryRequest]);
-
-  useEffect(() => {
-    if (viewing?.phase !== "disconnected" || !props.onRuntimeInput || props.refreshing) return;
-    const timer = setTimeout(() => void props.onReconnect(), 2000);
-    return () => clearTimeout(timer);
-  }, [viewing?.phase, props.onRuntimeInput, props.refreshing, props.onReconnect]);
-
-  async function start() {
-    if (props.recovering) return;
-    const target = viewer.current;
-    if (!target) return;
-    setError(null);
-    if (host.current?.getSnapshot().stage === "running") target.restartInput();
-    else await target.start(currentConnection.current.delivery);
-  }
-  function reconnect() {
-    setError(null);
-    void props.onReconnect();
-  }
-  function download() {
-    const payload = buildViewerDiagnostic({
-      tracking: anchor,
-      viewing,
-      context: host.current?.getDiagnosticContext() ?? null,
-    });
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "audience-viewer-checkpoint.json";
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
+    if (canvas.current) application.mount(canvas.current);
+    return application.dispose;
+  }, [application]);
+  const screen = useStore(
+    application.store,
+    useShallow((state) => ({
+      configured: state.config !== null,
+      ready: state.anchor !== null,
+      stage: state.anchor?.stage ?? "ready",
+      tracking: state.anchor?.tracking ?? "LIMITED",
+      detection: state.anchor?.detection ?? "waiting",
+      lastTagAtMs: state.anchor?.lastTagAtMs == null ? null : 1,
+      blocked: state.anchor?.mediaPlaybackBlocked,
+      error: state.error ?? state.anchor?.error,
+      live: state.live,
+      wait:
+        state.anchor?.normalSinceMs == null
+          ? 5
+          : Math.max(0, Math.ceil(5 - (state.anchor.nowMs - state.anchor.normalSinceMs) / 1000)),
+    })),
+  );
+  const viewing = useStore(
+    application.viewingStore,
+    useShallow((state) => ({
+      phase: state.phase,
+      error: state.error,
+      recovery: state.recovery?.kind,
+    })),
+  );
   const visibleError =
-    error ??
-    anchor?.error ??
-    (viewing?.phase === "error" ? "表示の準備に失敗しました。もう一度お試しください。" : null);
+    screen.error ??
+    (viewing.phase === "error" ? "表示の準備に失敗しました。もう一度お試しください。" : null);
   const phase = viewingPhase({
-    stage: anchor?.stage ?? "ready",
-    tracking: anchor?.tracking ?? "LIMITED",
-    detection: anchor?.detection ?? "waiting",
-    lastTagAtMs: anchor?.lastTagAtMs,
-    contentReady: viewing?.phase === "viewing",
-    ended: viewing?.phase === "ended",
+    ...screen,
+    contentReady: viewing.phase === "viewing",
+    ended: viewing.phase === "ended",
     error: visibleError,
   });
-  const waiting = waitingCopy(viewing?.phase, !!props.onRuntimeInput);
-  const wait =
-    anchor?.normalSinceMs == null
-      ? 5
-      : Math.max(0, 5 - (anchor.nowMs - anchor.normalSinceMs) / 1000);
+  const waiting = waitingCopy(viewing.phase, screen.live);
   return (
     <main className="audience-camera-view">
       <canvas ref={canvas} className="camera" aria-label="カメラ映像とプレゼンテーション" />
       <AudienceStage
         phase={phase}
-        normal={anchor?.tracking === "NORMAL"}
-        warmupSeconds={wait}
-        canStart={!!config && !!anchor && viewing !== null && viewing.phase !== "starting"}
-        onStart={() => {
-          void start();
-        }}
+        normal={screen.tracking === "NORMAL"}
+        warmupSeconds={screen.wait}
+        canStart={screen.configured && screen.ready && viewing.phase !== "starting"}
+        onLeave={application.leave}
+        onStart={() => void application.start()}
         error={visibleError}
         waitingLabel={waiting.label}
         waitingMessage={waiting.message}
-        viewingLabel={viewing?.recovery?.kind === "keyframe" ? "視聴中・状態を再同期中" : "視聴中"}
-        menu={
-          <>
-            {!props.onRuntimeInput && (
-              <p>ライブ受信は未接続です。接続仕様の提供後に受信処理を接続します。</p>
-            )}
-            {props.refreshing && (
-              <p role="status">
-                {props.recovering ? "配信の接続復旧を待っています。" : "接続情報を更新しています。"}
-              </p>
-            )}
-            {props.refreshError && (
-              <p role="status">
-                接続情報を更新できませんでした。有効期限内の情報で視聴を続けています。
-              </p>
-            )}
-            {viewing?.recovery && (
-              <p role="status">
-                {viewing.recovery.kind === "keyframe"
-                  ? "表示状態の再同期を待っています。"
-                  : "プレゼンテーションの再同期を待っています。"}
-              </p>
-            )}
-            <label>
-              マーカーサイズ（黒い外周）
-              <select
-                value={
-                  markerSize ?? (config ? Math.round(config.markers[0]!.sizeMeters * 1000) : 150)
-                }
-                disabled={!config}
-                onChange={(event) => setMarkerSize(Number(event.target.value))}
-              >
-                {markerSizesMillimeters.map((size) => (
-                  <option key={size} value={size}>
-                    {size} mm
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p>
-              白余白を除く一辺の実寸です。登壇側と同じサイズを選んでください。変更後はカメラを開始し、位置合わせをやり直してください。
-            </p>
-            <div className="audience-stage__test-controls">
-              {(anchor?.stage === "running" || anchor?.stage === "starting") && (
-                <button onClick={() => viewer.current?.stop()}>停止</button>
-              )}
-              <button onClick={props.onRefresh} disabled={props.refreshing}>
-                接続情報を更新
-              </button>
-              {(viewing?.phase === "disconnected" || viewing?.phase === "resync-required") && (
-                <button onClick={reconnect}>再接続</button>
-              )}
-              <button onClick={download}>状態をJSON保存</button>
-              {props.recorder && (
-                <button onClick={() => downloadSessionDiagnostic(props.recorder!)}>
-                  接続テストログを保存
-                </button>
-              )}
-              <button onClick={props.onLeave}>ルームから退出</button>
-            </div>
-            <details>
-              <summary>設定・診断</summary>
-              <p>
-                黒いマーカー外周 {config ? (config.markers[0]!.sizeMeters * 100).toFixed(1) : "—"}{" "}
-                cm ／ 設定revision {config?.revision ?? "—"}
-              </p>
-              <p>
-                タグ採用 {anchor?.anchorUpdateCount ?? 0}回 ／{" "}
-                {anchor?.completionHz == null
-                  ? "検出開始待ち"
-                  : `${anchor.completionHz.toFixed(1)} Hz`}
-              </p>
-              <SdkProgress
-                {...(anchor?.sdkProgress ? { progress: anchor.sdkProgress } : {})}
-                nowMs={anchor?.nowMs ?? 0}
-              />
-              <button onClick={() => setReload((value) => value + 1)}>設定を再読み込み</button>
-            </details>
-            <details>
-              <summary>ライセンス</summary>
-              <p>XR Engine: Niantic Spatial, Inc. Copyright © 2026. All rights reserved.</p>
-              <p>
-                <a href="/external/xr/LICENSE">XR Engine License Agreement</a>
-              </p>
-              <p>
-                <a href="/external/detectors/LICENSE.wrapper">AprilTag wrapper BSD-3</a>
-              </p>
-              <p>
-                <a href="/external/detectors/LICENSE.apriltag">AprilTag BSD-2</a>
-              </p>
-              <p>
-                <a href="/external/detectors/LICENSE.posit">POSIT・SVD MIT</a>
-              </p>
-              <p>
-                <a href="/external/detectors/apriltag_36h11.js">AprilTag dictionary BSD-3</a>
-              </p>
-              <p>
-                <a href="/external/detectors/provenance.json">取得元・SHA-256</a>
-              </p>
-              <p>
-                <a href="/external/engine-manifest.json">XR Engine配布物ハッシュ</a>
-              </p>
-            </details>
-          </>
-        }
+        viewingLabel={viewing.recovery === "keyframe" ? "視聴中・状態を再同期中" : "視聴中"}
+        menu={<ViewerMenu application={application} />}
       >
-        {anchor?.mediaPlaybackBlocked && (
+        {screen.blocked && (
           <button
             className="audience-stage__floating-action"
-            onClick={() => {
-              void host.current
-                ?.resumeMediaPlayback()
-                .catch(() => setError("動画の再生を開始できませんでした。"));
-            }}
+            onClick={() => void application.resumeMedia()}
           >
             動画・音声の再生を許可
           </button>

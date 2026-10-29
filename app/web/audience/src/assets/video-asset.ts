@@ -1,4 +1,7 @@
 import { LinearFilter, SRGBColorSpace, VideoTexture } from "three";
+import { z } from "zod";
+import { safeUIntSchema } from "@unframe/contracts/presentation";
+import { assertAssetCurrent, requestAssetBytes, verifyAssetChecksum } from "./asset-transfer";
 
 export interface VideoAsset {
   assetId: string;
@@ -20,6 +23,14 @@ export interface VideoAssetOptions {
   revokeObjectURL?: (url: string) => void;
 }
 class VideoAssetError extends Error {}
+function fail(reason: string): never {
+  throw new VideoAssetError(`Video ${reason}`);
+}
+
+const videoMetadataSchema = z.object({
+  pixelSize: z.tuple([safeUIntSchema.positive(), safeUIntSchema.positive()]),
+  durationMilliseconds: safeUIntSchema.positive(),
+});
 
 export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptions = {}) {
   let video: HTMLVideoElement | undefined;
@@ -37,68 +48,19 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
     texture?.dispose();
     if (objectURL) (options.revokeObjectURL ?? URL.revokeObjectURL)(objectURL);
   };
-  const abort = () => {
-    if (options.signal?.aborted) throw new VideoAssetError("Video load aborted");
-  };
+  const checkCurrent = () => assertAssetCurrent(asset, options, fail);
   try {
-    abort();
-    const url = new URL(asset.url);
-    if (url.protocol !== "https:" || url.username || url.password)
-      throw new VideoAssetError("Video URL must use HTTPS without credentials");
-    if (
-      !Number.isFinite(asset.expiresAtUnixMs) ||
-      asset.expiresAtUnixMs <= (options.now ?? Date.now)()
-    )
-      throw new VideoAssetError("Video delivery URL expired");
-    if (
-      !Number.isSafeInteger(asset.encodedSizeBytes) ||
-      asset.encodedSizeBytes < 12 ||
-      !/^sha256:[0-9a-f]{64}$/.test(asset.checksum) ||
-      !Number.isSafeInteger(asset.durationMilliseconds) ||
-      asset.durationMilliseconds <= 0 ||
-      asset.pixelSize.some((d) => !Number.isSafeInteger(d) || d <= 0)
-    )
-      throw new VideoAssetError("Invalid video metadata");
-    const response = await (options.fetcher ?? fetch)(asset.url, {
-      mode: "cors",
-      credentials: "omit",
-      cache: "no-store",
-      ...(options.signal ? { signal: options.signal } : {}),
+    checkCurrent();
+    if (!videoMetadataSchema.safeParse(asset).success) fail("invalid metadata");
+    const bytes = await requestAssetBytes(asset, options, {
+      mimeType: "video/mp4",
+      minBytes: 12,
+      fail,
     });
-    if (
-      !response.ok ||
-      response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "video/mp4"
-    )
-      throw new VideoAssetError("Video MP4 response required");
-    const declared = response.headers.get("content-length");
-    if (declared !== null && Number(declared) !== asset.encodedSizeBytes)
-      throw new VideoAssetError("Video encoded size mismatch");
-    if (!response.body) throw new VideoAssetError("Video response body missing");
-    const reader = response.body.getReader();
-    const bytes = new Uint8Array(asset.encodedSizeBytes);
-    let length = 0;
-    try {
-      for (;;) {
-        const chunk = await reader.read();
-        if (chunk.done) break;
-        length += chunk.value.length;
-        if (length > bytes.length) throw new VideoAssetError("Video encoded size mismatch");
-        bytes.set(chunk.value, length - chunk.value.length);
-      }
-    } finally {
-      await reader.cancel().catch(() => undefined);
-      reader.releaseLock();
-    }
-    if (length !== bytes.length) throw new VideoAssetError("Video encoded size mismatch");
     if (String.fromCharCode(...bytes.subarray(4, 8)) !== "ftyp")
       throw new VideoAssetError("Video MP4 signature required");
-    const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-    if (
-      `sha256:${Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("")}` !==
-      asset.checksum
-    )
-      throw new VideoAssetError("Video checksum mismatch");
-    abort();
+    await verifyAssetChecksum(bytes, asset.checksum, fail);
+    checkCurrent();
     video = (options.createVideo ?? (() => document.createElement("video")))();
     video.preload = "auto";
     video.playsInline = true;
@@ -108,6 +70,7 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
       new Blob([bytes], { type: "video/mp4" }),
     );
     const element = video;
+    const source = objectURL;
     await new Promise<void>((resolve, reject) => {
       const finish = (error?: Error) => {
         clearTimeout(timeout);
@@ -127,11 +90,11 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
       element.addEventListener("loadeddata", ready, { once: true });
       element.addEventListener("error", failed, { once: true });
       options.signal?.addEventListener("abort", cancelled, { once: true });
-      element.src = objectURL!;
+      element.src = source;
       element.load();
       if (options.signal?.aborted) cancelled();
     });
-    abort();
+    checkCurrent();
     if (element.videoWidth !== asset.pixelSize[0] || element.videoHeight !== asset.pixelSize[1])
       throw new VideoAssetError("Video pixel dimensions mismatch");
     if (

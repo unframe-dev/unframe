@@ -1,3 +1,4 @@
+import { createStore, type StoreApi } from "zustand/vanilla";
 import {
   encodeWireMessage,
   type ControlServerItemWire,
@@ -43,8 +44,20 @@ function sameDelivery(a: DeliveryManifestWire, b: DeliveryManifestWire) {
   return first.length === second.length && first.every((byte, index) => byte === second[index]);
 }
 
-export function createViewingSession(host: Host) {
-  let snapshot: ViewingSnapshot = { phase: "idle", runtime: null, recovery: null, error: null };
+export function createViewingStore() {
+  return createStore<ViewingSnapshot>(() => ({
+    phase: "idle",
+    runtime: null,
+    recovery: null,
+    error: null,
+  }));
+}
+
+export function createViewingSession(host: Host, state = createViewingStore()) {
+  const store: Pick<
+    StoreApi<ViewingSnapshot>,
+    "getState" | "getInitialState" | "subscribe"
+  > = state;
   let runtime: Runtime | null = null;
   let delivery: DeliveryManifestWire | null = null;
   let assignmentKey: string | null = null;
@@ -55,10 +68,8 @@ export function createViewingSession(host: Host) {
   let recoveryId = 0;
   let timer: ReturnType<typeof setInterval> | undefined;
   let settling: Promise<void> | null = null;
-  const listeners = new Set<() => void>();
   function publish(next: ViewingSnapshot) {
-    snapshot = next;
-    for (const listener of listeners) listener();
+    state.setState(next, true);
   }
   function setDelivery(next: DeliveryManifestWire) {
     const key = JSON.stringify([
@@ -115,8 +126,8 @@ export function createViewingSession(host: Host) {
             ? "keyframe"
             : null;
       const recovery = kind
-        ? snapshot.recovery?.kind === kind
-          ? snapshot.recovery
+        ? store.getState().recovery?.kind === kind
+          ? store.getState().recovery
           : { id: ++recoveryId, kind, afterSequence: state.reliableSequence }
         : null;
       publish({
@@ -216,17 +227,13 @@ export function createViewingSession(host: Host) {
     }
   }
   return {
-    getSnapshot: () => snapshot,
-    subscribe(listener: () => void) {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    store,
+    getSnapshot: store.getState,
+    subscribe: store.subscribe,
     getInput: () => input,
-    getRuntimeSnapshot: () => runtime?.getSnapshot() ?? snapshot.runtime,
+    getRuntimeSnapshot: () => runtime?.getSnapshot() ?? store.getState().runtime,
     async start(next: DeliveryManifestWire, startCamera = true) {
-      if (disposed || snapshot.phase === "starting") return;
+      if (disposed || store.getState().phase === "starting") return;
       const token = generation + 1;
       try {
         detach(true);
@@ -249,13 +256,13 @@ export function createViewingSession(host: Host) {
           return;
         }
         setDelivery(next);
-        if (snapshot.phase !== "idle" && snapshot.phase !== "starting") bind();
+        if (store.getState().phase !== "idle" && store.getState().phase !== "starting") bind();
       } catch {
         fail("viewing-start-failed");
       }
     },
     restartInput() {
-      if (!disposed && snapshot.phase !== "starting") bind();
+      if (!disposed && store.getState().phase !== "starting") bind();
       return input;
     },
     async waitForIdle() {
@@ -284,8 +291,7 @@ export function createViewingSession(host: Host) {
       disposed = true;
       detach(false);
       delivery = null;
-      snapshot = { phase: "idle", runtime: null, recovery: null, error: null };
-      listeners.clear();
+      publish({ phase: "idle", runtime: null, recovery: null, error: null });
       host.dispose();
     },
   };

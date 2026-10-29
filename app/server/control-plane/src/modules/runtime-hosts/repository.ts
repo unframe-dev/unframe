@@ -1,3 +1,4 @@
+import type { D1Database } from "@cloudflare/workers-types";
 import { and, eq, gte } from "drizzle-orm";
 import { createD1Database } from "../../adapters/d1/database";
 import { presentationSessions, runtimeAssignments, runtimeHosts } from "../../adapters/d1/schema";

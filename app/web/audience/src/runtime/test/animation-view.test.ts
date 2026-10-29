@@ -49,6 +49,31 @@ function setup() {
   return { delivery, view, base };
 }
 describe("animation view", () => {
+  it.each(["01", "-1", "1.0", "9007199254740992"])(
+    "preserves the animation error for invalid wire time %s",
+    (time) => {
+      const { delivery, view } = setup();
+      delivery.projectionProfile!.runtimeCatalog!.timelines![0]!.durationMs = time;
+      expect(() => evaluateAnimationView(delivery, view, 600)).toThrow(
+        "Runtime animation: invalid animation resources",
+      );
+    },
+  );
+  it.each([{ w: 1 + 2e-9 }, { w: -1 }, { x: -1 }, { w: Infinity }, {}])(
+    "preserves the animation error for invalid quaternion %j",
+    (rotation) => {
+      const { delivery, view } = setup();
+      const track = delivery.projectionProfile!.runtimeCatalog!.timelines![0]!.tracks![0]!;
+      track.target!.property = 3;
+      track.keyframes = [
+        { quaternion: { value: rotation }, easingToNext: 1 },
+        { timeMs: "1000", quaternion: { value: { w: 1 } } },
+      ];
+      expect(() => evaluateAnimationView(delivery, view, 600)).toThrow(
+        "Runtime animation: invalid animation resources",
+      );
+    },
+  );
   it("samples Timeline without changing authoritative input and clamps at either endpoint", () => {
     const { delivery, view } = setup();
     const before = structuredClone(view);

@@ -26,7 +26,11 @@ test("the public presentation export exposes the current contract without a vers
   const manifest = JSON.parse(
     await readFile(resolve(import.meta.dirname, "../package.json"), "utf8"),
   );
-  assert.deepEqual(Object.keys(manifest.exports).sort(), ["./control-plane", "./presentation"]);
+  assert.deepEqual(Object.keys(manifest.exports).sort(), [
+    "./control-plane",
+    "./control-plane-http",
+    "./presentation",
+  ]);
   const retiredPath = "@unframe/contracts/presentation/v2";
   await assert.rejects(import(retiredPath), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
   assert.equal(

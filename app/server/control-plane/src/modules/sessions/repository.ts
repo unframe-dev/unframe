@@ -1,3 +1,4 @@
+import type { D1Database } from "@cloudflare/workers-types";
 import { publicationFenceSchema } from "@unframe/contracts/presentation";
 import type { z } from "zod";
 import { and, count, eq, exists, isNull, lt, ne, sql, getTableColumns } from "drizzle-orm";

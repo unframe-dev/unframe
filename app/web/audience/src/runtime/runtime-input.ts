@@ -1,14 +1,14 @@
 import { decodeWireMessage, encodeWireMessage } from "@unframe/contracts/presentation";
 
+import { parseWireUInt } from "./wire-validation";
+
 export function requireValue(condition: unknown): asserts condition {
   if (!condition) throw new Error("invalid-runtime-input");
 }
 export function uint(value: string | undefined): number {
-  const text = value ?? "0";
-  requireValue(/^(0|[1-9][0-9]*)$/.test(text));
-  const number = Number(text);
-  requireValue(Number.isSafeInteger(number) && number >= 0);
-  return number;
+  const result = parseWireUInt(value);
+  requireValue(result.success);
+  return result.value;
 }
 export function id(value: string | undefined): asserts value is string {
   requireValue(

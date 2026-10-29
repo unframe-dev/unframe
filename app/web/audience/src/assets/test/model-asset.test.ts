@@ -62,6 +62,19 @@ describe("GLB asset", () => {
     );
     expect(parse).not.toHaveBeenCalled();
   });
+  it.each([
+    { nodes: "" },
+    { buffers: [{ byteLength: "0" }] },
+    { meshes: [{ primitives: "" }] },
+    { materials: [{ alphaMode: "UNKNOWN" }] },
+  ])("rejects malformed JSON structure before model parsing: %j", async (patch) => {
+    const f = await fixture({ asset: { version: "2.0" }, ...patch });
+    const parse = vi.fn(async () => ({ scene: new Group(), animations: [] }));
+    await expect(loadModelAsset(f.asset, { fetcher: f.fetcher, parse })).rejects.toThrow(
+      "JSON structure",
+    );
+    expect(parse).not.toHaveBeenCalled();
+  });
   it("rejects a checksum mismatch", async () => {
     const f = await fixture();
     f.asset.checksum = "sha256:" + "a".repeat(64);
@@ -147,6 +160,27 @@ describe("GLB safety boundaries", () => {
     ).rejects.toThrow(/aborted/);
     expect(geometryDispose).toHaveBeenCalledTimes(1);
     expect(materialDispose).toHaveBeenCalledTimes(1);
+  });
+  it("disposes a scene that finishes parsing after delivery expiration", async () => {
+    const f = await fixture();
+    let now = 0;
+    f.asset.expiresAtUnixMs = 100;
+    const scene = new Group();
+    const geometry = new (await import("three")).BoxGeometry();
+    const material = new (await import("three")).MeshBasicMaterial();
+    const dispose = vi.spyOn(geometry, "dispose");
+    scene.add(new (await import("three")).Mesh(geometry, material));
+    await expect(
+      loadModelAsset(f.asset, {
+        fetcher: f.fetcher,
+        now: () => now,
+        parse: async () => {
+          now = 100;
+          return { scene, animations: [] };
+        },
+      }),
+    ).rejects.toThrow("expired");
+    expect(dispose).toHaveBeenCalledOnce();
   });
   it("redacts external browser errors", async () => {
     const f = await fixture();

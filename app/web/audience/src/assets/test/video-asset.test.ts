@@ -101,6 +101,24 @@ describe("video asset", () => {
       loadVideoAsset({ ...f.asset, checksum: `sha256:${"0".repeat(64)}` }, f.options),
     ).rejects.toThrow("checksum");
   });
+  it("releases a decoded video that becomes ready after delivery expiration", async () => {
+    const f = await fixture();
+    let now = 0;
+    vi.spyOn(f.video, "load").mockImplementation(() => {
+      queueMicrotask(() => {
+        now = 100;
+        f.video.dispatchEvent(new Event("loadeddata"));
+      });
+    });
+    await expect(
+      loadVideoAsset(f.asset, {
+        ...f.options,
+        now: () => now,
+      }),
+    ).rejects.toThrow("expired");
+    expect(f.revokeObjectURL).toHaveBeenCalledOnce();
+    expect(f.video.removeAttribute).toHaveBeenCalledWith("src");
+  });
   it("releases video and blob on metadata mismatch or abort", async () => {
     const f = await fixture();
     f.video.videoWidth = 1;

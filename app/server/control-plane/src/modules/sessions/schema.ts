@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { sessionStateSchema, sessionJoinCodeSchema } from "@unframe/contracts/control-plane-http";
 
-export const sessionStateSchema = z.enum(["Waiting", "Presenting", "Ended"]);
+export { sessionStateSchema };
+export const joinCodeSchema = sessionJoinCodeSchema;
 export const sessionRoleSchema = z.enum(["presenter", "viewer"]);
-export const joinCodeSchema = z.string().regex(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
 
 export type SessionState = z.infer<typeof sessionStateSchema>;
 export type SessionRole = z.infer<typeof sessionRoleSchema>;

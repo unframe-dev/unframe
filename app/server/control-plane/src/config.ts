@@ -1,3 +1,4 @@
+import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 import { z } from "zod";
 
 const requiredString = (name: string) => z.string().trim().min(1, `${name} is required`);

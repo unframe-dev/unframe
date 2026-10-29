@@ -2,11 +2,12 @@ import { AudienceStage } from "../../ui/AudienceStage";
 import { viewingPhase } from "../../ui/viewing-phase";
 import { SdkProgress } from "../../SdkProgress";
 import { useEffect, useRef, useState } from "react";
+import { useStore } from "zustand";
 import { createAnchorSession, type AnchorSessionSnapshot } from "../../experience/anchor-session";
 import { configureTagBoard, loadBoardConfig, selectedTagProfile } from "../../fiducials/config";
 import type { BoardConfig } from "../../fiducials/config";
 import type { createRuntimePlayback } from "../../runtime/playback";
-import { createViewingSession } from "../../experience/viewing-session";
+import { createViewingSession, createViewingStore } from "../../experience/viewing-session";
 import { createFixtureScenario } from "./scenario";
 import { createMediaFixtureScenario } from "./media-scenario";
 import { summarizeRuntime } from "./checkpoint";
@@ -29,7 +30,6 @@ export function FixtureExperience() {
   function recordPlayback(state: RuntimeSnapshot) {
     if (state.phase === "ready" && state.rendering === "ready")
       lastReadyRuntime.current = summarizeRuntime(state);
-    setPlayback(state);
   }
   const [size, setSize] = useState(() =>
     new URLSearchParams(window.location.search).get("size") === "36" ? "36" : "22.5",
@@ -38,7 +38,8 @@ export function FixtureExperience() {
   const [config, setConfig] = useState<BoardConfig | null>(null);
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [anchor, setAnchor] = useState<AnchorSessionSnapshot | null>(null);
-  const [playback, setPlayback] = useState<RuntimeSnapshot | null>(null);
+  const [viewingStore] = useState(createViewingStore);
+  const playback = useStore(viewingStore, (state) => state.runtime);
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
   const [actionIndex, setActionIndex] = useState(0);
@@ -75,10 +76,9 @@ export function FixtureExperience() {
     if (!config || !canvas.current) return;
     const current = createAnchorSession({ canvas: canvas.current, config, onChange: setAnchor });
     session.current = current;
-    const viewer = createViewingSession(current);
+    const viewer = createViewingSession(current, viewingStore);
     runtime.current = viewer;
-    const unsubscribe = viewer.subscribe(() => {
-      const state = viewer.getSnapshot().runtime;
+    const unsubscribe = viewer.store.subscribe(({ runtime: state }) => {
       if (state) recordPlayback(state);
     });
     setAnchor(current.getSnapshot());
@@ -89,7 +89,7 @@ export function FixtureExperience() {
       viewer.dispose();
       if (session.current === current) session.current = null;
     };
-  }, [config]);
+  }, [config, viewingStore]);
 
   async function initialize(startCamera: boolean) {
     const current = runtime.current;
@@ -146,7 +146,6 @@ export function FixtureExperience() {
     setActionIndex(0);
     setStarted(false);
     setBusy(false);
-    setPlayback(null);
     lastReadyRuntime.current = null;
     setError(null);
   }
@@ -208,6 +207,12 @@ export function FixtureExperience() {
       <canvas ref={canvas} className="fixture-camera" aria-label="XRカメラ" />
       <AudienceStage
         phase={phase}
+        onLeave={() => {
+          generation.current++;
+          runtime.current?.dispose();
+          runtime.current = null;
+          window.location.assign("/");
+        }}
         normal={anchor?.tracking === "NORMAL"}
         warmupSeconds={wait}
         canStart={!!config && !!scenario && !busy}

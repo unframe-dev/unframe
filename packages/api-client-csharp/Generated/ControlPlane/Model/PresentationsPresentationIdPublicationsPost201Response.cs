@@ -248,7 +248,7 @@ namespace Unframe.ControlPlane.Model
 
             if (this.BuildId != null) {
                 // BuildId (string) pattern
-                Regex regexBuildId = new Regex(@"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$", RegexOptions.CultureInvariant);
+                Regex regexBuildId = new Regex(@"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$", RegexOptions.CultureInvariant);
 
                 if (!regexBuildId.Match(this.BuildId).Success)
                 {

@@ -1,3 +1,4 @@
+import type { D1Database } from "@cloudflare/workers-types";
 import { count, eq, sql } from "drizzle-orm";
 import { authUsers } from "../../adapters/d1/viewer-schema";
 import { createD1Database } from "../../adapters/d1/database";

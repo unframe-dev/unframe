@@ -1,3 +1,9 @@
+import {
+  controlPlaneIdentifierSchema as identifier,
+  sessionJoinCodeSchema,
+  viewerCredentialSchema,
+} from "@unframe/contracts/control-plane-http";
+import { createControlPlaneClient } from "@unframe/api-client-typescript";
 import type { paths } from "@unframe/contracts/control-plane";
 import { z } from "zod";
 import {
@@ -8,18 +14,12 @@ import {
 
 type ViewerCredential =
   paths["/viewer-credentials"]["post"]["responses"][201]["content"]["application/json"];
-const identifier = z
-  .string()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9_-]+$/);
-const credentialSchema: z.ZodType<ViewerCredential> = z.object({
+const credentialSchema: z.ZodType<ViewerCredential> = viewerCredentialSchema.extend({
   token: z
     .string()
     .min(1)
     .max(16384)
     .regex(/^viewer_[A-Za-z0-9_-]+$/),
-  expiresAt: z.iso.datetime(),
   sessionId: identifier,
   participantId: identifier,
 });
@@ -35,41 +35,52 @@ export function createAnonymousAudienceClient(
   let refreshing: Promise<void> | null = null;
   const client = createAudienceHttpClient(config, {
     ...options,
-    authorization: () => credential?.token ?? null,
+    authorization: () => {
+      if (!credential || Date.parse(credential.expiresAt) <= now())
+        throw new AudienceConnectionError("unauthorized");
+      return credential.token;
+    },
   });
-  const origin = new URL(config.apiOrigin).origin;
+  const rpc = createControlPlaneClient({
+    baseUrl: new URL(config.apiOrigin).origin,
+    fetch: requestFetch,
+    credentials: "omit",
+  });
+  type CredentialResponse = Pick<
+    Response,
+    "status" | "headers" | "redirected" | "json" | "arrayBuffer"
+  >;
   async function request(
-    path: string,
-    method: string,
+    send: (options: {
+      init: RequestInit;
+      headers: Record<string, string>;
+    }) => Promise<CredentialResponse>,
+    expectedStatus: number,
     token: string | null,
-    body?: object,
     signal?: AbortSignal,
   ) {
-    let response: Response;
+    let response: CredentialResponse;
     try {
-      response = await requestFetch(`${origin}${path}`, {
-        method,
-        mode: "cors",
-        credentials: "omit",
-        cache: "no-store",
-        redirect: "error",
-        referrerPolicy: "no-referrer",
+      response = await send({
+        init: {
+          mode: "cors",
+          cache: "no-store",
+          redirect: "error",
+          referrerPolicy: "no-referrer",
+          ...(signal ? { signal } : {}),
+        },
         headers: {
           Accept: "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(body ? { "Content-Type": "application/json" } : {}),
         },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-        ...(signal ? { signal } : {}),
       });
     } catch {
       throw new AudienceConnectionError(signal?.aborted ? "aborted" : "network-error");
     }
-    if (response.status !== (method === "DELETE" ? 204 : path.endsWith("refresh") ? 200 : 201))
-      throw await audienceResponseError(response);
+    if (response.status !== expectedStatus) throw await audienceResponseError(response);
     return response;
   }
-  async function read(response: Response): Promise<ViewerCredential> {
+  async function read(response: CredentialResponse): Promise<ViewerCredential> {
     try {
       if (
         response.redirected ||
@@ -85,7 +96,7 @@ export function createAnonymousAudienceClient(
     }
   }
   async function revoke(value: ViewerCredential) {
-    await request("/viewer-credentials", "DELETE", value.token);
+    await request((options) => rpc["viewer-credentials"].$delete({}, options), 204, value.token);
   }
   async function ensure(id: string) {
     if (!credential || credential.sessionId !== id || Date.parse(credential.expiresAt) <= now())
@@ -95,10 +106,21 @@ export function createAnonymousAudienceClient(
       const old = credential;
       const token = generation;
       const work = (async () => {
-        const next = await read(await request("/viewer-credentials/refresh", "POST", old.token));
+        const next = await read(
+          await request(
+            (options) => rpc["viewer-credentials"].refresh.$post({}, options),
+            200,
+            old.token,
+          ),
+        );
         if (generation !== token || credential !== old) {
           await revoke(next).catch(() => {});
           throw new AudienceConnectionError("aborted");
+        }
+        if (Date.parse(old.expiresAt) <= now()) {
+          credential = null;
+          await revoke(next).catch(() => {});
+          throw new AudienceConnectionError("unauthorized");
         }
         if (next.sessionId !== old.sessionId || next.participantId !== old.participantId)
           throw new AudienceConnectionError("invalid-response");
@@ -122,14 +144,19 @@ export function createAnonymousAudienceClient(
   }
   return {
     async join(joinCode: string, signal?: AbortSignal) {
-      if (!/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(joinCode))
+      if (!sessionJoinCodeSchema.safeParse(joinCode).success)
         throw new AudienceConnectionError("invalid-join-code");
       const leaving = leave();
       const token = generation;
       await leaving.catch(() => {});
       if (token !== generation || signal?.aborted) throw new AudienceConnectionError("aborted");
       const issued = await read(
-        await request("/viewer-credentials", "POST", null, { joinCode }, signal),
+        await request(
+          (options) => rpc["viewer-credentials"].$post({ json: { joinCode } }, options),
+          201,
+          null,
+          signal,
+        ),
       );
       if (token !== generation || signal?.aborted) {
         await revoke(issued).catch(() => {});
@@ -138,6 +165,9 @@ export function createAnonymousAudienceClient(
       credential = issued;
       try {
         const session = await client.join(joinCode, signal);
+        if (token !== generation || signal?.aborted) throw new AudienceConnectionError("aborted");
+        if (Date.parse(issued.expiresAt) <= now())
+          throw new AudienceConnectionError("unauthorized");
         if (session.id !== issued.sessionId) throw new AudienceConnectionError("invalid-response");
         return session;
       } catch (error) {

@@ -60,11 +60,9 @@ export interface ContractVersionsWire {
   projection?: number;
 }
 
-export interface DeliveredArtifactWireFields {}
-export type DeliveredArtifactWire_artifact =
-  | { bakedWeb: BakedWebArtifactWire; nativeUi?: never; video?: never }
-  | { nativeUi: NativeUiArtifactWire; bakedWeb?: never; video?: never }
-  | { video: VideoArtifactWire; bakedWeb?: never; nativeUi?: never };
+export interface DeliveredArtifactWireFields {
+}
+export type DeliveredArtifactWire_artifact = { bakedWeb: BakedWebArtifactWire; nativeUi?: never; video?: never } | { nativeUi: NativeUiArtifactWire; bakedWeb?: never; video?: never } | { video: VideoArtifactWire; bakedWeb?: never; nativeUi?: never };
 export type DeliveredArtifactWire = DeliveredArtifactWireFields & DeliveredArtifactWire_artifact;
 
 export interface DeliveredRenderSurfaceWire {
@@ -81,11 +79,8 @@ export interface DeliveredRenderSurfaceWire {
 export interface DeliveredStateBindingWireFields {
   stateId?: string;
 }
-export type DeliveredStateBindingWire_binding =
-  | { empty: EmptyStateBindingWire; artifact?: never }
-  | { artifact: ArtifactStateBindingWire; empty?: never };
-export type DeliveredStateBindingWire = DeliveredStateBindingWireFields &
-  DeliveredStateBindingWire_binding;
+export type DeliveredStateBindingWire_binding = { empty: EmptyStateBindingWire; artifact?: never } | { artifact: ArtifactStateBindingWire; empty?: never };
+export type DeliveredStateBindingWire = DeliveredStateBindingWireFields & DeliveredStateBindingWire_binding;
 
 export interface DeliveryManifestWire {
   schemaVersion?: number;
@@ -102,7 +97,8 @@ export interface DeliveryManifestWire {
   residency?: ResidencyPlanWire;
 }
 
-export interface EmptyStateBindingWire {}
+export interface EmptyStateBindingWire {
+}
 
 export interface FontFaceWire {
   assetId?: string;
@@ -186,43 +182,9 @@ export interface ModelResidencyPlanWire {
   totalPrimitives?: string;
 }
 
-export interface NativeTextValueWireFields {}
-export type NativeTextValueWire_source =
-  | {
-      literal: LiteralTextWire;
-      stringVariable?: never;
-      booleanVariable?: never;
-      numberVariable?: never;
-      stepTimer?: never;
-    }
-  | {
-      stringVariable: StringVariableTextWire;
-      literal?: never;
-      booleanVariable?: never;
-      numberVariable?: never;
-      stepTimer?: never;
-    }
-  | {
-      booleanVariable: BooleanVariableTextWire;
-      literal?: never;
-      stringVariable?: never;
-      numberVariable?: never;
-      stepTimer?: never;
-    }
-  | {
-      numberVariable: NumberVariableTextWire;
-      literal?: never;
-      stringVariable?: never;
-      booleanVariable?: never;
-      stepTimer?: never;
-    }
-  | {
-      stepTimer: StepTimerTextWire;
-      literal?: never;
-      stringVariable?: never;
-      booleanVariable?: never;
-      numberVariable?: never;
-    };
+export interface NativeTextValueWireFields {
+}
+export type NativeTextValueWire_source = { literal: LiteralTextWire; stringVariable?: never; booleanVariable?: never; numberVariable?: never; stepTimer?: never } | { stringVariable: StringVariableTextWire; literal?: never; booleanVariable?: never; numberVariable?: never; stepTimer?: never } | { booleanVariable: BooleanVariableTextWire; literal?: never; stringVariable?: never; numberVariable?: never; stepTimer?: never } | { numberVariable: NumberVariableTextWire; literal?: never; stringVariable?: never; booleanVariable?: never; stepTimer?: never } | { stepTimer: StepTimerTextWire; literal?: never; stringVariable?: never; booleanVariable?: never; numberVariable?: never };
 export type NativeTextValueWire = NativeTextValueWireFields & NativeTextValueWire_source;
 
 export interface NativeUiArtifactWire {
@@ -256,10 +218,9 @@ export interface NativeUiLimitsWire {
   maxFontAssets?: string;
 }
 
-export interface NativeUiNodeWireFields {}
-export type NativeUiNodeWire_node =
-  | { group: NativeUiGroupWire; text?: never }
-  | { text: NativeUiTextWire; group?: never };
+export interface NativeUiNodeWireFields {
+}
+export type NativeUiNodeWire_node = { group: NativeUiGroupWire; text?: never } | { text: NativeUiTextWire; group?: never };
 export type NativeUiNodeWire = NativeUiNodeWireFields & NativeUiNodeWire_node;
 
 export interface NativeUiResidencyPlanWire {
@@ -303,29 +264,15 @@ export interface ProjectedSemanticNodeWireFields {
   role?: number;
   interactionEnabled?: boolean;
 }
-export type ProjectedSemanticNodeWire__parentNodeId =
-  | { parentNodeId: string }
-  | { parentNodeId?: never };
-export type ProjectedSemanticNodeWire__text = { text: string } | { text?: never };
-export type ProjectedSemanticNodeWire__language = { language: string } | { language?: never };
-export type ProjectedSemanticNodeWire__alt = { alt: string } | { alt?: never };
-export type ProjectedSemanticNodeWire__label = { label: string } | { label?: never };
-export type ProjectedSemanticNodeWire__headingLevel =
-  | { headingLevel: number }
-  | { headingLevel?: never };
-export type ProjectedSemanticNodeWire__ordered = { ordered: boolean } | { ordered?: never };
-export type ProjectedSemanticNodeWire__interactionId =
-  | { interactionId: string }
-  | { interactionId?: never };
-export type ProjectedSemanticNodeWire = ProjectedSemanticNodeWireFields &
-  ProjectedSemanticNodeWire__parentNodeId &
-  ProjectedSemanticNodeWire__text &
-  ProjectedSemanticNodeWire__language &
-  ProjectedSemanticNodeWire__alt &
-  ProjectedSemanticNodeWire__label &
-  ProjectedSemanticNodeWire__headingLevel &
-  ProjectedSemanticNodeWire__ordered &
-  ProjectedSemanticNodeWire__interactionId;
+export type ProjectedSemanticNodeWire__parentNodeId = { parentNodeId: string;  } | { parentNodeId?: never };
+export type ProjectedSemanticNodeWire__text = { text: string;  } | { text?: never };
+export type ProjectedSemanticNodeWire__language = { language: string;  } | { language?: never };
+export type ProjectedSemanticNodeWire__alt = { alt: string;  } | { alt?: never };
+export type ProjectedSemanticNodeWire__label = { label: string;  } | { label?: never };
+export type ProjectedSemanticNodeWire__headingLevel = { headingLevel: number;  } | { headingLevel?: never };
+export type ProjectedSemanticNodeWire__ordered = { ordered: boolean;  } | { ordered?: never };
+export type ProjectedSemanticNodeWire__interactionId = { interactionId: string;  } | { interactionId?: never };
+export type ProjectedSemanticNodeWire = ProjectedSemanticNodeWireFields & ProjectedSemanticNodeWire__parentNodeId & ProjectedSemanticNodeWire__text & ProjectedSemanticNodeWire__language & ProjectedSemanticNodeWire__alt & ProjectedSemanticNodeWire__label & ProjectedSemanticNodeWire__headingLevel & ProjectedSemanticNodeWire__ordered & ProjectedSemanticNodeWire__interactionId;
 
 export interface ProjectedSemanticSurfaceWire {
   semanticSurfaceId?: string;
@@ -498,7 +445,8 @@ export interface BoxGeometryWire {
   size?: Vector3Wire;
 }
 
-export interface ContainerNodeWire {}
+export interface ContainerNodeWire {
+}
 
 export interface DirectionalLightWire {
   color?: SrgbColorWire;
@@ -515,11 +463,9 @@ export interface GroupRunOwnerWire {
   groupEntryEpoch?: string;
 }
 
-export interface LightNodeWireFields {}
-export type LightNodeWire_light =
-  | { directional: DirectionalLightWire; point?: never; spot?: never }
-  | { point: PointLightWire; directional?: never; spot?: never }
-  | { spot: SpotLightWire; directional?: never; point?: never };
+export interface LightNodeWireFields {
+}
+export type LightNodeWire_light = { directional: DirectionalLightWire; point?: never; spot?: never } | { point: PointLightWire; directional?: never; spot?: never } | { spot: SpotLightWire; directional?: never; point?: never };
 export type LightNodeWire = LightNodeWireFields & LightNodeWire_light;
 
 export interface ModelNodeWire {
@@ -530,7 +476,8 @@ export interface NodeParentWire {
   nodeId?: string;
 }
 
-export interface NullScalarWire {}
+export interface NullScalarWire {
+}
 
 export interface NumberKeyframeValueWire {
   value?: number;
@@ -548,9 +495,11 @@ export interface PoseWire {
   rotation?: QuaternionWire;
 }
 
-export interface PresentationResourceOwnerWire {}
+export interface PresentationResourceOwnerWire {
+}
 
-export interface PresentationRunOwnerWire {}
+export interface PresentationRunOwnerWire {
+}
 
 export interface PresenterAnchorParentWire {
   target?: number;
@@ -583,14 +532,8 @@ export interface ProjectedNodeDefinitionWireFields {
   order?: number;
   owner?: ResourceOwnerWire;
 }
-export type ProjectedNodeDefinitionWire_node =
-  | { container: ContainerNodeWire; surface?: never; model?: never; shape?: never; light?: never }
-  | { surface: SurfaceNodeWire; container?: never; model?: never; shape?: never; light?: never }
-  | { model: ModelNodeWire; container?: never; surface?: never; shape?: never; light?: never }
-  | { shape: ShapeNodeWire; container?: never; surface?: never; model?: never; light?: never }
-  | { light: LightNodeWire; container?: never; surface?: never; model?: never; shape?: never };
-export type ProjectedNodeDefinitionWire = ProjectedNodeDefinitionWireFields &
-  ProjectedNodeDefinitionWire_node;
+export type ProjectedNodeDefinitionWire_node = { container: ContainerNodeWire; surface?: never; model?: never; shape?: never; light?: never } | { surface: SurfaceNodeWire; container?: never; model?: never; shape?: never; light?: never } | { model: ModelNodeWire; container?: never; surface?: never; shape?: never; light?: never } | { shape: ShapeNodeWire; container?: never; surface?: never; model?: never; light?: never } | { light: LightNodeWire; container?: never; surface?: never; model?: never; shape?: never };
+export type ProjectedNodeDefinitionWire = ProjectedNodeDefinitionWireFields & ProjectedNodeDefinitionWire_node;
 
 export interface ProjectedRuntimeCatalogWire {
   catalogContractVersion?: number;
@@ -654,10 +597,9 @@ export interface QuaternionKeyframeValueWire {
   value?: QuaternionWire;
 }
 
-export interface ResourceOwnerWireFields {}
-export type ResourceOwnerWire_scope =
-  | { presentation: PresentationResourceOwnerWire; group?: never }
-  | { group: GroupResourceOwnerWire; presentation?: never };
+export interface ResourceOwnerWireFields {
+}
+export type ResourceOwnerWire_scope = { presentation: PresentationResourceOwnerWire; group?: never } | { group: GroupResourceOwnerWire; presentation?: never };
 export type ResourceOwnerWire = ResourceOwnerWireFields & ResourceOwnerWire_scope;
 
 export interface RuntimeProjectionFenceWire {
@@ -682,33 +624,25 @@ export interface RuntimeRunIdWire {
   runSequence?: string;
 }
 
-export interface RuntimeRunOwnerWireFields {}
-export type RuntimeRunOwnerWire_scope =
-  | { presentation: PresentationRunOwnerWire; group?: never }
-  | { group: GroupRunOwnerWire; presentation?: never };
+export interface RuntimeRunOwnerWireFields {
+}
+export type RuntimeRunOwnerWire_scope = { presentation: PresentationRunOwnerWire; group?: never } | { group: GroupRunOwnerWire; presentation?: never };
 export type RuntimeRunOwnerWire = RuntimeRunOwnerWireFields & RuntimeRunOwnerWire_scope;
 
-export interface ScalarValueWireFields {}
-export type ScalarValueWire_value =
-  | { stringValue: string; numberValue?: never; booleanValue?: never; nullValue?: never }
-  | { numberValue: number; stringValue?: never; booleanValue?: never; nullValue?: never }
-  | { booleanValue: boolean; stringValue?: never; numberValue?: never; nullValue?: never }
-  | { nullValue: NullScalarWire; stringValue?: never; numberValue?: never; booleanValue?: never };
+export interface ScalarValueWireFields {
+}
+export type ScalarValueWire_value = { stringValue: string; numberValue?: never; booleanValue?: never; nullValue?: never } | { numberValue: number; stringValue?: never; booleanValue?: never; nullValue?: never } | { booleanValue: boolean; stringValue?: never; numberValue?: never; nullValue?: never } | { nullValue: NullScalarWire; stringValue?: never; numberValue?: never; booleanValue?: never };
 export type ScalarValueWire = ScalarValueWireFields & ScalarValueWire_value;
 
 export interface ShapeNodeWireFields {
   material?: UnlitShapeMaterialWire;
 }
-export type ShapeNodeWire_geometry =
-  | { box: BoxGeometryWire; sphere?: never }
-  | { sphere: SphereGeometryWire; box?: never };
+export type ShapeNodeWire_geometry = { box: BoxGeometryWire; sphere?: never } | { sphere: SphereGeometryWire; box?: never };
 export type ShapeNodeWire = ShapeNodeWireFields & ShapeNodeWire_geometry;
 
-export interface SpatialParentWireFields {}
-export type SpatialParentWire_parent =
-  | { stage: StageParentWire; node?: never; presenterAnchor?: never }
-  | { node: NodeParentWire; stage?: never; presenterAnchor?: never }
-  | { presenterAnchor: PresenterAnchorParentWire; stage?: never; node?: never };
+export interface SpatialParentWireFields {
+}
+export type SpatialParentWire_parent = { stage: StageParentWire; node?: never; presenterAnchor?: never } | { node: NodeParentWire; stage?: never; presenterAnchor?: never } | { presenterAnchor: PresenterAnchorParentWire; stage?: never; node?: never };
 export type SpatialParentWire = SpatialParentWireFields & SpatialParentWire_parent;
 
 export interface SphereGeometryWire {
@@ -737,7 +671,8 @@ export interface SrgbColorWire {
   blue?: number;
 }
 
-export interface StageParentWire {}
+export interface StageParentWire {
+}
 
 export interface SurfaceNodeWire {
   semanticSurfaceId?: string;
@@ -746,16 +681,9 @@ export interface SurfaceNodeWire {
 export interface TimelineKeyframeWireFields {
   timeMs?: string;
 }
-export type TimelineKeyframeWire_value =
-  | { number: NumberKeyframeValueWire; vector3?: never; quaternion?: never }
-  | { vector3: Vector3KeyframeValueWire; number?: never; quaternion?: never }
-  | { quaternion: QuaternionKeyframeValueWire; number?: never; vector3?: never };
-export type TimelineKeyframeWire__easingToNext =
-  | { easingToNext: number }
-  | { easingToNext?: never };
-export type TimelineKeyframeWire = TimelineKeyframeWireFields &
-  TimelineKeyframeWire_value &
-  TimelineKeyframeWire__easingToNext;
+export type TimelineKeyframeWire_value = { number: NumberKeyframeValueWire; vector3?: never; quaternion?: never } | { vector3: Vector3KeyframeValueWire; number?: never; quaternion?: never } | { quaternion: QuaternionKeyframeValueWire; number?: never; vector3?: never };
+export type TimelineKeyframeWire__easingToNext = { easingToNext: number;  } | { easingToNext?: never };
+export type TimelineKeyframeWire = TimelineKeyframeWireFields & TimelineKeyframeWire_value & TimelineKeyframeWire__easingToNext;
 
 export interface TimelineTrackTargetWire {
   nodeId?: string;
@@ -804,11 +732,8 @@ export interface LocalPreviewEnvelopeWireFields {
   initialState?: LocalPreviewInitialStateWire;
   assets?: LocalPreviewAssetWire[];
 }
-export type LocalPreviewEnvelopeWire__sourceRevision =
-  | { sourceRevision: string }
-  | { sourceRevision?: never };
-export type LocalPreviewEnvelopeWire = LocalPreviewEnvelopeWireFields &
-  LocalPreviewEnvelopeWire__sourceRevision;
+export type LocalPreviewEnvelopeWire__sourceRevision = { sourceRevision: string;  } | { sourceRevision?: never };
+export type LocalPreviewEnvelopeWire = LocalPreviewEnvelopeWireFields & LocalPreviewEnvelopeWire__sourceRevision;
 
 export interface LocalPreviewInitialStateWire {
   nodeStates?: NodeRuntimeStateWire[];
@@ -843,7 +768,8 @@ export interface LocalPreviewProjectionWire {
   videoResidency?: VideoResidencyPlanWire;
 }
 
-export interface AnchorBindingUnavailableWire {}
+export interface AnchorBindingUnavailableWire {
+}
 
 export interface ArmedTimerWire {
   cueId?: string;
@@ -893,11 +819,7 @@ export interface CommandAcceptedWireFields {
   canonicalEventId?: string;
   reliableSequence?: string;
 }
-export type CommandAcceptedWire_cueEvaluation =
-  | { cueNotSelected: CueNotSelectedWire; cueCommitted?: never; cueBatchRejected?: never }
-  | { cueCommitted: CueCommittedWire; cueNotSelected?: never; cueBatchRejected?: never }
-  | { cueBatchRejected: CueBatchRejectedWire; cueNotSelected?: never; cueCommitted?: never }
-  | { cueNotSelected?: never; cueCommitted?: never; cueBatchRejected?: never };
+export type CommandAcceptedWire_cueEvaluation = { cueNotSelected: CueNotSelectedWire; cueCommitted?: never; cueBatchRejected?: never } | { cueCommitted: CueCommittedWire; cueNotSelected?: never; cueBatchRejected?: never } | { cueBatchRejected: CueBatchRejectedWire; cueNotSelected?: never; cueCommitted?: never } | { cueNotSelected?: never; cueCommitted?: never; cueBatchRejected?: never };
 export type CommandAcceptedWire = CommandAcceptedWireFields & CommandAcceptedWire_cueEvaluation;
 
 export interface CommandNoOpWire {
@@ -907,10 +829,7 @@ export interface CommandNoOpWire {
 export interface CommandOutcomeWireFields {
   clientEventId?: string;
 }
-export type CommandOutcomeWire_result =
-  | { accepted: CommandAcceptedWire; rejected?: never; noOp?: never }
-  | { rejected: CommandRejectedWire; accepted?: never; noOp?: never }
-  | { noOp: CommandNoOpWire; accepted?: never; rejected?: never };
+export type CommandOutcomeWire_result = { accepted: CommandAcceptedWire; rejected?: never; noOp?: never } | { rejected: CommandRejectedWire; accepted?: never; noOp?: never } | { noOp: CommandNoOpWire; accepted?: never; rejected?: never };
 export type CommandOutcomeWire = CommandOutcomeWireFields & CommandOutcomeWire_result;
 
 export interface CommandRejectedWire {
@@ -927,107 +846,9 @@ export interface ConnectionSnapshotEnvelopeWire {
   snapshot?: ProjectedRuntimeSnapshotWire;
 }
 
-export interface ControlClientItemWireFields {}
-export type ControlClientItemWire_item =
-  | {
-      handshake: ControlHandshakeWire;
-      replayRequest?: never;
-      stateReady?: never;
-      logicalInput?: never;
-      surfaceInteraction?: never;
-      runtimeControl?: never;
-      gestureInput?: never;
-      zoneInput?: never;
-      inputSynchronizationAck?: never;
-    }
-  | {
-      replayRequest: ReplayRequestWire;
-      handshake?: never;
-      stateReady?: never;
-      logicalInput?: never;
-      surfaceInteraction?: never;
-      runtimeControl?: never;
-      gestureInput?: never;
-      zoneInput?: never;
-      inputSynchronizationAck?: never;
-    }
-  | {
-      stateReady: StateReadyWire;
-      handshake?: never;
-      replayRequest?: never;
-      logicalInput?: never;
-      surfaceInteraction?: never;
-      runtimeControl?: never;
-      gestureInput?: never;
-      zoneInput?: never;
-      inputSynchronizationAck?: never;
-    }
-  | {
-      logicalInput: LogicalInputCommandWire;
-      handshake?: never;
-      replayRequest?: never;
-      stateReady?: never;
-      surfaceInteraction?: never;
-      runtimeControl?: never;
-      gestureInput?: never;
-      zoneInput?: never;
-      inputSynchronizationAck?: never;
-    }
-  | {
-      surfaceInteraction: SurfaceInteractionCommandWire;
-      handshake?: never;
-      replayRequest?: never;
-      stateReady?: never;
-      logicalInput?: never;
-      runtimeControl?: never;
-      gestureInput?: never;
-      zoneInput?: never;
-      inputSynchronizationAck?: never;
-    }
-  | {
-      runtimeControl: RuntimeControlCommandWire;
-      handshake?: never;
-      replayRequest?: never;
-      stateReady?: never;
-      logicalInput?: never;
-      surfaceInteraction?: never;
-      gestureInput?: never;
-      zoneInput?: never;
-      inputSynchronizationAck?: never;
-    }
-  | {
-      gestureInput: GestureInputCommandWire;
-      handshake?: never;
-      replayRequest?: never;
-      stateReady?: never;
-      logicalInput?: never;
-      surfaceInteraction?: never;
-      runtimeControl?: never;
-      zoneInput?: never;
-      inputSynchronizationAck?: never;
-    }
-  | {
-      zoneInput: ZoneInputCommandWire;
-      handshake?: never;
-      replayRequest?: never;
-      stateReady?: never;
-      logicalInput?: never;
-      surfaceInteraction?: never;
-      runtimeControl?: never;
-      gestureInput?: never;
-      inputSynchronizationAck?: never;
-    }
-  | {
-      inputSynchronizationAck: InputSynchronizationAckWire;
-      handshake?: never;
-      replayRequest?: never;
-      stateReady?: never;
-      logicalInput?: never;
-      surfaceInteraction?: never;
-      runtimeControl?: never;
-      gestureInput?: never;
-      zoneInput?: never;
-    };
+export interface ControlClientItemWireFields {
+}
+export type ControlClientItemWire_item = { handshake: ControlHandshakeWire; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { replayRequest: ReplayRequestWire; handshake?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { stateReady: StateReadyWire; handshake?: never; replayRequest?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { logicalInput: LogicalInputCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { surfaceInteraction: SurfaceInteractionCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { runtimeControl: RuntimeControlCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { gestureInput: GestureInputCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; zoneInput?: never; inputSynchronizationAck?: never } | { zoneInput: ZoneInputCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; inputSynchronizationAck?: never } | { inputSynchronizationAck: InputSynchronizationAckWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never };
 export type ControlClientItemWire = ControlClientItemWireFields & ControlClientItemWire_item;
 
 export interface ControlConnectedWire {
@@ -1044,110 +865,12 @@ export interface ControlHandshakeWireFields {
   progressionContractVersion?: number;
   supportedCapabilities?: number[];
 }
-export type ControlHandshakeWire__resume = { resume: ResumeCursorWire } | { resume?: never };
+export type ControlHandshakeWire__resume = { resume: ResumeCursorWire;  } | { resume?: never };
 export type ControlHandshakeWire = ControlHandshakeWireFields & ControlHandshakeWire__resume;
 
-export interface ControlServerItemWireFields {}
-export type ControlServerItemWire_item =
-  | {
-      connected: ControlConnectedWire;
-      connectionSnapshot?: never;
-      reliableEvent?: never;
-      projectionAdvance?: never;
-      commandOutcome?: never;
-      stateConnectionNonce?: never;
-      resyncRequired?: never;
-      presenterInputSynchronization?: never;
-      presenterStepSelectionCatalog?: never;
-    }
-  | {
-      connectionSnapshot: ConnectionSnapshotEnvelopeWire;
-      connected?: never;
-      reliableEvent?: never;
-      projectionAdvance?: never;
-      commandOutcome?: never;
-      stateConnectionNonce?: never;
-      resyncRequired?: never;
-      presenterInputSynchronization?: never;
-      presenterStepSelectionCatalog?: never;
-    }
-  | {
-      reliableEvent: ProjectedReliableEventWire;
-      connected?: never;
-      connectionSnapshot?: never;
-      projectionAdvance?: never;
-      commandOutcome?: never;
-      stateConnectionNonce?: never;
-      resyncRequired?: never;
-      presenterInputSynchronization?: never;
-      presenterStepSelectionCatalog?: never;
-    }
-  | {
-      projectionAdvance: ProjectionAdvanceWire;
-      connected?: never;
-      connectionSnapshot?: never;
-      reliableEvent?: never;
-      commandOutcome?: never;
-      stateConnectionNonce?: never;
-      resyncRequired?: never;
-      presenterInputSynchronization?: never;
-      presenterStepSelectionCatalog?: never;
-    }
-  | {
-      commandOutcome: CommandOutcomeWire;
-      connected?: never;
-      connectionSnapshot?: never;
-      reliableEvent?: never;
-      projectionAdvance?: never;
-      stateConnectionNonce?: never;
-      resyncRequired?: never;
-      presenterInputSynchronization?: never;
-      presenterStepSelectionCatalog?: never;
-    }
-  | {
-      stateConnectionNonce: StateConnectionNonceWire;
-      connected?: never;
-      connectionSnapshot?: never;
-      reliableEvent?: never;
-      projectionAdvance?: never;
-      commandOutcome?: never;
-      resyncRequired?: never;
-      presenterInputSynchronization?: never;
-      presenterStepSelectionCatalog?: never;
-    }
-  | {
-      resyncRequired: ResyncRequiredWire;
-      connected?: never;
-      connectionSnapshot?: never;
-      reliableEvent?: never;
-      projectionAdvance?: never;
-      commandOutcome?: never;
-      stateConnectionNonce?: never;
-      presenterInputSynchronization?: never;
-      presenterStepSelectionCatalog?: never;
-    }
-  | {
-      presenterInputSynchronization: PresenterInputSynchronizationWire;
-      connected?: never;
-      connectionSnapshot?: never;
-      reliableEvent?: never;
-      projectionAdvance?: never;
-      commandOutcome?: never;
-      stateConnectionNonce?: never;
-      resyncRequired?: never;
-      presenterStepSelectionCatalog?: never;
-    }
-  | {
-      presenterStepSelectionCatalog: PresenterStepSelectionCatalogWire;
-      connected?: never;
-      connectionSnapshot?: never;
-      reliableEvent?: never;
-      projectionAdvance?: never;
-      commandOutcome?: never;
-      stateConnectionNonce?: never;
-      resyncRequired?: never;
-      presenterInputSynchronization?: never;
-    };
+export interface ControlServerItemWireFields {
+}
+export type ControlServerItemWire_item = { connected: ControlConnectedWire; connectionSnapshot?: never; reliableEvent?: never; projectionAdvance?: never; commandOutcome?: never; stateConnectionNonce?: never; resyncRequired?: never; presenterInputSynchronization?: never; presenterStepSelectionCatalog?: never } | { connectionSnapshot: ConnectionSnapshotEnvelopeWire; connected?: never; reliableEvent?: never; projectionAdvance?: never; commandOutcome?: never; stateConnectionNonce?: never; resyncRequired?: never; presenterInputSynchronization?: never; presenterStepSelectionCatalog?: never } | { reliableEvent: ProjectedReliableEventWire; connected?: never; connectionSnapshot?: never; projectionAdvance?: never; commandOutcome?: never; stateConnectionNonce?: never; resyncRequired?: never; presenterInputSynchronization?: never; presenterStepSelectionCatalog?: never } | { projectionAdvance: ProjectionAdvanceWire; connected?: never; connectionSnapshot?: never; reliableEvent?: never; commandOutcome?: never; stateConnectionNonce?: never; resyncRequired?: never; presenterInputSynchronization?: never; presenterStepSelectionCatalog?: never } | { commandOutcome: CommandOutcomeWire; connected?: never; connectionSnapshot?: never; reliableEvent?: never; projectionAdvance?: never; stateConnectionNonce?: never; resyncRequired?: never; presenterInputSynchronization?: never; presenterStepSelectionCatalog?: never } | { stateConnectionNonce: StateConnectionNonceWire; connected?: never; connectionSnapshot?: never; reliableEvent?: never; projectionAdvance?: never; commandOutcome?: never; resyncRequired?: never; presenterInputSynchronization?: never; presenterStepSelectionCatalog?: never } | { resyncRequired: ResyncRequiredWire; connected?: never; connectionSnapshot?: never; reliableEvent?: never; projectionAdvance?: never; commandOutcome?: never; stateConnectionNonce?: never; presenterInputSynchronization?: never; presenterStepSelectionCatalog?: never } | { presenterInputSynchronization: PresenterInputSynchronizationWire; connected?: never; connectionSnapshot?: never; reliableEvent?: never; projectionAdvance?: never; commandOutcome?: never; stateConnectionNonce?: never; resyncRequired?: never; presenterStepSelectionCatalog?: never } | { presenterStepSelectionCatalog: PresenterStepSelectionCatalogWire; connected?: never; connectionSnapshot?: never; reliableEvent?: never; projectionAdvance?: never; commandOutcome?: never; stateConnectionNonce?: never; resyncRequired?: never; presenterInputSynchronization?: never };
 export type ControlServerItemWire = ControlServerItemWireFields & ControlServerItemWire_item;
 
 export interface CueAcceptedWire {
@@ -1165,9 +888,11 @@ export interface CueCommittedWire {
   cueId?: string;
 }
 
-export interface CueNotSelectedWire {}
+export interface CueNotSelectedWire {
+}
 
-export interface DefaultModelPoseWire {}
+export interface DefaultModelPoseWire {
+}
 
 export interface DurableCheckpointEnvelopeWireFields {
   schemaVersion?: number;
@@ -1183,15 +908,9 @@ export interface DurableCheckpointEnvelopeWireFields {
   canonicalSnapshotHash?: string;
   canonicalSnapshotPayload?: Uint8Array;
 }
-export type DurableCheckpointEnvelopeWire__recoveryPayload =
-  | { recoveryPayload: Uint8Array }
-  | { recoveryPayload?: never };
-export type DurableCheckpointEnvelopeWire__recoveryHash =
-  | { recoveryHash: string }
-  | { recoveryHash?: never };
-export type DurableCheckpointEnvelopeWire = DurableCheckpointEnvelopeWireFields &
-  DurableCheckpointEnvelopeWire__recoveryPayload &
-  DurableCheckpointEnvelopeWire__recoveryHash;
+export type DurableCheckpointEnvelopeWire__recoveryPayload = { recoveryPayload: Uint8Array;  } | { recoveryPayload?: never };
+export type DurableCheckpointEnvelopeWire__recoveryHash = { recoveryHash: string;  } | { recoveryHash?: never };
+export type DurableCheckpointEnvelopeWire = DurableCheckpointEnvelopeWireFields & DurableCheckpointEnvelopeWire__recoveryPayload & DurableCheckpointEnvelopeWire__recoveryHash;
 
 export interface ElementStateFrameWire {
   fence?: RuntimeProjectionFenceWire;
@@ -1210,20 +929,15 @@ export interface ElementStatePatchWire {
   node?: NodeStatePatchWire;
 }
 
-export interface EndPresentationWire {}
+export interface EndPresentationWire {
+}
 
 export interface FrozenAnchorDisplayStateWireFields {
   nodeId?: string;
 }
-export type FrozenAnchorDisplayStateWire__position =
-  | { position: Vector3Wire }
-  | { position?: never };
-export type FrozenAnchorDisplayStateWire__rotation =
-  | { rotation: QuaternionWire }
-  | { rotation?: never };
-export type FrozenAnchorDisplayStateWire = FrozenAnchorDisplayStateWireFields &
-  FrozenAnchorDisplayStateWire__position &
-  FrozenAnchorDisplayStateWire__rotation;
+export type FrozenAnchorDisplayStateWire__position = { position: Vector3Wire;  } | { position?: never };
+export type FrozenAnchorDisplayStateWire__rotation = { rotation: QuaternionWire;  } | { rotation?: never };
+export type FrozenAnchorDisplayStateWire = FrozenAnchorDisplayStateWireFields & FrozenAnchorDisplayStateWire__position & FrozenAnchorDisplayStateWire__rotation;
 
 export interface GestureInputAcceptedWire {
   gesture?: number;
@@ -1236,11 +950,8 @@ export interface GestureInputCommandWireFields {
   presentationOriginVersion?: string;
   gesture?: number;
 }
-export type GestureInputCommandWire__capturedAtClientMonotonicMs =
-  | { capturedAtClientMonotonicMs: string }
-  | { capturedAtClientMonotonicMs?: never };
-export type GestureInputCommandWire = GestureInputCommandWireFields &
-  GestureInputCommandWire__capturedAtClientMonotonicMs;
+export type GestureInputCommandWire__capturedAtClientMonotonicMs = { capturedAtClientMonotonicMs: string;  } | { capturedAtClientMonotonicMs?: never };
+export type GestureInputCommandWire = GestureInputCommandWireFields & GestureInputCommandWire__capturedAtClientMonotonicMs;
 
 export interface GroupEnteredWire {
   groupId?: string;
@@ -1288,11 +999,8 @@ export interface LogicalInputCommandWireFields {
   inputContext?: InputContextWire;
   commandEpoch?: string;
 }
-export type LogicalInputCommandWire__capturedAtClientMonotonicMs =
-  | { capturedAtClientMonotonicMs: string }
-  | { capturedAtClientMonotonicMs?: never };
-export type LogicalInputCommandWire = LogicalInputCommandWireFields &
-  LogicalInputCommandWire__capturedAtClientMonotonicMs;
+export type LogicalInputCommandWire__capturedAtClientMonotonicMs = { capturedAtClientMonotonicMs: string;  } | { capturedAtClientMonotonicMs?: never };
+export type LogicalInputCommandWire = LogicalInputCommandWireFields & LogicalInputCommandWire__capturedAtClientMonotonicMs;
 
 export interface MediaActiveWire {
   runId?: RuntimeRunIdWire;
@@ -1333,9 +1041,7 @@ export interface MediaRunSnapshotWire {
 export interface MediaRuntimeStateWireFields {
   surfaceId?: string;
 }
-export type MediaRuntimeStateWire_state =
-  | { stopped: MediaStoppedStateWire; active?: never }
-  | { active: MediaActiveWire; stopped?: never };
+export type MediaRuntimeStateWire_state = { stopped: MediaStoppedStateWire; active?: never } | { active: MediaActiveWire; stopped?: never };
 export type MediaRuntimeStateWire = MediaRuntimeStateWireFields & MediaRuntimeStateWire_state;
 
 export interface MediaSeekedWire {
@@ -1421,22 +1127,14 @@ export interface ModelClipResumedWire {
 export interface ModelClipRunSnapshotWireFields {
   modelNodeId?: string;
 }
-export type ModelClipRunSnapshotWire_phase =
-  | { single: ClipPlaybackWire; crossfade?: never }
-  | { crossfade: ModelClipCrossfadeWire; single?: never };
-export type ModelClipRunSnapshotWire = ModelClipRunSnapshotWireFields &
-  ModelClipRunSnapshotWire_phase;
+export type ModelClipRunSnapshotWire_phase = { single: ClipPlaybackWire; crossfade?: never } | { crossfade: ModelClipCrossfadeWire; single?: never };
+export type ModelClipRunSnapshotWire = ModelClipRunSnapshotWireFields & ModelClipRunSnapshotWire_phase;
 
 export interface ModelClipRuntimeStateWireFields {
   modelNodeId?: string;
 }
-export type ModelClipRuntimeStateWire_state =
-  | { defaultPose: DefaultModelPoseWire; heldClip?: never; heldBlend?: never; active?: never }
-  | { heldClip: ClipHeldPoseWire; defaultPose?: never; heldBlend?: never; active?: never }
-  | { heldBlend: BlendHeldPoseWire; defaultPose?: never; heldClip?: never; active?: never }
-  | { active: ModelClipActiveWire; defaultPose?: never; heldClip?: never; heldBlend?: never };
-export type ModelClipRuntimeStateWire = ModelClipRuntimeStateWireFields &
-  ModelClipRuntimeStateWire_state;
+export type ModelClipRuntimeStateWire_state = { defaultPose: DefaultModelPoseWire; heldClip?: never; heldBlend?: never; active?: never } | { heldClip: ClipHeldPoseWire; defaultPose?: never; heldBlend?: never; active?: never } | { heldBlend: BlendHeldPoseWire; defaultPose?: never; heldClip?: never; active?: never } | { active: ModelClipActiveWire; defaultPose?: never; heldClip?: never; heldBlend?: never };
+export type ModelClipRuntimeStateWire = ModelClipRuntimeStateWireFields & ModelClipRuntimeStateWire_state;
 
 export interface ModelClipStartedWire {
   runId?: RuntimeRunIdWire;
@@ -1449,9 +1147,7 @@ export interface ModelClipStoppedWireFields {
   runId?: RuntimeRunIdWire;
   modelNodeId?: string;
 }
-export type ModelClipStoppedWire_heldPose =
-  | { clip: ClipHeldPoseWire; blend?: never }
-  | { blend: BlendHeldPoseWire; clip?: never };
+export type ModelClipStoppedWire_heldPose = { clip: ClipHeldPoseWire; blend?: never } | { blend: BlendHeldPoseWire; clip?: never };
 export type ModelClipStoppedWire = ModelClipStoppedWireFields & ModelClipStoppedWire_heldPose;
 
 export interface NextGroupWire {
@@ -1474,16 +1170,13 @@ export interface NodeStateCommittedWire {
   state?: NodeRuntimeStateWire;
 }
 
-export interface NodeStatePatchWireFields {}
-export type NodeStatePatchWire__active = { active: boolean } | { active?: never };
-export type NodeStatePatchWire__visible = { visible: boolean } | { visible?: never };
-export type NodeStatePatchWire__opacity = { opacity: number } | { opacity?: never };
-export type NodeStatePatchWire__transform = { transform: TransformWire } | { transform?: never };
-export type NodeStatePatchWire = NodeStatePatchWireFields &
-  NodeStatePatchWire__active &
-  NodeStatePatchWire__visible &
-  NodeStatePatchWire__opacity &
-  NodeStatePatchWire__transform;
+export interface NodeStatePatchWireFields {
+}
+export type NodeStatePatchWire__active = { active: boolean;  } | { active?: never };
+export type NodeStatePatchWire__visible = { visible: boolean;  } | { visible?: never };
+export type NodeStatePatchWire__opacity = { opacity: number;  } | { opacity?: never };
+export type NodeStatePatchWire__transform = { transform: TransformWire;  } | { transform?: never };
+export type NodeStatePatchWire = NodeStatePatchWireFields & NodeStatePatchWire__active & NodeStatePatchWire__visible & NodeStatePatchWire__opacity & NodeStatePatchWire__transform;
 
 export interface ParticipantPresenceChangedWire {
   participantId?: string;
@@ -1516,10 +1209,9 @@ export interface PausedClockWire {
   positionMs?: number;
 }
 
-export interface PlaybackClockWireFields {}
-export type PlaybackClockWire_clock =
-  | { playing: PlayingClockWire; paused?: never }
-  | { paused: PausedClockWire; playing?: never };
+export interface PlaybackClockWireFields {
+}
+export type PlaybackClockWire_clock = { playing: PlayingClockWire; paused?: never } | { paused: PausedClockWire; playing?: never };
 export type PlaybackClockWire = PlaybackClockWireFields & PlaybackClockWire_clock;
 
 export interface PlayingClockWire {
@@ -1549,23 +1241,17 @@ export interface PresenterInputSynchronizationWireFields {
   reliableSequence?: string;
   recognitionCatalog?: PresenterRecognitionCatalogWire;
 }
-export type PresenterInputSynchronizationWire__nextCommandEpoch =
-  | { nextCommandEpoch: string }
-  | { nextCommandEpoch?: never };
-export type PresenterInputSynchronizationWire = PresenterInputSynchronizationWireFields &
-  PresenterInputSynchronizationWire__nextCommandEpoch;
+export type PresenterInputSynchronizationWire__nextCommandEpoch = { nextCommandEpoch: string;  } | { nextCommandEpoch?: never };
+export type PresenterInputSynchronizationWire = PresenterInputSynchronizationWireFields & PresenterInputSynchronizationWire__nextCommandEpoch;
 
 export interface PresenterStepSelectionCatalogWire {
   reachedSteps?: StepSelectionWire[];
   reliableSequence?: string;
 }
 
-export interface ProgressionNextWireFields {}
-export type ProgressionNextWire_destination =
-  | { step: NextStepWire; group?: never; end?: never; stay?: never }
-  | { group: NextGroupWire; step?: never; end?: never; stay?: never }
-  | { end: EndPresentationWire; step?: never; group?: never; stay?: never }
-  | { stay: StayOnStepWire; step?: never; group?: never; end?: never };
+export interface ProgressionNextWireFields {
+}
+export type ProgressionNextWire_destination = { step: NextStepWire; group?: never; end?: never; stay?: never } | { group: NextGroupWire; step?: never; end?: never; stay?: never } | { end: EndPresentationWire; step?: never; group?: never; stay?: never } | { stay: StayOnStepWire; step?: never; group?: never; end?: never };
 export type ProgressionNextWire = ProgressionNextWireFields & ProgressionNextWire_destination;
 
 export interface ProgressionRuntimeStateWireFields {
@@ -1575,35 +1261,22 @@ export interface ProgressionRuntimeStateWireFields {
   stepEntryEpoch?: string;
   stepEnteredAtRuntimeTimeMs?: string;
 }
-export type ProgressionRuntimeStateWire_phase =
-  | { stable: StableProgressionWire; transitioning?: never }
-  | { transitioning: TransitioningProgressionWire; stable?: never };
-export type ProgressionRuntimeStateWire = ProgressionRuntimeStateWireFields &
-  ProgressionRuntimeStateWire_phase;
+export type ProgressionRuntimeStateWire_phase = { stable: StableProgressionWire; transitioning?: never } | { transitioning: TransitioningProgressionWire; stable?: never };
+export type ProgressionRuntimeStateWire = ProgressionRuntimeStateWireFields & ProgressionRuntimeStateWire_phase;
 
 export interface ProjectedAnchorBindingPatchWireFields {
   nodeId?: string;
 }
-export type ProjectedAnchorBindingPatchWire_state =
-  | { unavailable: AnchorBindingUnavailableWire; sample?: never; frozen?: never }
-  | { sample: ProjectedAnchorBindingSampleWire; unavailable?: never; frozen?: never }
-  | { frozen: FrozenAnchorDisplayStateWire; unavailable?: never; sample?: never };
-export type ProjectedAnchorBindingPatchWire = ProjectedAnchorBindingPatchWireFields &
-  ProjectedAnchorBindingPatchWire_state;
+export type ProjectedAnchorBindingPatchWire_state = { unavailable: AnchorBindingUnavailableWire; sample?: never; frozen?: never } | { sample: ProjectedAnchorBindingSampleWire; unavailable?: never; frozen?: never } | { frozen: FrozenAnchorDisplayStateWire; unavailable?: never; sample?: never };
+export type ProjectedAnchorBindingPatchWire = ProjectedAnchorBindingPatchWireFields & ProjectedAnchorBindingPatchWire_state;
 
 export interface ProjectedAnchorBindingSampleWireFields {
   trackingFrameSequence?: string;
   observedAtRuntimeMonotonicMs?: string;
 }
-export type ProjectedAnchorBindingSampleWire__position =
-  | { position: Vector3Wire }
-  | { position?: never };
-export type ProjectedAnchorBindingSampleWire__rotation =
-  | { rotation: QuaternionWire }
-  | { rotation?: never };
-export type ProjectedAnchorBindingSampleWire = ProjectedAnchorBindingSampleWireFields &
-  ProjectedAnchorBindingSampleWire__position &
-  ProjectedAnchorBindingSampleWire__rotation;
+export type ProjectedAnchorBindingSampleWire__position = { position: Vector3Wire;  } | { position?: never };
+export type ProjectedAnchorBindingSampleWire__rotation = { rotation: QuaternionWire;  } | { rotation?: never };
+export type ProjectedAnchorBindingSampleWire = ProjectedAnchorBindingSampleWireFields & ProjectedAnchorBindingSampleWire__position & ProjectedAnchorBindingSampleWire__rotation;
 
 export interface ProjectedParticipantPresenceWire {
   participantId?: string;
@@ -1621,1456 +1294,9 @@ export interface ProjectedReliableEventWireFields {
   occurredAtRuntimeTimeMs?: string;
   fence?: RuntimeProjectionFenceWire;
 }
-export type ProjectedReliableEventWire__causeEventId =
-  | { causeEventId: string }
-  | { causeEventId?: never };
-export type ProjectedReliableEventWire_payload =
-  | {
-      runtimeStatusChanged: RuntimeStatusChangedWire;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      presentationOriginChanged: PresentationOriginChangedWire;
-      runtimeStatusChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      groupEntered: GroupEnteredWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      groupExited: GroupExitedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      stepEntered: StepEnteredWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      cueAccepted: CueAcceptedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      presentationEnded: PresentationEndedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      logicalInputAccepted: LogicalInputAcceptedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      surfaceInteractionAccepted: SurfaceInteractionAcceptedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      surfaceStateChanged: SurfaceStateChangedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      surfaceTransitionStarted: SurfaceTransitionStartedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      surfaceTransitionCompleted: SurfaceTransitionCompletedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      nodeStateCommitted: NodeStateCommittedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      variableChanged: VariableChangedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      timelineStarted: TimelineStartedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      timelineCompleted: TimelineCompletedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      timelineCanceled: TimelineCanceledWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      mediaStarted: MediaStartedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      mediaPaused: MediaPausedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      mediaResumed: MediaResumedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      mediaSeeked: MediaSeekedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      mediaCompleted: MediaCompletedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      mediaCanceled: MediaCanceledWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      mediaStopped: MediaStoppedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      modelClipStarted: ModelClipStartedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      modelClipPaused: ModelClipPausedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      modelClipResumed: ModelClipResumedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      modelClipStopped: ModelClipStoppedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      modelClipCompleted: ModelClipCompletedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      modelClipCrossfadeStarted: ModelClipCrossfadeStartedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      modelClipCrossfadeCompleted: ModelClipCrossfadeCompletedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      modelClipCanceled: ModelClipCanceledWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      participantPresenceChanged: ParticipantPresenceChangedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      mediaStoppedSeeked: MediaStoppedSeekedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      gestureInputAccepted: GestureInputAcceptedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      zoneInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      zoneInputAccepted: ZoneInputAcceptedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      runtimeViewReplaced?: never;
-    }
-  | {
-      runtimeViewReplaced: RuntimeViewReplacedWire;
-      runtimeStatusChanged?: never;
-      presentationOriginChanged?: never;
-      groupEntered?: never;
-      groupExited?: never;
-      stepEntered?: never;
-      cueAccepted?: never;
-      presentationEnded?: never;
-      logicalInputAccepted?: never;
-      surfaceInteractionAccepted?: never;
-      surfaceStateChanged?: never;
-      surfaceTransitionStarted?: never;
-      surfaceTransitionCompleted?: never;
-      nodeStateCommitted?: never;
-      variableChanged?: never;
-      timelineStarted?: never;
-      timelineCompleted?: never;
-      timelineCanceled?: never;
-      mediaStarted?: never;
-      mediaPaused?: never;
-      mediaResumed?: never;
-      mediaSeeked?: never;
-      mediaCompleted?: never;
-      mediaCanceled?: never;
-      mediaStopped?: never;
-      modelClipStarted?: never;
-      modelClipPaused?: never;
-      modelClipResumed?: never;
-      modelClipStopped?: never;
-      modelClipCompleted?: never;
-      modelClipCrossfadeStarted?: never;
-      modelClipCrossfadeCompleted?: never;
-      modelClipCanceled?: never;
-      participantPresenceChanged?: never;
-      mediaStoppedSeeked?: never;
-      gestureInputAccepted?: never;
-      zoneInputAccepted?: never;
-    };
-export type ProjectedReliableEventWire = ProjectedReliableEventWireFields &
-  ProjectedReliableEventWire__causeEventId &
-  ProjectedReliableEventWire_payload;
+export type ProjectedReliableEventWire__causeEventId = { causeEventId: string;  } | { causeEventId?: never };
+export type ProjectedReliableEventWire_payload = { runtimeStatusChanged: RuntimeStatusChangedWire; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { presentationOriginChanged: PresentationOriginChangedWire; runtimeStatusChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { groupEntered: GroupEnteredWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { groupExited: GroupExitedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { stepEntered: StepEnteredWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { cueAccepted: CueAcceptedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { presentationEnded: PresentationEndedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { logicalInputAccepted: LogicalInputAcceptedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { surfaceInteractionAccepted: SurfaceInteractionAcceptedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { surfaceStateChanged: SurfaceStateChangedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { surfaceTransitionStarted: SurfaceTransitionStartedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { surfaceTransitionCompleted: SurfaceTransitionCompletedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { nodeStateCommitted: NodeStateCommittedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { variableChanged: VariableChangedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { timelineStarted: TimelineStartedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { timelineCompleted: TimelineCompletedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { timelineCanceled: TimelineCanceledWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { mediaStarted: MediaStartedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { mediaPaused: MediaPausedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { mediaResumed: MediaResumedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { mediaSeeked: MediaSeekedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { mediaCompleted: MediaCompletedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { mediaCanceled: MediaCanceledWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { mediaStopped: MediaStoppedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { modelClipStarted: ModelClipStartedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { modelClipPaused: ModelClipPausedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { modelClipResumed: ModelClipResumedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { modelClipStopped: ModelClipStoppedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { modelClipCompleted: ModelClipCompletedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { modelClipCrossfadeStarted: ModelClipCrossfadeStartedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { modelClipCrossfadeCompleted: ModelClipCrossfadeCompletedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { modelClipCanceled: ModelClipCanceledWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { participantPresenceChanged: ParticipantPresenceChangedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { mediaStoppedSeeked: MediaStoppedSeekedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; gestureInputAccepted?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { gestureInputAccepted: GestureInputAcceptedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; zoneInputAccepted?: never; runtimeViewReplaced?: never } | { zoneInputAccepted: ZoneInputAcceptedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; runtimeViewReplaced?: never } | { runtimeViewReplaced: RuntimeViewReplacedWire; runtimeStatusChanged?: never; presentationOriginChanged?: never; groupEntered?: never; groupExited?: never; stepEntered?: never; cueAccepted?: never; presentationEnded?: never; logicalInputAccepted?: never; surfaceInteractionAccepted?: never; surfaceStateChanged?: never; surfaceTransitionStarted?: never; surfaceTransitionCompleted?: never; nodeStateCommitted?: never; variableChanged?: never; timelineStarted?: never; timelineCompleted?: never; timelineCanceled?: never; mediaStarted?: never; mediaPaused?: never; mediaResumed?: never; mediaSeeked?: never; mediaCompleted?: never; mediaCanceled?: never; mediaStopped?: never; modelClipStarted?: never; modelClipPaused?: never; modelClipResumed?: never; modelClipStopped?: never; modelClipCompleted?: never; modelClipCrossfadeStarted?: never; modelClipCrossfadeCompleted?: never; modelClipCanceled?: never; participantPresenceChanged?: never; mediaStoppedSeeked?: never; gestureInputAccepted?: never; zoneInputAccepted?: never };
+export type ProjectedReliableEventWire = ProjectedReliableEventWireFields & ProjectedReliableEventWire__causeEventId & ProjectedReliableEventWire_payload;
 
 export interface ProjectedRuntimeSnapshotWire {
   projectionProfileId?: string;
@@ -3100,7 +1326,8 @@ export interface ResyncRequiredWire {
   newestReliableSequence?: string;
 }
 
-export interface RunningWire {}
+export interface RunningWire {
+}
 
 export interface RuntimeCapacityFaultWire {
   stepStartStateBytes?: string;
@@ -3111,12 +1338,8 @@ export interface RuntimeCapacityFaultWire {
 export interface RuntimeClockSnapshotWireFields {
   runtimeTimeMs?: string;
 }
-export type RuntimeClockSnapshotWire_status =
-  | { running: RunningWire; paused?: never; terminating?: never }
-  | { paused: PausedWire; running?: never; terminating?: never }
-  | { terminating: TerminatingWire; running?: never; paused?: never };
-export type RuntimeClockSnapshotWire = RuntimeClockSnapshotWireFields &
-  RuntimeClockSnapshotWire_status;
+export type RuntimeClockSnapshotWire_status = { running: RunningWire; paused?: never; terminating?: never } | { paused: PausedWire; running?: never; terminating?: never } | { terminating: TerminatingWire; running?: never; paused?: never };
+export type RuntimeClockSnapshotWire = RuntimeClockSnapshotWireFields & RuntimeClockSnapshotWire_status;
 
 export interface RuntimeCommandHistoryWire {
   fingerprint?: string;
@@ -3187,46 +1410,24 @@ export interface RuntimeRunSnapshotWireFields {
   completion?: number;
   startedAtRuntimeTimeMs?: string;
 }
-export type RuntimeRunSnapshotWire_run =
-  | {
-      surfaceTransition: SurfaceTransitionRunSnapshotWire;
-      timeline?: never;
-      media?: never;
-      modelClip?: never;
-    }
-  | {
-      timeline: TimelineRunSnapshotWire;
-      surfaceTransition?: never;
-      media?: never;
-      modelClip?: never;
-    }
-  | { media: MediaRunSnapshotWire; surfaceTransition?: never; timeline?: never; modelClip?: never }
-  | {
-      modelClip: ModelClipRunSnapshotWire;
-      surfaceTransition?: never;
-      timeline?: never;
-      media?: never;
-    };
+export type RuntimeRunSnapshotWire_run = { surfaceTransition: SurfaceTransitionRunSnapshotWire; timeline?: never; media?: never; modelClip?: never } | { timeline: TimelineRunSnapshotWire; surfaceTransition?: never; media?: never; modelClip?: never } | { media: MediaRunSnapshotWire; surfaceTransition?: never; timeline?: never; modelClip?: never } | { modelClip: ModelClipRunSnapshotWire; surfaceTransition?: never; timeline?: never; media?: never };
 export type RuntimeRunSnapshotWire = RuntimeRunSnapshotWireFields & RuntimeRunSnapshotWire_run;
 
-export interface RuntimeStatusChangedWireFields {}
-export type RuntimeStatusChangedWire_status =
-  | { running: RunningWire; paused?: never; terminating?: never }
-  | { paused: PausedWire; running?: never; terminating?: never }
-  | { terminating: TerminatingWire; running?: never; paused?: never };
-export type RuntimeStatusChangedWire = RuntimeStatusChangedWireFields &
-  RuntimeStatusChangedWire_status;
+export interface RuntimeStatusChangedWireFields {
+}
+export type RuntimeStatusChangedWire_status = { running: RunningWire; paused?: never; terminating?: never } | { paused: PausedWire; running?: never; terminating?: never } | { terminating: TerminatingWire; running?: never; paused?: never };
+export type RuntimeStatusChangedWire = RuntimeStatusChangedWireFields & RuntimeStatusChangedWire_status;
 
 export interface RuntimeViewReplacedWire {
   runtimeView?: ParticipantRuntimeViewWire;
 }
 
-export interface StableProgressionWire {}
+export interface StableProgressionWire {
+}
 
-export interface StateClientItemWireFields {}
-export type StateClientItemWire_item =
-  | { handshake: StateHandshakeWire; trackingFrame?: never }
-  | { trackingFrame: TrackingFrameWire; handshake?: never };
+export interface StateClientItemWireFields {
+}
+export type StateClientItemWire_item = { handshake: StateHandshakeWire; trackingFrame?: never } | { trackingFrame: TrackingFrameWire; handshake?: never };
 export type StateClientItemWire = StateClientItemWireFields & StateClientItemWire_item;
 
 export interface StateConnectedWire {
@@ -3252,13 +1453,13 @@ export interface StateReadyWire {
   presentationOriginVersion?: string;
 }
 
-export interface StateServerItemWireFields {}
-export type StateServerItemWire_item =
-  | { connected: StateConnectedWire; stateFrame?: never }
-  | { stateFrame: ElementStateFrameWire; connected?: never };
+export interface StateServerItemWireFields {
+}
+export type StateServerItemWire_item = { connected: StateConnectedWire; stateFrame?: never } | { stateFrame: ElementStateFrameWire; connected?: never };
 export type StateServerItemWire = StateServerItemWireFields & StateServerItemWire_item;
 
-export interface StayOnStepWire {}
+export interface StayOnStepWire {
+}
 
 export interface StepEnteredWire {
   groupId?: string;
@@ -3306,21 +1507,15 @@ export interface SurfaceInteractionCommandWireFields {
   inputContext?: InputContextWire;
   commandEpoch?: string;
 }
-export type SurfaceInteractionCommandWire__capturedAtClientMonotonicMs =
-  | { capturedAtClientMonotonicMs: string }
-  | { capturedAtClientMonotonicMs?: never };
-export type SurfaceInteractionCommandWire = SurfaceInteractionCommandWireFields &
-  SurfaceInteractionCommandWire__capturedAtClientMonotonicMs;
+export type SurfaceInteractionCommandWire__capturedAtClientMonotonicMs = { capturedAtClientMonotonicMs: string;  } | { capturedAtClientMonotonicMs?: never };
+export type SurfaceInteractionCommandWire = SurfaceInteractionCommandWireFields & SurfaceInteractionCommandWire__capturedAtClientMonotonicMs;
 
 export interface SurfaceRuntimeStateWireFields {
   surfaceId?: string;
   stateId?: string;
 }
-export type SurfaceRuntimeStateWire__transitionRunId =
-  | { transitionRunId: RuntimeRunIdWire }
-  | { transitionRunId?: never };
-export type SurfaceRuntimeStateWire = SurfaceRuntimeStateWireFields &
-  SurfaceRuntimeStateWire__transitionRunId;
+export type SurfaceRuntimeStateWire__transitionRunId = { transitionRunId: RuntimeRunIdWire;  } | { transitionRunId?: never };
+export type SurfaceRuntimeStateWire = SurfaceRuntimeStateWireFields & SurfaceRuntimeStateWire__transitionRunId;
 
 export interface SurfaceStateChangedWire {
   surfaceId?: string;
@@ -3422,8 +1617,6 @@ export interface ZoneInputCommandWireFields {
   zoneId?: string;
   edge?: number;
 }
-export type ZoneInputCommandWire__capturedAtClientMonotonicMs =
-  | { capturedAtClientMonotonicMs: string }
-  | { capturedAtClientMonotonicMs?: never };
-export type ZoneInputCommandWire = ZoneInputCommandWireFields &
-  ZoneInputCommandWire__capturedAtClientMonotonicMs;
+export type ZoneInputCommandWire__capturedAtClientMonotonicMs = { capturedAtClientMonotonicMs: string;  } | { capturedAtClientMonotonicMs?: never };
+export type ZoneInputCommandWire = ZoneInputCommandWireFields & ZoneInputCommandWire__capturedAtClientMonotonicMs;
+

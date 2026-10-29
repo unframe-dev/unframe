@@ -10,7 +10,7 @@ const pose = z.strictObject({
 const schema = z.strictObject({
   schemaVersion: z.literal(2),
   boardId: z.string().min(1),
-  revision: z.number().int().positive(),
+  revision: z.int().positive(),
   markers: z
     .array(
       z.strictObject({

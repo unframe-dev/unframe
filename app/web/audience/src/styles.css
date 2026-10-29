@@ -1,16 +1,35 @@
+@layer theme, base, mui, components, utilities;
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+}
+
 :root {
-  font-family: "Noto Sans JP", system-ui, sans-serif;
-  color: #17352f;
-  background: #f6faf8;
+  --audience-primary: #98444b;
+  --audience-on-primary: #ffffff;
+  --audience-surface: #ffffff;
+  --audience-surface-container: #f7f8fa;
+  --audience-ink: #17181c;
+  --audience-muted: #555963;
+  --audience-brand-red: #df7b80;
+  --audience-brand-blue: #7187f5;
+  --audience-focus: #304bbd;
+  font-family: var(--font-sans);
+  color: var(--audience-ink);
+  background: var(--audience-surface);
   font-synthesis: none;
   color-scheme: light;
   font-weight: 400;
 }
-* {
-  box-sizing: border-box;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
 }
 body {
   margin: 0;
+  min-width: 320px;
 }
 button,
 input,
@@ -25,15 +44,34 @@ a {
   color: inherit;
   text-underline-offset: 4px;
 }
-button:disabled {
-  opacity: 0.45;
-  cursor: default;
+:focus-visible {
+  outline: 3px solid var(--audience-focus);
+  outline-offset: 3px;
+}
+.audience-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -1px;
+}
+button.audience-brand {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.audience-brand img {
+  flex: none;
 }
 .audience-camera-view {
   position: relative;
   isolation: isolate;
   min-height: 100svh;
-  background: #102822;
+  background: #17181c;
 }
 .camera {
   position: fixed;
@@ -44,4 +82,14 @@ button:disabled {
 }
 .audience-camera-view > .audience-stage {
   z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

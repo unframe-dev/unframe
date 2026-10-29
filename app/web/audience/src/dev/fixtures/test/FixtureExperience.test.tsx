@@ -8,10 +8,12 @@ const mocks = vi.hoisted(() => {
   const runtimeSnapshot = {
     phase: "ready",
     rendering: "ready",
-    reliableSequence: "0",
     error: null as string | null,
     reason: null as string | null,
     view: null,
+    reliableSequence: "0",
+    stateSequence: "0",
+    stateSync: "ready",
   };
   const runtime = {
     applyControl: vi.fn(),
@@ -115,6 +117,8 @@ test("停止後は更新できず、再開時はSnapshotから始める", async 
   fireEvent.click(screen.getByRole("button", { name: "停止" }));
   expect(mocks.session.stop).toHaveBeenCalled();
   expect(screen.queryByRole("button", { name: "次の操作：次のPNG" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   fireEvent.click(screen.getByRole("button", { name: "カメラを開始" }));
   await waitFor(() => expect(mocks.session.openRuntime).toHaveBeenCalledTimes(2));
 });
@@ -138,6 +142,7 @@ test("開始中に停止した場合、遅れて完了してもSnapshotを適用
 
 test("描画エラーを表示し初期状態へ再試行できる", async () => {
   mocks.runtime.getSnapshot.mockReturnValue({
+    ...mocks.runtimeSnapshot,
     phase: "ready",
     rendering: "error",
     reliableSequence: "0",
@@ -147,8 +152,11 @@ test("描画エラーを表示し初期状態へ再試行できる", async () =>
   });
   render(<FixtureExperience />);
   await startFixture();
+  fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(await screen.findByRole("alert")).toBeTruthy();
   mocks.runtime.getSnapshot.mockReturnValue(mocks.runtimeSnapshot);
+  openControls();
   fireEvent.click(screen.getByRole("button", { name: "初期状態から再試行" }));
   await waitFor(() => expect(mocks.session.openRuntime).toHaveBeenCalledTimes(2));
 });

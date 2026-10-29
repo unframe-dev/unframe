@@ -1,5 +1,6 @@
 import type { SessionRecorder } from "../diagnostics/session-recorder";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import { createStore, type StoreApi } from "zustand/vanilla";
 import { assertViewerDelivery } from "../runtime/viewer-policy";
 import {
   AudienceConnectionError,
@@ -112,8 +113,8 @@ export function createJoinController(options: {
   now?: () => number;
 }) {
   const now = options.now ?? Date.now;
-  const listeners = new Set<() => void>();
-  let snapshot: JoinSnapshot = { phase: "idle" };
+  const state = createStore<JoinSnapshot>(() => ({ phase: "idle" }));
+  const store: Pick<StoreApi<JoinSnapshot>, "getState" | "getInitialState" | "subscribe"> = state;
   let prepared: PreparedConnection | null = null;
   let joinedSession: Session | null = null;
   let request: AbortController | null = null;
@@ -127,13 +128,12 @@ export function createJoinController(options: {
   let recoveryAttempt = 0;
   let recovering = false;
   function publish(next: JoinSnapshot) {
-    snapshot = next;
     options.recorder?.record("connection.stage", {
       stage: next.phase,
       ...("error" in next ? { code: next.error } : {}),
       ...("session" in next ? { sessionId: next.session?.id } : {}),
     });
-    for (const listener of listeners) listener();
+    state.setState(next, true);
   }
   function releaseIdentity() {
     void options.client.leave?.().catch(() => {});
@@ -375,13 +375,9 @@ export function createJoinController(options: {
     return work;
   }
   return {
-    getSnapshot: () => snapshot,
-    subscribe(listener: () => void) {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    store,
+    getSnapshot: store.getState,
+    subscribe: store.subscribe,
     getPrepared(): PreparedConnection | null {
       expire();
       return prepared ? structuredClone(prepared) : null;
@@ -414,8 +410,7 @@ export function createJoinController(options: {
       releaseIdentity();
       joinedSession = null;
       disposed = true;
-      snapshot = { phase: "idle" };
-      listeners.clear();
+      publish({ phase: "idle" });
     },
   };
 }

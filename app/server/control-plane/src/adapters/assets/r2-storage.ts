@@ -1,3 +1,4 @@
+import type { R2Bucket } from "@cloudflare/workers-types";
 import type { ObjectStorage } from "../../modules/assets/service";
 
 const hex = (value: ArrayBuffer) =>

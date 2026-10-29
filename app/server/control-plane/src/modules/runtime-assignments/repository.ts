@@ -1,3 +1,4 @@
+import type { D1Database } from "@cloudflare/workers-types";
 import { currentHostGeneration } from "../runtime-hosts/fence";
 import { and, desc, eq, gt, gte, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 

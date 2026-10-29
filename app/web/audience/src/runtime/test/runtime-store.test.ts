@@ -9,6 +9,7 @@ import type {
 } from "@unframe/contracts/presentation";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import { createRuntimeStore } from "../runtime-store";
+import { createRuntimeReducer, createRuntimeState } from "../runtime-core";
 
 function setup() {
   const delivery = structuredClone(fixture.value) as DeliveryManifestWire;
@@ -77,6 +78,43 @@ function setup() {
 }
 
 describe("runtime store", () => {
+  it("replays independent Runtime branches without changing their shared starting state", () => {
+    const { delivery, snapshot, fence } = setup();
+    const reduce = createRuntimeReducer(delivery);
+    const initial = createRuntimeState();
+    const ready = reduce(initial, { kind: "control", item: { connectionSnapshot: snapshot } });
+    const previous = structuredClone(ready);
+    const advanced = reduce(ready, {
+      kind: "control",
+      item: {
+        reliableEvent: {
+          fence,
+          sequence: "1",
+          eventId: "accepted",
+          occurredAtRuntimeTimeMs: "0",
+          gestureInputAccepted: { gesture: 1 },
+        },
+      },
+    });
+    const invalid = reduce(ready, {
+      kind: "control",
+      item: {
+        reliableEvent: {
+          fence,
+          sequence: "2",
+          eventId: "gap",
+          occurredAtRuntimeTimeMs: "0",
+          gestureInputAccepted: { gesture: 1 },
+        },
+      },
+    });
+
+    expect(initial.snapshot.phase).toBe("awaiting-snapshot");
+    expect(ready).toEqual(previous);
+    expect(advanced.snapshot).toMatchObject({ phase: "ready", reliableSequence: "1" });
+    expect(invalid.snapshot).toMatchObject({ phase: "resync-required", view: null });
+  });
+
   it.each([
     { gestureInputAccepted: { gesture: 1 } },
     { zoneInputAccepted: { zoneId: "stage", edge: 1 } },

@@ -61,6 +61,19 @@ function setup() {
 }
 afterEach(() => vi.useRealTimers());
 
+test("購読用storeは参加状態の正本で資格を含まず退出を通知する", async () => {
+  const { controller } = setup();
+  const phases: string[] = [];
+  const unsubscribe = controller.store.subscribe((state) => phases.push(state.phase));
+  await controller.join("ABCD-EFGH");
+  expect(controller.store.getState()).toBe(controller.getSnapshot());
+  expect(JSON.stringify(controller.store.getState())).not.toContain("secret-credential");
+  controller.leave();
+  expect(phases).toEqual(["joining", "delivery", "bootstrap", "prepared", "idle"]);
+  unsubscribe();
+  controller.dispose();
+});
+
 test("join→Delivery→bootstrapの順に取得し資格を画面状態へ公開しない", async () => {
   const { controller, client, delivery } = setup();
   const phases: string[] = [];
