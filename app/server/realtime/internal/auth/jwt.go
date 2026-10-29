@@ -135,11 +135,16 @@ func (v *BearerTokenVerifier) Ready(ctx context.Context) error {
 // VerifyBearer parses an HTTP or gRPC Bearer authorization value and verifies
 // that it grants every required scope.
 func (v *BearerTokenVerifier) VerifyBearer(ctx context.Context, authorization string, requiredScopes ...string) (session.Identity, error) {
+	credential, err := v.verifyBearerCredential(ctx, authorization, requiredScopes...)
+	return credential.Identity, err
+}
+
+func (v *BearerTokenVerifier) verifyBearerCredential(ctx context.Context, authorization string, requiredScopes ...string) (VerifiedCredential, error) {
 	scheme, token, ok := strings.Cut(authorization, " ")
 	if !ok || !strings.EqualFold(scheme, "Bearer") || token == "" || strings.ContainsAny(token, " \t\r\n") {
-		return session.Identity{}, ErrInvalidAuthorization
+		return VerifiedCredential{}, ErrInvalidAuthorization
 	}
-	return v.Verify(ctx, token, requiredScopes...)
+	return v.VerifyCredential(ctx, token, requiredScopes...)
 }
 
 // Verify validates a raw compact JWT and maps its verified claims to a

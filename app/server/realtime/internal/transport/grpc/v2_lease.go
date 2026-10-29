@@ -15,6 +15,9 @@ type v2OperationResult[T any] struct {
 // Lease renewal or revocation may change authorization while a gRPC operation is blocked.
 func v2BeforeLeaseExpiry[T any](ctx context.Context, deadline func() (time.Time, error), operation func() (T, error)) (T, error) {
 	var zero T
+	if err := ctx.Err(); err != nil {
+		return zero, err
+	}
 	until, err := deadline()
 	if err != nil {
 		return zero, assignmentError(err)
@@ -37,6 +40,9 @@ func v2BeforeLeaseExpiry[T any](ctx context.Context, deadline func() (time.Time,
 		select {
 		case received := <-result:
 			timer.Stop()
+			if err := ctx.Err(); err != nil {
+				return zero, err
+			}
 			until, err = deadline()
 			if err != nil {
 				return zero, assignmentError(err)
