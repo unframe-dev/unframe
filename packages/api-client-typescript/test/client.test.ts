@@ -73,6 +73,10 @@ const definition: CreatePresentationResponse["definition"] = {
 };
 
 describe("createControlPlaneClient", () => {
+  it("keeps Worker response extensions out of browser globals", () => {
+    expectTypeOf<Extract<keyof Response, "cf" | "webSocket">>().toEqualTypeOf<never>();
+  });
+
   it("exposes inferred Hono RPC request and response types", () => {
     type GetPresentationRequest = InferRequestType<
       ControlPlaneClient["presentations"][":id"]["$get"]

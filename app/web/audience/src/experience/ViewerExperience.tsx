@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import type { PreparedConnection } from "../connection/join-controller";
 import { createAudienceAssetFetch } from "../connection/asset-fetch";
 import {
@@ -12,7 +14,12 @@ import { SdkProgress } from "../SdkProgress";
 import { AudienceStage } from "../ui/AudienceStage";
 import { viewingPhase } from "../ui/viewing-phase";
 import { createAnchorSession, type AnchorSessionSnapshot } from "./anchor-session";
-import { createViewingSession, type RuntimeInput, type ViewingSnapshot } from "./viewing-session";
+import {
+  createViewingSession,
+  createViewingStore,
+  type RuntimeInput,
+  type ViewingSnapshot,
+} from "./viewing-session";
 import type { createTrackingAdapter } from "../tracking/adapter";
 
 export interface ViewerExperienceProps {
@@ -81,7 +88,15 @@ export function ViewerExperience(props: ViewerExperienceProps) {
     [boardConfig, markerSize],
   );
   const [anchor, setAnchor] = useState<AnchorSessionSnapshot | null>(null);
-  const [viewing, setViewing] = useState<ViewingSnapshot | null>(null);
+  const [viewingStore] = useState(createViewingStore);
+  const viewing = useStore(
+    viewingStore,
+    useShallow((state) => ({
+      phase: state.phase,
+      recovery: state.recovery,
+      error: state.error,
+    })),
+  );
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
 
@@ -117,33 +132,47 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   useEffect(() => {
     if (!config || !canvas.current) return;
     let active = true;
+    let anchorKey = "";
+    const updateAnchor = (state: AnchorSessionSnapshot) => {
+      if (!active) return;
+      const key = JSON.stringify([
+        state.stage,
+        state.error,
+        state.tracking,
+        state.detection,
+        state.mediaPlaybackBlocked,
+        state.lastTagAtMs !== null,
+        state.normalSinceMs,
+        Math.floor(state.nowMs / 1000),
+        state.sdkProgress?.phase,
+        state.sdkProgress?.rawStatus,
+        state.sdkProgress?.rawReason,
+        state.sdkProgress?.eventStatus,
+      ]);
+      if (key === anchorKey) return;
+      anchorKey = key;
+      setAnchor(state);
+    };
     const nextHost = createAnchorSession({
       canvas: canvas.current,
       config,
       showGuides: false,
       ...(props.trackingAdapter ? { trackingAdapter: props.trackingAdapter } : {}),
       fetcher: createAudienceAssetFetch(() => currentConnection.current),
-      onChange: (state) => {
-        if (active) setAnchor(state);
-      },
+      onChange: updateAnchor,
     });
-    const next = createViewingSession(nextHost);
+    const next = createViewingSession(nextHost, viewingStore);
     host.current = nextHost;
     viewer.current = next;
-    setAnchor(nextHost.getSnapshot());
-    setViewing(next.getSnapshot());
-    const unsubscribe = next.subscribe(() => {
-      if (active) setViewing(next.getSnapshot());
-    });
+    updateAnchor(nextHost.getSnapshot());
     return () => {
       active = false;
       clearBinding(false);
-      unsubscribe();
       next.dispose();
       if (viewer.current === next) viewer.current = null;
       if (host.current === nextHost) host.current = null;
     };
-  }, [config, props.trackingAdapter]);
+  }, [config, props.trackingAdapter, viewingStore]);
 
   useEffect(() => {
     if (props.recovering) {
@@ -158,74 +187,84 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   }, [config, props.connection, props.recovering]);
 
   useEffect(() => {
-    if (viewing) props.onViewingSnapshot?.(viewing);
-  }, [viewing, props.onViewingSnapshot]);
+    const notify = () => props.onViewingSnapshot?.(viewingStore.getState());
+    notify();
+    return viewingStore.subscribe(notify);
+  }, [viewingStore, props.onViewingSnapshot]);
 
   useEffect(() => {
-    const input = viewer.current?.getInput() ?? null;
-    const currentInstaller = installer.current;
-    if (
-      (input === binding.current?.input && currentInstaller === binding.current.installer) ||
-      (!input && !binding.current)
-    )
-      return;
-    if (!clearBinding(true)) {
-      input?.disconnected();
-      return;
-    }
-    if (!input) return;
-    const installed: NonNullable<typeof binding.current> = { input, installer: currentInstaller };
-    binding.current = installed;
-    try {
-      const target = viewer.current;
-      const cleanup = installer.current?.(
-        input,
-        structuredClone(currentConnection.current),
-        () => {
-          if (binding.current !== installed || viewer.current?.getInput() !== input)
-            throw new Error("viewing-input-inactive");
-          return structuredClone(currentConnection.current);
-        },
-        () => {
+    const synchronize = () => {
+      const input = viewer.current?.getInput() ?? null;
+      const currentInstaller = installer.current;
+      if (
+        (input === binding.current?.input && currentInstaller === binding.current.installer) ||
+        (!input && !binding.current)
+      )
+        return;
+      if (!clearBinding(true)) {
+        input?.disconnected();
+        return;
+      }
+      if (!input) return;
+      const installed: NonNullable<typeof binding.current> = { input, installer: currentInstaller };
+      binding.current = installed;
+      try {
+        const target = viewer.current;
+        const cleanup = installer.current?.(
+          input,
+          structuredClone(currentConnection.current),
+          () => {
+            if (binding.current !== installed || viewer.current?.getInput() !== input)
+              throw new Error("viewing-input-inactive");
+            return structuredClone(currentConnection.current);
+          },
+          () => {
+            if (
+              binding.current !== installed ||
+              viewer.current !== target ||
+              target?.getInput() !== input
+            )
+              return null;
+            return target.restartInput();
+          },
+        );
+        if (cleanup) installed.cleanup = cleanup;
+      } catch {
+        setError(connectionFailure);
+        input.disconnected();
+      }
+    };
+    synchronize();
+    return viewingStore.subscribe(synchronize);
+  }, [viewingStore, config, props.onRuntimeInput]);
+
+  useEffect(() => {
+    const synchronize = () => {
+      const request = viewingStore.getState().recovery;
+      const input = viewer.current?.getInput();
+      if (!request || !input || !props.onRecoveryRequest) return;
+      if (recovery.current?.input === input && recovery.current.id === request.id) return;
+      recovery.current = { input, id: request.id };
+      try {
+        const target = viewer.current;
+        props.onRecoveryRequest(request, input, () => {
           if (
-            binding.current !== installed ||
+            !target ||
             viewer.current !== target ||
-            target?.getInput() !== input
+            target.getInput() !== input ||
+            target.getSnapshot().recovery?.id !== request.id
           )
             return null;
           return target.restartInput();
-        },
-      );
-      if (cleanup) installed.cleanup = cleanup;
-    } catch {
-      setError(connectionFailure);
-      input.disconnected();
-    }
-  }, [viewing, props.onRuntimeInput]);
-
-  useEffect(() => {
-    const request = viewing?.recovery;
-    const input = viewer.current?.getInput();
-    if (!request || !input || !props.onRecoveryRequest) return;
-    if (recovery.current?.input === input && recovery.current.id === request.id) return;
-    recovery.current = { input, id: request.id };
-    try {
-      const target = viewer.current;
-      props.onRecoveryRequest(request, input, () => {
-        if (
-          !target ||
-          viewer.current !== target ||
-          target.getInput() !== input ||
-          target.getSnapshot().recovery?.id !== request.id
-        )
-          return null;
-        return target.restartInput();
-      });
-    } catch {
-      setError(connectionFailure);
-      input.disconnected();
-    }
-  }, [viewing, props.onRecoveryRequest]);
+        });
+      } catch {
+        setError(connectionFailure);
+        input.disconnected();
+      }
+    };
+    synchronize();
+    return viewingStore.subscribe(synchronize);
+  }, [viewingStore, config, props.onRecoveryRequest]);
 
   useEffect(() => {
     if (viewing?.phase !== "disconnected" || !props.onRuntimeInput || props.refreshing) return;
@@ -247,8 +286,8 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   }
   function download() {
     const payload = buildViewerDiagnostic({
-      tracking: anchor,
-      viewing,
+      tracking: host.current?.getSnapshot() ?? null,
+      viewing: viewingStore.getState(),
       context: host.current?.getDiagnosticContext() ?? null,
     });
     const url = URL.createObjectURL(
@@ -286,6 +325,7 @@ export function ViewerExperience(props: ViewerExperienceProps) {
         normal={anchor?.tracking === "NORMAL"}
         warmupSeconds={wait}
         canStart={!!config && !!anchor && viewing !== null && viewing.phase !== "starting"}
+        onLeave={props.onLeave}
         onStart={() => {
           void start();
         }}

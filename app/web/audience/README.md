@@ -112,6 +112,8 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 `connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信、`experience/viewing-session.ts` は XR／Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落は表示を保持して keyframe を再取得する。製品診断には資格・署名 URL・画素・プレゼン変数や進行 ID を含めない。
 
+参加・視聴状態は Zustand で保持し、接続手順と資格は各処理の所有範囲に置く。HTTP は共有 Hono RPC クライアントを使い、応答はブラウザ側でも検証する。Runtime は入力から次の状態を計算するコアと状態保持に分ける。
+
 接続手順、origin／migration／配信設定、Ready・資格更新・復帰の条件は [接続境界](docs/connection-boundaries.md) を参照。公開環境と実機での総合受入は未実施。
 
 ## 期限更新

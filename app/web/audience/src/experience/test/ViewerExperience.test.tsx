@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { Profiler, useEffect, useState, useSyncExternalStore } from "react";
 import { createJoinController, type PreparedConnection } from "../../connection/join-controller";
 import {
   AudienceConnectionError,
@@ -142,6 +142,40 @@ async function start() {
   });
   await waitFor(() => expect(mock.openRuntime).toHaveBeenCalled());
 }
+test("Runtimeと追跡フレームの数値更新だけでは視聴UIを再描画しない", async () => {
+  const props = setup();
+  let input!: RuntimeInput;
+  let commits = 0;
+  const onViewingSnapshot = vi.fn();
+  render(
+    <Profiler
+      id="viewer"
+      onRender={() => {
+        commits++;
+      }}
+    >
+      <ViewerExperience
+        {...props}
+        onViewingSnapshot={onViewingSnapshot}
+        onRuntimeInput={(value) => {
+          input = value;
+        }}
+      />
+    </Profiler>,
+  );
+  await start();
+  const previous = commits;
+  onViewingSnapshot.mockClear();
+  act(() => {
+    for (let index = 1; index <= 20; index++) {
+      mock.runtime = { ...mock.runtime!, stateSequence: String(index) };
+      input.applyState({ stateFrame: { frameSequence: String(index) } });
+      mock.onChange?.({ ...mock.anchor!, nowMs: index, anchorUpdateCount: index });
+    }
+  });
+  expect(commits).toBe(previous);
+  expect(onViewingSnapshot).toHaveBeenCalled();
+});
 test("明示開始でDeliveryをXR→Runtimeへ渡し、製品設定をsize queryで上書きしない", async () => {
   const props = setup();
   window.history.replaceState({}, "", "/?size=70");
@@ -395,6 +429,8 @@ test("素材準備中と終了を区別し、更新操作と退出をメニュ�
   });
   act(() => input.applyControl({ connected: { connectionId: "end" } }));
   expect(screen.getByText("ご視聴ありがとうございました")).toBeTruthy();
+  fireEvent.click(await screen.findByRole("button", { name: "ルーム入力へ戻る" }));
+  expect(props.onLeave).toHaveBeenCalledTimes(2);
 });
 test("cleanupが例外を投げても二重実行せず新しい接続を安全に止める", async () => {
   const props = setup();

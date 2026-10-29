@@ -1,20 +1,18 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
+import { createStore } from "zustand/vanilla";
 import { JoinExperience } from "../JoinExperience";
 import type { JoinController, JoinSnapshot } from "../join-controller";
 
 afterEach(cleanup);
 
 function makeController(initial: JoinSnapshot = { phase: "idle" }) {
-  let snapshot = initial;
-  const listeners = new Set<() => void>();
+  const store = createStore<JoinSnapshot>(() => initial);
   const controller: JoinController = {
-    getSnapshot: () => snapshot,
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    store,
+    getSnapshot: store.getState,
+    subscribe: store.subscribe,
     join: vi.fn(async () => {}),
     refresh: vi.fn(async () => {}),
     reconnect: vi.fn(async () => {}),
@@ -27,8 +25,7 @@ function makeController(initial: JoinSnapshot = { phase: "idle" }) {
     controller,
     update(next: JoinSnapshot) {
       act(() => {
-        snapshot = next;
-        listeners.forEach((listener) => listener());
+        store.setState(next, true);
       });
     },
   };
@@ -142,4 +139,17 @@ test("参加画面は匿名視聴の案内と進行中のフォーム状態を�
   );
   update({ phase: "joining" });
   expect(screen.getByRole("form", { name: "ルームに参加" }).getAttribute("aria-busy")).toBe("true");
+});
+
+test("終了した配信ではコード送信を閉じ、新しいルームへの参加を案内する", () => {
+  const { controller } = makeController({
+    phase: "ended",
+    session: { id: "session", state: "Ended" },
+  });
+  render(<JoinExperience controller={controller} />);
+  expect(screen.getByRole("heading", { name: "配信は終了しました" })).toBeTruthy();
+  expect(screen.queryByRole("form")).toBeNull();
+  expect(screen.getByRole("button", { name: "別のルームに参加" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "別のルームに参加" }));
+  expect(controller.leave).toHaveBeenCalledOnce();
 });

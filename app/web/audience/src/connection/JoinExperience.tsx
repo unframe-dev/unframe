@@ -1,10 +1,13 @@
-import { useState, useSyncExternalStore, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { useStore } from "zustand";
+import { createStore } from "zustand/vanilla";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
+import { Brand } from "../ui/Brand";
 import type { JoinController, JoinSnapshot } from "./join-controller";
 import "./connection.css";
 
-const unavailableSnapshot: JoinSnapshot = { phase: "idle" };
-const unavailableSubscribe = () => () => {};
-const unavailableGetSnapshot = () => unavailableSnapshot;
+const unavailableStore = createStore<JoinSnapshot>(() => ({ phase: "idle" }));
 
 const progressText: Record<JoinSnapshot["phase"], string> = {
   idle: "ルームコードを入力してください。",
@@ -39,10 +42,7 @@ const errorText: Record<string, string> = {
 };
 
 export function JoinExperience({ controller }: { controller: JoinController | null }) {
-  const snapshot = useSyncExternalStore(
-    controller?.subscribe ?? unavailableSubscribe,
-    controller?.getSnapshot ?? unavailableGetSnapshot,
-  );
+  const snapshot = useStore(controller?.store ?? unavailableStore, (state) => state);
   const [code, setCode] = useState("");
   const busy = ["joining", "delivery", "bootstrap", "recovering"].includes(snapshot.phase);
   const prepared = snapshot.phase === "prepared";
@@ -54,94 +54,97 @@ export function JoinExperience({ controller }: { controller: JoinController | nu
   };
 
   return (
-    <main className="audience-join">
-      <header className="audience-join__header">
-        <a className="audience-join__brand" href="/" aria-label="unframe Audience ホーム">
-          unframe <span>AUDIENCE</span>
-        </a>
-        <span className="audience-join__step">01 / 入室</span>
+    <main className="audience-join flex min-h-dvh flex-col items-center gap-10 px-5 py-6 sm:px-8">
+      <header className="flex w-full max-w-6xl items-center justify-between">
+        <Brand />
       </header>
-      <section className="audience-join__card" aria-labelledby="audience-join-title">
-        <div className="audience-join__symbol" aria-hidden="true">
-          <svg viewBox="0 0 32 32" fill="none">
-            <rect x="5" y="7" width="22" height="18" rx="4" stroke="currentColor" strokeWidth="2" />
-            <path
-              d="M12 13h8M12 19h5"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-        <p className="audience-join__eyebrow">会場のプレゼンテーションへ</p>
+      <section
+        className="audience-join__content my-auto w-full max-w-md"
+        aria-labelledby="audience-join-title"
+      >
         <h1 id="audience-join-title">
           {snapshot.phase === "ended" ? "配信は終了しました" : "ルームに参加"}
         </h1>
-        <p className="audience-join__intro">会場で案内されたルームコードを入力してください。</p>
-        {!controller && (
-          <p className="audience-join__notice">
-            現在、このサイトからルームへ参加する準備が整っていません。会場スタッフにご確認ください。
-          </p>
-        )}
-        <form onSubmit={submit} aria-labelledby="audience-join-title" aria-busy={busy}>
-          <label htmlFor="audience-room-code">ルームコード</label>
-          <input
-            id="audience-room-code"
-            name="roomCode"
-            value={code}
-            onChange={(event) => setCode(event.target.value.toUpperCase().replaceAll("-", ""))}
-            placeholder="XXXXXXXX"
-            autoCapitalize="characters"
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={9}
-            pattern="[A-HJ-NP-Z2-9]{8}"
-            disabled={!controller || busy || prepared}
-            aria-describedby="audience-join-status"
-          />
-          <p
-            id="audience-join-status"
-            className="audience-join__status"
-            role="status"
-            aria-live="polite"
-          >
-            {busy && <span className="audience-join__spinner" aria-hidden="true" />}
-            {progressText[snapshot.phase]}
-          </p>
-          {snapshot.phase === "error" && (
-            <p className="audience-join__notice" role="alert">
-              {errorText[snapshot.error ?? ""] ??
-                "接続準備中に問題が発生しました。再試行してください。"}
-            </p>
-          )}
-          <div className="audience-join__actions">
-            {busy ? (
-              <button type="button" onClick={() => controller?.cancel()}>
-                キャンセル
-              </button>
-            ) : prepared ? (
-              <>
-                <button type="button" onClick={() => void controller?.refresh()}>
-                  取得情報を更新
-                </button>
-                <button
-                  className="audience-join__secondary"
-                  type="button"
-                  onClick={() => controller?.leave()}
-                >
-                  退出
-                </button>
-              </>
-            ) : (
-              <button type="submit" disabled={!controller || !validCode}>
-                {snapshot.phase === "error" ? "再試行" : "参加する"}
-              </button>
-            )}
+        {snapshot.phase === "ended" ? (
+          <div className="grid gap-6">
+            <p className="audience-join__intro">ご視聴ありがとうございました。</p>
+            <Button variant="contained" onClick={() => controller?.leave()}>
+              別のルームに参加
+            </Button>
           </div>
-        </form>
-        <p className="audience-join__privacy">ログインせずに視聴できます</p>
+        ) : (
+          <>
+            <p className="audience-join__intro">会場で案内されたルームコードを入力してください。</p>
+            {!controller && (
+              <p className="audience-join__notice">
+                現在、このサイトからルームへ参加する準備が整っていません。会場スタッフにご確認ください。
+              </p>
+            )}
+            <form onSubmit={submit} aria-labelledby="audience-join-title" aria-busy={busy}>
+              <TextField
+                fullWidth
+                id="audience-room-code"
+                name="roomCode"
+                label="ルームコード"
+                value={code}
+                onChange={(event) => setCode(event.target.value.toUpperCase().replaceAll("-", ""))}
+                placeholder="XXXXXXXX"
+                autoComplete="off"
+                disabled={!controller || busy || prepared}
+                slotProps={{
+                  htmlInput: {
+                    autoCapitalize: "characters",
+                    spellCheck: false,
+                    maxLength: 9,
+                    pattern: "[A-HJ-NP-Z2-9]{8}",
+                    "aria-describedby": "audience-join-status",
+                  },
+                }}
+              />
+              <p
+                id="audience-join-status"
+                className="audience-join__status"
+                role="status"
+                aria-live="polite"
+              >
+                {busy && <span className="audience-join__spinner" aria-hidden="true" />}
+                {progressText[snapshot.phase]}
+              </p>
+              {snapshot.phase === "error" && (
+                <p className="audience-join__notice" role="alert">
+                  {errorText[snapshot.error ?? ""] ??
+                    "接続準備中に問題が発生しました。再試行してください。"}
+                </p>
+              )}
+              <div className="grid gap-3">
+                {busy ? (
+                  <Button variant="outlined" type="button" onClick={() => controller?.cancel()}>
+                    キャンセル
+                  </Button>
+                ) : prepared ? (
+                  <>
+                    <Button
+                      variant="contained"
+                      type="button"
+                      onClick={() => void controller?.refresh()}
+                    >
+                      取得情報を更新
+                    </Button>
+                    <Button type="button" onClick={() => controller?.leave()}>
+                      退出
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="contained" type="submit" disabled={!controller || !validCode}>
+                    {snapshot.phase === "error" ? "再試行" : "参加する"}
+                  </Button>
+                )}
+              </div>
+            </form>
+            <p className="audience-join__privacy">ログインせずに視聴できます</p>
+          </>
+        )}
       </section>
-      <footer className="audience-join__footer">会場の体験を、あなたの画面に。</footer>
     </main>
   );
 }

@@ -1,3 +1,4 @@
+import { createControlPlaneClient } from "@unframe/api-client-typescript";
 import type { paths } from "@unframe/contracts/control-plane";
 import { decodeWireMessage, type DeliveryManifestWire } from "@unframe/contracts/presentation";
 import { z } from "zod";
@@ -17,7 +18,14 @@ export class AudienceConnectionError extends Error {
   }
 }
 
-export async function audienceResponseError(response: Response): Promise<AudienceConnectionError> {
+type AudienceResponse = Pick<
+  Response,
+  "status" | "headers" | "redirected" | "json" | "arrayBuffer"
+>;
+
+export async function audienceResponseError(
+  response: AudienceResponse,
+): Promise<AudienceConnectionError> {
   if (
     [409, 410].includes(response.status) &&
     response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() ===
@@ -110,31 +118,35 @@ export function createAudienceHttpClient(
   }
   const requestFetch = options.fetch ?? globalThis.fetch;
   const now = options.now ?? Date.now;
+  const rpc = createControlPlaneClient({
+    baseUrl: origin,
+    fetch: requestFetch,
+    credentials: options.authorization ? "omit" : "include",
+  });
   async function request(
-    path: string,
+    send: (options: {
+      init: RequestInit;
+      headers: Record<string, string>;
+    }) => Promise<AudienceResponse>,
     contentType: string,
-    body: object | undefined,
     signal?: AbortSignal,
   ) {
     if (signal?.aborted) throw new AudienceConnectionError("aborted");
-    let response: Response;
+    const authorization = options.authorization?.();
+    let response: AudienceResponse;
     try {
-      response = await requestFetch(`${origin}${path}`, {
-        method: "POST",
-        credentials: options.authorization ? "omit" : "include",
-        mode: "cors",
-        redirect: "error",
-        cache: "no-store",
-        referrerPolicy: "no-referrer",
+      response = await send({
+        init: {
+          mode: "cors",
+          redirect: "error",
+          cache: "no-store",
+          referrerPolicy: "no-referrer",
+          ...(signal ? { signal } : {}),
+        },
         headers: {
           Accept: contentType,
-          ...(options.authorization?.()
-            ? { Authorization: `Bearer ${options.authorization()}` }
-            : {}),
-          ...(body ? { "Content-Type": "application/json" } : {}),
+          ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
         },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-        ...(signal ? { signal } : {}),
       });
     } catch {
       throw new AudienceConnectionError(signal?.aborted ? "aborted" : "network-error");
@@ -148,7 +160,7 @@ export function createAudienceHttpClient(
       invalidResponse();
     return response;
   }
-  async function json(response: Response, signal?: AbortSignal): Promise<unknown> {
+  async function json(response: AudienceResponse, signal?: AbortSignal): Promise<unknown> {
     try {
       const value: unknown = await response.json();
       if (signal?.aborted) throw new AudienceConnectionError("aborted");
@@ -171,7 +183,11 @@ export function createAudienceHttpClient(
       const value = validate(
         sessionSchema,
         await json(
-          await request("/sessions/join", "application/json", { joinCode }, signal),
+          await request(
+            (request) => rpc.sessions.join.$post({ json: { joinCode } }, request),
+            "application/json",
+            signal,
+          ),
           signal,
         ),
       );
@@ -180,10 +196,17 @@ export function createAudienceHttpClient(
       return value;
     },
     async delivery(id: string, signal?: AbortSignal): Promise<DeliveryManifestWire> {
+      const safeId = sessionId(id);
       const response = await request(
-        `/sessions/${sessionId(id)}/delivery`,
+        (request) =>
+          rpc.sessions[":sessionId"].delivery.$post(
+            {
+              param: { sessionId: safeId },
+              json: { capabilityProfileId: config.capabilityProfileId },
+            },
+            request,
+          ),
         "application/x-protobuf",
-        { capabilityProfileId: config.capabilityProfileId },
         signal,
       );
       try {
@@ -209,13 +232,13 @@ export function createAudienceHttpClient(
       }
     },
     async bootstrap(id: string, signal?: AbortSignal): Promise<Bootstrap> {
+      const safeId = sessionId(id);
       const value = validate(
         bootstrapSchema,
         await json(
           await request(
-            `/sessions/${sessionId(id)}/bootstrap`,
+            (request) => rpc.sessions[":id"].bootstrap.$post({ param: { id: safeId } }, request),
             "application/json",
-            undefined,
             signal,
           ),
           signal,

@@ -1,4 +1,5 @@
 import { LinearFilter, SRGBColorSpace, VideoTexture } from "three";
+import { assertDeliveryCurrent, receiveAssetBytes, verifyAssetChecksum } from "./asset-transfer";
 
 export interface VideoAsset {
   assetId: string;
@@ -20,6 +21,9 @@ export interface VideoAssetOptions {
   revokeObjectURL?: (url: string) => void;
 }
 class VideoAssetError extends Error {}
+function fail(reason: string): never {
+  throw new VideoAssetError(`Video ${reason}`);
+}
 
 export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptions = {}) {
   let video: HTMLVideoElement | undefined;
@@ -37,19 +41,15 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
     texture?.dispose();
     if (objectURL) (options.revokeObjectURL ?? URL.revokeObjectURL)(objectURL);
   };
-  const abort = () => {
+  const checkCurrent = () => {
     if (options.signal?.aborted) throw new VideoAssetError("Video load aborted");
+    assertDeliveryCurrent(asset.expiresAtUnixMs, options.now, fail);
   };
   try {
-    abort();
+    checkCurrent();
     const url = new URL(asset.url);
     if (url.protocol !== "https:" || url.username || url.password)
       throw new VideoAssetError("Video URL must use HTTPS without credentials");
-    if (
-      !Number.isFinite(asset.expiresAtUnixMs) ||
-      asset.expiresAtUnixMs <= (options.now ?? Date.now)()
-    )
-      throw new VideoAssetError("Video delivery URL expired");
     if (
       !Number.isSafeInteger(asset.encodedSizeBytes) ||
       asset.encodedSizeBytes < 12 ||
@@ -70,35 +70,14 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
       response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "video/mp4"
     )
       throw new VideoAssetError("Video MP4 response required");
-    const declared = response.headers.get("content-length");
-    if (declared !== null && Number(declared) !== asset.encodedSizeBytes)
-      throw new VideoAssetError("Video encoded size mismatch");
-    if (!response.body) throw new VideoAssetError("Video response body missing");
-    const reader = response.body.getReader();
-    const bytes = new Uint8Array(asset.encodedSizeBytes);
-    let length = 0;
-    try {
-      for (;;) {
-        const chunk = await reader.read();
-        if (chunk.done) break;
-        length += chunk.value.length;
-        if (length > bytes.length) throw new VideoAssetError("Video encoded size mismatch");
-        bytes.set(chunk.value, length - chunk.value.length);
-      }
-    } finally {
-      await reader.cancel().catch(() => undefined);
-      reader.releaseLock();
-    }
-    if (length !== bytes.length) throw new VideoAssetError("Video encoded size mismatch");
+    const bytes = await receiveAssetBytes(response, asset.encodedSizeBytes, {
+      signal: options.signal,
+      fail,
+    });
     if (String.fromCharCode(...bytes.subarray(4, 8)) !== "ftyp")
       throw new VideoAssetError("Video MP4 signature required");
-    const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-    if (
-      `sha256:${Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("")}` !==
-      asset.checksum
-    )
-      throw new VideoAssetError("Video checksum mismatch");
-    abort();
+    await verifyAssetChecksum(bytes, asset.checksum, fail);
+    checkCurrent();
     video = (options.createVideo ?? (() => document.createElement("video")))();
     video.preload = "auto";
     video.playsInline = true;
@@ -131,7 +110,7 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
       element.load();
       if (options.signal?.aborted) cancelled();
     });
-    abort();
+    checkCurrent();
     if (element.videoWidth !== asset.pixelSize[0] || element.videoHeight !== asset.pixelSize[1])
       throw new VideoAssetError("Video pixel dimensions mismatch");
     if (

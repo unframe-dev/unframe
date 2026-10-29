@@ -47,6 +47,23 @@ function setup() {
   return { host, viewer, snapshot, runtimes };
 }
 afterEach(() => vi.useRealTimers());
+test("publishes viewing lifecycle through its store without exposing runtime resources", async () => {
+  const { viewer } = setup();
+  const phases: string[] = [];
+  const unsubscribe = viewer.store.subscribe((state) => phases.push(state.phase));
+  await viewer.start(delivery());
+  expect(viewer.store.getState()).toBe(viewer.getSnapshot());
+  expect(Object.keys(viewer.store.getState()).sort()).toEqual([
+    "error",
+    "phase",
+    "recovery",
+    "runtime",
+  ]);
+  viewer.stop();
+  expect(phases).toEqual(["starting", "awaiting-snapshot", "idle"]);
+  unsubscribe();
+  viewer.dispose();
+});
 test("starts XR, opens runtime, and exposes a generation-bound input", async () => {
   const { viewer, host, runtimes } = setup();
   await viewer.start(delivery());

@@ -1,9 +1,15 @@
-import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { useStore } from "zustand";
+import { createStore } from "zustand/vanilla";
 import { JoinExperience } from "./JoinExperience";
 import { readConnectionConfig } from "./application-config";
 import { createAudienceRealtime } from "./realtime-client";
 import { createAnonymousAudienceClient } from "./anonymous-client";
-import { createJoinController, type PreparedConnection } from "./join-controller";
+import {
+  createJoinController,
+  type JoinSnapshot,
+  type PreparedConnection,
+} from "./join-controller";
 import type { createTrackingAdapter } from "../tracking/adapter";
 import type { ViewingSnapshot } from "../experience/viewing-session";
 
@@ -11,9 +17,7 @@ const ViewerExperience = lazy(() =>
   import("../experience/ViewerExperience").then((module) => ({ default: module.ViewerExperience })),
 );
 
-const idleSnapshot = { phase: "idle" } as const;
-const idleSubscribe = () => () => {};
-const getIdleSnapshot = () => idleSnapshot;
+const idleStore = createStore<JoinSnapshot>(() => ({ phase: "idle" }));
 
 export function AudienceApplication(
   props: {
@@ -49,10 +53,7 @@ export function AudienceApplication(
     document.addEventListener("visibilitychange", checkExpiry);
     return () => document.removeEventListener("visibilitychange", checkExpiry);
   }, [state]);
-  const snapshot = useSyncExternalStore(
-    state.controller?.subscribe ?? idleSubscribe,
-    state.controller?.getSnapshot ?? getIdleSnapshot,
-  );
+  const snapshot = useStore(state.controller?.store ?? idleStore, (value) => value);
   const [connection, setConnection] = useState<PreparedConnection | null>(null);
   const revision = snapshot.phase === "prepared" ? snapshot.revision : null;
   useEffect(() => {

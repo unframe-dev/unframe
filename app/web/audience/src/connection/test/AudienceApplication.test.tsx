@@ -27,12 +27,15 @@ vi.mock("../application-config", () => ({
 vi.mock("../http-client", () => ({ createAudienceHttpClient: () => ({}) }));
 vi.mock("../join-controller", () => ({
   createJoinController: () => ({
-    getSnapshot: () => mock.snapshot,
-    subscribe: (listener: () => void) => {
-      mock.listener = listener;
-      return () => {
-        mock.listener = null;
-      };
+    store: {
+      getState: () => mock.snapshot,
+      getInitialState: () => mock.snapshot,
+      subscribe: (listener: () => void) => {
+        mock.listener = listener;
+        return () => {
+          mock.listener = null;
+        };
+      },
     },
     dispose: mock.dispose,
     leave: mock.leave,

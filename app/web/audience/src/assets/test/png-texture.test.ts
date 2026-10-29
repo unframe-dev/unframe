@@ -151,6 +151,44 @@ describe("loadPngTexture", () => {
     expect(options.bitmap.close).toHaveBeenCalledTimes(1);
   });
 
+  it("closes a decoded image when delivery expires while decoding", async () => {
+    const options = setup();
+    let now = 1000;
+    options.decode.mockImplementation(async () => {
+      now = 2000;
+      return options.bitmap;
+    });
+    await expect(loadPngTexture(asset, { ...options, now: () => now })).rejects.toThrow("expired");
+    expect(options.bitmap.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending response reader when the load is aborted", async () => {
+    const options = setup();
+    const controller = new AbortController();
+    const cancel = vi.fn();
+    let started!: () => void;
+    const reading = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    options.fetcher.mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          pull() {
+            started();
+          },
+          cancel,
+        }),
+        { headers: { "content-type": "image/png" } },
+      ),
+    );
+    const pending = loadPngTexture(asset, { ...options, signal: controller.signal });
+    await reading;
+    controller.abort();
+    await expect(pending).rejects.toThrow("aborted");
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(options.decode).not.toHaveBeenCalled();
+  });
+
   it("does not fetch after cancellation", async () => {
     const options = setup();
     await expect(
