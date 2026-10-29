@@ -40,21 +40,21 @@ RuntimeCapability は従来の1〜6を保持し、7=`PRESENTER_RECOGNITION`、8=
 
 通常入力は `LogicalInputCommand`、`SurfaceInteractionCommand`、`GestureInputCommand`、`ZoneInputCommand` の4種。すべて認識開始時の `InputContext`（input epoch、Group ID / 入場 epoch、Step ID / 入場 epoch）、command epoch、client event ID、origin version を持つ。capture 時刻は任意の診断情報である。client は actor / role / Cue / 共有状態を指定しない。
 
-`input_epoch` は Session の正の単調増加整数。Step 入場・再入場・選択、pause / resume、切断復旧、再校正で更新する。途中認識は破棄し、送信時の Step へ付け替えない。Gesture は新動作を待ち、Zone は現在位置を無通知 seed する。追跡喪失は exit とせず、復帰も無通知 seed とする。経過時間による追加 TTL、client 時刻による並べ替え、遡及評価を設けない。
+`input_epoch` は Session の同じ assignment epoch 内で正に単調増加する整数。Step 入場・再入場・選択、pause / resume、切断復旧、再校正で更新する。途中認識は破棄し、送信時の Step へ付け替えない。Gesture は新動作を待ち、Zone は現在位置を無通知 seed する。追跡喪失は exit とせず、復帰も無通知 seed とする。経過時間による追加 TTL、client 時刻による並べ替え、遡及評価を設けない。
 
 全体操作は `RuntimeControlCommand` の pause / resume / end / selectStep / recalibrate（kind 1〜5）。`InputContext` を持たず、selectStep のみ `StepSelection { group_id, step_id }` を必須とし、他 kind への付与は禁止する。認証済み Presenter と実行状態を検証し、Step 不一致を理由に拒否しない。running→pause、paused→resume、running / paused→end を実行する。同状態への pause / resume は NoOp、terminating での扱いは既存の不可逆終了規則に従う。終了済み Session の resume / Step 選択は禁止する。
 
-`command_epoch` は固定 Presenter の正の単調増加整数であり、Step 遷移では更新しない。重複排除記録の整理、接続・復旧時の同期でのみ次値へ進める。すべての通常入力・全体操作をこの世代に拘束する。これにより Step に依存しない操作も、記録整理後に遅着した旧操作として拒否できる。
+`command_epoch` は同じ assignment epoch 内の固定 Presenter について正に単調増加する整数であり、Step 遷移では更新しない。重複排除記録の整理、接続・復旧時の同期でのみ次値へ進める。すべての通常入力・全体操作をこの世代に拘束する。これにより Step に依存しない操作も、記録整理後に遅着した旧操作として拒否できる。
 
 `client_event_id` は `<command_epoch の正規10進表記>:<小文字 UUID v4>` に固定する。例: `4:550e8400-e29b-41d4-a716-446655440000`。ID prefix と command epoch が一致しなければ protocol error とする。世代を付け替えて同じ ID を再利用できず、過去の全 ID を無期限に保存する必要がない。idempotency key は引き続き Session / participant / client event ID である。
 
 ### 受付順序と結果
 
 1. message 構造・認証・Presenter 権限・Session / Publication / assignment / origin fence を検証する。
-2. 同じ key の記録があれば fingerprint を比較する。一致なら保存済み Outcome を返し、Step / 入力世代の現在値で再判定しない。異内容は `INVALID_ARGUMENT / idempotency_key_reused`。
+2. 同じ key の記録があれば fingerprint を比較する。一致なら同じ実行世代の確定済み Outcome を返し、Step / 入力世代の現在値で再判定しない。異内容は `INVALID_ARGUMENT / idempotency_key_reused`。
 3. 記録がない場合は command epoch を照合する。古い値は `COMMAND_EPOCH_STALE`、未来値は protocol error。記録整理後の旧コマンドを新規処理しない。
 4. 通常入力は同期 READY、running / stable、現在の入力文脈を検証する。その後に resource / Cue を探索する。全体操作は通常入力の同期・Step 検査を省き、操作固有の権限・状態・容量を検証する。
-5. 新規処理の Outcome と共有状態を同じ checkpoint に保存し、保存成功後にのみ応答・event を公開する。同じ ID の再送は ingress / sequence / Cue 消費を増やさない。
+5. 新規処理の fingerprint・Outcome・共有状態・Reliable sequence を Session ごとに直列化し、メモリ上で一体として確定してから応答・event を公開する。通常進行の応答は保存完了を保証しない。同じ実行世代内の同じ ID の再送は ingress / sequence / Cue 消費を増やさない。終了完了の公開は最終 checkpoint を含む completion の成功を必要とする。
 
 同期中、stale context / epoch、容量超過など新規処理前の admission 拒否は状態・Outcome 記録を増やさない。採用した処理の accepted / rejected / NoOp は結果を記録する。構造・認証・fence 違反を通常の Cue 不採用へ丸めない。
 
@@ -72,18 +72,20 @@ SHA-256 の入力は ASCII `unframe-command-v3`、NUL、ControlClientItem の on
 
 ## 同期と記録整理
 
-同期状態は private な `PresenterInputSynchronization` で送る。phase（REQUIRED / READY）、reason、単調増加する synchronization revision、InputContext、現在の command epoch、任意の next command epoch、Reliable cut を含む。入力文脈は Canonical state と同じ cut で作る。Step 更新だけの同期は command epoch を変えず、記録整理・再接続・process recovery では next epoch を設定する。next は現在値+1であり、Ready では持たない。整数が最大値に達した場合は wrap せず fail closed とする。
+同期状態は private な `PresenterInputSynchronization` で送る。phase（REQUIRED / READY）、reason、同じ assignment epoch 内で単調増加する synchronization revision、InputContext、現在の command epoch、任意の next command epoch、Reliable cut を含む。入力文脈は Canonical state と同じ cut で作る。Step 更新だけの同期は command epoch を変えず、記録整理・再接続・process recovery では next epoch を設定する。next は現在値+1であり、Ready では持たない。整数が最大値に達した場合は wrap せず fail closed とする。
 
-1. server は通常入力の受付を止め、旧 Outcome を保持したまま新しい revision / 入力世代 / 同期状態を checkpoint に確定する。切断・process recovery では先に paused を確定する。
+1. server は通常入力の受付を止め、旧 Outcome を保持したまま新しい revision / 入力世代 / 同期状態をメモリ上で確定する。切断では先に paused を確定する。process recovery は新しい assignment epoch の paused / 同期状態を保存してから接続を公開する。
 2. server は対応する Snapshot / replay / catalog と REQUIRED を送る。client は cut まで適用し、途中認識と古い送信待ち操作を破棄する。未処理操作を新 epoch へ付け替えない。
 3. client は `InputSynchronizationAck` に revision、InputContext、対象 command epoch（next があれば next）、applied reliable sequence、`pending_commands_discarded=true` を返す。
-4. server はそれらが現行同期の値と一致することを検証する。next がある場合は epoch 更新と旧 Outcome 全件の整理を同じ checkpoint に確定する。READY もその checkpoint に保存し、成功後に READY を送って通常入力の同期 barrier を解く。runtime lifecycle が paused / transitioning なら通常入力は引き続き受け付けない。
+4. server はそれらが現行同期の値と一致することを検証する。next がある場合は command epoch 更新・旧 Outcome 全件の整理・READY を同じメモリ上の変更として確定し、保存を待たずに READY を送って通常入力の同期 barrier を解く。runtime lifecycle が paused / transitioning なら通常入力は引き続き受け付けない。
 
-ACK は保存する通常 command ではなく、現在の同期状態に対する冪等な制御 message とする。同じ ACK の再送には保存済み READY を返す。stale ACK は無効化し現行 REQUIRED / READY を再送する。cut は同期開始時の値であり、無関係な後続 event の発生だけでは ACK を失効させない。入力文脈・認識設定を変える更新は revision を進めて以前の ACK を無効化する。
+ACK は保存する通常 command ではなく、現在の同期状態に対する冪等な制御 message とする。同じ実行世代内の ACK 再送には確定済み READY を返す。stale ACK は無効化し現行 REQUIRED / READY を再送する。cut は同期開始時の値であり、無関係な後続 event の発生だけでは ACK を失効させない。入力文脈・認識設定を変える更新は revision を進めて以前の ACK を無効化する。
 
 ACK 前の全体操作は現在の command epoch で受理できる。状態・入力文脈が変わった場合は新 revision の同期へ置き換える。次 epoch は READY 受信まで新規 command に使わない。入力受付中に通常の Outcome 応答を確認しただけでは記録を消さず、同期 ACK を整理の境界とする。
 
-ACK 消失では旧記録と REQUIRED を維持する。READY 消失では durable な新 epoch / READY を再送できる。checkpoint 保存失敗時は epoch 更新・整理・受付再開を公開しない。再接続時は古い操作を再実行せず確定状態へ同期し、より新しい revision で barrier を作る。process recovery は保存した epoch / allocator / 同期状態を復元し、新しい pause / 同期を checkpoint に保存してから受付を始める。
+ACK 消失では旧記録と REQUIRED を維持する。READY 消失では同じ実行世代のメモリに確定した command epoch / READY を再送する。通常の checkpoint 保存失敗は epoch 更新・整理・受付再開を取り消さない。同一プロセスへの再接続は現在のメモリ状態へ同期し、古い操作を再実行せず、より新しい revision で barrier を作る。
+
+実行状態を作り直す場合は、同じ Host でも新しい assignment epoch を取得する。最後に保存できた checkpoint の入力世代・Outcome・allocator・同期状態へ巻き戻り得るため、client は再 bootstrap し、旧 Resume cursor と未確認操作を破棄して新 Snapshot で全置換する。旧操作を新世代へ付け替えて再送しない。checkpoint が存在しない復旧も初期状態を paused / processRecovered とし、新 fence の pause / 同期 checkpoint を保存してから ready を報告する。明示 Resume を必要とする。
 
 ## 凍結表示と Step 復元
 
@@ -121,9 +123,9 @@ Control は外側 oneof を含む `ControlClientItem / ControlServerItem` 全体
 
 新規 command は結果の最悪サイズ1,024 bytesと繰返し field overhead を予約して admission 判定する。通常入力が同期開始値へ達する前に barrier を開始し、hard limit までの余裕は同期中の全体操作と metadata に使う。全体操作も hard limit を超える見込みなら実行せず capacity reject とする。拒否のために記録を増やしたり、未確認結果を TTL / LRU で evict したりしない。同期 ACK 自体は記録容量を消費しない。
 
-開始履歴の初期保存・置換、Action、Step 遷移、Step 復元を preflight し、各上限を超える変更は部分 commit しない。入場に必要な履歴が保存できない場合は入場を取り消し、元の履歴を保って paused / runtime capacity fault とする。失敗した候補の単一開始状態・履歴集合・Canonical 全体の byte 長は、任意の `RuntimeRecoveryMetadata.capacity_fault` に保存し、再接続や保存失敗による pause 理由の変更後も保持する。通常の checkpoint では省略する。容量 fault に対する resume は記録した byte 長を現行上限と照合し、修復せず同じ遷移を進めない。Step 復元・resume・終了の確定時に fault を解除する。通常の Action batch capacity reject は元の状態を保持する。履歴を黙って削除したり Control item を無断で分割したりしない。
+開始履歴の初期保存・置換、Action、Step 遷移、Step 復元を preflight し、各上限を超える変更は部分 commit しない。入場に必要な履歴が保存できない場合は入場を取り消し、元の履歴を保って paused / runtime capacity fault とする。失敗した候補の単一開始状態・履歴集合・Canonical 全体の byte 長は、任意の `RuntimeRecoveryMetadata.capacity_fault` に保存し、再接続や他の停止理由への変更後も保持する。fault がない場合は省略する。容量 fault に対する resume は記録した byte 長を現行上限と照合し、修復せず同じ遷移を進めない。Step 復元・resume・終了の確定時に fault を解除する。通常の Action batch capacity reject は元の状態を保持する。履歴を黙って削除したり Control item を無断で分割したりしない。
 
-Control Plane は envelope JSON の UTF-8 byte 長を保存前に照合し、超過は `413 / checkpoint_payload_too_large` で拒否する。DB schema 変更は必要ないが、callback body と bootstrap 読込の両境界で同じ制約を適用する。completion が内包する checkpoint も同じ検証を使う。
+Control Plane は envelope JSON の UTF-8 byte 長を保存前に照合し、超過は `413 / checkpoint_payload_too_large` で拒否する。この容量制約自体には DB schema 変更を必要とせず、callback body と bootstrap 読込の両境界で同じ制約を適用する。completion が内包する checkpoint も同じ検証を使う。
 
 容量は現行の「deterministic bytes を base64 化した proto JSON を D1 TEXT に保存する」経路を基準にした。D1 の string / BLOB / row 上限は [公式制限](https://developers.cloudflare.com/d1/platform/limits/) の2,000,000 bytes。Canonical + Recovery は合計1 MiBであり、base64 後は1,398,104 bytes、ID・hash等の envelope metadata を含めても1.5 MiB以内に収め、DB row の他 column にも余裕を残す。JSON byte 長の最終検査は省略しない。これらは認識品質や性能の実測値ではなく、serialization と保存制約に基づく採用上限である。
 
@@ -133,4 +135,4 @@ Reliable log / Replay / catch-up、State buffer、microstep、tracking rate / fr
 
 契約テストは新旧 major、Gesture / Zone と通常入力の文脈、command ID の epoch 拘束、同期 ACK の構造、履歴・凍結表示の presence と投影隔離、serialized byte 境界、生成 drift と breaking 負例を検証する。
 
-Go / Unity / Authoring の移行では、保存済み Outcome の先返し、同期の中断・重複 ACK・READY 消失、同一 epoch process recovery と lease 失効後の新 assignment epoch での復元、容量 preflight の rollback、到達履歴の不正参照・Run rebase・旧完了拒否、pause / fresh Pose の State 順序、非対応 profile 拒否を統合テストする。これらの動的処理と Quest 認識品質は、schema / codec テストの成功だけで実装済みと扱わない。
+Go / Unity / Authoring の移行では、同一実行世代の確定済み Outcome の先返し、同期の中断・重複 ACK・READY 消失、lease が残る場合も含めた新 assignment epoch での復元、容量 preflight の rollback、到達履歴の不正参照・Run rebase・旧完了拒否、pause / fresh Pose の State 順序、非対応 profile 拒否を統合テストする。これらの動的処理と Quest 認識品質は、schema / codec テストの成功だけで実装済みと扱わない。

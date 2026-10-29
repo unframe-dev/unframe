@@ -87,6 +87,10 @@ func (s *V2Session) BeginInputSynchronization(ctx context.Context, reason realti
 	defer s.operationMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.durability.completing {
+		return ErrV2PersistenceUnavailable
+	}
+
 	if s.snapshot.Clock.GetTerminating() != nil {
 		return ErrV2RuntimeDefinition
 	}
@@ -117,6 +121,10 @@ func (s *V2Session) AcknowledgeInputSynchronization(ctx context.Context, identit
 	defer s.operationMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.durability.completing {
+		return nil, ErrV2PersistenceUnavailable
+	}
+
 	current := s.inputSynchronization
 	clone := func() *realtimev2.PresenterInputSynchronization {
 		return proto.Clone(s.inputSynchronization).(*realtimev2.PresenterInputSynchronization)

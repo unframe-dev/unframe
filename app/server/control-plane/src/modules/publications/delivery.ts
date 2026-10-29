@@ -125,7 +125,7 @@ export class DeliveryService {
     const assignment = await new RuntimeAssignmentService(
       new D1RuntimeAssignmentRepository(this.config.DB),
       this.now,
-    ).active(sessionId);
+    ).connectable(sessionId);
     let selection;
     try {
       selection = selectDeliveryArtifacts({ ...artifacts, capability }, role);
@@ -180,7 +180,7 @@ export class DeliveryService {
     const active = await new RuntimeAssignmentService(
       new D1RuntimeAssignmentRepository(this.config.DB),
       this.now,
-    ).active(sessionId);
+    ).connectable(sessionId);
     if (
       current.publicationEpoch !== artifacts.publishedPresentation.publicationEpoch ||
       active.assignmentEpoch !== assignment.assignmentEpoch ||

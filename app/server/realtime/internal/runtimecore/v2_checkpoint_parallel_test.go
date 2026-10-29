@@ -42,52 +42,22 @@ func v2ParallelCore(t *testing.T, definition json.RawMessage, writer V2Checkpoin
 	return core
 }
 
-func TestV2LeaseExpiryWaitsForCheckpointAndRemainsPaused(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+func TestV2LeaseExpiryDoesNotWaitForCheckpoint(t *testing.T) {
+	core, _ := reviewSession(t)
 	entered, release := make(chan struct{}), make(chan struct{})
-	defer func() {
-		select {
-		case <-release:
-		default:
-			close(release)
-		}
-	}()
-	core := v2ParallelCore(t, definition, checkpointCommitObserver(func(*realtimev2.DurableCheckpointEnvelope) error {
-		close(entered)
-		<-release
-		return nil
-	}))
-	joined := make(chan error, 1)
-	go func() {
-		joined <- core.JoinParticipant(context.Background(), session.Identity{ParticipantID: "viewer-1", Role: session.RoleViewer})
-	}()
+	defer close(release)
+	core.checkpointWriter = checkpointCommitObserver(func(*realtimev2.DurableCheckpointEnvelope) error { close(entered); <-release; return nil })
+	go func() { _ = core.FlushCheckpoint(context.Background()) }()
+	<-entered
+	done := make(chan struct{})
+	go func() { core.PauseLeaseExpired(); close(done) }()
 	select {
-	case <-entered:
+	case <-done:
 	case <-time.After(time.Second):
-		t.Fatal("checkpoint callback did not start")
+		t.Fatal("lease fencing blocked on storage")
 	}
-	if cut := v2SnapshotWithin(t, core); cut.ReliableSequence != 0 || cut.Clock.GetRunning() == nil {
-		t.Fatalf("unacknowledged join leaked: %#v", cut)
-	}
-	paused := make(chan struct{})
-	go func() { core.PauseLeaseExpired(); close(paused) }()
-	select {
-	case <-paused:
-		t.Fatal("lease pause overtook pending checkpoint")
-	case <-time.After(50 * time.Millisecond):
-	}
-	close(release)
-	if err := <-joined; err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case <-paused:
-	case <-time.After(time.Second):
-		t.Fatal("lease pause was lost after checkpoint acknowledgement")
-	}
-	cut := core.Snapshot()
-	if cut.ReliableSequence != 1 || cut.Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_ASSIGNMENT_LEASE_EXPIRED {
-		t.Fatalf("lease pause was overwritten: %#v", cut)
+	if core.Snapshot().Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_ASSIGNMENT_LEASE_EXPIRED {
+		t.Fatal("lease fence lost")
 	}
 }
 
@@ -152,7 +122,7 @@ func TestV2CompletionCallbackKeepsPreviousCutReadable(t *testing.T) {
 			close(release)
 			err := <-finished
 			if test.err != nil {
-				if err == nil || core.Snapshot().ReliableSequence != 0 || core.Snapshot().Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED {
+				if err == nil || core.Snapshot().ReliableSequence != 0 || core.Snapshot().Clock.GetRunning() == nil {
 					t.Fatalf("failed completion published: cut=%#v err=%v", core.Snapshot(), err)
 				}
 				select {

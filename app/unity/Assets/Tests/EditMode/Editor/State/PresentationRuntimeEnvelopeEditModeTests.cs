@@ -54,6 +54,55 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         Assert.That(store.LastCommandOutcomeCode, Is.Null);
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void SnapshotCannotRollBackAnAssignmentEvenAfterDeliveryReload(bool reload)
+    {
+        var store = CreateLoadedStore(out var delivery, out var snapshot);
+        Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ProjectionAdvance = new ProjectionAdvance
+            {
+                Fence = snapshot.ConnectionSnapshot.Fence.Clone(), FromExclusive = 0, ThroughSequence = 4
+            }
+        }, out error), Is.True, error);
+        if (reload) Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.False);
+        Assert.That(error, Does.Contain("sequence"));
+    }
+
+    [Test]
+    public void NewAssignmentAcceptsAnEarlierPausedSnapshotAndDiscardsOldCommandResults()
+    {
+        var store = CreateLoadedStore(out var delivery, out var snapshot);
+        Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ProjectionAdvance = new ProjectionAdvance
+            {
+                Fence = snapshot.ConnectionSnapshot.Fence.Clone(), FromExclusive = 0, ThroughSequence = 4
+            }
+        }, out error), Is.True, error);
+        store.TrackCommand("old-operation");
+        delivery.ProjectionInstance.AssignmentEpoch = 2;
+        Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
+        var cut = snapshot.ConnectionSnapshot;
+        cut.ProjectionInstance.AssignmentEpoch = 2;
+        cut.Fence.AssignmentEpoch = 2;
+        cut.Snapshot.AssignmentEpoch = 2;
+        cut.Snapshot.RuntimeView.AssignmentEpoch = 2;
+        cut.Snapshot.RuntimeView.Clock.Paused = new Unframe.Realtime.Paused { Reason = PauseReason.ProcessRecovered };
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.LastReliableSequence, Is.Zero);
+        Assert.That(store.RuntimeClock.Paused.Reason, Is.EqualTo(PauseReason.ProcessRecovered));
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            CommandOutcome = new CommandOutcome { ClientEventId = "old-operation", Accepted = new CommandAccepted() }
+        }, out error), Is.True, error);
+        Assert.That(store.LastCommandOutcomeCode, Is.Null);
+    }
+
     [Test]
     public void BinaryPayloadsReceiveDeliverySnapshotAndStateFrame()
     {

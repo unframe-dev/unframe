@@ -2919,7 +2919,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Session ended */
+                /** @description Session conflict; runtime_unavailable is retryable while Runtime is unavailable */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -3394,6 +3394,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/runtime/hosts/{runtimeId}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    runtimeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                        bootId: string;
+                        capacity: number;
+                        accepting: boolean;
+                        /** Format: date-time */
+                        bootStartedAt: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Registered Host execution generation */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            generation: number;
+                        };
+                    };
+                };
+                /** @description Invalid host registration */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized service */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Stale boot or endpoint conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/runtime/hosts/{runtimeId}/heartbeat": {
         parameters: {
             query?: never;
@@ -3417,23 +3510,29 @@ export interface paths {
                     "application/json": {
                         /** Format: uri */
                         endpoint: string;
+                        bootId: string;
+                        capacity: number;
                         accepting: boolean;
-                        serving?: {
+                        generation: number;
+                        sessions: {
                             sessionId: string;
                             assignmentEpoch: number;
-                        };
+                            /** @enum {string} */
+                            state: "starting" | "recovering" | "ready" | "stopping" | "stopped" | "failed";
+                        }[];
                     };
                 };
             };
             responses: {
-                /** @description Current Cloud assignment; null means stop the Runtime */
+                /** @description Assignments owned by this Host execution generation */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            assignment: {
+                            generation: number;
+                            assignments: {
                                 sessionId: string;
                                 runtimeId: string;
                                 /** @enum {string} */
@@ -3450,7 +3549,8 @@ export interface paths {
                                 leaseExpiresAt: string;
                                 /** Format: date-time */
                                 releasedAt: string | null;
-                            } | null;
+                                recovery: boolean;
+                            }[];
                         };
                     };
                 };
@@ -3482,7 +3582,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Runtime identity or endpoint conflict */
+                /** @description Stale Host generation or endpoint conflict */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -5154,7 +5254,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Session or assignment changed */
+                /** @description Session or assignment conflict; runtime_unavailable is retryable while Runtime is unavailable */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -5436,6 +5536,8 @@ export interface paths {
                     sessionId: string;
                     runtimeId: string;
                     assignmentEpoch: number;
+                    /** @description Required for Venue Edge process startup; forbidden for managed Cloud Runtime */
+                    executionBootId?: string;
                 };
                 header?: never;
                 path?: never;

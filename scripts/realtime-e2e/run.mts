@@ -352,10 +352,6 @@ ${audienceOrigin} {
     .object({ session: z.object({ id: z.string().min(1) }), joinCode: z.string().min(1) })
     .parse(await remote("/sessions", { presentationId }));
   const runtimeId = randomUUID();
-  const runtimeBinary = join(state, "realtime");
-  await launch("go", ["build", ...race, "-o", runtimeBinary, "./cmd/server"], "runtime-build", {
-    cwd: join(root, "app/server/realtime"),
-  });
   const hostBinary = join(state, "runtime-host");
   await launch("go", ["build", ...race, "-o", hostBinary, "./cmd/runtime-host"], "host-build", {
     cwd: join(root, "app/server/realtime"),
@@ -373,7 +369,6 @@ ${audienceOrigin} {
         joinCode,
         presenterCredential,
         caFile: join(state, "ca.pem"),
-        runtimeBinary,
         hostBinary,
         stateDirectory: state,
         repositoryRoot: root,
@@ -385,6 +380,7 @@ ${audienceOrigin} {
         runtimeEnv: {
           ...(race.length ? { GORACE: "halt_on_error=1" } : {}),
           SSL_CERT_FILE: join(state, "ca.pem"),
+          REALTIME_HOST_CAPACITY: "2",
           REALTIME_LISTEN_ADDR: `127.0.0.1:${grpcPort}`,
           REALTIME_ISSUER: cp,
           REALTIME_AUDIENCE: "unframe-realtime-runtime",

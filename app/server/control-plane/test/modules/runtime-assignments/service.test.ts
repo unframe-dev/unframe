@@ -27,6 +27,7 @@ const assignment: RuntimeAssignment = {
 const createRepository = (): RuntimeAssignmentRepository => ({
   assign: vi.fn(async () => assignment),
   findActive: vi.fn(async () => assignment),
+  findConnectable: vi.fn(async () => assignment),
   renew: vi.fn(async () => assignment),
   release: vi.fn(async () => true),
   releaseSession: vi.fn(async () => {}),

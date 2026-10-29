@@ -1,3 +1,4 @@
+import { seedCloudHost } from "../../fixtures/runtime-host";
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it, assert } from "vitest";
 import { D1PersistenceCallbackRepository } from "../../../src/modules/persistence-callback/repository";
@@ -15,6 +16,7 @@ const suffix = () => crypto.randomUUID();
 
 const seedSession = async () => {
   const id = suffix();
+  await seedCloudHost("runtime", "https://runtime.example.com");
   const userId = `user-${id}`;
   const presentationId = `presentation-${id}`;
   await env.DB.batch([
@@ -37,7 +39,7 @@ const seedSession = async () => {
     .bind(id, presentationId, userId, `hash-${id}`, "2026-01-01")
     .run();
   await env.DB.prepare(
-    "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES (?, 'runtime', 'Cloud', 'https://runtime.example.com', 1, 1, '2026-01-01', '2099-01-01')",
+    "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at, host_generation) VALUES (?, 'runtime', 'Cloud', 'https://runtime.example.com', 1, 1, '2026-01-01', '2099-01-01', 1)",
   )
     .bind(id)
     .run();
@@ -101,6 +103,75 @@ describe("D1PersistenceCallbackRepository", () => {
     ).resolves.toBe("conflict");
   });
 
+  it("rejects Cloud callbacks that have no Host execution generation", async () => {
+    const sessionId = await seedSession();
+    await env.DB.prepare(
+      "UPDATE runtime_assignments SET host_generation = NULL WHERE session_id = ?",
+    )
+      .bind(sessionId)
+      .run();
+    await expect(
+      repository.applyCheckpoint({
+        sessionId,
+        runtimeId: "runtime",
+        runtimeKind: "Cloud",
+        assignmentEpoch: 1,
+        presentationRevision: 1,
+        version: 1,
+        lastSequence: 1,
+        idempotencyKey: "no-generation",
+        payload: payload(sessionId),
+      }),
+    ).resolves.toBe("conflict");
+  });
+
+  it("rejects checkpoint and completion callbacks from an old Host boot before the old lease expires", async () => {
+    const sessionId = await seedSession();
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE runtime_hosts SET generation = 2, boot_id = 'new-boot' WHERE runtime_id = 'runtime'",
+      ),
+      env.DB.prepare(
+        "UPDATE runtime_assignments SET host_generation = 1 WHERE session_id = ?",
+      ).bind(sessionId),
+    ]);
+    const checkpoint = {
+      sessionId,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud" as const,
+      assignmentEpoch: 1,
+      presentationRevision: 1,
+      version: 1,
+      lastSequence: 1,
+      idempotencyKey: "old-boot",
+      payload: payload(sessionId),
+    };
+    await expect(repository.applyCheckpoint(checkpoint)).resolves.toBe("conflict");
+    await expect(
+      repository.applyCompletion({
+        sessionId,
+        runtimeId: "runtime",
+        runtimeKind: "Cloud",
+        assignmentEpoch: 1,
+        presentationRevision: 1,
+        checkpointVersion: 1,
+        lastSequence: 1,
+        idempotencyKey: "old-completion",
+        startedAt: "2026-01-01T00:00:00.000Z",
+        endedAt: "2026-08-11T00:00:00.000Z",
+        participantCount: 0,
+        participants: [],
+        finalCheckpoint: payload(sessionId),
+      }),
+    ).resolves.toBe("conflict");
+    expect(
+      await env.DB.prepare("SELECT state FROM presentation_sessions WHERE id = ?")
+        .bind(sessionId)
+        .first(),
+    ).toEqual({ state: "Presenting" });
+    await env.DB.prepare("DELETE FROM runtime_hosts WHERE runtime_id = 'runtime'").run();
+  });
+
   it("rejects a delayed old epoch even when its captured lease still appears active", async () => {
     const sessionId = await seedSession();
     const input = {
@@ -159,7 +230,7 @@ describe("D1PersistenceCallbackRepository", () => {
       }),
     ).resolves.toBe("conflict");
     await env.DB.prepare(
-      "INSERT INTO runtime_assignments (session_id,runtime_id,runtime_kind,endpoint,epoch,revision,issued_at,lease_expires_at) VALUES (?, 'runtime', 'Cloud','https://next.test',2,1,'2026','2099')",
+      "INSERT INTO runtime_assignments (session_id,runtime_id,runtime_kind,endpoint,epoch,revision,issued_at,lease_expires_at,host_generation) VALUES (?, 'runtime', 'Cloud','https://runtime.example.com',2,1,'2026','2099',1)",
     )
       .bind(sessionId)
       .run();

@@ -221,8 +221,11 @@ test("asset URL refresh preserves camera, bound input, real Runtime state, and d
 });
 
 test("a new assignment drops displayed state and old inputs until its own Snapshot arrives", async () => {
-  const { viewer, host, delivery, snapshot, start, keyframe, rendered } = setup();
+  const { viewer, host, delivery, snapshot, start, keyframe, rendered, fence } = setup();
   await start();
+  viewer.getInput()!.applyControl({
+    projectionAdvance: { fence, fromExclusive: "0", throughSequence: "4" },
+  });
   const previous = viewer.getInput()!;
   const nextDelivery = structuredClone(delivery);
   nextDelivery.projectionInstance!.assignmentEpoch = "2";
@@ -241,10 +244,27 @@ test("a new assignment drops displayed state and old inputs until its own Snapsh
   nextSnapshot.projectionInstance = nextDelivery.projectionInstance!;
   nextSnapshot.snapshot!.assignmentEpoch = "2";
   nextSnapshot.snapshot!.runtimeView!.assignmentEpoch = "2";
+  nextSnapshot.snapshot!.runtimeView!.clock = { runtimeTimeMs: "0", paused: { reason: 3 } };
   viewer.getInput()!.applyControl({ connectionSnapshot: nextSnapshot });
   await viewer.waitForIdle();
   expect(viewer.getSnapshot().phase).toBe("viewing");
-  expect(rendered()).not.toBeNull();
+  expect(rendered()?.clock.lifecycle.kind).toBe("paused");
+  expect(viewer.getSnapshot().runtime?.reliableSequence).toBe("0");
+});
+
+test("a reconnect rejects a Snapshot that rolls back the same assignment", async () => {
+  const { viewer, start, snapshot, fence, rendered } = setup();
+  await start();
+  viewer.getInput()!.applyControl({
+    projectionAdvance: { fence, fromExclusive: "0", throughSequence: "4" },
+  });
+  await viewer.waitForIdle();
+  expect(viewer.getSnapshot().runtime?.reliableSequence).toBe("4");
+  viewer.getInput()!.disconnected();
+  viewer.restartInput()!.applyControl({ connectionSnapshot: snapshot });
+  await viewer.waitForIdle();
+  expect(viewer.getSnapshot().phase).toBe("error");
+  expect(rendered()).toBeNull();
 });
 
 test("a reliable gap removes stale presentation and requests a fresh Snapshot", async () => {

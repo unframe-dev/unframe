@@ -37,8 +37,8 @@ func TestV2LeaveFailureReleasesPresence(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.checkpointWriter = failingV2Checkpoint{}
-	if err := s.LeaveParticipant(context.Background(), id); err == nil {
-		t.Fatal("expected persistence failure")
+	if err := s.LeaveParticipant(context.Background(), id); err != nil {
+		t.Fatal(err)
 	}
 	_, presence, _, closeSub, _ := s.SnapshotPresenceAndSubscribe()
 	defer closeSub()

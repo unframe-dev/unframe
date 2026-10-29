@@ -16,6 +16,7 @@ export interface ViewerExperienceProps {
   onRefresh(): void;
   onReconnect(): Promise<void>;
   refreshing: boolean;
+  recovering?: boolean;
   refreshError: string | null;
   trackingAdapter?: typeof createTrackingAdapter;
   onViewingSnapshot?(snapshot: ViewingSnapshot): void;
@@ -133,11 +134,16 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   }, [config, props.trackingAdapter]);
 
   useEffect(() => {
+    if (props.recovering) {
+      clearBinding(false);
+      viewer.current?.getInput()?.disconnected();
+      return;
+    }
     const target = viewer.current;
     const disconnected = target?.getSnapshot().phase === "disconnected";
     target?.updateDelivery(props.connection.delivery);
     if (disconnected && !target?.getInput()) target?.restartInput();
-  }, [config, props.connection]);
+  }, [config, props.connection, props.recovering]);
 
   useEffect(() => {
     if (viewing) props.onViewingSnapshot?.(viewing);
@@ -216,6 +222,7 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   }, [viewing?.phase, props.onRuntimeInput, props.refreshing, props.onReconnect]);
 
   async function start() {
+    if (props.recovering) return;
     const target = viewer.current;
     if (!target) return;
     setError(null);
@@ -279,7 +286,11 @@ export function ViewerExperience(props: ViewerExperienceProps) {
             {!props.onRuntimeInput && (
               <p>ライブ受信は未接続です。接続仕様の提供後に受信処理を接続します。</p>
             )}
-            {props.refreshing && <p role="status">接続情報を更新しています。</p>}
+            {props.refreshing && (
+              <p role="status">
+                {props.recovering ? "配信の接続復旧を待っています。" : "接続情報を更新しています。"}
+              </p>
+            )}
             {props.refreshError && (
               <p role="status">
                 接続情報を更新できませんでした。有効期限内の情報で視聴を続けています。

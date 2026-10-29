@@ -121,10 +121,13 @@ export async function validateCheckpoint(
     const synchronization = recovery["inputSynchronization"] as Record<string, unknown>;
     const input = synchronization["inputContext"] as Record<string, unknown>;
     const progression = canonical["progression"] as Record<string, unknown>;
+    const reliableSequence = BigInt((envelope["reliableSequence"] as string | undefined) ?? "0");
+    const participants = recovery["participants"] as unknown[];
     if (
-      canonical["reliableSequence"] !== envelope["reliableSequence"] ||
+      BigInt((canonical["reliableSequence"] as string | undefined) ?? "0") !== reliableSequence ||
+      (participants.length === 0 && reliableSequence !== 0n) ||
       BigInt((synchronization["reliableSequence"] as string | undefined) ?? "0") >
-        BigInt((envelope["reliableSequence"] as string | undefined) ?? "0") ||
+        reliableSequence ||
       input["inputEpoch"] !== canonical["inputEpoch"] ||
       input["groupId"] !== progression["currentGroupId"] ||
       input["stepId"] !== progression["currentStepId"] ||

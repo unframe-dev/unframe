@@ -81,7 +81,7 @@ func TestV2RuntimeControlPersistsPauseResumeAndCompletion(t *testing.T) {
 	}
 }
 
-func TestV2CompletionFailurePausesWithoutPublishingEnd(t *testing.T) {
+func TestV2CompletionFailureRetainsPendingWithoutPublishingEnd(t *testing.T) {
 	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	core, err := newV3RegressionSession(definition)
 	if err != nil {
@@ -93,7 +93,7 @@ func TestV2CompletionFailurePausesWithoutPublishingEnd(t *testing.T) {
 	}
 	core.ConfigureCompletion(failingV2Completion{})
 	_, events, err := core.RuntimeControl(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "end-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END}))
-	if err == nil || len(events) != 0 || core.Snapshot().ReliableSequence != 0 || core.Snapshot().Clock.GetPaused() == nil || core.Snapshot().Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED {
+	if err == nil || len(events) != 0 || core.Snapshot().ReliableSequence != 0 || !core.durability.completing || core.durability.completion == nil {
 		t.Fatalf("failed completion events=%#v cut=%#v err=%v", events, core.Snapshot(), err)
 	}
 }
@@ -329,6 +329,7 @@ func TestV2SessionRestoresDurableCutAndRejectsUnavailableReplay(t *testing.T) {
 	if _, _, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "click-1", LogicalEventName: "next"})); err != nil {
 		t.Fatal(err)
 	}
+	flushV2(t, core)
 	if writer.envelope == nil || writer.envelope.ReliableSequence != 2 || writer.envelope.CheckpointSequence != 1 {
 		t.Fatalf("checkpoint = %#v", writer.envelope)
 	}
@@ -350,7 +351,7 @@ func TestV2SessionRestoresDurableCutAndRejectsUnavailableReplay(t *testing.T) {
 	}
 }
 
-func TestV2SessionDoesNotPublishMutationWhenCheckpointFails(t *testing.T) {
+func TestV2SessionPublishesMutationWhenCheckpointFails(t *testing.T) {
 	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"oncePerStepEntry"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	core, err := newV3RegressionSession(definition)
 	if err != nil {
@@ -361,12 +362,15 @@ func TestV2SessionDoesNotPublishMutationWhenCheckpointFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "click-1", LogicalEventName: "next"}))
-	if err == nil || len(events) != 0 || core.Snapshot().ReliableSequence != 0 || core.Snapshot().Clock.GetPaused() == nil || core.Snapshot().Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED {
-		t.Fatalf("checkpoint failure produced events %#v, sequence %d, error %v", events, core.Snapshot().ReliableSequence, err)
+	if err != nil || len(events) != 2 || core.Snapshot().ReliableSequence != 2 || core.Snapshot().Clock.GetRunning() == nil {
+		t.Fatalf("save availability changed memory commit: %v %v", events, err)
+	}
+	if err := core.FlushCheckpoint(context.Background()); err == nil {
+		t.Fatal("expected save failure")
 	}
 	second, extra, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "click-2", LogicalEventName: "next"}))
-	if err != nil || len(extra) != 0 || second.GetRejected().GetReason() != realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT || len(core.outcomes) != 0 {
-		t.Fatalf("fault gate outcome=%#v events=%#v error=%v", second, extra, err)
+	if err != nil || len(extra) != 1 || second.GetAccepted() == nil || core.Snapshot().Clock.GetRunning() == nil {
+		t.Fatalf("save failure stopped input: %v %v", second, err)
 	}
 }
 
@@ -543,6 +547,7 @@ func TestV2SessionCommitsImmediateActionInDurableEventOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	flushV2(t, core)
 	if outcome.GetAccepted().GetCueCommitted() == nil || len(events) != 3 || events[0].Sequence != 1 || events[1].GetCueAccepted() == nil || events[2].GetVariableChanged().GetState().GetValue().GetNumberValue() != 2 || writer.envelope.ReliableSequence != 3 {
 		t.Fatalf("outcome=%#v events=%#v checkpoint=%#v", outcome, events, writer.envelope)
 	}
@@ -575,6 +580,7 @@ func TestV2SessionStartsBlockingTimelineAndDefersStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	flushV2(t, core)
 	if len(completed) != 3 || completed[0].GetTimelineCompleted() == nil || completed[1].GetNodeStateCommitted().GetState().Opacity != 1 || completed[2].GetStepEntered().StepId != "second" || len(core.Snapshot().ActiveRuns) != 0 || core.Snapshot().Progression.GetStable() == nil || writer.envelope.ReliableSequence != 6 {
 		t.Fatalf("completion=%#v snapshot=%#v checkpoint=%#v", completed, core.Snapshot(), writer.envelope)
 	}

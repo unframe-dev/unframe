@@ -588,6 +588,65 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         }
     }
 
+    [TestCase(StatusCode.InvalidArgument, 1)]
+    [TestCase(StatusCode.FailedPrecondition, 2)]
+    [TestCase(StatusCode.PermissionDenied, 2)]
+    [TestCase(StatusCode.Unauthenticated, 2)]
+    public async Task ProtocolAndAuthorizationFailuresRemainTerminal(StatusCode status, int expectedBootstraps)
+    {
+        var store = CreateOwnedStore(true);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        using (var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+        {
+            LoadTrackingTextures(store, textures);
+            int bootstraps = 0;
+            Task run = connection.RunAsync(new Uri("https://runtime.example.com/"), _ =>
+            {
+                bootstraps++;
+                return Task.FromResult("credential");
+            }, cancellation.Token, handlerFactory: () => throw new RpcException(new Status(status, "rejected")));
+            Task completed = await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(5)));
+            Assert.That(completed, Is.SameAs(run));
+            Assert.That(run.Exception?.GetBaseException(), Is.TypeOf<RpcException>());
+            Assert.That(((RpcException)run.Exception.GetBaseException()).StatusCode, Is.EqualTo(status));
+            Assert.That(bootstraps, Is.EqualTo(expectedBootstraps));
+        }
+    }
+
+    [Test]
+    public async Task ExtendedTransportOutageKeepsRebootstrappingUntilANewAssignmentIsObserved()
+    {
+        var store = CreateOwnedStore(true);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        using (var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
+        {
+            LoadTrackingTextures(store, textures);
+            int bootstraps = 0;
+            int connections = 0;
+            Task<string> Bootstrap(CancellationToken token)
+            {
+                bootstraps++;
+                if (bootstraps == 7)
+                    throw new PresentationDeliveryReloadRequiredException(ResyncReason.ProjectionChanged);
+                return Task.FromResult("old-generation-credential");
+            }
+            Task run = connection.RunAsync(new Uri("https://runtime.example.com/"), Bootstrap, cancellation.Token,
+                handlerFactory: () =>
+                {
+                    connections++;
+                    throw new RpcException(new Status(StatusCode.Unavailable, "old runtime is offline"));
+                });
+            Task completed = await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(22)));
+            Assert.That(completed, Is.SameAs(run));
+            Assert.That(run.Exception?.GetBaseException(), Is.TypeOf<PresentationDeliveryReloadRequiredException>());
+            Assert.That(bootstraps, Is.EqualTo(7));
+            Assert.That(connections, Is.EqualTo(6));
+            Assert.That(connection.ControlReady || connection.SessionReady || connection.InputSynchronization.Ready, Is.False);
+        }
+    }
+
     [Test]
     public async Task NativeHttp2TransportLoadsAndReportsConnectionFailure()
     {

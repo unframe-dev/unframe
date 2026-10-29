@@ -2,12 +2,12 @@ package runtimecore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
 	"time"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -33,6 +33,15 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 	defer s.operationMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.durability.completion != nil {
+		if command.Kind != realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END {
+			return nil, nil, ErrV2PersistenceUnavailable
+		}
+		if err := s.tryCompletionLocked(ctx); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	if command.PresentationOriginVersion != s.snapshot.PresentationOrigin.Version {
 		return nil, nil, ErrV2OriginMismatch
 	}
@@ -242,19 +251,16 @@ func (s *V2Session) prepareV2Termination(events []*realtimev2.ProjectedReliableE
 
 func (s *V2Session) commitV2Completion(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
 	recovery := s.v2Recovery()
-	candidate := s.snapshot
-	candidateTracking := s.tracking
 	metadata := proto.Clone(s.checkpointMetadata).(*realtimev2.DurableCheckpointEnvelope)
-	metadata.CheckpointSequence++
-	metadata.RecoveryPayload, _ = proto.MarshalOptions{Deterministic: true}.Marshal(recovery)
-	catalog := proto.Clone(s.checkpointCatalog).(*presentationv2.ProjectedRuntimeCatalog)
-	writer := s.completionWriter
+	s.durability.version++
+	metadata.CheckpointSequence = s.durability.version
 	participants := make([]V2Participant, 0, len(s.participants))
 	for id, role := range s.participants {
 		participants = append(participants, V2Participant{UserID: id, Role: v2RoleName(role)})
 	}
 	sort.Slice(participants, func(i, j int) bool { return participants[i].UserID < participants[j].UserID })
-	startedAt := s.startedAt.UTC().Format(time.RFC3339Nano)
+	pending := &checkpointCompletion{snapshot: s.snapshot, recovery: recovery, tracking: s.tracking, events: cloneV2Events(events), startedAt: s.startedAt.UTC().Format(time.RFC3339Nano), endedAt: time.Now().UTC().Format(time.RFC3339Nano), participants: participants}
+	s.durability.completing = true
 	s.snapshot = previous
 	if s.committedRecovery != nil {
 		_ = s.restoreV2Recovery(s.committedRecovery)
@@ -263,29 +269,64 @@ func (s *V2Session) commitV2Completion(ctx context.Context, previous *realtimev2
 		s.tracking = previousTracking[0]
 	}
 	s.mu.Unlock()
-	checkpoint, encodeErr := protocolv2.EncodeCheckpoint(candidate, metadata, catalog)
-	var writeErr error
-	if encodeErr == nil {
-		writeErr = writer.CompleteCheckpoint(ctx, checkpoint, startedAt, time.Now().UTC().Format(time.RFC3339Nano), participants)
+	var marshalErr error
+	metadata.RecoveryPayload, marshalErr = proto.MarshalOptions{Deterministic: true}.Marshal(recovery)
+	var encodeErr error
+	if marshalErr == nil {
+		pending.envelope, encodeErr = protocolv2.EncodeCheckpoint(pending.snapshot, metadata, s.checkpointCatalog)
 	}
 	s.mu.Lock()
-	if encodeErr != nil {
+	if marshalErr != nil || encodeErr != nil {
+		s.durability.completing = false
 		s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
-		return encodeErr
+		return errors.Join(marshalErr, encodeErr)
 	}
-	if writeErr != nil {
-		s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED)
-		return fmt.Errorf("%w: %v", ErrV2PersistenceUnavailable, writeErr)
+	s.durability.completion = pending
+	return s.tryCompletionLocked(ctx)
+}
+
+func (s *V2Session) tryCompletionLocked(ctx context.Context) error {
+	pending := s.durability.completion
+	if pending == nil {
+		return nil
 	}
-	s.snapshot = candidate
-	_ = s.restoreV2Recovery(recovery)
-	if len(previousTracking) != 0 {
-		s.tracking = candidateTracking
+	writer := s.completionWriter
+	concurrency := s.durability.concurrency
+	s.mu.Unlock()
+	err := acquireCheckpointSlot(ctx, s.durability.io)
+	if err == nil {
+		err = acquireCheckpointSlot(ctx, concurrency)
+		if err == nil {
+			err = writer.CompleteCheckpoint(ctx, pending.envelope, pending.startedAt, pending.endedAt, pending.participants)
+			if concurrency != nil {
+				<-concurrency
+			}
+		}
+		if s.durability.io != nil {
+			<-s.durability.io
+		}
 	}
-	s.checkpointMetadata.CheckpointSequence = checkpoint.CheckpointSequence
-	s.lastCheckpointRuntimeTime = candidate.Clock.RuntimeTimeMs
-	s.committedRecovery = recovery
-	s.publishV2Events(events)
+	s.mu.Lock()
+	if err != nil {
+		s.durability.status.Failures++
+		s.durability.status.LastError = err.Error()
+		var rejected interface{ Retryable() bool }
+		s.durability.completionBlocked = errors.As(err, &rejected) && !rejected.Retryable()
+		s.durability.status.Retrying = !s.durability.completionBlocked
+		return fmt.Errorf("%w: %w", ErrV2PersistenceUnavailable, err)
+	}
+	s.snapshot = pending.snapshot
+	_ = s.restoreV2Recovery(pending.recovery)
+	s.tracking = pending.tracking
+	s.committedRecovery = pending.recovery
+	s.checkpointMetadata.CheckpointSequence = pending.envelope.CheckpointSequence
+	s.durability.savedVersion = pending.envelope.CheckpointSequence
+	s.durability.status.LastSuccess = time.Now()
+	s.durability.status.LastError = ""
+	s.durability.status.SavedReliableSequence = pending.envelope.ReliableSequence
+	s.publishV2Events(pending.events)
+	s.durability.completion = nil
+	s.durability.status.Retrying = false
 	return nil
 }
 

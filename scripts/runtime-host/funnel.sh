@@ -7,7 +7,7 @@ release="${1:-${REALTIME_RELEASE_DIRECTORY:-$root/.unframe/realtime-release}}"
 env_file="${2:-$HOME/.config/unframe/runtime-host.env}"
 caddy_config="${CADDY_CONFIG:-$root/app/server/realtime/ops/Caddyfile.funnel.example}"
 export TS_SOCKET="${TS_SOCKET:-$HOME/.config/unframe/funnel/tailscaled.sock}"
-if [[ $# -gt 2 || "$release" != /* || "$env_file" != /* || ! -r "$env_file" || ! -x "$release/runtime-host" || ! -x "$release/realtime-server" ]]; then
+if [[ $# -gt 2 || "$release" != /* || "$env_file" != /* || ! -r "$env_file" || ! -x "$release/runtime-host" ]]; then
   echo 'usage: runtime-host-funnel [/absolute/release-directory [/absolute/runtime-host.env]]' >&2
   exit 2
 fi
@@ -62,7 +62,6 @@ source "$env_file"
 set +a
 export REALTIME_RUNTIME_ENDPOINT="https://$hostname"
 export REALTIME_LISTEN_ADDR=127.0.0.1:9090
-export REALTIME_SERVER_EXECUTABLE="$release/realtime-server"
 export FUNNEL_HOSTNAME="$hostname"
 XDG_CONFIG_HOME="$state/config" XDG_DATA_HOME="$state/data" caddy validate --config "$caddy_config" --adapter caddyfile
 # Caddy start waits for its child to confirm successful configuration and binding.

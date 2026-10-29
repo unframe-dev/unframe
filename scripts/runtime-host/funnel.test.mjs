@@ -40,10 +40,9 @@ while :; do sleep 0.1; done`,
   );
   executable(
     "runtime-host",
-    'printf "%s\\n%s\\n%s\\n" "$REALTIME_RUNTIME_ENDPOINT" "$REALTIME_LISTEN_ADDR" "$REALTIME_SERVER_EXECUTABLE" >> "$TEST_LOG"\n[ "$REALTIME_SERVICE_IDENTITY" = "fixture-secret" ] || exit 9\nsleep 0.3' +
+    'printf "%s\\n%s\\n" "$REALTIME_RUNTIME_ENDPOINT" "$REALTIME_LISTEN_ADDR" >> "$TEST_LOG"\n[ "$REALTIME_SERVICE_IDENTITY" = "fixture-secret" ] || exit 9\nsleep 0.3' +
       (options.stop ? '\nkill -TERM "$PPID"\nsleep 0.3' : ""),
   );
-  executable("realtime-server", "exit 0");
   const envFile = join(dir, "runtime-host.env");
   writeFileSync(
     envFile,
@@ -71,10 +70,9 @@ while :; do sleep 0.1; done`,
   return { result, log, envFile, bin };
 }
 test("advertises the Funnel endpoint without changing or exposing the private environment", (t) => {
-  const { result, log, envFile, bin } = fixture(t);
+  const { result, log, envFile } = fixture(t);
   assert.equal(result.status, 0, result.stderr);
   assert.match(log(), /https:\/\/fixture.example.ts.net\n127.0.0.1:9090/);
-  assert.ok(log().includes(join(bin, "realtime-server")));
   assert.match(log(), /funnel --bg --tcp=443 tcp:\/\/127.0.0.1:8443/);
   assert.match(log(), /funnel --tcp=443 off/);
   assert.match(log(), /caddy-stopped/);

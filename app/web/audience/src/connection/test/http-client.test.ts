@@ -45,6 +45,21 @@ function setup(response: Response) {
 }
 
 describe("Audience HTTP client", () => {
+  it.each(["delivery", "bootstrap"] as const)(
+    "recognizes temporary Runtime unavailability on %s without exposing server details",
+    async (resource) => {
+      const { client } = setup(
+        Response.json(
+          { error: { code: "runtime_unavailable", message: "private detail" } },
+          { status: 409 },
+        ),
+      );
+      await expect(client[resource]("session")).rejects.toMatchObject({
+        code: "runtime-unavailable",
+        status: 409,
+      });
+    },
+  );
   it("posts join with existing cookie identity and validates the session", async () => {
     const { client, fetch } = setup(Response.json(session));
     expect(await client.join("ABCD-EFGH")).toEqual(session);

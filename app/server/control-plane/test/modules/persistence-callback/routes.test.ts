@@ -1,3 +1,4 @@
+import { seedCloudHost } from "../../fixtures/runtime-host";
 import { env } from "cloudflare:test";
 import { describe, expect, it, assert } from "vitest";
 import { createApp } from "../../../src/app";
@@ -6,6 +7,7 @@ import { runtimeEnvironment } from "../../runtime-environment";
 
 const seedSession = async () => {
   const sessionId = crypto.randomUUID();
+  await seedCloudHost("runtime", "https://runtime.example.com");
   const userId = `owner-${sessionId}`;
   const presentationId = `presentation-${sessionId}`;
   await env.DB.batch([
@@ -28,7 +30,7 @@ const seedSession = async () => {
     .bind(sessionId, presentationId, userId, `hash-${sessionId}`, "2026-01-01")
     .run();
   await env.DB.prepare(
-    "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES (?, 'runtime', 'Cloud', 'https://runtime.example.com', 1, 1, '2026-01-01', '2099-01-01')",
+    "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at, host_generation) VALUES (?, 'runtime', 'Cloud', 'https://runtime.example.com', 1, 1, '2026-01-01', '2099-01-01', 1)",
   )
     .bind(sessionId)
     .run();

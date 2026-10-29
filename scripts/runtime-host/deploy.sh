@@ -16,7 +16,6 @@ fi
 mkdir -p "$(dirname "$output")"
 stage="$(mktemp -d "${output}.XXXXXXXX")"
 trap 'rm -rf "$stage"' EXIT
-CGO_ENABLED=0 go -C "$root/app/server/realtime" build -trimpath -o "$stage/realtime-server" ./cmd/server
 CGO_ENABLED=0 go -C "$root/app/server/realtime" build -trimpath -o "$stage/runtime-host" ./cmd/runtime-host
 cp "$root/app/server/realtime/ops/start-launchd.sh" "$stage/start.sh"
 cp "$root/app/server/realtime/ops/runtime-host.env.example" "$stage/runtime-host.env.example"

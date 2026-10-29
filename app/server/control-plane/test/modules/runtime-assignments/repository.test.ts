@@ -38,6 +38,13 @@ const cloudAssignment = (
   edgeHealthyAfter: "2026-08-19T23:59:00.000Z",
 });
 
+const addCloudHost = (runtimeId: string) =>
+  env.DB.prepare(
+    "INSERT INTO runtime_hosts (runtime_id,endpoint,accepting,last_seen_at,boot_id,boot_started_at,generation,capacity) VALUES (?, 'https://runtime.example.com', 1, '2099', 'boot', '2026', 1, 1)",
+  )
+    .bind(runtimeId)
+    .run();
+
 const withPostInsertHook = (hook: () => Promise<void>): D1Database => {
   let hookCalled = false;
   const wrapStatement = (statement: D1PreparedStatement): D1PreparedStatement =>
@@ -78,6 +85,16 @@ const withPostInsertHook = (hook: () => Promise<void>): D1Database => {
 };
 
 describe("D1RuntimeAssignmentRepository", () => {
+  it("rejects Cloud assignment before its Host registers an execution generation", async () => {
+    const suffix = crypto.randomUUID();
+    const sessionId = await addSession(`unregistered-${suffix}`);
+    await expect(
+      new D1RuntimeAssignmentRepository(env.DB).assign(
+        cloudAssignment(sessionId, `missing-${suffix}`),
+      ),
+    ).resolves.toBeNull();
+  });
+
   it.each([null, 1])(
     "selects only v2 Venue Edges for publication epoch %s",
     async (publicationEpoch) => {
@@ -138,6 +155,8 @@ describe("D1RuntimeAssignmentRepository", () => {
     const firstSession = await addSession(`first-${suffix}`);
     const secondSession = await addSession(`second-${suffix}`);
     const repository = new D1RuntimeAssignmentRepository(env.DB);
+    await addCloudHost(`runtime-${suffix}`);
+    await addCloudHost(`other-runtime-${suffix}`);
 
     await expect(
       repository.assign({
@@ -160,6 +179,12 @@ describe("D1RuntimeAssignmentRepository", () => {
       repository.assign(
         cloudAssignment(firstSession, `other-runtime-${suffix}`, "2026-08-20T01:00:00.000Z"),
       ),
+    ).resolves.toBeNull();
+    await expect(
+      repository.assign({
+        ...cloudAssignment(firstSession, `other-runtime-${suffix}`, "2026-08-21T00:00:00.000Z"),
+        leaseExpiresAt: "2026-08-22T00:00:00.000Z",
+      }),
     ).resolves.toMatchObject({ assignmentEpoch: 2 });
   });
 
@@ -168,10 +193,12 @@ describe("D1RuntimeAssignmentRepository", () => {
     const sessionId = await addSession(`race-${suffix}`);
     const firstRuntimeId = `runtime-first-${suffix}`;
     const nextRuntimeId = `runtime-next-${suffix}`;
+    await addCloudHost(firstRuntimeId);
+    await addCloudHost(nextRuntimeId);
     const replacementRepository = new D1RuntimeAssignmentRepository(env.DB);
     const database = withPostInsertHook(async () => {
       await env.DB.prepare(
-        "UPDATE runtime_assignments SET released_at = ? WHERE session_id = ? AND released_at IS NULL",
+        "UPDATE runtime_assignments SET released_at = ?, execution_state = 'stopped' WHERE session_id = ? AND released_at IS NULL",
       )
         .bind("2026-08-20T01:00:00.000Z", sessionId)
         .run();
@@ -197,6 +224,7 @@ describe("D1RuntimeAssignmentRepository", () => {
     const suffix = crypto.randomUUID();
     const sessionId = await addSession(suffix);
     const repository = new D1RuntimeAssignmentRepository(env.DB);
+    await addCloudHost(`runtime-${suffix}`);
     await repository.assign(cloudAssignment(sessionId, `runtime-${suffix}`));
 
     const assignment = await repository.findActive(

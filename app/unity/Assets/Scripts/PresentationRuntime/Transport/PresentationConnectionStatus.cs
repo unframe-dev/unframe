@@ -37,6 +37,13 @@ namespace Unframe.Unity.PresentationRuntime
             return false;
         }
 
+        public static bool CanRetryControlPlane(Exception exception)
+        {
+            if (exception is HttpRequestException || exception is System.Threading.Tasks.TaskCanceledException) return true;
+            return exception is PresentationConnectionException failure
+                && (failure.ErrorCode == "runtime-unavailable" || failure.ErrorCode == "service-busy" || failure.ErrorCode == "service-unavailable");
+        }
+
         public static string FromHttpStatus(HttpStatusCode status)
         {
             switch (status)

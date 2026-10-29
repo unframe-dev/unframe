@@ -59,10 +59,13 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new InternalRuntimeAssetsGet200ResponseAssignmentJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeAssetsGet200ResponsePublicationJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeBootstrapGet200ResponseJsonConverter());
+            _jsonOptions.Converters.Add(new InternalRuntimeBootstrapGet200ResponseCheckpointSourceJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseJsonConverter());
-            _jsonOptions.Converters.Add(new InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentJsonConverter());
+            _jsonOptions.Converters.Add(new InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInnerJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeHostsRuntimeIdHeartbeatPostRequestJsonConverter());
-            _jsonOptions.Converters.Add(new InternalRuntimeHostsRuntimeIdHeartbeatPostRequestServingJsonConverter());
+            _jsonOptions.Converters.Add(new InternalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInnerJsonConverter());
+            _jsonOptions.Converters.Add(new InternalRuntimeHostsRuntimeIdStartPost200ResponseJsonConverter());
+            _jsonOptions.Converters.Add(new InternalRuntimeHostsRuntimeIdStartPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeLeaseGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeProjectionGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsGet200ResponseJsonConverter());

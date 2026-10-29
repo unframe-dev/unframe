@@ -43,6 +43,7 @@ type Dependencies struct {
 	Verifier       *auth.BearerTokenVerifier
 	Guard          *assignment.AssignmentGuard
 	V2             *V2Service
+	Sessions       *SessionRouter
 	Logger         *slog.Logger
 	Metrics        *observability.Metrics
 	BrowserOrigins []string
@@ -52,7 +53,7 @@ type Dependencies struct {
 // service. It requires the verified identity, assignment, and session-state
 // boundaries supplied by the composition root.
 func NewServer(listener net.Listener, dependencies Dependencies, options ...grpcgo.ServerOption) (*Server, error) {
-	if dependencies.Verifier == nil || dependencies.Guard == nil || dependencies.V2 == nil {
+	if dependencies.Verifier == nil || (dependencies.Sessions == nil && (dependencies.Guard == nil || dependencies.V2 == nil)) {
 		return nil, ErrServerConfiguration
 	}
 	options = append(options, grpcgo.ChainStreamInterceptor(
@@ -62,7 +63,11 @@ func NewServer(listener net.Listener, dependencies Dependencies, options ...grpc
 	grpcServer := grpcgo.NewServer(options...)
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("", healthv1.HealthCheckResponse_NOT_SERVING)
-	realtimev2.RegisterRealtimeServiceServer(grpcServer, dependencies.V2)
+	var service realtimev2.RealtimeServiceServer = dependencies.V2
+	if dependencies.Sessions != nil {
+		service = dependencies.Sessions
+	}
+	realtimev2.RegisterRealtimeServiceServer(grpcServer, service)
 	healthv1.RegisterHealthServer(grpcServer, healthServer)
 	result := &Server{
 		listener:  listener,
@@ -73,7 +78,7 @@ func NewServer(listener net.Listener, dependencies Dependencies, options ...grpc
 	if len(dependencies.BrowserOrigins) > 0 {
 		lifetime, cancel := context.WithCancel(context.Background())
 		result.browserCancel = cancel
-		result.browserHandler = newBrowserHandler(lifetime, dependencies.Verifier, dependencies.V2, dependencies.BrowserOrigins)
+		result.browserHandler = newBrowserHandler(lifetime, dependencies.Verifier, service, dependencies.BrowserOrigins)
 		result.browser = &http.Server{Handler: result.browserHandler, ReadHeaderTimeout: 5 * time.Second}
 		result.split = newSplitListener(listener)
 		result.listener = result.split

@@ -26,7 +26,7 @@ func (s *V2Session) advanceFromWall(ctx context.Context, now time.Time) ([]*real
 		s.mu.Unlock()
 		return nil, nil
 	}
-	if s.snapshot.Clock.GetRunning() == nil || s.checkpointWriter != nil && len(s.participants) == 0 {
+	if s.durability.completing || s.snapshot.Clock.GetRunning() == nil || s.checkpointWriter != nil && len(s.participants) == 0 {
 		s.lastTick = now
 		s.mu.Unlock()
 		return nil, nil
@@ -66,7 +66,7 @@ func (s *V2Session) AdvanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*realtimev2.ProjectedReliableEvent, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.snapshot.Clock.GetRunning() == nil || runtimeTimeMs < s.snapshot.Clock.RuntimeTimeMs || s.checkpointWriter != nil && len(s.participants) == 0 {
+	if s.durability.completing || s.snapshot.Clock.GetRunning() == nil || runtimeTimeMs < s.snapshot.Clock.RuntimeTimeMs || s.checkpointWriter != nil && len(s.participants) == 0 {
 		return nil, nil
 	}
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
@@ -279,7 +279,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 	if s.snapshot.Clock.GetTerminating() != nil {
 		err = s.commitV2Completion(ctx, previous, events)
 	} else {
-		if drainedDue || len(events) != 0 || s.snapshot.Clock.RuntimeTimeMs-s.lastCheckpointRuntimeTime >= 1000 {
+		if drainedDue || len(events) != 0 || s.snapshot.Clock.RuntimeTimeMs != previous.Clock.RuntimeTimeMs {
 			err = s.commitV2Mutation(ctx, previous, events)
 		}
 	}

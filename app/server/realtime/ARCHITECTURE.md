@@ -25,7 +25,7 @@ Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent
 | -------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Venue Edge provisioning / Runtime Assignment | 部分実装 | `control-plane/src/modules/venue-edges/`、`runtime-assignments/`。Cloud / Venue Edge 共通の assignment、lease、bootstrap、publication fence は接続済み。Cloud Machine lifecycle と Edge Agent は未実装 |
 | JWT / JWKS / scope、assignment fencing       | 実装済み | `realtime/internal/auth/`、`assignment/` と gRPC guard。接続・command の epoch / lease を検証する                                                                                                      |
-| Realtime v3 Runtime Core composition         | 実装済み | `cmd/server/` が検証済み Definition / RenderBundle と checkpoint から `runtimecore.V2Session` を構築し、v3 gRPC service に接続する。Fly.io 配備と実機 fan-out は未検証                                 |
+| Realtime v3 Runtime Core composition         | 実装済み | Cloud Host と `cmd/server/` が検証済み Definition / RenderBundle と checkpoint から `runtimecore.V2Session` を構築し、v3 gRPC service に接続する。Fly.io 配備と実機 fan-out は未検証                   |
 | readiness / health / observability           | 部分実装 | assignment lease・JWKS に基づく gRPC health と metrics / structured log は接続済み。exporter、trace、alert は未実装                                                                                    |
 | checkpoint / completion callback と recovery | 実装済み | v3 mutation の checkpoint、completion を Control Plane の fenced callback へ送り、起動時に検証して復元する。Cloud / Edge の自動再配置・local checkpoint store は未実装                                 |
 | message / rate protection                    | 部分実装 | v3 gRPC は message size と Tracking rate を制限する。全 message 種別に共通の invalid-message count 切断 policy は未接続                                                                                |
@@ -392,7 +392,7 @@ stateDiagram-v2
 
 Runtime Resumeはpresenter再接続だけでは自動実行しない。再接続したpresenterがSnapshotとpause理由を確認し、明示的な`ResumeRuntime` commandを送信する。Runtime Coreは`RuntimeStatusChanged(paused / running / terminating)`をReliable Eventとして全participantへ配信する。
 
-Target progression clock は pause-aware な logical runtime time とする。`Running`中だけprocessのmonotonic clock差分で進め、`Paused`と`Terminating`では停止する。process固有のmonotonic timestamp、wall clock、`pausedAt`、累積pause durationはSnapshotへ保存しない。Runtime Resume時は保存済みlogical timeを新しいmonotonic clock基準へbindする。process recoveryではcheckpoint時に`Running`であってもlogical timeを進めず、`Paused / processRecovered`として復元する。現行`internal/session/runtime.go`の`time.Time`を使うpause primitiveは部分実装であり、このtarget clock contractが実装済みであるとはみなさない。
+Target progression clock は pause-aware な logical runtime time とする。`Running`中だけprocessのmonotonic clock差分で進め、`Paused`と`Terminating`では停止する。process固有のmonotonic timestamp、wall clock、`pausedAt`、累積pause durationはSnapshotへ保存しない。Runtime Resume時は保存済みlogical timeを新しいmonotonic clock基準へbindする。process recoveryではcheckpoint時に`Running`であってもlogical timeを進めず、`Paused / processRecovered`として復元する。現行 `internal/runtimecore/` はこの logical clock と paused checkpoint 復元を扱う。
 
 ### 7.2 Step / Cue execution
 
@@ -853,12 +853,12 @@ Internet 障害中の継続は best-effort であり、offline 対応を正式�
 ### 13.4 Runtime process 障害
 
 - 共通CanonicalRuntimeSnapshot、用途別DurableCheckpointEnvelope、環境固有checkpoint storeを分離する。
-- Cloud Runtime の子プロセスは Runtime Host が再起動する。macOS の配備では launchd が Host を常駐させる。Venue Edge の OS 常駐方式は配置環境で定める。
+- Cloud Runtime は常駐 Host 内で複数 Session を管理し、実行再生成ごとに新しい assignment epoch を取得する。macOS の配備では launchd が Host を常駐させる。Venue Edge の OS 常駐方式は配置環境で定める。
 - durable checkpoint は Control Plane の D1 に保存する。Venue Edge 専用の local checkpoint store は未実装である。
 - 再起動後はassignment epoch、PublicationFence、presentation / bundle hash、schema versionを検証してCanonicalRuntimeSnapshotを復元する。checkpoint が `Running` でも自動進行せず、安全側の `Paused / processRecovered` として復元してpresenterのRuntime Resumeを待つ。
-- Reliable Event は対応する checkpoint の保存成功後に公開する。復元するのは最後に保存された確定状態であり、未保存の変更は復元対象にしない。独立した durable Reliable Event log は実装していない。
+- 通常の Outcome / Reliable Event / 入力同期 READY はメモリ上で確定して公開し、変更のある Session を1秒間隔で非同期 checkpoint の保存対象にする。保存失敗だけでは進行・入力・配信を止めない。復旧 ready と completion は保存確定を必要とする。復元するのは最後に保存された確定状態であり、未保存の変更は復元対象にしない。独立した durable Reliable Event log は実装していない。
 - connection registry、presence、raw Tracking Frame と認識器内部状態は復元しない。採用設計の凍結 Anchor と Step 開始状態履歴は checkpoint から復元し、Quest の再認証・世代同期後に認識を再開する。
-- lease 失効後の同一 Session 復旧では、Control Plane が保存元 assignment と固定 publication を検証した `checkpointSource` を返す。Runtime は保存元 fence で checkpoint を検証し、Run ID と全参照を新しい assignment epoch へ付け替えて再検証する。新しい fence で復元結果を保存してから接続を受け付ける。発表中の live migration は扱わない。
+- 同一 Session の実行再生成では、旧実行の停止確認または旧 lease 失効を待って新 epoch を予約する。Control Plane は Host 起動世代と Session ごとの readiness / lease、明示 capacity を管理し、満員・drain 中も既存 lease を更新する。Control Plane が保存元 assignment と固定 publication を検証した `checkpointSource` を返す。Runtime は保存元 fence で checkpoint を検証し、Run ID と全参照を新しい assignment epoch へ付け替えて再検証する。新しい fence で復元結果を保存してから接続を受け付ける。発表中の live migration は扱わない。
 - Quest は exponential backoff と jitter で同じ endpoint へ再接続する。
 - 復元に失敗した Runtime は起動を拒否し、Host は ready を報告しない。Control Plane への session failure の永続的な報告は未実装である。
 
@@ -891,7 +891,7 @@ Runtime Core に対する環境差は次の deployment profile で扱う。
 | 更新       | image release と Machine rollout                                          | signed binary / image の段階更新と rollback                    |
 | recovery   | Machine 再起動・再配置と Cloud checkpoint                                 | process supervisor と local checkpoint                         |
 
-Cloud Runtime を先に実装し、Quest だけで end-to-end MVP を成立させる。Fly.io 上の初期 profile は単一 Session を明示的な Runtime instance へ割り当て、公開 TLS endpoint、application health、固定した Runtime identity を提供する。region、複数 Session、Machine affinity、autoscaling、durable Snapshot store、rolling update 中の Assignment の扱いは実測後に決定する。
+Cloud Runtime を先に実装し、Quest だけで end-to-end MVP を成立させる。Cloud は一つの Host / endpoint / 常駐プロセスで複数 Session を管理する。Fly.io の region、Machine affinity、autoscaling、rolling update 中の Assignment の扱いは未決定・未検証であり、現在の Funnel 構成やローカル検証から推定しない。
 
 Venue Edge の推奨会場構成:
 

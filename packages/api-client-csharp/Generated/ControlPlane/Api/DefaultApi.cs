@@ -239,9 +239,10 @@ namespace Unframe.ControlPlane.Api
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
         /// <param name="assignmentEpoch"></param>
+        /// <param name="executionBootId">Required for Venue Edge process startup; forbidden for managed Cloud Runtime (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeBootstrapGetApiResponse"/>&gt;</returns>
-        Task<IInternalRuntimeBootstrapGetApiResponse> InternalRuntimeBootstrapGetAsync(string sessionId, string runtimeId, int assignmentEpoch, System.Threading.CancellationToken cancellationToken = default);
+        Task<IInternalRuntimeBootstrapGetApiResponse> InternalRuntimeBootstrapGetAsync(string sessionId, string runtimeId, int assignmentEpoch, Option<string> executionBootId = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -252,9 +253,10 @@ namespace Unframe.ControlPlane.Api
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
         /// <param name="assignmentEpoch"></param>
+        /// <param name="executionBootId">Required for Venue Edge process startup; forbidden for managed Cloud Runtime (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeBootstrapGetApiResponse"/>?&gt;</returns>
-        Task<IInternalRuntimeBootstrapGetApiResponse?> InternalRuntimeBootstrapGetOrDefaultAsync(string sessionId, string runtimeId, int assignmentEpoch, System.Threading.CancellationToken cancellationToken = default);
+        Task<IInternalRuntimeBootstrapGetApiResponse?> InternalRuntimeBootstrapGetOrDefaultAsync(string sessionId, string runtimeId, int assignmentEpoch, Option<string> executionBootId = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -280,6 +282,31 @@ namespace Unframe.ControlPlane.Api
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>?&gt;</returns>
         Task<IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse?> InternalRuntimeHostsRuntimeIdHeartbeatPostOrDefaultAsync(string runtimeId, InternalRuntimeHostsRuntimeIdHeartbeatPostRequest internalRuntimeHostsRuntimeIdHeartbeatPostRequest, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdStartPostRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeHostsRuntimeIdStartPostApiResponse"/>&gt;</returns>
+        Task<IInternalRuntimeHostsRuntimeIdStartPostApiResponse> InternalRuntimeHostsRuntimeIdStartPostAsync(string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdStartPostRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeHostsRuntimeIdStartPostApiResponse"/>?&gt;</returns>
+        Task<IInternalRuntimeHostsRuntimeIdStartPostApiResponse?> InternalRuntimeHostsRuntimeIdStartPostOrDefaultAsync(string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -1443,6 +1470,36 @@ namespace Unframe.ControlPlane.Api
     /// The <see cref="IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>
     /// </summary>
     public interface IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdHeartbeatPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
+    }
+
+    /// <summary>
+    /// The <see cref="IInternalRuntimeHostsRuntimeIdStartPostApiResponse"/>
+    /// </summary>
+    public interface IInternalRuntimeHostsRuntimeIdStartPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdStartPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2890,6 +2947,26 @@ namespace Unframe.ControlPlane.Api
         internal void ExecuteOnErrorInternalRuntimeHostsRuntimeIdHeartbeatPost(Exception exception)
         {
             OnErrorInternalRuntimeHostsRuntimeIdHeartbeatPost?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnInternalRuntimeHostsRuntimeIdStartPost;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorInternalRuntimeHostsRuntimeIdStartPost;
+
+        internal void ExecuteOnInternalRuntimeHostsRuntimeIdStartPost(DefaultApi.InternalRuntimeHostsRuntimeIdStartPostApiResponse apiResponse)
+        {
+            OnInternalRuntimeHostsRuntimeIdStartPost?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorInternalRuntimeHostsRuntimeIdStartPost(Exception exception)
+        {
+            OnErrorInternalRuntimeHostsRuntimeIdStartPost?.Invoke(this, new ExceptionEventArgs(exception));
         }
 
         /// <summary>
@@ -7086,21 +7163,25 @@ namespace Unframe.ControlPlane.Api
             partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
         }
 
-        partial void FormatInternalRuntimeBootstrapGet(ref string sessionId, ref string runtimeId, ref int assignmentEpoch);
+        partial void FormatInternalRuntimeBootstrapGet(ref string sessionId, ref string runtimeId, ref int assignmentEpoch, ref Option<string> executionBootId);
 
         /// <summary>
         /// Validates the request parameters
         /// </summary>
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
+        /// <param name="executionBootId"></param>
         /// <returns></returns>
-        private void ValidateInternalRuntimeBootstrapGet(string sessionId, string runtimeId)
+        private void ValidateInternalRuntimeBootstrapGet(string sessionId, string runtimeId, Option<string> executionBootId)
         {
             if (sessionId == null)
                 throw new ArgumentNullException(nameof(sessionId));
 
             if (runtimeId == null)
                 throw new ArgumentNullException(nameof(runtimeId));
+
+            if (executionBootId.IsSet && executionBootId.Value == null)
+                throw new ArgumentNullException(nameof(executionBootId));
         }
 
         /// <summary>
@@ -7110,10 +7191,11 @@ namespace Unframe.ControlPlane.Api
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
         /// <param name="assignmentEpoch"></param>
-        private void AfterInternalRuntimeBootstrapGetDefaultImplementation(IInternalRuntimeBootstrapGetApiResponse apiResponseLocalVar, string sessionId, string runtimeId, int assignmentEpoch)
+        /// <param name="executionBootId"></param>
+        private void AfterInternalRuntimeBootstrapGetDefaultImplementation(IInternalRuntimeBootstrapGetApiResponse apiResponseLocalVar, string sessionId, string runtimeId, int assignmentEpoch, Option<string> executionBootId)
         {
             bool suppressDefaultLog = false;
-            AfterInternalRuntimeBootstrapGet(ref suppressDefaultLog, apiResponseLocalVar, sessionId, runtimeId, assignmentEpoch);
+            AfterInternalRuntimeBootstrapGet(ref suppressDefaultLog, apiResponseLocalVar, sessionId, runtimeId, assignmentEpoch, executionBootId);
             if (!suppressDefaultLog)
                 Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
         }
@@ -7126,7 +7208,8 @@ namespace Unframe.ControlPlane.Api
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
         /// <param name="assignmentEpoch"></param>
-        partial void AfterInternalRuntimeBootstrapGet(ref bool suppressDefaultLog, IInternalRuntimeBootstrapGetApiResponse apiResponseLocalVar, string sessionId, string runtimeId, int assignmentEpoch);
+        /// <param name="executionBootId"></param>
+        partial void AfterInternalRuntimeBootstrapGet(ref bool suppressDefaultLog, IInternalRuntimeBootstrapGetApiResponse apiResponseLocalVar, string sessionId, string runtimeId, int assignmentEpoch, Option<string> executionBootId);
 
         /// <summary>
         /// Logs exceptions that occur while retrieving the server response
@@ -7137,10 +7220,11 @@ namespace Unframe.ControlPlane.Api
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
         /// <param name="assignmentEpoch"></param>
-        private void OnErrorInternalRuntimeBootstrapGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string sessionId, string runtimeId, int assignmentEpoch)
+        /// <param name="executionBootId"></param>
+        private void OnErrorInternalRuntimeBootstrapGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string sessionId, string runtimeId, int assignmentEpoch, Option<string> executionBootId)
         {
             bool suppressDefaultLogLocalVar = false;
-            OnErrorInternalRuntimeBootstrapGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, sessionId, runtimeId, assignmentEpoch);
+            OnErrorInternalRuntimeBootstrapGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, sessionId, runtimeId, assignmentEpoch, executionBootId);
             if (!suppressDefaultLogLocalVar)
                 Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
         }
@@ -7155,7 +7239,8 @@ namespace Unframe.ControlPlane.Api
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
         /// <param name="assignmentEpoch"></param>
-        partial void OnErrorInternalRuntimeBootstrapGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string sessionId, string runtimeId, int assignmentEpoch);
+        /// <param name="executionBootId"></param>
+        partial void OnErrorInternalRuntimeBootstrapGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string sessionId, string runtimeId, int assignmentEpoch, Option<string> executionBootId);
 
         /// <summary>
         ///
@@ -7163,13 +7248,14 @@ namespace Unframe.ControlPlane.Api
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
         /// <param name="assignmentEpoch"></param>
+        /// <param name="executionBootId">Required for Venue Edge process startup; forbidden for managed Cloud Runtime (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeBootstrapGetApiResponse"/>&gt;</returns>
-        public async Task<IInternalRuntimeBootstrapGetApiResponse?> InternalRuntimeBootstrapGetOrDefaultAsync(string sessionId, string runtimeId, int assignmentEpoch, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IInternalRuntimeBootstrapGetApiResponse?> InternalRuntimeBootstrapGetOrDefaultAsync(string sessionId, string runtimeId, int assignmentEpoch, Option<string> executionBootId = default, System.Threading.CancellationToken cancellationToken = default)
         {
             try
             {
-                return await InternalRuntimeBootstrapGetAsync(sessionId, runtimeId, assignmentEpoch, cancellationToken).ConfigureAwait(false);
+                return await InternalRuntimeBootstrapGetAsync(sessionId, runtimeId, assignmentEpoch, executionBootId, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -7184,17 +7270,18 @@ namespace Unframe.ControlPlane.Api
         /// <param name="sessionId"></param>
         /// <param name="runtimeId"></param>
         /// <param name="assignmentEpoch"></param>
+        /// <param name="executionBootId">Required for Venue Edge process startup; forbidden for managed Cloud Runtime (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeBootstrapGetApiResponse"/>&gt;</returns>
-        public async Task<IInternalRuntimeBootstrapGetApiResponse> InternalRuntimeBootstrapGetAsync(string sessionId, string runtimeId, int assignmentEpoch, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IInternalRuntimeBootstrapGetApiResponse> InternalRuntimeBootstrapGetAsync(string sessionId, string runtimeId, int assignmentEpoch, Option<string> executionBootId = default, System.Threading.CancellationToken cancellationToken = default)
         {
             UriBuilder uriBuilderLocalVar = new UriBuilder();
 
             try
             {
-                ValidateInternalRuntimeBootstrapGet(sessionId, runtimeId);
+                ValidateInternalRuntimeBootstrapGet(sessionId, runtimeId, executionBootId);
 
-                FormatInternalRuntimeBootstrapGet(ref sessionId, ref runtimeId, ref assignmentEpoch);
+                FormatInternalRuntimeBootstrapGet(ref sessionId, ref runtimeId, ref assignmentEpoch, ref executionBootId);
 
                 using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
                 {
@@ -7210,6 +7297,9 @@ namespace Unframe.ControlPlane.Api
                     parseQueryStringLocalVar["sessionId"] = ClientUtils.ParameterToString(sessionId);
                     parseQueryStringLocalVar["runtimeId"] = ClientUtils.ParameterToString(runtimeId);
                     parseQueryStringLocalVar["assignmentEpoch"] = ClientUtils.ParameterToString(assignmentEpoch);
+
+                    if (executionBootId.IsSet)
+                        parseQueryStringLocalVar["executionBootId"] = ClientUtils.ParameterToString(executionBootId.Value);
 
                     uriBuilderLocalVar.Query = parseQueryStringLocalVar.ToString();
 
@@ -7249,7 +7339,7 @@ namespace Unframe.ControlPlane.Api
                             }
                         }
 
-                        AfterInternalRuntimeBootstrapGetDefaultImplementation(apiResponseLocalVar, sessionId, runtimeId, assignmentEpoch);
+                        AfterInternalRuntimeBootstrapGetDefaultImplementation(apiResponseLocalVar, sessionId, runtimeId, assignmentEpoch, executionBootId);
 
                         Events.ExecuteOnInternalRuntimeBootstrapGet(apiResponseLocalVar);
 
@@ -7263,7 +7353,7 @@ namespace Unframe.ControlPlane.Api
             }
             catch(Exception e)
             {
-                OnErrorInternalRuntimeBootstrapGetDefaultImplementation(e, "/internal/runtime/bootstrap", uriBuilderLocalVar.Path, sessionId, runtimeId, assignmentEpoch);
+                OnErrorInternalRuntimeBootstrapGetDefaultImplementation(e, "/internal/runtime/bootstrap", uriBuilderLocalVar.Path, sessionId, runtimeId, assignmentEpoch, executionBootId);
                 Events.ExecuteOnErrorInternalRuntimeBootstrapGet(e);
                 throw;
             }
@@ -7803,6 +7893,396 @@ namespace Unframe.ControlPlane.Api
             /// <param name="result"></param>
             /// <returns></returns>
             public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdHeartbeatPost200Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatInternalRuntimeHostsRuntimeIdStartPost(ref string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdStartPostRequest"></param>
+        /// <returns></returns>
+        private void ValidateInternalRuntimeHostsRuntimeIdStartPost(string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest)
+        {
+            if (runtimeId == null)
+                throw new ArgumentNullException(nameof(runtimeId));
+
+            if (internalRuntimeHostsRuntimeIdStartPostRequest == null)
+                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdStartPostRequest));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdStartPostRequest"></param>
+        private void AfterInternalRuntimeHostsRuntimeIdStartPostDefaultImplementation(IInternalRuntimeHostsRuntimeIdStartPostApiResponse apiResponseLocalVar, string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest)
+        {
+            bool suppressDefaultLog = false;
+            AfterInternalRuntimeHostsRuntimeIdStartPost(ref suppressDefaultLog, apiResponseLocalVar, runtimeId, internalRuntimeHostsRuntimeIdStartPostRequest);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdStartPostRequest"></param>
+        partial void AfterInternalRuntimeHostsRuntimeIdStartPost(ref bool suppressDefaultLog, IInternalRuntimeHostsRuntimeIdStartPostApiResponse apiResponseLocalVar, string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdStartPostRequest"></param>
+        private void OnErrorInternalRuntimeHostsRuntimeIdStartPostDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorInternalRuntimeHostsRuntimeIdStartPost(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, runtimeId, internalRuntimeHostsRuntimeIdStartPostRequest);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdStartPostRequest"></param>
+        partial void OnErrorInternalRuntimeHostsRuntimeIdStartPost(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdStartPostRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeHostsRuntimeIdStartPostApiResponse"/>&gt;</returns>
+        public async Task<IInternalRuntimeHostsRuntimeIdStartPostApiResponse?> InternalRuntimeHostsRuntimeIdStartPostOrDefaultAsync(string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await InternalRuntimeHostsRuntimeIdStartPostAsync(runtimeId, internalRuntimeHostsRuntimeIdStartPostRequest, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="runtimeId"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdStartPostRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IInternalRuntimeHostsRuntimeIdStartPostApiResponse"/>&gt;</returns>
+        public async Task<IInternalRuntimeHostsRuntimeIdStartPostApiResponse> InternalRuntimeHostsRuntimeIdStartPostAsync(string runtimeId, InternalRuntimeHostsRuntimeIdStartPostRequest internalRuntimeHostsRuntimeIdStartPostRequest, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidateInternalRuntimeHostsRuntimeIdStartPost(runtimeId, internalRuntimeHostsRuntimeIdStartPostRequest);
+
+                FormatInternalRuntimeHostsRuntimeIdStartPost(ref runtimeId, internalRuntimeHostsRuntimeIdStartPostRequest);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/internal/runtime/hosts/{runtimeId}/start"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/internal/runtime/hosts/{runtimeId}/start");
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BruntimeId%7D", Uri.EscapeDataString(runtimeId.ToString()));
+
+                    httpRequestMessageLocalVar.Content = (internalRuntimeHostsRuntimeIdStartPostRequest as object) is System.IO.Stream stream
+                        ? httpRequestMessageLocalVar.Content = new StreamContent(stream)
+                        : httpRequestMessageLocalVar.Content = new StringContent(JsonSerializer.Serialize(internalRuntimeHostsRuntimeIdStartPostRequest, _jsonSerializerOptions));
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] contentTypes = new string[] {
+                        "application/json"
+                    };
+
+                    string? contentTypeLocalVar = ClientUtils.SelectHeaderContentType(contentTypes);
+
+                    if (contentTypeLocalVar != null && httpRequestMessageLocalVar.Content != null)
+                        httpRequestMessageLocalVar.Content.Headers.ContentType = new MediaTypeHeaderValue(contentTypeLocalVar);
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Post;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<InternalRuntimeHostsRuntimeIdStartPostApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<InternalRuntimeHostsRuntimeIdStartPostApiResponse>();
+                        InternalRuntimeHostsRuntimeIdStartPostApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/internal/runtime/hosts/{runtimeId}/start", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterInternalRuntimeHostsRuntimeIdStartPostDefaultImplementation(apiResponseLocalVar, runtimeId, internalRuntimeHostsRuntimeIdStartPostRequest);
+
+                        Events.ExecuteOnInternalRuntimeHostsRuntimeIdStartPost(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorInternalRuntimeHostsRuntimeIdStartPostDefaultImplementation(e, "/internal/runtime/hosts/{runtimeId}/start", uriBuilderLocalVar.Path, runtimeId, internalRuntimeHostsRuntimeIdStartPostRequest);
+                Events.ExecuteOnErrorInternalRuntimeHostsRuntimeIdStartPost(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="InternalRuntimeHostsRuntimeIdStartPostApiResponse"/>
+        /// </summary>
+        public partial class InternalRuntimeHostsRuntimeIdStartPostApiResponse : Unframe.ControlPlane.Client.ApiResponse, IInternalRuntimeHostsRuntimeIdStartPostApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<InternalRuntimeHostsRuntimeIdStartPostApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="InternalRuntimeHostsRuntimeIdStartPostApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public InternalRuntimeHostsRuntimeIdStartPostApiResponse(ILogger<InternalRuntimeHostsRuntimeIdStartPostApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="InternalRuntimeHostsRuntimeIdStartPostApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public InternalRuntimeHostsRuntimeIdStartPostApiResponse(ILogger<InternalRuntimeHostsRuntimeIdStartPostApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdStartPost200Response? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdStartPost200Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdStartPost200Response? result)
             {
                 result = null;
 

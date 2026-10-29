@@ -6,7 +6,7 @@ import {
   assertRuntimeByteLength,
   runtimeAuthorityLimits,
 } from "../src/presentation/runtime-authority";
-import { encodeWireMessage } from "../src/presentation/wire";
+import { decodeWireMessage, encodeWireMessage } from "../src/presentation/wire";
 
 const inputContext = {
   inputEpoch: "1",
@@ -287,4 +287,14 @@ test("input synchronization respects its 4 KiB wire ceiling", () => {
     () => assertRuntimeByteLength("PresenterInputSynchronization", 4_097),
     /serialized byte limit/,
   );
+});
+
+test("a recovered initial checkpoint may precede the first participant", () => {
+  const recovery = recoveryMetadata([]);
+  recovery["participants"] = [];
+  (recovery["inputSynchronization"] as Record<string, unknown>)["reliableSequence"] = "0";
+  const type = "unframe.realtime.RuntimeRecoveryMetadata";
+  delete (recovery["inputSynchronization"] as Record<string, unknown>)["reliableSequence"];
+  const bytes = encodeWireMessage(type, recovery);
+  assert.deepEqual(decodeWireMessage(type, bytes)["participants"], []);
 });

@@ -33,21 +33,29 @@ namespace Unframe.ControlPlane.Model
         /// <summary>
         /// Initializes a new instance of the <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200Response" /> class.
         /// </summary>
-        /// <param name="assignment">assignment</param>
+        /// <param name="generation">generation</param>
+        /// <param name="assignments">assignments</param>
         [JsonConstructor]
-        public InternalRuntimeHostsRuntimeIdHeartbeatPost200Response(InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment? assignment = default)
+        public InternalRuntimeHostsRuntimeIdHeartbeatPost200Response(long generation, List<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner> assignments)
         {
-            Assignment = assignment;
+            Generation = generation;
+            Assignments = assignments;
             OnCreated();
         }
 
         partial void OnCreated();
 
         /// <summary>
-        /// Gets or Sets Assignment
+        /// Gets or Sets Generation
         /// </summary>
-        [JsonPropertyName("assignment")]
-        public InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment? Assignment { get; set; }
+        [JsonPropertyName("generation")]
+        public long Generation { get; set; }
+
+        /// <summary>
+        /// Gets or Sets Assignments
+        /// </summary>
+        [JsonPropertyName("assignments")]
+        public List<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner> Assignments { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -57,7 +65,8 @@ namespace Unframe.ControlPlane.Model
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("class InternalRuntimeHostsRuntimeIdHeartbeatPost200Response {\n");
-            sb.Append("  Assignment: ").Append(Assignment).Append("\n");
+            sb.Append("  Generation: ").Append(Generation).Append("\n");
+            sb.Append("  Assignments: ").Append(Assignments).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -69,6 +78,12 @@ namespace Unframe.ControlPlane.Model
         /// <returns>Validation Result</returns>
         IEnumerable<ValidationResult> IValidatableObject.Validate(ValidationContext validationContext)
         {
+            // Generation (long) minimum
+            if (this.Generation < (long)0)
+            {
+                yield return new ValidationResult("Invalid value for Generation, must be a value greater than 0.", new [] { "Generation" });
+            }
+
             yield break;
         }
     }
@@ -95,7 +110,8 @@ namespace Unframe.ControlPlane.Model
 
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
-            Option<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment?> assignment = default;
+            Option<long?> generation = default;
+            Option<List<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner>?> assignments = default;
 
             while (utf8JsonReader.Read())
             {
@@ -112,8 +128,11 @@ namespace Unframe.ControlPlane.Model
 
                     switch (localVarJsonPropertyName)
                     {
-                        case "assignment":
-                            assignment = new Option<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment?>(JsonSerializer.Deserialize<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment>(ref utf8JsonReader, jsonSerializerOptions));
+                        case "generation":
+                            generation = new Option<long?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
+                            break;
+                        case "assignments":
+                            assignments = new Option<List<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner>?>(JsonSerializer.Deserialize<List<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner>>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
                         default:
                             break;
@@ -121,10 +140,19 @@ namespace Unframe.ControlPlane.Model
                 }
             }
 
-            if (!assignment.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200Response.", nameof(assignment));
+            if (!generation.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200Response.", nameof(generation));
 
-            return new InternalRuntimeHostsRuntimeIdHeartbeatPost200Response(assignment.Value!);
+            if (!assignments.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200Response.", nameof(assignments));
+
+            if (generation.IsSet && generation.Value == null)
+                throw new ArgumentNullException(nameof(generation), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200Response.");
+
+            if (assignments.IsSet && assignments.Value == null)
+                throw new ArgumentNullException(nameof(assignments), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200Response.");
+
+            return new InternalRuntimeHostsRuntimeIdHeartbeatPost200Response(generation.Value!.Value!, assignments.Value!);
         }
 
         /// <summary>
@@ -151,13 +179,13 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public void WriteProperties(Utf8JsonWriter writer, InternalRuntimeHostsRuntimeIdHeartbeatPost200Response internalRuntimeHostsRuntimeIdHeartbeatPost200Response, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (internalRuntimeHostsRuntimeIdHeartbeatPost200Response.Assignment != null)
-            {
-                writer.WritePropertyName("assignment");
-                JsonSerializer.Serialize(writer, internalRuntimeHostsRuntimeIdHeartbeatPost200Response.Assignment, jsonSerializerOptions);
-            }
-            else
-                writer.WriteNull("assignment");
+            if (internalRuntimeHostsRuntimeIdHeartbeatPost200Response.Assignments == null)
+                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPost200Response.Assignments), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200Response.");
+
+            writer.WriteNumber("generation", internalRuntimeHostsRuntimeIdHeartbeatPost200Response.Generation);
+
+            writer.WritePropertyName("assignments");
+            JsonSerializer.Serialize(writer, internalRuntimeHostsRuntimeIdHeartbeatPost200Response.Assignments, jsonSerializerOptions);
         }
     }
 }

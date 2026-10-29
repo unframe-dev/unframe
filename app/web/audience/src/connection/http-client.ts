@@ -19,12 +19,21 @@ export class AudienceConnectionError extends Error {
 
 export async function audienceResponseError(response: Response): Promise<AudienceConnectionError> {
   if (
-    response.status === 410 &&
+    [409, 410].includes(response.status) &&
     response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() ===
       "application/json"
   ) {
     const body: unknown = await response.json().catch(() => null);
-    if (z.object({ error: z.object({ code: z.literal("session_ended") }) }).safeParse(body).success)
+    if (
+      response.status === 409 &&
+      z.object({ error: z.object({ code: z.literal("runtime_unavailable") }) }).safeParse(body)
+        .success
+    )
+      return new AudienceConnectionError("runtime-unavailable", 409);
+    if (
+      response.status === 410 &&
+      z.object({ error: z.object({ code: z.literal("session_ended") }) }).safeParse(body).success
+    )
       return new AudienceConnectionError("session-ended", 410);
   }
   return new AudienceConnectionError("http-error", response.status);

@@ -243,7 +243,8 @@ export function validateAuthorityWireValue(typeName: string, value: Record<strin
       typeof value["startedAt"] !== "string" ||
       !Number.isFinite(Date.parse(value["startedAt"])) ||
       !Array.isArray(value["participants"]) ||
-      value["participants"].length === 0
+      (value["participants"].length === 0 &&
+        (records.length !== 0 || (sync["reliableSequence"] ?? "0") !== "0"))
     )
       throw new TypeError(
         "Recovery metadata requires a consistent command epoch and synchronization state",
