@@ -64,7 +64,9 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         {
             ProjectionAdvance = new ProjectionAdvance
             {
-                Fence = snapshot.ConnectionSnapshot.Fence.Clone(), FromExclusive = 0, ThroughSequence = 4
+                Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                FromExclusive = 0,
+                ThroughSequence = 4
             }
         }, out error), Is.True, error);
         if (reload) Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
@@ -81,7 +83,9 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         {
             ProjectionAdvance = new ProjectionAdvance
             {
-                Fence = snapshot.ConnectionSnapshot.Fence.Clone(), FromExclusive = 0, ThroughSequence = 4
+                Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                FromExclusive = 0,
+                ThroughSequence = 4
             }
         }, out error), Is.True, error);
         store.TrackCommand("old-operation");
