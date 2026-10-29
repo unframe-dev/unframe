@@ -250,6 +250,52 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 		return
 	}
 
+	f.runTest(t, "expired_lease_restores_same_session_in_new_assignment", func(t *testing.T) {
+		presenter.control(realtime.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE, "pause-before-lease-expiry")
+		for _, peer := range []*peer{presenter, viewer, viewer2} {
+			peer.waitView("pause before host shutdown", "finished", true)
+		}
+		before := presenter.snapshot()
+		oldPresenterToken := presenter.runtimeCredential
+		oldViewerToken := viewer.runtimeCredential
+		oldManifest := presenter.manifest
+		oldEpoch := f.env.RuntimeEnv["REALTIME_ASSIGNMENT_EPOCH"]
+		f.assertCheckpoint("finished", true)
+		f.stopRuntimeHost()
+		for _, peer := range []*peer{presenter, viewer, viewer2} {
+			peer.waitClosed("host shutdown closes the previous assignment")
+			peer.close()
+		}
+		f.expireLocalAssignment()
+		f.startRuntimeHostProcess()
+		f.waitPreparedRuntime(f.env.SessionID, false)
+		if f.env.RuntimeEnv["REALTIME_ASSIGNMENT_EPOCH"] == oldEpoch {
+			t.Fatal("expired lease reused the old assignment epoch")
+		}
+		presenter = f.connectNative(nil)
+		viewer = f.connectViewer(viewer.apiCredential)
+		viewer2 = f.connectViewer(viewer2.apiCredential)
+		for _, peer := range []*peer{presenter, viewer, viewer2} {
+			peer.waitView("same Session restored in a new assignment", "finished", true)
+			if peer.snapshot().sequence < before.sequence {
+				t.Fatal("new assignment rolled the reliable sequence backwards")
+			}
+		}
+		assertSameSharedView(t, presenter, viewer, viewer2)
+		f.assertCheckpoint("finished", true)
+		f.assertRejectedStaleConnection(oldViewerToken, viewer.manifest.ProjectionProfile.RequiredRuntimeCapabilities)
+		f.assertRejectedNativeConnection(oldPresenterToken, oldManifest.ProjectionProfile.RequiredRuntimeCapabilities, nil)
+		f.assertRejectedNativeConnection(oldPresenterToken, oldManifest.ProjectionProfile.RequiredRuntimeCapabilities, &realtime.ResumeCursor{PriorConnectionId: before.connectionID, AppliedReliableSequence: before.sequence, Fence: before.fence})
+		presenter.control(realtime.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME, "resume-after-lease-expiry")
+		for _, peer := range []*peer{presenter, viewer, viewer2} {
+			peer.waitView("restored assignment resumes explicitly", "finished", false)
+		}
+		f.waitBrowser("browser follows new assignment", "finished", false)
+	})
+	if t.Failed() {
+		return
+	}
+
 	f.runTest(t, "session_end_closes_streams_and_rejects_reentry", func(t *testing.T) {
 		staleToken := viewer.runtimeCredential
 		stalePresenterToken := presenter.runtimeCredential

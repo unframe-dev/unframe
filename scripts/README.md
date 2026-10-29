@@ -2,15 +2,16 @@
 
 タスクの実処理を置くディレクトリです。公式な実行入口は `flake.nix` の apps で、`flake.nix` はここにあるスクリプトをラップします。
 
-| ディレクトリ           | 役割                                      |
-| ---------------------- | ----------------------------------------- |
-| `lib/`                 | 共有ヘルパ（パス定数 `paths.sh` など）    |
-| `ci/`                  | 品質ゲート                                |
-| `contracts/`           | 契約生成と生成物の差分検査                |
-| `dev/`                 | 依存関係・Git hook のセットアップ         |
-| `unity/`               | Unity Editor の起動と WebGL Preview build |
-| `presentation-sample/` | Unity Editor 向けサンプル配信             |
-| `realtime-e2e/`        | 実サービスでの混在接続・同期・復旧 E2E    |
+| ディレクトリ           | 役割                                        |
+| ---------------------- | ------------------------------------------- |
+| `lib/`                 | 共有ヘルパ（パス定数 `paths.sh` など）      |
+| `ci/`                  | 品質ゲート                                  |
+| `contracts/`           | 契約生成と生成物の差分検査                  |
+| `dev/`                 | 依存関係・Git hook のセットアップ           |
+| `unity/`               | Unity Editor の起動と WebGL Preview build   |
+| `presentation-sample/` | Unity Editor 向けサンプル配信               |
+| `realtime-e2e/`        | 実サービスでの混在接続・同期・復旧 E2E      |
+| `runtime-host/`        | Cloud Runtime Host の起動・macOS 配備物生成 |
 
 ```bash
 nix develop
@@ -20,6 +21,10 @@ nix run .#control-plane
 nix run .#presentation
 nix run .#unity-proto -- check
 nix run .#realtime
+nix run .#runtime-host
+nix run .#runtime-host-deploy -- "$PWD/.unframe/realtime-release" t4ko
+nix run .#runtime-host-funnel
+nix run .#runtime-host-funnel-deploy -- "$HOME/Library/Application Support/Unframe/Funnel" "$(id -un)"
 nix run .#realtime-e2e
 nix run .#console
 nix run .#local-editor

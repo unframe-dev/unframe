@@ -461,10 +461,32 @@ describe("publication service", () => {
     const app = createApp();
     const runtimePath =
       "https://example.test/internal/runtime/bootstrap?sessionId=publication-runtime-session&runtimeId=runtime-demo&assignmentEpoch=1";
-    const storedEnvelope = await checkpointEnvelope("publication-runtime-session");
+    const initial = await app.fetch(
+      new Request(runtimePath, {
+        headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` },
+      }),
+      runtimeEnvironment(),
+    );
+    expect(initial.status).toBe(200);
+    await expect(initial.json()).resolves.toMatchObject({
+      checkpoint: null,
+      checkpointSource: null,
+    });
+    const pinned = (await service.publishedArtifacts("demo", 1)).publishedPresentation;
+    const storedEnvelope = {
+      ...(await checkpointEnvelope("publication-runtime-session")),
+      runtimeId: "runtime-demo",
+      publication: {
+        presentationId: pinned.presentationId,
+        publicationEpoch: String(pinned.publicationEpoch),
+        publicationManifestHash: pinned.publicationManifestHash,
+      },
+      definitionHash: pinned.definitionHash,
+      renderBundleHash: pinned.renderBundleHash,
+    };
     for (const [payload, status] of [
-      [JSON.stringify("あ".repeat(524288)), 413],
-      [JSON.stringify({ ...storedEnvelope, schemaVersion: 2 }), 400],
+      [JSON.stringify("あ".repeat(524288)), 409],
+      [JSON.stringify({ ...storedEnvelope, schemaVersion: 2 }), 409],
       [JSON.stringify(storedEnvelope), 200],
     ] as const) {
       await env.DB.prepare(
@@ -479,11 +501,63 @@ describe("publication service", () => {
         runtimeEnvironment(),
       );
       expect(restored.status).toBe(status);
-      if (status === 413)
-        await expect(restored.json()).resolves.toMatchObject({
-          error: { code: "checkpoint_payload_too_large" },
-        });
     }
+    for (const corrupt of [
+      { ...storedEnvelope, sessionId: "other-session" },
+      { ...storedEnvelope, checkpointSequence: "2" },
+      { ...storedEnvelope, reliableSequence: "6" },
+      { ...storedEnvelope, runtimeId: "missing-runtime" },
+      { ...storedEnvelope, runtimeKind: "RUNTIME_KIND_VENUE_EDGE" },
+      { ...storedEnvelope, assignmentEpoch: "2" },
+      { ...storedEnvelope, definitionHash: `sha256:${"0".repeat(64)}` },
+      { ...storedEnvelope, renderBundleHash: `sha256:${"0".repeat(64)}` },
+      { ...storedEnvelope, publication: { ...storedEnvelope.publication, publicationEpoch: "2" } },
+    ]) {
+      await env.DB.prepare(
+        "UPDATE session_checkpoints SET payload = ? WHERE session_id = 'publication-runtime-session'",
+      )
+        .bind(JSON.stringify(corrupt))
+        .run();
+      const response = await app.fetch(
+        new Request(runtimePath, {
+          headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` },
+        }),
+        runtimeEnvironment(),
+      );
+      expect(response.status).toBe(409);
+    }
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE session_checkpoints SET payload = ? WHERE session_id = 'publication-runtime-session'",
+      ).bind(JSON.stringify(storedEnvelope)),
+      env.DB.prepare(
+        "UPDATE runtime_assignments SET released_at = '2026' WHERE session_id = 'publication-runtime-session'",
+      ),
+      env.DB.prepare(
+        "INSERT INTO runtime_assignments (session_id,runtime_id,runtime_kind,endpoint,epoch,revision,issued_at,lease_expires_at) VALUES ('publication-runtime-session','new-runtime','Cloud','https://new.test',2,1,'2026','2099')",
+      ),
+    ]);
+    const restored = await app.fetch(
+      new Request(
+        runtimePath.replace(
+          "runtimeId=runtime-demo&assignmentEpoch=1",
+          "runtimeId=new-runtime&assignmentEpoch=2",
+        ),
+        { headers: { authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}` } },
+      ),
+      runtimeEnvironment(),
+    );
+    expect(restored.status).toBe(200);
+    await expect(restored.json()).resolves.toMatchObject({
+      assignment: { runtimeId: "new-runtime", assignmentEpoch: 2 },
+      checkpoint: storedEnvelope,
+      checkpointSource: {
+        runtimeId: "runtime-demo",
+        runtimeKind: "Cloud",
+        assignmentEpoch: 1,
+        checkpointSequence: 1,
+      },
+    });
   });
   it("publishes verified R2 bytes atomically and refuses updates during active use", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);

@@ -328,6 +328,26 @@
             name = "runtime-host";
             script = "runtime-host/run.sh";
           };
+          runtime-host-funnel = mkApp {
+            name = "runtime-host-funnel";
+            script = "runtime-host/funnel.sh";
+            extraRuntimeInputs = [
+              pkgs.tailscale
+              pkgs.caddy
+            ];
+          };
+          runtime-host-funnel-deploy = mkApp {
+            name = "runtime-host-funnel-deploy";
+            script = "runtime-host/funnel-launchd-prepare.sh";
+            extraRuntimeInputs = [
+              pkgs.tailscale
+              pkgs.caddy
+            ];
+          };
+          runtime-host-deploy = mkApp {
+            name = "runtime-host-deploy";
+            script = "runtime-host/deploy.sh";
+          };
           realtime-e2e = mkApp {
             name = "realtime-e2e";
             script = "realtime-e2e/run.sh";

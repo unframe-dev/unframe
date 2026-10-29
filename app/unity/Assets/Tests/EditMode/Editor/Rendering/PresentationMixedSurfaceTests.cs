@@ -261,11 +261,11 @@ public sealed class PresentationMixedSurfaceTests
                         Capture();
                         var nativePoints = new List<UnityEngine.Vector2Int>();
                         for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++)
-                            {
-                                Color pixel = pixels.GetPixel(x, y);
-                                if (pixel.g > .9f && pixel.r < .05f && pixel.b < .05f) nativePoints.Add(new UnityEngine.Vector2Int(x, y));
-                                if (x > 65) Assert.That(pixel.g, Is.LessThan(.05f), "Parent group clip must remove right-half glyphs.");
-                            }
+                        {
+                            Color pixel = pixels.GetPixel(x, y);
+                            if (pixel.g > .9f && pixel.r < .05f && pixel.b < .05f) nativePoints.Add(new UnityEngine.Vector2Int(x, y));
+                            if (x > 65) Assert.That(pixel.g, Is.LessThan(.05f), "Parent group clip must remove right-half glyphs.");
+                        }
                         System.IO.File.WriteAllBytes(System.IO.Path.Combine(Application.temporaryCachePath, "native-only-" + permutation + ".png"), pixels.EncodeToPNG());
                         Assert.That(nativePoints.Count, Is.GreaterThan(30), "Delivered Native UI letters must produce visible pixels.");
                         int videoOrder = videoMesh.sortingOrder;

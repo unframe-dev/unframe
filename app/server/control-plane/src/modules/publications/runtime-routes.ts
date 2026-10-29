@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { createD1Database } from "../../adapters/d1/database";
 import {
   presentationSessions,
@@ -26,7 +26,7 @@ import {
   internalRuntimeProjectionRoute,
 } from "../../openapi";
 import { ServiceIdentity } from "../persistence-callback/service-identity";
-import { parseCheckpointJson } from "../persistence-callback/checkpoint";
+import { parseCheckpointJson, validateCheckpoint } from "../persistence-callback/checkpoint";
 import { R2Presigner } from "../../adapters/assets/r2-presigner";
 import { RuntimeAssignmentService, RuntimeAssignmentError } from "../runtime-assignments/service";
 import { D1RuntimeAssignmentRepository } from "../runtime-assignments/repository";
@@ -204,6 +204,7 @@ export function createRuntimePublicationRoutes() {
             ne(presentationSessions.state, "Ended"),
             eq(runtimeAssignments.runtimeId, runtimeId),
             eq(runtimeAssignments.epoch, assignmentEpoch),
+            sql`${runtimeAssignments.epoch} = (SELECT MAX(latest.epoch) FROM runtime_assignments AS latest WHERE latest.session_id = ${sessionId})`,
             isNull(runtimeAssignments.releasedAt),
             gt(runtimeAssignments.leaseExpiresAt, now),
           ),
@@ -220,15 +221,82 @@ export function createRuntimePublicationRoutes() {
       );
       const publication = artifacts.publishedPresentation;
       const checkpoint = await createD1Database(DB)
-        .select({ payload: sessionCheckpoints.payload })
+        .select({
+          payload: sessionCheckpoints.payload,
+          version: sessionCheckpoints.version,
+          lastSequence: sessionCheckpoints.lastSequence,
+        })
         .from(sessionCheckpoints)
         .where(eq(sessionCheckpoints.sessionId, sessionId))
         .orderBy(desc(sessionCheckpoints.version))
         .limit(1)
         .get();
       let restoredCheckpoint: Record<string, unknown> | null = null;
+      let checkpointSource: {
+        runtimeId: string;
+        runtimeKind: "Cloud" | "VenueEdge";
+        assignmentEpoch: number;
+        checkpointSequence: number;
+      } | null = null;
       if (checkpoint) {
-        restoredCheckpoint = await parseCheckpointJson(checkpoint.payload);
+        try {
+          restoredCheckpoint = await parseCheckpointJson(checkpoint.payload);
+          const sourceEpoch = Number(restoredCheckpoint["assignmentEpoch"]);
+          const sourceRuntime = restoredCheckpoint["runtimeId"];
+          const sourceKind =
+            restoredCheckpoint["runtimeKind"] === "RUNTIME_KIND_CLOUD" ||
+            restoredCheckpoint["runtimeKind"] === 1
+              ? "Cloud"
+              : "VenueEdge";
+          if (
+            !Number.isSafeInteger(sourceEpoch) ||
+            sourceEpoch <= 0 ||
+            sourceEpoch > assignmentEpoch ||
+            typeof sourceRuntime !== "string"
+          )
+            throw new Error("Invalid checkpoint source");
+          const source = await createD1Database(DB)
+            .select()
+            .from(runtimeAssignments)
+            .where(
+              and(
+                eq(runtimeAssignments.sessionId, sessionId),
+                eq(runtimeAssignments.epoch, sourceEpoch),
+                eq(runtimeAssignments.runtimeId, sourceRuntime),
+                eq(runtimeAssignments.runtimeKind, sourceKind),
+              ),
+            )
+            .get();
+          if (!source) throw new Error("Checkpoint assignment unavailable");
+          await validateCheckpoint(restoredCheckpoint, {
+            sessionId,
+            runtimeId: source.runtimeId,
+            runtimeKind: source.runtimeKind,
+            assignmentEpoch: source.epoch,
+            checkpointSequence: checkpoint.version,
+            reliableSequence: checkpoint.lastSequence,
+          });
+          const savedPublication = restoredCheckpoint["publication"] as Record<string, unknown>;
+          if (
+            savedPublication["presentationId"] !== publication.presentationId ||
+            savedPublication["publicationEpoch"] !== String(publication.publicationEpoch) ||
+            savedPublication["publicationManifestHash"] !== publication.publicationManifestHash ||
+            restoredCheckpoint["definitionHash"] !== publication.definitionHash ||
+            restoredCheckpoint["renderBundleHash"] !== publication.renderBundleHash
+          )
+            throw new Error("Checkpoint publication changed");
+          checkpointSource = {
+            runtimeId: source.runtimeId,
+            runtimeKind: source.runtimeKind,
+            assignmentEpoch: source.epoch,
+            checkpointSequence: checkpoint.version,
+          };
+        } catch {
+          return context.json(
+            { error: { code: "conflict", message: "Stored checkpoint unavailable" } },
+            409,
+          );
+        }
       }
       const result = {
         assignment: {
@@ -249,6 +317,7 @@ export function createRuntimePublicationRoutes() {
         definition: artifacts.definition,
         renderBundle: artifacts.renderBundle,
         checkpoint: restoredCheckpoint,
+        checkpointSource,
       };
       const current = await createD1Database(DB)
         .select({ id: presentationSessions.id })
@@ -261,6 +330,7 @@ export function createRuntimePublicationRoutes() {
             eq(presentationSessions.publicationEpoch, row.publicationEpoch),
             eq(runtimeAssignments.runtimeId, runtimeId),
             eq(runtimeAssignments.epoch, assignmentEpoch),
+            sql`${runtimeAssignments.epoch} = (SELECT MAX(latest.epoch) FROM runtime_assignments AS latest WHERE latest.session_id = ${sessionId})`,
             isNull(runtimeAssignments.releasedAt),
             gt(runtimeAssignments.leaseExpiresAt, new Date().toISOString()),
           ),
@@ -297,6 +367,7 @@ export function createRuntimePublicationRoutes() {
             ne(presentationSessions.state, "Ended"),
             eq(runtimeAssignments.runtimeId, runtimeId),
             eq(runtimeAssignments.epoch, assignmentEpoch),
+            sql`${runtimeAssignments.epoch} = (SELECT MAX(latest.epoch) FROM runtime_assignments AS latest WHERE latest.session_id = ${sessionId})`,
             isNull(runtimeAssignments.releasedAt),
             gt(runtimeAssignments.leaseExpiresAt, new Date().toISOString()),
           ),
