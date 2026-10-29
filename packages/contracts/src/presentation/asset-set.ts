@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { contentHashSchema, idSchema, safeUIntSchema } from "./common";
+import { contentHashSchema, storageSegmentIdSchema, safeUIntSchema } from "./common";
 
 export const assetDescriptorSchema = z.strictObject({
   checksum: contentHashSchema,
@@ -17,7 +17,7 @@ export const assetDescriptorSchema = z.strictObject({
 
 export const assetSetManifestSchema = z.strictObject({
   schemaVersion: z.literal(2),
-  assets: z.record(idSchema, assetDescriptorSchema),
+  assets: z.record(storageSegmentIdSchema, assetDescriptorSchema),
 });
 
 export type AssetDescriptor = z.infer<typeof assetDescriptorSchema>;

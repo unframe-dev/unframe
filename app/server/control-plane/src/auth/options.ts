@@ -48,7 +48,7 @@ export function createAuthOptions(
     account: {
       accountLinking: {
         enabled: true,
-        requireLocalEmailVerified: false,
+        requireLocalEmailVerified: true,
       },
     },
     emailAndPassword: {

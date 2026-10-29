@@ -126,6 +126,19 @@ describe("publication service", () => {
       env.DB.prepare("UPDATE presentations SET revision = 1 WHERE id = 'demo'"),
     ]);
   });
+  it("rejects build IDs that escape a publication storage segment", async () => {
+    const service = new PublicationService(env.DB, env.ASSETS);
+    const { copy } = await publishable();
+    copy.buildManifest.buildId = "x/../../victim/build";
+    await expect(service.createBuild(owner, "demo", upload(copy))).rejects.toMatchObject({
+      code: "invalid_build",
+    });
+    const row = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM presentation_builds WHERE presentation_id = 'demo'",
+    ).first<{ count: number }>();
+    expect(row?.count).toBe(0);
+  });
+
   it("connects an anonymous viewer through join, delivery and realtime bootstrap", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);
     const { copy, bytes } = await publishable();
@@ -896,6 +909,11 @@ describe("publication service", () => {
       ),
     ) as DeliveryManifestWire;
     expect(externalDelivery.assetAccess![0]!.url).toContain("r2.cloudflarestorage.com");
+    for (const asset of externalDelivery.assetAccess!) {
+      const expectedKey = `publication-builds/demo/${copy.buildManifest.buildId}/${asset.assetId}`;
+      expect(decodeURIComponent(new URL(asset.url!).pathname)).toBe(`/assets/${expectedKey}`);
+      expect(await env.ASSETS.head(expectedKey)).not.toBeNull();
+    }
     const encodedDelivery = await new DeliveryService(validateConfig(environment)).manifest(
       owner,
       "publication-runtime-session",

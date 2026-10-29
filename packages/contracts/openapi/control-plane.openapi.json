@@ -13623,13 +13623,13 @@
                   "properties": {
                     "buildId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
                     },
                     "assetIds": {
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
                       }
                     }
                   },
@@ -13849,7 +13849,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
             },
             "required": true,
             "name": "buildId",
@@ -13858,7 +13858,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
             },
             "required": true,
             "name": "assetId",
@@ -14064,7 +14064,7 @@
                 "properties": {
                   "buildId": {
                     "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
                   },
                   "expectedPublicationFence": {
                     "type": "object",
@@ -14135,7 +14135,7 @@
                     },
                     "buildId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
                     },
                     "definitionHash": {
                       "type": "string",
@@ -14464,7 +14464,7 @@
                     },
                     "buildId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
                     },
                     "definitionHash": {
                       "type": "string",
@@ -14937,7 +14937,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
             },
             "required": true,
             "name": "buildId",
@@ -14946,7 +14946,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
             },
             "required": true,
             "name": "assetId",
