@@ -97,7 +97,7 @@ export function createAuthOptions(
           ) => {
             const path = context?.path;
             const assurance =
-              (path === "/callback/:id" && context?.params?.id === "google") ||
+              (path === "/callback/:id" && context?.params?.["id"] === "google") ||
               (path === "/sign-in/social" && context?.body?.provider === "google")
                 ? "google"
                 : path === "/device/token"
