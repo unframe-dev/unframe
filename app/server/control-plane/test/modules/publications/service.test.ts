@@ -612,7 +612,6 @@ describe("publication service", () => {
     const environment = {
       ...runtimeEnvironment(),
       PUBLICATION_ASSET_ORIGIN: "https://assets.example.test",
-      AUDIENCE_ORIGIN: "https://audience.example.test",
     };
     const signer = new PublicationAssetAccess(environment.SERVICE_IDENTITY_SECRET);
     const servedAssetId = Object.keys(copy.assetSet.assets)[0]!;
@@ -636,12 +635,8 @@ describe("publication service", () => {
       Date.now() + 300_000,
     );
     expect((await createApp().fetch(new Request(missingAssetUrl), environment)).status).toBe(404);
-    const served = await createApp().fetch(
-      new Request(signedUrl, { headers: { origin: environment.AUDIENCE_ORIGIN } }),
-      environment,
-    );
+    const served = await createApp().fetch(new Request(signedUrl), environment);
     expect(served.status).toBe(200);
-    expect(served.headers.get("access-control-allow-origin")).toBe(environment.AUDIENCE_ORIGIN);
     expect(served.headers.get("content-type")).toBe(servedDescriptor.mediaType);
     expect(new Uint8Array(await served.arrayBuffer())).toEqual(
       new Uint8Array(bytes[servedAssetId]!),

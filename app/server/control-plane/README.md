@@ -24,8 +24,6 @@ Session の新規作成には公開済み Dist が必要です。公開版の確
 
 ## Setup
 
-`PUBLICATION_ASSET_ORIGIN=https://api.un-fra.me` により、公開素材を同じ Worker の署名付き `/publication-assets/...` から配信します。Audience origin の CORS は Worker の `AUDIENCE_ORIGIN` で許可し、R2 bucket の直接アクセス用 CORS 設定には依存しません。
-
 `wrangler.toml` の D1 `database_id` と `R2_ACCOUNT_ID` は環境の値へ置き換えてください。秘密値は `.dev.vars.example` を参照し、ローカルでは `.dev.vars`、remote 環境では `wrangler secret put` で設定します。Better Auth Infrastructure連携を使う場合は、Dashboardで発行した `BETTER_AUTH_API_KEY` も同じ方法で設定してください。
 
 ```sh
