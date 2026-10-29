@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
-  idSchema,
+  storageSegmentIdSchema,
   publicationFenceSchema,
   publishedPresentationSchema,
 } from "@unframe/contracts/presentation";
@@ -760,8 +760,8 @@ export const renewVenueEdgeLeaseRoute = publicRoutes[25];
 export const releaseVenueEdgeLeaseRoute = publicRoutes[26];
 
 const publicationPresentationId = z.object({ presentationId: identifierSchema }).strict();
-const publicationBuildId = publicationPresentationId.extend({ buildId: idSchema });
-const publicationAssetId = publicationBuildId.extend({ assetId: idSchema });
+const publicationBuildId = publicationPresentationId.extend({ buildId: storageSegmentIdSchema });
+const publicationAssetId = publicationBuildId.extend({ assetId: storageSegmentIdSchema });
 export const createPublicationBuildRoute = createRoute({
   method: "post",
   path: "/presentations/{presentationId}/builds",
@@ -803,7 +803,10 @@ export const createPublicationBuildRoute = createRoute({
       description: "Build stored",
       content: {
         "application/json": {
-          schema: z.object({ buildId: idSchema, assetIds: z.array(idSchema) }),
+          schema: z.object({
+            buildId: storageSegmentIdSchema,
+            assetIds: z.array(storageSegmentIdSchema),
+          }),
         },
       },
     },
@@ -843,7 +846,7 @@ export const publishPresentationRoute = createRoute({
       content: {
         "application/json": {
           schema: z.strictObject({
-            buildId: idSchema,
+            buildId: storageSegmentIdSchema,
             expectedPublicationFence: publicationFenceSchema.nullable(),
           }),
         },

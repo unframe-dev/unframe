@@ -1,6 +1,7 @@
 import * as z from "zod";
 
 export const idSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/);
+export const storageSegmentIdSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/);
 export const contentHashSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 export const finiteNumberSchema = z.number().finite();
 export const nonNegativeFiniteNumberSchema = finiteNumberSchema.min(0);

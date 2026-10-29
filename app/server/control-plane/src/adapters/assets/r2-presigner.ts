@@ -55,7 +55,10 @@ export class R2Presigner implements SignedAccess {
   }
 
   private sign(key: string, method: "GET" | "PUT", expiresAt: Date, headers?: HeadersInit) {
-    const url = new URL(`${this.baseUrl}/${key}`);
+    const encodedKey = key.split("/").map(encodeURIComponent).join("/");
+    const url = new URL(`${this.baseUrl}/${encodedKey}`);
+    if (decodeURIComponent(url.pathname) !== `${new URL(this.baseUrl).pathname}/${key}`)
+      throw new Error("Invalid R2 object key");
     url.searchParams.set(
       "X-Amz-Expires",
       String(Math.max(1, Math.floor((expiresAt.getTime() - this.now().getTime()) / 1000))),

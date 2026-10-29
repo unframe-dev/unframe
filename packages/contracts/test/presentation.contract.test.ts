@@ -49,6 +49,54 @@ for (const [name, schema] of schemas) {
   });
 }
 
+for (const id of ["x/../../victim/build", "x/y", ".", "..", "x\\y", "x%2fy", "x?y", "x#y"]) {
+  test(`Publication storage IDs reject ${JSON.stringify(id)} in Zod and JSON Schema`, async () => {
+    const build = await fixture("build-manifest");
+    const published = await fixture("published-presentation");
+    const assetSet = await fixture("asset-set-manifest");
+    for (const [name, schema, invalid] of [
+      ["build-manifest", buildManifestSchema, { ...build, buildId: id }],
+      ["published-presentation", publishedPresentationSchema, { ...published, buildId: id }],
+      [
+        "asset-set-manifest",
+        assetSetManifestSchema,
+        { ...assetSet, assets: { [id]: assetSet.assets.image } },
+      ],
+    ] as const) {
+      assert.equal(schema.safeParse(invalid).success, false, name);
+      assert.equal(
+        ajv.getSchema(`https://contracts.unframe.dev/presentation/${name}.schema.json`)!(invalid),
+        false,
+        name,
+      );
+    }
+  });
+}
+
+test("Publication storage IDs retain content-addressed IDs in Zod and JSON Schema", async () => {
+  const build = await fixture("build-manifest");
+  const assetSet = await fixture("asset-set-manifest");
+  const buildWithHash = { ...build, buildId: `build:${"a".repeat(64)}` };
+  const assetsWithHash = {
+    ...assetSet,
+    assets: { [`sha256:${"b".repeat(64)}`]: assetSet.assets.image },
+  };
+  assert.equal(buildManifestSchema.safeParse(buildWithHash).success, true);
+  assert.equal(assetSetManifestSchema.safeParse(assetsWithHash).success, true);
+  assert.equal(
+    ajv.getSchema("https://contracts.unframe.dev/presentation/build-manifest.schema.json")!(
+      buildWithHash,
+    ),
+    true,
+  );
+  assert.equal(
+    ajv.getSchema("https://contracts.unframe.dev/presentation/asset-set-manifest.schema.json")!(
+      assetsWithHash,
+    ),
+    true,
+  );
+});
+
 const definition = await fixture("presentation-definition");
 const validateDefinition = ajv.getSchema(
   "https://contracts.unframe.dev/presentation/presentation-definition.schema.json",
