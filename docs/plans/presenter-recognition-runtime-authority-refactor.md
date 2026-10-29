@@ -1,6 +1,6 @@
 # Presentation Runtime・Presenter認識の残作業
 
-更新日: 2026-10-27。Presenter authority v3の移行と対象ローカル検証は完了。M6のQuest実機受入と `pauseTimeout` は未完了である。本書はRuntime・Unityの担当者が残る実装と受入を進めるための計画とする。
+更新日: 2026-10-30。Presenter authority v3の移行と対象ローカル検証は完了。M6のQuest実機受入と無人時の自動終了は未完了である。本書はRuntime・Unityの担当者が残る実装と受入を進めるための計画とする。
 
 ## 実装済みの範囲
 
@@ -13,13 +13,15 @@
 
 契約と所有境界は [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md)、[Presenter authority契約](../packages/CONTRACT_PRESENTER_AUTHORITY.md)、[配信・実行契約](../packages/CONTRACT_RUNTIME.md)、[Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md)、[Unity README](../../app/unity/README.md) を参照する。
 
-## 残る実装: pauseTimeout
+Quest の認証保持、既存の所有 Room への Presenter 参加、コードによる匿名 Viewer 参加は [Room 管理と参加導線](console-room-participation.md) の追加実装対象とする。
 
-期間・時計・自動終了policyが未定義であり、現在は時間経過による自動終了を実装していない。
+## 残る実装: 無人時の自動終了
 
-- [ ] timeout期間、計時に使う時計、pause理由ごとの適用条件、自動終了の挙動を決定する。
+現在は時間経過による自動終了を実装していない。後続の方針は [Room 管理と参加導線](console-room-participation.md) に従い、一時停止の長さではなく、参加者がゼロになってから無人状態が10分続いた場合に終了する。計時・保存・復旧の詳細は未確定である。
+
+- [ ] 無人状態の判定、計時に使う時計、終了の確定方法を詳細設計する。
 - [ ] 再起動時の期限復元を含め、確定した仕様をRuntimeと必要な保存契約へ接続する。
-- [ ] 期限の境界、resumeとの競合、終了後の入力拒否・再開不可をテストする。
+- [ ] 期限の境界、再入室との競合、終了後の入力拒否・再開不可をテストする。
 
 実装と検証は [Realtimeのfollow-up](../../app/server/realtime/todo.md) と整合させる。
 

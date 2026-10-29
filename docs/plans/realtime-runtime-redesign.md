@@ -92,7 +92,7 @@ Host heartbeat は稼働 Session と各 assignment epoch、準備状態を報告
 
 Session の実行状態は未起動、起動中、復旧中、準備完了、停止処理中、異常を区別する。Control Plane の既存の Session 状態 `Waiting / Presenting / Ended` と、Runtime の実行状態を同一の状態変数にしない。明示的な準備要求で割り当て・起動し、復旧中も含めて準備できた Session だけを ready として報告する。
 
-接続者がゼロになったことだけでは Session を自動終了・アンロードしない。終了、明示的な割り当て解放、Host の停止では対象 Session の実行資源を解放する。接続切断時の既存の pause / 入力同期規則は維持する。Host のプロセスクラッシュでは収容中の全 Session が復旧対象になる。
+本計画の実装では、接続者がゼロになったことだけでは Session を自動終了・アンロードしない。後続の [Room 管理と参加導線](console-room-participation.md) で無人状態が10分続いた場合の終了を追加する。終了、明示的な割り当て解放、Host の停止では対象 Session の実行資源を解放する。接続切断時の既存の pause / 入力同期規則は維持する。Host のプロセスクラッシュでは収容中の全 Session が復旧対象になる。
 
 ## 復旧と実行世代
 

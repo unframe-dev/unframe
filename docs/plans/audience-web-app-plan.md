@@ -1,12 +1,14 @@
 # Audience Webアプリ: 接続・配信・実機受入計画
 
-更新日: 2026-10-27。位置保持PoCは完了し、PNG・動画・GLB描画、匿名参加とブラウザRealtime接続は実装済み。公開環境とスマートフォンでの総合受入、Session別会場設定配布、通信遅延を補償する時計同期が残る。本書はAudience・Backend・配信環境の担当者向けに、完成範囲と残作業をまとめる。
+更新日: 2026-10-30。位置保持PoCは完了し、PNG・動画・GLB描画、匿名参加とブラウザRealtime接続は実装済み。公開環境とスマートフォンでの総合受入、Session別会場設定配布、通信遅延を補償する時計同期が残る。本書はAudience・Backend・配信環境の担当者向けに、完成範囲と残作業をまとめる。
 
 現在の操作は [Audience README](../../app/web/audience/README.md)、契約・接続順は [契約適合](../../app/web/audience/docs/contract-compatibility.md) と [接続境界](../../app/web/audience/docs/connection-boundaries.md)、環境設定は [接続引き継ぎ](../../app/web/audience/docs/handoff-report.md) を参照する。
 
+UI・操作導線とアプリ構造の再設計は [Audience リライト計画](audience-rewrite-plan.md) に従う。本書は対応機能・外部接続・配信・実機受入の残作業を扱う。
+
 ## 実装済みの範囲
 
-- 観客がログイン・登録なしでルームIDを入力し、匿名Viewer資格でjoin→Delivery→bootstrap→WebSocket Control／State→Snapshot／素材適用→StateReadyへ進む。資格の更新・失効、再接続・再同期、退出を扱う。
+- 観客がログイン・登録なしでルームの参加コードを入力し、匿名Viewer資格でjoin→Delivery→bootstrap→WebSocket Control／State→Snapshot／素材適用→StateReadyへ進む。資格の更新・失効、再接続・再同期、退出を扱う。
 - 共有定義から算出するAudience profileによるPNG、opaque H.264 MP4、自己完結GLBの選択、取得検証・資源予算検査とThree.js描画を実装した。
 - Snapshot、sequence／fence、Group／Step、変数、Timeline、Surface／media／model、Step restoreの置換Viewを反映する。ViewerはCue／Flowの進行判断を再実行しない。
 - ルーム参加、カメラ開始、位置合わせ、視聴、再接続・終了のUIを分離した。カメラ・Worker・描画資源の所有と停止・破棄、診断を分離した。
@@ -30,8 +32,9 @@
 
 ## 残る仕様・実装
 
+- [ ] Console の Room 詳細で共有する参加 URL / QR から、コードを再入力せず匿名参加へ進める。[Room 管理と参加導線](console-room-participation.md) の基本仕様に従い、URL の形式・画面遷移を詳細計画する。
 - [ ] native-uiを含む製品の完成範囲を確定し、実装・profile・受入条件を揃える。
-- [ ] Session別の会場設定配布元、取得権限、revision更新時の扱い、設置poseと共有原点の対応を確定し接続する。現在はローカル `/poc-config.json` を使う。
+- [ ] Session別の会場設定配布元、取得権限、revision更新時の扱い、設置poseと共有原点の対応を確定し接続する。現在は `src/fiducials/default-board.json` を bundle から読み込む。
 - [ ] 通信遅延と端末間時計差を測定し、必要な時計補償を実装・検証する。既存のRuntime時計からローカル単調時計への対応・補間とは区別する。
 - [ ] Galaxy ChromeのNORMAL待機停滞を起動診断ログで調査し、原因と必要な修正を確認する。
 
