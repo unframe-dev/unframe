@@ -100,7 +100,8 @@ namespace Unframe.Unity.PresentationRuntime
                 : entry.PlaybackStatus == "Paused" ? "再生準備完了・一時停止中"
                 : entry.PlaybackStatus == "Terminating" ? "プレゼンを終了しています…" : "準備完了";
             if (panel == null && head != null) CreatePanel();
-            if (status != null) status.text = confirmEnd ? "プレゼンを終了しますか？\n続ける場合は「戻る」を選んでください。" : StatusText;
+            if (status != null) status.text = confirmEnd ? "プレゼンを終了しますか？\n続ける場合は「戻る」を選んでください。"
+                : StatusText + (!AudienceMode && !String.IsNullOrEmpty(onboarding?.SharedRoomCode) ? "\nルームコード：" + onboarding.SharedRoomCode : "");
             if (heading != null) heading.text = confirmEnd ? "発表を終了" : detailsOpen ? "設定と接続" : AudienceMode ? "鑑賞メニュー" : "プレゼン操作";
             if (panel != null)
             {

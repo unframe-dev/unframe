@@ -120,7 +120,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 同じDelivery構造・assignmentの更新ではassetAccessだけを交換し、読み込み済み表示とカメラを維持する。新しいURLは以後の素材要求に使う。動画も署名付きURLと期限だけの更新では読み込み済みデコーダーと再生状態を維持し、checksumなど素材情報が変わった場合は再読み込みする。assignmentなどの変更時はカメラを維持しながらRuntimeを作り直し、新しいSnapshotを待つ。異なるpublication／profileの混在はHTTP接続制御で拒否する。API 資格も期限前に更新する。Runtime JWT の交換ではカメラを維持し、新 Snapshot と素材を再適用する。
 
-接続設定は `VITE_AUDIENCE_API_ORIGIN`（HTTPS origin）のみ。未設定なら参加不可として案内する。対応形式と資源予算は共有定義で管理し、profile IDはその内容のSHA-256から算出する。環境変数でprofileを選択しない。資格はメモリのみで、永続保存・リロード後の自動復帰は実装しない。
+接続設定は `VITE_AUDIENCE_API_ORIGIN`（HTTPS origin）のみ。 production build は `.env.production` の `https://api.un-fra.me` を使用する。別環境へ接続する場合は build 時の環境変数で上書きする。未設定なら参加不可として案内する。対応形式と資源予算は共有定義で管理し、profile IDはその内容のSHA-256から算出する。環境変数でprofileを選択しない。資格はメモリのみで、永続保存・リロード後の自動復帰は実装しない。
 
 ## 会場設定
 

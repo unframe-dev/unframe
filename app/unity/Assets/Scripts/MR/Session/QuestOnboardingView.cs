@@ -32,6 +32,7 @@ namespace Unframe.Unity.PresentationRuntime
         public bool IsComplete { get; private set; }
         public QuestOnboardingFlow Flow => flow;
         public GameObject Panel => panel;
+        public string SharedRoomCode => room?.JoinCode?.Replace("-", "") ?? String.Empty;
         public Button FindButton(string name) => buttons.Find(button => button != null && button.name == name);
         public void Refresh() => Draw();
         public event Action Completed;
@@ -177,7 +178,7 @@ namespace Unframe.Unity.PresentationRuntime
                     break;
                 case QuestOnboardingPage.Preparation:
                     Title("発表の準備", selected?.Title ?? "画面プレビュー");
-                    Label("Room", room == null ? "準備ができたらルームを作成します" : "共有するルームコード\n" + room.JoinCode, new Vector2(0, 70), new Vector2(920, 150), 32, QuestUiTheme.Primary);
+                    Label("Room", room == null ? "準備ができたらルームを作成します" : "共有するルームコード\n" + SharedRoomCode, new Vector2(0, 70), new Vector2(920, 150), 32, QuestUiTheme.Primary);
                     Button("Prepare", room == null ? "ルームを作成して接続" : "準備を再試行", 0, -110, 820, () => Run(Prepare));
                     break;
                 case QuestOnboardingPage.Join:

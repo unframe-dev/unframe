@@ -18,7 +18,7 @@ const progressText: Record<JoinSnapshot["phase"], string> = {
 
 const errorText: Record<string, string> = {
   "invalid-config": "現在ルームに接続できません。会場スタッフにご確認ください。",
-  "invalid-join-code": "ルームコードを XXXX-XXXX の形式で入力してください。",
+  "invalid-join-code": "ルームコードを XXXXXXXX の8文字で入力してください。",
   "invalid-session-id": "セッション情報が正しくありません。もう一度参加してください。",
   aborted: "接続準備をキャンセルしました。",
   "network-error": "サーバーに接続できません。通信環境を確認し、もう一度お試しください。",
@@ -45,10 +45,11 @@ export function JoinExperience({ controller }: { controller: JoinController | nu
   const [code, setCode] = useState("");
   const busy = ["joining", "delivery", "bootstrap"].includes(snapshot.phase);
   const prepared = snapshot.phase === "prepared";
-  const validCode = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(code);
+  const validCode = /^[A-HJ-NP-Z2-9]{8}$/.test(code);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (controller && validCode && !busy && !prepared) void controller.join(code);
+    if (controller && validCode && !busy && !prepared)
+      void controller.join(`${code.slice(0, 4)}-${code.slice(4)}`);
   };
 
   return (
@@ -87,13 +88,13 @@ export function JoinExperience({ controller }: { controller: JoinController | nu
             id="audience-room-code"
             name="roomCode"
             value={code}
-            onChange={(event) => setCode(event.target.value.toUpperCase())}
-            placeholder="XXXX-XXXX"
+            onChange={(event) => setCode(event.target.value.toUpperCase().replaceAll("-", ""))}
+            placeholder="XXXXXXXX"
             autoCapitalize="characters"
             autoComplete="off"
             spellCheck={false}
             maxLength={9}
-            pattern="[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}"
+            pattern="[A-HJ-NP-Z2-9]{8}"
             disabled={!controller || busy || prepared}
             aria-describedby="audience-join-status"
           />

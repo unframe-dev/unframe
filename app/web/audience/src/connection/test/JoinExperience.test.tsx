@@ -43,17 +43,46 @@ test("API設定がない場合はログインや接続を要求せず設定待�
   );
 });
 
-test("正しいルームコードだけを送信する", () => {
+test("8文字のルームコードを有効にしてAPI形式で送信する", () => {
   const { controller } = makeController();
   render(<JoinExperience controller={controller} />);
   const input = screen.getByLabelText("ルームコード");
   const submit = screen.getByRole("button", { name: "参加する" });
   fireEvent.change(input, { target: { value: "invalid" } });
   expect((submit as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.change(input, { target: { value: "ABCD-2345" } });
+  expect((input as HTMLInputElement).placeholder).toBe("XXXXXXXX");
+  fireEvent.change(input, { target: { value: "abcd2345" } });
+  expect((input as HTMLInputElement).value).toBe("ABCD2345");
+  expect((input as HTMLInputElement).checkValidity()).toBe(true);
+  expect((submit as HTMLButtonElement).disabled).toBe(false);
   fireEvent.click(submit);
   expect(controller.join).toHaveBeenCalledExactlyOnceWith("ABCD-2345");
 });
+
+test("ハイフン付きコードの貼り付け入力は8文字へ正規化する", () => {
+  const { controller } = makeController();
+  render(<JoinExperience controller={controller} />);
+  const input = screen.getByLabelText("ルームコード") as HTMLInputElement;
+  fireEvent.change(input, { target: { value: "abcd-2345" } });
+  expect(input.value).toBe("ABCD2345");
+  expect(input.checkValidity()).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "参加する" }));
+  expect(controller.join).toHaveBeenCalledExactlyOnceWith("ABCD-2345");
+});
+
+test.each(["ABCD234", "ABCD23456", "ABCD0123", "ABCDI234", "ABCDO234", "ABCD!234"])(
+  "桁数または使用文字が不正なコード %s は送信しない",
+  (code) => {
+    const { controller } = makeController();
+    render(<JoinExperience controller={controller} />);
+    fireEvent.change(screen.getByLabelText("ルームコード"), { target: { value: code } });
+    expect((screen.getByRole("button", { name: "参加する" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    fireEvent.submit(screen.getByRole("form", { name: "ルームに参加" }));
+    expect(controller.join).not.toHaveBeenCalled();
+  },
+);
 
 test("進行中は多重送信を防ぎ取消を受け付ける", () => {
   const { controller, update } = makeController();
@@ -68,7 +97,7 @@ test("進行中は多重送信を防ぎ取消を受け付ける", () => {
 test("認証失敗を日本語で表示し入力コードで再試行できる", () => {
   const { controller, update } = makeController();
   render(<JoinExperience controller={controller} />);
-  fireEvent.change(screen.getByLabelText("ルームコード"), { target: { value: "ABCD-2345" } });
+  fireEvent.change(screen.getByLabelText("ルームコード"), { target: { value: "ABCD2345" } });
   update({ phase: "error", error: "unauthorized" });
   expect(screen.getByRole("alert").textContent).toContain("参加資格");
   fireEvent.click(screen.getByRole("button", { name: "再試行" }));
