@@ -13,7 +13,7 @@ import { RoomPage, RoomsPage } from "@/features/rooms/rooms-page";
 import { DeviceAuthorizationPage } from "@/features/device/device-authorization-page";
 import { HomePage } from "@/features/presentations/home-page";
 import { ApplicationShell } from "@/app/shell/application-shell";
-import { DevicesPage } from "@/app/shell/application-placeholder-pages";
+import { DevicesPage } from "@/features/device/devices-page";
 import { LoginPage, RecoverPage, ResetPage, SignupPage } from "@/features/auth/auth-pages";
 import { ProfilePage, SecurityPage } from "@/features/settings/settings-pages";
 import publicModuleStyles from "@/shared/layouts/public-pages.module.css";

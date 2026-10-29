@@ -34,19 +34,18 @@ public sealed class QuestOnboardingRecoveryTests
     [TearDown]
     public void TearDown() { Object.DestroyImmediate(host); Object.DestroyImmediate(head); }
 
-    [TestCase(QuestOnboardingRole.Presenter)]
-    [TestCase(QuestOnboardingRole.Audience)]
-    public async Task ExpiredAuthenticationReturnsToApprovalAndPreservesTheOriginalRoomAndRole(QuestOnboardingRole role)
+    [Test]
+    public async Task ExpiredAuthenticationReturnsToApprovalAndPreservesTheOriginalRoomAndRole()
     {
         var room = Room("original-session");
-        view.Flow.SelectRole(role);
+        view.Flow.SelectRole(QuestOnboardingRole.Presenter);
         Set(view, "room", room);
         typeof(QuestOnboardingView).GetProperty("IsComplete").SetValue(view, true);
         Assert.That(view.NeedsReauthentication, Is.True);
         await view.RetryConnectionAsync();
         Assert.That(view.IsComplete, Is.False);
         Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Authentication));
-        Assert.That(view.Flow.Role, Is.EqualTo(role));
+        Assert.That(view.Flow.Role, Is.EqualTo(QuestOnboardingRole.Presenter));
         Assert.That(typeof(QuestOnboardingView).GetField("room", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(view), Is.SameAs(room));
         Assert.That(view.FindButton("Authorize"), Is.Not.Null);
         view.FindButton("Back").onClick.Invoke();
@@ -76,15 +75,16 @@ public sealed class QuestOnboardingRecoveryTests
     }
 
     [Test]
-    public void PlaybackDetectsExpiredAuthenticationWithoutWaitingForAButtonPress()
+    public void PlaybackReturnsAnExpiredAnonymousViewerToJoinWithoutDeviceApproval()
     {
         view.Flow.SelectRole(QuestOnboardingRole.Audience);
         Set(view, "room", Room("session"));
         typeof(QuestOnboardingView).GetProperty("IsComplete").SetValue(view, true);
         typeof(QuestOnboardingView).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, null);
         Assert.That(view.IsComplete, Is.False);
-        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Authentication));
-        Assert.That(view.FindButton("Authorize"), Is.Not.Null);
+        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Join));
+        Assert.That(view.FindButton("Authorize"), Is.Null);
+        Assert.That(view.FindButton("Join"), Is.Not.Null);
     }
 
     [Test]

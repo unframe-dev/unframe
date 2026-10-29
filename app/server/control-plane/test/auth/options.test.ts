@@ -835,6 +835,15 @@ describe("Better Auth device authorization", () => {
     expect(token.access_token).toEqual(expect.any(String));
     expect(token.access_token).not.toBe(browser.token);
 
+    const deviceList = await requestAuth("/list-sessions", { headers: { cookie: browser.cookie } });
+    expect(deviceList.status).toBe(200);
+    expect(await deviceList.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ assurance: "device", userId: browser.userId }),
+        expect.objectContaining({ assurance: "google", userId: browser.userId }),
+      ]),
+    );
+
     const session = await requestAuth("/get-session", {
       headers: { authorization: `Bearer ${token.access_token}` },
     });

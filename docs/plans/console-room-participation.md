@@ -1,6 +1,6 @@
 # Console からの Room 管理と参加導線
 
-更新日: 2026-10-30。状態: 段階的に実装中。Control Plane の所有 Room 一覧・参加コード管理と、Console／Audience の URL・QR 共有導線を実装。Quest の参加導線と無人終了は後続。
+更新日: 2026-10-30。状態: 段階的に実装中。Control Plane の Room 管理、Console／Audience の共有導線、Quest の認証保持・既存 Room／匿名参加を実装。無人終了は後続。
 
 Console・Quest・Audience・サーバーの実装担当者向けに、Room 作成から認証・参加・共有・終了までの到達点をまとめる。確定した要件と、後続の詳細計画で判断する事項を分ける。
 
@@ -27,11 +27,11 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 
 1. Quest で認証コードを発行し、スマホ / PC の Console で承認する既存の Device Authorization を使う。
 2. Console の「デバイス」画面を一覧画面として整備し、コード入力・承認画面へもたどれるようにする。現在の `/devices` と `/device` の分断を解消する。
-3. 一度承認した Quest の認証をアプリ再起動後も保持し、デバイス画面で認証済み端末を確認できるようにする。保持期間は3日を候補とし、固定期限か利用時更新かは未確定。
+3. 一度承認した Quest の認証を、応答の `expires_in` から算出した期限まで保持し、アプリ再起動後も復元する。保存側では期限を延長しない。デバイス画面では承認済み端末の有効な認証セッションを確認する。
 4. 有効な認証があれば、Quest から自分が作成した Room の一覧を取得し、既存 Room を選んで Presenter として接続する。Console で作成した Room も対象とする。
 5. Room 選択後は既存の Runtime 準備・接続・校正を経て発表へ進む。Quest の「資料選択から新規 Room 作成」の既存経路も維持する。
 
-認証保持は、承認後に受け取るアカウントの access token と有効期限を Quest に永続保存し、起動時に復元することで実現できる。一時的な承認用 device code を保存して使い回す方式ではない。期限切れ・失効が判明した資格は破棄して再承認へ進む。保存手段には、[Android Keystore](https://developer.android.com/privacy-and-security/keystore) の鍵による暗号化と [アプリ専用の内部ストレージ](https://developer.android.com/training/data-storage/app-specific) を利用できる。具体的な保存 API と保持期間は詳細計画で決める。
+承認後のアカウントの access token と有効期限を保存し、承認用 device code は保存しない。Android では Keystore の AES-GCM 鍵を使い、API origin と client ID を scope にしてアプリ内部の no-backup 領域へ暗号文を保存する。期限切れ・401 応答時は保存資格を破棄して再承認へ進む。Editor では永続保存しない。匿名 Viewer 資格は別にメモリで保持し、更新と退出時の失効を行う。
 
 ### Quest: Room コードで匿名 Viewer として参加
 
@@ -64,16 +64,16 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 
 ## 現行実装との差分
 
-以下は調査時点の現行動作であり、上記の導線が既に完成していることを意味しない。
+以下はコード上の実装状況。公開環境・Quest 実機・QR 撮影での総合受入は未実施。
 
-| 対象                 | 現行動作と不足                                                                                                                                                                                |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Console の Room 画面 | `/rooms` に所有 Room 一覧と新規作成があり、作成後は詳細へ進む。詳細では準備・開始・終了、現在コードの取得・更新、匿名 Viewer URL の表示・コピーと QR 生成を扱う。                             |
-| デバイス管理         | `/device` の承認は実装済み。`/devices` は仮画面で承認画面への入口もない。`/settings/security` に認証セッション一覧・他セッション一括失効はあるが、端末管理ではない。                          |
-| Quest                | Device Authorization、新規 Room 作成、認証済み Viewer のコード参加はある。認証はメモリ保持で、永続保存・所有 Room 一覧・既存 Room への Presenter 参加・匿名資格を発行して参加する UI はない。 |
-| Audience             | `/#join=ABCD-EFGH` を読み取り、入力済みの確認画面から匿名参加する。コードを読み取った後は URL の `join` を除く。手入力参加と明示カメラ開始も維持する。                                        |
-| Control Plane        | 作成・コード参加・取得・開始・終了に加え、作成者の Room 一覧と現在コードの取得・更新を提供する。コードは通常の Session 応答には含めず、更新後の旧コードは新規参加に使えない。                 |
-| Realtime             | Presenter 切断時は実行を一時停止する。実接続者がゼロになってから10分後に Room を終了する機能はない。                                                                                          |
+| 対象                 | 現行動作と不足                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Console の Room 画面 | `/rooms` に所有 Room 一覧と新規作成があり、作成後は詳細へ進む。詳細では準備・開始・終了、現在コードの取得・更新、匿名 Viewer URL の表示・コピーと QR 生成を扱う。                           |
+| デバイス管理         | `/devices` に Device Authorization で作った有効な認証セッションを表示し、`/device` の承認画面と往復できる。他セッションの一括失効は `/settings/security` で扱う。専用の端末台帳は設けない。 |
+| Quest                | Android の認証保持、所有 Room のページング一覧と Presenter 参加、資料からの新規作成、コードによる匿名 Viewer 参加・資格更新・退出を実装済み。実機の Keystore／JNI・接続受入は未実施。       |
+| Audience             | `/#join=ABCD-EFGH` を読み取り、入力済みの確認画面から匿名参加する。コードを読み取った後は URL の `join` を除く。手入力参加と明示カメラ開始も維持する。                                      |
+| Control Plane        | 作成・コード参加・取得・開始・終了に加え、作成者の Room 一覧と現在コードの取得・更新を提供する。コードは通常の Session 応答には含めず、更新後の旧コードは新規参加に使えない。               |
+| Realtime             | Presenter 切断時は実行を一時停止する。実接続者がゼロになってから10分後に Room を終了する機能はない。                                                                                        |
 
 確認先: [Console](../../app/web/console/README.md)、[Quest onboarding](../../app/unity/Assets/Scripts/MR/Session/QuestOnboardingView.cs)、[Audience 入口](../../app/web/audience/src/connection/AudienceApplication.tsx)、[Session API](../../app/server/control-plane/src/modules/sessions/routes.ts)、[Runtime presence](../../app/server/realtime/internal/runtimecore/v2_presence.go)。
 
@@ -81,7 +81,7 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 
 次は会話中の候補・実装案であり、確定要件として扱わない。
 
-- デバイス認証の保持期間を3日にするか、固定期限・利用時更新のどちらにするか。端末の識別・表示項目、個別失効 UI、資格保存の具体的な API と更新方式。
+- 端末固有の識別・名称を管理する台帳と、認証セッションの個別失効 UI。現在は既存の認証セッション一覧と他セッション一括失効を使う。
 - 無人判定の信頼境界、切断検知、再入室と終了の競合、Host 再起動・障害時の計時と終了確定。
 
-後続は契約・保存、Control Plane、Realtime、Console、Quest、Audience、運用に分けて計画する。API の形、DB schema、レイヤーごとの実装・検証手順はその際に決める。実装経緯は [複数 Session 管理](realtime-runtime-redesign.md) と [Presenter 認識の残作業](presenter-recognition-runtime-authority-refactor.md) を参照する。
+後続では無人終了の永続化と競合制御を具体化し、実機・公開環境で受け入れを確認する。実装経緯は [複数 Session 管理](realtime-runtime-redesign.md) と [Presenter 認識の残作業](presenter-recognition-runtime-authority-refactor.md) を参照する。
