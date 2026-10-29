@@ -30,6 +30,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly PresentationTextureResidency textures;
         private readonly Func<CancellationToken, Task> prepareResources;
         private readonly Func<bool> additionalResidency;
+        private readonly PresentationSessionDiagnostics diagnostics;
         private readonly SemaphoreSlim writes = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim stateWrites = new SemaphoreSlim(1, 1);
         private readonly object pendingGate = new object();
@@ -60,12 +61,13 @@ namespace Unframe.Unity.PresentationRuntime
         public event Action Disconnected;
         public event Action<ResyncReason> SnapshotResynchronizationRequired;
 
-        public PresentationRealtimeConnection(PresentationRuntimeDataStore store, PresentationTextureResidency textures, Func<CancellationToken, Task> prepareResources = null, Func<bool> additionalResidency = null)
+        public PresentationRealtimeConnection(PresentationRuntimeDataStore store, PresentationTextureResidency textures, Func<CancellationToken, Task> prepareResources = null, Func<bool> additionalResidency = null, PresentationSessionDiagnostics diagnostics = null)
         {
             this.store = store ?? throw new ArgumentNullException(nameof(store));
             this.textures = textures ?? throw new ArgumentNullException(nameof(textures));
             this.prepareResources = prepareResources;
             this.additionalResidency = additionalResidency;
+            this.diagnostics = diagnostics;
         }
 
         public async Task RunAsync(Uri endpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken, string certFingerprint = null, Func<YetAnotherHttpHandler> handlerFactory = null)
@@ -84,6 +86,7 @@ namespace Unframe.Unity.PresentationRuntime
                 for (int attempt = 0; ; attempt = Math.Min(5, attempt + 1))
                 {
                     RequireResidency();
+                    diagnostics?.Record(attempt == 0 ? "connection.stage" : "connection.retry", stage: "Connecting", kind: "Realtime");
                     string bearer = await bearerProvider(lifetime.Token);
                     if (string.IsNullOrWhiteSpace(bearer)) throw new InvalidOperationException("A fresh realtime bearer credential is required.");
                     try
@@ -125,6 +128,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 ControlReady = false;
                 SessionReady = false;
+                diagnostics?.Record("connection.closed", kind: "Realtime");
                 Disconnected?.Invoke();
                 lifetime.Dispose();
                 lifetime = null;
@@ -178,6 +182,7 @@ namespace Unframe.Unity.PresentationRuntime
                                         || item.Connected.ProgressionContractVersion != handshake.ProgressionContractVersion)
                                         throw Failure("realtime connected projection mismatch");
                                     connected = true;
+                                    diagnostics?.Record("connection.stage", stage: "Connected", kind: "Realtime");
                                     connectionId = item.Connected.ConnectionId;
                                     continue;
                                 }
@@ -244,11 +249,15 @@ namespace Unframe.Unity.PresentationRuntime
                                 else if (!store.TryReceiveNetworkControl(item, out string error)) throw Failure(error);
                                 if (item.ItemCase == ControlServerItem.ItemOneofCase.CommandOutcome)
                                 {
+                                    diagnostics?.Record("control.outcome", direction: "receive", kind: item.CommandOutcome.ResultCase.ToString(), reliableSequence: store.LastReliableSequence, runtimeTimeMs: store.RuntimeClock?.RuntimeTimeMs, code: item.CommandOutcome.Rejected?.Reason.ToString() ?? item.CommandOutcome.NoOp?.Reason.ToString(), commandId: item.CommandOutcome.ClientEventId);
                                     lock (pendingGate)
                                         if (pendingOutcomes.TryGetValue(item.CommandOutcome.ClientEventId, out var completion)) completion.TrySetResult(item.CommandOutcome.Clone());
                                 }
                                 if (store.LastReliableSequence != priorReliableSequence || (store.PresentationOrigin?.Version ?? 0) != priorOriginVersion)
+                                {
+                                    diagnostics?.Record("control.received", direction: "receive", kind: item.ReliableEvent?.PayloadCase.ToString() ?? item.ItemCase.ToString(), reliableSequence: store.LastReliableSequence, runtimeTimeMs: store.RuntimeClock?.RuntimeTimeMs, groupId: store.Progression?.CurrentGroupId, stepId: store.Progression?.CurrentStepId);
                                     ReliableDisplayChanged(item);
+                                }
                                 if (fence != null && store.PresentationOrigin != null)
                                     fence.PresentationOriginVersion = store.PresentationOrigin.Version;
                                 ApplyStepCatalog();
@@ -493,6 +502,7 @@ namespace Unframe.Unity.PresentationRuntime
                 awaitingKeyframe = false;
                 SessionReady = true;
             }
+            diagnostics?.SampleState(store.LastReliableSequence, frame.FrameSequence, frame.ProducedAtRuntimeTimeMs, store.Progression?.CurrentGroupId, store.Progression?.CurrentStepId);
             applied = true;
             return true;
         }
@@ -558,6 +568,7 @@ namespace Unframe.Unity.PresentationRuntime
                     throw new InvalidOperationException("The runtime input connection is no longer ready.");
                 token.ThrowIfCancellationRequested();
                 await expectedControl.RequestStream.WriteAsync(command);
+                diagnostics?.Record("control.sent", direction: "send", kind: command.RuntimeControl != null ? command.RuntimeControl.Kind.ToString() : command.ItemCase.ToString(), reliableSequence: store.LastReliableSequence, runtimeTimeMs: store.RuntimeClock?.RuntimeTimeMs, groupId: store.Progression?.CurrentGroupId, stepId: store.Progression?.CurrentStepId, commandId: command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId);
             }
             finally { writes.Release(); }
         }
@@ -591,6 +602,7 @@ namespace Unframe.Unity.PresentationRuntime
                 token.ThrowIfCancellationRequested();
                 frame.FrameSequence = ++trackingFrameSequence;
                 await expectedState.RequestStream.WriteAsync(new StateClientItem { TrackingFrame = frame });
+                diagnostics?.SampleTracking(frame.FrameSequence);
             }
             finally { stateWrites.Release(); }
         }

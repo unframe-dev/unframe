@@ -4,6 +4,7 @@ node_modules/
 # env
 .env*
 !.env.example
+!app/web/audience/.env.production
 
 # Cloudflare Wrangler — `.dev.vars` はローカル Worker の秘密値
 .dev.vars*
@@ -12,6 +13,9 @@ node_modules/
 .wrangler/
 
 # logs
+unframe-session-diagnostic-*.json
+unframe-*-session-diagnostic*.json
+SessionDiagnostics/
 .playwright-mcp/
 *.log
 npm-debug.log*

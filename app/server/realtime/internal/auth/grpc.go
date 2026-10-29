@@ -28,11 +28,16 @@ func NewBearerStreamServerInterceptor(verifier *BearerTokenVerifier) grpcgo.Stre
 		if len(authorizations) != 1 {
 			return status.Error(codes.Unauthenticated, "realtime connection is unauthenticated")
 		}
-		identity, err := verifier.VerifyBearer(stream.Context(), authorizations[0], "realtime:connect")
+		credential, err := verifier.verifyBearerCredential(stream.Context(), authorizations[0], "realtime:connect")
 		if err != nil {
 			return status.Error(codes.Unauthenticated, "realtime connection is unauthenticated")
 		}
-		return handler(server, contextServerStream{ServerStream: stream, context: ContextWithIdentity(stream.Context(), identity)})
+		ctx, cancel := context.WithDeadline(stream.Context(), credential.ExpiresAt)
+		defer cancel()
+		if err := ctx.Err(); err != nil {
+			return status.FromContextError(err).Err()
+		}
+		return handler(server, contextServerStream{ServerStream: stream, context: ContextWithIdentity(ctx, credential.Identity)})
 	}
 }
 
@@ -43,4 +48,26 @@ type contextServerStream struct {
 
 func (s contextServerStream) Context() context.Context {
 	return s.context
+}
+
+func (s contextServerStream) SendMsg(message any) error {
+	if err := s.context.Err(); err != nil {
+		return status.FromContextError(err).Err()
+	}
+	err := s.ServerStream.SendMsg(message)
+	if contextErr := s.context.Err(); contextErr != nil {
+		return status.FromContextError(contextErr).Err()
+	}
+	return err
+}
+
+func (s contextServerStream) RecvMsg(message any) error {
+	if err := s.context.Err(); err != nil {
+		return status.FromContextError(err).Err()
+	}
+	err := s.ServerStream.RecvMsg(message)
+	if contextErr := s.context.Err(); contextErr != nil {
+		return status.FromContextError(contextErr).Err()
+	}
+	return err
 }

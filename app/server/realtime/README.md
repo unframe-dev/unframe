@@ -4,6 +4,8 @@ Go 1.25.7 と gRPC を使う、Control Plane から独立した Cloud / Venue Ed
 
 Realtime Backend / Venue Edge の目標設計は [ARCHITECTURE.md](./ARCHITECTURE.md)、Control Plane との authority handoff は [`../ARCHITECTURE.md`](../ARCHITECTURE.md) を参照してください。
 
+native gRPC とブラウザ WebSocket の Control / State 接続は、認証に使った JWT の有効期限で閉じます。assignment lease の更新では既存 JWT の期限を延長しません。継続する client は新しい credential を取得して再接続してください。
+
 ## Venue Edge の起動
 
 Cloud は下記の Cloud Host を使用します。以下は登録・割り当て済み Venue Edge 用です。[会場検証手順](../../../docs/validation/venue-edge-asset-delivery.md#会場構成と証明書)に従い、環境変数例の仮値を置き換え、TLS 証明書・鍵・cache のパスを設定してから起動します。

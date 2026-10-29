@@ -96,7 +96,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public async Task RunAsync(DeliveryManifest manifest, Uri realtimeEndpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken,
             string certFingerprint = null, PresentationEncodedAssetCache encodedCache = null,
-            Func<HttpMessageHandler> httpHandlerFactory = null, Func<YetAnotherHttpHandler> realtimeHandlerFactory = null)
+            Func<HttpMessageHandler> httpHandlerFactory = null, Func<YetAnotherHttpHandler> realtimeHandlerFactory = null, PresentationSessionDiagnostics diagnostics = null)
         {
             if (lifetime != null) throw new InvalidOperationException("A presentation is already running.");
             if (calibration == null || questTrackingOrigin == null) throw new InvalidOperationException("Presentation calibration must be configured before running.");
@@ -120,8 +120,9 @@ namespace Unframe.Unity.PresentationRuntime
                 playback.Models = sceneRenderer.Models;
                 playback.Videos = sceneRenderer.Videos;
                 DownloadReady = true;
+                diagnostics?.Record("assets.ready", direction: "receive", count: selectedAssets.Count);
                 connection = new PresentationRealtimeConnection(store, sceneRenderer.Textures,
-                    token => sceneRenderer.Videos.PrepareVisibleAsync(store, token), () => sceneRenderer.HasResidentAssets(store));
+                    token => sceneRenderer.Videos.PrepareVisibleAsync(store, token), () => sceneRenderer.HasResidentAssets(store), diagnostics);
                 connection.RuntimeChanged += Refresh;
                 connection.InputSynchronization.Invalidated += () => InputInvalidated?.Invoke();
                 connection.Disconnected += HandleDisconnected;

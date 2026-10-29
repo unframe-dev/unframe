@@ -1,3 +1,4 @@
+import type { SessionRecorder } from "../diagnostics/session-recorder";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { assertViewerDelivery } from "../runtime/viewer-policy";
@@ -108,6 +109,7 @@ function displayError(error: unknown): string {
 export function createJoinController(options: {
   client: ReturnType<typeof createAudienceHttpClient> & { leave?(): Promise<void> };
   capabilityProfileId: string;
+  recorder?: SessionRecorder;
   now?: () => number;
 }) {
   const now = options.now ?? Date.now;
@@ -126,6 +128,11 @@ export function createJoinController(options: {
   let recoveryAttempt = 0;
   let recovering = false;
   function publish(next: JoinSnapshot) {
+    options.recorder?.record("connection.stage", {
+      stage: next.phase,
+      ...("error" in next ? { code: next.error } : {}),
+      ...("session" in next ? { sessionId: next.session?.id } : {}),
+    });
     state.setState(next, true);
   }
   function releaseIdentity() {
@@ -232,10 +239,20 @@ export function createJoinController(options: {
       try {
         if (code !== undefined) {
           joinedSession = null;
+          options.recorder?.setContext({});
+          options.recorder?.record("session.join", { stage: "request" });
           publish({ phase: "joining" });
+          options.recorder?.record("http.request", { direction: "send", kind: "join" });
           const joined = await options.client.join(code, pending.signal);
           if (!current()) return;
           joinedSession = structuredClone(joined);
+          options.recorder?.setContext({ sessionId: joined.id });
+          options.recorder?.record("session.join", { stage: "success" });
+          options.recorder?.record("http.response", {
+            direction: "receive",
+            kind: "join",
+            stage: "success",
+          });
         }
         const session = joinedSession;
         if (!session) {
@@ -245,15 +262,42 @@ export function createJoinController(options: {
         if (session.state === "Ended") throw new AudienceConnectionError("session-ended");
         const publicSession = { id: session.id, state: session.state };
         if (!retaining && !recovering) publish({ phase: "delivery", session: publicSession });
+        options.recorder?.record("delivery.received", { stage: retaining ? "refresh" : "request" });
+        options.recorder?.record("http.request", { direction: "send", kind: "delivery" });
         const delivery = await options.client.delivery(session.id, pending.signal);
         if (!current()) return;
         validateDelivery(session, delivery, options.capabilityProfileId);
+        options.recorder?.record("http.response", {
+          direction: "receive",
+          kind: "delivery",
+          stage: "success",
+        });
+        options.recorder?.record("delivery.received", {
+          stage: "success",
+          publicationEpoch: delivery.publication?.publicationEpoch,
+        });
         if (!retaining && !recovering) publish({ phase: "bootstrap", session: publicSession });
+        options.recorder?.record("bootstrap.received", {
+          stage: retaining ? "refresh" : "request",
+        });
+        options.recorder?.record("http.request", { direction: "send", kind: "bootstrap" });
         const bootstrap = await options.client.bootstrap(session.id, pending.signal);
         if (!current()) return;
         if (retaining) expire();
         if (!current()) return;
         validateBootstrap(delivery, bootstrap);
+        options.recorder?.record("http.response", {
+          direction: "receive",
+          kind: "bootstrap",
+          stage: "success",
+        });
+        options.recorder?.setContext({
+          sessionId: session.id,
+          runtimeId: bootstrap.runtimeId,
+          assignmentEpoch: String(bootstrap.assignmentEpoch),
+          publicationEpoch: String(bootstrap.publicationFence.publicationEpoch),
+        });
+        options.recorder?.record("bootstrap.received", { stage: "success" });
         const nextSession = { ...session, publicationFence: { ...bootstrap.publicationFence } };
         const connection = structuredClone({ session: nextSession, delivery, bootstrap });
         expiry(connection, now());
@@ -268,6 +312,10 @@ export function createJoinController(options: {
         publishPrepared(false);
       } catch (error) {
         if (!current()) return;
+        options.recorder?.record("connection.stage", {
+          stage: "failure",
+          code: displayError(error),
+        });
         if (
           error instanceof AudienceConnectionError &&
           (error.code === "runtime-unavailable" ||
@@ -341,6 +389,7 @@ export function createJoinController(options: {
       return acquire();
     },
     reconnect() {
+      options.recorder?.record("connection.retry", { stage: "reconnect" });
       return acquire(undefined, true);
     },
     cancel() {
@@ -350,6 +399,7 @@ export function createJoinController(options: {
       if (!disposed) publish({ phase: "idle" });
     },
     leave() {
+      options.recorder?.record("connection.stage", { stage: "leave" });
       stop();
       releaseIdentity();
       joinedSession = null;

@@ -1,3 +1,4 @@
+import { downloadSessionDiagnostic, type SessionRecorder } from "../diagnostics/session-recorder";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
@@ -23,6 +24,7 @@ import {
 import type { createTrackingAdapter } from "../tracking/adapter";
 
 export interface ViewerExperienceProps {
+  recorder?: SessionRecorder;
   connection: PreparedConnection;
   onLeave(): void;
   onRefresh(): void;
@@ -79,6 +81,7 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   const recovery = useRef<{ input: RuntimeInput; id: number } | null>(null);
   currentConnection.current = props.connection;
   installer.current = props.onRuntimeInput;
+  const lastRendering = useRef<string | undefined>(undefined);
   const [boardConfig, setConfig] = useState<BoardConfig | null>(null);
   const [markerSize, setMarkerSize] = useState<number | null>(null);
   const config = useMemo(
@@ -187,10 +190,34 @@ export function ViewerExperience(props: ViewerExperienceProps) {
   }, [config, props.connection, props.recovering]);
 
   useEffect(() => {
-    const notify = () => props.onViewingSnapshot?.(viewingStore.getState());
+    const notify = () => {
+      const viewing = viewingStore.getState();
+      props.onViewingSnapshot?.(viewing);
+      const runtime = viewing.runtime;
+      if (runtime?.rendering !== lastRendering.current) {
+        lastRendering.current = runtime?.rendering;
+        if (runtime?.rendering)
+          props.recorder?.record("assets.ready", {
+            stage: runtime.rendering,
+            sessionId: props.connection.session?.id,
+          });
+      }
+      props.recorder?.observe({
+        sessionId: props.connection.session?.id,
+        runtimeId: props.connection.bootstrap.runtimeId,
+        assignmentEpoch: String(props.connection.bootstrap.assignmentEpoch),
+        publicationEpoch: String(props.connection.bootstrap.publicationFence?.publicationEpoch),
+        groupId: runtime?.view?.progression.currentGroupId,
+        stepId: runtime?.view?.progression.currentStepId,
+        stage: viewing.phase,
+        reliableSequence: runtime?.reliableSequence,
+        stateSequence: runtime?.stateSequence,
+        runtimeTimeMs: runtime?.view?.clock.runtimeTimeMilliseconds,
+      });
+    };
     notify();
     return viewingStore.subscribe(notify);
-  }, [viewingStore, props.onViewingSnapshot]);
+  }, [viewingStore, props.onViewingSnapshot, props.recorder, props.connection]);
 
   useEffect(() => {
     const synchronize = () => {
@@ -385,6 +412,11 @@ export function ViewerExperience(props: ViewerExperienceProps) {
                 <button onClick={reconnect}>再接続</button>
               )}
               <button onClick={download}>状態をJSON保存</button>
+              {props.recorder && (
+                <button onClick={() => downloadSessionDiagnostic(props.recorder!)}>
+                  接続テストログを保存
+                </button>
+              )}
               <button onClick={props.onLeave}>ルームから退出</button>
             </div>
             <details>

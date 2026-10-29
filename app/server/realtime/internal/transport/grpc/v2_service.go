@@ -456,6 +456,9 @@ func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		if err != nil {
 			return err
 		}
+		if err := stream.Context().Err(); err != nil {
+			return err
+		}
 		if err := s.assignments.AllowCommand(claim); err != nil {
 			return assignmentError(err)
 		}
@@ -668,6 +671,10 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 			}
 			if err := s.assignments.AllowCommand(assignmentClaim(identity)); err != nil {
 				stateInput <- assignmentError(err)
+				return
+			}
+			if err := stream.Context().Err(); err != nil {
+				stateInput <- err
 				return
 			}
 			if identity.Role != session.RolePresenter {

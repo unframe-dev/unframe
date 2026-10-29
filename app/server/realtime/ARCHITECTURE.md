@@ -279,7 +279,7 @@ RuntimeAssignment
 - Control Plane は旧 Runtime から明示的な lease 返却を受けるか、旧 lease の期限が切れるまで新しい active assignment を発行しない。強制切替時も旧 lease の期限まで session を停止し、二つの Runtime を同時に active authority にしない。
 - lease renewalの期限はControl Planeのpolicyで制限し、Runtimeのcredentialだけで任意の長期間へ延長できないようにする。現在のVenue Edge renew APIは要求された絶対期限を5分以内に制限し、canonical ISO形式へ正規化する。
 - Runtime は接続、command、state 更新、checkpoint の処理前に、local assignment の `runtimeId`、`runtimeKind`、`assignmentEpoch`、PublicationFence、lease 有効期限を検証する。
-- Quest 用 JWT と bootstrap response は `runtimeId`、`runtimeKind`、`assignmentEpoch`、`presentationId`、`publicationEpoch`、`publicationManifestHash` を拘束する。古い世代、公開物、または別配置先の credential を受け入れない。
+- Quest 用 JWT は `runtimeId`、`runtimeKind`、`assignmentEpoch`、`presentationId`、`presentationRevision` を拘束する。`publicationEpoch` と `publicationManifestHash` は JWT に含めず、bootstrap と Control Plane の participant projection / Asset 認可応答を Session 固定の PublicationFence と照合する。
 - lease を更新できない場合、既存 connection は `leaseExpiresAt` までだけ継続できる。期限後は Session Runtime を pause し、新規接続、command 受付、state 更新を停止する。
 - Control Plane は古い `assignmentEpoch` から届いた checkpoint、completion、telemetry を現行 session state へ適用しない。
 
@@ -509,11 +509,13 @@ Step 入場・再入場・選択、pause / resume、切断復旧、再校正で 
 
 通常再送は同じ ID と内容を使う。認証・Session 等の拘束を検証した後、保存済み Outcome を新規入力の Step・世代検証より先に返し、異なる内容での ID 再利用を拒否する。未確認 Outcome は保持し、上限前に受付を止め、状態同期・新世代への切替・client の古い送信待ち操作の破棄を確認してから旧記録を整理する。記録消去だけで古いイベントを新規実行しない。切断復旧では未処理操作を持ち越さず server の確定状態へ同期する。長時間切断に厳密な再送期限は設けず、必要時は到達済み Step の開始状態へ戻してやり直す。
 
-Pose は連続演出に必要な latest-wins 入力として送信を続ける。送受信とも未処理の最新 frame 一つだけを持ち、`Send` は一つだけ in-flight とする。古い frame は再送・replay・永続化せず、`frameSequence` と Origin / calibration の拘束を検証する。capture 時刻は診断専用とし、freshness は Runtime 受理時の monotonic 時刻で判定する。write block が `stateWriteBlockTimeout` を超えた場合は State Connection だけを再確立する。認識器の内部状態と Pose の保持・投影は分離する。
+Pose は連続演出に必要な latest-wins 入力として送信を続ける。送受信とも未処理の最新 frame 一つだけを持ち、`Send` は一つだけ in-flight とする。古い frame は再送・replay・永続化せず、`frameSequence` と Origin / calibration の拘束を検証する。capture 時刻は診断専用とし、freshness は Runtime 受理時の monotonic 時刻で判定する。`stateWriteBlockTimeout` による State Connection だけの再確立は未実装の目標とし、現在の Runtime は JWT / assignment lease の期限で送信待ちを終了する。認識器の内部状態と Pose の保持・投影は分離する。
 
 ### 8.4 Element State Stream
 
 割り当て済み Runtime から全 Quest へ送る。
+
+現在の実装は、Running 中に50 ms周期で visible な全 Node / Anchor binding の keyframe を送る。Timeline が所有する補間値は除外する。field-merge mailbox は fan-out に未接続であり、差分配信、`stateWriteBlockTimeout`、`stateMaxFrameAge` は未実装である。送信待ちは JWT / assignment lease の期限と接続の終了で打ち切る。以下の差分 frame と mailbox の記述は目標設計である。
 
 ```text
 ElementStateFrame
@@ -790,10 +792,12 @@ JWT は少なくとも次を拘束する。
 - role
 - Runtime ID / kind
 - assignment epoch
-- PublicationFence (`presentationId`、`publicationEpoch`、`publicationManifestHash`)
+- Presentation ID / revision
 - scope: 共通の `realtime:connect`、Venue Edge Asset Gateway 用の `assets:read`
 - protocol version
 - expiry / not-before
+
+PublicationFence は JWT に含めず、bootstrap と Control Plane の participant projection / Asset 認可応答で照合する。native gRPC とブラウザ WebSocket の Control / State 接続は、認証に使った JWT の期限までとする。assignment lease を更新しても既存 JWT の期限は延長しない。継続する client は新しい credential で再接続する。
 
 Venue Edge 配置では同じ JWT を gRPC と local HTTPS で共用するが、各入口は自身に必要な scope を独立して検証する。`assets:read`だけでRealtime RPCを呼び出したり、`realtime:connect`だけでAssetを取得したりすることはできない。Cloud 配置の Asset signed URL は Runtime JWT と別に Control Plane が認可・発行する。
 
@@ -824,13 +828,12 @@ Internet は session の正式な必須要件とする。障害時挙動は配�
 
 Cloud Runtime 配置では Quest と Runtime の経路自体が失われるため、client は同じ endpoint へ再接続し、Runtime は保持済み Snapshot / replay から復帰を試みる。lease が失効し、再割り当ての条件を満たす場合は新しい assignment を発行する。保存済み checkpoint があれば、Control Plane の D1 から一時停止状態へ復元する。保存元の検証に失敗した場合は起動を拒否する。
 
-Venue Edge 配置では短時間の WAN 回線揺らぎで即座に発表を停止しないため、次の grace behavior を持てるようにする。
+現在の Venue Edge 配置は、WAN 障害時に次のように動作する。
 
-- 既存 participant の Realtime通信は assignment lease の残存期間だけ継続する。
-- 新規 login / join / credential refreshと、EdgeからCloudへのAsset prefetchまたはcache miss取得は失敗する。
-- すでにcache済みのAssetは、QuestのJWTとassignment leaseが有効な間だけlocal HTTPSで配信を継続する。
-- checkpoint / telemetry を bounded local buffer に保持する。
-- Internet 復旧後に idempotent に upload する。
+- 既存 participant の Realtime 通信は JWT と assignment lease の両方が有効な間だけ継続する。
+- 新規 login / join / credential refresh と、Edge から Cloud への cache miss 取得は失敗する。
+- cache hit でも配信前に Control Plane へ再認可を要求するため、WAN 障害中は cache 済み Asset の新しい取得要求も拒否する。取得済み Asset は client 側の cache / residency 規則に従う。
+- checkpoint はメモリ上で最新状態を保持し、backoff 付きで保存を再試行する。永続的な local checkpoint / telemetry buffer は未実装である。
 - lease期限超過時はruntimeを`Paused`へ遷移し、新規接続、Connection Resume、command受付、state更新を停止する。warning / `Terminating`へのtimeout policyは別途明示する。
 
 Internet 障害中の継続は best-effort であり、offline 対応を正式要件にはしない。

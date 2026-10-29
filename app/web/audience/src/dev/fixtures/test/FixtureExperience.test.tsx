@@ -145,6 +145,7 @@ test("描画エラーを表示し初期状態へ再試行できる", async () =>
     ...mocks.runtimeSnapshot,
     phase: "ready",
     rendering: "error",
+    reliableSequence: "0",
     error: "presentation-render-failed",
     reason: null,
     view: null,
