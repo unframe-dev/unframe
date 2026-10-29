@@ -91,6 +91,46 @@ async function requestWithAuth(
   return customAuth.handler(new Request(`https://example.com/api/auth${path}`, init));
 }
 
+async function completeGoogleSignIn(customAuth: ReturnType<typeof createAuth>, email: string) {
+  const profile = { sub: crypto.randomUUID(), email, email_verified: true, name: "Google User" };
+  const idToken = `eyJhbGciOiJSUzI1NiJ9.${btoa(JSON.stringify(profile))}.test-signature`;
+  const originalFetch = globalThis.fetch;
+  const providerFetch = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url === "https://oauth2.googleapis.com/token") {
+      return Promise.resolve(
+        Response.json({
+          access_token: "test-google-token",
+          token_type: "Bearer",
+          id_token: idToken,
+        }),
+      );
+    }
+    return originalFetch(input, init);
+  });
+  try {
+    const signIn = await requestWithAuth(customAuth, "/sign-in/social", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        provider: "google",
+        callbackURL: "https://un-fra.me/device",
+        disableRedirect: true,
+      }),
+    });
+    expect(signIn.status).toBe(200);
+    const authorization = new URL(((await signIn.json()) as { url: string }).url);
+    const stateCookie = signIn.headers.get("set-cookie")!.split(";", 1)[0]!;
+    return await requestWithAuth(
+      customAuth,
+      `/callback/google?code=test-code&state=${authorization.searchParams.get("state")}`,
+      { headers: { cookie: stateCookie } },
+    );
+  } finally {
+    providerFetch.mockRestore();
+  }
+}
+
 async function issueDeviceCode(): Promise<DeviceCode> {
   const response = await requestAuth("/device/code", {
     method: "POST",
@@ -515,7 +555,7 @@ describe("Better Auth device authorization", () => {
     });
     expect(options.account.accountLinking).toMatchObject({
       enabled: true,
-      requireLocalEmailVerified: false,
+      requireLocalEmailVerified: true,
     });
     expect(options.plugins.some((plugin) => plugin.id === "two-factor")).toBe(true);
   });
@@ -597,6 +637,79 @@ describe("Better Auth device authorization", () => {
     expect((await claim(noMfa.cookie)).status).toBe(401);
   });
 
+  it("refuses to link Google to an unverified password account or activate its password", async () => {
+    const setup = mailbox();
+    const email = `${crypto.randomUUID()}@example.com`;
+    const password = "password-with-enough-length";
+    const signUp = await requestWithAuth(setup.auth, "/sign-up/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Test User", email, password }),
+    });
+    expect(signUp.status).toBe(200);
+
+    const callback = await completeGoogleSignIn(setup.auth, email);
+    expect(callback.status).toBe(302);
+    expect(new URL(callback.headers.get("location")!).searchParams.get("error")).toBe(
+      "account_not_linked",
+    );
+    expect(
+      await env.DB.prepare("SELECT emailVerified FROM user WHERE email = ?").bind(email).first(),
+    ).toMatchObject({ emailVerified: 0 });
+    expect(
+      await env.DB.prepare(
+        "SELECT account.id FROM account JOIN user ON account.userId = user.id WHERE user.email = ? AND account.providerId = 'google'",
+      )
+        .bind(email)
+        .first(),
+    ).toBeNull();
+    expect(
+      await env.DB.prepare(
+        "SELECT session.id FROM session JOIN user ON session.userId = user.id WHERE user.email = ?",
+      )
+        .bind(email)
+        .first(),
+    ).toBeNull();
+    const passwordSignIn = await requestWithAuth(setup.auth, "/sign-in/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    expect(passwordSignIn.status).toBe(403);
+  });
+
+  it("links Google to the same password user after local email verification", async () => {
+    const setup = mailbox();
+    const email = `${crypto.randomUUID()}@example.com`;
+    const signUp = await requestWithAuth(setup.auth, "/sign-up/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Test User", email, password: "password-with-enough-length" }),
+    });
+    expect(signUp.status).toBe(200);
+    const signedUp = (await signUp.json()) as { user: { id: string } };
+    const verification = new URL(setup.messages[0]!.text.match(/https:\/\/[^\s]+/)![0]);
+    const verified = await requestWithAuth(
+      setup.auth,
+      `/verify-email?token=${encodeURIComponent(verification.searchParams.get("token")!)}&callbackURL=https%3A%2F%2Fun-fra.me`,
+    );
+    expect(verified.status).toBe(302);
+
+    const callback = await completeGoogleSignIn(setup.auth, email);
+    expect(callback.status).toBe(302);
+    expect(callback.headers.get("location")).toBe("https://un-fra.me/device");
+    expect(
+      await env.DB.prepare("SELECT userId FROM account WHERE providerId = 'google' AND userId = ?")
+        .bind(signedUp.user.id)
+        .first(),
+    ).toMatchObject({ userId: signedUp.user.id });
+    expect(
+      await env.DB.prepare("SELECT userId, assurance FROM session WHERE userId = ?")
+        .bind(signedUp.user.id)
+        .first(),
+    ).toMatchObject({ userId: signedUp.user.id, assurance: "google" });
+  });
+
   it("starts Google sign-in at Better Auth's provider route with the configured callback URL", async () => {
     const response = await requestAuth("/sign-in/social", {
       method: "POST",
@@ -618,78 +731,42 @@ describe("Better Auth device authorization", () => {
 
   it("establishes Google assurance through the OAuth callback and allows device authorization", async () => {
     const email = `${crypto.randomUUID()}@example.com`;
-    const profile = { sub: crypto.randomUUID(), email, email_verified: true, name: "Google User" };
-    const idToken = `eyJhbGciOiJSUzI1NiJ9.${btoa(JSON.stringify(profile))}.test-signature`;
-    const originalFetch = globalThis.fetch;
-    const providerFetch = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
-      const url = input instanceof Request ? input.url : String(input);
-      if (url === "https://oauth2.googleapis.com/token") {
-        return Promise.resolve(
-          Response.json({
-            access_token: "test-google-token",
-            token_type: "Bearer",
-            id_token: idToken,
-          }),
-        );
-      }
-      return originalFetch(input, init);
-    });
-    try {
-      const signIn = await requestAuth("/sign-in/social", {
+    const callback = await completeGoogleSignIn(auth(), email);
+    expect(callback.status).toBe(302);
+    expect(callback.headers.get("location")).toBe("https://un-fra.me/device");
+    const stored = await env.DB.prepare(
+      "SELECT session.assurance FROM session JOIN user ON session.userId = user.id WHERE user.email = ?",
+    )
+      .bind(email)
+      .first();
+    expect(stored).toMatchObject({ assurance: "google" });
+    const cookie = callback.headers
+      .get("set-cookie")!
+      .split(",")
+      .map((value) => value.trim().split(";", 1)[0])
+      .find((value) => value?.startsWith("__Secure-better-auth.session_token="));
+    expect(cookie).toBeTruthy();
+    const device = await issueDeviceCode();
+    const response = await createApp().fetch(
+      new Request(`https://example.com/api/auth/device?user_code=${device.user_code}`, {
+        headers: { cookie: cookie! },
+      }),
+      testEnvironment() as unknown as CloudflareBindings,
+    );
+    expect(response.status).toBe(200);
+    const approval = await createApp().fetch(
+      new Request("https://example.com/api/auth/device/approve", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          provider: "google",
-          callbackURL: "https://un-fra.me/device",
-          disableRedirect: true,
-        }),
-      });
-      const authorization = new URL(((await signIn.json()) as { url: string }).url);
-      const stateCookie = signIn.headers.get("set-cookie")!.split(";", 1)[0]!;
-      const callback = await requestAuth(
-        `/callback/google?code=test-code&state=${authorization.searchParams.get("state")}`,
-        {
-          headers: { cookie: stateCookie },
+        headers: {
+          cookie: cookie!,
+          "content-type": "application/json",
+          origin: "https://un-fra.me",
         },
-      );
-      expect(callback.status).toBe(302);
-      expect(callback.headers.get("location")).toBe("https://un-fra.me/device");
-      const stored = await env.DB.prepare(
-        "SELECT session.assurance FROM session JOIN user ON session.userId = user.id WHERE user.email = ?",
-      )
-        .bind(email)
-        .first();
-      expect(stored).toMatchObject({ assurance: "google" });
-      const cookie = callback.headers
-        .get("set-cookie")!
-        .split(",")
-        .map((value) => value.trim().split(";", 1)[0])
-        .find((value) => value?.startsWith("__Secure-better-auth.session_token="));
-      expect(cookie).toBeTruthy();
-      const device = await issueDeviceCode();
-      const response = await createApp().fetch(
-        new Request(`https://example.com/api/auth/device?user_code=${device.user_code}`, {
-          headers: { cookie: cookie! },
-        }),
-        testEnvironment() as unknown as CloudflareBindings,
-      );
-      expect(response.status).toBe(200);
-      const approval = await createApp().fetch(
-        new Request("https://example.com/api/auth/device/approve", {
-          method: "POST",
-          headers: {
-            cookie: cookie!,
-            "content-type": "application/json",
-            origin: "https://un-fra.me",
-          },
-          body: JSON.stringify({ userCode: device.user_code }),
-        }),
-        testEnvironment() as unknown as CloudflareBindings,
-      );
-      expect(approval.status).toBe(200);
-    } finally {
-      providerFetch.mockRestore();
-    }
+        body: JSON.stringify({ userCode: device.user_code }),
+      }),
+      testEnvironment() as unknown as CloudflareBindings,
+    );
+    expect(approval.status).toBe(200);
   });
 
   it("allows credentialed CORS only from the web origin", async () => {

@@ -23,6 +23,8 @@ app/server/
 
 `control-plane/` は独立した pnpm package として Worker entrypoint、Hono application、Better Auth、Presentation / Asset / Session API、D1 migration、R2 adapter、OpenAPI、Workers runtime test を所有します。
 
+Google アカウントを同じメールの既存パスワードアカウントへ自動連携するには、既存アカウントのメール確認を先に完了する必要があります。
+
 ```sh
 nix run .#control-plane
 pnpm --filter @unframe/control-plane run dev
