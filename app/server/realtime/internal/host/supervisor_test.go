@@ -249,11 +249,68 @@ func TestSupervisorUsesOneShutdownBudgetForAllSessions(t *testing.T) {
 	receive(t, started)
 	receive(t, cp.requests)
 	cancel()
-	if err := receive(t, done); err != nil {
-		t.Fatal(err)
+	if err := receive(t, done); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("shutdown deadline not returned: %v", err)
 	}
 	first, second := receive(t, stopped), receive(t, stopped)
 	if !first.Equal(second) {
 		t.Fatal("session shutdowns used independent budgets")
+	}
+}
+
+func TestSupervisorReturnsAllSessionShutdownFailures(t *testing.T) {
+	cp := &fakeControlPlane{requests: make(chan Heartbeat, 16), responses: make(chan heartbeatResult, 16)}
+	supervisor := testSupervisor(cp)
+	firstFailure, secondFailure := errors.New("first session stop failed"), errors.New("second session stop failed")
+	started := make(chan struct {
+		id        string
+		execution *fakeExecution
+	}, 2)
+	supervisor.Start = func(_ context.Context, a Assignment, _ <-chan Assignment) (Execution, error) {
+		failure := firstFailure
+		if a.SessionID == "session-2" {
+			failure = secondFailure
+		}
+		execution := &fakeExecution{done: make(chan struct{}), stopHook: func(context.Context) error { return failure }}
+		started <- struct {
+			id        string
+			execution *fakeExecution
+		}{a.SessionID, execution}
+		return execution, nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- supervisor.Run(ctx) }()
+	a := hostAssignment()
+	b := a
+	b.SessionID = "session-2"
+	receive(t, cp.requests)
+	cp.responses <- heartbeatResult{assignments: []Assignment{a, b}}
+	executions := map[string]*fakeExecution{}
+	for range 2 {
+		value := receive(t, started)
+		executions[value.id] = value.execution
+	}
+	receive(t, cp.requests)
+	close(executions[a.SessionID].done)
+	cp.responses <- heartbeatResult{assignments: []Assignment{a, b}}
+	for {
+		report := receive(t, cp.requests)
+		reportedFailure := false
+		for _, serving := range report.Sessions {
+			if serving.SessionID == a.SessionID && serving.State == "failed" {
+				reportedFailure = true
+			}
+		}
+		if reportedFailure {
+			break
+		}
+		cp.responses <- heartbeatResult{assignments: []Assignment{a, b}}
+	}
+	cancel()
+	err := receive(t, done)
+	if !errors.Is(err, firstFailure) || !errors.Is(err, secondFailure) {
+		t.Fatalf("shutdown errors were lost: %v", err)
 	}
 }

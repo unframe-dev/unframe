@@ -4,6 +4,7 @@ package host
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 )
@@ -81,6 +82,7 @@ type managedSession struct {
 	stopping      <-chan error
 	state         string
 	stopRequested bool
+	stopError     error
 	renewals      chan Assignment
 }
 
@@ -150,6 +152,7 @@ func (m *managedSession) poll() {
 	if m.stopping != nil {
 		select {
 		case err := <-m.stopping:
+			m.stopError = err
 			m.stopping = nil
 			m.execution = nil
 			if err == nil {
@@ -161,7 +164,7 @@ func (m *managedSession) poll() {
 		}
 	}
 }
-func (s Supervisor) Run(ctx context.Context) error {
+func (s Supervisor) Run(ctx context.Context) (runError error) {
 	if s.RuntimeID == "" || s.Endpoint == "" || s.BootID == "" || s.BootStartedAt.IsZero() || s.Capacity < 1 || s.Capacity > 256 || s.ControlPlane == nil || s.Start == nil {
 		return errors.New("runtime host supervisor is not configured")
 	}
@@ -221,7 +224,10 @@ func (s Supervisor) Run(ctx context.Context) error {
 			m.stop(shutdown)
 		}
 		_, _ = s.ControlPlane.Heartbeat(shutdown, request(false))
-		for _, m := range sessions {
+		for id, m := range sessions {
+			if m.stopError != nil {
+				runError = errors.Join(runError, fmt.Errorf("stop room %s: %w", id, m.stopError))
+			}
 			if m.starting != nil {
 				select {
 				case result := <-m.starting:
@@ -229,13 +235,18 @@ func (s Supervisor) Run(ctx context.Context) error {
 						m.stopping = stopExecution(result.execution, shutdown)
 					}
 				case <-shutdown.Done():
+					runError = errors.Join(runError, shutdown.Err())
 					return
 				}
 			}
 			if m.stopping != nil {
 				select {
-				case <-m.stopping:
+				case err := <-m.stopping:
+					if err != nil {
+						runError = errors.Join(runError, fmt.Errorf("stop room %s: %w", id, err))
+					}
 				case <-shutdown.Done():
+					runError = errors.Join(runError, shutdown.Err())
 					return
 				}
 			}

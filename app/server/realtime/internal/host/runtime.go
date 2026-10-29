@@ -86,8 +86,7 @@ func Run(ctx context.Context, config Config, client *http.Client) error {
 		return err
 	case err := <-served:
 		stop()
-		<-done
-		return err
+		return errors.Join(err, <-done)
 	}
 }
 
