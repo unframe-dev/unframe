@@ -1,6 +1,6 @@
 # Tailscale Funnel での公開試験
 
-既存のビルド済み `runtime-host` / `realtime-server` を、自宅 Mac から公開します。Quest / Audience に Tailscale は不要です。公開 URL はこの Mac の `https://<hostname>.<tailnet>.ts.net` です。
+既存のビルド済み `runtime-host` を、自宅 Mac から公開します。Quest / Audience に Tailscale は不要です。公開 URL はこの Mac の `https://<hostname>.<tailnet>.ts.net` です。
 
 ```text
 Quest / Audience → Funnel TCP 443 → Caddy TLS 127.0.0.1:8443
@@ -91,7 +91,7 @@ sudo launchctl print system/me.un-fra.realtime-funnel
 
 プロセスは準備時のユーザーとして動きます。起動順は専用 `tailscaled`、Caddy と Funnel、Runtime Host です。起動時にネットワークが未接続の場合や、子プロセスが終了した場合はサービスを再起動します。以前の公開設定が残っている場合、専用ノードの TCP 443 → `127.0.0.1:8443` と一致するものだけを解除して再開します。異なる Serve 設定があれば変更せず起動を拒否します。
 
-ログは配備先の `logs/stdout.log` と `logs/stderr.log` です。自動ローテーションは行わないため、運用側で管理してください。Mac のスリープ中は接続を提供できません。停止中に割り当ての lease が失効した場合も、同じ Host / endpoint の直前の未終了 Session を新しい世代へ再割り当てし、保存済み checkpoint から一時停止状態へ復元します。checkpoint がまだ保存されていない場合は初期状態で起動し、保存されていない進行は復元できません。発表の進行再開は Presenter が明示的に行います。終了・明示解放済みの Session や、別 Host へ割り当て済みの Session は自動復元しません。FileVault が有効な Mac の再起動では、ディスクのロック解除が必要です。
+ログは配備先の `logs/stdout.log` と `logs/stderr.log` です。自動ローテーションは行わないため、運用側で管理してください。Mac のスリープ中は接続を提供できません。停止中に割り当ての lease が失効した場合も、同じ Host / endpoint の直前の未終了 Session を新しい世代へ再割り当てし、保存済み checkpoint から一時停止状態へ復元します。checkpoint がまだ保存されていない復旧も初期状態を `paused/processRecovered` として保存してから ready とし、保存されていない進行は復元できません。発表の進行再開は Presenter が明示的に行います。終了・明示解放済みの Session や、別 Host へ割り当て済みの Session は自動復元しません。FileVault が有効な Mac の再起動では、ディスクのロック解除が必要です。
 
 停止と再開は次で行います。
 
@@ -101,3 +101,9 @@ sudo launchctl bootstrap system /Library/LaunchDaemons/me.un-fra.realtime-funnel
 ```
 
 自動起動を削除する場合は `bootout` 後に `/Library/LaunchDaemons/me.un-fra.realtime-funnel.plist` を削除します。配備物の上書き更新には対応していません。更新時は停止・登録削除後に新しいディレクトリへ準備して再登録し、復元が必要なら旧配備物の `install.sh` を使います。登録後は公開 endpoint で gRPC / WSS を確認してください。プロセスの起動だけでは Session の割り当てと Runtime の ready を保証しません。
+
+## 複数 Session と復旧の確認範囲
+
+一つの Funnel URL と常駐 Host の共通 listener へ複数 Session を割り当てます。Session ごとの port や Funnel 設定は追加しません。`REALTIME_HOST_CAPACITY` を配備設定で明示します。満員・drain 中も担当 Session の lease 更新を継続します。新しい Host boot は旧 lease の失効を待ち、各 Session を新 epoch の paused Snapshot へ復旧してから接続を受け付けます。
+
+公開経路で二つ以上の Session の native gRPC / WSS、途中参加、切断復帰、Host 再起動、保存障害時の進行と終了を確認します。Session ごとの保存ログと配信遅延を測定し、Funnel の帯域も含めて収容上限を決めます。これらの公開環境・実負荷の結果は未取得です。ローカルテストや起動成功を、その検証結果として扱いません。

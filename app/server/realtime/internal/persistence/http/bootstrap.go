@@ -26,6 +26,7 @@ var (
 )
 
 type BootstrapRequest struct {
+	ExecutionBootID      string
 	SessionID            string
 	RuntimeID            string
 	RuntimeKind          assignment.RuntimeKind
@@ -81,6 +82,9 @@ func (c *Client) Bootstrap(ctx context.Context, request BootstrapRequest) (Runti
 		return RuntimeBootstrap{}, ErrInvalidBootstrap
 	}
 	query := url.Values{"sessionId": {request.SessionID}, "runtimeId": {request.RuntimeID}, "assignmentEpoch": {strconv.FormatUint(request.AssignmentEpoch, 10)}}
+	if request.ExecutionBootID != "" {
+		query.Set("executionBootId", request.ExecutionBootID)
+	}
 	body, err := c.get(ctx, "bootstrap", "/internal/runtime/bootstrap", query)
 	if err != nil {
 		return RuntimeBootstrap{}, err

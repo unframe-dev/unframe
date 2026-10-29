@@ -43,7 +43,7 @@ namespace Unframe.Tests.LocalEditorE2E
             public string phase = "connecting", stepId = "", reliableSequence = "0", stateSequence = "0";
             public string commandId = "", commandResult = "", surfaceState = "", error = "";
             public string failureDetail = "", resynchronizationReason = "";
-            public string connectionId = "", originVersion = "0";
+            public string connectionId = "", originVersion = "0", assignmentEpoch = "0", pauseReason = "";
             public bool paused, controlReady, inputReady, completed;
             public int connections, assets, texturedRenderers, resynchronizations, renderedPixels;
             public double opacity, renderedOpacity;
@@ -123,6 +123,8 @@ namespace Unframe.Tests.LocalEditorE2E
                 status.reliableSequence = runtime.DataStore.LastReliableSequence.ToString(CultureInfo.InvariantCulture);
                 status.stateSequence = runtime.DataStore.LastStateFrameSequence.ToString(CultureInfo.InvariantCulture);
                 status.originVersion = (runtime.DataStore.PresentationOrigin?.Version ?? 0).ToString(CultureInfo.InvariantCulture);
+                status.assignmentEpoch = (runtime.Delivery?.ProjectionInstance?.AssignmentEpoch ?? 0).ToString(CultureInfo.InvariantCulture);
+                status.pauseReason = runtime.DataStore.RuntimeClock?.Paused?.Reason.ToString() ?? "";
                 status.assets = runtime.Delivery?.AssetAccess.Count ?? 0;
                 status.completed = running.IsCompleted;
                 status.phase = runtime.SessionReady ? "ready" : status.connections == 0 ? "connecting" : "disconnected";

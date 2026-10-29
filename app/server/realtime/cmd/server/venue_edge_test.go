@@ -63,7 +63,7 @@ func TestVenueEdgeMultiplexesHTTPSAssetsAndGRPCHealth(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() {
-		done <- runVenueEdge(ctx, listener, deps, func(context.Context) error { return nil }, nil, persistencehttp.BootstrapPublication{}, http.DefaultClient)
+		done <- runVenueEdge(ctx, listener, deps, func(context.Context) error { return nil }, nil, persistencehttp.BootstrapPublication{}, http.DefaultClient, testShutdownBudget(t))
 	}()
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}, Timeout: 5 * time.Second}
 	response, err := client.Get(value.Endpoint + "/sessions/session-1/assets/image")

@@ -35,6 +35,10 @@ func (s *V2Session) JoinParticipant(ctx context.Context, identity session.Identi
 	defer s.operationMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.durability.completing {
+		return ErrV2PersistenceUnavailable
+	}
+
 	if s.snapshot.Clock.GetTerminating() != nil {
 		return ErrV2RuntimeDefinition
 	}
@@ -49,8 +53,8 @@ func (s *V2Session) JoinParticipant(ctx context.Context, identity session.Identi
 	if identity.Role == session.RolePresenter && previouslyJoined {
 		if s.snapshot.Clock.GetRunning() != nil {
 			events = append(events, s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_RuntimeStatusChanged{RuntimeStatusChanged: &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PRESENTER_DISCONNECTED}}}}}))
+			s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PRESENTER_DISCONNECTED}}
 		}
-		s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_PRESENTER_DISCONNECTED}}
 		if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECONNECTED, true); err != nil {
 			s.snapshot = previous
 			return err
@@ -81,6 +85,10 @@ func (s *V2Session) LeaveParticipant(ctx context.Context, identity session.Ident
 	defer s.operationMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.durability.completing {
+		return ErrV2PersistenceUnavailable
+	}
+
 	role, exists := s.presence[identity.ParticipantID]
 	if !exists {
 		return nil

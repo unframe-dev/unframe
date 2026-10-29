@@ -1,3 +1,4 @@
+import { currentHostGeneration } from "../runtime-hosts/fence";
 import { and, desc, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { createD1Database } from "../../adapters/d1/database";
 import {
@@ -185,7 +186,7 @@ export function createRuntimePublicationRoutes() {
       }
     })
     .openapi(internalRuntimeBootstrapRoute, async (context) => {
-      const { sessionId, runtimeId, assignmentEpoch } = context.req.valid("query");
+      const { sessionId, runtimeId, assignmentEpoch, executionBootId } = context.req.valid("query");
       const { DB, ASSETS } = context.get("config");
       const now = new Date().toISOString();
       const row = await createD1Database(DB)
@@ -205,6 +206,7 @@ export function createRuntimePublicationRoutes() {
             eq(runtimeAssignments.runtimeId, runtimeId),
             eq(runtimeAssignments.epoch, assignmentEpoch),
             sql`${runtimeAssignments.epoch} = (SELECT MAX(latest.epoch) FROM runtime_assignments AS latest WHERE latest.session_id = ${sessionId})`,
+            currentHostGeneration,
             isNull(runtimeAssignments.releasedAt),
             gt(runtimeAssignments.leaseExpiresAt, now),
           ),
@@ -215,6 +217,32 @@ export function createRuntimePublicationRoutes() {
           { error: { code: "conflict", message: "Runtime fence unavailable" } },
           409,
         );
+      if (row.runtimeKind === "VenueEdge") {
+        if (
+          !executionBootId ||
+          !(await new D1RuntimeAssignmentRepository(DB).claimExecutionBoot(
+            sessionId,
+            runtimeId,
+            assignmentEpoch,
+            executionBootId,
+            now,
+          ))
+        )
+          return context.json(
+            {
+              error: {
+                code: "conflict",
+                message: "Runtime execution already claimed or unavailable",
+              },
+            },
+            409,
+          );
+      } else if (executionBootId !== undefined) {
+        return context.json(
+          { error: { code: "conflict", message: "Cloud executions require Host management" } },
+          409,
+        );
+      }
       const artifacts = await new PublicationService(DB, ASSETS).publishedArtifacts(
         row.presentationId,
         row.publicationEpoch,
@@ -331,6 +359,7 @@ export function createRuntimePublicationRoutes() {
             eq(runtimeAssignments.runtimeId, runtimeId),
             eq(runtimeAssignments.epoch, assignmentEpoch),
             sql`${runtimeAssignments.epoch} = (SELECT MAX(latest.epoch) FROM runtime_assignments AS latest WHERE latest.session_id = ${sessionId})`,
+            currentHostGeneration,
             isNull(runtimeAssignments.releasedAt),
             gt(runtimeAssignments.leaseExpiresAt, new Date().toISOString()),
           ),
@@ -368,6 +397,7 @@ export function createRuntimePublicationRoutes() {
             eq(runtimeAssignments.runtimeId, runtimeId),
             eq(runtimeAssignments.epoch, assignmentEpoch),
             sql`${runtimeAssignments.epoch} = (SELECT MAX(latest.epoch) FROM runtime_assignments AS latest WHERE latest.session_id = ${sessionId})`,
+            currentHostGeneration,
             isNull(runtimeAssignments.releasedAt),
             gt(runtimeAssignments.leaseExpiresAt, new Date().toISOString()),
           ),

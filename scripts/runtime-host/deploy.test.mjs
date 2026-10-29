@@ -32,7 +32,7 @@ test("prepares a standalone launch daemon without installing or starting it", (t
   });
   assert.equal(result.status, 0, result.stderr);
   assert.ok(existsSync(join(output, "runtime-host")));
-  assert.ok(existsSync(join(output, "realtime-server")));
+  assert.ok(!existsSync(join(output, "realtime-server")));
   assert.ok(!existsSync(join(output, "runtime-host.env")));
   const plist = join(output, "me.un-fra.realtime.plist");
   assert.equal(spawnSync("/usr/bin/plutil", ["-lint", plist]).status, 0);
@@ -53,7 +53,7 @@ test("prepares a standalone launch daemon without installing or starting it", (t
   });
   writeFileSync(
     join(output, "runtime-host"),
-    '#!/bin/sh\nset -eu\n[ "$REALTIME_SERVICE_IDENTITY" = "fixture secret" ]\n[ "$REALTIME_SERVER_EXECUTABLE" = "$PWD/realtime-server" ]\n[ -x "$REALTIME_SERVER_EXECUTABLE" ]\n',
+    '#!/bin/sh\nset -eu\n[ "$REALTIME_SERVICE_IDENTITY" = "fixture secret" ]\n',
     { mode: 0o755 },
   );
   const started = spawnSync("/bin/sh", [join(output, "start.sh")], {

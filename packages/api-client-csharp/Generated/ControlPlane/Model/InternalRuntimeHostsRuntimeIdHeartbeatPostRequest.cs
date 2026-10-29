@@ -34,14 +34,20 @@ namespace Unframe.ControlPlane.Model
         /// Initializes a new instance of the <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPostRequest" /> class.
         /// </summary>
         /// <param name="endpoint">endpoint</param>
+        /// <param name="bootId">bootId</param>
+        /// <param name="capacity">capacity</param>
         /// <param name="accepting">accepting</param>
-        /// <param name="serving">serving</param>
+        /// <param name="generation">generation</param>
+        /// <param name="sessions">sessions</param>
         [JsonConstructor]
-        public InternalRuntimeHostsRuntimeIdHeartbeatPostRequest(string endpoint, bool accepting, Option<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestServing?> serving = default)
+        public InternalRuntimeHostsRuntimeIdHeartbeatPostRequest(string endpoint, string bootId, int capacity, bool accepting, long generation, List<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInner> sessions)
         {
             Endpoint = endpoint;
+            BootId = bootId;
+            Capacity = capacity;
             Accepting = accepting;
-            ServingOption = serving;
+            Generation = generation;
+            Sessions = sessions;
             OnCreated();
         }
 
@@ -54,23 +60,34 @@ namespace Unframe.ControlPlane.Model
         public string Endpoint { get; set; }
 
         /// <summary>
+        /// Gets or Sets BootId
+        /// </summary>
+        [JsonPropertyName("bootId")]
+        public string BootId { get; set; }
+
+        /// <summary>
+        /// Gets or Sets Capacity
+        /// </summary>
+        [JsonPropertyName("capacity")]
+        public int Capacity { get; set; }
+
+        /// <summary>
         /// Gets or Sets Accepting
         /// </summary>
         [JsonPropertyName("accepting")]
         public bool Accepting { get; set; }
 
         /// <summary>
-        /// Used to track the state of Serving
+        /// Gets or Sets Generation
         /// </summary>
-        [JsonIgnore]
-        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
-        public Option<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestServing?> ServingOption { get; private set; }
+        [JsonPropertyName("generation")]
+        public long Generation { get; set; }
 
         /// <summary>
-        /// Gets or Sets Serving
+        /// Gets or Sets Sessions
         /// </summary>
-        [JsonPropertyName("serving")]
-        public InternalRuntimeHostsRuntimeIdHeartbeatPostRequestServing? Serving { get { return this.ServingOption.Value; } set { this.ServingOption = new(value); } }
+        [JsonPropertyName("sessions")]
+        public List<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInner> Sessions { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -81,8 +98,11 @@ namespace Unframe.ControlPlane.Model
             StringBuilder sb = new StringBuilder();
             sb.Append("class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest {\n");
             sb.Append("  Endpoint: ").Append(Endpoint).Append("\n");
+            sb.Append("  BootId: ").Append(BootId).Append("\n");
+            sb.Append("  Capacity: ").Append(Capacity).Append("\n");
             sb.Append("  Accepting: ").Append(Accepting).Append("\n");
-            sb.Append("  Serving: ").Append(Serving).Append("\n");
+            sb.Append("  Generation: ").Append(Generation).Append("\n");
+            sb.Append("  Sessions: ").Append(Sessions).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -94,6 +114,36 @@ namespace Unframe.ControlPlane.Model
         /// <returns>Validation Result</returns>
         IEnumerable<ValidationResult> IValidatableObject.Validate(ValidationContext validationContext)
         {
+            // BootId (string) maxLength
+            if (this.BootId != null && this.BootId.Length > 128)
+            {
+                yield return new ValidationResult("Invalid value for BootId, length must be less than 128.", new [] { "BootId" });
+            }
+
+            // BootId (string) minLength
+            if (this.BootId != null && this.BootId.Length < 1)
+            {
+                yield return new ValidationResult("Invalid value for BootId, length must be greater than 1.", new [] { "BootId" });
+            }
+
+            // Capacity (int) maximum
+            if (this.Capacity > (int)256)
+            {
+                yield return new ValidationResult("Invalid value for Capacity, must be a value less than or equal to 256.", new [] { "Capacity" });
+            }
+
+            // Capacity (int) minimum
+            if (this.Capacity < (int)1)
+            {
+                yield return new ValidationResult("Invalid value for Capacity, must be a value greater than or equal to 1.", new [] { "Capacity" });
+            }
+
+            // Generation (long) minimum
+            if (this.Generation < (long)0)
+            {
+                yield return new ValidationResult("Invalid value for Generation, must be a value greater than 0.", new [] { "Generation" });
+            }
+
             yield break;
         }
     }
@@ -121,8 +171,11 @@ namespace Unframe.ControlPlane.Model
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
             Option<string?> endpoint = default;
+            Option<string?> bootId = default;
+            Option<int?> capacity = default;
             Option<bool?> accepting = default;
-            Option<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestServing?> serving = default;
+            Option<long?> generation = default;
+            Option<List<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInner>?> sessions = default;
 
             while (utf8JsonReader.Read())
             {
@@ -142,11 +195,20 @@ namespace Unframe.ControlPlane.Model
                         case "endpoint":
                             endpoint = new Option<string?>(utf8JsonReader.GetString()!);
                             break;
+                        case "bootId":
+                            bootId = new Option<string?>(utf8JsonReader.GetString()!);
+                            break;
+                        case "capacity":
+                            capacity = new Option<int?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
+                            break;
                         case "accepting":
                             accepting = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
                             break;
-                        case "serving":
-                            serving = new Option<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestServing?>(JsonSerializer.Deserialize<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestServing>(ref utf8JsonReader, jsonSerializerOptions)!);
+                        case "generation":
+                            generation = new Option<long?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
+                            break;
+                        case "sessions":
+                            sessions = new Option<List<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInner>?>(JsonSerializer.Deserialize<List<InternalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInner>>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
                         default:
                             break;
@@ -157,19 +219,40 @@ namespace Unframe.ControlPlane.Model
             if (!endpoint.IsSet)
                 throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.", nameof(endpoint));
 
+            if (!bootId.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.", nameof(bootId));
+
+            if (!capacity.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.", nameof(capacity));
+
             if (!accepting.IsSet)
                 throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.", nameof(accepting));
+
+            if (!generation.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.", nameof(generation));
+
+            if (!sessions.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.", nameof(sessions));
 
             if (endpoint.IsSet && endpoint.Value == null)
                 throw new ArgumentNullException(nameof(endpoint), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
 
+            if (bootId.IsSet && bootId.Value == null)
+                throw new ArgumentNullException(nameof(bootId), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
+
+            if (capacity.IsSet && capacity.Value == null)
+                throw new ArgumentNullException(nameof(capacity), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
+
             if (accepting.IsSet && accepting.Value == null)
                 throw new ArgumentNullException(nameof(accepting), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
 
-            if (serving.IsSet && serving.Value == null)
-                throw new ArgumentNullException(nameof(serving), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
+            if (generation.IsSet && generation.Value == null)
+                throw new ArgumentNullException(nameof(generation), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
 
-            return new InternalRuntimeHostsRuntimeIdHeartbeatPostRequest(endpoint.Value!, accepting.Value!.Value!, serving);
+            if (sessions.IsSet && sessions.Value == null)
+                throw new ArgumentNullException(nameof(sessions), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
+
+            return new InternalRuntimeHostsRuntimeIdHeartbeatPostRequest(endpoint.Value!, bootId.Value!, capacity.Value!.Value!, accepting.Value!.Value!, generation.Value!.Value!, sessions.Value!);
         }
 
         /// <summary>
@@ -199,18 +282,24 @@ namespace Unframe.ControlPlane.Model
             if (internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Endpoint == null)
                 throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Endpoint), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
 
-            if (internalRuntimeHostsRuntimeIdHeartbeatPostRequest.ServingOption.IsSet && internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Serving == null)
-                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Serving), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
+            if (internalRuntimeHostsRuntimeIdHeartbeatPostRequest.BootId == null)
+                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPostRequest.BootId), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
+
+            if (internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Sessions == null)
+                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Sessions), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPostRequest.");
 
             writer.WriteString("endpoint", internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Endpoint);
 
+            writer.WriteString("bootId", internalRuntimeHostsRuntimeIdHeartbeatPostRequest.BootId);
+
+            writer.WriteNumber("capacity", internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Capacity);
+
             writer.WriteBoolean("accepting", internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Accepting);
 
-            if (internalRuntimeHostsRuntimeIdHeartbeatPostRequest.ServingOption.IsSet)
-            {
-                writer.WritePropertyName("serving");
-                JsonSerializer.Serialize(writer, internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Serving, jsonSerializerOptions);
-            }
+            writer.WriteNumber("generation", internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Generation);
+
+            writer.WritePropertyName("sessions");
+            JsonSerializer.Serialize(writer, internalRuntimeHostsRuntimeIdHeartbeatPostRequest.Sessions, jsonSerializerOptions);
         }
     }
 }

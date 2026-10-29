@@ -11,6 +11,7 @@ const progressText: Record<JoinSnapshot["phase"], string> = {
   joining: "ルームに参加中…",
   delivery: "表示データを取得中…",
   bootstrap: "接続情報を取得中…",
+  recovering: "配信の接続復旧を待っています…",
   prepared: "接続準備完了。カメラを開始してください。",
   error: "接続準備を完了できませんでした。",
   ended: "このルームの配信は終了しています。",
@@ -43,7 +44,7 @@ export function JoinExperience({ controller }: { controller: JoinController | nu
     controller?.getSnapshot ?? unavailableGetSnapshot,
   );
   const [code, setCode] = useState("");
-  const busy = ["joining", "delivery", "bootstrap"].includes(snapshot.phase);
+  const busy = ["joining", "delivery", "bootstrap", "recovering"].includes(snapshot.phase);
   const prepared = snapshot.phase === "prepared";
   const validCode = /^[A-HJ-NP-Z2-9]{8}$/.test(code);
   const submit = (event: FormEvent<HTMLFormElement>) => {

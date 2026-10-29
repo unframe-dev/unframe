@@ -70,13 +70,6 @@ func TestV3SynchronizationAckAtomicallyRotatesHistoryAndReplaysReady(t *testing.
 	required := core.InputSynchronization()
 	core.checkpointWriter = failingV2Checkpoint{}
 	ack := &realtimev2.InputSynchronizationAck{SynchronizationRevision: required.SynchronizationRevision, InputContext: required.InputContext, CommandEpoch: required.GetNextCommandEpoch(), AppliedReliableSequence: required.ReliableSequence, PendingCommandsDiscarded: true}
-	if _, err := core.AcknowledgeInputSynchronization(context.Background(), identity, ack); err == nil {
-		t.Fatal("failed ACK was published")
-	}
-	if core.commandEpoch != 1 || len(core.outcomes) != 1 || !proto.Equal(core.InputSynchronization(), required) {
-		t.Fatal("failed ACK rotated epoch or discarded outcomes")
-	}
-	core.checkpointWriter = writer
 	ready, err := core.AcknowledgeInputSynchronization(context.Background(), identity, ack)
 	if err != nil {
 		t.Fatal(err)
@@ -84,6 +77,8 @@ func TestV3SynchronizationAckAtomicallyRotatesHistoryAndReplaysReady(t *testing.
 	if ready.Phase != realtimev2.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_READY || core.commandEpoch != 2 || len(core.outcomes) != 0 {
 		t.Fatalf("READY=%v records=%d", ready, len(core.outcomes))
 	}
+	core.checkpointWriter = writer
+	flushV2(t, core)
 	checkpointSequence := writer.envelope.CheckpointSequence
 	repeated, err := core.AcknowledgeInputSynchronization(context.Background(), identity, ack)
 	if err != nil || !proto.Equal(ready, repeated) || writer.envelope.CheckpointSequence != checkpointSequence {
@@ -108,6 +103,7 @@ func TestV3HistoryCapacityStartsDurableBarrierWithoutEviction(t *testing.T) {
 	if err != nil || outcome.GetRejected().GetReason() != realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED || len(events) != 0 || len(core.outcomes) != 999 {
 		t.Fatalf("capacity outcome=%v records=%d err=%v", outcome, len(core.outcomes), err)
 	}
+	flushV2(t, core)
 	if writer.envelope == nil || core.InputSynchronization().GetNextCommandEpoch() != 2 {
 		t.Fatal("capacity did not persist a rotation barrier")
 	}
@@ -325,6 +321,7 @@ func TestV3RecordedOutcomeSurvivesElapsedTimeAndProcessRecovery(t *testing.T) {
 		t.Fatal("elapsed time invalidated outcome")
 	}
 	restored, _ := reviewSession(t)
+	flushV2(t, core)
 	if err := restored.RestoreCheckpoint(writer.envelope); err != nil {
 		t.Fatal(err)
 	}
@@ -363,31 +360,17 @@ func TestV3ActionCapacityRejectsWithoutPartialMutation(t *testing.T) {
 	}
 }
 
-func TestV3RequiredSynchronizationIsNotVisibleBeforeCheckpointCommit(t *testing.T) {
+func TestV3RequiredSynchronizationIsVisibleWithoutCheckpointCommit(t *testing.T) {
 	core, _ := reviewSession(t)
-	ready := v3Acknowledge(t, core)
-	entered, release := make(chan struct{}), make(chan struct{})
-	defer close(release)
-	core.checkpointWriter = checkpointCommitObserver(func(*realtimev2.DurableCheckpointEnvelope) error { close(entered); <-release; return nil })
-	done := make(chan error, 1)
-	go func() {
-		done <- core.BeginInputSynchronization(context.Background(), realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECALIBRATED, false)
-	}()
-	select {
-	case <-entered:
-	case <-time.After(time.Second):
-		t.Fatal("checkpoint did not start")
-	}
-	if !proto.Equal(core.InputSynchronization(), ready) {
-		t.Fatal("uncommitted REQUIRED was visible")
-	}
-	release <- struct{}{}
-	if err := <-done; err != nil {
+	v3Acknowledge(t, core)
+	core.checkpointWriter = failingV2Checkpoint{}
+	if err := core.BeginInputSynchronization(context.Background(), realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECALIBRATED, false); err != nil {
 		t.Fatal(err)
 	}
 	if core.InputSynchronization().Phase != realtimev2.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_REQUIRED {
-		t.Fatal("committed REQUIRED was not visible")
+		t.Fatal("required synchronization missing")
 	}
+	v3Acknowledge(t, core)
 }
 
 func TestV3PoseCloneDoesNotAliasLatestSamples(t *testing.T) {

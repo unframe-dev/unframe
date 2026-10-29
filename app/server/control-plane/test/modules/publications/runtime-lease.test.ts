@@ -1,3 +1,4 @@
+import { seedCloudHost } from "../../fixtures/runtime-host";
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import publication from "../../../../../../packages/contracts/presentation/fixtures/published-presentation.json";
@@ -14,6 +15,7 @@ const request = (
 
 describe("runtime lease", () => {
   beforeAll(async () => {
+    await seedCloudHost("lease-runtime", "https://runtime.example.test");
     await env.DB.batch([
       env.DB.prepare(
         "INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES ('lease-owner', 'Owner', 'lease@example.test', 1, '2026', '2026')",
@@ -31,7 +33,7 @@ describe("runtime lease", () => {
         "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, created_at, publication_epoch) VALUES ('lease-session', 'demo', 'lease-owner', 'lease-join', 'Presenting', '2026', 1)",
       ),
       env.DB.prepare(
-        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES ('lease-session', 'lease-runtime', 'Cloud', 'https://runtime.example.test', 1, 1, '2026', '2099-01-01T00:00:00.000Z')",
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at, host_generation) VALUES ('lease-session', 'lease-runtime', 'Cloud', 'https://runtime.example.test', 1, 1, '2026', '2099-01-01T00:00:00.000Z', 1)",
       ),
       env.DB.prepare(
         "INSERT INTO session_checkpoints (session_id, version, last_sequence, idempotency_key, payload, received_at) VALUES ('lease-session', 1, 1, 'lease-checkpoint', 'unavailable checkpoint', '2026')",
@@ -74,6 +76,22 @@ describe("runtime lease", () => {
       },
     });
   });
+  it("fences an old Host generation before its assignment lease expires", async () => {
+    await env.DB.batch([
+      env.DB.prepare("UPDATE runtime_hosts SET generation = 2 WHERE runtime_id = 'lease-runtime'"),
+      env.DB.prepare(
+        "UPDATE runtime_assignments SET host_generation = 1 WHERE session_id = 'lease-session'",
+      ),
+    ]);
+    expect((await createApp().fetch(request(), runtimeEnvironment())).status).toBe(409);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE runtime_hosts SET generation = 1 WHERE runtime_id = 'lease-runtime'"),
+      env.DB.prepare(
+        "UPDATE runtime_assignments SET host_generation = 1 WHERE session_id = 'lease-session'",
+      ),
+    ]);
+  });
+
   it("keeps the session pinned to its publication when a newer publication exists", async () => {
     await env.DB.prepare(
       "INSERT INTO presentation_publications (presentation_id, epoch, build_id, manifest, published_at) VALUES ('demo', 2, 'build-1', '{}', '2027')",

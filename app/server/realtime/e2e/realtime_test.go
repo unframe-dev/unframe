@@ -32,7 +32,6 @@ type environment struct {
 	JoinCode                    string            `json:"joinCode"`
 	PresenterCredential         string            `json:"presenterCredential"`
 	CAFile                      string            `json:"caFile"`
-	RuntimeBinary               string            `json:"runtimeBinary"`
 	HostBinary                  string            `json:"hostBinary"`
 	RuntimeEnv                  map[string]string `json:"runtimeEnv"`
 	StateDirectory              string            `json:"stateDirectory"`
@@ -45,17 +44,18 @@ type environment struct {
 }
 
 type fixture struct {
-	t             *testing.T
-	owner         *testing.T
-	env           environment
-	ctx           context.Context
-	client        *http.Client
-	tls           *tls.Config
-	run           *exec.Cmd
-	runLog        *os.File
-	runDone       chan struct{}
-	runError      error
-	unityCommands int
+	t                     *testing.T
+	owner                 *testing.T
+	env                   environment
+	ctx                   context.Context
+	client                *http.Client
+	tls                   *tls.Config
+	run                   *exec.Cmd
+	runLog                *os.File
+	runDone               chan struct{}
+	runError              error
+	unityCommands         int
+	crashedLeaseExpiresAt time.Time
 }
 
 func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
@@ -80,7 +80,7 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 	if env.SessionID == "" || env.JoinCode == "" || env.PresenterCredential == "" || env.AudienceCapabilityProfileID == "" || len(env.RuntimeEnv) == 0 {
 		t.Fatal("E2E environment is missing a session, credential, capability, or Runtime environment")
 	}
-	for _, path := range []string{env.CAFile, env.RuntimeBinary, env.HostBinary, env.StateDirectory, env.RepositoryRoot, env.BrowserStatusFile} {
+	for _, path := range []string{env.CAFile, env.HostBinary, env.StateDirectory, env.RepositoryRoot, env.BrowserStatusFile} {
 		if !filepath.IsAbs(path) {
 			t.Fatal("E2E environment paths must be absolute")
 		}
@@ -96,7 +96,7 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 	if !roots.AppendCertsFromPEM(ca) {
 		t.Fatal("E2E CA file contains no certificates")
 	}
-	duration := 150 * time.Second
+	duration := 6 * time.Minute
 	if env.UnityEnabled {
 		duration = 9 * time.Minute
 	}
@@ -128,6 +128,10 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 	}
 	f.waitBrowser("initial browser attachment", "start", false)
 	f.assertCheckpoint("start", false)
+	f.runTest(t, "concurrent_sessions_are_isolated", func(t *testing.T) { f.assertConcurrentSessionIsolation(viewer) })
+	if t.Failed() {
+		return
+	}
 
 	f.runTest(t, "pause_resume_and_late_join", func(t *testing.T) {
 		before := presenter.snapshot()
@@ -232,8 +236,8 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 		viewer2 = f.connectViewer(viewer2.apiCredential)
 		for _, peer := range []*peer{presenter, viewer, viewer2} {
 			peer.waitView("checkpoint restored paused", "finished", true)
-			if peer.snapshot().sequence < before.sequence {
-				t.Fatal("recovery rolled the reliable sequence backwards")
+			if peer.snapshot().fence.AssignmentEpoch <= before.fence.AssignmentEpoch {
+				t.Fatal("recovery did not fence the previous execution")
 			}
 		}
 		assertSameSharedView(t, presenter, viewer, viewer2)
@@ -277,8 +281,8 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 		viewer2 = f.connectViewer(viewer2.apiCredential)
 		for _, peer := range []*peer{presenter, viewer, viewer2} {
 			peer.waitView("same Session restored in a new assignment", "finished", true)
-			if peer.snapshot().sequence < before.sequence {
-				t.Fatal("new assignment rolled the reliable sequence backwards")
+			if peer.snapshot().fence.AssignmentEpoch <= before.fence.AssignmentEpoch {
+				t.Fatal("new assignment reused the previous execution epoch")
 			}
 		}
 		assertSameSharedView(t, presenter, viewer, viewer2)
@@ -307,7 +311,7 @@ func TestRealtimeSynchronizationAndRecovery(t *testing.T) {
 		}
 		f.request(http.MethodPost, "/sessions/"+env.SessionID+"/bootstrap", env.PresenterCredential, map[string]any{}, http.StatusConflict)
 		f.request(http.MethodPost, "/viewer-credentials", "", map[string]any{"joinCode": env.JoinCode}, http.StatusNotFound)
-		f.waitAssignedChildStopped()
+		f.waitAssignedSessionReleased()
 		f.prepareReplacementSession(presenter.manifest.Publication.PresentationId)
 		f.assertRejectedStaleConnection(staleToken, viewer.manifest.ProjectionProfile.RequiredRuntimeCapabilities)
 		f.assertRejectedNativeConnection(stalePresenterToken, presenter.manifest.ProjectionProfile.RequiredRuntimeCapabilities, nil)
@@ -539,19 +543,36 @@ func (f *fixture) runTest(parent *testing.T, name string, run func(*testing.T)) 
 func (f *fixture) assertCheckpoint(step string, continued bool) {
 	f.t.Helper()
 	query := url.Values{"sessionId": {f.env.SessionID}, "runtimeId": {f.env.RuntimeEnv["REALTIME_RUNTIME_ID"]}, "assignmentEpoch": {f.env.RuntimeEnv["REALTIME_ASSIGNMENT_EPOCH"]}}
-	response := decodeJSON[struct {
-		Checkpoint json.RawMessage `json:"checkpoint"`
-	}](f.t, f.request(http.MethodGet, "/internal/runtime/bootstrap?"+query.Encode(), f.env.RuntimeEnv["REALTIME_SERVICE_IDENTITY"], nil, http.StatusOK))
-	checkpoint := new(realtime.DurableCheckpointEnvelope)
-	if err := protojson.Unmarshal(response.Checkpoint, checkpoint); err != nil {
-		f.t.Fatal("Control Plane did not return a durable checkpoint:", err)
-	}
+	var checkpoint *realtime.DurableCheckpointEnvelope
+	var snapshot *realtime.CanonicalRuntimeSnapshot
+	f.wait("asynchronous Control Plane checkpoint catches up", func() bool {
+		response := decodeJSON[struct {
+			Checkpoint json.RawMessage `json:"checkpoint"`
+		}](f.t, f.request(http.MethodGet, "/internal/runtime/bootstrap?"+query.Encode(), f.env.RuntimeEnv["REALTIME_SERVICE_IDENTITY"], nil, http.StatusOK))
+		if len(response.Checkpoint) == 0 || string(response.Checkpoint) == "null" {
+			return false
+		}
+		checkpoint = new(realtime.DurableCheckpointEnvelope)
+		if err := protojson.Unmarshal(response.Checkpoint, checkpoint); err != nil {
+			f.t.Fatal("invalid durable checkpoint:", err)
+		}
+		snapshot = new(realtime.CanonicalRuntimeSnapshot)
+		if err := proto.Unmarshal(checkpoint.CanonicalSnapshotPayload, snapshot); err != nil {
+			f.t.Fatal("invalid checkpoint snapshot:", err)
+		}
+		if snapshot.Progression.GetCurrentStepId() != step {
+			return false
+		}
+		for _, v := range snapshot.Variables {
+			if v.VariableId == "continued" {
+				value, ok := v.Value.GetValue().(*presentation.ScalarValue_BooleanValue)
+				return ok && value.BooleanValue == continued
+			}
+		}
+		return false
+	})
 	if checkpoint.SessionId != f.env.SessionID || checkpoint.RuntimeId != f.env.RuntimeEnv["REALTIME_RUNTIME_ID"] || checkpoint.CanonicalSnapshotHash != fmt.Sprintf("sha256:%x", sha256.Sum256(checkpoint.CanonicalSnapshotPayload)) {
 		f.t.Fatal("Control Plane checkpoint identity/hash mismatch")
-	}
-	snapshot := new(realtime.CanonicalRuntimeSnapshot)
-	if err := proto.Unmarshal(checkpoint.CanonicalSnapshotPayload, snapshot); err != nil {
-		f.t.Fatal("decode Control Plane canonical checkpoint:", err)
 	}
 	if snapshot.Progression.GetCurrentStepId() != step {
 		f.t.Fatal("Control Plane checkpoint did not persist the expected Step")

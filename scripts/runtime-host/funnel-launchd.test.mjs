@@ -14,12 +14,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { addNixStoreRoot, findPinnedTool } from "./funnel-launchd-tools.mjs";
-import {
-  cleanOrphanedRuntimes,
-  orphanedRuntimePids,
-  hasListeners,
-  ownsServeConfiguration,
-} from "./funnel-launchd-start.mjs";
+import { hasListeners, ownsServeConfiguration } from "./funnel-launchd-start.mjs";
 
 const hostname = "fixture.example.ts.net";
 const owned = {
@@ -195,37 +190,6 @@ printf '%s' "$5" > "$2"
     process.env.PATH = original;
   }
   assert.equal(readFileSync(result, "utf8"), "/nix/store/fixture");
-});
-
-test("recovers only orphaned Runtime processes of the deployment executable and user", async () => {
-  const executable =
-    "/Users/service/Library/Application Support/Unframe/Funnel/release/realtime-server";
-  const uid = process.getuid();
-  const snapshot = `${uid} 100 1 ${executable}\n${uid} 101 999 ${executable}\n${uid + 1} 102 1 ${executable}\n${uid} 103 1 ${executable}-other\n`;
-  assert.deepEqual(orphanedRuntimePids(snapshot, uid, executable), [100]);
-  const signals = [];
-  let alive = true;
-  await cleanOrphanedRuntimes(executable, {
-    list: async () => (alive ? snapshot : ""),
-    signal: (pid, name) => {
-      signals.push([pid, name]);
-      alive = false;
-    },
-    delay: async () => {},
-  });
-  assert.deepEqual(signals, [[100, "SIGTERM"]]);
-});
-test("rechecks orphan ownership before escalating to SIGKILL", async () => {
-  const executable = "/private/fixture/realtime-server";
-  const row = `${process.getuid()} 100 1 ${executable}`;
-  const signals = [];
-  let calls = 0;
-  await cleanOrphanedRuntimes(executable, {
-    list: async () => (++calls > 102 ? "" : row),
-    signal: (pid, name) => signals.push([pid, name]),
-    delay: async () => {},
-  });
-  assert.deepEqual(signals, [[100, "SIGTERM"]]);
 });
 
 test("preserves tailscale client dispatch when its executable is a tailscaled symlink", (t) => {

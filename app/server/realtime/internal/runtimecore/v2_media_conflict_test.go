@@ -68,6 +68,7 @@ func TestV2SameSurfaceStateAndMediaActionRejectsAtomicBatch(t *testing.T) {
 						}
 						expected := proto.Clone(before).(*realtimev2.CanonicalRuntimeSnapshot)
 						expected.ReliableSequence++
+						flushV2(t, core)
 						if after := core.Snapshot(); !proto.Equal(after, expected) || writer.envelope.ReliableSequence != expected.ReliableSequence {
 							t.Fatalf("rejected action changed canonical cut or checkpoint: before=%#v after=%#v", before, after)
 						}

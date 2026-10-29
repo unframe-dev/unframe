@@ -16,6 +16,10 @@ func (s *V2Session) AcceptTracking(ctx context.Context, identity session.Identit
 	defer s.operationMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.durability.completing {
+		return nil, nil, ErrV2PersistenceUnavailable
+	}
+
 	if s.snapshot.Clock.GetTerminating() != nil {
 		return nil, nil, ErrV2RuntimeDefinition
 	}

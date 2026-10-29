@@ -3,7 +3,6 @@ package runtimecore
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -97,7 +96,7 @@ func TestV2InputRechecksStatusAfterDueTimer(t *testing.T) {
 	}
 }
 
-func TestV2InputDuePersistenceFailureDoesNotAcceptInput(t *testing.T) {
+func TestV2InputDuePersistenceFailureDoesNotStopInput(t *testing.T) {
 	s, _ := reviewSession(t)
 	var cue v2Cue
 	if err := json.Unmarshal([]byte(`{"id":"timeout","trigger":{"kind":"timer","afterMilliseconds":10},"firePolicy":{"kind":"oncePerStepEntry"},"next":{"kind":"stay"}}`), &cue); err != nil {
@@ -114,7 +113,7 @@ func TestV2InputDuePersistenceFailureDoesNotAcceptInput(t *testing.T) {
 	s.checkpointWriter = failingV2Checkpoint{}
 	s.lastTick = time.Now().Add(-20 * time.Millisecond)
 	out, events, err := s.LogicalInput(session.Identity{ParticipantID: "p", Role: session.RolePresenter}, v3TestLogicalInput(s, &realtimev2.LogicalInputCommand{ClientEventId: "next", LogicalEventName: "next"}))
-	if !errors.Is(err, ErrV2PersistenceUnavailable) || out != nil || len(events) != 0 || s.snapshot.Clock.GetPaused().GetReason() != realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED || s.snapshot.ReliableSequence != 0 || len(s.outcomes) != 0 {
+	if err != nil || out.GetRejected().GetReason() != realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE || len(events) == 0 || s.snapshot.Clock.GetRunning() == nil || s.snapshot.ReliableSequence == 0 || len(s.outcomes) == 0 {
 		t.Fatalf("failed due commit accepted input: outcome=%v events=%v err=%v snapshot=%v", out, events, err, s.snapshot)
 	}
 }

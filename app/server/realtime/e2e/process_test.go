@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,16 +9,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
+	realtime "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	health "google.golang.org/grpc/health/grpc_health_v1"
 )
-
-func shellQuote(value string) string      { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }
-func (f *fixture) runtimePIDPath() string { return filepath.Join(f.env.StateDirectory, "runtime.pid") }
 
 func (f *fixture) startRuntimeHost() {
 	f.t.Helper()
@@ -33,12 +29,6 @@ func (f *fixture) startRuntimeHostProcess() {
 	if err != nil {
 		f.t.Fatal(err)
 	}
-	wrapper := filepath.Join(f.env.StateDirectory, "assigned-runtime.sh")
-	script := "#!/usr/bin/env bash\nset -euo pipefail\nprintf '%s\\n' \"$$\" > " + shellQuote(f.runtimePIDPath()) + "\nexec " + shellQuote(f.env.RuntimeBinary) + "\n"
-	if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
-		_ = log.Close()
-		f.t.Fatal(err)
-	}
 	cmd := exec.CommandContext(f.ctx, f.env.HostBinary)
 	values := map[string]string{}
 	for _, item := range os.Environ() {
@@ -50,7 +40,7 @@ func (f *fixture) startRuntimeHostProcess() {
 	for key, value := range f.env.RuntimeEnv {
 		values[key] = value
 	}
-	values["REALTIME_SERVER_EXECUTABLE"] = wrapper
+	values["REALTIME_HOST_CAPACITY"] = "2"
 	for key, value := range values {
 		cmd.Env = append(cmd.Env, key+"="+value)
 	}
@@ -83,7 +73,7 @@ func (f *fixture) prepareAssignedRuntime(sessionID string) {
 func (f *fixture) waitPreparedRuntime(sessionID string, assign bool) {
 	f.t.Helper()
 	assigned := !assign
-	f.waitFor("Runtime Host assignment and application readiness", 30*time.Second, func() bool {
+	f.waitFor("Runtime Host assignment and application readiness", 150*time.Second, func() bool {
 		select {
 		case <-f.runDone:
 			f.t.Fatal("Runtime Host exited before preparation; inspect private Runtime log")
@@ -145,57 +135,59 @@ func (f *fixture) runtimeServing() bool {
 	return err == nil && response.Status == health.HealthCheckResponse_SERVING
 }
 
-func (f *fixture) runtimePID() int {
-	f.t.Helper()
-	data, err := os.ReadFile(f.runtimePIDPath())
-	if err != nil {
-		f.t.Fatal("read assigned Runtime PID:", err)
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil || pid <= 1 {
-		f.t.Fatal("assigned Runtime PID is invalid")
-	}
-	return pid
-}
-
 func (f *fixture) crashRuntime() int {
 	f.t.Helper()
-	pid := f.runtimePID()
-	process, err := os.FindProcess(pid)
+	if f.run == nil {
+		f.t.Fatal("Runtime Host is not running")
+	}
+	status := decodeJSON[runtimePreparation](f.t, f.request(http.MethodGet, "/sessions/"+f.env.SessionID+"/runtime-preparation", f.env.PresenterCredential, nil, http.StatusOK))
+	var err error
+	f.crashedLeaseExpiresAt, err = time.Parse(time.RFC3339Nano, status.LeaseExpiresAt)
 	if err != nil {
-		f.t.Fatal(err)
+		f.t.Fatal("read crashed Host lease boundary:", err)
 	}
-	if err := process.Kill(); err != nil {
-		f.t.Fatal("crash assigned Runtime child:", err)
+	pid := f.run.Process.Pid
+	if err := f.run.Process.Kill(); err != nil {
+		f.t.Fatal("crash Runtime Host:", err)
 	}
+	<-f.runDone
+	f.run = nil
+	_ = f.runLog.Close()
+	f.runLog = nil
 	return pid
 }
-
 func (f *fixture) waitRuntimeRestarted(previousPID int) {
 	f.t.Helper()
-	f.waitFor("Runtime Host automatically restarts its assigned child", 30*time.Second, func() bool {
-		data, err := os.ReadFile(f.runtimePIDPath())
-		if err != nil {
-			return false
+	oldEpoch := f.env.RuntimeEnv["REALTIME_ASSIGNMENT_EPOCH"]
+	f.startRuntimeHostProcess()
+	if f.run.Process.Pid == previousPID {
+		f.t.Fatal("Host process identity was reused")
+	}
+	// A new Host boot must await the previous authority's fixed lease boundary.
+	f.waitFor("new Host boot obtains a fresh assignment epoch", 150*time.Second, func() bool {
+		data := f.request(http.MethodGet, "/sessions/"+f.env.SessionID+"/runtime-preparation", f.env.PresenterCredential, nil, http.StatusOK)
+		status := decodeJSON[runtimePreparation](f.t, data)
+		fresh := status.AssignmentEpoch > 0 && strconv.FormatUint(status.AssignmentEpoch, 10) != oldEpoch
+		if fresh && time.Now().Before(f.crashedLeaseExpiresAt) {
+			f.t.Fatal("new authority started before the unconfirmed old execution lease expired")
 		}
-		pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-		return err == nil && pid > 1 && pid != previousPID && f.runtimeServing()
+		return fresh
 	})
-	f.prepareAssignedRuntime(f.env.SessionID)
+	f.waitPreparedRuntime(f.env.SessionID, false)
+	if f.env.RuntimeEnv["REALTIME_ASSIGNMENT_EPOCH"] == oldEpoch {
+		f.t.Fatal("Host restart reused the previous execution epoch")
+	}
 }
-
-func (f *fixture) waitAssignedChildStopped() {
+func (f *fixture) waitAssignedSessionReleased() {
 	f.t.Helper()
-	pid := f.runtimePID()
-	f.waitFor("Session end stops the assigned Runtime child", 30*time.Second, func() bool {
+	f.waitFor("Session end releases its execution while Host remains alive", 30*time.Second, func() bool {
 		select {
 		case <-f.runDone:
-			f.t.Fatal("Runtime Host stopped instead of releasing its child")
+			f.t.Fatal("Host stopped on Session release")
 		default:
 		}
 		data := f.request(http.MethodGet, "/sessions/"+f.env.SessionID+"/runtime-preparation", f.env.PresenterCredential, nil, http.StatusOK)
-		status := decodeJSON[runtimePreparation](f.t, data)
-		return status.State == "ended" && errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)
+		return decodeJSON[runtimePreparation](f.t, data).State == "ended" && f.runtimeServing()
 	})
 }
 
@@ -261,4 +253,53 @@ func (f *fixture) expireLocalAssignment() {
 	if _, err := cmd.CombinedOutput(); err != nil {
 		f.t.Fatal("expire isolated local Runtime assignment:", err)
 	}
+}
+
+func (f *fixture) assertConcurrentSessionIsolation(primary *peer) {
+	f.t.Helper()
+	created := decodeJSON[struct {
+		Session struct {
+			ID string `json:"id"`
+		} `json:"session"`
+		JoinCode string `json:"joinCode"`
+	}](f.t, f.request(http.MethodPost, "/sessions", f.env.PresenterCredential, map[string]any{"presentationId": primary.manifest.Publication.PresentationId}, http.StatusCreated))
+	secondaryFixture := *f
+	secondaryFixture.env = f.env
+	secondaryFixture.env.SessionID = created.Session.ID
+	secondaryFixture.env.JoinCode = created.JoinCode
+	secondaryFixture.env.RuntimeEnv = make(map[string]string, len(f.env.RuntimeEnv))
+	for key, value := range f.env.RuntimeEnv {
+		secondaryFixture.env.RuntimeEnv[key] = value
+	}
+	secondaryFixture.request(http.MethodPost, "/sessions/"+created.Session.ID+"/start", f.env.PresenterCredential, map[string]any{}, http.StatusOK)
+	secondaryFixture.prepareAssignedRuntime(created.Session.ID)
+	presenter := secondaryFixture.connectNative(nil)
+	viewer := secondaryFixture.connectViewer("")
+	presenter.wait("secondary Presenter synchronization", func(s peerState) bool {
+		return s.synchronization.GetPhase() == realtime.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_READY
+	})
+	viewer.waitView("secondary Viewer initial Snapshot", "start", false)
+	pauseCut := presenter.control(realtime.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE, "pause-secondary")
+	presenter.wait("secondary pause input synchronization", func(s peerState) bool {
+		return s.sequence >= pauseCut && s.view.Clock.GetPaused() != nil && s.synchronization.GetPhase() == realtime.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_READY
+	})
+	pausedRevision := presenter.snapshot().synchronization.SynchronizationRevision
+	viewer.waitView("secondary pause remains local", "start", true)
+	primary.waitView("primary continues while secondary is paused", "start", false)
+	resumeCut := presenter.control(realtime.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME, "resume-secondary")
+	presenter.wait("secondary input resynchronizes", func(s peerState) bool {
+		return s.sequence >= resumeCut && s.view.Clock.GetRunning() != nil && s.synchronization.SynchronizationRevision > pausedRevision && s.synchronization.GetPhase() == realtime.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_READY
+	})
+	command := presenter.gesture("advance-secondary")
+	if outcome := presenter.outcome(command.ClientEventId); outcome.GetAccepted() == nil {
+		f.t.Fatalf("secondary input failed: %v", outcome)
+	}
+	viewer.waitView("secondary advances independently", "finished", false)
+	primary.waitView("primary progression remains independent", "start", false)
+	secondaryFixture.assertCheckpoint("finished", true)
+	presenter.control(realtime.RuntimeControlKind_RUNTIME_CONTROL_KIND_END, "end-secondary")
+	viewer.waitClosed("secondary completion releases only its assignment")
+	presenter.close()
+	viewer.close()
+	primary.waitView("primary survives secondary completion", "start", false)
 }

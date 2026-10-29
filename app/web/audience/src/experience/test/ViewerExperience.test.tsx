@@ -558,6 +558,33 @@ test("Snapshot再同期は明示restartで新inputへ復旧し古い回復callba
   expect(document.querySelector("[data-phase]")?.getAttribute("data-phase")).toBe("viewing");
 });
 
+test("Runtime復旧待ちは旧受信を止めカメラを保持し新assignmentで受信を再開する", async () => {
+  const props = setup();
+  let previous!: RuntimeInput;
+  const release = vi.fn();
+  const onRuntimeInput = vi.fn((input: RuntimeInput) => {
+    previous = input;
+    return release;
+  });
+  const ui = render(<ViewerExperience {...props} onRuntimeInput={onRuntimeInput} />);
+  await start();
+  const oldInput = previous;
+  ui.rerender(
+    <ViewerExperience {...props} recovering refreshing onRuntimeInput={onRuntimeInput} />,
+  );
+  expect(release).toHaveBeenCalledOnce();
+  expect(mock.stop).not.toHaveBeenCalled();
+  expect(mock.dispose).not.toHaveBeenCalled();
+  act(() => oldInput.applyControl({ connected: { connectionId: "old" } }));
+  expect(mock.applyControl).not.toHaveBeenCalled();
+  const next = structuredClone(props.connection);
+  next.delivery.projectionInstance!.assignmentEpoch = "2";
+  next.bootstrap.assignmentEpoch = 2;
+  ui.rerender(<ViewerExperience {...props} connection={next} onRuntimeInput={onRuntimeInput} />);
+  expect(onRuntimeInput).toHaveBeenCalledTimes(2);
+  expect(mock.start).toHaveBeenCalledOnce();
+});
+
 test("マーカーの黒外周4サイズを選び、変更時に古い追跡とRuntime入力を破棄する", async () => {
   const props = setup();
   const disconnect = vi.fn();

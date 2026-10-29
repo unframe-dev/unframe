@@ -15,10 +15,10 @@ func TestHeartbeatUsesServiceIdentityAndRejectsInvalidResponses(t *testing.T) {
 		terminal   bool
 		wantError  bool
 	}{
-		{"idle", `{"assignment":null}`, 200, false, false},
+		{"idle", `{"generation":1,"assignments":[]}`, 200, false, false},
 		{"missing", `{}`, 200, true, true},
-		{"trailing", `{"assignment":null}{}`, 200, true, true},
-		{"wrong type", `{"assignment":false}`, 200, true, true},
+		{"trailing", `{"generation":1,"assignments":[]}{}`, 200, true, true},
+		{"wrong type", `{"generation":1,"assignments":false}`, 200, true, true},
 		{"revoked", `secret`, 401, true, true},
 		{"offline", `secret`, 503, false, true},
 	} {

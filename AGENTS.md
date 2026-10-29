@@ -20,8 +20,8 @@ app/
 lp/            SvelteKit landing page and documentation site (WIP)
 docs/          Architecture, API, ADR, and plan documentation
 packages/
-├── contracts/        Future API and protocol contract boundary
-├── api-client-csharp/ C# client artifact placeholder
+├── contracts/        API and protocol contracts / generated artifacts
+├── api-client-csharp/ Generated C# Control Plane / Realtime artifacts
 └── config/           Shared TypeScript, Vite+, and Git hook configuration
 scripts/              Development, generation, CI, and documentation scripts
 ```
@@ -42,9 +42,7 @@ not equally complete in every area:
   Each application under `app/web/` has independent dependencies, build, and startup configuration.
 - `lp/` is a static SvelteKit site and remains WIP while product content is being
   developed. Its CI task runs the LP test, check, and build commands.
-- `app/unity/` contains a Unity project and EditMode tests. The generated C#
-  client is not currently wired into Unity; Unity uses handwritten manifest
-  models under `app/unity/Assets/Scripts/ManifestDates/`.
+- `app/unity/` contains a Unity project and EditMode tests. The generated Control Plane C# client is not wired into Unity. Unity uses generated Realtime Protobuf clients and handwritten manifest models under `app/unity/Assets/Scripts/ManifestDates/`.
 - There is currently no deployment workflow in this repository. Do not invent
   deployment commands or assume that an application is independently deployed.
 
@@ -133,7 +131,7 @@ necessary.
 - Go backend code belongs in `app/server/`.
 - Unity and C# code belongs in `app/unity/`.
 - Landing page code belongs in `lp/`.
-- Future API and protocol contracts belong in `packages/contracts/`.
+- Shared API and protocol contracts belong in `packages/contracts/`.
 - C# client artifacts belong in `packages/api-client-csharp/` when C# generation
   is implemented.
 - Shared repository configuration belongs in `packages/config/`.
@@ -152,19 +150,16 @@ Within `app/server/realtime/`, preserve the target Realtime Backend boundaries:
 - `internal/transport/grpc/` contains the handwritten gRPC transport adapter.
 - `internal/auth/` contains connection and service identity verification.
 - `internal/protocol/` maps generated wire types to validated core inputs.
-- `internal/session/` contains infrastructure-independent session state and logic.
+- `internal/runtimecore/` contains infrastructure-independent canonical state and execution logic.
+- `internal/session/` contains authenticated identities and State nonce primitives.
 - `internal/persistence/http/` contains the Control Plane HTTP adapter.
 - `internal/gen/` is reserved for generated code and must not contain handwritten Go code.
 
 ## API Contracts and Generated Code
 
-The legacy OpenAPI contract and generated TypeScript client have been removed.
-`packages/contracts/` remains the future shared boundary for Control Plane
-OpenAPI and Realtime Protocol Buffers. Define each contract's source of truth,
-generation flow, consumers, and drift checks with its component implementation.
+Control Plane OpenAPI is generated from `app/server/control-plane/src/openapi.ts` into `packages/contracts/`. Realtime Protocol Buffers are defined under `packages/contracts/proto/`. Use the existing generation and drift commands to synchronize consumers.
 
-Do not manually edit generated files. The C# client generation process is not
-currently implemented; do not claim that Unity is automatically regenerated.
+Do not manually edit generated files. Distinguish Control Plane C# client integration from the generated Realtime Protobuf clients used by Unity.
 
 ## Database and Migrations
 

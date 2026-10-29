@@ -56,8 +56,9 @@ export function AudienceApplication(
   const [connection, setConnection] = useState<PreparedConnection | null>(null);
   const revision = snapshot.phase === "prepared" ? snapshot.revision : null;
   useEffect(() => {
+    if (snapshot.phase === "recovering") return;
     setConnection(revision === null ? null : (state.controller?.getPrepared() ?? null));
-  }, [revision, state]);
+  }, [revision, snapshot.phase, state]);
   useEffect(() => {
     if (snapshot.phase === "ended")
       props.onViewingSnapshot?.({ phase: "ended", runtime: null, recovery: null, error: null });
@@ -69,7 +70,11 @@ export function AudienceApplication(
         error: snapshot.error,
       });
   }, [snapshot, props.onViewingSnapshot]);
-  if (snapshot.phase === "prepared" && state.controller && connection)
+  if (
+    (snapshot.phase === "prepared" || snapshot.phase === "recovering") &&
+    state.controller &&
+    connection
+  )
     return (
       <Suspense fallback={<p role="status">視聴画面を準備しています。</p>}>
         <ViewerExperience
@@ -79,8 +84,9 @@ export function AudienceApplication(
           onReconnect={state.controller.reconnect}
           {...(props.trackingAdapter ? { trackingAdapter: props.trackingAdapter } : {})}
           {...(props.onViewingSnapshot ? { onViewingSnapshot: props.onViewingSnapshot } : {})}
-          refreshing={snapshot.refreshing}
-          refreshError={snapshot.refreshError}
+          recovering={snapshot.phase === "recovering"}
+          refreshing={snapshot.phase === "prepared" ? snapshot.refreshing : true}
+          refreshError={snapshot.phase === "prepared" ? snapshot.refreshError : null}
           onRefresh={() => {
             void state.controller?.refresh();
           }}

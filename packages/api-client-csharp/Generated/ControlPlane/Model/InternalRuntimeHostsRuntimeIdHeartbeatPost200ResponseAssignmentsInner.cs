@@ -26,12 +26,12 @@ using Unframe.ControlPlane.Client;
 namespace Unframe.ControlPlane.Model
 {
     /// <summary>
-    /// InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment
+    /// InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner
     /// </summary>
-    public partial class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment : IValidatableObject
+    public partial class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner : IValidatableObject
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment" /> class.
+        /// Initializes a new instance of the <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner" /> class.
         /// </summary>
         /// <param name="sessionId">sessionId</param>
         /// <param name="runtimeId">runtimeId</param>
@@ -41,11 +41,12 @@ namespace Unframe.ControlPlane.Model
         /// <param name="presentationRevision">presentationRevision</param>
         /// <param name="issuedAt">issuedAt</param>
         /// <param name="leaseExpiresAt">leaseExpiresAt</param>
+        /// <param name="recovery">recovery</param>
         /// <param name="certificateFingerprint">certificateFingerprint</param>
         /// <param name="provisioningEdgeId">provisioningEdgeId</param>
         /// <param name="releasedAt">releasedAt</param>
         [JsonConstructor]
-        public InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment(string sessionId, string runtimeId, RuntimeKindEnum runtimeKind, string endpoint, long assignmentEpoch, long presentationRevision, DateTime issuedAt, DateTime leaseExpiresAt, string? certificateFingerprint = default, string? provisioningEdgeId = default, DateTime? releasedAt = default)
+        public InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner(string sessionId, string runtimeId, RuntimeKindEnum runtimeKind, string endpoint, long assignmentEpoch, long presentationRevision, DateTime issuedAt, DateTime leaseExpiresAt, bool recovery, string? certificateFingerprint = default, string? provisioningEdgeId = default, DateTime? releasedAt = default)
         {
             SessionId = sessionId;
             RuntimeId = runtimeId;
@@ -55,6 +56,7 @@ namespace Unframe.ControlPlane.Model
             PresentationRevision = presentationRevision;
             IssuedAt = issuedAt;
             LeaseExpiresAt = leaseExpiresAt;
+            Recovery = recovery;
             CertificateFingerprint = certificateFingerprint;
             ProvisioningEdgeId = provisioningEdgeId;
             ReleasedAt = releasedAt;
@@ -178,6 +180,12 @@ namespace Unframe.ControlPlane.Model
         public DateTime LeaseExpiresAt { get; set; }
 
         /// <summary>
+        /// Gets or Sets Recovery
+        /// </summary>
+        [JsonPropertyName("recovery")]
+        public bool Recovery { get; set; }
+
+        /// <summary>
         /// Gets or Sets CertificateFingerprint
         /// </summary>
         [JsonPropertyName("certificateFingerprint")]
@@ -202,7 +210,7 @@ namespace Unframe.ControlPlane.Model
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment {\n");
+            sb.Append("class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner {\n");
             sb.Append("  SessionId: ").Append(SessionId).Append("\n");
             sb.Append("  RuntimeId: ").Append(RuntimeId).Append("\n");
             sb.Append("  RuntimeKind: ").Append(RuntimeKind).Append("\n");
@@ -211,6 +219,7 @@ namespace Unframe.ControlPlane.Model
             sb.Append("  PresentationRevision: ").Append(PresentationRevision).Append("\n");
             sb.Append("  IssuedAt: ").Append(IssuedAt).Append("\n");
             sb.Append("  LeaseExpiresAt: ").Append(LeaseExpiresAt).Append("\n");
+            sb.Append("  Recovery: ").Append(Recovery).Append("\n");
             sb.Append("  CertificateFingerprint: ").Append(CertificateFingerprint).Append("\n");
             sb.Append("  ProvisioningEdgeId: ").Append(ProvisioningEdgeId).Append("\n");
             sb.Append("  ReleasedAt: ").Append(ReleasedAt).Append("\n");
@@ -308,9 +317,9 @@ namespace Unframe.ControlPlane.Model
     }
 
     /// <summary>
-    /// A Json converter for type <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment" />
+    /// A Json converter for type <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner" />
     /// </summary>
-    public class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentJsonConverter : JsonConverter<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment>
+    public class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInnerJsonConverter : JsonConverter<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner>
     {
         /// <summary>
         /// The format to use to serialize IssuedAt
@@ -328,14 +337,14 @@ namespace Unframe.ControlPlane.Model
         public static string ReleasedAtFormat { get; set; } = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffffffK";
 
         /// <summary>
-        /// Deserializes json to <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment" />
+        /// Deserializes json to <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner" />
         /// </summary>
         /// <param name="utf8JsonReader"></param>
         /// <param name="typeToConvert"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <returns></returns>
         /// <exception cref="JsonException"></exception>
-        public override InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
+        public override InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
         {
             int currentDepth = utf8JsonReader.CurrentDepth;
 
@@ -346,12 +355,13 @@ namespace Unframe.ControlPlane.Model
 
             Option<string?> sessionId = default;
             Option<string?> runtimeId = default;
-            Option<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeKindEnum?> runtimeKind = default;
+            Option<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeKindEnum?> runtimeKind = default;
             Option<string?> endpoint = default;
             Option<long?> assignmentEpoch = default;
             Option<long?> presentationRevision = default;
             Option<DateTime?> issuedAt = default;
             Option<DateTime?> leaseExpiresAt = default;
+            Option<bool?> recovery = default;
             Option<string?> certificateFingerprint = default;
             Option<string?> provisioningEdgeId = default;
             Option<DateTime?> releasedAt = default;
@@ -380,7 +390,7 @@ namespace Unframe.ControlPlane.Model
                         case "runtimeKind":
                             string? runtimeKindRawValue = utf8JsonReader.GetString();
                             if (runtimeKindRawValue != null)
-                                runtimeKind = new Option<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeKindEnum?>(InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeKindEnumFromStringOrDefault(runtimeKindRawValue));
+                                runtimeKind = new Option<InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeKindEnum?>(InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeKindEnumFromStringOrDefault(runtimeKindRawValue));
                             break;
                         case "endpoint":
                             endpoint = new Option<string?>(utf8JsonReader.GetString()!);
@@ -396,6 +406,9 @@ namespace Unframe.ControlPlane.Model
                             break;
                         case "leaseExpiresAt":
                             leaseExpiresAt = new Option<DateTime?>(JsonSerializer.Deserialize<DateTime>(ref utf8JsonReader, jsonSerializerOptions));
+                            break;
+                        case "recovery":
+                            recovery = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
                             break;
                         case "certificateFingerprint":
                             certificateFingerprint = new Option<string?>(utf8JsonReader.GetString());
@@ -413,126 +426,134 @@ namespace Unframe.ControlPlane.Model
             }
 
             if (!sessionId.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(sessionId));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(sessionId));
 
             if (!runtimeId.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(runtimeId));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(runtimeId));
 
             if (!runtimeKind.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(runtimeKind));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(runtimeKind));
 
             if (!endpoint.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(endpoint));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(endpoint));
 
             if (!assignmentEpoch.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(assignmentEpoch));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(assignmentEpoch));
 
             if (!presentationRevision.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(presentationRevision));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(presentationRevision));
 
             if (!issuedAt.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(issuedAt));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(issuedAt));
 
             if (!leaseExpiresAt.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(leaseExpiresAt));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(leaseExpiresAt));
+
+            if (!recovery.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(recovery));
 
             if (!certificateFingerprint.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(certificateFingerprint));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(certificateFingerprint));
 
             if (!provisioningEdgeId.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(provisioningEdgeId));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(provisioningEdgeId));
 
             if (!releasedAt.IsSet)
-                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.", nameof(releasedAt));
+                throw new ArgumentException("Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.", nameof(releasedAt));
 
             if (sessionId.IsSet && sessionId.Value == null)
-                throw new ArgumentNullException(nameof(sessionId), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(sessionId), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
             if (runtimeId.IsSet && runtimeId.Value == null)
-                throw new ArgumentNullException(nameof(runtimeId), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(runtimeId), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
             if (runtimeKind.IsSet && runtimeKind.Value == null)
-                throw new ArgumentNullException(nameof(runtimeKind), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(runtimeKind), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
             if (endpoint.IsSet && endpoint.Value == null)
-                throw new ArgumentNullException(nameof(endpoint), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(endpoint), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
             if (assignmentEpoch.IsSet && assignmentEpoch.Value == null)
-                throw new ArgumentNullException(nameof(assignmentEpoch), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(assignmentEpoch), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
             if (presentationRevision.IsSet && presentationRevision.Value == null)
-                throw new ArgumentNullException(nameof(presentationRevision), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(presentationRevision), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
             if (issuedAt.IsSet && issuedAt.Value == null)
-                throw new ArgumentNullException(nameof(issuedAt), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(issuedAt), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
             if (leaseExpiresAt.IsSet && leaseExpiresAt.Value == null)
-                throw new ArgumentNullException(nameof(leaseExpiresAt), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+                throw new ArgumentNullException(nameof(leaseExpiresAt), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
-            return new InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment(sessionId.Value!, runtimeId.Value!, runtimeKind.Value!.Value!, endpoint.Value!, assignmentEpoch.Value!.Value!, presentationRevision.Value!.Value!, issuedAt.Value!.Value!, leaseExpiresAt.Value!.Value!, certificateFingerprint.Value!, provisioningEdgeId.Value!, releasedAt.Value!);
+            if (recovery.IsSet && recovery.Value == null)
+                throw new ArgumentNullException(nameof(recovery), "Property is not nullable for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
+
+            return new InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner(sessionId.Value!, runtimeId.Value!, runtimeKind.Value!.Value!, endpoint.Value!, assignmentEpoch.Value!.Value!, presentationRevision.Value!.Value!, issuedAt.Value!.Value!, leaseExpiresAt.Value!.Value!, recovery.Value!.Value!, certificateFingerprint.Value!, provisioningEdgeId.Value!, releasedAt.Value!);
         }
 
         /// <summary>
-        /// Serializes a <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment" />
+        /// Serializes a <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public override void Write(Utf8JsonWriter writer, InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment, JsonSerializerOptions jsonSerializerOptions)
+        public override void Write(Utf8JsonWriter writer, InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner, JsonSerializerOptions jsonSerializerOptions)
         {
             writer.WriteStartObject();
 
-            WriteProperties(writer, internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment, jsonSerializerOptions);
+            WriteProperties(writer, internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner, jsonSerializerOptions);
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Serializes the properties of <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment" />
+        /// Serializes the properties of <see cref="InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment"></param>
+        /// <param name="internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void WriteProperties(Utf8JsonWriter writer, InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment, JsonSerializerOptions jsonSerializerOptions)
+        public void WriteProperties(Utf8JsonWriter writer, InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.SessionId == null)
-                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.SessionId), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.SessionId == null)
+                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.SessionId), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
-            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeId == null)
-                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeId), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeId == null)
+                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeId), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
-            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.Endpoint == null)
-                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.Endpoint), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.");
+            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.Endpoint == null)
+                throw new ArgumentNullException(nameof(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.Endpoint), "Property is required for class InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.");
 
-            writer.WriteString("sessionId", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.SessionId);
+            writer.WriteString("sessionId", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.SessionId);
 
-            writer.WriteString("runtimeId", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeId);
+            writer.WriteString("runtimeId", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeId);
 
-            var runtimeKindRawValue = InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeKindEnumToJsonValue(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.RuntimeKind);
+            var runtimeKindRawValue = InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeKindEnumToJsonValue(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeKind);
             writer.WriteString("runtimeKind", runtimeKindRawValue);
-            writer.WriteString("endpoint", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.Endpoint);
+            writer.WriteString("endpoint", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.Endpoint);
 
-            writer.WriteNumber("assignmentEpoch", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.AssignmentEpoch);
+            writer.WriteNumber("assignmentEpoch", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.AssignmentEpoch);
 
-            writer.WriteNumber("presentationRevision", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.PresentationRevision);
+            writer.WriteNumber("presentationRevision", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.PresentationRevision);
 
-            writer.WriteString("issuedAt", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.IssuedAt.ToString(IssuedAtFormat));
+            writer.WriteString("issuedAt", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.IssuedAt.ToString(IssuedAtFormat));
 
-            writer.WriteString("leaseExpiresAt", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.LeaseExpiresAt.ToString(LeaseExpiresAtFormat));
+            writer.WriteString("leaseExpiresAt", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.LeaseExpiresAt.ToString(LeaseExpiresAtFormat));
 
-            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.CertificateFingerprint != null)
-                writer.WriteString("certificateFingerprint", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.CertificateFingerprint);
+            writer.WriteBoolean("recovery", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.Recovery);
+
+            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.CertificateFingerprint != null)
+                writer.WriteString("certificateFingerprint", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.CertificateFingerprint);
             else
                 writer.WriteNull("certificateFingerprint");
 
-            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.ProvisioningEdgeId != null)
-                writer.WriteString("provisioningEdgeId", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.ProvisioningEdgeId);
+            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.ProvisioningEdgeId != null)
+                writer.WriteString("provisioningEdgeId", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.ProvisioningEdgeId);
             else
                 writer.WriteNull("provisioningEdgeId");
 
-            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.ReleasedAt != null)
-                writer.WriteString("releasedAt", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignment.ReleasedAt.Value.ToString(ReleasedAtFormat));
+            if (internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.ReleasedAt != null)
+                writer.WriteString("releasedAt", internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.ReleasedAt.Value.ToString(ReleasedAtFormat));
             else
                 writer.WriteNull("releasedAt");
         }

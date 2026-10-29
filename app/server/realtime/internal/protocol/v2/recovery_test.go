@@ -71,3 +71,17 @@ func TestCapacityFaultRequiresPositiveDimensions(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRecoveryWithoutParticipantsRequiresZeroReliableSequence(t *testing.T) {
+	synchronization := synchronizationFixture()
+	synchronization.ReliableSequence = 0
+	recovery := &realtimev2.RuntimeRecoveryMetadata{CommandEpoch: 1, InputSynchronization: synchronization, StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	envelope := recoveryEnvelope(t, recovery)
+	if _, err := DecodeRecoveryMetadata(envelope); err == nil {
+		t.Fatal("noninitial checkpoint omitted participant history")
+	}
+	envelope.ReliableSequence = 0
+	if _, err := DecodeRecoveryMetadata(envelope); err != nil {
+		t.Fatal(err)
+	}
+}

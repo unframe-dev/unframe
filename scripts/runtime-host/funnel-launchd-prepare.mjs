@@ -70,7 +70,7 @@ try {
       throw new Error("Existing Tailscale state belongs to another deployment.");
     }
   }
-  for (const name of ["runtime-host", "realtime-server"]) {
+  for (const name of ["runtime-host"]) {
     if (!(statSync(join(release, name)).mode & 0o111))
       throw new Error("Build the Realtime release before preparing Funnel launchd.");
   }
@@ -95,7 +95,7 @@ try {
   for (const [name, path] of Object.entries(tools)) symlinkSync(path, join(output, "bin", name));
   for (const name of ["stdout.log", "stderr.log"])
     writeFileSync(join(output, "logs", name), "", { mode: 0o600 });
-  for (const name of ["runtime-host", "realtime-server"])
+  for (const name of ["runtime-host"])
     copyFileSync(join(release, name), join(output, "release", name));
   copyFileSync(join(root, "scripts/runtime-host/funnel.sh"), join(output, "funnel.sh"));
   copyFileSync(

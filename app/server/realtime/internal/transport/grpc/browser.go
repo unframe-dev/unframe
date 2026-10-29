@@ -51,7 +51,7 @@ func (h *browserHandler) stop() <-chan struct{} {
 	return done
 }
 
-func newBrowserHandler(lifetime context.Context, verifier *auth.BearerTokenVerifier, service *V2Service, origins []string) *browserHandler {
+func newBrowserHandler(lifetime context.Context, verifier *auth.BearerTokenVerifier, service SessionService, origins []string) *browserHandler {
 	return &browserHandler{handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/browser/control" && r.URL.Path != "/browser/state" {
 			http.NotFound(w, r)

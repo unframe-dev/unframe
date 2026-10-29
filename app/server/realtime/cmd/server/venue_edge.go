@@ -22,7 +22,7 @@ import (
 	"golang.org/x/net/http2"
 )
 
-func runVenueEdge(ctx context.Context, listener net.Listener, deps transportgrpc.Dependencies, readiness func(context.Context) error, client *persistencehttp.Client, pin persistencehttp.BootstrapPublication, originClient *http.Client) error {
+func runVenueEdge(ctx context.Context, listener net.Listener, deps transportgrpc.Dependencies, readiness func(context.Context) error, client *persistencehttp.Client, pin persistencehttp.BootstrapPublication, originClient *http.Client, shutdownContext func() context.Context) error {
 	certificatePath, keyPath, directory := os.Getenv("VENUE_EDGE_TLS_CERT_FILE"), os.Getenv("VENUE_EDGE_TLS_KEY_FILE"), os.Getenv("VENUE_EDGE_CACHE_DIR")
 	if certificatePath == "" || keyPath == "" || directory == "" {
 		return fmt.Errorf("venue edge TLS certificate, key, and cache directory are required")
@@ -68,8 +68,7 @@ func runVenueEdge(ctx context.Context, listener net.Listener, deps transportgrpc
 		return err
 	}
 	defer func() {
-		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+		shutdown := shutdownContext()
 		_ = server.ShutdownBrowser(shutdown)
 		server.GRPCServer().Stop()
 	}()
@@ -107,8 +106,7 @@ func runVenueEdge(ctx context.Context, listener net.Listener, deps transportgrpc
 		server.SetApplicationReady(false)
 		// HTTP/2 gRPC streams must be stopped before waiting for HTTP shutdown.
 		server.GRPCServer().Stop()
-		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+		shutdown := shutdownContext()
 		if err := server.ShutdownBrowser(shutdown); err != nil {
 			return err
 		}

@@ -2,192 +2,258 @@ package host
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
 type heartbeatResult struct {
-	assignment *Assignment
-	err        error
+	assignments []Assignment
+	err         error
 }
 type fakeControlPlane struct {
 	requests  chan Heartbeat
 	responses chan heartbeatResult
 }
 
-func (f *fakeControlPlane) Heartbeat(ctx context.Context, request Heartbeat) (*Assignment, error) {
-	f.requests <- request
-	if !request.Accepting {
-		return nil, nil
+func (f *fakeControlPlane) Start(context.Context, Registration) (uint64, error) { return 1, nil }
+func (f *fakeControlPlane) Heartbeat(ctx context.Context, r Heartbeat) (HeartbeatResponse, error) {
+	select {
+	case f.requests <- r:
+	case <-ctx.Done():
+		return HeartbeatResponse{}, ctx.Err()
+	}
+	if !r.Accepting {
+		return HeartbeatResponse{Generation: 1, Assignments: []Assignment{}}, nil
 	}
 	select {
 	case result := <-f.responses:
-		return result.assignment, result.err
+		return HeartbeatResponse{Generation: 1, Assignments: result.assignments}, result.err
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return HeartbeatResponse{}, ctx.Err()
 	}
 }
 
-type fakeChild struct {
-	ready   atomic.Bool
-	stopped atomic.Bool
-	done    chan struct{}
+type fakeExecution struct {
+	stopped  atomic.Bool
+	revoked  atomic.Bool
+	renewals atomic.Int32
+	done     chan struct{}
+	stopHook func(context.Context) error
 }
 
-func (f *fakeChild) Serving(context.Context) bool { return f.ready.Load() }
-func (f *fakeChild) Done() <-chan struct{}        { return f.done }
-func (f *fakeChild) Stop(context.Context) error   { f.stopped.Store(true); return nil }
-
-func hostAssignment() *Assignment {
-	return &Assignment{SessionID: "session-1", RuntimeID: "host-1", RuntimeKind: "Cloud", Endpoint: "https://runtime.test", AssignmentEpoch: 1, PresentationRevision: 2, IssuedAt: time.Now().Add(-time.Minute), LeaseExpiresAt: time.Now().Add(2 * time.Minute)}
+func (f *fakeExecution) Done() <-chan struct{}  { return f.done }
+func (f *fakeExecution) Revoke()                { f.revoked.Store(true) }
+func (f *fakeExecution) Renew(Assignment) error { f.renewals.Add(1); return nil }
+func (f *fakeExecution) Stop(ctx context.Context) error {
+	f.stopped.Store(true)
+	if f.stopHook != nil {
+		return f.stopHook(ctx)
+	}
+	return nil
 }
-func receive[T any](t *testing.T, channel <-chan T) T {
+func hostAssignment() Assignment {
+	return Assignment{SessionID: "session-1", RuntimeID: "host-1", RuntimeKind: "Cloud", Endpoint: "https://runtime.test", AssignmentEpoch: 1, PresentationRevision: 2, IssuedAt: time.Now().Add(-time.Minute), LeaseExpiresAt: time.Now().Add(2 * time.Minute)}
+}
+func receive[T any](t *testing.T, c <-chan T) T {
 	t.Helper()
 	select {
-	case item := <-channel:
-		return item
+	case v := <-c:
+		return v
 	case <-time.After(3 * time.Second):
-		t.Fatal("host boundary operation timed out")
+		t.Fatal("host boundary timed out")
 		var zero T
 		return zero
 	}
 }
-func TestSupervisorRegistersStartsReportsHealthAndReleases(t *testing.T) {
-	cp := &fakeControlPlane{requests: make(chan Heartbeat, 16), responses: make(chan heartbeatResult, 16)}
-	started := make(chan *fakeChild, 16)
-	supervisor := Supervisor{RuntimeID: "host-1", Endpoint: "https://runtime.test", Interval: time.Millisecond, ControlPlane: cp, Start: func(_ Assignment) (Child, error) {
-		child := &fakeChild{done: make(chan struct{})}
-		started <- child
-		return child, nil
-	}}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	finished := make(chan error, 1)
-	go func() { finished <- supervisor.Run(ctx) }()
-	first := receive(t, cp.requests)
-	if !first.Accepting || first.Serving != nil {
-		t.Fatalf("initial heartbeat was not an idle registration: %+v", first)
-	}
-	assignment := hostAssignment()
-	cp.responses <- heartbeatResult{assignment: assignment}
-	child := receive(t, started)
-	next := receive(t, cp.requests)
-	if next.Serving != nil {
-		t.Fatal("unready child advertised as serving")
-	}
-	child.ready.Store(true)
-	cp.responses <- heartbeatResult{assignment: assignment}
-	next = receive(t, cp.requests)
-	if next.Serving == nil || next.Serving.SessionID != assignment.SessionID || next.Serving.AssignmentEpoch != assignment.AssignmentEpoch {
-		t.Fatalf("healthy assignment not advertised: %+v", next)
-	}
-	renewed := *assignment
-	renewed.LeaseExpiresAt = renewed.LeaseExpiresAt.Add(time.Minute)
-	cp.responses <- heartbeatResult{assignment: &renewed}
-	receive(t, cp.requests)
-	select {
-	case <-started:
-		t.Fatal("lease renewal restarted the child")
-	default:
-	}
-	cp.responses <- heartbeatResult{}
-	receive(t, cp.requests)
-	if !child.stopped.Load() {
-		t.Fatal("released assignment kept its child alive")
-	}
-	cancel()
-	if err := receive(t, finished); err != nil {
-		t.Fatal(err)
-	}
-	drain := receive(t, cp.requests)
-	if drain.Accepting || drain.Serving != nil {
-		t.Fatalf("shutdown renewed or advertised the host: %+v", drain)
-	}
+func testSupervisor(cp *fakeControlPlane) Supervisor {
+	return Supervisor{RuntimeID: "host-1", Endpoint: "https://runtime.test", BootID: "boot-1", BootStartedAt: time.Now(), Capacity: 2, Interval: time.Millisecond, ControlPlane: cp}
 }
-func TestSupervisorRestartsCrashedChildAndReplacesAssignment(t *testing.T) {
-	cp := &fakeControlPlane{requests: make(chan Heartbeat, 16), responses: make(chan heartbeatResult, 16)}
-	started := make(chan *fakeChild, 16)
-	s := Supervisor{RuntimeID: "host-1", Endpoint: "https://runtime.test", Interval: time.Millisecond, ControlPlane: cp, Start: func(_ Assignment) (Child, error) {
-		c := &fakeChild{done: make(chan struct{})}
-		started <- c
-		return c, nil
-	}}
+func TestSupervisorSessionsStartIndependentlyAndNeverReuseCrashedEpoch(t *testing.T) {
+	cp := &fakeControlPlane{requests: make(chan Heartbeat, 32), responses: make(chan heartbeatResult, 32)}
+	s := testSupervisor(cp)
+	blocked := make(chan struct{})
+	started := make(chan *fakeExecution, 8)
+	var attempts atomic.Int32
+	s.Start = func(ctx context.Context, a Assignment, _ <-chan Assignment) (Execution, error) {
+		if a.SessionID == "session-1" {
+			select {
+			case <-blocked:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		attempts.Add(1)
+		e := &fakeExecution{done: make(chan struct{})}
+		started <- e
+		return e, nil
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { done <- s.Run(ctx) }()
+	first := receive(t, cp.requests)
+	if len(first.Sessions) != 0 || first.Capacity != 2 || first.Generation != 1 {
+		t.Fatalf("registration: %+v", first)
+	}
 	a := hostAssignment()
-	receive(t, cp.requests)
-	cp.responses <- heartbeatResult{assignment: a}
-	first := receive(t, started)
-	close(first.done)
-	receive(t, cp.requests)
-	cp.responses <- heartbeatResult{assignment: a}
+	b := a
+	b.SessionID = "session-2"
+	assignments := []Assignment{a, b}
+	cp.responses <- heartbeatResult{assignments: assignments}
 	second := receive(t, started)
-	if !first.stopped.Load() {
-		t.Fatal("crashed process group was not cleaned")
+	var report Heartbeat
+	for i := 0; i < 5; i++ {
+		report = receive(t, cp.requests)
+		if len(report.Sessions) == 2 && report.Sessions[1].State == "ready" {
+			break
+		}
+		cp.responses <- heartbeatResult{assignments: assignments}
 	}
-	replacement := *a
-	replacement.SessionID = "session-2"
-	replacement.AssignmentEpoch = 2
+	if len(report.Sessions) != 2 || report.Sessions[0].State != "starting" || report.Sessions[1].State != "ready" {
+		t.Fatalf("blocked session stopped peer: %+v", report)
+	}
+	close(second.done)
+	cp.responses <- heartbeatResult{assignments: assignments}
+	for i := 0; i < 5; i++ {
+		report = receive(t, cp.requests)
+		if report.Sessions[1].State == "stopped" {
+			break
+		}
+		cp.responses <- heartbeatResult{assignments: assignments}
+	}
+	if !second.revoked.Load() || report.Sessions[1].State != "stopped" {
+		t.Fatal("failed execution did not confirm stop")
+	}
+	cp.responses <- heartbeatResult{assignments: assignments}
 	receive(t, cp.requests)
-	cp.responses <- heartbeatResult{assignment: &replacement}
-	receive(t, started)
-	if !second.stopped.Load() {
-		t.Fatal("old assignment was not drained before replacement")
+	if attempts.Load() != 1 {
+		t.Fatal("crashed epoch was reused")
 	}
+	close(blocked)
+	cp.responses <- heartbeatResult{assignments: assignments}
+	receive(t, started)
+	receive(t, cp.requests)
 	cancel()
 	if err := receive(t, done); err != nil {
 		t.Fatal(err)
 	}
 }
-func TestSupervisorRejectsAssignmentForAnotherHost(t *testing.T) {
-	cp := &fakeControlPlane{requests: make(chan Heartbeat, 16), responses: make(chan heartbeatResult, 16)}
-	s := Supervisor{RuntimeID: "host-1", Endpoint: "https://runtime.test", Interval: time.Millisecond, ControlPlane: cp, Start: func(Assignment) (Child, error) { t.Error("invalid assignment started a child"); return nil, nil }}
+func TestSupervisorRejectsAssignmentsBeyondCapacity(t *testing.T) {
+	cp := &fakeControlPlane{requests: make(chan Heartbeat, 8), responses: make(chan heartbeatResult, 8)}
+	s := testSupervisor(cp)
+	s.Capacity = 1
+	s.Start = func(context.Context, Assignment, <-chan Assignment) (Execution, error) {
+		t.Error("overcapacity assignment was started")
+		return nil, errors.New("unexpected")
+	}
 	a := hostAssignment()
-	a.RuntimeID = "other-host"
-	cp.responses <- heartbeatResult{assignment: a}
+	b := a
+	b.SessionID = "session-2"
+	cp.responses <- heartbeatResult{assignments: []Assignment{a, b}}
 	if err := s.Run(context.Background()); err == nil {
-		t.Fatal("another host assignment was accepted")
+		t.Fatal("host accepted overcapacity assignments")
 	}
 }
-func TestSupervisorStopsExpiredChildDuringOutageAndStartsFreshAfterRenewal(t *testing.T) {
+
+func TestSupervisorLeaseExpiryStopsOnlyAffectedSession(t *testing.T) {
 	base := time.Now()
 	var clock atomic.Int64
 	clock.Store(base.UnixNano())
-	cp := &fakeControlPlane{requests: make(chan Heartbeat, 16), responses: make(chan heartbeatResult, 16)}
-	started := make(chan *fakeChild, 16)
-	s := Supervisor{RuntimeID: "host-1", Endpoint: "https://runtime.test", Interval: time.Millisecond, Clock: func() time.Time { return time.Unix(0, clock.Load()) }, ControlPlane: cp, Start: func(Assignment) (Child, error) {
-		c := &fakeChild{done: make(chan struct{})}
-		started <- c
-		return c, nil
-	}}
+	cp := &fakeControlPlane{requests: make(chan Heartbeat, 32), responses: make(chan heartbeatResult, 32)}
+	s := testSupervisor(cp)
+	s.Clock = func() time.Time { return time.Unix(0, clock.Load()) }
+	started := make(chan struct {
+		id        string
+		execution *fakeExecution
+	}, 2)
+	s.Start = func(_ context.Context, a Assignment, _ <-chan Assignment) (Execution, error) {
+		e := &fakeExecution{done: make(chan struct{})}
+		started <- struct {
+			id        string
+			execution *fakeExecution
+		}{a.SessionID, e}
+		return e, nil
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { done <- s.Run(ctx) }()
 	a := hostAssignment()
 	a.LeaseExpiresAt = base.Add(time.Second)
+	b := a
+	b.SessionID = "session-2"
+	b.LeaseExpiresAt = base.Add(time.Minute)
 	receive(t, cp.requests)
-	cp.responses <- heartbeatResult{assignment: a}
-	first := receive(t, started)
+	cp.responses <- heartbeatResult{assignments: []Assignment{a, b}}
+	executions := make(map[string]*fakeExecution)
+	for i := 0; i < 2; i++ {
+		v := receive(t, started)
+		executions[v.id] = v.execution
+	}
 	receive(t, cp.requests)
 	clock.Store(base.Add(2 * time.Second).UnixNano())
 	cp.responses <- heartbeatResult{err: context.DeadlineExceeded}
 	receive(t, cp.requests)
-	if !first.stopped.Load() {
-		t.Fatal("offline child outlived its assignment lease")
+	if !executions[a.SessionID].revoked.Load() {
+		t.Fatal("expired session authority remained active")
 	}
-	renewed := *a
-	renewed.LeaseExpiresAt = base.Add(time.Minute)
-	cp.responses <- heartbeatResult{assignment: &renewed}
-	second := receive(t, started)
-	if first == second {
-		t.Fatal("renewal reused a process whose lease had expired")
+	if executions[b.SessionID].revoked.Load() {
+		t.Fatal("peer session was revoked by another session expiry")
 	}
 	cancel()
 	if err := receive(t, done); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSupervisorUsesOneShutdownBudgetForAllSessions(t *testing.T) {
+	cp := &fakeControlPlane{requests: make(chan Heartbeat, 16), responses: make(chan heartbeatResult, 16)}
+	s := testSupervisor(cp)
+	var shutdown context.Context
+	var cancelShutdown context.CancelFunc
+	s.ShutdownContext = func() context.Context {
+		if shutdown == nil {
+			shutdown, cancelShutdown = context.WithTimeout(context.Background(), 20*time.Millisecond)
+		}
+		return shutdown
+	}
+	defer func() {
+		if cancelShutdown != nil {
+			cancelShutdown()
+		}
+	}()
+	stopped := make(chan time.Time, 2)
+	started := make(chan struct{}, 2)
+	s.Start = func(context.Context, Assignment, <-chan Assignment) (Execution, error) {
+		e := &fakeExecution{done: make(chan struct{}), stopHook: func(ctx context.Context) error {
+			deadline, _ := ctx.Deadline()
+			stopped <- deadline
+			<-ctx.Done()
+			return ctx.Err()
+		}}
+		started <- struct{}{}
+		return e, nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- s.Run(ctx) }()
+	a := hostAssignment()
+	b := a
+	b.SessionID = "session-2"
+	receive(t, cp.requests)
+	cp.responses <- heartbeatResult{assignments: []Assignment{a, b}}
+	receive(t, started)
+	receive(t, started)
+	receive(t, cp.requests)
+	cancel()
+	if err := receive(t, done); err != nil {
+		t.Fatal(err)
+	}
+	first, second := receive(t, stopped), receive(t, stopped)
+	if !first.Equal(second) {
+		t.Fatal("session shutdowns used independent budgets")
 	}
 }

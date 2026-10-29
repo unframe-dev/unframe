@@ -38,14 +38,16 @@ namespace Unframe.ControlPlane.Model
         /// <param name="definition">PresentationDefinition; strict schema validated at storage boundary</param>
         /// <param name="renderBundle">RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash</param>
         /// <param name="checkpoint">checkpoint</param>
+        /// <param name="checkpointSource">checkpointSource</param>
         [JsonConstructor]
-        public InternalRuntimeBootstrapGet200Response(InternalRuntimeAssetsGet200ResponseAssignment assignment, InternalRuntimeAssetsGet200ResponsePublication publication, Dictionary<string, Object> definition, Dictionary<string, Object> renderBundle, Dictionary<string, Object>? checkpoint = default)
+        public InternalRuntimeBootstrapGet200Response(InternalRuntimeAssetsGet200ResponseAssignment assignment, InternalRuntimeAssetsGet200ResponsePublication publication, Dictionary<string, Object> definition, Dictionary<string, Object> renderBundle, Dictionary<string, Object>? checkpoint = default, InternalRuntimeBootstrapGet200ResponseCheckpointSource? checkpointSource = default)
         {
             Assignment = assignment;
             Publication = publication;
             Definition = definition;
             RenderBundle = renderBundle;
             Checkpoint = checkpoint;
+            CheckpointSource = checkpointSource;
             OnCreated();
         }
 
@@ -84,6 +86,12 @@ namespace Unframe.ControlPlane.Model
         public Dictionary<string, Object>? Checkpoint { get; set; }
 
         /// <summary>
+        /// Gets or Sets CheckpointSource
+        /// </summary>
+        [JsonPropertyName("checkpointSource")]
+        public InternalRuntimeBootstrapGet200ResponseCheckpointSource? CheckpointSource { get; set; }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -96,6 +104,7 @@ namespace Unframe.ControlPlane.Model
             sb.Append("  Definition: ").Append(Definition).Append("\n");
             sb.Append("  RenderBundle: ").Append(RenderBundle).Append("\n");
             sb.Append("  Checkpoint: ").Append(Checkpoint).Append("\n");
+            sb.Append("  CheckpointSource: ").Append(CheckpointSource).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -138,6 +147,7 @@ namespace Unframe.ControlPlane.Model
             Option<Dictionary<string, Object>?> definition = default;
             Option<Dictionary<string, Object>?> renderBundle = default;
             Option<Dictionary<string, Object>?> checkpoint = default;
+            Option<InternalRuntimeBootstrapGet200ResponseCheckpointSource?> checkpointSource = default;
 
             while (utf8JsonReader.Read())
             {
@@ -169,6 +179,9 @@ namespace Unframe.ControlPlane.Model
                         case "checkpoint":
                             checkpoint = new Option<Dictionary<string, Object>?>(JsonSerializer.Deserialize<Dictionary<string, Object>>(ref utf8JsonReader, jsonSerializerOptions));
                             break;
+                        case "checkpointSource":
+                            checkpointSource = new Option<InternalRuntimeBootstrapGet200ResponseCheckpointSource?>(JsonSerializer.Deserialize<InternalRuntimeBootstrapGet200ResponseCheckpointSource>(ref utf8JsonReader, jsonSerializerOptions));
+                            break;
                         default:
                             break;
                     }
@@ -190,6 +203,9 @@ namespace Unframe.ControlPlane.Model
             if (!checkpoint.IsSet)
                 throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200Response.", nameof(checkpoint));
 
+            if (!checkpointSource.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200Response.", nameof(checkpointSource));
+
             if (assignment.IsSet && assignment.Value == null)
                 throw new ArgumentNullException(nameof(assignment), "Property is not nullable for class InternalRuntimeBootstrapGet200Response.");
 
@@ -202,7 +218,7 @@ namespace Unframe.ControlPlane.Model
             if (renderBundle.IsSet && renderBundle.Value == null)
                 throw new ArgumentNullException(nameof(renderBundle), "Property is not nullable for class InternalRuntimeBootstrapGet200Response.");
 
-            return new InternalRuntimeBootstrapGet200Response(assignment.Value!, publication.Value!, definition.Value!, renderBundle.Value!, checkpoint.Value!);
+            return new InternalRuntimeBootstrapGet200Response(assignment.Value!, publication.Value!, definition.Value!, renderBundle.Value!, checkpoint.Value!, checkpointSource.Value!);
         }
 
         /// <summary>
@@ -256,6 +272,13 @@ namespace Unframe.ControlPlane.Model
             }
             else
                 writer.WriteNull("checkpoint");
+            if (internalRuntimeBootstrapGet200Response.CheckpointSource != null)
+            {
+                writer.WritePropertyName("checkpointSource");
+                JsonSerializer.Serialize(writer, internalRuntimeBootstrapGet200Response.CheckpointSource, jsonSerializerOptions);
+            }
+            else
+                writer.WriteNull("checkpointSource");
         }
     }
 }

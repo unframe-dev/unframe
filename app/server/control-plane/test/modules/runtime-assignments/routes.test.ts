@@ -103,6 +103,25 @@ describe("runtime assignment HTTP routes", () => {
       ).status,
     ).toBe(400);
 
+    const registration = await app.fetch(
+      new Request(`https://api.example.com/internal/runtime/hosts/runtime-${suffix}/start`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${runtimeEnvironment().SERVICE_IDENTITY_SECRET}`,
+        },
+        body: JSON.stringify({
+          endpoint: "https://runtime.example.com",
+          bootId: "boot",
+          bootStartedAt: "2026-08-20T00:00:00.000Z",
+          capacity: 1,
+          accepting: true,
+        }),
+      }),
+      runtimeEnvironment(),
+    );
+    expect(registration.status).toBe(200);
+
     const created = await request(app, path, "POST", "admin", {
       runtimeId: `runtime-${suffix}`,
       runtimeKind: "Cloud",

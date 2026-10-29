@@ -29,6 +29,9 @@ func DecodeRecoveryMetadata(envelope *realtimev2.DurableCheckpointEnvelope) (*re
 	if err := ValidateMessage(recovery); err != nil {
 		return nil, err
 	}
+	if len(recovery.Participants) == 0 && envelope.ReliableSequence != 0 {
+		return nil, fmt.Errorf("message_invalid: initial recovery reliable sequence")
+	}
 	if recovery.InputSynchronization.ReliableSequence > envelope.ReliableSequence {
 		return nil, fmt.Errorf("message_invalid: recovery synchronization cut")
 	}

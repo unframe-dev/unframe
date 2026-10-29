@@ -34,6 +34,7 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
              AND assignment.revision = ?
              AND assignment.released_at IS NULL
              AND assignment.lease_expires_at > ?
+             AND (assignment.runtime_kind != 'Cloud' OR EXISTS (SELECT 1 FROM runtime_hosts AS host WHERE host.runtime_id = assignment.runtime_id AND host.generation = assignment.host_generation AND host.endpoint = assignment.endpoint))
              AND assignment.epoch = (SELECT MAX(epoch) FROM runtime_assignments WHERE session_id = assignment.session_id)
              AND EXISTS (
                SELECT 1 FROM presentation_publications AS publication
@@ -94,6 +95,7 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
                AND assignment.revision = ?
                AND assignment.released_at IS NULL
                AND assignment.lease_expires_at > ?
+             AND (assignment.runtime_kind != 'Cloud' OR EXISTS (SELECT 1 FROM runtime_hosts AS host WHERE host.runtime_id = assignment.runtime_id AND host.generation = assignment.host_generation AND host.endpoint = assignment.endpoint))
              AND assignment.epoch = (SELECT MAX(epoch) FROM runtime_assignments WHERE session_id = assignment.session_id)
              AND EXISTS (
                SELECT 1 FROM presentation_publications AS publication
@@ -171,7 +173,7 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
     return Boolean(
       await this.database
         .prepare(
-          "SELECT 1 FROM runtime_assignments WHERE session_id = ? AND runtime_id = ? AND runtime_kind = ? AND revision = ? AND epoch = ? AND epoch = (SELECT MAX(epoch) FROM runtime_assignments WHERE session_id = ?)",
+          "SELECT 1 FROM runtime_assignments WHERE session_id = ? AND runtime_id = ? AND runtime_kind = ? AND revision = ? AND epoch = ? AND epoch = (SELECT MAX(epoch) FROM runtime_assignments WHERE session_id = ?) AND (runtime_kind != 'Cloud' OR EXISTS (SELECT 1 FROM runtime_hosts AS host WHERE host.runtime_id = runtime_assignments.runtime_id AND host.generation = runtime_assignments.host_generation AND host.endpoint = runtime_assignments.endpoint))",
         )
         .bind(
           input.sessionId,

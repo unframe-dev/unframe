@@ -47,6 +47,8 @@ export function createViewingSession(host: Host) {
   let snapshot: ViewingSnapshot = { phase: "idle", runtime: null, recovery: null, error: null };
   let runtime: Runtime | null = null;
   let delivery: DeliveryManifestWire | null = null;
+  let assignmentKey: string | null = null;
+  let minimumReliableSequence = 0n;
   let input: RuntimeInput | null = null;
   let disposed = false;
   let generation = 0;
@@ -57,6 +59,19 @@ export function createViewingSession(host: Host) {
   function publish(next: ViewingSnapshot) {
     snapshot = next;
     for (const listener of listeners) listener();
+  }
+  function setDelivery(next: DeliveryManifestWire) {
+    const key = JSON.stringify([
+      next.sessionId,
+      next.publication?.presentationId,
+      next.publication?.publicationEpoch,
+      next.publication?.publicationManifestHash,
+      next.projectionInstance?.assignmentEpoch,
+      next.projectionInstance?.projectionProfileId,
+    ]);
+    if (key !== assignmentKey) minimumReliableSequence = 0n;
+    assignmentKey = key;
+    delivery = structuredClone(next);
   }
   function detach(reset: boolean) {
     const previous = runtime;
@@ -91,6 +106,8 @@ export function createViewingSession(host: Host) {
         return;
       }
       const state = runtime.getSnapshot();
+      const sequence = BigInt(state.reliableSequence);
+      if (sequence > minimumReliableSequence) minimumReliableSequence = sequence;
       const kind: "snapshot" | "keyframe" | null =
         state.phase === "resync-required"
           ? "snapshot"
@@ -170,7 +187,14 @@ export function createViewingSession(host: Host) {
           };
         },
         applyControl(item) {
-          apply(() => target.applyControl(item));
+          apply(() => {
+            if (
+              item.connectionSnapshot &&
+              BigInt(item.connectionSnapshot.reliableSequence ?? "0") < minimumReliableSequence
+            )
+              throw new Error("runtime-sequence-regressed");
+            target.applyControl(item);
+          });
         },
         applyState(item) {
           apply(() => target.applyState(item));
@@ -206,7 +230,7 @@ export function createViewingSession(host: Host) {
       const token = generation + 1;
       try {
         detach(true);
-        delivery = structuredClone(next);
+        setDelivery(next);
         publish({ phase: "starting", runtime: null, recovery: null, error: null });
         if (startCamera) await host.start();
         if (disposed || token !== generation) return;
@@ -224,7 +248,7 @@ export function createViewingSession(host: Host) {
           delivery.assetAccess = structuredClone(next.assetAccess ?? []);
           return;
         }
-        delivery = structuredClone(next);
+        setDelivery(next);
         if (snapshot.phase !== "idle" && snapshot.phase !== "starting") bind();
       } catch {
         fail("viewing-start-failed");

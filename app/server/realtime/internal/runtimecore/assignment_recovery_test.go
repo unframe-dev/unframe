@@ -40,6 +40,7 @@ func TestAssignmentRecoveryPreservesRunsHistoryAndDurableCut(t *testing.T) {
 	if err := original.JoinParticipant(context.Background(), session.Identity{Role: session.RoleViewer, ParticipantID: "viewer-1"}); err != nil {
 		t.Fatal(err)
 	}
+	flushV2(t, original)
 	envelope := writer.envelope
 	for _, epoch := range []uint64{2, 5} {
 		before := original.Snapshot()
@@ -128,6 +129,7 @@ func TestAssignmentRecoveryCandidateHiddenUntilDurableCommit(t *testing.T) {
 	if err := original.JoinParticipant(context.Background(), session.Identity{ParticipantID: "viewer-1", Role: session.RoleViewer}); err != nil {
 		t.Fatal(err)
 	}
+	flushV2(t, original)
 	recovered, _ := reviewSession(t)
 	recovered.checkpointMetadata.AssignmentEpoch = 2
 	entered, release := make(chan struct{}), make(chan struct{})
@@ -153,6 +155,7 @@ func TestAssignmentRecoveryRebasesSurfaceMediaAndBlockingRuns(t *testing.T) {
 	actions := `[{"kind":"surface.setState","surfaceId":"a","stateId":"alt","transition":{"kind":"crossfade","durationMilliseconds":100,"easing":"linear","completion":"blocking"}},{"kind":"media.play","surfaceId":"b"}]`
 	original, writer := v2MediaConflictSession(t, actions)
 	v2MediaActorInput(t, original, "act-1", "act")
+	flushV2(t, original)
 	before := original.Snapshot()
 	if before.Progression.GetTransitioning() == nil {
 		t.Fatal("fixture lacks blocking run")

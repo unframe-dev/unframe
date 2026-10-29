@@ -26,48 +26,6 @@ export function hasListeners(config) {
   );
 }
 
-export function orphanedRuntimePids(output, uid, executable) {
-  return output.split("\n").flatMap((line) => {
-    const match = line.match(/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.+?)\s*$/);
-    return match && Number(match[1]) === uid && Number(match[3]) === 1 && match[4] === executable
-      ? [Number(match[2])]
-      : [];
-  });
-}
-
-export async function cleanOrphanedRuntimes(
-  executable,
-  {
-    list = async () => (await execute("/bin/ps", ["-axo", "uid=,pid=,ppid=,comm="])).stdout,
-    signal = (pid, name) => process.kill(pid, name),
-    delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-  } = {},
-) {
-  const find = async () => orphanedRuntimePids(await list(), process.getuid(), executable);
-  const candidates = await find();
-  for (const pid of candidates) {
-    if (!(await find()).includes(pid)) continue;
-    try {
-      signal(pid, "SIGTERM");
-    } catch (error) {
-      if (error.code !== "ESRCH") throw error;
-    }
-  }
-  for (let attempt = 0; attempt < 100; attempt++) {
-    const remaining = (await find()).filter((pid) => candidates.includes(pid));
-    if (remaining.length === 0) return;
-    await delay(100);
-  }
-  for (const pid of candidates) {
-    if (!(await find()).includes(pid)) continue;
-    try {
-      signal(pid, "SIGKILL");
-    } catch (error) {
-      if (error.code !== "ESRCH") throw error;
-    }
-  }
-}
-
 export async function run(config) {
   const children = new Set();
   let stopping = false;
@@ -140,8 +98,6 @@ export async function run(config) {
       if (active)
         throw new Error("Another tailscaled instance is active; stop it before starting launchd.");
     }
-    // Runtime Host gives the Runtime its own process group, outside launchd's cleanup group.
-    await cleanOrphanedRuntimes(join(config.directory, "release/realtime-server"));
     if (stopping) return;
     daemon = start(config.tailscaled, [
       "--tun=userspace-networking",
