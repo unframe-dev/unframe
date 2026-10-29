@@ -56,6 +56,13 @@ pnpm --filter @unframe/audience run cf:deploy:dry-run
 
 ## 構成
 
+- `connection/audience-session.ts`: 参加資格・接続情報、参加から退出までの寿命と視聴アプリケーションを所有する。React に資格を渡さない。
+- `experience/viewer-application.ts`: 会場設定、SDK／Runtime 入力、更新・復旧・破棄を制御する。`ViewerExperience.tsx` は公開された状態を selector で購読して表示する。
+- `runtime/wire-validation.ts`: 共有契約の基本スキーマを利用した十進整数・canonical Quaternion の検証。単位長と符号は Audience の wire 境界で追加検証する。
+- `assets/asset-transfer.ts`: HTTPS・MIME・サイズ上限・checksum・期限・取消を共通化し、不正応答もキャンセルする。GLB の構造は `glb-structure.ts`、参照・機能・予算は `glb-validation.ts` が検証する。
+
+Worker は既存の専用プロトコルを継続する。[Comlink](https://github.com/GoogleChromeLabs/comlink) は応答対応付け・Promise・例外伝搬を短くできるが、同時1フレーム、画素の往復 transfer、timeout／破棄時の pending 拒否と terminate は別途必要になる。今回の検出専用境界では置換の効果が小さいため採用しない。
+
 - `src/dev/fixtures/`: 開発用の素材表示画面、シナリオ、PNG・動画・GLB。
 - `src/dev/tracking/AnchorExperience.tsx` / `AnchorExperienceView.tsx`: 位置合わせ検証の画面入口と表示専用View。カメラ・Workerの所有や姿勢推定を持たない。
 - `src/dev/tracking/use-anchor-experience.ts`: 検証用の設定・サイズ選択、Reactの画面状態とセッションの接続、アンマウント時の破棄。
@@ -108,11 +115,11 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 検出の合間は固定し、補正残差も次の観測まで保持する。SDKカメラへの補正や一致待ちは追加しない。通常JSON schema 21の各採用frameの`displayStabilization`に`markerDistanceMeters`、今回の`thresholds`、判定・差・残差・補正前後の行列を記録する。非採用frameはnull。
 
-## 現在の視聴経路（2026-10-27）
+## 現在の視聴経路（2026-10-30）
 
 ルーム入力 → 匿名 Viewer 資格取得 → 既存 HTTP join／Delivery／bootstrap → 明示カメラ開始 → Snapshot／素材準備 → State 接続と Ready → SDK NORMAL／タグ認識 → ライブ視聴。共有 Runtime v3 と WebSocket の Control／State を使い、登壇側の進行を適用する。
 
-`connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信、`experience/viewing-session.ts` は XR／Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落は表示を保持して keyframe を再取得する。製品診断には資格・署名 URL・画素・プレゼン変数や進行 ID を含めない。
+`connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信を所有する。`experience/viewer-application.ts` が XR host と viewing session の寿命・接続・復旧を調整し、`experience/viewing-session.ts` が Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落は表示を保持して keyframe を再取得する。診断には資格・署名 URL・画素・プレゼン変数を含めない。明示保存する接続テストログには Session／Runtime／Group／Step の識別子を含む。
 
 参加・視聴状態は Zustand で保持し、接続手順と資格は各処理の所有範囲に置く。HTTP は共有 Hono RPC クライアントを使い、応答はブラウザ側でも検証する。Runtime は入力から次の状態を計算するコアと状態保持に分ける。
 

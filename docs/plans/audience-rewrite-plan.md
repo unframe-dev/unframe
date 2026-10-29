@@ -1,6 +1,14 @@
 # Audience リライト計画
 
-確定日: 2026-10-30。Audience の実装担当者向けに、UI・操作導線を含むリライトの範囲、責務、実施順序と受け入れ条件を定める。以下は実装予定であり、導入済みの構成ではない。
+更新日: 2026-10-30。Audience の実装担当者向けに、リライトの残作業と受け入れ条件を定める。現状は PR #208 の worktree を基準とし、main へのマージ済みとは扱わない。
+
+## 現状
+
+- PR #208 では Material UI・Tailwind の画面、参加・視聴状態の Zustand 化、共有 Hono RPC の利用、Runtime の状態保持と遷移の分離、素材受信の共通化と GLB の構造・ドメイン検証の分離を実装した。
+- ローカルでは `nix run .#audience` の型検査・lint・テスト・build を確認した。後続の変更では影響範囲を再検証する。
+- `nix run .#realtime-e2e` は Unity を使わない全7シナリオが成功した。途中参加、進行・停止、再接続、プロセス再起動・lease 期限切れ後の復旧、終了を実 gRPC／WebSocket とブラウザ描画で確認した。実 Unity Editor、iPhone Safari／Android Chrome、会場・公開環境の受け入れは未実施。main の競合は解消した。CI の状態は作業時に再確認する。
+- 追加修正では視聴資源と接続の寿命を `audience-session.ts`／`viewer-application.ts` に移し、UI から資格を除いた。HTTP 応答スキーマ、十進整数・Quaternion、素材受信の検証を集約し、入力条件と従来のエラーを維持した。
+- Comlink は既存の検出専用プロトコルを継続し、導入しない。同時1フレーム、画素の往復 transfer、timeout／破棄時の pending 拒否と terminate を独自に所有する必要があり、置換の効果が小さいため。実機受け入れは残り、実装済みの機能も受け入れ完了と同一視しない。
 
 ## 目的と範囲
 
@@ -14,7 +22,7 @@ PoC の既存構造を前提にせず、主要ロジックと外部契約を引�
 
 - React、TypeScript、8th Wall、Three.js、AprilTag 3 WASM、js-aruco2 の POSIT/SVD を基本構成として維持する。js-aruco2 の辞書による印刷用マーカー生成も維持する。
 - 状態管理は Zustand を採用する。ビジネスロジックを store に置かない。
-- UI と操作導線を Material Design に沿って再設計する。Tailwind CSS を採用し、レイアウト・余白・レスポンシブ対応に使う。Material Design の実装ライブラリは UI 設計時に選定し、現時点で MUI 等を採用済みと扱わない。
+- UI と操作導線は Material UI と Tailwind CSS を使い、Material Design に沿って設計する。Tailwind はレイアウト・余白・レスポンシブ対応に使う。
 - カラーテーマは [Console](../../app/web/console/src/styles.css) を主な参照元とし、[LP](../../lp/src/app.css) と共通するブランドレッド `#df7b80`、ブルー `#7187f5` を引き継ぐ。LP のパープル `#9a80d0` は補助色の候補とする。Material Design の primary／surface／on-primary 等へ役割を割り当て、文字・背景のコントラストを確認する。
 - ロゴ・アイコン・favicon は [assets/](../../assets/README.md) を正本とする。画面内マークは `icon.svg` を使用し、必要な素材を Audience 内へ原本と同一内容でコピーする。他アプリの素材を直接 import しない。
 - 構造検証・パースは既存の Zod と共有契約へ委ねる。アプリ側はスキーマ制約とドメイン固有の整合性判定を担う。
@@ -54,34 +62,44 @@ Socket、Worker、カメラ、Texture、動画 decoder、毎フレームの姿�
 
 - HTTP は既存の [共有 Hono RPC クライアント](../../packages/api-client-typescript/src/index.ts) を活用する。サーバーの `@hono/zod-openapi`、OpenAPI 生成型、クライアントの実行時検証を整合させ、型共有だけで検証済みと扱わない。必要な共通スキーマは共有契約に置き、ブラウザへサーバー実装を取り込まない。
 - Realtime は既存 Protobuf と codec を使い、HTTP 契約と分ける。
-- 整数・Quaternion 等の重複検証をスキーマへ集約する。未指定値、正規の十進表現、safe integer、単位 Quaternion・符号の規則を維持する。
+- `runtime/runtime-input.ts`、`runtime/wire-view.ts`、`runtime/animation-view.ts` の符号なし整数の解析を調べ、意味が一致する箇所は共有契約のスキーマへ集約する。未指定値の既定、正規の十進表現、safe integer とエラー時の振る舞いを先に確認する。`idSchema`・`safeUIntSchema`・`contentHashSchema` も、入力の制約が一致する場合に再利用する。HTTP の URL path 用 ID など、より狭い制約は維持する。
+- Quaternion の単位長と正規符号は既存の共有スキーマに任せられるとは仮定せず、wire 変換と共有契約の責務を確認する。意味を揃えて集約する場合は、未指定値・有限値・許容誤差・符号の規則を回帰テストで維持する。
 - GLB 内 JSON の構造検証は Zod、参照整合・対応機能・資源予算は専用の判定に分ける。
 - PNG／動画／GLB のサイズ上限付き受信・checksum 等は共通化し、形式固有の検証・デコード・解放は各担当に残す。
-- Comlink は Worker の応答対応付け・Promise・例外伝搬を簡潔にできるか比較して採否を決める。同時 1 フレーム、画素バッファの往復 transfer、timeout 時の terminate、破棄時の pending 処理を維持する。
+- Worker は既存の専用プロトコルを継続する。Comlink を採用しない理由は現状欄を参照。同時 1 フレーム、画素バッファの往復 transfer、timeout 時の terminate、破棄時の pending 処理を維持する。
 - 姿勢推定の数値ソルバ置換は、精度・特異系・実機性能を比較する別の検証課題とする。Zustand 採用に伴って XState を必須依存にしない。
 
-## 実施順序と完了条件
+## 今後の変更でも維持する設計・記法の方針
 
-1. **回帰契約の確定**
+- `experience/viewer-application.ts` に移した host／session の生成・破棄、Runtime 入力の接続、復旧、再接続手順を回帰テストで確認する。UI は表示と操作の受け渡しを担い、資源と非同期処理の寿命はアプリケーション処理が所有する。既存の復旧・取消・再接続の振る舞いを保ち、汎用フレームワークは導入しない。
+- API・protobuf・GLB・素材の入力境界を見直し、既存の Zod、共有契約、codec、GLTFLoader、ブラウザ標準 API に委ねられる構造解析や基本検証を優先する。型共有だけで外部入力の検証を省かない。参照整合、権限、期限、対応機能、資源予算、資源解放は製品固有の判定として維持する。依存追加は既存の仕組みで不足する具体的な場合に限る。
+- Audience で使う React 19、TypeScript、Zod 4 とブラウザの対応範囲に照らし、非推奨 API、不要な重複、より明確な記法を確認する。例えば `z.number().int()` と safe integer 上限の重複は [Zod 4 の `z.int()`](https://zod.dev/v4/changelog?id=int-accepts-safe-integers-only) で同じ制約を表せるか確認する。構文の新しさだけを理由に変更せず、[外部システムとの同期に使う `useEffect`](https://react.dev/reference/react/useEffect)、Promise、Worker／WebSocket の購読・取消を機械的に置き換えない。新しい API は導入済みバージョンと公式資料で確認する。
+- 置換前に対象の入力と結果を回帰テストで固定する。欠落値、境界値、非正規値、取消・期限切れ・遅延応答、エラーと資源解放を検証し、入力が受理・拒否される条件を変えない。
+
+## 実施項目と完了条件
+
+1. **回帰契約の確認（自動検証済み）**
    - 現行コードとテストから、上記不変条件・外部挙動のテストを抽出する。旧内部構造に依存したテストは維持対象と分ける。
    - 状態の正本、各資源の所有者、更新・取消・解放の条件を決める。
-2. **画面・テーマ設計**
-   - 参加、カメラ許可、位置合わせ、待機、視聴、復旧、終了・退出の導線と主要な失敗状態を設計する。
-   - Material Design の部品、色・文字・余白の token、ブランド素材、Tailwind の役割を決める。カメラ映像を中心に、不要な説明・セカンダリラベル・常設診断を抑える。
-3. **新しい参加経路の接続**
-   - Zustand とアプリケーション処理、共有 HTTP クライアントを接続する。
-   - 開発・テスト用の通信を使い、参加 → Delivery／bootstrap → Snapshot → コア処理 → Zustand → UI を通す。
+2. **画面・テーマの確認（既存実装を維持）**
+   - 参加、カメラ許可、位置合わせ、待機、視聴、復旧、終了・退出の導線と主要な失敗状態を確認する。
+   - Material Design の部品、色・文字・余白の token、ブランド素材、Tailwind の役割を確認する。カメラ映像を中心に、不要な説明・セカンダリラベル・常設診断を抑える。
+3. **参加・視聴経路の整理（実装・自動検証済み）**
+   - Zustand とアプリケーション処理、共有 HTTP クライアントの接続を確認する。
+   - 開発・テスト用の通信を使い、参加 → Delivery／bootstrap → Snapshot → コア処理 → Zustand → UI を検証する。
    - 期限切れ、取消、遅延した旧世代応答、sequence 欠落、assignment 変更を検証する。テスト用通信を製品の代替経路にしない。
-4. **追跡・描画の統合**
-   - SDK、Worker、姿勢推定を接続し、PNG の実表示まで通す。次に動画・GLB・アニメーションを組み込む。
-   - 素材取得・検証・予算判定と描画資源管理を分離し、途中失敗・取消・置換時の解放を検証する。
+   - セッションと接続の寿命管理を UI から分離し、共有スキーマ・ライブラリの利用と記法を見直した。Worker の取消・transfer・timeout の既存契約は維持した。
+4. **追跡・描画の確認（自動検証済み・実機未確認）**
+   - SDK、Worker、姿勢推定、PNG・動画・GLB・アニメーションが新構成で動くことを確認する。
+   - 素材取得・検証・予算判定と描画資源管理の分離、および途中失敗・取消・置換時の解放を検証する。
 5. **実通信・実機の受け入れ**
    - 実 WebSocket で途中参加、進行・停止・seek、再接続・再同期、資格・素材 URL 更新、終了を確認する。
    - iPhone Safari／Android Chrome で権限拒否、背景復帰、追跡低下・再認識、動画・音声・GLB の同時負荷、繰り返し入退室、長時間視聴と資源解放を確認する。
    - 対象端末、手順、測定値、残不具合を記録する。自動テストや過去の PoC 成果を、新構成の公開環境・実機受入の代わりにしない。
-6. **旧経路の撤去と文書更新**
+6. **旧経路の撤去と文書更新（文書更新済み・実機受け入れ待ち）**
    - 受け入れ条件を満たした後、旧 UI・CSS・controller・購読処理・不要なテストを削除する。恒久的な新旧切替・互換レイヤーを残さない。
    - fixture と診断は新しい製品処理を使う開発用入口へ整理する。README、接続境界、関連計画を実装と揃える。
+   - PR の main との競合と CI／Cloudflare Workers build の状態を確認し、未解決の問題を解消する。
 
 ## 検証
 

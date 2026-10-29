@@ -16,6 +16,8 @@ const mock = vi.hoisted(() => ({
   unmounts: vi.fn(),
   listener: null as (() => void) | null,
   dispose: vi.fn(),
+  viewerDispose: vi.fn(),
+  realtimeDispose: vi.fn(),
   leave: vi.fn(),
 }));
 vi.mock("../application-config", () => ({
@@ -44,21 +46,43 @@ vi.mock("../join-controller", () => ({
     reconnect: mock.reconnect,
   }),
 }));
+vi.mock("../realtime-client", () => ({
+  createAudienceRealtime: () => ({
+    install: vi.fn(),
+    recover: vi.fn(),
+    dispose: mock.realtimeDispose,
+  }),
+}));
 vi.mock("../JoinExperience", () => ({ JoinExperience: () => <p>ルーム入力</p> }));
+vi.mock("../../experience/viewer-application", async () => {
+  const { createStore } = await import("zustand/vanilla");
+  return {
+    createViewerApplication: (
+      options: import("../../experience/viewer-application").ViewerConnectionOptions,
+    ) => {
+      const store = createStore(() => options);
+      return {
+        testStore: store,
+        update: (next: typeof options) => store.setState(next, true),
+        dispose: mock.viewerDispose,
+      };
+    },
+  };
+});
 vi.mock("../../experience/ViewerExperience", async () => {
   const { useEffect } = await import("react");
+  const { useStore } = await import("zustand");
   return {
     ViewerExperience: ({
-      connection,
-      onLeave,
-      refreshing,
-      onRefresh,
+      application,
     }: {
-      connection: { delivery: { sessionId: string } };
-      onLeave(): void;
-      refreshing: boolean;
-      onRefresh(): void;
+      application: {
+        testStore: import("zustand/vanilla").StoreApi<
+          import("../../experience/viewer-application").ViewerConnectionOptions
+        >;
+      };
     }) => {
+      const { connection, onLeave, refreshing, onRefresh } = useStore(application.testStore);
       useEffect(() => {
         mock.mounts();
         return mock.unmounts;
@@ -179,4 +203,33 @@ test("Runtime復旧待ちでもカメラ画面を維持し新assignmentで再利
   });
   expect(mock.mounts).toHaveBeenCalledTimes(mounts);
   expect(screen.getByText("更新待機")).toBeTruthy();
+});
+
+test("視聴モジュールの準備中に資格を失効しても画面を復活させない", async () => {
+  mock.getPrepared.mockReturnValue(mock.connection);
+  render(<AudienceApplication />);
+  await act(async () => {
+    mock.snapshot = { phase: "prepared", revision: 1, refreshing: false };
+    mock.listener?.();
+    mock.snapshot = { phase: "error" };
+    mock.listener?.();
+  });
+  expect(screen.getByText("ルーム入力")).toBeTruthy();
+  expect(mock.mounts).not.toHaveBeenCalled();
+});
+
+test("SDK資源の破棄が失敗しても資格とRealtimeの所有者を停止する", async () => {
+  mock.getPrepared.mockReturnValue(mock.connection);
+  const ui = render(<AudienceApplication />);
+  act(() => {
+    mock.snapshot = { phase: "prepared", revision: 1, refreshing: false };
+    mock.listener?.();
+  });
+  await screen.findByText("カメラ準備・配信待機:test");
+  mock.viewerDispose.mockImplementationOnce(() => {
+    throw new Error("SDK dispose failure");
+  });
+  expect(() => ui.unmount()).not.toThrow();
+  expect(mock.dispose).toHaveBeenCalledOnce();
+  expect(mock.realtimeDispose).toHaveBeenCalledOnce();
 });

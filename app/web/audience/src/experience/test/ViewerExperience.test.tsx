@@ -13,7 +13,17 @@ import type { createRuntimePlayback } from "../../runtime/playback";
 import type { RuntimeInput } from "../viewing-session";
 import board from "../../fiducials/default-board.json";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
-import { ViewerExperience, type ViewerExperienceProps } from "../ViewerExperience";
+import { ViewerExperience as ViewerScreen } from "../ViewerExperience";
+import {
+  createViewerApplication,
+  type ViewerConnectionOptions as ViewerExperienceProps,
+} from "../viewer-application";
+
+function ViewerExperience(props: ViewerExperienceProps) {
+  const [application] = useState(() => createViewerApplication(props));
+  useEffect(() => application.update(props), [application, props]);
+  return <ViewerScreen application={application} />;
+}
 
 type RuntimeSnapshot = ReturnType<ReturnType<typeof createRuntimePlayback>["getSnapshot"]>;
 const mock = vi.hoisted(() => ({
@@ -656,4 +666,23 @@ test("マーカーの黒外周4サイズを選び、変更時に古い追跡とR
   mock.applyControl.mockClear();
   act(() => oldInput.applyControl({ connected: { connectionId: "stale" } }));
   expect(mock.applyControl).not.toHaveBeenCalled();
+});
+
+test("接続処理中に同期切断しても古い待機状態を通知せず取得済み接続を解放する", async () => {
+  const props = setup();
+  const release = vi.fn();
+  const phases: string[] = [];
+  render(
+    <ViewerExperience
+      {...props}
+      onRuntimeInput={(input) => {
+        input.disconnected();
+        return release;
+      }}
+      onViewingSnapshot={(snapshot) => phases.push(snapshot.phase)}
+    />,
+  );
+  await start();
+  expect(phases.at(-1)).toBe("disconnected");
+  expect(release).toHaveBeenCalledOnce();
 });
