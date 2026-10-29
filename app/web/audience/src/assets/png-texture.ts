@@ -1,5 +1,7 @@
 import { ClampToEdgeWrapping, LinearFilter, SRGBColorSpace, Texture } from "three";
-import { assertDeliveryCurrent, receiveAssetBytes, verifyAssetChecksum } from "./asset-transfer";
+import { z } from "zod";
+import { safeUIntSchema } from "@unframe/contracts/presentation";
+import { assertAssetCurrent, requestAssetBytes, verifyAssetChecksum } from "./asset-transfer";
 
 export interface PngTextureAsset {
   assetId: string;
@@ -23,43 +25,20 @@ function fail(reason: string): never {
   throw new PngTextureError(`PNG ${reason}`);
 }
 
-function checkAbort(signal: AbortSignal | undefined): void {
-  if (signal?.aborted) throw new PngTextureError("PNG texture load aborted");
-}
+const pixelSizeSchema = z.tuple([safeUIntSchema.positive(), safeUIntSchema.positive()]);
 
 export async function loadPngTexture(
   asset: PngTextureAsset,
   options: PngTextureOptions = {},
 ): Promise<{ texture: Texture; dispose(): void }> {
   let bitmap: ImageBitmap | undefined;
-  const checkCurrent = () => {
-    checkAbort(options.signal);
-    assertDeliveryCurrent(asset.expiresAtUnixMs, options.now, fail);
-  };
+  const checkCurrent = () => assertAssetCurrent(asset, options, fail);
   try {
-    checkAbort(options.signal);
-    const url = new URL(asset.url);
-    if (url.protocol !== "https:" || url.username || url.password)
-      throw new PngTextureError("PNG URL must use HTTPS without credentials");
-    assertDeliveryCurrent(asset.expiresAtUnixMs, options.now, fail);
-    if (
-      !Number.isSafeInteger(asset.encodedSizeBytes) ||
-      asset.encodedSizeBytes < 8 ||
-      !/^sha256:[0-9a-f]{64}$/.test(asset.checksum) ||
-      asset.pixelSize.some((dimension) => !Number.isSafeInteger(dimension) || dimension <= 0)
-    )
-      throw new PngTextureError("Invalid PNG asset metadata");
-    const response = await (options.fetcher ?? fetch)(asset.url, {
-      mode: "cors",
-      credentials: "omit",
-      cache: "no-store",
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
-    if (!response.ok) throw new PngTextureError("PNG request failed");
-    if (response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "image/png")
-      throw new PngTextureError("PNG content type required");
-    const bytes = await receiveAssetBytes(response, asset.encodedSizeBytes, {
-      signal: options.signal,
+    checkCurrent();
+    if (!pixelSizeSchema.safeParse(asset.pixelSize).success) fail("invalid metadata");
+    const bytes = await requestAssetBytes(asset, options, {
+      mimeType: "image/png",
+      minBytes: 8,
       fail,
     });
     const signature = [137, 80, 78, 71, 13, 10, 26, 10];

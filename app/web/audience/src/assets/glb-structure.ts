@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { safeUIntSchema } from "@unframe/contracts/presentation";
 
-const index = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const index = safeUIntSchema;
 const attributes = z.record(z.string(), index);
 const accessor = z.looseObject({
   bufferView: index.optional(),

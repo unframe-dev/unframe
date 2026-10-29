@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     "./control-plane": "./src/control-plane.openapi.ts",
-    "./presentation": "./src/presentation/index.ts"
+    "./presentation": "./src/presentation/index.ts",
+    "./control-plane-http": "./src/control-plane-http.ts"
   },
   "scripts": {
     "generate:control-plane": "tsx scripts/generate-control-plane.ts",

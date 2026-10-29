@@ -189,6 +189,57 @@ describe("loadPngTexture", () => {
     expect(options.decode).not.toHaveBeenCalled();
   });
 
+  it.each(["expired", "aborted"])(
+    "cancels an HTTP response received after the load is %s",
+    async (reason) => {
+      const options = setup();
+      const controller = new AbortController();
+      const cancel = vi.fn();
+      let now = 1000;
+      options.fetcher.mockImplementation(async () => {
+        if (reason === "expired") now = 2000;
+        else controller.abort();
+        return new Response(
+          new ReadableStream(
+            {
+              cancel,
+              pull() {
+                throw new Error("Expired response must not be read");
+              },
+            },
+            { highWaterMark: 0 },
+          ),
+          {
+            headers: { "Content-Type": "image/png" },
+          },
+        );
+      });
+      await expect(
+        loadPngTexture(asset, { ...options, now: () => now, signal: controller.signal }),
+      ).rejects.toThrow(reason);
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(options.decode).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { name: "content type", headers: { "Content-Type": "text/plain" }, message: "content type" },
+    {
+      name: "declared length",
+      headers: { "Content-Type": "image/png", "Content-Length": "34" },
+      message: "size",
+    },
+  ])("cancels the response body after rejecting its $name", async ({ headers, message }) => {
+    const options = setup();
+    const cancel = vi.fn();
+    options.fetcher.mockResolvedValue(
+      new Response(new ReadableStream({ cancel }, { highWaterMark: 0 }), { headers }),
+    );
+    await expect(loadPngTexture(asset, options)).rejects.toThrow(message);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(options.decode).not.toHaveBeenCalled();
+  });
+
   it("does not fetch after cancellation", async () => {
     const options = setup();
     await expect(

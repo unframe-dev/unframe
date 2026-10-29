@@ -1,3 +1,8 @@
+import {
+  controlPlaneIdentifierSchema as identifier,
+  sessionJoinCodeSchema,
+  viewerCredentialSchema,
+} from "@unframe/contracts/control-plane-http";
 import { createControlPlaneClient } from "@unframe/api-client-typescript";
 import type { paths } from "@unframe/contracts/control-plane";
 import { z } from "zod";
@@ -9,18 +14,12 @@ import {
 
 type ViewerCredential =
   paths["/viewer-credentials"]["post"]["responses"][201]["content"]["application/json"];
-const identifier = z
-  .string()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9_-]+$/);
-const credentialSchema: z.ZodType<ViewerCredential> = z.object({
+const credentialSchema: z.ZodType<ViewerCredential> = viewerCredentialSchema.extend({
   token: z
     .string()
     .min(1)
     .max(16384)
     .regex(/^viewer_[A-Za-z0-9_-]+$/),
-  expiresAt: z.iso.datetime(),
   sessionId: identifier,
   participantId: identifier,
 });
@@ -145,7 +144,7 @@ export function createAnonymousAudienceClient(
   }
   return {
     async join(joinCode: string, signal?: AbortSignal) {
-      if (!/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(joinCode))
+      if (!sessionJoinCodeSchema.safeParse(joinCode).success)
         throw new AudienceConnectionError("invalid-join-code");
       const leaving = leave();
       const token = generation;
@@ -166,6 +165,9 @@ export function createAnonymousAudienceClient(
       credential = issued;
       try {
         const session = await client.join(joinCode, signal);
+        if (token !== generation || signal?.aborted) throw new AudienceConnectionError("aborted");
+        if (Date.parse(issued.expiresAt) <= now())
+          throw new AudienceConnectionError("unauthorized");
         if (session.id !== issued.sessionId) throw new AudienceConnectionError("invalid-response");
         return session;
       } catch (error) {

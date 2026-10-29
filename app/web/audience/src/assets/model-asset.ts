@@ -1,6 +1,6 @@
 import { Material, Mesh, SkinnedMesh, Texture, type AnimationClip, type Group } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { assertDeliveryCurrent, receiveAssetBytes, verifyAssetChecksum } from "./asset-transfer";
+import { assertAssetCurrent, requestAssetBytes, verifyAssetChecksum } from "./asset-transfer";
 import { validateModelBinary } from "./glb-validation";
 export interface ModelAsset {
   assetId: string;
@@ -77,35 +77,12 @@ export async function loadModelAsset(
   dispose(): void;
 }> {
   let data: ModelData | undefined;
-  const checkCurrent = () => {
-    if (options.signal?.aborted) fail("load aborted");
-    assertDeliveryCurrent(asset.expiresAtUnixMs, options.now, fail);
-  };
+  const checkCurrent = () => assertAssetCurrent(asset, options, fail);
   try {
     checkCurrent();
-    const url = new URL(asset.url);
-    if (url.protocol !== "https:" || url.username || url.password)
-      fail("URL must use HTTPS without credentials");
-    if (
-      !Number.isSafeInteger(asset.encodedSizeBytes) ||
-      asset.encodedSizeBytes < 20 ||
-      !/^sha256:[0-9a-f]{64}$/.test(asset.checksum)
-    )
-      fail("invalid metadata");
-    const response = await (options.fetcher ?? fetch)(asset.url, {
-      mode: "cors",
-      credentials: "omit",
-      cache: "no-store",
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
-    if (!response.ok) fail("request failed");
-    if (
-      response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !==
-      "model/gltf-binary"
-    )
-      fail("content type required");
-    const bytes = await receiveAssetBytes(response, asset.encodedSizeBytes, {
-      signal: options.signal,
+    const bytes = await requestAssetBytes(asset, options, {
+      mimeType: "model/gltf-binary",
+      minBytes: 20,
       fail,
     });
     await verifyAssetChecksum(bytes, asset.checksum, fail);

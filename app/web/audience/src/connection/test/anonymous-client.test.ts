@@ -197,3 +197,61 @@ it("cancels a superseded join while its prior credential revocation is pending",
   await rejected;
   expect(requestFetch).toHaveBeenCalledTimes(5);
 });
+it("rejects a credential that expires while the session response is in flight", async () => {
+  let clock = now;
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          token: "viewer_expiring",
+          expiresAt: new Date(now + 1000).toISOString(),
+          sessionId: "session",
+          participantId: "anonymous_test",
+        },
+        { status: 201 },
+      ),
+    )
+    .mockImplementationOnce(async () => {
+      clock += 1000;
+      return Response.json(session);
+    })
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => clock });
+  await expect(client.join("ABCD-EFGH")).rejects.toMatchObject({ code: "unauthorized" });
+  await expect(client.delivery("session")).rejects.toMatchObject({ code: "unauthorized" });
+});
+it("does not complete a join after the viewer has left while the session response is pending", async () => {
+  let completeJoin!: (response: Response) => void;
+  let sessionRequested!: () => void;
+  const sessionRequest = new Promise<void>((resolve) => {
+    sessionRequested = resolve;
+  });
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          token: "viewer_leaving",
+          expiresAt: new Date(now + 3600000).toISOString(),
+          sessionId: "session",
+          participantId: "anonymous_test",
+        },
+        { status: 201 },
+      ),
+    )
+    .mockImplementationOnce(() => {
+      sessionRequested();
+      return new Promise<Response>((resolve) => {
+        completeJoin = resolve;
+      });
+    })
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => now });
+  const joining = client.join("ABCD-EFGH");
+  await sessionRequest;
+  await client.leave();
+  completeJoin(Response.json(session));
+  await expect(joining).rejects.toMatchObject({ code: "aborted" });
+  await expect(client.bootstrap("session")).rejects.toMatchObject({ code: "unauthorized" });
+});

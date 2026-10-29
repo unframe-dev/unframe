@@ -1,11 +1,16 @@
 import {
   participantRuntimeViewSchema,
+  nonNegativeFiniteNumberSchema,
+  unitIntervalSchema,
+  vector3Schema,
+  positiveVector3Schema,
   type DeliveryManifestWire,
   type ParticipantRuntimeView,
   type ProjectedTimelineTrackWire,
   type TimelineKeyframeWire,
 } from "@unframe/contracts/presentation";
 import { Quaternion } from "three";
+import { canonicalQuaternionSchema, parseWireUInt } from "./wire-validation";
 
 export interface SurfaceTransitionSample {
   fromStateId: string;
@@ -17,10 +22,8 @@ const fail = (): never => {
   throw new Error("Runtime animation: invalid animation resources");
 };
 function uint(text: string | undefined): number {
-  text ??= "0";
-  if (!/^(0|[1-9]\d*)$/.test(text)) return fail();
-  const value = Number(text);
-  return Number.isSafeInteger(value) ? value : fail();
+  const result = parseWireUInt(text);
+  return result.success ? result.value : fail();
 }
 function ease(kind: number | undefined, u: number): number {
   switch (kind) {
@@ -37,6 +40,13 @@ function ease(kind: number | undefined, u: number): number {
   }
 }
 type Value = number | [number, number, number] | [number, number, number, number];
+const keyframeValueSchemas = [
+  null,
+  unitIntervalSchema,
+  vector3Schema,
+  canonicalQuaternionSchema,
+  positiveVector3Schema,
+] as const;
 function keyValue(key: TimelineKeyframeWire, property: number): Value {
   if ([key.number, key.vector3, key.quaternion].filter((v) => v !== undefined).length !== 1)
     return fail();
@@ -48,19 +58,9 @@ function keyValue(key: TimelineKeyframeWire, property: number): Value {
   } else if (property === 3 && key.quaternion?.value) {
     const q = key.quaternion.value;
     value = [q.x ?? 0, q.y ?? 0, q.z ?? 0, q.w ?? 0];
-    if (
-      Math.abs(Math.hypot(...value) - 1) > 1e-9 ||
-      (value[3] === 0 ? (value.slice(0, 3).find((v) => v !== 0) ?? 0) < 0 : value[3] < 0)
-    )
-      return fail();
   } else return fail();
-  const numbers = typeof value === "number" ? [value] : value;
-  if (
-    !numbers.every(Number.isFinite) ||
-    (property === 1 && (numbers[0]! < 0 || numbers[0]! > 1)) ||
-    (property === 4 && numbers.some((v) => v <= 0))
-  )
-    return fail();
+  const schema = keyframeValueSchemas[property];
+  if (!schema?.safeParse(value).success) return fail();
   return value;
 }
 function sampleTrack(track: ProjectedTimelineTrackWire, duration: number, elapsed: number): Value {
@@ -103,7 +103,7 @@ export function evaluateAnimationView(
   input: ParticipantRuntimeView,
   runtimeTimeMilliseconds: number,
 ): { view: ParticipantRuntimeView; surfaceTransitions: SurfaceTransitionSamples } {
-  if (!Number.isFinite(runtimeTimeMilliseconds) || runtimeTimeMilliseconds < 0) return fail();
+  if (!nonNegativeFiniteNumberSchema.safeParse(runtimeTimeMilliseconds).success) return fail();
   const view = participantRuntimeViewSchema.parse(input);
   const transitions = new Map<string, SurfaceTransitionSample>();
   const claims = new Set<string>();

@@ -1,3 +1,10 @@
+import {
+  controlPlaneIdentifierSchema as identifierSchema,
+  controlPlaneHttpsUrlSchema as httpsUrlSchema,
+  sessionResourceSchema,
+  realtimeConnectionSchema,
+  viewerCredentialSchema,
+} from "@unframe/contracts/control-plane-http";
 import { createRoute, z } from "@hono/zod-openapi";
 import {
   storageSegmentIdSchema,
@@ -9,7 +16,7 @@ import {
   checkpointInputSchema,
   completionInputSchema,
 } from "./modules/persistence-callback/schema";
-import { joinCodeSchema, sessionStateSchema } from "./modules/sessions/schema";
+import { joinCodeSchema } from "./modules/sessions/schema";
 import {
   presentationRegistrationSchema,
   presentationDefinitionSchema,
@@ -65,45 +72,8 @@ const uploadSchema = z.object({
     }),
   }),
 });
-const identifierSchema = z
-  .string()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9_-]+$/);
-const httpsUrlSchema = z
-  .string()
-  .url()
-  .refine((value: string) => new URL(value).protocol === "https:", "HTTPS URL required");
 const idParameter = z.object({ id: identifierSchema }).strict();
-const sessionResourceSchema = z.object({
-  publicationFence: publicationFenceSchema.nullable(),
-  id: z.string(),
-  presentationId: z.string(),
-  presenterId: z.string(),
-  state: sessionStateSchema,
-  participantCount: z.number().int().min(1).max(50),
-  maxParticipants: z.literal(50),
-  createdAt: z.string().datetime(),
-  endedAt: z.string().datetime().nullable(),
-});
 const sessionIdParameter = idParameter;
-const realtimeConnectionSchema = z.object({
-  endpoint: httpsUrlSchema,
-  fingerprint: z.string().nullable(),
-  runtimeId: identifierSchema,
-  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
-  assignmentEpoch: z.number().int().positive(),
-  presentationId: identifierSchema,
-  presentationRevision: z.number().int().positive(),
-  credential: z.string(),
-  expiresAt: z.string().datetime(),
-  publicationFence: z.object({
-    presentationId: identifierSchema,
-    publicationEpoch: z.number().int().positive(),
-    publicationManifestHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
-  }),
-  projectionProfileId: identifierSchema,
-});
 const venueEdgeResourceSchema = z.object({
   id: identifierSchema,
   status: z.enum(["active", "revoked"]),
@@ -1060,12 +1030,6 @@ export const downloadPublicationAssetRoute = createRoute({
   },
 });
 
-const viewerCredentialSchema = z.object({
-  token: z.string(),
-  expiresAt: z.string().datetime(),
-  sessionId: z.string(),
-  participantId: z.string(),
-});
 export const issueViewerCredentialRoute = createRoute({
   method: "post",
   path: "/viewer-credentials",

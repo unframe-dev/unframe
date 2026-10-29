@@ -35,6 +35,44 @@ function wireFixture(): ParticipantRuntimeViewWire {
 }
 
 describe("participant wire view adapter", () => {
+  it.each([
+    ["01", "invalid unsigned integer"],
+    ["1e2", "invalid unsigned integer"],
+    ["9007199254740992", "unsafe unsigned integer"],
+  ])("preserves the integer failure for %s", (value, reason) => {
+    expect(() => toParticipantView({ ...wireFixture(), baseReliableSequence: value })).toThrow(
+      `Participant runtime view: ${reason}`,
+    );
+  });
+  it.each([{ w: 1 + 0.5e-9 }, { w: 1 - 0.5e-9 }, { x: 1 }, { y: 1 }, { z: 1 }])(
+    "preserves accepted rotation tolerance and canonical sign %j",
+    (rotation) => {
+      const input = wireFixture();
+      input.presentationOrigin!.pose!.rotation = rotation;
+      expect(toParticipantView(input).presentationOrigin.pose.rotation).toEqual([
+        "x" in rotation ? rotation.x : 0,
+        "y" in rotation ? rotation.y : 0,
+        "z" in rotation ? rotation.z : 0,
+        "w" in rotation ? rotation.w : 0,
+      ]);
+    },
+  );
+  it.each([
+    { w: 1 + 2e-9 },
+    { w: -1 },
+    { x: -1 },
+    { y: -1 },
+    { z: -1 },
+    {},
+    { w: Infinity },
+    { x: NaN, w: 1 },
+  ])("preserves rejection and error for rotation %j", (rotation) => {
+    const input = wireFixture();
+    input.presentationOrigin!.pose!.rotation = rotation;
+    expect(() => toParticipantView(input)).toThrow(
+      "Participant runtime view: non-canonical rotation",
+    );
+  });
   it("converts a protobuf round-trip with omitted zero defaults to the existing runtime schema", () => {
     const type = "unframe.realtime.ParticipantRuntimeView";
     const value = decodeWireMessage(

@@ -1,3 +1,9 @@
+import {
+  controlPlaneIdentifierSchema as identifier,
+  sessionJoinCodeSchema,
+  sessionResourceSchema,
+  realtimeConnectionSchema,
+} from "@unframe/contracts/control-plane-http";
 import { createControlPlaneClient } from "@unframe/api-client-typescript";
 import type { paths } from "@unframe/contracts/control-plane";
 import { decodeWireMessage, type DeliveryManifestWire } from "@unframe/contracts/presentation";
@@ -47,27 +53,11 @@ export async function audienceResponseError(
   return new AudienceConnectionError("http-error", response.status);
 }
 
-const identifier = z
-  .string()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9_-]+$/);
-const positiveInteger = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
-const publicationFence = z.object({
-  presentationId: identifier,
-  publicationEpoch: positiveInteger,
-  publicationManifestHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
-});
-const sessionSchema: z.ZodType<Session> = z.object({
+const sessionSchema: z.ZodType<Session> = sessionResourceSchema.extend({
   id: identifier,
   presentationId: identifier,
   presenterId: identifier,
-  state: z.enum(["Waiting", "Presenting", "Ended"]),
-  participantCount: z.number().int().min(1).max(50),
-  maxParticipants: z.literal(50),
-  createdAt: z.iso.datetime(),
-  endedAt: z.iso.datetime().nullable(),
-  publicationFence: publicationFence.nullable(),
+  publicationFence: realtimeConnectionSchema.shape.publicationFence.nullable(),
 });
 function safeHttps(value: string): boolean {
   try {
@@ -77,18 +67,9 @@ function safeHttps(value: string): boolean {
     return false;
   }
 }
-const bootstrapSchema: z.ZodType<Bootstrap> = z.object({
-  endpoint: z.string().refine(safeHttps),
-  fingerprint: z.string().nullable(),
-  runtimeId: identifier,
-  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
-  assignmentEpoch: positiveInteger,
-  presentationId: identifier,
-  presentationRevision: positiveInteger,
+const bootstrapSchema: z.ZodType<Bootstrap> = realtimeConnectionSchema.extend({
+  endpoint: realtimeConnectionSchema.shape.endpoint.refine(safeHttps),
   credential: z.string().min(1),
-  expiresAt: z.iso.datetime(),
-  publicationFence,
-  projectionProfileId: identifier,
 });
 function invalidResponse(): never {
   throw new AudienceConnectionError("invalid-response");
@@ -178,7 +159,7 @@ export function createAudienceHttpClient(
   }
   return {
     async join(joinCode: string, signal?: AbortSignal): Promise<Session> {
-      if (!/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(joinCode))
+      if (!sessionJoinCodeSchema.safeParse(joinCode).success)
         throw new AudienceConnectionError("invalid-join-code");
       const value = validate(
         sessionSchema,

@@ -174,6 +174,35 @@ describe("Audience HTTP client", () => {
       await expect(client.bootstrap("session")).rejects.toMatchObject({ code: "invalid-response" });
     }
   });
+  it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, "1", null])(
+    "rejects invalid bootstrap epochs and revisions %s",
+    async (value) => {
+      for (const invalid of [
+        { ...bootstrap, assignmentEpoch: value },
+        { ...bootstrap, presentationRevision: value },
+        { ...bootstrap, publicationFence: { ...fence, publicationEpoch: value } },
+      ]) {
+        const { client } = setup(Response.json(invalid));
+        await expect(client.bootstrap("session")).rejects.toMatchObject({
+          code: "invalid-response",
+        });
+      }
+    },
+  );
+  it("accepts the largest safe bootstrap integer without rounding", async () => {
+    const value = {
+      ...bootstrap,
+      assignmentEpoch: Number.MAX_SAFE_INTEGER,
+      presentationRevision: Number.MAX_SAFE_INTEGER,
+      publicationFence: { ...fence, publicationEpoch: Number.MAX_SAFE_INTEGER },
+    };
+    const { client } = setup(Response.json(value));
+    expect(await client.bootstrap("session")).toEqual(value);
+  });
+  it("preserves the narrow HTTP identifier constraints in session responses", async () => {
+    const { client } = setup(Response.json({ ...session, id: "session/child" }));
+    await expect(client.join("ABCD-EFGH")).rejects.toMatchObject({ code: "invalid-response" });
+  });
   it("rejects expired bootstrap credentials", async () => {
     const { client } = setup(
       Response.json({ ...bootstrap, expiresAt: new Date(now).toISOString() }),
