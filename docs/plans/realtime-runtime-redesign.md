@@ -1,6 +1,6 @@
 # Realtime の非同期 checkpoint と複数 Session 管理
 
-更新日: 2026-10-29。状態: 実装済み・ローカル結合検証中。公開経路・実機・収容負荷は未検証。
+更新日: 2026-10-29。状態: 実装・ローカル結合検証済み。公開経路・実機・収容負荷は未検証。
 
 本書は Realtime、Control Plane、Unity、Audience の実装担当者向けに、配信と保存の分離、Funnel 経由の Cloud Runtime の複数 Session 管理、障害復旧の変更を定義する。現行実装を説明する文書ではなく、以下の受け入れ条件を満たすための実装計画である。
 
@@ -142,7 +142,7 @@ Host の graceful shutdown は新規受付を止め、担当 Session の停止�
 - 非同期 checkpoint、複数 Session Host、起動世代・epoch の fencing、復旧・終了の保存境界、Unity / Audience の再 bootstrap を実装した。
 - Control Plane の migration `0015_runtime_host_sessions.sql` と OpenAPI / C# 生成物を同期した。Venue Edge は起動 ID の一回限りの bind で同 epoch の別プロセス起動を拒否する。
 - 変更範囲の Go race / vet / lint / build、契約テスト、Control Plane と Audience の対象テスト、Unity EditMode を実行した。全体の test / build は実行していない。
-- 実 Unity を含むローカル同期・復旧 E2E を検証中。Funnel 経由・Quest 実機・代表負荷の測定結果は未取得であり、公開環境の収容上限を確定していない。
+- `nix run .#realtime-e2e -- --unity --race` は5シナリオ成功。複数 Session の native gRPC / WSS 隔離、Unity / Audience の同期・描画、旧 lease の失効待ち、新 epoch の paused 復旧と明示 Resume、終了後の再入場拒否を確認した。Funnel 経由・Quest 実機・代表負荷の測定結果は未取得であり、公開環境の収容上限を確定していない。
 
 ## 関連文書との整合と対象外
 
