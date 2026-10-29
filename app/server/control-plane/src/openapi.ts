@@ -701,6 +701,70 @@ export const publicRoutes = [
   }),
 ] as const;
 
+export const listSessionsRoute = createRoute({
+  method: "get",
+  path: "/sessions",
+  security,
+  request: {
+    query: z.object({
+      limit: z.coerce.number().int().min(1).max(100).default(20),
+      cursor: identifierSchema.optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description:
+        "Rooms created by the authenticated account, newest first; cursor is the last returned id",
+      content: {
+        "application/json": {
+          schema: z.object({
+            sessions: z.array(sessionResourceSchema),
+            nextCursor: identifierSchema.nullable(),
+          }),
+        },
+      },
+    },
+    400: errorResponse("Invalid pagination"),
+    401: errorResponse("Unauthorized"),
+    404: errorResponse("Cursor not found"),
+  },
+});
+export const getSessionJoinCodeRoute = createRoute({
+  method: "get",
+  path: "/sessions/{id}/join-code",
+  security,
+  request: { params: sessionIdParameter },
+  responses: {
+    200: {
+      description: "Current join code, available only to the creator; Cache-Control: no-store",
+      content: { "application/json": { schema: z.object({ joinCode: joinCodeSchema }) } },
+    },
+    400: errorResponse("Invalid id"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Creator required"),
+    404: errorResponse("Not found"),
+    409: errorResponse("Code unavailable"),
+  },
+});
+export const rotateSessionJoinCodeRoute = createRoute({
+  method: "post",
+  path: "/sessions/{id}/join-code",
+  security,
+  request: { params: sessionIdParameter },
+  responses: {
+    200: {
+      description:
+        "Replaced join code; previous code cannot be used to join; Cache-Control: no-store",
+      content: { "application/json": { schema: z.object({ joinCode: joinCodeSchema }) } },
+    },
+    400: errorResponse("Invalid id"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Creator required"),
+    404: errorResponse("Not found"),
+    409: errorResponse("Ended, concurrent rotation, or code collision"),
+  },
+});
+
 export const createPresentationRoute = publicRoutes[0];
 export const listPresentationsRoute = publicRoutes[1];
 export const getPresentationRoute = publicRoutes[2];

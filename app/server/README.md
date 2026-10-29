@@ -36,6 +36,14 @@ Publication の `buildId` と AssetSet の asset ID は、英数字で始まり�
 
 `PUBLICATION_ASSET_ORIGIN` は任意の HTTPS origin（path・query・credentials なし）です。設定すると、Delivery の素材 URL は同じ Control Plane の `ASSETS` binding を読む `/publication-assets/{presentationId}/{buildId}/{assetId}` へ向き、対象素材と最大5分の期限を `SERVICE_IDENTITY_SECRET` の用途別 HMAC で拘束します。返送前に公開済み build の media type・size・checksum を照合します。未設定時は既存 R2 backend の署名 URL を使用します。ローカル検証では Worker と同じストレージへ接続する HTTPS 入口をこの origin に指定してください。
 
+## Room の管理 API
+
+Room は Session として保存します。`GET /sessions` は認証した作成者自身の Room を `createdAt`、`id` の降順で返し、`limit` は1〜100（既定20）、`cursor` は前ページの `nextCursor` を指定します。応答は `{ sessions, nextCursor }` です。
+
+作成者は `GET /sessions/{id}/join-code` で現在の参加コードを再取得し、同じ URL の POST で更新できます。応答は `{ joinCode }` で、一覧・通常の Session 取得にはコードを含めません。コードと照合用ハッシュを D1 に保存し、応答には `Cache-Control: no-store` を付けます。Viewer や他のアカウントはコードを管理できません。更新後の旧コードは新規参加に使えず、終了した Room のコード更新は `409` です。同時更新が競合した場合も `409` となるため、現在のコードを再取得してください。
+
+`0016_session_join_codes.sql` を適用してください。ハッシュしか保存していなかった既存 Room のコードは復元できないため、再取得は `409` を返します。コードを更新してから共有してください。
+
 ## Cloud Runtime の起動と準備
 
 運用者は `nix run .#runtime-host` で Cloud Host supervisor を起動します。Host が割り当てに従って Runtime を起動・監視し、稼働確認後に ready を報告します。設定・リース・停止と復旧の挙動は [Realtime の起動手順](realtime/README.md#cloud-host-supervisor) を参照してください。

@@ -33,6 +33,62 @@ const addPresentation = async (id: string, ownerId: string) => {
 };
 
 describe("D1SessionRepository", () => {
+  it("guards rotation and joins against stale codes and concurrent termination", async () => {
+    const suffix = crypto.randomUUID();
+    const ownerId = `owner-${suffix}`;
+    const viewerId = `viewer-${suffix}`;
+    const presentationId = `presentation-${suffix}`;
+    const sessionId = `session-${suffix}`;
+    await Promise.all([addUser(ownerId), addUser(viewerId)]);
+    await addPresentation(presentationId, ownerId);
+    const repository = new D1SessionRepository(env.DB);
+    await repository.create(
+      {
+        id: sessionId,
+        presentationId,
+        presenterId: ownerId,
+        joinCode: "ABCD-EFGH",
+        joinCodeHash: `old-${suffix}`,
+        state: "Waiting",
+        participantCount: 1,
+        maxParticipants: 50,
+        createdAt: "2026",
+        endedAt: null,
+      },
+      { sessionId, userId: ownerId, role: "presenter", joinedAt: "2026" },
+    );
+    await expect(
+      repository.updateJoinCode(sessionId, ownerId, "JKLM-NPQR", `new-${suffix}`, `old-${suffix}`),
+    ).resolves.toBe(true);
+    await expect(repository.join(sessionId, viewerId, "2026", `old-${suffix}`)).resolves.toBe(
+      "not_found",
+    );
+    await expect(repository.participantFor(sessionId, viewerId)).resolves.toBeNull();
+    await expect(
+      repository.updateJoinCode(
+        sessionId,
+        ownerId,
+        "STUV-WXYZ",
+        `stale-${suffix}`,
+        `old-${suffix}`,
+      ),
+    ).resolves.toBe(false);
+    await expect(repository.findById(sessionId)).resolves.toMatchObject({
+      joinCode: "JKLM-NPQR",
+      joinCodeHash: `new-${suffix}`,
+    });
+    await repository.end(sessionId, "2026");
+    await expect(
+      repository.updateJoinCode(
+        sessionId,
+        ownerId,
+        "STUV-WXYZ",
+        `ended-${suffix}`,
+        `new-${suffix}`,
+      ),
+    ).resolves.toBe(false);
+  });
+
   it("pins the latest publication epoch when creating a session", async () => {
     const suffix = crypto.randomUUID();
     const ownerId = `owner-${suffix}`;
@@ -58,6 +114,7 @@ describe("D1SessionRepository", () => {
         id: sessionId,
         presentationId,
         presenterId: ownerId,
+        joinCode: "ABCD-EFGH",
         joinCodeHash: `hash-${suffix}`,
         state: "Waiting",
         participantCount: 1,
@@ -95,7 +152,7 @@ describe("D1SessionRepository", () => {
       },
     });
   });
-  it("persists only a join-code hash and its presenter participant", async () => {
+  it("persists the join code and hash with its presenter participant", async () => {
     const suffix = crypto.randomUUID();
     const ownerId = `owner-${suffix}`;
     const presentationId = `presentation-${suffix}`;
@@ -107,6 +164,7 @@ describe("D1SessionRepository", () => {
         id: `session-${suffix}`,
         presentationId,
         presenterId: ownerId,
+        joinCode: "ABCD-EFGH",
         joinCodeHash: `hash-${suffix}`,
         state: "Waiting",
         participantCount: 1,
@@ -143,6 +201,7 @@ describe("D1SessionRepository", () => {
         id: sessionId,
         presentationId,
         presenterId: ownerId,
+        joinCode: "ABCD-EFGH",
         joinCodeHash: `hash-${suffix}`,
         state: "Waiting",
         participantCount: 1,
@@ -192,6 +251,7 @@ describe("D1SessionRepository", () => {
         id: sessionId,
         presentationId,
         presenterId: ownerId,
+        joinCode: "ABCD-EFGH",
         joinCodeHash: `hash-${suffix}`,
         state: "Waiting",
         participantCount: 1,

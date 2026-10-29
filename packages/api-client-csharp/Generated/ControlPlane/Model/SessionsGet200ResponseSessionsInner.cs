@@ -26,12 +26,12 @@ using Unframe.ControlPlane.Client;
 namespace Unframe.ControlPlane.Model
 {
     /// <summary>
-    /// SessionsPost201ResponseSession
+    /// SessionsGet200ResponseSessionsInner
     /// </summary>
-    public partial class SessionsPost201ResponseSession : IValidatableObject
+    public partial class SessionsGet200ResponseSessionsInner : IValidatableObject
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="SessionsPost201ResponseSession" /> class.
+        /// Initializes a new instance of the <see cref="SessionsGet200ResponseSessionsInner" /> class.
         /// </summary>
         /// <param name="id">id</param>
         /// <param name="presentationId">presentationId</param>
@@ -43,7 +43,7 @@ namespace Unframe.ControlPlane.Model
         /// <param name="publicationFence">publicationFence</param>
         /// <param name="endedAt">endedAt</param>
         [JsonConstructor]
-        public SessionsPost201ResponseSession(string id, string presentationId, string presenterId, StateEnum state, int participantCount, MaxParticipantsEnum maxParticipants, DateTime createdAt, SessionsPost201ResponseSessionPublicationFence? publicationFence = default, DateTime? endedAt = default)
+        public SessionsGet200ResponseSessionsInner(string id, string presentationId, string presenterId, StateEnum state, int participantCount, MaxParticipantsEnum maxParticipants, DateTime createdAt, SessionsGet200ResponseSessionsInnerPublicationFence? publicationFence = default, DateTime? endedAt = default)
         {
             Id = id;
             PresentationId = presentationId;
@@ -237,7 +237,7 @@ namespace Unframe.ControlPlane.Model
         /// Gets or Sets PublicationFence
         /// </summary>
         [JsonPropertyName("publicationFence")]
-        public SessionsPost201ResponseSessionPublicationFence? PublicationFence { get; set; }
+        public SessionsGet200ResponseSessionsInnerPublicationFence? PublicationFence { get; set; }
 
         /// <summary>
         /// Gets or Sets EndedAt
@@ -252,7 +252,7 @@ namespace Unframe.ControlPlane.Model
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("class SessionsPost201ResponseSession {\n");
+            sb.Append("class SessionsGet200ResponseSessionsInner {\n");
             sb.Append("  Id: ").Append(Id).Append("\n");
             sb.Append("  PresentationId: ").Append(PresentationId).Append("\n");
             sb.Append("  PresenterId: ").Append(PresenterId).Append("\n");
@@ -290,9 +290,9 @@ namespace Unframe.ControlPlane.Model
     }
 
     /// <summary>
-    /// A Json converter for type <see cref="SessionsPost201ResponseSession" />
+    /// A Json converter for type <see cref="SessionsGet200ResponseSessionsInner" />
     /// </summary>
-    public class SessionsPost201ResponseSessionJsonConverter : JsonConverter<SessionsPost201ResponseSession>
+    public class SessionsGet200ResponseSessionsInnerJsonConverter : JsonConverter<SessionsGet200ResponseSessionsInner>
     {
         /// <summary>
         /// The format to use to serialize CreatedAt
@@ -305,14 +305,14 @@ namespace Unframe.ControlPlane.Model
         public static string EndedAtFormat { get; set; } = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffffffK";
 
         /// <summary>
-        /// Deserializes json to <see cref="SessionsPost201ResponseSession" />
+        /// Deserializes json to <see cref="SessionsGet200ResponseSessionsInner" />
         /// </summary>
         /// <param name="utf8JsonReader"></param>
         /// <param name="typeToConvert"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <returns></returns>
         /// <exception cref="JsonException"></exception>
-        public override SessionsPost201ResponseSession Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
+        public override SessionsGet200ResponseSessionsInner Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
         {
             int currentDepth = utf8JsonReader.CurrentDepth;
 
@@ -324,11 +324,11 @@ namespace Unframe.ControlPlane.Model
             Option<string?> id = default;
             Option<string?> presentationId = default;
             Option<string?> presenterId = default;
-            Option<SessionsPost201ResponseSession.StateEnum?> state = default;
+            Option<SessionsGet200ResponseSessionsInner.StateEnum?> state = default;
             Option<int?> participantCount = default;
-            Option<SessionsPost201ResponseSession.MaxParticipantsEnum?> maxParticipants = default;
+            Option<SessionsGet200ResponseSessionsInner.MaxParticipantsEnum?> maxParticipants = default;
             Option<DateTime?> createdAt = default;
-            Option<SessionsPost201ResponseSessionPublicationFence?> publicationFence = default;
+            Option<SessionsGet200ResponseSessionsInnerPublicationFence?> publicationFence = default;
             Option<DateTime?> endedAt = default;
 
             while (utf8JsonReader.Read())
@@ -358,19 +358,19 @@ namespace Unframe.ControlPlane.Model
                         case "state":
                             string? stateRawValue = utf8JsonReader.GetString();
                             if (stateRawValue != null)
-                                state = new Option<SessionsPost201ResponseSession.StateEnum?>(SessionsPost201ResponseSession.StateEnumFromStringOrDefault(stateRawValue));
+                                state = new Option<SessionsGet200ResponseSessionsInner.StateEnum?>(SessionsGet200ResponseSessionsInner.StateEnumFromStringOrDefault(stateRawValue));
                             break;
                         case "participantCount":
                             participantCount = new Option<int?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
                             break;
                         case "maxParticipants":
-                            maxParticipants = new Option<SessionsPost201ResponseSession.MaxParticipantsEnum?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (SessionsPost201ResponseSession.MaxParticipantsEnum?)null : (SessionsPost201ResponseSession.MaxParticipantsEnum)utf8JsonReader.GetInt32());
+                            maxParticipants = new Option<SessionsGet200ResponseSessionsInner.MaxParticipantsEnum?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (SessionsGet200ResponseSessionsInner.MaxParticipantsEnum?)null : (SessionsGet200ResponseSessionsInner.MaxParticipantsEnum)utf8JsonReader.GetInt32());
                             break;
                         case "createdAt":
                             createdAt = new Option<DateTime?>(JsonSerializer.Deserialize<DateTime>(ref utf8JsonReader, jsonSerializerOptions));
                             break;
                         case "publicationFence":
-                            publicationFence = new Option<SessionsPost201ResponseSessionPublicationFence?>(JsonSerializer.Deserialize<SessionsPost201ResponseSessionPublicationFence>(ref utf8JsonReader, jsonSerializerOptions));
+                            publicationFence = new Option<SessionsGet200ResponseSessionsInnerPublicationFence?>(JsonSerializer.Deserialize<SessionsGet200ResponseSessionsInnerPublicationFence>(ref utf8JsonReader, jsonSerializerOptions));
                             break;
                         case "endedAt":
                             endedAt = new Option<DateTime?>(JsonSerializer.Deserialize<DateTime?>(ref utf8JsonReader, jsonSerializerOptions));
@@ -382,112 +382,112 @@ namespace Unframe.ControlPlane.Model
             }
 
             if (!id.IsSet)
-                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(id));
+                throw new ArgumentException("Property is required for class SessionsGet200ResponseSessionsInner.", nameof(id));
 
             if (!presentationId.IsSet)
-                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(presentationId));
+                throw new ArgumentException("Property is required for class SessionsGet200ResponseSessionsInner.", nameof(presentationId));
 
             if (!presenterId.IsSet)
-                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(presenterId));
+                throw new ArgumentException("Property is required for class SessionsGet200ResponseSessionsInner.", nameof(presenterId));
 
             if (!state.IsSet)
-                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(state));
+                throw new ArgumentException("Property is required for class SessionsGet200ResponseSessionsInner.", nameof(state));
 
             if (!participantCount.IsSet)
-                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(participantCount));
+                throw new ArgumentException("Property is required for class SessionsGet200ResponseSessionsInner.", nameof(participantCount));
 
             if (!maxParticipants.IsSet)
-                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(maxParticipants));
+                throw new ArgumentException("Property is required for class SessionsGet200ResponseSessionsInner.", nameof(maxParticipants));
 
             if (!createdAt.IsSet)
-                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(createdAt));
+                throw new ArgumentException("Property is required for class SessionsGet200ResponseSessionsInner.", nameof(createdAt));
 
             if (!publicationFence.IsSet)
-                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(publicationFence));
+                throw new ArgumentException("Property is required for class SessionsGet200ResponseSessionsInner.", nameof(publicationFence));
 
             if (!endedAt.IsSet)
-                throw new ArgumentException("Property is required for class SessionsPost201ResponseSession.", nameof(endedAt));
+                throw new ArgumentException("Property is required for class SessionsGet200ResponseSessionsInner.", nameof(endedAt));
 
             if (id.IsSet && id.Value == null)
-                throw new ArgumentNullException(nameof(id), "Property is not nullable for class SessionsPost201ResponseSession.");
+                throw new ArgumentNullException(nameof(id), "Property is not nullable for class SessionsGet200ResponseSessionsInner.");
 
             if (presentationId.IsSet && presentationId.Value == null)
-                throw new ArgumentNullException(nameof(presentationId), "Property is not nullable for class SessionsPost201ResponseSession.");
+                throw new ArgumentNullException(nameof(presentationId), "Property is not nullable for class SessionsGet200ResponseSessionsInner.");
 
             if (presenterId.IsSet && presenterId.Value == null)
-                throw new ArgumentNullException(nameof(presenterId), "Property is not nullable for class SessionsPost201ResponseSession.");
+                throw new ArgumentNullException(nameof(presenterId), "Property is not nullable for class SessionsGet200ResponseSessionsInner.");
 
             if (state.IsSet && state.Value == null)
-                throw new ArgumentNullException(nameof(state), "Property is not nullable for class SessionsPost201ResponseSession.");
+                throw new ArgumentNullException(nameof(state), "Property is not nullable for class SessionsGet200ResponseSessionsInner.");
 
             if (participantCount.IsSet && participantCount.Value == null)
-                throw new ArgumentNullException(nameof(participantCount), "Property is not nullable for class SessionsPost201ResponseSession.");
+                throw new ArgumentNullException(nameof(participantCount), "Property is not nullable for class SessionsGet200ResponseSessionsInner.");
 
             if (maxParticipants.IsSet && maxParticipants.Value == null)
-                throw new ArgumentNullException(nameof(maxParticipants), "Property is not nullable for class SessionsPost201ResponseSession.");
+                throw new ArgumentNullException(nameof(maxParticipants), "Property is not nullable for class SessionsGet200ResponseSessionsInner.");
 
             if (createdAt.IsSet && createdAt.Value == null)
-                throw new ArgumentNullException(nameof(createdAt), "Property is not nullable for class SessionsPost201ResponseSession.");
+                throw new ArgumentNullException(nameof(createdAt), "Property is not nullable for class SessionsGet200ResponseSessionsInner.");
 
-            return new SessionsPost201ResponseSession(id.Value!, presentationId.Value!, presenterId.Value!, state.Value!.Value!, participantCount.Value!.Value!, maxParticipants.Value!.Value!, createdAt.Value!.Value!, publicationFence.Value!, endedAt.Value!);
+            return new SessionsGet200ResponseSessionsInner(id.Value!, presentationId.Value!, presenterId.Value!, state.Value!.Value!, participantCount.Value!.Value!, maxParticipants.Value!.Value!, createdAt.Value!.Value!, publicationFence.Value!, endedAt.Value!);
         }
 
         /// <summary>
-        /// Serializes a <see cref="SessionsPost201ResponseSession" />
+        /// Serializes a <see cref="SessionsGet200ResponseSessionsInner" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="sessionsPost201ResponseSession"></param>
+        /// <param name="sessionsGet200ResponseSessionsInner"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public override void Write(Utf8JsonWriter writer, SessionsPost201ResponseSession sessionsPost201ResponseSession, JsonSerializerOptions jsonSerializerOptions)
+        public override void Write(Utf8JsonWriter writer, SessionsGet200ResponseSessionsInner sessionsGet200ResponseSessionsInner, JsonSerializerOptions jsonSerializerOptions)
         {
             writer.WriteStartObject();
 
-            WriteProperties(writer, sessionsPost201ResponseSession, jsonSerializerOptions);
+            WriteProperties(writer, sessionsGet200ResponseSessionsInner, jsonSerializerOptions);
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Serializes the properties of <see cref="SessionsPost201ResponseSession" />
+        /// Serializes the properties of <see cref="SessionsGet200ResponseSessionsInner" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="sessionsPost201ResponseSession"></param>
+        /// <param name="sessionsGet200ResponseSessionsInner"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void WriteProperties(Utf8JsonWriter writer, SessionsPost201ResponseSession sessionsPost201ResponseSession, JsonSerializerOptions jsonSerializerOptions)
+        public void WriteProperties(Utf8JsonWriter writer, SessionsGet200ResponseSessionsInner sessionsGet200ResponseSessionsInner, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (sessionsPost201ResponseSession.Id == null)
-                throw new ArgumentNullException(nameof(sessionsPost201ResponseSession.Id), "Property is required for class SessionsPost201ResponseSession.");
+            if (sessionsGet200ResponseSessionsInner.Id == null)
+                throw new ArgumentNullException(nameof(sessionsGet200ResponseSessionsInner.Id), "Property is required for class SessionsGet200ResponseSessionsInner.");
 
-            if (sessionsPost201ResponseSession.PresentationId == null)
-                throw new ArgumentNullException(nameof(sessionsPost201ResponseSession.PresentationId), "Property is required for class SessionsPost201ResponseSession.");
+            if (sessionsGet200ResponseSessionsInner.PresentationId == null)
+                throw new ArgumentNullException(nameof(sessionsGet200ResponseSessionsInner.PresentationId), "Property is required for class SessionsGet200ResponseSessionsInner.");
 
-            if (sessionsPost201ResponseSession.PresenterId == null)
-                throw new ArgumentNullException(nameof(sessionsPost201ResponseSession.PresenterId), "Property is required for class SessionsPost201ResponseSession.");
+            if (sessionsGet200ResponseSessionsInner.PresenterId == null)
+                throw new ArgumentNullException(nameof(sessionsGet200ResponseSessionsInner.PresenterId), "Property is required for class SessionsGet200ResponseSessionsInner.");
 
-            writer.WriteString("id", sessionsPost201ResponseSession.Id);
+            writer.WriteString("id", sessionsGet200ResponseSessionsInner.Id);
 
-            writer.WriteString("presentationId", sessionsPost201ResponseSession.PresentationId);
+            writer.WriteString("presentationId", sessionsGet200ResponseSessionsInner.PresentationId);
 
-            writer.WriteString("presenterId", sessionsPost201ResponseSession.PresenterId);
+            writer.WriteString("presenterId", sessionsGet200ResponseSessionsInner.PresenterId);
 
-            var stateRawValue = SessionsPost201ResponseSession.StateEnumToJsonValue(sessionsPost201ResponseSession.State);
+            var stateRawValue = SessionsGet200ResponseSessionsInner.StateEnumToJsonValue(sessionsGet200ResponseSessionsInner.State);
             writer.WriteString("state", stateRawValue);
-            writer.WriteNumber("participantCount", sessionsPost201ResponseSession.ParticipantCount);
+            writer.WriteNumber("participantCount", sessionsGet200ResponseSessionsInner.ParticipantCount);
 
-            writer.WriteNumber("maxParticipants", SessionsPost201ResponseSession.MaxParticipantsEnumToJsonValue(sessionsPost201ResponseSession.MaxParticipants));
+            writer.WriteNumber("maxParticipants", SessionsGet200ResponseSessionsInner.MaxParticipantsEnumToJsonValue(sessionsGet200ResponseSessionsInner.MaxParticipants));
 
-            writer.WriteString("createdAt", sessionsPost201ResponseSession.CreatedAt.ToString(CreatedAtFormat));
+            writer.WriteString("createdAt", sessionsGet200ResponseSessionsInner.CreatedAt.ToString(CreatedAtFormat));
 
-            if (sessionsPost201ResponseSession.PublicationFence != null)
+            if (sessionsGet200ResponseSessionsInner.PublicationFence != null)
             {
                 writer.WritePropertyName("publicationFence");
-                JsonSerializer.Serialize(writer, sessionsPost201ResponseSession.PublicationFence, jsonSerializerOptions);
+                JsonSerializer.Serialize(writer, sessionsGet200ResponseSessionsInner.PublicationFence, jsonSerializerOptions);
             }
             else
                 writer.WriteNull("publicationFence");
-            if (sessionsPost201ResponseSession.EndedAt != null)
-                writer.WriteString("endedAt", sessionsPost201ResponseSession.EndedAt.Value.ToString(EndedAtFormat));
+            if (sessionsGet200ResponseSessionsInner.EndedAt != null)
+                writer.WriteString("endedAt", sessionsGet200ResponseSessionsInner.EndedAt.Value.ToString(EndedAtFormat));
             else
                 writer.WriteNull("endedAt");
         }

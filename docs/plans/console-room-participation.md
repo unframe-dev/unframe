@@ -1,6 +1,6 @@
 # Console からの Room 管理と参加導線
 
-更新日: 2026-10-30。状態: 基本仕様。レイヤー別詳細計画・追加機能の実装は未着手。Host 容量の設定例変更のみ反映済み。
+更新日: 2026-10-30。状態: 段階的に実装中。Control Plane の所有 Room 一覧と参加コード管理を実装。Console・Quest・Audience の参加導線と無人終了は後続。
 
 Console・Quest・Audience・サーバーの実装担当者向けに、Room 作成から認証・参加・共有・終了までの到達点をまとめる。確定した要件と、後続の詳細計画で判断する事項を分ける。
 
@@ -72,7 +72,7 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 | デバイス管理         | `/device` の承認は実装済み。`/devices` は仮画面で承認画面への入口もない。`/settings/security` に認証セッション一覧・他セッション一括失効はあるが、端末管理ではない。                          |
 | Quest                | Device Authorization、新規 Room 作成、認証済み Viewer のコード参加はある。認証はメモリ保持で、永続保存・所有 Room 一覧・既存 Room への Presenter 参加・匿名資格を発行して参加する UI はない。 |
 | Audience             | 匿名 Viewer のコード入力参加はある。参加 URL の情報を読み取る入口はない。                                                                                                                     |
-| Control Plane        | 作成・コード参加・取得・開始・終了はある。参加コードはハッシュのみで保持し、Room 一覧・コード再取得・更新は提供していない。                                                                   |
+| Control Plane        | 作成・コード参加・取得・開始・終了に加え、作成者の Room 一覧と現在コードの取得・更新を提供する。コードは通常の Session 応答には含めず、更新後の旧コードは新規参加に使えない。                 |
 | Realtime             | Presenter 切断時は実行を一時停止する。実接続者がゼロになってから10分後に Room を終了する機能はない。                                                                                          |
 
 確認先: [Console](../../app/web/console/README.md)、[Quest onboarding](../../app/unity/Assets/Scripts/MR/Session/QuestOnboardingView.cs)、[Audience 入口](../../app/web/audience/src/connection/AudienceApplication.tsx)、[Session API](../../app/server/control-plane/src/modules/sessions/routes.ts)、[Runtime presence](../../app/server/realtime/internal/runtimecore/v2_presence.go)。

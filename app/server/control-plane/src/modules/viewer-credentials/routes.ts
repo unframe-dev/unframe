@@ -54,7 +54,7 @@ export function createViewerCredentialRoutes(now = () => new Date()) {
         inactiveViewerCleanup(DB, session.id, timestamp.toISOString()),
         db.insert(authUsers)
           .select(sql`SELECT ${userId}, 'Anonymous viewer', ${`${crypto.randomUUID()}@anonymous.invalid`}, 0, ${timestamp.toISOString()}, ${timestamp.toISOString()} FROM presentation_sessions
-        WHERE id = ${session.id} AND state != 'Ended' AND (SELECT count(*) FROM session_participants WHERE session_id = ${session.id}) < max_participants`),
+        WHERE id = ${session.id} AND join_code_hash = ${codeHash} AND state != 'Ended' AND (SELECT count(*) FROM session_participants WHERE session_id = ${session.id}) < max_participants`),
         db.insert(anonymousViewerCredentials).select(
           db
             .select({
