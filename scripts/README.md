@@ -85,6 +85,14 @@ Presentation CI の型・lint・共通単体テスト、契約生成・wire 互�
 
 PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と依存も固定します。OS を切り替えた場合は、移行先の同じ隔離 profile 内で `pnpm --filter @unframe/unframe-cli run presentation lock update <absolute-project-directory>` を実行します。`lock refresh` では runtime を切り替えません。
 
+## Quest同梱の仮プレゼン
+
+`nix run .#quest-demo` は `scripts/unity/quest-demo-source/` を正式コンパイラーでビルドし、
+Unityの `Assets/Resources/QuestDemoPresentation/` にcanonical JSONと実素材を再生成します。
+Fixed Browserのprovisionが必要です。仮資料はQuestの資料一覧で選択すると認証済みユーザーの資料として公開されます。
+同梱JSONはhashの対象なので整形せず、生成スクリプトで更新します。
+端末の操作手順は [QuestアプリUI](../app/unity/docs/quest-app-ui.md) を参照してください。
+
 ## Native helper と worker の準備
 
 CLI の path 検査、成果物公開、build cache、Source 保存 transaction は Go 製 native filesystem helper を使用します。repository root で `bash scripts/build-cli-filesystem.sh` を実行すると `packages/unframe-cli/.cache/filesystem-helper` を生成します。native 専用 Go module の依存は `packages/unframe-cli/native/go.mod` と `go.sum` で固定します。CLI の pnpm `presentation` / `dev` / `tui` / `test` / `test:tui` は hook で生成します。`vp test` の直接実行や headless API の直接利用など hook を通らない consumer は、先に同 script を実行してください。

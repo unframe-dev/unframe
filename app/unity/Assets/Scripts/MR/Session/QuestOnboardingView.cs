@@ -19,8 +19,9 @@ namespace Unframe.Unity.PresentationRuntime
         private GameObject panel;
         private Image leftAim, rightAim;
         private QuestOnboardingAuthorization authorization;
-        private QuestOnboardingPresentation[] presentations = Array.Empty<QuestOnboardingPresentation>();
+        private QuestOnboardingPresentation[] presentations = new[] { BundledDemo() };
         private QuestOnboardingPresentation selected;
+        private QuestDemoPresentationBuild demoBuild;
         private QuestOnboardingRoom room;
         private CancellationTokenSource cancellation = new CancellationTokenSource();
         private bool busy;
@@ -32,6 +33,7 @@ namespace Unframe.Unity.PresentationRuntime
         public bool IsComplete { get; private set; }
         public QuestOnboardingFlow Flow => flow;
         public GameObject Panel => panel;
+        public string SharedRoomCode => room?.JoinCode?.Replace("-", "") ?? String.Empty;
         public Button FindButton(string name) => buttons.Find(button => button != null && button.name == name);
         public void Refresh() => Draw();
         public event Action Completed;
@@ -75,7 +77,7 @@ namespace Unframe.Unity.PresentationRuntime
         private void ResetFlowState()
         {
             CancelOperation(); flow.Reset(); IsComplete = false; authorization = null;
-            selected = null; room = null; sessionStarted = false; roomCode = ""; message = "";
+            selected = null; demoBuild = null; room = null; sessionStarted = false; roomCode = ""; message = "";
         }
 
         private void CancelOperation(bool disconnect = true)
@@ -167,17 +169,15 @@ namespace Unframe.Unity.PresentationRuntime
                     {
                         QuestOnboardingPresentation item = presentations[i];
                         Button("Presentation " + i, item.Title, 0, 120 - (i - first) * 95, 900,
-                            () => { if (selected?.Id != item.Id) { CancelOperation(); room = null; sessionStarted = false; } selected = item; flow.GoTo(QuestOnboardingPage.Preparation); Draw(); }, false);
+                            () => { if (selected?.Id != item.Id) { CancelOperation(); room = null; demoBuild = null; sessionStarted = false; } selected = item; flow.GoTo(QuestOnboardingPage.Preparation); Draw(); }, false);
                     }
-                    if (presentations.Length == 0)
-                        Label("Empty", flow.IsDebugPreview ? "画面プレビュー：資料は取得していません" : "資料がありません。Web で公開してから更新してください。", new Vector2(0, 70), new Vector2(920, 130), 28, QuestUiTheme.Muted);
                     Button("Refresh", "更新", 0, -185, 240, () => Run(LoadPresentations), false);
                     if (first > 0) Button("Previous", "前のページ", -300, -185, 300, () => { listPage--; Draw(); }, false);
                     if (first + 3 < presentations.Length) Button("More", "次のページ", 300, -185, 300, () => { listPage++; Draw(); }, false);
                     break;
                 case QuestOnboardingPage.Preparation:
                     Title("発表の準備", selected?.Title ?? "画面プレビュー");
-                    Label("Room", room == null ? "準備ができたらルームを作成します" : "共有するルームコード\n" + room.JoinCode, new Vector2(0, 70), new Vector2(920, 150), 32, QuestUiTheme.Primary);
+                    Label("Room", room == null ? selected?.IsBundledDemo == true ? "同梱の仮プレゼンを公開してルームを作成します" : "準備ができたらルームを作成します" : "共有するルームコード\n" + SharedRoomCode, new Vector2(0, 70), new Vector2(920, 150), 32, QuestUiTheme.Primary);
                     Button("Prepare", room == null ? "ルームを作成して接続" : "準備を再試行", 0, -110, 820, () => Run(Prepare));
                     break;
                 case QuestOnboardingPage.Join:
@@ -186,7 +186,7 @@ namespace Unframe.Unity.PresentationRuntime
                     Button("Join", "参加する", 0, -100, 820, () => Run(Join));
                     break;
                 case QuestOnboardingPage.Calibration:
-                    Title("空間に位置を合わせる", "会場のマーカーを正面から見てください");
+                    Title("空間に位置を合わせる", "会場のマーカーを正面から見てください" + RoomCodeHint());
                     bool valid = calibration?.Calibration?.IsValid == true;
                     Label("Alignment", valid ? "位置合わせが完了しました" : "マーカーを見ながら、頭をゆっくり動かします", new Vector2(0, 90), new Vector2(920, 130), 31, QuestUiTheme.Text);
                     Button("Permission", "カメラを許可 / 再確認", 0, -30, 820, () => { calibration?.CameraPreview?.RetryCameraPermission(); Draw(); }, false);
@@ -200,7 +200,7 @@ namespace Unframe.Unity.PresentationRuntime
                     break;
                 case QuestOnboardingPage.Ready:
                     Title(flow.IsDebugPreview ? "画面プレビュー" : flow.Role == QuestOnboardingRole.Presenter ? "発表を始めましょう" : "鑑賞の準備ができました",
-                        flow.IsDebugPreview ? "接続や再生は実行されていません" : "メニューは X ボタンで開けます");
+                        flow.IsDebugPreview ? "接続や再生は実行されていません" : "メニューは X ボタンで開けます" + RoomCodeHint());
                     Button("Begin", flow.IsDebugPreview ? "最初の画面に戻る" : flow.Role == QuestOnboardingRole.Presenter ? "発表を開始" : "資料を見る", 0, 20, 820, () =>
                     {
                         if (flow.IsDebugPreview) { ResetFlow(); return; }
@@ -233,18 +233,33 @@ namespace Unframe.Unity.PresentationRuntime
         private async Task AfterAuthentication(CancellationToken token)
         {
             if (flow.IsReturningToRoom) { await Connect(token); token.ThrowIfCancellationRequested(); return; }
-            if (flow.Role == QuestOnboardingRole.Presenter) { await LoadPresentations(token); token.ThrowIfCancellationRequested(); flow.GoTo(QuestOnboardingPage.Presentations); }
+            if (flow.Role == QuestOnboardingRole.Presenter) { flow.GoTo(QuestOnboardingPage.Presentations); await LoadPresentations(token); token.ThrowIfCancellationRequested(); }
             else flow.GoTo(QuestOnboardingPage.Join);
         }
         private async Task LoadPresentations(CancellationToken token)
         {
             if (api == null || flow.IsDebugPreview) return;
-            var result = await api.ListPresentationsAsync(token); token.ThrowIfCancellationRequested(); presentations = result; listPage = 0;
+            var result = await api.ListPresentationsAsync(token); token.ThrowIfCancellationRequested();
+            presentations = new QuestOnboardingPresentation[result.Length + 1];
+            presentations[0] = BundledDemo(); Array.Copy(result, 0, presentations, 1, result.Length); listPage = 0;
         }
+        private static QuestOnboardingPresentation BundledDemo() => new QuestOnboardingPresentation
+        { Id = "bundled-quest-demo", Title = QuestDemoPresentation.DisplayTitle, IsBundledDemo = true };
+        private string RoomCodeHint() => flow.Role == QuestOnboardingRole.Presenter && room != null ? "\nルームコード：" + SharedRoomCode : "";
         private async Task Prepare(CancellationToken token)
         {
             if (flow.IsDebugPreview || selected == null || api == null) return;
-            if (room == null) { var created = await api.CreateSessionAsync(selected.Id, token); token.ThrowIfCancellationRequested(); room = created; }
+            if (room == null)
+            {
+                string presentationId = selected.Id;
+                if (selected.IsBundledDemo)
+                {
+                    if (demoBuild == null) demoBuild = QuestDemoPresentation.Load("quest-demo-" + Guid.NewGuid().ToString("N"));
+                    await api.PublishDemoAsync(demoBuild, token); token.ThrowIfCancellationRequested();
+                    presentationId = demoBuild.PresentationId;
+                }
+                var created = await api.CreateSessionAsync(presentationId, token); token.ThrowIfCancellationRequested(); room = created;
+            }
             await api.PrepareRuntimeAsync(room.SessionId, token);
             await Connect(token);
         }
