@@ -84,7 +84,7 @@ public sealed class ArucoOriginVisualizer : MonoBehaviour
 
     private void CreateOrigin()
     {
-        origin = CreateAxes("AprilTag ID 0 Origin (15 cm)", Color.yellow, out cubeMaterial);
+        origin = CreateAxes("AprilTag ID 0 Origin", Color.yellow, out cubeMaterial);
     }
 
     private Transform CreateAxes(string name, Color color, out Material cube)

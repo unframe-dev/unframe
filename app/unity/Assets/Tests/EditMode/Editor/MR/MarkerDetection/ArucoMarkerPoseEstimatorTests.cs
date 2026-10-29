@@ -129,9 +129,23 @@ public sealed class ArucoMarkerPoseEstimatorTests
         Assert.That(degenerate.HasPoseCandidate, Is.False);
     }
 
-    private static float[] Project(Pose pose)
+    [TestCase(500)]
+    [TestCase(400)]
+    [TestCase(250)]
+    [TestCase(150)]
+    public void SelectedMarkerSizeRecoversMetricPose(int millimeters)
     {
-        const double half = 0.075;
+        var expected = new Pose(new Vector3(0.1f, -0.1f, 1.5f), Quaternion.Euler(25, -20, 12));
+        var estimator = new ArucoMarkerPoseEstimator(millimeters);
+        var result = estimator.Estimate(Project(expected, millimeters / 1000.0), 0, 800, 810, 640, 480);
+        Assert.That(result.IsValid, Is.True, result.RejectionReason);
+        Assert.That(Vector3.Distance(result.CameraPositionMeters, expected.position), Is.LessThan(0.001f));
+        Assert.That(Quaternion.Angle(result.CameraRotation, expected.rotation), Is.LessThan(0.2f));
+    }
+
+    private static float[] Project(Pose pose, double sizeMeters = 0.15)
+    {
+        double half = sizeMeters / 2;
         using (var objects = new MatOfPoint3f(new Point3(-half, half, 0), new Point3(half, half, 0), new Point3(half, -half, 0), new Point3(-half, -half, 0)))
         using (var rotation = new Mat(3, 3, CvType.CV_64FC1))
         using (var rvec = new Mat())

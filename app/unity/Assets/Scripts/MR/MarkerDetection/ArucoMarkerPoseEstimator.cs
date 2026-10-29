@@ -43,7 +43,12 @@ public sealed class ArucoMarkerPoseEstimate
 
 public sealed class ArucoMarkerPoseEstimator
 {
-    public const double MarkerSizeMeters = 0.15;
+    public double MarkerSizeMeters { get; }
+
+    public ArucoMarkerPoseEstimator(int markerSizeMillimeters = 150)
+    {
+        MarkerSizeMeters = (int)ArucoMarkerSizes.FromMillimeters(markerSizeMillimeters) / 1000.0;
+    }
     public const int TargetMarkerId = 0;
 
 #if UNFRAME_OPENCV_FOR_UNITY
@@ -71,7 +76,7 @@ public sealed class ArucoMarkerPoseEstimator
                 return Rejected("invalid corners");
         }
 
-        const double half = MarkerSizeMeters / 2;
+        double half = MarkerSizeMeters / 2;
         var solverPoints = new Point[4];
         double edgeAngle = Math.Atan2(-(points[1].y - points[0].y) / fy, (points[1].x - points[0].x) / fx);
         double cosine = Math.Cos(edgeAngle);

@@ -78,7 +78,7 @@ public sealed class ArucoOriginAlignmentLifecycleTests
     public IEnumerator LifecycleTeardownReleasesOriginAndItsMaterials()
     {
         Confirm();
-        var origin = GameObject.Find("AprilTag ID 0 Origin (15 cm)");
+        var origin = GameObject.Find("AprilTag ID 0 Origin");
         var renderers = origin.GetComponentsInChildren<MeshRenderer>();
         var materials = new Material[renderers.Length];
         for (int i = 0; i < renderers.Length; i++) materials[i] = renderers[i].sharedMaterial;
@@ -98,7 +98,7 @@ public sealed class ArucoOriginAlignmentLifecycleTests
             alignment.Observe(new ArucoPoseObservation(frame, estimate, geometry), i * 0.2);
         }
         Assert.That(alignment.IsConfirmed, Is.EqualTo(expected));
-        var origin = GameObject.Find("AprilTag ID 0 Origin (15 cm)");
+        var origin = GameObject.Find("AprilTag ID 0 Origin");
         if (!expected)
         {
             Assert.That(origin, Is.Null);
@@ -113,7 +113,7 @@ public sealed class ArucoOriginAlignmentLifecycleTests
     private void AssertResetAndHidden(int events)
     {
         Assert.That(alignment.IsConfirmed, Is.False);
-        Assert.That(GameObject.Find("AprilTag ID 0 Origin (15 cm)"), Is.Null);
+        Assert.That(GameObject.Find("AprilTag ID 0 Origin"), Is.Null);
         Assert.That(resetEvents, Is.EqualTo(events));
     }
 

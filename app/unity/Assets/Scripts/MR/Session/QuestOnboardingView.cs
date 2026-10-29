@@ -188,10 +188,19 @@ namespace Unframe.Unity.PresentationRuntime
                     break;
                 case QuestOnboardingPage.Calibration:
                     Title("空間に位置を合わせる", "会場のマーカーを正面から見てください");
+                    int markerSize = calibration?.MarkerSizeMillimeters ?? 150;
+                    Label("Marker size", "マーカーの黒枠の一辺（余白を除く）", new Vector2(0, 142), new Vector2(920, 42), 23, QuestUiTheme.Muted);
+                    int[] markerSizes = { 500, 400, 250, 150 };
+                    for (int i = 0; i < markerSizes.Length; i++)
+                    {
+                        int size = markerSizes[i];
+                        Button("MarkerSize" + size, size + " mm", -330 + i * 220, 85, 205,
+                            () => { calibration?.SelectMarkerSize(size); message = "同じサイズを閲覧側でも選択してください"; Draw(); }, size == markerSize, 62, 25);
+                    }
                     bool valid = calibration?.Calibration?.IsValid == true;
-                    Label("Alignment", valid ? "位置合わせが完了しました" : "マーカーを見ながら、頭をゆっくり動かします", new Vector2(0, 90), new Vector2(920, 130), 31, QuestUiTheme.Text);
-                    Button("Permission", "カメラを許可 / 再確認", 0, -30, 820, () => { calibration?.CameraPreview?.RetryCameraPermission(); Draw(); }, false);
-                    Button("Aligned", "位置合わせを確認して次へ", 0, -140, 820, () =>
+                    Label("Alignment", valid ? "位置合わせが完了しました" : "マーカーを見ながら、頭をゆっくり動かします", new Vector2(0, 5), new Vector2(920, 70), 28, QuestUiTheme.Text);
+                    Button("Permission", "カメラを許可 / 再確認", 0, -80, 820, () => { calibration?.CameraPreview?.RetryCameraPermission(); Draw(); }, false);
+                    Button("Aligned", "位置合わせを確認して次へ", 0, -175, 820, () =>
                     {
                         if (!QuestOnboardingStart.CanAdvance(flow.Role, calibration?.Calibration?.IsValid == true,
                             entry?.ControlReady == true, entry?.SessionReady == true))

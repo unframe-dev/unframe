@@ -34,8 +34,13 @@ public sealed class ArucoFrameProcessingResult
 public sealed class ArucoFrameProcessor : IArucoFrameProcessor
 {
     private readonly ArucoMarkerDetector detector = new ArucoMarkerDetector();
-    private readonly ArucoMarkerPoseEstimator poseEstimator = new ArucoMarkerPoseEstimator();
+    private readonly ArucoMarkerPoseEstimator poseEstimator;
     private readonly Mat gray = new Mat();
+
+    public ArucoFrameProcessor(int markerSizeMillimeters = 150)
+    {
+        poseEstimator = new ArucoMarkerPoseEstimator(markerSizeMillimeters);
+    }
 
     public ArucoFrameProcessingResult Process(Mat rgba, long timestamp, ArucoCameraGeometry geometry)
     {

@@ -43,6 +43,38 @@ public sealed class ArucoWorkerLifecycleTests
     }
 
     [UnityTest]
+    public IEnumerator SizeChangeDuringWorkerDiscardsPreviousScaleWithoutDisposingActiveBuffers()
+    {
+        if (!SystemInfo.supportsAsyncGPUReadback) Assert.Ignore("Run with a graphics device.");
+        var host = new GameObject("Worker Marker Size Test");
+        var detection = host.AddComponent<ArucoCameraMarkerDetection>();
+        var processor = new BlockingProcessor();
+        var texture = new Texture2D(320, 240, TextureFormat.RGBA32, false);
+        try
+        {
+            Invoke(detection, "Awake");
+            detection.ConfigureProcessor(processor);
+            detection.SubmitFrame(texture, 1, new ArucoCameraGeometry(500, 500, 160, 120, Pose.identity));
+            yield return WaitUntil(() => processor.Entered.IsSet);
+            detection.SelectMarkerSize(500);
+            Assert.That(processor.Disposed, Is.False);
+            processor.Release.Set();
+            yield return WaitUntil(() => !detection.IsProcessing);
+            Assert.That(processor.BuffersValidAfterRelease, Is.True);
+            Assert.That(detection.CurrentObservation, Is.Null);
+            Assert.That(detection.Metrics.Invalidated, Is.EqualTo(1));
+        }
+        finally
+        {
+            processor.Release.Set();
+            Invoke(detection, "OnDestroy");
+            UnityEngine.Object.DestroyImmediate(host);
+            UnityEngine.Object.DestroyImmediate(texture);
+            if (processor.Disposed) processor.DisposeSignals();
+        }
+    }
+
+    [UnityTest]
     public IEnumerator DisableDuringWorkerDropsTheOldResultAndAllowsANewResolutionAfterCompletion()
     {
         if (!SystemInfo.supportsAsyncGPUReadback) Assert.Ignore("Run with a graphics device.");

@@ -3,8 +3,20 @@ using UnityEngine;
 
 [RequireComponent(typeof(ArucoTrackingDiagnosticSession))]
 [RequireComponent(typeof(ArucoOriginVisualizer))]
+[RequireComponent(typeof(ArucoCameraMarkerDetection))]
 public sealed class ArucoOriginAlignment : MonoBehaviour
 {
+    [SerializeField] private ArucoMarkerSize markerSize = ArucoMarkerSize.Mm150;
+    public int MarkerSizeMillimeters => (int)markerSize;
+    public void SelectMarkerSize(int millimeters)
+    {
+        var selected = ArucoMarkerSizes.FromMillimeters(millimeters);
+        if (selected == markerSize) return;
+        markerSize = selected;
+        GetComponent<ArucoCameraMarkerDetection>().SelectMarkerSize(millimeters);
+        ResetAlignment($"Marker size changed to {millimeters} mm; show ID 0 again");
+    }
+
     [SerializeField] private bool measurementPreviewEnabled = true;
     public bool MeasurementPreviewEnabled
     {
@@ -32,7 +44,7 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
     private OVRCameraRig rig;
     private long lastTimestamp;
     private double loggedAt = double.NegativeInfinity;
-    private string reason = "Show ID 0 (15 cm); hold still or tilt the marker slightly";
+    private string reason = "Show ID 0; hold still or tilt the marker slightly";
     public event Action ResetRequested;
     public event Action AlignmentInvalidated;
     public bool IsConfirmed => stability.IsConfirmed;
@@ -41,11 +53,12 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
         (float)(stability.StableDurationSeconds / ArucoOriginStability.MinimumStableDurationSeconds)));
     public bool TrackingAvailable { get; private set; } = true;
     public Pose OriginPose => stability.Pose;
-    public string Summary => IsConfirmed ? "ALIGNED | ID 0 / 15 cm | camera stopped | X red / Y green / Z blue"
-        : $"ALIGNING | {stability.SampleCount}/8 samples | {stability.StableDurationSeconds:F1}s | {reason}";
+    public string Summary => IsConfirmed ? $"ALIGNED | ID 0 / {MarkerSizeMillimeters} mm | camera stopped | X red / Y green / Z blue"
+        : $"ALIGNING | ID 0 / {MarkerSizeMillimeters} mm | {stability.SampleCount}/8 samples | {stability.StableDurationSeconds:F1}s | {reason}";
 
     private void Awake()
     {
+        GetComponent<ArucoCameraMarkerDetection>().SelectMarkerSize(MarkerSizeMillimeters);
         diagnostics = GetComponent<ArucoTrackingDiagnosticSession>();
         visualizer = GetComponent<ArucoOriginVisualizer>();
     }
@@ -193,7 +206,7 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
             eventType = eventType,
             message = reason,
             markerDictionary = ArucoMarkerDetector.DictionaryName,
-            markerSizeMeters = ArucoMarkerPoseEstimator.MarkerSizeMeters,
+            markerSizeMeters = MarkerSizeMillimeters / 1000.0,
             markerIds = observation?.Frame.MarkerIds ?? new int[0],
             cameraWidth = observation?.Frame.Resolution.x ?? 0,
             cameraHeight = observation?.Frame.Resolution.y ?? 0,

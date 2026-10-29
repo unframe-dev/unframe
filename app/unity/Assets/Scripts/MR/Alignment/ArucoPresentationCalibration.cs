@@ -14,6 +14,13 @@ public sealed class ArucoPresentationCalibration : MonoBehaviour
 
     public PresentationCalibrationState Calibration { get; } = new PresentationCalibrationState();
     public Transform QuestTrackingOrigin => questTrackingOrigin;
+    public int MarkerSizeMillimeters => alignment != null ? alignment.MarkerSizeMillimeters : 150;
+    public void SelectMarkerSize(int millimeters)
+    {
+        if (alignment == null) return;
+        alignment.SelectMarkerSize(millimeters);
+        Refresh();
+    }
 
     public void Configure(ArucoOriginAlignment source, Transform trackingOrigin)
     {

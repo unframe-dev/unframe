@@ -9,7 +9,7 @@ public sealed class ArucoOptionalBackendTests
     {
         Assert.That(ArucoMarkerDetector.DictionaryName, Is.EqualTo("DICT_APRILTAG_36h11"));
         Assert.That(ArucoMarkerPoseEstimator.TargetMarkerId, Is.Zero);
-        Assert.That(ArucoMarkerPoseEstimator.MarkerSizeMeters, Is.EqualTo(0.15));
+        Assert.That(new ArucoMarkerPoseEstimator().MarkerSizeMeters, Is.EqualTo(0.15));
     }
 
     [Test]

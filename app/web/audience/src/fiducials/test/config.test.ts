@@ -4,6 +4,7 @@ import {
   loadBoardConfig,
   selectedTagProfile,
   configureTagBoard,
+  configureMarkerSize,
 } from "../config";
 import data from "../default-board.json";
 describe("fiducial board contract", () => {
@@ -62,5 +63,22 @@ describe("large tag profiles", () => {
     expect(() =>
       configureTagBoard({ ...parseBoardConfig(data), markers: [] }, selectedTagProfile("")),
     ).toThrow();
+  });
+});
+
+describe("marker size selection", () => {
+  it.each([500, 400, 250, 150])(
+    "uses a %i mm black boundary without changing placement",
+    (size) => {
+      const original = parseBoardConfig(data);
+      const configured = configureMarkerSize(original, size);
+      expect(configured.markers[0]!.sizeMeters).toBe(size / 1000);
+      expect(configured.markers[0]!.venueFromMarker).toEqual(original.markers[0]!.venueFromMarker);
+      expect(configured.presentationToVenue).toEqual(original.presentationToVenue);
+      expect(original.markers[0]!.sizeMeters).toBe(0.15);
+    },
+  );
+  it.each([0, 240, 225, NaN])("rejects unsupported size %i", (size) => {
+    expect(() => configureMarkerSize(parseBoardConfig(data), size)).toThrow();
   });
 });

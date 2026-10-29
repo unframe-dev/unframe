@@ -76,7 +76,7 @@ public sealed class ArucoAlignmentIntegrationTests
                 alignment.Observe(new ArucoPoseObservation(frame, estimate, new ArucoCameraGeometry(450, 450, 320, 240, Pose.identity)), i * 0.2);
             }
             Assert.That(alignment.IsConfirmed, Is.True);
-            var origin = GameObject.Find("AprilTag ID 0 Origin (15 cm)");
+            var origin = GameObject.Find("AprilTag ID 0 Origin");
             Assert.That(origin, Is.Not.Null);
             Assert.That(Vector3.Distance(origin.transform.position, expected.position), Is.LessThan(0.001));
             int resetEvents = 0;

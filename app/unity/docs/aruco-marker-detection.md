@@ -1,8 +1,13 @@
-# 15cm AprilTag マーカーによる原点合わせ
+# AprilTag マーカーによる原点合わせ
 
 検出を使用するには、OpenCV for Unity と `UNFRAME_OPENCV_FOR_UNITY` のセットアップが必要です。[Unity README の有効化手順](../README.md#apriltagカメラの実機検証)に従って Standalone と Android の両方へ設定してください。未設定の checkout では `DISABLED` が表示され、カメラ映像のみを確認できます。
 
 `ArucoPresentationTest` シーンで PCA 左カメラからマーカーを検出し、位置・向きを推定します。安定した観測からマーカー中心を原点として確定すると、カメラ取得・検出を停止し、Quest の位置追跡で立方体と XYZ 軸を表示します。Delivery fixtureをマーカー原点へ配置する検証は [原点接続シーン](aruco-presentation-origin.md) を参照してください。端末間通信、アプリ再起動をまたぐ原点保存は未実装です。
+
+製品の`QuestPresentationScene`では位置合わせ画面で黒枠一辺500・400・250・150mmを選択できます（既定150mm）。
+Audience WebXRと同じ寸法を選びます。変更時は校正と変更前の観測を破棄して再測定します。
+検証シーンでは`ArucoOriginAlignment`のInspectorにある`Marker Size`で起動前に選択します。
+下記の付属SVGは既定150mm用です。ほかのサイズでは黒枠の実測寸法を選択値へ合わせて印刷してください。
 
 ## 実機で確認する
 
@@ -53,7 +58,7 @@
 - `marker_detection` / `marker_detection_error`: ID、四隅、画像寸法、要求時の撮影時刻、検出・読み戻し時間。検出ログはID変更時と約1Hz。`ms detect`は画像変換と姿勢推定を含まず、`ms readback`はフレーム待ち時間を含む。
 - `detection_pipeline_summary`: 約1Hz。GPU読み戻し、RGBAコピー、画像前処理、検出、姿勢推定、要求から完了までの合計時間を記録する。要求・採用・タイムアウト・無効化・失敗の累積数と直近の結果も記録する。合計時間にはスレッド切り替えやフレーム待ちを含む。
 - `pose_estimated`: 約1Hz。`poseValid`、カメラ相対姿勢、保存したカメラworld姿勢、マーカーworld姿勢、実効内部パラメーター、再投影誤差、安定観測数。
-- `alignment_confirmed` / `alignment_reset`: 確定・解除時。`markerSizeMeters=0.15`、`alignmentConfirmed`、`trackingAvailable`。
+- `alignment_confirmed` / `alignment_reset`: 確定・解除時。`markerSizeMeters`（選択された黒枠一辺をmで記録。既定0.15）、`alignmentConfirmed`、`trackingAvailable`。
 
 これらの姿勢フィールドはUnity座標のメートル・quaternion `(x,y,z,w)`。原点確定は端末間の同期完了を意味しない。ログ回収は [PCA 手順](pca-device-preview.md#診断ログ) を参照する。
 

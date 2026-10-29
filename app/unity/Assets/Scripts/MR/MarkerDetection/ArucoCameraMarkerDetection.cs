@@ -12,11 +12,27 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(ArucoTrackingDiagnosticSession))]
 public sealed class ArucoCameraMarkerDetection : MonoBehaviour
 {
+    private ArucoMarkerSize markerSize = ArucoMarkerSize.Mm150;
+    public int MarkerSizeMillimeters => (int)markerSize;
+
+    public void SelectMarkerSize(int millimeters)
+    {
+        var selected = ArucoMarkerSizes.FromMillimeters(millimeters);
+        if (selected == markerSize) return;
+        markerSize = selected;
+#if UNFRAME_OPENCV_FOR_UNITY
+        gate.Invalidate();
+        result = null;
+        observation = null;
+#endif
+    }
+
     public static Vector2Int DetectionResolution(int width, int height) => new Vector2Int(width, height);
 
 #if UNFRAME_OPENCV_FOR_UNITY
     private readonly ArucoDetectionFrameGate gate = new ArucoDetectionFrameGate();
     private IArucoFrameProcessor processor;
+    private int processorMarkerSizeMillimeters = 150;
     private Mat rgba;
     private RenderTexture snapshot;
     private ArucoPoseObservation observation;
@@ -46,6 +62,7 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
         ClearFeed();
         DisposeResources();
         processor = frameProcessor;
+        processorMarkerSizeMillimeters = MarkerSizeMillimeters;
     }
 
     public ArucoPoseObservation CurrentObservation => CurrentFrame == null ? null : observation;
@@ -160,7 +177,13 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
 
     private void EnsureBuffers(int width, int height)
     {
-        processor ??= new ArucoFrameProcessor();
+        if (processor != null && processorMarkerSizeMillimeters != MarkerSizeMillimeters)
+        {
+            processor.Dispose();
+            processor = null;
+        }
+        processor ??= new ArucoFrameProcessor(MarkerSizeMillimeters);
+        processorMarkerSizeMillimeters = MarkerSizeMillimeters;
         if (rgba != null && rgba.cols() == width && rgba.rows() == height) return;
         DisposeBuffers();
         rgba = new Mat(height, width, CvType.CV_8UC4);
