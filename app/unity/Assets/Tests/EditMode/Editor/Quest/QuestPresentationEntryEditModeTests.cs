@@ -215,11 +215,11 @@ public sealed class QuestPresentationEntryEditModeTests
             Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).Count(), Is.EqualTo(1));
             Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<Unity.XR.CoreUtils.XROrigin>(true)), Is.Empty);
             Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<PassthroughCameraDevicePreview>(true)).Count(), Is.EqualTo(1));
-            Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<ArucoPresentationCalibration>(true)).Count(), Is.EqualTo(1));
+            Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<AprilTagPresentationCalibration>(true)).Count(), Is.EqualTo(1));
             Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<QuestPresentationStatusView>(true)).Count(), Is.EqualTo(1));
             var rig = roots.SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).Single();
             var entry = roots.SelectMany(root => root.GetComponentsInChildren<QuestPresentationEntry>(true)).Single();
-            var source = roots.SelectMany(root => root.GetComponentsInChildren<ArucoPresentationCalibration>(true)).Single();
+            var source = roots.SelectMany(root => root.GetComponentsInChildren<AprilTagPresentationCalibration>(true)).Single();
             var session = roots.SelectMany(root => root.GetComponentsInChildren<QuestPresentationSession>(true)).Single();
             Assert.That(entry.QuestTrackingOrigin, Is.SameAs(rig.trackingSpace));
             Assert.That(source.QuestTrackingOrigin, Is.SameAs(rig.trackingSpace));

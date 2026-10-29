@@ -38,8 +38,8 @@ public static class QuestPresentationSceneEditor
         var host = new GameObject("Quest Presentation Session");
         var runtime = host.AddComponent<PresentationBakedRuntime>();
         host.AddComponent<QuestBodyTrackingSource>();
-        var calibration = host.AddComponent<ArucoPresentationCalibration>();
-        calibration.Configure(preview.GetComponent<ArucoOriginAlignment>(), rig.trackingSpace);
+        var calibration = host.AddComponent<AprilTagPresentationCalibration>();
+        calibration.Configure(preview.GetComponent<AprilTagOriginAlignment>(), rig.trackingSpace);
         var entry = host.AddComponent<QuestPresentationEntry>();
         SetReference(entry, "runtime", runtime);
         SetReference(entry, "questTrackingOrigin", rig.trackingSpace);
@@ -66,7 +66,7 @@ public static class QuestPresentationSceneEditor
         foreach (var session in sessions)
         {
             var entry = session.GetComponent<QuestPresentationEntry>();
-            var calibration = session.GetComponent<ArucoPresentationCalibration>();
+            var calibration = session.GetComponent<AprilTagPresentationCalibration>();
             if (entry == null || calibration == null)
                 throw new InvalidOperationException("The presentation session requires its runtime entry and marker calibration.");
             SetReference(session, "entry", entry);

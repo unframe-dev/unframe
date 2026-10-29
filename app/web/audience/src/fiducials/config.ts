@@ -74,3 +74,14 @@ export function configureTagBoard(config: BoardConfig, profile: TagProfile): Boa
     markers: [{ ...marker, sizeMeters: profile.markerSizeMeters }],
   });
 }
+
+export const markerSizesMillimeters = [500, 400, 250, 150] as const;
+export function configureMarkerSize(config: BoardConfig, sizeMillimeters: number): BoardConfig {
+  const size = z
+    .union([z.literal(500), z.literal(400), z.literal(250), z.literal(150)])
+    .parse(sizeMillimeters);
+  return parseBoardConfig({
+    ...config,
+    markers: config.markers.map((marker) => ({ ...marker, sizeMeters: size / 1000 })),
+  });
+}

@@ -124,7 +124,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ## 会場設定
 
-製品視聴ではロードした設定のboard ID・revision・黒外周実寸・配置・presentationToVenueを保持し、size queryやサイズ編集で上書きしない。現在は `src/fiducials/default-board.json` の暫定設定をbundleから読み込む。会場原点とpresentationToVenueはidentity、黒外周15cm・ID 0で固定され、session固有の校正設定ではない。ルームごとの設定配布元・取得権限・revision更新時の扱いは外部担当と確定する。
+製品視聴ではロードした設定のboard ID・revision・配置・presentationToVenueを保持し、size queryでは上書きしない。視聴メニューで黒いマーカー外周の一辺を500・400・250・150mmから選択できる（既定150mm）。白余白は寸法に含めず、Unity MRの登壇側と同じ実寸を選ぶ。変更時は既存の追跡・位置合わせ・Runtime受信を破棄するため、カメラを開始して位置合わせをやり直す。選択はこの視聴画面内だけに適用し、サーバーへ配布・保存しない。現在は `src/fiducials/default-board.json` の暫定設定をbundleから読み込む。会場原点とpresentationToVenueはidentity、初期値は黒外周15cm・ID 0であり、session固有の校正設定ではない。ルームごとの設定配布元・取得権限・revision更新時の扱いは外部担当と確定する。
 
 検証用の `/?tracking=1` とfixtureでは従来のsize指定を使う。`showGuides`は箱・軸等の描画可否だけを表し、設定モードを推測しない。
 
