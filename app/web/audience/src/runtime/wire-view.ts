@@ -73,7 +73,7 @@ const pauseReasons = [
   "explicit-pause",
   "runtime-capacity-exceeded",
 ];
-const terminationReasons = ["explicit-end", "control-plane-ended", "pause-timeout"];
+const terminationReasons = ["explicit-end", "control-plane-ended", "pause-timeout", "idle-timeout"];
 function reason(value: number | undefined, names: string[]): string {
   if (!Number.isInteger(value) || value === undefined || value < 1 || value > names.length)
     fail("unknown lifecycle reason");

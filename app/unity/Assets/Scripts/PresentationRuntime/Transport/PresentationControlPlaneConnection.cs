@@ -12,6 +12,15 @@ using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime
 {
+    public sealed class PresentationCredentialLease : IDisposable
+    {
+        public string Bearer { get; }
+        private Action release;
+        public PresentationCredentialLease(string bearer, Action release = null)
+        { Bearer = bearer; this.release = release; }
+        public void Dispose() => Interlocked.Exchange(ref release, null)?.Invoke();
+    }
+
     public sealed class PresentationControlPlaneConnection
     {
         [Serializable]
@@ -38,6 +47,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly Uri controlPlane;
         private readonly string sessionId;
         private readonly Func<CancellationToken, Task<string>> credentialProvider;
+        private readonly Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider;
         private readonly PresentationRuntimeHost runtimeHost;
         private readonly Func<HttpMessageHandler> httpHandlerFactory;
         private readonly Func<YetAnotherHttpHandler> realtimeHandlerFactory;
@@ -51,7 +61,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         public PresentationControlPlaneConnection(Uri controlPlane, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
             PresentationRuntimeHost runtimeHost = null, Func<HttpMessageHandler> httpHandlerFactory = null,
-            Func<YetAnotherHttpHandler> realtimeHandlerFactory = null, Action<PresentationConnectionStage> reportStage = null, PresentationSessionDiagnostics diagnostics = null)
+            Func<YetAnotherHttpHandler> realtimeHandlerFactory = null, Action<PresentationConnectionStage> reportStage = null, PresentationSessionDiagnostics diagnostics = null,
+            Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider = null)
         {
             if (controlPlane == null || !controlPlane.IsAbsoluteUri || controlPlane.Scheme != "https"
                 || controlPlane.AbsolutePath != "/" || !string.IsNullOrEmpty(controlPlane.UserInfo)
@@ -63,6 +74,7 @@ namespace Unframe.Unity.PresentationRuntime
             this.controlPlane = controlPlane;
             this.sessionId = sessionId;
             this.credentialProvider = credentialProvider;
+            this.credentialLeaseProvider = credentialLeaseProvider;
             this.runtimeHost = runtimeHost;
             this.httpHandlerFactory = httpHandlerFactory;
             this.realtimeHandlerFactory = realtimeHandlerFactory;
@@ -161,8 +173,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         public async Task<DeliveryManifest> LoadDeliveryAsync(HttpClient client, CancellationToken token)
         {
-            using (HttpRequestMessage request = await RequestAsync(HttpMethod.Post, "delivery", token))
+            using (CredentialRequest authenticated = await RequestAsync(HttpMethod.Post, "delivery", token))
             {
+                HttpRequestMessage request = authenticated.Request;
                 request.Content = new StringContent("{\"capabilityProfileId\":\"quest-presentation-v2\"}", System.Text.Encoding.UTF8, "application/json");
                 diagnostics?.Record("http.request", kind: "Delivery", direction: "send");
                 using (HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token))
@@ -186,8 +199,8 @@ namespace Unframe.Unity.PresentationRuntime
         private async Task<Bootstrap> LoadBootstrapAsync(HttpClient client, DeliveryManifest delivery, CancellationToken token)
         {
             diagnostics?.Record("http.request", kind: "Bootstrap", direction: "send");
-            using (HttpRequestMessage request = await RequestAsync(HttpMethod.Post, "bootstrap", token))
-            using (HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token))
+            using (CredentialRequest authenticated = await RequestAsync(HttpMethod.Post, "bootstrap", token))
+            using (HttpResponseMessage response = await client.SendAsync(authenticated.Request, HttpCompletionOption.ResponseHeadersRead, token))
             {
                 diagnostics?.Record("http.response", kind: "Bootstrap", direction: "receive", code: "http-" + (int)response.StatusCode);
                 if (!response.IsSuccessStatusCode) throw await ResponseFailureAsync(response, token);
@@ -248,16 +261,37 @@ namespace Unframe.Unity.PresentationRuntime
             return result;
         }
 
-        private async Task<HttpRequestMessage> RequestAsync(HttpMethod method, string resource, CancellationToken token)
+        private sealed class CredentialRequest : IDisposable
         {
-            string bearer;
-            try { bearer = await credentialProvider(token); }
+            public HttpRequestMessage Request { get; }
+            private readonly PresentationCredentialLease lease;
+            public CredentialRequest(HttpRequestMessage request, PresentationCredentialLease lease)
+            { Request = request; this.lease = lease; }
+            public void Dispose()
+            {
+                try { Request.Dispose(); }
+                finally { lease.Dispose(); }
+            }
+        }
+
+        private async Task<CredentialRequest> RequestAsync(HttpMethod method, string resource, CancellationToken token)
+        {
+            PresentationCredentialLease lease;
+            try
+            {
+                lease = credentialLeaseProvider != null ? await credentialLeaseProvider(token)
+                    : new PresentationCredentialLease(await credentialProvider(token));
+            }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
             catch (Exception) { throw new PresentationConnectionException("credential-unavailable"); }
-            if (string.IsNullOrWhiteSpace(bearer)) throw new PresentationConnectionException("credential-unavailable");
-            HttpRequestMessage request = new HttpRequestMessage(method, new Uri(controlPlane, "sessions/" + Uri.EscapeDataString(sessionId) + "/" + resource));
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
-            return request;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(lease?.Bearer)) throw new PresentationConnectionException("credential-unavailable");
+                var request = new HttpRequestMessage(method, new Uri(controlPlane, "sessions/" + Uri.EscapeDataString(sessionId) + "/" + resource));
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", lease.Bearer);
+                return new CredentialRequest(request, lease);
+            }
+            catch { lease?.Dispose(); throw; }
         }
 
         private static async Task<byte[]> ReadBoundedAsync(HttpContent content, int limit, CancellationToken token)

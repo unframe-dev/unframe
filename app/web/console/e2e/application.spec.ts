@@ -150,3 +150,65 @@ test("device authorization accepts a code", async ({ page }) => {
   await page.getByRole("button", { name: "コードを確認" }).click();
   await expect(page.getByRole("button", { name: "承認する" })).toBeVisible();
 });
+
+test("shows active device authorizations and links to approval without exposing credentials", async ({
+  page,
+}) => {
+  const baseSession = {
+    userId: "test-user",
+    createdAt: "2026-10-30T00:00:00.000Z",
+    updatedAt: "2026-10-30T00:00:00.000Z",
+    expiresAt: "2027-10-30T00:00:00.000Z",
+    ipAddress: null,
+  };
+  await page.route("**/api/auth/list-sessions", (route) =>
+    route.fulfill({
+      json: [
+        {
+          ...baseSession,
+          id: "quest-1",
+          token: "secret-device-token",
+          assurance: "device",
+          userAgent: "Unframe Quest",
+        },
+        {
+          ...baseSession,
+          id: "browser-1",
+          token: "secret-browser-token",
+          assurance: "google",
+          userAgent: "Desktop Chrome",
+        },
+        {
+          ...baseSession,
+          id: "expired-quest",
+          token: "expired-device-token",
+          assurance: "device",
+          userAgent: "Expired Quest",
+          expiresAt: "2020-01-01T00:00:00.000Z",
+        },
+      ],
+    }),
+  );
+  await page.goto("/devices");
+  await expect(page.getByRole("heading", { name: "デバイス", exact: true })).toBeVisible();
+  await expect(page.getByText("Unframe Quest", { exact: true })).toBeVisible();
+  await expect(page.getByText("Desktop Chrome", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Expired Quest", { exact: true })).toHaveCount(0);
+  await expect(page.locator("main")).not.toContainText("secret-device-token");
+  await page.getByRole("link", { name: "デバイスを承認" }).click();
+  await expect(page.getByRole("heading", { name: "Connect a device." })).toBeVisible();
+  await page.getByRole("link", { name: "デバイス一覧へ" }).click();
+  await expect(page.getByText("Unframe Quest", { exact: true })).toBeVisible();
+});
+
+test("recovers the device list after an explicit retry", async ({ page }) => {
+  await page.route("**/api/auth/list-sessions", (route) =>
+    route.fulfill({ status: 401, json: { code: "UNAUTHORIZED" } }),
+  );
+  await page.goto("/devices");
+  await expect(page.getByRole("alert")).toContainText("デバイスを読み込めませんでした");
+  await page.route("**/api/auth/list-sessions", (route) => route.fulfill({ json: [] }));
+  await page.getByRole("button", { name: "デバイス一覧を再取得" }).click();
+  await expect(page.getByText("認証済みのデバイスはありません。")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});

@@ -69,6 +69,9 @@ type V2Session struct {
 	completionWriter     V2CompletionWriter
 	resumeValidator      func(context.Context) error
 	lastTick             time.Time
+	now                  func() time.Time
+	emptySince           time.Time
+	pendingEmptySince    time.Time
 	presence             map[string]session.Role
 	participants         map[string]session.Role
 	startedAt            time.Time
@@ -159,7 +162,10 @@ func (s *V2Session) restoreCheckpoint(ctx context.Context, envelope, source *rea
 	visible := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
 	previousSequence := s.checkpointMetadata.CheckpointSequence
 	s.snapshot = restored
-	s.lastTick = time.Now()
+	s.lastTick = s.now()
+	if s.emptySince.IsZero() && len(s.participants) != 0 {
+		s.emptySince = s.now()
+	}
 	s.checkpointMetadata.CheckpointSequence = envelope.CheckpointSequence
 	s.durability.version = envelope.CheckpointSequence
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
@@ -211,7 +217,7 @@ func newV2Session(raw json.RawMessage, mediaSpecs map[string]map[string]v2MediaS
 	if err != nil {
 		return nil, err
 	}
-	s := &V2Session{definition: definition, rawDefinition: append(json.RawMessage(nil), raw...), snapshot: snapshot, validationCatalog: catalog, mediaSpecs: mediaSpecs, modelClips: modelClips, outcomes: make(map[string]v2OutcomeRecord), commandEpoch: 1, subscribers: make(map[chan *realtimev2.ProjectedReliableEvent]*v2Subscription), lastTick: time.Now(), presence: make(map[string]session.Role), participants: make(map[string]session.Role), startedAt: time.Now()}
+	s := &V2Session{definition: definition, rawDefinition: append(json.RawMessage(nil), raw...), snapshot: snapshot, validationCatalog: catalog, mediaSpecs: mediaSpecs, modelClips: modelClips, outcomes: make(map[string]v2OutcomeRecord), commandEpoch: 1, subscribers: make(map[chan *realtimev2.ProjectedReliableEvent]*v2Subscription), lastTick: time.Now(), now: time.Now, presence: make(map[string]session.Role), participants: make(map[string]session.Role), startedAt: time.Now()}
 	s.inputSynchronization = s.newV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_CONNECTED, false)
 	if err := protocolv2.ValidateMessage(s.inputSynchronization); err != nil {
 		return nil, err
@@ -552,7 +558,8 @@ func (s *V2Session) commitV2MutationVisible(ctx context.Context, previous *realt
 		candidate := s.snapshot
 		candidateTracking := s.tracking
 		metadata := proto.Clone(s.checkpointMetadata).(*realtimev2.DurableCheckpointEnvelope)
-		metadata.CheckpointSequence++
+		s.durability.version++
+		metadata.CheckpointSequence = s.durability.version
 		metadata.RecoveryPayload, _ = proto.MarshalOptions{Deterministic: true}.Marshal(recovery)
 		catalog := proto.Clone(s.checkpointCatalog).(*presentationv2.ProjectedRuntimeCatalog)
 		writer := s.checkpointWriter
@@ -584,7 +591,8 @@ func (s *V2Session) commitV2MutationVisible(ctx context.Context, previous *realt
 			s.tracking = candidateTracking
 		}
 		s.checkpointMetadata.CheckpointSequence = checkpoint.CheckpointSequence
-		s.durability.version = checkpoint.CheckpointSequence
+		s.durability.savedVersion = checkpoint.CheckpointSequence
+		s.durability.savedRevision = s.durability.revision
 	}
 	s.resetV3TrackingForSynchronization(recovery)
 	s.committedRecovery = recovery

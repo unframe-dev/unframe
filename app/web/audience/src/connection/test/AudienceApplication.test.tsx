@@ -53,7 +53,14 @@ vi.mock("../realtime-client", () => ({
     dispose: mock.realtimeDispose,
   }),
 }));
-vi.mock("../JoinExperience", () => ({ JoinExperience: () => <p>ルーム入力</p> }));
+vi.mock("../JoinExperience", () => ({
+  JoinExperience: ({ initialJoinCode }: { initialJoinCode?: string | null }) => (
+    <>
+      <p>ルーム入力</p>
+      <span data-testid="shared-code">{initialJoinCode}</span>
+    </>
+  ),
+}));
 vi.mock("../../experience/viewer-application", async () => {
   const { createStore } = await import("zustand/vanilla");
   return {
@@ -101,9 +108,29 @@ vi.mock("../../experience/ViewerExperience", async () => {
 import { AudienceApplication } from "../AudienceApplication";
 afterEach(() => {
   cleanup();
+  window.history.replaceState(null, "", "/");
   mock.snapshot = { phase: "idle" };
   vi.clearAllMocks();
   mock.getPrepared.mockReturnValue(mock.connection);
+});
+test("共有URLを一度読み取り、クエリと履歴状態を残してコードをアドレスから取り除く", () => {
+  window.history.replaceState({ retained: true }, "", "/?size=36#join=ABCD-EFGH");
+  const ui = render(<AudienceApplication />);
+  expect(screen.getByTestId("shared-code").textContent).toBe("ABCD-EFGH");
+  expect(window.location.hash).toBe("");
+  expect(window.location.search).toBe("?size=36");
+  expect(window.history.state).toEqual({ retained: true });
+  window.history.replaceState(window.history.state, "", "/?size=36#join=JKLM-NPQR");
+  ui.rerender(<AudienceApplication />);
+  expect(screen.getByTestId("shared-code").textContent).toBe("ABCD-EFGH");
+  expect(window.location.hash).toBe("#join=JKLM-NPQR");
+});
+test("不正な共有コードを渡さず、参加情報以外のURLを維持する", () => {
+  window.history.replaceState(null, "", "/?size=36#join=invalid&section=help");
+  render(<AudienceApplication />);
+  expect(screen.getByTestId("shared-code").textContent).toBe("");
+  expect(window.location.search).toBe("?size=36");
+  expect(window.location.hash).toBe("#section=help");
 });
 test("HTTP準備後のDeliveryを視聴画面へ渡し、資格失効時に参加画面へ戻す", async () => {
   mock.getPrepared.mockReturnValue(mock.connection);

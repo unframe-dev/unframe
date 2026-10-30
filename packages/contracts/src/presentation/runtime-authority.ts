@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export const runtimeAuthorityVersions = Object.freeze({
   definition: 3,
   renderBundle: 2,
@@ -248,6 +250,15 @@ export function validateAuthorityWireValue(typeName: string, value: Record<strin
     )
       throw new TypeError(
         "Recovery metadata requires a consistent command epoch and synchronization state",
+      );
+    if (
+      value["emptySince"] !== undefined &&
+      (!z.iso.datetime().safeParse(value["emptySince"]).success ||
+        Date.parse(value["emptySince"] as string) < Date.parse(value["startedAt"] as string) ||
+        (value["participants"] as unknown[]).length === 0)
+    )
+      throw new TypeError(
+        "Recovery idle time requires a connected participant history and a UTC timestamp after startup",
       );
     const ids = new Set<string>();
     for (const record of records) {

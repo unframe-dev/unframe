@@ -137,6 +137,14 @@ Control / State は participant projection、Snapshot / replay、入力と Cue /
 
 Outcome と共有状態は一体でメモリ上に確定し、同じ実行世代の同じ ID・内容の再送へ確定済み結果を返します。記録は容量上限前の同期 ACK と command epoch 更新で整理します。pause の凍結 Anchor を checkpoint と一括 Reliable 更新に保存し、resume 後の有効 Pose を待つ間も保持します。到達済み Step の選択は直近開始状態を復元して paused にし、Run ID・時計・参照と Timer を再構築します。開始状態全体は配布せず、Presenter 専用 catalog に選択可能な ID だけを含めます。検証範囲と残事項は[移行計画](../../../docs/plans/presenter-recognition-runtime-authority-refactor.md)を参照してください。
 
+### 無人 Room の終了
+
+実際の Control 接続が一度以上成立した Room は、最後の接続が切れてから10分で `idle-timeout` 終了します。作成・Runtime 準備だけではタイマーを開始せず、Presenter が切断しても Viewer が残っていれば終了しません。期限前の再入室で解除し、次の切断から数え直します。期限後の入室は、定期 tick より先でも拒否します。
+
+最初の接続履歴・無人開始時刻・解除は同期 checkpoint で確定します。これらの同期保存に失敗した場合は入室を受け付けず、切断検知は維持して元の起点で保存を再試行します。保存済みの無人開始時刻は再起動後も継続します。接続中に停止し、保存された無人開始時刻がない場合は、正確な切断時刻が分からないため復旧時点から10分を計ります。一度も接続がない Room は復旧しても対象外です。時刻はサーバーの UTC 時計を使います。
+
+終了は既存の fenced completion callback により Session の `Ended` と割り当て解放を一体で保存してから確定します。Cloud Host は無人終了した Room の tick・checkpoint worker・router 登録を停止し、同じ Host の他の Room は継続します。明示終了・コンテンツ終端の通知経路と、未定義の `pauseTimeout` policy は別です。
+
 接続の session、participant、role、Runtime ID / kind、assignment epoch、Presentation revision は message payload ではなく、認証 interceptor が検証して stream context へ設定した identity から取得します。gRPC server は JWT verifier と、単一 Session の guard / service または認証後に選択する Session router を必要とします。
 
 Venue Edge の composition root は単一 Session の assignment を環境変数から読み、Control Plane の internal bootstrap で publication と Definition を照合します。同じassignment / publicationのlease延長をControl Planeで再検証し、期限切れ時はclockと入力を停止します。lease更新だけではRuntimeを再開せず、明示resumeで再検証します。Venue Edge は同じ Runtime endpoint に TLS / HTTP2 listener と認可付き Asset Gateway を公開します。`internal/state` の mailbox は transport に未接続の独立した primitive です。Unity は Cloud 割当では Cloud URL、VenueEdge 割当では会場内 Asset URL へ Runtime Bearer を付けて取得します。

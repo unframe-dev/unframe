@@ -86,8 +86,7 @@ func Run(ctx context.Context, config Config, client *http.Client) error {
 		return err
 	case err := <-served:
 		stop()
-		<-done
-		return err
+		return errors.Join(err, <-done)
 	}
 }
 
@@ -312,6 +311,7 @@ func startSession(ctx context.Context, a Assignment, renewals <-chan Assignment,
 }
 func (e *runtimeExecution) run(ctx context.Context, claim assignment.AssignmentClaim) {
 	defer close(e.done)
+	defer e.Revoke()
 	ticker := time.NewTicker(20 * time.Millisecond)
 	nextObservation := time.Now()
 	defer ticker.Stop()
@@ -331,6 +331,9 @@ func (e *runtimeExecution) run(ctx context.Context, claim assignment.AssignmentC
 			}
 			if _, err := e.runtime.AdvanceFromWall(ctx, now); err != nil {
 				slog.Warn("advance runtime session", "sessionId", e.assignment.SessionID, "error", fmt.Sprint(err))
+			}
+			if e.runtime.DurablyEnded() && e.runtime.Snapshot().Clock.GetTerminating().GetReason() == realtime.TerminationReason_TERMINATION_REASON_IDLE_TIMEOUT {
+				return
 			}
 		}
 	}

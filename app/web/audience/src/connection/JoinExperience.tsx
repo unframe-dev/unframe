@@ -41,9 +41,15 @@ const errorText: Record<string, string> = {
   "delivery-mismatch": "表示データと接続情報が一致しません。もう一度参加してください。",
 };
 
-export function JoinExperience({ controller }: { controller: JoinController | null }) {
+export function JoinExperience({
+  controller,
+  initialJoinCode,
+}: {
+  controller: JoinController | null;
+  initialJoinCode?: string | null;
+}) {
   const snapshot = useStore(controller?.store ?? unavailableStore, (state) => state);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(() => initialJoinCode?.replaceAll("-", "") ?? "");
   const busy = ["joining", "delivery", "bootstrap", "recovering"].includes(snapshot.phase);
   const prepared = snapshot.phase === "prepared";
   const validCode = /^[A-HJ-NP-Z2-9]{8}$/.test(code);

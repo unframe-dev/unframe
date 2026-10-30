@@ -17,6 +17,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
     [NonSerialized] private string sessionId;
     [NonSerialized] private string logicalEventName;
     [NonSerialized] private Func<CancellationToken, Task<string>> credentialProvider;
+    [NonSerialized] private Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider;
     private bool externalConnection;
     private int generation;
     private int pendingOperations;
@@ -29,7 +30,8 @@ public sealed class QuestPresentationSession : MonoBehaviour
     public string ExportDiagnostics() => Diagnostics.ExportToDirectory(System.IO.Path.Combine(Application.persistentDataPath, "SessionDiagnostics"));
 
     public void ConfigureConnection(Uri controlPlaneOrigin, string targetSessionId,
-        Func<CancellationToken, Task<string>> provider, string advanceLogicalEventName = null, bool managedByOnboarding = false)
+        Func<CancellationToken, Task<string>> provider, string advanceLogicalEventName = null, bool managedByOnboarding = false,
+        Func<CancellationToken, Task<PresentationCredentialLease>> leaseProvider = null)
     {
         if (controlPlaneOrigin == null || !controlPlaneOrigin.IsAbsoluteUri || controlPlaneOrigin.Scheme != "https"
             || controlPlaneOrigin.AbsolutePath != "/" || !String.IsNullOrEmpty(controlPlaneOrigin.UserInfo)
@@ -41,6 +43,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
         origin = controlPlaneOrigin;
         sessionId = targetSessionId;
         credentialProvider = provider;
+        credentialLeaseProvider = leaseProvider;
         logicalEventName = advanceLogicalEventName;
         LastErrorCode = String.Empty;
     }
@@ -51,7 +54,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
         EnsureTrackingOrigin();
         if (IsBusy || entry.IsRunning) throw new InvalidOperationException("Stop the active session before connecting again.");
         ConfigureConnection(controlPlaneOrigin, targetSessionId, provider, advanceLogicalEventName);
-        entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics);
+        entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics, credentialLeaseProvider);
         CompleteExternalConnection();
     }
 
@@ -71,7 +74,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
                 if (!HasConnectionSettings) { LastErrorCode = "connection-settings-required"; return; }
                 await entry.StopAsync();
                 if (requestedGeneration != generation || !isActiveAndEnabled) return;
-                entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics);
+                entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics, credentialLeaseProvider);
                 CompleteExternalConnection();
                 LastErrorCode = String.Empty;
             }
@@ -116,6 +119,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
         generation++;
         externalConnection = false;
         credentialProvider = null;
+        credentialLeaseProvider = null;
         origin = null;
         sessionId = null;
         logicalEventName = null;
