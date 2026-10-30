@@ -121,6 +121,9 @@ namespace Unframe.Unity.PresentationRuntime
                 var canvasHost = new GameObject("Motion instruction", typeof(RectTransform), typeof(Canvas));
                 canvasHost.transform.SetParent(visuals.transform, false);
                 canvasHost.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+                // The transparent arm meshes must not obscure the gesture instruction.
+                canvasHost.GetComponent<Canvas>().overrideSorting = true;
+                canvasHost.GetComponent<Canvas>().sortingOrder = 10;
                 QuestPresentationUiFont.ConfigureCanvas(canvasHost.GetComponent<Canvas>());
                 instructionPanel = canvasHost.GetComponent<RectTransform>();
                 instructionPanel.sizeDelta = new Vector2(600, 100);

@@ -46,6 +46,31 @@ class FakeSessions implements SessionRepository {
     this.participants.set(`${presenter.sessionId}:${presenter.userId}`, presenter);
     return record;
   }
+  async listByPresenter(userId: string, limit: number) {
+    return [...this.records.values()]
+      .filter((record) => record.presenterId === userId)
+      .slice(0, limit);
+  }
+  async updateJoinCode(
+    id: string,
+    presenterId: string,
+    code: string,
+    hash: string,
+    previousHash: string,
+  ) {
+    const record = this.records.get(id);
+    if (
+      !record ||
+      record.presenterId !== presenterId ||
+      record.state === "Ended" ||
+      record.joinCodeHash !== previousHash ||
+      hash === previousHash
+    )
+      return false;
+    record.joinCode = code;
+    record.joinCodeHash = hash;
+    return true;
+  }
   async findById(id: string) {
     return this.records.get(id) ?? null;
   }

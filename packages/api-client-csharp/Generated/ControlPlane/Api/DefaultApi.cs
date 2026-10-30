@@ -617,6 +617,31 @@ namespace Unframe.ControlPlane.Api
         ///
         /// </remarks>
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="limit"> (optional, default to 20)</param>
+        /// <param name="cursor"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsGetApiResponse"/>&gt;</returns>
+        Task<ISessionsGetApiResponse> SessionsGetAsync(Option<int> limit = default, Option<string> cursor = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="limit"> (optional, default to 20)</param>
+        /// <param name="cursor"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsGetApiResponse"/>?&gt;</returns>
+        Task<ISessionsGetApiResponse?> SessionsGetOrDefaultAsync(Option<int> limit = default, Option<string> cursor = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="id"></param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdBootstrapPostApiResponse"/>&gt;</returns>
@@ -678,6 +703,52 @@ namespace Unframe.ControlPlane.Api
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdGetApiResponse"/>?&gt;</returns>
         Task<ISessionsIdGetApiResponse?> SessionsIdGetOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdJoinCodeGetApiResponse"/>&gt;</returns>
+        Task<ISessionsIdJoinCodeGetApiResponse> SessionsIdJoinCodeGetAsync(string id, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdJoinCodeGetApiResponse"/>?&gt;</returns>
+        Task<ISessionsIdJoinCodeGetApiResponse?> SessionsIdJoinCodeGetOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdJoinCodePostApiResponse"/>&gt;</returns>
+        Task<ISessionsIdJoinCodePostApiResponse> SessionsIdJoinCodePostAsync(string id, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdJoinCodePostApiResponse"/>?&gt;</returns>
+        Task<ISessionsIdJoinCodePostApiResponse?> SessionsIdJoinCodePostOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -1977,6 +2048,36 @@ namespace Unframe.ControlPlane.Api
     }
 
     /// <summary>
+    /// The <see cref="ISessionsGetApiResponse"/>
+    /// </summary>
+    public interface ISessionsGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 404 NotFound
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotFound { get; }
+    }
+
+    /// <summary>
     /// The <see cref="ISessionsIdBootstrapPostApiResponse"/>
     /// </summary>
     public interface ISessionsIdBootstrapPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdBootstrapPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
@@ -2027,7 +2128,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdEndPostApiResponse"/>
     /// </summary>
-    public interface ISessionsIdEndPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsPost201ResponseSession?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdEndPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2069,7 +2170,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdGetApiResponse"/>
     /// </summary>
-    public interface ISessionsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsPost201ResponseSession?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
+    public interface ISessionsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2106,6 +2207,90 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsGone { get; }
+    }
+
+    /// <summary>
+    /// The <see cref="ISessionsIdJoinCodeGetApiResponse"/>
+    /// </summary>
+    public interface ISessionsIdJoinCodeGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 403 Forbidden
+        /// </summary>
+        /// <returns></returns>
+        bool IsForbidden { get; }
+
+        /// <summary>
+        /// Returns true if the response is 404 NotFound
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotFound { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
+    }
+
+    /// <summary>
+    /// The <see cref="ISessionsIdJoinCodePostApiResponse"/>
+    /// </summary>
+    public interface ISessionsIdJoinCodePostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 403 Forbidden
+        /// </summary>
+        /// <returns></returns>
+        bool IsForbidden { get; }
+
+        /// <summary>
+        /// Returns true if the response is 404 NotFound
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotFound { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
     }
 
     /// <summary>
@@ -2177,7 +2362,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdStartPostApiResponse"/>
     /// </summary>
-    public interface ISessionsIdStartPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsPost201ResponseSession?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdStartPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2219,7 +2404,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsJoinPostApiResponse"/>
     /// </summary>
-    public interface ISessionsJoinPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsPost201ResponseSession?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>, ITooManyRequests<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsJoinPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>, ITooManyRequests<Unframe.ControlPlane.Model.PresentationsGet401Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -3212,6 +3397,26 @@ namespace Unframe.ControlPlane.Api
         /// <summary>
         /// The event raised after the server response
         /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnSessionsGet;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorSessionsGet;
+
+        internal void ExecuteOnSessionsGet(DefaultApi.SessionsGetApiResponse apiResponse)
+        {
+            OnSessionsGet?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorSessionsGet(Exception exception)
+        {
+            OnErrorSessionsGet?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
         public event EventHandler<ApiResponseEventArgs>? OnSessionsIdBootstrapPost;
 
         /// <summary>
@@ -3267,6 +3472,46 @@ namespace Unframe.ControlPlane.Api
         internal void ExecuteOnErrorSessionsIdGet(Exception exception)
         {
             OnErrorSessionsIdGet?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnSessionsIdJoinCodeGet;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorSessionsIdJoinCodeGet;
+
+        internal void ExecuteOnSessionsIdJoinCodeGet(DefaultApi.SessionsIdJoinCodeGetApiResponse apiResponse)
+        {
+            OnSessionsIdJoinCodeGet?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorSessionsIdJoinCodeGet(Exception exception)
+        {
+            OnErrorSessionsIdJoinCodeGet?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnSessionsIdJoinCodePost;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorSessionsIdJoinCodePost;
+
+        internal void ExecuteOnSessionsIdJoinCodePost(DefaultApi.SessionsIdJoinCodePostApiResponse apiResponse)
+        {
+            OnSessionsIdJoinCodePost?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorSessionsIdJoinCodePost(Exception exception)
+        {
+            OnErrorSessionsIdJoinCodePost?.Invoke(this, new ExceptionEventArgs(exception));
         }
 
         /// <summary>
@@ -13531,6 +13776,388 @@ namespace Unframe.ControlPlane.Api
             partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
         }
 
+        partial void FormatSessionsGet(ref Option<int> limit, ref Option<string> cursor);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="cursor"></param>
+        /// <returns></returns>
+        private void ValidateSessionsGet(Option<string> cursor)
+        {
+            if (cursor.IsSet && cursor.Value == null)
+                throw new ArgumentNullException(nameof(cursor));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="limit"></param>
+        /// <param name="cursor"></param>
+        private void AfterSessionsGetDefaultImplementation(ISessionsGetApiResponse apiResponseLocalVar, Option<int> limit, Option<string> cursor)
+        {
+            bool suppressDefaultLog = false;
+            AfterSessionsGet(ref suppressDefaultLog, apiResponseLocalVar, limit, cursor);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="limit"></param>
+        /// <param name="cursor"></param>
+        partial void AfterSessionsGet(ref bool suppressDefaultLog, ISessionsGetApiResponse apiResponseLocalVar, Option<int> limit, Option<string> cursor);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="limit"></param>
+        /// <param name="cursor"></param>
+        private void OnErrorSessionsGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, Option<int> limit, Option<string> cursor)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorSessionsGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, limit, cursor);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="limit"></param>
+        /// <param name="cursor"></param>
+        partial void OnErrorSessionsGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, Option<int> limit, Option<string> cursor);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="limit"> (optional, default to 20)</param>
+        /// <param name="cursor"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsGetApiResponse"/>&gt;</returns>
+        public async Task<ISessionsGetApiResponse?> SessionsGetOrDefaultAsync(Option<int> limit = default, Option<string> cursor = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await SessionsGetAsync(limit, cursor, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="limit"> (optional, default to 20)</param>
+        /// <param name="cursor"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsGetApiResponse"/>&gt;</returns>
+        public async Task<ISessionsGetApiResponse> SessionsGetAsync(Option<int> limit = default, Option<string> cursor = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidateSessionsGet(cursor);
+
+                FormatSessionsGet(ref limit, ref cursor);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/sessions"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/sessions");
+
+                    System.Collections.Specialized.NameValueCollection parseQueryStringLocalVar = System.Web.HttpUtility.ParseQueryString(string.Empty);
+
+                    if (limit.IsSet)
+                        parseQueryStringLocalVar["limit"] = ClientUtils.ParameterToString(limit.Value);
+
+                    if (cursor.IsSet)
+                        parseQueryStringLocalVar["cursor"] = ClientUtils.ParameterToString(cursor.Value);
+
+                    uriBuilderLocalVar.Query = parseQueryStringLocalVar.ToString();
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Get;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<SessionsGetApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<SessionsGetApiResponse>();
+                        SessionsGetApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/sessions", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterSessionsGetDefaultImplementation(apiResponseLocalVar, limit, cursor);
+
+                        Events.ExecuteOnSessionsGet(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorSessionsGetDefaultImplementation(e, "/sessions", uriBuilderLocalVar.Path, limit, cursor);
+                Events.ExecuteOnErrorSessionsGet(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="SessionsGetApiResponse"/>
+        /// </summary>
+        public partial class SessionsGetApiResponse : Unframe.ControlPlane.Client.ApiResponse, ISessionsGetApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<SessionsGetApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="SessionsGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsGetApiResponse(ILogger<SessionsGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="SessionsGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsGetApiResponse(ILogger<SessionsGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsGet200Response? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsGet200Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsGet200Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotFound => 404 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsNotFound
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = NotFound();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)404);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
         partial void FormatSessionsIdBootstrapPost(ref string id);
 
         /// <summary>
@@ -14226,11 +14853,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 200 Ok
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.SessionsPost201ResponseSession? Ok()
+            public Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner? Ok()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsOk
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsPost201ResponseSession>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14239,7 +14866,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsPost201ResponseSession? result)
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner? result)
             {
                 result = null;
 
@@ -14669,11 +15296,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 200 Ok
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.SessionsPost201ResponseSession? Ok()
+            public Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner? Ok()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsOk
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsPost201ResponseSession>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14682,7 +15309,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsPost201ResponseSession? result)
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner? result)
             {
                 result = null;
 
@@ -14882,6 +15509,892 @@ namespace Unframe.ControlPlane.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)410);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatSessionsIdJoinCodeGet(ref string id);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        private void ValidateSessionsIdJoinCodeGet(string id)
+        {
+            if (id == null)
+                throw new ArgumentNullException(nameof(id));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="id"></param>
+        private void AfterSessionsIdJoinCodeGetDefaultImplementation(ISessionsIdJoinCodeGetApiResponse apiResponseLocalVar, string id)
+        {
+            bool suppressDefaultLog = false;
+            AfterSessionsIdJoinCodeGet(ref suppressDefaultLog, apiResponseLocalVar, id);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="id"></param>
+        partial void AfterSessionsIdJoinCodeGet(ref bool suppressDefaultLog, ISessionsIdJoinCodeGetApiResponse apiResponseLocalVar, string id);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="id"></param>
+        private void OnErrorSessionsIdJoinCodeGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string id)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorSessionsIdJoinCodeGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, id);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="id"></param>
+        partial void OnErrorSessionsIdJoinCodeGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string id);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdJoinCodeGetApiResponse"/>&gt;</returns>
+        public async Task<ISessionsIdJoinCodeGetApiResponse?> SessionsIdJoinCodeGetOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await SessionsIdJoinCodeGetAsync(id, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdJoinCodeGetApiResponse"/>&gt;</returns>
+        public async Task<ISessionsIdJoinCodeGetApiResponse> SessionsIdJoinCodeGetAsync(string id, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidateSessionsIdJoinCodeGet(id);
+
+                FormatSessionsIdJoinCodeGet(ref id);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/sessions/{id}/join-code"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/sessions/{id}/join-code");
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7Bid%7D", Uri.EscapeDataString(id.ToString()));
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Get;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<SessionsIdJoinCodeGetApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<SessionsIdJoinCodeGetApiResponse>();
+                        SessionsIdJoinCodeGetApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/sessions/{id}/join-code", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterSessionsIdJoinCodeGetDefaultImplementation(apiResponseLocalVar, id);
+
+                        Events.ExecuteOnSessionsIdJoinCodeGet(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorSessionsIdJoinCodeGetDefaultImplementation(e, "/sessions/{id}/join-code", uriBuilderLocalVar.Path, id);
+                Events.ExecuteOnErrorSessionsIdJoinCodeGet(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="SessionsIdJoinCodeGetApiResponse"/>
+        /// </summary>
+        public partial class SessionsIdJoinCodeGetApiResponse : Unframe.ControlPlane.Client.ApiResponse, ISessionsIdJoinCodeGetApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<SessionsIdJoinCodeGetApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="SessionsIdJoinCodeGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsIdJoinCodeGetApiResponse(ILogger<SessionsIdJoinCodeGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="SessionsIdJoinCodeGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsIdJoinCodeGetApiResponse(ILogger<SessionsIdJoinCodeGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public bool IsForbidden => 403 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsForbidden
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Forbidden();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotFound => 404 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsNotFound
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = NotFound();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)404);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatSessionsIdJoinCodePost(ref string id);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        private void ValidateSessionsIdJoinCodePost(string id)
+        {
+            if (id == null)
+                throw new ArgumentNullException(nameof(id));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="id"></param>
+        private void AfterSessionsIdJoinCodePostDefaultImplementation(ISessionsIdJoinCodePostApiResponse apiResponseLocalVar, string id)
+        {
+            bool suppressDefaultLog = false;
+            AfterSessionsIdJoinCodePost(ref suppressDefaultLog, apiResponseLocalVar, id);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="id"></param>
+        partial void AfterSessionsIdJoinCodePost(ref bool suppressDefaultLog, ISessionsIdJoinCodePostApiResponse apiResponseLocalVar, string id);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="id"></param>
+        private void OnErrorSessionsIdJoinCodePostDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string id)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorSessionsIdJoinCodePost(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, id);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="id"></param>
+        partial void OnErrorSessionsIdJoinCodePost(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string id);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdJoinCodePostApiResponse"/>&gt;</returns>
+        public async Task<ISessionsIdJoinCodePostApiResponse?> SessionsIdJoinCodePostOrDefaultAsync(string id, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await SessionsIdJoinCodePostAsync(id, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdJoinCodePostApiResponse"/>&gt;</returns>
+        public async Task<ISessionsIdJoinCodePostApiResponse> SessionsIdJoinCodePostAsync(string id, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidateSessionsIdJoinCodePost(id);
+
+                FormatSessionsIdJoinCodePost(ref id);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/sessions/{id}/join-code"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/sessions/{id}/join-code");
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7Bid%7D", Uri.EscapeDataString(id.ToString()));
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Post;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<SessionsIdJoinCodePostApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<SessionsIdJoinCodePostApiResponse>();
+                        SessionsIdJoinCodePostApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/sessions/{id}/join-code", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterSessionsIdJoinCodePostDefaultImplementation(apiResponseLocalVar, id);
+
+                        Events.ExecuteOnSessionsIdJoinCodePost(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorSessionsIdJoinCodePostDefaultImplementation(e, "/sessions/{id}/join-code", uriBuilderLocalVar.Path, id);
+                Events.ExecuteOnErrorSessionsIdJoinCodePost(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="SessionsIdJoinCodePostApiResponse"/>
+        /// </summary>
+        public partial class SessionsIdJoinCodePostApiResponse : Unframe.ControlPlane.Client.ApiResponse, ISessionsIdJoinCodePostApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<SessionsIdJoinCodePostApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="SessionsIdJoinCodePostApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsIdJoinCodePostApiResponse(ILogger<SessionsIdJoinCodePostApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="SessionsIdJoinCodePostApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public SessionsIdJoinCodePostApiResponse(ILogger<SessionsIdJoinCodePostApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public bool IsForbidden => 403 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsForbidden
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Forbidden();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotFound => 404 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsNotFound
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = NotFound();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)404);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
                 }
 
                 return result != null;
@@ -15884,11 +17397,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 200 Ok
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.SessionsPost201ResponseSession? Ok()
+            public Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner? Ok()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsOk
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsPost201ResponseSession>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15897,7 +17410,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsPost201ResponseSession? result)
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner? result)
             {
                 result = null;
 
@@ -16339,11 +17852,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 200 Ok
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.SessionsPost201ResponseSession? Ok()
+            public Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner? Ok()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsOk
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsPost201ResponseSession>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16352,7 +17865,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsPost201ResponseSession? result)
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner? result)
             {
                 result = null;
 

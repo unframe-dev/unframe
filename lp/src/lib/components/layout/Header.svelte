@@ -10,7 +10,6 @@
     { label: "特徴", href: "/#features" },
     { label: "ビジョン", href: "/#vision" },
     { label: "News", href: "/news/" },
-    { label: "Docs", href: "/docs/" },
   ];
 </script>
 
@@ -25,17 +24,21 @@
       <span class="font-display text-[1.7rem] font-light tracking-[-0.065em] text-night">Unframe</span>
     </a>
 
-    <nav class="hidden items-center gap-8 md:flex" aria-label="Main navigation">
+    <nav class="hidden items-center gap-5 md:flex" aria-label="Main navigation">
       {#each links as link}
         <a class="text-xs font-medium tracking-[0.08em] text-night/60 transition hover:text-night" href={link.href}>
           {link.label}
         </a>
       {/each}
-      <!-- href="/signup" -->
-      <Button size="sm" variant="primary">
-        試してみる
-        <ArrowUpRight size={14} strokeWidth={1.8} />
-      </Button>
+      <div class="flex items-center gap-4">
+        <Button href="/signup" rel="external" size="sm" variant="primary">
+          試してみる
+          <ArrowUpRight size={14} strokeWidth={1.8} />
+        </Button>
+        <a class="text-xs font-medium tracking-[0.08em] text-night/60 transition hover:text-night" href="/login" rel="external">
+          ログイン
+        </a>
+      </div>
     </nav>
 
     <button
@@ -62,11 +65,18 @@
           onclick={() => (menuOpen = false)}
         >{link.label}</a>
       {/each}
-      <!-- href="/signup" -->
-      <Button size="sm" variant="accent" class="mt-2 w-full">
-        試してみる
-        <ArrowUpRight size={14} strokeWidth={1.8} />
-      </Button>
+      <div class="mt-2 flex items-center gap-4">
+        <Button href="/signup" rel="external" size="sm" variant="accent" class="flex-1">
+          試してみる
+          <ArrowUpRight size={14} strokeWidth={1.8} />
+        </Button>
+        <a
+          class="shrink-0 rounded-xl px-4 py-3 text-sm text-night/70 transition hover:bg-night/5 hover:text-night"
+          href="/login"
+          rel="external"
+          onclick={() => (menuOpen = false)}
+        >ログイン</a>
+      </div>
     </nav>
   {/if}
 </header>

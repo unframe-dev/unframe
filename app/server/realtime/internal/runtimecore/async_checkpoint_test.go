@@ -89,7 +89,9 @@ func TestWorkerRetriesIdenticalCutAndCoalescesPendingCuts(t *testing.T) {
 			close(release)
 		}
 		cancel()
-		<-done
+		if err := <-done; !errors.Is(err, context.Canceled) {
+			t.Errorf("checkpoint worker stopped with %v, want context cancellation", err)
+		}
 	}()
 	first := awaitCheckpoint(t, requests)
 	for i := 0; i < 12; i++ {
@@ -174,7 +176,12 @@ func TestCompletionRetriesSameRequestAndPublishesOnlyAfterConfirmation(t *testin
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- core.runCheckpointWorker(ctx, make(chan struct{}, 1), 5*time.Millisecond) }()
-	defer func() { cancel(); <-done }()
+	defer func() {
+		cancel()
+		if err := <-done; !errors.Is(err, context.Canceled) {
+			t.Errorf("checkpoint worker stopped with %v, want context cancellation", err)
+		}
+	}()
 	retry := awaitCheckpoint(t, requests)
 	if !proto.Equal(first, retry) {
 		t.Fatal("completion retry changed immutable payload")
@@ -226,7 +233,9 @@ func TestCheckpointConcurrencyIsBoundedAcrossSessions(t *testing.T) {
 			cancel()
 		}
 		for _, done := range workers {
-			<-done
+			if err := <-done; !errors.Is(err, context.Canceled) {
+				t.Errorf("checkpoint worker stopped with %v, want context cancellation", err)
+			}
 		}
 	}()
 	select {
@@ -276,7 +285,12 @@ func TestCheckpointOutageBeyondFiveSecondsDoesNotPauseProgress(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- core.runCheckpointWorker(ctx, nil, 10*time.Millisecond) }()
-	defer func() { cancel(); <-done }()
+	defer func() {
+		cancel()
+		if err := <-done; !errors.Is(err, context.Canceled) {
+			t.Errorf("checkpoint worker stopped with %v, want context cancellation", err)
+		}
+	}()
 	if err := core.JoinParticipant(context.Background(), session.Identity{ParticipantID: "viewer", Role: session.RoleViewer}); err != nil {
 		t.Fatal(err)
 	}

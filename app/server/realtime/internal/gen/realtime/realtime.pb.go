@@ -456,6 +456,7 @@ const (
 	TerminationReason_TERMINATION_REASON_EXPLICIT_END        TerminationReason = 1
 	TerminationReason_TERMINATION_REASON_CONTROL_PLANE_ENDED TerminationReason = 2
 	TerminationReason_TERMINATION_REASON_PAUSE_TIMEOUT       TerminationReason = 3
+	TerminationReason_TERMINATION_REASON_IDLE_TIMEOUT        TerminationReason = 4
 )
 
 // Enum value maps for TerminationReason.
@@ -465,12 +466,14 @@ var (
 		1: "TERMINATION_REASON_EXPLICIT_END",
 		2: "TERMINATION_REASON_CONTROL_PLANE_ENDED",
 		3: "TERMINATION_REASON_PAUSE_TIMEOUT",
+		4: "TERMINATION_REASON_IDLE_TIMEOUT",
 	}
 	TerminationReason_value = map[string]int32{
 		"TERMINATION_REASON_UNSPECIFIED":         0,
 		"TERMINATION_REASON_EXPLICIT_END":        1,
 		"TERMINATION_REASON_CONTROL_PLANE_ENDED": 2,
 		"TERMINATION_REASON_PAUSE_TIMEOUT":       3,
+		"TERMINATION_REASON_IDLE_TIMEOUT":        4,
 	}
 )
 
@@ -8886,6 +8889,7 @@ type RuntimeRecoveryMetadata struct {
 	CommandEpoch         uint64                         `protobuf:"varint,4,opt,name=command_epoch,json=commandEpoch,proto3" json:"command_epoch,omitempty"`
 	InputSynchronization *PresenterInputSynchronization `protobuf:"bytes,5,opt,name=input_synchronization,json=inputSynchronization,proto3" json:"input_synchronization,omitempty"`
 	CapacityFault        *RuntimeCapacityFault          `protobuf:"bytes,6,opt,name=capacity_fault,json=capacityFault,proto3" json:"capacity_fault,omitempty"`
+	EmptySince           *string                        `protobuf:"bytes,7,opt,name=empty_since,json=emptySince,proto3,oneof" json:"empty_since,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -8960,6 +8964,13 @@ func (x *RuntimeRecoveryMetadata) GetCapacityFault() *RuntimeCapacityFault {
 		return x.CapacityFault
 	}
 	return nil
+}
+
+func (x *RuntimeRecoveryMetadata) GetEmptySince() string {
+	if x != nil && x.EmptySince != nil {
+		return *x.EmptySince
+	}
+	return ""
 }
 
 type RuntimeCapacityFault struct {
@@ -11227,7 +11238,7 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\vactive_runs\x18\n" +
 	" \x03(\v2$.unframe.realtime.RuntimeRunSnapshotR\n" +
 	"activeRuns\x12S\n" +
-	"\x11model_clip_states\x18\v \x03(\v2'.unframe.realtime.ModelClipRuntimeStateR\x0fmodelClipStates\"\xa8\x03\n" +
+	"\x11model_clip_states\x18\v \x03(\v2'.unframe.realtime.ModelClipRuntimeStateR\x0fmodelClipStates\"\xde\x03\n" +
 	"\x17RuntimeRecoveryMetadata\x12\x1d\n" +
 	"\n" +
 	"started_at\x18\x01 \x01(\tR\tstartedAt\x12O\n" +
@@ -11235,7 +11246,10 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\bcommands\x18\x03 \x03(\v2'.unframe.realtime.RuntimeCommandHistoryR\bcommands\x12#\n" +
 	"\rcommand_epoch\x18\x04 \x01(\x04R\fcommandEpoch\x12d\n" +
 	"\x15input_synchronization\x18\x05 \x01(\v2/.unframe.realtime.PresenterInputSynchronizationR\x14inputSynchronization\x12M\n" +
-	"\x0ecapacity_fault\x18\x06 \x01(\v2&.unframe.realtime.RuntimeCapacityFaultR\rcapacityFault\"\xbe\x01\n" +
+	"\x0ecapacity_fault\x18\x06 \x01(\v2&.unframe.realtime.RuntimeCapacityFaultR\rcapacityFault\x12$\n" +
+	"\vempty_since\x18\a \x01(\tH\x00R\n" +
+	"emptySince\x88\x01\x01B\x0e\n" +
+	"\f_empty_since\"\xbe\x01\n" +
 	"\x14RuntimeCapacityFault\x123\n" +
 	"\x16step_start_state_bytes\x18\x01 \x01(\x04R\x13stepStartStateBytes\x127\n" +
 	"\x18step_start_history_bytes\x18\x02 \x01(\x04R\x15stepStartHistoryBytes\x128\n" +
@@ -11432,12 +11446,13 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"%PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED\x10\x06\x12\x1d\n" +
 	"\x19PAUSE_REASON_RECOVERY_GAP\x10\a\x12\x1f\n" +
 	"\x1bPAUSE_REASON_EXPLICIT_PAUSE\x10\b\x12*\n" +
-	"&PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED\x10\t*\xae\x01\n" +
+	"&PAUSE_REASON_RUNTIME_CAPACITY_EXCEEDED\x10\t*\xd3\x01\n" +
 	"\x11TerminationReason\x12\"\n" +
 	"\x1eTERMINATION_REASON_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fTERMINATION_REASON_EXPLICIT_END\x10\x01\x12*\n" +
 	"&TERMINATION_REASON_CONTROL_PLANE_ENDED\x10\x02\x12$\n" +
-	" TERMINATION_REASON_PAUSE_TIMEOUT\x10\x03*\xbe\x01\n" +
+	" TERMINATION_REASON_PAUSE_TIMEOUT\x10\x03\x12#\n" +
+	"\x1fTERMINATION_REASON_IDLE_TIMEOUT\x10\x04*\xbe\x01\n" +
 	"\x14TimelineCancelReason\x12&\n" +
 	"\"TIMELINE_CANCEL_REASON_UNSPECIFIED\x10\x00\x12(\n" +
 	"$TIMELINE_CANCEL_REASON_EXPLICIT_STOP\x10\x01\x12%\n" +
@@ -12060,6 +12075,7 @@ func file_unframe_realtime_realtime_proto_init() {
 		(*RuntimeRunSnapshot_ModelClip)(nil),
 	}
 	file_unframe_realtime_realtime_proto_msgTypes[103].OneofWrappers = []any{}
+	file_unframe_realtime_realtime_proto_msgTypes[105].OneofWrappers = []any{}
 	file_unframe_realtime_realtime_proto_msgTypes[114].OneofWrappers = []any{}
 	file_unframe_realtime_realtime_proto_msgTypes[116].OneofWrappers = []any{
 		(*StateClientItem_Handshake)(nil),

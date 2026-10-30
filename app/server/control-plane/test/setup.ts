@@ -163,3 +163,14 @@ await applyD1Migrations(env.DB, [
       .filter(Boolean),
   },
 ]);
+
+import sessionJoinCodesMigration from "../migrations/0016_session_join_codes.sql?raw";
+await applyD1Migrations(env.DB, [
+  {
+    name: "0016_session_join_codes.sql",
+    queries: sessionJoinCodesMigration
+      .split(";")
+      .map((query: string) => query.trim())
+      .filter(Boolean),
+  },
+]);

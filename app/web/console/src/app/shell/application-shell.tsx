@@ -159,6 +159,13 @@ function SidebarNavigation({
                 >
                   設定
                 </DropdownMenu.LinkItem>
+                <DropdownMenu.LinkItem
+                  closeOnClick
+                  className={styles.menuItem}
+                  render={<Link to="/settings/security" />}
+                >
+                  セキュリティー
+                </DropdownMenu.LinkItem>
                 <DropdownMenu.Separator className={styles.menuSeparator} />
                 <DropdownMenu.Item
                   className={`${styles.menuItem} ${styles.menuLogout}`}

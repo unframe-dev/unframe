@@ -130,7 +130,8 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         public void Configure(Uri controlPlaneOrigin, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
-            PresentationCalibrationState calibrationState, string advanceLogicalEventName, PresentationSessionDiagnostics diagnosticLog = null)
+            PresentationCalibrationState calibrationState, string advanceLogicalEventName, PresentationSessionDiagnostics diagnosticLog = null,
+            Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider = null)
         {
             if (!isActiveAndEnabled) throw new InvalidOperationException("The Quest presentation entry must be active.");
             if (lifetime != null) throw new InvalidOperationException("A Quest presentation is already configured.");
@@ -140,7 +141,7 @@ namespace Unframe.Unity.PresentationRuntime
             diagnostics = diagnosticLog?.ForSession(sessionId);
             diagnosticStage = null;
             connection = new PresentationControlPlaneConnection(controlPlaneOrigin, sessionId, credentialProvider,
-                reportStage: stage => { connectionStage = stage; diagnostics?.Record("connection.stage", stage: stage.ToString()); }, diagnostics: diagnostics);
+                reportStage: stage => { connectionStage = stage; diagnostics?.Record("connection.stage", stage: stage.ToString()); }, diagnostics: diagnostics, credentialLeaseProvider: credentialLeaseProvider);
             LastErrorCode = null;
             commandPending = false;
             connectionStage = PresentationConnectionStage.Connecting;

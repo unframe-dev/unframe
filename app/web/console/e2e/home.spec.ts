@@ -42,6 +42,10 @@ async function published(page: Page) {
   await page.route("**/publication", (route) => route.fulfill({ json: publication }));
 }
 test.beforeEach(async ({ page }) => {
+  await page.route("**/sessions?*", (route) =>
+    route.fulfill({ json: { sessions: [], nextCursor: null } }),
+  );
+  await page.route("**/join-code", (route) => route.fulfill({ json: { joinCode: "ABCD-EFGH" } }));
   await page.route("**/runtime-preparation", (route) =>
     route.fulfill({ json: { state: "unassigned" } }),
   );
@@ -168,7 +172,8 @@ test("creates one room, displays the server fixed publication, and never persist
   await page.getByRole("link", { name: "この Presentation でルームを作成" }).click();
   const create = page.getByRole("button", { name: "ルームを作成", exact: true });
   await create.dblclick();
-  const result = page.getByRole("region", { name: "ルーム作成結果" });
+  await expect(page).toHaveURL(/\/rooms\/room-1$/);
+  const result = page.getByRole("main");
   await expect(result.getByText("room-1", { exact: true })).toBeVisible();
   await expect(result.getByText("Waiting", { exact: true })).toBeVisible();
   await expect(result.getByText("4", { exact: true })).toBeVisible();
@@ -182,10 +187,10 @@ test("creates one room, displays the server fixed publication, and never persist
     await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage })),
   ).not.toContain("ABCD-EFGH");
   await page.reload();
-  await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("ABCD-EFGH", { exact: true })).toBeVisible();
   await page.goto("/rooms/room-1");
   await expect(page.getByText("room-1", { exact: true })).toBeVisible();
-  await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("ABCD-EFGH", { exact: true })).toBeVisible();
 });
 
 test("prepares a room, polls readiness, starts and ends exactly once through normal UI", async ({
@@ -316,14 +321,19 @@ test("ended room never offers preparation or presentation actions", async ({ pag
   await expect(
     page.getByRole("button", { name: /発表環境を準備|発表を開始|発表を終了/ }),
   ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "ルームコードを更新", exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
   expect(preparationRequests).toBe(0);
 });
 
-test("clears the one-time room result when navigating to the room chooser", async ({ page }) => {
+test("returns from a created room to the owned-room list", async ({ page }) => {
   await published(page);
   await page.route("**/sessions", (route) =>
     route.fulfill({ status: 201, json: { session: room, joinCode: "ABCD-EFGH" } }),
   );
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
   await page.goto(`/rooms?presentationId=${presentation.id}`);
   await page.getByRole("button", { name: "ルームを作成", exact: true }).click();
   await expect(page.getByText("ABCD-EFGH", { exact: true })).toBeVisible();
@@ -340,9 +350,8 @@ test("clears the one-time room result when navigating to the room chooser", asyn
   await expect(page.getByRole("button", { name: "この公開版からルームを作成" })).toBeVisible();
 
   await page.goBack();
-  await expect(page).toHaveURL(/presentationId=presentation-1/);
-  await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "ルームを作成", exact: true })).toBeEnabled();
+  await expect(page).toHaveURL(/\/rooms\/room-1$/);
+  await expect(page.getByText("ABCD-EFGH", { exact: true })).toBeVisible();
 });
 
 test("isolates a pending room creation from the room chooser after navigation", async ({
@@ -362,6 +371,7 @@ test("isolates a pending room creation from the room chooser after navigation", 
       json: { session: room, joinCode: requests === 1 ? "OLD-CODE" : "NEW-CODE" },
     });
   });
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
   await page.goto(`/rooms?presentationId=${presentation.id}`);
   await page.getByRole("button", { name: "この公開版からルームを作成" }).click();
   await page.getByRole("button", { name: "ルームを作成", exact: true }).click();
@@ -379,7 +389,8 @@ test("isolates a pending room creation from the room chooser after navigation", 
   releaseResponse();
   await oldResponse;
   await create.click();
-  await expect(page.getByText("NEW-CODE", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/rooms\/room-1$/);
+  await expect(page.getByText("ABCD-EFGH", { exact: true })).toBeVisible();
   await expect(page.getByText("OLD-CODE", { exact: true })).toHaveCount(0);
   expect(requests).toBe(2);
 });
@@ -431,3 +442,164 @@ for (const status of [403, 404]) {
     await expect(page.getByText("公開済み Dist なし")).toHaveCount(0);
   });
 }
+
+test("reopens an owned room through the paged list and reloads the list", async ({ page }) => {
+  await published(page);
+  let reloads = 0;
+  await page.route("**/sessions?*", (route) => {
+    reloads++;
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    return route.fulfill({
+      json: cursor
+        ? { sessions: [{ ...room, id: "room-2" }], nextCursor: null }
+        : { sessions: [room], nextCursor: "room-1" },
+    });
+  });
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
+  await page.goto("/rooms");
+  await page.getByRole("button", { name: "ルームをさらに表示" }).click();
+  await expect(page.getByRole("link", { name: "room-2", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "ルーム一覧を再取得" }).click();
+  await expect.poll(() => reloads).toBeGreaterThanOrEqual(4);
+  await page.getByRole("link", { name: "room-1", exact: true }).click();
+  await expect(page.getByText("ABCD-EFGH", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveAttribute(
+    "href",
+    "https://app.un-fra.me/#join=ABCD-EFGH",
+  );
+});
+
+test("rotates invitations and the locally generated QR with a single submission", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
+  let code = "ABCD-EFGH";
+  let updates = 0;
+  await page.route("**/join-code", async (route) => {
+    if (route.request().method() === "POST") {
+      updates++;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      code = "JKLM-NPQR";
+    }
+    await route.fulfill({ json: { joinCode: code } });
+  });
+  await page.goto("/rooms/room-1");
+  await page.getByRole("button", { name: "QR コードを生成" }).click();
+  const qr = page.getByRole("img", { name: "匿名 Viewer 参加用 QR コード" });
+  await expect(qr).toBeVisible();
+  const previous = await qr.getAttribute("src");
+  await page.getByRole("button", { name: "ルームコードを更新", exact: true }).dblclick();
+  await expect(page.getByText("JKLM-NPQR", { exact: true })).toBeVisible();
+  await expect(qr).not.toHaveAttribute("src", previous!);
+  const url = "https://app.un-fra.me/#join=JKLM-NPQR";
+  await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveAttribute("href", url);
+  await page.getByRole("button", { name: "参加 URL をコピー" }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+  const pixels = await qr.evaluate((element) => {
+    const img = element as HTMLImageElement;
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext("2d")!;
+    context.drawImage(img, 0, 0);
+    return {
+      width: canvas.width,
+      height: canvas.height,
+      data: Array.from(context.getImageData(0, 0, canvas.width, canvas.height).data),
+    };
+  });
+  const { default: decodeQR } = await import("qr/decode.js");
+  expect(decodeQR({ ...pixels, data: Uint8Array.from(pixels.data) })).toBe(url);
+  expect(updates).toBe(1);
+});
+
+test("hides stale invitations after an unknown rotation result until explicit refetch", async ({
+  page,
+}) => {
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
+  let code = "ABCD-EFGH";
+  await page.route("**/join-code", (route) => {
+    if (route.request().method() === "POST") {
+      code = "JKLM-NPQR";
+      return route.abort("failed");
+    }
+    return route.fulfill({ json: { joinCode: code } });
+  });
+  await page.goto("/rooms/room-1");
+  await page.getByRole("button", { name: "QR コードを生成" }).click();
+  await page.getByRole("button", { name: "ルームコードを更新", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("再取得してから共有");
+  await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: "匿名 Viewer 参加用 QR コード" })).toHaveCount(0);
+  await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "ルームコードを再取得" }).click();
+  await expect(page.getByText("JKLM-NPQR", { exact: true })).toBeVisible();
+});
+
+for (const status of [401, 403]) {
+  test(`does not share a code when current-code access is denied (HTTP ${status})`, async ({
+    page,
+  }) => {
+    await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
+    await page.route("**/join-code", (route) =>
+      route.fulfill({ status, json: { error: { code: "forbidden" } } }),
+    );
+    await page.goto("/rooms/room-1");
+    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "ルームコードを更新", exact: true }),
+    ).toBeDisabled();
+  });
+}
+
+test("keeps sharing blocked across navigation while a rotation is pending or uncertain", async ({
+  page,
+}) => {
+  await published(page);
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
+  let release!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let code = "ABCD-EFGH";
+  await page.route("**/join-code", async (route) => {
+    if (route.request().method() === "POST") {
+      await waiting;
+      code = "JKLM-NPQR";
+      return route.abort("failed");
+    }
+    return route.fulfill({ json: { joinCode: code } });
+  });
+  await page.goto("/rooms/room-1");
+  await page.getByRole("button", { name: "ルームコードを更新", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "メインナビゲーション" })
+    .getByRole("link", { name: "ルーム", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { name: "ルーム", exact: true })).toBeVisible();
+  const returnedCode = page.waitForResponse(
+    (response) => response.url().endsWith("/join-code") && response.request().method() === "GET",
+  );
+  await page.goBack();
+  await returnedCode;
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(page.getByRole("heading", { name: "ルームの詳細" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "ルームコードを更新", exact: true }),
+  ).toBeDisabled();
+  release();
+  await expect(page.getByRole("alert")).toContainText("再取得してから共有");
+  await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
+  await page.getByRole("button", { name: "ルームコードを再取得" }).click();
+  await expect(page.getByText("JKLM-NPQR", { exact: true })).toBeVisible();
+});

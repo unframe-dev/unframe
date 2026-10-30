@@ -10,6 +10,7 @@ export default defineConfig({
     rolldownOptions: {
       input: { index: "index.html" },
       output: {
+        strictExecutionOrder: true,
         codeSplitting: { groups: [{ name: "vendor", test: /node_modules/, maxSize: 400_000 }] },
       },
     },

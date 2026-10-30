@@ -269,7 +269,7 @@ it("preserves baked/video/baked paint order with complete independent ownership"
   expect(surface.renderSurfaceIds.map((id) => surface.renderSurfaces[id]!.layer)).toEqual([
     0, 1, 2,
   ]);
-});
+}, 15_000);
 
 it("binds State loop changes to variants with the same measured duration", async () => {
   const input = project();

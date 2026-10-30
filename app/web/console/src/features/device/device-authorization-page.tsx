@@ -1,4 +1,5 @@
 import { GoogleLogoIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { controlPlaneAuth as auth } from "@/features/auth/control-plane-auth";
 import { BrandLink } from "@/shared/brand/brand-link";
@@ -151,7 +152,6 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
     <main id="main-content" className={styles.main}>
       <header className={styles.header}>
         <BrandLink />
-        <a href="https://un-fra.me/docs/">Docs</a>
       </header>
       <section className={styles.deviceShell}>
         <header className={styles.deviceIntro}>
@@ -228,6 +228,7 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
               ) : null}
             </>
           )}
+          {signedIn ? <Link to="/devices">デバイス一覧へ</Link> : null}
         </div>
       </section>
     </main>

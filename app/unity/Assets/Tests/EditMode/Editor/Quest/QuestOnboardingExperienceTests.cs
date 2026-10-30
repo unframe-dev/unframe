@@ -71,7 +71,7 @@ public sealed class QuestOnboardingExperienceTests
     }
 
     [Test]
-    public void AudienceStillRequiresAuthenticationBeforeJoiningTheRoom()
+    public void AudienceCanJoinAnonymouslyWithoutDeviceApproval()
     {
         var view = CreateView();
         view.Flow.SelectRole(QuestOnboardingRole.Audience);
@@ -79,6 +79,6 @@ public sealed class QuestOnboardingExperienceTests
             .SetValue(view, "ABCDEFGH");
         view.Refresh();
         view.FindButton("Continue").onClick.Invoke();
-        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Authentication));
+        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Join));
     }
 }

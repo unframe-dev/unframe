@@ -13,13 +13,11 @@ export async function identityFromSession(
   if (!session || session.user.id.startsWith("anonymous_")) {
     return undefined;
   }
-  const user = session.user as typeof session.user & { twoFactorEnabled?: boolean };
   const authSession = session.session as typeof session.session & { assurance?: string };
   const assurance = authSession.assurance;
   if (
-    !user.emailVerified ||
-    (assurance !== "google" && assurance !== "device" && assurance !== "password_mfa") ||
-    (assurance === "password_mfa" && !user.twoFactorEnabled)
+    !session.user.emailVerified ||
+    (assurance !== "google" && assurance !== "device" && assurance !== "password")
   ) {
     return undefined;
   }

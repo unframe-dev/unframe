@@ -13,7 +13,7 @@ const joinWindowMs = 5 * 60 * 1000;
 
 export type SessionResource = Omit<
   SessionRecord,
-  "joinCodeHash" | "maxParticipants" | "publicationEpoch"
+  "joinCodeHash" | "joinCode" | "maxParticipants" | "publicationEpoch"
 > & {
   maxParticipants: typeof maximumParticipants;
 };
@@ -44,32 +44,85 @@ export class SessionService {
     if (identity.globalRole !== "admin" && !role) {
       throw new SessionError("forbidden");
     }
-    const joinCode = this.createJoinCode();
-    const parsedJoinCode = joinCodeSchema.safeParse(joinCode);
-    if (!parsedJoinCode.success) {
-      throw new SessionError("invalid_join_code");
-    }
     const timestamp = this.now().toISOString();
-    const record: SessionCreateRecord = {
-      id: this.id(),
-      presentationId,
-      presenterId: identity.userId,
-      joinCodeHash: await this.hashJoinCode(joinCode),
-      state: "Waiting",
-      participantCount: 1,
-      maxParticipants: maximumParticipants,
-      createdAt: timestamp,
-      endedAt: null,
+    const id = this.id();
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const joinCode = this.newCode();
+      const record: SessionCreateRecord = {
+        id,
+        presentationId,
+        presenterId: identity.userId,
+        joinCode,
+        joinCodeHash: await this.hashJoinCode(joinCode),
+        state: "Waiting",
+        participantCount: 1,
+        maxParticipants: maximumParticipants,
+        createdAt: timestamp,
+        endedAt: null,
+      };
+      const presenter: SessionParticipant = {
+        sessionId: id,
+        userId: identity.userId,
+        role: "presenter",
+        joinedAt: timestamp,
+      };
+      const created = await this.sessions.create(record, presenter);
+      if (created) return { session: resource(created), joinCode };
+    }
+    throw new SessionError("conflict");
+  }
+
+  async list(identity: Identity, limit: number, cursorId?: string) {
+    const cursor = cursorId ? await this.sessions.findById(cursorId) : undefined;
+    if (cursorId && (!cursor || cursor.presenterId !== identity.userId))
+      throw new SessionError("not_found");
+    const records = await this.sessions.listByPresenter(
+      identity.userId,
+      limit + 1,
+      cursor ?? undefined,
+    );
+    return {
+      sessions: records.slice(0, limit).map(resource),
+      nextCursor: records.length > limit ? records[limit - 1]!.id : null,
     };
-    const presenter: SessionParticipant = {
-      sessionId: record.id,
-      userId: identity.userId,
-      role: "presenter",
-      joinedAt: timestamp,
-    };
-    const created = await this.sessions.create(record, presenter);
-    if (!created) throw new SessionError("conflict");
-    return { session: resource(created), joinCode };
+  }
+
+  async getJoinCode(identity: Identity, id: string) {
+    const session = await this.requireOwner(identity, id);
+    if (!session.joinCode) throw new SessionError("conflict");
+    return { joinCode: session.joinCode };
+  }
+
+  async rotateJoinCode(identity: Identity, id: string) {
+    const session = await this.requireOwner(identity, id);
+    if (session.state === "Ended") throw new SessionError("conflict");
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const joinCode = this.newCode();
+      const hash = await this.hashJoinCode(joinCode);
+      if (
+        await this.sessions.updateJoinCode(
+          id,
+          identity.userId,
+          joinCode,
+          hash,
+          session.joinCodeHash,
+        )
+      )
+        return { joinCode };
+    }
+    throw new SessionError("conflict");
+  }
+
+  private newCode() {
+    const value = this.createJoinCode();
+    if (!joinCodeSchema.safeParse(value).success) throw new SessionError("invalid_join_code");
+    return value;
+  }
+
+  private async requireOwner(identity: Identity, id: string) {
+    const session = await this.requireSession(id);
+    if (session.presenterId !== identity.userId) throw new SessionError("forbidden");
+    return session;
   }
 
   async get(identity: Identity, id: string) {
@@ -98,7 +151,12 @@ export class SessionService {
     if (!permitted) throw new SessionError("rate_limited");
     const session = await this.sessions.findActiveByCodeHash(joinCodeHash);
     if (!session) throw new SessionError("not_found");
-    const outcome = await this.sessions.join(session.id, identity.userId, now.toISOString());
+    const outcome = await this.sessions.join(
+      session.id,
+      identity.userId,
+      now.toISOString(),
+      joinCodeHash,
+    );
     if (outcome === "ended" || outcome === "not_found") throw new SessionError("not_found");
     if (outcome === "full") throw new SessionError("conflict");
     return resource(await this.requireSession(session.id));
@@ -143,6 +201,7 @@ export class SessionService {
 
 const resource = ({
   joinCodeHash: _joinCodeHash,
+  joinCode: _joinCode,
   publicationEpoch: _publicationEpoch,
   maxParticipants,
   ...record

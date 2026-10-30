@@ -162,6 +162,24 @@ public sealed class QuestPresentationUiVisualTests
                         gesture + " " + skin.name + " is outside the camera view.");
                 }
                 Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "guide-" + gesture + ".png"));
+                if (gesture == Unframe.Presentation.GestureKind.SpreadHands)
+                {
+                    Color32[] withArms = pixels.GetPixels32();
+                    foreach (SkinnedMeshRenderer skin in skins) skin.enabled = false;
+                    Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "guide-label-reference.png"));
+                    Color32[] reference = pixels.GetPixels32();
+                    int glyphPixels = 0, visibleGlyphPixels = 0;
+                    for (int i = 0; i < reference.Length; i++)
+                    {
+                        if (reference[i].r < 220 || reference[i].g < 220 || reference[i].b < 220) continue;
+                        glyphPixels++;
+                        if (withArms[i].r >= 210 && withArms[i].g >= 210 && withArms[i].b >= 210) visibleGlyphPixels++;
+                    }
+                    Assert.That(glyphPixels, Is.GreaterThan(100));
+                    Assert.That(visibleGlyphPixels, Is.GreaterThanOrEqualTo(glyphPixels * .95f),
+                        "The animated arms must not cover the instruction glyphs.");
+                    foreach (SkinnedMeshRenderer skin in skins) skin.enabled = true;
+                }
             }
 
         }

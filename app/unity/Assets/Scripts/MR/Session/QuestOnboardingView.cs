@@ -20,6 +20,9 @@ namespace Unframe.Unity.PresentationRuntime
         private Image leftAim, rightAim;
         private QuestOnboardingAuthorization authorization;
         private QuestOnboardingPresentation[] presentations = Array.Empty<QuestOnboardingPresentation>();
+        private QuestOnboardingRoom[] ownedRooms = Array.Empty<QuestOnboardingRoom>();
+        private string nextRoomCursor;
+        private int roomListPage;
         private QuestOnboardingPresentation selected;
         private QuestOnboardingRoom room;
         private CancellationTokenSource cancellation = new CancellationTokenSource();
@@ -40,11 +43,20 @@ namespace Unframe.Unity.PresentationRuntime
         public void Refresh() => Draw();
         public event Action Completed;
         public bool NeedsReauthentication => api != null && room != null
-            && (!api.IsAuthenticated || entry?.LastErrorCode == "authentication-required");
+            && flow.Role == QuestOnboardingRole.Presenter && (!api.IsAuthenticated || entry?.LastErrorCode == "authentication-required");
 
         public async Task RetryConnectionAsync()
         {
+            if (flow.Role == QuestOnboardingRole.Audience && room != null
+                && (!api.HasViewerCredential(room.SessionId) || entry?.LastErrorCode == "authentication-required" || entry?.LastErrorCode == "credential-unavailable"))
+            {
+                CancelOperation(); SetComplete(false); room = null;
+                flow.GoTo(QuestOnboardingPage.Join);
+                message = "参加資格を確認できません。もう一度匿名で参加してください。";
+                Draw(); await stopTask; return;
+            }
             if (!NeedsReauthentication) { if (session != null) await session.RetryAsync(); return; }
+            api.ForgetAuthentication();
             CancelOperation(false);
             SetComplete(false); authorization = null; ownsConnection = false;
             flow.RequireAuthentication();
@@ -92,14 +104,26 @@ namespace Unframe.Unity.PresentationRuntime
         private void CancelOperation(bool disconnect = true)
         {
             revision++; cancellation.Cancel(); cancellation.Dispose(); cancellation = new CancellationTokenSource(); busy = false;
-            if (disconnect && ownsConnection && session != null) { ownsConnection = false; stopTask = session.ExitAsync(); }
+            if (disconnect) stopTask = StopManagedConnectionAsync();
+        }
+
+        private async Task StopManagedConnectionAsync()
+        {
+            var stoppingApi = api;
+            try
+            {
+                if (ownsConnection && session != null) { ownsConnection = false; await session.ExitAsync(); }
+            }
+            finally { if (stoppingApi != null) await stoppingApi.LeaveViewerAsync(CancellationToken.None); }
         }
 
         private void Back()
         {
             if (flow.IsReturningToRoom) { ResetFlow(); return; }
             CancelOperation(flow.Page != QuestOnboardingPage.Ready); message = "";
+            bool existing = flow.Page == QuestOnboardingPage.Preparation && selected == null && room != null;
             flow.Back();
+            if (existing) flow.GoTo(QuestOnboardingPage.Rooms);
             Draw();
         }
 
@@ -167,8 +191,40 @@ namespace Unframe.Unity.PresentationRuntime
                     Button("Continue", "このルームに進む", 0, -190, 820, () =>
                     {
                         if (roomCode.Length != 8) { message = "8 桁のルームコードを入力してください"; Draw(); return; }
-                        flow.GoTo(api?.IsAuthenticated == true ? QuestOnboardingPage.Join : QuestOnboardingPage.Authentication); Draw();
+                        flow.GoTo(QuestOnboardingPage.Join); Draw();
                     });
+                    break;
+                case QuestOnboardingPage.Rooms:
+                    Title("ルームを選ぶ", "作成済みのルームを開くか、新しく作成できます");
+                    int roomFirst = roomListPage * 3;
+                    for (int i = roomFirst; i < Math.Min(roomFirst + 3, ownedRooms.Length); i++)
+                    {
+                        QuestOnboardingRoom item = ownedRooms[i];
+                        string name = "Room " + i;
+                        Button(name, item.SessionId + " · " + item.State, 0, 120 - (i - roomFirst) * 80, 900, () => Run(async token =>
+                        {
+                            var opened = await api.OpenRoomAsync(item.SessionId, token); token.ThrowIfCancellationRequested();
+                            selected = null; room = opened; sessionStarted = opened.State == "Presenting";
+                            flow.GoTo(QuestOnboardingPage.Preparation);
+                        }), false, 74, 25);
+                        FindButton(name).interactable &= item.State != "Ended";
+                    }
+                    if (ownedRooms.Length == 0) Label("Empty rooms", "作成したルームはありません", new Vector2(0, 70), new Vector2(920, 90), 28, QuestUiTheme.Muted);
+                    Button("RefreshRooms", "更新", -320, -120, 220, () => Run(LoadRooms), false, 60, 24);
+                    if (roomFirst > 0) Button("PreviousRooms", "前へ", 0, -120, 220, () => { roomListPage--; Draw(); }, false, 60, 24);
+                    if (roomFirst + 3 < ownedRooms.Length || nextRoomCursor != null)
+                        Button("MoreRooms", "次へ", 320, -120, 220, () => Run(async token =>
+                        {
+                            while (nextRoomCursor != null && roomFirst + 6 > ownedRooms.Length) await LoadMoreRooms(token);
+                            token.ThrowIfCancellationRequested();
+                            if (roomFirst + 3 < ownedRooms.Length) roomListPage++;
+                        }), false, 60, 24);
+                    Button("NewRoom", "資料を選んで新規作成", 0, -190, 820, () => Run(async token =>
+                    {
+                        room = null; selected = null; sessionStarted = false;
+                        await LoadPresentations(token); token.ThrowIfCancellationRequested();
+                        flow.GoTo(QuestOnboardingPage.Presentations);
+                    }), false, 60, 25);
                     break;
                 case QuestOnboardingPage.Presentations:
                     Title("資料を選ぶ", "発表するプレゼンテーションを選択してください");
@@ -186,7 +242,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (first + 3 < presentations.Length) Button("More", "次のページ", 300, -185, 300, () => { listPage++; Draw(); }, false);
                     break;
                 case QuestOnboardingPage.Preparation:
-                    Title("発表の準備", selected?.Title ?? "資料を選択してください");
+                    Title("発表の準備", selected?.Title ?? room?.SessionId ?? "資料を選択してください");
                     Label("Room", room == null ? "準備ができたらルームを作成します" : "共有するルームコード\n" + SharedRoomCode, new Vector2(0, 70), new Vector2(920, 150), 32, QuestUiTheme.Primary);
                     Button("Prepare", room == null ? "ルームを作成して接続" : "準備を再試行", 0, -110, 820, () => Run(Prepare));
                     break;
@@ -254,8 +310,23 @@ namespace Unframe.Unity.PresentationRuntime
         private async Task AfterAuthentication(CancellationToken token)
         {
             if (flow.IsReturningToRoom) { await Connect(token); token.ThrowIfCancellationRequested(); return; }
-            if (flow.Role == QuestOnboardingRole.Presenter) { await LoadPresentations(token); token.ThrowIfCancellationRequested(); flow.GoTo(QuestOnboardingPage.Presentations); }
+            if (flow.Role == QuestOnboardingRole.Presenter) { await LoadRooms(token); token.ThrowIfCancellationRequested(); flow.GoTo(QuestOnboardingPage.Rooms); }
             else flow.GoTo(QuestOnboardingPage.Join);
+        }
+        private async Task LoadRooms(CancellationToken token)
+        {
+            if (api == null) return;
+            var result = await api.ListRoomsAsync(token); token.ThrowIfCancellationRequested();
+            ownedRooms = result.Rooms; nextRoomCursor = result.NextCursor; roomListPage = 0;
+        }
+        private async Task LoadMoreRooms(CancellationToken token)
+        {
+            if (api == null || nextRoomCursor == null) return;
+            var result = await api.ListRoomsAsync(token, nextRoomCursor); token.ThrowIfCancellationRequested();
+            var combined = new QuestOnboardingRoom[ownedRooms.Length + result.Rooms.Length];
+            Array.Copy(ownedRooms, combined, ownedRooms.Length);
+            Array.Copy(result.Rooms, 0, combined, ownedRooms.Length, result.Rooms.Length);
+            ownedRooms = combined; nextRoomCursor = result.NextCursor;
         }
         private async Task LoadPresentations(CancellationToken token)
         {
@@ -264,7 +335,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private async Task Prepare(CancellationToken token)
         {
-            if (selected == null || api == null) return;
+            if (api == null || selected == null && room == null) return;
             if (room == null) { var created = await api.CreateSessionAsync(selected.Id, token); token.ThrowIfCancellationRequested(); room = created; }
             await api.PrepareRuntimeAsync(room.SessionId, token);
             await Connect(token);
@@ -272,6 +343,9 @@ namespace Unframe.Unity.PresentationRuntime
         private async Task Join(CancellationToken token)
         {
             if (api == null) return;
+            await stopTask; token.ThrowIfCancellationRequested();
+            stopTask = StopManagedConnectionAsync();
+            await stopTask; token.ThrowIfCancellationRequested();
             var joined = await api.JoinSessionAsync(FormatRoomCode(), token); token.ThrowIfCancellationRequested(); room = joined;
             await Connect(token);
         }
@@ -280,14 +354,23 @@ namespace Unframe.Unity.PresentationRuntime
             await stopTask; token.ThrowIfCancellationRequested();
             if (!ownsConnection || !entry.IsRunning || entry.ConnectionStage == PresentationConnectionStage.Failed)
             {
-                session.ConfigureConnection(api.Origin, room.SessionId, api.CredentialAsync, managedByOnboarding: true);
+                string connectingId = room.SessionId;
+                Func<CancellationToken, Task<string>> provider = flow.Role == QuestOnboardingRole.Audience
+                    ? token => api.ViewerCredentialAsync(connectingId, token) : api.CredentialAsync;
+                session.ConfigureConnection(api.Origin, connectingId, provider, managedByOnboarding: true,
+                    leaseProvider: flow.Role == QuestOnboardingRole.Audience
+                        ? token => api.AcquireViewerCredentialAsync(connectingId, token) : (Func<CancellationToken, Task<PresentationCredentialLease>>)null);
                 ownsConnection = true;
                 await session.ConnectAsync(); token.ThrowIfCancellationRequested();
+                if (!String.IsNullOrEmpty(session.LastErrorCode)) throw new InvalidOperationException(session.LastErrorCode);
             }
             DateTime deadline = DateTime.UtcNow.AddSeconds(30);
             while (!entry.ControlReady && entry.ConnectionStage != PresentationConnectionStage.Failed && DateTime.UtcNow < deadline)
                 await Task.Delay(100, token);
             token.ThrowIfCancellationRequested();
+            if (!entry.ControlReady && flow.Role == QuestOnboardingRole.Audience && (!api.HasViewerCredential(room.SessionId)
+                || entry.LastErrorCode == "authentication-required" || entry.LastErrorCode == "credential-unavailable"))
+                throw new QuestOnboardingApiException("viewer-authentication-required");
             if (!entry.ControlReady && NeedsReauthentication) throw new QuestOnboardingApiException("authentication-required");
             if (!entry.ControlReady) { message = "ルームの準備を待っています。しばらくして接続を確認してください。"; return; }
             if ((flow.Role == QuestOnboardingRole.Presenter) != entry.IsPresenter) throw new InvalidOperationException("role-mismatch");
@@ -303,15 +386,31 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 if (current == revision)
                 {
-                    if (exception.Code == "authentication-required" || exception.Code == "authorization-expired" || exception.Code == "authorization-denied")
+                    if (flow.Role == QuestOnboardingRole.Audience)
+                    {
+                        stopTask = StopManagedConnectionAsync(); await stopTask;
+                        if (current != revision) return;
+                        room = null; flow.GoTo(QuestOnboardingPage.Join);
+                    }
+                    else if (exception.Code == "authentication-required" || exception.Code == "authorization-expired" || exception.Code == "authorization-denied")
                     {
                         authorization = null;
                         if (room != null) flow.RequireAuthentication(); else flow.GoTo(QuestOnboardingPage.Authentication);
                     }
-                    message = "承認またはルームの状態を確認して、もう一度お試しください。";
+                    message = flow.Role == QuestOnboardingRole.Audience
+                        ? "ルームの状態を確認して、もう一度匿名で参加してください。"
+                        : "承認またはルームの状態を確認して、もう一度お試しください。";
                 }
             }
-            catch (Exception) { if (current == revision) message = "処理が完了しませんでした。接続先・承認状態・ルームの準備を確認して再試行してください。"; }
+            catch (Exception)
+            {
+                if (current == revision)
+                {
+                    if (flow.Role == QuestOnboardingRole.Audience && flow.Page == QuestOnboardingPage.Join)
+                    { stopTask = StopManagedConnectionAsync(); await stopTask; if (current != revision) return; room = null; }
+                    message = "処理が完了しませんでした。接続先・承認状態・ルームの準備を確認して再試行してください。";
+                }
+            }
             finally { if (current == revision && this != null) { busy = false; Draw(); } }
         }
         private string FormatRoomCode() => roomCode.Length <= 4 ? roomCode : roomCode.Substring(0, 4) + "-" + roomCode.Substring(4);
@@ -385,7 +484,10 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void Update()
         {
-            if (IsComplete && !busy && NeedsReauthentication) { _ = RetryConnectionAsync(); return; }
+            bool viewerExpired = flow.Role == QuestOnboardingRole.Audience && room != null && api != null
+                && (flow.Page == QuestOnboardingPage.Calibration || flow.Page == QuestOnboardingPage.Ready || IsComplete)
+                && (!api.HasViewerCredential(room.SessionId) || entry?.LastErrorCode == "authentication-required" || entry?.LastErrorCode == "credential-unavailable");
+            if (!busy && (IsComplete && NeedsReauthentication || viewerExpired)) { _ = RetryConnectionAsync(); return; }
             bool valid = calibration?.Calibration?.IsValid == true;
             bool canAdvance = CanAdvance;
             if ((valid != lastCalibrationValid || canAdvance != lastCanAdvance)

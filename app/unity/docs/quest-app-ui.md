@@ -8,17 +8,17 @@
 `Unframe > Presentation > Open Quest Presentation` でシーンを開き、Playすると役割選択から始まります。
 既存シーンはSession.Startで入口を構成するため、シーンの再生成は不要です。
 
-- 発表者：役割選択 → スマホ/PCで端末コードを承認 → 資料選択 → ルーム作成・接続待ち → 位置合わせ → 発表開始。
-- 観客：役割選択 → ルームコード入力 → 未認証なら端末コードを承認 → 参加確認 → 位置合わせ → 鑑賞。
+- 発表者：役割選択 → 必要ならスマホ/PCで端末コードを承認 → 所有ルーム一覧 → 既存ルームを選択、または資料を選んで新規作成 → 発表環境の準備・接続 → 位置合わせ → 発表開始。
+- 観客：役割選択 → ルームコード入力 → 匿名で参加確認 → 位置合わせ → 鑑賞。アカウント登録・端末承認は不要です。
 
-観客にも既存Control Planeの認証が必要です。役割選択は希望する導線を選ぶもので、
+発表者は作成者アカウント、観客はRoomに紐づく匿名Viewer資格を使います。保存済みのアカウントがあっても観客参加では利用しません。
 権限は接続後にサーバーが返すPresenter/Viewerと照合します。
 端末認証コードはスマホ側の `/device` に入力し、ルームコードはQuest側へ入力します。
 認証トークンを利用者が手入力する必要はありません。
 
 画面はMaterial 3の色の役割と角丸形状を参考にしたラベンダー/紫のテーマです。
 役割選択から、発表する操作と共有コードで鑑賞する操作を選びます。
-各階層はひとつの判断に絞り、資料一覧は3件ずつ表示します。
+各階層はひとつの判断に絞り、資料と所有ルームの一覧は3件ずつ表示します。所有ルームは続きのページも取得できます。
 Questではコントローラーの照準＋トリガー、EditorではGameビューのマウスで操作します。
 ルームコードは画面内キーボードで入力できます。
 位置合わせ画面では、マーカーの確認中か位置合わせ済みかを表示します。
@@ -31,11 +31,13 @@ Questではコントローラーの照準＋トリガー、EditorではGameビ�
 `Control Plane Endpoint`、`Web Endpoint`、`Device Client Id` を設定します。
 両endpointはHTTPSのorigin、client IDは接続先の `DEVICE_CLIENT_ID` と同じ値です
 （開発設定の例は `unframe-unity`）。接続設定はアプリに組み込み、利用者向けUIには表示しません。
-認証情報はメモリだけに保持します。追跡済みQuestPresentationSceneは `https://api.un-fra.me`、`https://un-fra.me`、`unframe-unity` を設定しています。別環境へ配布する場合は3項目をその環境に揃えてください。
+Androidでは承認後のアカウントtokenと応答の `expires_in` から算出した期限をAndroid KeystoreのAES/GCM鍵で暗号化し、アプリ内部のバックアップ対象外ファイルへ保存します。API origin・client IDごとに分離し、再起動時に復元します。期限切れ・401では破棄して再承認し、利用時に保存期限を延長しません。Editorでは永続保存しません。匿名Viewer資格はメモリだけに置き、期限前に更新し、退出・取消・破棄時に失効を要求します。ネットワーク断で応答を得られない場合の即時失効は保証できません。
+
+追跡済みQuestPresentationSceneは `https://api.un-fra.me`、`https://un-fra.me`、`unframe-unity` を設定しています。別環境へ配布する場合は3項目をその環境に揃えてください。
 
 資料一覧・ルーム作成/参加/開始は実際のControl Plane APIを使います。
 ただし、現行サーバーの新規ルーム作成はRuntimeの自動割り当てを行いません。
-別途Runtime assignmentと稼働中のRealtimeが必要で、未準備時は接続待ちとして表示します。
+発表者は選択したRoomの発表環境を準備し、稼働確認後に接続します。利用可能なRuntime Hostがない場合は同じRoomで準備を再試行します。
 再試行時に同じ資料のルームを重複作成しません。
 
 ### マーカーサイズの切替
@@ -61,7 +63,7 @@ APKだけ作る場合は `Build Quest Development APK` です。出力は `Build
 - 「設定」の「発表を終了」はルーム全体の再生終了です。確認画面で確定します。
 - 「設定」の「到達済みの Step」から直近の開始状態へ戻せます。復元後は一時停止し、明示的な再開を待ちます。
 - B/Yまたは「位置合わせ」でマーカー校正をやり直します。カメラ権限が不足するときは「カメラを許可」を表示します。
-- 技術的な状態・安全なエラーコード・再接続は「設定」にまとめます。credentialは表示・保存しません。
+- 技術的な状態・安全なエラーコード・再接続は「設定」にまとめます。credentialは画面・診断ログ・Sceneに含めません。
 - 観客のViewer roleでは発表者用ボタンと技術詳細を隠し、鑑賞メニューには位置合わせ・必要な再接続・自身の接続解除だけを残します。準備完了時は資料のみ表示します。
 - 操作メニューを閉じると、背景の資料へのray入力を遮りません。Runtimeの権限・校正・同期の条件は変えません。
 
@@ -85,7 +87,7 @@ trigger: {
 
 Gesture は `swipeLeft` / `swipeRight` / `swipeDown` / `swipeUp` / `pushForward` / `pullBackward` / `spreadHands` / `closeHands` の8種類です。片手動作は左右どちらでも同じ種類として扱い、距離・時間窓・手の指定は Authoring に持たせません。`examples/presentation` はクリックまたは左スワイプで同じ次の状態へ進む例です。
 
-Presenter 用の `PresenterRecognitionCatalog` から Gesture 候補を読み、左右独立の腕モデルのアニメーションと日本語の説明で案内します。複数候補は6秒ごとに切り替えます。腕は操作の見本で、実際の手の追跡表示ではありません。案内は視線の方向と頭の移動に滑らかに追従し、「左へ薙ぎ払う」「振りかぶる」などの短い一言で動作を示します。
+Presenter 用の `PresenterRecognitionCatalog` から Gesture 候補を読み、左右独立の腕モデルのアニメーションと日本語の説明で案内します。複数候補は6秒ごとに切り替えます。腕は操作の見本で、実際の手の追跡表示ではありません。説明パネルは透明な腕モデルより後に描画し、動作中も文字を読めるようにします。案内は視線の方向と頭の移動に滑らかに追従し、「左へ薙ぎ払う」「振りかぶる」などの短い一言で動作を示します。
 
 提供モデル `LowPolyArms10.fbx` を左右に分離した `Resources/PresentationUi/MotionArms/LowPolyArmLeft.fbx` と `LowPolyArmRight.fbx` を使用します。各モデルは Root と片腕18本のボーン、元のウェイトを保持しています。実行時は `Resources/PresentationUi/MotionArms/Editable/LeftMotionArm.prefab` と `RightMotionArm.prefab` の Animator で、左右8種類ずつの標準Animationクリップを再生します。片手動作は追跡できる手を1本、両手動作は2本を表示します。
 
@@ -120,10 +122,9 @@ Meta公式の[カメラ対応条件](https://developers.meta.com/vr/documentatio
 
 ## 検証
 
-今回の入口変更はUnity Test RunnerのEditModeで `QuestOnboardingFlowTests`、`QuestOnboardingApiTests`、
-`QuestOnboardingVisualTests` と既存の `QuestPresentationStatusViewTests` に絞って検証します。
+`QuestRoomParticipationTests` は承認後の保存・復元、期限切れ・失効、所有Room選択、匿名資格の更新と退出・取消・破棄の競合を検証します。関連する入口・開始・復旧はUnity Test RunnerのEditModeで確認します。
 `QuestPresentationUiVisualTests` は日本語フォントと実URPでメニューを描画し、見切れを検証してPNGを出力します。
-これらのEditor試験はQuest実機の快適性や認識精度の代替ではありません。
+Android Keystore／JNIとQuestからの実接続は実機受入が必要です。Linuxのheadless Editorでは、`QuestOnboardingExperienceTests` の `AlignmentCannotAdvanceBeforeCalibrationAndConnectionAreReady` と `StartCannotBePressedBeforeReadiness` がPlay Mode移行後の `OVRPlugin` 不在で失敗します。これらのEditor試験はQuest実機の快適性や認識精度の代替ではありません。
 
 デザイン参考：[Material 3 Color roles](https://m3.material.io/styles/color/the-color-system)、[Material 3のテーマ設計](https://developer.android.com/codelabs/m3-design-theming)。
 
@@ -139,4 +140,4 @@ Meta公式の[カメラ対応条件](https://developers.meta.com/vr/documentatio
 
 回帰条件は `QuestOnboardingStartApiTests`、`QuestOnboardingFlowTests`、`QuestPresentationSessionTests` で検証します。
 
-認証期限切れまたはサーバーの認証拒否時は、元のルームと役割を保持して再承認画面へ戻ります。再承認後は同じSessionへ再接続し、校正と準備状態を確認します。再承認画面から「戻る」を選ぶとルームの保持を解除し、役割選択へ戻ります。`QuestOnboardingRecoveryTests` がこの回帰条件です。
+発表者の認証期限切れまたはサーバーの認証拒否時は、元のルームと役割を保持して再承認画面へ戻ります。再承認後は同じSessionへ再接続し、校正と準備状態を確認します。再承認画面から「戻る」を選ぶとルームの保持を解除し、役割選択へ戻ります。匿名Viewerの資格を失った場合は端末承認を要求せず、入力済みコードの参加確認へ戻ります。`QuestOnboardingRecoveryTests` がこの回帰条件です。

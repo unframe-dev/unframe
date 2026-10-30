@@ -15,6 +15,9 @@ import {
   createSessionRoute,
   endSessionRoute,
   getSessionRoute,
+  listSessionsRoute,
+  getSessionJoinCodeRoute,
+  rotateSessionJoinCodeRoute,
   joinSessionRoute,
   startSessionRoute,
 } from "../../openapi";
@@ -68,6 +71,10 @@ export function createSessionRoutes(options: SessionRouteOptions) {
         ? undefined
         : context.json({ error: { code: "validation_error", message: "Invalid request" } }, 400),
   });
+  app.use("/sessions*", async (context, next) => {
+    context.header("Cache-Control", "no-store");
+    await next();
+  });
   const now = options.now ?? (() => new Date());
   const dependencies = (context: AppContext): RouteDependencies => {
     const config = context.get("config");
@@ -97,7 +104,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
   ) => {
     const viewerAllowed =
       context.req.path === "/sessions/join" ||
-      context.req.method === "GET" ||
+      (context.req.method === "GET" && /^\/sessions\/[^/]+$/.test(context.req.path)) ||
       context.req.path.endsWith("/bootstrap");
     const identity =
       viewerAllowed && viewerToken(context)
@@ -124,6 +131,25 @@ export function createSessionRoutes(options: SessionRouteOptions) {
     }
   };
   return app
+    .openapi(listSessionsRoute, async (context) => {
+      const query = context.req.valid("query");
+      const result = await execute(context, (identity, { service }) =>
+        service.list(identity, query.limit, query.cursor),
+      );
+      return context.json(result, 200);
+    })
+    .openapi(getSessionJoinCodeRoute, async (context) => {
+      const result = await execute(context, (identity, { service }) =>
+        service.getJoinCode(identity, context.req.valid("param").id),
+      );
+      return context.json(result, 200);
+    })
+    .openapi(rotateSessionJoinCodeRoute, async (context) => {
+      const result = await execute(context, (identity, { service }) =>
+        service.rotateJoinCode(identity, context.req.valid("param").id),
+      );
+      return context.json(result, 200);
+    })
     .openapi(createSessionRoute, async (context) => {
       const result = await execute(context, (identity, { service }) =>
         service.create(identity, context.req.valid("json").presentationId),
