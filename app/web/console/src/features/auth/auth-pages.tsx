@@ -1,10 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { GoogleLogoIcon } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { controlPlaneAuth } from "@/features/auth/control-plane-auth";
+import googleLogoUrl from "./google-g.png?url";
 import { BrandLink } from "@/shared/brand/brand-link";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -53,8 +53,20 @@ function GoogleSignIn({ label }: { label: string }) {
   };
   return (
     <>
-      <Button type="button" disabled={loading} onClick={() => void signIn()}>
-        <GoogleLogoIcon aria-hidden="true" />
+      <Button
+        type="button"
+        variant="outline"
+        className="bg-white text-[#1f1f1f] hover:bg-white hover:text-[#1f1f1f]"
+        disabled={loading}
+        onClick={() => void signIn()}
+      >
+        <img
+          src={googleLogoUrl}
+          alt=""
+          width={20}
+          height={20}
+          className="size-5 shrink-0 object-contain"
+        />
         {loading ? "Google に接続中…" : label}
       </Button>
       {message ? (
