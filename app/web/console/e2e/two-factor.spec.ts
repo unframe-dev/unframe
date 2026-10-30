@@ -14,6 +14,8 @@ test("optional two-factor authentication can be enabled and disabled from the ac
   await page.route("**/api/auth/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     switch (path) {
+      case "/api/auth/list-accounts":
+        return route.fulfill({ json: [{ id: "account-1", providerId: "credential" }] });
       case "/api/auth/get-session":
         return route.fulfill({
           json: {
@@ -63,7 +65,9 @@ test("optional two-factor authentication can be enabled and disabled from the ac
   const section = page.getByRole("region", { name: "二要素認証", exact: true });
   await expect(section.getByText("未設定", { exact: true })).toBeVisible();
   await expect(
-    section.getByText("任意で設定できます。ログイン時に認証アプリのコードを追加します。"),
+    section.getByText(
+      "メールアドレスとパスワードでのログインに、任意で認証アプリのコードを追加します。",
+    ),
   ).toBeVisible();
   await expect(section.getByRole("button", { name: "二要素認証を無効化" })).toHaveCount(0);
   await section.getByLabel("現在のパスワード", { exact: true }).fill("wrong-password");

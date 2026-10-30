@@ -23,6 +23,9 @@ const auth = controlPlaneAuth;
 type SessionUser = NonNullable<Awaited<ReturnType<typeof auth.getSession>>["data"]>["user"];
 type AuthResult = { error: unknown | null };
 type DeviceSession = NonNullable<Awaited<ReturnType<typeof auth.listSessions>>["data"]>[number];
+type SecurityAccountState =
+  | { status: "loading" | "error" }
+  | { status: "ready"; user: SessionUser; hasPassword: boolean; googleLinked: boolean };
 
 export function ProfilePage() {
   const [user, setUser] = useState<SessionUser>();
@@ -170,7 +173,34 @@ function ProfileIcon({ image, name }: { image: string; name: string }) {
 
 export function SecurityPage() {
   const [state, setState] = useState("");
+  const [account, setAccount] = useState<SecurityAccountState>({ status: "loading" });
+  const [retry, setRetry] = useState(0);
   const [sessions, setSessions] = useState<DeviceSession[] | null>(null);
+  useEffect(() => {
+    let active = true;
+    setAccount({ status: "loading" });
+    void Promise.all([auth.getSession(), auth.listAccounts()]).then(
+      ([session, accounts]) => {
+        if (!active) return;
+        if (session.error || !session.data || accounts.error || !accounts.data) {
+          setAccount({ status: "error" });
+          return;
+        }
+        setAccount({
+          status: "ready",
+          user: session.data.user,
+          hasPassword: accounts.data.some((value) => value.providerId === "credential"),
+          googleLinked: accounts.data.some((value) => value.providerId === "google"),
+        });
+      },
+      () => {
+        if (active) setAccount({ status: "error" });
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [retry]);
   const perform = async (task: () => Promise<AuthResult>, success: string) => {
     setState("処理中…");
     const result = await task();
@@ -187,16 +217,39 @@ export function SecurityPage() {
       <header className={styles.heading}>
         <div className={styles.headingCopy}>
           <h1>セキュリティー</h1>
-          <p>重要な操作には現在のパスワードでの再認証が必要です。</p>
+          <p>ログイン方法と認証設定を管理します。</p>
         </div>
       </header>
-      <section className={styles.section}>
-        <header className={styles.sectionHeading}>
-          <h2>パスワード</h2>
-        </header>
-        <PasswordChange perform={perform} />
-      </section>
-      <TwoFactorSettings />
+      {account.status === "loading" ? <p role="status">認証設定を読み込み中…</p> : null}
+      {account.status === "error" ? (
+        <div>
+          <p role="alert" className={styles.error}>
+            認証設定を読み込めませんでした。
+          </p>
+          <Button variant="outline" onClick={() => setRetry((value) => value + 1)}>
+            再試行
+          </Button>
+        </div>
+      ) : null}
+      {account.status === "ready" ? (
+        <>
+          <section className={styles.section} aria-labelledby="password-heading">
+            <header className={styles.sectionHeading}>
+              <h2 id="password-heading">パスワード</h2>
+            </header>
+            {account.hasPassword ? (
+              <PasswordChange perform={perform} />
+            ) : (
+              <PasswordSetup email={account.user.email} />
+            )}
+          </section>
+          <TwoFactorSettings
+            initialEnabled={Boolean(account.user.twoFactorEnabled)}
+            hasPassword={account.hasPassword}
+            googleLinked={account.googleLinked}
+          />
+        </>
+      ) : null}
       <section className={styles.section}>
         <header className={styles.sectionHeading}>
           <h2>セッション</h2>
@@ -226,6 +279,42 @@ export function SecurityPage() {
       </section>
       {state ? <p role="status">{state}</p> : null}
     </main>
+  );
+}
+function PasswordSetup({ email }: { email: string }) {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const send = async () => {
+    setState("sending");
+    try {
+      const result = await auth.requestPasswordReset({
+        email,
+        redirectTo: new URL("/recover/reset", window.location.origin).href,
+      });
+      setState(result.error ? "error" : "sent");
+    } catch {
+      setState("error");
+    }
+  };
+  return (
+    <div className={moduleStyles["securityEditor"]}>
+      <p>Unframe用のパスワードは未設定です。</p>
+      <p>
+        パスワードでのログインも利用する場合は、登録メールアドレスに設定メールを送信してください。
+      </p>
+      <Button disabled={state === "sending" || state === "sent"} onClick={() => void send()}>
+        {state === "sending" ? "送信中…" : "パスワード設定メールを送信"}
+      </Button>
+      {state === "sent" ? (
+        <p role="status">
+          設定メールを送信しました。メール内のリンクからパスワードを設定してください。
+        </p>
+      ) : null}
+      {state === "error" ? (
+        <p role="alert" className={styles.error}>
+          設定メールを送信できませんでした。もう一度お試しください。
+        </p>
+      ) : null}
+    </div>
   );
 }
 function PasswordChange({

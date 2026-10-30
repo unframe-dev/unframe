@@ -59,16 +59,16 @@
 .error {
   color: #9e3039;
 }
-.twoFactor {
+.securityEditor {
   display: grid;
   gap: 24px;
   min-width: 0;
   max-width: 560px;
 }
-.twoFactor > p {
+.securityEditor > p {
   margin: 0;
 }
-.twoFactor > button {
+.securityEditor > button {
   justify-self: start;
 }
 .sectionHeading p {

@@ -799,6 +799,108 @@ describe("Better Auth device authorization", () => {
         .bind(signedUp.user.id)
         .first(),
     ).toMatchObject({ userId: signedUp.user.id, assurance: "google" });
+    const accountsResponse = await requestWithAuth(setup.auth, "/list-accounts", {
+      headers: { cookie: responseCookie(callback) },
+    });
+    expect(accountsResponse.status).toBe(200);
+    const accounts = (await accountsResponse.json()) as { providerId: string }[];
+    expect(accounts.map((account) => account.providerId).sort()).toEqual(["credential", "google"]);
+  });
+
+  it("sets an initial password through email recovery for a Google user and enrolls MFA", async () => {
+    const setup = mailbox();
+    const email = `${crypto.randomUUID()}@example.com`;
+    const password = "initial-password-with-enough-length";
+    const callback = await completeGoogleSignIn(setup.auth, email);
+    expect(callback.status).toBe(302);
+    const googleCookie = responseCookie(callback);
+    const initialAccounts = await requestWithAuth(setup.auth, "/list-accounts", {
+      headers: { cookie: googleCookie },
+    });
+    expect(initialAccounts.status).toBe(200);
+    const googleAccounts = (await initialAccounts.json()) as { providerId: string }[];
+    expect(googleAccounts.map((account) => account.providerId)).toEqual(["google"]);
+
+    const requested = await requestWithAuth(setup.auth, "/request-password-reset", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: googleCookie,
+        origin: "https://un-fra.me",
+      },
+      body: JSON.stringify({ email, redirectTo: "https://un-fra.me/reset" }),
+    });
+    expect(requested.status).toBe(200);
+    expect(setup.messages).toHaveLength(1);
+    expect(setup.messages[0]?.to).toBe(email);
+    const resetLink = new URL(setup.messages[0]!.text.match(/https:\/\/[^\s]+/)![0]);
+    const followed = await requestWithAuth(
+      setup.auth,
+      `${resetLink.pathname.slice("/api/auth".length)}${resetLink.search}`,
+    );
+    expect(followed.status).toBe(302);
+    const resetPage = new URL(followed.headers.get("location")!);
+    expect(`${resetPage.origin}${resetPage.pathname}`).toBe("https://un-fra.me/reset");
+    const reset = await requestWithAuth(setup.auth, "/reset-password", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: resetPage.searchParams.get("token"), newPassword: password }),
+    });
+    expect(reset.status).toBe(200);
+    expect((await presentationsWith({ cookie: googleCookie })).status).toBe(401);
+    expect(
+      (await requestWithAuth(setup.auth, "/list-accounts", { headers: { cookie: googleCookie } }))
+        .status,
+    ).toBe(401);
+
+    const signedIn = await requestWithAuth(setup.auth, "/sign-in/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    expect(signedIn.status).toBe(200);
+    const passwordCookie = responseCookie(signedIn);
+    expect((await presentationsWith({ cookie: passwordCookie })).status).toBe(200);
+    const linkedAccounts = await requestWithAuth(setup.auth, "/list-accounts", {
+      headers: { cookie: passwordCookie },
+    });
+    expect(linkedAccounts.status).toBe(200);
+    const accounts = (await linkedAccounts.json()) as { providerId: string }[];
+    expect(accounts.map((account) => account.providerId).sort()).toEqual(["credential", "google"]);
+
+    const enabled = await requestWithAuth(setup.auth, "/two-factor/enable", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: passwordCookie,
+        origin: "https://un-fra.me",
+      },
+      body: JSON.stringify({ password }),
+    });
+    expect(enabled.status).toBe(200);
+    const enrollment = (await enabled.json()) as { totpURI: string };
+    const verified = await requestWithAuth(setup.auth, "/two-factor/verify-totp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: passwordCookie,
+        origin: "https://un-fra.me",
+      },
+      body: JSON.stringify({ code: await totpCode(enrollment.totpURI) }),
+    });
+    expect(verified.status).toBe(200);
+    const session = await requestWithAuth(setup.auth, "/get-session", {
+      headers: { cookie: responseCookie(verified) },
+    });
+    await expect(session.json()).resolves.toMatchObject({
+      user: { email, emailVerified: true, twoFactorEnabled: true },
+    });
+  });
+
+  it("requires a current session to list linked accounts", async () => {
+    const response = await requestAuth("/list-accounts");
+
+    expect(response.status).toBe(401);
   });
 
   it("starts Google sign-in at Better Auth's provider route with the configured callback URL", async () => {

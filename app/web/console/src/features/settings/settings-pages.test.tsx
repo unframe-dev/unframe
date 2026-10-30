@@ -5,6 +5,7 @@ import { ProfilePage, SecurityPage } from "./settings-pages";
 
 const auth = vi.hoisted(() => ({
   getSession: vi.fn(),
+  listAccounts: vi.fn(),
   updateUser: vi.fn(),
   changePassword: vi.fn(),
   listSessions: vi.fn(),
@@ -100,6 +101,7 @@ describe("ProfilePage", () => {
 });
 describe("SecurityPage", () => {
   it("sets up TOTP, displays backup codes, and lists sessions", async () => {
+    auth.listAccounts.mockResolvedValue({ error: null, data: [{ providerId: "credential" }] });
     auth.getSession.mockResolvedValue({
       error: null,
       data: { user: { twoFactorEnabled: false } },
