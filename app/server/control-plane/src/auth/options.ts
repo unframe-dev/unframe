@@ -55,7 +55,7 @@ export function createAuthOptions(
       enabled: true,
       requireEmailVerification: true,
       sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
-        await mailer({ to: user.email, ...passwordResetEmail(url) });
+        await mailer({ to: user.email, ...(await passwordResetEmail(url)) });
       },
       ...(runtime.onPasswordReset
         ? {
@@ -67,7 +67,7 @@ export function createAuthOptions(
     },
     emailVerification: {
       sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
-        await mailer({ to: user.email, ...verificationEmail(url) });
+        await mailer({ to: user.email, ...(await verificationEmail(url)) });
       },
     },
     user: {
