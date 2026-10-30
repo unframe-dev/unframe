@@ -298,3 +298,14 @@ test("a recovered initial checkpoint may precede the first participant", () => {
   const bytes = encodeWireMessage(type, recovery);
   assert.deepEqual(decodeWireMessage(type, bytes)["participants"], []);
 });
+
+test("recovery metadata preserves a bounded idle timestamp only after a participant connected", () => {
+  const name = "unframe.realtime.RuntimeRecoveryMetadata";
+  const recovery = recoveryMetadata([]);
+  const emptySince = "2026-10-30T00:00:00.000Z";
+  assert.doesNotThrow(() => encodeWireMessage(name, { ...recovery, emptySince }));
+  for (const value of ["", "invalid", "2026-02-31T00:00:00Z", "2020-01-01T00:00:00Z"]) {
+    assert.throws(() => encodeWireMessage(name, { ...recovery, emptySince: value }));
+  }
+  assert.throws(() => encodeWireMessage(name, { ...recovery, participants: [], emptySince }));
+});

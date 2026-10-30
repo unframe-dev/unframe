@@ -56,6 +56,15 @@ test("8文字のルームコードを有効にしてAPI形式で送信する", (
   expect(controller.join).toHaveBeenCalledExactlyOnceWith("ABCD-2345");
 });
 
+test("共有されたルームコードを再入力せず確認して参加できる", () => {
+  const { controller } = makeController();
+  render(<JoinExperience controller={controller} initialJoinCode="ABCD-EFGH" />);
+  expect((screen.getByLabelText("ルームコード") as HTMLInputElement).value).toBe("ABCDEFGH");
+  expect(controller.join).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "参加する" }));
+  expect(controller.join).toHaveBeenCalledExactlyOnceWith("ABCD-EFGH");
+});
+
 test("ハイフン付きコードの貼り付け入力は8文字へ正規化する", () => {
   const { controller } = makeController();
   render(<JoinExperience controller={controller} />);

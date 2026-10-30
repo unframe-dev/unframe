@@ -462,6 +462,7 @@ describe("publication service", () => {
           id: sessionId,
           presentationId: "demo",
           presenterId: owner.userId,
+          joinCode: "ABCD-EFGH",
           joinCodeHash: sessionId,
           state: "Waiting",
           participantCount: 1,

@@ -358,6 +358,7 @@ enum TerminationReason {
   TERMINATION_REASON_EXPLICIT_END = 1;
   TERMINATION_REASON_CONTROL_PLANE_ENDED = 2;
   TERMINATION_REASON_PAUSE_TIMEOUT = 3;
+  TERMINATION_REASON_IDLE_TIMEOUT = 4;
 }
 
 message Running {}
@@ -837,6 +838,7 @@ message RuntimeRecoveryMetadata {
   uint64 command_epoch = 4;
   PresenterInputSynchronization input_synchronization = 5;
   RuntimeCapacityFault capacity_fault = 6;
+  optional string empty_since = 7;
 }
 
 message RuntimeCapacityFault {

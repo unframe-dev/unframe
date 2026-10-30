@@ -1,6 +1,6 @@
 # Console からの Room 管理と参加導線
 
-更新日: 2026-10-30。状態: 基本仕様。レイヤー別詳細計画・追加機能の実装は未着手。Host 容量の設定例変更のみ反映済み。
+更新日: 2026-10-30。状態: Room 管理、Console／Audience の共有導線、Quest の認証保持・参加、無人10分終了を実装。公開環境と実機での受入は未実施。
 
 Console・Quest・Audience・サーバーの実装担当者向けに、Room 作成から認証・参加・共有・終了までの到達点をまとめる。確定した要件と、後続の詳細計画で判断する事項を分ける。
 
@@ -27,11 +27,11 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 
 1. Quest で認証コードを発行し、スマホ / PC の Console で承認する既存の Device Authorization を使う。
 2. Console の「デバイス」画面を一覧画面として整備し、コード入力・承認画面へもたどれるようにする。現在の `/devices` と `/device` の分断を解消する。
-3. 一度承認した Quest の認証をアプリ再起動後も保持し、デバイス画面で認証済み端末を確認できるようにする。保持期間は3日を候補とし、固定期限か利用時更新かは未確定。
+3. 一度承認した Quest の認証を、応答の `expires_in` から算出した期限まで保持し、アプリ再起動後も復元する。保存側では期限を延長しない。デバイス画面では承認済み端末の有効な認証セッションを確認する。
 4. 有効な認証があれば、Quest から自分が作成した Room の一覧を取得し、既存 Room を選んで Presenter として接続する。Console で作成した Room も対象とする。
 5. Room 選択後は既存の Runtime 準備・接続・校正を経て発表へ進む。Quest の「資料選択から新規 Room 作成」の既存経路も維持する。
 
-認証保持は、承認後に受け取るアカウントの access token と有効期限を Quest に永続保存し、起動時に復元することで実現できる。一時的な承認用 device code を保存して使い回す方式ではない。期限切れ・失効が判明した資格は破棄して再承認へ進む。保存手段には、[Android Keystore](https://developer.android.com/privacy-and-security/keystore) の鍵による暗号化と [アプリ専用の内部ストレージ](https://developer.android.com/training/data-storage/app-specific) を利用できる。具体的な保存 API と保持期間は詳細計画で決める。
+承認後のアカウントの access token と有効期限を保存し、承認用 device code は保存しない。Android では Keystore の AES-GCM 鍵を使い、API origin と client ID を scope にしてアプリ内部の no-backup 領域へ暗号文を保存する。期限切れ・401 応答時は保存資格を破棄して再承認へ進む。Editor では永続保存しない。匿名 Viewer 資格は別にメモリで保持し、更新と退出時の失効を行う。
 
 ### Quest: Room コードで匿名 Viewer として参加
 
@@ -57,23 +57,27 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 
 - Room 作成時刻から一定時間経過したことを理由には自動終了しない。作成後まだ誰も接続していない Room に、作成時刻起点のタイマーは設けない。
 - 実際に接続している参加者がゼロになった時点から、誰も再入室しない状態が10分続いたら Room を `Ended` にし、Runtime の割り当て・実行資源を解放する。登録済み参加者数では判定しない。
-- 10分以内に誰かが再入室したら無人タイマーを解除する。再びゼロになった時点から新たに10分を計測する。
+- 10分が経過する前に誰かが再入室したら無人タイマーを解除する。再びゼロになった時点から新たに10分を計測する。
 - Presenter の切断や一時停止だけでは、Viewer が接続している Room を終了しない。
 - Cloud Runtime Host は同一プロセス・接続先で複数 Room を扱い、Room ごとの状態を分離する。Room 作成と割り当ては別で、発表環境の準備から Host の枠を使う既存方式を維持する。
 - 配備設定例の `REALTIME_HOST_CAPACITY` は5に変更済み。稼働環境への反映・5 Room の収容負荷確認は未実施。Venue Edge の複数 Room 管理は今回の対象に含めない。
 
-## 現行実装との差分
+実接続は Realtime の Control 接続で判定する。初接続の履歴・最後の切断時刻・再入室による解除を永続化し、期限確認と入退室を直列化する。保存済みの無人開始時刻は再起動後も引き継ぐ。接続中のクラッシュなどで切断時刻を保存できなかった場合は復旧時から計時し、一度も接続していない Room では開始しない。
 
-以下は調査時点の現行動作であり、上記の導線が既に完成していることを意味しない。
+終了は Control Plane が最終 checkpoint と割り当て解放を受理した時点で確定する。失敗時は終了確定を再試行し、確定後に対象 Room の Host 実行資源を停止する。未定義の `pauseTimeout` policy とは別の終了条件として扱う。
 
-| 対象                 | 現行動作と不足                                                                                                                                                                                |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Console の Room 画面 | `/rooms` は公開資料からの新規作成画面。所有 Room 一覧はない。詳細には準備・開始・終了があるが、コード再取得・更新や参加 URL / QR はない。                                                     |
-| デバイス管理         | `/device` の承認は実装済み。`/devices` は仮画面で承認画面への入口もない。`/settings/security` に認証セッション一覧・他セッション一括失効はあるが、端末管理ではない。                          |
-| Quest                | Device Authorization、新規 Room 作成、認証済み Viewer のコード参加はある。認証はメモリ保持で、永続保存・所有 Room 一覧・既存 Room への Presenter 参加・匿名資格を発行して参加する UI はない。 |
-| Audience             | 匿名 Viewer のコード入力参加はある。参加 URL の情報を読み取る入口はない。                                                                                                                     |
-| Control Plane        | 作成・コード参加・取得・開始・終了はある。参加コードはハッシュのみで保持し、Room 一覧・コード再取得・更新は提供していない。                                                                   |
-| Realtime             | Presenter 切断時は実行を一時停止する。実接続者がゼロになってから10分後に Room を終了する機能はない。                                                                                          |
+## 実装状況
+
+以下はコード上の実装状況。公開環境・Quest 実機・QR 撮影での総合受入は未実施。
+
+| 対象                 | 現行動作と不足                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Console の Room 画面 | `/rooms` に所有 Room 一覧と新規作成があり、作成後は詳細へ進む。詳細では準備・開始・終了、現在コードの取得・更新、匿名 Viewer URL の表示・コピーと QR 生成を扱う。                           |
+| デバイス管理         | `/devices` に Device Authorization で作った有効な認証セッションを表示し、`/device` の承認画面と往復できる。他セッションの一括失効は `/settings/security` で扱う。専用の端末台帳は設けない。 |
+| Quest                | Android の認証保持、所有 Room のページング一覧と Presenter 参加、資料からの新規作成、コードによる匿名 Viewer 参加・資格更新・退出を実装済み。実機の Keystore／JNI・接続受入は未実施。       |
+| Audience             | `/#join=ABCD-EFGH` を読み取り、入力済みの確認画面から匿名参加する。コードを読み取った後は URL の `join` を除く。手入力参加と明示カメラ開始も維持する。                                      |
+| Control Plane        | 作成・コード参加・取得・開始・終了に加え、作成者の Room 一覧と現在コードの取得・更新を提供する。コードは通常の Session 応答には含めず、更新後の旧コードは新規参加に使えない。               |
+| Realtime             | Presenter 切断時の一時停止に加え、実接続者ゼロから10分で終了・割り当て解放を行う。再入室・期限の永続化と復旧・終了再送を扱い、無人終了確定後に対象 Room の Host 実行資源を停止する。        |
 
 確認先: [Console](../../app/web/console/README.md)、[Quest onboarding](../../app/unity/Assets/Scripts/MR/Session/QuestOnboardingView.cs)、[Audience 入口](../../app/web/audience/src/connection/AudienceApplication.tsx)、[Session API](../../app/server/control-plane/src/modules/sessions/routes.ts)、[Runtime presence](../../app/server/realtime/internal/runtimecore/v2_presence.go)。
 
@@ -81,8 +85,6 @@ Console・Quest・Audience・サーバーの実装担当者向けに、Room 作�
 
 次は会話中の候補・実装案であり、確定要件として扱わない。
 
-- デバイス認証の保持期間を3日にするか、固定期限・利用時更新のどちらにするか。端末の識別・表示項目、個別失効 UI、資格保存の具体的な API と更新方式。
-- 参加 URL の形式、開いた直後に自動参加するか確認画面を出すか、QR の表示・保存方法。
-- 無人判定の信頼境界、切断検知、再入室と終了の競合、Host 再起動・障害時の計時と終了確定。
+- 端末固有の識別・名称を管理する台帳と、認証セッションの個別失効 UI。現在は既存の認証セッション一覧と他セッション一括失効を使う。
 
-後続は契約・保存、Control Plane、Realtime、Console、Quest、Audience、運用に分けて計画する。API の形、DB schema、レイヤーごとの実装・検証手順はその際に決める。実装経緯は [複数 Session 管理](realtime-runtime-redesign.md) と [Presenter 認識の残作業](presenter-recognition-runtime-authority-refactor.md) を参照する。
+実機・公開環境での総合受入と5 Room の収容負荷確認が残る。実装経緯は [複数 Session 管理](realtime-runtime-redesign.md) と [Presenter 認識の残作業](presenter-recognition-runtime-authority-refactor.md) を参照する。

@@ -36,7 +36,7 @@ namespace Unframe.ControlPlane.Model
         /// <param name="session">session</param>
         /// <param name="joinCode">joinCode</param>
         [JsonConstructor]
-        public SessionsPost201Response(SessionsPost201ResponseSession session, string joinCode)
+        public SessionsPost201Response(SessionsGet200ResponseSessionsInner session, string joinCode)
         {
             Session = session;
             JoinCode = joinCode;
@@ -49,7 +49,7 @@ namespace Unframe.ControlPlane.Model
         /// Gets or Sets Session
         /// </summary>
         [JsonPropertyName("session")]
-        public SessionsPost201ResponseSession Session { get; set; }
+        public SessionsGet200ResponseSessionsInner Session { get; set; }
 
         /// <summary>
         /// Gets or Sets JoinCode
@@ -114,7 +114,7 @@ namespace Unframe.ControlPlane.Model
 
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
-            Option<SessionsPost201ResponseSession?> session = default;
+            Option<SessionsGet200ResponseSessionsInner?> session = default;
             Option<string?> joinCode = default;
 
             while (utf8JsonReader.Read())
@@ -133,7 +133,7 @@ namespace Unframe.ControlPlane.Model
                     switch (localVarJsonPropertyName)
                     {
                         case "session":
-                            session = new Option<SessionsPost201ResponseSession?>(JsonSerializer.Deserialize<SessionsPost201ResponseSession>(ref utf8JsonReader, jsonSerializerOptions)!);
+                            session = new Option<SessionsGet200ResponseSessionsInner?>(JsonSerializer.Deserialize<SessionsGet200ResponseSessionsInner>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
                         case "joinCode":
                             joinCode = new Option<string?>(utf8JsonReader.GetString()!);

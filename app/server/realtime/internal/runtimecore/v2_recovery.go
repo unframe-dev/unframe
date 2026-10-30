@@ -15,6 +15,9 @@ import (
 
 func (s *V2Session) v2Recovery() *realtimev2.RuntimeRecoveryMetadata {
 	recovery := &realtimev2.RuntimeRecoveryMetadata{StartedAt: s.startedAt.UTC().Format(time.RFC3339Nano), CommandEpoch: s.commandEpoch, InputSynchronization: proto.Clone(s.inputSynchronization).(*realtimev2.PresenterInputSynchronization)}
+	if !s.emptySince.IsZero() {
+		recovery.EmptySince = proto.String(s.emptySince.UTC().Format(time.RFC3339Nano))
+	}
 	if s.capacityFault != nil {
 		recovery.CapacityFault = proto.Clone(s.capacityFault).(*realtimev2.RuntimeCapacityFault)
 	}
@@ -38,6 +41,14 @@ func (s *V2Session) restoreV2Recovery(recovery *realtimev2.RuntimeRecoveryMetada
 	s.capacityFault = nil
 	if recovery.CapacityFault != nil {
 		s.capacityFault = proto.Clone(recovery.CapacityFault).(*realtimev2.RuntimeCapacityFault)
+	}
+	s.emptySince = time.Time{}
+	if recovery.EmptySince != nil {
+		emptySince, err := time.Parse(time.RFC3339Nano, recovery.GetEmptySince())
+		if err != nil || emptySince.IsZero() {
+			return fmt.Errorf("%w: recovery empty time", ErrV2RuntimeDefinition)
+		}
+		s.emptySince = emptySince
 	}
 	s.startedAt = started
 	s.participants = make(map[string]session.Role, len(recovery.Participants))

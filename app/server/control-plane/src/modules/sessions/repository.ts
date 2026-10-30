@@ -1,7 +1,19 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { publicationFenceSchema } from "@unframe/contracts/presentation";
 import type { z } from "zod";
-import { and, count, eq, exists, isNull, lt, ne, sql, getTableColumns } from "drizzle-orm";
+import {
+  and,
+  count,
+  eq,
+  exists,
+  isNull,
+  lt,
+  ne,
+  or,
+  desc,
+  sql,
+  getTableColumns,
+} from "drizzle-orm";
 
 import { createD1Database } from "../../adapters/d1/database";
 import {
@@ -18,6 +30,7 @@ export type SessionRecord = {
   presentationId: string;
   presenterId: string;
   joinCodeHash: string;
+  joinCode: string | null;
   state: SessionState;
   participantCount: number;
   maxParticipants: number;
@@ -41,9 +54,26 @@ export type JoinResult = "joined" | "existing" | "full" | "ended" | "not_found";
 export type SessionRepository = {
   create(record: SessionCreateRecord, presenter: SessionParticipant): Promise<SessionRecord | null>;
   findById(id: string): Promise<SessionRecord | null>;
+  listByPresenter(
+    userId: string,
+    limit: number,
+    cursor?: Pick<SessionRecord, "id" | "createdAt">,
+  ): Promise<SessionRecord[]>;
+  updateJoinCode(
+    id: string,
+    presenterId: string,
+    code: string,
+    hash: string,
+    previousHash: string,
+  ): Promise<boolean>;
   findActiveByCodeHash(joinCodeHash: string): Promise<SessionRecord | null>;
   participantFor(sessionId: string, userId: string): Promise<SessionParticipant | null>;
-  join(sessionId: string, userId: string, joinedAt: string): Promise<JoinResult>;
+  join(
+    sessionId: string,
+    userId: string,
+    joinedAt: string,
+    expectedCodeHash?: string,
+  ): Promise<JoinResult>;
   consumeJoinAttempt(input: {
     codeHash: string;
     userId: string;
@@ -80,10 +110,10 @@ export class D1SessionRepository implements SessionRepository {
     const [inserted] = await this.database.batch([
       this.database
         .prepare(
-          `INSERT INTO presentation_sessions
-         (id, presentation_id, presenter_id, join_code_hash, state, participant_count,
+          `INSERT OR IGNORE INTO presentation_sessions
+         (id, presentation_id, presenter_id, join_code_hash, join_code, state, participant_count,
           max_participants, created_at, ended_at, publication_epoch)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?,
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 (SELECT MAX(epoch) FROM presentation_publications WHERE presentation_id = ?)
          WHERE EXISTS (SELECT 1 FROM presentation_publications WHERE presentation_id = ?)`,
         )
@@ -92,6 +122,7 @@ export class D1SessionRepository implements SessionRepository {
           record.presentationId,
           record.presenterId,
           record.joinCodeHash,
+          record.joinCode,
           record.state,
           record.participantCount,
           record.maxParticipants,
@@ -128,6 +159,56 @@ export class D1SessionRepository implements SessionRepository {
     return row ? sessionRecord(row) : null;
   }
 
+  async listByPresenter(
+    userId: string,
+    limit: number,
+    cursor?: Pick<SessionRecord, "id" | "createdAt">,
+  ) {
+    const rows = await this.db
+      .select(this.selection())
+      .from(presentationSessions)
+      .leftJoin(
+        presentationPublications,
+        and(
+          eq(presentationPublications.presentationId, presentationSessions.presentationId),
+          eq(presentationPublications.epoch, presentationSessions.publicationEpoch),
+        ),
+      )
+      .where(
+        and(
+          eq(presentationSessions.presenterId, userId),
+          cursor
+            ? or(
+                lt(presentationSessions.createdAt, cursor.createdAt),
+                and(
+                  eq(presentationSessions.createdAt, cursor.createdAt),
+                  lt(presentationSessions.id, cursor.id),
+                ),
+              )
+            : undefined,
+        ),
+      )
+      .orderBy(desc(presentationSessions.createdAt), desc(presentationSessions.id))
+      .limit(limit);
+    return rows.map(sessionRecord);
+  }
+
+  async updateJoinCode(
+    id: string,
+    presenterId: string,
+    code: string,
+    hash: string,
+    previousHash: string,
+  ) {
+    const result = await this.database
+      .prepare(
+        `UPDATE OR IGNORE presentation_sessions SET join_code = ?, join_code_hash = ? WHERE id = ? AND presenter_id = ? AND state != 'Ended' AND join_code_hash = ? AND join_code_hash != ?`,
+      )
+      .bind(code, hash, id, presenterId, previousHash, hash)
+      .run();
+    return result.meta.changes === 1;
+  }
+
   async findActiveByCodeHash(joinCodeHash: string) {
     const row = await this.db
       .select(this.selection())
@@ -161,9 +242,23 @@ export class D1SessionRepository implements SessionRepository {
     );
   }
 
-  async join(sessionId: string, userId: string, joinedAt: string): Promise<JoinResult> {
+  async join(
+    sessionId: string,
+    userId: string,
+    joinedAt: string,
+    expectedCodeHash?: string,
+  ): Promise<JoinResult> {
     const existing = await this.participantFor(sessionId, userId);
-    if (existing) return "existing";
+    if (existing) {
+      const session = await this.findById(sessionId);
+      if (
+        !session ||
+        session.state === "Ended" ||
+        (expectedCodeHash && session.joinCodeHash !== expectedCodeHash)
+      )
+        return "not_found";
+      return "existing";
+    }
     const participants = this.db
       .select({ value: count() })
       .from(sessionParticipants)
@@ -181,14 +276,23 @@ export class D1SessionRepository implements SessionRepository {
            FROM presentation_sessions
            WHERE id = ?
              AND state IN ('Waiting', 'Presenting')
+             AND (? IS NULL OR join_code_hash = ?)
              AND (SELECT count(*) FROM session_participants WHERE session_id = ?) < max_participants`,
         )
-        .bind(userId, joinedAt, sessionId, sessionId),
+        .bind(
+          userId,
+          joinedAt,
+          sessionId,
+          expectedCodeHash ?? null,
+          expectedCodeHash ?? null,
+          sessionId,
+        ),
       this.database.prepare(participantCount.sql).bind(...participantCount.params),
     ]);
     if (inserted?.meta.changes === 1) return "joined";
     const session = await this.findById(sessionId);
-    if (!session) return "not_found";
+    if (!session || (expectedCodeHash && session.joinCodeHash !== expectedCodeHash))
+      return "not_found";
     if (session.state === "Ended") return "ended";
     return (await this.participantFor(sessionId, userId)) ? "existing" : "full";
   }

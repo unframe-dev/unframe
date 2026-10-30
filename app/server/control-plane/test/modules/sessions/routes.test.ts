@@ -38,7 +38,171 @@ const pinPublication = async (sessionId: string, presentationId: string, userId:
   ]);
 };
 
+const managedRooms = async () => {
+  const suffix = crypto.randomUUID();
+  const owner = `owner-${suffix}`;
+  const viewer = `viewer-${suffix}`;
+  const presentationId = `presentation-${suffix}`;
+  await Promise.all([addUser(owner), addUser(viewer)]);
+  await env.DB.batch([
+    env.DB.prepare(
+      "INSERT INTO presentations (id, owner_id, revision, definition, created_at, updated_at) VALUES (?, ?, 1, '{}', '2026', '2026')",
+    ).bind(presentationId, owner),
+    env.DB.prepare(
+      "INSERT INTO presentation_members (presentation_id, user_id, role) VALUES (?, ?, 'owner')",
+    ).bind(presentationId, owner),
+  ]);
+  await publish(presentationId);
+  const randomCode = () => {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const value = [...crypto.getRandomValues(new Uint8Array(8))]
+      .map((byte) => alphabet[byte & 31])
+      .join("");
+    return `${value.slice(0, 4)}-${value.slice(4)}`;
+  };
+  const replacementCode = randomCode();
+  const secondCode = randomCode();
+  const finalCode = randomCode();
+  const codes = [randomCode(), secondCode, replacementCode];
+  const app = createApp({
+    identityProvider: async (context) => {
+      const userId = context.req.header("x-test-user");
+      return userId ? { userId, globalRole: "user" } : undefined;
+    },
+    joinCode: () => codes.shift()!,
+    sessionNow: () => new Date("2026-10-30T00:00:00.000Z"),
+  });
+  const request = (path: string, userId?: string, body?: unknown) =>
+    app.fetch(
+      new Request(`https://api.example.com${path}`, {
+        method: body === undefined ? "GET" : "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(userId ? { "x-test-user": userId } : {}),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      }),
+      runtimeEnvironment(),
+    );
+  const first = await (
+    await request("/sessions", owner, { presentationId })
+  ).json<{ session: { id: string }; joinCode: string }>();
+  const second = await (
+    await request("/sessions", owner, { presentationId })
+  ).json<{ session: { id: string } }>();
+  const path = `/sessions/${first.session.id}/join-code`;
+  return {
+    request,
+    path,
+    owner,
+    viewer,
+    first,
+    second,
+    codes,
+    presentationId,
+    replacementCode,
+    secondCode,
+    finalCode,
+  };
+};
+
 describe("session HTTP lifecycle", () => {
+  it("returns the saved code only to the creator, including after a Viewer joins", async () => {
+    const { request, path, owner, viewer, first } = await managedRooms();
+    const reopened = await request(path, owner);
+    expect(reopened.status).toBe(200);
+    expect(reopened.headers.get("cache-control")).toBe("no-store");
+    await expect(reopened.json()).resolves.toEqual({ joinCode: first.joinCode });
+    expect((await request(path)).status).toBe(401);
+    expect((await request(path, viewer)).status).toBe(403);
+    expect((await request(path, viewer, {})).status).toBe(403);
+    await request("/sessions/join", viewer, { joinCode: first.joinCode });
+    expect((await request(path, viewer)).status).toBe(403);
+  });
+
+  it("lists only owned rooms in bounded, stable pages without exposing codes", async () => {
+    const { request, owner, viewer, first, second } = await managedRooms();
+    expect((await request("/sessions")).status).toBe(401);
+    await expect((await request("/sessions", viewer)).json()).resolves.toEqual({
+      sessions: [],
+      nextCursor: null,
+    });
+    const page = await (
+      await request("/sessions?limit=1", owner)
+    ).json<{ sessions: { id: string }[]; nextCursor: string }>();
+    expect(page.sessions).toHaveLength(1);
+    expect(page.nextCursor).toBe(page.sessions[0]?.id);
+    expect(page.sessions[0]?.id).toBe([first.session.id, second.session.id].sort().reverse()[0]);
+    const next = await (
+      await request(`/sessions?limit=1&cursor=${page.nextCursor}`, owner)
+    ).json<{ sessions: { id: string }[]; nextCursor: string | null }>();
+    expect(new Set([page.sessions[0]?.id, next.sessions[0]?.id])).toEqual(
+      new Set([first.session.id, second.session.id]),
+    );
+    expect(next.nextCursor).toBeNull();
+    expect(page.sessions[0]).not.toHaveProperty("joinCode");
+    expect(page.sessions[0]).not.toHaveProperty("joinCodeHash");
+    expect((await request("/sessions?limit=101", owner)).status).toBe(400);
+    expect((await request(`/sessions?cursor=${first.session.id}`, viewer)).status).toBe(404);
+  });
+
+  it("replaces a code and invalidates old-code admission for both account and anonymous Viewers", async () => {
+    const { request, path, owner, viewer, first, replacementCode } = await managedRooms();
+    const rotated = await request(path, owner, {});
+    expect(rotated.status).toBe(200);
+    await expect(rotated.json()).resolves.toEqual({ joinCode: replacementCode });
+    await expect((await request(path, owner)).json()).resolves.toEqual({
+      joinCode: replacementCode,
+    });
+    expect((await request("/sessions/join", viewer, { joinCode: first.joinCode })).status).toBe(
+      404,
+    );
+    expect(
+      (await request("/viewer-credentials", undefined, { joinCode: first.joinCode })).status,
+    ).toBe(404);
+    expect(
+      (await request("/viewer-credentials", undefined, { joinCode: replacementCode })).status,
+    ).toBe(201);
+    expect((await request("/sessions/join", viewer, { joinCode: replacementCode })).status).toBe(
+      200,
+    );
+  });
+
+  it("retries generated-code collisions without changing the conflicting room", async () => {
+    const {
+      request,
+      path,
+      owner,
+      first,
+      second,
+      codes,
+      presentationId,
+      replacementCode,
+      secondCode,
+      finalCode,
+    } = await managedRooms();
+    codes.unshift(first.joinCode);
+    const created = await request("/sessions", owner, { presentationId });
+    expect(created.status).toBe(201);
+    await expect(created.json()).resolves.toMatchObject({ joinCode: replacementCode });
+    codes.push(secondCode, finalCode);
+    const rotated = await request(path, owner, {});
+    expect(rotated.status).toBe(200);
+    await expect(rotated.json()).resolves.toEqual({ joinCode: finalCode });
+    await expect(
+      (await request(`/sessions/${second.session.id}/join-code`, owner)).json(),
+    ).resolves.toEqual({ joinCode: secondCode });
+  });
+
+  it("forbids rotating or joining an ended room", async () => {
+    const { request, path, owner, first } = await managedRooms();
+    await request(`/sessions/${first.session.id}/end`, owner, {});
+    expect((await request(path, owner, {})).status).toBe(409);
+    expect(
+      (await request("/viewer-credentials", undefined, { joinCode: first.joinCode })).status,
+    ).toBe(404);
+  });
+
   it("rejects an unpublished presentation without leaving a session or participant", async () => {
     const suffix = crypto.randomUUID();
     const userId = `owner-${suffix}`;

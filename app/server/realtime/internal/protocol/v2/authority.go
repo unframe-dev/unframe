@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -176,6 +177,13 @@ func validateAuthority(message protoreflect.Message, path string) error {
 		sync := get("input_synchronization").Message()
 		participants := get("participants").List()
 		commands := get("commands").List()
+		if field := message.Descriptor().Fields().ByName("empty_since"); message.Has(field) {
+			empty, err := time.Parse(time.RFC3339Nano, get("empty_since").String())
+			started, _ := time.Parse(time.RFC3339Nano, get("started_at").String())
+			if err != nil || empty.IsZero() || !strings.HasSuffix(get("empty_since").String(), "Z") || empty.Before(started) || participants.Len() == 0 {
+				return invalid()
+			}
+		}
 		if participants.Len() == 0 && (commands.Len() != 0 || sync.Get(sync.Descriptor().Fields().ByName("reliable_sequence")).Uint() != 0) {
 			return invalid()
 		}

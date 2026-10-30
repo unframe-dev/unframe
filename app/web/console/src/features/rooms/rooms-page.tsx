@@ -1,6 +1,8 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { OwnedRoomList } from "./owned-room-list";
+import { RoomSharing } from "./room-sharing";
 import { Button } from "@/shared/ui/button";
 import { PublicationList } from "@/features/presentations/publication-list";
 import {
@@ -61,7 +63,16 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
     presentation: Presentation;
     publication: Publication;
   }>();
-  const [created, setCreated] = useState<Awaited<ReturnType<typeof createRoom>>>();
+  const [created, setCreated] = useState(false);
+  const navigate = useNavigate();
+  const client = useQueryClient();
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
   const [uncertain, setUncertain] = useState(false);
   const submitting = useRef(false);
   const initial = useQuery({
@@ -82,14 +93,17 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
     mutationFn: createRoom,
     retry: false,
     onSuccess: (result) => {
-      setCreated(result);
+      setCreated(true);
+      void client.invalidateQueries({ queryKey: ["owned-rooms"] });
+      if (active.current)
+        void navigate({ to: "/rooms/$sessionId", params: { sessionId: result.session.id } });
     },
     onError: (error) => {
       // A lost response or server error may follow a committed Session creation.
       if (!(error instanceof ManagementError) || error.status >= 500) setUncertain(true);
     },
-    onSettled: () => {
-      submitting.current = false;
+    onSettled: (_result, error) => {
+      if (error) submitting.current = false;
     },
   });
   const submit = () => {
@@ -103,67 +117,52 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
         <h1>ルーム</h1>
         <p>公開済み Dist からルームを作成します。作成時の最新公開版を使います。</p>
       </header>
-      {created ? (
-        <section className="grid gap-5 py-8" aria-label="ルーム作成結果">
-          <h2 className="text-xl">ルームを作成しました</h2>
-          <RoomDetails room={created.session} />
-          <p>
-            ルームコード: <strong>{created.joinCode}</strong>
+      <OwnedRoomList />
+      <>
+        {presentationId && initial.isPending ? (
+          <p role="status">公開情報を読み込んでいます…</p>
+        ) : null}
+        {initial.isError ? (
+          <p role="alert">
+            {managementErrorMessage(initial.error)}{" "}
+            <Button variant="outline" onClick={() => void initial.refetch()}>
+              選択情報を再取得
+            </Button>
           </p>
-          <p className="text-sm">
-            ルームコードは作成直後だけ表示されます。この画面を離れると再表示できません。
-          </p>
-          <Link to="/rooms/$sessionId" params={{ sessionId: created.session.id }}>
-            ルームの詳細
-          </Link>
-        </section>
-      ) : (
-        <>
-          {presentationId && initial.isPending ? (
-            <p role="status">公開情報を読み込んでいます…</p>
-          ) : null}
-          {initial.isError ? (
-            <p role="alert">
-              {managementErrorMessage(initial.error)}{" "}
-              <Button variant="outline" onClick={() => void initial.refetch()}>
-                選択情報を再取得
+        ) : null}
+        {initial.isSuccess && !initial.data.publication ? <p>公開済み Dist なし</p> : null}
+        {selection ? (
+          <section className="grid gap-4 border-b py-8" aria-label="選択した Presentation">
+            <h2 className="text-xl">{selection.presentation.name}</h2>
+            <p className="break-all text-sm">Presentation ID: {selection.presentation.id}</p>
+            <PublicationDetails publication={selection.publication} />
+            <p className="text-sm">
+              表示後に公開版が更新された場合、作成時の最新公開版が固定されます。Ended
+              でないルームがある間、再公開はできません。
+            </p>
+            <div>
+              <Button disabled={mutation.isPending || uncertain || created} onClick={submit}>
+                {mutation.isPending ? "作成しています…" : "ルームを作成"}
               </Button>
-            </p>
-          ) : null}
-          {initial.isSuccess && !initial.data.publication ? <p>公開済み Dist なし</p> : null}
-          {selection ? (
-            <section className="grid gap-4 border-b py-8" aria-label="選択した Presentation">
-              <h2 className="text-xl">{selection.presentation.name}</h2>
-              <p className="break-all text-sm">Presentation ID: {selection.presentation.id}</p>
-              <PublicationDetails publication={selection.publication} />
-              <p className="text-sm">
-                表示後に公開版が更新された場合、作成時の最新公開版が固定されます。Ended
-                でないルームがある間、再公開はできません。
-              </p>
-              <div>
-                <Button disabled={mutation.isPending || uncertain} onClick={submit}>
-                  {mutation.isPending ? "作成しています…" : "ルームを作成"}
-                </Button>
-              </div>
-            </section>
-          ) : null}
-          {mutation.isError ? (
-            <p role="alert">
-              {uncertain
-                ? "作成結果を確認できません。ルームが作成された可能性があります。重複を避けるため、この画面では再送できません。"
-                : managementErrorMessage(mutation.error)}
-            </p>
-          ) : null}
-          <PublicationList
-            onSelect={(presentation, publication) => {
-              if (!mutation.isPending && !uncertain) {
-                setSelected({ presentation, publication });
-                mutation.reset();
-              }
-            }}
-          />
-        </>
-      )}
+            </div>
+          </section>
+        ) : null}
+        {mutation.isError ? (
+          <p role="alert">
+            {uncertain
+              ? "作成結果を確認できません。ルームが作成された可能性があります。重複を避けるため、この画面では再送できません。"
+              : managementErrorMessage(mutation.error)}
+          </p>
+        ) : null}
+        <PublicationList
+          onSelect={(presentation, publication) => {
+            if (!mutation.isPending && !uncertain) {
+              setSelected({ presentation, publication });
+              mutation.reset();
+            }
+          }}
+        />
+      </>
     </main>
   );
 }
@@ -199,9 +198,7 @@ export function RoomPage({ sessionId }: { sessionId: string }) {
           <>
             <RoomDetails room={query.data} />
             <RoomControls key={sessionId} room={query.data} />
-            <p className="text-sm">
-              ルームコードは再取得できません。作成直後の画面だけに表示されます。
-            </p>
+            <RoomSharing key={`sharing-${sessionId}`} room={query.data} />
           </>
         ) : null}
       </section>

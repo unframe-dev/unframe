@@ -1394,7 +1394,7 @@ export interface RuntimeProtocolLimitsWire {
   maximumInputSynchronizationBytes?: number;
 }
 
-export interface RuntimeRecoveryMetadataWire {
+export interface RuntimeRecoveryMetadataWireFields {
   startedAt?: string;
   participants?: RuntimeParticipantHistoryWire[];
   commands?: RuntimeCommandHistoryWire[];
@@ -1402,6 +1402,8 @@ export interface RuntimeRecoveryMetadataWire {
   inputSynchronization?: PresenterInputSynchronizationWire;
   capacityFault?: RuntimeCapacityFaultWire;
 }
+export type RuntimeRecoveryMetadataWire__emptySince = { emptySince: string;  } | { emptySince?: never };
+export type RuntimeRecoveryMetadataWire = RuntimeRecoveryMetadataWireFields & RuntimeRecoveryMetadataWire__emptySince;
 
 export interface RuntimeRunSnapshotWireFields {
   runId?: RuntimeRunIdWire;

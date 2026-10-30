@@ -1,3 +1,4 @@
+import { decodeWireMessage, encodeWireMessage } from "@unframe/contracts/presentation";
 import { seedCloudHost } from "../../fixtures/runtime-host";
 import { env } from "cloudflare:test";
 import { describe, expect, it, assert } from "vitest";
@@ -145,6 +146,90 @@ describe("persistence callback HTTP boundary", () => {
         .bind(sessionId)
         .first(),
     ).resolves.toMatchObject({ state: "Ended" });
+  });
+
+  it("ends and releases an idle room atomically, rejects stale assignments, and deduplicates completion retries", async () => {
+    const sessionId = await seedSession();
+    const app = createApp({ identityProvider: async () => undefined });
+    const finalCheckpoint = await checkpointEnvelope(sessionId);
+    finalCheckpoint.publication.presentationId = `presentation-${sessionId}`;
+    const canonical = decodeWireMessage(
+      "unframe.realtime.CanonicalRuntimeSnapshot",
+      Uint8Array.from(atob(finalCheckpoint.canonicalSnapshotPayload), (c) => c.charCodeAt(0)),
+    );
+    const recovery = decodeWireMessage(
+      "unframe.realtime.RuntimeRecoveryMetadata",
+      Uint8Array.from(atob(finalCheckpoint.recoveryPayload), (c) => c.charCodeAt(0)),
+    );
+    canonical["clock"] = { terminating: { reason: 4 } };
+    recovery["emptySince"] = "2026-10-22T00:00:00Z";
+    const canonicalBytes = encodeWireMessage(
+      "unframe.realtime.CanonicalRuntimeSnapshot",
+      canonical,
+    );
+    const recoveryBytes = encodeWireMessage("unframe.realtime.RuntimeRecoveryMetadata", recovery);
+    const hash = async (value: Uint8Array) =>
+      `sha256:${Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", value)), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+    Object.assign(finalCheckpoint, {
+      canonicalSnapshotPayload: btoa(String.fromCharCode(...canonicalBytes)),
+      canonicalSnapshotHash: await hash(canonicalBytes),
+      recoveryPayload: btoa(String.fromCharCode(...recoveryBytes)),
+      recoveryHash: await hash(recoveryBytes),
+    });
+    const completion = {
+      sessionId,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud",
+      assignmentEpoch: 1,
+      presentationRevision: 1,
+      checkpointVersion: 1,
+      lastSequence: 5,
+      idempotencyKey: "idle-end",
+      startedAt: "2026-10-22T00:00:00Z",
+      endedAt: "2026-10-22T00:10:00Z",
+      participantCount: 1,
+      participants: [{ userId: "presenter", role: "presenter" }],
+      finalCheckpoint,
+    };
+    const callback = (body: unknown) =>
+      app.fetch(
+        new Request("https://api.example.com/callbacks/completions", {
+          method: "POST",
+          headers: {
+            authorization: "Bearer test-service-identity-secret-32-characters",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+        }),
+        runtimeEnvironment(),
+      );
+    expect(
+      (
+        await callback({
+          ...completion,
+          runtimeId: "old-runtime",
+          finalCheckpoint: { ...finalCheckpoint, runtimeId: "old-runtime" },
+        })
+      ).status,
+    ).toBe(409);
+    await expect(
+      env.DB.prepare("SELECT state FROM presentation_sessions WHERE id = ?")
+        .bind(sessionId)
+        .first(),
+    ).resolves.toMatchObject({ state: "Presenting" });
+    await expect((await callback(completion)).json()).resolves.toEqual({ applied: true });
+    await expect((await callback(completion)).json()).resolves.toEqual({ applied: false });
+    await expect(
+      env.DB.prepare("SELECT state, ended_at FROM presentation_sessions WHERE id = ?")
+        .bind(sessionId)
+        .first(),
+    ).resolves.toMatchObject({ state: "Ended", ended_at: completion.endedAt });
+    const assignment = await env.DB.prepare(
+      "SELECT released_at FROM runtime_assignments WHERE session_id = ?",
+    )
+      .bind(sessionId)
+      .first<{ released_at: string | null }>();
+    expect(assignment?.released_at).toBeTypeOf("string");
   });
 
   it.each(["/callbacks/checkpoints", "/callbacks/completions"])(

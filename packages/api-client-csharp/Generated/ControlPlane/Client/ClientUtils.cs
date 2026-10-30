@@ -230,6 +230,10 @@ namespace Unframe.ControlPlane.Client
                 return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.ProgressionEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsProgressionEnum).ToString();
             if (obj is PresentationsPresentationIdPublicationsPost201ResponseContractVersions.ProjectionEnum presentationsPresentationIdPublicationsPost201ResponseContractVersionsProjectionEnum)
                 return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.ProjectionEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsProjectionEnum).ToString();
+            if (obj is SessionsGet200ResponseSessionsInner.StateEnum sessionsGet200ResponseSessionsInnerStateEnum)
+                return SessionsGet200ResponseSessionsInner.StateEnumToJsonValue(sessionsGet200ResponseSessionsInnerStateEnum);
+            if (obj is SessionsGet200ResponseSessionsInner.MaxParticipantsEnum sessionsGet200ResponseSessionsInnerMaxParticipantsEnum)
+                return SessionsGet200ResponseSessionsInner.MaxParticipantsEnumToJsonValue(sessionsGet200ResponseSessionsInnerMaxParticipantsEnum).ToString();
             if (obj is SessionsIdBootstrapPost200Response.RuntimeKindEnum sessionsIdBootstrapPost200ResponseRuntimeKindEnum)
                 return SessionsIdBootstrapPost200Response.RuntimeKindEnumToJsonValue(sessionsIdBootstrapPost200ResponseRuntimeKindEnum);
             if (obj is SessionsIdRuntimePreparationGet200ResponseAnyOf.StateEnum sessionsIdRuntimePreparationGet200ResponseAnyOfStateEnum)
@@ -240,10 +244,6 @@ namespace Unframe.ControlPlane.Client
                 return SessionsIdRuntimePreparationGet200ResponseAnyOf2.StateEnumToJsonValue(sessionsIdRuntimePreparationGet200ResponseAnyOf2StateEnum);
             if (obj is SessionsJoinPost410ResponseError.CodeEnum sessionsJoinPost410ResponseErrorCodeEnum)
                 return SessionsJoinPost410ResponseError.CodeEnumToJsonValue(sessionsJoinPost410ResponseErrorCodeEnum);
-            if (obj is SessionsPost201ResponseSession.StateEnum sessionsPost201ResponseSessionStateEnum)
-                return SessionsPost201ResponseSession.StateEnumToJsonValue(sessionsPost201ResponseSessionStateEnum);
-            if (obj is SessionsPost201ResponseSession.MaxParticipantsEnum sessionsPost201ResponseSessionMaxParticipantsEnum)
-                return SessionsPost201ResponseSession.MaxParticipantsEnumToJsonValue(sessionsPost201ResponseSessionMaxParticipantsEnum).ToString();
             if (obj is SessionsSessionIdRuntimeAssignmentGet200Response.RuntimeKindEnum sessionsSessionIdRuntimeAssignmentGet200ResponseRuntimeKindEnum)
                 return SessionsSessionIdRuntimeAssignmentGet200Response.RuntimeKindEnumToJsonValue(sessionsSessionIdRuntimeAssignmentGet200ResponseRuntimeKindEnum);
             if (obj is SessionsSessionIdRuntimeAssignmentPostRequest.RuntimeKindEnum sessionsSessionIdRuntimeAssignmentPostRequestRuntimeKindEnum)

@@ -20,7 +20,7 @@ Worker は `ASSETS.fetch` で SPA を配信します。ブラウザーから loc
 
 Session 作成は `{ presentationId }` を送り、Control Plane が作成時の最新公開版を原子的に固定します。結果には保存された `publicationFence` を表示し、選択時の値で代替しません。公開版のない新規 Session は `409 conflict` になります。旧 Session に公開固定値がない場合は `null` です。
 
-ルームコードは作成応答だけで受け取り、メモリだけに保持します。URL、ログ、ブラウザー永続ストレージには保存しません。応答不明の作成は自動再送しません。
+ルームコードは Control Plane が保存し、ルーム詳細で取得・更新します。共有 URL の fragment に含め、同じ URL の QR をブラウザー内で生成します。更新結果が不明な間は共有を止め、現在のコードを再取得します。ログやブラウザー永続ストレージには保存しません。応答不明の作成は自動再送しません。
 
 ## 配信と UI
 
@@ -28,4 +28,4 @@ Session 作成は `{ presentationId }` を送り、Control Plane が作成時の
 
 UI は Tailwind CSS v4、Base UI と `@phosphor-icons/react` を使います。`@base-ui/react` の import は `src/shared/ui/` に限定し、`src/app/` は composition、`src/features/` は機能、`src/shared/` は共通 primitives を所有します。
 
-ルーム参加、Runtime 配置、発表開始・停止、ブラウザーでの Source 編集やアップロードは対象外です。
+Runtime の準備と発表開始・終了は Control Plane API を通じて操作します。ルームへの参加は Audience と Unity が担当し、ブラウザーでの Source 編集やアップロードは対象外です。

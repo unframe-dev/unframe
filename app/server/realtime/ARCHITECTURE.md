@@ -859,7 +859,8 @@ Internet 障害中の継続は best-effort であり、offline 対応を正式�
 - Cloud Runtime は常駐 Host 内で複数 Session を管理し、実行再生成ごとに新しい assignment epoch を取得する。macOS の配備では launchd が Host を常駐させる。Venue Edge の OS 常駐方式は配置環境で定める。
 - durable checkpoint は Control Plane の D1 に保存する。Venue Edge 専用の local checkpoint store は未実装である。
 - 再起動後はassignment epoch、PublicationFence、presentation / bundle hash、schema versionを検証してCanonicalRuntimeSnapshotを復元する。checkpoint が `Running` でも自動進行せず、安全側の `Paused / processRecovered` として復元してpresenterのRuntime Resumeを待つ。
-- 通常の Outcome / Reliable Event / 入力同期 READY はメモリ上で確定して公開し、変更のある Session を1秒間隔で非同期 checkpoint の保存対象にする。保存失敗だけでは進行・入力・配信を止めない。復旧 ready と completion は保存確定を必要とする。復元するのは最後に保存された確定状態であり、未保存の変更は復元対象にしない。独立した durable Reliable Event log は実装していない。
+- 通常の Outcome / Reliable Event / 入力同期 READY はメモリ上で確定して公開し、変更のある Session を1秒間隔で非同期 checkpoint の保存対象にする。保存失敗だけでは進行・入力・配信を止めない。最初の Control 接続履歴・最後の切断の無人開始時刻・再入室による解除、復旧 ready、completion は保存確定を必要とする。復元するのは最後に保存された確定状態であり、未保存の変更は復元対象にしない。独立した durable Reliable Event log は実装していない。
+- 無人終了は登録 participant 数ではなく実 Control 接続の presence を使う。接続履歴がある Room の presence がゼロになった UTC 時刻を server-only recovery metadata の `empty_since` に保存し、10分後に `IDLE_TIMEOUT` completion を既存の原子的な Session 終了・割り当て解放へ送る。再入室は期限検査と解除の保存後に受け付ける。無人開始時刻は復元し、接続中の crash で時刻がない場合は復旧時刻から計時する。未接続 Room は計時しない。同期保存と非同期 cut の採取は同じ operation lock で直列化する。Cloud Host の無人終了資源は Room 単位で停止する。
 - connection registry、presence、raw Tracking Frame と認識器内部状態は復元しない。採用設計の凍結 Anchor と Step 開始状態履歴は checkpoint から復元し、Quest の再認証・世代同期後に認識を再開する。
 - 同一 Session の実行再生成では、旧実行の停止確認または旧 lease 失効を待って新 epoch を予約する。Control Plane は Host 起動世代と Session ごとの readiness / lease、明示 capacity を管理し、満員・drain 中も既存 lease を更新する。Control Plane が保存元 assignment と固定 publication を検証した `checkpointSource` を返す。Runtime は保存元 fence で checkpoint を検証し、Run ID と全参照を新しい assignment epoch へ付け替えて再検証する。新しい fence で復元結果を保存してから接続を受け付ける。発表中の live migration は扱わない。
 - Quest は exponential backoff と jitter で同じ endpoint へ再接続する。
