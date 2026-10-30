@@ -19395,7 +19395,10 @@ export namespace unframe {
             TERMINATION_REASON_CONTROL_PLANE_ENDED = 2,
 
             /** TERMINATION_REASON_PAUSE_TIMEOUT value */
-            TERMINATION_REASON_PAUSE_TIMEOUT = 3
+            TERMINATION_REASON_PAUSE_TIMEOUT = 3,
+
+            /** TERMINATION_REASON_IDLE_TIMEOUT value */
+            TERMINATION_REASON_IDLE_TIMEOUT = 4
         }
 
         /**
@@ -29740,6 +29743,9 @@ export namespace unframe {
             /** RuntimeRecoveryMetadata capacityFault. */
             capacityFault?: (unframe.realtime.RuntimeCapacityFault.$Properties|null);
 
+            /** RuntimeRecoveryMetadata emptySince. */
+            emptySince?: (string|null);
+
             /**
              * Creates a new RuntimeRecoveryMetadata instance using the specified properties.
              * @param [properties] Properties to set
@@ -29842,6 +29848,9 @@ export namespace unframe {
                 /** RuntimeRecoveryMetadata capacityFault */
                 capacityFault?: (unframe.realtime.RuntimeCapacityFault.$Properties|null);
 
+                /** RuntimeRecoveryMetadata emptySince */
+                emptySince?: (string|null);
+
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
             }
@@ -29854,6 +29863,7 @@ export namespace unframe {
               commandEpoch?: number|Long|null;
               inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape|null;
               capacityFault?: unframe.realtime.RuntimeCapacityFault.$Shape|null;
+              emptySince?: string|null;
               $unknowns?: Uint8Array[];
             };
         }

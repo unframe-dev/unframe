@@ -186,6 +186,7 @@ func TestCheckpointRecoveryRejectsTerminatingRuntime(t *testing.T) {
 		realtimev2.TerminationReason_TERMINATION_REASON_EXPLICIT_END,
 		realtimev2.TerminationReason_TERMINATION_REASON_CONTROL_PLANE_ENDED,
 		realtimev2.TerminationReason_TERMINATION_REASON_PAUSE_TIMEOUT,
+		realtimev2.TerminationReason_TERMINATION_REASON_IDLE_TIMEOUT,
 	} {
 		t.Run(reason.String(), func(t *testing.T) {
 			metadata, catalog := checkpointFixture(t)

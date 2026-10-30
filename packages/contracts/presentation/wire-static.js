@@ -54579,6 +54579,7 @@ export const unframe = ($root.unframe = (() => {
      * @property {number} TERMINATION_REASON_EXPLICIT_END=1 TERMINATION_REASON_EXPLICIT_END value
      * @property {number} TERMINATION_REASON_CONTROL_PLANE_ENDED=2 TERMINATION_REASON_CONTROL_PLANE_ENDED value
      * @property {number} TERMINATION_REASON_PAUSE_TIMEOUT=3 TERMINATION_REASON_PAUSE_TIMEOUT value
+     * @property {number} TERMINATION_REASON_IDLE_TIMEOUT=4 TERMINATION_REASON_IDLE_TIMEOUT value
      */
     realtime.TerminationReason = (function () {
       const valuesById = $Object.create(null),
@@ -54587,6 +54588,7 @@ export const unframe = ($root.unframe = (() => {
       values[(valuesById[1] = "TERMINATION_REASON_EXPLICIT_END")] = 1;
       values[(valuesById[2] = "TERMINATION_REASON_CONTROL_PLANE_ENDED")] = 2;
       values[(valuesById[3] = "TERMINATION_REASON_PAUSE_TIMEOUT")] = 3;
+      values[(valuesById[4] = "TERMINATION_REASON_IDLE_TIMEOUT")] = 4;
       return values;
     })();
 
@@ -55222,6 +55224,7 @@ export const unframe = ($root.unframe = (() => {
             case 1:
             case 2:
             case 3:
+            case 4:
               break;
           }
         return null;
@@ -55262,6 +55265,10 @@ export const unframe = ($root.unframe = (() => {
           case "TERMINATION_REASON_PAUSE_TIMEOUT":
           case 3:
             message.reason = 3;
+            break;
+          case "TERMINATION_REASON_IDLE_TIMEOUT":
+          case 4:
+            message.reason = 4;
             break;
         }
         return message;
@@ -57685,6 +57692,7 @@ export const unframe = ($root.unframe = (() => {
             case 1:
             case 2:
             case 3:
+            case 4:
               break;
           }
         return null;
@@ -57725,6 +57733,10 @@ export const unframe = ($root.unframe = (() => {
           case "TERMINATION_REASON_PAUSE_TIMEOUT":
           case 3:
             message.reason = 3;
+            break;
+          case "TERMINATION_REASON_IDLE_TIMEOUT":
+          case 4:
+            message.reason = 4;
             break;
         }
         return message;
@@ -79970,6 +79982,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {number|Long|null} [commandEpoch] RuntimeRecoveryMetadata commandEpoch
        * @property {unframe.realtime.PresenterInputSynchronization.$Properties|null} [inputSynchronization] RuntimeRecoveryMetadata inputSynchronization
        * @property {unframe.realtime.RuntimeCapacityFault.$Properties|null} [capacityFault] RuntimeRecoveryMetadata capacityFault
+       * @property {string|null} [emptySince] RuntimeRecoveryMetadata emptySince
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -79990,6 +80003,7 @@ export const unframe = ($root.unframe = (() => {
        *   commandEpoch?: number|Long|null;
        *   inputSynchronization?: unframe.realtime.PresenterInputSynchronization.$Shape|null;
        *   capacityFault?: unframe.realtime.RuntimeCapacityFault.$Shape|null;
+       *   emptySince?: string|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.realtime.RuntimeRecoveryMetadata.$Shape
        */
@@ -80062,6 +80076,23 @@ export const unframe = ($root.unframe = (() => {
       RuntimeRecoveryMetadata.prototype.capacityFault = null;
 
       /**
+       * RuntimeRecoveryMetadata emptySince.
+       * @member {string|null|undefined} emptySince
+       * @memberof unframe.realtime.RuntimeRecoveryMetadata
+       * @instance
+       */
+      RuntimeRecoveryMetadata.prototype.emptySince = null;
+
+      // OneOf field names bound to virtual getters and setters
+      let $oneOfFields;
+
+      // Virtual OneOf for proto3 optional field
+      $Object.defineProperty(RuntimeRecoveryMetadata.prototype, "_emptySince", {
+        get: $util.oneOfGetter(($oneOfFields = ["emptySince"])),
+        set: $util.oneOfSetter($oneOfFields),
+      });
+
+      /**
        * Creates a new RuntimeRecoveryMetadata instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.RuntimeRecoveryMetadata
@@ -80117,6 +80148,8 @@ export const unframe = ($root.unframe = (() => {
             message.capacityFault,
             writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
           ).ldelim();
+        if (message.emptySince != null && $Object.hasOwnProperty.call(message, "emptySince"))
+          writer.uint32(/* id 7, wireType 2 =*/ 58).string(message.emptySince);
         return writer;
       };
 
@@ -80210,6 +80243,10 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 7: {
+              message.emptySince = reader.string();
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -80245,6 +80282,7 @@ export const unframe = ($root.unframe = (() => {
         if (typeof message !== "object" || message === null) return "object expected";
         if (long === $undefined) long = 0;
         if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        let properties = {};
         if (message.startedAt != null && message.hasOwnProperty("startedAt"))
           if (!$util.isString(message.startedAt)) return "startedAt: string expected";
         if (message.participants != null && message.hasOwnProperty("participants")) {
@@ -80293,6 +80331,10 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
           if (error) return "capacityFault." + error;
+        }
+        if (message.emptySince != null && message.hasOwnProperty("emptySince")) {
+          properties._emptySince = 1;
+          if (!$util.isString(message.emptySince)) return "emptySince: string expected";
         }
         return null;
       };
@@ -80379,6 +80421,7 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
+        if (object.emptySince != null) message.emptySince = $String(object.emptySince);
         return message;
       };
 
@@ -80458,6 +80501,10 @@ export const unframe = ($root.unframe = (() => {
             message.capacityFault,
             options,
           );
+        if (message.emptySince != null && message.hasOwnProperty("emptySince")) {
+          object.emptySince = message.emptySince;
+          if (options.oneofs) object._emptySince = "emptySince";
+        }
         return object;
       };
 
