@@ -42,7 +42,7 @@ not equally complete in every area:
   Each application under `app/web/` has independent dependencies, build, and startup configuration.
 - `lp/` is a static SvelteKit site and remains WIP while product content is being
   developed. Its CI task runs the LP test, check, and build commands.
-- `app/unity/` contains a Unity project and EditMode tests. The generated Control Plane C# client is not wired into Unity. Unity uses generated Realtime Protobuf clients and handwritten manifest models under `app/unity/Assets/Scripts/ManifestDates/`.
+- `app/unity/` contains a Unity project and EditMode tests. The generated Control Plane C# client is not wired into Unity. Unity uses generated Realtime clients and Delivery Protobuf types under `app/unity/Assets/Scripts/PresentationRuntime/Generated/`.
 - There is currently no deployment workflow in this repository. Do not invent
   deployment commands or assume that an application is independently deployed.
 

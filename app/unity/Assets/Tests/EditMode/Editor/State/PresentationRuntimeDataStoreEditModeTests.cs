@@ -1029,6 +1029,12 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         });
         catalog.Nodes.Add(new ProjectedNodeDefinition
         {
+            NodeId = "node:a-sibling",
+            Parent = new SpatialParent { Node = new NodeParent { NodeId = "node:parent" } },
+            Container = new ContainerNode(),
+        });
+        catalog.Nodes.Add(new ProjectedNodeDefinition
+        {
             NodeId = "node:surface",
             Parent = new SpatialParent { Node = new NodeParent { NodeId = "node:model" } },
             Surface = new SurfaceNode { SemanticSurfaceId = "surface:main" },
@@ -1045,6 +1051,8 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Assert.That(registry.TryGet("node:parent", out GameObject parent), Is.True);
             Assert.That(registry.TryGet("node:model", out GameObject model), Is.True);
             Assert.That(model.transform.parent, Is.EqualTo(parent.transform));
+            Assert.That(parent.transform.GetChild(0).name, Is.EqualTo("node:a-sibling"));
+            Assert.That(model.transform.GetSiblingIndex(), Is.EqualTo(1));
             Assert.That(parent.transform.GetSiblingIndex(), Is.EqualTo(0));
             Assert.That(root.transform.GetChild(1).name, Is.EqualTo("node:stage-sibling"));
             Assert.That(parent.transform.localPosition, Is.EqualTo(UnityEngine.Vector3.zero));

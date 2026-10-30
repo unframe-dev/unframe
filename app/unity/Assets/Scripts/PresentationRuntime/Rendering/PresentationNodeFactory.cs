@@ -19,41 +19,8 @@ namespace Unframe.Unity.PresentationRuntime
                 return false;
             }
 
-            List<ProjectedNodeDefinition> definitions = new List<ProjectedNodeDefinition>(view.Catalog.Nodes);
-            Dictionary<string, ProjectedNodeDefinition> byId = new Dictionary<string, ProjectedNodeDefinition>();
-            foreach (ProjectedNodeDefinition definition in definitions)
-            {
-                if (definition == null || String.IsNullOrEmpty(definition.NodeId) || definition.Parent == null || definition.Parent.ParentCase == SpatialParent.ParentOneofCase.None || definition.NodeCase == ProjectedNodeDefinition.NodeOneofCase.None || byId.ContainsKey(definition.NodeId))
-                {
-                    error = "Render catalog contains an invalid projected node.";
-                    return false;
-                }
-
-                byId.Add(definition.NodeId, definition);
-            }
-
-            foreach (ProjectedNodeDefinition definition in definitions)
-            {
-                if (definition.Parent.ParentCase == SpatialParent.ParentOneofCase.PresenterAnchor
-                    && (definition.Parent.PresenterAnchor.Target == AnchorTarget.Unspecified
-                        || !Enum.IsDefined(typeof(AnchorTarget), definition.Parent.PresenterAnchor.Target)
-                        || !definition.Parent.PresenterAnchor.FollowPosition && !definition.Parent.PresenterAnchor.FollowRotation))
-                {
-                    error = "Render catalog presenter anchor is invalid.";
-                    return false;
-                }
-                if (definition.Parent.ParentCase == SpatialParent.ParentOneofCase.Node && !byId.ContainsKey(definition.Parent.Node.NodeId))
-                {
-                    error = "Render catalog node parent is absent.";
-                    return false;
-                }
-
-                if (HasParentCycle(definition, byId))
-                {
-                    error = "Render catalog node parent graph contains a cycle.";
-                    return false;
-                }
-            }
+            if (!PresentationNodeHierarchyPlan.TryCreate(view.Catalog.Nodes, out PresentationNodeHierarchyPlan plan, out error)) return false;
+            IReadOnlyList<ProjectedNodeDefinition> definitions = plan.Nodes;
 
             Dictionary<string, GameObject> created = new Dictionary<string, GameObject>();
             Dictionary<string, GameObject> anchors = new Dictionary<string, GameObject>();
@@ -90,13 +57,10 @@ namespace Unframe.Unity.PresentationRuntime
                     created[definition.NodeId].transform.SetParent(parent, false);
                 }
 
-                SetSiblingOrder(root, definitions, created, null);
-                foreach (ProjectedNodeDefinition definition in definitions)
+                foreach (PresentationNodeHierarchyPlan.SiblingGroup siblings in plan.SiblingGroups)
                 {
-                    if (definition.Parent.ParentCase == SpatialParent.ParentOneofCase.Node)
-                    {
-                        SetSiblingOrder(created[definition.Parent.Node.NodeId].transform, definitions, created, definition.Parent.Node.NodeId);
-                    }
+                    for (int index = 0; index < siblings.Nodes.Count; index++)
+                        created[siblings.Nodes[index].NodeId].transform.SetSiblingIndex(index);
                 }
 
                 registry = new PresentationNodeRegistry();
@@ -124,47 +88,6 @@ namespace Unframe.Unity.PresentationRuntime
                 error = "Unable to create the presentation node hierarchy: " + exception.Message;
                 return false;
             }
-        }
-
-        private static bool HasParentCycle(ProjectedNodeDefinition definition, Dictionary<string, ProjectedNodeDefinition> byId)
-        {
-            HashSet<string> visited = new HashSet<string>();
-            ProjectedNodeDefinition current = definition;
-            while (current.Parent.ParentCase == SpatialParent.ParentOneofCase.Node)
-            {
-                if (!visited.Add(current.NodeId))
-                {
-                    return true;
-                }
-
-                current = byId[current.Parent.Node.NodeId];
-            }
-
-            return false;
-        }
-
-        private static void SetSiblingOrder(UnityEngine.Transform parent, List<ProjectedNodeDefinition> definitions, Dictionary<string, GameObject> created, string parentNodeId)
-        {
-            List<ProjectedNodeDefinition> children = definitions.FindAll(definition => IsChildOf(definition, parentNodeId));
-            children.Sort((left, right) =>
-            {
-                int order = left.Order.CompareTo(right.Order);
-                return order != 0 ? order : string.CompareOrdinal(left.NodeId, right.NodeId);
-            });
-            for (int index = 0; index < children.Count; index++)
-            {
-                created[children[index].NodeId].transform.SetSiblingIndex(index);
-            }
-        }
-
-        private static bool IsChildOf(ProjectedNodeDefinition definition, string parentNodeId)
-        {
-            if (parentNodeId == null)
-            {
-                return definition.Parent.ParentCase == SpatialParent.ParentOneofCase.Stage;
-            }
-
-            return definition.Parent.ParentCase == SpatialParent.ParentOneofCase.Node && definition.Parent.Node.NodeId == parentNodeId;
         }
     }
 }
