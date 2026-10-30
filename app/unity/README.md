@@ -14,7 +14,7 @@ Authoring Source をビルドし、
 
 `PresentationControlPlaneConnection` は、HTTPS Control Plane origin、Session ID、更新可能な認証 token provider を受け取り、POST Deliveryで `quest-presentation-v2` を指定します。POST bootstrapとpublication / assignment / projectionを照合して `PresentationBakedRuntime` へ渡し、再接続時はcredentialを更新します。publication / projectionの変更ではDeliveryを再取得します。credentialはSceneやassetへ保存しません。
 
-`PresentationRuntimeHost` は起動時に保存済みの全 Session 選択を読み、encoded asset cache の durable pin を復元します。Delivery の検証後に選択情報と pin を更新し、その cache を Runtime へ渡します。保存するのは publication / assignment の識別情報と Asset の checksum・サイズ・MIME です。署名付き URL と認証 credential は保存しません。保存データの破損や更新失敗では接続を停止します。
+`PresentationRuntimeHost` は起動時に保存済みの全 Session 選択を読み、encoded asset cache の durable pin を復元します。Delivery の検証後に選択情報と pin を更新し、その cache を Runtime へ渡します。保存するのは publication / assignment の識別情報と Asset の checksum・サイズ・MIME です。このcache metadataには署名付き URL と認証 credential を保存しません。アカウント認証の暗号化保存は[QuestアプリUI](docs/quest-app-ui.md)の接続設定を参照してください。保存データの破損や更新失敗では接続を停止します。
 
 ローカルの Session 選択を取り消す場合は `PresentationControlPlaneConnection.CancelLocalSelectionAsync` を呼びます。実行中の接続と Asset 処理の終了を待ってから、その participant の選択情報と durable pin を削除します。通常の再接続やアプリ終了では選択を保持します。
 

@@ -39,6 +39,11 @@ func (s *V2Session) JoinParticipant(ctx context.Context, identity session.Identi
 		return ErrV2PersistenceUnavailable
 	}
 
+	if ended, err := s.expireIdleLocked(ctx, s.now()); err != nil {
+		return err
+	} else if ended {
+		return ErrV2RuntimeDefinition
+	}
 	if s.snapshot.Clock.GetTerminating() != nil {
 		return ErrV2RuntimeDefinition
 	}
@@ -46,6 +51,8 @@ func (s *V2Session) JoinParticipant(ctx context.Context, identity session.Identi
 		return session.ErrParticipantActive
 	}
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
+	durablePresence := len(s.participants) == 0 || !s.emptySince.IsZero()
+	s.emptySince = time.Time{}
 	event := s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_ParticipantPresenceChanged{ParticipantPresenceChanged: &realtimev2.ParticipantPresenceChanged{ParticipantId: identity.ParticipantID, Role: v2SessionRole(identity.Role), Connected: true}}})
 	events := []*realtimev2.ProjectedReliableEvent{event}
 	_, previouslyJoined := s.participants[identity.ParticipantID]
@@ -57,10 +64,19 @@ func (s *V2Session) JoinParticipant(ctx context.Context, identity session.Identi
 		}
 		if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECONNECTED, true); err != nil {
 			s.snapshot = previous
+			if s.committedRecovery != nil {
+				_ = s.restoreV2Recovery(s.committedRecovery)
+			}
 			return err
 		}
 	}
-	if err := s.commitV2Mutation(ctx, previous, events); err != nil {
+	var err error
+	if durablePresence {
+		err = s.commitV2MutationVisible(ctx, previous, events, previous)
+	} else {
+		err = s.commitV2Mutation(ctx, previous, events)
+	}
+	if err != nil {
 		return err
 	}
 	s.presence[identity.ParticipantID] = identity.Role
@@ -93,16 +109,17 @@ func (s *V2Session) LeaveParticipant(ctx context.Context, identity session.Ident
 	if !exists {
 		return nil
 	}
-	if paused := s.snapshot.Clock.GetPaused(); paused != nil && (paused.Reason == realtimev2.PauseReason_PAUSE_REASON_ATOMIC_COMMIT_FAILED || paused.Reason == realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION) {
-		delete(s.presence, identity.ParticipantID)
-		return nil
-	}
 	if s.snapshot.Clock.GetTerminating() != nil {
 		delete(s.presence, identity.ParticipantID)
 		return nil
 	}
 	defer delete(s.presence, identity.ParticipantID)
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
+	lastConnection := len(s.presence) == 1
+	if lastConnection {
+		s.emptySince = s.now()
+		s.pendingEmptySince = s.emptySince
+	}
 	events := []*realtimev2.ProjectedReliableEvent{s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_ParticipantPresenceChanged{ParticipantPresenceChanged: &realtimev2.ParticipantPresenceChanged{ParticipantId: identity.ParticipantID, Role: v2SessionRole(role), Connected: false}}})}
 	pausePresenter := role == session.RolePresenter && s.snapshot.Clock.GetRunning() != nil
 	if pausePresenter {
@@ -112,11 +129,23 @@ func (s *V2Session) LeaveParticipant(ctx context.Context, identity session.Ident
 	if role == session.RolePresenter {
 		if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECONNECTED, true); err != nil {
 			s.snapshot = previous
+			if s.committedRecovery != nil {
+				_ = s.restoreV2Recovery(s.committedRecovery)
+			}
 			return err
 		}
 	}
-	if err := s.commitV2Mutation(ctx, previous, events); err != nil {
+	var err error
+	if lastConnection {
+		err = s.commitV2MutationVisible(ctx, previous, events, previous)
+	} else {
+		err = s.commitV2Mutation(ctx, previous, events)
+	}
+	if err != nil {
 		return err
+	}
+	if lastConnection {
+		s.pendingEmptySince = time.Time{}
 	}
 	delete(s.presence, identity.ParticipantID)
 	if pausePresenter {

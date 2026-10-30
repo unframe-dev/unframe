@@ -259,7 +259,7 @@ func (s *V2Session) commitV2Completion(ctx context.Context, previous *realtimev2
 		participants = append(participants, V2Participant{UserID: id, Role: v2RoleName(role)})
 	}
 	sort.Slice(participants, func(i, j int) bool { return participants[i].UserID < participants[j].UserID })
-	pending := &checkpointCompletion{snapshot: s.snapshot, recovery: recovery, tracking: s.tracking, events: cloneV2Events(events), startedAt: s.startedAt.UTC().Format(time.RFC3339Nano), endedAt: time.Now().UTC().Format(time.RFC3339Nano), participants: participants}
+	pending := &checkpointCompletion{snapshot: s.snapshot, recovery: recovery, tracking: s.tracking, events: cloneV2Events(events), startedAt: s.startedAt.UTC().Format(time.RFC3339Nano), endedAt: s.now().UTC().Format(time.RFC3339Nano), participants: participants}
 	s.durability.completing = true
 	s.snapshot = previous
 	if s.committedRecovery != nil {

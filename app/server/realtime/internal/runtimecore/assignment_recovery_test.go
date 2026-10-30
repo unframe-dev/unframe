@@ -101,7 +101,7 @@ func TestAssignmentRecoveryPreservesRunsHistoryAndDurableCut(t *testing.T) {
 			t.Fatal("command synchronization not fenced")
 		}
 		prior := recovered.Snapshot()
-		if _, err := recovered.AdvanceFromWall(context.Background(), time.Now().Add(time.Hour)); err != nil {
+		if _, err := recovered.AdvanceFromWall(context.Background(), time.Now().Add(5*time.Minute)); err != nil {
 			t.Fatal(err)
 		}
 		if recovered.Snapshot().Clock.RuntimeTimeMs != prior.Clock.RuntimeTimeMs {

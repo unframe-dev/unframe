@@ -35,6 +35,12 @@ function wireFixture(): ParticipantRuntimeViewWire {
 }
 
 describe("participant wire view adapter", () => {
+  it("accepts the server idle timeout as a terminating lifecycle", () => {
+    expect(
+      toParticipantView({ ...wireFixture(), clock: { terminating: { reason: 4 } } }).clock
+        .lifecycle,
+    ).toEqual({ kind: "terminating", reason: "idle-timeout" });
+  });
   it.each([
     ["01", "invalid unsigned integer"],
     ["1e2", "invalid unsigned integer"],
@@ -274,7 +280,7 @@ describe("participant wire view adapter", () => {
         toParticipantView({ ...wireFixture(), clock: { paused: { reason } } }).clock.lifecycle.kind,
       ).toBe("paused");
     }
-    for (let reason = 1; reason <= 3; reason++) {
+    for (let reason = 1; reason <= 4; reason++) {
       expect(
         toParticipantView({ ...wireFixture(), clock: { terminating: { reason } } }).clock.lifecycle
           .kind,
@@ -283,7 +289,7 @@ describe("participant wire view adapter", () => {
     for (const clock of [
       { paused: {} },
       { paused: { reason: 10 } },
-      { terminating: { reason: 4 } },
+      { terminating: { reason: 5 } },
     ]) {
       expect(() => toParticipantView({ ...wireFixture(), clock })).toThrow();
     }

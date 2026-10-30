@@ -20,7 +20,8 @@ pnpm --filter @unframe/console dev
 - `/rooms`: 自分が作成したルーム（Session）の一覧・再取得・ページ送りと、公開済み Presentation からの新規作成を扱います。作成後は詳細へ進みます。
 - `/rooms/{id}`: 現在の参加コードを取得・更新し、匿名 Viewer の参加 URL と QR を共有します。更新結果が不明な場合は共有を止め、現在のコードを再取得します。終了後は共有できません。発表環境を準備し、準備完了後に発表を開始します。準備失敗は同じルームで再試行でき、発表終了後は準備・開始できません。
 - `/login`・`/signup`・`/recover`・`/recover/reset`・`/device`: 認証と device 承認。
-- `/settings/profile`・`/settings/security`: アカウント設定。`/devices` は準備画面です。
+- `/devices`: Device Authorization で承認した有効な認証セッションの一覧・再取得と、`/device` の承認画面への入口です。端末の User-Agent と承認日時・有効期限を表示します。
+- `/settings/profile`・`/settings/security`: アカウント設定。他の認証セッションの一括失効はセキュリティー画面から行います。
 
 発表環境の準備には、運用者が Cloud Host を登録・起動しておく必要があります。ルームへの参加は Audience と Unity が担当します。作成応答が不明な場合は自動再送しません。未終了の Session がある Presentation の再公開は Control Plane が拒否します。
 
