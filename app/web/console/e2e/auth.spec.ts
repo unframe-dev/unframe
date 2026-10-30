@@ -11,7 +11,7 @@ test("email signup leads to verification, resend and login", async ({ page }) =>
     await route.fulfill({ json: { token: null, user: { id: "user-1" } } });
   });
   await page.goto("/signup");
-  await page.getByLabel("名前", { exact: true }).fill("テストユーザー");
+  await page.getByLabel("ユーザーネーム", { exact: true }).fill("テストユーザー");
   await page.getByLabel("メールアドレス", { exact: true }).fill("user@example.test");
   await page.getByLabel("パスワード", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "登録", exact: true }).click();
@@ -125,7 +125,7 @@ test("an unauthenticated Console visit leads directly to login", async ({ page }
   await page.route("**/api/auth/get-session", (route) => route.fulfill({ json: null }));
   await page.goto("/home");
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Sign in." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Login." })).toBeVisible();
 });
 
 test("a cancelled Google callback explains the failure and allows retry", async ({ page }) => {

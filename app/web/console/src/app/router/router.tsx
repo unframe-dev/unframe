@@ -14,7 +14,10 @@ import { DeviceAuthorizationPage } from "@/features/device/device-authorization-
 import { HomePage } from "@/features/presentations/home-page";
 import { ApplicationShell } from "@/app/shell/application-shell";
 import { DevicesPage } from "@/features/device/devices-page";
-import { LoginPage, RecoverPage, ResetPage, SignupPage } from "@/features/auth/auth-pages";
+import { LoginPage } from "@/features/auth/login-page";
+import { RecoverPage } from "@/features/auth/recover-page";
+import { ResetPage } from "@/features/auth/reset-page";
+import { SignupPage } from "@/features/auth/signup-page";
 import { ProfilePage, SecurityPage } from "@/features/settings/settings-pages";
 import publicModuleStyles from "@/shared/layouts/public-pages.module.css";
 import routerModuleStyles from "./router.module.css";

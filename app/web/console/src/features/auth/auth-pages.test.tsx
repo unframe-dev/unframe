@@ -9,7 +9,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import { LoginPage, RecoverPage, SignupPage } from "./auth-pages";
+import { LoginPage } from "./login-page";
+import { RecoverPage } from "./recover-page";
+import { SignupPage } from "./signup-page";
 const auth = vi.hoisted(() => ({
   signIn: { email: vi.fn(), social: vi.fn() },
   signUp: { email: vi.fn() },
@@ -86,7 +88,7 @@ describe("auth pages", () => {
     auth.signUp.email.mockResolvedValue({ error: null });
     renderRoute(SignupPage);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText("名前"), "U");
+    await user.type(await screen.findByLabelText("ユーザーネーム"), "U");
     await user.type(await screen.findByLabelText("メールアドレス"), "u@example.test");
     await user.type(await screen.findByLabelText("パスワード"), "password");
     await user.click(await screen.findByRole("button", { name: "登録" }));
