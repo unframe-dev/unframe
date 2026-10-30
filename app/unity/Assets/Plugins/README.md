@@ -1,6 +1,6 @@
 # Managed plugins
 
-`Google.Protobuf.dll` is version 3.34.1. The v2 network consumer uses
+`Google.Protobuf.dll` is version 3.34.1. The v3 network consumer uses
 Grpc.Net.Client / Grpc.Core.Api 2.76.0 and the native HTTP/2 handler installed by
 Unity Package Manager at the commit pinned in `Packages/manifest.json`.
 
