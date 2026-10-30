@@ -15,7 +15,7 @@ pnpm --filter @unframe/console dev
 ## 管理画面
 
 - `/home`: 閲覧可能な Presentation と最新公開 Dist を確認します。公開情報のない Presentation と取得エラーを区別します。
-- `/rooms`: 公開済み Presentation からルーム（Session）を作成します。作成時点の最新公開版が固定され、結果の publication fence を表示します。Join Code は作成直後だけ表示し、再読み込み後に再取得できません。
+- `/rooms`: 公開済み Presentation からルーム（Session）を作成します。作成時点の最新公開版が固定され、結果の publication fence を表示します。ルームコードは作成直後だけ表示し、再読み込み後に再取得できません。
 - `/rooms/{id}`: 発表環境を準備し、準備完了後に発表を開始します。準備失敗は同じルームで再試行でき、発表終了後は準備・開始できません。
 - `/login`・`/signup`・`/recover`・`/recover/reset`・`/device`: 認証と device 承認。
 - `/settings/profile`・`/settings/security`: アカウント設定。`/devices` は準備画面です。

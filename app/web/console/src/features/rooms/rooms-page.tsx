@@ -108,10 +108,10 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
           <h2 className="text-xl">ルームを作成しました</h2>
           <RoomDetails room={created.session} />
           <p>
-            Join Code: <strong>{created.joinCode}</strong>
+            ルームコード: <strong>{created.joinCode}</strong>
           </p>
           <p className="text-sm">
-            Join Code は作成直後だけ表示されます。この画面を離れると再表示できません。
+            ルームコードは作成直後だけ表示されます。この画面を離れると再表示できません。
           </p>
           <Link to="/rooms/$sessionId" params={{ sessionId: created.session.id }}>
             ルームの詳細
@@ -200,7 +200,7 @@ export function RoomPage({ sessionId }: { sessionId: string }) {
             <RoomDetails room={query.data} />
             <RoomControls key={sessionId} room={query.data} />
             <p className="text-sm">
-              Join Code は再取得できません。作成直後の画面だけに表示されます。
+              ルームコードは再取得できません。作成直後の画面だけに表示されます。
             </p>
           </>
         ) : null}

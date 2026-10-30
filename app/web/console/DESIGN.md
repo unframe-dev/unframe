@@ -81,7 +81,7 @@ Profile と Security は URL と見出しを分けます。保存単位、未保
 
 ### Rooms
 
-公開済み Presentation を選び、作成時の最新公開版を使うことを確認して作成します。結果は Session ID、Waiting 状態、保存された publication fence と作成直後の Join Code を示します。応答不明の場合は重複作成を避け、再送を促しません。参加、Runtime 配置、発表の運営操作は対象外です。
+公開済み Presentation を選び、作成時の最新公開版を使うことを確認して作成します。結果は Session ID、Waiting 状態、保存された publication fence と作成直後のルームコードを示します。応答不明の場合は重複作成を避け、再送を促しません。参加、Runtime 配置、発表の運営操作は対象外です。
 
 ## Visual Language
 
@@ -164,7 +164,7 @@ motion は状態変化と空間関係の理解に使います。装飾のため�
 - 実装されていない機能を有効な CTA として見せる
 - `#` だけの link、処理のない button、存在しない anchor を置く
 - status、focus、selection、error を色だけで伝える
-- Join Code を URL、ログ、永続ストレージに保存する
+- ルームコードを URL、ログ、永続ストレージに保存する
 - ローカル filesystem や Realtime の進行操作を管理 Web に追加する
 
 ## Validation
