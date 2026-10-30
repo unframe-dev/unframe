@@ -209,7 +209,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (roomFirst + 3 < ownedRooms.Length || nextRoomCursor != null)
                         Button("MoreRooms", "次へ", 320, -120, 220, () => Run(async token =>
                         {
-                            if (roomFirst + 3 >= ownedRooms.Length) await LoadMoreRooms(token);
+                            while (nextRoomCursor != null && roomFirst + 6 > ownedRooms.Length) await LoadMoreRooms(token);
                             token.ThrowIfCancellationRequested();
                             if (roomFirst + 3 < ownedRooms.Length) roomListPage++;
                         }), false, 60, 24);
@@ -369,7 +369,9 @@ namespace Unframe.Unity.PresentationRuntime
                 string connectingId = room.SessionId;
                 Func<CancellationToken, Task<string>> provider = flow.Role == QuestOnboardingRole.Audience
                     ? token => api.ViewerCredentialAsync(connectingId, token) : api.CredentialAsync;
-                session.ConfigureConnection(api.Origin, connectingId, provider, managedByOnboarding: true);
+                session.ConfigureConnection(api.Origin, connectingId, provider, managedByOnboarding: true,
+                    leaseProvider: flow.Role == QuestOnboardingRole.Audience
+                        ? token => api.AcquireViewerCredentialAsync(connectingId, token) : (Func<CancellationToken, Task<PresentationCredentialLease>>)null);
                 ownsConnection = true;
                 await session.ConnectAsync(); token.ThrowIfCancellationRequested();
                 if (!String.IsNullOrEmpty(session.LastErrorCode)) throw new InvalidOperationException(session.LastErrorCode);

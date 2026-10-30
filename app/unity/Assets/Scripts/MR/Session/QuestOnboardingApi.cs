@@ -300,6 +300,8 @@ public sealed class QuestOnboardingApi : IDisposable
 
     public bool HasViewerCredential(string sessionId) => viewer.IsValid(sessionId);
     public Task<string> ViewerCredentialAsync(string sessionId, CancellationToken token) => viewer.CredentialAsync(sessionId, token);
+    public Task<PresentationCredentialLease> AcquireViewerCredentialAsync(string sessionId, CancellationToken token)
+        => viewer.AcquireCredentialAsync(sessionId, token);
     public Task LeaveViewerAsync(CancellationToken token) => viewer.LeaveAsync(token);
 
     public async Task StartSessionAsync(string id, CancellationToken token)

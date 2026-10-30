@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using Unframe.Unity.PresentationRuntime;
 
 internal sealed class QuestAnonymousViewer
 {
@@ -20,6 +21,8 @@ internal sealed class QuestAnonymousViewer
     private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
     private CancellationTokenSource renewal;
     private string credential, sessionId;
+    private string pendingRevocation;
+    private DateTimeOffset pendingRevocationExpiresAt;
     private DateTimeOffset expiresAt, refreshAt;
     private bool disposed;
 
@@ -36,6 +39,7 @@ internal sealed class QuestAnonymousViewer
         {
             if (disposed) throw new ObjectDisposedException(nameof(QuestAnonymousViewer));
             await ClearAndRevokeAsync();
+            if (pendingRevocation != null) throw new QuestOnboardingApiException("viewer-revocation-pending");
             using (var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token))
             {
                 // A cancelled UI must still revoke a credential whose issuance response arrives late.
@@ -71,6 +75,11 @@ internal sealed class QuestAnonymousViewer
 
     public async Task<string> CredentialAsync(string id, CancellationToken token)
     {
+        using (var lease = await AcquireCredentialAsync(id, token)) return lease.Bearer;
+    }
+
+    public async Task<PresentationCredentialLease> AcquireCredentialAsync(string id, CancellationToken token)
+    {
         await gate.WaitAsync(token);
         try
         {
@@ -94,9 +103,9 @@ internal sealed class QuestAnonymousViewer
                 { refreshAt = now().AddMilliseconds(Math.Max(100, Math.Min(5000, (expiresAt - now()).TotalMilliseconds / 2))); }
             }
             if (!IsValid(id)) throw new QuestOnboardingApiException("viewer-authentication-required");
-            return credential;
+            return new PresentationCredentialLease(credential, () => gate.Release());
         }
-        finally { gate.Release(); }
+        catch { gate.Release(); throw; }
     }
 
     private async Task MaintainAsync(string id, CancellationToken token)
@@ -150,13 +159,23 @@ internal sealed class QuestAnonymousViewer
     private async Task ClearAndRevokeAsync()
     {
         StopRenewal();
-        string previous = credential;
-        credential = sessionId = null;
-        if (previous == null) return;
+        if (credential != null)
+        {
+            pendingRevocation = credential;
+            pendingRevocationExpiresAt = expiresAt;
+            credential = sessionId = null;
+        }
+        if (pendingRevocation == null) return;
+        if (pendingRevocationExpiresAt <= now()) { pendingRevocation = null; return; }
         try
         {
             using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
-            using (var response = await SendAsync(HttpMethod.Delete, "/viewer-credentials", null, previous, timeout.Token)) { }
+            using (var response = await SendAsync(HttpMethod.Delete, "/viewer-credentials", null, pendingRevocation, timeout.Token))
+            {
+                if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.Unauthorized
+                    || response.StatusCode == HttpStatusCode.Gone)
+                    pendingRevocation = null;
+            }
         }
         catch (Exception) { }
     }

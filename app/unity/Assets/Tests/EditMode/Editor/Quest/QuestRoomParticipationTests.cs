@@ -68,6 +68,44 @@ public sealed class QuestRoomParticipationTests
     }
 
     [Test]
+    public void PresenterPaginationShowsEveryRoomAcrossServerPageBoundaries()
+    {
+        var store = new Store();
+        store.Save("https://api.example/|unity", new QuestAccountCredential("saved-account", DateTimeOffset.UtcNow.AddHours(1)));
+        var handler = new Handler
+        {
+            Respond = request =>
+        {
+            bool more = request.RequestUri.Query.Contains("cursor=");
+            var rooms = new List<string>();
+            for (int i = more ? 20 : 0; i < (more ? 23 : 20); i++)
+                rooms.Add("{\"id\":\"room-" + i + "\",\"state\":\"Waiting\",\"presentationId\":\"p1\"}");
+            return Json("{\"sessions\":[" + string.Join(",", rooms) + "],\"nextCursor\":" + (more ? "null" : "\"room-19\"") + "}");
+        }
+        };
+        var host = new GameObject("Room pagination");
+        var head = new GameObject("Head");
+        try
+        {
+            var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler, credentialStore: store);
+            var view = host.AddComponent<QuestOnboardingView>();
+            view.Configure(null, null, null, head.transform, api);
+            view.FindButton("Presenter").onClick.Invoke();
+            var displayed = new List<string>();
+            do
+            {
+                foreach (var button in view.Panel.GetComponentsInChildren<UnityEngine.UI.Button>())
+                    if (button.name.StartsWith("Room ")) displayed.Add(button.name);
+                var next = view.FindButton("MoreRooms");
+                if (next == null) break;
+                next.onClick.Invoke();
+            } while (displayed.Count < 30);
+            Assert.That(displayed, Is.EqualTo(new[] { "Room 0", "Room 1", "Room 2", "Room 3", "Room 4", "Room 5", "Room 6", "Room 7", "Room 8", "Room 9", "Room 10", "Room 11", "Room 12", "Room 13", "Room 14", "Room 15", "Room 16", "Room 17", "Room 18", "Room 19", "Room 20", "Room 21", "Room 22" }));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(host); UnityEngine.Object.DestroyImmediate(head); }
+    }
+
+    [Test]
     public async Task AnonymousParticipationUsesSeparateCredentialsAndRevokesOnLeave()
     {
         var store = new Store();
@@ -99,6 +137,70 @@ public sealed class QuestRoomParticipationTests
             await api.LeaveViewerAsync(CancellationToken.None);
             Assert.That(requests, Is.EqualTo(new[] { "POST /viewer-credentials", "GET /sessions/shared-room", "DELETE /viewer-credentials" }));
             Assert.That(store.Records["https://api.example/|unity"].token, Is.EqualTo("saved-account"));
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task FailedRevocationIsRetriedBeforeAnotherParticipantCanBeIssued(bool timeout)
+    {
+        int issued = 0, deletions = 0;
+        var revoked = new List<string>();
+        var handler = new Handler
+        {
+            Respond = request =>
+        {
+            if (request.Method == HttpMethod.Delete)
+            {
+                revoked.Add(request.Headers.Authorization.Parameter);
+                if (++deletions < 3)
+                {
+                    if (timeout) throw new TaskCanceledException("Network timeout");
+                    return Json("{}", HttpStatusCode.ServiceUnavailable);
+                }
+                return Json("{}", HttpStatusCode.NoContent);
+            }
+            if (request.RequestUri.AbsolutePath == "/viewer-credentials")
+                return Json(ViewerJson("viewer_" + ++issued, DateTimeOffset.UtcNow.AddHours(1)), HttpStatusCode.Created);
+            return Json("{\"id\":\"shared-room\",\"state\":\"Waiting\",\"presentationId\":\"p1\"}");
+        }
+        };
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler))
+        {
+            await api.JoinSessionAsync("ABCD-EFGH", CancellationToken.None);
+            await api.LeaveViewerAsync(CancellationToken.None);
+            Assert.That(api.HasViewerCredential("shared-room"), Is.False);
+            var error = Assert.ThrowsAsync<QuestOnboardingApiException>(() => api.JoinSessionAsync("ABCD-EFGH", CancellationToken.None));
+            Assert.That(error.Code, Is.EqualTo("viewer-revocation-pending"));
+            Assert.That(issued, Is.EqualTo(1));
+            await api.LeaveViewerAsync(CancellationToken.None);
+            Assert.That(revoked, Is.EqualTo(new[] { "viewer_1", "viewer_1", "viewer_1" }));
+            await api.JoinSessionAsync("ABCD-EFGH", CancellationToken.None);
+            Assert.That(issued, Is.EqualTo(2));
+        }
+    }
+
+    [TestCase(HttpStatusCode.Unauthorized)]
+    [TestCase(HttpStatusCode.Gone)]
+    public async Task AlreadyInvalidRevocationDoesNotBlockAnotherJoin(HttpStatusCode status)
+    {
+        int issued = 0;
+        var handler = new Handler
+        {
+            Respond = request =>
+        {
+            if (request.Method == HttpMethod.Delete) return Json("{}", status);
+            if (request.RequestUri.AbsolutePath == "/viewer-credentials")
+                return Json(ViewerJson("viewer_" + ++issued, DateTimeOffset.UtcNow.AddHours(1)), HttpStatusCode.Created);
+            return Json("{\"id\":\"shared-room\",\"state\":\"Waiting\",\"presentationId\":\"p1\"}");
+        }
+        };
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler))
+        {
+            await api.JoinSessionAsync("ABCD-EFGH", CancellationToken.None);
+            await api.LeaveViewerAsync(CancellationToken.None);
+            await api.JoinSessionAsync("ABCD-EFGH", CancellationToken.None);
+            Assert.That(issued, Is.EqualTo(2));
         }
     }
 
@@ -248,6 +350,73 @@ public sealed class QuestRoomParticipationTests
     {
         public Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> Respond;
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => Respond(request, token);
+    }
+
+    [Test]
+    public void InvalidCredentialsReleaseTheirLeaseBeforeAnyHttpRequest()
+    {
+        bool released = false;
+        var connection = new PresentationControlPlaneConnection(new Uri("https://api.example"), "shared-room",
+            _ => Task.FromResult("unused"), credentialLeaseProvider: _ => Task.FromResult(new PresentationCredentialLease(string.Empty, () => released = true)));
+        using (var client = new HttpClient(new Handler { Respond = _ => throw new AssertionException("Invalid credentials must not reach HTTP") }))
+            Assert.ThrowsAsync<PresentationConnectionException>(() => connection.LoadDeliveryAsync(client, CancellationToken.None));
+        Assert.That(released, Is.True);
+    }
+
+    [TestCase("response")]
+    [TestCase("send")]
+    [TestCase("cancel")]
+    public async Task ViewerRenewalWaitsForAnAuthenticatedRequestAndItsLeaseIsReleasedOnFailure(string failure)
+    {
+        var time = DateTimeOffset.UtcNow;
+        bool refreshed = false;
+        var handler = new Handler
+        {
+            Respond = request =>
+        {
+            if (request.Method == HttpMethod.Delete) return Json("{}", HttpStatusCode.NoContent);
+            if (request.RequestUri.AbsolutePath.EndsWith("/refresh"))
+            { refreshed = true; return Json(ViewerJson("viewer_renewed", time.AddHours(1))); }
+            if (request.RequestUri.AbsolutePath == "/viewer-credentials")
+                return Json(ViewerJson("viewer_original", time.AddMinutes(1)), HttpStatusCode.Created);
+            return Json("{\"id\":\"shared-room\",\"state\":\"Waiting\",\"presentationId\":\"p1\"}");
+        }
+        };
+        var started = new TaskCompletionSource<bool>();
+        var finish = new TaskCompletionSource<HttpResponseMessage>();
+        var deliveryHandler = new DeferredHandler
+        {
+            Respond = (request, token) =>
+        {
+            Assert.That(request.Headers.Authorization.Parameter, Is.EqualTo("viewer_original"));
+            started.TrySetResult(true);
+            return DelayedResponse(finish.Task, token);
+        }
+        };
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler, now: () => time))
+        using (var client = new HttpClient(deliveryHandler))
+        using (var cancellation = new CancellationTokenSource())
+        {
+            await api.JoinSessionAsync("ABCD-EFGH", CancellationToken.None);
+            var connection = new PresentationControlPlaneConnection(api.Origin, "shared-room",
+                token => api.ViewerCredentialAsync("shared-room", token),
+                credentialLeaseProvider: token => api.AcquireViewerCredentialAsync("shared-room", token));
+            Task delivery = connection.LoadDeliveryAsync(client, cancellation.Token);
+            await started.Task;
+            time = time.AddSeconds(31);
+            Task<string> renewal = api.ViewerCredentialAsync("shared-room", CancellationToken.None);
+            bool rotatedDuringRequest = refreshed;
+            if (failure == "cancel") cancellation.Cancel();
+            else if (failure == "send") finish.SetException(new HttpRequestException("Connection lost"));
+            else finish.SetResult(Json("{}"));
+            try { await delivery; Assert.Fail("Invalid delivery must fail"); }
+            catch (PresentationConnectionException) { }
+            catch (HttpRequestException) { }
+            catch (OperationCanceledException) { }
+            Assert.That(await Task.WhenAny(renewal, Task.Delay(5000)), Is.SameAs(renewal), "A failed request must release its credential lease.");
+            Assert.That(await renewal, Is.EqualTo("viewer_renewed"));
+            Assert.That(rotatedDuringRequest, Is.False, "Rotation must wait until the request finishes using its bearer.");
+        }
     }
 
     [Test]
