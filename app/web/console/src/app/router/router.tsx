@@ -59,7 +59,20 @@ const rootRoute = createRootRoute({
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "login",
-  component: LoginPage,
+  validateSearch: z.object({
+    verified: z.boolean().optional().catch(undefined),
+    error: z.string().optional().catch(undefined),
+    provider: z.literal("google").optional().catch(undefined),
+  }),
+  component: () => {
+    const { verified, error, provider } = loginRoute.useSearch();
+    return (
+      <LoginPage
+        verified={verified === true}
+        error={error ? (provider === "google" ? "oauth" : "verification") : ""}
+      />
+    );
+  },
 });
 const signupRoute = createRoute({
   getParentRoute: () => rootRoute,

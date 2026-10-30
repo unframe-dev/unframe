@@ -28,6 +28,77 @@ const credentialsSchema = z.object({
 });
 type Credentials = z.infer<typeof credentialsSchema>;
 const auth = controlPlaneAuth;
+function verificationCallbackUrl() {
+  return new URL("/login?verified=true", window.location.origin).href;
+}
+
+function GoogleSignIn({ label }: { label: string }) {
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const signIn = async () => {
+    setMessage("");
+    setLoading(true);
+    try {
+      const result = await auth.signIn.social({
+        provider: "google",
+        callbackURL: new URL("/home", window.location.origin).href,
+        errorCallbackURL: new URL("/login?provider=google", window.location.origin).href,
+      });
+      if (result.error) setMessage("Google 認証を開始できませんでした。もう一度お試しください。");
+    } catch {
+      setMessage("Google 認証を開始できませんでした。もう一度お試しください。");
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <>
+      <Button type="button" disabled={loading} onClick={() => void signIn()}>
+        <GoogleLogoIcon aria-hidden="true" />
+        {loading ? "Google に接続中…" : label}
+      </Button>
+      {message ? (
+        <p role="alert" className={styles.error}>
+          {message}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+function VerificationResend({ email }: { email: string }) {
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const resend = async () => {
+    setStatus("sending");
+    try {
+      const result = await auth.sendVerificationEmail({
+        email,
+        callbackURL: verificationCallbackUrl(),
+      });
+      setStatus(result.error ? "error" : "sent");
+    } catch {
+      setStatus("error");
+    }
+  };
+  return (
+    <div className="grid gap-3">
+      <Button
+        type="button"
+        variant="outline"
+        disabled={status === "sending"}
+        onClick={() => void resend()}
+      >
+        {status === "sending" ? "送信中…" : "確認メールを再送"}
+      </Button>
+      {status === "sent" ? <p role="status">確認メールを再送しました。</p> : null}
+      {status === "error" ? (
+        <p role="alert" className={styles.error}>
+          確認メールを再送できませんでした。もう一度お試しください。
+        </p>
+      ) : null}
+    </div>
+  );
+}
 function hasErrorCode(error: unknown, code: string) {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }
@@ -73,54 +144,69 @@ function FormErrors({ errors }: { errors: Record<string, { message?: string } | 
     </div>
   ) : null;
 }
-export function LoginPage() {
+export function LoginPage({
+  verified = false,
+  error = "",
+}: {
+  verified?: boolean;
+  error?: string;
+} = {}) {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [mfa, setMfa] = useState(false);
   const form = useForm<Credentials>({
     resolver: zodResolver(credentialsSchema),
   });
   const submit = form.handleSubmit(async (values) => {
     setMessage("");
-    const result = await auth.signIn.email({ ...values, callbackURL: "/home" });
-    if (result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
-      setMfa(true);
-      return;
+    setUnverifiedEmail("");
+    try {
+      const result = await auth.signIn.email({
+        ...values,
+        callbackURL: new URL("/home", window.location.origin).href,
+      });
+      if (result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
+        setMfa(true);
+        return;
+      }
+      if (result.error) {
+        if (hasErrorCode(result.error, "EMAIL_NOT_VERIFIED")) setUnverifiedEmail(values.email);
+        setMessage(
+          hasErrorCode(result.error, "EMAIL_NOT_VERIFIED")
+            ? "メールアドレスを確認してください。"
+            : "ログインできませんでした。入力内容を確認してください。",
+        );
+        return;
+      }
+      await navigate({ to: "/home" });
+    } catch {
+      setMessage("ログインできませんでした。もう一度お試しください。");
     }
-    if (result.error) {
-      setMessage(
-        hasErrorCode(result.error, "EMAIL_NOT_VERIFIED")
-          ? "メールアドレスを確認してください。"
-          : "ログインできませんでした。入力内容を確認してください。",
-      );
-      return;
-    }
-    await navigate({ to: "/home" });
   });
-  const google = async () => {
-    setMessage("");
-    const result = await auth.signIn.social({
-      provider: "google",
-      callbackURL: "/home",
-    });
-    if (result.error) setMessage("Google ログインを開始できませんでした。");
-  };
   return (
     <AuthLayout title="Sign in." description="Unframe にログインします。">
+      {error ? (
+        <p role="alert" className={styles.error}>
+          {error === "oauth"
+            ? "Google 認証を完了できませんでした。もう一度お試しください。"
+            : "メールの確認リンクが無効か、有効期限が切れています。ログインして確認メールを再送してください。"}
+        </p>
+      ) : verified ? (
+        <p role="status">メールアドレスを確認しました。ログインして Unframe を始めましょう。</p>
+      ) : null}
       {mfa ? (
         <MfaForm onDone={() => void navigate({ to: "/home" })} />
       ) : (
         <>
-          <Button type="button" onClick={() => void google()}>
-            <GoogleLogoIcon aria-hidden="true" />
-            Google でログイン
-          </Button>
+          <GoogleSignIn label="Google でログイン" />
           <p className={styles.divider}>または</p>
           <form onSubmit={submit}>
             <FormErrors errors={form.formState.errors} />
             <Label>
               メールアドレス
               <Input
+                type="email"
                 autoComplete="email"
                 aria-invalid={Boolean(form.formState.errors.email)}
                 aria-describedby={form.formState.errors.email ? "email-error" : undefined}
@@ -141,6 +227,9 @@ export function LoginPage() {
               <p role="alert" className={styles.error}>
                 {message}
               </p>
+            ) : null}
+            {unverifiedEmail ? (
+              <VerificationResend key={unverifiedEmail} email={unverifiedEmail} />
             ) : null}
             <Button type="submit" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? "ログイン中…" : "ログイン"}
@@ -207,59 +296,85 @@ function MfaForm({ onDone }: { onDone: () => void }) {
 }
 export function SignupPage() {
   const [message, setMessage] = useState("");
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const form = useForm<Credentials & { name: string }>({
     resolver: zodResolver(
       credentialsSchema.extend({
-        name: z.string().min(1, "名前を入力してください。"),
+        name: z.string().trim().min(1, "名前を入力してください。"),
       }),
     ),
   });
   const submit = form.handleSubmit(async (values) => {
-    const result = await auth.signUp.email({ ...values, callbackURL: "/home" });
-    setMessage(
-      result.error
-        ? "登録できませんでした。"
-        : "確認メールを送信しました。メールを確認してからログインしてください。",
-    );
+    setMessage("");
+    try {
+      const result = await auth.signUp.email({ ...values, callbackURL: verificationCallbackUrl() });
+      if (result.error)
+        setMessage("登録できませんでした。入力内容を確認して、もう一度お試しください。");
+      else setRegisteredEmail(values.email);
+    } catch {
+      setMessage("登録できませんでした。もう一度お試しください。");
+    }
   });
   return (
     <AuthLayout title="Create an account." description="新しいアカウントを作成します。">
-      <form onSubmit={submit}>
-        <FormErrors errors={form.formState.errors} />
-        <Label>
-          名前
-          <Input
-            aria-invalid={Boolean(form.formState.errors.name)}
-            aria-describedby={form.formState.errors.name ? "name-error" : undefined}
-            {...form.register("name")}
-          />
-        </Label>
-        <Label>
-          メールアドレス
-          <Input
-            autoComplete="email"
-            aria-invalid={Boolean(form.formState.errors.email)}
-            aria-describedby={form.formState.errors.email ? "email-error" : undefined}
-            {...form.register("email")}
-          />
-        </Label>
-        <Label>
-          パスワード
-          <Input
-            type="password"
-            autoComplete="new-password"
-            aria-invalid={Boolean(form.formState.errors.password)}
-            aria-describedby={form.formState.errors.password ? "password-error" : undefined}
-            {...form.register("password")}
-          />
-        </Label>
-        {message ? (
-          <p role={message.includes("できません") ? "alert" : "status"}>{message}</p>
-        ) : null}
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "登録中…" : "登録"}
-        </Button>
-      </form>
+      {registeredEmail ? (
+        <>
+          <p role="status">
+            {registeredEmail}{" "}
+            に確認メールを送信しました。メール内のリンクで確認してからログインしてください。
+          </p>
+          <p>メールが届かない場合は迷惑メールフォルダーも確認してください。</p>
+          <VerificationResend email={registeredEmail} />
+          <Button type="button" variant="outline" onClick={() => setRegisteredEmail("")}>
+            メールアドレスを変更
+          </Button>
+        </>
+      ) : (
+        <>
+          <GoogleSignIn label="Google で登録" />
+          <p className={styles.divider}>または</p>
+          <form onSubmit={submit}>
+            <FormErrors errors={form.formState.errors} />
+            <Label>
+              名前
+              <Input
+                autoComplete="name"
+                aria-invalid={Boolean(form.formState.errors.name)}
+                aria-describedby={form.formState.errors.name ? "name-error" : undefined}
+                {...form.register("name")}
+              />
+            </Label>
+            <Label>
+              メールアドレス
+              <Input
+                type="email"
+                autoComplete="email"
+                aria-invalid={Boolean(form.formState.errors.email)}
+                aria-describedby={form.formState.errors.email ? "email-error" : undefined}
+                {...form.register("email")}
+              />
+            </Label>
+            <Label>
+              パスワード
+              <Input
+                type="password"
+                autoComplete="new-password"
+                aria-invalid={Boolean(form.formState.errors.password)}
+                aria-describedby={form.formState.errors.password ? "password-error" : undefined}
+                {...form.register("password")}
+              />
+            </Label>
+            {message ? (
+              <p role="alert" className={styles.error}>
+                {message}
+              </p>
+            ) : null}
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? "登録中…" : "登録"}
+            </Button>
+          </form>
+        </>
+      )}
       <p>
         <Link to="/login">ログインへ</Link>
       </p>

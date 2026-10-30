@@ -25,6 +25,8 @@ pnpm --filter @unframe/console dev
 
 発表環境の準備には、運用者が Cloud Host を登録・起動しておく必要があります。ルームへの参加は Audience と Unity が担当します。作成応答が不明な場合は自動再送しません。未終了の Session がある Presentation の再公開は Control Plane が拒否します。
 
+LP の `/signup`・`/login` リンクから同じ origin の Console に進みます。メール登録後は確認メールの送信先・再送を表示し、メール内のリンクで確認後は `/login` に戻ります。ログイン成功後と Google 認証成功後は `/home` に進みます。未ログインで管理画面を開いた場合も `/login` に進みます。メールと OAuth の戻り先には Console の絶対 URL を渡すため、開発時は Control Plane の `WEB_ORIGIN` に Console の origin を設定してください。
+
 ## 検証
 
 ```bash

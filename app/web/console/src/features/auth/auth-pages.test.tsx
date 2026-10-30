@@ -82,7 +82,7 @@ describe("auth pages", () => {
       }),
     );
   });
-  it("submits signup and recovery", async () => {
+  it("shows the verification destination after signup", async () => {
     auth.signUp.email.mockResolvedValue({ error: null });
     renderRoute(SignupPage);
     const user = userEvent.setup();
@@ -90,7 +90,9 @@ describe("auth pages", () => {
     await user.type(await screen.findByLabelText("メールアドレス"), "u@example.test");
     await user.type(await screen.findByLabelText("パスワード"), "password");
     await user.click(await screen.findByRole("button", { name: "登録" }));
-    expect(await screen.findByText(/確認メール/)).toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "u@example.test に確認メールを送信しました。",
+    );
   });
   it("requests password recovery", async () => {
     auth.requestPasswordReset.mockResolvedValue({ error: null });

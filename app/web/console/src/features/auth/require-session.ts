@@ -3,6 +3,6 @@ import { hasSession } from "./control-plane-auth";
 
 export async function requireSession() {
   if (!(await hasSession())) {
-    throw redirect({ href: "/", replace: true });
+    throw redirect({ to: "/login", replace: true });
   }
 }

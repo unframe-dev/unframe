@@ -6,6 +6,7 @@
 
   type ButtonProps = {
     href?: string;
+    rel?: string;
     variant?: Variant;
     size?: Size;
     class?: string;
@@ -14,6 +15,7 @@
 
   let {
     href,
+    rel,
     variant = "primary",
     size = "md",
     class: className = "",
@@ -41,7 +43,7 @@
 </script>
 
 {#if href}
-  <a class={classes} href={href}>
+  <a class={classes} href={href} rel={rel}>
     {@render children()}
   </a>
 {:else}
