@@ -209,11 +209,9 @@ func (s *V2Session) runCheckpointWorker(ctx context.Context, concurrency chan st
 					_ = s.tryCompletionLocked(attempt)
 					stop()
 				}
-				s.mu.Unlock()
-				s.operationMu.Unlock()
-				s.mu.Lock()
 				if s.durability.completing || s.durability.revision == captured || s.durability.revision <= s.durability.savedRevision {
 					s.mu.Unlock()
+					s.operationMu.Unlock()
 					continue
 				}
 				cut, err := s.checkpointCutLocked()
@@ -222,6 +220,7 @@ func (s *V2Session) runCheckpointWorker(ctx context.Context, concurrency chan st
 					s.durability.status.Pending = true
 				}
 				s.mu.Unlock()
+				s.operationMu.Unlock()
 				if err != nil {
 					continue
 				}

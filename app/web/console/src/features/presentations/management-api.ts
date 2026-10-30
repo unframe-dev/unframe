@@ -1,3 +1,4 @@
+import { sessionJoinCodeSchema } from "@unframe/contracts/control-plane-http";
 import { createControlPlaneClient } from "@unframe/api-client-typescript";
 import {
   publicationFenceSchema,
@@ -127,5 +128,36 @@ export async function startRoom(id: string) {
 export async function endRoom(id: string) {
   return sessionSchema.parse(
     await readJson(await client.sessions[":id"].end.$post({ param: { id } })),
+  );
+}
+
+const joinCodeResponseSchema = z.object({
+  joinCode: sessionJoinCodeSchema,
+});
+export async function listRooms(cursor?: string, signal?: AbortSignal) {
+  return z
+    .object({ sessions: z.array(sessionSchema), nextCursor: z.string().nullable() })
+    .parse(
+      await readJson(
+        await client.sessions.$get(
+          { query: { limit: 20, ...(cursor ? { cursor } : {}) } },
+          { init: { signal: signal ?? null } },
+        ),
+      ),
+    );
+}
+export async function getRoomCode(id: string, signal?: AbortSignal) {
+  return joinCodeResponseSchema.parse(
+    await readJson(
+      await client.sessions[":id"]["join-code"].$get(
+        { param: { id } },
+        { init: { signal: signal ?? null } },
+      ),
+    ),
+  );
+}
+export async function rotateRoomCode(id: string) {
+  return joinCodeResponseSchema.parse(
+    await readJson(await client.sessions[":id"]["join-code"].$post({ param: { id } })),
   );
 }

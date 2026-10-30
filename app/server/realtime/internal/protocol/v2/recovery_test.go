@@ -85,3 +85,21 @@ func TestRecoveryWithoutParticipantsRequiresZeroReliableSequence(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRecoveryIdleTimestampRequiresHistoryAndValidUTCStart(t *testing.T) {
+	base := &realtimev2.RuntimeRecoveryMetadata{StartedAt: "2026-10-22T00:00:00Z", Participants: []*realtimev2.RuntimeParticipantHistory{{ParticipantId: "viewer", Role: presentationv2.SessionRole_SESSION_ROLE_VIEWER}}, CommandEpoch: 1, InputSynchronization: synchronizationFixture(), EmptySince: proto.String("2026-10-22T00:10:00Z")}
+	if _, err := DecodeRecoveryMetadata(recoveryEnvelope(t, base)); err != nil {
+		t.Fatal(err)
+	}
+	for _, timestamp := range []string{"", "invalid", "2026-02-31T00:00:00Z", "2026-10-21T00:00:00Z", "2026-10-22T00:10:00+01:00"} {
+		candidate := proto.Clone(base).(*realtimev2.RuntimeRecoveryMetadata)
+		candidate.EmptySince = proto.String(timestamp)
+		if _, err := DecodeRecoveryMetadata(recoveryEnvelope(t, candidate)); err == nil {
+			t.Errorf("invalid idle time admitted: %q", timestamp)
+		}
+	}
+	base.Participants = nil
+	if _, err := DecodeRecoveryMetadata(recoveryEnvelope(t, base)); err == nil {
+		t.Fatal("never-connected idle timer admitted")
+	}
+}

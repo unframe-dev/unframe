@@ -54,6 +54,7 @@ export const presentationSessions = sqliteTable("presentation_sessions", {
   presentationId: text("presentation_id").notNull(),
   presenterId: text("presenter_id").notNull(),
   joinCodeHash: text("join_code_hash").notNull(),
+  joinCode: text("join_code"),
   state: text().$type<"Waiting" | "Presenting" | "Ended">().notNull(),
   participantCount: integer("participant_count").notNull(),
   maxParticipants: integer("max_participants").notNull(),

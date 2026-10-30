@@ -1,7 +1,7 @@
-ad808fc08d5609d0f7778e836ede342056c971fa0c6fc0cf0a449cc02f611441  openapi/control-plane.openapi.json
+669581573570ebea638d37a28e835a8acae709920ee1607c84532d10a1d39cb3  openapi/control-plane.openapi.json
 c58eae2f0f09907ded0ede28d784c366f205341f55eb411bccf457ba72fe7a15  proto/unframe/presentation/runtime.proto
 efb8bbadff292763ad281aef5adc5cc333f12310b6766349e03c8fcbad1d7bd0  proto/unframe/delivery/delivery.proto
-4ff0b518cff840faefd26f63554b21dc3cde68dd5477835841fd4f8ae4278d66  proto/unframe/realtime/realtime.proto
+3dec2cf1269e63df37f3d1e52e7579c4096bb73dffcc4a6c3396b9f5f94252ba  proto/unframe/realtime/realtime.proto
 bb773afce6c2e7388989d45c056f27cae30ec1cb36f0a9805d42bdfa7c2b45ac  proto/unframe/preview/preview.proto
 protoc=libprotoc 36.2
 protoc-gen-go=protoc-gen-go v1.36.12

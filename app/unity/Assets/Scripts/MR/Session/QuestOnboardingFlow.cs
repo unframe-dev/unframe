@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 namespace Unframe.Unity.PresentationRuntime
 {
     public enum QuestOnboardingRole { None, Presenter, Audience }
-    public enum QuestOnboardingPage { Role, Authentication, RoomCode, Presentations, Preparation, Join, Calibration, Ready }
+    public enum QuestOnboardingPage { Role, Authentication, Rooms, RoomCode, Presentations, Preparation, Join, Calibration, Ready }
 
     public static class QuestOnboardingStart
     {
@@ -73,7 +73,8 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 case QuestOnboardingPage.Authentication: Page = Role == QuestOnboardingRole.Audience ? QuestOnboardingPage.RoomCode : QuestOnboardingPage.Role; break;
                 case QuestOnboardingPage.RoomCode: Page = QuestOnboardingPage.Role; break;
-                case QuestOnboardingPage.Presentations: Page = QuestOnboardingPage.Authentication; break;
+                case QuestOnboardingPage.Rooms: Page = QuestOnboardingPage.Role; break;
+                case QuestOnboardingPage.Presentations: Page = QuestOnboardingPage.Rooms; break;
                 case QuestOnboardingPage.Preparation: Page = QuestOnboardingPage.Presentations; break;
                 case QuestOnboardingPage.Join: Page = QuestOnboardingPage.RoomCode; break;
                 case QuestOnboardingPage.Calibration: Page = Role == QuestOnboardingRole.Presenter ? QuestOnboardingPage.Preparation : QuestOnboardingPage.Join; break;

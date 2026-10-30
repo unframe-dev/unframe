@@ -391,8 +391,9 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(state.TransitionRunId, Is.Null);
     }
 
-    [Test]
-    public void PresentationEndClearsInFlightSurfaceTransitionRunReference()
+    [TestCase(TerminationReason.ExplicitEnd)]
+    [TestCase(TerminationReason.IdleTimeout)]
+    public void PresentationEndClearsInFlightSurfaceTransitionRunReference(TerminationReason reason)
     {
         DeliveryManifest delivery = CreateDelivery();
         delivery.ProjectionProfile.RuntimeCatalog.Surfaces[0].ReachableStateIds.Add("state:next");
@@ -441,7 +442,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             {
                 Sequence = 3,
                 Fence = CreateFence(delivery),
-                PresentationEnded = new PresentationEnded { Reason = TerminationReason.ExplicitEnd },
+                PresentationEnded = new PresentationEnded { Reason = reason },
             }
         }, out error), Is.True, error);
         Assert.That(System.Linq.Enumerable.Count(store.ActiveRuns), Is.Zero);

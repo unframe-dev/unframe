@@ -22,6 +22,10 @@ func (s *V2Session) AdvanceFromWall(ctx context.Context, now time.Time) ([]*real
 // Caller holds operationMu so clock advancement and command evaluation cannot interleave.
 func (s *V2Session) advanceFromWall(ctx context.Context, now time.Time) ([]*realtimev2.ProjectedReliableEvent, error) {
 	s.mu.Lock()
+	if ended, err := s.expireIdleLocked(ctx, now); err != nil || ended {
+		s.mu.Unlock()
+		return nil, err
+	}
 	if !now.After(s.lastTick) {
 		s.mu.Unlock()
 		return nil, nil

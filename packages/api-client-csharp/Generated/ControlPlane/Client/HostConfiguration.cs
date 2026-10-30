@@ -117,8 +117,12 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPost201ResponseContractVersionsJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPostRequestJsonConverter());
+            _jsonOptions.Converters.Add(new SessionsGet200ResponseJsonConverter());
+            _jsonOptions.Converters.Add(new SessionsGet200ResponseSessionsInnerJsonConverter());
+            _jsonOptions.Converters.Add(new SessionsGet200ResponseSessionsInnerPublicationFenceJsonConverter());
             _jsonOptions.Converters.Add(new SessionsIdBootstrapPost200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new SessionsIdBootstrapPost200ResponsePublicationFenceJsonConverter());
+            _jsonOptions.Converters.Add(new SessionsIdJoinCodeGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new SessionsIdRuntimePreparationGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new SessionsIdRuntimePreparationGet200ResponseAnyOfJsonConverter());
             _jsonOptions.Converters.Add(new SessionsIdRuntimePreparationGet200ResponseAnyOf1JsonConverter());
@@ -127,8 +131,6 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new SessionsJoinPost410ResponseErrorJsonConverter());
             _jsonOptions.Converters.Add(new SessionsJoinPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new SessionsPost201ResponseJsonConverter());
-            _jsonOptions.Converters.Add(new SessionsPost201ResponseSessionJsonConverter());
-            _jsonOptions.Converters.Add(new SessionsPost201ResponseSessionPublicationFenceJsonConverter());
             _jsonOptions.Converters.Add(new SessionsPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new SessionsSessionIdDeliveryPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new SessionsSessionIdRuntimeAssignmentGet200ResponseJsonConverter());
