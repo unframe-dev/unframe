@@ -100,26 +100,26 @@ export function RoomSharing({ room }: { room: Room }) {
           disabled={pending || query.isFetching}
           onClick={() => void reload()}
         >
-          参加コードを再取得
+          ルームコードを再取得
         </Button>
         <Button
           variant="outline"
           disabled={pending || query.isFetching || blocked || !code}
           onClick={rotate}
         >
-          参加コードを更新
+          ルームコードを更新
         </Button>
       </div>
-      {query.isPending || pending ? <p role="status">参加コードを読み込んでいます…</p> : null}
+      {query.isPending || pending ? <p role="status">ルームコードを読み込んでいます…</p> : null}
       {error ? (
         <p role="alert">
           {managementErrorMessage(error)}
-          {blocked ? " 現在の参加コードを再取得してから共有してください。" : ""}
+          {blocked ? " 現在のルームコードを再取得してから共有してください。" : ""}
         </p>
       ) : null}
       {code ? (
         <p>
-          参加コード: <strong>{code}</strong>
+          ルームコード: <strong>{code}</strong>
         </p>
       ) : null}
       {originError ? (

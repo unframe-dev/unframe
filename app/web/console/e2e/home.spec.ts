@@ -321,7 +321,9 @@ test("ended room never offers preparation or presentation actions", async ({ pag
   await expect(
     page.getByRole("button", { name: /発表環境を準備|発表を開始|発表を終了/ }),
   ).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "参加コードを更新", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "ルームコードを更新", exact: true })).toHaveCount(
+    0,
+  );
   await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
   expect(preparationRequests).toBe(0);
 });
@@ -489,7 +491,7 @@ test("rotates invitations and the locally generated QR with a single submission"
   const qr = page.getByRole("img", { name: "匿名 Viewer 参加用 QR コード" });
   await expect(qr).toBeVisible();
   const previous = await qr.getAttribute("src");
-  await page.getByRole("button", { name: "参加コードを更新", exact: true }).dblclick();
+  await page.getByRole("button", { name: "ルームコードを更新", exact: true }).dblclick();
   await expect(page.getByText("JKLM-NPQR", { exact: true })).toBeVisible();
   await expect(qr).not.toHaveAttribute("src", previous!);
   const url = "https://app.un-fra.me/#join=JKLM-NPQR";
@@ -528,12 +530,12 @@ test("hides stale invitations after an unknown rotation result until explicit re
   });
   await page.goto("/rooms/room-1");
   await page.getByRole("button", { name: "QR コードを生成" }).click();
-  await page.getByRole("button", { name: "参加コードを更新", exact: true }).click();
+  await page.getByRole("button", { name: "ルームコードを更新", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("再取得してから共有");
   await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
   await expect(page.getByRole("img", { name: "匿名 Viewer 参加用 QR コード" })).toHaveCount(0);
   await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "参加コードを再取得" }).click();
+  await page.getByRole("button", { name: "ルームコードを再取得" }).click();
   await expect(page.getByText("JKLM-NPQR", { exact: true })).toBeVisible();
 });
 
@@ -549,7 +551,7 @@ for (const status of [401, 403]) {
     await expect(page.getByRole("alert")).toBeVisible();
     await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: "参加コードを更新", exact: true }),
+      page.getByRole("button", { name: "ルームコードを更新", exact: true }),
     ).toBeDisabled();
   });
 }
@@ -573,7 +575,7 @@ test("keeps sharing blocked across navigation while a rotation is pending or unc
     return route.fulfill({ json: { joinCode: code } });
   });
   await page.goto("/rooms/room-1");
-  await page.getByRole("button", { name: "参加コードを更新", exact: true }).click();
+  await page.getByRole("button", { name: "ルームコードを更新", exact: true }).click();
   await page
     .getByRole("navigation", { name: "メインナビゲーション" })
     .getByRole("link", { name: "ルーム", exact: true })
@@ -592,10 +594,12 @@ test("keeps sharing blocked across navigation while a rotation is pending or unc
   );
   await expect(page.getByRole("heading", { name: "ルームの詳細" })).toBeVisible();
   await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "参加コードを更新", exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "ルームコードを更新", exact: true }),
+  ).toBeDisabled();
   release();
   await expect(page.getByRole("alert")).toContainText("再取得してから共有");
   await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
-  await page.getByRole("button", { name: "参加コードを再取得" }).click();
+  await page.getByRole("button", { name: "ルームコードを再取得" }).click();
   await expect(page.getByText("JKLM-NPQR", { exact: true })).toBeVisible();
 });
