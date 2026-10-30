@@ -13,7 +13,7 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { controlPlaneAuth } from "@/features/auth/control-plane-auth";
 import { BrandLink } from "@/shared/brand/brand-link";
 import { Button } from "@/shared/ui/button";
@@ -31,6 +31,7 @@ const styles = {
   link: moduleStyles["link"]!,
   sidebarAccount: moduleStyles["sidebarAccount"]!,
   menuTrigger: moduleStyles["menuTrigger"]!,
+  accountImage: moduleStyles["accountImage"]!,
   menuPositioner: moduleStyles["menuPositioner"]!,
   menuPopup: moduleStyles["menuPopup"]!,
   menuItem: moduleStyles["menuItem"]!,
@@ -67,12 +68,15 @@ function SidebarNavigation({
   collapsed,
   onToggle,
   onLogout,
+  image,
 }: {
   pathname: string;
   collapsed: boolean;
   onToggle: () => void;
   onLogout: () => void;
+  image: string | null | undefined;
 }) {
+  const [failedImage, setFailedImage] = useState<string>();
   const isSettings = pathname.startsWith("/settings/");
   const links = isSettings ? settingsLinks : mainLinks;
 
@@ -142,7 +146,16 @@ function SidebarNavigation({
               />
             }
           >
-            <UserCircleIcon aria-hidden="true" />
+            {image && image !== failedImage ? (
+              <img
+                className={styles.accountImage}
+                src={image}
+                alt=""
+                onError={() => setFailedImage(image)}
+              />
+            ) : (
+              <UserCircleIcon aria-hidden="true" />
+            )}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Positioner
@@ -184,6 +197,10 @@ function SidebarNavigation({
 }
 
 export function ApplicationShell() {
+  const session = useSyncExternalStore(
+    controlPlaneAuth.useSession.subscribe,
+    controlPlaneAuth.useSession.get,
+  );
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -219,6 +236,7 @@ export function ApplicationShell() {
           collapsed={sidebarCollapsed}
           onToggle={toggleSidebar}
           onLogout={() => void logout()}
+          image={session.data?.user.image}
         />
         <div className={styles.content}>
           {logoutError ? (
