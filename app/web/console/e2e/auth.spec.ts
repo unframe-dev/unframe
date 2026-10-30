@@ -135,3 +135,34 @@ test("a cancelled Google callback explains the failure and allows retry", async 
   );
   await expect(page.getByRole("button", { name: "Google でログイン" })).toBeEnabled();
 });
+
+test("a successful password reset redirects immediately to login", async ({ page }) => {
+  await page.route("**/api/auth/reset-password", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      newPassword: "new-password123",
+      token: "reset-token",
+    });
+    await route.fulfill({ json: { status: true } });
+  });
+  await page.goto("/recover/reset?token=reset-token");
+  await page.getByLabel("新しいパスワード").fill("new-password123");
+  await page.getByRole("button", { name: "パスワードを再設定" }).click();
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { name: "Login.", exact: true })).toBeVisible();
+});
+
+test("a failed password reset keeps the form available for retry", async ({ page }) => {
+  await page.route("**/api/auth/reset-password", (route) =>
+    route.fulfill({ status: 400, json: { code: "INVALID_TOKEN" } }),
+  );
+  await page.goto("/recover/reset?token=expired-token");
+  await page.getByLabel("新しいパスワード").fill("new-password123");
+  await page.getByRole("button", { name: "パスワードを再設定" }).click();
+
+  await expect(page.getByRole("alert")).toHaveText(
+    "再設定できませんでした。リンクを確認してください。",
+  );
+  await expect(page).toHaveURL(/\/recover\/reset\?token=expired-token$/);
+  await expect(page.getByRole("button", { name: "パスワードを再設定" })).toBeEnabled();
+});

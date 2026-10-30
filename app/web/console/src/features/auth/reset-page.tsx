@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -8,8 +9,10 @@ import { controlPlaneAuth as auth } from "@/features/auth/control-plane-auth";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import styles from "@/shared/layouts/public-pages.module.css";
 
 export function ResetPage({ token }: { token: string }) {
+  const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const form = useForm<{ password: string }>({
     resolver: zodResolver(
@@ -19,12 +22,17 @@ export function ResetPage({ token }: { token: string }) {
     ),
   });
   const submit = form.handleSubmit(async ({ password }) => {
-    const result = await auth.resetPassword({ newPassword: password, token });
-    setMessage(
-      result.error
-        ? "再設定できませんでした。リンクを確認してください。"
-        : "パスワードを再設定しました。ログインしてください。",
-    );
+    setMessage("");
+    try {
+      const result = await auth.resetPassword({ newPassword: password, token });
+      if (result.error) {
+        setMessage("再設定できませんでした。リンクを確認してください。");
+        return;
+      }
+      await navigate({ to: "/login", replace: true });
+    } catch {
+      setMessage("再設定できませんでした。もう一度お試しください。");
+    }
   });
   return (
     <AuthLayout title="Choose a password." description="新しいパスワードを設定します。">
@@ -40,7 +48,11 @@ export function ResetPage({ token }: { token: string }) {
             {...form.register("password")}
           />
         </Label>
-        {message ? <p role="status">{message}</p> : null}
+        {message ? (
+          <p role="alert" className={styles["error"]}>
+            {message}
+          </p>
+        ) : null}
         <Button type="submit" disabled={!token || form.formState.isSubmitting}>
           パスワードを再設定
         </Button>
