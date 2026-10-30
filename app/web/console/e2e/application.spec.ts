@@ -29,9 +29,9 @@ test.beforeEach(async ({ page }) => {
 
 test("public authentication routes and account menu are accessible", async ({ page }) => {
   await page.goto("/login");
-  await expect(page.getByRole("heading", { name: "Sign in." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Login." })).toBeVisible();
   await page.getByRole("link", { name: "アカウントを作成" }).click();
-  await expect(page.getByRole("heading", { name: "Create an account." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign up." })).toBeVisible();
   await page.goto("/home");
   const desktopMenu = page.getByRole("button", { name: "アカウントメニュー" });
   const projectGuide = page.getByRole("heading", { name: "公開済み Dist" });

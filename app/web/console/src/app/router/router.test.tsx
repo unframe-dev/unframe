@@ -40,7 +40,7 @@ describe("web management routes", () => {
   it("requires login when opening the former editor route", async () => {
     auth.getSession.mockResolvedValue({ data: null, error: null });
     const router = await renderRoute("/editor");
-    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
   });
 
   it("keeps the device URL and code in the Google sign-in callback", async () => {

@@ -152,7 +152,6 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
     <main id="main-content" className={styles.main}>
       <header className={styles.header}>
         <BrandLink />
-        <a href="https://un-fra.me/docs/">Docs</a>
       </header>
       <section className={styles.deviceShell}>
         <header className={styles.deviceIntro}>

@@ -16,7 +16,7 @@ Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 - Realtime service identity専用のidempotent checkpoint / completion callback
 - 実行ルートと一体化した OpenAPI 生成、Hono RPC TypeScript client、契約 drift check
 
-認証endpointとserver-side policyまでが実装済みです。Web / Unityのemail/password UIはこのcomponentの対象外で、まだ接続していません。
+認証endpointとserver-side policyを実装し、Web Console の email/password UI から接続しています。
 Realtime Backend の JWT / scope 検証、assignment fencing と Unity の v2 Delivery / bootstrap 接続は実装済みです。Control Plane の Session 終了を既存 Realtime 接続へ反映する Cloud Agent と、Web の旧 CRUD 定義の v2 移行は後続作業です。
 R2 objectを孤児化させないため、Asset metadataが残るPresentationは削除できません。先に各Assetの削除APIを完了させてください。
 
@@ -25,6 +25,8 @@ Session の新規作成には公開済み Dist が必要です。公開版の確
 ## Setup
 
 `wrangler.toml` の D1 `database_id` と `R2_ACCOUNT_ID` は環境の値へ置き換えてください。秘密値は `.dev.vars.example` を参照し、ローカルでは `.dev.vars`、remote 環境では `wrangler secret put` で設定します。Better Auth Infrastructure連携を使う場合は、Dashboardで発行した `BETTER_AUTH_API_KEY` も同じ方法で設定してください。
+
+確認メールとパスワード再設定メールは `src/auth/emails/` の React Email TSX テンプレートで作成し、Resend に HTML とプレーンテキストを送信します。本文・アクションは各テンプレート、色・余白・ロゴは `email-layout.tsx` で管理します。
 
 ```sh
 pnpm db:migrate:local
