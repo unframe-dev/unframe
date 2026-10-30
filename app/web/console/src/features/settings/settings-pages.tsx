@@ -5,6 +5,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import contentModuleStyles from "@/app/shell/application-content.module.css";
 import moduleStyles from "./settings-pages.module.css";
+import { TwoFactorSettings } from "./two-factor-settings";
 const styles = {
   main: contentModuleStyles["main"]!,
   heading: contentModuleStyles["heading"]!,
@@ -169,36 +170,12 @@ function ProfileIcon({ image, name }: { image: string; name: string }) {
 
 export function SecurityPage() {
   const [state, setState] = useState("");
-  const [password, setPassword] = useState("");
-  const [uri, setUri] = useState("");
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [code, setCode] = useState("");
   const [sessions, setSessions] = useState<DeviceSession[] | null>(null);
   const perform = async (task: () => Promise<AuthResult>, success: string) => {
     setState("処理中…");
     const result = await task();
     setState(result.error ? "操作できませんでした。再認証が必要な場合があります。" : success);
     return result;
-  };
-  const beginTotp = async () => {
-    const result = await perform(
-      () => auth.twoFactor.enable({ password }),
-      "認証アプリに URI を登録し、コードを確認してください。",
-    );
-    if (!result.error) {
-      const uriResult = await auth.twoFactor.getTotpUri({ password });
-      if (!uriResult.error && uriResult.data) setUri(uriResult.data.totpURI);
-    }
-  };
-  const verifyTotp = async () => {
-    const result = await perform(
-      () => auth.twoFactor.verifyTotp({ code }),
-      "二要素認証を有効化しました。",
-    );
-    if (!result.error) {
-      const codes = await auth.twoFactor.generateBackupCodes({ password });
-      if (!codes.error && codes.data) setBackupCodes(codes.data.backupCodes);
-    }
   };
   const loadSessions = async () => {
     const result = await auth.listSessions();
@@ -219,57 +196,7 @@ export function SecurityPage() {
         </header>
         <PasswordChange perform={perform} />
       </section>
-      <section className={styles.section}>
-        <header className={styles.sectionHeading}>
-          <h2>二要素認証</h2>
-        </header>
-        <Label>
-          現在のパスワード
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </Label>
-        <Button disabled={!password} onClick={() => void beginTotp()}>
-          二要素認証を有効化
-        </Button>
-        {uri ? (
-          <>
-            <p>認証アプリに次の URI を登録してください。</p>
-            <code>{uri}</code>
-            <Label>
-              認証コード
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                autoComplete="one-time-code"
-              />
-            </Label>
-            <Button disabled={!code} onClick={() => void verifyTotp()}>
-              コードを確認
-            </Button>
-          </>
-        ) : null}
-        {backupCodes.length ? (
-          <div>
-            <h3>バックアップコード</h3>
-            <p>この画面を閉じる前に安全な場所へ保管してください。</p>
-            <ul>
-              {backupCodes.map((backupCode) => (
-                <li key={backupCode}>
-                  <code>{backupCode}</code>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        <Button
-          variant="outline"
-          disabled={!password}
-          onClick={() =>
-            void perform(() => auth.twoFactor.disable({ password }), "二要素認証を無効化しました。")
-          }
-        >
-          二要素認証を無効化
-        </Button>
-      </section>
+      <TwoFactorSettings />
       <section className={styles.section}>
         <header className={styles.sectionHeading}>
           <h2>セッション</h2>
