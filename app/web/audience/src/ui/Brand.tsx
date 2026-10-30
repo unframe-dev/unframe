@@ -4,7 +4,7 @@ export function Brand({ onHome }: { onHome?(): void } = {}) {
   const content = (
     <>
       <img src={icon} width="36" height="36" alt="" />
-      <span>unframe</span>
+      <span>Unframe</span>
     </>
   );
   return onHome ? (
