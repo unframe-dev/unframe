@@ -82,7 +82,7 @@ test("distinguishes empty collection and unpublished presentation", async ({ pag
     route.fulfill({ status: 404, json: { error: { code: "not_found" } } }),
   );
   await page.getByRole("button", { name: "公開情報を再取得" }).click();
-  await expect(page.getByText("公開済み Dist なし")).toBeVisible();
+  await expect(page.getByText("未公開")).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
@@ -90,7 +90,7 @@ test("shows current publication details and reloads a republished build", async 
   await published(page);
   await page.goto("/home");
   await expect(page.getByText("Build ID: build-3")).toBeVisible();
-  await page.getByRole("link", { name: "公開済み Dist の詳細" }).click();
+  await page.getByRole("link", { name: "公開済みプレゼンテーションの詳細" }).click();
   await expect(page.getByText(publication.assetSetHash, { exact: true })).toBeVisible();
   await page.route("**/publication", (route) =>
     route.fulfill({ json: { ...publication, buildId: "build-4", publicationEpoch: 4 } }),
@@ -111,7 +111,7 @@ for (const [status, message] of [
     );
     await page.goto("/home");
     await expect(page.getByRole("alert")).toHaveText(message);
-    await expect(page.getByText("公開済み Dist なし")).toHaveCount(0);
+    await expect(page.getByText("未公開")).toHaveCount(0);
   });
 }
 
@@ -168,7 +168,7 @@ test("creates one room, displays the server fixed publication, and never persist
   });
   await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
   await page.goto("/home");
-  await page.getByRole("link", { name: "公開済み Dist の詳細" }).click();
+  await page.getByRole("link", { name: "公開済みプレゼンテーションの詳細" }).click();
   await page.getByRole("link", { name: "この Presentation でルームを作成" }).click();
   const create = page.getByRole("button", { name: "ルームを作成", exact: true });
   await create.dblclick();
@@ -439,7 +439,7 @@ for (const status of [403, 404]) {
     );
     await page.goto("/home");
     await expect(page.getByRole("alert")).toBeVisible();
-    await expect(page.getByText("公開済み Dist なし")).toHaveCount(0);
+    await expect(page.getByText("未公開")).toHaveCount(0);
   });
 }
 

@@ -115,7 +115,7 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
     <main id="main-content" className={styles["main"]}>
       <header className={styles["heading"]}>
         <h1>ルーム</h1>
-        <p>公開済み Dist からルームを作成します。作成時の最新公開版を使います。</p>
+        <p>公開済みプレゼンテーションからルームを作成します。作成時の最新公開版を使います。</p>
       </header>
       <OwnedRoomList />
       <>
@@ -130,7 +130,7 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
             </Button>
           </p>
         ) : null}
-        {initial.isSuccess && !initial.data.publication ? <p>公開済み Dist なし</p> : null}
+        {initial.isSuccess && !initial.data.publication ? <p>未公開</p> : null}
         {selection ? (
           <section className="grid gap-4 border-b py-8" aria-label="選択した Presentation">
             <h2 className="text-xl">{selection.presentation.name}</h2>

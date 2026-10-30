@@ -38,7 +38,7 @@ export function PublicationList({
     await queryClient.invalidateQueries({ queryKey: ["publications"] });
   };
   return (
-    <section className="grid gap-5 py-8" aria-label="公開済み Dist 一覧">
+    <section className="grid gap-5 py-8" aria-label="公開済みプレゼンテーション一覧">
       <div>
         <Button
           variant="outline"
@@ -70,7 +70,7 @@ export function PublicationList({
             {item.state === "error" ? (
               <p role="alert">{managementErrorMessage(item.error)}</p>
             ) : item.state === "unpublished" ? (
-              <p>公開済み Dist なし</p>
+              <p>未公開</p>
             ) : (
               <>
                 <p className="break-all text-sm">Build ID: {item.publication.buildId}</p>
@@ -79,7 +79,7 @@ export function PublicationList({
                   to="/presentations/$presentationId"
                   params={{ presentationId: item.presentation.id }}
                 >
-                  公開済み Dist の詳細
+                  公開済みプレゼンテーションの詳細
                 </Link>
                 {onSelect ? (
                   <Button

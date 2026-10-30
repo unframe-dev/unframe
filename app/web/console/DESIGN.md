@@ -4,11 +4,11 @@
 
 `app/web/console` は、ユーザーが空間プレゼンテーションを管理するための作業環境です。ブランドとプロダクトの価値を伝える LP とは役割を分けつつ、色、タイポグラフィ、言葉の温度は [`lp/DESIGN.md`](../../../lp/DESIGN.md) と一貫させます。
 
-| Surface           | Responsibility                                                 |
-| ----------------- | -------------------------------------------------------------- |
-| LP / Site         | ブランド、価値、ニュース、ドキュメントを伝える                 |
-| Web Application   | 認証、公開済み Dist 確認、ルーム作成、アカウント設定を提供する |
-| Unity Application | Presentation の実行、Session、Realtime 操作を提供する          |
+| Surface           | Responsibility                                                             |
+| ----------------- | -------------------------------------------------------------------------- |
+| LP / Site         | ブランド、価値、ニュース、ドキュメントを伝える                             |
+| Web Application   | 認証、公開済みプレゼンテーション確認、ルーム作成、アカウント設定を提供する |
+| Unity Application | Presentation の実行、Session、Realtime 操作を提供する                      |
 
 Web の責務と技術境界は [`ARCHITECTURE.md`](./ARCHITECTURE.md) を正本とします。この文書は画面全体に共通する視覚・操作方針を定義し、ローカル Source 編集は [Local Editor](../local-editor/README.md) が担当します。
 
@@ -34,20 +34,20 @@ LP より高い情報密度を許容しますが、機能を常時並べませ�
 
 ### Routes
 
-| Route                             | Purpose                | Authentication |
-| --------------------------------- | ---------------------- | -------------- |
-| `/login/`                         | ログイン               | Public         |
-| `/signup/`                        | アカウント作成         | Public         |
-| `/recover/*`                      | アカウント復旧         | Public         |
-| `/device/`                        | Device Authorization   | Public         |
-| `/home/`                          | Presentation 一覧      | Required       |
-| `/presentations/:presentationId/` | 公開済み Dist の詳細   | Required       |
-| `/rooms/`                         | ルーム作成             | Required       |
-| `/rooms/:sessionId/`              | 作成したルームの詳細   | Required       |
-| `/settings/profile/`              | プロフィール設定       | Required       |
-| `/settings/security/`             | 認証・セキュリティ設定 | Required       |
+| Route                             | Purpose                          | Authentication |
+| --------------------------------- | -------------------------------- | -------------- |
+| `/login/`                         | ログイン                         | Public         |
+| `/signup/`                        | アカウント作成                   | Public         |
+| `/recover/*`                      | アカウント復旧                   | Public         |
+| `/device/`                        | Device Authorization             | Public         |
+| `/home/`                          | Presentation 一覧                | Required       |
+| `/presentations/:presentationId/` | 公開済みプレゼンテーションの詳細 | Required       |
+| `/rooms/`                         | ルーム作成                       | Required       |
+| `/rooms/:sessionId/`              | 作成したルームの詳細             | Required       |
+| `/settings/profile/`              | プロフィール設定                 | Required       |
+| `/settings/security/`             | 認証・セキュリティ設定           | Required       |
 
-本番の `/` は LP が所有します。認証必須 route で session が確認できない場合は `/login/` ではなく `/` へ戻します。ログイン後に元の route へ戻す導線は、認証画面の実装時に安全な return URL の契約として設計します。
+本番の `/` は LP が所有します。認証必須 route で session が確認できない場合は `/login` へ遷移します。ログイン後は `/home` を開きます。
 
 ### Global Navigation
 

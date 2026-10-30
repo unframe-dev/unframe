@@ -57,7 +57,7 @@ test("optional two-factor authentication can be enabled and disabled from the ac
   });
   await page.route("**/presentations", (route) => route.fulfill({ json: { presentations: [] } }));
   await page.goto("/home");
-  await expect(page.getByRole("heading", { name: "公開済み Dist" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "公開済みプレゼンテーション" })).toBeVisible();
   await page.getByRole("button", { name: "アカウントメニュー" }).click();
   await page.getByRole("menuitem", { name: "セキュリティー" }).click();
   await expect(page).toHaveURL(/\/settings\/security$/);
@@ -156,5 +156,5 @@ test("an account with two-factor enabled completes its challenge before entering
   await page.getByLabel("バックアップコード", { exact: true }).fill("backup-one");
   await page.getByRole("button", { name: "確認", exact: true }).click();
   await expect(page).toHaveURL(/\/home$/);
-  await expect(page.getByRole("heading", { name: "公開済み Dist" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "公開済みプレゼンテーション" })).toBeVisible();
 });
