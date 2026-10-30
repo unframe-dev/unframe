@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using Unframe.Unity.PresentationRuntime;
 using UnityEditor;
@@ -92,7 +93,7 @@ public sealed class QuestPresentationUiVisualTests
             Directory.CreateDirectory(Path.GetDirectoryName(screenshot));
             File.WriteAllBytes(screenshot, pixels.EncodeToPNG());
             Color32[] colors = pixels.GetPixels32();
-            int readablePixels = colors.Count(pixel => pixel.r > 180 && pixel.g > 180 && pixel.b > 180);
+            int readablePixels = colors.Count(pixel => pixel.r < 100 && pixel.g < 100 && pixel.b < 130);
             Assert.That(readablePixels, Is.GreaterThan(4000), "The menu background rendered without readable labels.");
             var headingRect = view.Panel.transform.Find("Heading").GetComponent<RectTransform>();
             var headingCorners = new Vector3[4];
@@ -104,7 +105,7 @@ public sealed class QuestPresentationUiVisualTests
                 for (int x = Mathf.FloorToInt(lower.x * target.width); x < Mathf.CeilToInt(upper.x * target.width); x++)
                 {
                     Color32 pixel = colors[y * target.width + x];
-                    if (pixel.r > 180 && pixel.g > 180 && pixel.b > 180) headingPixels++;
+                    if (pixel.r < 100 && pixel.g < 100 && pixel.b < 130) headingPixels++;
                 }
             Assert.That(headingPixels, Is.GreaterThan(300), "The Japanese heading did not produce visible glyphs.");
             string assistanceDirectory = Path.Combine(Path.GetDirectoryName(screenshot), "assistance");
@@ -112,24 +113,56 @@ public sealed class QuestPresentationUiVisualTests
             view.FindButton("Details").onClick.Invoke();
             view.Refresh();
             Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "menu.png"));
-            view.FindButton("Exit").onClick.Invoke();
+            view.FindButton("Details").onClick.Invoke();
             view.Refresh();
-            Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "exit.png"));
+            Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "settings.png"));
             view.enabled = false;
-            using (var guide = new QuestMotionGuideVisuals(host.transform))
-                for (int mode = 0; mode < 2; mode++)
+            var guide = host.AddComponent<QuestMotionGuideView>();
+            guide.enabled = false;
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(QuestMotionGuideView).GetMethod("EnsureVisuals", flags).Invoke(guide, null);
+            var visuals = (GameObject)typeof(QuestMotionGuideView).GetField("visuals", flags).GetValue(guide);
+            Assert.That(visuals, Is.Not.Null);
+            visuals.SetActive(true);
+            var skins = visuals.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            Assert.That(skins.Length, Is.EqualTo(2), "The guide must render both imported arm models.");
+            var instruction = visuals.GetComponentInChildren<Text>(true);
+            Assert.That(instruction, Is.Not.Null);
+            var instructionPanel = instruction.transform.parent;
+            instructionPanel.SetPositionAndRotation(new Vector3(0, 0, 1.05f), Quaternion.identity);
+            var animators = visuals.GetComponentsInChildren<Animator>(true);
+            Assert.That(animators.Length, Is.EqualTo(2));
+            for (int side = 0; side < animators.Length; side++)
+            {
+                animators[side].gameObject.SetActive(true);
+                animators[side].enabled = false;
+                animators[side].transform.SetPositionAndRotation(new Vector3(0, -.3f, 1.05f), Quaternion.identity);
+                Assert.That(animators[side].runtimeAnimatorController.animationClips.Length, Is.EqualTo(8));
+            }
+            foreach (Unframe.Presentation.GestureKind gesture in Enum.GetValues(typeof(Unframe.Presentation.GestureKind)))
+            {
+                if (gesture < Unframe.Presentation.GestureKind.SwipeLeft || gesture > Unframe.Presentation.GestureKind.CloseHands) continue;
+                for (int side = 0; side < animators.Length; side++)
                 {
-                    bool detailed = mode == 1;
-                    guide.Render(Unframe.Presentation.GestureKind.SpreadHands, 0, 2,
-                        new Vector3(.3f, -.24f, 1.5f), Vector3.forward, Vector3.right, true, .4f, detailed);
-                    foreach (Transform child in host.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = 31;
-                    Canvas.ForceUpdateCanvases();
-                    foreach (Text text in guide.Root.GetComponentsInChildren<Text>())
-                        Assert.That(text.preferredHeight, Is.LessThanOrEqualTo(text.rectTransform.rect.height + 1), text.name + " is vertically clipped.");
-                    Capture(camera, target, pixels, Path.Combine(assistanceDirectory, detailed ? "guide-detailed.png" : "guide.png"));
+                    string clipName = (side == 0 ? "Left" : "Right") + gesture;
+                    var clip = animators[side].runtimeAnimatorController.animationClips.Single(item => item.name == clipName);
+                    clip.SampleAnimation(animators[side].gameObject, clip.length * .4f);
                 }
-
-
+                instruction.text = (string)typeof(QuestMotionGuideView).GetMethod("Description", BindingFlags.Static | BindingFlags.NonPublic)
+                    .Invoke(null, new object[] { (int)gesture });
+                foreach (Transform child in host.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = 31;
+                Canvas.ForceUpdateCanvases();
+                Assert.That(instruction.preferredHeight, Is.LessThanOrEqualTo(instruction.rectTransform.rect.height + 1),
+                    gesture + " instruction is vertically clipped.");
+                foreach (SkinnedMeshRenderer skin in skins)
+                {
+                    Assert.That(skin.sharedMesh, Is.Not.Null);
+                    Assert.That(skin.bones.All(bone => bone != null), Is.True);
+                    Assert.That(GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(camera), skin.bounds), Is.True,
+                        gesture + " " + skin.name + " is outside the camera view.");
+                }
+                Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "guide-" + gesture + ".png"));
+            }
 
         }
         finally

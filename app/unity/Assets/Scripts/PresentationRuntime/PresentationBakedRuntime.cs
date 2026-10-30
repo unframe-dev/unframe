@@ -27,6 +27,17 @@ namespace Unframe.Unity.PresentationRuntime
         private PresentationCalibrationState calibration;
         private Transform questTrackingOrigin;
         private Transform presentationSpace;
+        private bool displayEnabled = true;
+        public bool DisplayEnabled
+        {
+            get => displayEnabled;
+            set
+            {
+                if (displayEnabled == value) return;
+                displayEnabled = value;
+                RefreshCalibration();
+            }
+        }
         public Transform PresentationSpace => presentationSpace;
         public PresentationRuntimeDataStore DataStore => store;
         public bool CalibrationReady => calibration != null && calibration.IsValid
@@ -63,7 +74,7 @@ namespace Unframe.Unity.PresentationRuntime
             CalibrationError = null;
             presentationSpace.SetPositionAndRotation(worldFromPresentation.position, worldFromPresentation.rotation);
             presentationSpace.localScale = UnityEngine.Vector3.one;
-            presentationSpace.gameObject.SetActive(isActiveAndEnabled && SessionReady);
+            presentationSpace.gameObject.SetActive(isActiveAndEnabled && displayEnabled && SessionReady);
         }
         public bool DownloadReady { get; private set; }
         public bool ResidentReady { get { return sceneRenderer != null && sceneRenderer.IsReady(store); } }

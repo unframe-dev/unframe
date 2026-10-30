@@ -11,7 +11,7 @@ MR（Quest / Unity）とWebXR（Audience）の同じSessionで、入室・資料
 
 ## 保存
 
-- MR：発表メニューの設定から接続テストログを保存します。入室前の画面からも保存できます。JSONはUnityの `Application.persistentDataPath` に書き出されます。Questからの回収は接続した開発PCのファイル取得機能を使い、Editorでは保存先の表示を確認します。
+- MR：`QuestPresentationSession.ExportDiagnostics()` で接続テストログを保存できます。製品メニューには保存ボタンを表示しません。JSONはUnityの `Application.persistentDataPath/SessionDiagnostics` に書き出されます。Questからの回収は接続した開発PCのファイル取得機能を使います。
 - WebXR：入室画面または視聴画面の接続テストログ保存を使い、ブラウザーからJSONをダウンロードします。既存の状態JSONは、その時点の描画・追跡の状態確認にも使えます。
 - ログは入室失敗・切断・退出後もアプリが生きている間保持します。再読込・アプリ再起動でメモリ上の未保存ログは失われます。障害を再現した直後に保存してください。
 - 保存ファイルはリポジトリへ追加せず、テスト参加者に必要な範囲だけで共有します。
