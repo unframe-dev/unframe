@@ -102,8 +102,11 @@ export function createAuthOptions(
                 ? "google"
                 : path === "/device/token"
                   ? "device"
-                  : path === "/sign-in/email" || path?.startsWith("/two-factor/verify-")
-                    ? "password_mfa"
+                  : path === "/sign-in/email" ||
+                      path === "/change-password" ||
+                      path === "/two-factor/disable" ||
+                      path?.startsWith("/two-factor/verify-")
+                    ? "password"
                     : "none";
             return { data: { ...session, assurance } };
           },

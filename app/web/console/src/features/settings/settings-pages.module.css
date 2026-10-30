@@ -59,6 +59,49 @@
 .error {
   color: #9e3039;
 }
+.twoFactor {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+  max-width: 560px;
+}
+.twoFactor > p {
+  margin: 0;
+}
+.twoFactor > button {
+  justify-self: start;
+}
+.sectionHeading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+.authenticatorQr {
+  width: 240px;
+  max-width: 100%;
+}
+.setupKey {
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.backupCodes {
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.backupCodes ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
 .list {
   margin: 0;
   padding: 0;
