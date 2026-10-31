@@ -29,12 +29,12 @@ chmod 600 "$HOME/.config/unframe/runtime-host.env"
 D1 migration、Audience origin の設定を確認します。
 このファイルを編集し、`REALTIME_SERVICE_IDENTITY` を Control Plane の
 `SERVICE_IDENTITY_SECRET` と同じ32文字以上の値にします。
-`REALTIME_BROWSER_ORIGINS` は実際の Audience の HTTPS origin に置き換えます。
+`REALTIME_BROWSER_ORIGINS` は `https://app.un-fra.me` を使用し、別環境ではその Audience の HTTPS origin に置き換えます。
 秘密値の shell quoting と他の設定は [Realtime README](../README.md#起動) を参照してください。
 このファイルは実行ユーザーの権限で shell として読み込まれます。
 
-infra の `realtime_origin_ipv4`／`realtime_origin_ipv6` の少なくとも一方を到達可能な公開 IP に設定し、
-plan／apply します。Caddy の設定は [設定例](Caddyfile.example) に従い、
+`REALTIME_RUNTIME_ENDPOINT` のホスト名が自宅の到達可能な公開 IP へ名前解決されるよう、DNS とルーターの TCP 443 転送を準備します。
+Caddy の設定は [設定例](Caddyfile.example) に従い、
 TCP 443、証明書の取得・更新、証明書保存先の永続化を準備します。
 Runtime は `127.0.0.1:9090` に bind し、外部公開は Caddy を経由させます。
 Mac のスリープ中は接続できないため、ホストの電源設定も確認してください。

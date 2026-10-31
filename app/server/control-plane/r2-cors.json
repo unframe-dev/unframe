@@ -8,6 +8,13 @@
       },
       "exposeHeaders": ["etag"],
       "maxAgeSeconds": 3600
+    },
+    {
+      "allowed": {
+        "origins": ["https://app.un-fra.me"],
+        "methods": ["GET"]
+      },
+      "maxAgeSeconds": 3600
     }
   ]
 }

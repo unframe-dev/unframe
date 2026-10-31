@@ -8,7 +8,9 @@ native gRPC とブラウザ WebSocket の Control / State 接続は、認証に�
 
 ## Venue Edge の起動
 
-Cloud は下記の Cloud Host を使用します。以下は登録・割り当て済み Venue Edge 用です。[会場検証手順](../../../docs/validation/venue-edge-asset-delivery.md#会場構成と証明書)に従い、環境変数例の仮値を置き換え、TLS 証明書・鍵・cache のパスを設定してから起動します。
+Cloud は下記の Cloud Host を使用します。以下は登録・割り当て済み Venue Edge 用です。環境変数例の仮値を置き換え、`VENUE_EDGE_TLS_CERT_FILE`・`VENUE_EDGE_TLS_KEY_FILE` に端末が信頼し、登録 endpoint のホスト名に一致する有効な TLS 証明書・鍵、`VENUE_EDGE_CACHE_DIR` に書き込み可能な cache ディレクトリを設定します。端末から同じ endpoint の gRPC・WebSocket・素材 URL へ到達できる会場ネットワークが必要です。
+
+Audience の公開 origin は `https://app.un-fra.me` です。別環境では `REALTIME_BROWSER_ORIGINS` と、素材取得を許可する `VENUE_EDGE_WEB_ORIGIN` をその Audience の HTTPS origin に揃えます。
 
 ```sh
 cd app/server/realtime
@@ -77,7 +79,7 @@ cp -n app/server/realtime/ops/runtime-host.env.example "$HOME/.config/unframe/ru
 chmod 600 "$HOME/.config/unframe/runtime-host.env"
 ```
 
-コピー先の `REALTIME_SERVICE_IDENTITY` に Control Plane の `SERVICE_IDENTITY_SECRET` と同じ32文字以上の値を設定し、`REALTIME_BROWSER_ORIGINS` の仮 origin を実際の Audience origin へ置き換えます。Control Plane の接続先を変える場合は URL・issuer・JWKS URL をその環境と揃えます。Host ID はホスト固有の安定した値にし、`REALTIME_RUNTIME_ENDPOINT` を Caddy の公開 origin と一致させます。
+コピー先の `REALTIME_SERVICE_IDENTITY` に Control Plane の `SERVICE_IDENTITY_SECRET` と同じ32文字以上の値を設定します。`REALTIME_BROWSER_ORIGINS` は `https://app.un-fra.me` を使用し、別環境ではその Audience origin へ置き換えます。Control Plane の接続先を変える場合は URL・issuer・JWKS URL をその環境と揃えます。Host ID はホスト固有の安定した値にし、`REALTIME_RUNTIME_ENDPOINT` を Caddy の公開 origin と一致させます。
 
 このファイルは shell で読み込むため、秘密値は単一引用符で囲みます（`REALTIME_SERVICE_IDENTITY='...'`）。値に単一引用符が含まれる場合は、その位置を `'\''` に置き換えます。
 
@@ -170,7 +172,7 @@ nix run .#realtime -- fix
 docker build -t unframe-realtime app/server/realtime
 ```
 
-実行には割り当てと認証の環境変数、TLS 証明書・鍵、writable cache のマウントが必要です。Venue Edge の素材 cache、TLS listener、環境変数、証明書更新と会場試験は [会場検証手順](../../../docs/validation/venue-edge-asset-delivery.md) を参照してください。実機結果は未取得です。
+実行には[Venue Edge の起動](#venue-edge-の起動)で説明した環境変数、TLS 証明書・鍵、writable cache のマウントが必要です。証明書の更新後はプロセスを起動し直します。会場端末で gRPC・WebSocket 接続と認可付き素材取得を確認してください。実機結果は未取得です。
 
 自宅 Mac をポート開放なしで一時公開する場合は [Tailscale Funnel の起動手順](ops/funnel.md) を参照してください。
 
