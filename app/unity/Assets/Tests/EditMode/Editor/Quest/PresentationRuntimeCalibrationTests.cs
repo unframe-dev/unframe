@@ -89,6 +89,32 @@ public sealed class PresentationRuntimeCalibrationTests
     }
 
     [Test]
+    public void DisplayPermissionHidesPreparedPausedContentWithoutChangingReadiness()
+    {
+        var host = new GameObject("Presentation display permission");
+        try
+        {
+            var runtime = PreparePausedRuntime(host, new RuntimeCommandWriter(), out var connection);
+            typeof(PresentationRealtimeConnection).GetProperty("SessionReady").SetValue(connection, true);
+            var calibration = new PresentationCalibrationState();
+            Assert.That(calibration.TrySet(QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity), out _), Is.True);
+            runtime.ConfigureCalibration(calibration, host.transform);
+            Assert.That(runtime.PresentationSpace.gameObject.activeSelf, Is.True);
+            runtime.DisplayEnabled = false;
+            runtime.RefreshCalibration();
+            Assert.That(runtime.PresentationSpace.gameObject.activeSelf, Is.False);
+            Assert.That(runtime.DownloadReady && runtime.ControlReady && runtime.SessionReady, Is.True);
+            Assert.That(runtime.PlaybackStatus, Is.EqualTo("Paused"));
+            Assert.That(runtime.CalibrationReady, Is.True);
+            runtime.DisplayEnabled = true;
+            Assert.That(runtime.PresentationSpace.gameObject.activeSelf, Is.True);
+            calibration.Invalidate("remeasure");
+            Assert.That(runtime.PresentationSpace.gameObject.activeSelf, Is.False);
+        }
+        finally { DestroyPreparedRuntime(host); }
+    }
+
+    [Test]
     public async Task EntryDoesNotQueueRepeatedControlsWhileAWriteIsPending()
     {
         var host = new GameObject("Pending production control");

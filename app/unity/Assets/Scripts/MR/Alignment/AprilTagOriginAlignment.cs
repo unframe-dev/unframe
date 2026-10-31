@@ -17,26 +17,22 @@ public sealed class AprilTagOriginAlignment : MonoBehaviour
         ResetAlignment($"Marker size changed to {millimeters} mm; show ID 0 again");
     }
 
-    [SerializeField] private bool measurementPreviewEnabled = true;
-    public bool MeasurementPreviewEnabled
+    private bool visualizationVisible = true;
+    public bool VisualizationVisible
     {
-        get => measurementPreviewEnabled;
+        get => visualizationVisible;
         set
         {
-            measurementPreviewEnabled = value;
-            RefreshMeasurementPreview();
+            if (visualizationVisible == value) return;
+            visualizationVisible = value;
+            if (visualizer == null) visualizer = GetComponent<AprilTagOriginVisualizer>();
+            if (visualizer == null) return;
+            visualizer.Visible = value;
+            if (!value) return;
+            if (IsConfirmed) visualizer.Show(stability.Pose);
+            else visualizer.Hide();
         }
     }
-    public bool HasMeasurementPose { get; private set; }
-    public Pose LatestMeasurementPose { get; private set; } = Pose.identity;
-    public bool HasAverageMeasurementPose => HasMeasurementPose && measurementQualityValid && stability.HasPose;
-    public Pose AverageMeasurementPose => HasAverageMeasurementPose ? stability.Pose : Pose.identity;
-    public string MeasurementSummary => !measurementPreviewEnabled ? "Measurement preview: off"
-        : HasMeasurementPose ? measurementSummary : "Measurement pose unavailable";
-    private string measurementSummary;
-    private bool measurementQualityValid;
-    private double measurementObservedAt;
-    private bool appliedMeasurementPreviewEnabled;
     private readonly AprilTagOriginStability stability = new AprilTagOriginStability();
     private AprilTagOriginVisualizer visualizer;
     private AprilTagTrackingDiagnosticSession diagnostics;
@@ -61,6 +57,7 @@ public sealed class AprilTagOriginAlignment : MonoBehaviour
         GetComponent<AprilTagCameraMarkerDetection>().SelectMarkerSize(MarkerSizeMillimeters);
         diagnostics = GetComponent<AprilTagTrackingDiagnosticSession>();
         visualizer = GetComponent<AprilTagOriginVisualizer>();
+        visualizer.Visible = visualizationVisible;
     }
 
     private void OnEnable()
@@ -75,8 +72,6 @@ public sealed class AprilTagOriginAlignment : MonoBehaviour
 
     private void Update()
     {
-        ExpireMeasurementPreview(Time.realtimeSinceStartupAsDouble);
-        if (appliedMeasurementPreviewEnabled != measurementPreviewEnabled) RefreshMeasurementPreview();
 #if !UNITY_EDITOR
         if (display == null && OVRManager.display != null)
         {
@@ -97,7 +92,6 @@ public sealed class AprilTagOriginAlignment : MonoBehaviour
         if (observation == null)
         {
             stability.ObserveMissing(now);
-            ClearMeasurementPreview();
             return;
         }
         if (observation.Frame.CaptureTimestampTicks <= lastTimestamp) return;
@@ -108,19 +102,7 @@ public sealed class AprilTagOriginAlignment : MonoBehaviour
         bool candidate = estimate != null && estimate.HasPoseCandidate && observation.Geometry.HasValidCameraPose;
         var pose = candidate ? observation.Geometry.ToWorld(estimate.CameraPose) : Pose.identity;
         candidate = candidate && AprilTagMarkerPoseEstimate.ValidPose(pose) && !double.IsNaN(now) && !double.IsInfinity(now);
-        bool accepted = stability.Observe(pose, lastTimestamp, now, valid && candidate);
-        if (candidate)
-        {
-            HasMeasurementPose = true;
-            measurementQualityValid = accepted && valid;
-            LatestMeasurementPose = new Pose(pose.position, pose.rotation.normalized);
-            measurementObservedAt = now;
-            measurementSummary = "Unity world | position m | Euler XYZ deg (display only)\n"
-                + DescribePose("Latest", LatestMeasurementPose) + "\n"
-                + (HasAverageMeasurementPose ? DescribePose("Average", stability.Pose)
-                    : "Average unavailable | " + reason);
-        }
-        else ClearMeasurementPreview();
+        stability.Observe(pose, lastTimestamp, now, valid && candidate);
         if (IsConfirmed)
         {
             visualizer.Show(stability.Pose);
@@ -128,7 +110,6 @@ public sealed class AprilTagOriginAlignment : MonoBehaviour
         }
         else
         {
-            RefreshMeasurementPreview();
             if (now - loggedAt >= 1)
             {
                 loggedAt = now;
@@ -137,43 +118,9 @@ public sealed class AprilTagOriginAlignment : MonoBehaviour
         }
     }
 
-    private static string DescribePose(string label, Pose pose)
-    {
-        Vector3 position = pose.position;
-        Vector3 angles = pose.rotation.eulerAngles;
-        return FormattableString.Invariant($"{label}: P ({position.x:F2}, {position.y:F2}, {position.z:F2}) | R ({angles.x:F1}, {angles.y:F1}, {angles.z:F1})");
-    }
-
-    private void RefreshMeasurementPreview()
-    {
-        appliedMeasurementPreviewEnabled = measurementPreviewEnabled;
-        if (visualizer == null || IsConfirmed) return;
-        if (measurementPreviewEnabled && HasMeasurementPose && isActiveAndEnabled && TrackingAvailable)
-            visualizer.ShowProvisional(LatestMeasurementPose);
-        else visualizer.Hide();
-    }
-
-    private void ClearMeasurementPreview()
-    {
-        HasMeasurementPose = false;
-        measurementQualityValid = false;
-        LatestMeasurementPose = Pose.identity;
-        measurementSummary = null;
-        RefreshMeasurementPreview();
-    }
-
-    private void ExpireMeasurementPreview(double now)
-    {
-        if (!IsConfirmed && HasMeasurementPose
-            && now - measurementObservedAt > AprilTagOriginStability.MaximumObservationGapSeconds)
-            ClearMeasurementPreview();
-    }
-
     public void ResetAlignment(string message, bool notify = true)
     {
         stability.Reset();
-        if (visualizer != null) visualizer.ResetMeasurementReference();
-        ClearMeasurementPreview();
         lastTimestamp = 0;
         loggedAt = double.NegativeInfinity;
         reason = message;

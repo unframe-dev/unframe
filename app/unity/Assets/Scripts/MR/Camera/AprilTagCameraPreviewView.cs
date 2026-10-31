@@ -14,8 +14,6 @@ public struct AprilTagCameraPreviewStatus
     public string LogFileName;
     public string DetectionSummary;
     public string AlignmentSummary;
-    public string MeasurementSummary;
-    public bool MeasurementPreviewEnabled;
     public bool AlignmentConfirmed;
 }
 
@@ -62,7 +60,6 @@ public sealed class AprilTagCameraPreviewView : IDisposable
             : $"{status.CameraPosition} camera | {status.Resolution.x} x {status.Resolution.y}"
             + $" | {status.FramesPerSecond:F1} camera FPS | {status.FrameCount} frames\nCapture: {status.CaptureTimestamp}"
             + $"\n{status.DetectionSummary}\n{status.AlignmentSummary}"
-            + (string.IsNullOrEmpty(status.MeasurementSummary) ? string.Empty : $"\n{status.MeasurementSummary}")
             + $"\nA/X: permission check | B/Y: align again\nLog: {status.LogFileName}";
     }
 

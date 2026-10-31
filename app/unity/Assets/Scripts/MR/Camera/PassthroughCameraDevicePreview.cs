@@ -50,7 +50,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 #else
             if (health.GetState(Time.realtimeSinceStartupAsDouble) == PassthroughCameraFeedState.Stalled)
                 return "Camera paused. Retry camera access.";
-            if (alignment != null && alignment.HasAverageMeasurementPose) return "Marker found. Hold still.";
+            if (alignment != null && alignment.CalibrationProgress > 0) return "Marker found. Hold still.";
             return "Find the marker. Keep the full border visible.";
 #endif
 #endif
@@ -92,7 +92,6 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         cameraAccess.enabled = false;
         view = new AprilTagCameraPreviewView(head);
         view.SetVisible(diagnosticUiVisible && isActiveAndEnabled);
-        GetComponent<AprilTagOriginVisualizer>().SetPreviewHead(head);
         started = true;
         health.Reset(Time.realtimeSinceStartupAsDouble);
         Debug.Log($"[PCA Preview] Application: {Application.identifier}", this);
@@ -374,8 +373,6 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
             LogFileName = logFile,
             DetectionSummary = markerDetection.Summary,
             AlignmentSummary = alignment.Summary,
-            MeasurementSummary = alignment.MeasurementSummary,
-            MeasurementPreviewEnabled = alignment.MeasurementPreviewEnabled,
             AlignmentConfirmed = alignment.IsConfirmed
         });
         if (state != lastState)

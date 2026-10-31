@@ -21,7 +21,6 @@ public sealed class QuestPresentationDiagnosticsVisibilityTests
             Assert.That(preview.DiagnosticUiVisible, Is.False);
             Assert.That(preview.DiagnosticInputEnabled, Is.False);
             visualizer.Show(Pose.identity);
-            visualizer.ShowProvisional(Pose.identity);
             Assert.That(typeof(AprilTagOriginVisualizer).GetField("origin", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(visualizer), Is.Null);
         }
         finally { DestroyHost(host); }

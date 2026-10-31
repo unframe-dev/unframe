@@ -18,82 +18,31 @@ public sealed class AprilTagOriginVisualizer : MonoBehaviour
 
     private readonly List<Material> materials = new List<Material>();
     private Transform origin;
-    private Material cubeMaterial;
-    private bool provisional;
-    private Transform nearbyOrigin;
-    private Transform previewHead;
-    private bool hasNearbyReference;
-    private Vector3 referenceMarkerPosition;
-    private Pose latestPose;
-
-    public void SetPreviewHead(Transform head) => previewHead = head;
-    public void ResetMeasurementReference() => hasNearbyReference = false;
-
-    private void LateUpdate()
-    {
-        if (nearbyOrigin != null && nearbyOrigin.gameObject.activeSelf) UpdateNearbyPose();
-    }
-
-    public void ShowProvisional(Pose pose) => Show(pose, true);
-
-    public void Show(Pose pose) => Show(pose, false);
-
-    private void Show(Pose pose, bool isProvisional)
+    public void Show(Pose pose)
     {
         if (!visible) return;
         if (origin == null) CreateOrigin();
-        if (provisional != isProvisional)
-        {
-            provisional = isProvisional;
-            SetColor(cubeMaterial, provisional ? Color.cyan : Color.yellow);
-        }
         origin.SetPositionAndRotation(pose.position, pose.rotation);
         origin.gameObject.SetActive(true);
-        latestPose = pose;
-        if (isProvisional && previewHead != null)
-        {
-            if (!hasNearbyReference)
-            {
-                referenceMarkerPosition = pose.position;
-                hasNearbyReference = true;
-            }
-            if (nearbyOrigin == null) nearbyOrigin = CreateAxes("Nearby AprilTag Measurement", Color.cyan, out _);
-            UpdateNearbyPose();
-            nearbyOrigin.gameObject.SetActive(true);
-        }
-        else if (nearbyOrigin != null) nearbyOrigin.gameObject.SetActive(false);
-    }
-
-    private void UpdateNearbyPose()
-    {
-        if (previewHead == null)
-        {
-            nearbyOrigin.gameObject.SetActive(false);
-            return;
-        }
-        // Keep the diagnostic copy nearby while preserving world-space measurement deltas and orientation.
-        nearbyOrigin.SetPositionAndRotation(previewHead.TransformPoint(new Vector3(0.35f, -0.2f, 0.65f))
-            + latestPose.position - referenceMarkerPosition, latestPose.rotation);
     }
 
     public void Hide()
     {
         if (origin != null) origin.gameObject.SetActive(false);
-        if (nearbyOrigin != null) nearbyOrigin.gameObject.SetActive(false);
     }
 
     private void CreateOrigin()
     {
-        origin = CreateAxes("AprilTag ID 0 Origin", Color.yellow, out cubeMaterial);
+        origin = CreateAxes("AprilTag ID 0 Origin", Color.yellow);
     }
 
-    private Transform CreateAxes(string name, Color color, out Material cube)
+    private Transform CreateAxes(string name, Color color)
     {
         var template = Resources.Load<Material>("AprilTagDiagnosticUnlit");
         if (template == null)
             throw new InvalidOperationException("Open the PCA device test scene from the Unframe menu to prepare its material.");
         var root = new GameObject(name).transform;
-        cube = AddBox(root, "Origin Cube", new Vector3(0, 0, -0.03f), Vector3.one * 0.04f, color, template);
+        AddBox(root, "Origin Cube", new Vector3(0, 0, -0.03f), Vector3.one * 0.04f, color, template);
         AddBox(root, "X Right", new Vector3(0.1f, 0, 0), new Vector3(0.2f, 0.005f, 0.005f), Color.red, template);
         AddBox(root, "Y Up", new Vector3(0, 0.1f, 0), new Vector3(0.005f, 0.2f, 0.005f), Color.green, template);
         AddBox(root, "Z Into Paper", new Vector3(0, 0, 0.1f), new Vector3(0.005f, 0.005f, 0.2f), Color.blue, template);
@@ -127,7 +76,6 @@ public sealed class AprilTagOriginVisualizer : MonoBehaviour
     private void OnDestroy()
     {
         if (origin != null) ReleaseOwnedObject(origin.gameObject);
-        if (nearbyOrigin != null) ReleaseOwnedObject(nearbyOrigin.gameObject);
         foreach (var material in materials) ReleaseOwnedObject(material);
     }
 

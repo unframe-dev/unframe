@@ -5,6 +5,7 @@ using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 using Vector3 = UnityEngine.Vector3;
 using Quaternion = UnityEngine.Quaternion;
+using Transform = UnityEngine.Transform;
 
 public sealed class QuestMotionGuideTests
 {
@@ -17,12 +18,12 @@ public sealed class QuestMotionGuideTests
         catalog.Gestures.Add((GestureKind)999);
         var state = new QuestMotionGuideState();
         var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
-        state.Refresh(catalog, progression, true, true, true, true, true, false, false, true);
+        state.Refresh(catalog, progression, true, true, true, true, true, false, false);
         Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft }));
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false);
         Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft, GestureKind.SpreadHands }));
         progression.Transitioning = new TransitioningProgression();
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false);
         Assert.That(state.Candidates, Is.Empty);
     }
 
@@ -37,142 +38,31 @@ public sealed class QuestMotionGuideTests
         var catalog = new PresenterRecognitionCatalog();
         catalog.Gestures.Add(GestureKind.SwipeLeft);
         var state = new QuestMotionGuideState();
-        state.Refresh(catalog, new ProgressionRuntimeState { Stable = new StableProgression() }, presenter, calibrated, running, head, left, right, menu, true);
+        state.Refresh(catalog, new ProgressionRuntimeState { Stable = new StableProgression() }, presenter, calibrated, running, head, left, right, menu);
         Assert.That(state.Candidates, Is.Empty);
     }
 
-    [TestCase(false, true, true, true, "位置合わせ")]
-    [TestCase(true, false, true, true, "一時停止")]
-    [TestCase(true, true, false, true, "頭")]
-    [TestCase(true, true, true, false, "同期")]
-    public void UnavailableInputExplainsTheRequiredAction(bool calibrated, bool running, bool head, bool ready, string expected)
+    [TestCase(25, 90)]
+    [TestCase(90, 0)]
+    [TestCase(-90, 135)]
+    public void GestureFrameStaysHorizontalWhenTheInstructionFollowsTheHead(float pitch, float yaw)
     {
-        var catalog = new PresenterRecognitionCatalog();
-        catalog.Gestures.Add(GestureKind.SwipeLeft);
-        var state = new QuestMotionGuideState();
-        state.Refresh(catalog, new ProgressionRuntimeState { Stable = new StableProgression() }, true,
-            calibrated, running, head, true, true, false, ready);
-        Assert.That(state.ShowHint, Is.True);
-        Assert.That(state.Title + state.Instruction, Does.Contain(expected));
-        Assert.That(state.Candidates, Is.Empty);
+        QuestMotionGuideGeometry.GetFrame(Quaternion.Euler(pitch, yaw, 0), out Vector3 forward, out Vector3 right);
+        Assert.That(forward.y, Is.EqualTo(0).Within(.00001f));
+        Assert.That(right.y, Is.EqualTo(0).Within(.00001f));
+        Assert.That(forward.magnitude, Is.EqualTo(1).Within(.00001f));
+        Assert.That(right.magnitude, Is.EqualTo(1).Within(.00001f));
+        Assert.That(Vector3.Dot(forward, right), Is.EqualTo(0).Within(.00001f));
+        Assert.That(Vector3.Dot(forward, Quaternion.Euler(0, yaw, 0) * Vector3.forward), Is.GreaterThan(.999f));
     }
 
     [Test]
-    public void TransitionAndMissingHandsExplainTheWait()
-    {
-        var catalog = new PresenterRecognitionCatalog();
-        catalog.Gestures.Add(GestureKind.SpreadHands);
-        var state = new QuestMotionGuideState();
-        var progression = new ProgressionRuntimeState { Transitioning = new TransitioningProgression() };
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
-        Assert.That(state.Title, Does.Contain("切り替え"));
-        Assert.That(state.Candidates, Is.Empty);
-        progression.Stable = new StableProgression();
-        state.Refresh(catalog, progression, true, true, true, true, true, false, false, true);
-        Assert.That(state.Title + state.Instruction, Does.Contain("両手"));
-        Assert.That(state.Candidates, Is.Empty);
-    }
-
-    [Test]
-    public void EmptyCatalogDoesNotClaimCompletionAndZonesExplainPositionInput()
-    {
-        var catalog = new PresenterRecognitionCatalog();
-        var state = new QuestMotionGuideState();
-        var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
-        Assert.That(state.ShowHint, Is.True);
-        Assert.That(state.Title + state.Instruction, Does.Not.Contain("完了"));
-        Assert.That(state.Candidates, Is.Empty);
-        catalog.Zones.Add(new PresenterRecognitionZone { ZoneId = "stage", Center = new Unframe.Presentation.Vector3() });
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
-        Assert.That(state.Title + state.Instruction, Does.Contain("立ち位置"));
-    }
-
-    [Test]
-    public void MenuOrAudienceClearsPreviousHint()
-    {
-        var state = new QuestMotionGuideState();
-        var catalog = new PresenterRecognitionCatalog();
-        var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
-        Assert.That(state.ShowHint, Is.True);
-        state.Refresh(catalog, progression, true, true, true, true, true, true, true, true);
-        Assert.That(state.ShowHint, Is.False);
-        Assert.That(state.Title, Is.Empty);
-        Assert.That(state.Instruction, Is.Empty);
-        state.Refresh(catalog, progression, false, true, true, true, true, true, false, true);
-        Assert.That(state.ShowHint, Is.False);
-    }
-
-    [TestCase(GestureKind.SwipeLeft, "左", "片手", "18cm")]
-    [TestCase(GestureKind.SpreadHands, "広げ", "両手", "25cm")]
-    public void DetailedInstructionsExplainMeasurements(GestureKind gesture, string direction, string hands, string distance)
-    {
-        Assert.That(QuestMotionGuideState.Description(gesture), Does.Contain(direction));
-        string brief = QuestMotionGuideState.InstructionFor(gesture, false);
-        string detailed = QuestMotionGuideState.InstructionFor(gesture, true);
-        Assert.That(brief, Does.Contain(hands));
-        Assert.That(brief, Does.Not.Contain("cm"));
-        Assert.That(detailed, Does.Contain(distance));
-        Assert.That(detailed, Does.Contain("0.8秒"));
-        Assert.That(detailed, Does.Contain("0.15秒"));
-    }
-
-    [Test]
-    public void GuideDirectionUsesFrozenHeadYawAndDistanceIsBoundedForComfort()
-    {
-        var rotation = Quaternion.Euler(25, 90, 0);
-        QuestMotionGuideGeometry.GetFrame(rotation, out Vector3 forward, out Vector3 right);
-        Assert.That(Vector3.Dot(forward, Vector3.right), Is.GreaterThan(.999f));
-        Assert.That(Vector3.Dot(right, Vector3.back), Is.GreaterThan(.999f));
-        Assert.That(QuestMotionGuideGeometry.Direction(5, forward, right, false), Is.EqualTo(forward));
-        Assert.That(QuestMotionGuideGeometry.Direction(7, forward, right, true), Is.EqualTo(-right));
-        QuestMotionGuideGeometry.Diagram(1, 1, out float start, out float end, out float scale);
-        Assert.That(start, Is.EqualTo(0));
-        Assert.That(end, Is.EqualTo(1));
-        Assert.That(end * scale, Is.EqualTo(.35f).Within(.00001f));
-    }
-
-    [Test]
-    public void SignificantHeadTurnReframesWhileSmallTrackingChangesDoNot()
-    {
-        Assert.That(QuestMotionGuideGeometry.NeedsReframe(Vector3.forward, Quaternion.Euler(0, 10, 0) * Vector3.forward), Is.False);
-        Assert.That(QuestMotionGuideGeometry.NeedsReframe(Vector3.forward, Vector3.right), Is.True);
-    }
-
-    [TestCase(7, .01)]
-    [TestCase(7, .3)]
-    [TestCase(7, 1.0)]
-    [TestCase(8, .01)]
-    [TestCase(8, .3)]
-    [TestCase(8, 1.0)]
-    public void BothHandDiagramShowsSeparationBeforeUniformScaling(int preset, double minimum)
-    {
-        QuestMotionGuideGeometry.Diagram(preset, minimum, out float startHalf, out float endHalf, out float scale);
-        float initial = startHalf * 2;
-        float final = endHalf * 2;
-        if (preset == 7)
-        {
-            Assert.That(initial, Is.LessThanOrEqualTo(.5f));
-            Assert.That(final, Is.GreaterThanOrEqualTo(.6f));
-        }
-        else
-        {
-            Assert.That(initial, Is.GreaterThanOrEqualTo(.6f));
-            Assert.That(final, Is.LessThanOrEqualTo(.5f));
-        }
-        Assert.That(Mathf.Abs(final - initial), Is.GreaterThanOrEqualTo((float)minimum - .00001f));
-        Assert.That(Mathf.Abs(endHalf - startHalf), Is.GreaterThanOrEqualTo(.1f));
-        Assert.That(Mathf.Max(initial, final) * scale, Is.LessThanOrEqualTo(.70001f));
-        Assert.That(scale, Is.GreaterThan(0));
-    }
-
-    [Test]
-    public void VisualsHaveNoCollidersAndReleaseOwnedMaterialAndMesh()
+    public void VisualsUseEditableControllersAndPreserveSharedAssetsWhenDestroyed()
     {
         var host = new GameObject("Motion guide lifecycle");
-        Material material = null;
-        Mesh mesh = null;
+        Mesh[] meshes = null;
+        Material[] materials = null;
+        RuntimeAnimatorController[] controllers = null;
         try
         {
             var view = host.AddComponent<QuestMotionGuideView>();
@@ -187,16 +77,81 @@ public sealed class QuestMotionGuideTests
             Assert.That(instruction.raycastTarget, Is.False);
             Assert.That(instruction.gameObject, Is.Not.SameAs(backplate.gameObject));
             Assert.That(instruction.transform.parent, Is.EqualTo(backplate.transform));
-            var renderer = host.GetComponentInChildren<MeshRenderer>(true);
-            material = renderer.sharedMaterial;
-            mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
-            Assert.That(material, Is.Not.Null);
-            Assert.That(mesh, Is.Not.Null);
-            typeof(QuestMotionGuideView).GetMethod("OnDestroy", flags).Invoke(view, null);
+            var skins = host.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            Assert.That(skins.Length, Is.EqualTo(2));
+            Assert.That(skins[0].sharedMesh, Is.Not.SameAs(skins[1].sharedMesh));
+            Assert.That(System.Array.Exists(skins[0].bones, bone => bone != null && bone.name == "Forearm.L"), Is.True);
+            Assert.That(System.Array.Exists(skins[1].bones, bone => bone != null && bone.name == "Forearm.R"), Is.True);
+            meshes = new[] { skins[0].sharedMesh, skins[1].sharedMesh };
+            materials = new[] { skins[0].sharedMaterial, skins[1].sharedMaterial };
+            var animators = System.Array.FindAll(host.GetComponentsInChildren<Animator>(true), animator => animator.enabled);
+            Assert.That(animators.Length, Is.EqualTo(2));
+            controllers = new[] { animators[0].runtimeAnimatorController, animators[1].runtimeAnimatorController };
+            for (int side = 0; side < animators.Length; side++)
+            {
+                Assert.That(controllers[side], Is.Not.Null);
+                Assert.That(controllers[side].animationClips.Length, Is.EqualTo(8));
+                Assert.That(animators[side].applyRootMotion, Is.False);
+                Assert.That(animators[side].updateMode, Is.EqualTo(AnimatorUpdateMode.UnscaledTime));
+                string resource = "PresentationUi/MotionArms/Editable/" + (side == 0 ? "LeftMotionArm" : "RightMotionArm");
+                var prefab = Resources.Load<GameObject>(resource);
+                Assert.That(prefab, Is.Not.Null, resource);
+                Assert.That(meshes[side], Is.SameAs(prefab.GetComponentInChildren<SkinnedMeshRenderer>(true).sharedMesh));
+                Assert.That(prefab.GetComponent<QuestMotionArmAppearance>(), Is.Not.Null);
+            }
         }
         finally { Object.DestroyImmediate(host); }
-        Assert.That(material == null, Is.True);
-        Assert.That(mesh == null, Is.True);
+        foreach (Mesh mesh in meshes) Assert.That(mesh != null, Is.True, "Shared source mesh was destroyed");
+        foreach (Material material in materials) Assert.That(material != null, Is.True, "Shared material was destroyed");
+        foreach (RuntimeAnimatorController controller in controllers) Assert.That(controller != null, Is.True, "Shared controller was destroyed");
+    }
+
+    [TestCase("Left")]
+    [TestCase("Right")]
+    public void EditableClipsExposeBoneTransformsAndOpacity(string side)
+    {
+        var prefab = Resources.Load<GameObject>("PresentationUi/MotionArms/Editable/" + side + "MotionArm");
+        Assert.That(prefab, Is.Not.Null);
+        var controller = prefab.GetComponent<Animator>().runtimeAnimatorController;
+        Assert.That(controller, Is.Not.Null);
+        foreach (GestureKind gesture in System.Enum.GetValues(typeof(GestureKind)))
+        {
+            if (gesture < GestureKind.SwipeLeft || gesture > GestureKind.CloseHands) continue;
+            var clip = System.Array.Find(controller.animationClips, item => item.name == side + gesture);
+            Assert.That(clip, Is.Not.Null, gesture.ToString());
+            var bindings = UnityEditor.AnimationUtility.GetCurveBindings(clip);
+            Assert.That(System.Array.Exists(bindings, binding => binding.type == typeof(Transform)
+                && binding.propertyName.StartsWith("m_LocalRotation", System.StringComparison.Ordinal)), Is.True);
+            Assert.That(System.Array.Exists(bindings, binding => binding.type == typeof(QuestMotionArmAppearance)
+                && binding.propertyName == "Opacity"), Is.True);
+        }
+    }
+
+    [TestCase("Left")]
+    [TestCase("Right")]
+    public void EveryEditableGestureAnimatesTheImportedBones(string side)
+    {
+        var prefab = Resources.Load<GameObject>("PresentationUi/MotionArms/Editable/" + side + "MotionArm");
+        Assert.That(prefab, Is.Not.Null);
+        var instance = Object.Instantiate(prefab);
+        try
+        {
+            var animator = instance.GetComponent<Animator>();
+            animator.enabled = false;
+            var bones = instance.GetComponentInChildren<SkinnedMeshRenderer>().bones;
+            foreach (AnimationClip clip in animator.runtimeAnimatorController.animationClips)
+            {
+                clip.SampleAnimation(instance, clip.length * .2f);
+                var rotations = System.Array.ConvertAll(bones, bone => bone.localRotation);
+                clip.SampleAnimation(instance, clip.length * .6f);
+                bool moved = false;
+                for (int i = 0; i < bones.Length; i++)
+                    moved |= Quaternion.Angle(rotations[i], bones[i].localRotation) > .5f;
+                Assert.That(moved, Is.True, clip.name + " must move the imported arm bones.");
+                Assert.That(instance.GetComponent<QuestMotionArmAppearance>().Opacity, Is.InRange(0, 1));
+            }
+        }
+        finally { Object.DestroyImmediate(instance); }
     }
 
 }

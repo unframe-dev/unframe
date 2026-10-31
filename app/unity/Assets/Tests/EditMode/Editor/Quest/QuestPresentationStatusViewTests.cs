@@ -182,4 +182,55 @@ public sealed class QuestPresentationStatusViewTests
         Assert.That(calibration.Calibration.Reason, Is.EqualTo("user-requested-remeasurement"));
         Assert.That(view.StatusText, Does.Not.Contain("user-requested-remeasurement"));
     }
+    [Test]
+    public void EnteredPresentationHidesAlignmentHelpersAndRemeasurementRestoresThem()
+    {
+        host = new GameObject("Alignment helper visibility");
+        head = new GameObject("Head", typeof(Camera));
+        var entry = host.AddComponent<QuestPresentationEntry>();
+        var alignment = host.AddComponent<AprilTagOriginAlignment>();
+        typeof(AprilTagOriginAlignment).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(alignment, null);
+        var calibration = host.AddComponent<AprilTagPresentationCalibration>();
+        calibration.Configure(alignment, host.transform);
+        var onboarding = host.AddComponent<QuestOnboardingView>();
+        onboarding.Configure(null, entry, calibration, head.transform, null);
+        var view = host.AddComponent<QuestPresentationStatusView>();
+        view.Configure(entry, calibration, head.transform);
+        view.AttachOnboarding(onboarding);
+        Assert.That(calibration.Calibration.TrySet(QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity), out _), Is.True);
+        view.Refresh();
+        Assert.That(alignment.VisualizationVisible, Is.True);
+        onboarding.CompleteExternalConnection();
+        view.Refresh();
+        Assert.That(alignment.VisualizationVisible, Is.False);
+        Assert.That(calibration.Calibration.IsValid, Is.True);
+        view.ResetCalibration();
+        Assert.That(calibration.Calibration.IsValid, Is.False);
+        Assert.That(alignment.VisualizationVisible, Is.True);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void EditorScreenClickReachesTheMenuAndOnboarding(bool entering)
+    {
+        host = new GameObject("Editor pointer input");
+        head = new GameObject("Head", typeof(Camera));
+        head.GetComponent<Camera>().pixelRect = new Rect(0, 0, 800, 600);
+        var view = host.AddComponent<QuestPresentationStatusView>();
+        view.Configure(null, null, head.transform);
+        QuestOnboardingView onboarding = null;
+        Button button = view.FindButton("Details");
+        if (entering)
+        {
+            onboarding = host.AddComponent<QuestOnboardingView>();
+            onboarding.Configure(null, null, null, head.transform, null);
+            view.AttachOnboarding(onboarding);
+            button = onboarding.FindButton("Presenter");
+        }
+        Vector2 position = head.GetComponent<Camera>().WorldToScreenPoint(button.transform.position);
+        typeof(QuestPresentationStatusView).GetMethod("HandleEditorPointer", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(view, new object[] { position, true });
+        if (entering) Assert.That(onboarding.Flow.Role, Is.EqualTo(QuestOnboardingRole.Presenter));
+        else Assert.That(view.Panel.transform.Find("Details text").gameObject.activeSelf, Is.True);
+    }
 }

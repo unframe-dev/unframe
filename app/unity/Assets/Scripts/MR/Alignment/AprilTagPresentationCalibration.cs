@@ -14,6 +14,11 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
 
     public PresentationCalibrationState Calibration { get; } = new PresentationCalibrationState();
     public Transform QuestTrackingOrigin => questTrackingOrigin;
+    public bool AlignmentVisualizationVisible
+    {
+        get => alignment == null || alignment.VisualizationVisible;
+        set { if (alignment != null) alignment.VisualizationVisible = value; }
+    }
     public int MarkerSizeMillimeters => alignment != null ? alignment.MarkerSizeMillimeters : 150;
     public void SelectMarkerSize(int millimeters)
     {

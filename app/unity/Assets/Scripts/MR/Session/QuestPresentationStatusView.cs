@@ -31,13 +31,10 @@ namespace Unframe.Unity.PresentationRuntime
         private bool stepsOpen;
         private int stepPage;
         private QuestOnboardingView onboarding;
+        private readonly QuestPresentationDisplayState liveDisplayState = new QuestPresentationDisplayState();
         private bool OnboardingActive => onboarding != null && !onboarding.IsComplete;
         private bool confirmEnd;
-        private bool confirmExit;
-        public bool MotionGuideEnabled { get; private set; } = true;
-        public bool MotionGuideDetails { get; private set; }
         private Text details;
-        private string diagnosticExportMessage = "";
         private Text heading;
         private GameObject notice;
         private Text noticeText;
@@ -71,6 +68,33 @@ namespace Unframe.Unity.PresentationRuntime
             Refresh();
         }
 
+        private QuestPresentationDisplayState ReadDisplayState()
+        {
+            PresentationCalibrationState calibration = calibrationSource != null ? calibrationSource.Calibration : entry?.Calibration;
+            string error = !String.IsNullOrEmpty(operationError) ? operationError
+                : !String.IsNullOrEmpty(session?.LastErrorCode) ? session.LastErrorCode : entry?.LastErrorCode;
+            liveDisplayState.Audience = entry != null && entry.ControlReady && !entry.IsPresenter;
+            liveDisplayState.Presenter = entry?.IsPresenter == true;
+            liveDisplayState.IsRunning = entry?.IsRunning == true;
+            liveDisplayState.Stage = entry?.ConnectionStage ?? PresentationConnectionStage.NotConfigured;
+            liveDisplayState.PlaybackStatus = entry?.PlaybackStatus;
+            liveDisplayState.AssetsReady = entry?.AssetsReady == true;
+            liveDisplayState.ControlReady = entry?.ControlReady == true;
+            liveDisplayState.SessionReady = entry?.SessionReady == true;
+            liveDisplayState.Calibrated = calibration?.IsValid == true;
+            liveDisplayState.NeedsCameraPermission = cameraPreview != null && cameraPreview.NeedsCameraPermission;
+            liveDisplayState.Busy = (operation != null && !operation.IsCompleted) || (session != null && session.IsBusy);
+            liveDisplayState.CanControlPresentation = entry?.CanControlPresentation == true;
+            liveDisplayState.CanControl = entry?.CanControl == true;
+            liveDisplayState.CanAdvance = entry?.CanAdvance == true;
+            liveDisplayState.HasConnectionSettings = session != null && session.HasConnectionSettings;
+            liveDisplayState.Error = error;
+            liveDisplayState.DetailCode = error ?? calibration?.Reason ?? entry?.LastCommandOutcomeCode;
+            liveDisplayState.RoomCode = onboarding?.SharedRoomCode;
+            liveDisplayState.ReachedSteps = entry != null ? entry.ReachedSteps : Array.Empty<Unframe.Realtime.StepSelection>();
+            return liveDisplayState;
+        }
+
         public void AttachOnboarding(QuestOnboardingView view)
         {
             onboarding = view;
@@ -79,7 +103,6 @@ namespace Unframe.Unity.PresentationRuntime
 
         public void Refresh()
         {
-            bool confirming = confirmEnd || confirmExit;
             if (entry != null) entry.PresentationInputEnabled = !OnboardingActive && !menuOpen;
             if (cameraPreview == null && calibrationSource != null) cameraPreview = calibrationSource.CameraPreview;
             if (cameraPreview == null && entry != null) cameraPreview = entry.GetComponentInChildren<PassthroughCameraDevicePreview>(true);
@@ -88,115 +111,106 @@ namespace Unframe.Unity.PresentationRuntime
                 cameraPreview.DiagnosticUiVisible = false;
                 cameraPreview.DiagnosticInputEnabled = false;
             }
-            if (AudienceMode && !wasAudience) menuOpen = false;
-            wasAudience = AudienceMode;
-            PresentationCalibrationState calibration = calibrationSource != null ? calibrationSource.Calibration : entry?.Calibration;
-            bool busy = (operation != null && !operation.IsCompleted) || (session != null && session.IsBusy);
-            string error = !String.IsNullOrEmpty(operationError) ? operationError
-                : !String.IsNullOrEmpty(session?.LastErrorCode) ? session.LastErrorCode : entry?.LastErrorCode;
+            if (calibrationSource != null)
+                calibrationSource.AlignmentVisualizationVisible = OnboardingActive || !calibrationSource.Calibration.IsValid;
+            QuestPresentationDisplayState display = ReadDisplayState();
+            bool audience = display.Audience;
+            if (audience && !wasAudience) menuOpen = false;
+            wasAudience = audience;
+            bool busy = display.Busy;
+            string error = display.Error;
+            var reachedSteps = display.ReachedSteps ?? Array.Empty<Unframe.Realtime.StepSelection>();
             StatusText = !String.IsNullOrEmpty(error) ? "接続を確認してください。詳細と再接続から復帰できます。"
-                : entry == null || entry.ConnectionStage == PresentationConnectionStage.NotConfigured ? "プレゼンへの接続情報が必要です。"
-                : entry.ConnectionStage == PresentationConnectionStage.Connecting ? "プレゼンに接続しています…"
-                : entry.ConnectionStage == PresentationConnectionStage.LoadingAssets ? "プレゼンを読み込んでいます…"
-                : cameraPreview != null && cameraPreview.NeedsCameraPermission ? "位置合わせにはカメラの許可が必要です。\n「カメラを許可」を選んでください。"
-                : calibration == null || !calibration.IsValid ? "マーカーを見て位置を合わせてください。"
-                : !entry.SessionReady ? "プレゼンの準備をしています…"
-                : entry.PlaybackStatus == "Running" ? "再生中"
-                : entry.PlaybackStatus == "Paused" ? "再生準備完了・一時停止中"
-                : entry.PlaybackStatus == "Terminating" ? "プレゼンを終了しています…" : "準備完了";
+                : display.Stage == PresentationConnectionStage.NotConfigured ? "プレゼンへの接続情報が必要です。"
+                : display.Stage == PresentationConnectionStage.Connecting ? "プレゼンに接続しています…"
+                : display.Stage == PresentationConnectionStage.LoadingAssets ? "プレゼンを読み込んでいます…"
+                : display.NeedsCameraPermission ? "位置合わせにはカメラの許可が必要です。\n「カメラを許可」を選んでください。"
+                : !display.Calibrated ? "マーカーを見て位置を合わせてください。"
+                : !display.SessionReady ? "プレゼンの準備をしています…"
+                : display.PlaybackStatus == "Running" ? "再生中"
+                : display.PlaybackStatus == "Paused" ? "再生準備完了・一時停止中"
+                : display.PlaybackStatus == "Terminating" ? "プレゼンを終了しています…" : "準備完了";
             if (panel == null && head != null) CreatePanel();
-            if (status != null) status.text = !confirming && !String.IsNullOrEmpty(diagnosticExportMessage) ? diagnosticExportMessage : confirmEnd ? "全員の発表を終了します。\nこのルームの再生を終了してよいですか？"
-                : confirmExit ? "この端末だけルームから退出します。\n他の参加者の発表は終了しません。" : StatusText + (!AudienceMode && !String.IsNullOrEmpty(onboarding?.SharedRoomCode) ? "\nルームコード：" + onboarding.SharedRoomCode : "");
-            if (heading != null) heading.text = confirmEnd ? "全員の発表を終了" : confirmExit ? "ルームから退出" : stepsOpen ? "到達済みの場面に戻る" : detailsOpen ? "ガイドと設定" : AudienceMode ? "鑑賞メニュー" : "発表者メニュー";
+            if (status != null) status.text = confirmEnd ? "プレゼンを終了しますか？\n続ける場合は「戻る」を選んでください。"
+                : StatusText + (!audience && !String.IsNullOrEmpty(display.RoomCode) ? "\nルームコード：" + display.RoomCode : "");
+            if (heading != null) heading.text = confirmEnd ? "発表を終了" : detailsOpen ? "設定と接続" : audience ? "鑑賞メニュー" : "プレゼン操作";
             if (panel != null)
             {
                 panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 740);
-                heading.rectTransform.anchoredPosition = new Vector2(0, 305);
-                status.rectTransform.anchoredPosition = new Vector2(0, 220);
+                heading.rectTransform.anchoredPosition = new Vector2(0, 327);
+                status.rectTransform.anchoredPosition = new Vector2(0, 216);
                 panel.transform.Find("Hint").GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -320);
-                FindButton("Align").GetComponent<RectTransform>().anchoredPosition = AudienceMode ? new Vector2(-236, -20) : new Vector2(-118, 9);
-                FindButton("Close").GetComponent<RectTransform>().anchoredPosition = AudienceMode ? new Vector2(0, -20) : new Vector2(118, 9);
-                FindButton("Retry").GetComponent<RectTransform>().anchoredPosition = AudienceMode ? new Vector2(236, -20) : new Vector2(-354, -87);
-                FindButton("CameraPermission").GetComponent<RectTransform>().anchoredPosition = AudienceMode ? new Vector2(0, -110) : new Vector2(118, -87);
-                FindButton("Exit").GetComponent<RectTransform>().anchoredPosition = AudienceMode ? new Vector2(236, -110) : new Vector2(-118, -87);
+                FindButton("Align").GetComponent<RectTransform>().anchoredPosition = audience ? new Vector2(-236, -20) : new Vector2(-118, 9);
+                FindButton("Close").GetComponent<RectTransform>().anchoredPosition = audience ? new Vector2(0, -20) : new Vector2(118, 9);
+                FindButton("Retry").GetComponent<RectTransform>().anchoredPosition = audience ? new Vector2(236, -20) : new Vector2(-354, -87);
+                FindButton("CameraPermission").GetComponent<RectTransform>().anchoredPosition = audience ? new Vector2(0, -110) : new Vector2(118, -87);
+                FindButton("Exit").GetComponent<RectTransform>().anchoredPosition = audience ? new Vector2(236, -110) : new Vector2(-118, -87);
             }
             if (details != null)
             {
-                details.gameObject.SetActive(detailsOpen && !AudienceMode);
-                details.text = "接続: " + entry?.ConnectionStage + "　再生: " + entry?.PlaybackStatus
-                    + "\n素材: " + (entry?.AssetsReady == true ? "準備済み" : "未準備")
-                    + "　位置合わせ: " + (calibration?.IsValid == true ? "完了" : "未完了")
-                    + "\nコード: " + (error ?? calibration?.Reason ?? entry?.LastCommandOutcomeCode ?? "なし");
+                details.gameObject.SetActive(detailsOpen && !audience);
+                details.text = "接続: " + display.Stage + "　再生: " + display.PlaybackStatus
+                    + "\n素材: " + (display.AssetsReady ? "準備済み" : "未準備")
+                    + "　位置合わせ: " + (display.Calibrated ? "完了" : "未完了")
+                    + "\nコード: " + (display.DetailCode ?? "なし");
             }
             if (panel != null) panel.SetActive(isActiveAndEnabled && menuOpen && !OnboardingActive);
             if (notice != null)
             {
-                bool ready = entry != null && entry.SessionReady && calibration?.IsValid == true && String.IsNullOrEmpty(error);
-                notice.SetActive(isActiveAndEnabled && !menuOpen && (!ready || !AudienceMode) && !OnboardingActive);
-                noticeText.text = StatusText + (AudienceMode ? "\nX：鑑賞メニュー" : "\nX：操作・設定・退出");
+                bool ready = display.SessionReady && display.Calibrated && String.IsNullOrEmpty(error);
+                notice.SetActive(isActiveAndEnabled && !menuOpen && !ready && !OnboardingActive);
+                noticeText.text = StatusText + "\nX ボタン：メニュー";
             }
-            var state = new QuestPresentationUiState(AudienceMode, entry?.IsPresenter == true,
-                !busy && entry?.CanControlPresentation == true, entry?.PlaybackStatus);
-            SetVisible("CameraPermission", !confirming && cameraPreview != null && cameraPreview.NeedsCameraPermission);
-            SetVisible("Connect", !AudienceMode && !confirming && detailsOpen && entry?.IsRunning != true);
-            SetEnabled("Connect", !busy && session != null && session.HasConnectionSettings && entry != null && !entry.IsRunning);
-            SetVisible("Resume", !AudienceMode && !confirming && !detailsOpen && entry?.PlaybackStatus != "Running");
+            var state = new QuestPresentationUiState(audience, display.Presenter,
+                !busy && display.CanControlPresentation, display.PlaybackStatus);
+            SetVisible("CameraPermission", !confirmEnd && display.NeedsCameraPermission);
+            SetVisible("Connect", !audience && !confirmEnd && detailsOpen && !display.IsRunning);
+            SetEnabled("Connect", !busy && display.HasConnectionSettings && !display.IsRunning);
+            SetVisible("Resume", !audience && !confirmEnd && !detailsOpen && display.PlaybackStatus != "Running");
             SetEnabled("Resume", state.CanResume);
-            SetVisible("Pause", !AudienceMode && !confirming && !detailsOpen && entry?.PlaybackStatus == "Running");
+            SetVisible("Pause", !audience && !confirmEnd && !detailsOpen && display.PlaybackStatus == "Running");
             SetEnabled("Pause", state.CanPause);
-            SetVisible("Next", !AudienceMode && !confirming && !detailsOpen && entry?.HasLogicalAdvance == true);
-            SetEnabled("Next", !busy && entry?.CanAdvance == true);
-            SetVisible("End", !AudienceMode && !confirming && detailsOpen);
+            SetVisible("Next", !audience && !confirmEnd && !detailsOpen);
+            SetEnabled("Next", !busy && display.CanAdvance);
+            SetVisible("End", !audience && !confirmEnd && detailsOpen);
             SetEnabled("End", state.CanEnd);
-            SetVisible("ConfirmEnd", confirmEnd && !AudienceMode);
+            SetVisible("ConfirmEnd", confirmEnd && !audience);
             SetEnabled("ConfirmEnd", state.CanEnd);
-            SetVisible("ConfirmExit", confirmExit);
-            SetEnabled("ConfirmExit", !busy && session != null && (session.HasConnectionSettings || entry?.IsRunning == true));
-            SetVisible("CancelEnd", confirming);
-            SetVisible("Align", !confirming && !stepsOpen);
+            SetVisible("CancelEnd", confirmEnd);
+            SetVisible("Align", !confirmEnd && (audience || detailsOpen));
             SetEnabled("Align", !busy);
-            SetVisible("Close", !confirming);
-            SetVisible("Details", !confirming);
+            SetVisible("Close", !confirmEnd);
+            SetVisible("Details", !confirmEnd);
             if (FindButton("Details") != null) FindButton("Details").GetComponentInChildren<Text>().text = detailsOpen ? "戻る" : "設定";
-            SetVisible("Retry", !confirming && ((detailsOpen && entry?.IsRunning == true) || !String.IsNullOrEmpty(error)));
-            SetEnabled("Retry", !busy && session != null && session.HasConnectionSettings);
-            SetVisible("Exit", !detailsOpen && !stepsOpen && !confirming);
-            SetVisible("Guide", !AudienceMode && !confirming && detailsOpen && !stepsOpen);
-            SetEnabled("Guide", !busy);
-            SetVisible("GuideDetails", !AudienceMode && !confirming && detailsOpen && !stepsOpen);
-            SetEnabled("GuideDetails", !busy && MotionGuideEnabled);
-            var guideButton = FindButton("Guide");
-            if (guideButton != null) guideButton.GetComponentInChildren<Text>().text = "動作ガイド\n" + (MotionGuideEnabled ? "表示" : "非表示");
-            var guideDetailsButton = FindButton("GuideDetails");
-            if (guideDetailsButton != null) guideDetailsButton.GetComponentInChildren<Text>().text = "動作の説明\n" + (MotionGuideDetails ? "詳しく" : "シンプル");
-            SetVisible("SaveDiagnostics", !confirming && detailsOpen && !stepsOpen);
-            SetEnabled("SaveDiagnostics", !busy && session != null);
-            SetVisible("Steps", !AudienceMode && !confirming && detailsOpen);
-            SetEnabled("Steps", !busy && entry?.CanControl == true && entry.ReachedSteps.Count > 0);
-            SetVisible("PreviousSteps", stepsOpen && !AudienceMode && !confirming);
+            SetVisible("Retry", !confirmEnd && ((detailsOpen && display.IsRunning) || !String.IsNullOrEmpty(error)));
+            SetEnabled("Retry", !busy && display.HasConnectionSettings);
+            SetVisible("Exit", detailsOpen && !confirmEnd);
+            SetVisible("Steps", !audience && !confirmEnd && detailsOpen);
+            SetEnabled("Steps", !busy && display.CanControl && reachedSteps.Count > 0);
+            SetVisible("PreviousSteps", stepsOpen && !audience && !confirmEnd);
             SetEnabled("PreviousSteps", stepPage > 0);
-            SetVisible("MoreSteps", stepsOpen && !AudienceMode && !confirming);
-            SetEnabled("MoreSteps", (stepPage + 1) * 3 < (entry?.ReachedSteps.Count ?? 0));
+            SetVisible("MoreSteps", stepsOpen && !audience && !confirmEnd);
+            SetEnabled("MoreSteps", (stepPage + 1) * 3 < reachedSteps.Count);
             for (int i = 0; i < 3; i++)
             {
                 int index = stepPage * 3 + i;
-                bool exists = stepsOpen && !AudienceMode && !confirming && entry != null && index < entry.ReachedSteps.Count;
+                bool exists = stepsOpen && !audience && !confirmEnd && index < reachedSteps.Count;
                 SetVisible("Step" + i, exists);
-                SetEnabled("Step" + i, !busy && entry?.CanControl == true);
-                if (exists) FindButton("Step" + i).GetComponentInChildren<Text>().text = entry.ReachedSteps[index].GroupId + " / " + entry.ReachedSteps[index].StepId;
+                SetEnabled("Step" + i, !busy && display.CanControl);
+                if (exists) FindButton("Step" + i).GetComponentInChildren<Text>().text = reachedSteps[index].GroupId + " / " + reachedSteps[index].StepId;
             }
-            SetEnabled("Exit", session != null && (session.HasConnectionSettings || entry?.IsRunning == true));
+            SetEnabled("Exit", session != null && (display.HasConnectionSettings || display.IsRunning));
             LayoutActions();
         }
 
-        private static readonly string[] ConfirmActions = { "ConfirmEnd", "ConfirmExit", "CancelEnd" };
-        private static readonly string[] SettingsActions = { "Guide", "GuideDetails", "Align", "CameraPermission", "Retry", "Connect", "Steps", "End", "SaveDiagnostics", "Details" };
+        private static readonly string[] ConfirmActions = { "ConfirmEnd", "CancelEnd" };
+        private static readonly string[] SettingsActions = { "Align", "CameraPermission", "Retry", "Connect", "End", "Exit", "Steps", "Details" };
         private static readonly string[] StepActions = { "Step0", "Step1", "Step2", "PreviousSteps", "MoreSteps", "Details" };
-        private static readonly string[] MainActions = { "Resume", "Pause", "Next", "Close", "Align", "CameraPermission", "Retry", "Details", "Exit" };
+        private static readonly string[] MainActions = { "Resume", "Pause", "Next", "Close", "Align", "CameraPermission", "Retry", "Details" };
 
         private void LayoutActions()
         {
-            string[] order = confirmEnd || confirmExit ? ConfirmActions : stepsOpen ? StepActions : detailsOpen ? SettingsActions : MainActions;
+            string[] order = confirmEnd ? ConfirmActions : stepsOpen ? StepActions : detailsOpen ? SettingsActions : MainActions;
             int count = 0;
             foreach (string name in order)
             {
@@ -208,7 +222,7 @@ namespace Unframe.Unity.PresentationRuntime
                 button.GetComponentInChildren<Text>().rectTransform.sizeDelta = rect.sizeDelta;
                 count++;
             }
-            SetVisible("Close", !confirmEnd && !confirmExit && !detailsOpen && !stepsOpen);
+            SetVisible("Close", !confirmEnd && !detailsOpen && !stepsOpen);
             if (stepsOpen)
             {
                 foreach (Button button in buttons)
@@ -218,11 +232,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         public void SetMenuOpen(bool open)
         {
-            diagnosticExportMessage = "";
             menuOpen = open;
             confirmEnd = false;
-            confirmExit = false;
-            if (open) { detailsOpen = false; stepsOpen = false; }
             if (open) PositionPanel();
             Refresh();
         }
@@ -269,13 +280,7 @@ namespace Unframe.Unity.PresentationRuntime
             UpdateControllerAim(XRNode.RightHand, rightAim);
 #if UNITY_EDITOR
             var mouse = Mouse.current;
-            Camera camera = head != null ? head.GetComponent<Camera>() : null;
-            if (camera != null && mouse != null)
-            {
-                Ray mouseRay = camera.ScreenPointToRay(mouse.position.ReadValue());
-                ShowAim(mouseRay, true);
-                if (mouse.leftButton.wasPressedThisFrame) TryPress(mouseRay);
-            }
+            if (mouse != null) HandleEditorPointer(mouse.position.ReadValue(), mouse.leftButton.wasPressedThisFrame);
 #endif
             Refresh();
             if (notice != null && notice.activeSelf && head != null)
@@ -284,10 +289,21 @@ namespace Unframe.Unity.PresentationRuntime
                 if (forward.sqrMagnitude > 0.001f)
                 {
                     Quaternion yaw = Quaternion.LookRotation(forward.normalized, Vector3.up);
-                    notice.transform.SetPositionAndRotation(head.position + yaw * new Vector3(0, -0.65f, 1.6f), yaw);
+                    notice.transform.SetPositionAndRotation(head.position + yaw * new Vector3(0, -0.22f, 1.6f), yaw);
                 }
             }
         }
+
+#if UNITY_EDITOR
+        private void HandleEditorPointer(Vector2 screenPosition, bool pressed)
+        {
+            Camera camera = head != null ? head.GetComponent<Camera>() : null;
+            if (camera == null) return;
+            Ray ray = camera.ScreenPointToRay(screenPosition);
+            ShowAim(ray, true);
+            if (pressed) TryPress(ray);
+        }
+#endif
 
         public bool TryPress(Ray ray)
         {
@@ -369,27 +385,12 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 button.interactable = enabled;
                 Text label = button.GetComponentInChildren<Text>();
-                if (label != null) label.color = enabled ? (IsPrimaryAction(name) ? QuestUiTheme.OnPrimary : QuestUiTheme.Text) : QuestUiTheme.Muted;
+                if (label != null) label.color = enabled ? (name == "Resume" || name == "Next" ? Color.white : QuestUiTheme.Text) : QuestUiTheme.Muted;
             }
-        }
-
-        private void SaveDiagnostics()
-        {
-            try
-            {
-                string path = session.ExportDiagnostics();
-                diagnosticExportMessage = "SessionDiagnostics に保存しました\n" + System.IO.Path.GetFileName(path);
-#if UNITY_EDITOR
-                Debug.Log(path);
-#endif
-            }
-            catch (Exception) { diagnosticExportMessage = "diagnostic-export-failed"; }
-            Refresh();
         }
 
         private void RunOperation(Func<Task> action)
         {
-            diagnosticExportMessage = "";
             if (operation != null && !operation.IsCompleted) return;
             operation = ExecuteOperation(action);
         }
@@ -429,10 +430,11 @@ namespace Unframe.Unity.PresentationRuntime
             panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 740);
             panel.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
             panel.GetComponent<Canvas>().worldCamera = head.GetComponent<Camera>();
+            QuestPresentationUiFont.ConfigureCanvas(panel.GetComponent<Canvas>());
             QuestUiTheme.ApplySurface(panel.GetComponent<Image>());
             panel.GetComponent<Image>().raycastTarget = false;
-            heading = AddText(panel.transform, "Heading", new Vector2(0, 305), new Vector2(920, 90), 40);
-            status = AddText(panel.transform, "Status", new Vector2(0, 220), new Vector2(920, 100), 30);
+            heading = AddText(panel.transform, "Heading", new Vector2(0, 327), new Vector2(920, 70), 40);
+            status = AddText(panel.transform, "Status", new Vector2(0, 216), new Vector2(920, 144), 30);
             AddText(panel.transform, "Hint", new Vector2(0, -320), new Vector2(920, 52), 24).text =
                 "照準を合わせてトリガーで選択　X：メニュー　B / Y：位置合わせ";
             details = AddText(panel.transform, "Details text", new Vector2(0, -210), new Vector2(920, 100), 23);
@@ -440,35 +442,32 @@ namespace Unframe.Unity.PresentationRuntime
             AddButton("Resume", "再生 / 再開", 1, () => RunOperation(() => entry.ResumeAsync()));
             AddButton("Next", "次へ", 2, () => RunOperation(() => entry.AdvanceAsync()));
             AddButton("Pause", "一時停止", 3, () => RunOperation(() => entry.PauseAsync()));
-            AddButton("End", "全員の発表を終了", 4, () => { confirmEnd = true; confirmExit = false; Refresh(); });
+            AddButton("End", "発表を終了", 4, () => { confirmEnd = true; Refresh(); });
             AddButton("Align", "位置合わせ", 5, ResetCalibration);
-            AddButton("Close", "発表に戻る", 6, () => SetMenuOpen(false));
+            AddButton("Close", "資料を見る", 6, () => SetMenuOpen(false));
             AddButton("Details", "詳細と再接続", 7, () => { if (stepsOpen) stepsOpen = false; else detailsOpen = !detailsOpen; Refresh(); });
             AddButton("Retry", "再接続", 8, () => RunOperation(() => onboarding != null ? onboarding.RetryConnectionAsync() : session.RetryAsync()));
-            AddButton("Exit", "ルームから退出", 9, () => { confirmExit = true; confirmEnd = false; Refresh(); });
-            AddButton("ConfirmExit", "この端末だけ退出", 0, () =>
+            AddButton("Exit", "接続を解除", 9, () =>
             {
-                confirmExit = false;
-                RunOperation(async () => { await session.ExitAsync(); onboarding?.ResetFlow(); });
+                operationRevision++;
+                operation = ExecuteOperation(async () => { await session.ExitAsync(); onboarding?.ResetFlow(); });
             });
-            AddButton("SaveDiagnostics", "テストログを保存", 0, SaveDiagnostics);
-            AddButton("Guide", "動作ガイド", 0, () => { MotionGuideEnabled = !MotionGuideEnabled; Refresh(); });
-            AddButton("GuideDetails", "動作の説明", 0, () => { MotionGuideDetails = !MotionGuideDetails; Refresh(); });
-            AddButton("CameraPermission", "カメラを許可", 10, () => cameraPreview.RetryCameraPermission());
-            AddButton("ConfirmEnd", "全員の発表を終了", 0, () => { confirmEnd = false; RunOperation(() => entry.EndAsync()); });
-            AddButton("CancelEnd", "戻る", 1, () => { confirmEnd = false; confirmExit = false; Refresh(); });
+            AddButton("CameraPermission", "カメラを許可", 10, () => { cameraPreview.RetryCameraPermission(); });
+            AddButton("ConfirmEnd", "終了する", 0, () => { confirmEnd = false; RunOperation(() => entry.EndAsync()); });
+            AddButton("CancelEnd", "戻る", 1, () => { confirmEnd = false; Refresh(); });
             AddButton("Steps", "到達済みの Step", 0, () => { stepsOpen = true; stepPage = 0; Refresh(); });
             AddButton("PreviousSteps", "前の一覧", 0, () => { stepPage = Math.Max(0, stepPage - 1); Refresh(); });
-            AddButton("MoreSteps", "次の一覧", 0, () => { if ((stepPage + 1) * 3 < (entry?.ReachedSteps.Count ?? 0)) stepPage++; Refresh(); });
+            AddButton("MoreSteps", "次の一覧", 0, () => { if ((stepPage + 1) * 3 < (ReadDisplayState().ReachedSteps?.Count ?? 0)) stepPage++; Refresh(); });
             for (int i = 0; i < 3; i++)
             {
                 int slot = i;
                 AddButton("Step" + i, "Step", i, () =>
                 {
                     int index = stepPage * 3 + slot;
-                    if (entry != null && index < entry.ReachedSteps.Count)
+                    var steps = ReadDisplayState().ReachedSteps;
+                    if (steps != null && index < steps.Count)
                     {
-                        var step = entry.ReachedSteps[index];
+                        var step = steps[index];
                         RunOperation(() => entry.ControlAsync(Unframe.Realtime.RuntimeControlKind.SelectStep, step.GroupId, step.StepId));
                     }
                 });
@@ -481,6 +480,7 @@ namespace Unframe.Unity.PresentationRuntime
             notice.GetComponent<RectTransform>().sizeDelta = new Vector2(850, 160);
             notice.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
             notice.GetComponent<Canvas>().worldCamera = head.GetComponent<Camera>();
+            QuestPresentationUiFont.ConfigureCanvas(notice.GetComponent<Canvas>());
             QuestUiTheme.ApplySurface(notice.GetComponent<Image>());
             notice.GetComponent<Image>().raycastTarget = false;
             noticeText = AddText(notice.transform, "Notice", Vector2.zero, new Vector2(800, 140), 30);
@@ -515,8 +515,6 @@ namespace Unframe.Unity.PresentationRuntime
             return aim;
         }
 
-        private static bool IsPrimaryAction(string name) => name == "Resume" || name == "Next" || name == "ConfirmExit";
-
         private void AddButton(string name, string title, int index, UnityEngine.Events.UnityAction action)
         {
             var obj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
@@ -525,7 +523,7 @@ namespace Unframe.Unity.PresentationRuntime
             rect.sizeDelta = new Vector2(220, 76);
             rect.anchoredPosition = new Vector2((index % 4 - 1.5f) * 236, 105 - index / 4 * 96);
             var image = obj.GetComponent<Image>();
-            QuestUiTheme.ApplyButton(image, IsPrimaryAction(name));
+            QuestUiTheme.ApplyButton(image, name == "Resume" || name == "Next");
             image.raycastTarget = false;
             Button button = obj.GetComponent<Button>();
             button.targetGraphic = image;
@@ -541,7 +539,7 @@ namespace Unframe.Unity.PresentationRuntime
             text.color = QuestUiTheme.Text;
             text.raycastTarget = false;
             text.text = title;
-            if (IsPrimaryAction(name)) text.color = QuestUiTheme.OnPrimary;
+            if (name == "Resume" || name == "Next") text.color = Color.white;
         }
 
         private void OnDisable()

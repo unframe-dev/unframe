@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.IO;
-using System.Linq;
 using NUnit.Framework;
 using Unframe.Unity.PresentationRuntime;
 using UnityEditor;
@@ -16,7 +15,7 @@ using Object = UnityEngine.Object;
 public sealed class QuestOnboardingVisualTests
 {
     [UnityTest]
-    public IEnumerator RoleSelectionAndPresenterPreviewRenderWithoutClippedControls()
+    public IEnumerator OnboardingPagesRenderWithoutClippedControls()
     {
         yield return new EnterPlayMode();
         var originalScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
@@ -62,6 +61,8 @@ public sealed class QuestOnboardingVisualTests
                 QuestOnboardingPage.Calibration, QuestOnboardingPage.Ready, QuestOnboardingPage.RoomCode };
             for (int screen = 0; screen < expected.Length; screen++)
             {
+                view.Flow.GoTo(expected[screen]);
+                view.Refresh();
                 Assert.That(view.Flow.Page, Is.EqualTo(expected[screen]));
                 foreach (Transform child in host.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = 31;
                 for (int frame = 0; frame < 3; frame++) yield return null;
@@ -95,15 +96,10 @@ public sealed class QuestOnboardingVisualTests
                     for (int x = Mathf.FloorToInt(lower.x * target.width); x < Mathf.CeilToInt(upper.x * target.width); x++)
                     {
                         Color32 pixel = colors[y * target.width + x];
-                        if (pixel.r > 180 && pixel.g > 180 && pixel.b > 180) headingPixels++;
+                        if (pixel.r < 100 && pixel.g < 100 && pixel.b < 130) headingPixels++;
                     }
                 Assert.That(headingPixels, Is.GreaterThan(300), "The Japanese heading produced no visible glyphs: " + expected[screen]);
-                if (screen == 0) Click(view, "Presenter");
-                else if (screen < 5) Click(view, "DebugNext");
-                else if (screen == 5) { Click(view, "Begin"); Click(view, "Audience"); }
             }
-            Assert.That(view.Panel.GetComponentsInChildren<Button>().Any(button => button.name == "DebugNext"), Is.False,
-                "Audience must not expose presenter debug progression.");
 
         }
         finally
@@ -119,11 +115,6 @@ public sealed class QuestOnboardingVisualTests
                 UnityEngine.SceneManagement.SceneManager.SetActiveScene(originalScene);
             if (scene.IsValid() && scene.isLoaded) UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
         }
-    }
-
-    private static void Click(QuestOnboardingView view, string name)
-    {
-        view.Panel.GetComponentsInChildren<Button>().Single(button => button.name == name).onClick.Invoke();
     }
 
     [UnityTearDown]

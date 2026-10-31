@@ -2,7 +2,7 @@
 
 Questアプリの操作・役割別UI・本番モーション案内は[アプリUI](docs/quest-app-ui.md)を参照してください。
 
-正式な入口は `Unframe > Presentation > Open Quest Presentation` です。Playすると役割選択から始まります。認証・資料選択・参加とデバッグでの画面確認は[QuestアプリUI](docs/quest-app-ui.md)を参照してください。標準Buildも
+正式な入口は `Unframe > Presentation > Open Quest Presentation` です。Playすると役割選択から始まります。認証・資料選択・参加と画面の検証は[QuestアプリUI](docs/quest-app-ui.md)を参照してください。標準Buildも
 `Assets/Scenes/QuestPresentationScene.unity` を使用します。コンパイラーからのビルド・公開・
 Session接続は [本番プレゼンの手順](docs/production-presentation.md) を参照してください。
 

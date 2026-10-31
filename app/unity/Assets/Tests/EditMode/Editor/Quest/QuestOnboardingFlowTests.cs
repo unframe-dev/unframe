@@ -135,21 +135,17 @@ public sealed class QuestOnboardingFlowTests
         flow.GoTo(QuestOnboardingPage.Authentication);
         flow.Back();
         Assert.That(flow.Page, Is.EqualTo(QuestOnboardingPage.RoomCode));
-        flow.DebugNext();
-        Assert.That(flow.IsDebugPreview, Is.False);
     }
 
     [Test]
-    public void PresenterDebugTraversalIsExplicitlyAPreviewAndResetClearsIt()
+    public void ResetReturnsPresenterToRoleSelection()
     {
         var flow = new QuestOnboardingFlow();
         flow.SelectRole(QuestOnboardingRole.Presenter);
         Assert.That(flow.Page, Is.EqualTo(QuestOnboardingPage.Authentication));
-        for (int i = 0; i < 4; i++) flow.DebugNext();
-        Assert.That(flow.Page, Is.EqualTo(QuestOnboardingPage.Ready));
-        Assert.That(flow.IsDebugPreview, Is.True);
+        flow.GoTo(QuestOnboardingPage.Ready);
         flow.Reset();
         Assert.That(flow.Page, Is.EqualTo(QuestOnboardingPage.Role));
-        Assert.That(flow.IsDebugPreview, Is.False);
+        Assert.That(flow.Role, Is.EqualTo(QuestOnboardingRole.None));
     }
 }

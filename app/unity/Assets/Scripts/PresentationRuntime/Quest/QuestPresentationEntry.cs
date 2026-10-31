@@ -34,6 +34,17 @@ namespace Unframe.Unity.PresentationRuntime
         private bool commandPending;
         public Func<Ray, bool> UiRayHandler { get; set; }
         public bool PresentationInputEnabled { get; set; } = true;
+        private bool presentationDisplayEnabled = true;
+        public bool PresentationDisplayEnabled
+        {
+            get => presentationDisplayEnabled;
+            set
+            {
+                presentationDisplayEnabled = value;
+                if (runtime == null) runtime = GetComponent<PresentationBakedRuntime>();
+                if (runtime != null) runtime.DisplayEnabled = value;
+            }
+        }
         public bool IsRunning => lifetime != null && !lifetime.IsCancellationRequested;
         public bool AssetsReady => IsRunning && runtime != null && runtime.DownloadReady && runtime.ResidentReady;
         public bool ControlReady => IsRunning && runtime != null && runtime.ControlReady;
@@ -135,6 +146,7 @@ namespace Unframe.Unity.PresentationRuntime
             commandPending = false;
             connectionStage = PresentationConnectionStage.Connecting;
             calibration = calibrationState;
+            runtime.DisplayEnabled = presentationDisplayEnabled;
             runtime.ConfigureCalibration(calibration, questTrackingOrigin);
             logicalEventName = advanceLogicalEventName;
             CancellationTokenSource runLifetime = new CancellationTokenSource();

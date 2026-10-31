@@ -44,7 +44,7 @@ public sealed class QuestOnboardingExperienceTests
         Vector3 target = view.FindButton("Aligned").transform.position;
         Assert.That(view.HandleRay(new Ray(head.transform.position, target - head.transform.position)), Is.True);
         Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Calibration));
-        Assert.That(view.Panel.transform.Find("Alignment").GetComponent<Text>().text, Does.Contain("マーカー待ち"));
+        Assert.That(view.Panel.transform.Find("Alignment").GetComponent<Text>().text, Does.Contain("頭をゆっくり動かします"));
     }
 
     [UnityTest]
@@ -57,16 +57,28 @@ public sealed class QuestOnboardingExperienceTests
         Assert.That(view.FindButton("Begin").interactable, Is.False);
     }
 
-    [UnityTest]
-    public IEnumerator DebugPreviewCanStillReturnToRoleSelectionWithoutAConnection()
+    [Test]
+    public void PresenterUsesTheConfirmedLayoutWithoutDebugOrDiagnosticActions()
     {
-        yield return new EnterPlayMode();
         var view = CreateView();
-        for (int i = 0; i < 4; i++) view.Flow.DebugNext();
         view.Refresh();
-        Assert.That(view.FindButton("Begin").interactable, Is.True);
-        view.FindButton("Begin").onClick.Invoke();
-        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Role));
-        Assert.That(view.IsComplete, Is.False);
+        Assert.That(view.FindButton("DebugNext"), Is.Null);
+        Assert.That(view.FindButton("SaveDiagnostics"), Is.Null);
+        var brand = view.Panel.transform.Find("Brand").GetComponent<Text>();
+        Assert.That(brand.rectTransform.anchoredPosition, Is.EqualTo(new Vector2(0, 365)));
+        Assert.That(view.Panel.GetComponent<CanvasScaler>().dynamicPixelsPerUnit, Is.EqualTo(2));
+        Assert.That(view.Panel.GetComponent<UnityEngine.UI.Image>().color, Is.EqualTo((Color)new Color32(246, 243, 255, 255)));
+    }
+
+    [Test]
+    public void AudienceCanJoinAnonymouslyWithoutDeviceApproval()
+    {
+        var view = CreateView();
+        view.Flow.SelectRole(QuestOnboardingRole.Audience);
+        typeof(QuestOnboardingView).GetField("roomCode", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .SetValue(view, "ABCDEFGH");
+        view.Refresh();
+        view.FindButton("Continue").onClick.Invoke();
+        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Join));
     }
 }

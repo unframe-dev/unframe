@@ -31,8 +31,10 @@ namespace Unframe.Unity.PresentationRuntime
         private bool sessionStarted, ownsConnection, lastCalibrationValid, lastCanAdvance;
         private Task stopTask = Task.CompletedTask;
         private string message = "", roomCode = "";
-        private string diagnosticExportMessage = "";
         private Text inputText;
+        private bool CalibrationComplete => calibration?.Calibration?.IsValid == true;
+        private bool CameraPermissionRequired => calibration?.CameraPreview?.NeedsCameraPermission == true;
+        private int SelectedMarkerSize => calibration?.MarkerSizeMillimeters ?? 150;
         public bool IsComplete { get; private set; }
         public QuestOnboardingFlow Flow => flow;
         public GameObject Panel => panel;
@@ -40,7 +42,7 @@ namespace Unframe.Unity.PresentationRuntime
         public Button FindButton(string name) => buttons.Find(button => button != null && button.name == name);
         public void Refresh() => Draw();
         public event Action Completed;
-        public bool NeedsReauthentication => api != null && room != null && !flow.IsDebugPreview
+        public bool NeedsReauthentication => api != null && room != null
             && flow.Role == QuestOnboardingRole.Presenter && (!api.IsAuthenticated || entry?.LastErrorCode == "authentication-required");
 
         public async Task RetryConnectionAsync()
@@ -48,7 +50,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (flow.Role == QuestOnboardingRole.Audience && room != null
                 && (!api.HasViewerCredential(room.SessionId) || entry?.LastErrorCode == "authentication-required" || entry?.LastErrorCode == "credential-unavailable"))
             {
-                CancelOperation(); IsComplete = false; room = null;
+                CancelOperation(); SetComplete(false); room = null;
                 flow.GoTo(QuestOnboardingPage.Join);
                 message = "参加資格を確認できません。もう一度匿名で参加してください。";
                 Draw(); await stopTask; return;
@@ -56,7 +58,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (!NeedsReauthentication) { if (session != null) await session.RetryAsync(); return; }
             api.ForgetAuthentication();
             CancelOperation(false);
-            IsComplete = false; authorization = null; ownsConnection = false;
+            SetComplete(false); authorization = null; ownsConnection = false;
             flow.RequireAuthentication();
             message = "認証をもう一度承認すると、同じルームへ接続します。";
             Draw();
@@ -69,13 +71,20 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (api != null && !ReferenceEquals(api, service)) api.Dispose();
             session = controller; entry = sessionEntry; calibration = source; head = headTransform; api = service;
+            SetComplete(IsComplete);
             Draw();
+        }
+
+        private void SetComplete(bool complete)
+        {
+            IsComplete = complete;
+            if (entry != null) entry.PresentationDisplayEnabled = complete;
         }
 
         public void CompleteExternalConnection()
         {
             CancelOperation(false);
-            IsComplete = true;
+            SetComplete(true);
             if (panel != null) panel.SetActive(false);
             Completed?.Invoke();
         }
@@ -88,13 +97,12 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void ResetFlowState()
         {
-            CancelOperation(); flow.Reset(); IsComplete = false; authorization = null;
+            CancelOperation(); flow.Reset(); SetComplete(false); authorization = null;
             selected = null; room = null; sessionStarted = false; roomCode = ""; message = "";
         }
 
         private void CancelOperation(bool disconnect = true)
         {
-            diagnosticExportMessage = "";
             revision++; cancellation.Cancel(); cancellation.Dispose(); cancellation = new CancellationTokenSource(); busy = false;
             if (disconnect) stopTask = StopManagedConnectionAsync();
         }
@@ -130,6 +138,7 @@ namespace Unframe.Unity.PresentationRuntime
             panel.transform.SetParent(transform, false); panel.transform.localScale = Vector3.one * 0.001f;
             panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1060, 860);
             var canvas = panel.GetComponent<Canvas>(); canvas.renderMode = RenderMode.WorldSpace; canvas.worldCamera = head.GetComponent<Camera>();
+            QuestPresentationUiFont.ConfigureCanvas(canvas);
             QuestUiTheme.ApplySurface(panel.GetComponent<Image>());
             if (hadPanel) panel.transform.SetPositionAndRotation(position, rotation);
             else
@@ -138,14 +147,11 @@ namespace Unframe.Unity.PresentationRuntime
                 Quaternion yaw = Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward : Vector3.forward);
                 panel.transform.SetPositionAndRotation(head.position + yaw * new Vector3(0, -0.08f, 1.5f), yaw);
             }
-            Label("Brand", "unframe", new Vector2(-300, 365), new Vector2(300, 60), 28, QuestUiTheme.Primary);
+            Label("Brand", "unframe", new Vector2(0, 365), new Vector2(920, 60), 28, QuestUiTheme.Primary);
             DrawPage();
-            Label("Message", !String.IsNullOrEmpty(diagnosticExportMessage) ? diagnosticExportMessage : busy ? "処理しています…" : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
+            Label("Message", busy ? "処理しています…" : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
             if (flow.Page != QuestOnboardingPage.Role)
                 Button("Back", "戻る", -350, -350, 220, Back, false);
-            if ((Application.isEditor || Debug.isDebugBuild) && flow.Role == QuestOnboardingRole.Presenter)
-                Button("DebugNext", "デバッグ：次の画面", 230, -350, 440, () => { CancelOperation(); flow.DebugNext(); message = "画面プレビュー：認証・接続・再生は実行されません"; Draw(); }, false);
-            Button("SaveDiagnostics", "テストログを保存", 300, 365, 300, SaveDiagnostics, false, 52, 22);
             leftAim = Aim("Left aim"); rightAim = Aim("Right aim");
         }
 
@@ -155,8 +161,8 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 case QuestOnboardingPage.Role:
                     Title("今日は、どのように使いますか？", "役割を選んで始めましょう");
-                    Button("Presenter", "発表する\n作成済みルーム、または新規作成", 0, 70, 820, () => Choose(QuestOnboardingRole.Presenter), true, 126, 32);
-                    Button("Audience", "プレゼンを見る\n共有されたルームコードで参加", 0, -80, 820, () => Choose(QuestOnboardingRole.Audience), false, 126, 32);
+                    Button("Presenter", "発表する", 0, 100, 820, () => Choose(QuestOnboardingRole.Presenter));
+                    Button("Audience", "プレゼンを見る", 0, -10, 820, () => Choose(QuestOnboardingRole.Audience), false);
                     break;
                 case QuestOnboardingPage.Authentication:
                     Title("アカウントを確認", "スマホまたは PC のブラウザーで承認してください");
@@ -230,13 +236,13 @@ namespace Unframe.Unity.PresentationRuntime
                             () => { if (selected?.Id != item.Id) { CancelOperation(); room = null; sessionStarted = false; } selected = item; flow.GoTo(QuestOnboardingPage.Preparation); Draw(); }, false);
                     }
                     if (presentations.Length == 0)
-                        Label("Empty", flow.IsDebugPreview ? "画面プレビュー：資料は取得していません" : "資料がありません。Web で公開してから更新してください。", new Vector2(0, 70), new Vector2(920, 130), 28, QuestUiTheme.Muted);
+                        Label("Empty", "資料がありません。Web で公開してから更新してください。", new Vector2(0, 70), new Vector2(920, 130), 28, QuestUiTheme.Muted);
                     Button("Refresh", "更新", 0, -185, 240, () => Run(LoadPresentations), false);
                     if (first > 0) Button("Previous", "前のページ", -300, -185, 300, () => { listPage--; Draw(); }, false);
                     if (first + 3 < presentations.Length) Button("More", "次のページ", 300, -185, 300, () => { listPage++; Draw(); }, false);
                     break;
                 case QuestOnboardingPage.Preparation:
-                    Title("発表の準備", selected?.Title ?? room?.SessionId ?? "画面プレビュー");
+                    Title("発表の準備", selected?.Title ?? room?.SessionId ?? "資料を選択してください");
                     Label("Room", room == null ? "準備ができたらルームを作成します" : "共有するルームコード\n" + SharedRoomCode, new Vector2(0, 70), new Vector2(920, 150), 32, QuestUiTheme.Primary);
                     Button("Prepare", room == null ? "ルームを作成して接続" : "準備を再試行", 0, -110, 820, () => Run(Prepare));
                     break;
@@ -247,7 +253,7 @@ namespace Unframe.Unity.PresentationRuntime
                     break;
                 case QuestOnboardingPage.Calibration:
                     Title("空間に位置を合わせる", "会場のマーカーを正面から見てください");
-                    int markerSize = calibration?.MarkerSizeMillimeters ?? 150;
+                    int markerSize = SelectedMarkerSize;
                     Label("Marker size", "マーカーの黒枠の一辺（余白を除く）", new Vector2(0, 142), new Vector2(920, 42), 23, QuestUiTheme.Muted);
                     int[] markerSizes = { 500, 400, 250, 150 };
                     for (int i = 0; i < markerSizes.Length; i++)
@@ -256,12 +262,9 @@ namespace Unframe.Unity.PresentationRuntime
                         Button("MarkerSize" + size, size + " mm", -330 + i * 220, 85, 205,
                             () => { calibration?.SelectMarkerSize(size); message = "同じサイズを閲覧側でも選択してください"; Draw(); }, size == markerSize, 62, 25);
                     }
-                    bool valid = calibration?.Calibration?.IsValid == true;
-                    Label("Alignment", CanAdvance ? "準備完了\n位置合わせと接続を確認しました"
-                        : valid ? "位置合わせ完了・接続待ち\nサーバーの準備が整うと次へ進めます"
-                        : "マーカー待ち\nマーカーを見ながら、頭をゆっくり動かします",
-                        new Vector2(0, 5), new Vector2(920, 70), 28, valid ? QuestUiTheme.Primary : QuestUiTheme.Text);
-                    Button("Permission", "カメラを許可 / 再確認", 0, -80, 820, () => { calibration?.CameraPreview?.RetryCameraPermission(); Draw(); }, false);
+                    bool valid = CalibrationComplete;
+                    Label("Alignment", valid ? "位置合わせが完了しました" : "マーカーを見ながら、頭をゆっくり動かします", new Vector2(0, 5), new Vector2(920, 70), 28, QuestUiTheme.Text);
+                    Button("Permission", CameraPermissionRequired ? "カメラを許可" : "カメラを再確認", 0, -80, 820, () => { calibration?.CameraPreview?.RetryCameraPermission(); Draw(); }, false);
                     Button("Aligned", "位置合わせを確認して次へ", 0, -175, 820, () =>
                     {
                         if (!QuestOnboardingStart.CanAdvance(flow.Role, calibration?.Calibration?.IsValid == true,
@@ -272,11 +275,10 @@ namespace Unframe.Unity.PresentationRuntime
                     FindButton("Aligned").interactable &= CanAdvance;
                     break;
                 case QuestOnboardingPage.Ready:
-                    Title(flow.IsDebugPreview ? "画面プレビュー" : flow.Role == QuestOnboardingRole.Presenter ? "発表を始めましょう" : "鑑賞の準備ができました",
-                        flow.IsDebugPreview ? "接続や再生は実行されていません" : CanAdvance ? "位置合わせ完了 · メニューは X ボタン" : "位置合わせと接続の準備を確認しています");
-                    Button("Begin", flow.IsDebugPreview ? "最初の画面に戻る" : flow.Role == QuestOnboardingRole.Presenter ? "発表を開始" : "資料を見る", 0, 20, 820, () =>
+                    Title(flow.Role == QuestOnboardingRole.Presenter ? "発表を始めましょう" : "鑑賞の準備ができました",
+                        "メニューは X ボタンで開けます");
+                    Button("Begin", flow.Role == QuestOnboardingRole.Presenter ? "発表を開始" : "資料を見る", 0, 20, 820, () =>
                     {
-                        if (flow.IsDebugPreview) { ResetFlow(); return; }
                         Run(async token =>
                         {
                             if (!QuestOnboardingStart.CanAdvance(flow.Role, calibration?.Calibration?.IsValid == true,
@@ -290,28 +292,14 @@ namespace Unframe.Unity.PresentationRuntime
                                     () => entry.ConnectionStage == PresentationConnectionStage.Failed,
                                     () => entry.PlaybackStatus, () => entry.ControlConfirmedAsync(Unframe.Realtime.RuntimeControlKind.Resume, token), TimeSpan.FromSeconds(30), token);
                             }
-                            token.ThrowIfCancellationRequested(); IsComplete = true; panel.SetActive(false); Completed?.Invoke();
+                            token.ThrowIfCancellationRequested(); SetComplete(true); panel.SetActive(false); Completed?.Invoke();
                         });
                     });
-                    FindButton("Begin").interactable &= flow.IsDebugPreview || CanAdvance;
+                    FindButton("Begin").interactable &= CanAdvance;
                     break;
             }
         }
 
-        private void SaveDiagnostics()
-        {
-            try
-            {
-                if (session == null) throw new InvalidOperationException();
-                string path = session.ExportDiagnostics();
-                diagnosticExportMessage = "SessionDiagnostics に保存しました\n" + System.IO.Path.GetFileName(path);
-#if UNITY_EDITOR
-                Debug.Log(path);
-#endif
-            }
-            catch (Exception) { diagnosticExportMessage = "ログを保存できませんでした（diagnostic-export-failed）"; }
-            Draw();
-        }
 
         private void Choose(QuestOnboardingRole role)
         {
@@ -327,7 +315,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private async Task LoadRooms(CancellationToken token)
         {
-            if (api == null || flow.IsDebugPreview) return;
+            if (api == null) return;
             var result = await api.ListRoomsAsync(token); token.ThrowIfCancellationRequested();
             ownedRooms = result.Rooms; nextRoomCursor = result.NextCursor; roomListPage = 0;
         }
@@ -342,12 +330,12 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private async Task LoadPresentations(CancellationToken token)
         {
-            if (api == null || flow.IsDebugPreview) return;
+            if (api == null) return;
             var result = await api.ListPresentationsAsync(token); token.ThrowIfCancellationRequested(); presentations = result; listPage = 0;
         }
         private async Task Prepare(CancellationToken token)
         {
-            if (flow.IsDebugPreview || api == null || selected == null && room == null) return;
+            if (api == null || selected == null && room == null) return;
             if (room == null) { var created = await api.CreateSessionAsync(selected.Id, token); token.ThrowIfCancellationRequested(); room = created; }
             await api.PrepareRuntimeAsync(room.SessionId, token);
             await Connect(token);
@@ -390,8 +378,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private async void Run(Func<CancellationToken, Task> action)
         {
-            if (busy || flow.IsDebugPreview) return;
-            diagnosticExportMessage = "";
+            if (busy) return;
             int current = revision; CancellationToken token = cancellation.Token; busy = true; message = ""; Draw();
             try { await action(token); }
             catch (OperationCanceledException) { }
@@ -438,7 +425,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private void Title(string title, string subtitle)
         {
-            Label("Heading", title, new Vector2(0, 285), new Vector2(920, 95), 44, QuestUiTheme.Text);
+            Label("Heading", title, new Vector2(0, 285), new Vector2(920, 95), 38, QuestUiTheme.Text);
             Label("Subtitle", subtitle, new Vector2(0, 205), new Vector2(920, 70), 25, QuestUiTheme.Muted);
         }
         private Text Label(string name, string value, Vector2 position, Vector2 size, int fontSize, Color color)
@@ -453,8 +440,11 @@ namespace Unframe.Unity.PresentationRuntime
             var obj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button)); obj.transform.SetParent(panel.transform, false);
             var rect = obj.GetComponent<RectTransform>(); rect.sizeDelta = new Vector2(width, height); rect.anchoredPosition = new Vector2(x, y);
             var image = obj.GetComponent<Image>(); QuestUiTheme.ApplyButton(image, primary);
-            var button = obj.GetComponent<Button>(); button.targetGraphic = image; button.interactable = !busy || name == "Back" || name == "DebugNext"; button.onClick.AddListener(() => action()); buttons.Add(button);
-            Text label = Label(name + " label", title, Vector2.zero, new Vector2(width - 32, height - 4), fontSize, primary ? QuestUiTheme.OnPrimary : QuestUiTheme.Text);
+            var button = obj.GetComponent<Button>(); button.targetGraphic = image; button.interactable = !busy || name == "Back"; button.onClick.AddListener(() =>
+            {
+                action();
+            }); buttons.Add(button);
+            Text label = Label(name + " label", title, Vector2.zero, new Vector2(width - 32, height - 4), fontSize, primary ? Color.white : QuestUiTheme.Text);
             label.transform.SetParent(obj.transform, false);
             label.resizeTextForBestFit = true; label.resizeTextMinSize = 20; label.resizeTextMaxSize = fontSize;
         }

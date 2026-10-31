@@ -77,11 +77,15 @@ public sealed class QuestOnboardingRecoveryTests
     [Test]
     public void PlaybackReturnsAnExpiredAnonymousViewerToJoinWithoutDeviceApproval()
     {
+        var entry = host.AddComponent<QuestPresentationEntry>();
+        view.Configure(null, entry, null, head.transform, api);
         view.Flow.SelectRole(QuestOnboardingRole.Audience);
         Set(view, "room", Room("session"));
-        typeof(QuestOnboardingView).GetProperty("IsComplete").SetValue(view, true);
+        view.CompleteExternalConnection();
+        Assert.That(entry.PresentationDisplayEnabled, Is.True);
         typeof(QuestOnboardingView).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, null);
         Assert.That(view.IsComplete, Is.False);
+        Assert.That(entry.PresentationDisplayEnabled, Is.False);
         Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Join));
         Assert.That(view.FindButton("Authorize"), Is.Null);
         Assert.That(view.FindButton("Join"), Is.Not.Null);

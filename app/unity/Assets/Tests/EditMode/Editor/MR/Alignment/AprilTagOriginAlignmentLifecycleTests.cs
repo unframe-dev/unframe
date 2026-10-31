@@ -75,6 +75,39 @@ public sealed class AprilTagOriginAlignmentLifecycleTests
     }
 
     [UnityTest]
+    public IEnumerator UnconfirmedMeasurementDoesNotCreateDiagnosticAxes()
+    {
+        var frame = new AprilTagMarkerDetectionFrame(1, new Vector2Int(1280, 960), new[] { 0 }, new float[8], 1);
+        var estimate = new AprilTagMarkerPoseEstimate(true, null, Expected, 0.1, 1, 2);
+        var geometry = new AprilTagCameraGeometry(960, 960, 640, 480, Pose.identity);
+        alignment.Observe(new AprilTagPoseObservation(frame, estimate, geometry), 0);
+        Assert.That(alignment.IsConfirmed, Is.False);
+        Assert.That(GameObject.Find("AprilTag ID 0 Origin"), Is.Null);
+        Assert.That(GameObject.Find("Nearby AprilTag Measurement"), Is.Null);
+        yield return null;
+    }
+
+    [UnityTest]
+    public IEnumerator ConfirmedOriginCanBeHiddenAndRestoredWithoutResettingAlignment()
+    {
+        Confirm();
+        var origin = GameObject.Find("AprilTag ID 0 Origin");
+        alignment.VisualizationVisible = false;
+        Assert.That(origin.activeSelf, Is.False);
+        Assert.That(alignment.IsConfirmed, Is.True);
+        alignment.VisualizationVisible = true;
+        Assert.That(origin.activeSelf, Is.True);
+        Assert.That(Vector3.Distance(origin.transform.position, Expected.position), Is.LessThan(.001f));
+        alignment.VisualizationVisible = false;
+        alignment.ResetAlignment("remeasure");
+        alignment.VisualizationVisible = true;
+        Assert.That(origin.activeSelf, Is.False);
+        Confirm();
+        Assert.That(origin.activeSelf, Is.True);
+        yield return null;
+    }
+
+    [UnityTest]
     public IEnumerator LifecycleTeardownReleasesOriginAndItsMaterials()
     {
         Confirm();
