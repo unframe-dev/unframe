@@ -14,7 +14,7 @@ import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
 import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
-const reference = join(repository, "examples/presentation");
+const reference = join(repository, "packages/unframe-cli/fixtures/presentation");
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const installFrozenGraph = async (directory: string) => {
   const documents = parseAllDocuments(await readFile(join(repository, "pnpm-lock.yaml"), "utf8"));

@@ -25,7 +25,7 @@ Model用Manifestのprops / slots / parts / variants / states、StructureのpartB
 
 `video` / JSX `Video`はFrame内の独立partitionとなり、登録済みMP4へのconstant Asset reference、loop、layout、style.fitを持つ。fitはcontain / cover / stretchを維持する。tintとborderは既定値に限定し、非対応の装飾・重なり・clipは診断する。Stateでloopやfitを変更できる。再生Actionは`playMedia({ surfaceId })` / `pauseMedia({ surfaceId })` / `seekMedia({ surfaceId, positionSeconds })`、完了Outputは`mediaCompleted(surfaceId)`を使う。media対象SurfaceはVideoをちょうど一つ持ち、全Stateでdurationが一致する。Videoを含むSurfaceのState切替はcutのみ対応し、crossfadeはCompilerが診断する。
 
-CompilerはGLB変換とMP4検証を通し、logical Asset IDを保ったDefinition / RenderBundle / AssetSetと配布bytesを生成する。source bytesと変換後bytesのchecksumを区別する。Local Editorと通常Unity Runtimeは同じ再生consumerへcanonical state / Run / logical clockを渡し、decoder callbackでCueを進めない。登録方法と操作例は[media example](../../examples/media-presentation/README.md)を参照する。
+CompilerはGLB変換とMP4検証を通し、logical Asset IDを保ったDefinition / RenderBundle / AssetSetと配布bytesを生成する。source bytesと変換後bytesのchecksumを区別する。Local Editorと通常Unity Runtimeは同じ再生consumerへcanonical state / Run / logical clockを渡し、decoder callbackでCueを進めない。登録方法と操作例は[media example](../../packages/unframe-cli/fixtures/media-presentation/README.md)を参照する。
 
 ## Baked-web scope and resolution
 

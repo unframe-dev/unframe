@@ -19,7 +19,7 @@ Authoring Source → unframe-compiler → managed dist
 → Session / Delivery / Realtime → QuestPresentationScene
 ```
 
-## `examples/presentation` をEditorで表示する
+## `packages/unframe-cli/fixtures/presentation` をEditorで表示する
 
 リポジトリルートのターミナルで起動します。
 
@@ -32,7 +32,7 @@ nix run .#presentation-sample
 接続先、Session ID、credentialの手入力は不要です。変更中のSceneの保存確認後に一時Sceneで
 Play Modeへ入り、終了時は元のScene構成を復元します。
 
-起動コマンドは `examples/presentation` をprivateな作業ディレクトリへコピーし、正式なコンパイラーで
+起動コマンドは `packages/unframe-cli/fixtures/presentation` をprivateな作業ディレクトリへコピーし、正式なコンパイラーで
 ビルドしてCLI公開します。隔離したローカルD1/R2、Control Plane、Realtimeを起動し、実APIでSessionと
 Runtime割当を作成します。Unityは通常のDelivery・素材取得・Realtime同期・描画を使用します。
 検証用管理者のログインSessionは、そのrunの隔離D1にだけ生成します。
@@ -62,10 +62,10 @@ Sessionの有効期間は準備後およそ20分です。期限、Ctrl+C、サ�
 ```bash
 nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command env PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \
-  pnpm --filter @unframe/unframe-cli run presentation build "$PWD/examples/presentation"
+  pnpm --filter @unframe/unframe-cli run presentation build "$PWD/packages/unframe-cli/fixtures/presentation"
 ```
 
-`examples/presentation/dist` はコンパイラーが管理するgenerationへのsymlinkです。
+`packages/unframe-cli/fixtures/presentation/dist` はコンパイラーが管理する出力ディレクトリです。
 `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json`、`assets/` を
 まとめて扱い、JSONのhashや素材参照を手動で置き換えないでください。
 この例のPresentation IDは `reference-presentation` です。
@@ -79,7 +79,7 @@ nix develop --command env PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \
 
 ```bash
 nix develop --command pnpm --filter @unframe/unframe-cli run presentation publish \
-  "$PWD/examples/presentation" reference-presentation "$UNFRAME_CONTROL_PLANE_ORIGIN"
+  "$PWD/packages/unframe-cli/fixtures/presentation/dist" reference-presentation "$UNFRAME_CONTROL_PLANE_ORIGIN"
 ```
 
 CLIはdistのintegrityと実素材のchecksumを検証し、Build登録・素材upload・Publication確定を行います。

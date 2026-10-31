@@ -104,7 +104,6 @@ jobs:
             packages:
               - *shared
               - *js-shared
-              - 'examples/presentation/**'
               - '.github/workflows/packages.yml'
               - 'scripts/ci/presentation.sh'
               - 'packages/contracts/**'

@@ -19,6 +19,6 @@ fi
 
 temp="$(mktemp -d)"
 trap 'rm -rf -- "$temp"' EXIT
-cp -R "${REPO_ROOT}/examples/presentation/." "${temp}/"
+cp -R "${REPO_ROOT}/packages/unframe-cli/fixtures/presentation/." "${temp}/"
 pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation build "${temp}"
 bun "${DIR}/generate-valid-delivery.ts" "${mode}" "${temp}/dist"

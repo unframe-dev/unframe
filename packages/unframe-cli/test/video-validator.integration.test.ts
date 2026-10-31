@@ -5,9 +5,7 @@ import { createVideoValidator } from "../src/media/video-validator.js";
 
 it("fully decodes the pinned H264/AAC fixture in the isolated media worker", async () => {
   const bytes = new Uint8Array(
-    await readFile(
-      new URL("../../../examples/media-presentation/assets/video.mp4", import.meta.url),
-    ),
+    await readFile(new URL("../fixtures/media-presentation/assets/video.mp4", import.meta.url)),
   );
   const validator = await createVideoValidator();
   const result = await validator.validate({

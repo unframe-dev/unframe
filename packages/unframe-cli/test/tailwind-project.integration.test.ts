@@ -57,7 +57,10 @@ it("locks project-owned Tailwind with an uppercase CSS entry, captures reproduci
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-tailwind-project-"));
   const staging = await mkdtemp(join(temporaryDirectory(), "unframe-sdk-package-"));
   try {
-    await copyProjectFixture(join(repository, "examples/presentation"), directory);
+    await copyProjectFixture(
+      join(repository, "packages/unframe-cli/fixtures/presentation"),
+      directory,
+    );
     const found = await discoverPresentationProjectFiles(directory);
     assert(found.ok);
     const loaded = loadUnframeLock(found.lockBytes);

@@ -17,7 +17,7 @@ it("preserves lock and Dist when a new PostCSS config needs a frozen Node depend
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-local-style-refresh-"));
   directories.push(directory);
   await copyProjectFixture(
-    fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
+    fileURLToPath(new URL("../fixtures/presentation/", import.meta.url)),
     directory,
   );
   await mkdir(join(directory, "dist"));

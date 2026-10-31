@@ -33,7 +33,7 @@ import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const referenceDirectory = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../examples/presentation",
+  "../fixtures/presentation",
 );
 const temporaryDirectories: string[] = [];
 

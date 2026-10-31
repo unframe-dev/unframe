@@ -16,7 +16,10 @@ const directory =
         process.env["UNFRAME_WEBGL_FIXTURE"] === "structured" ? "structured" : "opaque",
       );
 if (process.env["UNFRAME_WEBGL_FIXTURE"] === "media") {
-  await copyProjectFixture(join(repository, "examples/media-presentation"), directory);
+  await copyProjectFixture(
+    join(repository, "packages/unframe-cli/fixtures/media-presentation"),
+    directory,
+  );
   const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
   if (refreshed.exitCode) throw new Error(refreshed.stderr);
 }

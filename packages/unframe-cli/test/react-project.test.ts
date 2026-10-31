@@ -22,7 +22,7 @@ import { lockedFile } from "../src/filesystem/package-snapshot.js";
 import { clearSourceAssetRegistration, sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
-const reference = join(dirname(fileURLToPath(import.meta.url)), "../../../examples/presentation");
+const reference = join(dirname(fileURLToPath(import.meta.url)), "../fixtures/presentation");
 afterEach(async () => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();

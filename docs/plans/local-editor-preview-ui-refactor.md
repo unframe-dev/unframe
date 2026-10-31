@@ -12,7 +12,7 @@
 - [ ] 故障表示・復旧・再読込と、復旧中の操作／公開停止を画面で確認する。
 - [ ] 固定Dist表示→認証→公開を通し、表示未確認・成果物不一致で公開できないことを確認する。
 
-確認には `examples/local-editor-showcase/` を用い、対象build・Browser・描画環境・結果を記録する。自動ロジックテストやEditModeの成功だけで画面・実描画の確認を代替しない。
+確認には `packages/unframe-cli/fixtures/presentation/` を用い、対象build・Browser・描画環境・結果を記録する。自動ロジックテストやEditModeの成功だけで画面・実描画の確認を代替しない。
 
 ## 受入の範囲
 

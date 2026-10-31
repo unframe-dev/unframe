@@ -249,11 +249,11 @@ ${runtimeEndpoint} {
     `INSERT INTO user(id,name,email,emailVerified,createdAt,updatedAt,globalRole,twoFactorEnabled) VALUES ('${userId}','Local sample','${userId}@localhost.test',1,${now},${now},'admin',0); INSERT INTO session(id,expiresAt,token,createdAt,updatedAt,userId,assurance) VALUES ('${randomUUID()}',${credentialExpiry},'${credential}',${now},${now},'${userId}','google');`,
   ]);
   const project = join(state, "presentation");
-  await copy(join(root, "examples/presentation"), project, {
+  await copy(join(root, "packages/unframe-cli/fixtures/presentation"), project, {
     recursive: true,
     filter: (path) => !["dist", ".unframe"].includes(path.split("/").at(-1)!),
   });
-  console.log("Compiling examples/presentation with the production compiler.");
+  console.log("Compiling packages/unframe-cli/fixtures/presentation with the production compiler.");
   const built = await runPresentationCli({
     args: ["build", project],
     host: { signal: cancellation.signal },

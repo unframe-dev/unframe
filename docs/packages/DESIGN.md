@@ -352,7 +352,7 @@ Authoring Projectを操作する利用者向け executable と、automation 向�
 
 CLI は Compiler、既定 Web Renderer、Core、Contracts、Tailwind、worker-host の公開 API に依存する。CLI は project の固定 Node graph と Style 変換の準備、Tailwind は PostCSS 処理、worker-host は Style / capture 共通の隔離・資源制限・終了確認を所有する。Browser の配置と起動は Web Renderer に残す。TUI adapter は Bun と OpenTUI stack に閉じ、headless root export から Zig native core を読み込まない。CLIからpackage内部の非公開moduleをimportしない。
 
-Current implementation は headless `init` / `check` / `build` / `test` / `lock` と process `author` / `dev` / `preview` / `publish` を持ち、TUI から process command に接続する。lock v2、Source patch、固定 Browser の Opaque 隔離 capture、build cache と atomic output、Local Editor と Unity Preview の Dev / Dist 経路を実装済みである。
+Current implementation は headless `init` / `check` / `build` / `test` / `lock` と process `author` / `dev` / `preview` / `publish` を持ち、TUI から process command に接続する。lock v3、Source patch、固定 Browser の Opaque 隔離 capture、build cache と atomic output、Local Editor と Unity Preview の Dev / Dist 経路を実装済みである。
 
 ## 5. Contract and generated artifact ownership
 
@@ -540,11 +540,11 @@ presentation/
 └─ dist/
 ```
 
-この`presentation/`は利用者のproject root例であり、Unframe monorepoのimplementation package rootには使用しない。Repository内のreference projectは`examples/presentation/`に置く。
+この`presentation/`は利用者のproject root例であり、Unframe monorepoのimplementation package rootには使用しない。Repository内のreference projectは`packages/unframe-cli/fixtures/presentation/`に置く。
 
 - `.unframe/cache/` は再生成可能な build cache である。`.unframe/authoring/` の receipt / journal は保存・回復状態であり、cache と同じ規則で削除しない。
 - `dist/`はCompiler outputでありAuthoring Sourceではない。
-- `unframe.lock` v2 の形式と package manager 連携は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v2-と生成-id) と CLI が所有する。
+- `unframe.lock` v3 の形式と package manager 連携は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v3-と生成-id) と CLI が所有する。
 - reference projectはproduction用の隠れたdefault contractにせず、公開fixtureとして検証する。
 
 ## 10. Documentation hierarchy
@@ -604,7 +604,7 @@ Directoryとpackageは次の順序で実装を開始する。
 7. `unframe-compiler`
 8. `unframe-renderer-web`
 9. `unframe-cli`
-10. `examples/presentation`
+10. `packages/unframe-cli/fixtures/presentation`
 11. `packages/contracts`のDelivery / Runtime拡張
 12. Control Plane Build / Publication / Delivery
 13. Realtime Progression / Runtime protocol
@@ -613,7 +613,7 @@ Directoryとpackageは次の順序で実装を開始する。
 
 最初のmilestoneは、手書きのreference Authoring Projectから、CLIを通じてcanonical PresentationDefinition JSONと一つのbaked-web Surfaceを含むRenderBundleをdeterministicに生成することとする。Publish、Realtime、Unity、GUI editingはこのmilestoneの完了条件に含めない。
 
-2026-09-15 時点の初期 milestone は static Source から Fixed Browser capture と atomic output までを対象とした。現行は Opaque 隔離 execution、lock v2、Source patch、Local Editor、Dev / Dist Unity Preview、publish、Delivery / Realtime 接続と wire / Unity C# generation まで進んでいる。Quest 実機受け入れはこの実装済み範囲から分けて検証する。
+2026-09-15 時点の初期 milestone は static Source から Fixed Browser capture と atomic output までを対象とした。現行は Opaque 隔離 execution、lock v3、Source patch、Local Editor、Dev / Dist Unity Preview、publish、Delivery / Realtime 接続と wire / Unity C# generation まで進んでいる。Quest 実機受け入れはこの実装済み範囲から分けて検証する。
 
 ## 12. Deferred decisions
 

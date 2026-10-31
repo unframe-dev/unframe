@@ -25,14 +25,14 @@ pnpm --filter @unframe/local-editor dev
 
 ```bash
 # ターミナル2: ローカル API / Unity player (http://127.0.0.1:5175)
-pnpm --filter @unframe/unframe-cli dev -- "$PWD/examples/local-editor-showcase"
+pnpm --filter @unframe/unframe-cli dev -- "$PWD/packages/unframe-cli/fixtures/presentation"
 ```
 
 CLI が認証付きの Editor URL をブラウザで開きます。Local Editor は HMR で画面の変更を反映し、API と Unity player の要求を CLI に proxy します。CLI の `dev` が固定 Browser のパス設定と OS 別の起動準備を行うため、wrapper の手動指定や事前の UI build は不要です。ページ全体を再読み込みした場合は、CLI のターミナルで `r` + Enter を入力して認証付き Editor を開き直します。停止は各ターミナルで `Ctrl+C` です。
 
 Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dist Preview を順に確認します。Preview は一時停止状態で開き、「再生」後に現在の Step の入力ボタンを操作できます。Step／Cue／Timeline と Surface の遷移はローカルで実行し、Unity の描画・再生処理は通常 Runtime と共通です。「一時停止」は再生時刻を保持し、「リセット」は初期状態へ戻します。本番 Realtime 接続は対象外です。
 
-フェードの確認には、ターミナル2の CLI を `Ctrl+C` で停止し、`pnpm --filter @unframe/unframe-cli dev -- "$PWD/examples/presentation"` で起動し直します。表示後に「再生」→「continue」を押すと、Surface が inactive 状態へ切り替わり、host の不透明度が1秒で `1 → 0.5` に変化して Step が `finished` へ進みます。Unity 側のコード変更後は `nix run .#unity-preview` で player を再ビルドしてください。
+フェードの確認では、表示後に「再生」→「continue」を押すと、Surface が inactive 状態へ切り替わり、host の不透明度が1秒で `1 → 0.5` に変化して Step が `finished` へ進みます。Unity 側のコード変更後は `nix run .#unity-preview` で player を再ビルドしてください。
 
 ビルド済み UI を CLI から配信する場合は、`pnpm --filter @unframe/local-editor build` の後に `presentation author /absolute/path/to/project` を実行します。Opaque capture の環境準備は [scripts README](../../../scripts/README.md) を参照してください。
 

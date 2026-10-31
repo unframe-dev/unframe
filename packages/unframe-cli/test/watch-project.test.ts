@@ -20,7 +20,7 @@ describe("watchPresentationProject", () => {
     const directory = await mkdtemp(join(temporaryDirectory(), "unframe-watch-dev-"));
     directories.push(directory);
     await copyProjectFixture(
-      fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
+      fileURLToPath(new URL("../fixtures/presentation/", import.meta.url)),
       directory,
     );
     await writeFile(

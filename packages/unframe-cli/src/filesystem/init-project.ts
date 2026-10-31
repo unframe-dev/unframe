@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { projectDirectory, readBoundedRegularFile } from "./path-policy.js";
 import { loadProjectConfig } from "./load-config.js";
 
-const template = fileURLToPath(new URL("../../../../examples/presentation/", import.meta.url));
+const template = fileURLToPath(new URL("../../fixtures/presentation/", import.meta.url));
 
 export const initPresentationProject = async (
   directory: string,

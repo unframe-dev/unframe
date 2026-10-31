@@ -85,7 +85,7 @@ trigger: {
 }
 ```
 
-Gesture は `swipeLeft` / `swipeRight` / `swipeDown` / `swipeUp` / `pushForward` / `pullBackward` / `spreadHands` / `closeHands` の8種類です。片手動作は左右どちらでも同じ種類として扱い、距離・時間窓・手の指定は Authoring に持たせません。`examples/presentation` はクリックまたは左スワイプで同じ次の状態へ進む例です。
+Gesture は `swipeLeft` / `swipeRight` / `swipeDown` / `swipeUp` / `pushForward` / `pullBackward` / `spreadHands` / `closeHands` の8種類です。片手動作は左右どちらでも同じ種類として扱い、距離・時間窓・手の指定は Authoring に持たせません。`packages/unframe-cli/fixtures/presentation` はクリックまたは左スワイプで同じ次の状態へ進む例です。
 
 Presenter 用の `PresenterRecognitionCatalog` から Gesture 候補を読み、左右独立の腕モデルのアニメーションと日本語の説明で案内します。複数候補は6秒ごとに切り替えます。腕は操作の見本で、実際の手の追跡表示ではありません。説明パネルは透明な腕モデルより後に描画し、動作中も文字を読めるようにします。案内は視線の方向と頭の移動に滑らかに追従し、「左へ薙ぎ払う」「振りかぶる」などの短い一言で動作を示します。
 

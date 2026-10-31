@@ -43,7 +43,7 @@ GitHub Actions では `nixbuild/nix-quick-install-action` で Nix を導入し�
 
 Bun は `packages/config/bun.nix` で 1.4.2 に固定しています。1.3.13 ではブラウザ終了後の追加パイプの二重 close により、成果物の出力が `EBADF` で失敗するためです。開発環境と CI は同じ Nix toolchain を使います。対象 system は Linux x86_64 と macOS arm64 です。macOS の実機検証状態と隔離の保証差は [ADR-0026](../docs/decisions/0026-native-linux-macos-host-adapters.md) に従います。
 
-`packages/contracts/` は Control Plane OpenAPI、Realtime Protocol Buffers、Presentation artifact schema の共有境界です。`nix run .#presentation` は実装済みの `packages/unframe-*` packageを検証した後、repository-local Fixed Browser で `examples/presentation` の check と実 build を2回行います。Definition、RenderBundle、PNG asset set の relative path と SHA-256 manifest が一致することまで確認します。source of truth と生成手順は、対応する component 実装と合わせて定義します。
+`packages/contracts/` は Control Plane OpenAPI、Realtime Protocol Buffers、Presentation artifact schema の共有境界です。`nix run .#presentation` は実装済みの `packages/unframe-*` packageを検証した後、repository-local Fixed Browser で `packages/unframe-cli/fixtures/presentation` の check と実 build を2回行います。Definition、RenderBundle、PNG asset set の relative path と SHA-256 manifest が一致することまで確認します。source of truth と生成手順は、対応する component 実装と合わせて定義します。
 
 Apple Silicon で C# consumer を生成・検査するには Rosetta 2 が必要です。固定した `Grpc.Tools 2.76.0` は macOS の x64 plugin のみを配布しています。未導入の場合は `softwareupdate --install-rosetta` でライセンスを確認してインストールしてください。platform 判定は `scripts/lib/grpc-tools.sh` で共有し、`bash scripts/contracts/test-grpc-tools.sh` で単独検証できます。
 
@@ -104,7 +104,7 @@ nix run .#unity-preview
 nix run .#presentation-sample
 ```
 
-`presentation-sample` は `examples/presentation` を正式コンパイル・CLI公開し、localhostのControl Planeと
+`presentation-sample` は `packages/unframe-cli/fixtures/presentation` を正式コンパイル・CLI公開し、localhostのControl Planeと
 Realtimeを約20分起動します。`Sample ready for Unity Editor` の後にUnityの
 `Unframe > Presentation > Play Local Sample in Editor` を選ぶと接続情報を自動読込して表示します。
 WebGL playerは不要です。終了はCtrl+Cです。Quest用のLAN配信・マーカー校正は含みません。

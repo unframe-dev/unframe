@@ -21,7 +21,7 @@ import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
-const reference = join(repository, "examples/presentation");
+const reference = join(repository, "packages/unframe-cli/fixtures/presentation");
 const temporary: string[] = [];
 const services: AuthorService[] = [];
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);

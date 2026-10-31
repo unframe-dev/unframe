@@ -10,7 +10,7 @@ import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
 const requestId = "a".repeat(32);
 const referenceDefinition = async () => {
   const discovered = await discoverPresentationProjectFiles(
-    fileURLToPath(new URL("../../../examples/presentation", import.meta.url)),
+    fileURLToPath(new URL("../fixtures/presentation", import.meta.url)),
   );
   assert(discovered.ok);
   const loaded = loadUnframeLock(discovered.lockBytes);

@@ -8,7 +8,7 @@ import { afterEach, assert, expect, it } from "vitest";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 
-const reference = fileURLToPath(new URL("../../../examples/presentation", import.meta.url));
+const reference = fileURLToPath(new URL("../fixtures/presentation", import.meta.url));
 const directories: string[] = [];
 const copyProject = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-revision-"));

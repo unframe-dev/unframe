@@ -59,8 +59,8 @@ Cue 詳細は Trigger → Guard → Actions → 遷移先のカードで関係�
 
 ## 受け入れ条件
 
-初期受け入れ例には `examples/local-editor-showcase/` を使う。`cover → problem → system → workflow → closing → cover` の循環と、各 Step の2つの Cue を確認できること。Cue の状態切り替えと nonBlocking の `focus` Timeline を区別し、opacity の `0.72 → 1`、`0 → 600 ms`、`cubicOut` を表示できること。
+初期受け入れには `packages/unframe-cli/fixtures/presentation/` を使う。`start → done → finished` の遷移と、`continue` による1秒のフェードを確認する。Cue の状態切り替えと Timeline を区別し、トラックの値・時間・easingを表示できること。
 
-showcase にない分岐・Group 遷移・timer・guard・blocking・複数トラックはテスト fixture で確認する。Cue の選択順、外部保存による更新、検証失敗、空状態とキーボード操作も確認する。閲覧選択だけでは Unity を動かさず、確認モードの同じ Cue のキー・シークだけが Preview を動かすこと。確認操作で Source／`dist` は変更しないこと。
+分岐・Group 遷移・timer・guard・blocking・複数トラックなどのケースはテスト fixture でも確認する。Cue の選択順、外部保存による更新、検証失敗、空状態とキーボード操作も確認する。閲覧選択だけでは Unity を動かさず、確認モードの同じ Cue のキー・シークだけが Preview を動かすこと。確認操作で Source／`dist` は変更しないこと。
 
 現在の Dist envelope は Source revision を含まないため、一致を推測せず Cue 確認を無効化する。通常再生と固定 Dist の公開確認は継続できる。復旧中は再生・入力・シーク・公開を止め、復旧失敗時は新しい request の明示再読込を案内する。テストは各層 `tests/` のロジックを対象とし、画面・実描画は別途手動確認する。

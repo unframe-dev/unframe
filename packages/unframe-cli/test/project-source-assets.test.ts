@@ -22,9 +22,7 @@ it("initializes the registered asset files together with the project source", as
   expect(initialized.exitCode, initialized.stderr).toBe(0);
   expect(await readFile(join(directory, "assets", "reference-font.ttf"))).toEqual(
     await readFile(
-      fileURLToPath(
-        new URL("../../../examples/presentation/assets/reference-font.ttf", import.meta.url),
-      ),
+      fileURLToPath(new URL("../fixtures/presentation/assets/reference-font.ttf", import.meta.url)),
     ),
   );
   const checked = await runPresentationCli({ args: ["check", directory] });
@@ -35,7 +33,7 @@ it("keeps changed source bytes frozen for Dist while Author follows local assets
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-assets-"));
   directories.push(directory);
   await copyProjectFixture(
-    fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
+    fileURLToPath(new URL("../fixtures/presentation/", import.meta.url)),
     directory,
   );
   const lockBefore = await readFile(join(directory, "unframe.lock"));
@@ -77,7 +75,7 @@ it("rejects invalid local asset bytes in Dev without updating the frozen lock", 
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-invalid-dev-asset-"));
   directories.push(directory);
   await copyProjectFixture(
-    fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)),
+    fileURLToPath(new URL("../fixtures/presentation/", import.meta.url)),
     directory,
   );
   const lock = await readFile(join(directory, "unframe.lock"));

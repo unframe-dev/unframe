@@ -32,7 +32,7 @@ const fixture = async () => {
   const adapter = await mkdtemp(join(temporaryDirectory(), "unframe-lock-style-adapter-"));
   directories.push(directory, adapter);
   await copyProjectFixture(
-    fileURLToPath(new URL("../../../examples/presentation", import.meta.url)),
+    fileURLToPath(new URL("../fixtures/presentation", import.meta.url)),
     directory,
   );
   for (const root of [directory, adapter]) {

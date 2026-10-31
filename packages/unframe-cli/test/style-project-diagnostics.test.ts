@@ -25,7 +25,7 @@ vi.mock("@unframe/unframe-worker-host", async (original) => ({
   ...(await original<typeof import("@unframe/unframe-worker-host")>()),
   runIsolatedWorker: vi.fn(),
 }));
-const reference = fileURLToPath(new URL("../../../examples/presentation", import.meta.url));
+const reference = fileURLToPath(new URL("../fixtures/presentation", import.meta.url));
 const directories: string[] = [];
 const services: AuthorService[] = [];
 afterEach(async () => {

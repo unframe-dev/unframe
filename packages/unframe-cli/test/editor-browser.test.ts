@@ -71,7 +71,7 @@ it.each([
   for (const extension of ["loader.js", "framework.js", "wasm", "data"])
     await writeFile(join(boundary.unity, "Build", `UnframePreview.${extension}`), "fixture");
   const project = join(root, "project");
-  await cp(new URL("../../../examples/presentation/", import.meta.url), project, {
+  await cp(new URL("../fixtures/presentation/", import.meta.url), project, {
     recursive: true,
     filter: (path) => !path.includes("/.unframe") && !path.includes("/dist"),
   });

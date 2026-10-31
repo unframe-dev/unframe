@@ -25,7 +25,7 @@ import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
 const services: AuthorService[] = [];
-const reference = join(dirname(fileURLToPath(import.meta.url)), "../../../examples/presentation");
+const reference = join(dirname(fileURLToPath(import.meta.url)), "../fixtures/presentation");
 afterEach(async () => {
   await Promise.all(services.splice(0).map((service) => service.close()));
   await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));

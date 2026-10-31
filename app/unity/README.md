@@ -41,7 +41,7 @@ Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、
 ## Editor表示と回帰テスト
 
 `nix run .#presentation-sample` と `Unframe > Presentation > Play Local Sample in Editor` で、
-`examples/presentation` を正式コンパイル・公開し、通常のSession接続で表示できます。
+`packages/unframe-cli/fixtures/presentation` を正式コンパイル・公開し、通常のSession接続で表示できます。
 手順と制約は[本番プレゼン](docs/production-presentation.md)を参照してください。
 Web編集画面用の `Preview` は別の製品機能として維持します。
 
@@ -74,7 +74,7 @@ Unityのクラス名・Scene名・APK名・診断ログの保存先は `AprilTag
 
 ## Model / Video authoring example
 
-[media-presentation](../../examples/media-presentation/README.md)をLocal Editorで開くと、同素材の2つのModel、音声付きVideoと操作Cueを使用できます。WebGLの音声開始はEditorの「再生」クリックでbrowser activationを取得します。再生拒否時はエラーを表示してLocalの時計を一時停止し、次の再生クリックで再試行できます。MP4 bytesは全選択素材を検証し、decoderとRenderTextureは現在Group / Surface Stateの動画だけを準備します。通常Runtimeは初回decoder準備をStateReady前に待ち、切替中は入力を止めてstate受信を続けます。GLB importer、VideoPlayer、RenderTexture、Blob URLはcandidateの破棄・表示切替・Runtime停止で解放します。Quest固有のGPU、decoder、音声出力は別の実機検証範囲です。
+[media-presentation](../../packages/unframe-cli/fixtures/media-presentation/README.md)をLocal Editorで開くと、同素材の2つのModel、音声付きVideoと操作Cueを使用できます。WebGLの音声開始はEditorの「再生」クリックでbrowser activationを取得します。再生拒否時はエラーを表示してLocalの時計を一時停止し、次の再生クリックで再試行できます。MP4 bytesは全選択素材を検証し、decoderとRenderTextureは現在Group / Surface Stateの動画だけを準備します。通常Runtimeは初回decoder準備をStateReady前に待ち、切替中は入力を止めてstate受信を続けます。GLB importer、VideoPlayer、RenderTexture、Blob URLはcandidateの破棄・表示切替・Runtime停止で解放します。Quest固有のGPU、decoder、音声出力は別の実機検証範囲です。
 
 ### 混在Surfaceの重なりと操作
 

@@ -34,7 +34,7 @@ reference_acceptance() {
   local temp first_manifest second_manifest
   temp="$(mktemp -d)"
   trap 'rm -rf -- "$temp"' RETURN
-  cp -R "${REPO_ROOT}/examples/presentation/." "${temp}/"
+  cp -R "${REPO_ROOT}/packages/unframe-cli/fixtures/presentation/." "${temp}/"
   log "presentation(check): reference project check"
   pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation check "${temp}"
   log "presentation(check): Fixed Browser reference build (first)"
@@ -78,7 +78,7 @@ case "${mode}" in
     pnpm --config.verify-deps-before-run=false \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check
-    pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-compiler exec tsc --noEmit -p "${REPO_ROOT}/examples/presentation/tsconfig.json"
+    pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-compiler exec tsc --noEmit -p "${REPO_ROOT}/packages/unframe-cli/fixtures/presentation/tsconfig.json"
     reference_acceptance
     ;;
   *)

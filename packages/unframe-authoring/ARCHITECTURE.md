@@ -109,7 +109,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 ## 9. Deferred decisions
 
 - Lossless Syntax Tree / source patching library
-- Component package の外部配布と更新方針。ローカル lock v2 の形式は [実行契約](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v2-と生成-id) と CLI が所有する
+- Component package の外部配布と更新方針。ローカル lock v3 の形式は [実行契約](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v3-と生成-id) と CLI が所有する
 - public API の正確な naming と versioning
 - Component migration metadata と自動変換
 - Part partition permission / isolate
@@ -122,7 +122,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
 - 6 category の Theme Token、同 category alias、Text / Frame の部分 Named Style
 - `tokenRef`、`propRef`、`namedStyleRef`、`assetRef` と、Frame children に置く `slotPlaceholder`
-- Stage、Flow、resource owner / audience、Component Instance と catalog が接続する lock v2
+- Stage、Flow、resource owner / audience、Component Instance と catalog が接続する lock v3
 - Component Action の Surface State cut / crossfade、即時 Variable / Node effect、固定 Scalar payload の Output、Guard と fire policy を持つ Cue
 - Structured Surface Component の host Spatial Node を対象とする Timeline、`playTimeline` Action、`timelineCompleted` Output
 - Spatial、Semantic Surface、absolute / Stack / Grid 配置の nested Frame / Text / Image / Shape。Text 本文、寸法、表示属性、対応する style scalar は型付き Prop reference を受け取る
@@ -136,9 +136,9 @@ Topology を持つ宣言は explicit ID を必須とする。source metadata は
 
 parse、AST lowering、reference resolution、normalization、renderer、filesystem は実装せず、それぞれ Compiler、Core、concrete renderer の境界に残す。
 
-package test の inline fixture に加え、公開用の `examples/presentation/` source が存在する。Compiler による解決と composition はこの fixture から v2 artifact まで接続し、Fixed Browser の反復 build で検証する。
+package test の inline fixture に加え、CLI初期化とテストで共有する `packages/unframe-cli/fixtures/presentation/` source が存在する。Compiler による解決と composition はこの fixture から現行の Definition v3 / RenderBundle v2 まで接続し、Fixed Browser の反復 build で検証する。
 
-Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則は [Structured Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md) を正本とする。default、Named Style、inline style、Variant、Part の優先適用、Prop / Token 解決、Slot 展開、Part / Variant conflict、v2 出力接続は Compiler の責務であり、宣言 API の存在だけでは完了を意味しない。
+Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則は [Structured Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md) を正本とする。default、Named Style、inline style、Variant、Part の優先適用、Prop / Token 解決、Slot 展開、Part / Variant conflict、現行artifactへの接続は Compiler の責務であり、宣言 API の存在だけでは完了を意味しない。
 
 個別 builder と宣言全体 guard は strict な runtime schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop は `required: true` または型が適合する `default` の一方を必須とする。Slot は `slot-placeholder` の `id` / `slotId` で Frame children 内の挿入位置を表し、任意の `semanticParentId` で同じ Component の semantic node を親として参照する。`slotPlacements` と旧 `accepts` / `cardinality` / `required` は受理しない。Part は target kind ごとの content / placement / style だけを受け取り、旧 `overridable` を受理しない。
 
@@ -146,4 +146,4 @@ Frame-root Structure の semantic tree を宣言できる。Slot placeholder に
 
 Structured Surface Component の Timeline track は `target: { kind: "host", property }` として Component Instance の host Spatial Node だけを対象にする。対応 property は `opacity`、`transform.position`、`transform.rotation`、`transform.scale` である。Slotted / Opaque Component の Timeline、別 Spatial Node への target、migration、自動変換、Part partition isolate は未対応である。
 
-React Component は `defineComponent` / `editableText` / `prop`、scene 配列の Props 型推論、render-free metadata guard と Opaque Manifest 生成を提供する。heading / paragraph / button、有限 State、Interaction、公開 Action / Output を扱う。React の関数は描画 field に限定し、plain metadata と分離して検証する。Compiler の非実行抽出、lock v2、配置変換、CLI frozen check / 全 State の隔離 capture、ローカル Inspector の編集・操作 preview まで接続している。Runtime の遷移は既存の Output → Cue → Action が所有する。
+React Component は `defineComponent` / `editableText` / `prop`、scene 配列の Props 型推論、render-free metadata guard と Opaque Manifest 生成を提供する。heading / paragraph / button、有限 State、Interaction、公開 Action / Output を扱う。React の関数は描画 field に限定し、plain metadata と分離して検証する。Compiler の非実行抽出、lock v3、配置変換、CLI frozen check / 全 State の隔離 capture、ローカル Inspector の編集・操作 preview まで接続している。Runtime の遷移は既存の Output → Cue → Action が所有する。
