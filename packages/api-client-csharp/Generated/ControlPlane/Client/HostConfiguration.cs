@@ -135,6 +135,8 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new SessionsSessionIdDeliveryPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new SessionsSessionIdRuntimeAssignmentGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new SessionsSessionIdRuntimeAssignmentPostRequestJsonConverter());
+            _jsonOptions.Converters.Add(new UsersMeImageDelete200ResponseJsonConverter());
+            _jsonOptions.Converters.Add(new UsersMeImagePut200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new VenueEdgesEdgeIdAssignmentsSessionIdAssignmentEpochRenewPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new VenueEdgesEdgeIdRegisterPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new VenueEdgesEdgeIdRotatePost200ResponseJsonConverter());

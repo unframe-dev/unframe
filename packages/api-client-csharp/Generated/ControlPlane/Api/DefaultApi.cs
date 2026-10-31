@@ -515,9 +515,10 @@ namespace Unframe.ControlPlane.Api
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse"/>&gt;</returns>
-        Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse> PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(string presentationId, string buildId, System.Threading.CancellationToken cancellationToken = default);
+        Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse> PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(string presentationId, string buildId, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -527,9 +528,10 @@ namespace Unframe.ControlPlane.Api
         /// </remarks>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse"/>?&gt;</returns>
-        Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse?> PresentationsPresentationIdBuildsBuildIdThumbnailGetOrDefaultAsync(string presentationId, string buildId, System.Threading.CancellationToken cancellationToken = default);
+        Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse?> PresentationsPresentationIdBuildsBuildIdThumbnailGetOrDefaultAsync(string presentationId, string buildId, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -962,6 +964,77 @@ namespace Unframe.ControlPlane.Api
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="ISessionsSessionIdRuntimeAssignmentPostApiResponse"/>?&gt;</returns>
         Task<ISessionsSessionIdRuntimeAssignmentPostApiResponse?> SessionsSessionIdRuntimeAssignmentPostOrDefaultAsync(string sessionId, SessionsSessionIdRuntimeAssignmentPostRequest sessionsSessionIdRuntimeAssignmentPostRequest, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="userId"></param>
+        /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUserImagesUserIdFilenameGetApiResponse"/>&gt;</returns>
+        Task<IUserImagesUserIdFilenameGetApiResponse> UserImagesUserIdFilenameGetAsync(string userId, string filename, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="userId"></param>
+        /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUserImagesUserIdFilenameGetApiResponse"/>?&gt;</returns>
+        Task<IUserImagesUserIdFilenameGetApiResponse?> UserImagesUserIdFilenameGetOrDefaultAsync(string userId, string filename, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUsersMeImageDeleteApiResponse"/>&gt;</returns>
+        Task<IUsersMeImageDeleteApiResponse> UsersMeImageDeleteAsync(System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUsersMeImageDeleteApiResponse"/>?&gt;</returns>
+        Task<IUsersMeImageDeleteApiResponse?> UsersMeImageDeleteOrDefaultAsync(System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        /// Replace the caller&#39;s profile image with a 512 by 512, non-interlaced, 8-bit RGB/RGBA PNG (at most 2 MiB).
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="body"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUsersMeImagePutApiResponse"/>&gt;</returns>
+        Task<IUsersMeImagePutApiResponse> UsersMeImagePutAsync(Unframe.ControlPlane.Client.FileParameter body, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        /// Replace the caller&#39;s profile image with a 512 by 512, non-interlaced, 8-bit RGB/RGBA PNG (at most 2 MiB).
+        /// </remarks>
+        /// <param name="body"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUsersMeImagePutApiResponse"/>?&gt;</returns>
+        Task<IUsersMeImagePutApiResponse?> UsersMeImagePutOrDefaultAsync(Unframe.ControlPlane.Client.FileParameter body, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -1922,6 +1995,12 @@ namespace Unframe.ControlPlane.Api
         bool IsOk { get; }
 
         /// <summary>
+        /// Returns true if the response is 304 NotModified
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotModified { get; }
+
+        /// <summary>
         /// Returns true if the response is 400 BadRequest
         /// </summary>
         /// <returns></returns>
@@ -2688,6 +2767,114 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsConflict { get; }
+    }
+
+    /// <summary>
+    /// The <see cref="IUserImagesUserIdFilenameGetApiResponse"/>
+    /// </summary>
+    public interface IUserImagesUserIdFilenameGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<System.IO.Stream?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 304 NotModified
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotModified { get; }
+
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
+
+        /// <summary>
+        /// Returns true if the response is 404 NotFound
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotFound { get; }
+    }
+
+    /// <summary>
+    /// The <see cref="IUsersMeImageDeleteApiResponse"/>
+    /// </summary>
+    public interface IUsersMeImageDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.UsersMeImageDelete200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 403 Forbidden
+        /// </summary>
+        /// <returns></returns>
+        bool IsForbidden { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
+    }
+
+    /// <summary>
+    /// The <see cref="IUsersMeImagePutApiResponse"/>
+    /// </summary>
+    public interface IUsersMeImagePutApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.UsersMeImagePut200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnsupportedMediaType<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 403 Forbidden
+        /// </summary>
+        /// <returns></returns>
+        bool IsForbidden { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
+
+        /// <summary>
+        /// Returns true if the response is 413 ContentTooLarge
+        /// </summary>
+        /// <returns></returns>
+        bool IsContentTooLarge { get; }
+
+        /// <summary>
+        /// Returns true if the response is 415 UnsupportedMediaType
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnsupportedMediaType { get; }
     }
 
     /// <summary>
@@ -3759,6 +3946,66 @@ namespace Unframe.ControlPlane.Api
         internal void ExecuteOnErrorSessionsSessionIdRuntimeAssignmentPost(Exception exception)
         {
             OnErrorSessionsSessionIdRuntimeAssignmentPost?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnUserImagesUserIdFilenameGet;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorUserImagesUserIdFilenameGet;
+
+        internal void ExecuteOnUserImagesUserIdFilenameGet(DefaultApi.UserImagesUserIdFilenameGetApiResponse apiResponse)
+        {
+            OnUserImagesUserIdFilenameGet?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorUserImagesUserIdFilenameGet(Exception exception)
+        {
+            OnErrorUserImagesUserIdFilenameGet?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnUsersMeImageDelete;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorUsersMeImageDelete;
+
+        internal void ExecuteOnUsersMeImageDelete(DefaultApi.UsersMeImageDeleteApiResponse apiResponse)
+        {
+            OnUsersMeImageDelete?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorUsersMeImageDelete(Exception exception)
+        {
+            OnErrorUsersMeImageDelete?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnUsersMeImagePut;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorUsersMeImagePut;
+
+        internal void ExecuteOnUsersMeImagePut(DefaultApi.UsersMeImagePutApiResponse apiResponse)
+        {
+            OnUsersMeImagePut?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorUsersMeImagePut(Exception exception)
+        {
+            OnErrorUsersMeImagePut?.Invoke(this, new ExceptionEventArgs(exception));
         }
 
         /// <summary>
@@ -12044,21 +12291,25 @@ namespace Unframe.ControlPlane.Api
             partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
         }
 
-        partial void FormatPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref string presentationId, ref string buildId);
+        partial void FormatPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref string presentationId, ref string buildId, ref Option<string> ifNoneMatch);
 
         /// <summary>
         /// Validates the request parameters
         /// </summary>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"></param>
         /// <returns></returns>
-        private void ValidatePresentationsPresentationIdBuildsBuildIdThumbnailGet(string presentationId, string buildId)
+        private void ValidatePresentationsPresentationIdBuildsBuildIdThumbnailGet(string presentationId, string buildId, Option<string> ifNoneMatch)
         {
             if (presentationId == null)
                 throw new ArgumentNullException(nameof(presentationId));
 
             if (buildId == null)
                 throw new ArgumentNullException(nameof(buildId));
+
+            if (ifNoneMatch.IsSet && ifNoneMatch.Value == null)
+                throw new ArgumentNullException(nameof(ifNoneMatch));
         }
 
         /// <summary>
@@ -12067,10 +12318,11 @@ namespace Unframe.ControlPlane.Api
         /// <param name="apiResponseLocalVar"></param>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
-        private void AfterPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse apiResponseLocalVar, string presentationId, string buildId)
+        /// <param name="ifNoneMatch"></param>
+        private void AfterPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse apiResponseLocalVar, string presentationId, string buildId, Option<string> ifNoneMatch)
         {
             bool suppressDefaultLog = false;
-            AfterPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref suppressDefaultLog, apiResponseLocalVar, presentationId, buildId);
+            AfterPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref suppressDefaultLog, apiResponseLocalVar, presentationId, buildId, ifNoneMatch);
             if (!suppressDefaultLog)
                 Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
         }
@@ -12082,7 +12334,8 @@ namespace Unframe.ControlPlane.Api
         /// <param name="apiResponseLocalVar"></param>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
-        partial void AfterPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref bool suppressDefaultLog, IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse apiResponseLocalVar, string presentationId, string buildId);
+        /// <param name="ifNoneMatch"></param>
+        partial void AfterPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref bool suppressDefaultLog, IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse apiResponseLocalVar, string presentationId, string buildId, Option<string> ifNoneMatch);
 
         /// <summary>
         /// Logs exceptions that occur while retrieving the server response
@@ -12092,10 +12345,11 @@ namespace Unframe.ControlPlane.Api
         /// <param name="pathLocalVar"></param>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
-        private void OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId)
+        /// <param name="ifNoneMatch"></param>
+        private void OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId, Option<string> ifNoneMatch)
         {
             bool suppressDefaultLogLocalVar = false;
-            OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, presentationId, buildId);
+            OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, presentationId, buildId, ifNoneMatch);
             if (!suppressDefaultLogLocalVar)
                 Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
         }
@@ -12109,20 +12363,22 @@ namespace Unframe.ControlPlane.Api
         /// <param name="pathLocalVar"></param>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
-        partial void OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId);
+        /// <param name="ifNoneMatch"></param>
+        partial void OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId, Option<string> ifNoneMatch);
 
         /// <summary>
         ///
         /// </summary>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse"/>&gt;</returns>
-        public async Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse?> PresentationsPresentationIdBuildsBuildIdThumbnailGetOrDefaultAsync(string presentationId, string buildId, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse?> PresentationsPresentationIdBuildsBuildIdThumbnailGetOrDefaultAsync(string presentationId, string buildId, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default)
         {
             try
             {
-                return await PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(presentationId, buildId, cancellationToken).ConfigureAwait(false);
+                return await PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(presentationId, buildId, ifNoneMatch, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -12136,17 +12392,18 @@ namespace Unframe.ControlPlane.Api
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse"/>&gt;</returns>
-        public async Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse> PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(string presentationId, string buildId, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse> PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(string presentationId, string buildId, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default)
         {
             UriBuilder uriBuilderLocalVar = new UriBuilder();
 
             try
             {
-                ValidatePresentationsPresentationIdBuildsBuildIdThumbnailGet(presentationId, buildId);
+                ValidatePresentationsPresentationIdBuildsBuildIdThumbnailGet(presentationId, buildId, ifNoneMatch);
 
-                FormatPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref presentationId, ref buildId);
+                FormatPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref presentationId, ref buildId, ref ifNoneMatch);
 
                 using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
                 {
@@ -12158,6 +12415,9 @@ namespace Unframe.ControlPlane.Api
                         : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/presentations/{presentationId}/builds/{buildId}/thumbnail");
                     uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BpresentationId%7D", Uri.EscapeDataString(presentationId.ToString()));
                     uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BbuildId%7D", Uri.EscapeDataString(buildId.ToString()));
+
+                    if (ifNoneMatch.IsSet)
+                        httpRequestMessageLocalVar.Headers.Add("if-none-match", ClientUtils.ParameterToString(ifNoneMatch.Value));
 
                     List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
                     httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
@@ -12204,7 +12464,7 @@ namespace Unframe.ControlPlane.Api
                             }
                         }
 
-                        AfterPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(apiResponseLocalVar, presentationId, buildId);
+                        AfterPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(apiResponseLocalVar, presentationId, buildId, ifNoneMatch);
 
                         Events.ExecuteOnPresentationsPresentationIdBuildsBuildIdThumbnailGet(apiResponseLocalVar);
 
@@ -12218,7 +12478,7 @@ namespace Unframe.ControlPlane.Api
             }
             catch(Exception e)
             {
-                OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(e, "/presentations/{presentationId}/builds/{buildId}/thumbnail", uriBuilderLocalVar.Path, presentationId, buildId);
+                OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(e, "/presentations/{presentationId}/builds/{buildId}/thumbnail", uriBuilderLocalVar.Path, presentationId, buildId, ifNoneMatch);
                 Events.ExecuteOnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(e);
                 throw;
             }
@@ -12305,6 +12565,12 @@ namespace Unframe.ControlPlane.Api
 
                 return result != null;
             }
+
+            /// <summary>
+            /// Returns true if the response is 304 NotModified
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotModified => 304 == (int)StatusCode;
 
             /// <summary>
             /// Returns true if the response is 400 BadRequest
@@ -20530,6 +20796,1197 @@ namespace Unframe.ControlPlane.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatUserImagesUserIdFilenameGet(ref string userId, ref string filename, ref Option<string> ifNoneMatch);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"></param>
+        /// <returns></returns>
+        private void ValidateUserImagesUserIdFilenameGet(string userId, string filename, Option<string> ifNoneMatch)
+        {
+            if (userId == null)
+                throw new ArgumentNullException(nameof(userId));
+
+            if (filename == null)
+                throw new ArgumentNullException(nameof(filename));
+
+            if (ifNoneMatch.IsSet && ifNoneMatch.Value == null)
+                throw new ArgumentNullException(nameof(ifNoneMatch));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="userId"></param>
+        /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"></param>
+        private void AfterUserImagesUserIdFilenameGetDefaultImplementation(IUserImagesUserIdFilenameGetApiResponse apiResponseLocalVar, string userId, string filename, Option<string> ifNoneMatch)
+        {
+            bool suppressDefaultLog = false;
+            AfterUserImagesUserIdFilenameGet(ref suppressDefaultLog, apiResponseLocalVar, userId, filename, ifNoneMatch);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="userId"></param>
+        /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"></param>
+        partial void AfterUserImagesUserIdFilenameGet(ref bool suppressDefaultLog, IUserImagesUserIdFilenameGetApiResponse apiResponseLocalVar, string userId, string filename, Option<string> ifNoneMatch);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="userId"></param>
+        /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"></param>
+        private void OnErrorUserImagesUserIdFilenameGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string userId, string filename, Option<string> ifNoneMatch)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorUserImagesUserIdFilenameGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, userId, filename, ifNoneMatch);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="userId"></param>
+        /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"></param>
+        partial void OnErrorUserImagesUserIdFilenameGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string userId, string filename, Option<string> ifNoneMatch);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUserImagesUserIdFilenameGetApiResponse"/>&gt;</returns>
+        public async Task<IUserImagesUserIdFilenameGetApiResponse?> UserImagesUserIdFilenameGetOrDefaultAsync(string userId, string filename, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await UserImagesUserIdFilenameGetAsync(userId, filename, ifNoneMatch, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="userId"></param>
+        /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUserImagesUserIdFilenameGetApiResponse"/>&gt;</returns>
+        public async Task<IUserImagesUserIdFilenameGetApiResponse> UserImagesUserIdFilenameGetAsync(string userId, string filename, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidateUserImagesUserIdFilenameGet(userId, filename, ifNoneMatch);
+
+                FormatUserImagesUserIdFilenameGet(ref userId, ref filename, ref ifNoneMatch);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/user-images/{userId}/{filename}"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/user-images/{userId}/{filename}");
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BuserId%7D", Uri.EscapeDataString(userId.ToString()));
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7Bfilename%7D", Uri.EscapeDataString(filename.ToString()));
+
+                    if (ifNoneMatch.IsSet)
+                        httpRequestMessageLocalVar.Headers.Add("if-none-match", ClientUtils.ParameterToString(ifNoneMatch.Value));
+
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    string[] acceptLocalVars = new string[] {
+                        "image/png",
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Get;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<UserImagesUserIdFilenameGetApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<UserImagesUserIdFilenameGetApiResponse>();
+                        UserImagesUserIdFilenameGetApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            case (200):
+                            {
+                                byte[] responseBytesArrayLocalVar = await httpResponseMessageLocalVar.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+                                System.IO.Stream responseContentStreamLocalVar = new System.IO.MemoryStream(responseBytesArrayLocalVar);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentStreamLocalVar, "/user-images/{userId}/{filename}", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/user-images/{userId}/{filename}", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterUserImagesUserIdFilenameGetDefaultImplementation(apiResponseLocalVar, userId, filename, ifNoneMatch);
+
+                        Events.ExecuteOnUserImagesUserIdFilenameGet(apiResponseLocalVar);
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorUserImagesUserIdFilenameGetDefaultImplementation(e, "/user-images/{userId}/{filename}", uriBuilderLocalVar.Path, userId, filename, ifNoneMatch);
+                Events.ExecuteOnErrorUserImagesUserIdFilenameGet(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="UserImagesUserIdFilenameGetApiResponse"/>
+        /// </summary>
+        public partial class UserImagesUserIdFilenameGetApiResponse : Unframe.ControlPlane.Client.ApiResponse, IUserImagesUserIdFilenameGetApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<UserImagesUserIdFilenameGetApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="UserImagesUserIdFilenameGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public UserImagesUserIdFilenameGetApiResponse(ILogger<UserImagesUserIdFilenameGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="UserImagesUserIdFilenameGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public UserImagesUserIdFilenameGetApiResponse(ILogger<UserImagesUserIdFilenameGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public System.IO.Stream? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? ContentStream
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out System.IO.Stream? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 304 NotModified
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotModified => 304 == (int)StatusCode;
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotFound => 404 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsNotFound
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = NotFound();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)404);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        private void AfterUsersMeImageDeleteDefaultImplementation(IUsersMeImageDeleteApiResponse apiResponseLocalVar)
+        {
+            bool suppressDefaultLog = false;
+            AfterUsersMeImageDelete(ref suppressDefaultLog, apiResponseLocalVar);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        partial void AfterUsersMeImageDelete(ref bool suppressDefaultLog, IUsersMeImageDeleteApiResponse apiResponseLocalVar);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        private void OnErrorUsersMeImageDeleteDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorUsersMeImageDelete(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        partial void OnErrorUsersMeImageDelete(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUsersMeImageDeleteApiResponse"/>&gt;</returns>
+        public async Task<IUsersMeImageDeleteApiResponse?> UsersMeImageDeleteOrDefaultAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await UsersMeImageDeleteAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUsersMeImageDeleteApiResponse"/>&gt;</returns>
+        public async Task<IUsersMeImageDeleteApiResponse> UsersMeImageDeleteAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/users/me/image"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/users/me/image");
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Delete;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<UsersMeImageDeleteApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<UsersMeImageDeleteApiResponse>();
+                        UsersMeImageDeleteApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/users/me/image", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterUsersMeImageDeleteDefaultImplementation(apiResponseLocalVar);
+
+                        Events.ExecuteOnUsersMeImageDelete(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorUsersMeImageDeleteDefaultImplementation(e, "/users/me/image", uriBuilderLocalVar.Path);
+                Events.ExecuteOnErrorUsersMeImageDelete(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="UsersMeImageDeleteApiResponse"/>
+        /// </summary>
+        public partial class UsersMeImageDeleteApiResponse : Unframe.ControlPlane.Client.ApiResponse, IUsersMeImageDeleteApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<UsersMeImageDeleteApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="UsersMeImageDeleteApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public UsersMeImageDeleteApiResponse(ILogger<UsersMeImageDeleteApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="UsersMeImageDeleteApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public UsersMeImageDeleteApiResponse(ILogger<UsersMeImageDeleteApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.UsersMeImageDelete200Response? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.UsersMeImageDelete200Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.UsersMeImageDelete200Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public bool IsForbidden => 403 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsForbidden
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Forbidden();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatUsersMeImagePut(ref Unframe.ControlPlane.Client.FileParameter body);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="body"></param>
+        /// <returns></returns>
+        private void ValidateUsersMeImagePut(Unframe.ControlPlane.Client.FileParameter body)
+        {
+            if (body == null)
+                throw new ArgumentNullException(nameof(body));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="body"></param>
+        private void AfterUsersMeImagePutDefaultImplementation(IUsersMeImagePutApiResponse apiResponseLocalVar, Unframe.ControlPlane.Client.FileParameter body)
+        {
+            bool suppressDefaultLog = false;
+            AfterUsersMeImagePut(ref suppressDefaultLog, apiResponseLocalVar, body);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="body"></param>
+        partial void AfterUsersMeImagePut(ref bool suppressDefaultLog, IUsersMeImagePutApiResponse apiResponseLocalVar, Unframe.ControlPlane.Client.FileParameter body);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="body"></param>
+        private void OnErrorUsersMeImagePutDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, Unframe.ControlPlane.Client.FileParameter body)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorUsersMeImagePut(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, body);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="body"></param>
+        partial void OnErrorUsersMeImagePut(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, Unframe.ControlPlane.Client.FileParameter body);
+
+        /// <summary>
+        ///  Replace the caller&#39;s profile image with a 512 by 512, non-interlaced, 8-bit RGB/RGBA PNG (at most 2 MiB).
+        /// </summary>
+        /// <param name="body"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUsersMeImagePutApiResponse"/>&gt;</returns>
+        public async Task<IUsersMeImagePutApiResponse?> UsersMeImagePutOrDefaultAsync(Unframe.ControlPlane.Client.FileParameter body, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await UsersMeImagePutAsync(body, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///  Replace the caller&#39;s profile image with a 512 by 512, non-interlaced, 8-bit RGB/RGBA PNG (at most 2 MiB).
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="body"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IUsersMeImagePutApiResponse"/>&gt;</returns>
+        public async Task<IUsersMeImagePutApiResponse> UsersMeImagePutAsync(Unframe.ControlPlane.Client.FileParameter body, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidateUsersMeImagePut(body);
+
+                FormatUsersMeImagePut(ref body);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/users/me/image"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/users/me/image");
+
+                    httpRequestMessageLocalVar.Content = new StreamContent(body.Content);
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] contentTypes = new string[] {
+                        "image/png"
+                    };
+
+                    string? contentTypeLocalVar = ClientUtils.SelectHeaderContentType(contentTypes);
+
+                    if (contentTypeLocalVar != null && httpRequestMessageLocalVar.Content != null)
+                        httpRequestMessageLocalVar.Content.Headers.ContentType = new MediaTypeHeaderValue(contentTypeLocalVar);
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Put;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<UsersMeImagePutApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<UsersMeImagePutApiResponse>();
+                        UsersMeImagePutApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/users/me/image", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterUsersMeImagePutDefaultImplementation(apiResponseLocalVar, body);
+
+                        Events.ExecuteOnUsersMeImagePut(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorUsersMeImagePutDefaultImplementation(e, "/users/me/image", uriBuilderLocalVar.Path, body);
+                Events.ExecuteOnErrorUsersMeImagePut(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="UsersMeImagePutApiResponse"/>
+        /// </summary>
+        public partial class UsersMeImagePutApiResponse : Unframe.ControlPlane.Client.ApiResponse, IUsersMeImagePutApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<UsersMeImagePutApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="UsersMeImagePutApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public UsersMeImagePutApiResponse(ILogger<UsersMeImagePutApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="UsersMeImagePutApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public UsersMeImagePutApiResponse(ILogger<UsersMeImagePutApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.UsersMeImagePut200Response? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.UsersMeImagePut200Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Unframe.ControlPlane.Model.UsersMeImagePut200Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public bool IsForbidden => 403 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsForbidden
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Forbidden();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 413 ContentTooLarge
+            /// </summary>
+            /// <returns></returns>
+            public bool IsContentTooLarge => 413 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 413 ContentTooLarge
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? ContentTooLarge()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsContentTooLarge
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 413 ContentTooLarge and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = ContentTooLarge();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)413);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 415 UnsupportedMediaType
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnsupportedMediaType => 415 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 415 UnsupportedMediaType
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? UnsupportedMediaType()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnsupportedMediaType
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 415 UnsupportedMediaType and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnsupportedMediaType([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = UnsupportedMediaType();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)415);
                 }
 
                 return result != null;

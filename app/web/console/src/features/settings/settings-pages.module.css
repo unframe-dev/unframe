@@ -19,36 +19,10 @@
   letter-spacing: -0.025em;
 }
 .profileEditor {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  align-items: start;
-  gap: 28px;
+  min-width: 0;
 }
 .profileEditor form {
   width: 100%;
-}
-.profileIcon {
-  display: grid;
-  width: 96px;
-  height: 96px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  color: var(--accent-ink);
-  background: var(--accent);
-  font-size: 2rem;
-  font-weight: 600;
-}
-.profileIcon img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.imageHelp {
-  margin: -10px 0 0;
-  color: var(--muted);
-  font-size: 0.75rem;
 }
 .error {
   color: #9e3039;
@@ -140,14 +114,5 @@
   }
   .section > :not(.sectionHeading) {
     grid-column: 1;
-  }
-  .profileEditor {
-    grid-template-columns: 72px minmax(0, 1fr);
-    gap: 20px;
-  }
-  .profileIcon {
-    width: 72px;
-    height: 72px;
-    font-size: 1.5rem;
   }
 }

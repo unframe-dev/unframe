@@ -904,15 +904,26 @@ export const publicationThumbnailRoute = createRoute({
   method: "get",
   path: "/presentations/{presentationId}/builds/{buildId}/thumbnail",
   security,
-  request: { params: publicationBuildId },
+  request: {
+    params: publicationBuildId,
+    headers: z.object({ "if-none-match": z.string().optional() }),
+  },
   responses: {
     200: {
       description: "First published baked texture",
       content: { "image/png": { schema: z.string().openapi({ format: "binary" }) } },
       headers: {
-        "Cache-Control": { schema: { type: "string", enum: ["private, no-store"] } },
+        "Cache-Control": { schema: { type: "string", enum: ["private, no-cache"] } },
+        ETag: { schema: { type: "string" } },
         "X-Content-Type-Options": { schema: { type: "string", enum: ["nosniff"] } },
         "Content-Length": { schema: { type: "string" } },
+      },
+    },
+    304: {
+      description: "Published texture unchanged after authentication and permission checks",
+      headers: {
+        "Cache-Control": { schema: { type: "string", enum: ["private, no-cache"] } },
+        ETag: { schema: { type: "string" } },
       },
     },
     400: errorResponse("Invalid build path"),
@@ -1327,5 +1338,79 @@ export const runtimeHostHeartbeatRoute = createRoute({
     400: errorResponse("Invalid host heartbeat"),
     401: errorResponse("Unauthorized service"),
     409: errorResponse("Stale Host generation or endpoint conflict"),
+  },
+});
+
+const profileImageResource = z.object({ image: z.string().url().nullable() });
+export const putProfileImageRoute = createRoute({
+  method: "put",
+  path: "/users/me/image",
+  description:
+    "Replace the caller's profile image with a 512 by 512, non-interlaced, 8-bit RGB/RGBA PNG (at most 2 MiB).",
+  security,
+  request: {
+    body: {
+      required: true,
+      content: { "image/png": { schema: z.string().openapi({ format: "binary" }) } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated profile image",
+      content: { "application/json": { schema: profileImageResource } },
+    },
+    400: errorResponse("Invalid PNG"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Untrusted browser origin"),
+    409: errorResponse("Profile image changed concurrently; reload before retrying"),
+    413: errorResponse("Profile image exceeds 2 MiB"),
+    415: errorResponse("Expected image/png"),
+  },
+});
+export const deleteProfileImageRoute = createRoute({
+  method: "delete",
+  path: "/users/me/image",
+  security,
+  responses: {
+    200: {
+      description: "Profile image removed",
+      content: { "application/json": { schema: z.object({ image: z.null() }) } },
+    },
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Untrusted browser origin"),
+    409: errorResponse("Profile image changed concurrently; reload before retrying"),
+  },
+});
+export const getProfileImageRoute = createRoute({
+  method: "get",
+  path: "/user-images/{userId}/{filename}",
+  security: [],
+  request: {
+    headers: z.object({ "if-none-match": z.string().optional() }),
+    params: z.object({
+      userId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+      filename: z
+        .string()
+        .regex(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.png$/),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Current public profile image; revalidate before reuse",
+      content: { "image/png": { schema: z.string().openapi({ format: "binary" }) } },
+      headers: {
+        "Cache-Control": { schema: { type: "string", enum: ["public, no-cache"] } },
+        ETag: { schema: { type: "string" } },
+      },
+    },
+    304: {
+      description: "Current profile image unchanged",
+      headers: {
+        "Cache-Control": { schema: { type: "string", enum: ["public, no-cache"] } },
+        ETag: { schema: { type: "string" } },
+      },
+    },
+    400: errorResponse("Invalid image identifier"),
+    404: errorResponse("Profile image not found"),
   },
 });

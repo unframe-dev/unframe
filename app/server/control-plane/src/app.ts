@@ -17,6 +17,7 @@ import { createSessionRoutes, type SessionRouteOptions } from "./modules/session
 import { createRuntimeHostRoutes } from "./modules/runtime-hosts/routes";
 import { createRuntimeAssignmentRoutes } from "./modules/runtime-assignments/routes";
 import { createVenueEdgeRoutes, type VenueEdgeRouteOptions } from "./modules/venue-edges/routes";
+import { createProfileImageRoutes } from "./modules/profile/routes";
 import { jwksRoute } from "./openapi";
 
 const internalError = {
@@ -42,6 +43,8 @@ const forbidden = {
 
 const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const productRoutePrefixes = [
+  "/users",
+  "/user-images",
   "/presentations",
   "/assets",
   "/sessions",
@@ -118,7 +121,8 @@ export function createProductApi(options: AppOptions = {}) {
     }),
   );
   const publicationAssets = publications.route("/", createPublicationAssetRoutes());
-  const runtimePublication = publicationAssets.route("/", createRuntimePublicationRoutes());
+  const profileImages = publicationAssets.route("/", createProfileImageRoutes(identityProvider));
+  const runtimePublication = profileImages.route("/", createRuntimePublicationRoutes());
   return runtimePublication.openapi(jwksRoute, async (context) => {
     const config = context.get("config");
     return context.json(
@@ -210,9 +214,9 @@ export function createApp(options: AppOptions = {}) {
       return cors({
         origin,
         credentials: true,
-        allowHeaders: ["Content-Type", "Authorization"],
+        allowHeaders: ["Content-Type", "Authorization", "If-None-Match"],
         allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        exposeHeaders: ["set-auth-token"],
+        exposeHeaders: ["set-auth-token", "ETag"],
       })(context, next);
     }
     await next();

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createApp, createOpenAPIDocument } from "../src/app";
 
-const normalizePath = (path: string) => path.replace(/:([^/]+)/g, "{$1}");
+const normalizePath = (path: string) => path.replace(/:([^/.]+)/g, "{$1}");
 
 describe("Control Plane OpenAPI", () => {
   it("documents every product-owned public route", () => {
@@ -10,7 +10,9 @@ describe("Control Plane OpenAPI", () => {
         .routes.filter(
           (route) =>
             route.method !== "ALL" &&
-            (route.path.startsWith("/presentations") ||
+            (route.path.startsWith("/users/") ||
+              route.path.startsWith("/user-images/") ||
+              route.path.startsWith("/presentations") ||
               route.path.startsWith("/publication-assets") ||
               route.path.startsWith("/assets") ||
               route.path.startsWith("/sessions") ||

@@ -1,7 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProfilePage, SecurityPage } from "./settings-pages";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { sessionKey } from "@/features/auth/control-plane-auth";
+import type { ReactNode } from "react";
 
 const auth = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -18,12 +21,79 @@ const auth = vi.hoisted(() => ({
     disable: vi.fn(),
   },
 }));
-vi.mock("@/features/auth/control-plane-auth", () => ({
-  controlPlaneAuth: auth,
+vi.mock("@unframe/api-client-typescript", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@unframe/api-client-typescript")>()),
+  createControlPlaneAuthClient: vi.fn(() => auth),
 }));
+const clients: QueryClient[] = [];
+function renderSettings(children: ReactNode, initialSession?: unknown) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  clients.push(client);
+  if (initialSession !== undefined) client.setQueryData(sessionKey, initialSession);
+  render(<QueryClientProvider client={client}>{children}</QueryClientProvider>);
+  return client;
+}
+afterEach(() => {
+  for (const client of clients.splice(0)) client.clear();
+});
 
 describe("ProfilePage", () => {
-  it("updates the name and profile icon without displaying the email address", async () => {
+  it("opens from a fresh canonical session without another session request", async () => {
+    auth.getSession.mockClear();
+    const initial = {
+      user: { id: "cached-user", name: "キャッシュ済み", image: null },
+      session: { expiresAt: new Date(Date.now() + 3600000) },
+    };
+    renderSettings(<ProfilePage />, initial);
+    expect(await screen.findByDisplayValue("キャッシュ済み")).toBeInTheDocument();
+    expect(auth.getSession).not.toHaveBeenCalled();
+  });
+  it("discards the previous account's draft when the canonical principal changes", async () => {
+    const initial = {
+      user: { id: "first-user", name: "最初のユーザー", image: null },
+      session: { expiresAt: new Date(Date.now() + 3600000) },
+    };
+    const client = renderSettings(<ProfilePage />, initial);
+    const user = userEvent.setup();
+    const name = await screen.findByDisplayValue("最初のユーザー");
+    await user.clear(name);
+    await user.type(name, "前のユーザーの編集");
+    act(() =>
+      client.setQueryData(sessionKey, {
+        ...initial,
+        user: { ...initial.user, id: "next-user", name: "次のユーザー" },
+      }),
+    );
+    expect(await screen.findByDisplayValue("次のユーザー")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("前のユーザーの編集")).not.toBeInTheDocument();
+  });
+  it("follows canonical user updates without discarding an edited name", async () => {
+    const initial = {
+      user: { id: "profile-user", name: "初期名", image: null },
+      session: { expiresAt: new Date(Date.now() + 3600000) },
+    };
+    auth.getSession.mockResolvedValue({ data: initial, error: null });
+    const client = renderSettings(<ProfilePage />);
+    const name = await screen.findByDisplayValue("初期名");
+    act(() =>
+      client.setQueryData(sessionKey, {
+        ...initial,
+        user: { ...initial.user, name: "別タブの更新" },
+      }),
+    );
+    await waitFor(() => expect(name).toHaveValue("別タブの更新"));
+    const user = userEvent.setup();
+    await user.clear(name);
+    await user.type(name, "編集中の名前");
+    act(() =>
+      client.setQueryData(sessionKey, {
+        ...initial,
+        user: { ...initial.user, name: "次の遠隔更新" },
+      }),
+    );
+    expect(name).toHaveValue("編集中の名前");
+  });
+  it("updates the name and offers image selection without a URL field or email address", async () => {
     auth.getSession.mockResolvedValue({
       data: {
         user: {
@@ -34,10 +104,11 @@ describe("ProfilePage", () => {
       },
     });
     auth.updateUser.mockResolvedValue({ error: null });
-    render(<ProfilePage />);
+    renderSettings(<ProfilePage />);
     const user = userEvent.setup();
     const name = await screen.findByDisplayValue("旧名");
-    const image = screen.getByRole("textbox", { name: "アイコンURL" });
+    expect(screen.queryByRole("textbox", { name: "アイコンURL" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("アイコン画像を選択")).toHaveAttribute("type", "file");
 
     expect(screen.queryByDisplayValue("a@example.test")).not.toBeInTheDocument();
     expect(screen.queryByText("メールアドレス")).not.toBeInTheDocument();
@@ -48,13 +119,10 @@ describe("ProfilePage", () => {
 
     await user.clear(name);
     await user.type(name, "新名");
-    await user.clear(image);
-    await user.type(image, "https://example.test/new.png");
     expect(screen.getByRole("status")).toHaveTextContent("未保存");
     await user.click(screen.getByRole("button", { name: "保存" }));
     expect(auth.updateUser).toHaveBeenCalledWith({
       name: "新名",
-      image: "https://example.test/new.png",
     });
   });
 
@@ -70,7 +138,7 @@ describe("ProfilePage", () => {
           resolveUpdate = resolve;
         }),
     );
-    render(<ProfilePage />);
+    renderSettings(<ProfilePage />);
     const user = userEvent.setup();
     const name = await screen.findByDisplayValue("旧名");
     await user.clear(name);
@@ -90,7 +158,7 @@ describe("ProfilePage", () => {
     auth.getSession
       .mockResolvedValueOnce({ data: null, error: { code: "NETWORK_ERROR" } })
       .mockResolvedValueOnce({ data: { user: { name: "回復後", image: null } }, error: null });
-    render(<ProfilePage />);
+    renderSettings(<ProfilePage />);
     const user = userEvent.setup();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "プロフィールを読み込めませんでした。",
@@ -119,7 +187,7 @@ describe("SecurityPage", () => {
       error: null,
       data: [{ id: "s", createdAt: "now" }],
     });
-    render(<SecurityPage />);
+    renderSettings(<SecurityPage />);
     const user = userEvent.setup();
     await screen.findByText("未設定", { exact: true });
     await user.type(screen.getAllByLabelText("現在のパスワード")[1]!, "password");

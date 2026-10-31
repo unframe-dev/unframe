@@ -9,6 +9,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LoginPage } from "./login-page";
 import { RecoverPage } from "./recover-page";
 import { SignupPage } from "./signup-page";
@@ -32,7 +33,11 @@ function renderRoute(Component: () => ReactNode) {
     routeTree: root.addChildren([route]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
-  return render(<RouterProvider router={router} />);
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
 }
 describe("auth pages", () => {
   it("validates login fields", async () => {

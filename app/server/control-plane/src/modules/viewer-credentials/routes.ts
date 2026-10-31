@@ -1,6 +1,6 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { createD1Database } from "../../adapters/d1/database";
-import { sessionParticipants } from "../../adapters/d1/schema";
+import { presentationSessions, sessionParticipants } from "../../adapters/d1/schema";
 import { authUsers, anonymousViewerCredentials } from "../../adapters/d1/viewer-schema";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
@@ -52,9 +52,27 @@ export function createViewerCredentialRoutes(now = () => new Date()) {
       const db = createD1Database(DB);
       const [, inserted] = await db.batch([
         inactiveViewerCleanup(DB, session.id, timestamp.toISOString()),
-        db.insert(authUsers)
-          .select(sql`SELECT ${userId}, 'Anonymous viewer', ${`${crypto.randomUUID()}@anonymous.invalid`}, 0, ${timestamp.toISOString()}, ${timestamp.toISOString()} FROM presentation_sessions
-        WHERE id = ${session.id} AND join_code_hash = ${codeHash} AND state != 'Ended' AND (SELECT count(*) FROM session_participants WHERE session_id = ${session.id}) < max_participants`),
+        db.insert(authUsers).select(
+          db
+            .select({
+              id: sql<string>`${userId}`.as("id"),
+              name: sql<string>`'Anonymous viewer'`.as("name"),
+              email: sql<string>`${`${crypto.randomUUID()}@anonymous.invalid`}`.as("email"),
+              image: sql<null>`NULL`.as("image"),
+              emailVerified: sql<number>`0`.as("emailVerified"),
+              createdAt: sql<string>`${timestamp.toISOString()}`.as("createdAt"),
+              updatedAt: sql<string>`${timestamp.toISOString()}`.as("updatedAt"),
+            })
+            .from(presentationSessions)
+            .where(
+              and(
+                eq(presentationSessions.id, session.id),
+                eq(presentationSessions.joinCodeHash, codeHash),
+                ne(presentationSessions.state, "Ended"),
+                sql`(SELECT count(*) FROM ${sessionParticipants} WHERE ${sessionParticipants.sessionId} = ${session.id}) < ${presentationSessions.maxParticipants}`,
+              ),
+            ),
+        ),
         db.insert(anonymousViewerCredentials).select(
           db
             .select({

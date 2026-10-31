@@ -4,6 +4,7 @@ export const authUsers = sqliteTable("user", {
   id: text().primaryKey(),
   name: text().notNull(),
   email: text().notNull(),
+  image: text(),
   emailVerified: integer().notNull(),
   createdAt: text().notNull(),
   updatedAt: text().notNull(),

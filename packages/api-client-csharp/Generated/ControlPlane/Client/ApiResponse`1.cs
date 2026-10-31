@@ -201,6 +201,86 @@ namespace Unframe.ControlPlane.Client
     /// An interface for responses of type
     /// </summary>
     /// <typeparam name="TType"></typeparam>
+    public interface IForbidden<TType> : IApiResponse
+    {
+        /// <summary>
+        /// Deserializes the response if the response is Forbidden
+        /// </summary>
+        /// <returns></returns>
+        TType Forbidden();
+
+        /// <summary>
+        /// Returns true if the response is Forbidden and the deserialized response is not null
+        /// </summary>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        bool TryForbidden([NotNullWhen(true)]out TType? result);
+    }
+
+    /// <summary>
+    /// An interface for responses of type
+    /// </summary>
+    /// <typeparam name="TType"></typeparam>
+    public interface IUnsupportedMediaType<TType> : IApiResponse
+    {
+        /// <summary>
+        /// Deserializes the response if the response is UnsupportedMediaType
+        /// </summary>
+        /// <returns></returns>
+        TType UnsupportedMediaType();
+
+        /// <summary>
+        /// Returns true if the response is UnsupportedMediaType and the deserialized response is not null
+        /// </summary>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        bool TryUnsupportedMediaType([NotNullWhen(true)]out TType? result);
+    }
+
+    /// <summary>
+    /// An interface for responses of type
+    /// </summary>
+    /// <typeparam name="TType"></typeparam>
+    public interface IContentTooLarge<TType> : IApiResponse
+    {
+        /// <summary>
+        /// Deserializes the response if the response is ContentTooLarge
+        /// </summary>
+        /// <returns></returns>
+        TType ContentTooLarge();
+
+        /// <summary>
+        /// Returns true if the response is ContentTooLarge and the deserialized response is not null
+        /// </summary>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        bool TryContentTooLarge([NotNullWhen(true)]out TType? result);
+    }
+
+    /// <summary>
+    /// An interface for responses of type
+    /// </summary>
+    /// <typeparam name="TType"></typeparam>
+    public interface ICreated<TType> : IApiResponse
+    {
+        /// <summary>
+        /// Deserializes the response if the response is Created
+        /// </summary>
+        /// <returns></returns>
+        TType Created();
+
+        /// <summary>
+        /// Returns true if the response is Created and the deserialized response is not null
+        /// </summary>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        bool TryCreated([NotNullWhen(true)]out TType? result);
+    }
+
+    /// <summary>
+    /// An interface for responses of type
+    /// </summary>
+    /// <typeparam name="TType"></typeparam>
     public interface IBadRequest<TType> : IApiResponse
     {
         /// <summary>
@@ -281,26 +361,6 @@ namespace Unframe.ControlPlane.Client
     /// An interface for responses of type
     /// </summary>
     /// <typeparam name="TType"></typeparam>
-    public interface IForbidden<TType> : IApiResponse
-    {
-        /// <summary>
-        /// Deserializes the response if the response is Forbidden
-        /// </summary>
-        /// <returns></returns>
-        TType Forbidden();
-
-        /// <summary>
-        /// Returns true if the response is Forbidden and the deserialized response is not null
-        /// </summary>
-        /// <param name="result"></param>
-        /// <returns></returns>
-        bool TryForbidden([NotNullWhen(true)]out TType? result);
-    }
-
-    /// <summary>
-    /// An interface for responses of type
-    /// </summary>
-    /// <typeparam name="TType"></typeparam>
     public interface IServiceUnavailable<TType> : IApiResponse
     {
         /// <summary>
@@ -315,26 +375,6 @@ namespace Unframe.ControlPlane.Client
         /// <param name="result"></param>
         /// <returns></returns>
         bool TryServiceUnavailable([NotNullWhen(true)]out TType? result);
-    }
-
-    /// <summary>
-    /// An interface for responses of type
-    /// </summary>
-    /// <typeparam name="TType"></typeparam>
-    public interface IContentTooLarge<TType> : IApiResponse
-    {
-        /// <summary>
-        /// Deserializes the response if the response is ContentTooLarge
-        /// </summary>
-        /// <returns></returns>
-        TType ContentTooLarge();
-
-        /// <summary>
-        /// Returns true if the response is ContentTooLarge and the deserialized response is not null
-        /// </summary>
-        /// <param name="result"></param>
-        /// <returns></returns>
-        bool TryContentTooLarge([NotNullWhen(true)]out TType? result);
     }
 
     /// <summary>
@@ -415,25 +455,5 @@ namespace Unframe.ControlPlane.Client
         /// <param name="result"></param>
         /// <returns></returns>
         bool TryNotFound([NotNullWhen(true)]out TType? result);
-    }
-
-    /// <summary>
-    /// An interface for responses of type
-    /// </summary>
-    /// <typeparam name="TType"></typeparam>
-    public interface ICreated<TType> : IApiResponse
-    {
-        /// <summary>
-        /// Deserializes the response if the response is Created
-        /// </summary>
-        /// <returns></returns>
-        TType Created();
-
-        /// <summary>
-        /// Returns true if the response is Created and the deserialized response is not null
-        /// </summary>
-        /// <param name="result"></param>
-        /// <returns></returns>
-        bool TryCreated([NotNullWhen(true)]out TType? result);
     }
 }

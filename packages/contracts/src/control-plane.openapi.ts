@@ -5354,7 +5354,9 @@ export interface paths {
         get: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "if-none-match"?: string;
+                };
                 path: {
                     presentationId: string;
                     buildId: string;
@@ -5366,7 +5368,8 @@ export interface paths {
                 /** @description First published baked texture */
                 200: {
                     headers: {
-                        "Cache-Control"?: "private, no-store";
+                        "Cache-Control"?: "private, no-cache";
+                        ETag?: string;
                         "X-Content-Type-Options"?: "nosniff";
                         "Content-Length"?: string;
                         [name: string]: unknown;
@@ -5374,6 +5377,15 @@ export interface paths {
                     content: {
                         "image/png": string;
                     };
+                };
+                /** @description Published texture unchanged after authentication and permission checks */
+                304: {
+                    headers: {
+                        "Cache-Control"?: "private, no-cache";
+                        ETag?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
                 /** @description Invalid build path */
                 400: {
@@ -5779,6 +5791,275 @@ export interface paths {
                 };
                 /** @description Published asset integrity mismatch */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Replace the caller's profile image with a 512 by 512, non-interlaced, 8-bit RGB/RGBA PNG (at most 2 MiB). */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "image/png": string;
+                };
+            };
+            responses: {
+                /** @description Updated profile image */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uri */
+                            image: string | null;
+                        };
+                    };
+                };
+                /** @description Invalid PNG */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Untrusted browser origin */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Profile image changed concurrently; reload before retrying */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Profile image exceeds 2 MiB */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Expected image/png */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Profile image removed */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            image: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Untrusted browser origin */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Profile image changed concurrently; reload before retrying */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/user-images/{userId}/{filename}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "if-none-match"?: string;
+                };
+                path: {
+                    userId: string;
+                    filename: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Current public profile image; revalidate before reuse */
+                200: {
+                    headers: {
+                        "Cache-Control"?: "public, no-cache";
+                        ETag?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "image/png": string;
+                    };
+                };
+                /** @description Current profile image unchanged */
+                304: {
+                    headers: {
+                        "Cache-Control"?: "public, no-cache";
+                        ETag?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid image identifier */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Profile image not found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
