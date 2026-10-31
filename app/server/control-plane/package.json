@@ -27,6 +27,8 @@
   "dependencies": {
     "@better-auth/infra": "0.4.2",
     "@hono/zod-openapi": "^1.5.2",
+    "@stackline/png-chunks-extract": "1.0.5",
+    "@stacksjs/ts-png": "0.1.10",
     "@unframe/contracts": "workspace:*",
     "@unframe/unframe-core": "workspace:*",
     "aws4fetch": "1.0.20",
@@ -41,6 +43,7 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@cloudflare/workers-types": "5.20260927.1",
+    "@types/node": "^24.19.0",
     "@types/react": "19.3.0",
     "auth": "1.7.6",
     "typescript": "^7.0.0",
