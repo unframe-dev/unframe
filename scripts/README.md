@@ -70,6 +70,8 @@ browser binary は repository の `.cache/playwright` にのみ配置し、`play
 Nix devShell は両 OS に固定 Noto Sans CJK JP Regular の単独 OTF と runtime closure を提供します。OTF は上流の Sans2.004 配布物を SHA-256 で固定して取得し、SIL OFL ライセンスを同梱します。Linux では共有ライブラリと fontconfig も提供します。font probe は明示 font bytes で描画し、font / Browser / OS / runtime の識別を fingerprint に含めます。生成物の一致を保証する単位は同じ実行環境であり、異なる OS の PNG bytes を一致させる契約ではありません。
 通常の renderer-web test は `*.integration.test.ts` を明示的に除外し、provision済み環境でだけ実 Browser capture の integration test を次で実行できます。binary がない場合は skip せず失敗します。`nix run .#presentation` の check mode も同じく provision を必須とし、fix mode と package 単体 check は Browser を起動しません。
 
+Fixed Browser は Chromium sandbox を有効にして起動します。Docker の既定 seccomp のように namespace を作成できない container では sandbox を用意できないため、`UNFRAME_UNSAFE_CHROMIUM_NO_SANDBOX=1` を明示した場合に限り無効化できます。未設定や他の値では従来どおり有効です。sandbox なしで描画した成果物は信頼できる出力として扱わず、公開や再現性の検証には使用しないでください。
+
 ```bash
 nix develop --command scripts/dev/test-presentation-browser.sh
 ```

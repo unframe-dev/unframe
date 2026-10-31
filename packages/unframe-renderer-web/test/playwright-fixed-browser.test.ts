@@ -184,6 +184,26 @@ describe("Playwright Fixed Browser", () => {
     expect(fake.browser.newContext).not.toHaveBeenCalled();
   });
 
+  it("UNFRAME_UNSAFE_CHROMIUM_NO_SANDBOX=1 を明示した時だけChromium sandboxを無効にして起動する", async () => {
+    const disabled = driver();
+    const kept = driver();
+    try {
+      vi.stubEnv("UNFRAME_UNSAFE_CHROMIUM_NO_SANDBOX", "1");
+      await createPlaywrightFixedBrowserFactory(disabled.value)();
+      vi.stubEnv("UNFRAME_UNSAFE_CHROMIUM_NO_SANDBOX", "0");
+      await createPlaywrightFixedBrowserFactory(kept.value)();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    expect(disabled.value.launch).toHaveBeenCalledWith(
+      expect.objectContaining({ headless: true, chromiumSandbox: false }),
+    );
+    expect(kept.value.launch).toHaveBeenCalledWith(
+      expect.objectContaining({ headless: true, chromiumSandbox: true }),
+    );
+  });
+
   it("managed Chromiumだけを固定環境で起動し、隔離contextからRGBAをcaptureする", async () => {
     const fake = driver();
     const session = await createPlaywrightFixedBrowserFactory(fake.value)();
