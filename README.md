@@ -23,7 +23,7 @@ MR デバイス上でプレゼンテーションを表示
 
 | コンポーネント              | 役割                                                   | 技術                                             |
 | --------------------------- | ------------------------------------------------------ | ------------------------------------------------ |
-| Console（WIP）              | 認証、公開済み Dist の確認、ルーム作成                 | React 19                                         |
+| Console（WIP）              | 認証、Dist の検証・公開、ルーム作成                    | React 19                                         |
 | Local Editor（WIP）         | Source 編集、build、Unity Preview、CLI 経由の公開      | React 19 / CLI                                   |
 | Audience Web XR（WIP）      | 匿名ルーム参加、会場位置合わせ、プレゼン視聴           | React / 8th Wall / Three.js                      |
 | Control Plane（WIP）        | 認証・認可、durable resource、asset、session bootstrap | Cloudflare Workers / TypeScript / Hono / D1 / R2 |
@@ -37,14 +37,14 @@ MR デバイス上でプレゼンテーションを表示
 
 ## 現在のステータス
 
-`app/` 配下のアプリケーションと `lp/` は WIP です。Control Plane は認証、Presentation / Asset API、Session lifecycle と Realtime bootstrap を実装しています。Realtime Backend は認証付き gRPC 接続と page-change の in-memory fan-out を実装していますが、replay / resume や完全な Runtime 同期は未実装です。Web は認証・公開済み Dist の確認・ルーム作成を担当し、Local Editor はローカル Source の編集・Unity Preview と CLI 経由の公開を担当します。Unity はローカル JSON importer と presentation element loader を実装しています。変換 pipeline と background job は未実装です。
+`app/` 配下のアプリケーションと `lp/` は WIP です。Control Plane は認証、Presentation / Asset API、Session lifecycle と Realtime bootstrap を実装しています。Realtime Backend は認証付き gRPC 接続と page-change の in-memory fan-out を実装していますが、replay / resume や完全な Runtime 同期は未実装です。Web は認証・Dist の検証・公開・ルーム作成を担当し、Local Editor はローカル Source の編集・Unity Preview と CLI 経由の公開を担当します。Unity はローカル JSON importer と presentation element loader を実装しています。変換 pipeline と background job は未実装です。
 
 ## リポジトリ
 
 ```text
 app/
 ├── web/
-│   ├── console/      認証・公開済み Dist 確認・ルーム作成
+│   ├── console/      認証・Dist 検証・公開・ルーム作成
 │   ├── local-editor/ ローカル Source 編集・Unity Preview
 │   └── audience/     観客向け Web XR の参加・視聴
 ├── server/    Control Plane / Realtime Backend

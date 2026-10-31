@@ -70,6 +70,8 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 
 ## 4. Public API
 
+`@unframe/unframe-core/strict-json` は CLI と Console が共有する JSON 入力検証で、重複キー、不正な UTF-8・数値・文字列、64段を超えるネストを拒否する。filesystem や通信は扱わない。
+
 `validatePresentationDefinition`、`validateRenderBundle`、`validatePresentationArtifacts`、
 `canonicalizePresentationDefinition`、`canonicalizeRenderBundle`、`hashPresentationDefinition`、
 `hashRenderBundle`を公開する。入力型は`@unframe/contracts/presentation`のZod schemaから

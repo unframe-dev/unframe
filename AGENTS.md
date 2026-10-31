@@ -37,7 +37,7 @@ not equally complete in every area:
   See `app/server/realtime/ARCHITECTURE.md` for Runtime and persistence boundaries.
 - Conversion pipelines and background jobs are not currently implemented. Do
   not treat planned capabilities as existing behavior.
-- `app/web/console/` owns authentication, published Dist inspection, and Session creation.
+- `app/web/console/` owns authentication, Dist upload and publication, published presentation inspection, and Session creation.
   `app/web/local-editor/` owns Source editing, Unity Preview, and CLI-mediated publication.
   Each application under `app/web/` has independent dependencies, build, and startup configuration.
 - `lp/` is a static SvelteKit site and remains WIP while product content is being

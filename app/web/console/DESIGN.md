@@ -41,6 +41,7 @@ LP より高い情報密度を許容しますが、機能を常時並べませ�
 | `/recover/*`                      | アカウント復旧                   | Public         |
 | `/device/`                        | Device Authorization             | Public         |
 | `/home/`                          | Presentation 一覧                | Required       |
+| `/publish`                        | Dist の選択・検証・公開          | Required       |
 | `/presentations/:presentationId/` | 公開済みプレゼンテーションの詳細 | Required       |
 | `/rooms/`                         | ルーム作成                       | Required       |
 | `/rooms/:sessionId/`              | 作成したルームの詳細             | Required       |

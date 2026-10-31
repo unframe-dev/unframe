@@ -1,6 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { parseStrictJson } from "../src/filesystem/strict-json.js";
+import { parseStrictJson } from "@unframe/unframe-core/strict-json";
 
 const bytes = (source: string) => new TextEncoder().encode(source);
 

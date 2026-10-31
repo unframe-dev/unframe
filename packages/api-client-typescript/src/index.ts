@@ -173,3 +173,15 @@ export const createControlPlaneAuthClient = ({
     },
   }) as ControlPlaneAuthClient;
 };
+
+export {
+  createPublicationClient,
+  PublicationRequestError,
+  type PublicationClientOptions,
+  type PublicationErrorCode,
+  type PublicationFence,
+  type PublicationProgress,
+  type PublicationPublishInput,
+  type PublicationPublishResult,
+  type PublicationTarget,
+} from "./publication";

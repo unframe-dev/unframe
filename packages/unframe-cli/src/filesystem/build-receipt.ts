@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import * as z from "zod";
-import { parseStrictJson } from "./strict-json.js";
+import { parseStrictJson } from "@unframe/unframe-core/strict-json";
 
 export const buildReceiptSchema = z.strictObject({
   generationId: z.string().regex(/^[0-9a-f]{32}$/),

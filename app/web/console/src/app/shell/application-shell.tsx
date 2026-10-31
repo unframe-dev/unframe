@@ -17,6 +17,7 @@ import { useState, useSyncExternalStore } from "react";
 import { controlPlaneAuth } from "@/features/auth/control-plane-auth";
 import { BrandLink } from "@/shared/brand/brand-link";
 import { Button } from "@/shared/ui/button";
+import { PublicationWorkflowProvider } from "@/features/publication/publication-context";
 import moduleStyles from "./application-shell.module.css";
 const styles = {
   sidebar: moduleStyles["sidebar"]!,
@@ -244,7 +245,9 @@ export function ApplicationShell() {
               {logoutError}
             </p>
           ) : null}
-          <Outlet />
+          <PublicationWorkflowProvider>
+            <Outlet />
+          </PublicationWorkflowProvider>
         </div>
       </div>
     </div>

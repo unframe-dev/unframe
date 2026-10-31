@@ -19,7 +19,7 @@ export type StrictJsonParseResult =
   | { readonly ok: true; readonly value: StrictJsonValue }
   | { readonly ok: false; readonly code: StrictJsonFailureCode };
 
-// Native packages are embedded as base64 in the fixed Node dependency graph.
+// Lockfiles can include native packages embedded as base64.
 const MAX_INPUT_BYTES = 128 * 1_024 * 1_024;
 const MAX_NESTING_DEPTH = 64;
 
