@@ -115,7 +115,7 @@ jobs:
               - *js-shared
               - '.github/workflows/lp.yml'
               - 'scripts/ci/lp.sh'
-              - 'lp/**'
+              - 'app/web/lp/**'
             unity:
               - *js-shared
               - 'flake.nix'

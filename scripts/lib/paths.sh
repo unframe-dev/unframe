@@ -19,8 +19,8 @@ export LOCAL_EDITOR_FILTER="@unframe/local-editor"
 # app/web/audience (Web XR viewer)
 export AUDIENCE_DIR="${REPO_ROOT}/app/web/audience"
 export AUDIENCE_FILTER="@unframe/audience"
-# lp (SvelteKit SSG)
-export LP_DIR="${REPO_ROOT}/lp"
+# app/web/lp (SvelteKit SSG)
+export LP_DIR="${REPO_ROOT}/app/web/lp"
 export LP_FILTER="@unframe/site"
 # packages/contracts (future API / protocol boundaries)
 export CONTRACTS_DIR="${REPO_ROOT}/packages/contracts"
