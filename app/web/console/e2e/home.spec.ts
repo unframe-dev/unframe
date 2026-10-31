@@ -76,7 +76,7 @@ test.beforeEach(async ({ page }) => {
 test("distinguishes empty collection and unpublished presentation", async ({ page }) => {
   await page.route("**/presentations", (route) => route.fulfill({ json: { presentations: [] } }));
   await page.goto("/home");
-  await expect(page.getByText("Presentation がありません。")).toBeVisible();
+  await expect(page.getByText("プレゼンテーションがありません。")).toBeVisible();
   await published(page);
   await page.route("**/publication", (route) =>
     route.fulfill({ status: 404, json: { error: { code: "not_found" } } }),
@@ -89,8 +89,12 @@ test("distinguishes empty collection and unpublished presentation", async ({ pag
 test("shows current publication details and reloads a republished build", async ({ page }) => {
   await published(page);
   await page.goto("/home");
-  await expect(page.getByText("Build ID: build-3")).toBeVisible();
-  await page.getByRole("link", { name: "公開済みプレゼンテーションの詳細" }).click();
+  await expect(page.getByRole("heading", { name: presentation.name })).toBeVisible();
+  await expect(page.getByText("Presentation の最新の公開情報を確認します。")).toHaveCount(0);
+  await expect(page.getByText("Build ID: build-3")).toHaveCount(0);
+  await page.getByRole("link", { name: `${presentation.name}の詳細を見る` }).click();
+  await expect(page.getByText(publication.assetSetHash, { exact: true })).toBeHidden();
+  await page.getByText("技術情報", { exact: true }).click();
   await expect(page.getByText(publication.assetSetHash, { exact: true })).toBeVisible();
   await page.route("**/publication", (route) =>
     route.fulfill({ json: { ...publication, buildId: "build-4", publicationEpoch: 4 } }),
@@ -123,7 +127,7 @@ test("recovers from a network failure by explicit refetch", async ({ page }) => 
   await page.unroute("**/publication");
   await page.route("**/publication", (route) => route.fulfill({ json: publication }));
   await page.getByRole("button", { name: "公開情報を再取得" }).click();
-  await expect(page.getByText("Build ID: build-3")).toBeVisible();
+  await expect(page.getByRole("link", { name: `${presentation.name}の詳細を見る` })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
@@ -168,14 +172,18 @@ test("creates one room, displays the server fixed publication, and never persist
   });
   await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
   await page.goto("/home");
-  await page.getByRole("link", { name: "公開済みプレゼンテーションの詳細" }).click();
-  await page.getByRole("link", { name: "この Presentation でルームを作成" }).click();
+  await page.getByRole("link", { name: `${presentation.name}の詳細を見る` }).click();
+  await page.getByRole("link", { name: "ルームを作成" }).click();
   const create = page.getByRole("button", { name: "ルームを作成", exact: true });
   await create.dblclick();
   await expect(page).toHaveURL(/\/rooms\/room-1$/);
   const result = page.getByRole("main");
   await expect(result.getByText("room-1", { exact: true })).toBeVisible();
   await expect(result.getByText("Waiting", { exact: true })).toBeVisible();
+  await expect(
+    result.getByText(room.publicationFence.publicationManifestHash, { exact: true }),
+  ).toBeHidden();
+  await result.getByText("技術情報", { exact: true }).click();
   await expect(result.getByText("4", { exact: true })).toBeVisible();
   await expect(
     result.getByText(room.publicationFence.publicationManifestHash, { exact: true }),
@@ -346,8 +354,8 @@ test("returns from a created room to the owned-room list", async ({ page }) => {
   await expect(page).toHaveURL(/\/rooms(?:\?presentationId=)?$/);
   await expect(page.getByRole("region", { name: "ルーム作成結果" })).toHaveCount(0);
   await expect(page.getByText("ABCD-EFGH", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "選択した Presentation" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "この公開版からルームを作成" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "選択したプレゼンテーション" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: `${presentation.name}を選択` })).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL(/\/rooms\/room-1$/);
@@ -373,15 +381,15 @@ test("isolates a pending room creation from the room chooser after navigation", 
   });
   await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
   await page.goto(`/rooms?presentationId=${presentation.id}`);
-  await page.getByRole("button", { name: "この公開版からルームを作成" }).click();
+  await page.getByRole("button", { name: `${presentation.name}を選択` }).click();
   await page.getByRole("button", { name: "ルームを作成", exact: true }).click();
   await expect(page.getByRole("button", { name: "作成しています…" })).toBeDisabled();
   await page
     .getByRole("navigation", { name: "メインナビゲーション" })
     .getByRole("link", { name: "ルーム", exact: true })
     .click();
-  await expect(page.getByRole("region", { name: "選択した Presentation" })).toHaveCount(0);
-  await page.getByRole("button", { name: "この公開版からルームを作成" }).click();
+  await expect(page.getByRole("region", { name: "選択したプレゼンテーション" })).toHaveCount(0);
+  await page.getByRole("button", { name: `${presentation.name}を選択` }).click();
   const create = page.getByRole("button", { name: "ルームを作成", exact: true });
   await expect(create).toBeEnabled();
 
@@ -421,7 +429,7 @@ test("does not automatically resend or allow retry after an unknown creation res
   await page.getByRole("button", { name: "ルームを作成", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("ルームが作成された可能性");
   await expect(page.getByRole("button", { name: "ルームを作成", exact: true })).toBeDisabled();
-  await page.getByRole("button", { name: "この公開版からルームを作成" }).click();
+  await page.getByRole("button", { name: `${presentation.name}を選択` }).click();
   await expect(page.getByRole("button", { name: "ルームを作成", exact: true })).toBeDisabled();
   expect(requests).toBe(1);
 });

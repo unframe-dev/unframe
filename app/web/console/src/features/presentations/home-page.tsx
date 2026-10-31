@@ -6,7 +6,6 @@ export function HomePage() {
     <main id="main-content" className={styles["main"]}>
       <header className={styles["heading"]}>
         <h1>公開済みプレゼンテーション</h1>
-        <p>Presentation の最新の公開情報を確認します。</p>
       </header>
       <PublicationList />
     </main>

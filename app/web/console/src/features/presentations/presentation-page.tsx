@@ -19,7 +19,6 @@ export function PresentationPage({ presentationId }: { presentationId: string })
     <main id="main-content" className={styles["main"]}>
       <header className={styles["heading"]}>
         <h1>{query.data?.presentation.name ?? "公開済みプレゼンテーションの詳細"}</h1>
-        <p>Presentation ID: {presentationId}</p>
       </header>
       <section className="grid gap-5 py-8">
         <div>
@@ -35,10 +34,10 @@ export function PresentationPage({ presentationId }: { presentationId: string })
         {query.isError ? <p role="alert">{managementErrorMessage(query.error)}</p> : null}
         {query.data?.publication ? (
           <>
-            <PublicationDetails publication={query.data.publication} />
             <Link to="/rooms" search={{ presentationId }}>
-              この Presentation でルームを作成
+              ルームを作成
             </Link>
+            <PublicationDetails publication={query.data.publication} />
           </>
         ) : query.isSuccess ? (
           <p>未公開</p>

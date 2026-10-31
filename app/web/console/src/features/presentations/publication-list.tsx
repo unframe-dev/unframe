@@ -48,12 +48,12 @@ export function PublicationList({
           公開情報を再取得
         </Button>
       </div>
-      {presentations.isPending ? <p role="status">Presentation を読み込んでいます…</p> : null}
+      {presentations.isPending ? <p role="status">プレゼンテーションを読み込んでいます…</p> : null}
       {presentations.isError ? (
         <p role="alert">{managementErrorMessage(presentations.error)}</p>
       ) : null}
       {presentations.isSuccess && presentations.data.length === 0 ? (
-        <p>Presentation がありません。</p>
+        <p>プレゼンテーションがありません。</p>
       ) : null}
       {visible.length > 0 && publications.isPending ? (
         <p role="status">公開情報を読み込んでいます…</p>
@@ -64,37 +64,42 @@ export function PublicationList({
       {!presentations.isError &&
         !publications.isError &&
         publications.data?.map((item) => (
-          <article key={item.presentation.id} className="grid gap-3 border-b py-5">
-            <h2 className="text-xl">{item.presentation.name}</h2>
-            <p className="break-all text-sm">Presentation ID: {item.presentation.id}</p>
-            {item.state === "error" ? (
-              <p role="alert">{managementErrorMessage(item.error)}</p>
-            ) : item.state === "unpublished" ? (
-              <p>未公開</p>
-            ) : (
-              <>
-                <p className="break-all text-sm">Build ID: {item.publication.buildId}</p>
-                <p className="text-sm">Publication epoch: {item.publication.publicationEpoch}</p>
+          <article
+            key={item.presentation.id}
+            className="flex flex-wrap items-center justify-between gap-4 border-b py-5"
+          >
+            <div className="grid min-w-0 gap-2">
+              <h2 className="break-words text-xl">{item.presentation.name}</h2>
+              {item.state === "error" ? (
+                <p role="alert">{managementErrorMessage(item.error)}</p>
+              ) : item.state === "unpublished" ? (
+                <p className="text-sm text-[var(--muted)]">未公開</p>
+              ) : null}
+            </div>
+            {item.state === "published" ? (
+              <div className="flex flex-wrap items-center gap-4">
                 <Link
                   to="/presentations/$presentationId"
                   params={{ presentationId: item.presentation.id }}
+                  aria-label={`${item.presentation.name}の詳細を見る`}
                 >
-                  公開済みプレゼンテーションの詳細
+                  詳細を見る
                 </Link>
                 {onSelect ? (
                   <Button
                     variant="outline"
+                    aria-label={`${item.presentation.name}を選択`}
                     onClick={() => onSelect(item.presentation, item.publication)}
                   >
-                    この公開版からルームを作成
+                    選択
                   </Button>
                 ) : null}
-              </>
-            )}
+              </div>
+            ) : null}
           </article>
         ))}
       {presentations.data && presentations.data.length > pageSize ? (
-        <nav aria-label="Presentation ページ" className="flex items-center gap-4">
+        <nav aria-label="プレゼンテーションのページ" className="flex items-center gap-4">
           <Button
             variant="outline"
             disabled={currentPage === 0}

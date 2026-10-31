@@ -9,7 +9,6 @@ import { TwoFactorSettings } from "./two-factor-settings";
 const styles = {
   main: contentModuleStyles["main"]!,
   heading: contentModuleStyles["heading"]!,
-  headingCopy: moduleStyles["headingCopy"]!,
   section: moduleStyles["section"]!,
   sectionHeading: moduleStyles["sectionHeading"]!,
   profileEditor: moduleStyles["profileEditor"]!,
@@ -82,10 +81,7 @@ export function ProfilePage() {
   return (
     <main id="main-content" className={styles.main}>
       <header className={styles.heading}>
-        <div className={styles.headingCopy}>
-          <h1>プロフィール</h1>
-          <p>アカウントの基本情報を管理します。</p>
-        </div>
+        <h1>プロフィール</h1>
       </header>
       <section className={styles.section}>
         <header className={styles.sectionHeading}>
@@ -215,10 +211,7 @@ export function SecurityPage() {
   return (
     <main id="main-content" className={styles.main}>
       <header className={styles.heading}>
-        <div className={styles.headingCopy}>
-          <h1>セキュリティー</h1>
-          <p>ログイン方法と認証設定を管理します。</p>
-        </div>
+        <h1>セキュリティー</h1>
       </header>
       {account.status === "loading" ? <p role="status">認証設定を読み込み中…</p> : null}
       {account.status === "error" ? (
