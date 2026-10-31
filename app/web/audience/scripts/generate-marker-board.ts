@@ -1,19 +1,31 @@
 import { createRequire } from "node:module";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 
 const require = createRequire(import.meta.url);
-const { AR } = require("js-aruco2");
+const { AR } = require("js-aruco2") as {
+  AR: { Dictionary: new (name: string) => { nBits: number; codeList: string[] } };
+};
 require("js-aruco2/src/dictionaries/apriltag_36h11.js");
-const config = JSON.parse(
-  await readFile(new URL("../src/fiducials/default-board.json", import.meta.url), "utf8"),
-);
-if (config.markers.length !== 1 || config.markers[0].id !== 0)
+const config = z
+  .object({
+    boardId: z.string(),
+    revision: z.int(),
+    markers: z.array(z.object({ id: z.int() })),
+  })
+  .parse(
+    JSON.parse(
+      await readFile(new URL("../src/fiducials/default-board.json", import.meta.url), "utf8"),
+    ),
+  );
+if (config.markers.length !== 1 || config.markers[0]?.id !== 0)
   throw new Error("Print assets require a single registered marker ID 0.");
 const out = fileURLToPath(new URL("../public/markers/", import.meta.url));
 await mkdir(out, { recursive: true });
 const dictionary = new AR.Dictionary("APRILTAG_36h11");
 const bits = dictionary.codeList[0];
+if (bits === undefined) throw new Error("AprilTag dictionary must contain marker ID 0.");
 const count = Math.sqrt(dictionary.nBits) + 2;
 const rows = Array.from({ length: count }, (_, y) =>
   Array.from({ length: count }, (_, x) =>
@@ -25,7 +37,7 @@ const rows = Array.from({ length: count }, (_, y) =>
 let cells = "";
 for (let row = 0; row < count; row++)
   for (let col = 0; col < count; col++)
-    if (rows[row][col] === "0")
+    if (rows[row]?.[col] === "0")
       cells += `<rect x="${25 + (col * 100) / count}" y="${25 + (row * 100) / count}" width="${100 / count}" height="${100 / count}"/>`;
 for (const outerCm of [22.5, 36, 50, 60, 70]) {
   const outerMm = outerCm * 10;

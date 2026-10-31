@@ -10,8 +10,8 @@
   },
   "include": [
     "*.ts",
-    "../presentation-sample/lifecycle.mts",
-    "../presentation-sample/lifecycle.test.mts",
-    "../ci/opaque-capture.test.mts"
+    "../presentation-sample/lifecycle.ts",
+    "../presentation-sample/lifecycle.test.ts",
+    "../ci/opaque-capture.test.ts"
   ]
 }

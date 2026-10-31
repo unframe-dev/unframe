@@ -3,18 +3,20 @@ import { access, cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/pro
 import { createRequire } from "node:module";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { z } from "zod";
 
-/** @param {string} source @param {string} publicDirectory */
-export async function prepareEngine(source, publicDirectory) {
+export async function prepareEngine(source: string, publicDirectory: string): Promise<void> {
   const distribution = join(source, "dist");
   for (const name of ["xr.js", "xr-slam.js", "LICENSE"]) await access(join(distribution, name));
-  const { version } = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
+  const { version } = z
+    .object({ version: z.string() })
+    .parse(JSON.parse(await readFile(join(source, "package.json"), "utf8")));
   const destination = join(publicDirectory, "external/xr");
   await rm(destination, { recursive: true, force: true });
   await mkdir(destination, { recursive: true });
   await cp(distribution, destination, { recursive: true });
-  const files = [];
-  async function visit(directory) {
+  const files: { path: string; bytes: number; sha256: string }[] = [];
+  async function visit(directory: string): Promise<void> {
     for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) =>
       a.name.localeCompare(b.name, "en"),
     )) {

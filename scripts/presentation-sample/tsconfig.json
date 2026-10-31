@@ -4,7 +4,8 @@
     "noEmit": true,
     "noPropertyAccessFromIndexSignature": false,
     "allowImportingTsExtensions": true,
-    "types": ["node"]
+    "types": ["node"],
+    "typeRoots": ["../dev/node_modules/@types"]
   },
-  "include": ["*.mts"]
+  "include": ["*.ts"]
 }

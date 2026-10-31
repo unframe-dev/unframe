@@ -10,12 +10,11 @@ root="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
 source "$root/scripts/lib/native-host.sh"
 host="$(native_host)"
 mode="${1:-e2e}"
-case "$mode" in unit|regression|playback|rendering|realtime-unit|realtime-e2e|e2e|showcase) ;; *) echo "Expected unit, regression, playback, rendering, realtime-unit, realtime-e2e, e2e or showcase." >&2; exit 1 ;; esac
+case "$mode" in unit|regression|playback|rendering|realtime-unit|e2e|showcase) ;; *) echo "Expected unit, regression, playback, rendering, realtime-unit, e2e or showcase." >&2; exit 1 ;; esac
 project="$root/.unframe/native-editor/project"
 if [[ "$mode" == regression ]]; then project="$root/.unframe/native-editor-regression/project"; fi
 if [[ "$mode" == playback ]]; then project="$root/.unframe/native-editor-playback/project"; fi
 if [[ "$mode" == realtime-unit ]]; then project="$root/.unframe/native-editor-realtime-unit/project"; fi
-if [[ "$mode" == realtime-e2e ]]; then project="$root/.unframe/native-editor-realtime-e2e/project"; fi
 assets="$project/Assets"
 mkdir -p "$assets" "$project/Packages" "$project/ProjectSettings" "$root/.unframe/local-editor-e2e/logs"
 rm -rf "$assets/Unframe" "$assets/Tests"
@@ -63,10 +62,6 @@ if [[ "$mode" == realtime-unit ]]; then
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationTextureResidencyEditModeTests.cs" "$assets/Tests/Editor/"
   filter='QuestOnboardingFlowTests|QuestRuntimePreparationTests|QuestPresentationInputOriginTests|PresentationRealtimeResyncEditModeTests|PresentationRealtimeConnectionEditModeTests'
   graphics=(-nographics)
-elif [[ "$mode" == realtime-e2e ]]; then
-  [[ -n "${UNFRAME_REALTIME_E2E_CONFIG:-}" ]] || { echo "Missing UNFRAME_REALTIME_E2E_CONFIG." >&2; exit 1; }
-  filter='PresentationRealtimeServiceE2ETests'
-  if [[ "$host" == linux ]]; then graphics=(-force-glcore); else graphics=(); fi
 elif [[ "$mode" == playback ]]; then
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTestFixture.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewPlaybackEditModeTests.cs" "$assets/Tests/Editor/"

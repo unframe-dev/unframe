@@ -3,11 +3,14 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const vendor = join(root, "vendor/apriltag");
 const output = join(root, "public/external/detectors");
-const provenance = JSON.parse(await readFile(join(vendor, "provenance.json"), "utf8"));
+const provenance = z
+  .object({ files: z.array(z.object({ name: z.string(), sha256: z.string() })) })
+  .parse(JSON.parse(await readFile(join(vendor, "provenance.json"), "utf8")));
 await mkdir(output, { recursive: true });
 for (const file of provenance.files) {
   const contents = await readFile(join(vendor, file.name));
@@ -31,7 +34,7 @@ await copyFile(
 );
 
 // The package exposes UMD globals via `this`, which is not an ESM named export.
-const moduleSource = async (name) => {
+const moduleSource = async (name: string): Promise<string> => {
   let text = await readFile(join(arucoRoot, `src/${name}.js`), "utf8");
   text = text.replace(/require\(['"]\.\/?svd['"]\)\.SVD/g, "deps.SVD");
   if (/require\s*\(/.test(text)) throw new Error(`Unexpected CommonJS dependency in ${name}`);

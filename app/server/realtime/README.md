@@ -160,8 +160,6 @@ nix run .#realtime -- fix
 
 `nix run .#realtime`はRealtime専用のvet、lint、test、build、race detectorを実行する。lint設定とDocker build contextも`app/server/realtime/`内で完結し、移行元のGo HTTP backendを必要としない。
 
-実 Control Plane／D1／R2 と TLS ingress を使う同期・復旧 E2E は、repository root で `nix run .#realtime-e2e` を実行します。Fixed Browser の事前準備が必要です。gRPC 検証クライアントと複数の WebSocket Viewer、Chromium 上の製品 Audience を接続し、進行・pause／resume・途中参加・切断復帰・checkpoint 復元・Session 終了を検証します。`--unity --race` を付けると、実 Unity Editor の製品 SDK・Runtime・描画処理を Presenter として使用します。`e2e/` は通常の Go test では skip し、この専用入口から設定を渡したときだけ実行します。[準備と検証範囲](../../../scripts/README.md#realtime-の同期復旧-e2e)を参照してください。
-
 ## Venue Edge コンテナ
 
 `Dockerfile` は `cmd/server` を生成する Venue Edge 用です。Cloud Host のコンテナ配備はこの入口では提供しません。
