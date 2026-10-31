@@ -15,7 +15,7 @@ import {
   type UnframeLock,
 } from "./lock.js";
 import { mediaTypeFor } from "./package-snapshot.js";
-import { parseStrictJson } from "./strict-json.js";
+import { parseStrictJson } from "@unframe/unframe-core/strict-json";
 
 const hash = z.templateLiteral(["sha256:", z.string().regex(/^[0-9a-f]{64}$/u)]);
 const nonempty = z.string().min(1);

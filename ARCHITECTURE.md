@@ -62,8 +62,8 @@ unframe/
 
 ### `app/web/console`
 
-- React 19 SPA として認証・device 承認、公開済み Dist 確認とルーム作成を担当する。
-- Hono RPC client と TanStack Query を通して Control Plane を利用する。
+- React 19 SPA として認証・device 承認、Dist の検証・アップロード・公開、公開済みプレゼンテーションの確認とルーム作成を担当する。
+- Hono RPC client・共通公開クライアントと TanStack Query を通して Control Plane を利用する。
 
 ### `app/web/local-editor`
 

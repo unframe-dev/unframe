@@ -41,6 +41,7 @@ LP より高い情報密度を許容しますが、機能を常時並べませ�
 | `/recover/*`                      | アカウント復旧                   | Public         |
 | `/device/`                        | Device Authorization             | Public         |
 | `/home/`                          | Presentation 一覧                | Required       |
+| `/publish`                        | Dist の選択・検証・公開          | Required       |
 | `/presentations/:presentationId/` | 公開済みプレゼンテーションの詳細 | Required       |
 | `/rooms/`                         | ルーム作成                       | Required       |
 | `/rooms/:sessionId/`              | 作成したルームの詳細             | Required       |
@@ -69,7 +70,9 @@ Login、Signup、Recovery は一つの目的に集中した狭い layout とし�
 
 Home は Presentation 一覧を主役にします。
 
-- 一覧は Presentation 名と操作を中心にし、ID・公開 build・hash は詳細画面の「技術情報」で確認する
+- 一覧はサムネイル・Presentation 名・公開状態のカードを画面幅に応じて1〜3列に並べ、カード全体から詳細を開く。hover で少し拡大し、動きを抑える設定では拡大しない
+- ID・公開 build・hash は詳細画面の「技術情報」で確認する
+- 「プレゼンテーションを公開」から Dist フォルダを選び、検証後に公開先と新規公開／更新を確認して確定する。結果不明時は再送せず公開情報を照合する
 - 未公開と取得エラーを区別し、再取得を用意する
 - 新規作成、検索、絞り込みは実 API とともに導入する
 - empty state には空である理由と、実行可能な次の action を置く
@@ -87,21 +90,20 @@ Profile と Security は URL と見出しを分けます。保存単位、未保
 
 ### LP との関係
 
-LP の neutral background、濃い foreground、細い line、Blue / Purple / Red のブランド色を共有します。一方、巨大な display heading、広い marketing spacing、GradientWave、noise を application shell に常設しません。
+LP の neutral background、濃い foreground、細い line、Blue / Red のブランド色を共有します。一方、巨大な display heading、広い marketing spacing、GradientWave、noise を application shell に常設しません。
 
 ### Color Tokens
 
-| Token          | Value     | Usage                     |
-| -------------- | --------- | ------------------------- |
-| `background`   | `#f7f7f5` | ページの基底              |
-| `foreground`   | `#15171d` | 主要文字                  |
-| `muted`        | `#747780` | 補助文字、metadata        |
-| `line`         | `#dedfe2` | panel、input、list の境界 |
-| `night`        | `#111318` | 濃い背景面                |
-| `night-soft`   | `#242731` | 濃い面の補助、fallback    |
-| `brand-blue`   | `#7187f5` | primary、selection、focus |
-| `brand-purple` | `#9a80d0` | secondary accent          |
-| `brand-red`    | `#df7b80` | error、危険な操作         |
+| Token        | Value     | Usage                     |
+| ------------ | --------- | ------------------------- |
+| `background` | `#fff`    | ページの基底              |
+| `foreground` | `#17181c` | 主要文字                  |
+| `muted`      | `#70737c` | 補助文字、metadata        |
+| `line`       | `#e4e5e9` | panel、input、list の境界 |
+| `night`      | `#111318` | 濃い背景面                |
+| `night-soft` | `#242731` | 濃い面の補助、fallback    |
+| `brand-blue` | `#7187f5` | ブランド色（青）          |
+| `brand-red`  | `#df7b80` | primary                   |
 
 値の Web 側の正本は `src/styles.css` の CSS custom properties とします。LP の token を package として共有せず、変更時に両アプリの意図を確認して同期します。
 

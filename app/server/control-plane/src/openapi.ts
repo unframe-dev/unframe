@@ -900,6 +900,28 @@ export const publishPresentationRoute = createRoute({
     422: errorResponse("Invalid build assets"),
   },
 });
+export const publicationThumbnailRoute = createRoute({
+  method: "get",
+  path: "/presentations/{presentationId}/builds/{buildId}/thumbnail",
+  security,
+  request: { params: publicationBuildId },
+  responses: {
+    200: {
+      description: "First published baked texture",
+      content: { "image/png": { schema: z.string().openapi({ format: "binary" }) } },
+      headers: {
+        "Cache-Control": { schema: { type: "string", enum: ["private, no-store"] } },
+        "X-Content-Type-Options": { schema: { type: "string", enum: ["nosniff"] } },
+        "Content-Length": { schema: { type: "string" } },
+      },
+    },
+    400: errorResponse("Invalid build path"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Forbidden"),
+    404: errorResponse("Published build or texture not found"),
+    409: errorResponse("Published build or texture integrity mismatch"),
+  },
+});
 export const getPublicationRoute = createRoute({
   method: "get",
   path: "/presentations/{presentationId}/publication",

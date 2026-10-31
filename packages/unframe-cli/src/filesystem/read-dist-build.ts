@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { verifyBuildIntegrity } from "@unframe/unframe-core";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { projectDirectory, readBoundedRegularFile } from "./path-policy.js";
-import { parseStrictJson } from "./strict-json.js";
+import { parseStrictJson } from "@unframe/unframe-core/strict-json";
 import { buildManifestBytesHash, parseBuildReceipt } from "./build-receipt.js";
 import type { FixedBuildGeneration } from "./read-build-generation.js";
 

@@ -1,6 +1,6 @@
 # Unframe Console
 
-`app/web/console` は認証・アカウント設定、device 承認、公開済みプレゼンテーションの確認とルーム作成を担当する Workers 向け React SPA です。Source 編集・build・Unity Preview・公開操作は [Local Editor](../local-editor/README.md) と CLI が担当します。
+`app/web/console` は認証・アカウント設定、device 承認、Dist の検証・アップロード・公開、公開済みプレゼンテーションの確認とルーム作成を担当する Workers 向け React SPA です。Source 編集・build・Unity Preview は [Local Editor](../local-editor/README.md) と CLI が担当します。
 
 ## 起動と接続先
 
@@ -16,7 +16,7 @@ pnpm --filter @unframe/console dev
 
 ## 管理画面
 
-- `/home`: 閲覧可能な Presentation と最新公開 Dist を確認します。公開情報のない Presentation と取得エラーを区別します。
+- `/home`: 閲覧可能な Presentation をサムネイル付きカードで表示し、最新公開版の詳細を開きます。公開情報のない Presentation と取得エラーを区別します。
 - `/rooms`: 自分が作成したルーム（Session）の一覧・再取得・ページ送りと、公開済み Presentation からの新規作成を扱います。作成後は詳細へ進みます。
 - `/rooms/{id}`: 現在のルームコードを取得・更新し、匿名 Viewer の参加 URL と QR を共有します。更新結果が不明な場合は共有を止め、現在のコードを再取得します。終了後は共有できません。発表環境を準備し、準備完了後に発表を開始します。準備失敗は同じルームで再試行でき、発表終了後は準備・開始できません。
 - `/login`・`/signup`・`/recover`・`/recover/reset`・`/device`: 認証と device 承認。
@@ -32,6 +32,12 @@ Googleのみで登録したアカウントにはUnframe用のパスワードが�
 発表環境の準備には、運用者が Cloud Host を登録・起動しておく必要があります。ルームへの参加は Audience と Unity が担当します。作成応答が不明な場合は自動再送しません。未終了の Session がある Presentation の再公開は Control Plane が拒否します。
 
 LP の `/signup`・`/login` リンクから同じ origin の Console に進みます。メール登録後は確認メールの送信先・再送を表示し、メール内のリンクで確認後は `/login` に戻ります。ログイン成功後と Google 認証成功後は `/home` に進みます。未ログインで管理画面を開いた場合も `/login` に進みます。パスワード再設定に成功すると、すぐに `/login` に戻ります。メールと OAuth の戻り先には Console の絶対 URL を渡すため、開発時は Control Plane の `WEB_ORIGIN` に Console の origin を設定してください。
+
+Home のサムネイルは認証付きの `GET /presentations/{presentationId}/builds/{buildId}/thumbnail` から最初の baked texture の PNG を取得して表示します。選択順は surface ID の辞書順、`renderSurfaceIds` の配列順、artifact ID の辞書順、state ID の辞書順です。画像の再エンコードは行いません。texture がない場合や取得に失敗した場合はプレースホルダーを表示します。
+
+## Dist の公開
+
+ホームの「プレゼンテーションを公開」から `/publish` を開き、ビルド済みの `dist` フォルダを選択します。receipt・manifest・素材の整合性を検証した後、新規公開か既存 Presentation の更新かを確認して公開します。素材は合計256 MiB、4つの成果物 JSON（definition・render-bundle・asset-set・build-manifest）は各8 MiB、build-receipt.json は1 KiBまでです。選択ファイルと公開中の状態は認証後の管理画面間の移動をまたいでメモリーに保持し、再読み込みでは破棄します。公開結果が不明な場合は再送せず「公開情報を確認」で照合します。
 
 ## 検証
 

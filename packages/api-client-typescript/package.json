@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./publication": "./src/publication.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
@@ -13,7 +14,9 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
+    "@unframe/contracts": "workspace:*",
     "@unframe/control-plane": "workspace:*",
+    "@unframe/unframe-core": "workspace:*",
     "better-auth": "1.7.1",
     "hono": "^4.13.1"
   },

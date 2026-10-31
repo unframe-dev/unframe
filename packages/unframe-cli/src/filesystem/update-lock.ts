@@ -20,7 +20,7 @@ import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import type { StyleDiagnostic } from "@unframe/unframe-tailwind";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { loadUnframeLock } from "./load-lock.js";
-import { parseStrictJson } from "./strict-json.js";
+import { parseStrictJson } from "@unframe/unframe-core/strict-json";
 import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readRegularFile, readBoundedRegularFile } from "./path-policy.js";

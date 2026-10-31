@@ -22,6 +22,7 @@ import { ProfilePage, SecurityPage } from "@/features/settings/settings-pages";
 import publicModuleStyles from "@/shared/layouts/public-pages.module.css";
 import routerModuleStyles from "./router.module.css";
 import { NotFoundPage } from "./not-found-page";
+import { PublicationPage } from "@/features/publication/publication-page";
 const publicStyles = { main: publicModuleStyles["main"]!, panel: publicModuleStyles["panel"]! };
 const styles = { skipLink: routerModuleStyles["skipLink"]! };
 function Root() {
@@ -101,6 +102,11 @@ const homeRoute = createRoute({
   path: "home",
   component: HomePage,
 });
+const publicationRoute = createRoute({
+  getParentRoute: () => applicationRoute,
+  path: "publish",
+  component: PublicationPage,
+});
 const devicesRoute = createRoute({
   getParentRoute: () => applicationRoute,
   path: "devices",
@@ -153,6 +159,7 @@ const routeTree = rootRoute.addChildren([
   editorRoute,
   applicationRoute.addChildren([
     homeRoute,
+    publicationRoute,
     devicesRoute,
     roomsRoute,
     presentationRoute,

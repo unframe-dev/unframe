@@ -23,6 +23,8 @@ import {
 
 import type { Identity } from "../../presentation/service";
 
+import { firstThumbnailTexture } from "./thumbnail";
+
 export type PublicationFence = z.infer<typeof publicationFenceSchema>;
 
 export class PublicationError extends Error {
@@ -175,6 +177,30 @@ export class PublicationService {
     const parsed = verifyBuildIntegrity(JSON.parse(row.artifacts));
     if (!parsed.valid) throw new PublicationError("invalid_build");
     return parsed.value;
+  }
+
+  async thumbnail(identity: Identity, presentationId: string, buildId: string) {
+    let artifacts: BuildArtifacts;
+    try {
+      artifacts = await this.build(identity, presentationId, buildId, false);
+    } catch (error) {
+      if (
+        error instanceof SyntaxError ||
+        (error instanceof PublicationError && error.code === "invalid_build")
+      )
+        throw new PublicationError("conflict");
+      throw error;
+    }
+    if (
+      artifacts.buildManifest.presentationId !== presentationId ||
+      artifacts.buildManifest.buildId !== buildId
+    )
+      throw new PublicationError("conflict");
+    const assetId = firstThumbnailTexture(artifacts.renderBundle);
+    if (!assetId) throw new PublicationError("not_found");
+    const result = await this.downloadPublishedAsset(presentationId, buildId, assetId);
+    if (result.mediaType !== "image/png") throw new PublicationError("conflict");
+    return result.bytes;
   }
 
   async downloadPublishedAsset(presentationId: string, buildId: string, assetId: string) {

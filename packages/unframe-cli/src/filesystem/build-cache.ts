@@ -4,7 +4,7 @@ import * as z from "zod";
 import type { CompilerBuildCache, CompiledDeclarationProject } from "@unframe/unframe-compiler";
 import { NativeFilesystem, NativeDirectory } from "./native-filesystem.js";
 import { projectDirectory } from "./path-policy.js";
-import { parseStrictJson } from "./strict-json.js";
+import { parseStrictJson } from "@unframe/unframe-core/strict-json";
 
 const digest = /^[0-9a-f]{64}$/u;
 const keyPattern = /^sha256:[0-9a-f]{64}$/u;

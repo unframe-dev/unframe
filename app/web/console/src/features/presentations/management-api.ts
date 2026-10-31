@@ -28,6 +28,12 @@ export type PublicationResult = { presentation: Presentation } & (
   | { state: "error"; error: unknown }
 );
 
+export function publicationThumbnailUrl(presentationId: string, buildId: string) {
+  return client.presentations[":presentationId"].builds[":buildId"].thumbnail.$url({
+    param: { presentationId, buildId },
+  }).href;
+}
+
 async function readJson(response: Pick<Response, "ok" | "status" | "json">): Promise<unknown> {
   if (!response.ok) {
     const error = z
