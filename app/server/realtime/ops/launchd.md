@@ -108,7 +108,7 @@ sudo rm /Library/LaunchDaemons/me.un-fra.realtime.plist
 macOS 上で repository root から実行します。
 
 ```sh
-nix develop --command node --test scripts/runtime-host/deploy.test.mjs
+nix develop --command go -C app/server/realtime test ./internal/hostops -run TestDeployShell
 ```
 
 サービス登録は行わず、配備物生成、plist の検証、失敗時の後始末を検証します。

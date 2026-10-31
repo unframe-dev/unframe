@@ -80,7 +80,7 @@ Funnel の帯域制限と `ts.net` ドメインの制約が適用されます。
 nix run .#runtime-host-funnel-deploy -- "$HOME/Library/Application Support/Unframe/Funnel" "$(id -un)"
 ```
 
-新規ディレクトリへ実行ファイル、Caddy 設定、起動スクリプトと plist をまとめます。環境変数と Tailscale の登録情報は既存の `~/.config/unframe/` を参照します。実行時にリポジトリや Nix コマンドは使いません。固定した Nix store のツールは配備先の `nix-roots/` で GC から保護するため、配備先を移動・削除しないでください。
+Go の `runtime-host-admin` が新規ディレクトリへ実行ファイル、Caddy 設定、起動スクリプトと plist をまとめます。環境変数と Tailscale の登録情報は既存の `~/.config/unframe/` を参照します。実行時にリポジトリや Nix コマンドは使いません。固定した Nix store のツールは配備先の `nix-roots/` で GC から保護するため、配備先を移動・削除しないでください。
 
 現在のフォアグラウンド入口を `Ctrl-C` で止め、続いて専用 `tailscaled` も停止してから登録します。
 
@@ -125,11 +125,10 @@ nix run .#runtime-host-updater-setup -- \
 
 これは updater と管理 CLI を配置し、既存の環境変数ファイルへ `REALTIME_HOST_UPDATE_DIRECTORY` を追加して、
 10分間隔の LaunchAgent を登録します。更新対象は同じ repository の `push/main` の成功済み CI artifact のみです。
-実行時に checkout や Nix は使いません。Node と GitHub CLI は Nix GC root で保護します。
+配備・更新・Funnel の常駐管理は Go の `runtime-host-admin` が行います。実行時に checkout、Go、Node、Nix は使いません。GitHub CLI は Nix GC root で保護します。
 LaunchAgent のため、ログアウト中は自動取得を行いません。Runtime 本体の LaunchDaemon は継続します。
 
-旧 Host は更新状態ファイルを出力しないため、この機能が `main` に反映され、最初の artifact が作られたら、
-一度だけ次の手動コマンドで移行してください。同じコマンドは以後も定期実行を待たずに使えます。
+定期実行を待たずに手動更新する場合は次を実行します。
 
 ```sh
 nix run .#runtime-host-update

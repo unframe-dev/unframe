@@ -20,7 +20,7 @@ jobs:
       - name: Package Darwin arm64 Runtime Host
         env:
           RELEASE_SHA: ${{ github.sha }}
-        run: nix develop --command node scripts/runtime-host/release.mjs "$RUNNER_TEMP/realtime-release" "$RELEASE_SHA"
+        run: nix develop --command go -C app/server/realtime run ./cmd/runtime-host-admin release --root "$GITHUB_WORKSPACE" "$RUNNER_TEMP/realtime-release" "$RELEASE_SHA"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runtime-host-darwin-arm64-${{ github.sha }}

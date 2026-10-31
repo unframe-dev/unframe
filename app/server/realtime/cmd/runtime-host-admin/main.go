@@ -1,4 +1,4 @@
-// Command runtime-host-admin controls one local Funnel deployment without SSH.
+// Command runtime-host-admin prepares and manages local Runtime Host deployments.
 package main
 
 import (
@@ -39,6 +39,9 @@ func main() {
 	}
 }
 func run(args []string) error {
+	if handled, err := runOperation(args); handled {
+		return err
+	}
 	flags := flag.NewFlagSet("runtime-host-admin", flag.ContinueOnError)
 	deployment := flags.String("deployment", "", "absolute Funnel deployment directory")
 	if err := flags.Parse(args); err != nil {

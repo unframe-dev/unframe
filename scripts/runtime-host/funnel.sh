@@ -11,28 +11,15 @@ if [[ $# -gt 2 || "$release" != /* || "$env_file" != /* || ! -r "$env_file" || !
   echo 'usage: runtime-host-funnel [/absolute/release-directory [/absolute/runtime-host.env]]' >&2
   exit 2
 fi
-hostname="$(tailscale --socket="$TS_SOCKET" status --json | node -e '
-let input = ""; process.stdin.on("data", chunk => input += chunk);
-process.stdin.on("end", () => {
-  const status = JSON.parse(input);
-  const name = status.Self?.DNSName?.replace(/\.$/, "") ?? "";
-  if (status.BackendState !== "Running" || !/^[a-z0-9-]+\.[a-z0-9.-]+\.ts\.net$/.test(name)) {
-    console.error("Authenticate first: tailscale --socket=\"$TS_SOCKET\" login");
-    process.exit(1);
-  }
-  console.log(name);
-});')"
-tailscale --socket="$TS_SOCKET" serve status --json | node -e '
-let input = ""; process.stdin.on("data", chunk => input += chunk);
-process.stdin.on("end", () => {
-  const config = JSON.parse(input);
-  // AllowFunnel records permission and can remain after all listeners are removed.
-  if (Object.entries(config ?? {}).some(([key, value]) =>
-    key !== "AllowFunnel" && value && (typeof value !== "object" || Object.keys(value).length > 0))) {
-    console.error("Existing Serve/Funnel configuration found; use a dedicated tailscaled instance.");
-    process.exit(1);
-  }
-});'
+host_admin() {
+  if [[ -n "${RUNTIME_HOST_ADMIN:-}" ]]; then
+    "$RUNTIME_HOST_ADMIN" "$@"
+  else
+    go -C "$root/app/server/realtime" run ./cmd/runtime-host-admin "$@"
+  fi
+}
+hostname="$(tailscale --socket="$TS_SOCKET" status --json | host_admin funnel-hostname)"
+tailscale --socket="$TS_SOCKET" serve status --json | host_admin funnel-vacant
 state="$(mktemp -d "${TMPDIR:-/tmp}/unframe-funnel.XXXXXXXX")"
 caddy_pid=''
 host_pid=''
