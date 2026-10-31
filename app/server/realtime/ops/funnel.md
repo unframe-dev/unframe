@@ -100,10 +100,74 @@ sudo launchctl bootout system/me.un-fra.realtime-funnel
 sudo launchctl bootstrap system /Library/LaunchDaemons/me.un-fra.realtime-funnel.plist
 ```
 
-自動起動を削除する場合は `bootout` 後に `/Library/LaunchDaemons/me.un-fra.realtime-funnel.plist` を削除します。配備物の上書き更新には対応していません。更新時は停止・登録削除後に新しいディレクトリへ準備して再登録し、復元が必要なら旧配備物の `install.sh` を使います。登録後は公開 endpoint で gRPC / WSS を確認してください。プロセスの起動だけでは Session の割り当てと Runtime の ready を保証しません。
+自動起動を削除する場合は `bootout` 後に `/Library/LaunchDaemons/me.un-fra.realtime-funnel.plist` を削除します。`runtime-host-funnel-deploy` は既存配備先へ上書きしません。Funnel 配備物全体の更新は停止・登録削除後に新しいディレクトリへ準備して再登録し、復元が必要なら旧配備物の `install.sh` を使います。Runtime binary だけの更新は下記の Pull 型 CD を使用できます。登録後は公開 endpoint で gRPC / WSS を確認してください。プロセスの起動だけでは Session の割り当てと Runtime の ready を保証しません。
 
 ## 複数 Session と復旧の確認範囲
 
 一つの Funnel URL と常駐 Host の共通 listener へ複数 Session を割り当てます。Session ごとの port や Funnel 設定は追加しません。`REALTIME_HOST_CAPACITY` を配備設定で明示します。満員・drain 中も担当 Session の lease 更新を継続します。新しい Host boot は旧 lease の失効を待ち、各 Session を新 epoch の paused Snapshot へ復旧してから接続を受け付けます。
 
 公開経路で二つ以上の Session の native gRPC / WSS、途中参加、切断復帰、Host 再起動、保存障害時の進行と終了を確認します。Session ごとの保存ログと配信遅延を測定し、Funnel の帯域も含めて収容上限を決めます。これらの公開環境・実負荷の結果は未取得です。ローカルテストや起動成功を、その検証結果として扱いません。
+
+## GitHub Actions からの Pull 型 CD
+
+`main` の CI が成功し、Realtime 関連の変更がある場合、`realtime-release.yml` が同じ commit の
+Darwin arm64 `runtime-host` をビルドして artifact を90日保存します。Control Plane、Caddy、Tailscale、
+環境変数や updater 自体はこの artifact で更新しません。
+
+既存の Funnel LaunchDaemon と GitHub CLI の認証を用意し、ログイン中のサービスユーザーで一度実行します。
+GitHub の資格情報には対象 repository の Actions 読み取り権限が必要です。
+
+```sh
+nix run .#runtime-host-updater-setup -- \
+  "$HOME/Library/Application Support/Unframe/RealtimeUpdater" \
+  "$HOME/Library/Application Support/Unframe/Funnel" --install
+```
+
+これは updater と管理 CLI を配置し、既存の環境変数ファイルへ `REALTIME_HOST_UPDATE_DIRECTORY` を追加して、
+10分間隔の LaunchAgent を登録します。更新対象は同じ repository の `push/main` の成功済み CI artifact のみです。
+実行時に checkout や Nix は使いません。Node と GitHub CLI は Nix GC root で保護します。
+LaunchAgent のため、ログアウト中は自動取得を行いません。Runtime 本体の LaunchDaemon は継続します。
+
+旧 Host は更新状態ファイルを出力しないため、この機能が `main` に反映され、最初の artifact が作られたら、
+一度だけ次の手動コマンドで移行してください。同じコマンドは以後も定期実行を待たずに使えます。
+
+```sh
+nix run .#runtime-host-update
+```
+
+checkout 外からは次を直接実行できます。
+
+```sh
+"$HOME/Library/Application Support/Unframe/RealtimeUpdater/update"
+```
+
+**手動更新は担当 Session があっても実行します。** 接続は切れ、復旧した発表は一時停止状態になります。
+候補の確認だけを行うには `--check`、自動更新と同じ「担当 Session があれば延期」の動作には `--auto` を付けます。
+
+自動更新は新規割り当ての停止を heartbeat で確認し、担当 Session が0件のときだけ進みます。
+状態不明・古い状態・Control Plane 障害時は更新せず、受付停止の解除を試みます。解除にも失敗した場合は下記の手動解除を行います。
+成果物の archive digest、manifest の commit・対象 OS / CPU・binary hash を照合し、旧 binary を
+`Funnel/release/runtime-host.previous` へ退避して atomic に置換します。
+再起動後は新 Host の heartbeat、ローカル／公開 gRPC health、Control／State WSS upgrade を確認します。
+これは実機の参加・操作・同期の E2E を保証しません。
+
+更新に失敗した場合は旧 binary を戻して再起動し、失敗を記録します。
+activation に失敗した commit の自動再適用は抑止し、手動コマンドで再試行できます。
+更新途中に強制終了した場合は、次回の実行で未完了記録を読み、更新可能であれば旧 binary の復旧を先に行います。
+切り戻し時は状態ファイルを要求せず、配備先のプロセスと gRPC／WSS の疎通で旧 Host の復帰を確認します。
+
+状態は `RealtimeUpdater/state/state.json`、定期実行の結果は `RealtimeUpdater/logs/stdout.log` と
+`stderr.log` に残ります。ログの自動ローテーションは行いません。
+受付停止が残った場合は、更新処理が動いていないことを確認して次で解除します。
+
+```sh
+"$HOME/Library/Application Support/Unframe/RealtimeUpdater/runtime-host-admin" \
+  --deployment "$HOME/Library/Application Support/Unframe/Funnel" activity release
+```
+
+自動更新の停止は次で行います。再開は `bootout` を `bootstrap` に置き換えて実行します。
+
+```sh
+launchctl bootout "gui/$(id -u)" \
+  "$HOME/Library/LaunchAgents/me.un-fra.realtime-updater.plist"
+```

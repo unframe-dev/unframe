@@ -67,7 +67,7 @@ func Run(ctx context.Context, config Config, client *http.Client) error {
 	callbacks := persistence.NewClient(persistence.Config{BaseURL: config.ControlPlaneURL, ServiceIdentity: config.ServiceIdentity, HTTPClient: client})
 	// This bound covers recovery, normal checkpoints and completion together.
 	slots := make(chan struct{}, 4)
-	supervisor := Supervisor{RuntimeID: config.RuntimeID, Endpoint: config.Endpoint, BootID: hex.EncodeToString(id[:]), BootStartedAt: bootStartedAt, Capacity: config.Capacity, Drain: config.Drain, ShutdownContext: shutdownContext, ControlPlane: HTTPControlPlane{Origin: config.ControlPlaneURL, RuntimeID: config.RuntimeID, ServiceIdentity: config.ServiceIdentity, Client: client}, Start: func(ctx context.Context, a Assignment, renewals <-chan Assignment) (Execution, error) {
+	supervisor := Supervisor{UpdateDirectory: config.UpdateDirectory, RuntimeID: config.RuntimeID, Endpoint: config.Endpoint, BootID: hex.EncodeToString(id[:]), BootStartedAt: bootStartedAt, Capacity: config.Capacity, Drain: config.Drain, ShutdownContext: shutdownContext, ControlPlane: HTTPControlPlane{Origin: config.ControlPlaneURL, RuntimeID: config.RuntimeID, ServiceIdentity: config.ServiceIdentity, Client: client}, Start: func(ctx context.Context, a Assignment, renewals <-chan Assignment) (Execution, error) {
 		return startSession(ctx, a, renewals, router, callbacks, slots)
 	}}
 	runCtx, stop := context.WithCancel(ctx)

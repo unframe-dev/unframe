@@ -118,7 +118,7 @@ unframe/
 | LP の検査・修正                    | `nix run .#lp` / `nix run .#lp -- fix`                        |
 | flake の評価と formatter 検証      | `nix flake check`                                             |
 
-Control Plane と Realtime の check entrypoint は実装済みです。開発・migration の手順は各 component の README を参照してください。自動 deployment workflow はありません。
+Control Plane と Realtime の check entrypoint は実装済みです。開発・migration の手順は各 component の README を参照してください。Realtime は `main` の CI 成功後に macOS 向け Host artifact を生成し、Mac 側の Pull updater が取得します。[導入・更新手順](app/server/realtime/ops/funnel.md#github-actions-からの-pull-型-cd)を参照してください。
 
 ### GitHub Actions
 

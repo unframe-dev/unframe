@@ -24,6 +24,9 @@ nix run .#realtime
 nix run .#runtime-host
 nix run .#runtime-host-deploy -- "$PWD/.unframe/realtime-release" t4ko
 nix run .#runtime-host-funnel
+nix run .#runtime-host-updater-setup
+nix run .#runtime-host-update -- --check
+nix run .#runtime-host-update
 nix run .#runtime-host-funnel-deploy -- "$HOME/Library/Application Support/Unframe/Funnel" "$(id -un)"
 nix run .#realtime-e2e
 nix run .#console

@@ -8,7 +8,11 @@ func TestHostConfigRequiresCapacityAndHTTPSIdentity(t *testing.T) {
 	if c, err := LoadConfig(read); err != nil || c.Capacity != 8 {
 		t.Fatalf("config=%+v err=%v", c, err)
 	}
-	for key, invalid := range map[string]string{"REALTIME_HOST_CAPACITY": "0", "REALTIME_CONTROL_PLANE_URL": "http://cp.test", "REALTIME_RUNTIME_ENDPOINT": "https://runtime.test/prefix", "REALTIME_RUNTIME_ID": "host/other", "REALTIME_SERVICE_IDENTITY": "short", "REALTIME_LISTEN_ADDR": "invalid", "REALTIME_JWKS_URL": "https://user:secret@cp.test/key", "REALTIME_HOST_DRAIN": "maybe"} {
+	values["REALTIME_HOST_UPDATE_DIRECTORY"] = "/private/runtime/update-control"
+	if c, err := LoadConfig(read); err != nil || c.UpdateDirectory != values["REALTIME_HOST_UPDATE_DIRECTORY"] {
+		t.Fatalf("update config=%+v err=%v", c, err)
+	}
+	for key, invalid := range map[string]string{"REALTIME_HOST_CAPACITY": "0", "REALTIME_CONTROL_PLANE_URL": "http://cp.test", "REALTIME_RUNTIME_ENDPOINT": "https://runtime.test/prefix", "REALTIME_RUNTIME_ID": "host/other", "REALTIME_SERVICE_IDENTITY": "short", "REALTIME_LISTEN_ADDR": "invalid", "REALTIME_JWKS_URL": "https://user:secret@cp.test/key", "REALTIME_HOST_DRAIN": "maybe", "REALTIME_HOST_UPDATE_DIRECTORY": "relative/path"} {
 		old := values[key]
 		values[key] = invalid
 		if _, err := LoadConfig(read); err == nil {

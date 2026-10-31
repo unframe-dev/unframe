@@ -75,6 +75,7 @@ jobs:
             realtime:
               - *shared
               - '.github/workflows/realtime.yml'
+              - '.github/workflows/realtime-release.yml'
               - 'scripts/ci/realtime.sh'
               - 'scripts/contracts/**'
               - 'app/server/realtime/**'
@@ -191,3 +192,9 @@ jobs:
             fi
           done
           echo "All required jobs succeeded or were skipped."
+
+  realtime-release:
+    name: Realtime release
+    needs: [changes, ci]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.realtime == 'true'
+    uses: ./.github/workflows/realtime-release.yml

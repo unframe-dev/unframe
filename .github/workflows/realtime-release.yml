@@ -1,0 +1,32 @@
+name: Realtime release
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
+      - name: Package Darwin arm64 Runtime Host
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: nix develop --command node scripts/runtime-host/release.mjs "$RUNNER_TEMP/realtime-release" "$RELEASE_SHA"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtime-host-darwin-arm64-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/realtime-release/runtime-host
+            ${{ runner.temp }}/realtime-release/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
