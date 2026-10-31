@@ -103,7 +103,7 @@ test("public authentication routes and account menu are accessible", async ({ pa
   await expect(page.getByRole("heading", { name: "Sign up." })).toBeVisible();
   await page.goto("/home");
   const desktopMenu = page.getByRole("button", { name: "アカウントメニュー" });
-  const projectGuide = page.getByRole("heading", { name: "公開済み Dist" });
+  const projectGuide = page.getByRole("heading", { name: "公開済みプレゼンテーション" });
   await expect(desktopMenu).toBeVisible();
   await expect(projectGuide).toBeVisible();
   const mainNavigation = page.getByRole("navigation", {

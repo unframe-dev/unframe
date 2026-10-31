@@ -5,7 +5,10 @@ describe("management failures", () => {
   it.each([
     [401, "ログインの有効期限が切れました。ログインし直してください。"],
     [403, "この情報を参照・操作する権限がありません。"],
-    [409, "公開済み Dist がないか、公開状態が変更されています。公開情報を再取得してください。"],
+    [
+      409,
+      "公開済みプレゼンテーションがないか、公開状態が変更されています。公開情報を再取得してください。",
+    ],
   ])("distinguishes HTTP %s", (status, message) => {
     expect(managementErrorMessage({ status })).toBe(message);
   });

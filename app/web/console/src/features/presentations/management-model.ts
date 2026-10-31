@@ -18,7 +18,7 @@ export function managementErrorMessage(error: unknown): string {
     case 404:
       return "対象が見つからないか、参照できません。";
     case 409:
-      return "公開済み Dist がないか、公開状態が変更されています。公開情報を再取得してください。";
+      return "公開済みプレゼンテーションがないか、公開状態が変更されています。公開情報を再取得してください。";
     default:
       return "通信に失敗しました。時間をおいて再取得してください。";
   }

@@ -21,6 +21,7 @@ import { SignupPage } from "@/features/auth/signup-page";
 import { ProfilePage, SecurityPage } from "@/features/settings/settings-pages";
 import publicModuleStyles from "@/shared/layouts/public-pages.module.css";
 import routerModuleStyles from "./router.module.css";
+import { NotFoundPage } from "./not-found-page";
 const publicStyles = { main: publicModuleStyles["main"]!, panel: publicModuleStyles["panel"]! };
 const styles = { skipLink: routerModuleStyles["skipLink"]! };
 function Root() {
@@ -44,20 +45,10 @@ function ErrorPage() {
     </main>
   );
 }
-function NotFound() {
-  return (
-    <main id="main-content" className={publicStyles.main}>
-      <section className={publicStyles.panel}>
-        <h1>ページが見つかりません</h1>
-        <a href="/">トップへ戻る</a>
-      </section>
-    </main>
-  );
-}
 const rootRoute = createRootRoute({
   component: Root,
   errorComponent: ErrorPage,
-  notFoundComponent: NotFound,
+  notFoundComponent: NotFoundPage,
 });
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,

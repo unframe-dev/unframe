@@ -73,7 +73,7 @@ test("verified email login reaches Console", async ({ page }) => {
   await page.getByLabel("パスワード", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "ログイン", exact: true }).click();
   await expect(page).toHaveURL(/\/home$/);
-  await expect(page.getByRole("heading", { name: "公開済み Dist" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "公開済みプレゼンテーション" })).toBeVisible();
 });
 
 test("an expired verification link offers recovery instead of a success message", async ({
@@ -118,7 +118,7 @@ test("Google signup can be retried and returns to Console", async ({ page }) => 
   await page.route("**/presentations", (route) => route.fulfill({ json: { presentations: [] } }));
   await page.getByRole("button", { name: "Google で登録" }).click();
   await expect(page).toHaveURL(/\/home$/);
-  await expect(page.getByRole("heading", { name: "公開済み Dist" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "公開済みプレゼンテーション" })).toBeVisible();
 });
 
 test("an unauthenticated Console visit leads directly to login", async ({ page }) => {

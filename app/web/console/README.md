@@ -1,6 +1,6 @@
 # Unframe Console
 
-`app/web/console` は認証・アカウント設定、device 承認、公開済み Dist の確認とルーム作成を担当する Workers 向け React SPA です。Source 編集・build・Unity Preview・公開操作は [Local Editor](../local-editor/README.md) と CLI が担当します。
+`app/web/console` は認証・アカウント設定、device 承認、公開済みプレゼンテーションの確認とルーム作成を担当する Workers 向け React SPA です。Source 編集・build・Unity Preview・公開操作は [Local Editor](../local-editor/README.md) と CLI が担当します。
 
 ## 起動と接続先
 

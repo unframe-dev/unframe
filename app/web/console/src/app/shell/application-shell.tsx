@@ -51,9 +51,9 @@ type NavigationLink = {
 
 const mainLinks: NavigationLink[] = [
   { to: "/home", label: "ホーム", icon: HouseIcon },
-  { to: "/settings/profile", label: "設定", icon: GearSixIcon },
   { to: "/devices", label: "デバイス", icon: DeviceMobileIcon },
   { to: "/rooms", label: "ルーム", icon: CubeIcon },
+  { to: "/settings/profile", label: "設定", icon: GearSixIcon },
 ];
 
 const settingsLinks: NavigationLink[] = [
