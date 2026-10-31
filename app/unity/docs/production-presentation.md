@@ -122,9 +122,6 @@ UNITY_EDITOR="/Applications/Unity/Hub/Editor/6000.3.22f1/Unity.app/Contents/MacO
   nix develop --command bash scripts/unity/test-native-editor.sh rendering
 ```
 
-`nix run .#realtime-e2e -- --unity` は正式compiler build・公開・HTTPS素材配信から、
-実Unity Editorの製品SDK・描画とAudience UIの同期、Runtime再起動・終了まで検査します。
-対応するUnity Editorと有効なライセンスが必要です。端末の認識・カメラ・会場配置は対象外です。
 接続と開始判定の対象単体テストは`test-native-editor.sh realtime-unit`で実行します。
 正式なWebエディターのWebGL previewと回帰テストは維持します。
 AprilTag単体診断は `Unframe > Diagnostics` に隔離し、本番入口と分けています。

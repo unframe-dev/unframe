@@ -2,16 +2,15 @@
 
 タスクの実処理を置くディレクトリです。公式な実行入口は `flake.nix` の apps で、`flake.nix` はここにあるスクリプトをラップします。
 
-| ディレクトリ           | 役割                                        |
-| ---------------------- | ------------------------------------------- |
-| `lib/`                 | 共有ヘルパ（パス定数 `paths.sh` など）      |
-| `ci/`                  | 品質ゲート                                  |
-| `contracts/`           | 契約生成と生成物の差分検査                  |
-| `dev/`                 | 依存関係・Git hook のセットアップ           |
-| `unity/`               | Unity Editor の起動と WebGL Preview build   |
-| `presentation-sample/` | Unity Editor 向けサンプル配信               |
-| `realtime-e2e/`        | 実サービスでの混在接続・同期・復旧 E2E      |
-| `runtime-host/`        | Cloud Runtime Host の起動・macOS 配備物生成 |
+| ディレクトリ           | 役割                                           |
+| ---------------------- | ---------------------------------------------- |
+| `lib/`                 | 共有ヘルパ（パス定数 `paths.sh` など）         |
+| `ci/`                  | 品質ゲート                                     |
+| `contracts/`           | 契約生成と生成物の差分検査                     |
+| `dev/`                 | 依存関係・Git hook のセットアップ              |
+| `unity/`               | Unity Editor の起動と WebGL Preview build      |
+| `presentation-sample/` | Unity Editor 向けサンプル配信                  |
+| `runtime-host/`        | Cloud Runtime Host の起動・Go管理CLIの呼び出し |
 
 ```bash
 nix develop
@@ -28,7 +27,6 @@ nix run .#runtime-host-updater-setup
 nix run .#runtime-host-update -- --check
 nix run .#runtime-host-update
 nix run .#runtime-host-funnel-deploy -- "$HOME/Library/Application Support/Unframe/Funnel" "$(id -un)"
-nix run .#realtime-e2e
 nix run .#console
 nix run .#local-editor
 nix run .#audience
@@ -117,13 +115,3 @@ WebGL playerは不要です。終了はCtrl+Cです。Quest用のLAN配信・マ
 共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。 本番の共通再生・配信受信・Native UI・モデルの回帰は `nix develop --command bash scripts/unity/test-native-editor.sh rendering` を使用し、同じdirectoryの `rendering.xml` と `rendering.log` を確認します。WebGL PreviewはBaked描画と共通再生・検証だけを取り込み、本番専用のメディア実装を含めません。
 
 Local Editor の品質ゲートは `nix run .#local-editor`（型検査・Node ロジックテスト・build）です。Local Editor の E2E と専用 Nix app は撤去しました。実 WebGL の画面・認証・公開操作は自動ロジック検証と分けて手動確認してください。
-
-## Realtime の同期・復旧 E2E
-
-Fixed Browser を準備後、`nix run .#realtime-e2e` を実行します。`examples/presentation` を正式コンパイル・CLI公開し、隔離したローカル Control Plane／D1／R2、TLS ingress、Realtime を使用します。gRPC の検証クライアント、複数の WebSocket Viewer、Chromium 上の製品 Audience 画面・Runtime・描画処理を接続し、素材の取得・decode、進行、pause／resume、途中参加、切断復帰、checkpoint からの process 再起動、Session 終了を検証します。カメラと8th Wall SDKへの入力はテスト用に差し替えます。
-
-`nix run .#realtime-e2e -- --unity --race` は実 Unity Editor の製品 SDK・Runtime・描画処理を Presenter として実行し、製品 Audience と同期・復旧を検証します。Editor とライセンスは `unity-editor` と同じ準備が必要です。実機、時計補償、会場設定配布は対象外です。
-
-`nix run .#realtime-e2e -- --race` は Runtime binary と Go E2E の両方で race detector を有効にします。
-
-空きポートと run ごとの証明書・DB を使い、終了・失敗・中断時に子プロセスを停止します。Chromium のローカル証明書例外はその run の server key の SPKI に限定し、Go／Node は private CA で検証します。ログ・資格・証明書は `.unframe/realtime-e2e/runs/` の private directory に残ります。共有・コミットしないでください。E2E 用 Audience 開発サーバーからもこの directory の配信を拒否し、HTTP 403 を確認します。通常の `nix run .#realtime` はこの実サービス E2E を起動しません。Realtime E2E はローカルで手動実行します。
