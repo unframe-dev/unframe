@@ -236,12 +236,6 @@ importers:
       '@hono/zod-openapi':
         specifier: ^1.5.2
         version: 1.6.1(hono@4.13.4)(zod@4.4.3)
-      '@stackline/png-chunks-extract':
-        specifier: 1.0.5
-        version: 1.0.5
-      '@stacksjs/ts-png':
-        specifier: 0.1.10
-        version: 0.1.10
       '@unframe/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts
@@ -260,6 +254,9 @@ importers:
       hono:
         specifier: ^4.13.1
         version: 4.13.4
+      pngjs:
+        specifier: 7.0.0
+        version: 7.0.0
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -282,6 +279,9 @@ importers:
       '@types/node':
         specifier: ^24.19.0
         version: 24.19.0
+      '@types/pngjs':
+        specifier: 6.0.5
+        version: 6.0.5
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
@@ -3285,13 +3285,6 @@ packages:
 
   '@speed-highlight/core@1.2.17':
     resolution: {integrity: sha512-Z92FwKpCtfaW1V0jTU/fh3QzYEZN8wDwrzRIBoADCJfn4mJCNcJN/XegifX7BDrQ8/h9Xh/JnbyMchL0FqXrkg==}
-
-  '@stackline/png-chunks-extract@1.0.5':
-    resolution: {integrity: sha512-naC+Z794bytywKgc49iDgsWezoaN4Gv1mAM1RfplBsXCaU+fJkoWPXJCqsvI6rGquYPdBAzMGqmSi3LQ066XPQ==}
-    engines: {node: '>=18.0.0'}
-
-  '@stacksjs/ts-png@0.1.10':
-    resolution: {integrity: sha512-EtYI3BhCcR7AOVyyA1zmn6/ueZwGgxLKHmpTENHhKPIhxSy6/MUNLhb8cc2jI6PViz/fj37WuCc1iA7Dq5bVbw==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -8551,10 +8544,6 @@ snapshots:
   '@socket.io/component-emitter@3.1.2': {}
 
   '@speed-highlight/core@1.2.17': {}
-
-  '@stackline/png-chunks-extract@1.0.5': {}
-
-  '@stacksjs/ts-png@0.1.10': {}
 
   '@standard-schema/spec@1.1.0': {}
 
