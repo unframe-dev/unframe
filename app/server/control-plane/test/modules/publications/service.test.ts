@@ -22,7 +22,7 @@ import {
   verifyBuildIntegrity,
   validatePresentationArtifacts,
   type BuildIntegrityInput,
-} from "@unframe/unframe-core";
+} from "@unframe/core";
 import { renderBundleSchema } from "@unframe/contracts/presentation";
 import { PublicationError, PublicationService } from "../../../src/modules/publications/service";
 import { D1SessionRepository } from "../../../src/modules/sessions/repository";

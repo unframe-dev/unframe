@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
+import type { ProjectSnapshot } from "@unframe/core/cli/author-contract";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
 import { createTimelineView, cueTimelines, triggerTiming, type FlowCue } from "../flow-model";
 

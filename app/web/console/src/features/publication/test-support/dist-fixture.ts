@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { BuildArtifacts } from "@unframe/unframe-core";
-import { hashCanonicalJsonPayload } from "../../../../../../../packages/unframe-core/src/canonicalization/payload";
+import type { BuildArtifacts } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "../../../../../../../packages/unframe/core/src/canonicalization/payload";
 import definitionFixture from "../../../../../../../packages/contracts/presentation/fixtures/presentation-definition.json" with { type: "json" };
 import renderBundleFixture from "../../../../../../../packages/contracts/presentation/fixtures/render-bundle.json" with { type: "json" };
 import assetSetFixture from "../../../../../../../packages/contracts/presentation/fixtures/asset-set-manifest.json" with { type: "json" };

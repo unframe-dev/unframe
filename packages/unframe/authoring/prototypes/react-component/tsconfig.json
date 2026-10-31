@@ -1,0 +1,17 @@
+{
+  "extends": "../../../../config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
+    "noPropertyAccessFromIndexSignature": false,
+    "paths": {
+      "react": ["../../../../../app/web/console/node_modules/@types/react"],
+      "react/jsx-runtime": ["../../../../../app/web/console/node_modules/@types/react/jsx-runtime"],
+      "react/jsx-dev-runtime": [
+        "../../../../../app/web/console/node_modules/@types/react/jsx-dev-runtime"
+      ]
+    }
+  },
+  "include": ["./*.ts", "./*.tsx"]
+}

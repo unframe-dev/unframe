@@ -7,7 +7,7 @@
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
   - Progression semantic wire contract: Accepted（v3 Protobuf。consumer の実装・検証範囲は [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md) と [Unity README](../../app/unity/README.md) を参照）
-  - コンパイル後の Definition・配信・Runtime: v3、RenderBundle / AssetSet: v2。現行 Authoring / build host は [CLI Architecture](../../packages/unframe-cli/ARCHITECTURE.md) を参照
+  - コンパイル後の Definition・配信・Runtime: v3、RenderBundle / AssetSet: v2。現行 Authoring / build host は [CLI Architecture](../../packages/unframe/cli/ARCHITECTURE.md) を参照
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
   - [Local Editor: Unity Preview の設計と実装計画](./LOCAL_EDITOR_DESIGN.md)
@@ -443,7 +443,7 @@ Presenter control の押下は認証済み Logical Input へ変換できるが�
 Component 内部の Frame、Text、装飾などを Presentation Orchestrator へ展開して記述しない。
 
 ```tsx
-import { definePresentation } from "@unframe/unframe-authoring";
+import { definePresentation } from "@unframe/core/authoring";
 import { Hero } from "./components/Hero/Hero.manifest";
 import { Counter } from "./components/Counter/Counter.manifest";
 
@@ -758,7 +758,7 @@ Compiler は source と lockfile を解決した後、Lossless Syntax Tree を�
 
 Normalization は少なくとも、stable ID の一意性、参照整合性、Component contract、source range との対応、context ごとの許可 node、静的 topology を検証する。unsupported syntax、未解決または許可されていない import / call、計算された ID、AST と Declaration Graph の対応欠落は build error とする。具体的な parser、TypeScript API、AST patch library は implementation design で選択できるが、この静的 lowering contract を変更してはならない。
 
-Opaque renderer はこの pipeline に入れず、通常の module bundling で renderer artifact を生成する。artifact を Layout / capture のために実行する場合は renderer 専用の隔離された Browser environment を使用する。Browser capability、固定 lock の module resolution、cache invalidation、Font / Locale は [Renderer Web Architecture](../../packages/unframe-renderer-web/ARCHITECTURE.md) と [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。platform ごとの再現性の追加検証は ADR-0026 に従う。
+Opaque renderer はこの pipeline に入れず、通常の module bundling で renderer artifact を生成する。artifact を Layout / capture のために実行する場合は renderer 専用の隔離された Browser environment を使用する。Browser capability、固定 lock の module resolution、cache invalidation、Font / Locale は [Renderer Web Architecture](../../packages/unframe/renderer-web/ARCHITECTURE.md) と [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。platform ごとの再現性の追加検証は ADR-0026 に従う。
 
 ### 6.4 GUI / Code round-trip
 

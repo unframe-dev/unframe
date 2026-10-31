@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import type { PreviewPlaybackCommand, ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
+import type { PreviewPlaybackCommand, ProjectSnapshot } from "@unframe/core/cli/author-contract";
 import type { HostApi } from "../../infra/host-api";
 import type { PreviewDriver } from "../../preview/preview-driver";
 import { createWorkspace } from "../create-workspace";

@@ -26,8 +26,8 @@ export LP_FILTER="@unframe/site"
 export CONTRACTS_DIR="${REPO_ROOT}/packages/contracts"
 # packages/config (shared TypeScript and repository tooling configuration)
 export CONFIG_FILTER="@unframe/config"
-# packages/unframe-* (Presentation build pipeline packages)
-export PRESENTATION_PACKAGES_FILTER="@unframe/unframe-*"
+# packages/unframe (Presentation build pipeline package)
+export PRESENTATION_PACKAGES_FILTER="@unframe/core"
 # 共有 git hooks (packages/config/githooks)。core.hooksPath はリポジトリ相対で設定する。
 export GITHOOKS_REL="packages/config/githooks"
 export GITHOOKS_DIR="${REPO_ROOT}/${GITHOOKS_REL}"

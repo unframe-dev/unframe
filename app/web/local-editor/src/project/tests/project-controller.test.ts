@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { ProjectSnapshot, PatchRequest } from "@unframe/unframe-cli/author-contract";
+import type { ProjectSnapshot, PatchRequest } from "@unframe/core/cli/author-contract";
 import { createProjectController } from "../project-controller";
 const snapshot = (revision = "r1", value = "before"): ProjectSnapshot => ({
   revision,

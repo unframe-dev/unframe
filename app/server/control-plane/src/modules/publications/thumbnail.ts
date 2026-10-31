@@ -1,4 +1,4 @@
-import type { BuildArtifacts } from "@unframe/unframe-core";
+import type { BuildArtifacts } from "@unframe/core";
 
 export function firstThumbnailTexture(bundle: BuildArtifacts["renderBundle"]): string | undefined {
   for (const surfaceId of Object.keys(bundle.surfaces).sort()) {

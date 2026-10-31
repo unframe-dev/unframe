@@ -44,9 +44,9 @@ if [ "$host" = linux ] && [ -z "${UNFRAME_OPAQUE_CGROUP_ROOT:-}" ]; then
 fi
 
 run_tests() {
-  local package="$1"
+  local module="$1"
   shift
-  pnpm --dir "${repo_root}" --filter "$package" exec vp test run --maxWorkers=1 --testTimeout=60000 "$@"
+  pnpm --dir "${repo_root}" --filter @unframe/core exec vp test run --root "$module" --maxWorkers=1 --testTimeout=60000 "$@"
 }
 
 renderer() {
@@ -54,25 +54,25 @@ renderer() {
   if [ "$host" = darwin ]; then
     isolation="test/opaque-isolation-darwin.integration.test.ts"
   fi
-  node --test "${repo_root}"/packages/unframe-worker-host/src/native/test_*.ts
-  run_tests @unframe/unframe-renderer-web \
+  node --test "${repo_root}"/packages/unframe/worker-host/src/native/test_*.ts
+  run_tests renderer-web \
     "$isolation" test/opaque-capture.integration.test.ts \
     test/opaque-fonts.integration.test.ts test/opaque-runtime-lifecycle.integration.test.ts \
     test/playwright-fixed-browser.integration.test.ts
 }
 
 cli_project() {
-  run_tests @unframe/unframe-cli test/opaque-project.integration.test.ts
+  run_tests cli test/opaque-project.integration.test.ts
 }
 
 cli_author() {
-  run_tests @unframe/unframe-cli \
+  run_tests cli \
     test/author-capture.integration.test.ts test/author-source-diagnostics.integration.test.ts
 }
 
 cli_styles() {
-  pnpm --dir "${repo_root}" --filter @unframe/unframe-tailwind run build
-  run_tests @unframe/unframe-cli \
+  pnpm --dir "${repo_root}" --filter @unframe/core run build:tailwind
+  run_tests cli \
     test/styles-worker.integration.test.ts test/tailwind-project.integration.test.ts
 }
 
@@ -85,7 +85,7 @@ const names = process.argv.slice(2);
 process.stdout.write(`(?:${names.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
 NODE
   )"
-  run_tests @unframe/unframe-renderer-web "$file" --testNamePattern "$pattern" \
+  run_tests renderer-web "$file" --testNamePattern "$pattern" \
     --reporter=default --reporter=json --outputFile="${reports}/selected.json"
   node --input-type=module - "${reports}/selected.json" "$@" <<'NODE'
 import assert from 'node:assert/strict';
@@ -105,15 +105,15 @@ macos() {
   # shellcheck disable=SC2064
   trap "$(printf 'rm -rf -- %q' "$reports")" EXIT
   bash "${repo_root}/scripts/build-cli-filesystem.sh"
-  go -C "${repo_root}/packages/unframe-cli/native" test -vet=off ./...
-  node --test "${repo_root}/packages/unframe-worker-host/src/native/test_native_launcher.ts"
+  go -C "${repo_root}/packages/unframe/cli/native" test -vet=off ./...
+  node --test "${repo_root}/packages/unframe/worker-host/src/native/test_native_launcher.ts"
   node --test --test-reporter=tap \
     --test-name-pattern='^native profiles compile and deny host files$' \
-    "${repo_root}/packages/unframe-worker-host/src/native/test_compile_policy.ts" | tee "${reports}/policy.tap"
+    "${repo_root}/packages/unframe/worker-host/src/native/test_compile_policy.ts" | tee "${reports}/policy.tap"
   grep -qx '# pass 1' "${reports}/policy.tap"
-  run_tests @unframe/unframe-renderer-web test/opaque-isolation-darwin.integration.test.ts
-  pnpm --dir "${repo_root}" --filter @unframe/unframe-tailwind run build
-  run_tests @unframe/unframe-cli test/styles-worker.integration.test.ts
+  run_tests renderer-web test/opaque-isolation-darwin.integration.test.ts
+  pnpm --dir "${repo_root}" --filter @unframe/core run build:tailwind
+  run_tests cli test/styles-worker.integration.test.ts
   selected_tests test/playwright-fixed-browser.integration.test.ts \
     'provision済みmanaged ChromiumでFrame/Text相当のdocumentをPNG captureする'
   selected_tests test/opaque-capture.integration.test.ts \

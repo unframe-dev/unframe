@@ -7,7 +7,7 @@
 
 ## A1 の前提契約：canonical Surface
 
-変更前の [SemanticSurface](../../packages/contracts/src/presentation/definition.ts) は `rootFrameId` / `contentNodes` を必須とし、当時の [Core validation](../../packages/unframe-core/src/validation/definition.ts) は全 Semantic Node と Content Node の一対一対応を要求する。[Renderer の出力検証](../../packages/unframe-renderer-api/src/execution/plugin-execution.ts) も `ownedContentNodeIds` を経由して Interaction の意味を検査していた。空の root Frame と独立した Semantic Tree だけではこの契約を満たせなかった。描画と一致しない仮の Text / Frame を追加してこの条件を満たす方法は採らない。
+変更前の [SemanticSurface](../../packages/contracts/src/presentation/definition.ts) は `rootFrameId` / `contentNodes` を必須とし、当時の [Core validation](../../packages/unframe/core/src/validation/definition.ts) は全 Semantic Node と Content Node の一対一対応を要求する。[Renderer の出力検証](../../packages/unframe/renderer-api/src/execution/plugin-execution.ts) も `ownedContentNodeIds` を経由して Interaction の意味を検査していた。空の root Frame と独立した Semantic Tree だけではこの契約を満たせなかった。描画と一致しない仮の Text / Frame を追加してこの条件を満たす方法は採らない。
 
 [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) により、canonical Surface の `content` を次の二種類に明示的に分ける。
 
@@ -130,7 +130,7 @@ React JSX と Structured JSX は別の TypeScript Program で検査する。静�
 
 ## 2. Editor host と通信
 
-host は `pnpm --filter @unframe/unframe-cli presentation author <absolute-project-directory>` で起動する Linux / macOS arm64 の native process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。対応範囲と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Local Editor の UI は `app/web/local-editor`、process / filesystem は CLI、pure command と patch は Compiler が所有する。API 型はこのローカル境界の所有 package に置き、Control Plane の公開 API や Realtime wire を変更しない。
+host は `pnpm --filter @unframe/core presentation author <absolute-project-directory>` で起動する Linux / macOS arm64 の native process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。対応範囲と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Local Editor の UI は `app/web/local-editor`、process / filesystem は CLI、pure command と patch は Compiler が所有する。API 型はこのローカル境界の所有 package に置き、Control Plane の公開 API や Realtime wire を変更しない。
 
 loopback IPv4 のランダム port に bind し、期待する `Host` を完全一致で検査する。起動時の 256-bit session token を起動 URL の fragment で Editor に渡し、Editor は取得後すぐ URL から除去してメモリだけに保持する。API / artifact の読み取りも `Authorization: Bearer` を必須とする。token を query、cookie、永続 storage、ログへ保存しない。state-changing request は同一 Origin と JSON content type を必須とし、CORS は許可しない。host 再起動で token は失効する。
 
@@ -145,9 +145,9 @@ loopback IPv4 のランダム port に bind し、期待する `Host` を完全�
 | `PUT /api/builds/{buildId}/cancellation`        | 空 object → `200 {buildId, status}`                                                                                                            | 繰り返しても同じ取消意図。既に terminal なら状態を変えない                                               |
 | `GET /api/builds/{buildId}/artifacts/{assetId}` | 成功済み job の catalog に存在する asset bytes                                                                                                 | arbitrary path / Source / renderer JS を配信しない。Editor は認証付き fetch の結果を blob URL で表示     |
 
-`command` は `setProp` / `setTransform` / `inheritProp` / `restoreProp` / `inheritTransform` / `restoreTransform` の discriminated union。scalar は string / finite number / boolean、Transform は全 position / rotation / scale を持つ。継承への復帰と式の復元は Compiler の Source patch を通す。Local Editor が同一 session の Undo / Redo 履歴を保持し、新しい commandId と最新 revision で逆 command を送る。削除、rename、任意 patch / filename は受け付けない。正確な request / response 型は [Author contract](../../packages/unframe-cli/src/author/contract.ts)、経路は [HTTP adapter](../../packages/unframe-cli/src/author/http.ts) を正本とする。
+`command` は `setProp` / `setTransform` / `inheritProp` / `restoreProp` / `inheritTransform` / `restoreTransform` の discriminated union。scalar は string / finite number / boolean、Transform は全 position / rotation / scale を持つ。継承への復帰と式の復元は Compiler の Source patch を通す。Local Editor が同一 session の Undo / Redo 履歴を保持し、新しい commandId と最新 revision で逆 command を送る。削除、rename、任意 patch / filename は受け付けない。正確な request / response 型は [Author contract](../../packages/unframe/cli/src/author/contract.ts)、経路は [HTTP adapter](../../packages/unframe/cli/src/author/http.ts) を正本とする。
 
-`POST /api/builds` は Dev、`POST /api/dist-builds` は固定 Dist を生成する。BuildJob は `channel: dev | dist`、成功時の `generationId`、revision、status、diagnostics、artifact catalog を持つ。`POST /api/previews` は成功済み Dev job または固定 Dist を読み込み、`POST /api/preview-playback` が play / pause / reset を行う。`POST /api/preview-display` は Unity の表示 commit を記録し、`DELETE` は表示を無効化する。Preview の schema は [preview contract](../../packages/unframe-cli/src/author/preview-contract.ts) を参照する。
+`POST /api/builds` は Dev、`POST /api/dist-builds` は固定 Dist を生成する。BuildJob は `channel: dev | dist`、成功時の `generationId`、revision、status、diagnostics、artifact catalog を持つ。`POST /api/previews` は成功済み Dev job または固定 Dist を読み込み、`POST /api/preview-playback` が play / pause / reset を行う。`POST /api/preview-display` は Unity の表示 commit を記録し、`DELETE` は表示を無効化する。Preview の schema は [preview contract](../../packages/unframe/cli/src/author/preview-contract.ts) を参照する。
 
 commandId / requestId / buildId は 128-bit random を表す lowercase hex 32 桁に限定する。path に入れる前に strict 検証し、値を directory traversal や任意 filename として解釈しない。assetId は canonical catalog の key へ照合し、decoded 値を filesystem path に連結しない。
 
@@ -185,7 +185,7 @@ receipt と異常 transaction は自動期限切れにしない。正常 transac
 
 入力は frozen lock と抽出 renderer、canonical Props / texts / binding IDs、明示 State、logical size、pixel target、固定 environment。render は physical position / host Transform を受け取らない。React / react-dom / JSX runtime を含めて bundle に閉じ、残った external import は拒否する。bundler の `process.env.NODE_ENV` は production に固定し、CJS の静的 require も locked resolver だけを通す。Component の意味抽出では user module を Node で実行しない。package lifecycle script と project bundler config は実行しない。Style 変換では project 所有の PostCSS config / plugin を固定 Node graph の隔離 worker で実行する。package metadata の解決は静的 subset に限定し、bare specifier の browser mapping、`imports` wildcard、target を持たない wildcard export は明示的に拒否する。
 
-初期実依存 fixture は repo の pnpm lock で固定した `@base-ui/react` の Button と通常 CSS とする。PostCSS 8 / Tailwind 4 は project 所有 config と固定 Node graph を使う別の隔離 Style worker で処理する。対応範囲と制約は [Tailwind README](../../packages/unframe-tailwind/README.md) を参照する。CSS `url()` / `@import` は固定 asset map に解決し、未解決 URL を拒否する。画像 asset は PNG / JPEG / static WebP、font は TTF / OTF に限定し、signature と mediaType、decode 上限を検証する。外部 SVG、animated image、woff / woff2 はこの profile では拒否する。
+初期実依存 fixture は repo の pnpm lock で固定した `@base-ui/react` の Button と通常 CSS とする。PostCSS 8 / Tailwind 4 は project 所有 config と固定 Node graph を使う別の隔離 Style worker で処理する。対応範囲と制約は [Tailwind README](../../packages/unframe/tailwind/README.md) を参照する。CSS `url()` / `@import` は固定 asset map に解決し、未解決 URL を拒否する。画像 asset は PNG / JPEG / static WebP、font は TTF / OTF に限定し、signature と mediaType、decode 上限を検証する。外部 SVG、animated image、woff / woff2 はこの profile では拒否する。
 
 Browser の request は予約 origin `https://unframe.invalid/` の固定 asset map にだけ [route.fulfill](https://playwright.dev/docs/api/class-route#route-fulfill) で bytes を返す。実 DNS / HTTP へ転送しない。初期 document、JS、CSS、font、画像も同じ map に含め、page の service worker、worker、WebSocket、download、popup、外部 navigation を拒否する。route 制御だけを network isolation とせず、後述の native sandbox でも外部接続を遮断する。
 

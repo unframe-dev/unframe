@@ -6,7 +6,7 @@ import type {
   ProjectSnapshot,
   SavedCommand,
   LocalPreviewEnvelopeWire,
-} from "@unframe/unframe-cli/author-contract";
+} from "@unframe/core/cli/author-contract";
 import { encodeWireMessage, presentationDefinitionSchema } from "@unframe/contracts/presentation";
 import { z } from "zod";
 

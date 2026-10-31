@@ -1,4 +1,4 @@
-import type { ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
+import type { ProjectSnapshot } from "@unframe/core/cli/author-contract";
 
 export type TimelineDefinition = NonNullable<ProjectSnapshot["definition"]>;
 export type FlowGroup = TimelineDefinition["flow"]["groups"][string];

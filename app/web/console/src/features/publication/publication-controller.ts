@@ -4,7 +4,7 @@ import {
   type PublicationProgress,
   type PublicationTarget,
 } from "@unframe/api-client-typescript/publication";
-import { verifyPublicationIntegrity } from "@unframe/unframe-core";
+import { verifyPublicationIntegrity } from "@unframe/core";
 import {
   BrowserDistError,
   readBrowserDist,

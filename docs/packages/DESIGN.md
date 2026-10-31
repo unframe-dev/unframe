@@ -110,14 +110,17 @@ unframe/
 │  │  ├─ presentation/                        # portable artifact contract sources
 │  │  └─ proto/unframe/                       # delivery and runtime wire sources
 │  ├─ api-client-csharp/                      # generated C# contract artifacts
-│  ├─ unframe-core/                           # pure semantic model
-│  ├─ unframe-authoring/                      # authoring SDK and component SDK
-│  ├─ unframe-components/                     # built-in primitives and components
-│  ├─ unframe-renderer-api/                   # renderer plugin boundary
-│  ├─ unframe-renderer-web/                   # baked-web build implementation
-│  ├─ unframe-assets/                         # deterministic asset transforms
-│  ├─ unframe-compiler/                       # compiler pipeline library
-│  └─ unframe-cli/                            # user-facing executable
+│  └─ unframe/                                # @unframe/core (single workspace package)
+│     ├─ core/                               # pure semantic model
+│     ├─ authoring/                          # authoring SDK and component SDK
+│     ├─ components/                         # built-in primitives and components
+│     ├─ renderer-api/                       # renderer boundary
+│     ├─ renderer-web/                       # baked-web build implementation
+│     ├─ assets/                             # deterministic asset transforms
+│     ├─ compiler/                           # compiler pipeline library
+│     ├─ worker-host/                        # isolated worker execution
+│     ├─ tailwind/                           # style transforms
+│     └─ cli/                                # user-facing executable
 ├─ examples/
 │  └─ presentation/                           # end-to-end reference Authoring Project
 ├─ scripts/
@@ -131,9 +134,11 @@ unframe/
 
 Target implementation directory は担当実装を開始する時点で追加する。責務レビュー用の `ARCHITECTURE.md` を除き、empty placeholder、空の `package.json`、将来用の `src/` は先行して作らない。
 
-## 4. Shared package responsibilities
+## 4. Shared module responsibilities
 
-### 4.1 `packages/unframe-core`
+現行実装は `packages/unframe/` の単一 private workspace package `@unframe/core` に統合している。以下の Core / Authoring / Compiler 等は内部モジュールの責務を表し、個別の npm package ではない。公開入口は root と subpath exports で分ける。npm 公開には対応していない。
+
+### 4.1 `packages/unframe/core`
 
 Presentation の pure TypeScript semantic core を所有する。
 
@@ -162,13 +167,13 @@ Presentation の pure TypeScript semantic core を所有する。
 - D1、R2、HTTP、gRPC、Unity object
 - Delivery 時だけ存在する Signed URL
 
-この package は Node.js、DOM、React、Cloudflare Workers に依存しない。Web、Compiler、Control Plane から利用できるが、Go と C# には generated contract artifact を介して接続する。
+このモジュール は Node.js、DOM、React、Cloudflare Workers に依存しない。Web、Compiler、Control Plane から利用できるが、Go と C# には generated contract artifact を介して接続する。
 
 `unframe-core` の public `index.ts` は公開 API の export だけを集約する。contract-derived model、schema boundary adapter、semantic validator、canonicalizer は責務別 module に分離する。serialized input の構造 validation は `packages/contracts` の Zod 4 schema source と、そこから生成した portable JSON Schema を正本とし、Core に重複 schema を手書きしない。
 
-### 4.2 `packages/unframe-authoring`
+### 4.2 `packages/unframe/authoring`
 
-利用者向け import 名を `@unframe/unframe-authoring` とし、Authoring Source を Declaration Graph と Semantic Authoring IRへ接続する SDK を所有する。
+利用者向け import 名を `@unframe/core/authoring` とし、Authoring Source を Declaration Graph と Semantic Authoring IRへ接続する SDK を所有する。
 
 **Responsibilities**
 
@@ -193,9 +198,9 @@ Presentation の pure TypeScript semantic core を所有する。
 - Control Plane persistence
 - Runtime progression evaluation
 
-この package は `unframe-core` に依存する。Compiler、Local Editor、Component package が利用するが、Compiler やLocal Editorへ逆依存しない。
+このモジュール は `unframe-core` に依存する。Compiler、Local Editor、Component package が利用するが、Compiler やLocal Editorへ逆依存しない。
 
-### 4.3 `packages/unframe-components`
+### 4.3 `packages/unframe/components`
 
 Unframe が提供する標準 Primitive、Component、Theme を所有する。
 
@@ -215,11 +220,11 @@ Unframe が提供する標準 Primitive、Component、Theme を所有する。
 - renderer plugin selection
 - product-specific template と user content
 
-この package は `unframe-authoring`と`unframe-core`に依存する。Manifestはrenderer IDとcapabilityをdataとして宣言するが、Compiler plugin用の`unframe-renderer-api`には依存しない。
+このモジュール は `unframe-authoring`と`unframe-core`に依存する。Manifestはrenderer IDとcapabilityをdataとして宣言するが、Compiler plugin用の`unframe-renderer-api`には依存しない。
 
 Structured Component は `*.structure.tsx` を所有し、Component 固有 renderer implementation を持たない。generic renderer が structured Primitive graph を描画する。Opaque Component だけが `*.web.tsx` などの Component 固有 renderer entry とReact等の実装依存を持てるが、Unframe Compilerやconcrete renderer packageへ依存しない。
 
-### 4.4 `packages/unframe-renderer-api`
+### 4.4 `packages/unframe/renderer-api`
 
 Compiler と concrete renderer の間の plugin contract を所有する。
 
@@ -240,9 +245,9 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 - rendererの自動選択 policy
 - CLI
 
-この package は `unframe-core` と境界入力の検証に使う Zod に依存する。Compiler と concrete renderer の双方が依存し、concrete renderer 同士は依存しない。
+このモジュール は `unframe-core` と境界入力の検証に使う Zod に依存する。Compiler と concrete renderer の双方が依存し、concrete renderer 同士は依存しない。
 
-### 4.5 `packages/unframe-renderer-web`
+### 4.5 `packages/unframe/renderer-web`
 
 `baked-web` renderer と、固定 Browser 環境での capture を所有する。
 
@@ -266,11 +271,11 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 - Unity rendering
 - Native UI、Video renderer の実装
 
-この package は `unframe-core`、`unframe-renderer-api`、`unframe-worker-host` に依存する。capture 結果の encode / checksum は Compiler 経由で `unframe-assets` へ委譲し、通常 build は指定 pixelTarget へ直接 capture して resize を行わない。Compilerからはpluginとして注入され、Compilerへimplementationを逆流させない。
+このモジュール は `unframe-core`、`unframe-renderer-api`、`unframe-worker-host` に依存する。capture 結果の encode / checksum は Compiler 経由で `unframe-assets` へ委譲し、通常 build は指定 pixelTarget へ直接 capture して resize を行わない。Compilerからはpluginとして注入され、Compilerへimplementationを逆流させない。
 
 Native UI と Video renderer は、実装開始時にそれぞれ独立 package として追加する。`unframe-renderer-web` に仮実装を置かない。`embedded-web`、WebView、任意の Runtime HTML / JavaScript renderer package は追加しない。
 
-### 4.6 `packages/unframe-assets`
+### 4.6 `packages/unframe/assets`
 
 Compiler build 中に使用する deterministic asset transformation を所有する。
 
@@ -290,13 +295,13 @@ Compiler build 中に使用する deterministic asset transformation を所有�
 - Unity runtime cache
 - renderer selection
 
-OS toolやcodec依存はこのpackageかそのadapterに閉じ込め、`unframe-core`へ持ち込まない。
+OS toolやcodec依存はこのモジュールかそのadapterに閉じ込め、`unframe-core`へ持ち込まない。
 
 `unframe-renderer-web` は Browser 上の描画と capture 条件を所有する。Structured Frame / Text の Hit Region は Compiler が Surface 全体の layout から解決し、画像 partition から独立させる（[ADR-0021](../decisions/0021-surface-interaction-geometry.md)）。Semantic Tree の意味は Structured Component では Structure、Opaque Component では Manifest の `semantics` から Compiler が生成し、Browser DOM から抽出しない。`unframe-assets`はcapture後のbinary変換を所有する。Control Planeはupload後のownershipとR2 lifecycle、Unityはdownload後のruntime cacheを所有する。
 
-このpackageはartifact descriptorとdiagnosticsの型に限って`unframe-core`へ依存する。
+このモジュールはartifact descriptorとdiagnosticsの型に限って`unframe-core`へ依存する。
 
-### 4.7 `packages/unframe-compiler`
+### 4.7 `packages/unframe/compiler`
 
 Authoring Project から PresentationDefinition と RenderBundle を生成するprogrammatic compiler pipelineを所有する。
 
@@ -328,7 +333,7 @@ Authoring Project から PresentationDefinition と RenderBundle を生成する
 
 Compiler は `unframe-core`、`unframe-authoring`、`unframe-renderer-api`、`unframe-assets`と固定 version の TypeScript に依存する。concrete renderer はhostから注入する。
 
-### 4.8 `packages/unframe-cli`
+### 4.8 `packages/unframe/cli`
 
 Authoring Projectを操作する利用者向け executable と、automation 向け headless application boundary を所有する。
 
@@ -461,7 +466,7 @@ packages/contracts source
 └─ Protobuf → Unity C# bindings   → Unity Generated/
 ```
 
-TypeScript packageのruntime / build dependencyは次のとおりとする。
+単一 TypeScript package 内のモジュール間 runtime / build dependencyは次のとおりとする。
 
 ```text
 unframe-core ──────────────→ Contracts Zod schema / inferred TypeScript
@@ -572,14 +577,14 @@ Cross-boundaryな選択理由は`docs/decisions/`のADRへ置く。`ARCHITECTURE
 ```text
 packages/contracts/ARCHITECTURE.md
 packages/api-client-csharp/ARCHITECTURE.md
-packages/unframe-core/ARCHITECTURE.md
-packages/unframe-authoring/ARCHITECTURE.md
-packages/unframe-components/ARCHITECTURE.md
-packages/unframe-renderer-api/ARCHITECTURE.md
-packages/unframe-renderer-web/ARCHITECTURE.md
-packages/unframe-assets/ARCHITECTURE.md
-packages/unframe-compiler/ARCHITECTURE.md
-packages/unframe-cli/ARCHITECTURE.md
+packages/unframe/core/ARCHITECTURE.md
+packages/unframe/authoring/ARCHITECTURE.md
+packages/unframe/components/ARCHITECTURE.md
+packages/unframe/renderer-api/ARCHITECTURE.md
+packages/unframe/renderer-web/ARCHITECTURE.md
+packages/unframe/assets/ARCHITECTURE.md
+packages/unframe/compiler/ARCHITECTURE.md
+packages/unframe/cli/ARCHITECTURE.md
 app/web/local-editor/README.md
 app/server/control-plane/ARCHITECTURE.md
 app/server/realtime/ARCHITECTURE.md

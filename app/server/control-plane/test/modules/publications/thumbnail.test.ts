@@ -9,7 +9,7 @@ import {
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   type BuildIntegrityInput,
-} from "@unframe/unframe-core";
+} from "@unframe/core";
 import { renderBundleSchema } from "@unframe/contracts/presentation";
 import { PublicationService } from "../../../src/modules/publications/service";
 import { firstThumbnailTexture } from "../../../src/modules/publications/thumbnail";

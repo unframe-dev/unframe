@@ -1,4 +1,4 @@
-import type { BuildJob } from "@unframe/unframe-cli/author-contract";
+import type { BuildJob } from "@unframe/core/cli/author-contract";
 import type { HostApi } from "../infra/host-api";
 import { createPublicationStore, type DisplayReceipt } from "./publication-store";
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));

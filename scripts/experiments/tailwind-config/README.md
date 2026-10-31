@@ -1,6 +1,6 @@
 # PostCSS と Tailwind の設定互換性検証
 
-各プレゼンプロジェクトが所有する標準 config を読み、実際の PostCSS / Tailwind で CSS を生成する検証。ESM / CJS / TS、関数 config、helper import、plugin 順序、別バージョンの解決を確認した。本体での利用方法と制約は [unframe-tailwind README](../../../packages/unframe-tailwind/README.md) を参照する。
+各プレゼンプロジェクトが所有する標準 config を読み、実際の PostCSS / Tailwind で CSS を生成する検証。ESM / CJS / TS、関数 config、helper import、plugin 順序、別バージョンの解決を確認した。本体での利用方法と制約は [unframe-tailwind README](../../../packages/unframe/tailwind/README.md) を参照する。
 
 このディレクトリは独立した pnpm workspace。リポジトリ本体の package / lockfile は変更せず、実験の依存を専用 lockfile で固定する。
 
@@ -56,7 +56,7 @@ pnpm --dir scripts/experiments/tailwind-config test
 既存の `snapshotInstalledPackages` にこの実験の依存を渡す確認は、リポジトリ root から再実行できる。
 
 ```bash
-bun -e 'import { snapshotInstalledPackages } from "./packages/unframe-cli/src/filesystem/package-snapshot.ts"; await snapshotInstalledPackages(process.cwd() + "/scripts/experiments/tailwind-config")'
+bun -e 'import { snapshotInstalledPackages } from "./packages/unframe/cli/src/filesystem/package-snapshot.ts"; await snapshotInstalledPackages(process.cwd() + "/scripts/experiments/tailwind-config")'
 ```
 
 現行実装では次のエラーで停止する。
