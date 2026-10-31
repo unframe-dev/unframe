@@ -904,15 +904,26 @@ export const publicationThumbnailRoute = createRoute({
   method: "get",
   path: "/presentations/{presentationId}/builds/{buildId}/thumbnail",
   security,
-  request: { params: publicationBuildId },
+  request: {
+    params: publicationBuildId,
+    headers: z.object({ "if-none-match": z.string().optional() }),
+  },
   responses: {
     200: {
       description: "First published baked texture",
       content: { "image/png": { schema: z.string().openapi({ format: "binary" }) } },
       headers: {
-        "Cache-Control": { schema: { type: "string", enum: ["private, no-store"] } },
+        "Cache-Control": { schema: { type: "string", enum: ["private, no-cache"] } },
+        ETag: { schema: { type: "string" } },
         "X-Content-Type-Options": { schema: { type: "string", enum: ["nosniff"] } },
         "Content-Length": { schema: { type: "string" } },
+      },
+    },
+    304: {
+      description: "Published texture unchanged after authentication and permission checks",
+      headers: {
+        "Cache-Control": { schema: { type: "string", enum: ["private, no-cache"] } },
+        ETag: { schema: { type: "string" } },
       },
     },
     400: errorResponse("Invalid build path"),
@@ -1375,6 +1386,7 @@ export const getProfileImageRoute = createRoute({
   path: "/user-images/{userId}/{filename}",
   security: [],
   request: {
+    headers: z.object({ "if-none-match": z.string().optional() }),
     params: z.object({
       userId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
       filename: z
@@ -1384,8 +1396,19 @@ export const getProfileImageRoute = createRoute({
   },
   responses: {
     200: {
-      description: "Immutable public profile image",
+      description: "Current public profile image; revalidate before reuse",
       content: { "image/png": { schema: z.string().openapi({ format: "binary" }) } },
+      headers: {
+        "Cache-Control": { schema: { type: "string", enum: ["public, no-cache"] } },
+        ETag: { schema: { type: "string" } },
+      },
+    },
+    304: {
+      description: "Current profile image unchanged",
+      headers: {
+        "Cache-Control": { schema: { type: "string", enum: ["public, no-cache"] } },
+        ETag: { schema: { type: "string" } },
+      },
     },
     400: errorResponse("Invalid image identifier"),
     404: errorResponse("Profile image not found"),

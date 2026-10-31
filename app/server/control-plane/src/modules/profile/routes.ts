@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
+import { etag } from "hono/etag";
 import type { Context } from "hono";
 import type { AppEnvironment } from "../../config";
 import type { IdentityProvider } from "../../presentation/routes";
@@ -55,6 +56,22 @@ export function createProfileImageRoutes(identityProvider: IdentityProvider) {
         ? undefined
         : context.json({ error: { code: "validation_error", message: "Invalid request" } }, 400),
   });
+  app.use("/users/me/image", async (context, next) => {
+    await next();
+    context.header("Cache-Control", "no-store");
+  });
+  app.use(
+    "/user-images/:userId/:filename",
+    async (context, next) => {
+      await next();
+      // The ETag middleware replaces 304 responses and their original headers.
+      context.header(
+        "Cache-Control",
+        context.res.status === 200 || context.res.status === 304 ? "public, no-cache" : "no-store",
+      );
+    },
+    etag(),
+  );
   const replace = async (context: AppContext, upload: boolean) => {
     const identity = await identityProvider(context);
     if (!identity) return fail(context, 401, "unauthorized", "Unauthorized");
@@ -77,9 +94,7 @@ export function createProfileImageRoutes(identityProvider: IdentityProvider) {
     })
     .openapi(getProfileImageRoute, async (context) => {
       const { userId, filename } = context.req.valid("param");
-      const object = await context
-        .get("config")
-        .ASSETS.get(`user-images/${encodeURIComponent(userId)}/${filename}`);
+      const object = await new ProfileImageService(context.get("config")).read(userId, filename);
       if (!object)
         return context.json(
           { error: { code: "not_found", message: "Profile image not found" } },
@@ -89,7 +104,8 @@ export function createProfileImageRoutes(identityProvider: IdentityProvider) {
         headers: {
           "Content-Type": "image/png",
           "Content-Length": String(object.size),
-          "Cache-Control": "public, max-age=31536000, immutable",
+          "Cache-Control": "public, no-cache",
+          ETag: object.httpEtag,
           "X-Content-Type-Options": "nosniff",
         },
       });

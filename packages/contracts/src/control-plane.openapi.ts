@@ -5354,7 +5354,9 @@ export interface paths {
         get: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "if-none-match"?: string;
+                };
                 path: {
                     presentationId: string;
                     buildId: string;
@@ -5366,7 +5368,8 @@ export interface paths {
                 /** @description First published baked texture */
                 200: {
                     headers: {
-                        "Cache-Control"?: "private, no-store";
+                        "Cache-Control"?: "private, no-cache";
+                        ETag?: string;
                         "X-Content-Type-Options"?: "nosniff";
                         "Content-Length"?: string;
                         [name: string]: unknown;
@@ -5374,6 +5377,15 @@ export interface paths {
                     content: {
                         "image/png": string;
                     };
+                };
+                /** @description Published texture unchanged after authentication and permission checks */
+                304: {
+                    headers: {
+                        "Cache-Control"?: "private, no-cache";
+                        ETag?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
                 /** @description Invalid build path */
                 400: {
@@ -6001,7 +6013,9 @@ export interface paths {
         get: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "if-none-match"?: string;
+                };
                 path: {
                     userId: string;
                     filename: string;
@@ -6010,14 +6024,25 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Immutable public profile image */
+                /** @description Current public profile image; revalidate before reuse */
                 200: {
                     headers: {
+                        "Cache-Control"?: "public, no-cache";
+                        ETag?: string;
                         [name: string]: unknown;
                     };
                     content: {
                         "image/png": string;
                     };
+                };
+                /** @description Current profile image unchanged */
+                304: {
+                    headers: {
+                        "Cache-Control"?: "public, no-cache";
+                        ETag?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
                 /** @description Invalid image identifier */
                 400: {

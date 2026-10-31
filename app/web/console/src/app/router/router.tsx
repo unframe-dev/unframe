@@ -1,11 +1,12 @@
 import {
   Outlet,
   redirect,
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
   type RouterHistory,
 } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { requireSession } from "@/features/auth/require-session";
 import { PresentationPage } from "@/features/presentations/presentation-page";
@@ -13,6 +14,7 @@ import { RoomPage, RoomsPage } from "@/features/rooms/rooms-page";
 import { DeviceAuthorizationPage } from "@/features/device/device-authorization-page";
 import { HomePage } from "@/features/presentations/home-page";
 import { ApplicationShell } from "@/app/shell/application-shell";
+import { ApplicationLoading } from "@/app/shell/application-loading";
 import { DevicesPage } from "@/features/device/devices-page";
 import { LoginPage } from "@/features/auth/login-page";
 import { RecoverPage } from "@/features/auth/recover-page";
@@ -46,7 +48,7 @@ function ErrorPage() {
     </main>
   );
 }
-const rootRoute = createRootRoute({
+const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: Root,
   errorComponent: ErrorPage,
   notFoundComponent: NotFoundPage,
@@ -94,7 +96,10 @@ const deviceRoute = createRoute({
 const applicationRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "application",
-  beforeLoad: requireSession,
+  beforeLoad: ({ context }) => requireSession(context.queryClient),
+  pendingComponent: ApplicationLoading,
+  pendingMs: 150,
+  pendingMinMs: 0,
   component: ApplicationShell,
 });
 const homeRoute = createRoute({
@@ -171,6 +176,7 @@ const routeTree = rootRoute.addChildren([
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({
     routeTree,
+    context: { queryClient: undefined! },
     ...(history ? { history } : {}),
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,

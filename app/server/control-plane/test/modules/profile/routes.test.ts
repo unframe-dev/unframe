@@ -37,9 +37,36 @@ beforeEach(async () => {
 });
 
 describe("profile images", () => {
+  it("allows conditional image requests and exposes their ETag to Console", async () => {
+    const environment = runtimeEnvironment();
+    const preflight = await app.fetch(
+      new Request("https://api.example.com/user-images/profile-owner/example.png", {
+        method: "OPTIONS",
+        headers: {
+          Origin: environment.WEB_ORIGIN,
+          "Access-Control-Request-Method": "GET",
+          "Access-Control-Request-Headers": "If-None-Match",
+        },
+      }),
+      environment,
+    );
+    expect(preflight.headers.get("access-control-allow-headers")?.toLowerCase()).toContain(
+      "if-none-match",
+    );
+    const uploaded = await request("PUT", profilePng);
+    const result = (await uploaded.json()) as { image: string };
+    const downloaded = await app.fetch(
+      new Request(result.image, { headers: { Origin: environment.WEB_ORIGIN } }),
+      environment,
+    );
+    expect(downloaded.headers.get("access-control-expose-headers")?.toLowerCase()).toContain(
+      "etag",
+    );
+  });
   it("uploads a cropped PNG, updates the current user and serves it without credentials", async () => {
     const response = await request("PUT", profilePng);
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     const result = (await response.json()) as { image: string };
     expect(result.image).toMatch(
       /^https:\/\/api.example.com\/user-images\/profile-owner\/[a-f0-9-]+\.png$/,
@@ -48,8 +75,51 @@ describe("profile images", () => {
     const downloaded = await app.fetch(new Request(result.image), runtimeEnvironment());
     expect(downloaded.status).toBe(200);
     expect(downloaded.headers.get("content-type")).toBe("image/png");
+    expect(downloaded.headers.get("cache-control")).toBe("public, no-cache");
+    expect(downloaded.headers.get("etag")).toMatch(/^".+"$/);
     expect(downloaded.headers.get("x-content-type-options")).toBe("nosniff");
     expect(new Uint8Array(await downloaded.arrayBuffer())).toEqual(profilePng);
+  });
+  it.each(["strong", "weak", "list", "wildcard"] as const)(
+    "revalidates a public profile image using a %s validator",
+    async (kind) => {
+      const uploaded = (await (await request("PUT", profilePng)).json()) as { image: string };
+      const anonymous = createApp({ identityProvider: async () => undefined });
+      const first = await anonymous.fetch(new Request(uploaded.image), runtimeEnvironment());
+      const tag = first.headers.get("etag");
+      expect(tag).not.toBeNull();
+      const headers = { strong: tag!, weak: `W/${tag}`, list: `"other", W/${tag}`, wildcard: "*" };
+      const response = await anonymous.fetch(
+        new Request(uploaded.image, { headers: { "If-None-Match": headers[kind] } }),
+        runtimeEnvironment(),
+      );
+      expect(response.status).toBe(304);
+      expect(response.headers.get("cache-control")).toBe("public, no-cache");
+      expect(response.headers.get("etag")).toBe(tag);
+      expect(response.headers.get("content-length")).toBeNull();
+      expect(await response.text()).toBe("");
+    },
+  );
+  it("sends the current image body when the validator does not match", async () => {
+    const uploaded = (await (await request("PUT", profilePng)).json()) as { image: string };
+    const response = await app.fetch(
+      new Request(uploaded.image, { headers: { "If-None-Match": '"other"' } }),
+      runtimeEnvironment(),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("public, no-cache");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(profilePng);
+  });
+  it("does not validate an image whose current object is missing", async () => {
+    const uploaded = (await (await request("PUT", profilePng)).json()) as { image: string };
+    await env.ASSETS.delete(new URL(uploaded.image).pathname.slice(1));
+    const response = await app.fetch(
+      new Request(uploaded.image, { headers: { "If-None-Match": "*" } }),
+      runtimeEnvironment(),
+    );
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("etag")).toBeNull();
   });
   it("replaces and removes owned objects without leaving the previous image", async () => {
     const first = (await (await request("PUT", profilePng)).json()) as { image: string };
@@ -61,6 +131,30 @@ describe("profile images", () => {
     expect((await env.ASSETS.list({ prefix: "user-images/" })).objects).toHaveLength(0);
     expect((await request("DELETE")).status).toBe(200);
   });
+
+  it.each(["PUT", "DELETE"])(
+    "refuses a superseded URL even when %s leaves its previous R2 object behind",
+    async (method) => {
+      const uploaded = (await (await request("PUT", profilePng)).json()) as { image: string };
+      const first = await app.fetch(new Request(uploaded.image), runtimeEnvironment());
+      const tag = first.headers.get("etag");
+      expect(tag).not.toBeNull();
+      expect((await request(method, method === "PUT" ? profilePng : undefined)).status).toBe(200);
+      const oldKey = new URL(uploaded.image).pathname.slice(1);
+      await env.ASSETS.put(oldKey, profilePng, { httpMetadata: { contentType: "image/png" } });
+      expect(await env.ASSETS.head(oldKey)).not.toBeNull();
+
+      for (const validator of [tag!, "*"]) {
+        const response = await app.fetch(
+          new Request(uploaded.image, { headers: { "If-None-Match": validator } }),
+          runtimeEnvironment(),
+        );
+        expect(response.status).toBe(404);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(response.headers.get("etag")).toBeNull();
+      }
+    },
+  );
 
   it("does not delete another user's image referenced by the current profile", async () => {
     const key = "user-images/another-user/44a9c420-20ca-4da0-bd01-204390bd0140.png";
@@ -80,6 +174,7 @@ describe("profile images", () => {
         runtimeEnvironment(),
       );
       expect(result.status).toBe(401);
+      expect(result.headers.get("cache-control")).toBe("no-store");
     }
   });
 

@@ -17,6 +17,15 @@ export class ProfileImageService {
     this.origin = new URL(config.BETTER_AUTH_URL).origin;
   }
 
+  async read(userId: string, filename: string) {
+    const key = `user-images/${encodeURIComponent(userId)}/${filename}`;
+    const [user] = await this.db
+      .select({ id: authUsers.id })
+      .from(authUsers)
+      .where(and(eq(authUsers.id, userId), eq(authUsers.image, `${this.origin}/${key}`)));
+    return user ? this.bucket.get(key) : null;
+  }
+
   async replace(userId: string, bytes: Uint8Array | null): Promise<string | null> {
     const [user] = await this.db
       .select({ image: authUsers.image })
