@@ -13,7 +13,7 @@ import {
   hashCanonicalJsonPayload,
   type BuildSourceInput,
   type DeliverySourceInput,
-} from "@unframe/unframe-core";
+} from "@unframe/core";
 import { assert, describe, expect, it } from "vitest";
 import { normalizedCapability } from "../../../src/modules/publications/capability";
 

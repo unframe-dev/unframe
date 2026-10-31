@@ -5,8 +5,8 @@ import { cp as copy, mkdir, open, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as pause } from "node:timers/promises";
-import { runPresentationCli, publishPresentation } from "../../packages/unframe-cli/src/index.js";
-import { readBuildGeneration } from "../../packages/unframe-cli/src/filesystem/read-build-generation.js";
+import { runPresentationCli, publishPresentation } from "../../packages/unframe/cli/src/index.js";
+import { readBuildGeneration } from "../../packages/unframe/cli/src/filesystem/read-build-generation.js";
 import { advertiseConnection, cleanupSample, samplePorts, sessionExpiry } from "./lifecycle.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");

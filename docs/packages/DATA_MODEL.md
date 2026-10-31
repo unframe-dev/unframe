@@ -72,4 +72,4 @@ Zod / Protobuf、Authoring / Compiler / Core、Realtime と Unity を v3 に揃�
 
 構造テストの合格は、GLB importer、動画 decoder、font atlas、Runtime reducer、再接続、Quest の実機動作が実装済みであることを意味しない。意味検証は Core、投影と admission は Delivery、素材変換は Compiler、描画は各 consumer の責務となる。端末の上限値は検証済み CapabilityProfile の必須入力であり、fixture の合成値を製品設定に使わない。
 
-Core は Scene / Flow / Runtime Snapshot の意味検証と [build / 公開物の整合性検証](../../packages/unframe-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) を持つ。Compiler / CLI は Definition、RenderBundle、AssetSet、BuildManifest と素材 bytes を出力する。Delivery / Runtime consumer は v3 へ接続済みである。素材変換・端末描画・実機検証の範囲は各 consumer の文書を参照する。
+Core は Scene / Flow / Runtime Snapshot の意味検証と [build / 公開物の整合性検証](../../packages/unframe/core/ARCHITECTURE.md#10-v2-公開物の整合性検証) を持つ。Compiler / CLI は Definition、RenderBundle、AssetSet、BuildManifest と素材 bytes を出力する。Delivery / Runtime consumer は v3 へ接続済みである。素材変換・端末描画・実機検証の範囲は各 consumer の文書を参照する。

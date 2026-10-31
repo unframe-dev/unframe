@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# packages/unframe-* の品質処理。
+# packages/unframe の品質処理。
 #   check (既定): 実装済み package の check
 #   fix         : Vite+ formatter
 set -euo pipefail
@@ -36,12 +36,12 @@ reference_acceptance() {
   trap 'rm -rf -- "$temp"' RETURN
   cp -R "${REPO_ROOT}/examples/presentation/." "${temp}/"
   log "presentation(check): reference project check"
-  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation check "${temp}"
+  pnpm --dir "${REPO_ROOT}" --filter @unframe/core run presentation check "${temp}"
   log "presentation(check): Fixed Browser reference build (first)"
-  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation build "${temp}"
+  pnpm --dir "${REPO_ROOT}" --filter @unframe/core run presentation build "${temp}"
   first_manifest="$(manifest "${temp}")"
   log "presentation(check): Fixed Browser reference build (second)"
-  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation build "${temp}"
+  pnpm --dir "${REPO_ROOT}" --filter @unframe/core run presentation build "${temp}"
   second_manifest="$(manifest "${temp}")"
   test "${first_manifest}" = "${second_manifest}"
   log "presentation(check): compiled Delivery wire fixture"
@@ -55,7 +55,7 @@ case "${mode}" in
   fix)
     log "presentation(fix): vp fmt"
     pnpm --config.verify-deps-before-run=false exec vp fmt \
-      "${REPO_ROOT}"/packages/unframe-*
+      "${REPO_ROOT}"/packages/unframe
     ;;
   check)
     TMPDIR="$(realpath -- "${TMPDIR:-/tmp}")"
@@ -78,7 +78,7 @@ case "${mode}" in
     pnpm --config.verify-deps-before-run=false \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check
-    pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-compiler exec tsc --noEmit -p "${REPO_ROOT}/examples/presentation/tsconfig.json"
+    pnpm --dir "${REPO_ROOT}" --filter @unframe/core exec tsc --noEmit -p "${REPO_ROOT}/examples/presentation/tsconfig.json"
     reference_acceptance
     ;;
   *)

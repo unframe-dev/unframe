@@ -117,7 +117,7 @@
         darwinOpaqueLauncher = pkgs.stdenv.mkDerivation {
           pname = "unframe-darwin-opaque";
           version = "4";
-          src = ./packages/unframe-worker-host/src/native;
+          src = ./packages/unframe/worker-host/src/native;
           nativeBuildInputs = [ pkgs.nodejs_22 ];
           dontFixup = true;
           buildPhase = ''

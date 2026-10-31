@@ -18,7 +18,7 @@ import {
   buildProjectionProfile,
   hashCanonicalJsonPayload,
   selectDeliveryArtifacts,
-} from "@unframe/unframe-core";
+} from "@unframe/core";
 import type { AppEnvironment } from "../../config";
 import {
   internalRuntimeBootstrapRoute,

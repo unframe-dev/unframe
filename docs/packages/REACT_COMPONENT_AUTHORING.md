@@ -14,7 +14,7 @@ Surface の Structured / Opaque 表現と Renderer の binding 検証の境界�
 
 Component 作者は公開契約と見た目を一ファイルで定義し、Presentation 作者は Component を一つ import して Props、3D 配置、Flow を記述する。Manifest、renderer entry、内部 Runtime ID、lock を配置のたびに手で結ばない。CSS・画像・描画 helper を別ファイルへ分けることは許す。
 
-現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/web/local-editor/src/app/main.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
+現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe/compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe/renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/web/local-editor/src/app/main.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
 
 ## 2. 作者向け API の三例
 
@@ -22,7 +22,7 @@ Component 作者は公開契約と見た目を一ファイルで定義し、Pres
 
 ```tsx
 // Hero.component.tsx
-import { defineComponent, editableText, prop } from "@unframe/unframe-authoring";
+import { defineComponent, editableText, prop } from "@unframe/core/authoring";
 import "./components.css";
 
 export const Hero = defineComponent({
@@ -60,7 +60,7 @@ export const Hero = defineComponent({
 
 ```tsx
 // Reveal.component.tsx
-import { defineComponent, editableText, prop, setState } from "@unframe/unframe-authoring";
+import { defineComponent, editableText, prop, setState } from "@unframe/core/authoring";
 import "./components.css";
 
 export const Reveal = defineComponent({
@@ -138,7 +138,7 @@ button に `onClick` は付けない。Runtime の Interaction → 公開 Output
 
 ```ts
 // presentation.unframe.ts
-import { definePresentation } from "@unframe/unframe-authoring";
+import { definePresentation } from "@unframe/core/authoring";
 import { Hero } from "./Hero.component";
 import { Reveal } from "./Reveal.component";
 
@@ -272,7 +272,7 @@ host の初期値は `active: true`、`visible: true`、`opacity: 1`、name は 
 
 lock v3はOpaque / local originとsource Assetのpath/hash/sizeを固定する。旧schemaからの暗黙変換や互換fallbackは提供せず、Source を更新して lock を明示再生成する。既存 Structured の宣言と canonical 出力の意味は維持する。
 
-固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。通常 CSS の import と url 依存を固定 bundle に含める。PostCSS 8 / Tailwind 4 は project 所有 config / plugin と固定 Node graph を使い、CLI の隔離 Style worker で実行する。設定・依存固定・対応範囲は [Tailwind README](../../packages/unframe-tailwind/README.md) を参照する。Component の意味抽出は引き続き非実行であり、config / plugin の実行と区別する。実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
+固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。通常 CSS の import と url 依存を固定 bundle に含める。PostCSS 8 / Tailwind 4 は project 所有 config / plugin と固定 Node graph を使い、CLI の隔離 Style worker で実行する。設定・依存固定・対応範囲は [Tailwind README](../../packages/unframe/tailwind/README.md) を参照する。Component の意味抽出は引き続き非実行であり、config / plugin の実行と区別する。実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
 
 入力 lock に capture checksum を含めない。生成 PNG 等の checksum は AssetSet / BuildManifest に記録し、source・renderer・環境との整合は既存 build integrity で検証する。Manifest の意味 hash と renderer source hash を区別し、CSS だけの変更でも描画依存と成果物が更新されるようにする。位置だけを変えた場合、Definition 等の hash は変わり得るが、同じ描画条件の PNG bytes は変わらない。現行 CLI は build 全体の cache を持ち、hit でも全成果物と checksum を再検証する。State ごとの細粒度 capture cache は未実装である。
 

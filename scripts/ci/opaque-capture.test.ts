@@ -135,7 +135,8 @@ test(
       ({ command, args }) => command === "pnpm" && args.includes("test"),
     );
     assert.equal(tests.length, 1);
-    assert.ok(tests[0]!.args.includes("@unframe/unframe-renderer-web"));
+    assert.ok(tests[0]!.args.includes("@unframe/core"));
+    assert.equal(tests[0]!.args[tests[0]!.args.indexOf("--root") + 1], "renderer-web");
     assert.ok(tests[0]!.args.includes("test/opaque-isolation.integration.test.ts"));
     assert.equal(
       tests[0]!.args.includes("test/opaque-isolation-darwin.integration.test.ts"),
@@ -187,7 +188,7 @@ test(
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.commands.filter(({ command }) => command === "build-filesystem").length, 1);
     assert.equal(
-      result.commands.some(({ args }) => args.includes("@unframe/unframe-tailwind")),
+      result.commands.some(({ args }) => args.includes("build:tailwind")),
       false,
     );
     assert.deepEqual(integrationFiles(result.commands), [

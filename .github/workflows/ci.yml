@@ -70,6 +70,7 @@ jobs:
               - '.github/workflows/control-plane.yml'
               - 'scripts/ci/control-plane.sh'
               - 'app/server/control-plane/**'
+              - 'packages/unframe/**'
               - 'packages/contracts/**'
               - 'packages/api-client-typescript/**'
             realtime:
@@ -86,6 +87,7 @@ jobs:
               - '.github/workflows/console.yml'
               - 'scripts/ci/console.sh'
               - 'app/web/console/**'
+              - 'packages/unframe/**'
               - 'packages/api-client-typescript/**'
               - 'packages/contracts/**'
               - 'app/server/control-plane/**'
@@ -94,7 +96,7 @@ jobs:
               - *js-shared
               - '.github/workflows/local-editor.yml'
               - 'app/web/local-editor/**'
-              - 'packages/unframe-*/**'
+              - 'packages/unframe/**'
               - 'packages/contracts/**'
             audience:
               - *shared
@@ -109,7 +111,7 @@ jobs:
               - 'scripts/ci/presentation.sh'
               - 'packages/contracts/**'
               - 'packages/api-client-csharp/**'
-              - 'packages/unframe-*/**'
+              - 'packages/unframe/**'
             lp:
               - *shared
               - *js-shared

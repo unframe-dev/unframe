@@ -9,7 +9,7 @@ import {
   verifyBuildIntegrity,
   verifyPublicationIntegrity,
   type BuildArtifacts,
-} from "@unframe/unframe-core";
+} from "@unframe/core";
 
 export type PublicationFence = {
   presentationId: string;

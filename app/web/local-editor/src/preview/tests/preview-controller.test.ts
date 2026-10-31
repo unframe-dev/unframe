@@ -3,7 +3,7 @@ import type {
   LocalPreviewEnvelopeWire,
   PreviewPlaybackCommand,
   PreviewPlaybackResponse,
-} from "@unframe/unframe-cli/author-contract";
+} from "@unframe/core/cli/author-contract";
 import type { HostApi } from "../../infra/host-api";
 import type { PreviewDriver } from "../preview-driver";
 import { createPreviewController } from "../preview-controller";
@@ -142,7 +142,7 @@ it("does not let an obsolete restore replace a newer displayed request", async (
 
 it("builds only the newest Source request and cancels an obsolete build", async () => {
   const { api, driver } = fixture();
-  type Job = import("@unframe/unframe-cli/author-contract").BuildJob;
+  type Job = import("@unframe/core/cli/author-contract").BuildJob;
   const job = (revision: string): Job => ({
     buildId: revision,
     revision,

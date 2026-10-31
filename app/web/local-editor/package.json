@@ -13,7 +13,7 @@
     "@base-ui/react": "1.7.0",
     "@phosphor-icons/react": "2.1.10",
     "@unframe/contracts": "workspace:*",
-    "@unframe/unframe-cli": "workspace:*",
+    "@unframe/core": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-resizable-panels": "4.14.8",

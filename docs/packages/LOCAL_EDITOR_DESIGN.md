@@ -34,8 +34,8 @@ Definition + RenderBundle + AssetSet + BuildManifest + assets
 | 所有先                   | 責務                                                                                                                 |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | `packages/contracts/`    | canonical artifact・描画に再利用する生成 message の正本。必要な Preview の cross-application schema もここに定義する |
-| `packages/unframe-core/` | build 検証、publication 非依存の role／capability 選択、Runtime catalog・初期表示状態の導出                          |
-| `packages/unframe-cli/`  | project filesystem、保存、出力 channel、generation 固定、Local Author HTTP API                                       |
+| `packages/unframe/core/` | build 検証、publication 非依存の role／capability 選択、Runtime catalog・初期表示状態の導出                          |
+| `packages/unframe/cli/`  | project filesystem、保存、出力 channel、generation 固定、Local Author HTTP API                                       |
 | `app/web/local-editor/`  | Dev／Dist 選択、保存・build・表示 revision の提示、Unity instance と要求の lifecycle                                 |
 | `app/unity/`             | Preview／Delivery 入力 Adapter、共通 hierarchy・描画・素材管理、WebGL／Quest platform Adapter                        |
 | Control Plane            | upload された build の公開整合性、認可、Delivery projection。Source や Dev generation は受け取らない                 |

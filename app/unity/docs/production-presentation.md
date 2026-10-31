@@ -62,7 +62,7 @@ Sessionの有効期間は準備後およそ20分です。期限、Ctrl+C、サ�
 ```bash
 nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command env PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \
-  pnpm --filter @unframe/unframe-cli run presentation build "$PWD/examples/presentation"
+  pnpm --filter @unframe/core run presentation build "$PWD/examples/presentation"
 ```
 
 `examples/presentation/dist` はコンパイラーが管理するgenerationへのsymlinkです。
@@ -78,7 +78,7 @@ nix develop --command env PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \
 次はControl Plane originを `UNFRAME_CONTROL_PLANE_ORIGIN` に設定した場合の例です。
 
 ```bash
-nix develop --command pnpm --filter @unframe/unframe-cli run presentation publish \
+nix develop --command pnpm --filter @unframe/core run presentation publish \
   "$PWD/examples/presentation" reference-presentation "$UNFRAME_CONTROL_PLANE_ORIGIN"
 ```
 

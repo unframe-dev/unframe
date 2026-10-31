@@ -1,4 +1,4 @@
-import type { PreviewPlaybackResponse } from "@unframe/unframe-cli/author-contract";
+import type { PreviewPlaybackResponse } from "@unframe/core/cli/author-contract";
 import type { HostApi } from "../infra/host-api";
 import type { PreviewDriver } from "./preview-driver";
 import { createPreviewStore, type PreviewStore } from "./preview-store";

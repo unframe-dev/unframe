@@ -9,7 +9,7 @@ import {
   hashCanonicalJsonPayload,
   selectDeliveryArtifacts,
   verifyPublicationIntegrity,
-} from "../../packages/unframe-core/src/index.ts";
+} from "../../packages/unframe/core/src/index.ts";
 import {
   decodeWireMessage,
   encodeWireMessage,
