@@ -1,6 +1,6 @@
 # Unframe Console
 
-`app/web/console` は認証・アカウント設定、device 承認、公開済み Dist の確認とルーム作成を担当する Workers 向け React SPA です。Source 編集・build・Unity Preview・公開操作は [Local Editor](../local-editor/README.md) と CLI が担当します。
+`app/web/console` は認証・アカウント設定、device 承認、公開済みプレゼンテーションの確認とルーム作成を担当する Workers 向け React SPA です。Source 編集・build・Unity Preview・公開操作は [Local Editor](../local-editor/README.md) と CLI が担当します。
 
 ## 起動と接続先
 
@@ -23,7 +23,15 @@ pnpm --filter @unframe/console dev
 - `/devices`: Device Authorization で承認した有効な認証セッションの一覧・再取得と、`/device` の承認画面への入口です。端末の User-Agent と承認日時・有効期限を表示します。
 - `/settings/profile`・`/settings/security`: アカウント設定。他の認証セッションの一括失効はセキュリティー画面から行います。
 
+サイドバーのアカウントメニューにはアカウント画像を表示し、プロフィールで画像を変更・解除すると保存後に反映します。
+
+二要素認証は任意です。アカウントメニューの「セキュリティー」または「設定 → セキュリティー」から設定できます。現在のパスワードを入力し、認証アプリで QR コードを読み取ってコードを確認すると有効になります。表示されたバックアップコードを保管してください。有効化後はパスワードログイン時に認証アプリまたはバックアップコードで確認し、不要になった場合は同じ設定画面で無効化できます。
+
+Googleのみで登録したアカウントにはUnframe用のパスワードがないため、設定画面から登録メールアドレスに設定メールを送信できます。メール内のリンクでパスワードを設定すると、パスワードログインとUnframeの二要素認証を利用できます。Googleログインの二段階認証は、同画面から進めるGoogle側のセキュリティー設定で管理します。
+
 発表環境の準備には、運用者が Cloud Host を登録・起動しておく必要があります。ルームへの参加は Audience と Unity が担当します。作成応答が不明な場合は自動再送しません。未終了の Session がある Presentation の再公開は Control Plane が拒否します。
+
+LP の `/signup`・`/login` リンクから同じ origin の Console に進みます。メール登録後は確認メールの送信先・再送を表示し、メール内のリンクで確認後は `/login` に戻ります。ログイン成功後と Google 認証成功後は `/home` に進みます。未ログインで管理画面を開いた場合も `/login` に進みます。パスワード再設定に成功すると、すぐに `/login` に戻ります。メールと OAuth の戻り先には Console の絶対 URL を渡すため、開発時は Control Plane の `WEB_ORIGIN` に Console の origin を設定してください。
 
 ## 検証
 

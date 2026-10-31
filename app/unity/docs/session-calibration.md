@@ -34,7 +34,7 @@ session.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogica
 
 `credentialProvider` は要求ごとに有効なcredentialを返します。credential、Session ID、endpointをSceneへ保存しません。校正がまだ無効でも接続・素材ロードを始められます。Presenterだけに入力・Trackingを許可しますが、Viewerにも自分の描画用校正が必要です。
 
-`QuestPresentationSession` はSceneの校正sourceと通信入口が同じtrackingSpaceを使用することを確認し、共有Stateで接続します。校正値が未確定でも認証・素材ロードを開始できます。Android Intentでは `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential`、必要なら `unframe.advanceLogicalEvent` を読み、同じSession入口へ接続します。校正JSONは使用せず、マーカーを実際に測定します。Intent credentialは一時検証用です。通常の端末認証・資料選択・参加は[QuestアプリUI](quest-app-ui.md)を使用します。
+`QuestPresentationSession` はSceneの校正sourceと通信入口が同じtrackingSpaceを使用することを確認し、共有Stateで接続します。校正値が未確定でも認証・素材ロードを開始できます。Development Build のAndroid Intentでは `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential`、必要なら `unframe.advanceLogicalEvent` を読み、同じSession入口へ接続します。校正JSONは使用せず、マーカーを実際に測定します。通常のAPKはIntentの接続設定を読み取りません。Intent credentialは一時検証用です。通常の端末認証・資料選択・参加は[QuestアプリUI](quest-app-ui.md)を使用します。
 
 ## 無効化と再測定
 
@@ -65,7 +65,7 @@ Presenter の再校正・再同期では入力 context を更新し、認識状�
 
 ## 複数台の最初の実証
 
-1. サーバー担当がBaked Webの素材・Session・端末ごとの有効credentialを準備します。通常の参加は[QuestアプリUI](quest-app-ui.md)、一時検証は上記のIntent入口を使用します。
+1. サーバー担当がBaked Webの素材・Session・端末ごとの有効credentialを準備します。通常の参加は[QuestアプリUI](quest-app-ui.md)、一時検証はDevelopment Buildの上記Intent入口を使用します。
 2. 各Questを同じSessionへ接続し、同じ物理ID 0マーカーを測定します。黒い正方形の一辺500・400・250・150mmから、印刷物に一致する寸法を位置合わせ画面で選択します（既定150mm）。Audience WebXRも同じ寸法を選びます。AprilTagはQuest 3/3SとPCA対応OS、OpenCV有効化を必要とします。
 3. 校正確定後にReady表示を確認し、頭を動かして各端末で同じ位置にスライドが残ることを比較します。
 4. Presenterのlogical eventを設定した場合は右controllerのprimary buttonで操作し、Viewerの表示が追従することを確認します。実証用Presentationに対応するevent定義が必要です。

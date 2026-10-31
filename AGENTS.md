@@ -42,7 +42,7 @@ not equally complete in every area:
   Each application under `app/web/` has independent dependencies, build, and startup configuration.
 - `lp/` is a static SvelteKit site and remains WIP while product content is being
   developed. Its CI task runs the LP test, check, and build commands.
-- `app/unity/` contains a Unity project and EditMode tests. The generated Control Plane C# client is not wired into Unity. Unity uses generated Realtime Protobuf clients and handwritten manifest models under `app/unity/Assets/Scripts/ManifestDates/`.
+- `app/unity/` contains a Unity project and EditMode tests. The generated Control Plane C# client is not wired into Unity. Unity uses generated Realtime clients and Delivery Protobuf types under `app/unity/Assets/Scripts/PresentationRuntime/Generated/`.
 - Main CI publishes Darwin arm64 Realtime Host artifacts for the macOS Pull
   updater. See `app/server/realtime/ops/funnel.md` for deployment and manual
   updates. Other applications do not have deployment workflows.

@@ -16,7 +16,7 @@ Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 - Realtime service identity専用のidempotent checkpoint / completion callback
 - 実行ルートと一体化した OpenAPI 生成、Hono RPC TypeScript client、契約 drift check
 
-認証endpointとserver-side policyまでが実装済みです。Web / Unityのemail/password UIはこのcomponentの対象外で、まだ接続していません。
+認証endpointとserver-side policyを実装し、Web Console の email/password UI から接続しています。
 Realtime Backend の JWT / scope 検証、assignment fencing と Unity の v2 Delivery / bootstrap 接続は実装済みです。Control Plane の Session 終了を既存 Realtime 接続へ反映する Cloud Agent と、Web の旧 CRUD 定義の v2 移行は後続作業です。
 R2 objectを孤児化させないため、Asset metadataが残るPresentationは削除できません。先に各Assetの削除APIを完了させてください。
 
@@ -25,6 +25,8 @@ Session の新規作成には公開済み Dist が必要です。公開版の確
 ## Setup
 
 `wrangler.toml` の D1 `database_id` と `R2_ACCOUNT_ID` は環境の値へ置き換えてください。秘密値は `.dev.vars.example` を参照し、ローカルでは `.dev.vars`、remote 環境では `wrangler secret put` で設定します。Better Auth Infrastructure連携を使う場合は、Dashboardで発行した `BETTER_AUTH_API_KEY` も同じ方法で設定してください。
+
+確認メールとパスワード再設定メールは `src/auth/emails/` の React Email TSX テンプレートで作成し、Resend に HTML とプレーンテキストを送信します。本文・アクションは各テンプレート、色・余白・ロゴは `email-layout.tsx` で管理します。
 
 ```sh
 pnpm db:migrate:local
@@ -51,7 +53,7 @@ pnpm --filter @unframe/contracts generate:control-plane
 
 `pnpm types` は Wrangler binding 型を再生成します。`auth:schema:generate` は Better Auth の参照用 SQL を ignored の `.generated/` へ出力し、review 済み migration を直接上書きしません。
 
-email/password はメール確認後に利用でき、TOTP または backup code の MFA を必要とします。確認・password reset メールは Resend を使うため、`RESEND_API_KEY` と表示名なしの送信元メールアドレス `AUTH_EMAIL_FROM` を設定してください。password reset は既存 session と未消費の認証grantを失効させます。MFA の trusted device は Better Auth 標準どおり30日間有効です。
+email/password はメール確認後に利用できます。MFA は任意で、Console の「設定 → セキュリティー」から有効にすると、以降の password ログイン時に TOTP または backup code を要求します。確認・password reset メールは Resend を使うため、`RESEND_API_KEY` と表示名なしの送信元メールアドレス `AUTH_EMAIL_FROM` を設定してください。password reset は既存 session と未消費の認証grantを失効させます。MFA の trusted device は Better Auth 標準どおり30日間有効です。
 
 Venue Edge credentialはprovisioning / rotation responseで一度だけ返し、D1にはtoken IDとSHA-256 hashだけを保存します。`0009_runtime_assignments.sql` は旧 Edge assignment の lease を解放し、既存 Edge が provisioning identity とは別の `runtimeId` で再登録できる状態へ移行します。migration は session state を変更しないため、適用前に `Presenting` session を停止・drainし、適用後に Edge の再登録と必要な session の再割り当てを行ってください。移行行の `runtime_id` に残る旧 `edge_id` は released history の識別子であり、active Runtime identity として再利用しません。Realtime credential署名にはEd25519 private JWKのJSONを`REALTIME_SIGNING_JWK`へ設定し、公開鍵の識別子を`REALTIME_SIGNING_KID`で管理します。Runtime JWT audienceはControl PlaneとRealtime Runtimeで`unframe-realtime-runtime`に統一します。Quest向けJWTはruntime ID / kind、epoch、Presentation ID / revisionを拘束し、active leaseの期限を越えて発行しません。Venue Edge assignmentだけが`assets:read`を含み、Cloud assignmentは`realtime:connect`だけを含みます。`SERVICE_IDENTITY_SECRET`はRealtime Backendからcheckpoint / completion callbackを送るための専用Bearer secretで、user session tokenやEdge固有credentialとは共有しません。秘密値はremote環境ではWrangler secretとして設定してください。
 

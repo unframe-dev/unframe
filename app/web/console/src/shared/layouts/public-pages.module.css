@@ -17,13 +17,6 @@
   gap: 24px;
   padding: 24px 0;
 }
-.header > a:last-child {
-  color: color-mix(in srgb, var(--night) 60%, transparent);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-decoration: none;
-}
 .panel,
 .deviceShell {
   display: grid;
@@ -86,8 +79,18 @@
   max-width: none;
 }
 .divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   color: var(--muted);
-  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
 }
 .error {
   color: #9e3039;

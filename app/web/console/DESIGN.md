@@ -4,11 +4,11 @@
 
 `app/web/console` は、ユーザーが空間プレゼンテーションを管理するための作業環境です。ブランドとプロダクトの価値を伝える LP とは役割を分けつつ、色、タイポグラフィ、言葉の温度は [`lp/DESIGN.md`](../../../lp/DESIGN.md) と一貫させます。
 
-| Surface           | Responsibility                                                 |
-| ----------------- | -------------------------------------------------------------- |
-| LP / Site         | ブランド、価値、ニュース、ドキュメントを伝える                 |
-| Web Application   | 認証、公開済み Dist 確認、ルーム作成、アカウント設定を提供する |
-| Unity Application | Presentation の実行、Session、Realtime 操作を提供する          |
+| Surface           | Responsibility                                                             |
+| ----------------- | -------------------------------------------------------------------------- |
+| LP / Site         | ブランド、価値、ニュース、ドキュメントを伝える                             |
+| Web Application   | 認証、公開済みプレゼンテーション確認、ルーム作成、アカウント設定を提供する |
+| Unity Application | Presentation の実行、Session、Realtime 操作を提供する                      |
 
 Web の責務と技術境界は [`ARCHITECTURE.md`](./ARCHITECTURE.md) を正本とします。この文書は画面全体に共通する視覚・操作方針を定義し、ローカル Source 編集は [Local Editor](../local-editor/README.md) が担当します。
 
@@ -24,7 +24,7 @@ Home は marketing page ではなく、次に開く Presentation を選ぶ works
 
 ### 情報密度に階層をつける
 
-LP より高い情報密度を許容しますが、機能を常時並べません。現在の作業、選択対象、次の action に必要な情報を優先し、詳細操作は段階的に開示します。
+LP より高い情報密度を許容しますが、機能を常時並べません。現在の作業、選択対象、次の action に必要な情報を優先し、詳細操作は段階的に開示します。見出しや操作から分かる説明は重ねず、レイアウトで役割を示します。
 
 ### 実装の事実だけを見せる
 
@@ -34,20 +34,20 @@ LP より高い情報密度を許容しますが、機能を常時並べませ�
 
 ### Routes
 
-| Route                             | Purpose                | Authentication |
-| --------------------------------- | ---------------------- | -------------- |
-| `/login/`                         | ログイン               | Public         |
-| `/signup/`                        | アカウント作成         | Public         |
-| `/recover/*`                      | アカウント復旧         | Public         |
-| `/device/`                        | Device Authorization   | Public         |
-| `/home/`                          | Presentation 一覧      | Required       |
-| `/presentations/:presentationId/` | 公開済み Dist の詳細   | Required       |
-| `/rooms/`                         | ルーム作成             | Required       |
-| `/rooms/:sessionId/`              | 作成したルームの詳細   | Required       |
-| `/settings/profile/`              | プロフィール設定       | Required       |
-| `/settings/security/`             | 認証・セキュリティ設定 | Required       |
+| Route                             | Purpose                          | Authentication |
+| --------------------------------- | -------------------------------- | -------------- |
+| `/login/`                         | ログイン                         | Public         |
+| `/signup/`                        | アカウント作成                   | Public         |
+| `/recover/*`                      | アカウント復旧                   | Public         |
+| `/device/`                        | Device Authorization             | Public         |
+| `/home/`                          | Presentation 一覧                | Required       |
+| `/presentations/:presentationId/` | 公開済みプレゼンテーションの詳細 | Required       |
+| `/rooms/`                         | ルーム作成                       | Required       |
+| `/rooms/:sessionId/`              | 作成したルームの詳細             | Required       |
+| `/settings/profile/`              | プロフィール設定                 | Required       |
+| `/settings/security/`             | 認証・セキュリティ設定           | Required       |
 
-本番の `/` は LP が所有します。認証必須 route で session が確認できない場合は `/login/` ではなく `/` へ戻します。ログイン後に元の route へ戻す導線は、認証画面の実装時に安全な return URL の契約として設計します。
+本番の `/` は LP が所有します。認証必須 route で session が確認できない場合は `/login` へ遷移します。ログイン後は `/home` を開きます。
 
 ### Global Navigation
 
@@ -69,7 +69,7 @@ Login、Signup、Recovery は一つの目的に集中した狭い layout とし�
 
 Home は Presentation 一覧を主役にします。
 
-- Presentation 名・ID、公開 build ID と epoch を一覧で比較できるようにする
+- 一覧は Presentation 名と操作を中心にし、ID・公開 build・hash は詳細画面の「技術情報」で確認する
 - 未公開と取得エラーを区別し、再取得を用意する
 - 新規作成、検索、絞り込みは実 API とともに導入する
 - empty state には空である理由と、実行可能な次の action を置く
@@ -81,7 +81,7 @@ Profile と Security は URL と見出しを分けます。保存単位、未保
 
 ### Rooms
 
-自分が作成したルームを一覧から開けます。公開済み Presentation から新規作成すると、作成時の最新公開版を固定して詳細へ進みます。詳細には Session ID、状態、保存された publication fence を表示し、ルームコードの取得・更新、参加 URL と QR の共有、Runtime の準備と発表開始・終了を扱います。終了後は共有できません。作成結果が不明な場合は再送せず、コード更新結果が不明な場合は再取得まで共有を止めます。
+自分が作成したルームを一覧から開けます。公開済み Presentation から新規作成すると、作成時の最新公開版を固定して詳細へ進みます。詳細にはルーム ID と状態を表示し、保存された publication fence は「技術情報」で確認します。ルームコードの取得・更新、参加 URL と QR の共有、Runtime の準備と発表開始・終了を扱います。終了後は共有できません。作成結果が不明な場合は再送せず、コード更新結果が不明な場合は再取得まで共有を止めます。
 
 ## Visual Language
 

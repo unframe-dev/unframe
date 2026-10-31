@@ -160,12 +160,8 @@ public sealed class QuestPresentationSession : MonoBehaviour
 #if UNITY_ANDROID && !UNITY_EDITOR
         try
         {
-            string launchOrigin = TakeLaunchExtra("unframe.controlPlaneOrigin");
-            string launchSession = TakeLaunchExtra("unframe.sessionId");
-            string credential = TakeLaunchExtra("unframe.credential");
-            string logicalEvent = TakeLaunchExtra("unframe.advanceLogicalEvent");
-            if (String.IsNullOrEmpty(launchOrigin) || String.IsNullOrEmpty(launchSession) || String.IsNullOrEmpty(credential)) return;
-            ConfigureConnection(new Uri(launchOrigin), launchSession, _ => Task.FromResult(credential), logicalEvent);
+            if (!QuestLaunchConnectionSettings.TryRead(Debug.isDebugBuild, TakeLaunchExtra, out QuestLaunchConnectionSettings launch)) return;
+            ConfigureConnection(launch.Origin, launch.SessionId, _ => Task.FromResult(launch.Credential), launch.AdvanceLogicalEventName);
             await ConnectAsync();
         }
         catch (Exception) { LastErrorCode = "launch-configuration-invalid"; }

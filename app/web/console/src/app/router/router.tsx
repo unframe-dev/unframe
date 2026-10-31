@@ -14,10 +14,14 @@ import { DeviceAuthorizationPage } from "@/features/device/device-authorization-
 import { HomePage } from "@/features/presentations/home-page";
 import { ApplicationShell } from "@/app/shell/application-shell";
 import { DevicesPage } from "@/features/device/devices-page";
-import { LoginPage, RecoverPage, ResetPage, SignupPage } from "@/features/auth/auth-pages";
+import { LoginPage } from "@/features/auth/login-page";
+import { RecoverPage } from "@/features/auth/recover-page";
+import { ResetPage } from "@/features/auth/reset-page";
+import { SignupPage } from "@/features/auth/signup-page";
 import { ProfilePage, SecurityPage } from "@/features/settings/settings-pages";
 import publicModuleStyles from "@/shared/layouts/public-pages.module.css";
 import routerModuleStyles from "./router.module.css";
+import { NotFoundPage } from "./not-found-page";
 const publicStyles = { main: publicModuleStyles["main"]!, panel: publicModuleStyles["panel"]! };
 const styles = { skipLink: routerModuleStyles["skipLink"]! };
 function Root() {
@@ -41,25 +45,28 @@ function ErrorPage() {
     </main>
   );
 }
-function NotFound() {
-  return (
-    <main id="main-content" className={publicStyles.main}>
-      <section className={publicStyles.panel}>
-        <h1>ページが見つかりません</h1>
-        <a href="/">トップへ戻る</a>
-      </section>
-    </main>
-  );
-}
 const rootRoute = createRootRoute({
   component: Root,
   errorComponent: ErrorPage,
-  notFoundComponent: NotFound,
+  notFoundComponent: NotFoundPage,
 });
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "login",
-  component: LoginPage,
+  validateSearch: z.object({
+    verified: z.boolean().optional().catch(undefined),
+    error: z.string().optional().catch(undefined),
+    provider: z.literal("google").optional().catch(undefined),
+  }),
+  component: () => {
+    const { verified, error, provider } = loginRoute.useSearch();
+    return (
+      <LoginPage
+        verified={verified === true}
+        error={error ? (provider === "google" ? "oauth" : "verification") : ""}
+      />
+    );
+  },
 });
 const signupRoute = createRoute({
   getParentRoute: () => rootRoute,

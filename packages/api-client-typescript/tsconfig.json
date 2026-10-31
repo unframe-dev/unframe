@@ -3,6 +3,7 @@
   "compilerOptions": {
     "lib": ["ES2024", "ESNext.Disposable", "DOM", "DOM.Iterable"],
     "noEmit": true,
+    "jsx": "react-jsx",
     "noPropertyAccessFromIndexSignature": false
   },
   "include": ["src"]

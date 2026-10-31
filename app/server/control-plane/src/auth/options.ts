@@ -55,7 +55,7 @@ export function createAuthOptions(
       enabled: true,
       requireEmailVerification: true,
       sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
-        await mailer({ to: user.email, ...passwordResetEmail(url) });
+        await mailer({ to: user.email, ...(await passwordResetEmail(url)) });
       },
       ...(runtime.onPasswordReset
         ? {
@@ -67,7 +67,7 @@ export function createAuthOptions(
     },
     emailVerification: {
       sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
-        await mailer({ to: user.email, ...verificationEmail(url) });
+        await mailer({ to: user.email, ...(await verificationEmail(url)) });
       },
     },
     user: {
@@ -102,8 +102,11 @@ export function createAuthOptions(
                 ? "google"
                 : path === "/device/token"
                   ? "device"
-                  : path === "/sign-in/email" || path?.startsWith("/two-factor/verify-")
-                    ? "password_mfa"
+                  : path === "/sign-in/email" ||
+                      path === "/change-password" ||
+                      path === "/two-factor/disable" ||
+                      path?.startsWith("/two-factor/verify-")
+                    ? "password"
                     : "none";
             return { data: { ...session, assurance } };
           },

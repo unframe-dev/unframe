@@ -91,6 +91,18 @@ async function requestWithAuth(
   return customAuth.handler(new Request(`https://example.com/api/auth${path}`, init));
 }
 
+const responseCookie = (response: Response) =>
+  response.headers
+    .getSetCookie()
+    .map((value) => value.split(";", 1)[0])
+    .join("; ");
+
+const presentationsWith = (headers: HeadersInit) =>
+  createApp().fetch(
+    new Request("https://example.com/presentations", { headers }),
+    testEnvironment() as unknown as CloudflareBindings,
+  );
+
 async function completeGoogleSignIn(customAuth: ReturnType<typeof createAuth>, email: string) {
   const profile = { sub: crypto.randomUUID(), email, email_verified: true, name: "Google User" };
   const idToken = `eyJhbGciOiJSUzI1NiJ9.${btoa(JSON.stringify(profile))}.test-signature`;
@@ -146,9 +158,9 @@ async function seedBrowserSession(
   assurance = "google",
   emailVerified = 1,
   twoFactorEnabled = 0,
+  userId: string = crypto.randomUUID(),
 ) {
   const timestamp = Date.now();
-  const userId = crypto.randomUUID();
   const token = crypto.randomUUID();
   await env.DB.prepare(
     "INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt, globalRole, twoFactorEnabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -263,6 +275,7 @@ describe("Better Auth device authorization", () => {
       .getSetCookie()
       .map((value) => value.split(";", 1)[0])
       .join("; ");
+    expect((await presentationsWith({ cookie: challengeCookie })).status).toBe(401);
     const verified = await requestWithAuth(test.auth, "/two-factor/verify-totp", {
       method: "POST",
       headers: {
@@ -280,19 +293,26 @@ describe("Better Auth device authorization", () => {
       headers: { authorization: `Bearer ${bearerToken}` },
     });
     await expect(verifiedSession.json()).resolves.toMatchObject({
-      session: { assurance: "password_mfa" },
+      session: { assurance: "password" },
       user: { email, twoFactorEnabled: true },
     });
+    expect((await presentationsWith({ authorization: `Bearer ${bearerToken}` })).status).toBe(200);
     const trustedCookie = verified.headers
       .getSetCookie()
       .map((value) => value.split(";", 1)[0])
       .join("; ");
     const trustedSignIn = await requestWithAuth(test.auth, "/sign-in/email", {
       method: "POST",
-      headers: { "content-type": "application/json", cookie: trustedCookie },
+      headers: {
+        "content-type": "application/json",
+        cookie: trustedCookie,
+        origin: "https://un-fra.me",
+      },
       body: JSON.stringify({ email, password }),
     });
+    expect(trustedSignIn.status).toBe(200);
     expect(await trustedSignIn.json()).not.toMatchObject({ twoFactorRedirect: true });
+    expect((await presentationsWith({ cookie: responseCookie(trustedSignIn) })).status).toBe(200);
 
     const backupChallenge = await requestWithAuth(test.auth, "/sign-in/email", {
       method: "POST",
@@ -363,8 +383,35 @@ describe("Better Auth device authorization", () => {
       .bind(email)
       .first<{ failedVerificationCount: number; lockedUntil: string | null }>();
     expect(lockout).toMatchObject({ failedVerificationCount: 10, lockedUntil: expect.any(String) });
+
+    const disabled = await requestWithAuth(test.auth, "/two-factor/disable", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: trustedCookie,
+        origin: "https://un-fra.me",
+      },
+      body: JSON.stringify({ password }),
+    });
+    expect(disabled.status).toBe(200);
+    const disabledCookie = responseCookie(disabled);
+    expect((await presentationsWith({ cookie: disabledCookie })).status).toBe(200);
+    const disabledSession = await requestWithAuth(test.auth, "/get-session", {
+      headers: { cookie: disabledCookie },
+    });
+    await expect(disabledSession.json()).resolves.toMatchObject({
+      session: { assurance: "password" },
+      user: { twoFactorEnabled: false },
+    });
+    const passwordOnly = await requestWithAuth(test.auth, "/sign-in/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    expect(await passwordOnly.json()).not.toMatchObject({ twoFactorRedirect: true });
+    expect((await presentationsWith({ cookie: responseCookie(passwordOnly) })).status).toBe(200);
   });
-  it("requires verification before password sign-in and sends the verification link", async () => {
+  it("allows verified password users to access presentations without enrolling MFA", async () => {
     const test = mailbox();
     const email = `${crypto.randomUUID()}@example.com`;
     const password = "password-with-enough-length";
@@ -396,6 +443,48 @@ describe("Better Auth device authorization", () => {
       body: JSON.stringify({ email, password }),
     });
     expect(afterVerification.status).toBe(200);
+    const cookie = responseCookie(afterVerification);
+    const presentations = await presentationsWith({ cookie });
+    expect(presentations.status).toBe(200);
+    const session = await requestWithAuth(test.auth, "/get-session", { headers: { cookie } });
+    await expect(session.json()).resolves.toMatchObject({
+      session: { assurance: "password" },
+      user: { emailVerified: true, twoFactorEnabled: false },
+    });
+  });
+
+  it("keeps presentation access after changing a password and replacing sessions", async () => {
+    const test = mailbox();
+    const email = `${crypto.randomUUID()}@example.com`;
+    const password = "password-with-enough-length";
+    await requestWithAuth(test.auth, "/sign-up/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Test User", email, password }),
+    });
+    await env.DB.prepare("UPDATE user SET emailVerified = 1 WHERE email = ?").bind(email).run();
+    const signedIn = await requestWithAuth(test.auth, "/sign-in/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const previousCookie = responseCookie(signedIn);
+    const changed = await requestWithAuth(test.auth, "/change-password", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: previousCookie,
+        origin: "https://un-fra.me",
+      },
+      body: JSON.stringify({
+        currentPassword: password,
+        newPassword: "another-long-password",
+        revokeOtherSessions: true,
+      }),
+    });
+    expect(changed.status).toBe(200);
+    expect((await presentationsWith({ cookie: previousCookie })).status).toBe(401);
+    expect((await presentationsWith({ cookie: responseCookie(changed) })).status).toBe(200);
   });
 
   it("sends a reset link, revokes sessions, and refuses a reused reset token", async () => {
@@ -427,7 +516,7 @@ describe("Better Auth device authorization", () => {
         timestamp,
         timestamp,
         user!.id,
-        "password_mfa",
+        "password",
       )
       .run();
     const pendingDevice = await requestWithAuth(test.auth, "/device/code", {
@@ -620,10 +709,11 @@ describe("Better Auth device authorization", () => {
     await expect(response.json()).resolves.toMatchObject({ error: "invalid_client" });
   });
 
-  it("does not let unverified or MFA-incomplete sessions approve a device code", async () => {
+  it("requires a verified email and recognized sign-in method to approve a device code", async () => {
     const device = await issueDeviceCode();
-    const unverified = await seedBrowserSession("user", "password_mfa", 0, 1);
-    const noMfa = await seedBrowserSession("user", "password_mfa", 1, 0);
+    const unverified = await seedBrowserSession("user", "password", 0, 1);
+    const unknownMethod = await seedBrowserSession("user", "none", 1, 0);
+    const password = await seedBrowserSession("user", "password", 1, 0);
     const app = createApp();
     const claim = (cookie: string) =>
       app.fetch(
@@ -634,7 +724,8 @@ describe("Better Auth device authorization", () => {
       );
 
     expect((await claim(unverified.cookie)).status).toBe(401);
-    expect((await claim(noMfa.cookie)).status).toBe(401);
+    expect((await claim(unknownMethod.cookie)).status).toBe(401);
+    expect((await claim(password.cookie)).status).toBe(200);
   });
 
   it("refuses to link Google to an unverified password account or activate its password", async () => {
@@ -708,6 +799,108 @@ describe("Better Auth device authorization", () => {
         .bind(signedUp.user.id)
         .first(),
     ).toMatchObject({ userId: signedUp.user.id, assurance: "google" });
+    const accountsResponse = await requestWithAuth(setup.auth, "/list-accounts", {
+      headers: { cookie: responseCookie(callback) },
+    });
+    expect(accountsResponse.status).toBe(200);
+    const accounts = (await accountsResponse.json()) as { providerId: string }[];
+    expect(accounts.map((account) => account.providerId).sort()).toEqual(["credential", "google"]);
+  });
+
+  it("sets an initial password through email recovery for a Google user and enrolls MFA", async () => {
+    const setup = mailbox();
+    const email = `${crypto.randomUUID()}@example.com`;
+    const password = "initial-password-with-enough-length";
+    const callback = await completeGoogleSignIn(setup.auth, email);
+    expect(callback.status).toBe(302);
+    const googleCookie = responseCookie(callback);
+    const initialAccounts = await requestWithAuth(setup.auth, "/list-accounts", {
+      headers: { cookie: googleCookie },
+    });
+    expect(initialAccounts.status).toBe(200);
+    const googleAccounts = (await initialAccounts.json()) as { providerId: string }[];
+    expect(googleAccounts.map((account) => account.providerId)).toEqual(["google"]);
+
+    const requested = await requestWithAuth(setup.auth, "/request-password-reset", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: googleCookie,
+        origin: "https://un-fra.me",
+      },
+      body: JSON.stringify({ email, redirectTo: "https://un-fra.me/reset" }),
+    });
+    expect(requested.status).toBe(200);
+    expect(setup.messages).toHaveLength(1);
+    expect(setup.messages[0]?.to).toBe(email);
+    const resetLink = new URL(setup.messages[0]!.text.match(/https:\/\/[^\s]+/)![0]);
+    const followed = await requestWithAuth(
+      setup.auth,
+      `${resetLink.pathname.slice("/api/auth".length)}${resetLink.search}`,
+    );
+    expect(followed.status).toBe(302);
+    const resetPage = new URL(followed.headers.get("location")!);
+    expect(`${resetPage.origin}${resetPage.pathname}`).toBe("https://un-fra.me/reset");
+    const reset = await requestWithAuth(setup.auth, "/reset-password", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: resetPage.searchParams.get("token"), newPassword: password }),
+    });
+    expect(reset.status).toBe(200);
+    expect((await presentationsWith({ cookie: googleCookie })).status).toBe(401);
+    expect(
+      (await requestWithAuth(setup.auth, "/list-accounts", { headers: { cookie: googleCookie } }))
+        .status,
+    ).toBe(401);
+
+    const signedIn = await requestWithAuth(setup.auth, "/sign-in/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    expect(signedIn.status).toBe(200);
+    const passwordCookie = responseCookie(signedIn);
+    expect((await presentationsWith({ cookie: passwordCookie })).status).toBe(200);
+    const linkedAccounts = await requestWithAuth(setup.auth, "/list-accounts", {
+      headers: { cookie: passwordCookie },
+    });
+    expect(linkedAccounts.status).toBe(200);
+    const accounts = (await linkedAccounts.json()) as { providerId: string }[];
+    expect(accounts.map((account) => account.providerId).sort()).toEqual(["credential", "google"]);
+
+    const enabled = await requestWithAuth(setup.auth, "/two-factor/enable", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: passwordCookie,
+        origin: "https://un-fra.me",
+      },
+      body: JSON.stringify({ password }),
+    });
+    expect(enabled.status).toBe(200);
+    const enrollment = (await enabled.json()) as { totpURI: string };
+    const verified = await requestWithAuth(setup.auth, "/two-factor/verify-totp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: passwordCookie,
+        origin: "https://un-fra.me",
+      },
+      body: JSON.stringify({ code: await totpCode(enrollment.totpURI) }),
+    });
+    expect(verified.status).toBe(200);
+    const session = await requestWithAuth(setup.auth, "/get-session", {
+      headers: { cookie: responseCookie(verified) },
+    });
+    await expect(session.json()).resolves.toMatchObject({
+      user: { email, emailVerified: true, twoFactorEnabled: true },
+    });
+  });
+
+  it("requires a current session to list linked accounts", async () => {
+    const response = await requestAuth("/list-accounts");
+
+    expect(response.status).toBe(401);
   });
 
   it("starts Google sign-in at Better Auth's provider route with the configured callback URL", async () => {
@@ -930,5 +1123,18 @@ describe("Better Auth device authorization", () => {
     expect((await request()).status).toBe(401);
     expect((await request({ authorization: `Bearer ${browser.token}` })).status).toBe(200);
     expect((await request({ cookie: browser.cookie })).status).toBe(200);
+  });
+
+  it("rejects anonymous viewer sessions even when the email and sign-in method are populated", async () => {
+    const viewer = await seedBrowserSession(
+      "user",
+      "password",
+      1,
+      0,
+      `anonymous_${crypto.randomUUID()}`,
+    );
+
+    expect((await presentationsWith({ cookie: viewer.cookie })).status).toBe(401);
+    expect((await presentationsWith({ authorization: `Bearer ${viewer.token}` })).status).toBe(401);
   });
 });

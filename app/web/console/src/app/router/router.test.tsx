@@ -37,10 +37,18 @@ describe("web management routes", () => {
     auth.device.deny.mockReset();
   });
 
+  it("offers a route to home when an unknown page is opened without a session", async () => {
+    auth.getSession.mockResolvedValue({ data: null, error: null });
+    await renderRoute("/unknown-page");
+
+    expect(await screen.findByRole("heading", { name: "ページが見つかりません" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "ホームへ戻る" })).toHaveAttribute("href", "/home");
+  });
+
   it("requires login when opening the former editor route", async () => {
     auth.getSession.mockResolvedValue({ data: null, error: null });
     const router = await renderRoute("/editor");
-    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
   });
 
   it("keeps the device URL and code in the Google sign-in callback", async () => {

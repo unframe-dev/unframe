@@ -1,40 +1,109 @@
 import { expect, test } from "@playwright/test";
 
+const accountImage = "https://images.example.test/account.png";
+const accountSession = {
+  user: {
+    id: "test-user",
+    name: "テストユーザー",
+    email: "test@example.com",
+    image: accountImage,
+    emailVerified: true,
+    createdAt: "2026-08-17T00:00:00.000Z",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+  },
+  session: {
+    id: "test-session",
+    userId: "test-user",
+    expiresAt: "2026-08-18T00:00:00.000Z",
+    token: "test-token",
+    createdAt: "2026-08-17T00:00:00.000Z",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+  },
+};
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/presentations", (route) => route.fulfill({ json: { presentations: [] } }));
-  await page.route("**/api/auth/get-session", (route) =>
+  await page.route(accountImage, (route) =>
     route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        user: {
-          id: "test-user",
-          name: "テストユーザー",
-          email: "test@example.com",
-          emailVerified: true,
-          createdAt: "2026-08-17T00:00:00.000Z",
-          updatedAt: "2026-08-17T00:00:00.000Z",
-        },
-        session: {
-          id: "test-session",
-          userId: "test-user",
-          expiresAt: "2026-08-18T00:00:00.000Z",
-          token: "test-token",
-          createdAt: "2026-08-17T00:00:00.000Z",
-          updatedAt: "2026-08-17T00:00:00.000Z",
-        },
-      }),
+      contentType: "image/svg+xml",
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><circle cx="32" cy="32" r="32" fill="red"/></svg>',
     }),
   );
+  await page.route("**/api/auth/get-session", (route) => route.fulfill({ json: accountSession }));
+});
+
+test("account menu displays the account image on desktop and mobile", async ({ page }) => {
+  await page.goto("/home");
+  const menu = page.getByRole("button", { name: "アカウントメニュー" });
+  const image = menu.locator("img");
+  await expect(image).toHaveAttribute("src", accountImage);
+  await expect
+    .poll(() =>
+      image.evaluate((element) => element instanceof HTMLImageElement && element.naturalWidth > 0),
+    )
+    .toBe(true);
+  await expect(image).toHaveCSS("object-fit", "cover");
+  await expect(image).toHaveCSS("border-radius", "50%");
+
+  await page.getByRole("button", { name: "サイドバーを折り畳む" }).click();
+  await expect(image).toBeVisible();
+  await page.setViewportSize({ width: 375, height: 700 });
+  await expect(image).toBeVisible();
+  await menu.click();
+  await expect(page.getByRole("menuitem", { name: "設定" })).toBeVisible();
+});
+
+test("account menu reflects saved profile images without reloading", async ({ page }) => {
+  let savedImage: string | null = accountImage;
+  await page.route("**/api/auth/get-session", (route) =>
+    route.fulfill({
+      json: { ...accountSession, user: { ...accountSession.user, image: savedImage } },
+    }),
+  );
+  await page.route("**/api/auth/update-user", (route) => {
+    savedImage = route.request().postDataJSON().image;
+    return route.fulfill({ json: { status: true } });
+  });
+  const updatedImage = "https://images.example.test/updated.png";
+  await page.route(updatedImage, (route) =>
+    route.fulfill({ path: "public/favicon/favicon-32x32.png" }),
+  );
+  await page.goto("/settings/profile");
+  const menu = page.getByRole("button", { name: "アカウントメニュー" });
+  const imageInput = page.getByRole("textbox", { name: "アイコンURL" });
+  await expect(imageInput).toHaveValue(accountImage);
+  await imageInput.fill(updatedImage);
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(menu.locator("img")).toHaveAttribute("src", updatedImage);
+
+  await imageInput.fill("");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(menu.locator("img")).toHaveCount(0);
+  await menu.click();
+  await expect(page.getByRole("menuitem", { name: "設定" })).toBeVisible();
+});
+
+test("account menu remains usable when the account image cannot load", async ({ page }) => {
+  await page.route(accountImage, (route) => route.abort());
+  const failedImage = page.waitForEvent("requestfailed", {
+    predicate: (request) => request.url() === accountImage,
+  });
+  await page.goto("/home");
+  await failedImage;
+  const menu = page.getByRole("button", { name: "アカウントメニュー" });
+  await expect(menu.locator("img")).toHaveCount(0);
+  await menu.click();
+  await expect(page.getByRole("menuitem", { name: "設定" })).toBeVisible();
 });
 
 test("public authentication routes and account menu are accessible", async ({ page }) => {
   await page.goto("/login");
-  await expect(page.getByRole("heading", { name: "Sign in." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Login." })).toBeVisible();
   await page.getByRole("link", { name: "アカウントを作成" }).click();
-  await expect(page.getByRole("heading", { name: "Create an account." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign up." })).toBeVisible();
   await page.goto("/home");
   const desktopMenu = page.getByRole("button", { name: "アカウントメニュー" });
-  const projectGuide = page.getByRole("heading", { name: "公開済み Dist" });
+  const projectGuide = page.getByRole("heading", { name: "公開済みプレゼンテーション" });
   await expect(desktopMenu).toBeVisible();
   await expect(projectGuide).toBeVisible();
   const mainNavigation = page.getByRole("navigation", {

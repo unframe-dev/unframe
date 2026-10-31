@@ -91,7 +91,7 @@ Session作成の権限・端末参加・Runtime割当の条件は [サーバーR
 
 Unityで `Unframe > Presentation > Open Quest Presentation` を開きます。
 `Unframe > Presentation > Build Quest Presentation APK` が専用SceneからAPKを作ります。
-Android Build Support、IL2CPP、ARM64、AprilTagを使う場合はOpenCVの準備が必要です。
+Android Build Support、IL2CPP、ARM64、OpenCV for Unity とAndroid用の `UNFRAME_OPENCV_FOR_UNITY` defineが必要です。
 回帰テストのfixtureは `Assets/Tests/EditMode/Editor/FixturesData` に置き、Playerには含めません。
 旧ローカル用JSONの実行環境は削除しています。APKビルドはMetaのローカル接続設定を一時除外し、
 成功・失敗の両方で復元します。
@@ -102,8 +102,8 @@ Android Build Support、IL2CPP、ARM64、AprilTagを使う場合はOpenCVの準�
 `PresentationBakedRuntime` が素材とControl/Stateの同期を検証します。
 校正とSessionReadyが揃ってから表示・入力を有効にします。
 
-Android launch Intentから `unframe.controlPlaneOrigin`、`unframe.sessionId`、
-`unframe.credential`、任意の `unframe.advanceLogicalEvent` を渡す一時接続もあります。
+Development BuildではAndroid launch Intentから `unframe.controlPlaneOrigin`、`unframe.sessionId`、
+`unframe.credential`、任意の `unframe.advanceLogicalEvent` を渡す一時接続もあります。通常のAPKはIntentの接続設定を読み取りません。
 Sceneにcredentialを保存しないでください。Intent経路はtoken更新機構を提供しないため、
 継続運用には呼び出し元のcredential providerを使用します。
 通常起動では端末コード認証、資料選択・ルーム参加のUIを使用します。Presenterはルーム作成後に
@@ -150,7 +150,7 @@ Scene、PlayerPrefs、ログへは保存しません。接続中のcredential pr
 
 ### Questで接続する
 
-外部の起動元から前述のIntent extrasを渡すと本番Sessionへ接続します。
+`Unframe > Presentation > Build Quest Development APK` で作成したDevelopment Buildでは、外部の起動元から前述のIntent extrasを渡してSessionへ接続できます。通常のAPKはアプリUIから参加します。
 各extraは読み取り直後にIntentから削除します。通常の起動UIにはルームコード用の画面内キーボードがあります。
 既存の呼び出し元は `Connect` を利用でき、接続設定と起動を分ける場合は
 `ConfigureConnection` → `ConnectAsync` を利用します。

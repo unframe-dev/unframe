@@ -5,6 +5,7 @@ import { ProfilePage, SecurityPage } from "./settings-pages";
 
 const auth = vi.hoisted(() => ({
   getSession: vi.fn(),
+  listAccounts: vi.fn(),
   updateUser: vi.fn(),
   changePassword: vi.fn(),
   listSessions: vi.fn(),
@@ -100,25 +101,32 @@ describe("ProfilePage", () => {
 });
 describe("SecurityPage", () => {
   it("sets up TOTP, displays backup codes, and lists sessions", async () => {
-    auth.twoFactor.enable.mockResolvedValue({ error: null });
-    auth.twoFactor.getTotpUri.mockResolvedValue({
+    auth.listAccounts.mockResolvedValue({ error: null, data: [{ providerId: "credential" }] });
+    auth.getSession.mockResolvedValue({
       error: null,
-      data: { totpURI: "otpauth://test" },
+      data: { user: { twoFactorEnabled: false } },
+    });
+    auth.twoFactor.enable.mockResolvedValue({
+      error: null,
+      data: {
+        method: "totp",
+        totpURI: "otpauth://totp/test?secret=JBSWY3DPEHPK3PXP",
+        backupCodes: ["ABC"],
+      },
     });
     auth.twoFactor.verifyTotp.mockResolvedValue({ error: null });
-    auth.twoFactor.generateBackupCodes.mockResolvedValue({
-      error: null,
-      data: { backupCodes: ["ABC"] },
-    });
     auth.listSessions.mockResolvedValue({
       error: null,
       data: [{ id: "s", createdAt: "now" }],
     });
     render(<SecurityPage />);
     const user = userEvent.setup();
+    await screen.findByText("未設定", { exact: true });
     await user.type(screen.getAllByLabelText("現在のパスワード")[1]!, "password");
-    await user.click(screen.getByRole("button", { name: "二要素認証を有効化" }));
-    expect(await screen.findByText("otpauth://test")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "二要素認証を設定" }));
+    expect(
+      await screen.findByRole("img", { name: "認証アプリ登録用 QR コード" }),
+    ).toBeInTheDocument();
     await user.type(screen.getByLabelText("認証コード"), "123456");
     await user.click(screen.getByRole("button", { name: "コードを確認" }));
     expect(await screen.findByText("ABC")).toBeInTheDocument();

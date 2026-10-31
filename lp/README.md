@@ -47,10 +47,11 @@ pnpm --filter @unframe/site run cf:deploy
 
 ## ルーティング
 
-LPは `un-fra.me/*` をデフォルトルートとして使用します。同じゾーンに別Workerを追加する場合は、
-`un-fra.me/editor/*` のようにLPより具体的なパスを割り当ててください。Cloudflareではより具体的な
-ルートが優先されます。Worker名もプロジェクトごとに重複しないようにします。DNSレコードとWorker
-routeの正本はリポジトリ外の [`infra`](../../infra/README.md) Terraformです。
+LP は `un-fra.me` の `/`、`/news`・`/news/*`、`/docs`・`/docs/*` と静的アセット用の
+`/_app/*`・`/brand/*`・`/favicon/*` を配信します。その他のパスは Console Worker が配信し、
+Header の「試してみる」は同じ origin の `/signup`、「ログイン」は `/login` に進みます。
+LP の開発サーバー単独では Console の画面は配信されません。
+DNS レコードと Worker route の正本はリポジトリ外の [`infra`](../../infra/README.md) Terraform です。
 
 本番のデプロイには、対象ゾーンへのアクセス権を持つCloudflare APIトークン、またはWranglerの
 ログインセッションが必要です。

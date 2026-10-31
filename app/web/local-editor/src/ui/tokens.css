@@ -1,3 +1,19 @@
+@font-face {
+  font-family: "LINE Seed JP";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/line-seed-jp/LINESeedJP_OTF_Rg.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "LINE Seed JP";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/line-seed-jp/LINESeedJP_OTF_Bd.woff2") format("woff2");
+}
+
 :root {
   --background: #f4f5f7;
   --panel: #fff;
@@ -10,7 +26,7 @@
   --accent-foreground: #fff;
   --danger: #b42332;
   --radius: 5px;
-  --font-sans: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  --font-sans: "LINE Seed JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, monospace;
 }
 [data-theme="dark"] {

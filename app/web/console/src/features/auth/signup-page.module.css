@@ -1,0 +1,47 @@
+.page {
+  --background: #f7f7f5;
+  isolation: isolate;
+  overflow: clip;
+}
+
+.page > section {
+  position: relative;
+  z-index: 1;
+}
+
+.artwork {
+  position: absolute;
+  top: 260px;
+  left: 0;
+  width: 46%;
+  height: 440px;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: linear-gradient(to right, #000 75%, transparent);
+}
+
+.artwork img {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 440px);
+  width: 880px;
+  max-width: none;
+  height: 440px;
+}
+
+@media (max-width: 767px) {
+  .artwork {
+    top: 96px;
+    left: 48%;
+    width: 52%;
+    height: 150px;
+    mask-image: linear-gradient(to bottom, #000 65%, transparent);
+  }
+
+  .artwork img {
+    top: -54px;
+    left: -300px;
+    width: 640px;
+    height: 320px;
+  }
+}

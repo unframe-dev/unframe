@@ -33,11 +33,15 @@
     "better-auth": "1.7.1",
     "drizzle-orm": "0.45.2",
     "hono": "^4.13.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-email": "6.11.6",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@cloudflare/workers-types": "5.20260927.1",
+    "@types/react": "19.3.0",
     "auth": "1.7.6",
     "typescript": "^7.0.0",
     "vite-plus": "catalog:",

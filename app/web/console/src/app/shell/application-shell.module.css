@@ -145,6 +145,12 @@
   width: 21px;
   height: 21px;
 }
+.accountImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
 .menuPositioner {
   z-index: 60;
 }

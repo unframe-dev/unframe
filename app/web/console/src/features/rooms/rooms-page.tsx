@@ -24,37 +24,44 @@ import styles from "@/app/shell/application-content.module.css";
 
 export function RoomDetails({ room }: { room: Room }) {
   return (
-    <dl className="grid gap-3 break-all text-sm">
-      <div>
-        <dt>Session ID</dt>
-        <dd>{room.id}</dd>
-      </div>
-      <div>
-        <dt>Presentation ID</dt>
-        <dd>{room.presentationId}</dd>
-      </div>
-      <div>
-        <dt>状態</dt>
-        <dd>{room.state}</dd>
-      </div>
-      {room.publicationFence ? (
-        <>
-          <div>
-            <dt>固定 publication epoch</dt>
-            <dd>{room.publicationFence.publicationEpoch}</dd>
-          </div>
-          <div>
-            <dt>固定 publication manifest hash</dt>
-            <dd>{room.publicationFence.publicationManifestHash}</dd>
-          </div>
-        </>
-      ) : (
+    <>
+      <dl className="grid gap-3 break-all text-sm">
         <div>
-          <dt>固定 publication</dt>
-          <dd>公開版なし</dd>
+          <dt>ルーム ID</dt>
+          <dd>{room.id}</dd>
         </div>
-      )}
-    </dl>
+        <div>
+          <dt>状態</dt>
+          <dd>{room.state}</dd>
+        </div>
+      </dl>
+      <details className="text-sm">
+        <summary className="w-fit cursor-pointer text-[var(--muted)]">技術情報</summary>
+        <dl className="mt-4 grid gap-3 break-all">
+          <div>
+            <dt>Presentation ID</dt>
+            <dd>{room.presentationId}</dd>
+          </div>
+          {room.publicationFence ? (
+            <>
+              <div>
+                <dt>固定 publication epoch</dt>
+                <dd>{room.publicationFence.publicationEpoch}</dd>
+              </div>
+              <div>
+                <dt>固定 publication manifest hash</dt>
+                <dd>{room.publicationFence.publicationManifestHash}</dd>
+              </div>
+            </>
+          ) : (
+            <div>
+              <dt>固定 publication</dt>
+              <dd>公開版なし</dd>
+            </div>
+          )}
+        </dl>
+      </details>
+    </>
   );
 }
 
@@ -115,7 +122,6 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
     <main id="main-content" className={styles["main"]}>
       <header className={styles["heading"]}>
         <h1>ルーム</h1>
-        <p>公開済み Dist からルームを作成します。作成時の最新公開版を使います。</p>
       </header>
       <OwnedRoomList />
       <>
@@ -130,21 +136,19 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
             </Button>
           </p>
         ) : null}
-        {initial.isSuccess && !initial.data.publication ? <p>公開済み Dist なし</p> : null}
+        {initial.isSuccess && !initial.data.publication ? <p>未公開</p> : null}
         {selection ? (
-          <section className="grid gap-4 border-b py-8" aria-label="選択した Presentation">
+          <section className="grid gap-4 border-b py-8" aria-label="選択したプレゼンテーション">
             <h2 className="text-xl">{selection.presentation.name}</h2>
-            <p className="break-all text-sm">Presentation ID: {selection.presentation.id}</p>
-            <PublicationDetails publication={selection.publication} />
             <p className="text-sm">
-              表示後に公開版が更新された場合、作成時の最新公開版が固定されます。Ended
-              でないルームがある間、再公開はできません。
+              作成時の最新公開版を使用します。すべてのルームを終了するまで再公開できません。
             </p>
             <div>
               <Button disabled={mutation.isPending || uncertain || created} onClick={submit}>
                 {mutation.isPending ? "作成しています…" : "ルームを作成"}
               </Button>
             </div>
+            <PublicationDetails publication={selection.publication} />
           </section>
         ) : null}
         {mutation.isError ? (
@@ -180,7 +184,6 @@ export function RoomPage({ sessionId }: { sessionId: string }) {
     <main id="main-content" className={styles["main"]}>
       <header className={styles["heading"]}>
         <h1>ルームの詳細</h1>
-        <p>発表環境を準備して、発表を開始・終了します。</p>
       </header>
       <section className="grid gap-5 py-8">
         <div>
