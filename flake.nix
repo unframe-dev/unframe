@@ -323,6 +323,10 @@
           realtime = mkApp {
             name = "realtime";
             script = "ci/realtime.sh";
+            extraRuntimeInputs = [
+              pkgs.zip
+              pkgs.unzip
+            ];
           };
           runtime-host = mkApp {
             name = "runtime-host";
@@ -343,6 +347,15 @@
               pkgs.tailscale
               pkgs.caddy
             ];
+          };
+          runtime-host-updater-setup = mkApp {
+            name = "runtime-host-updater-setup";
+            script = "runtime-host/pull-setup.sh";
+            extraRuntimeInputs = [ pkgs.gh ];
+          };
+          runtime-host-update = mkApp {
+            name = "runtime-host-update";
+            script = "runtime-host/pull-update.sh";
           };
           runtime-host-deploy = mkApp {
             name = "runtime-host-deploy";

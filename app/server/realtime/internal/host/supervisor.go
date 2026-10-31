@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"time"
 )
@@ -58,6 +59,7 @@ type Execution interface {
 	Stop(context.Context) error
 }
 type Supervisor struct {
+	UpdateDirectory string
 	RuntimeID       string
 	Endpoint        string
 	BootID          string
@@ -176,7 +178,15 @@ func (s Supervisor) Run(ctx context.Context) (runError error) {
 	if now == nil {
 		now = time.Now
 	}
-	registration := Registration{Endpoint: s.Endpoint, BootID: s.BootID, BootStartedAt: s.BootStartedAt, Capacity: s.Capacity, Accepting: !s.Drain}
+	accepting := func() (bool, error) {
+		if s.UpdateDirectory == "" {
+			return !s.Drain, nil
+		}
+		draining, err := updateDrain(s.UpdateDirectory)
+		return !s.Drain && !draining && err == nil, err
+	}
+	initialAccepting, _ := accepting()
+	registration := Registration{Endpoint: s.Endpoint, BootID: s.BootID, BootStartedAt: s.BootStartedAt, Capacity: s.Capacity, Accepting: initialAccepting}
 	var generation uint64
 	for generation == 0 {
 		poll, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -265,7 +275,8 @@ func (s Supervisor) Run(ctx context.Context) (runError error) {
 			}
 		}
 		poll, cancel := context.WithTimeout(ctx, 5*time.Second)
-		response, err := s.ControlPlane.Heartbeat(poll, request(!s.Drain))
+		canAccept, updateError := accepting()
+		response, err := s.ControlPlane.Heartbeat(poll, request(canAccept))
 		cancel()
 		if ctx.Err() != nil {
 			return nil
@@ -336,6 +347,10 @@ func (s Supervisor) Run(ctx context.Context) (runError error) {
 				sessions[id] = &managedSession{assignment: a, cancel: startCancel, starting: ready, state: state, renewals: renewals}
 				go func() { execution, err := s.Start(startCtx, a, renewals); ready <- executionResult{execution, err} }()
 			}
+		}
+		if err == nil && updateError == nil && s.UpdateDirectory != "" {
+			// Failed writes leave stale status so the updater refuses to proceed.
+			_ = writeUpdateStatus(s.UpdateDirectory, UpdateStatus{SchemaVersion: 1, PID: os.Getpid(), UpdatedAt: now().UTC(), Draining: !canAccept, ActiveSessions: len(sessions)})
 		}
 		select {
 		case <-ctx.Done():

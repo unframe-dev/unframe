@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 )
 
 type Config struct {
+	UpdateDirectory string
 	Capacity        int
 	Drain           bool
 	BrowserOrigins  []string
@@ -35,6 +37,7 @@ func httpsURL(value string, origin bool) bool {
 }
 func LoadConfig(getenv func(string) string) (Config, error) {
 	c := Config{
+		UpdateDirectory: getenv("REALTIME_HOST_UPDATE_DIRECTORY"),
 		Drain:           getenv("REALTIME_HOST_DRAIN") == "true",
 		ControlPlaneURL: getenv("REALTIME_CONTROL_PLANE_URL"),
 		ServiceIdentity: getenv("REALTIME_SERVICE_IDENTITY"),
@@ -45,6 +48,9 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		Audience:        getenv("REALTIME_AUDIENCE"),
 		JWKSURL:         getenv("REALTIME_JWKS_URL"),
 		CAFile:          getenv("SSL_CERT_FILE"),
+	}
+	if c.UpdateDirectory != "" && !filepath.IsAbs(c.UpdateDirectory) {
+		return Config{}, errors.New("runtime host update directory must be absolute")
 	}
 	bad := errors.New("runtime host configuration is invalid")
 	c.Capacity, _ = strconv.Atoi(getenv("REALTIME_HOST_CAPACITY"))

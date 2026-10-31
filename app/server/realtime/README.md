@@ -175,3 +175,5 @@ docker build -t unframe-realtime app/server/realtime
 実行には割り当てと認証の環境変数、TLS 証明書・鍵、writable cache のマウントが必要です。Venue Edge の素材 cache、TLS listener、環境変数、証明書更新と会場試験は [会場検証手順](../../../docs/validation/venue-edge-asset-delivery.md) を参照してください。実機結果は未取得です。
 
 自宅 Mac をポート開放なしで一時公開する場合は [Tailscale Funnel の起動手順](ops/funnel.md) を参照してください。
+
+GitHub Actions の成功済み成果物をこの Mac へ定期取得する場合は、[Pull 型 CD の導入と手動更新](ops/funnel.md#github-actions-からの-pull-型-cd)を参照してください。
