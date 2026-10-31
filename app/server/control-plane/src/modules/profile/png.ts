@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { Buffer } from "node:buffer";
 import extractChunks from "@stackline/png-chunks-extract";
 import { png } from "@stacksjs/ts-png";
