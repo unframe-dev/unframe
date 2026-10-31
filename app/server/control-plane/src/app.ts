@@ -214,9 +214,9 @@ export function createApp(options: AppOptions = {}) {
       return cors({
         origin,
         credentials: true,
-        allowHeaders: ["Content-Type", "Authorization"],
+        allowHeaders: ["Content-Type", "Authorization", "If-None-Match"],
         allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        exposeHeaders: ["set-auth-token"],
+        exposeHeaders: ["set-auth-token", "ETag"],
       })(context, next);
     }
     await next();

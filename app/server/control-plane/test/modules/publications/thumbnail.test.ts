@@ -108,9 +108,15 @@ describe("publication thumbnail", () => {
       env.DB.prepare("DELETE FROM presentation_builds WHERE presentation_id = 'demo'"),
     ]);
   });
-  const request = (identity: typeof owner | undefined = owner, buildId = "build-publishable") =>
+  const request = (
+    identity: typeof owner | undefined = owner,
+    buildId = "build-publishable",
+    headers: HeadersInit = {},
+  ) =>
     createApp({ identityProvider: async () => identity }).fetch(
-      new Request(`https://example.test/presentations/demo/builds/${buildId}/thumbnail`),
+      new Request(`https://example.test/presentations/demo/builds/${buildId}/thumbnail`, {
+        headers,
+      }),
       runtimeEnvironment(),
     );
   const store = async (published = true) => {
@@ -196,10 +202,90 @@ describe("publication thumbnail", () => {
     const response = await request();
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/png");
-    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("cache-control")).toBe("private, no-cache");
+    expect(response.headers.get("etag")).toMatch(/^"[a-f0-9]+"$/);
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("content-length")).toBe("64");
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array(bytes.texture!));
+  });
+  it.each(["strong", "weak", "list", "wildcard"] as const)(
+    "revalidates a %s If-None-Match header without downloading the image again",
+    async (kind) => {
+      await store();
+      const first = await request();
+      const tag = first.headers.get("etag");
+      expect(tag).not.toBeNull();
+      const headers = { strong: tag!, weak: `W/${tag}`, list: `"other", W/${tag}`, wildcard: "*" };
+      const response = await request(owner, "build-publishable", {
+        "If-None-Match": headers[kind],
+      });
+      expect(response.status).toBe(304);
+      expect(response.headers.get("etag")).toBe(tag);
+      expect(response.headers.get("cache-control")).toBe("private, no-cache");
+      expect(await response.text()).toBe("");
+      expect(response.headers.get("content-length")).toBeNull();
+    },
+  );
+  it("returns the image when its validator does not match", async () => {
+    const { bytes } = await store();
+    const response = await request(owner, "build-publishable", { "If-None-Match": '"other"' });
+    expect(response.status).toBe(200);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array(bytes.texture!));
+  });
+  it("checks authentication and authorization before accepting a cached validator", async () => {
+    await store();
+    const first = await request();
+    const headers = { "If-None-Match": first.headers.get("etag")! };
+    const anonymous = await createApp({ identityProvider: async () => undefined }).fetch(
+      new Request("https://example.test/presentations/demo/builds/build-publishable/thumbnail", {
+        headers,
+      }),
+      runtimeEnvironment(),
+    );
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.headers.get("cache-control")).toBe("no-store");
+    const forbidden = await request(
+      { ...owner, userId: "other-user" },
+      "build-publishable",
+      headers,
+    );
+    expect(forbidden.status).toBe(403);
+    expect(forbidden.headers.get("cache-control")).toBe("no-store");
+    expect(forbidden.headers.get("etag")).toBeNull();
+  });
+  it("does not return 304 for a deleted publication or missing build", async () => {
+    await store();
+    const tag = (await request()).headers.get("etag")!;
+    await env.DB.prepare(
+      "DELETE FROM presentation_publications WHERE presentation_id = 'demo'",
+    ).run();
+    for (const buildId of ["build-publishable", "missing"]) {
+      const response = await request(owner, buildId, { "If-None-Match": tag });
+      expect(response.status).toBe(404);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.get("etag")).toBeNull();
+    }
+  });
+  it("does not validate a cached image after presentation access is revoked", async () => {
+    await store();
+    const tag = (await request()).headers.get("etag")!;
+    await env.DB.prepare(
+      "DELETE FROM presentation_members WHERE presentation_id = 'demo' AND user_id = ?",
+    )
+      .bind(owner.userId)
+      .run();
+    try {
+      const response = await request(owner, "build-publishable", { "If-None-Match": tag });
+      expect(response.status).toBe(403);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.get("etag")).toBeNull();
+    } finally {
+      await env.DB.prepare(
+        "INSERT INTO presentation_members (presentation_id, user_id, role) VALUES ('demo', ?, 'owner')",
+      )
+        .bind(owner.userId)
+        .run();
+    }
   });
 });
 

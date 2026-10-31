@@ -977,7 +977,7 @@ describe("Better Auth device authorization", () => {
     const allowed = await request("https://un-fra.me");
     expect(allowed.headers.get("access-control-allow-origin")).toBe("https://un-fra.me");
     expect(allowed.headers.get("access-control-allow-credentials")).toBe("true");
-    expect(allowed.headers.get("access-control-expose-headers")).toBe("set-auth-token");
+    expect(allowed.headers.get("access-control-expose-headers")).toBe("set-auth-token,ETag");
 
     const rejected = await request("https://other.example.com");
     expect(rejected.headers.get("access-control-allow-origin")).toBeNull();

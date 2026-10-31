@@ -515,9 +515,10 @@ namespace Unframe.ControlPlane.Api
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse"/>&gt;</returns>
-        Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse> PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(string presentationId, string buildId, System.Threading.CancellationToken cancellationToken = default);
+        Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse> PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(string presentationId, string buildId, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -527,9 +528,10 @@ namespace Unframe.ControlPlane.Api
         /// </remarks>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse"/>?&gt;</returns>
-        Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse?> PresentationsPresentationIdBuildsBuildIdThumbnailGetOrDefaultAsync(string presentationId, string buildId, System.Threading.CancellationToken cancellationToken = default);
+        Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse?> PresentationsPresentationIdBuildsBuildIdThumbnailGetOrDefaultAsync(string presentationId, string buildId, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -972,9 +974,10 @@ namespace Unframe.ControlPlane.Api
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="userId"></param>
         /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IUserImagesUserIdFilenameGetApiResponse"/>&gt;</returns>
-        Task<IUserImagesUserIdFilenameGetApiResponse> UserImagesUserIdFilenameGetAsync(string userId, string filename, System.Threading.CancellationToken cancellationToken = default);
+        Task<IUserImagesUserIdFilenameGetApiResponse> UserImagesUserIdFilenameGetAsync(string userId, string filename, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -984,9 +987,10 @@ namespace Unframe.ControlPlane.Api
         /// </remarks>
         /// <param name="userId"></param>
         /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IUserImagesUserIdFilenameGetApiResponse"/>?&gt;</returns>
-        Task<IUserImagesUserIdFilenameGetApiResponse?> UserImagesUserIdFilenameGetOrDefaultAsync(string userId, string filename, System.Threading.CancellationToken cancellationToken = default);
+        Task<IUserImagesUserIdFilenameGetApiResponse?> UserImagesUserIdFilenameGetOrDefaultAsync(string userId, string filename, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -1991,6 +1995,12 @@ namespace Unframe.ControlPlane.Api
         bool IsOk { get; }
 
         /// <summary>
+        /// Returns true if the response is 304 NotModified
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotModified { get; }
+
+        /// <summary>
         /// Returns true if the response is 400 BadRequest
         /// </summary>
         /// <returns></returns>
@@ -2769,6 +2779,12 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 304 NotModified
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotModified { get; }
 
         /// <summary>
         /// Returns true if the response is 400 BadRequest
@@ -12275,21 +12291,25 @@ namespace Unframe.ControlPlane.Api
             partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
         }
 
-        partial void FormatPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref string presentationId, ref string buildId);
+        partial void FormatPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref string presentationId, ref string buildId, ref Option<string> ifNoneMatch);
 
         /// <summary>
         /// Validates the request parameters
         /// </summary>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"></param>
         /// <returns></returns>
-        private void ValidatePresentationsPresentationIdBuildsBuildIdThumbnailGet(string presentationId, string buildId)
+        private void ValidatePresentationsPresentationIdBuildsBuildIdThumbnailGet(string presentationId, string buildId, Option<string> ifNoneMatch)
         {
             if (presentationId == null)
                 throw new ArgumentNullException(nameof(presentationId));
 
             if (buildId == null)
                 throw new ArgumentNullException(nameof(buildId));
+
+            if (ifNoneMatch.IsSet && ifNoneMatch.Value == null)
+                throw new ArgumentNullException(nameof(ifNoneMatch));
         }
 
         /// <summary>
@@ -12298,10 +12318,11 @@ namespace Unframe.ControlPlane.Api
         /// <param name="apiResponseLocalVar"></param>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
-        private void AfterPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse apiResponseLocalVar, string presentationId, string buildId)
+        /// <param name="ifNoneMatch"></param>
+        private void AfterPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse apiResponseLocalVar, string presentationId, string buildId, Option<string> ifNoneMatch)
         {
             bool suppressDefaultLog = false;
-            AfterPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref suppressDefaultLog, apiResponseLocalVar, presentationId, buildId);
+            AfterPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref suppressDefaultLog, apiResponseLocalVar, presentationId, buildId, ifNoneMatch);
             if (!suppressDefaultLog)
                 Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
         }
@@ -12313,7 +12334,8 @@ namespace Unframe.ControlPlane.Api
         /// <param name="apiResponseLocalVar"></param>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
-        partial void AfterPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref bool suppressDefaultLog, IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse apiResponseLocalVar, string presentationId, string buildId);
+        /// <param name="ifNoneMatch"></param>
+        partial void AfterPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref bool suppressDefaultLog, IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse apiResponseLocalVar, string presentationId, string buildId, Option<string> ifNoneMatch);
 
         /// <summary>
         /// Logs exceptions that occur while retrieving the server response
@@ -12323,10 +12345,11 @@ namespace Unframe.ControlPlane.Api
         /// <param name="pathLocalVar"></param>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
-        private void OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId)
+        /// <param name="ifNoneMatch"></param>
+        private void OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId, Option<string> ifNoneMatch)
         {
             bool suppressDefaultLogLocalVar = false;
-            OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, presentationId, buildId);
+            OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, presentationId, buildId, ifNoneMatch);
             if (!suppressDefaultLogLocalVar)
                 Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
         }
@@ -12340,20 +12363,22 @@ namespace Unframe.ControlPlane.Api
         /// <param name="pathLocalVar"></param>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
-        partial void OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId);
+        /// <param name="ifNoneMatch"></param>
+        partial void OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId, Option<string> ifNoneMatch);
 
         /// <summary>
         ///
         /// </summary>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse"/>&gt;</returns>
-        public async Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse?> PresentationsPresentationIdBuildsBuildIdThumbnailGetOrDefaultAsync(string presentationId, string buildId, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse?> PresentationsPresentationIdBuildsBuildIdThumbnailGetOrDefaultAsync(string presentationId, string buildId, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default)
         {
             try
             {
-                return await PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(presentationId, buildId, cancellationToken).ConfigureAwait(false);
+                return await PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(presentationId, buildId, ifNoneMatch, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -12367,17 +12392,18 @@ namespace Unframe.ControlPlane.Api
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="presentationId"></param>
         /// <param name="buildId"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse"/>&gt;</returns>
-        public async Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse> PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(string presentationId, string buildId, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse> PresentationsPresentationIdBuildsBuildIdThumbnailGetAsync(string presentationId, string buildId, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default)
         {
             UriBuilder uriBuilderLocalVar = new UriBuilder();
 
             try
             {
-                ValidatePresentationsPresentationIdBuildsBuildIdThumbnailGet(presentationId, buildId);
+                ValidatePresentationsPresentationIdBuildsBuildIdThumbnailGet(presentationId, buildId, ifNoneMatch);
 
-                FormatPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref presentationId, ref buildId);
+                FormatPresentationsPresentationIdBuildsBuildIdThumbnailGet(ref presentationId, ref buildId, ref ifNoneMatch);
 
                 using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
                 {
@@ -12389,6 +12415,9 @@ namespace Unframe.ControlPlane.Api
                         : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/presentations/{presentationId}/builds/{buildId}/thumbnail");
                     uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BpresentationId%7D", Uri.EscapeDataString(presentationId.ToString()));
                     uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BbuildId%7D", Uri.EscapeDataString(buildId.ToString()));
+
+                    if (ifNoneMatch.IsSet)
+                        httpRequestMessageLocalVar.Headers.Add("if-none-match", ClientUtils.ParameterToString(ifNoneMatch.Value));
 
                     List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
                     httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
@@ -12435,7 +12464,7 @@ namespace Unframe.ControlPlane.Api
                             }
                         }
 
-                        AfterPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(apiResponseLocalVar, presentationId, buildId);
+                        AfterPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(apiResponseLocalVar, presentationId, buildId, ifNoneMatch);
 
                         Events.ExecuteOnPresentationsPresentationIdBuildsBuildIdThumbnailGet(apiResponseLocalVar);
 
@@ -12449,7 +12478,7 @@ namespace Unframe.ControlPlane.Api
             }
             catch(Exception e)
             {
-                OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(e, "/presentations/{presentationId}/builds/{buildId}/thumbnail", uriBuilderLocalVar.Path, presentationId, buildId);
+                OnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGetDefaultImplementation(e, "/presentations/{presentationId}/builds/{buildId}/thumbnail", uriBuilderLocalVar.Path, presentationId, buildId, ifNoneMatch);
                 Events.ExecuteOnErrorPresentationsPresentationIdBuildsBuildIdThumbnailGet(e);
                 throw;
             }
@@ -12536,6 +12565,12 @@ namespace Unframe.ControlPlane.Api
 
                 return result != null;
             }
+
+            /// <summary>
+            /// Returns true if the response is 304 NotModified
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotModified => 304 == (int)StatusCode;
 
             /// <summary>
             /// Returns true if the response is 400 BadRequest
@@ -20777,21 +20812,25 @@ namespace Unframe.ControlPlane.Api
             partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
         }
 
-        partial void FormatUserImagesUserIdFilenameGet(ref string userId, ref string filename);
+        partial void FormatUserImagesUserIdFilenameGet(ref string userId, ref string filename, ref Option<string> ifNoneMatch);
 
         /// <summary>
         /// Validates the request parameters
         /// </summary>
         /// <param name="userId"></param>
         /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"></param>
         /// <returns></returns>
-        private void ValidateUserImagesUserIdFilenameGet(string userId, string filename)
+        private void ValidateUserImagesUserIdFilenameGet(string userId, string filename, Option<string> ifNoneMatch)
         {
             if (userId == null)
                 throw new ArgumentNullException(nameof(userId));
 
             if (filename == null)
                 throw new ArgumentNullException(nameof(filename));
+
+            if (ifNoneMatch.IsSet && ifNoneMatch.Value == null)
+                throw new ArgumentNullException(nameof(ifNoneMatch));
         }
 
         /// <summary>
@@ -20800,10 +20839,11 @@ namespace Unframe.ControlPlane.Api
         /// <param name="apiResponseLocalVar"></param>
         /// <param name="userId"></param>
         /// <param name="filename"></param>
-        private void AfterUserImagesUserIdFilenameGetDefaultImplementation(IUserImagesUserIdFilenameGetApiResponse apiResponseLocalVar, string userId, string filename)
+        /// <param name="ifNoneMatch"></param>
+        private void AfterUserImagesUserIdFilenameGetDefaultImplementation(IUserImagesUserIdFilenameGetApiResponse apiResponseLocalVar, string userId, string filename, Option<string> ifNoneMatch)
         {
             bool suppressDefaultLog = false;
-            AfterUserImagesUserIdFilenameGet(ref suppressDefaultLog, apiResponseLocalVar, userId, filename);
+            AfterUserImagesUserIdFilenameGet(ref suppressDefaultLog, apiResponseLocalVar, userId, filename, ifNoneMatch);
             if (!suppressDefaultLog)
                 Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
         }
@@ -20815,7 +20855,8 @@ namespace Unframe.ControlPlane.Api
         /// <param name="apiResponseLocalVar"></param>
         /// <param name="userId"></param>
         /// <param name="filename"></param>
-        partial void AfterUserImagesUserIdFilenameGet(ref bool suppressDefaultLog, IUserImagesUserIdFilenameGetApiResponse apiResponseLocalVar, string userId, string filename);
+        /// <param name="ifNoneMatch"></param>
+        partial void AfterUserImagesUserIdFilenameGet(ref bool suppressDefaultLog, IUserImagesUserIdFilenameGetApiResponse apiResponseLocalVar, string userId, string filename, Option<string> ifNoneMatch);
 
         /// <summary>
         /// Logs exceptions that occur while retrieving the server response
@@ -20825,10 +20866,11 @@ namespace Unframe.ControlPlane.Api
         /// <param name="pathLocalVar"></param>
         /// <param name="userId"></param>
         /// <param name="filename"></param>
-        private void OnErrorUserImagesUserIdFilenameGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string userId, string filename)
+        /// <param name="ifNoneMatch"></param>
+        private void OnErrorUserImagesUserIdFilenameGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string userId, string filename, Option<string> ifNoneMatch)
         {
             bool suppressDefaultLogLocalVar = false;
-            OnErrorUserImagesUserIdFilenameGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, userId, filename);
+            OnErrorUserImagesUserIdFilenameGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, userId, filename, ifNoneMatch);
             if (!suppressDefaultLogLocalVar)
                 Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
         }
@@ -20842,20 +20884,22 @@ namespace Unframe.ControlPlane.Api
         /// <param name="pathLocalVar"></param>
         /// <param name="userId"></param>
         /// <param name="filename"></param>
-        partial void OnErrorUserImagesUserIdFilenameGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string userId, string filename);
+        /// <param name="ifNoneMatch"></param>
+        partial void OnErrorUserImagesUserIdFilenameGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string userId, string filename, Option<string> ifNoneMatch);
 
         /// <summary>
         ///
         /// </summary>
         /// <param name="userId"></param>
         /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IUserImagesUserIdFilenameGetApiResponse"/>&gt;</returns>
-        public async Task<IUserImagesUserIdFilenameGetApiResponse?> UserImagesUserIdFilenameGetOrDefaultAsync(string userId, string filename, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IUserImagesUserIdFilenameGetApiResponse?> UserImagesUserIdFilenameGetOrDefaultAsync(string userId, string filename, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default)
         {
             try
             {
-                return await UserImagesUserIdFilenameGetAsync(userId, filename, cancellationToken).ConfigureAwait(false);
+                return await UserImagesUserIdFilenameGetAsync(userId, filename, ifNoneMatch, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -20869,17 +20913,18 @@ namespace Unframe.ControlPlane.Api
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="userId"></param>
         /// <param name="filename"></param>
+        /// <param name="ifNoneMatch"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IUserImagesUserIdFilenameGetApiResponse"/>&gt;</returns>
-        public async Task<IUserImagesUserIdFilenameGetApiResponse> UserImagesUserIdFilenameGetAsync(string userId, string filename, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IUserImagesUserIdFilenameGetApiResponse> UserImagesUserIdFilenameGetAsync(string userId, string filename, Option<string> ifNoneMatch = default, System.Threading.CancellationToken cancellationToken = default)
         {
             UriBuilder uriBuilderLocalVar = new UriBuilder();
 
             try
             {
-                ValidateUserImagesUserIdFilenameGet(userId, filename);
+                ValidateUserImagesUserIdFilenameGet(userId, filename, ifNoneMatch);
 
-                FormatUserImagesUserIdFilenameGet(ref userId, ref filename);
+                FormatUserImagesUserIdFilenameGet(ref userId, ref filename, ref ifNoneMatch);
 
                 using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
                 {
@@ -20891,6 +20936,9 @@ namespace Unframe.ControlPlane.Api
                         : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/user-images/{userId}/{filename}");
                     uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BuserId%7D", Uri.EscapeDataString(userId.ToString()));
                     uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7Bfilename%7D", Uri.EscapeDataString(filename.ToString()));
+
+                    if (ifNoneMatch.IsSet)
+                        httpRequestMessageLocalVar.Headers.Add("if-none-match", ClientUtils.ParameterToString(ifNoneMatch.Value));
 
                     httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
 
@@ -20930,7 +20978,7 @@ namespace Unframe.ControlPlane.Api
                             }
                         }
 
-                        AfterUserImagesUserIdFilenameGetDefaultImplementation(apiResponseLocalVar, userId, filename);
+                        AfterUserImagesUserIdFilenameGetDefaultImplementation(apiResponseLocalVar, userId, filename, ifNoneMatch);
 
                         Events.ExecuteOnUserImagesUserIdFilenameGet(apiResponseLocalVar);
 
@@ -20940,7 +20988,7 @@ namespace Unframe.ControlPlane.Api
             }
             catch(Exception e)
             {
-                OnErrorUserImagesUserIdFilenameGetDefaultImplementation(e, "/user-images/{userId}/{filename}", uriBuilderLocalVar.Path, userId, filename);
+                OnErrorUserImagesUserIdFilenameGetDefaultImplementation(e, "/user-images/{userId}/{filename}", uriBuilderLocalVar.Path, userId, filename, ifNoneMatch);
                 Events.ExecuteOnErrorUserImagesUserIdFilenameGet(e);
                 throw;
             }
@@ -21027,6 +21075,12 @@ namespace Unframe.ControlPlane.Api
 
                 return result != null;
             }
+
+            /// <summary>
+            /// Returns true if the response is 304 NotModified
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotModified => 304 == (int)StatusCode;
 
             /// <summary>
             /// Returns true if the response is 400 BadRequest

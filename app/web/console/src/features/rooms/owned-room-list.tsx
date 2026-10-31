@@ -1,3 +1,4 @@
+import { Skeleton } from "@/shared/ui/skeleton";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/shared/ui/button";
@@ -11,6 +12,7 @@ export function OwnedRoomList() {
     queryFn: ({ pageParam, signal }) => listRooms(pageParam, signal),
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     retry: false,
+    staleTime: 60_000,
   });
   return (
     <section className="grid gap-4 border-b py-8" aria-label="作成したルーム">
@@ -20,7 +22,16 @@ export function OwnedRoomList() {
           ルーム一覧を再取得
         </Button>
       </div>
-      {query.isPending ? <p role="status">ルーム一覧を読み込んでいます…</p> : null}
+      {query.isPending ? (
+        <div role="status" aria-label="ルーム一覧を読み込んでいます…" className="grid gap-3">
+          {[0, 1, 2].map((row) => (
+            <div key={row} className="flex items-center gap-4 py-1">
+              <Skeleton className="h-5 w-56 max-w-[70%]" />
+              <Skeleton className="h-5 w-16" />
+            </div>
+          ))}
+        </div>
+      ) : null}
       {query.isError ? <p role="alert">{managementErrorMessage(query.error)}</p> : null}
       {!query.isError && query.data ? (
         <>

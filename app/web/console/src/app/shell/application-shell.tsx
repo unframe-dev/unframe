@@ -12,12 +12,18 @@ import {
   UserCircleIcon,
   type Icon,
 } from "@phosphor-icons/react";
-import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useState, useSyncExternalStore } from "react";
-import { controlPlaneAuth } from "@/features/auth/control-plane-auth";
+import { Link, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import {
+  controlPlaneAuth,
+  resetSessionCache,
+  useAuthSession,
+} from "@/features/auth/control-plane-auth";
 import { BrandLink } from "@/shared/brand/brand-link";
 import { Button } from "@/shared/ui/button";
 import { PublicationWorkflowProvider } from "@/features/publication/publication-context";
+import { ApplicationContentLoading } from "./application-loading";
 import moduleStyles from "./application-shell.module.css";
 const styles = {
   sidebar: moduleStyles["sidebar"]!,
@@ -198,13 +204,22 @@ function SidebarNavigation({
 }
 
 export function ApplicationShell() {
-  const session = useSyncExternalStore(
-    controlPlaneAuth.useSession.subscribe,
-    controlPlaneAuth.useSession.get,
-  );
+  const queryClient = useQueryClient();
+  const session = useAuthSession();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
+  const navigating = useRouterState({ select: (state) => state.isLoading });
+  const [showNavigationSkeleton, setShowNavigationSkeleton] = useState(false);
+  useEffect(() => {
+    if (!navigating) {
+      setShowNavigationSkeleton(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setShowNavigationSkeleton(true), 150);
+    return () => window.clearTimeout(timer);
+  }, [navigating]);
+  const navigationPending = navigating && showNavigationSkeleton;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => window.localStorage.getItem(sidebarStorageKey) === "true",
   );
@@ -224,11 +239,13 @@ export function ApplicationShell() {
         setLogoutError("ログアウトできませんでした。もう一度お試しください。");
         return;
       }
+      await resetSessionCache(queryClient);
       window.location.assign("/");
     } catch {
       setLogoutError("ログアウトできませんでした。もう一度お試しください。");
     }
   };
+  if (session.isSuccess && !session.data) return <Navigate to="/login" replace />;
   return (
     <div className={styles.shell}>
       <div className={styles.layout} data-sidebar-collapsed={sidebarCollapsed}>
@@ -245,8 +262,11 @@ export function ApplicationShell() {
               {logoutError}
             </p>
           ) : null}
-          <PublicationWorkflowProvider>
-            <Outlet />
+          <PublicationWorkflowProvider key={session.data?.user.id}>
+            <div hidden={navigationPending}>
+              <Outlet />
+            </div>
+            {navigationPending ? <ApplicationContentLoading id="main-content-loading" /> : null}
           </PublicationWorkflowProvider>
         </div>
       </div>

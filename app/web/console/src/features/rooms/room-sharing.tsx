@@ -1,5 +1,7 @@
+import { Skeleton } from "@/shared/ui/skeleton";
 import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+import { principalRevision } from "@/shared/api/session-events";
 import { Button } from "@/shared/ui/button";
 import { getRoomCode, rotateRoomCode, type Room } from "@/features/presentations/management-api";
 import { managementErrorMessage } from "@/features/presentations/management-model";
@@ -51,17 +53,23 @@ export function RoomSharing({ room }: { room: Room }) {
     // A lost rotation response remains uncertain across navigation until a fresh read succeeds.
     gcTime: Infinity,
     onMutate: async () => {
+      const principal = principalRevision();
       await client.cancelQueries({ queryKey: key });
+      return { principal };
     },
-    onSuccess: async (result) => {
+    onSuccess: async (result, _variables, context) => {
+      if (context?.principal !== principalRevision()) return;
       await client.cancelQueries({ queryKey: key });
+      if (context.principal !== principalRevision()) return;
       client.setQueryData(key, result);
       clearRotations();
     },
-    onError: async () => {
+    onError: async (_error, _variables, context) => {
+      if (context?.principal !== principalRevision()) return;
       await client.cancelQueries({ queryKey: key });
     },
-    onSettled: () => {
+    onSettled: (_data, _error, _variables, context) => {
+      if (context?.principal !== principalRevision()) return;
       submitting.current = false;
     },
   });
@@ -110,7 +118,14 @@ export function RoomSharing({ room }: { room: Room }) {
           ルームコードを更新
         </Button>
       </div>
-      {query.isPending || pending ? <p role="status">ルームコードを読み込んでいます…</p> : null}
+      {query.isPending || reloading ? (
+        <div role="status" aria-label="ルームコードを読み込んでいます…" className="grid gap-4">
+          <Skeleton className="h-9 w-60 max-w-full" />
+          <Skeleton className="h-5 w-48 max-w-full" />
+        </div>
+      ) : pending ? (
+        <p role="status">ルームコードを読み込んでいます…</p>
+      ) : null}
       {error ? (
         <p role="alert">
           {managementErrorMessage(error)}

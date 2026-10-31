@@ -1,8 +1,6 @@
-import { createControlPlaneClient } from "@unframe/api-client-typescript";
+import { controlPlaneClient as client } from "@/shared/api/control-plane-client";
 import { z } from "zod";
 
-const baseUrl = import.meta.env["VITE_CONTROL_PLANE_URL"] || "https://api.un-fra.me";
-const client = createControlPlaneClient({ baseUrl, credentials: "include" });
 const imageResponse = z.object({ image: z.string().url().nullable() });
 
 export async function updateProfileImage(image: Blob | null) {

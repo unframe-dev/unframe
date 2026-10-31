@@ -15057,6 +15057,14 @@
             "required": true,
             "name": "buildId",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "if-none-match",
+            "in": "header"
           }
         ],
         "responses": {
@@ -15067,8 +15075,13 @@
                 "schema": {
                   "type": "string",
                   "enum": [
-                    "private, no-store"
+                    "private, no-cache"
                   ]
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
                 }
               },
               "X-Content-Type-Options": {
@@ -15090,6 +15103,24 @@
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Published texture unchanged after authentication and permission checks",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "private, no-cache"
+                  ]
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -16312,16 +16343,57 @@
             "required": true,
             "name": "filename",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "if-none-match",
+            "in": "header"
           }
         ],
         "responses": {
           "200": {
-            "description": "Immutable public profile image",
+            "description": "Current public profile image; revalidate before reuse",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "public, no-cache"
+                  ]
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "image/png": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Current profile image unchanged",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "public, no-cache"
+                  ]
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
