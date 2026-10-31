@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { createD1Database } from "../adapters/d1/database";
 import { authDeviceCodes, authVerifications, authSessions } from "../adapters/d1/viewer-schema";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
+import { APIError } from "better-auth/api";
 import { dash } from "@better-auth/infra";
 import { bearer, twoFactor } from "better-auth/plugins";
 import { deviceAuthorization } from "better-auth/plugins/device-authorization";
@@ -85,6 +86,15 @@ export function createAuthOptions(
       },
     },
     databaseHooks: {
+      user: {
+        update: {
+          before: async (user: Record<string, unknown>) => {
+            if (user.image !== undefined)
+              throw new APIError("BAD_REQUEST", { message: "Use the profile image API" });
+            return { data: user };
+          },
+        },
+      },
       session: {
         create: {
           before: async (

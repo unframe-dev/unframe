@@ -1,10 +1,12 @@
 import type { R2Bucket } from "@cloudflare/workers-types";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { createD1Database } from "../../adapters/d1/database";
 import { authUsers } from "../../adapters/d1/viewer-schema";
 import type { RuntimeConfig } from "../../config";
 
 export class ProfileImageConflict extends Error {}
+
+const collectionCursorKey = "system/profile-images/orphan-cursor";
 
 export class ProfileImageService {
   private readonly db;
@@ -59,6 +61,46 @@ export class ProfileImageService {
     return image;
   }
 
+  async collectOrphans() {
+    // Uploads are written before the user row is committed; leave recent objects alone.
+    const before = Date.now() - 24 * 60 * 60 * 1000;
+    let deleted = 0;
+    let failed = 0;
+    const checkpoint = await this.bucket.get(collectionCursorKey);
+    let cursor = (checkpoint ? await checkpoint.text() : undefined) || undefined;
+    // Bound R2 requests and D1 queries, continuing from the checkpoint next time.
+    for (let pageNumber = 0; pageNumber < 10; pageNumber += 1) {
+      const page = await this.bucket.list({
+        prefix: "user-images/",
+        limit: 50,
+        ...(cursor ? { cursor } : {}),
+      });
+      const candidates = page.objects.filter((object) => object.uploaded.getTime() < before);
+      if (candidates.length) {
+        const users = await this.db
+          .select({ image: authUsers.image })
+          .from(authUsers)
+          .where(
+            inArray(
+              authUsers.image,
+              candidates.map((object) => `${this.origin}/${object.key}`),
+            ),
+          );
+        const currentImages = new Set(users.map((user) => user.image));
+        for (const object of candidates) {
+          if (currentImages.has(`${this.origin}/${object.key}`)) continue;
+          // R2 retains a failed deletion's key so a later scan can retry it.
+          if (await this.removeStoredImage(object.key)) deleted += 1;
+          else failed += 1;
+        }
+      }
+      cursor = page.truncated ? page.cursor : undefined;
+      await this.bucket.put(collectionCursorKey, cursor ?? "");
+      if (!cursor) break;
+    }
+    return { deleted, failed };
+  }
+
   private ownedObjectKey(image: string | null, userId: string) {
     if (!image) return null;
     try {
@@ -80,9 +122,11 @@ export class ProfileImageService {
   private async removeStoredImage(key: string) {
     try {
       await this.bucket.delete(key);
+      return true;
     } catch {
       // A cleanup failure must not turn a committed profile update into a failed save.
       console.error(JSON.stringify({ event: "profile_image_cleanup_failed" }));
+      return false;
     }
   }
 }

@@ -1,6 +1,7 @@
-import { env } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
+import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../../src/app";
+import { createScheduledHandler } from "../../../src/index";
 import { runtimeEnvironment } from "../../runtime-environment";
 import {
   profilePng,
@@ -26,6 +27,8 @@ const image = () =>
     .bind(owner.userId)
     .first<{ image: string | null }>();
 
+afterEach(() => vi.restoreAllMocks());
+
 beforeEach(async () => {
   await env.DB.prepare(
     "INSERT OR REPLACE INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, 'Owner', 'profile-owner@example.test', 1, 0, 0)",
@@ -34,9 +37,84 @@ beforeEach(async () => {
     .run();
   const objects = await env.ASSETS.list({ prefix: "user-images/" });
   await Promise.all(objects.objects.map((object) => env.ASSETS.delete(object.key)));
+  await env.ASSETS.delete("system/profile-images/orphan-cursor");
 });
 
 describe("profile images", () => {
+  it("retries failed R2 deletions in the daily collection and retains active and recent images", async () => {
+    const first = (await (await request("PUT", profilePng)).json()) as { image: string };
+    const oldKey = new URL(first.image).pathname.slice(1);
+    const environment = runtimeEnvironment();
+    const deleteObject = vi
+      .spyOn(environment.ASSETS, "delete")
+      .mockRejectedValue(new Error("R2 unavailable"));
+    const failingStorageApp = createApp({ identityProvider: async () => owner });
+    const replacement = await failingStorageApp.fetch(
+      new Request("https://api.example.com/users/me/image", {
+        method: "PUT",
+        headers: { "content-type": "image/png" },
+        body: profilePng,
+      }),
+      environment,
+    );
+    expect(replacement.status).toBe(200);
+    const current = (await replacement.json()) as { image: string };
+    const currentKey = new URL(current.image).pathname.slice(1);
+    expect(await env.ASSETS.head(oldKey)).not.toBeNull();
+
+    const list = environment.ASSETS.list.bind(environment.ASSETS);
+    vi.spyOn(environment.ASSETS, "list").mockImplementation((options) =>
+      list({ ...options, limit: 1 }),
+    );
+
+    const collect = async () => {
+      const execution = createExecutionContext();
+      await createScheduledHandler()({} as ScheduledEvent, environment, execution);
+      await waitOnExecutionContext(execution);
+    };
+    await collect();
+    expect(await env.ASSETS.head(oldKey)).not.toBeNull();
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 25 * 60 * 60 * 1000);
+    await collect();
+    expect(await env.ASSETS.head(oldKey)).not.toBeNull();
+    deleteObject.mockRestore();
+    await collect();
+    expect(await env.ASSETS.head(oldKey)).toBeNull();
+    expect(await env.ASSETS.head(currentKey)).not.toBeNull();
+    expect(await image()).toEqual(current);
+  });
+
+  it("continues a bounded scan on the next invocation past retained images", async () => {
+    const environment = runtimeEnvironment();
+    for (let index = 0; index < 11; index += 1) {
+      const userId = `gc-${String(index).padStart(2, "0")}`;
+      const key = `user-images/${userId}/current.png`;
+      await env.ASSETS.put(key, profilePng);
+      await env.DB.prepare(
+        "INSERT INTO user (id, name, email, image, emailVerified, createdAt, updatedAt) VALUES (?, 'GC User', ?, ?, 1, 0, 0)",
+      )
+        .bind(userId, `${userId}@example.test`, `https://api.example.com/${key}`)
+        .run();
+    }
+    const orphan = "user-images/zz-orphan/old.png";
+    await env.ASSETS.put(orphan, profilePng);
+    const list = environment.ASSETS.list.bind(environment.ASSETS);
+    vi.spyOn(environment.ASSETS, "list").mockImplementation((options) =>
+      list({ ...options, limit: 1 }),
+    );
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 25 * 60 * 60 * 1000);
+    const collect = async () => {
+      const execution = createExecutionContext();
+      await createScheduledHandler()({} as ScheduledEvent, environment, execution);
+      await waitOnExecutionContext(execution);
+    };
+    await collect();
+    expect(await env.ASSETS.head(orphan)).not.toBeNull();
+    await collect();
+    expect(await env.ASSETS.head(orphan)).toBeNull();
+    expect((await list({ prefix: "user-images/" })).objects).toHaveLength(11);
+  });
+
   it("allows conditional image requests and exposes their ETag to Console", async () => {
     const environment = runtimeEnvironment();
     const preflight = await app.fetch(
