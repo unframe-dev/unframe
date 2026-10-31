@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as pause } from "node:timers/promises";
 import { runPresentationCli, publishPresentation } from "../../packages/unframe-cli/src/index.js";
 import { readBuildGeneration } from "../../packages/unframe-cli/src/filesystem/read-build-generation.js";
-import { advertiseConnection, cleanupSample, samplePorts, sessionExpiry } from "./lifecycle.mts";
+import { advertiseConnection, cleanupSample, samplePorts, sessionExpiry } from "./lifecycle.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const state = process.env["UNFRAME_PRESENTATION_SAMPLE_STATE"];

@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { advertiseConnection, cleanupSample, samplePorts, sessionExpiry } from "./lifecycle.mts";
+import { advertiseConnection, cleanupSample, samplePorts, sessionExpiry } from "./lifecycle.ts";
 
 test("failed advertisement removal still stops services and releases the launcher lock", async () => {
   const steps: string[] = [];

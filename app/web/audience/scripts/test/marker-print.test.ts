@@ -18,7 +18,7 @@ function blackBounds(source: string) {
 }
 
 beforeAll(() =>
-  execFileSync(process.execPath, [new URL("scripts/generate-marker-board.mjs", root).pathname]),
+  execFileSync(process.execPath, [new URL("scripts/generate-marker-board.ts", root).pathname]),
 );
 describe("AprilTag print profiles", () => {
   it("uses the bundled board identity and a single tag36h11 ID 0", () => {
