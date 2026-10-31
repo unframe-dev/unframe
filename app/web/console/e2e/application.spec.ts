@@ -53,36 +53,6 @@ test("account menu displays the account image on desktop and mobile", async ({ p
   await expect(page.getByRole("menuitem", { name: "設定" })).toBeVisible();
 });
 
-test("account menu reflects saved profile images without reloading", async ({ page }) => {
-  let savedImage: string | null = accountImage;
-  await page.route("**/api/auth/get-session", (route) =>
-    route.fulfill({
-      json: { ...accountSession, user: { ...accountSession.user, image: savedImage } },
-    }),
-  );
-  await page.route("**/api/auth/update-user", (route) => {
-    savedImage = route.request().postDataJSON().image;
-    return route.fulfill({ json: { status: true } });
-  });
-  const updatedImage = "https://images.example.test/updated.png";
-  await page.route(updatedImage, (route) =>
-    route.fulfill({ path: "public/favicon/favicon-32x32.png" }),
-  );
-  await page.goto("/settings/profile");
-  const menu = page.getByRole("button", { name: "アカウントメニュー" });
-  const imageInput = page.getByRole("textbox", { name: "アイコンURL" });
-  await expect(imageInput).toHaveValue(accountImage);
-  await imageInput.fill(updatedImage);
-  await page.getByRole("button", { name: "保存", exact: true }).click();
-  await expect(menu.locator("img")).toHaveAttribute("src", updatedImage);
-
-  await imageInput.fill("");
-  await page.getByRole("button", { name: "保存", exact: true }).click();
-  await expect(menu.locator("img")).toHaveCount(0);
-  await menu.click();
-  await expect(page.getByRole("menuitem", { name: "設定" })).toBeVisible();
-});
-
 test("account menu remains usable when the account image cannot load", async ({ page }) => {
   await page.route(accountImage, (route) => route.abort());
   const failedImage = page.waitForEvent("requestfailed", {

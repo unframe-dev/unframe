@@ -118,6 +118,10 @@ test("crops an image before upload, updates the icon, and removes it", async ({
   await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("保存しました。");
   expect(state.deletes).toBe(1);
+  const accountMenu = page.getByRole("button", { name: "アカウントメニュー" });
+  await expect(accountMenu.locator("img")).toHaveCount(0);
+  await accountMenu.click();
+  await expect(page.getByRole("menuitem", { name: "設定" })).toBeVisible();
 });
 
 test("preserves the crop when upload fails and allows retry", async ({ page }) => {
