@@ -21615,9 +21615,7 @@ namespace Unframe.ControlPlane.Api
                         ? "/users/me/image"
                         : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/users/me/image");
 
-                    httpRequestMessageLocalVar.Content = (body as object) is System.IO.Stream stream
-                        ? httpRequestMessageLocalVar.Content = new StreamContent(stream)
-                        : httpRequestMessageLocalVar.Content = new StringContent(JsonSerializer.Serialize(body, _jsonSerializerOptions));
+                    httpRequestMessageLocalVar.Content = new StreamContent(body.Content);
 
                     List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
                     httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
