@@ -76,6 +76,12 @@ async function remote(page: Page, dist: Dist) {
       return state.current
         ? route.fulfill({ json: state.current })
         : route.fulfill({ status: 404, json: { error: { code: "not_found" } } });
+    if (
+      method === "GET" &&
+      state.current &&
+      path === `${apiPath}/builds/${encodeURIComponent(state.current.buildId)}/thumbnail`
+    )
+      return route.fulfill({ status: 404, json: { error: { code: "not_found" } } });
     if (method === "POST" && path === "/presentations") {
       expect(request.postDataJSON()).toEqual({
         id,
@@ -349,6 +355,7 @@ test("retains an in-flight publication across route changes and refreshes the ac
         exact: true,
       }),
     ).toBeVisible();
+    await expect(page.getByText("サムネイルなし", { exact: true })).toBeVisible();
     expect(
       server.requests.filter(({ path, method }) => path === "/presentations" && method === "GET")
         .length,
