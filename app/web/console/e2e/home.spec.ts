@@ -42,6 +42,7 @@ async function published(page: Page) {
   await page.route("**/publication", (route) => route.fulfill({ json: publication }));
 }
 test.beforeEach(async ({ page }) => {
+  await page.route("**/thumbnail", (route) => route.fulfill({ status: 404 }));
   await page.route("**/sessions?*", (route) =>
     route.fulfill({ json: { sessions: [], nextCursor: null } }),
   );

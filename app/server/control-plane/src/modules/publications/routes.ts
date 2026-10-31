@@ -7,6 +7,7 @@ import {
   createPublicationBuildRoute,
   deliveryManifestRoute,
   getPublicationRoute,
+  publicationThumbnailRoute,
   publishPresentationRoute,
   uploadPublicationAssetRoute,
 } from "../../openapi";
@@ -157,6 +158,20 @@ export function createPublicationRoutes(options: PublicationRouteOptions) {
         ),
         201,
       );
+    })
+    .openapi(publicationThumbnailRoute, async (context) => {
+      const { presentationId, buildId } = context.req.valid("param");
+      const bytes = await execute(context, (identity, service) =>
+        service.thumbnail(identity, presentationId, buildId),
+      );
+      return new Response(bytes, {
+        headers: {
+          "content-type": "image/png",
+          "cache-control": "private, no-store",
+          "x-content-type-options": "nosniff",
+          "content-length": String(bytes.byteLength),
+        },
+      });
     })
     .openapi(getPublicationRoute, async (context) =>
       context.json(

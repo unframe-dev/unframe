@@ -9,6 +9,8 @@ import {
   type Publication,
 } from "./management-api";
 import { managementErrorMessage } from "./management-model";
+import { PublicationCard } from "./publication-card";
+import cardStyles from "./publication-card.module.css";
 
 const pageSize = 6;
 export function PublicationList({
@@ -61,43 +63,53 @@ export function PublicationList({
       {publications.isError ? (
         <p role="alert">{managementErrorMessage(publications.error)}</p>
       ) : null}
-      {!presentations.isError &&
-        !publications.isError &&
-        publications.data?.map((item) => (
-          <article
-            key={item.presentation.id}
-            className="flex flex-wrap items-center justify-between gap-4 border-b py-5"
-          >
-            <div className="grid min-w-0 gap-2">
-              <h2 className="break-words text-xl">{item.presentation.name}</h2>
-              {item.state === "error" ? (
-                <p role="alert">{managementErrorMessage(item.error)}</p>
-              ) : item.state === "unpublished" ? (
-                <p className="text-sm text-[var(--muted)]">未公開</p>
-              ) : null}
-            </div>
-            {item.state === "published" ? (
-              <div className="flex flex-wrap items-center gap-4">
-                <Link
-                  to="/presentations/$presentationId"
-                  params={{ presentationId: item.presentation.id }}
-                  aria-label={`${item.presentation.name}の詳細を見る`}
-                >
-                  詳細を見る
-                </Link>
-                {onSelect ? (
-                  <Button
-                    variant="outline"
-                    aria-label={`${item.presentation.name}を選択`}
-                    onClick={() => onSelect(item.presentation, item.publication)}
-                  >
-                    選択
-                  </Button>
+      {!presentations.isError && !publications.isError && (
+        <div className={onSelect ? "grid gap-5" : cardStyles["grid"]}>
+          {publications.data?.map((item) =>
+            !onSelect ? (
+              <PublicationCard
+                key={item.presentation.id}
+                item={item}
+                refreshedAt={publications.dataUpdatedAt}
+              />
+            ) : (
+              <article
+                key={item.presentation.id}
+                className="flex flex-wrap items-center justify-between gap-4 border-b py-5"
+              >
+                <div className="grid min-w-0 gap-2">
+                  <h2 className="break-words text-xl">{item.presentation.name}</h2>
+                  {item.state === "error" ? (
+                    <p role="alert">{managementErrorMessage(item.error)}</p>
+                  ) : item.state === "unpublished" ? (
+                    <p className="text-sm text-[var(--muted)]">未公開</p>
+                  ) : null}
+                </div>
+                {item.state === "published" ? (
+                  <div className="flex flex-wrap items-center gap-4">
+                    <Link
+                      to="/presentations/$presentationId"
+                      params={{ presentationId: item.presentation.id }}
+                      aria-label={`${item.presentation.name}の詳細を見る`}
+                    >
+                      詳細を見る
+                    </Link>
+                    {onSelect ? (
+                      <Button
+                        variant="outline"
+                        aria-label={`${item.presentation.name}を選択`}
+                        onClick={() => onSelect(item.presentation, item.publication)}
+                      >
+                        選択
+                      </Button>
+                    ) : null}
+                  </div>
                 ) : null}
-              </div>
-            ) : null}
-          </article>
-        ))}
+              </article>
+            ),
+          )}
+        </div>
+      )}
       {presentations.data && presentations.data.length > pageSize ? (
         <nav aria-label="プレゼンテーションのページ" className="flex items-center gap-4">
           <Button
