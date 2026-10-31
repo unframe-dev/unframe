@@ -21,7 +21,7 @@
       "semanticCommitScope": "realtime"
     },
     {
-      "description": "control-plane / app/web/* / lp / packages (npm/pnpm)",
+      "description": "control-plane / app/web/* / packages (npm/pnpm)",
       "matchManagers": ["npm"],
       "semanticCommitScope": "deps",
       "minimumReleaseAge": "12 hours",

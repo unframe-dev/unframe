@@ -3,7 +3,6 @@ packages:
   - "app/web/*"
   - "app/server/control-plane"
   - "app/unity/scripts"
-  - "lp"
   - "packages/*"
   - "scripts/dev"
 

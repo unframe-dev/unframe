@@ -13,11 +13,11 @@ app/
 ├── web/
 │   ├── console/      React 19 management SPA (WIP)
 │   ├── local-editor/ Local Source editor / Unity Preview (WIP)
-│   └── audience/     React / 8th Wall / Three.js audience viewer
+│   ├── audience/     React / 8th Wall / Three.js audience viewer
+│   └── lp/           SvelteKit landing page and documentation site (WIP)
 ├── server/    Control Plane and Realtime Backend (WIP)
 └── unity/     Unity 6000.3.22f1 MR application (WIP)
 
-lp/            SvelteKit landing page and documentation site (WIP)
 docs/          Architecture, API, ADR, and plan documentation
 packages/
 ├── contracts/        API and protocol contracts / generated artifacts
@@ -26,7 +26,7 @@ packages/
 scripts/              Development, generation, CI, and documentation scripts
 ```
 
-All applications under `app/` and `lp/` are WIP. The current implementation is
+All applications under `app/` are WIP. The current implementation is
 not equally complete in every area:
 
 - The legacy Go/Huma/Turso/R2 HTTP backend has been removed. The Control Plane
@@ -40,7 +40,7 @@ not equally complete in every area:
 - `app/web/console/` owns authentication, Dist upload and publication, published presentation inspection, and Session creation.
   `app/web/local-editor/` owns Source editing, Unity Preview, and CLI-mediated publication.
   Each application under `app/web/` has independent dependencies, build, and startup configuration.
-- `lp/` is a static SvelteKit site and remains WIP while product content is being
+- `app/web/lp/` is a static SvelteKit site and remains WIP while product content is being
   developed. Its CI task runs the LP test, check, and build commands.
 - `app/unity/` contains a Unity project and EditMode tests. The generated Control Plane C# client is not wired into Unity. Unity uses generated Realtime clients and Delivery Protobuf types under `app/unity/Assets/Scripts/PresentationRuntime/Generated/`.
 - Main CI publishes Darwin arm64 Realtime Host artifacts for the macOS Pull
@@ -131,7 +131,7 @@ necessary.
 - Audience-specific React, tracking, calibration, and Three.js code belongs in `app/web/audience/`. Anonymous Viewer participation and browser Runtime reception are implemented; public-environment and device acceptance remain unverified.
 - Go backend code belongs in `app/server/`.
 - Unity and C# code belongs in `app/unity/`.
-- Landing page code belongs in `lp/`.
+- Landing page code belongs in `app/web/lp/`.
 - Shared API and protocol contracts belong in `packages/contracts/`.
 - C# client artifacts belong in `packages/api-client-csharp/` when C# generation
   is implemented.
@@ -289,7 +289,7 @@ Before adding a dependency:
 - Use pnpm for JavaScript dependencies and update `pnpm-lock.yaml` through the
   package manager.
 - Update the owning Go module's `go.mod` and `go.sum` through Go tooling. The
-  current modules are `app/server/` and `app/server/realtime/`.
+  current modules are `app/server/realtime/` and `packages/unframe-cli/native/`.
 - Update `app/unity/Packages/manifest.json` and `packages-lock.json` through the
   Unity Package Manager for Unity dependencies.
 - Run the relevant type, test, lint, and build checks.

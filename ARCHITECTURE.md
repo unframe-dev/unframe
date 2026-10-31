@@ -28,16 +28,15 @@ unframe/
 │   ├── web/
 │   │   ├── console/              # React 19 management SPA
 │   │   ├── local-editor/         # Local Source editor / Unity Preview
-│   │   └── audience/             # React / 8th Wall / Three.js audience viewer
+│   │   ├── audience/             # React / 8th Wall / Three.js audience viewer
+│   │   └── lp/                   # SvelteKit Landing Page
 │   ├── server/
 │   │   ├── control-plane/        # Workers / TypeScript / Hono / D1 / R2
-│   │   ├── realtime/             # Go / gRPC / container
-│   │   └── integration/          # Backend component 間 E2E
+│   │   └── realtime/             # Go / gRPC / container
 │   └── unity/                    # Unity MR Application
-├── lp/                           # SvelteKit Landing Page
 ├── packages/
-│   ├── contracts/                # 将来の API / protocol contract 境界
-│   ├── api-client-csharp/        # C# client 成果物の配置予定地
+│   ├── contracts/                # API / protocol contract と生成物
+│   ├── api-client-csharp/        # 生成 Control Plane / Realtime C# client
 │   └── config/                   # 共有 TypeScript / Git hook 設定
 ├── scripts/                      # 開発・CI・ドキュメント同期の実処理
 └── docs/                         # ADR・計画・同期ドキュメント
@@ -45,7 +44,7 @@ unframe/
 
 ## 各コンポーネントの責務
 
-`app/web/` はブラウザー向けアプリの親ディレクトリです。Console、Local Editor、Audience はそれぞれ独立した package・依存関係・ビルド・起動設定を持ちます。
+`app/web/` はブラウザー向けアプリの親ディレクトリです。Console、Local Editor、Audience、LP はそれぞれ独立した package・依存関係・ビルド・起動設定を持ちます。
 
 ### `app/server/control-plane`
 
@@ -57,7 +56,7 @@ unframe/
 
 - Go / gRPC の独立した container application とする。
 - Unity との bidirectional stream、session 中の canonical state、fan-out、backpressure を担当する。
-- Presenter が認識した入力の有効性、Cue / Action、Timeline / Timer、Step 遷移を確定する。入力世代、共有演出全体の pause、到達済み Step の開始状態への復元は [ADR-0027](./docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の採用仕様であり、[v3 契約](./docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) に反映し、実行側 consumer は移行前である。
+- Presenter が認識した入力の有効性、Cue / Action、Timeline / Timer、Step 遷移を確定する。入力世代、共有演出全体の pause、到達済み Step の開始状態への復元は [ADR-0027](./docs/decisions/0027-presenter-recognition-and-runtime-authority.md) の採用仕様であり、[v3 契約](./docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) に反映している。Realtime と Unity transport は入力世代同期と到達済み Step の選択に対応する。
 - hot path は Control Plane、D1、R2 に依存せず、checkpoint と completion のみを Control Plane へ永続化する。
 
 ### `app/web/console`
@@ -81,16 +80,16 @@ unframe/
 ### `app/unity`
 
 - Unity / C# で MR 表示と realtime session 参加を担当する。
-- Presenter が Gesture / Zone を認識し、認識開始時の Step と入力世代に結び付けて送信する。描画用 Pose の送信と認識を分離し、共有状態の確定は Realtime に委ねる。この採用仕様の実装は未着手であり、現行の生成 client 接続・検証状況は [Unity README](./app/unity/README.md) を参照する。
+- Presenter が Gesture / Zone を認識し、認識開始時の Step と入力世代に結び付けて送信する。描画用 Pose の送信と認識を分離し、共有状態の確定は Realtime に委ねる。入力同期・生成 client 接続・検証状況は [Unity README](./app/unity/README.md) を参照する。
 
-### `lp`
+### `app/web/lp`
 
 - SvelteKit + `adapter-static` による静的 Landing Page とする。
 - 管理 Web とは deployment と依存関係を分離する。
 
 ## 契約生成パイプライン
 
-旧 Go/Huma HTTP API の OpenAPI、生成 TypeScript client、sqlc 生成物は削除済みです。`packages/contracts/` は次の Control Plane OpenAPI と Realtime Protocol Buffers の共有境界として残します。
+Control Plane OpenAPI と TypeScript 型は `packages/contracts/` に生成します。Realtime Protocol Buffers の正本は `packages/contracts/proto/`、Go の生成先は `app/server/realtime/internal/gen/`、C# の生成先は `packages/api-client-csharp/` です。Unity の Realtime 生成物は `scripts/contracts/generate-unity-proto.sh` で同期し、Control Plane C# client は Unity に未接続です。
 
 新しい契約を導入する変更では、同時に次を定義します。
 

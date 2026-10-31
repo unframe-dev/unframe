@@ -74,3 +74,5 @@
 ## Web と Local Editor の責務分離
 
 `app/web` の編集 UI は `app/local-editor` へ分離した。Web は認証・公開済み Dist 確認・ルーム作成、Local Editor と CLI はローカル編集・Preview・公開を所有する。現行構成と品質入口は [ARCHITECTURE.md](../../ARCHITECTURE.md) と [Local Editor README](../../app/web/local-editor/README.md) を参照。本文の当初構成は判断時点の記録として残す。
+
+LP は `lp/` から `app/web/lp/` へ移動し、ブラウザー向けアプリを `app/web/` 配下へ集約した。LP の package、ビルド、起動設定は独立させる。

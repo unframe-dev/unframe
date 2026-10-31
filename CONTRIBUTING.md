@@ -16,17 +16,17 @@ Unframe は次のコンポーネントからなるモノレポです。
 | `app/server/`                 | Control Plane / Realtime Backend（WIP）    |
 | `app/server/realtime/`        | Go / gRPC Realtime Backend（WIP）          |
 | `app/unity/`                  | Unity MR Application（WIP）                |
-| `lp/`                         | SvelteKit Landing Page（WIP）              |
-| `packages/contracts/`         | 将来の API / protocol contract 境界        |
-| `packages/api-client-csharp/` | C# client の成果物置き場（現在は未接続）   |
+| `app/web/lp/`                 | SvelteKit Landing Page（WIP）              |
+| `packages/contracts/`         | API / protocol contract と生成物           |
+| `packages/api-client-csharp/` | 生成 Control Plane / Realtime C# client    |
 | `packages/config/`            | 共有 TypeScript、Vite+、Git hook 設定      |
 | `scripts/`                    | 開発、生成、CI、ドキュメント同期の実処理   |
 
 旧 Go/Huma/Turso/R2 HTTP backend は削除済みです。Control Plane と Realtime は
 それぞれの component 内で runtime、依存関係、テスト、運用手順を完結させます。Realtime
-には独立した Go module と gRPC process があり、Protobuf bidi service、JWT 認証、
-assignment fencing、page-change の in-memory fan-out を実装しています。replay / resume、
-完全な Runtime 状態同期、永続化 callback の session lifecycle 接続は未実装です。
+には独立した Go module と process があり、認証付き gRPC / WebSocket の Control・State
+接続、assignment fencing、Runtime snapshot、replay / resume、Control Plane への
+checkpoint・completion 通知を実装しています。
 
 ## 開発スタイル: TDD
 
@@ -50,15 +50,15 @@ assignment fencing、page-change の in-memory fan-out を実装しています�
 
 アプリケーション固有のコードは、それを所有するディレクトリに置きます。
 
-`app/web/` は3アプリの親ディレクトリです。各アプリの package・依存関係・ビルド・起動設定は独立して管理します。
+`app/web/` はブラウザー向けアプリの親ディレクトリです。各アプリの package・依存関係・ビルド・起動設定は独立して管理します。
 
 - 管理 Web は `app/web/console/`、ローカル Source Editor は `app/web/local-editor/` に置く。
 - 観客向け React、追跡、位置合わせ、Three.js 描画は `app/web/audience/` に置く。
 - Control Plane は `app/server/control-plane/`、Realtime Go backend は
   `app/server/realtime/` に置く。
 - Unity / C# のコードは `app/unity/` に置く。
-- Landing Page のコードは `lp/` に置く。
-- 今後の API / protocol contract は `packages/contracts/` に置く。
+- Landing Page のコードは `app/web/lp/` に置く。
+- 共有 API / protocol contract は `packages/contracts/` に置く。
 - 共有設定は `packages/config/` に置く。
 - 再利用するタスク処理は `scripts/` に置き、`flake.nix` から公開する。
 
@@ -70,7 +70,8 @@ Control Plane と Realtime は runtime、dependency、deployment を分離し、
 - `internal/transport/grpc/`: 手書きgRPC transportとprocess lifecycle
 - `internal/auth/`: connection credentialとservice identityの検証
 - `internal/protocol/`: generated wire typeとcore inputの変換・検証
-- `internal/session/`: infrastructure-independentなsession stateとlogic
+- `internal/runtimecore/`: infrastructure-independentなcanonical stateと実行logic
+- `internal/session/`: 認証済みparticipant identityとState nonce
 - `internal/persistence/http/`: Control Plane HTTP adapter
 - `internal/gen/`: generator専用。手書きGo codeは禁止
 
@@ -119,18 +120,19 @@ Just、Make、Task、mise、その他の repository-wide task runner は、明�
 
 ## API 契約と生成コード
 
-旧 HTTP API の OpenAPI と生成 client は削除済みです。`packages/contracts/` は、
-次の Control Plane OpenAPI と Realtime Protocol Buffers の共有境界として残します。
+Control Plane OpenAPI と TypeScript 型は `packages/contracts/` に生成します。
+Realtime Protocol Buffers の正本は `packages/contracts/proto/`、Go の生成先は
+`app/server/realtime/internal/gen/`、C# の生成先は `packages/api-client-csharp/` です。
 
 契約を追加・変更する場合は、source of truth、versioning、各言語の生成先、consumer、
 生成 script、drift 検査を同じ変更で定義・更新します。生成ファイルは手編集せず、
-generated-file notice を保持します。C# generator は未接続のため、Unity が自動更新
-されるとは扱いません。
+generated-file notice を保持します。Unity の Realtime 生成物は
+`scripts/contracts/generate-unity-proto.sh` で同期します。生成済みの Control Plane C#
+client は Unity に未接続です。
 
 ## Database と migration
 
-旧 Turso/libSQL schema と migration は削除済みです。D1 migration は Control Plane
-実装とともに定義します。schema を変更する場合は適用済み migration を書き換えず、
+D1 migration は `app/server/control-plane/migrations/` で管理します。schema を変更する場合は適用済み migration を書き換えず、
 新しい migration を追加し、repository、service、API、テストを一貫して更新します。
 
 ## テストと品質ゲート
@@ -143,7 +145,7 @@ generated-file notice を保持します。C# generator は未接続のため、
 | `app/web/audience/`    | Vitest（較正・SDK境界・UI）                | カメラ・SLAM は実機確認が必要               |
 | `app/web/console/`     | package script で実行                      | 機能追加に合わせて拡張                      |
 | `app/server/realtime/` | Go `testing`、race detector                | gRPC contract と session 実装に合わせて拡張 |
-| `lp/`                  | package script、`svelte-check`、静的 build | ページ追加に合わせて拡張                    |
+| `app/web/lp/`          | package script、`svelte-check`、静的 build | ページ追加に合わせて拡張                    |
 | `app/unity/`           | Unity Test Framework の EditMode           | Unity Editor で実行                         |
 
 TypeScript のテストは公開境界、重要な分岐、失敗モードを変更リスクに見合う粒度で検証します。
@@ -225,7 +227,7 @@ scope は主な変更対象に合わせます。
 | `server`       | `app/server/`                                    |
 | `realtime`     | `app/server/realtime/`                           |
 | `unity`        | `app/unity/`                                     |
-| `lp`           | `lp/`                                            |
+| `lp`           | `app/web/lp/`                                    |
 | `contracts`    | `packages/contracts/` と `packages/api-client-*` |
 | `config`       | `packages/config/`                               |
 | `scripts`      | `scripts/`                                       |
@@ -262,7 +264,7 @@ fix/unity-controller-input-deadzone
 依存関係を追加する前に、既存の stack で解決できないか確認します。
 
 - JavaScript の依存関係は pnpm で追加し、`pnpm-lock.yaml` を更新する。
-- Go の依存関係は、利用するmoduleのdirectoryでGo toolingを実行し、対応する`go.mod`と`go.sum`を更新する。現在は`app/server/`と`app/server/realtime/`が独立したmoduleである。
+- Go の依存関係は、利用するmoduleのdirectoryでGo toolingを実行し、対応する`go.mod`と`go.sum`を更新する。server の Go module は `app/server/realtime/` に置く。
 - Unity package は Unity Package Manager で `manifest.json` と `packages-lock.json` を更新する。
 - 1 つの application のために repository-wide dependency を追加しない。
 - 依存関係変更後は、関連する typecheck、test、lint、build を実行する。
