@@ -35,7 +35,7 @@ pnpm r2:cors:apply
 pnpm r2:cors:list
 ```
 
-`db:migrate:remote` と `r2:cors:apply` は remote resource を変更するため、対象 account と resource を確認してから実行してください。R2 CORS は Web Editor からの signed `PUT` / `GET` に必要です。
+`db:migrate:remote` と `r2:cors:apply` は remote resource を変更するため、対象 account と resource を確認してから実行してください。`r2-cors.json` は Console (`https://un-fra.me`) からの signed `PUT` / `GET` と、Audience (`https://app.un-fra.me`) からの素材 `GET` を許可します。ファイルの変更だけでは実バケットへ反映されないため、変更後は `r2:cors:apply` と `r2:cors:list` を実行してください。
 
 `api.un-fra.me` の Worker Custom Domain はリポジトリ外の [`infra`](../../../../infra/README.md)
 Terraform で管理します。Wrangler は Worker の build / deploy、secret、D1 migration を担当します。
@@ -62,7 +62,7 @@ Venue Edge credentialはprovisioning / rotation responseで一度だけ返し、
 Product-owned endpoint は `createRoute` と `OpenAPIHono` で実装・入力検証・OpenAPI・Hono RPC型を一元化しています。OpenAPI 3.0.3 と言語非依存の生成 TypeScript 型は `packages/contracts/`、Hono RPC client は `packages/api-client-typescript/` にあります。Better Auth が所有するendpointは`better-auth@1.7.1`へ固定した認証clientから型付きで利用でき、参照用OpenAPI 3.1.1は`GET /api/auth/open-api/generate-schema`で取得できます。
 
 未処理例外は route pattern、例外名、incident ID だけを構造化ログへ記録し、message、credential、signed URL を response やログへ出しません。
-OAuth codeやDevice Authorization user codeをqueryに含むため、Workers invocation logsと自動traceは無効化しています。
+Workers invocation logs と自動 trace は `wrangler.toml` で有効にしています。
 
 Product-owned D1 tables の通常の CRUD・一覧・lookup と単純な条件付き更新は Drizzle ORM を使います。migration DDL / trigger、Better Auth の D1 接続、JSON1 や複数テーブルの整合性・割当の排他条件を含む複雑な書き込みは D1 SQL を使います。SQL を残す理由は条件と書き込みを一つの文として読み取れることにあり、原子性が Drizzle では保てないという制約ではありません。Drizzle と SQL を同じ処理で使う場合も、既存の D1 batch による原子性を維持します。
 
