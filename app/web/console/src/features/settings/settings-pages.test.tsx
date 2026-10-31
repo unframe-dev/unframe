@@ -23,7 +23,7 @@ vi.mock("@/features/auth/control-plane-auth", () => ({
 }));
 
 describe("ProfilePage", () => {
-  it("updates the name and profile icon without displaying the email address", async () => {
+  it("updates the name and offers image selection without a URL field or email address", async () => {
     auth.getSession.mockResolvedValue({
       data: {
         user: {
@@ -37,7 +37,8 @@ describe("ProfilePage", () => {
     render(<ProfilePage />);
     const user = userEvent.setup();
     const name = await screen.findByDisplayValue("旧名");
-    const image = screen.getByRole("textbox", { name: "アイコンURL" });
+    expect(screen.queryByRole("textbox", { name: "アイコンURL" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("アイコン画像を選択")).toHaveAttribute("type", "file");
 
     expect(screen.queryByDisplayValue("a@example.test")).not.toBeInTheDocument();
     expect(screen.queryByText("メールアドレス")).not.toBeInTheDocument();
@@ -48,13 +49,10 @@ describe("ProfilePage", () => {
 
     await user.clear(name);
     await user.type(name, "新名");
-    await user.clear(image);
-    await user.type(image, "https://example.test/new.png");
     expect(screen.getByRole("status")).toHaveTextContent("未保存");
     await user.click(screen.getByRole("button", { name: "保存" }));
     expect(auth.updateUser).toHaveBeenCalledWith({
       name: "新名",
-      image: "https://example.test/new.png",
     });
   });
 

@@ -7,6 +7,7 @@ Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 現在は次を実装しています。
 
 - Better Auth の Google OAuth、email/password、TOTP MFA、Device Authorization、cookie / Bearer session
+- 自分のプロフィール画像のR2 upload・解除（`PUT` / `DELETE /users/me/image`）。uploadは512×512、8-bit RGB/RGBA、非interlace PNG、2 MiB以下。`GET /user-images/{userId}/{filename}` は認証不要のアイコン配信。更新・解除後は本人の旧画像を削除する
 - owner / editor / global admin による Presentation 認可（editorは定義更新、削除はowner/adminのみ）
 - `Group → Step → Cue` を持つ Presentation Definition の CRUD と revision 競合検知
 - R2 直接uploadの初期化、署名済みContent-Length / MIME / SHA-256制約、finalize時のsize / magic bytes検証、download、監査log付き削除、metadata-less objectを含む孤児回収

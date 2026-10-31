@@ -1329,3 +1329,65 @@ export const runtimeHostHeartbeatRoute = createRoute({
     409: errorResponse("Stale Host generation or endpoint conflict"),
   },
 });
+
+const profileImageResource = z.object({ image: z.string().url().nullable() });
+export const putProfileImageRoute = createRoute({
+  method: "put",
+  path: "/users/me/image",
+  description:
+    "Replace the caller's profile image with a 512 by 512, non-interlaced, 8-bit RGB/RGBA PNG (at most 2 MiB).",
+  security,
+  request: {
+    body: {
+      required: true,
+      content: { "image/png": { schema: z.string().openapi({ format: "binary" }) } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated profile image",
+      content: { "application/json": { schema: profileImageResource } },
+    },
+    400: errorResponse("Invalid PNG"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Untrusted browser origin"),
+    409: errorResponse("Profile image changed concurrently; reload before retrying"),
+    413: errorResponse("Profile image exceeds 2 MiB"),
+    415: errorResponse("Expected image/png"),
+  },
+});
+export const deleteProfileImageRoute = createRoute({
+  method: "delete",
+  path: "/users/me/image",
+  security,
+  responses: {
+    200: {
+      description: "Profile image removed",
+      content: { "application/json": { schema: z.object({ image: z.null() }) } },
+    },
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Untrusted browser origin"),
+    409: errorResponse("Profile image changed concurrently; reload before retrying"),
+  },
+});
+export const getProfileImageRoute = createRoute({
+  method: "get",
+  path: "/user-images/{userId}/{filename}",
+  security: [],
+  request: {
+    params: z.object({
+      userId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+      filename: z
+        .string()
+        .regex(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.png$/),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Immutable public profile image",
+      content: { "image/png": { schema: z.string().openapi({ format: "binary" }) } },
+    },
+    400: errorResponse("Invalid image identifier"),
+    404: errorResponse("Profile image not found"),
+  },
+});

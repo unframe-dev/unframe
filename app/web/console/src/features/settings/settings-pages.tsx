@@ -6,15 +6,15 @@ import { Label } from "@/shared/ui/label";
 import contentModuleStyles from "@/app/shell/application-content.module.css";
 import moduleStyles from "./settings-pages.module.css";
 import { TwoFactorSettings } from "./two-factor-settings";
+import { ProfileImageEditor } from "./profile-image-editor";
+import { updateProfileImage } from "./profile-image-api";
 const styles = {
   main: contentModuleStyles["main"]!,
   heading: contentModuleStyles["heading"]!,
   section: moduleStyles["section"]!,
   sectionHeading: moduleStyles["sectionHeading"]!,
   profileEditor: moduleStyles["profileEditor"]!,
-  imageHelp: moduleStyles["imageHelp"]!,
   error: moduleStyles["error"]!,
-  profileIcon: moduleStyles["profileIcon"]!,
   list: moduleStyles["list"]!,
 };
 
@@ -29,11 +29,19 @@ type SecurityAccountState =
 export function ProfilePage() {
   const [user, setUser] = useState<SessionUser>();
   const [name, setName] = useState("");
-  const [image, setImage] = useState("");
+  const [imageChange, setImageChange] = useState<Blob | null>();
+  const [preview, setPreview] = useState("");
   const [state, setState] = useState("読み込み中…");
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
-  const draft = useRef({ name: "", image: "" });
+  const draft = useRef({ name: "" });
+  const savingRef = useRef(false);
+  useEffect(() => {
+    if (!imageChange) return;
+    const url = URL.createObjectURL(imageChange);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageChange]);
   const loadProfile = useCallback(() => {
     setLoadFailed(false);
     setState("読み込み中…");
@@ -44,11 +52,10 @@ export function ProfilePage() {
         setUser(result.data?.user);
         const nextDraft = {
           name: result.data?.user?.name ?? "",
-          image: result.data?.user?.image ?? "",
         };
         draft.current = nextDraft;
         setName(nextDraft.name);
-        setImage(nextDraft.image);
+        setImageChange(undefined);
         setState("");
       })
       .catch(() => {
@@ -59,23 +66,35 @@ export function ProfilePage() {
   useEffect(() => loadProfile(), [loadProfile]);
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    const submitted = { name: name.trim(), image: image.trim() };
+    if (!user || savingRef.current) return;
+    const submitted = { name: name.trim(), image: imageChange };
+    savingRef.current = true;
     setSaving(true);
     setState("保存中…");
-    const nextImage = submitted.image || null;
-    const result = await auth.updateUser({ name: submitted.name, image: nextImage });
-    setSaving(false);
-    if (result.error) {
-      setState("保存できませんでした。");
-    } else {
-      setUser((value: SessionUser | undefined) =>
-        value ? { ...value, name: submitted.name, image: nextImage } : value,
-      );
+    try {
+      if (submitted.image !== undefined) {
+        const image = await updateProfileImage(submitted.image);
+        setUser((value: SessionUser | undefined) => (value ? { ...value, image } : value));
+        setImageChange(undefined);
+        void auth.useSession.get().refetch();
+      }
+      if (submitted.name !== user.name) {
+        const result = await auth.updateUser({ name: submitted.name });
+        if (result.error) throw result.error;
+        setUser((value: SessionUser | undefined) =>
+          value ? { ...value, name: submitted.name } : value,
+        );
+      }
       setState(
-        draft.current.name === submitted.name && draft.current.image === submitted.image
+        draft.current.name.trim() === submitted.name
           ? "保存しました。"
           : "未保存の変更があります。",
       );
+    } catch {
+      setState("保存できませんでした。もう一度お試しください。");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   };
   return (
@@ -88,8 +107,16 @@ export function ProfilePage() {
           <h2>基本情報</h2>
         </header>
         <div className={styles.profileEditor}>
-          <ProfileIcon image={image.trim()} name={name} />
           <form onSubmit={save}>
+            <ProfileImageEditor
+              image={imageChange === null ? "" : imageChange ? preview : (user?.image ?? "")}
+              name={name}
+              disabled={!user || saving}
+              onChange={(image) => {
+                setImageChange(image);
+                setState("未保存の変更があります。");
+              }}
+            />
             <Label>
               名前
               <Input
@@ -103,22 +130,6 @@ export function ProfilePage() {
                 autoComplete="name"
               />
             </Label>
-            <Label>
-              アイコンURL
-              <Input
-                type="url"
-                value={image}
-                onChange={(event) => {
-                  setImage(event.target.value);
-                  draft.current.image = event.target.value;
-                  setState("未保存の変更があります。");
-                }}
-                disabled={!user}
-                placeholder="https://example.com/avatar.png"
-                inputMode="url"
-              />
-            </Label>
-            <p className={styles.imageHelp}>空欄にするとアイコンを解除します。</p>
             {loadFailed ? (
               <div>
                 <p role="alert" className={styles.error}>
@@ -136,7 +147,7 @@ export function ProfilePage() {
               disabled={
                 !user ||
                 !name.trim() ||
-                (name.trim() === user.name && image.trim() === (user.image ?? "")) ||
+                (name.trim() === user.name && imageChange === undefined) ||
                 saving
               }
             >
@@ -146,24 +157,6 @@ export function ProfilePage() {
         </div>
       </section>
     </main>
-  );
-}
-
-function ProfileIcon({ image, name }: { image: string; name: string }) {
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => setFailed(false), [image]);
-
-  return (
-    <div className={styles.profileIcon}>
-      {image && !failed ? (
-        <img src={image} alt="プロフィールアイコン" onError={() => setFailed(true)} />
-      ) : (
-        <span aria-label="プロフィールアイコン">
-          {name.trim().charAt(0).toLocaleUpperCase() || "U"}
-        </span>
-      )}
-    </div>
   );
 }
 
