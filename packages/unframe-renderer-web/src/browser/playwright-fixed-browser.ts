@@ -31,7 +31,7 @@ type BrowserContextOptions = {
 
 type BrowserLaunchOptions = {
   readonly headless: true;
-  readonly chromiumSandbox: true;
+  readonly chromiumSandbox: boolean;
   readonly handleSIGINT: false;
   readonly handleSIGTERM: false;
   readonly handleSIGHUP: false;
@@ -339,7 +339,10 @@ export const createPlaywrightFixedBrowserFactory =
     const platform = Object.freeze(browserPlatformSchema.parse(driver.platform));
     const launch = driver.launch({
       headless: true,
-      chromiumSandbox: true,
+      // Opt-in only: containers whose seccomp policy forbids namespaces have no usable Chromium
+      // sandbox, so local builds there must disable it explicitly. Output rendered without the
+      // sandbox is not trusted for publication.
+      chromiumSandbox: process.env.UNFRAME_UNSAFE_CHROMIUM_NO_SANDBOX !== "1",
       handleSIGINT: false,
       handleSIGTERM: false,
       handleSIGHUP: false,
