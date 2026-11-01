@@ -8,7 +8,7 @@ import {
   checkAuthoringProjectAssembly,
   computeFrozenComponentInputs,
 } from "@unframe/core/compiler";
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { loadUnframeLock } from "./load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "./lock.js";

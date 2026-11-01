@@ -43,7 +43,9 @@ GitHub Actions では `nixbuild/nix-quick-install-action` で Nix を導入し�
 
 Bun は `packages/config/bun.nix` で 1.4.2 に固定しています。1.3.13 ではブラウザ終了後の追加パイプの二重 close により、成果物の出力が `EBADF` で失敗するためです。開発環境と CI は同じ Nix toolchain を使います。対象 system は Linux x86_64 と macOS arm64 です。macOS の実機検証状態と隔離の保証差は [ADR-0026](../docs/decisions/0026-native-linux-macos-host-adapters.md) に従います。
 
-`packages/contracts/` は Control Plane OpenAPI、Realtime Protocol Buffers、Presentation artifact schema の共有境界です。`nix run .#presentation` は単一 workspace package `packages/unframe/`（`@unframe/core`）を検証した後、repository-local Fixed Browser で `examples/presentation` の check と実 build を2回行います。Definition、RenderBundle、PNG asset set の relative path と SHA-256 manifest が一致することまで確認します。source of truth と生成手順は、対応する component 実装と合わせて定義します。
+`packages/contracts/` は Control Plane OpenAPI、Realtime Protocol Buffers、Presentation artifact schema の共有境界です。`nix run .#presentation` は `packages/unframe/` と配下の独立workspaceパッケージ、依存境界、配布物の公開API、契約fixtureの生成driftを検証します。`generate-valid-delivery.sh` は宣言Project fixtureを実Compilerと決定的な契約用Rendererで処理し、Browserには依存しません。このfixtureは実描画の受け入れ検証を代替しません。
+
+後続のFixed Browser受け入れ処理は `examples/presentation` のcheckと実buildを2回行い、成果物のpathとhashを比較します。現在そのProjectは存在しないため、この処理を含む全体gateは完了できません。独立化の実装順と受け入れ条件は[移行計画](../docs/plans/unframe-independent-packages.md)を参照してください。
 
 Apple Silicon で C# consumer を生成・検査するには Rosetta 2 が必要です。固定した `Grpc.Tools 2.76.0` は macOS の x64 plugin のみを配布しています。未導入の場合は `softwareupdate --install-rosetta` でライセンスを確認してインストールしてください。platform 判定は `scripts/lib/grpc-tools.sh` で共有し、`bash scripts/contracts/test-grpc-tools.sh` で単独検証できます。
 

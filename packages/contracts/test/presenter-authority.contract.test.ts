@@ -264,7 +264,7 @@ test("canonical input epochs and Step history identity have the same required ra
     assert.throws(
       () =>
         encodeWireMessage("unframe.realtime.CanonicalRuntimeSnapshot", {
-          schemaVersion: 3,
+          schemaVersion: 1,
           ...(inputEpoch === undefined ? {} : { inputEpoch }),
         }),
       /input epoch/i,

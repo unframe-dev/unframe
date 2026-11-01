@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PresentationDefinition } from "@unframe/core/domain/model";
+import type { PresentationDefinition } from "@unframe/presentation";
 import type { StyleDiagnostic } from "@unframe/core/tailwind";
 
 const vector3 = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);

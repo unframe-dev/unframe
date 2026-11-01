@@ -52,10 +52,10 @@ const portableSchema = (schema: z.ZodType) =>
 
 const snapshotSchemas = [m3dCueRuntimeSnapshotSchema, canonicalRuntimeSnapshotSchema] as const;
 
-const snapshotV3 = () => readJson("fixtures/m3d-cue-runtime-snapshot.json");
+const currentSnapshot = () => readJson("fixtures/m3d-cue-runtime-snapshot.json");
 
-test("snapshot v3 requires input epoch and rejects legacy cooldown and deduplication state", async () => {
-  const snapshot = await snapshotV3();
+test("snapshot requires input epoch and rejects legacy cooldown and deduplication state", async () => {
+  const snapshot = await currentSnapshot();
   for (const schema of snapshotSchemas) {
     const validate = new Ajv2020({ allErrors: true, strict: true }).compile(portableSchema(schema));
     assert.equal(schema.safeParse(snapshot).success, true);
@@ -82,7 +82,7 @@ test("snapshot v3 requires input epoch and rejects legacy cooldown and deduplica
 });
 
 test("frozen anchors preserve only available display components in snapshots and participant views", async () => {
-  const snapshot = await snapshotV3();
+  const snapshot = await currentSnapshot();
   const view = await readJson("fixtures/m3d-cue-participant-runtime-view.json");
   for (const [schema, value] of [
     [m3dCueRuntimeSnapshotSchema, snapshot],
@@ -115,7 +115,7 @@ test("frozen anchors preserve only available display components in snapshots and
 });
 
 test("step start history stores nonrecursive resources with their original run epochs", async () => {
-  const snapshot = await snapshotV3();
+  const snapshot = await currentSnapshot();
   const history = {
     groupId: "previous-group",
     stepId: "previous-step",

@@ -9,7 +9,7 @@ export async function checkpointEnvelope(sessionId = "session", reliableSequence
     stable: {},
   };
   const canonical = encodeWireMessage("unframe.realtime.CanonicalRuntimeSnapshot", {
-    schemaVersion: 3,
+    schemaVersion: 1,
     reliableSequence,
     inputEpoch: "1",
     progression,
@@ -40,7 +40,7 @@ export async function checkpointEnvelope(sessionId = "session", reliableSequence
   const hash = async (value: Uint8Array) =>
     `sha256:${Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", value)), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
   return {
-    schemaVersion: 3,
+    schemaVersion: 1,
     checkpointSequence: "1",
     sessionId,
     runtimeId: "runtime",

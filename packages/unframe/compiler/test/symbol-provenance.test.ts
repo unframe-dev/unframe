@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
 import { collectPackageValueProvenance } from "../src/resolution/symbol-provenance.js";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PresentationDefinition } from "@unframe/core";
+import type { PresentationDefinition } from "@unframe/presentation";
 import { checkProjectAssets } from "../src/validation/check-project-assets.js";
 import { checksumBytes } from "../src/validation/source-assets.js";
 

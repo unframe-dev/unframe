@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import type { ValidationResult } from "@unframe/core";
+import type { ValidationResult } from "@unframe/presentation";
 import type { VideoMetadata } from "./types.js";
 
 const integer = z

@@ -1,3 +1,4 @@
+import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
 import { describe, expect, it, vi } from "vitest";
 import { Group, VideoTexture } from "three";
 import { participantRuntimeViewSchema } from "@unframe/contracts/presentation";
@@ -131,7 +132,7 @@ describe("video presentation", () => {
     expect(presentation.applyView(view)).toBe(false);
     expect(dispose).not.toHaveBeenCalled();
     artifact.durationMs = "2000";
-    render.stateBindings![0] = { stateId: "reference-surface:default", empty: {} };
+    render.stateBindings![0] = { stateId: PNG_DEFAULT_STATE, empty: {} };
     expect(presentation.applyView(view)).toBe(true);
     expect(dispose).toHaveBeenCalledOnce();
     expect(presentation.getLoadedAssets().size).toBe(0);

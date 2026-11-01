@@ -1,7 +1,13 @@
+import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
 import { describe, expect, it } from "vitest";
 import { buildVideoPlan } from "../video-plan";
 import { videoFixture } from "./support/video-test-fixture";
 describe("video plan", () => {
+  it.each([2, 3])("rejects Delivery schema version %i", (schemaVersion) => {
+    const { delivery, view } = videoFixture();
+    delivery.schemaVersion = schemaVersion;
+    expect(() => buildVideoPlan(delivery, view)).toThrow("projection mismatch");
+  });
   it("fits a video in meters and preserves media identity", () => {
     const f = videoFixture();
     const plan = buildVideoPlan(f.delivery, f.view);
@@ -55,7 +61,7 @@ describe("video plan", () => {
     } as typeof f.view.nodeStates;
     f.view.surfaceStates = {
       ...f.view.surfaceStates,
-      second: { stateId: "reference-surface:default" },
+      second: { stateId: PNG_DEFAULT_STATE },
     } as typeof f.view.surfaceStates;
     expect(buildVideoPlan(f.delivery, f.view).assets.map((a) => a.assetId)).toEqual([
       JSON.stringify(["video", f.id, "video"]),
@@ -102,7 +108,7 @@ describe("video plan", () => {
       f.view.nodeStates = { ...f.view.nodeStates, [nodeId]: nodeState } as typeof f.view.nodeStates;
       f.view.surfaceStates = {
         ...f.view.surfaceStates,
-        [surfaceId!]: { stateId: "reference-surface:default" },
+        [surfaceId!]: { stateId: PNG_DEFAULT_STATE },
       } as typeof f.view.surfaceStates;
     }
     f.delivery.assetAccess.push({

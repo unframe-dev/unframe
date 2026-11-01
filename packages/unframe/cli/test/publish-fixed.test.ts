@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe/core";
-import { verifyBuildIntegrity } from "@unframe/core";
+import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe/artifacts";
+import { verifyBuildIntegrity } from "@unframe/artifacts";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetsFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";

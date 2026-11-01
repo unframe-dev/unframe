@@ -10,7 +10,7 @@ import {
   buildDeliveryManifest,
   buildProjectionProfile,
   selectDeliveryArtifacts,
-} from "@unframe/core";
+} from "@unframe/delivery";
 import { R2Presigner } from "../../adapters/assets/r2-presigner";
 import type { RuntimeConfig } from "../../config";
 import type { Identity } from "../../presentation/service";

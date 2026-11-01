@@ -5,7 +5,7 @@ import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
 } from "@unframe/contracts/presentation";
-import deliveryFixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
+import { pngDeliveryFixture as deliveryFixture } from "../../test-support/png-delivery-fixture";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 import { evaluateAnimationView } from "../animation-view";
 function setup() {

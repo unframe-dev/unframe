@@ -45,6 +45,19 @@ function setup(response: Response) {
 }
 
 describe("Audience HTTP client", () => {
+  it.each([2, 3])("rejects a Delivery schema version %i response", async (schemaVersion) => {
+    const bytes = encodeWireMessage("unframe.delivery.DeliveryManifest", fixture.value);
+    expect(bytes.slice(0, 2)).toEqual([8, 1]);
+    bytes[1] = schemaVersion;
+    const { client } = setup(
+      new Response(new Uint8Array(bytes), {
+        headers: { "content-type": "application/x-protobuf" },
+      }),
+    );
+    await expect(client.delivery(fixture.value.sessionId)).rejects.toMatchObject({
+      code: "invalid-response",
+    });
+  });
   it.each(["delivery", "bootstrap"] as const)(
     "recognizes temporary Runtime unavailability on %s without exposing server details",
     async (resource) => {

@@ -1,0 +1,14 @@
+{
+  "name": "@unframe/package-checks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test boundaries.test.mjs",
+    "test:packed": "tsx --test packed.test.mjs"
+  },
+  "devDependencies": {
+    "@unframe/contract-fixtures": "workspace:*",
+    "tsx": "^4.22.1",
+    "typescript": "6.0.3"
+  }
+}

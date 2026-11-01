@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { describe, expect, it } from "vitest";
 
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
@@ -39,7 +39,7 @@ const validLock = (): UnframeLock => {
   };
   pkg.contentIntegrity = hashLockedPackageContent(pkg);
   const lock: UnframeLock = {
-    schemaVersion: 3,
+    schemaVersion: 1,
     packageSnapshotProfile: "pnpm-lock9-locator-v1",
     resolutionProfile: "browser-import-production-types-v1",
     extractionProfile: "react-component-v1",
@@ -86,7 +86,13 @@ const errorCode = (lock: unknown) => {
   return result.ok ? "ok" : result.diagnostic.code;
 };
 
-describe("unframe.lock v3 boundary", () => {
+describe("unframe.lock schema boundary", () => {
+  it("accepts schema version 1 and rejects other schema versions", () => {
+    expect(errorCode({ ...validLock(), schemaVersion: 1 })).toBe("ok");
+    expect(errorCode({ ...validLock(), schemaVersion: 2 })).toBe("cli-lock-shape-invalid");
+    expect(errorCode({ ...validLock(), schemaVersion: 3 })).toBe("cli-lock-shape-invalid");
+  });
+
   it("loads a frozen local Component and package graph", () => {
     const lock = validLock();
     const result = loadUnframeLock(bytes(lock));
@@ -103,8 +109,6 @@ describe("unframe.lock v3 boundary", () => {
   });
 
   it("rejects embedded-byte locks and unknown nested fields", () => {
-    expect(errorCode({ ...validLock(), schemaVersion: 1 })).toBe("cli-lock-shape-invalid");
-    expect(errorCode({ ...validLock(), schemaVersion: 2 })).toBe("cli-lock-shape-invalid");
     const embedded = validLock();
     embedded.assets[0] = { ...embedded.assets[0]!, dataBase64: "AQID" } as never;
     expect(errorCode(embedded)).toBe("cli-lock-shape-invalid");

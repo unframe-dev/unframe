@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it } from "vitest";
 import type { FixedBrowserSession } from "@unframe/core/renderer-web";
 
-import { canonicalizeJsonPayload, verifyBuildIntegrity } from "@unframe/core";
+import { canonicalizeJsonPayload, verifyBuildIntegrity } from "@unframe/artifacts";
 import {
   checkAuthoringProject,
   checkAuthoringProjectAssembly,
@@ -572,16 +572,16 @@ describe("reference Authoring Project", () => {
     expect(assetNamesPng).toHaveLength(4);
     const firstAssetSet = await readFile(join(directory, "dist/asset-set.json"));
     const firstBuild = await readFile(join(directory, "dist/build-manifest.json"));
-    expect(JSON.parse(firstDefinition.toString()).schemaVersion).toBe(3);
-    expect(JSON.parse(firstBundle.toString()).schemaVersion).toBe(2);
-    expect(JSON.parse(firstAssetSet.toString()).schemaVersion).toBe(2);
+    expect(JSON.parse(firstDefinition.toString()).schemaVersion).toBe(1);
+    expect(JSON.parse(firstBundle.toString()).schemaVersion).toBe(1);
+    expect(JSON.parse(firstAssetSet.toString()).schemaVersion).toBe(1);
     expect(JSON.parse(firstBuild.toString())).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 1,
       sourceDraftRevision: 0,
       contractVersions: {
-        definition: 3,
-        renderBundle: 2,
-        assetSet: 2,
+        definition: 1,
+        renderBundle: 1,
+        assetSet: 1,
         delivery: 3,
         runtime: 3,
         progression: 2,

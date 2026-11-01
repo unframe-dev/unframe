@@ -9,9 +9,9 @@ import {
 } from "./common";
 
 export const contractVersionsSchema = z.strictObject({
-  definition: z.literal(3),
-  renderBundle: z.literal(2),
-  assetSet: z.literal(2),
+  definition: z.literal(1),
+  renderBundle: z.literal(1),
+  assetSet: z.literal(1),
   delivery: z.literal(3),
   runtime: z.literal(3),
   progression: z.literal(2),
@@ -24,7 +24,7 @@ export const publicationFenceSchema = z.strictObject({
 });
 
 export const buildManifestSchema = z.strictObject({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(1),
   buildId: storageSegmentIdSchema,
   presentationId: idSchema,
   sourceDraftRevision: safeUIntSchema,
@@ -35,7 +35,7 @@ export const buildManifestSchema = z.strictObject({
 });
 
 export const publishedPresentationSchema = z.strictObject({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(1),
   presentationId: idSchema,
   publicationEpoch: positiveSafeUIntSchema,
   publicationManifestHash: contentHashSchema,

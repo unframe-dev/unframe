@@ -227,7 +227,7 @@ const compiledModelSchema = z.strictObject({
 });
 
 export const renderBundleSchema = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(1),
   bundleId: idSchema,
   sourceHash: contentHashSchema,
   definitionHash: contentHashSchema,

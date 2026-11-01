@@ -1,5 +1,5 @@
 import type { NodeTransformSnapshot } from "../styles/node-snapshot.js";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import type { ProjectConfig } from "./load-config.js";
 
 export type ContentHash = `sha256:${string}`;
@@ -56,7 +56,7 @@ export type LockedSourceAsset = {
 export type UnframeLock = {
   styleTransform?: NodeTransformSnapshot;
   styleSourceIdentity?: string;
-  schemaVersion: 3;
+  schemaVersion: 1;
   packageSnapshotProfile: "pnpm-lock9-locator-v1";
   resolutionProfile: "browser-import-production-types-v1";
   extractionProfile: "react-component-v1";

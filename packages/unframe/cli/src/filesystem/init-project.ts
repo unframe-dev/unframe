@@ -1,7 +1,7 @@
 import { copyFile, lstat, mkdir, readdir, rmdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { randomUUID } from "node:crypto";
 import { projectDirectory, readBoundedRegularFile } from "./path-policy.js";
 import { loadProjectConfig } from "./load-config.js";

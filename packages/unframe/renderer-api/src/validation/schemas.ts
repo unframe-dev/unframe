@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { completedSemanticTreeSchema, semanticSurfaceSchema } from "@unframe/core";
+import { completedSemanticTreeSchema, semanticSurfaceSchema } from "@unframe/presentation";
 
 export const rendererIdSchema = z.string().min(1);
 const finiteNumberSchema = z.number().finite();

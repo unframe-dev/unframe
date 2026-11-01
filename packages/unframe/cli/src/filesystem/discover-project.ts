@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
 import { buildManifestBytesHash, buildReceiptSchema } from "./build-receipt.js";
-import { parseStrictJson } from "@unframe/core/strict-json";
+import { parseStrictJson } from "@unframe/artifacts";
 import type { LocalFileSnapshot } from "./frozen-local-files.js";
 import { acquireSourceLock } from "./source-lock.js";
 import { loadProjectConfig, type ProjectConfig } from "./load-config.js";

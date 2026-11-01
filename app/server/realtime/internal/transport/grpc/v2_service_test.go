@@ -42,7 +42,7 @@ func (p v2TestProjection) Projection(context.Context, persistencehttp.Projection
 }
 
 func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
@@ -163,7 +163,7 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 }
 
 func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"variable.set","variableId":"private-score","value":{"kind":"literal","value":2}}],"next":{"kind":"stay"}}]}}}},"variables":{"private-score":{"id":"private-score","type":"number","owner":{"kind":"presentation"},"initialValue":1}},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"cue-next","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"variable.set","variableId":"private-score","value":{"kind":"literal","value":2}}],"next":{"kind":"stay"}}]}}}},"variables":{"private-score":{"id":"private-score","type":"number","owner":{"kind":"presentation"},"initialValue":1}},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)

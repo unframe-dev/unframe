@@ -7,7 +7,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 
 import { runPresentationCli } from "../src/index.js";
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 
 describe("runPresentationCli", () => {
   it("ignores transient runtime leases when initializing from the template", async () => {

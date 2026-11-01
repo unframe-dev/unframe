@@ -1,6 +1,6 @@
 {
   "connectionSnapshot": {
-    "schemaVersion": 3,
+    "schemaVersion": 1,
     "connectionId": "connection:local",
     "fence": {
       "sessionId": "session:local",

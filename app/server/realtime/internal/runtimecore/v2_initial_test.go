@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -15,10 +14,25 @@ import (
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 )
 
+func TestInitialSnapshotRequiresSchemaVersionOne(t *testing.T) {
+	for _, version := range []uint32{0, 1, 2, 3} {
+		t.Run(fmt.Sprint(version), func(t *testing.T) {
+			definition := json.RawMessage(fmt.Sprintf(`{"schemaVersion":%d,"presentationId":"schema-version-test","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}}},"variables":{},"timelines":{}}`, version))
+			_, err := NewV2InitialSnapshot(definition)
+			if version == 1 && err != nil {
+				t.Fatalf("current schema rejected: %v", err)
+			}
+			if version != 1 && !errors.Is(err, ErrV2RuntimeDefinition) {
+				t.Fatalf("unsupported schema error = %v", err)
+			}
+		})
+	}
+}
+
 func TestV2DefinitionRejectsMediaActionsOutsidePublicSchema(t *testing.T) {
 	for _, kind := range []string{"media.resume", "media.stop"} {
 		t.Run(kind, func(t *testing.T) {
-			definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"invalid","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"` + kind + `","surfaceId":"screen"}],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+			definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"invalid","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"` + kind + `","surfaceId":"screen"}],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 			if _, err := newV3RegressionSession(definition); !errors.Is(err, ErrV2RuntimeDefinition) {
 				t.Fatalf("schema-external media action %s admitted: %v", kind, err)
 			}
@@ -27,7 +41,7 @@ func TestV2DefinitionRejectsMediaActionsOutsidePublicSchema(t *testing.T) {
 }
 
 func TestV2InitialSnapshotUsesDefinitionGroupAndOwnedResources(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{"node-a":{"id":"node-a","kind":"container","owner":{"kind":"presentation"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1},"node-b":{"id":"node-b","kind":"surface","surfaceId":"surface-b","owner":{"kind":"group","groupId":"later"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{"surface-b":{"id":"surface-b","hostNodeId":"node-b","initialStateId":"state-b","states":{"state-b":{}},"renderIntent":{"internalAnimation":{"kind":"none"}}}}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}},"later":{"id":"later","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{"variable-a":{"id":"variable-a","owner":{"kind":"presentation"},"type":"number","initialValue":4}},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"presentation-1","scene":{"nodes":{"node-a":{"id":"node-a","kind":"container","owner":{"kind":"presentation"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1},"node-b":{"id":"node-b","kind":"surface","surfaceId":"surface-b","owner":{"kind":"group","groupId":"later"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{"surface-b":{"id":"surface-b","hostNodeId":"node-b","initialStateId":"state-b","states":{"state-b":{}},"renderIntent":{"internalAnimation":{"kind":"none"}}}}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}},"later":{"id":"later","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{"variable-a":{"id":"variable-a","owner":{"kind":"presentation"},"type":"number","initialValue":4}},"timelines":{}}}`)
 	snapshot, err := NewV2InitialSnapshot(definition)
 	if err != nil {
 		t.Fatal(err)
@@ -41,7 +55,7 @@ func TestV2InitialSnapshotUsesDefinitionGroupAndOwnedResources(t *testing.T) {
 }
 
 func TestV2InitialSnapshotRejectsRuntimeKindsWithoutConsumer(t *testing.T) {
-	base := `{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":%s,"surfaces":%s},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`
+	base := `{"schemaVersion":1,"presentationId":"presentation-1","scene":{"nodes":%s,"surfaces":%s},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`
 	cases := []struct{ name, nodes, surfaces string }{
 		{"model", `{"model":{"id":"model","kind":"model","owner":{"kind":"presentation"}}}`, `{}`},
 		{"video", `{}`, `{"video":{"id":"video","renderIntent":{"internalAnimation":{"kind":"precomputed-video"}}}}`},
@@ -56,7 +70,7 @@ func TestV2InitialSnapshotRejectsRuntimeKindsWithoutConsumer(t *testing.T) {
 }
 
 func TestV2CanonicalCatalogCoversInactiveGroupResources(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{"a":{"id":"a","kind":"container","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1},"b":{"id":"b","kind":"surface","surfaceId":"surface-b","owner":{"kind":"group","groupId":"later"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{"surface-b":{"id":"surface-b","hostNodeId":"b","initialStateId":"state-b","states":{"state-b":{}},"physicalSizeMeters":[1,1],"logicalSize":[100,100],"fit":"contain"}}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}},"later":{"id":"later","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{"v":{"id":"v","owner":{"kind":"presentation"},"type":"boolean","initialValue":true}},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"presentation-1","scene":{"nodes":{"a":{"id":"a","kind":"container","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1},"b":{"id":"b","kind":"surface","surfaceId":"surface-b","owner":{"kind":"group","groupId":"later"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{"surface-b":{"id":"surface-b","hostNodeId":"b","initialStateId":"state-b","states":{"state-b":{}},"physicalSizeMeters":[1,1],"logicalSize":[100,100],"fit":"contain"}}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}},"later":{"id":"later","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{"v":{"id":"v","owner":{"kind":"presentation"},"type":"boolean","initialValue":true}},"timelines":{}}}`)
 	catalog, err := BuildV2CanonicalCatalog(definition)
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +99,6 @@ func TestV2InitialSnapshotMatchesSharedDeclarativeConformance(t *testing.T) {
 	if err := json.Unmarshal(raw, &fixture); err != nil {
 		t.Fatal(err)
 	}
-	fixture.Definition = json.RawMessage(strings.Replace(string(fixture.Definition), `"schemaVersion": 2`, `"schemaVersion": 3`, 1))
 	snapshot, err := NewV2InitialSnapshot(fixture.Definition)
 	if err != nil {
 		t.Fatal(err)

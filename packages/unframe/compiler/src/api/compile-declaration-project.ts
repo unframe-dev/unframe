@@ -6,15 +6,17 @@ import { PNG_ENCODER_IDENTITY, encodeRgbaToPng } from "@unframe/core/assets";
 import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
-  materializeCompletedSemanticTree,
   validatePresentationArtifacts,
   verifyBuildIntegrity,
   type BuildArtifacts,
+} from "@unframe/artifacts";
+import {
+  materializeCompletedSemanticTree,
   type Diagnostic,
   type RenderBundle,
   type SemanticSurface,
   type ValidationResult,
-} from "@unframe/core";
+} from "@unframe/presentation";
 import {
   SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
@@ -792,7 +794,7 @@ const compileUnchecked = async (
 
   context.stage = "artifacts";
   const bundle: RenderBundle = {
-    schemaVersion: 2,
+    schemaVersion: 1,
     bundleId: `b:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, definitionHash: checked.value.definitionHash, environmentHash, locale: buildOptions.locale, timezone: buildOptions.timezone, colorScheme: buildOptions.colorScheme, themeId: bundleThemeId, themeHash, rendererConfigHash: buildOptions.rendererConfigHash, textureBuildPolicy: POLICY }).slice(7)}`,
     sourceHash: checked.value.sourceHash,
     definitionHash: checked.value.definitionHash,
@@ -813,7 +815,7 @@ const compileUnchecked = async (
     models: modelAssets.value.models,
   };
   const assetSet: BuildArtifacts["assetSet"] = {
-    schemaVersion: 2,
+    schemaVersion: 1,
     assets: { ...sourceDescriptors, ...generatedDescriptors },
   };
   const renderBundleJson = canonicalizeJsonPayload(bundle);
@@ -821,7 +823,7 @@ const compileUnchecked = async (
   const assetSetJson = canonicalizeJsonPayload(assetSet);
   const assetSetHash = hashCanonicalJsonPayload(assetSet);
   const buildManifest: BuildArtifacts["buildManifest"] = {
-    schemaVersion: 3,
+    schemaVersion: 1,
     buildId: `build:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, renderBundleHash, assetSetHash }).slice(7)}`,
     presentationId: definition.presentationId,
     sourceDraftRevision: 0,
@@ -829,9 +831,9 @@ const compileUnchecked = async (
     renderBundleHash,
     assetSetHash,
     contractVersions: {
-      definition: 3,
-      renderBundle: 2,
-      assetSet: 2,
+      definition: 1,
+      renderBundle: 1,
+      assetSet: 1,
       delivery: 3,
       runtime: 3,
       progression: 2,

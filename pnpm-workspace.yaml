@@ -5,7 +5,10 @@ packages:
   - "app/unity/scripts"
   - "lp"
   - "packages/*"
+  - "packages/unframe/*"
   - "scripts/dev"
+  - "scripts/contracts"
+  - "scripts/unframe-packages"
 
 # Vite+ catalog: vite / vitest を Vite+ バンドル版に固定し、ワークスペース全体で共有する
 catalog:

@@ -67,9 +67,9 @@ namespace Unframe.ControlPlane.Model
         public enum SchemaVersionEnum
         {
             /// <summary>
-            /// Enum _3 for value: 3
+            /// Enum _1 for value: 1
             /// </summary>
-            _3 = 1
+            _1 = 1
         }
 
         /// <summary>
@@ -80,8 +80,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static SchemaVersionEnum SchemaVersionEnumFromString(string value)
         {
-            if (value.Equals("3"))
-                return SchemaVersionEnum._3;
+            if (value.Equals("1"))
+                return SchemaVersionEnum._1;
 
             throw new NotImplementedException($"Could not convert value to type SchemaVersionEnum: '{value}'");
         }
@@ -93,8 +93,8 @@ namespace Unframe.ControlPlane.Model
         /// <returns></returns>
         public static SchemaVersionEnum? SchemaVersionEnumFromStringOrDefault(string value)
         {
-            if (value.Equals("3"))
-                return SchemaVersionEnum._3;
+            if (value.Equals("1"))
+                return SchemaVersionEnum._1;
 
             return null;
         }
@@ -107,8 +107,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static int SchemaVersionEnumToJsonValue(SchemaVersionEnum value)
         {
-            if (value == SchemaVersionEnum._3)
-                return 3;
+            if (value == SchemaVersionEnum._1)
+                return 1;
 
             throw new NotImplementedException($"Value could not be handled: '{value}'");
         }

@@ -12,7 +12,7 @@ import {
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { writePortableBuild } from "./helpers/portable-dist.js";
 import { readDistBuild } from "../src/filesystem/read-dist-build.js";
 import { createDistPreviewService } from "../src/author/local-preview.js";

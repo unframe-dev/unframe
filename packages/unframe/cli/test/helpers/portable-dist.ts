@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { assert, expect } from "vitest";
-import { hashCanonicalJsonPayload, verifyBuildIntegrity } from "@unframe/core";
+import { hashCanonicalJsonPayload, verifyBuildIntegrity } from "@unframe/artifacts";
 import definition from "../../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../../contracts/presentation/fixtures/asset-set-manifest.json";

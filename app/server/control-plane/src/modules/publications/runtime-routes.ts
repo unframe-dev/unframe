@@ -14,11 +14,8 @@ import {
   capabilityProfileSchema,
   publishedPresentationSchema,
 } from "@unframe/contracts/presentation";
-import {
-  buildProjectionProfile,
-  hashCanonicalJsonPayload,
-  selectDeliveryArtifacts,
-} from "@unframe/core";
+import { buildProjectionProfile, selectDeliveryArtifacts } from "@unframe/delivery";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import type { AppEnvironment } from "../../config";
 import {
   internalRuntimeBootstrapRoute,

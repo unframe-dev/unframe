@@ -26,7 +26,7 @@ func TestRuntimeBootstrapAndProjectionUseServiceIdentityAndTrustedFence(t *testi
 			_ = json.NewEncoder(response).Encode(map[string]any{
 				"assignment":  map[string]any{"sessionId": "session-1", "runtimeId": "runtime-1", "runtimeKind": "Cloud", "assignmentEpoch": 3, "presentationRevision": 4, "leaseExpiresAt": "2026-10-02T01:00:00Z"},
 				"publication": map[string]any{"presentationId": "presentation-1", "publicationEpoch": 2, "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "definitionHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "renderBundleHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
-				"definition":  map[string]any{"schemaVersion": 3}, "renderBundle": map[string]any{"schemaVersion": 2, "surfaces": map[string]any{}, "models": map[string]any{}}, "checkpoint": nil,
+				"definition":  map[string]any{"schemaVersion": 1}, "renderBundle": map[string]any{"schemaVersion": 1, "surfaces": map[string]any{}, "models": map[string]any{}}, "checkpoint": nil,
 			})
 		case "/internal/runtime/projection":
 			if request.URL.Query().Get("participantId") != "participant-1" || request.URL.Query().Has("capabilityProfileId") {
@@ -54,7 +54,7 @@ func TestRuntimeBootstrapRejectsAssignmentMismatch(t *testing.T) {
 		_ = json.NewEncoder(response).Encode(map[string]any{
 			"assignment":  map[string]any{"sessionId": "other-session", "runtimeId": "runtime-1", "runtimeKind": "Cloud", "assignmentEpoch": 3, "presentationRevision": 4, "leaseExpiresAt": "2026-10-02T01:00:00Z"},
 			"publication": map[string]any{"presentationId": "presentation-1", "publicationEpoch": 2, "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "definitionHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "renderBundleHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
-			"definition":  map[string]any{"schemaVersion": 3}, "checkpoint": nil,
+			"definition":  map[string]any{"schemaVersion": 1}, "checkpoint": nil,
 		})
 	}))
 	defer server.Close()
@@ -65,7 +65,7 @@ func TestRuntimeBootstrapRejectsAssignmentMismatch(t *testing.T) {
 }
 
 func TestRuntimeBootstrapValidatesStoredCheckpoint(t *testing.T) {
-	for _, version := range []uint32{2, 3} {
+	for _, version := range []uint32{0, 1, 2, 3} {
 		t.Run(fmt.Sprint(version), func(t *testing.T) {
 			envelope := callbackEnvelope(t)
 			envelope.SessionId = "session-1"
@@ -78,15 +78,15 @@ func TestRuntimeBootstrapValidatesStoredCheckpoint(t *testing.T) {
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"assignment":  map[string]any{"sessionId": "session-1", "runtimeId": "runtime-1", "runtimeKind": "Cloud", "assignmentEpoch": 3, "presentationRevision": 4, "leaseExpiresAt": "2026-10-02T01:00:00Z"},
 					"publication": map[string]any{"presentationId": "presentation-1", "publicationEpoch": 2, "publicationManifestHash": "sha256:" + strings.Repeat("a", 64), "definitionHash": "sha256:" + strings.Repeat("b", 64), "renderBundleHash": "sha256:" + strings.Repeat("c", 64)},
-					"definition":  map[string]any{"schemaVersion": 3}, "renderBundle": map[string]any{"schemaVersion": 2}, "checkpoint": json.RawMessage(encoded), "checkpointSource": map[string]any{"runtimeId": "runtime-1", "runtimeKind": "Cloud", "assignmentEpoch": 3, "checkpointSequence": envelope.CheckpointSequence},
+					"definition":  map[string]any{"schemaVersion": 1}, "renderBundle": map[string]any{"schemaVersion": 1}, "checkpoint": json.RawMessage(encoded), "checkpointSource": map[string]any{"runtimeId": "runtime-1", "runtimeKind": "Cloud", "assignmentEpoch": 3, "checkpointSequence": envelope.CheckpointSequence},
 				})
 			}))
 			defer server.Close()
 			_, err = NewClient(Config{BaseURL: server.URL, ServiceIdentity: "service-token", AllowInsecureLoopback: true}).Bootstrap(context.Background(), BootstrapRequest{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4})
-			if version == 2 && err != ErrInvalidBootstrap {
-				t.Fatalf("old checkpoint error=%v", err)
+			if version != 1 && err != ErrInvalidBootstrap {
+				t.Fatalf("unsupported checkpoint error=%v", err)
 			}
-			if version == 3 && err != nil {
+			if version == 1 && err != nil {
 				t.Fatal(err)
 			}
 		})

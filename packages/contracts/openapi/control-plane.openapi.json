@@ -14732,7 +14732,7 @@
                     "schemaVersion": {
                       "type": "number",
                       "enum": [
-                        3
+                        1
                       ]
                     },
                     "presentationId": {
@@ -14775,19 +14775,19 @@
                         "definition": {
                           "type": "number",
                           "enum": [
-                            3
+                            1
                           ]
                         },
                         "renderBundle": {
                           "type": "number",
                           "enum": [
-                            2
+                            1
                           ]
                         },
                         "assetSet": {
                           "type": "number",
                           "enum": [
-                            2
+                            1
                           ]
                         },
                         "delivery": {
@@ -15281,7 +15281,7 @@
                     "schemaVersion": {
                       "type": "number",
                       "enum": [
-                        3
+                        1
                       ]
                     },
                     "presentationId": {
@@ -15324,19 +15324,19 @@
                         "definition": {
                           "type": "number",
                           "enum": [
-                            3
+                            1
                           ]
                         },
                         "renderBundle": {
                           "type": "number",
                           "enum": [
-                            2
+                            1
                           ]
                         },
                         "assetSet": {
                           "type": "number",
                           "enum": [
-                            2
+                            1
                           ]
                         },
                         "delivery": {

@@ -10,7 +10,7 @@ import type {
   SurfaceStateDeclaration,
   ThemeDeclaration,
 } from "@unframe/core/authoring";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 
 type JsonRecord = Readonly<Record<string, Json>>;
 

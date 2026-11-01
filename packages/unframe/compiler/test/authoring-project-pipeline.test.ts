@@ -1,6 +1,6 @@
 import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/core/assets";
 import {
   SUPPORTED_RENDERER_CONTRACT_VERSION,

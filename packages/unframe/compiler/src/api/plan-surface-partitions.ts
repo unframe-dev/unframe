@@ -1,11 +1,11 @@
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import {
-  hashCanonicalJsonPayload,
   materializeCompletedSemanticTree,
   resolveStructuredLayout,
   type RenderBundle,
   type SemanticSurface,
   type ValidationResult,
-} from "@unframe/core";
+} from "@unframe/presentation";
 import type { RendererIdentity, RenderSurfacePlan } from "@unframe/core/renderer-api";
 import { compareStrings, diagnostic } from "../diagnostics/diagnostics.js";
 

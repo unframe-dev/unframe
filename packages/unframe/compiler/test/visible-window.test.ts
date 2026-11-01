@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
-import type { SemanticSurface } from "@unframe/core";
+import type { SemanticSurface } from "@unframe/presentation";
 import { SUPPORTED_RENDERER_CONTRACT_VERSION } from "@unframe/core/renderer-api";
 import { planSurfacePartitions } from "../src/api/plan-surface-partitions.js";
 

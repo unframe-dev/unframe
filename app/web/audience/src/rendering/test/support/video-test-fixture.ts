@@ -1,9 +1,10 @@
+import { PNG_DEFAULT_STATE } from "../../../test-support/png-delivery-fixture";
 import {
   decodeWireMessage,
   encodeWireMessage,
   type DeliveryManifestWire,
 } from "@unframe/contracts/presentation";
-import deliveryFixture from "../../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
+import { pngDeliveryFixture as deliveryFixture } from "../../../test-support/png-delivery-fixture";
 import runtimeFixture from "../../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 export function videoFixture() {
   const delivery = decodeWireMessage(
@@ -20,7 +21,7 @@ export function videoFixture() {
     [node.nodeId!]: structuredClone(runtimeFixture.nodeStates["node-baked"]),
   } as typeof view.nodeStates;
   view.surfaceStates = {
-    [id]: { stateId: "reference-surface:default" },
+    [id]: { stateId: PNG_DEFAULT_STATE },
   } as typeof view.surfaceStates;
   view.mediaStates = {
     [id]: { kind: "stopped", heldPositionMilliseconds: 0 },
@@ -35,7 +36,7 @@ export function videoFixture() {
       artifactContractVersion: 1,
       layer: 0,
       logicalBounds: { x: 0, y: 0, width: 100, height: 100 },
-      stateBindings: [{ stateId: "reference-surface:default", artifact: { artifactId: "clip" } }],
+      stateBindings: [{ stateId: PNG_DEFAULT_STATE, artifact: { artifactId: "clip" } }],
       artifacts: [
         {
           video: {

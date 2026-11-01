@@ -7,7 +7,7 @@ import * as contract from "@unframe/contracts/presentation";
 test("the Unity media profile admits bounded GLB and H264/audio without mutable shared state", () => {
   const profile = contract.createUnityMediaCapabilityProfile();
   assert.equal(profile.capabilityProfileId, "unity-media-v1");
-  assert.equal(profile.schemaVersion, 3);
+  assert.equal(profile.schemaVersion, 1);
   assert.deepEqual(profile.contractVersions, {
     delivery: 3,
     runtime: 3,
@@ -30,6 +30,16 @@ test("the public presentation export exposes the current contract without a vers
     "./control-plane",
     "./control-plane-http",
     "./presentation",
+    "./presentation/asset-set",
+    "./presentation/capability",
+    "./presentation/common",
+    "./presentation/definition",
+    "./presentation/publication",
+    "./presentation/render-bundle",
+    "./presentation/runtime-projection",
+    "./presentation/semantics",
+    "./presentation/wire-metadata",
+    "./presentation/wire-types",
   ]);
   const retiredPath = "@unframe/contracts/presentation/v2";
   await assert.rejects(import(retiredPath), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
@@ -45,7 +55,7 @@ test("the public presentation export exposes the current contract without a vers
   );
   assert.equal(contract.presentationDefinitionSchema.safeParse(sample).success, true);
   assert.equal(
-    contract.presentationDefinitionSchema.safeParse({ ...sample, schemaVersion: 1 }).success,
+    contract.presentationDefinitionSchema.safeParse({ ...sample, schemaVersion: 2 }).success,
     false,
   );
 });

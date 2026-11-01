@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { buildModelPlan } from "../model-plan";
 import { modelFixture as fixture } from "./support/model-fixture";
 describe("model plan", () => {
+  it.each([2, 3])("rejects Delivery schema version %i", (schemaVersion) => {
+    const { delivery, view } = fixture();
+    delivery.schemaVersion = schemaVersion;
+    expect(() => buildModelPlan(delivery, view)).toThrow("projection mismatch");
+  });
   it("selects model assets and effective visibility", () => {
     const { delivery, view } = fixture();
     const plan = buildModelPlan(delivery, view);

@@ -9,11 +9,13 @@ import {
   canonicalizePresentationDefinition,
   hashCanonicalJsonPayload,
   hashPresentationDefinition,
+} from "@unframe/artifacts";
+import {
   validatePresentationDefinition,
   type Diagnostic,
   type PresentationDefinition,
   type ValidationResult,
-} from "@unframe/core";
+} from "@unframe/presentation";
 import type {
   CheckedDeclarationProject,
   CompilerDeclarationProject,
@@ -545,7 +547,7 @@ export const resolveOpaqueProject = (
   diagnostics.push(...checkedAssets.diagnostics);
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
   const definition: PresentationDefinition = {
-    schemaVersion: 3,
+    schemaVersion: 1,
     presentationId: presentation.id,
     metadata: presentation.metadata,
     stage: {
@@ -577,7 +579,7 @@ export const resolveOpaqueProject = (
       definitionJson: canonical.value,
       sourceHash: hashCanonicalJsonPayload(source),
       definitionHash: definitionHash.value,
-      assetSet: { schemaVersion: 2, assets: checkedAssets.assetSetAssets },
+      assetSet: { schemaVersion: 1, assets: checkedAssets.assetSetAssets },
       warnings,
     },
     diagnostics: [],

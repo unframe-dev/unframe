@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Diagnostic } from "@unframe/core";
+import type { Diagnostic } from "@unframe/presentation";
 
 export const diagnostic = (
   code: string,

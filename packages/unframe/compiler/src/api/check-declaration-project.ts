@@ -11,11 +11,13 @@ import {
   canonicalizePresentationDefinition,
   hashCanonicalJsonPayload,
   hashPresentationDefinition,
+} from "@unframe/artifacts";
+import {
   validatePresentationDefinition,
   type Diagnostic,
   type PresentationDefinition,
   type ValidationResult,
-} from "@unframe/core";
+} from "@unframe/presentation";
 import {
   declarationProjectEnvelopeSchema,
   structuredSceneEnvelopeSchema,
@@ -333,7 +335,7 @@ const checkDeclarationProjectUnchecked = (
         definitionHash: definitionHash.value,
         sourceHash: hashCanonicalJsonPayload(cloned.value),
         assetSet: {
-          schemaVersion: 2,
+          schemaVersion: 1,
           assets: { ...structured.value.assetSet.assets, ...opaque.value.assetSet.assets },
         },
         warnings: [...structured.value.warnings, ...opaque.value.warnings],
@@ -1361,7 +1363,7 @@ const checkDeclarationProjectUnchecked = (
       initialValue: variable.initialValue,
     };
   const definition: PresentationDefinition = {
-    schemaVersion: 3,
+    schemaVersion: 1,
     presentationId: presentation.id,
     metadata: presentation.metadata,
     stage: {
@@ -1394,7 +1396,7 @@ const checkDeclarationProjectUnchecked = (
       definitionJson: canonical.value,
       sourceHash: hashCanonicalJsonPayload(cloned.value),
       definitionHash: definitionHash.value,
-      assetSet: { schemaVersion: 2, assets: checkedAssets.assetSetAssets },
+      assetSet: { schemaVersion: 1, assets: checkedAssets.assetSetAssets },
       warnings: [...warnings].sort((left, right) => {
         const leftKey = `${left.path.join("/")}\0${left.code}`;
         const rightKey = `${right.path.join("/")}\0${right.code}`;

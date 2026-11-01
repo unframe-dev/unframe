@@ -6,17 +6,27 @@
   "exports": {
     "./control-plane": "./src/control-plane.openapi.ts",
     "./presentation": "./src/presentation/index.ts",
-    "./control-plane-http": "./src/control-plane-http.ts"
+    "./control-plane-http": "./src/control-plane-http.ts",
+    "./presentation/asset-set": "./src/presentation/asset-set.ts",
+    "./presentation/capability": "./src/presentation/capability.ts",
+    "./presentation/common": "./src/presentation/common.ts",
+    "./presentation/definition": "./src/presentation/definition.ts",
+    "./presentation/publication": "./src/presentation/publication.ts",
+    "./presentation/render-bundle": "./src/presentation/render-bundle.ts",
+    "./presentation/runtime-projection": "./src/presentation/runtime-projection.ts",
+    "./presentation/semantics": "./src/presentation/semantics.ts",
+    "./presentation/wire-metadata": "./src/presentation/wire-metadata.ts",
+    "./presentation/wire-types": "./presentation/wire-types.d.ts"
   },
   "scripts": {
     "generate:control-plane": "tsx scripts/generate-control-plane.ts",
     "check:control-plane": "tsx scripts/generate-control-plane.ts --check",
     "generate:presentation": "tsx scripts/generate-presentation.ts",
     "check:presentation": "tsx scripts/generate-presentation.ts --check",
-    "test:presentation": "tsx --test test/audience-capability.test.ts test/presentation.contract.test.ts test/runtime-projection.contract.test.ts test/public-contract.test.ts test/local-preview.contract.test.ts test/presenter-authority.contract.test.ts test/runtime-authority-capacity.test.ts",
+    "test:presentation": "tsx --test test/schema-version.test.ts test/audience-capability.test.ts test/presentation.contract.test.ts test/runtime-projection.contract.test.ts test/public-contract.test.ts test/local-preview.contract.test.ts test/presenter-authority.contract.test.ts test/runtime-authority-capacity.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src/presentation scripts test",
-    "check": "pnpm check:control-plane && pnpm check:presentation && pnpm check:wire-descriptor && pnpm check:wire-static && pnpm check:wire-types && pnpm check:wire-fixtures && pnpm typecheck && pnpm test:presentation && pnpm test:wire && pnpm lint",
+    "check": "pnpm check:control-plane && pnpm check:presentation && pnpm check:presentation-fixtures && pnpm check:wire-descriptor && pnpm check:wire-static && pnpm check:wire-types && pnpm check:wire-fixtures && pnpm typecheck && pnpm test:presentation && pnpm test:wire && pnpm lint",
     "generate:wire-descriptor": "tsx scripts/generate-wire-descriptor.ts",
     "check:wire-descriptor": "tsx scripts/generate-wire-descriptor.ts --check",
     "generate:wire-static": "tsx scripts/generate-wire-static.ts",
@@ -25,7 +35,9 @@
     "check:wire-types": "tsx scripts/generate-wire-types.ts --check",
     "generate:wire-fixtures": "tsx scripts/generate-wire-fixtures.ts",
     "check:wire-fixtures": "tsx scripts/generate-wire-fixtures.ts --check",
-    "test:wire": "tsx --test test/wire-conformance.test.ts test/wire-long.test.ts"
+    "test:wire": "tsx --test test/wire-conformance.test.ts test/wire-long.test.ts",
+    "generate:presentation-fixtures": "tsx scripts/generate-presentation-fixture-hashes.ts",
+    "check:presentation-fixtures": "tsx scripts/generate-presentation-fixture-hashes.ts --check"
   },
   "dependencies": {
     "@noble/hashes": "2.3.0",

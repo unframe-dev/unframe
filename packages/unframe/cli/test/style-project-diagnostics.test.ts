@@ -4,7 +4,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { checkAuthoringProject } from "@unframe/core/compiler";
 import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "../src/author/contract.js";

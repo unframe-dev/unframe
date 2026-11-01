@@ -197,7 +197,7 @@ export function createAudienceHttpClient(
         ) as DeliveryManifestWire;
         if (signal?.aborted) throw new AudienceConnectionError("aborted");
         if (
-          value.schemaVersion !== 3 ||
+          value.schemaVersion !== 1 ||
           value.deliveryContractVersion !== 3 ||
           value.sessionId !== id ||
           !value.publication ||

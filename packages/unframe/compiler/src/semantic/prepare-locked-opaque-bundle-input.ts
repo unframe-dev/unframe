@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { cssDependencies } from "../syntax/css-dependencies.js";
 import { localCssDependency } from "./css-url-policy.js";
-import type { ValidationResult } from "@unframe/core";
+import type { ValidationResult } from "@unframe/presentation";
 import type { CompilerDeclarationProject } from "../api/types.js";
 import { parseAuthoringProject } from "../project/parse-authoring-project.js";
 import type { ParsedLockedPackage } from "../project/parse-locked-packages.js";

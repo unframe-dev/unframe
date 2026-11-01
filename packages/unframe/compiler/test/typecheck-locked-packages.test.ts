@@ -4,7 +4,7 @@ import { parseAuthoringProject } from "../src/project/parse-authoring-project.js
 import { typecheckAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
 import { analyzeAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
 import { collectPackageValueProvenance } from "../src/resolution/symbol-provenance.js";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 
 type PackageInput = {
   packageName: string;

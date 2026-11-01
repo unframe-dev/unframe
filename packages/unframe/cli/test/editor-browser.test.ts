@@ -1,7 +1,7 @@
 import { cp, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import definition from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../contracts/presentation/fixtures/asset-set-manifest.json";

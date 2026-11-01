@@ -12,7 +12,7 @@ import {
   canonicalizeJsonPayload,
   validatePresentationArtifacts,
   verifyBuildIntegrity,
-} from "@unframe/core";
+} from "@unframe/artifacts";
 import { checkAuthoringProject } from "@unframe/core/compiler";
 
 import { runPresentationCli } from "../src/index.js";

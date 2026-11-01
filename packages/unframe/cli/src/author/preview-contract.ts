@@ -3,7 +3,7 @@ import type {
   LocalPreviewEnvelopeWire,
   LocalPreviewPlaybackStateWire,
 } from "@unframe/contracts/presentation";
-import type { BuildArtifacts } from "@unframe/core";
+import type { BuildArtifacts } from "@unframe/artifacts";
 import { randomIdSchema } from "./contract.js";
 
 export const previewLoadRequestSchema = z.discriminatedUnion("channel", [

@@ -1,5 +1,5 @@
 import type { GLTF } from "@gltf-transform/core";
-import type { Diagnostic } from "@unframe/core";
+import type { Diagnostic } from "@unframe/presentation";
 import { MODEL_ABSOLUTE_LIMITS } from "./input.js";
 
 export const MODEL_STRUCTURE_LIMITS = Object.freeze({

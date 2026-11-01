@@ -10,7 +10,7 @@ namespace Unframe.Unity.PresentationRuntime
 {
     internal sealed class PresentationRuntimeStateStore
     {
-        private const uint RealtimeSnapshotSchemaVersion = 3;
+        private const uint RealtimeSnapshotSchemaVersion = 1;
 
         private readonly PresentationDeliveryCatalog delivery;
         private readonly Dictionary<string, NodeRuntimeState> nodeStates = new Dictionary<string, NodeRuntimeState>();

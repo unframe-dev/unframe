@@ -3,7 +3,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 import type { PresentationCliResult } from "../src/application/types.js";
 

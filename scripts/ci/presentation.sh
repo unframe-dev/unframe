@@ -61,6 +61,10 @@ case "${mode}" in
     TMPDIR="$(realpath -- "${TMPDIR:-/tmp}")"
     export TMPDIR
     pnpm --dir "${REPO_ROOT}" --filter @unframe/dev-scripts run check
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/contract-fixtures typecheck
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/contract-fixtures test
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/contract-fixtures check
     log "presentation(check): shared config / package checks"
     pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
     pnpm --config.verify-deps-before-run=false --filter @unframe/contracts run check
@@ -78,6 +82,7 @@ case "${mode}" in
     pnpm --config.verify-deps-before-run=false \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test:packed
     pnpm --dir "${REPO_ROOT}" --filter @unframe/core exec tsc --noEmit -p "${REPO_ROOT}/examples/presentation/tsconfig.json"
     reference_acceptance
     ;;

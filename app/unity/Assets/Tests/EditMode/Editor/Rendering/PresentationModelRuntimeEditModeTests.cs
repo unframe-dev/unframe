@@ -54,7 +54,7 @@ public class PresentationModelRuntimeEditModeTests
         envelope.Projection.RuntimeCatalog.ModelClips.Add(new ProjectedModelClipDefinition { ModelNodeId = "node:model", ModelAssetId = binding.AssetId, ClipId = "clip-1", SourceAnimationIndex = 1, DurationMs = 1000 });
         envelope.Projection.VisibleNodeIds.Add("node:model"); envelope.InitialState.NodeStates.Add(PresentationPreviewTestFixture.Node("node:model"));
         envelope.InitialState.NodeStates[envelope.InitialState.NodeStates.Count - 1].Transform.Position.X = 5;
-        envelope.AssetSet = "{\"schemaVersion\":2,\"assets\":{\"model:one\":{\"checksum\":\"" + binding.Checksum + "\",\"mediaType\":\"model/gltf-binary\",\"encodedSizeBytes\":" + bytes.Length + "}}}";
+        envelope.AssetSet = "{\"schemaVersion\":1,\"assets\":{\"model:one\":{\"checksum\":\"" + binding.Checksum + "\",\"mediaType\":\"model/gltf-binary\",\"encodedSizeBytes\":" + bytes.Length + "}}}";
         envelope.Assets.Add(new LocalPreviewAsset { AssetId = binding.AssetId, Reference = "model-reference" });
         var root = new GameObject("Model test");
         using (var transaction = new PresentationPreviewTransaction(root.transform))

@@ -4,7 +4,7 @@
   "properties": {
     "schemaVersion": {
       "type": "number",
-      "const": 3
+      "const": 1
     },
     "buildId": {
       "type": "string",
@@ -36,15 +36,15 @@
       "properties": {
         "definition": {
           "type": "number",
-          "const": 3
+          "const": 1
         },
         "renderBundle": {
           "type": "number",
-          "const": 2
+          "const": 1
         },
         "assetSet": {
           "type": "number",
-          "const": 2
+          "const": 1
         },
         "delivery": {
           "type": "number",

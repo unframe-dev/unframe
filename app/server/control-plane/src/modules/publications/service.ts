@@ -6,7 +6,7 @@ import {
   verifyPublicationIntegrity,
   validatePresentationArtifacts,
   type BuildArtifacts,
-} from "@unframe/core";
+} from "@unframe/artifacts";
 import {
   publicationFenceSchema,
   type PublishedPresentation,

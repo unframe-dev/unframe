@@ -6,7 +6,7 @@ import {
   MODEL_BUILD_IDENTITY,
   type DeclarationProjectAssemblyCarrier,
 } from "@unframe/core/compiler";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { createVideoValidator } from "../media/video-validator.js";
 
 type SourceAssetsResult =

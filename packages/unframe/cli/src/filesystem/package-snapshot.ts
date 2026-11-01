@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { join, posix } from "node:path";
 import { parseDocument } from "yaml";
-import { parseStrictJson } from "@unframe/core/strict-json";
+import { parseStrictJson } from "@unframe/artifacts";
 import { readDirectoryNames, readRegularFile } from "./path-policy.js";
 import {
   hashPackageLocator,

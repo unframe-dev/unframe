@@ -1,7 +1,7 @@
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { lstat, readlink } from "node:fs/promises";
 import { join } from "node:path";
-import type { BuildArtifacts } from "@unframe/core";
+import type { BuildArtifacts } from "@unframe/artifacts";
 import type { OutputChannel } from "./atomic-output.js";
 import { projectDirectory } from "./path-policy.js";
 import { readBuildDirectory, readDistBuild } from "./read-dist-build.js";

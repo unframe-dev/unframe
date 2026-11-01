@@ -1,5 +1,6 @@
 import type { PresentationDeclaration } from "@unframe/core/authoring";
-import type { BuildArtifacts, Diagnostic, PresentationDefinition } from "@unframe/core";
+import type { BuildArtifacts } from "@unframe/artifacts";
+import type { Diagnostic, PresentationDefinition } from "@unframe/presentation";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { isRecord } from "../lowering/support.js";
 import { snapshotSourceAssets } from "./snapshot-source-assets.js";

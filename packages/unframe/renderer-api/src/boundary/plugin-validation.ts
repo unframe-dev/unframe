@@ -1,4 +1,4 @@
-import type { Diagnostic, ValidationResult } from "@unframe/core";
+import type { Diagnostic, ValidationResult } from "@unframe/presentation";
 import type { RendererPlugin } from "../public-types.js";
 import { diagnostic } from "../capabilities/evaluate-first-milestone.js";
 import {

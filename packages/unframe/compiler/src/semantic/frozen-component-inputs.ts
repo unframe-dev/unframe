@@ -3,7 +3,8 @@ import { CompilerInternalError } from "../api/compiler-internal-error.js";
 import * as ts from "typescript";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { hashCanonicalJsonPayload, type ValidationResult } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { type ValidationResult } from "@unframe/presentation";
 import type { DeclarationProjectComponentLock } from "../api/types.js";
 import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
 import {

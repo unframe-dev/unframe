@@ -61,9 +61,9 @@ namespace Unframe.ControlPlane.Model
         public enum DefinitionEnum
         {
             /// <summary>
-            /// Enum _3 for value: 3
+            /// Enum _1 for value: 1
             /// </summary>
-            _3 = 1
+            _1 = 1
         }
 
         /// <summary>
@@ -74,8 +74,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static DefinitionEnum DefinitionEnumFromString(string value)
         {
-            if (value.Equals("3"))
-                return DefinitionEnum._3;
+            if (value.Equals("1"))
+                return DefinitionEnum._1;
 
             throw new NotImplementedException($"Could not convert value to type DefinitionEnum: '{value}'");
         }
@@ -87,8 +87,8 @@ namespace Unframe.ControlPlane.Model
         /// <returns></returns>
         public static DefinitionEnum? DefinitionEnumFromStringOrDefault(string value)
         {
-            if (value.Equals("3"))
-                return DefinitionEnum._3;
+            if (value.Equals("1"))
+                return DefinitionEnum._1;
 
             return null;
         }
@@ -101,8 +101,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static int DefinitionEnumToJsonValue(DefinitionEnum value)
         {
-            if (value == DefinitionEnum._3)
-                return 3;
+            if (value == DefinitionEnum._1)
+                return 1;
 
             throw new NotImplementedException($"Value could not be handled: '{value}'");
         }
@@ -119,9 +119,9 @@ namespace Unframe.ControlPlane.Model
         public enum RenderBundleEnum
         {
             /// <summary>
-            /// Enum _2 for value: 2
+            /// Enum _1 for value: 1
             /// </summary>
-            _2 = 1
+            _1 = 1
         }
 
         /// <summary>
@@ -132,8 +132,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static RenderBundleEnum RenderBundleEnumFromString(string value)
         {
-            if (value.Equals("2"))
-                return RenderBundleEnum._2;
+            if (value.Equals("1"))
+                return RenderBundleEnum._1;
 
             throw new NotImplementedException($"Could not convert value to type RenderBundleEnum: '{value}'");
         }
@@ -145,8 +145,8 @@ namespace Unframe.ControlPlane.Model
         /// <returns></returns>
         public static RenderBundleEnum? RenderBundleEnumFromStringOrDefault(string value)
         {
-            if (value.Equals("2"))
-                return RenderBundleEnum._2;
+            if (value.Equals("1"))
+                return RenderBundleEnum._1;
 
             return null;
         }
@@ -159,8 +159,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static int RenderBundleEnumToJsonValue(RenderBundleEnum value)
         {
-            if (value == RenderBundleEnum._2)
-                return 2;
+            if (value == RenderBundleEnum._1)
+                return 1;
 
             throw new NotImplementedException($"Value could not be handled: '{value}'");
         }
@@ -177,9 +177,9 @@ namespace Unframe.ControlPlane.Model
         public enum AssetSetEnum
         {
             /// <summary>
-            /// Enum _2 for value: 2
+            /// Enum _1 for value: 1
             /// </summary>
-            _2 = 1
+            _1 = 1
         }
 
         /// <summary>
@@ -190,8 +190,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static AssetSetEnum AssetSetEnumFromString(string value)
         {
-            if (value.Equals("2"))
-                return AssetSetEnum._2;
+            if (value.Equals("1"))
+                return AssetSetEnum._1;
 
             throw new NotImplementedException($"Could not convert value to type AssetSetEnum: '{value}'");
         }
@@ -203,8 +203,8 @@ namespace Unframe.ControlPlane.Model
         /// <returns></returns>
         public static AssetSetEnum? AssetSetEnumFromStringOrDefault(string value)
         {
-            if (value.Equals("2"))
-                return AssetSetEnum._2;
+            if (value.Equals("1"))
+                return AssetSetEnum._1;
 
             return null;
         }
@@ -217,8 +217,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static int AssetSetEnumToJsonValue(AssetSetEnum value)
         {
-            if (value == AssetSetEnum._2)
-                return 2;
+            if (value == AssetSetEnum._1)
+                return 1;
 
             throw new NotImplementedException($"Value could not be handled: '{value}'");
         }

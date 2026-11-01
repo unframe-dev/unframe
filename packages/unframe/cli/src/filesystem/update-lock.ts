@@ -16,11 +16,11 @@ import {
   checkAuthoringProjectAssembly,
   computeFrozenComponentInputs,
 } from "@unframe/core/compiler";
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import type { StyleDiagnostic } from "@unframe/core/tailwind";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { loadUnframeLock } from "./load-lock.js";
-import { parseStrictJson } from "@unframe/core/strict-json";
+import { parseStrictJson } from "@unframe/artifacts";
 import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readRegularFile, readBoundedRegularFile } from "./path-policy.js";
@@ -150,7 +150,7 @@ const updateProjectLockWithinScope = async (
             styleSourceIdentity: prepared.styleSourceIdentity,
           }
         : {}),
-      schemaVersion: 3,
+      schemaVersion: 1,
       packageSnapshotProfile: "pnpm-lock9-locator-v1",
       resolutionProfile: "browser-import-production-types-v1",
       extractionProfile: "react-component-v1",

@@ -1,6 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import type { ValidationResult } from "@unframe/core";
+import type { ValidationResult } from "@unframe/presentation";
 
 import { INTERNAL_PNG_HARD_CAPS } from "../png/constants.js";
 import type { ResizeRequest, ResizedRgba } from "../public-types.js";

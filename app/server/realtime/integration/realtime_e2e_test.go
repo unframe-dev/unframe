@@ -55,7 +55,7 @@ func TestV3AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-e2e","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}}},"variables":{},"timelines":{}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"presentation-e2e","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}}},"variables":{},"timelines":{}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)

@@ -1,3 +1,4 @@
+import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
 import { describe, expect, it } from "vitest";
 import {
   assetSetManifestSchema,
@@ -7,7 +8,7 @@ import {
   renderBundleSchema,
   type DeliveryManifestWire,
 } from "@unframe/contracts/presentation";
-import deliveryFixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
+import { pngDeliveryFixture as deliveryFixture } from "../../test-support/png-delivery-fixture";
 import runtimeFixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 import bundleFixture from "../../../../../../packages/contracts/presentation/fixtures/render-bundle.json";
 import assetsFixture from "../../../../../../packages/contracts/presentation/fixtures/asset-set-manifest.json";
@@ -27,13 +28,18 @@ function pngFixture() {
     [nodeId]: structuredClone(runtimeFixture.nodeStates["node-baked"]),
   } as typeof view.nodeStates;
   view.surfaceStates = {
-    [surfaceId]: { stateId: "reference-surface:default" },
+    [surfaceId]: { stateId: PNG_DEFAULT_STATE },
   } as typeof view.surfaceStates;
   view.variables = {} as typeof view.variables;
   view.enabledLogicalInputs = [];
   return { delivery, view, nodeId, surfaceId };
 }
 describe("PNG contract plan", () => {
+  it.each([2, 3])("rejects Delivery schema version %i", (schemaVersion) => {
+    const { delivery, view } = pngFixture();
+    delivery.schemaVersion = schemaVersion;
+    expect(() => buildPngPlan(delivery, view)).toThrow("unsupported delivery contract");
+  });
   it("plans presentation and current Group resources without requiring another Group's states", () => {
     const { delivery, view, nodeId, surfaceId } = pngFixture();
     const catalog = delivery.projectionProfile!.runtimeCatalog!;
@@ -248,7 +254,7 @@ describe("PNG contract plan", () => {
   it("handles empty bindings and rejects missing runtime node states and transitions", () => {
     const { delivery, view, nodeId } = pngFixture();
     delivery.projectionProfile!.renderSurfaces![0]!.stateBindings![0] = {
-      stateId: "reference-surface:default",
+      stateId: PNG_DEFAULT_STATE,
       empty: {},
     };
     expect(buildPngPlan(delivery, view).planes).toHaveLength(2);
@@ -360,7 +366,7 @@ function transitionFixture() {
   const run = {
     kind: "surfaceTransition" as const,
     surfaceId,
-    fromStateId: "reference-surface:default",
+    fromStateId: PNG_DEFAULT_STATE,
     toStateId: nextState,
     durationMilliseconds: 1000,
     completion: "blocking" as const,
@@ -429,7 +435,7 @@ it("plans PNG alongside model nodes and video partitions without drawing them tw
       participantRuntimeViewSchema.parse(runtimeFixture).nodeStates["node-baked"]!,
     ),
   };
-  view.surfaceStates = { [surface.surfaceId!]: { stateId: "reference-surface:default" } };
+  view.surfaceStates = { [surface.surfaceId!]: { stateId: PNG_DEFAULT_STATE } };
   view.variables = {};
   view.enabledLogicalInputs = [];
   profile.runtimeCatalog!.nodes!.push({

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { createPublicationClient } from "@unframe/api-client-typescript/publication";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { createPublicationController } from "./publication-controller";
 import { distFixture } from "./test-support/dist-fixture";
 

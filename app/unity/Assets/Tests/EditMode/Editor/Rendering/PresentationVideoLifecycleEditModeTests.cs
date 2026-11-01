@@ -75,7 +75,7 @@ public sealed class PresentationVideoLifecycleEditModeTests
         render.StateBindings.Add(new DeliveredStateBinding { StateId = "state:first", Artifact = new ArtifactStateBinding { ArtifactId = artifact.ArtifactId } });
         render.StateBindings.Add(new DeliveredStateBinding { StateId = "state:loop", Artifact = new ArtifactStateBinding { ArtifactId = loop.ArtifactId } });
         render.StateBindings.Add(new DeliveredStateBinding { StateId = "state:hidden", Empty = new EmptyStateBinding() });
-        envelope.AssetSet = "{\"schemaVersion\":2,\"assets\":{\"video:one\":{\"checksum\":\"" + checksum + "\",\"mediaType\":\"video/mp4\",\"encodedSizeBytes\":" + bytes.Length + "}}}";
+        envelope.AssetSet = "{\"schemaVersion\":1,\"assets\":{\"video:one\":{\"checksum\":\"" + checksum + "\",\"mediaType\":\"video/mp4\",\"encodedSizeBytes\":" + bytes.Length + "}}}";
         envelope.Assets.Add(new Unframe.Preview.LocalPreviewAsset { AssetId = "video:one", Reference = "video-reference" });
         envelope.Projection.VideoResidency = new VideoResidencyPlan
         {

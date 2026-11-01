@@ -1,4 +1,4 @@
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import type { RendererIdentity, RenderSurfacePlan } from "@unframe/core/renderer-api";
 
 export const opaquePartitionIdentity = (

@@ -12,7 +12,7 @@ export function modelFixture() {
     model: structuredClone(view.nodeStates["node-baked"]!),
   } as typeof view.nodeStates;
   const delivery = {
-    schemaVersion: 3,
+    schemaVersion: 1,
     deliveryContractVersion: 3,
     projectionInstance: { projectionProfileId: "p", assignmentEpoch: String(view.assignmentEpoch) },
     projectionProfile: {

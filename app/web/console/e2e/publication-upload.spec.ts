@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test as base, type Page, type Route } from "@playwright/test";
-import { hashCanonicalJsonPayload } from "../../../../packages/unframe/core/src/canonicalization/payload";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import type { PublishedPresentation } from "@unframe/contracts/presentation";
 import { distFixture } from "../src/features/publication/test-support/dist-fixture";
 

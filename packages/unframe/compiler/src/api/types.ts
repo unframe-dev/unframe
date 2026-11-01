@@ -9,8 +9,9 @@ import type {
   SourceMetadata,
 } from "@unframe/core/authoring";
 import type { EncodeLimits, VideoMetadata } from "@unframe/core/assets";
-import type { BuildArtifacts, PresentationDefinition, RenderBundle } from "@unframe/core";
-import type { Diagnostic } from "@unframe/core";
+import type { BuildArtifacts } from "@unframe/artifacts";
+import type { PresentationDefinition, RenderBundle } from "@unframe/presentation";
+import type { Diagnostic } from "@unframe/presentation";
 import type { RendererPlugin } from "@unframe/core/renderer-api";
 import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
 
@@ -119,7 +120,7 @@ export type CompilerVideoValidator = {
     readonly bytes: Uint8Array;
     readonly checksum: string;
     readonly encodedSizeBytes: number;
-  }): Promise<import("@unframe/core").ValidationResult<VideoMetadata>>;
+  }): Promise<import("@unframe/presentation").ValidationResult<VideoMetadata>>;
 };
 export type CompilerBuildOptions = {
   readonly videoValidator?: CompilerVideoValidator;

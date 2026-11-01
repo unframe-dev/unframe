@@ -1,5 +1,5 @@
 import { createPublicationClient } from "@unframe/api-client-typescript/publication";
-import type { BuildArtifacts } from "@unframe/core";
+import type { BuildArtifacts } from "@unframe/artifacts";
 import { readDistBuild } from "../filesystem/read-dist-build.js";
 
 export type PublicationFence = {

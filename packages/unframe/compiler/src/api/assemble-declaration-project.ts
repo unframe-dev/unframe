@@ -11,7 +11,7 @@ import {
   isComponentStructure,
   isThemeDeclaration,
 } from "@unframe/core/authoring";
-import type { Diagnostic, ValidationResult } from "@unframe/core";
+import type { Diagnostic, ValidationResult } from "@unframe/presentation";
 import { sortDiagnostics, diagnostic } from "../diagnostics/diagnostics.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { resolveAuthoringStructurePath } from "../project/pair-authoring-declarations.js";

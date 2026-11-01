@@ -8,7 +8,7 @@ import {
   patchEditableReactScene,
   readEditableReactScene,
 } from "@unframe/core/compiler";
-import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
 import { sourceDiagnosticFamily } from "../application/source-diagnostic-family.js";
 import type { RunPresentationCliInput } from "../application/types.js";

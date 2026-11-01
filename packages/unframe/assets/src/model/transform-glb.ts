@@ -12,7 +12,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { validateBytes } from "./gltf-validator.js";
 import { z } from "zod";
-import type { RenderBundle, ValidationResult } from "@unframe/core";
+import type { RenderBundle, ValidationResult } from "@unframe/presentation";
 import { snapshotModelInput } from "./input.js";
 import {
   checkModelAnimationAllocation,

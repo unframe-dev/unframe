@@ -15,7 +15,7 @@ import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
   type BuildArtifacts,
-} from "@unframe/core";
+} from "@unframe/artifacts";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";

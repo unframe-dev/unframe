@@ -6,10 +6,9 @@ import { fileURLToPath } from "node:url";
 import {
   buildDeliveryManifest,
   calculateProjectionProfileId,
-  hashCanonicalJsonPayload,
   selectDeliveryArtifacts,
-  verifyPublicationIntegrity,
-} from "../../packages/unframe/core/src/index.ts";
+} from "@unframe/delivery";
+import { hashCanonicalJsonPayload, verifyPublicationIntegrity } from "@unframe/artifacts";
 import {
   decodeWireMessage,
   encodeWireMessage,
@@ -22,15 +21,31 @@ import {
 } from "../../packages/contracts/src/presentation/index.ts";
 import type { WireMessageType } from "../../packages/contracts/src/presentation/wire-metadata.ts";
 import { formatGenerated } from "../../packages/contracts/scripts/format-generated.ts";
+import { buildDeliveryFixtureArtifacts } from "./fixtures/delivery-project.ts";
 
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const [mode, dist] = process.argv.slice(2);
-if ((mode !== "generate" && mode !== "check" && mode !== "validate") || !dist) {
-  throw new Error("usage: generate-valid-delivery.ts <generate|check|validate> <compiler-dist>");
+if (
+  (mode !== "generate" && mode !== "check" && mode !== "validate") ||
+  (mode === "validate" && !dist)
+) {
+  throw new Error(
+    "usage: generate-valid-delivery.ts <generate|check> [compiler-dist] | validate <compiler-dist>",
+  );
 }
 
-const readArtifact = <T>(name: string): T =>
-  JSON.parse(readFileSync(resolve(dist, name), "utf8")) as T;
+const compiled = dist ? undefined : await buildDeliveryFixtureArtifacts();
+const readArtifact = <T>(name: string): T => {
+  if (dist) return JSON.parse(readFileSync(resolve(dist, name), "utf8")) as T;
+  if (!compiled) throw new Error("Compiler fixture was not generated.");
+  const artifacts: Record<string, unknown> = {
+    "definition.json": compiled.definition,
+    "render-bundle.json": compiled.renderBundle,
+    "asset-set.json": compiled.assetSet,
+    "build-manifest.json": compiled.buildManifest,
+  };
+  return artifacts[name] as T;
+};
 
 // Proto3 scalar defaults have no wire presence; omit them before comparing decoded messages.
 const canonicalWireValue = (
@@ -71,9 +86,12 @@ const definition = readArtifact<PresentationDefinition>("definition.json");
 const renderBundle = readArtifact<RenderBundle>("render-bundle.json");
 const assetSet = readArtifact<AssetSetManifest>("asset-set.json");
 const buildManifest = readArtifact<BuildManifest>("build-manifest.json");
-const capability = readArtifact<CapabilityProfile>(
-  resolve(root, "packages/contracts/presentation/fixtures/capability-profile.json"),
-);
+const capability = JSON.parse(
+  readFileSync(
+    resolve(root, "packages/contracts/presentation/fixtures/capability-profile.json"),
+    "utf8",
+  ),
+) as CapabilityProfile;
 
 const surfaces = Object.values(renderBundle.surfaces);
 assert.ok(surfaces.length > 0, "Compiler output must contain a Semantic Surface");
@@ -84,7 +102,7 @@ assert.ok(
 assert.ok(
   surfaces.every(
     (surface) =>
-      Object.keys(surface.interactionsByState).length > 0 &&
+      Object.values(surface.interactionsByState).some((interactions) => interactions.length > 0) &&
       surface.renderSurfaceIds.every((id) => surface.renderSurfaces[id] !== undefined),
   ),
   "Compiler output must contain completed interaction and render semantics",
@@ -94,6 +112,12 @@ assert.ok(
     (surface) => surface.baseSemanticTree && Object.keys(surface.baseSemanticTree.nodes).length > 0,
   ),
   "Compiler output must contain a completed Semantic Tree",
+);
+assert.ok(
+  Object.values(definition.flow.groups).some((group) =>
+    Object.values(group.steps).some((step) => step.cues.length > 0),
+  ),
+  "Compiler output must contain an executable Cue",
 );
 
 const publicationPayload = { ...buildManifest, publicationEpoch: 1 };
@@ -137,13 +161,15 @@ const manifest = buildDeliveryManifest({
   issuedAtUnixMilliseconds: 1_000,
   assetAccess,
 });
-assert.ok(manifest.projectionProfile?.semanticSurfaces.length);
-assert.ok(manifest.projectionProfile?.renderSurfaces.length >= 2);
+assert.ok(manifest.projectionProfile);
+assert.ok(manifest.projectionProfile.semanticSurfaces?.length);
+assert.ok((manifest.projectionProfile.renderSurfaces?.length ?? 0) >= 2);
 assert.ok(manifest.projectionProfile?.runtimeCatalog);
+assert.ok(manifest.assetAccess);
 assert.equal(manifest.assetAccess.length, selection.assets.length);
 
 const typeName = "unframe.delivery.DeliveryManifest";
-const value = canonicalWireValue(getPresentationWireType(typeName), manifest);
+const value = canonicalWireValue(getPresentationWireType(typeName), { ...manifest });
 const bytes = encodeWireMessage(typeName, value);
 assert.deepEqual(decodeWireMessage(typeName, bytes), value);
 assert.equal(

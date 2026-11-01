@@ -3,7 +3,7 @@ import type { PublishedPresentation } from "@unframe/contracts/presentation";
 
 const presentation = { id: "presentation-1", name: "公開済みプレゼン" };
 const publication = {
-  schemaVersion: 3,
+  schemaVersion: 1,
   presentationId: presentation.id,
   publicationEpoch: 3,
   publicationManifestHash: `sha256:${"a".repeat(64)}`,
@@ -13,9 +13,9 @@ const publication = {
   renderBundleHash: `sha256:${"c".repeat(64)}`,
   assetSetHash: `sha256:${"d".repeat(64)}`,
   contractVersions: {
-    definition: 3,
-    renderBundle: 2,
-    assetSet: 2,
+    definition: 1,
+    renderBundle: 1,
+    assetSet: 1,
     delivery: 3,
     runtime: 3,
     progression: 2,

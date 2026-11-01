@@ -1,4 +1,4 @@
-import type { ValidationResult } from "@unframe/core";
+import type { ValidationResult } from "@unframe/presentation";
 import { diagnostic, safelyIsDiagnostic } from "../diagnostics/diagnostics.js";
 
 type UnknownRecord = Record<string, unknown>;

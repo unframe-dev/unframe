@@ -1,3 +1,4 @@
+import { PNG_DEFAULT_STATE, PNG_INACTIVE_STATE } from "../../test-support/png-delivery-fixture";
 import { encodeWireMessage } from "@unframe/contracts/presentation";
 import { describe, expect, it } from "vitest";
 import type {
@@ -7,7 +8,7 @@ import type {
   RuntimeRunSnapshotWire,
   ControlServerItemWire,
 } from "@unframe/contracts/presentation";
-import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
+import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import { createRuntimeStore } from "../runtime-store";
 import { createRuntimeReducer, createRuntimeState } from "../runtime-core";
 
@@ -30,7 +31,7 @@ function setup() {
     scale: { x: 1, y: 1, z: 1 },
   };
   const snapshot: ConnectionSnapshotEnvelopeWire = {
-    schemaVersion: 3,
+    schemaVersion: 1,
     connectionId: "connection",
     fence,
     projectionInstance: delivery.projectionInstance!,
@@ -52,7 +53,7 @@ function setup() {
           stable: {},
         },
         nodeStates: [{ nodeId, active: true, visible: true, opacity: 1, transform }],
-        surfaceStates: [{ surfaceId, stateId: "reference-surface:default" }],
+        surfaceStates: [{ surfaceId, stateId: PNG_DEFAULT_STATE }],
         variables: [],
         activeRuns: [],
         mediaStates: [],
@@ -289,13 +290,16 @@ describe("runtime store", () => {
     },
   );
 
-  it("rejects a v2 snapshot instead of rendering it under v3 delivery", () => {
-    const { store, snapshot } = setup();
-    snapshot.schemaVersion = 2;
-    store.applyControl({ connectionSnapshot: snapshot });
-    expect(store.getSnapshot().phase).toBe("resync-required");
-    expect(store.getSnapshot().view).toBeNull();
-  });
+  it.each([2, 3])(
+    "rejects a schema version %i snapshot under the current delivery contract",
+    (version) => {
+      const { store, snapshot } = setup();
+      snapshot.schemaVersion = version;
+      store.applyControl({ connectionSnapshot: snapshot });
+      expect(store.getSnapshot().phase).toBe("resync-required");
+      expect(store.getSnapshot().view).toBeNull();
+    },
+  );
   it("rejects frozen anchor state until Viewer anchor rendering is supported", () => {
     const { store, snapshot, nodeId } = setup();
     snapshot.snapshot!.runtimeView!.frozenAnchors = [{ nodeId, position: { x: 1 } }];
@@ -411,14 +415,12 @@ describe("runtime store", () => {
         eventId: "surface-event",
         surfaceStateChanged: {
           surfaceId,
-          fromStateId: "reference-surface:default",
-          stateId: "reference-surface:inactive",
+          fromStateId: PNG_DEFAULT_STATE,
+          stateId: PNG_INACTIVE_STATE,
         },
       },
     });
-    expect(store.getSnapshot().view!.surfaceStates[surfaceId]!.stateId).toBe(
-      "reference-surface:inactive",
-    );
+    expect(store.getSnapshot().view!.surfaceStates[surfaceId]!.stateId).toBe(PNG_INACTIVE_STATE);
     store.applyControl({
       reliableEvent: {
         fence,
@@ -426,8 +428,8 @@ describe("runtime store", () => {
         eventId: "bad-surface",
         surfaceStateChanged: {
           surfaceId,
-          fromStateId: "reference-surface:default",
-          stateId: "reference-surface:inactive",
+          fromStateId: PNG_DEFAULT_STATE,
+          stateId: PNG_INACTIVE_STATE,
         },
       },
     });
@@ -872,7 +874,7 @@ function groupSetup() {
   const view = initial.snapshot.snapshot!.runtimeView!;
   view.nodeStates!.push({ ...structuredClone(view.nodeStates![0]!), nodeId: "intro-node" });
   view.nodeStates!.sort((a, b) => a.nodeId!.localeCompare(b.nodeId!));
-  view.surfaceStates!.push({ surfaceId: "intro-surface", stateId: "reference-surface:default" });
+  view.surfaceStates!.push({ surfaceId: "intro-surface", stateId: PNG_DEFAULT_STATE });
   view.surfaceStates!.sort((a, b) => a.surfaceId!.localeCompare(b.surfaceId!));
   const store = createRuntimeStore(initial.delivery);
   const initialization = {
@@ -885,7 +887,7 @@ function groupSetup() {
         transform: initial.transform,
       },
     ],
-    surfaceStates: [{ surfaceId: "next-surface", stateId: "reference-surface:default" }],
+    surfaceStates: [{ surfaceId: "next-surface", stateId: PNG_DEFAULT_STATE }],
   };
   const event = (sequence: number, payload: object) =>
     store.applyControl({
@@ -1025,7 +1027,7 @@ describe("Group State stream fencing", () => {
           nodeStates: [
             { nodeId: "intro-node", active: true, visible: true, opacity: 0.6, transform },
           ],
-          surfaceStates: [{ surfaceId: "intro-surface", stateId: "reference-surface:default" }],
+          surfaceStates: [{ surfaceId: "intro-surface", stateId: PNG_DEFAULT_STATE }],
         },
       },
     });

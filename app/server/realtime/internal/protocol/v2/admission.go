@@ -212,11 +212,11 @@ func validateKnownMessage(message protoreflect.Message, path string, partialTran
 			}
 		}
 	case "DeliveryManifest":
-		if get("schema_version").Uint() != 3 || get("delivery_contract_version").Uint() != 3 {
+		if get("schema_version").Uint() != 1 || get("delivery_contract_version").Uint() != 3 {
 			return invalid()
 		}
 	case "CanonicalRuntimeSnapshot", "ConnectionSnapshotEnvelope", "DurableCheckpointEnvelope", "CapabilityProfile":
-		if get("schema_version").Uint() != 3 {
+		if get("schema_version").Uint() != 1 {
 			return invalid()
 		}
 	case "ProjectedRuntimeCatalog":

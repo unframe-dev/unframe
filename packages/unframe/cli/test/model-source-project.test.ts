@@ -5,7 +5,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, expect, it, vi } from "vitest";
-import { verifyBuildIntegrity } from "@unframe/core";
+import { verifyBuildIntegrity } from "@unframe/artifacts";
 import { runPresentationCli } from "../src/index.js";
 
 const directories: string[] = [];

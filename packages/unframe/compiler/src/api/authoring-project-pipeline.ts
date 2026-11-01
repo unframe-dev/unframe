@@ -1,5 +1,5 @@
 import type { CompilerSourceAssetBytes } from "./types.js";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { computeFrozenComponentInputs } from "../semantic/frozen-component-inputs.js";
 import { checkAuthoringProject } from "./check-authoring-project.js";
 import { assembleDeclarationProjectValidated } from "./assemble-declaration-project.js";

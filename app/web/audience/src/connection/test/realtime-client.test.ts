@@ -89,7 +89,7 @@ it("authenticates without URL credentials and gates StateReady on rendered Snaps
     ).toMatchObject({ handshake: { protocolVersion: "v3", progressionContractVersion: 2 } });
     control.receive("unframe.realtime.ControlServerItem", {
       connectionSnapshot: {
-        schemaVersion: 3,
+        schemaVersion: 1,
         connectionId: "connection",
         reliableSequence: "5",
         fence: { presentationOriginVersion: "1" },
@@ -124,7 +124,7 @@ it("closes both streams and rejects late input after disposal", () => {
   control.open();
   h.cleanup();
   control.receive("unframe.realtime.ControlServerItem", {
-    connectionSnapshot: { schemaVersion: 3 },
+    connectionSnapshot: { schemaVersion: 1 },
   });
   expect(h.input.applyControl).not.toHaveBeenCalled();
   expect(control.readyState).toBe(3);
@@ -141,7 +141,7 @@ it.each([
       control.open();
       control.receive("unframe.realtime.ControlServerItem", {
         connectionSnapshot: {
-          schemaVersion: 3,
+          schemaVersion: 1,
           connectionId: "connection",
           ...fields,
           fence: { sessionId: "session" },
@@ -199,7 +199,7 @@ it("keeps Control and rendered state while replacing a lost State attachment", (
     control.open();
     control.receive("unframe.realtime.ControlServerItem", {
       connectionSnapshot: {
-        schemaVersion: 3,
+        schemaVersion: 1,
         connectionId: "connection",
         reliableSequence: "5",
         fence: { presentationOriginVersion: "1" },

@@ -5224,7 +5224,7 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @enum {number} */
-                            schemaVersion: 3;
+                            schemaVersion: 1;
                             presentationId: string;
                             publicationEpoch: number;
                             publicationManifestHash: string;
@@ -5235,11 +5235,11 @@ export interface paths {
                             assetSetHash: string;
                             contractVersions: {
                                 /** @enum {number} */
-                                definition: 3;
+                                definition: 1;
                                 /** @enum {number} */
-                                renderBundle: 2;
+                                renderBundle: 1;
                                 /** @enum {number} */
-                                assetSet: 2;
+                                assetSet: 1;
                                 /** @enum {number} */
                                 delivery: 3;
                                 /** @enum {number} */
@@ -5481,7 +5481,7 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @enum {number} */
-                            schemaVersion: 3;
+                            schemaVersion: 1;
                             presentationId: string;
                             publicationEpoch: number;
                             publicationManifestHash: string;
@@ -5492,11 +5492,11 @@ export interface paths {
                             assetSetHash: string;
                             contractVersions: {
                                 /** @enum {number} */
-                                definition: 3;
+                                definition: 1;
                                 /** @enum {number} */
-                                renderBundle: 2;
+                                renderBundle: 1;
                                 /** @enum {number} */
-                                assetSet: 2;
+                                assetSet: 1;
                                 /** @enum {number} */
                                 delivery: 3;
                                 /** @enum {number} */

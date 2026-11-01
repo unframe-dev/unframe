@@ -5,7 +5,7 @@ import {
   encodeWireMessage,
   decodeWireMessage,
 } from "@unframe/contracts/presentation";
-import { createCueState, executeCueEvent, advanceCueClock } from "@unframe/core";
+import { createCueState, executeCueEvent, advanceCueClock } from "@unframe/playback";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import { projectPlaybackWire } from "../src/author/playback-wire.js";

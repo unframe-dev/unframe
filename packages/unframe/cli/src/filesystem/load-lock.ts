@@ -1,6 +1,6 @@
 import { validateNodeTransformSnapshot } from "../styles/node-snapshot.js";
 import { createHash } from "node:crypto";
-import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/artifacts";
 import type { DeclarationProjectAssemblyCarrier } from "@unframe/core/compiler";
 import { z } from "zod";
 import { idSchema } from "@unframe/contracts/presentation";
@@ -15,7 +15,7 @@ import {
   type UnframeLock,
 } from "./lock.js";
 import { mediaTypeFor } from "./package-snapshot.js";
-import { parseStrictJson } from "@unframe/core/strict-json";
+import { parseStrictJson } from "@unframe/artifacts";
 
 const hash = z.templateLiteral(["sha256:", z.string().regex(/^[0-9a-f]{64}$/u)]);
 const nonempty = z.string().min(1);
@@ -101,7 +101,7 @@ const root = strict({
     .string()
     .regex(/^[a-f0-9]{64}$/)
     .optional(),
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(1),
   packageSnapshotProfile: z.literal("pnpm-lock9-locator-v1"),
   resolutionProfile: z.literal("browser-import-production-types-v1"),
   extractionProfile: z.literal("react-component-v1"),
@@ -174,7 +174,7 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
   if (!result.success)
     return fail(
       "cli-lock-shape-invalid",
-      "unframe.lock must match the v3 serialized shape exactly.",
+      "unframe.lock must match the schema version 1 serialized shape exactly.",
     );
   const lock = result.data as UnframeLock;
   if ((lock.styleTransform === undefined) !== (lock.styleSourceIdentity === undefined))

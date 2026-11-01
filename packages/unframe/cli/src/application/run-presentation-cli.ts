@@ -8,7 +8,7 @@ import {
   type CompiledDeclarationProject,
   type CompilerWarning,
 } from "@unframe/core/compiler";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import {
   createBakedWebRenderer,
   combineBakedWebRenderers,

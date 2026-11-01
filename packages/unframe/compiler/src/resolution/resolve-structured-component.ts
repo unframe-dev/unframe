@@ -16,7 +16,7 @@ import type {
   TokenReference,
   VariantStyleOverride,
 } from "@unframe/core/authoring";
-import type { Diagnostic, PresentationDefinition } from "@unframe/core";
+import type { Diagnostic, PresentationDefinition } from "@unframe/presentation";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { resourceId } from "../lowering/support.js";
 

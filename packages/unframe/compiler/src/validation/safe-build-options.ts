@@ -1,4 +1,4 @@
-import type { ValidationResult } from "@unframe/core";
+import type { ValidationResult } from "@unframe/presentation";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { safePlainClone } from "./safe-plain-clone.js";
 

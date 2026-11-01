@@ -34,7 +34,7 @@ export function buildModelPlan(delivery: DeliveryManifestWire, input: unknown): 
     profile = delivery.projectionProfile;
   if (view.frozenAnchors.length) fail("unsupported frozen Anchor display state");
   if (
-    delivery.schemaVersion !== runtimeAuthorityVersions.delivery ||
+    delivery.schemaVersion !== 1 ||
     delivery.deliveryContractVersion !== runtimeAuthorityVersions.delivery ||
     profile?.runtimeCatalog?.catalogContractVersion !== runtimeAuthorityVersions.catalog ||
     profile.projectionProfileId !== view.projectionProfileId ||

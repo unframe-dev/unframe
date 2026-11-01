@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import type { PublishedPresentation } from "@unframe/contracts/presentation";
-import { hashCanonicalJsonPayload } from "../../../../packages/unframe/core/src/canonicalization/payload";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 
 const presentations = [
   { id: "gallery-1", name: "春のプロダクト紹介" },
@@ -15,7 +15,7 @@ const publication = (
   epoch = 1,
 ): PublishedPresentation => {
   const payload = {
-    schemaVersion: 3 as const,
+    schemaVersion: 1 as const,
     presentationId,
     publicationEpoch: epoch,
     sourceDraftRevision: 1,
@@ -24,9 +24,9 @@ const publication = (
     renderBundleHash: `sha256:${"c".repeat(64)}`,
     assetSetHash: `sha256:${"d".repeat(64)}`,
     contractVersions: {
-      definition: 3 as const,
-      renderBundle: 2 as const,
-      assetSet: 2 as const,
+      definition: 1 as const,
+      renderBundle: 1 as const,
+      assetSet: 1 as const,
       delivery: 3 as const,
       runtime: 3 as const,
       progression: 2 as const,

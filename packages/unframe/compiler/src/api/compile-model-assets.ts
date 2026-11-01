@@ -1,5 +1,6 @@
 import { MODEL_TRANSFORM_IDENTITY, transformGlb, type ModelLimits } from "@unframe/core/assets";
-import type { BuildArtifacts, RenderBundle, ValidationResult } from "@unframe/core";
+import type { BuildArtifacts } from "@unframe/artifacts";
+import type { RenderBundle, ValidationResult } from "@unframe/presentation";
 import type { CompilerSourceAsset, CompilerSourceAssetBytes } from "./types.js";
 
 export const MODEL_COMPILER_LIMITS = Object.freeze({

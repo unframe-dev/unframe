@@ -7,7 +7,7 @@ import {
   type CueInput,
   type CueCapture,
   type CueState,
-} from "@unframe/core";
+} from "@unframe/playback";
 import { AuthorError } from "./contract.js";
 import type {
   CueOccurrence,

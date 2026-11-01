@@ -149,7 +149,7 @@ export async function createFixtureScenario(baseUrl: string): Promise<FixtureSce
     presentationOriginVersion: "0",
   };
   const snapshot: ConnectionSnapshotEnvelopeWire = {
-    schemaVersion: 3,
+    schemaVersion: 1,
     connectionId: "fixture-connection",
     fence,
     projectionInstance: delivery.projectionInstance!,

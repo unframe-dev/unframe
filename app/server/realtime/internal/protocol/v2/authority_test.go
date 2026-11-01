@@ -181,6 +181,7 @@ func TestLegacyMajorsAndMissingCapabilitiesFailClosed(t *testing.T) {
 		&realtime.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: []presentation.RuntimeCapability{8, 9, 10}},
 		&realtime.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: []presentation.RuntimeCapability{8, 9}},
 		&realtime.CanonicalRuntimeSnapshot{SchemaVersion: 2},
+		&realtime.CanonicalRuntimeSnapshot{SchemaVersion: 3},
 		&presentation.ProjectedRuntimeCatalog{CatalogContractVersion: 2},
 	} {
 		if ValidateMessage(message) == nil {

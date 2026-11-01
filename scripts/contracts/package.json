@@ -1,0 +1,26 @@
+{
+  "name": "@unframe/contract-fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./delivery-project": "./fixtures/delivery-project.ts"
+  },
+  "scripts": {
+    "generate": "tsx generate-valid-delivery.ts generate",
+    "check": "tsx generate-valid-delivery.ts check",
+    "test": "tsx --test fixtures/delivery-project.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@unframe/artifacts": "workspace:*",
+    "@unframe/contracts": "workspace:*",
+    "@unframe/core": "workspace:*",
+    "@unframe/delivery": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "tsx": "^4.22.1",
+    "typescript": "6.0.3"
+  }
+}

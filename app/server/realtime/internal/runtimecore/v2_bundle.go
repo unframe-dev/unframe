@@ -35,7 +35,7 @@ type v2ModelClipSpec struct {
 
 func buildV2ModelClips(def v2Definition, raw json.RawMessage) (map[string]map[string]v2ModelClipSpec, error) {
 	var bundle v2RenderBundle
-	if json.Unmarshal(raw, &bundle) != nil || bundle.SchemaVersion != 2 {
+	if json.Unmarshal(raw, &bundle) != nil || bundle.SchemaVersion != 1 {
 		return nil, ErrV2RuntimeDefinition
 	}
 	models := make(map[string]map[string]v2ModelClipSpec)
@@ -61,7 +61,7 @@ func buildV2ModelClips(def v2Definition, raw json.RawMessage) (map[string]map[st
 
 func buildV2MediaSpecs(def v2Definition, raw json.RawMessage) (map[string]map[string]v2MediaSpec, error) {
 	var bundle v2RenderBundle
-	if json.Unmarshal(raw, &bundle) != nil || bundle.SchemaVersion != 2 {
+	if json.Unmarshal(raw, &bundle) != nil || bundle.SchemaVersion != 1 {
 		return nil, ErrV2RuntimeDefinition
 	}
 	specs := make(map[string]map[string]v2MediaSpec)

@@ -1,6 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import type { Diagnostic, ValidationResult } from "@unframe/core";
+import type { Diagnostic, ValidationResult } from "@unframe/presentation";
 import type * as z from "zod";
 
 import { INTERNAL_PNG_HARD_CAPS, PNG_ENCODER_IDENTITY } from "./constants.js";

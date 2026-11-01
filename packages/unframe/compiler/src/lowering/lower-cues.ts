@@ -1,5 +1,5 @@
 import type { ActionValue, CueGuard, PresentationDeclaration } from "@unframe/core/authoring";
-import type { Diagnostic, PresentationDefinition } from "@unframe/core";
+import type { Diagnostic, PresentationDefinition } from "@unframe/presentation";
 import type { CompilerDeclarationProject } from "../api/types.js";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { resourceId } from "./support.js";

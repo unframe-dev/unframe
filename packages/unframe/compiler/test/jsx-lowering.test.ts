@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 
 import { lowerAuthoringDeclarationFile } from "../src/lowering/lower-authoring-declaration.js";
 import { normalizeDeclarationGraph } from "../src/normalization/normalize-declaration-graph.js";

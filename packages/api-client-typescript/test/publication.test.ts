@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { hashCanonicalJsonPayload, verifyBuildIntegrity, type BuildArtifacts } from "@unframe/core";
+import {
+  hashCanonicalJsonPayload,
+  verifyBuildIntegrity,
+  type BuildArtifacts,
+} from "@unframe/artifacts";
 import definitionFixture from "../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../contracts/presentation/fixtures/render-bundle.json";
 import assetsFixture from "../../contracts/presentation/fixtures/asset-set-manifest.json";

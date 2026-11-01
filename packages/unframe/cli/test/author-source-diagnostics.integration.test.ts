@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
 import { afterEach, assert, expect, it } from "vitest";
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { checkAuthoringProject } from "@unframe/core/compiler";
 
 import { runPresentationCli } from "../src/index.js";

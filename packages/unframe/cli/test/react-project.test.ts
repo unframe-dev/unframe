@@ -6,7 +6,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { checkAuthoringProject, checkAuthoringProjectAssembly } from "@unframe/core/compiler";
 import { runPresentationCli } from "../src/index.js";
 import * as opaquePreparation from "../src/application/opaque-renderer.js";

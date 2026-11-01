@@ -1,7 +1,7 @@
 import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
 import { describe, expect, it } from "vitest";
 import { standardComponents } from "@unframe/core/components";
-import { hashCanonicalJsonPayload } from "@unframe/core";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import type {
   ComponentManifest,
   ComponentStructure,

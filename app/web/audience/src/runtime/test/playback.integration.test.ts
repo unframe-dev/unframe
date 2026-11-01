@@ -1,3 +1,4 @@
+import { PNG_DEFAULT_STATE, PNG_INACTIVE_STATE } from "../../test-support/png-delivery-fixture";
 import { expect, it, vi } from "vitest";
 import { Group, Mesh, Texture } from "three";
 import type {
@@ -5,7 +6,7 @@ import type {
   DeliveryManifestWire,
   RuntimeProjectionFenceWire,
 } from "@unframe/contracts/presentation";
-import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
+import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import { createRuntimePlayback } from "../playback";
 import { createPngPresentation } from "../../rendering/png-presentation";
 import { evaluateAnimationView } from "../animation-view";
@@ -28,7 +29,7 @@ function setup() {
     scale: { x: 1, y: 1, z: 1 },
   };
   const snapshot: ConnectionSnapshotEnvelopeWire = {
-    schemaVersion: 3,
+    schemaVersion: 1,
     connectionId: "connection",
     fence,
     projectionInstance: delivery.projectionInstance!,
@@ -50,7 +51,7 @@ function setup() {
           stable: {},
         },
         nodeStates: [{ nodeId, active: true, visible: true, opacity: 1, transform }],
-        surfaceStates: [{ surfaceId, stateId: "reference-surface:default" }],
+        surfaceStates: [{ surfaceId, stateId: PNG_DEFAULT_STATE }],
         variables: [],
         activeRuns: [],
         mediaStates: [],
@@ -305,7 +306,7 @@ it("replaces Group-owned PNG resources only after the new Group and Step are com
       groupEntryEpoch: "2",
       initialization: {
         nodeStates: [{ nodeId: nextNodeId, active: true, visible: true, opacity: 1, transform }],
-        surfaceStates: [{ surfaceId: nextSurfaceId, stateId: "reference-surface:default" }],
+        surfaceStates: [{ surfaceId: nextSurfaceId, stateId: PNG_DEFAULT_STATE }],
       },
     },
   });
@@ -335,9 +336,7 @@ it("animates prepared PNG meshes from Timeline time, freezes on pause and commit
   timeline.tracks![0]!.keyframes![0]!.easingToNext = 1;
   for (const render of delivery.projectionProfile!.renderSurfaces!) {
     render.stateBindings = render.stateBindings!.map((binding) =>
-      binding.stateId === "reference-surface:inactive"
-        ? { stateId: binding.stateId, empty: {} }
-        : binding,
+      binding.stateId === PNG_INACTIVE_STATE ? { stateId: binding.stateId, empty: {} } : binding,
     );
   }
   let now = 0;
@@ -453,8 +452,8 @@ it("animates prepared PNG meshes from Timeline time, freezes on pause and commit
     startedAtRuntimeTimeMs: "1010",
     surfaceTransition: {
       surfaceId,
-      fromStateId: "reference-surface:default",
-      toStateId: "reference-surface:inactive",
+      fromStateId: PNG_DEFAULT_STATE,
+      toStateId: PNG_INACTIVE_STATE,
       durationMs: "1000",
       easing: 1,
     },
@@ -468,8 +467,8 @@ it("animates prepared PNG meshes from Timeline time, freezes on pause and commit
       surfaceTransitionStarted: {
         surfaceId,
         runId: fadeRunId,
-        fromStateId: "reference-surface:default",
-        stateId: "reference-surface:inactive",
+        fromStateId: PNG_DEFAULT_STATE,
+        stateId: PNG_INACTIVE_STATE,
         startedAtRuntimeTimeMs: "1010",
         durationMs: "1000",
         easing: 1,
@@ -494,7 +493,7 @@ it("animates prepared PNG meshes from Timeline time, freezes on pause and commit
       surfaceTransitionCompleted: {
         surfaceId,
         runId: fadeRunId,
-        stateId: "reference-surface:inactive",
+        stateId: PNG_INACTIVE_STATE,
       },
     },
   });

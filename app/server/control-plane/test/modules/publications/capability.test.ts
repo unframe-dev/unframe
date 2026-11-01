@@ -10,10 +10,10 @@ import publishedPresentation from "../../../../../../packages/contracts/presenta
 import {
   selectBuildArtifacts,
   selectDeliveryArtifacts,
-  hashCanonicalJsonPayload,
   type BuildSourceInput,
   type DeliverySourceInput,
-} from "@unframe/core";
+} from "@unframe/delivery";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { assert, describe, expect, it } from "vitest";
 import { normalizedCapability } from "../../../src/modules/publications/capability";
 
@@ -51,8 +51,8 @@ describe("production presentation capability profiles", () => {
   it("preserves the existing media profile and v3 authority versions", () => {
     const media = normalizedCapability("unity-media-v1");
     const presentation = normalizedCapability("quest-presentation-v2");
-    expect(media.schemaVersion).toBe(3);
-    expect(presentation.schemaVersion).toBe(3);
+    expect(media.schemaVersion).toBe(1);
+    expect(presentation.schemaVersion).toBe(1);
     expect(presentation.contractVersions).toEqual(media.contractVersions);
     expect(presentation.model).toEqual(media.model);
     expect(presentation.renderers.video).toEqual(media.renderers.video);

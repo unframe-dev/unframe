@@ -19,7 +19,7 @@ import (
 func canonicalEnvelope(t *testing.T) *realtimev2.DurableCheckpointEnvelope {
 	t.Helper()
 	payload, err := proto.MarshalOptions{Deterministic: true}.Marshal(&realtimev2.CanonicalRuntimeSnapshot{
-		SchemaVersion: 3, ReliableSequence: 10, InputEpoch: 1,
+		SchemaVersion: 1, ReliableSequence: 10, InputEpoch: 1,
 		Clock:              &realtimev2.RuntimeClockSnapshot{Status: &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}},
 		Progression:        &realtimev2.ProgressionRuntimeState{CurrentGroupId: "group", GroupEntryEpoch: 1, CurrentStepId: "step", StepEntryEpoch: 1, Phase: &realtimev2.ProgressionRuntimeState_Stable{Stable: &realtimev2.StableProgression{}}},
 		StepExecution:      &realtimev2.StepExecutionSnapshot{StepEntryEpoch: 1},
@@ -30,7 +30,7 @@ func canonicalEnvelope(t *testing.T) *realtimev2.DurableCheckpointEnvelope {
 	}
 	digest := sha256.Sum256(payload)
 	return &realtimev2.DurableCheckpointEnvelope{
-		SchemaVersion: 3, CheckpointSequence: 2, SessionId: "00000000-0000-4000-8000-000000000001", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 3,
+		SchemaVersion: 1, CheckpointSequence: 2, SessionId: "00000000-0000-4000-8000-000000000001", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 3,
 		Publication:    &presentationv2.PublicationFence{PresentationId: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:" + strings.Repeat("a", 64)},
 		DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64),
 		CanonicalSnapshotHash: "sha256:" + hex.EncodeToString(digest[:]), CanonicalSnapshotPayload: payload, ReliableSequence: 10,
@@ -48,7 +48,7 @@ func TestCheckpointEnvelopePersistsTypedV3Payload(t *testing.T) {
 			t.Fatal(err)
 		}
 		payload, ok := body["payload"].(map[string]any)
-		if !ok || payload["schemaVersion"] != float64(3) || payload["checkpointSequence"] != "2" || body["lastSequence"] != float64(10) {
+		if !ok || payload["schemaVersion"] != float64(1) || payload["checkpointSequence"] != "2" || body["lastSequence"] != float64(10) {
 			t.Errorf("callback body = %#v", body)
 		}
 		_, _ = response.Write([]byte(`{"applied":true}`))
@@ -72,7 +72,7 @@ func TestCompletionEnvelopePersistsFinalTypedV3Payload(t *testing.T) {
 			t.Fatal(err)
 		}
 		checkpoint, ok := body["finalCheckpoint"].(map[string]any)
-		if !ok || checkpoint["schemaVersion"] != float64(3) || body["participantCount"] != float64(1) || body["checkpointVersion"] != float64(2) {
+		if !ok || checkpoint["schemaVersion"] != float64(1) || body["participantCount"] != float64(1) || body["checkpointVersion"] != float64(2) {
 			t.Errorf("completion body = %#v", body)
 		}
 		_, _ = response.Write([]byte(`{"applied":true}`))

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { VideoMetadata } from "@unframe/core/assets";
-import type { ValidationResult } from "@unframe/core";
+import type { ValidationResult } from "@unframe/presentation";
 import type {
   CompilerSourceAsset,
   CompilerSourceAssetBytes,

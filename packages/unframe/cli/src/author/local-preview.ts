@@ -1,15 +1,14 @@
 import { createHash, randomBytes } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { LocalPreviewEnvelopeWire } from "@unframe/contracts/presentation";
+import { buildRuntimeProjection } from "@unframe/delivery";
 import {
-  buildRuntimeProjection,
   canonicalizeJsonPayload,
-  createInitialRuntimeState,
-  createCueState,
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   type BuildArtifacts,
-} from "@unframe/core";
+} from "@unframe/artifacts";
+import { createInitialRuntimeState, createCueState } from "@unframe/playback";
 import { readBuildGeneration } from "../filesystem/read-build-generation.js";
 import { readDistBuild } from "../filesystem/read-dist-build.js";
 import { AuthorError, randomIdSchema } from "./contract.js";

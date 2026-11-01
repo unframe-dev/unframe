@@ -11,7 +11,7 @@ import {
   type RendererPlugin,
   type RendererSupportRequest,
 } from "@unframe/core/renderer-api";
-import { resolveStructuredLayout } from "@unframe/core";
+import { resolveStructuredLayout } from "@unframe/presentation";
 
 import { snapshotDenseArray, snapshotStrictRecord } from "../validation/safe-data.js";
 import { decodeFontAsset, fontFamilyForChecksum, type FontCoverage } from "./font-assets.js";

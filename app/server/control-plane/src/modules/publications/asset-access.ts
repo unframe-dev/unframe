@@ -1,4 +1,4 @@
-import { canonicalizeJsonPayload } from "@unframe/core";
+import { canonicalizeJsonPayload } from "@unframe/artifacts";
 
 type AssetTarget = { presentationId: string; buildId: string; assetId: string };
 const maximumLifetime = 5 * 60_000;

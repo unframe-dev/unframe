@@ -2,7 +2,7 @@ import type {
   LocalPreviewPlaybackStateWire,
   RuntimeRunSnapshotWire,
 } from "@unframe/contracts/presentation";
-import type { CueState, RuntimeRun } from "@unframe/core";
+import type { CueState, RuntimeRun } from "@unframe/playback";
 
 const vector = (value: readonly [number, number, number]) => ({
   x: value[0],

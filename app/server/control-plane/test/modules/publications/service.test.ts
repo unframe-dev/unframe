@@ -15,14 +15,14 @@ import {
   type DeliveryManifestWire,
 } from "@unframe/contracts/presentation";
 import { normalizedCapability } from "../../../src/modules/publications/capability";
+import { buildProjectionProfile } from "@unframe/delivery";
 import {
-  buildProjectionProfile,
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   validatePresentationArtifacts,
   type BuildIntegrityInput,
-} from "@unframe/core";
+} from "@unframe/artifacts";
 import { renderBundleSchema } from "@unframe/contracts/presentation";
 import { PublicationError, PublicationService } from "../../../src/modules/publications/service";
 import { D1SessionRepository } from "../../../src/modules/sessions/repository";

@@ -1,4 +1,4 @@
-import type { TextureArtifact } from "@unframe/core";
+import type { TextureArtifact } from "@unframe/presentation";
 import type * as z from "zod";
 
 import type { encodeRequestSchema, resizeRequestSchema } from "./validation/schemas.js";

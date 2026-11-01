@@ -13,12 +13,9 @@ import {
   buildOpaqueComponentManifest,
   validateStaticComponentMetadata,
 } from "@unframe/core/authoring";
-import {
-  type SemanticSurface,
-  canonicalizePresentationDefinition,
-  buildRuntimeProjection,
-  validatePresentationDefinition,
-} from "@unframe/core";
+import { type SemanticSurface, validatePresentationDefinition } from "@unframe/presentation";
+import { canonicalizePresentationDefinition } from "@unframe/artifacts";
+import { buildRuntimeProjection } from "@unframe/delivery";
 import { compileCheckedDeclarationProject } from "../src/api/compile-declaration-project.js";
 import { compileDeclarationProject, checkDeclarationProject } from "../src/index.js";
 import type { CompilerDeclarationProject, CompilerSourceAsset } from "../src/index.js";
@@ -1220,7 +1217,7 @@ describe("checkDeclarationProject", () => {
     const result = checkDeclarationProjectWithFixtureBytes(input);
     expect(result.valid).toBe(true);
     if (!result.valid) return;
-    expect(result.value.definition.schemaVersion).toBe(3);
+    expect(result.value.definition.schemaVersion).toBe(1);
     expect(result.value.definition).not.toHaveProperty("assets");
     expect(result.value.assetSet.assets["reference-font"]?.mediaType).toBe("font/ttf");
   });
@@ -1870,7 +1867,7 @@ describe("checkDeclarationProject", () => {
       "sha256:d76fe9a10ae41c742cecda8b85b0a5e44bb242273601dbb6b2d0d4d2002c667b",
     );
     expect(result.value.definitionHash).toBe(
-      "sha256:7bd303ffa2607e56aba2780dbf3447ce99c1e760ca4858042bb4749ccf627fc5",
+      "sha256:dc6226d909273046178f55ff7c3ba3369b18db4bae82378b452e1267f0ba6aab",
     );
   });
 
@@ -3477,13 +3474,13 @@ describe("compileDeclarationProject", () => {
     expect(result.value.renderBundleHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.renderBundleJson).toBeTruthy();
     expect(Object.keys(result.value.assets)).toHaveLength(2);
-    expect(result.value.renderBundle.schemaVersion).toBe(2);
+    expect(result.value.renderBundle.schemaVersion).toBe(1);
     expect(result.value.renderBundle.models).toEqual({});
     expect(result.value.renderBundle.buildContext.textureBuildPolicy.longEdgePixels).toBe(2048);
     expect(result.value.assetSet.assets["reference-font"]?.mediaType).toBe("font/ttf");
     expect(result.value.assetSetJson).toBeTruthy();
     expect(result.value.buildManifest).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 1,
       sourceDraftRevision: 0,
       definitionHash: result.value.definitionHash,
       renderBundleHash: result.value.renderBundleHash,
