@@ -10,19 +10,35 @@ import test from "node:test";
 
 const execute = promisify(execFile);
 const root = fileURLToPath(new URL("../..", import.meta.url));
-const names = ["workspace", "workspace-node", "author-service", "build", "preview", "publish"];
+const names = [
+  "artifacts",
+  "authoring",
+  "compiler",
+  "presentation",
+  "source",
+  "worker-host",
+  "styles-node",
+  "workspace",
+  "workspace-node",
+  "author-service",
+  "build",
+  "render-browser",
+  "preview",
+  "publish",
+];
 
 test("packed Workspace and use cases execute and resolve declarations without repository source", async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-packed-usecases-"));
   try {
     const copied = new Set();
-    const copyExternal = async (name, resolver) => {
+    const copyExternal = async (name, resolver, optional = false) => {
       if (copied.has(name)) return;
       let manifest;
       for (const directory of resolver.resolve.paths(name) ?? []) {
         manifest = await realpath(join(directory, name, "package.json")).catch(() => undefined);
         if (manifest) break;
       }
+      if (!manifest && optional) return;
       assert.ok(manifest, `Missing declared external dependency: ${name}`);
       const pkg = JSON.parse(await readFile(manifest, "utf8"));
       const target = join(directory, "node_modules", name);
@@ -32,6 +48,8 @@ test("packed Workspace and use cases execute and resolve declarations without re
       const next = createRequire(manifest);
       for (const dependency of Object.keys(pkg.dependencies ?? {}))
         await copyExternal(dependency, next);
+      for (const dependency of Object.keys(pkg.optionalDependencies ?? {}))
+        await copyExternal(dependency, next, true);
     };
     for (const name of names) {
       const source = join(root, "packages/unframe", name);
@@ -40,16 +58,18 @@ test("packed Workspace and use cases execute and resolve declarations without re
       assert.ok(pkg.publishConfig?.exports, `${name}: distribution exports are required`);
       const target = join(directory, "node_modules/@unframe", name);
       await mkdir(target, { recursive: true });
-      await cp(join(source, "dist"), join(target, "dist"), { recursive: true });
-      await writeFile(
-        join(target, "package.json"),
-        JSON.stringify({
-          name: pkg.name,
-          version: pkg.version,
-          type: "module",
-          exports: pkg.publishConfig.exports,
-        }),
+      await execute(
+        "pnpm",
+        ["--config.verify-deps-before-run=false", "pack", "--pack-destination", directory],
+        { cwd: source },
       );
+      await execute("tar", [
+        "-xzf",
+        join(directory, `unframe-${name}-${pkg.version}.tgz`),
+        "--strip-components=1",
+        "-C",
+        target,
+      ]);
       const resolver = createRequire(manifest);
       for (const dependency of Object.keys(pkg.dependencies ?? {}))
         if (!dependency.startsWith("@unframe/")) await copyExternal(dependency, resolver);
@@ -76,7 +96,11 @@ import { readFileSync } from "node:fs";
 import canonicalize from "canonicalize";
 import { createWorkspaceSnapshot, createWorkspaceSave } from "@unframe/workspace";
 import { NativeStats, acquireBuildLock } from "@unframe/workspace-node";
-import { createBuildJob } from "@unframe/build";
+import { createBuildJob, prepareLockRefresh } from "@unframe/build";
+import * as browserRenderer from "@unframe/render-browser";
+assert.ok(Object.keys(browserRenderer).length > 0);
+const invalidLock = await prepareLockRefresh({found: {projectDirectory: "/virtual", entryFile: "main.ts", files: [], localFiles: [], assetSources: {}, lockBytes: new TextEncoder().encode("invalid")}}, {readTypeLibraries: async () => { throw new Error("unused"); }, styles: {}, modelTransformIdentity: "sha256:model", videoTransformIdentity: async () => { throw new Error("unused"); }});
+assert.equal(invalidLock.ok, false);
 import { createAuthorService } from "@unframe/author-service";
 import { createLocalPreviewService, PreviewError } from "@unframe/preview";
 import { readPublicationFence, queryPublication } from "@unframe/publish";

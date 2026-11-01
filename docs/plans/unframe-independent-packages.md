@@ -81,7 +81,7 @@ SourceとCompilerは外部環境を再探索しない。描画・素材・CSS・
 
 実装結果: Authoring・Source・Compilerを独立化し、標準Component、固定Source解析とsnapshot付きpatch、Presentation解決とRender/Media Planを各所有者へ移した。Build実行と依存固定は現段階ではCLIに接続している。独立レビューのsnapshot照合と公開境界の指摘を修正した。
 
-検証: Authoring 79件、Source 158件、Compiler 78件と関連型検査・lint・pack、隔離環境の公開API・型宣言・固定Sourceからの計画生成が成功。CLI unitは通常環境で575成功・105失敗のうち、102件が削除済み `examples/presentation`、1件が欠落動画、2件が動画ツールの環境未設定だった。後者2件を含む動画関連11件は固定Nix環境で成功した。実CLI入力用ProjectとFixed Browser受け入れの復旧は第4段階で行う。第3段階はWorkspaceと独立ユースケースを扱う。
+検証: Authoring 79件、Source 158件、Compiler 78件と関連型検査・lint・pack、隔離環境の公開API・型宣言・固定Sourceからの計画生成が成功。当時のCLI unitは通常環境で575成功・105失敗のうち、102件が削除済み `examples/presentation`、1件が欠落動画、2件が動画ツールの環境未設定だった。後者2件を含む動画関連11件は固定Nix環境で成功した。実CLI入力用ProjectとFixed Browser受け入れの復旧は第4段階で行う。第3段階はWorkspaceと独立ユースケースを扱う。
 
 ### 3. Workspaceと独立ユースケース
 
@@ -93,21 +93,27 @@ SourceとCompilerは外部環境を再探索しない。描画・素材・CSS・
 
 実装結果: WorkspaceとNode adapter、4つのユースケースを独立化し、CLIとLocal Editorを公開境界へ接続した。Source/lock保存と復旧の排他、Build世代の比較、Preview切替、取消とcommitの競合、公開結果不明の照会を実装した。独立レビューで見つかった保存・lease競合と結果伝播の不備を修正した。
 
-検証: Workspace関連61件、ユースケース・CLI関連108件中107件、Local Editor 99件、HTTP 12件、API client 32件、型検査・関連lint・各packageのpack、隔離環境での6 package公開API・型宣言が成功。残る1件とCLI Authorの19件は既存の欠落動画・`examples/presentation`に依存する。通常の一時ディレクトリでは保存テストの一部が5秒でタイムアウトしたが、メモリ上の一時領域では12件成功した。PreviewとAuthor Serviceのpackには8GBのNode heapを使用する。実ブラウザ・実Control Plane接続とnative helperの配布は第4段階で確認する。
+検証: Workspace関連61件、ユースケース・CLI関連108件中107件、Local Editor 99件、HTTP 12件、API client 32件、型検査・関連lint・各packageのpack、隔離環境での6 package公開API・型宣言が成功。当時残った1件とCLI Authorの19件は既存の欠落動画・`examples/presentation`に依存する。通常の一時ディレクトリでは保存テストの一部が5秒でタイムアウトしたが、メモリ上の一時領域では12件成功した。PreviewとAuthor Serviceのpackには8GBのNode heapを使用する。実ブラウザ・実Control Plane接続とnative helperの配布は第4段階で確認する。
 
-### 4. Adapterと配布
+### 4. Adapterと配布（実装済み）
 
-- [ ] render-browser、media-node、styles-node、worker-hostを独立パッケージにする。
-- [ ] `render-browser`内にChromiumの薄いラッパーを設け、Browser/Pageの生成・終了、HTML・素材の読み込み、描画準備待機、capture・geometry取得、失敗・取消時の後始末をまとめる（[#227](https://github.com/unframe-dev/unframe/issues/227)）。描画計画と成果物の生成判断はラッパーの外側に置く。
-- [ ] 描画処理で繰り返すChromium操作だけをラッパーに集約し、Playwrightの全APIを包み直さない。正常終了・失敗・取消時にリソースが解放されることを検証する。
-- [ ] CLIには操作入口とcompositionのみを残す。
-- [ ] SDK・CLI・隔離workerを別entryとして`vp pack`で生成する。
-- [ ] Local EditorのWeb UIを`vp build`で生成し、ビルド済み静的ファイルを配布可能な独立パッケージにする。CLIはパッケージの公開入口から配信対象を取得し、repository内の`app/web/local-editor/dist`への相対参照を撤去する。
-- [ ] 埋め込み用Unity Preview Playerを提供側でWeb向けに事前ビルドし、loader・framework・Wasm・dataと必要な追加アセットをLocal Editorの配布物に同梱する。UI・Player・通信契約の対応を配布時に固定し、利用者によるUnityのインストールやPlayerのビルドを不要にする。
-- [ ] repositoryのSourceや`.unframe/unity-preview`、Unity Editorが存在しない環境で、配布パッケージからLocal Editorを起動し、同梱Playerへの成果物読込・表示・再生を検証する。
-- [ ] 内部workspace依存の同梱、型宣言、dynamic import、native helper・素材の配置を確定する。
-- [ ] pack成果物と明示した外部依存だけを持つ利用環境でCLIからworkerを起動し、代表Build・Preview・公開adapter接続を検証する。実CLIへの入力にはSource・config・lockを備えた専用Projectを用意する。宣言Project fixtureだけではCLIの受け入れ検証を満たさない。
-- [ ] 移行済みの親manifest、旧entry、古い運用文書・タスク設定を整理する。
+- [x] render-browser、media-node、styles-node、worker-hostを独立パッケージにする。
+- [x] `render-browser`内にChromiumの薄いラッパーを設け、Browser/Pageの生成・終了、HTML・素材の読み込み、描画準備待機、capture・geometry取得、失敗・取消時の後始末をまとめる（[#227](https://github.com/unframe-dev/unframe/issues/227)）。描画計画と成果物の生成判断はラッパーの外側に置く。
+- [x] 描画処理で繰り返すChromium操作だけをラッパーに集約し、Playwrightの全APIを包み直さない。正常終了・失敗・取消時にリソースが解放されることを検証する。
+- [x] CLIには操作入口とcompositionのみを残す。
+- [x] SDK・CLI・隔離workerを別entryとして`vp pack`で生成する。
+- [x] Local EditorのWeb UIを`vp build`で生成し、ビルド済み静的ファイルを配布可能な独立パッケージにする。CLIはパッケージの公開入口から配信対象を取得し、repository内の`app/web/local-editor/dist`への相対参照を撤去する。
+- [x] 埋め込み用Unity Preview Playerを提供側でWeb向けに事前ビルドし、loader・framework・Wasm・dataと必要な追加アセットをLocal Editorの配布物に同梱する。UI・Player・通信契約の対応を配布時に固定し、利用者によるUnityのインストールやPlayerのビルドを不要にする。
+- [x] repositoryのSourceや`.unframe/unity-preview`、Unity Editorが存在しない環境で、配布パッケージからLocal Editorを起動し、同梱Playerへの成果物読込・表示・再生を検証する。
+- [x] 内部workspace依存の同梱、型宣言、dynamic import、native helper・素材の配置を確定する。
+- [x] pack成果物と明示した外部依存だけを持つ利用環境でCLIからworkerを起動し、代表Build・Preview・公開adapter接続を検証する。実CLIへの入力にはSource・config・lockを備えた専用Projectを用意する。宣言Project fixtureだけではCLIの受け入れ検証を満たさない。
+- [x] 移行済みの親manifest、旧entry、古い運用文書・タスク設定を整理する。
+
+実装結果: Browser・Media・Styles・Worker Host を独立化し、CLI を公開ユースケースと Adapter の組立に限定した。Chromium の共通操作と解放、隔離 worker、固定 styles 依存 graph、native filesystem helper を配布物に含めた。Local Editor の pack は現行 Unity WebGL Player と UI をビルドして同梱する。旧親 manifest と旧 lock の自動移行を撤去し、実 Source・config・lock を使う検証 Project を用意した。
+
+検証: Adapter の型検査・lint・unit・pack、Source 161件、Local Editor 101件、Workspace と CLI の関連テスト、実 Chromium capture、動画の実 decode、Fixed Browser の2回 Build・PNG・hash 一致・Delivery wire が成功。pack と明示外部依存のみの環境で CLI の Build、style worker、模擬 Control Plane への公開、同梱 Unity Player の読込・commit、Surface の実画素、再生通知を確認した。独立レビューで lock 書込み中断と browser mapping の検証漏れ、Player 鮮度、動画 integration の CI 漏れを修正した。
+
+制約: macOS 実機と実 Control Plane への接続、新動画 fixture の Unity 上の表示・再生は未検証。React 依存 graph の型診断は数 GB のメモリを消費する。repository 全体の test/build はローカル実行せず CI に委ねる。`presentation-sample` は新テンプレートと Runtime Host に接続し、local API の準備・終了を確認した。Unity Editor での sample 表示は未検証。
 
 Chromiumの別サーバー化は今回の範囲に含めない。利用者環境へのChrome導入回避、描画環境の共有、描画処理の独立したスケーリングが必要になった時点で判断する。その場合も同じラッパーをサーバー内部で利用する。
 
@@ -119,4 +125,4 @@ Webアプリ本体は`vp build`を使う。Node不要の単一実行ファイル
 
 生成物は所有するgeneratorで更新し、driftを確認する。Unityの静的検証とEditor実行は区別し、未実行の検証を成功扱いしない。
 
-既存のCLIテストとFixed Browser gateには、削除済みの`examples/presentation`・`examples/media-presentation`を読む処理が残る。基礎パッケージの検証成功とは区別し、これらの受け入れ検証は専用Source Projectを用意する段階で復旧する。
+CLI テストと Fixed Browser gate は専用 Project を使う。

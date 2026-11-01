@@ -83,6 +83,33 @@ const project = (sourceText: string, packages: readonly ReturnType<typeof locked
 };
 
 describe("typecheckAuthoringProject locked packages", () => {
+  it("reports conflicting locked package types without consulting a host base path", () => {
+    const parsed = project(
+      'import { value as one } from "one"; import { value as two } from "two"; export const result: typeof one = two;',
+      ["one", "two"].map((packageName) =>
+        lockedPackage({
+          packageName,
+          files: [
+            { fileName: "index.d.ts", sourceText: 'export {value} from "./internal";' },
+            {
+              fileName: "internal.d.ts",
+              sourceText:
+                "export declare class Hidden { private value; } export declare const value: Hidden;",
+            },
+          ],
+          exports: [{ subpath: ".", targetFile: "index.d.ts" }],
+        }),
+      ),
+    );
+    const result = typecheckAuthoringProject(parsed);
+    expect(result).toMatchObject({
+      ok: false,
+      diagnostics: [
+        expect.objectContaining({ code: "compiler-source-type-error", typescriptCode: 2322 }),
+      ],
+    });
+  });
+
   it("derives direct locked package named value provenance through TypeChecker aliases", () => {
     const parsed = project('import { definePresentation as define } from "pkg"; define();', [
       lockedPackage({

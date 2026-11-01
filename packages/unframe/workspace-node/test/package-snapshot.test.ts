@@ -385,3 +385,18 @@ snapshots:
   expect(graph.packages.map((pkg) => pkg.name)).toEqual(["first"]);
   expect(graph.rootDependencies.map((edge) => edge.specifier)).toEqual(["first"]);
 });
+
+it("keeps disabled dependency browser mappings in the locked manifest", () => {
+  expect(
+    resolvePackageExportTargets({ main: "./index.js", browser: { fs: false } }, ["index.js"]),
+  ).toEqual([{ subpath: ".", runtimeImport: "index.js", runtimeRequire: "index.js", types: null }]);
+});
+
+it.each(["./missing.js", "../outside.js"])(
+  "rejects an invalid local browser mapping %s",
+  (path) => {
+    expect(() =>
+      resolvePackageExportTargets({ main: "./index.js", browser: { [path]: false } }, ["index.js"]),
+    ).toThrow("Browser mapping source must name a locked package file.");
+  },
+);

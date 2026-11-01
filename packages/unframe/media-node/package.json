@@ -1,0 +1,42 @@
+{
+  "name": "@unframe/media-node",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs"
+      }
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src test vite.config.ts",
+    "test": "vp test run --exclude \"**/*.integration.test.ts\"",
+    "build": "vp pack && cp src/media-worker.ts dist/media-worker.ts"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@noble/hashes": "2.3.0",
+    "@unframe/authoring": "workspace:*",
+    "@unframe/presentation": "workspace:*",
+    "@unframe/worker-host": "workspace:*",
+    "gltf-validator": "2.0.0-dev.3.10",
+    "typescript": "6.0.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

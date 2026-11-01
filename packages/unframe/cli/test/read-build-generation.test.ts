@@ -6,8 +6,8 @@ import definition from "../../../contracts/presentation/fixtures/presentation-de
 import renderBundle from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import buildManifest from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { publishAtomicArtifacts } from "../src/filesystem/atomic-output.js";
-import { readBuildGeneration } from "../src/filesystem/read-build-generation.js";
+import { publishAtomicArtifacts } from "@unframe/workspace-node";
+import { readBuildGeneration } from "@unframe/workspace-node";
 
 const directories: string[] = [];
 afterEach(async () => {

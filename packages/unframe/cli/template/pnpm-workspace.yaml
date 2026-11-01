@@ -1,0 +1,3 @@
+overrides:
+  "@unframe/presentation": "file:vendor/unframe-presentation-0.1.0.tgz"
+  "@unframe/contracts": "file:vendor/unframe-contracts-0.1.0.tgz"

@@ -1,14 +1,20 @@
+import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { LockedSourceAsset } from "@unframe/workspace";
-import { resolveLockedSourceAssets } from "../src/filesystem/source-assets.js";
-import type { DiscoveredProjectFiles } from "../src/filesystem/discover-project.js";
+import { resolveLockedSourceAssets } from "@unframe/workspace";
+import type { DiscoveredProjectFiles } from "@unframe/workspace-node";
 
 export const sourceAssetBytesFor = (
   discovered: Extract<DiscoveredProjectFiles, { ok: true }>,
   locked: readonly LockedSourceAsset[],
 ) => {
-  const result = resolveLockedSourceAssets(locked, discovered.assetSources, discovered.localFiles);
+  const result = resolveLockedSourceAssets(
+    sourceAssetPorts,
+    locked,
+    discovered.assetSources,
+    discovered.localFiles,
+  );
   if (!result.ok) throw new Error(result.code);
   return result.value.sourceAssetBytes;
 };

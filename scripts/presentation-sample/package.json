@@ -1,0 +1,10 @@
+{
+  "name": "@unframe/presentation-sample",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@unframe/cli": "workspace:*",
+    "@unframe/workspace-node": "workspace:*"
+  }
+}

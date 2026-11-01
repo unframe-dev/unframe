@@ -138,3 +138,43 @@ it("ignores malformed unsolicited failures", () => {
   expect(onFailure).not.toHaveBeenCalled();
   exchange.dispose();
 });
+
+it("accepts a prepared player after a slow load", async () => {
+  vi.useFakeTimers();
+  try {
+    const exchange = createUnityExchange({ send: () => undefined });
+    const result = exchange
+      .request({ requestId: "slow", kind: "prepared", method: "Prepare", value: "{}" })
+      .then(
+        (value) => value,
+        (error: unknown) => error,
+      );
+    await vi.advanceTimersByTimeAsync(15_000);
+    exchange.notify({ requestId: "slow", kind: "prepared", buildIdentity: "build" });
+    await expect(result).resolves.toBe("build");
+    exchange.dispose();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("accepts Unity's empty unused fields in a prepared notification", async () => {
+  const exchange = createUnityExchange({ send: () => undefined });
+  const result = exchange.request({
+    requestId: "r",
+    kind: "prepared",
+    method: "Prepare",
+    value: "{}",
+  });
+  exchange.notify({
+    kind: "prepared",
+    requestId: "r",
+    buildIdentity: "build",
+    message: "",
+    sequence: "",
+    outcome: "",
+    phase: "",
+  });
+  await expect(result).resolves.toBe("build");
+  exchange.dispose();
+});

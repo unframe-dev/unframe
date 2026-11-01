@@ -1,9 +1,10 @@
-import { copyProjectFixture } from "./copy-project-fixture.js";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, assert, expect, it, vi } from "vitest";
+import { encodeRgbaToPng } from "@unframe/media-node";
 import { runPresentationCli } from "../src/index.js";
 import { createAuthorService } from "../src/author/service.js";
 
@@ -14,35 +15,56 @@ afterEach(async () => {
   );
 });
 
+const template = dirname(fileURLToPath(import.meta.resolve("@unframe/cli/template")));
+
 it("initializes the registered asset files together with the project source", async () => {
   const parent = await mkdtemp(join(temporaryDirectory(), "unframe-source-assets-init-"));
   directories.push(parent);
   const directory = join(parent, "created");
   const initialized = await runPresentationCli({ args: ["init", directory] });
   expect(initialized.exitCode, initialized.stderr).toBe(0);
-  expect(await readFile(join(directory, "assets", "reference-font.ttf"))).toEqual(
-    await readFile(
-      fileURLToPath(
-        new URL("../../../../examples/presentation/assets/reference-font.ttf", import.meta.url),
-      ),
-    ),
+  expect(await readFile(join(directory, "assets", "white.png"))).toEqual(
+    await readFile(join(template, "assets", "white.png")),
   );
   const checked = await runPresentationCli({ args: ["check", directory] });
   expect(checked.exitCode, checked.stderr).toBe(0);
-});
+}, 60_000);
 
-it("keeps changed source bytes frozen for Dist while Author follows local assets", async () => {
+const assetProject = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-source-assets-"));
   directories.push(directory);
-  await copyProjectFixture(
-    fileURLToPath(new URL("../../../../examples/presentation/", import.meta.url)),
-    directory,
+  await writeAuthoringBoundaryProjectFixture(directory);
+  await mkdir(join(directory, "assets"));
+  await writeFile(
+    join(directory, "assets/white.png"),
+    await readFile(join(template, "assets/white.png")),
   );
+  for (const name of [
+    "unframe.config.ts",
+    "presentation.unframe.tsx",
+    "surface.manifest.ts",
+    "surface.structure.tsx",
+    "theme.unframe.ts",
+  ])
+    await copyFile(join(template, name), join(directory, name));
+  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
+  expect(refreshed.exitCode, refreshed.stderr).toBe(0);
+  return directory;
+};
+
+it("keeps changed source bytes frozen for Dist while Author follows local assets", async () => {
+  const directory = await assetProject();
   const lockBefore = await readFile(join(directory, "unframe.lock"));
-  const fontPath = join(directory, "assets", "reference-font.ttf");
-  const font = await readFile(fontPath);
-  font[font.length - 1]! ^= 1;
-  await writeFile(fontPath, font);
+  const image = encodeRgbaToPng({
+    sourceId: "white",
+    rgba: Uint8Array.of(255, 0, 0, 255),
+    pixelSize: [1, 1],
+    colorSpace: "srgb",
+    alphaMode: "opaque",
+    limits: { maxWidth: 1, maxHeight: 1, maxPixels: 1, maxInputBytes: 4, maxOutputBytes: 1024 },
+  });
+  assert(image.valid);
+  await writeFile(join(directory, "assets", "white.png"), image.value.bytes);
   const service = await createAuthorService(directory);
   try {
     const snapshot = await service.project();
@@ -74,14 +96,9 @@ it("keeps changed source bytes frozen for Dist while Author follows local assets
 }, 30_000);
 
 it("rejects invalid local asset bytes in Dev without updating the frozen lock", async () => {
-  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-invalid-dev-asset-"));
-  directories.push(directory);
-  await copyProjectFixture(
-    fileURLToPath(new URL("../../../../examples/presentation/", import.meta.url)),
-    directory,
-  );
+  const directory = await assetProject();
   const lock = await readFile(join(directory, "unframe.lock"));
-  await writeFile(join(directory, "assets/reference-font.ttf"), Uint8Array.of(1, 2, 3, 4));
+  await writeFile(join(directory, "assets/white.png"), Uint8Array.of(1, 2, 3, 4));
   const openFixedBrowser = vi.fn(async () => {
     throw new Error("invalid assets must fail before capture");
   });

@@ -1,5 +1,5 @@
 import type { CompilerDeclarationProject } from "@unframe/compiler";
-import { checksumBytes } from "../../../src/build-execution/validation/source-assets.js";
+import { checksumBytes } from "../../fixtures-helpers/checksum.js";
 
 export const modelGlb = (rootDistance = 2): Uint8Array => {
   const floats = new Float32Array([

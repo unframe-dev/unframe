@@ -31,3 +31,17 @@ export const createWorkspaceSnapshot = (files: readonly LocalFileSnapshot[]): Wo
     },
   });
 };
+
+export const createProjectRevision = (input: {
+  configBytes: Uint8Array;
+  lockBytes: Uint8Array;
+  localFiles: readonly LocalFileSnapshot[];
+  entryReplacement?: LocalFileSnapshot;
+}): WorkspaceSnapshot["revision"] =>
+  createWorkspaceSnapshot([
+    { path: "unframe.config.ts", bytes: input.configBytes },
+    { path: "unframe.lock", bytes: input.lockBytes },
+    ...input.localFiles.map((file) =>
+      file.path === input.entryReplacement?.path ? input.entryReplacement : file,
+    ),
+  ]).revision;

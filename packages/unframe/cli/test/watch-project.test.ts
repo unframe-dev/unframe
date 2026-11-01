@@ -1,10 +1,9 @@
 import { mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { copyProjectFixture } from "./copy-project-fixture.js";
+import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
 import type { PresentationCliResult } from "../src/application/types.js";
 
 const directories: string[] = [];
@@ -19,19 +18,15 @@ describe("watchPresentationProject", () => {
   it("writes default watch builds into Dev and preserves existing Dist contents", async () => {
     const directory = await mkdtemp(join(temporaryDirectory(), "unframe-watch-dev-"));
     directories.push(directory);
-    await copyProjectFixture(
-      fileURLToPath(new URL("../../../../examples/presentation/", import.meta.url)),
-      directory,
-    );
+    await writeAuthoringBoundaryProjectFixture(directory);
     await writeFile(
       join(directory, "presentation.unframe.tsx"),
       `
       import { definePresentation } from "@unframe/authoring";
-      import theme from "./reference-theme.unframe";
       export default definePresentation({
         id: "watch", metadata: { title: "Watch" },
         stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] },
-        assets: [], scene: [], operations: [], theme: { themeId: theme.id },
+        assets: [], scene: [], operations: [],
         flow: { initialGroupId: "main", groups: { main: { id: "main", initialStepId: "start", steps: { start: { id: "start", cues: [] } } } }, variables: {} },
       });
     `,

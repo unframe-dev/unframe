@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NativeFilesystem } from "@unframe/workspace-node";
-import { publishAtomicArtifacts } from "../src/filesystem/atomic-output.js";
+import { publishAtomicArtifacts } from "@unframe/workspace-node";
 
 const directories: string[] = [];
 const encoder = new TextEncoder();

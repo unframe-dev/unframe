@@ -3,8 +3,8 @@ import { mkdtemp, readdir, rename, rm, symlink, writeFile } from "node:fs/promis
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CompiledDeclarationProject } from "../src/build-execution/api/types.js";
-import { createFilesystemBuildCache as createCache } from "../src/filesystem/build-cache.js";
+import type { CompiledDeclarationProject } from "@unframe/build";
+import { createFilesystemBuildCache as createCache } from "@unframe/workspace-node";
 
 const roots: string[] = [];
 afterEach(async () => {

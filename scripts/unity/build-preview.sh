@@ -12,7 +12,7 @@ cp -R "$runtime/Animation" "$runtime/Preview" "$assets/Unframe/Scripts/"
 mkdir -p "$assets/Unframe/Scripts/Rendering"
 for source in "$runtime/Rendering/"*.cs; do
   case "$(basename "$source")" in
-    PresentationSceneRenderer.cs|PresentationNativeSurfaceRenderer.cs|PresentationModelRenderer.cs|PresentationVideoSurfaceRenderer.cs) continue ;;
+    PresentationSceneRenderer.cs|PresentationNativeSurfaceRenderer.cs|PresentationModelRenderer.cs|PresentationModelAssetValidation.cs|PresentationVideoSurfaceRenderer.cs) continue ;;
   esac
   cp "$source" "$assets/Unframe/Scripts/Rendering/"
 done

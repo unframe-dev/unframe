@@ -1,10 +1,10 @@
+import { prepareReactProjectFixture } from "./react-project-fixture.js";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { afterEach, assert, describe, expect, it, vi } from "vitest";
+import { join } from "node:path";
+import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
@@ -14,11 +14,10 @@ import definitionFixture from "../../../contracts/presentation/fixtures/presenta
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import manifestFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { checkAuthoringProject } from "@unframe/source";
 import { acquireSourceLock } from "@unframe/workspace-node";
 import { createAuthorService } from "../src/author/service.js";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
 import { loadUnframeLock } from "@unframe/workspace";
 import type { AuthorService } from "@unframe/author-service";
 import type { ProjectSnapshot } from "@unframe/contracts/author-http";
@@ -26,10 +25,16 @@ import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
 const services: AuthorService[] = [];
-const reference = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../../examples/presentation",
-);
+let reference: string;
+let basePresentation: Awaited<ReturnType<typeof prepareReactProjectFixture>>["presentation"];
+beforeAll(async () => {
+  const fixture = await prepareReactProjectFixture();
+  reference = fixture.directory;
+  basePresentation = fixture.presentation;
+}, 120_000);
+afterAll(async () => {
+  if (reference) await rm(reference, { recursive: true, force: true });
+});
 afterEach(async () => {
   await Promise.all(services.splice(0).map((service) => service.close()));
   await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));
@@ -51,15 +56,8 @@ const createProject = async () => {
   assert(discovered.ok);
   const loaded = loadUnframeLock(discovered.lockBytes);
   assert(loaded.ok);
-  const checked = checkAuthoringProject({
-    projectRoot: directory,
-    entryFile: discovered.entryFile,
-    files: discovered.files,
-    ...loaded.value.virtualSource,
-  });
-  assert(checked.valid);
   const presentation = {
-    ...checked.value.presentation.value,
+    ...basePresentation,
     scene: [],
     assets: [],
     flow: {
@@ -212,9 +210,11 @@ describe("author service with frozen React source", () => {
     const created = await service.build(snapshot.revision, commandId("f"));
     await expect
       .poll(async () => (await service.job(created.buildId)).status, { timeout: 20_000 })
-      .toBe("failed");
-    expect((await service.job(created.buildId)).artifacts).toEqual([
-      { assetId: "image", mediaType: "image/png", instanceId: "hero-one", stateId: "default" },
+      .toBe("succeeded");
+    const completed = await service.job(created.buildId);
+    expect(completed.artifacts).toEqual([]);
+    expect(completed.diagnostics).toEqual([
+      expect.objectContaining({ code: "author-build-failed" }),
     ]);
   }, 30_000);
   it("builds explicit Dist without refreshing saved local inputs", async () => {

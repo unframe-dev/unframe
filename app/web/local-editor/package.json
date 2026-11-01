@@ -2,12 +2,26 @@
   "name": "@unframe/local-editor",
   "version": "0.1.0",
   "private": true,
+  "files": [
+    "dist",
+    "player",
+    "package.mjs",
+    "package.d.mts"
+  ],
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./package.d.mts",
+      "import": "./package.mjs"
+    }
+  },
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
     "check": "tsc --noEmit",
-    "test": "vp test run"
+    "test": "vp test run",
+    "build:distribution": "nix run ../../..#unity-preview && vp build && node package-player.mjs && node --test test/package.check.mjs",
+    "prepack": "pnpm --config.verify-deps-before-run=false run build:distribution"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

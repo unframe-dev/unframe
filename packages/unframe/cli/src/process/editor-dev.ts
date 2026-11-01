@@ -12,7 +12,7 @@ if (args[0] === "--") args.shift();
 const run = async () => {
   const host = nativeHost();
   if (args.length !== 1 || !args[0])
-    throw new Error("Usage: pnpm --filter @unframe/core dev -- <project-directory>");
+    throw new Error("Usage: pnpm --filter @unframe/cli dev -- <project-directory>");
   const directory = resolve(process.env["INIT_CWD"] ?? process.cwd(), args[0]);
   const repository = fileURLToPath(new URL("../../../../../", import.meta.url));
   const controller = new AbortController();

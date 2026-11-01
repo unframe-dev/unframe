@@ -15,10 +15,11 @@
   "dependencies": {
     "@unframe/artifacts": "workspace:*",
     "@unframe/authoring": "workspace:*",
+    "@unframe/build": "workspace:*",
     "@unframe/compiler": "workspace:*",
     "@unframe/contracts": "workspace:*",
-    "@unframe/core": "workspace:*",
-    "@unframe/delivery": "workspace:*"
+    "@unframe/delivery": "workspace:*",
+    "@unframe/media-node": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.19.0",

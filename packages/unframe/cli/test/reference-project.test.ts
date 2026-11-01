@@ -1,7 +1,8 @@
+import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { checkAuthoringProject } from "@unframe/source";
-import { copyProjectFixture } from "./copy-project-fixture.js";
 import {
   lstat,
+  cp,
   mkdtemp,
   readFile,
   readdir,
@@ -11,36 +12,30 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { afterEach, assert, describe, expect, it } from "vitest";
-import type { FixedBrowserSession } from "@unframe/core/renderer-web";
+import type { FixedBrowserSession } from "@unframe/render-browser";
 
 import { canonicalizeJsonPayload, verifyBuildIntegrity } from "@unframe/artifacts";
 import { hashComponentManifestDeclaration } from "@unframe/compiler";
-import {
-  checkAuthoringProjectAssembly,
-  computeFrozenComponentInputs,
-} from "../src/source-preparation/index.js";
+import { checkAuthoringProjectAssembly, computeFrozenComponentInputs } from "@unframe/build";
 
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
 import { loadUnframeLock } from "@unframe/workspace";
-import { refreshLocalProjectLock } from "../src/filesystem/refresh-local-lock.js";
+import { refreshLocalProjectLock } from "@unframe/workspace-node";
 import { acquireBuildLock } from "@unframe/workspace-node";
-import { lockSourceAssets } from "../src/filesystem/source-assets.js";
+import { lockSourceAssets } from "@unframe/workspace";
 import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
-const referenceDirectory = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../../examples/presentation",
-);
 const temporaryDirectories: string[] = [];
 
 const projectCopy = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-reference-project-"));
   temporaryDirectories.push(directory);
-  await copyProjectFixture(referenceDirectory, directory);
+  await cp(new URL("./fixtures/reference-project/", import.meta.url), directory, {
+    recursive: true,
+  });
   return directory;
 };
 
@@ -64,7 +59,7 @@ const defaultPropsProject = async (explicit = false) => {
   const directory = await projectCopy();
   const { discovered, checked } = await checkedProject(directory);
   const component = checked.value.components.find(
-    ({ manifest }) => manifest.value.componentId === "reference-surface",
+    ({ manifest }) => manifest.value.componentId === "surface-component",
   )!;
   const manifest = {
     ...component.manifest.value,
@@ -83,7 +78,7 @@ const defaultPropsProject = async (explicit = false) => {
     scene: {
       ...original.scene,
       components: original.scene.components.map((instance) =>
-        "componentId" in instance && instance.componentId === "reference-surface"
+        "componentId" in instance && instance.componentId === "surface-component"
           ? {
               ...instance,
               props: {
@@ -97,7 +92,7 @@ const defaultPropsProject = async (explicit = false) => {
   };
   const lock = JSON.parse(new TextDecoder().decode(discovered.lockBytes));
   for (const entry of lock.componentLocks)
-    if (entry.componentId === "reference-surface") entry.manifestHash = manifestHash;
+    if (entry.componentId === "surface-component") entry.manifestHash = manifestHash;
   await Promise.all([
     writeFile(
       join(directory, component.manifest.fileName),
@@ -166,10 +161,13 @@ const fakeBrowser = (
       await configuration.duringCapture?.();
       const [width, height] = request.pixelTarget;
       const stateRed = request.document.includes("Waiting") ? 1 : 0;
+      const rgba = new Uint8Array(width * height * 4);
+      for (let offset = 0; offset < rgba.length; offset += 4) {
+        rgba[offset] = stateRed;
+        rgba[offset + 3] = 255;
+      }
       return {
-        rgba: Uint8Array.from({ length: width * height * 4 }, (_, index) =>
-          index % 4 === 3 ? 255 : index % 4 === 0 ? stateRed : 0,
-        ),
+        rgba,
         pixelSize: [width, height],
         colorSpace: "srgb",
         alphaMode: "opaque",
@@ -207,7 +205,7 @@ describe("reference Authoring Project", () => {
     const acquired = await acquireBuildLock(directory);
     assert(acquired.ok);
     try {
-      expect(await refreshLocalProjectLock(directory)).toMatchObject({
+      expect(await refreshLocalProjectLock(sourceAssetPorts, directory)).toMatchObject({
         ok: false,
         code: "cli-build-lock-unavailable",
       });
@@ -220,11 +218,11 @@ describe("reference Authoring Project", () => {
     const directory = await projectCopy();
     const before = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
     expect(before.assets.length).toBeGreaterThan(0);
-    const path = join(directory, "reference-surface.structure.tsx");
+    const path = join(directory, "surface.structure.tsx");
     await writeFile(path, (await readFile(path, "utf8")) + "\n// saved change\n");
     const initial = await discoverPresentationProjectFiles(directory);
     assert(initial.ok);
-    const refreshed = await refreshLocalProjectLock(directory, {
+    const refreshed = await refreshLocalProjectLock(sourceAssetPorts, directory, {
       expectedRevision: initial.revision,
     });
     assert(refreshed.ok);
@@ -237,11 +235,15 @@ describe("reference Authoring Project", () => {
     expect(refreshed.revision).not.toBe(initial.revision);
     const bytes = await readFile(join(directory, "unframe.lock"));
     expect(
-      await refreshLocalProjectLock(directory, { expectedRevision: refreshed.revision }),
+      await refreshLocalProjectLock(sourceAssetPorts, directory, {
+        expectedRevision: refreshed.revision,
+      }),
     ).toEqual(refreshed);
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(bytes);
     expect(
-      await refreshLocalProjectLock(directory, { expectedRevision: initial.revision }),
+      await refreshLocalProjectLock(sourceAssetPorts, directory, {
+        expectedRevision: initial.revision,
+      }),
     ).toMatchObject({ ok: false, code: "cli-output-stale" });
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(bytes);
   }, 30000);
@@ -255,7 +257,7 @@ describe("reference Authoring Project", () => {
     expect(dist.exitCode, dist.stderr).toBe(0);
     const distInode = (await lstat(join(directory, "dist"))).ino;
     const distManifest = await readFile(join(directory, "dist", "build-manifest.json"));
-    const path = join(directory, "reference-surface.structure.tsx");
+    const path = join(directory, "surface.structure.tsx");
     await writeFile(path, (await readFile(path, "utf8")) + "\n// saved change\n");
     const before = await discoverPresentationProjectFiles(directory);
     assert(before.ok);
@@ -337,7 +339,7 @@ describe("reference Authoring Project", () => {
       await readFile(join(directory, ".unframe/preview/current/assets/reference-font.ttf")),
     ).toEqual(changed);
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(lockBefore);
-  }, 30_000);
+  }, 60_000);
   it("keeps canonical definitions identical while recording distinct source inputs", async () => {
     const directory = await projectCopy();
     const { checked, source, loaded, discovered } = await checkedProject(directory);
@@ -402,19 +404,19 @@ describe("reference Authoring Project", () => {
         warnings: [
           {
             code: "compiler-prop-default-applied",
-            componentInstanceId: "reference-surface",
+            componentInstanceId: "surface-instance",
             propName: "defaultCount",
             defaultValue: 0,
           },
           {
             code: "compiler-prop-default-applied",
-            componentInstanceId: "reference-surface",
+            componentInstanceId: "surface-instance",
             propName: "defaultLabel",
             defaultValue: "Default",
           },
           {
             code: "compiler-prop-default-applied",
-            componentInstanceId: "reference-surface",
+            componentInstanceId: "surface-instance",
             propName: "defaultVisible",
             defaultValue: false,
           },
@@ -438,7 +440,7 @@ describe("reference Authoring Project", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe("check: ok\n");
     expect(result.stderr).toContain("warning/semantic/compiler-prop-default-applied");
-    expect(result.stderr).toContain("reference-surface");
+    expect(result.stderr).toContain("surface-instance");
     expect(result.stderr).toContain("defaultCount");
     expect(result.stderr).toContain("defaultLabel");
     expect(result.stderr).toContain("defaultVisible");
@@ -454,7 +456,7 @@ describe("reference Authoring Project", () => {
       scene: {
         ...presentation.scene,
         components: presentation.scene.components.map((instance) =>
-          "componentId" in instance && instance.componentId === "reference-surface"
+          "componentId" in instance && instance.componentId === "surface-component"
             ? { ...instance, variants: {} }
             : instance,
         ),
@@ -469,7 +471,7 @@ describe("reference Authoring Project", () => {
     expect(JSON.parse(json.stdout).warnings).toMatchObject([
       {
         code: "compiler-variant-default-applied",
-        componentInstanceId: "reference-surface",
+        componentInstanceId: "surface-instance",
         variantName: "tone",
         defaultValue: "quiet",
       },
@@ -489,7 +491,11 @@ describe("reference Authoring Project", () => {
     assert(discovered.ok);
     const loaded = loadUnframeLock(discovered.lockBytes);
     assert(loaded.ok);
-    const updatedAssets = lockSourceAssets(discovered.assetSources, discovered.localFiles);
+    const updatedAssets = lockSourceAssets(
+      sourceAssetPorts,
+      discovered.assetSources,
+      discovered.localFiles,
+    );
     assert(updatedAssets.ok);
     await writeFile(
       join(directory, "unframe.lock"),
@@ -566,10 +572,10 @@ describe("reference Authoring Project", () => {
     const firstBundle = await readFile(join(directory, "dist", "render-bundle.json"));
     expect((await lstat(join(directory, "dist"))).isDirectory()).toBe(true);
     const assetNames = await readdir(join(directory, "dist", "assets"));
-    expect(assetNames).toHaveLength(5);
+    expect(assetNames).toHaveLength(4);
     expect(assetNames).toContain("reference-font.ttf");
     const assetNamesPng = assetNames.filter((name) => name.endsWith(".png"));
-    expect(assetNamesPng).toHaveLength(4);
+    expect(assetNamesPng).toHaveLength(3);
     const firstAssetSet = await readFile(join(directory, "dist/asset-set.json"));
     const firstBuild = await readFile(join(directory, "dist/build-manifest.json"));
     expect(JSON.parse(firstDefinition.toString()).schemaVersion).toBe(1);
@@ -598,20 +604,20 @@ describe("reference Authoring Project", () => {
       buildManifest: JSON.parse(firstBuild.toString()),
     };
     const definition = buildArtifacts.definition;
-    expect(definition.flow.timelines["reference-surface:fade"]).toMatchObject({
+    expect(definition.flow.timelines["surface-instance:fade"]).toMatchObject({
       owner: { kind: "presentation" },
       durationMilliseconds: 1000,
-      tracks: [{ target: { nodeId: "reference-surface:surface-node", property: "opacity" } }],
+      tracks: [{ target: { nodeId: "surface-instance:surface-host", property: "opacity" } }],
     });
     expect(definition.flow.groups.main.steps.start.cues[0].actions).toContainEqual({
       kind: "timeline.play",
-      timelineId: "reference-surface:fade",
+      timelineId: "surface-instance:fade",
       completion: "nonBlocking",
       conflict: "reject",
     });
     expect(definition.flow.groups.main.steps.done.cues[0].trigger).toEqual({
       kind: "timelineCompleted",
-      timelineId: "reference-surface:fade",
+      timelineId: "surface-instance:fade",
     });
     expect(Object.keys(definition.scene.nodes)).toHaveLength(1);
     expect(Object.keys(definition.scene.surfaces)).toHaveLength(1);
@@ -621,35 +627,38 @@ describe("reference Authoring Project", () => {
       states: Record<string, unknown>;
       interactions: Record<string, unknown>;
     };
-    expect(surface.content.nodes["reference-surface:reference-text"]).toMatchObject({
+    expect(surface.content.nodes["surface-instance:fixture-text"]).toMatchObject({
       value: { kind: "literal", value: "Structured authoring" },
-      style: { fontAssetId: "reference-font", fontSize: 72 },
+      style: { fontAssetId: "reference-font", fontSize: 12 },
     });
-    expect(surface.content.nodes["reference-surface:card"]).toMatchObject({
-      placement: { x: 64, y: 184 },
-      clip: true,
+    expect(surface.content.nodes["surface-instance:surface-frame"]).toMatchObject({
+      placement: { x: 0, y: 0 },
       children: [
-        "reference-surface:summary",
-        "reference-surface:inner",
-        "reference-badge:badge-frame",
+        "badge-instance:badge-frame",
+        "surface-instance:fixture-text",
+        "surface-instance:accent",
+        "surface-instance:translucent-panel",
       ],
     });
-    expect(surface.content.nodes["reference-badge:badge-frame"]).toMatchObject({
-      parentId: "reference-surface:card",
-      placement: { x: 32, y: 264 },
+    expect(surface.content.nodes["surface-instance:translucent-panel"]).toMatchObject({
+      clip: true,
     });
-    expect(surface.content.nodes["reference-badge:badge-text"]).toMatchObject({
-      value: { kind: "literal", value: "One nested Component, one placement" },
+    expect(surface.content.nodes["badge-instance:badge-frame"]).toMatchObject({
+      parentId: "surface-instance:surface-frame",
+      placement: { x: 8, y: 24 },
     });
-    expect(surface.baseSemanticTree.nodes["reference-badge:badge-label"]).toMatchObject({
-      text: "One nested Component, one placement",
+    expect(surface.content.nodes["badge-instance:badge-text"]).toMatchObject({
+      value: { kind: "literal", value: "Nested component" },
+    });
+    expect(surface.baseSemanticTree.nodes["badge-instance:badge-label"]).toMatchObject({
+      text: "Nested component",
       parentId: null,
     });
     expect(Object.keys(surface.states)).toEqual([
-      "reference-surface:default",
-      "reference-surface:inactive",
+      "surface-instance:default",
+      "surface-instance:inactive",
     ]);
-    expect(surface.interactions["reference-surface:continue"]).toMatchObject({
+    expect(surface.interactions["surface-instance:open"]).toMatchObject({
       kind: "click",
       hitPriority: 10,
     });
@@ -658,29 +667,25 @@ describe("reference Authoring Project", () => {
       interactionsByState: Record<string, readonly unknown[]>;
     };
     expect(
-      bundleSurface.semanticsByState["reference-surface:default"]!.nodes[
-        "reference-surface:continue-button"
-      ],
+      bundleSurface.semanticsByState["surface-instance:default"]!.nodes["surface-instance:button"],
     ).toMatchObject({ stateEnabled: true });
     expect(
-      bundleSurface.semanticsByState["reference-surface:inactive"]!.nodes[
-        "reference-surface:continue-button"
-      ],
+      bundleSurface.semanticsByState["surface-instance:inactive"]!.nodes["surface-instance:button"],
     ).toMatchObject({ stateEnabled: false, text: "Waiting" });
-    const activeRegions = bundleSurface.interactionsByState["reference-surface:default"]!;
+    const activeRegions = bundleSurface.interactionsByState["surface-instance:default"]!;
     expect(activeRegions).toHaveLength(1);
     expect(activeRegions[0]).toMatchObject({
-      interactionId: "reference-surface:continue",
-      semanticNodeId: "reference-surface:continue-button",
+      interactionId: "surface-instance:open",
+      semanticNodeId: "surface-instance:button",
       coordinateSpace: "normalized",
       priority: 10,
     });
     const activeBounds = (activeRegions[0] as { bounds: Record<string, number> }).bounds;
-    expect(activeBounds.x).toBeCloseTo(128 / 1920);
-    expect(activeBounds.y).toBeCloseTo(640 / 1080);
-    expect(activeBounds.width).toBeCloseTo(416 / 1920);
-    expect(activeBounds.height).toBeCloseTo(80 / 1080);
-    expect(bundleSurface.interactionsByState["reference-surface:inactive"]).toEqual([]);
+    expect(activeBounds.x).toBeCloseTo(0);
+    expect(activeBounds.y).toBeCloseTo(0);
+    expect(activeBounds.width).toBeCloseTo(1);
+    expect(activeBounds.height).toBeCloseTo(1);
+    expect(bundleSurface.interactionsByState["surface-instance:inactive"]).toEqual([]);
     expect(verifyBuildIntegrity(buildArtifacts).valid).toBe(true);
     const sourceLock = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
     expect(
@@ -716,7 +721,7 @@ describe("reference Authoring Project", () => {
     );
     expect(second.observed).toMatchObject({ capture: 0, close: 1 });
     expect(second.observed.signals).toEqual([]);
-  }, 15_000);
+  }, 60_000);
 
   it.each([
     [

@@ -59,17 +59,18 @@ test("domain packages expose independent manifests without the former core facad
       assert.ok(allowed[name].includes(dependency), `${name} must not depend on ${dependency}`);
     }
   }
-  const parent = await manifest("");
-  for (const entry of [
-    ".",
-    "./domain/model",
-    "./runtime/cue-executor",
-    "./strict-json",
-    "./authoring",
-    "./components",
-    "./compiler",
-  ]) {
-    assert.equal(parent.exports[entry], undefined, `obsolete export ${entry}`);
+  await assert.rejects(manifest(""), { code: "ENOENT" });
+});
+
+test("adapters and CLI expose independent package boundaries", async () => {
+  for (const name of ["render-browser", "media-node", "styles-node", "worker-host", "cli"]) {
+    const pkg = await manifest(name);
+    assert.equal(pkg.name, `@unframe/${name}`);
+    assert.ok(pkg.exports["."]);
+    for (const command of ["typecheck", "lint", "test", "build"]) {
+      assert.ok(pkg.scripts[command], `${name}: ${command}`);
+    }
+    assert.equal(pkg.dependencies?.["@unframe/core"], undefined);
   }
 });
 

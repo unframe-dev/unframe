@@ -1,23 +1,21 @@
-import { copyProjectFixture } from "./copy-project-fixture.js";
+import { createAuthorService } from "../src/author/service.js";
+import { sourceAssetPorts } from "../src/application/media-ports.js";
+import { writeStyleBoundaryProjectFixture } from "./style-boundary-project-fixture.js";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it, vi } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { runIsolatedWorker } from "@unframe/core/worker-host";
+import { runIsolatedWorker } from "@unframe/worker-host";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
 import { loadUnframeLock } from "@unframe/workspace";
 import { hashDependencyGraph } from "@unframe/workspace";
-import { updateProjectLock } from "../src/filesystem/update-lock.js";
-import {
-  snapshotNodeTransformInputs,
-  withNodeTransformSources,
-} from "../src/styles/node-snapshot.js";
+import { updateProjectLock } from "@unframe/workspace-node";
+import { snapshotNodeTransformInputs, withNodeTransformSources } from "@unframe/styles-node";
 
-vi.mock("@unframe/core/worker-host", async (original) => ({
-  ...(await original<typeof import("@unframe/core/worker-host")>()),
+vi.mock("@unframe/worker-host", async (original) => ({
+  ...(await original<typeof import("@unframe/worker-host")>()),
   runIsolatedWorker: vi.fn(),
 }));
 const directories: string[] = [];
@@ -31,10 +29,7 @@ const fixture = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-lock-style-diagnostics-"));
   const adapter = await mkdtemp(join(temporaryDirectory(), "unframe-lock-style-adapter-"));
   directories.push(directory, adapter);
-  await copyProjectFixture(
-    fileURLToPath(new URL("../../../../examples/presentation", import.meta.url)),
-    directory,
-  );
+  await writeStyleBoundaryProjectFixture(directory);
   for (const root of [directory, adapter]) {
     await writeFile(
       join(root, "package.json"),
@@ -54,6 +49,7 @@ const fixture = async () => {
   assert(loaded.ok);
   const snapshot = await snapshotNodeTransformInputs(directory, {
     adapterRoot: adapter,
+    adapterDependencies: [],
     sourceFiles: found.localFiles.map(({ path, bytes }) => ({
       path,
       bytes: Buffer.from(bytes).toString("base64"),
@@ -88,7 +84,7 @@ it.each([
       message: "Invalid stylesheet",
     };
     vi.mocked(runIsolatedWorker).mockResolvedValue({ ok: false, diagnostics: [detail] });
-    expect(await updateProjectLock(directory, operation, false)).toMatchObject({
+    expect(await updateProjectLock(sourceAssetPorts, directory, operation, false)).toMatchObject({
       ok: false,
       code: "cli-style-transform-failed",
       diagnostics: [detail],
@@ -119,4 +115,43 @@ it("retains lock failures without source diagnostics in CLI JSON", async () => {
       path: [],
     },
   ]);
+});
+
+it.each(["check", "build"] as const)(
+  "exposes style worker failures through the CLI %s entry",
+  async (command) => {
+    const directory = await fixture();
+    const detail = {
+      phase: "transform" as const,
+      severity: "error" as const,
+      file: "theme.css",
+      message: "Style worker rejected the project",
+    };
+    vi.mocked(runIsolatedWorker).mockResolvedValue({ ok: false, diagnostics: [detail] });
+    const result = await runPresentationCli({ args: [command, directory, "--format", "json"] });
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stderr).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "cli-style-transform-failed", message: detail.message }),
+    );
+  },
+);
+
+it("exposes style worker failures in the Author project snapshot", async () => {
+  const directory = await fixture();
+  const detail = {
+    phase: "transform" as const,
+    severity: "error" as const,
+    file: "theme.css",
+    message: "Style worker rejected the project",
+  };
+  vi.mocked(runIsolatedWorker).mockResolvedValue({ ok: false, diagnostics: [detail] });
+  const service = await createAuthorService(directory);
+  try {
+    const project = await service.project();
+    expect(project.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "cli-style-transform-failed", message: detail.message }),
+    );
+  } finally {
+    await service.close();
+  }
 });

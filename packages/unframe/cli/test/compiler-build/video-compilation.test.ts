@@ -1,9 +1,9 @@
 import { expect, it } from "vitest";
 import { standardComponents } from "@unframe/authoring/components";
-import { PNG_ABSOLUTE_LIMITS, type VideoMetadata } from "@unframe/core/assets";
-import { compileDeclarationProject } from "../../src/build-execution/api/compile-declaration-project.js";
-import type { CompilerBuildOptions } from "../../src/build-execution/api/types.js";
-import { checksumBytes } from "../../src/build-execution/validation/source-assets.js";
+import { PNG_ABSOLUTE_LIMITS, type VideoMetadata } from "@unframe/media-node";
+import { compileDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
+import type { CompilerBuildOptions } from "@unframe/build";
+import { checksumBytes } from "../fixtures-helpers/checksum.js";
 import { modelProject } from "./fixtures/model.js";
 import { fixtureRenderer } from "./fixtures/renderer.js";
 
@@ -377,17 +377,11 @@ it.each(["opacity", "clip", "twoVideos"])(
 );
 
 it("reuses validated Video cache entries and binds validator identity", async () => {
-  const entries = new Map<
-    string,
-    import("../../src/build-execution/api/types.js").CompiledDeclarationProject
-  >();
+  const entries = new Map<string, import("@unframe/build").CompiledDeclarationProject>();
   let validations = 0;
   const cache = {
     get: (key: string) => entries.get(key),
-    set: (
-      key: string,
-      value: import("../../src/build-execution/api/types.js").CompiledDeclarationProject,
-    ) => {
+    set: (key: string, value: import("@unframe/build").CompiledDeclarationProject) => {
       entries.set(key, value);
     },
   };

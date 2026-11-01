@@ -1,0 +1,614 @@
+import { randomBytes } from "node:crypto";
+import type { Stats } from "node:fs";
+import { constants as osConstants } from "node:os";
+import { join } from "node:path";
+import { buildManifestBytesHash, parseBuildReceipt, encodeBuildReceipt } from "./build-receipt.js";
+import { NativeFilesystem, type NativeDirectory } from "./native-filesystem.js";
+
+const GENERATION_ID = /^[0-9a-f]{32}$/;
+const MANAGED_DEV_TARGET = /^generations\/([0-9a-f]{32})$/;
+
+export type OutputChannel = "dev" | "dist";
+
+export type AtomicOutputArtifacts = {
+  readonly definition: Uint8Array;
+  readonly renderBundle: Uint8Array;
+  readonly assetSet: Uint8Array;
+  readonly buildManifest: Uint8Array;
+  readonly assets: readonly {
+    readonly assetId: string;
+    readonly mediaType: string;
+    readonly bytes: Uint8Array;
+  }[];
+};
+
+export type AtomicOutputResult =
+  | { readonly ok: true; readonly generationId: string }
+  | {
+      readonly ok: false;
+      readonly family: "cancel" | "io";
+      readonly code: "cli-output-cancel" | "cli-output-io" | "cli-output-stale";
+      readonly detail?: {
+        readonly stage: PublicationStage;
+        readonly code?: string;
+        readonly operation?: WriteOperation;
+      };
+    };
+
+export type PublishAtomicArtifactsInput = {
+  readonly projectDirectory: string;
+  readonly channel?: OutputChannel;
+  readonly artifacts: AtomicOutputArtifacts;
+  readonly generationId?: () => string;
+  readonly expectedGeneration?: string | null;
+  readonly signal?: AbortSignal;
+  readonly isCurrentRevision?: () => Promise<boolean>;
+  readonly testing?: {
+    readonly onPhase?: (
+      phase:
+        | "staging-created"
+        | "artifact-written"
+        | "before-generation-rename"
+        | "before-dist-replace",
+    ) => void | Promise<void>;
+    readonly lstat?: RawLstat;
+  };
+};
+
+type PublicationStage =
+  | "capture-project"
+  | "prepare-output"
+  | "inspect-dist"
+  | "create-staging"
+  | "write-artifacts"
+  | "rename-generation"
+  | "verify-generation"
+  | "create-dist-link"
+  | "replace-dist";
+
+type WriteOperation = "open" | "stat-opened" | "write" | "sync" | "stat-synced" | "close";
+
+type FileArtifact = { readonly bytes: Uint8Array; readonly path: string };
+type DirectoryIdentity = {
+  readonly dev: number;
+  readonly handle: NativeDirectory;
+  readonly ino: number;
+  readonly path: string;
+  readonly entry: string;
+};
+type LinkIdentity = {
+  readonly dev: number;
+  readonly ino: number;
+  readonly path: string;
+  readonly entry: string;
+};
+type ManagedDist = LinkIdentity & { readonly target: string };
+type ManagedDirectory = DirectoryIdentity & { readonly receipt: Uint8Array };
+type ManagedOutput = ManagedDist | ManagedDirectory | AbsentDist;
+type AbsentDist = { readonly absent: true; readonly path: string; readonly entry: string };
+type RawLstat = (
+  path: string,
+) => Promise<Pick<Stats, "dev" | "ino" | "size" | "isSymbolicLink" | "isDirectory" | "isFile">>;
+
+class PublicationFailure extends Error {
+  override readonly name = "PublicationFailure";
+  constructor(
+    readonly code?: string,
+    readonly operation?: WriteOperation,
+  ) {
+    super();
+  }
+}
+
+class PublicationCancelled extends Error {
+  override readonly name = "PublicationCancelled";
+}
+
+class PublicationStale extends Error {}
+
+const errorCode = (error: unknown): string | undefined => {
+  try {
+    if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+    const code = error.code;
+    return typeof code === "string" && Object.hasOwn(osConstants.errno, code) ? code : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const fail = (error?: unknown, operation?: WriteOperation): never => {
+  throw new PublicationFailure(errorCode(error), operation);
+};
+
+const cancel = (): never => {
+  throw new PublicationCancelled();
+};
+
+const optionalLstat = async (path: string, readLstat: RawLstat) => {
+  try {
+    return await readLstat(path);
+  } catch (error) {
+    if (typeof error === "object" && error && "code" in error && error.code === "ENOENT")
+      return undefined;
+    return fail(error);
+  }
+};
+
+const abortGetter = Object.getOwnPropertyDescriptor(AbortSignal.prototype, "aborted")?.get;
+
+const cancelled = (signal: AbortSignal | undefined) => {
+  if (!signal) return false;
+  const getter = abortGetter ?? fail();
+  try {
+    return getter.call(signal) === true;
+  } catch {
+    fail();
+  }
+};
+
+const atomicFilesystem = (filesystem: NativeFilesystem) => {
+  const lstat = (path: string) => filesystem.lstat(path);
+  const unlink = (path: string) => filesystem.unlink(path);
+  const readlink = (path: string) => filesystem.readlink(path);
+  const verifyDirectoryPath = async (path: string): Promise<boolean> =>
+    Boolean(await filesystem.checkedDirectory(path).catch(() => undefined));
+  const captureDirectory = async (path: string, entry = path): Promise<DirectoryIdentity> => {
+    const handle = await filesystem.directory(entry).catch(fail);
+    const opened = await handle.stat().catch(fail);
+    return { path, entry, handle, dev: opened.dev, ino: opened.ino };
+  };
+
+  const sameDirectory = (directory: DirectoryIdentity): Promise<boolean> =>
+    filesystem.sameDirectory(directory.path, directory.handle).catch(() => false);
+
+  const requireSameDirectory = async (directory: DirectoryIdentity) => {
+    if (!(await sameDirectory(directory))) fail();
+  };
+
+  const ensureDirectory = async (
+    parent: DirectoryIdentity,
+    name: string,
+  ): Promise<DirectoryIdentity> => {
+    await requireSameDirectory(parent);
+    const directory = join(parent.path, name);
+    const entry = join(parent.handle.anchor, name);
+    const exists = await lstat(entry).catch(() => undefined);
+    if (exists) {
+      if (exists.isSymbolicLink() || !exists.isDirectory()) fail();
+    } else await filesystem.mkdir(entry).catch(fail);
+    return captureDirectory(directory, entry);
+  };
+
+  const createExclusiveDirectory = async (
+    parent: DirectoryIdentity,
+    name: string,
+  ): Promise<DirectoryIdentity> => {
+    await requireSameDirectory(parent);
+    const directory = join(parent.path, name);
+    const entry = join(parent.handle.anchor, name);
+    await filesystem.mkdir(entry).catch(fail);
+    return captureDirectory(directory, entry);
+  };
+
+  const writeExclusiveFile = async (
+    directory: DirectoryIdentity,
+    relativePath: string,
+    bytes: Uint8Array,
+  ) => {
+    await requireSameDirectory(directory);
+    try {
+      await filesystem.write(join(directory.handle.anchor, relativePath), bytes);
+    } catch (error) {
+      const operation =
+        typeof error === "object" && error !== null && "operation" in error
+          ? (error.operation as WriteOperation)
+          : undefined;
+      fail(error, operation);
+    }
+    await requireSameDirectory(directory);
+  };
+
+  const verifyFileArtifacts = async (
+    directory: DirectoryIdentity,
+    files: readonly FileArtifact[],
+  ) => {
+    await requireSameDirectory(directory);
+    for (const file of files) {
+      const bytes = await filesystem
+        .checkedRead(join(directory.path, file.path), file.bytes.byteLength, file.bytes.byteLength)
+        .catch(fail);
+      if (!Buffer.from(bytes).equals(file.bytes)) fail();
+    }
+    await requireSameDirectory(directory);
+  };
+
+  const snapshotArtifacts = (artifacts: AtomicOutputArtifacts): readonly FileArtifact[] => {
+    const output: FileArtifact[] = [
+      { path: "definition.json", bytes: artifacts.definition.slice() },
+      { path: "render-bundle.json", bytes: artifacts.renderBundle.slice() },
+      { path: "asset-set.json", bytes: artifacts.assetSet.slice() },
+      { path: "build-manifest.json", bytes: artifacts.buildManifest.slice() },
+    ];
+    const paths = new Set(output.map((artifact) => artifact.path));
+    for (const asset of artifacts.assets) {
+      if (!asset.assetId) fail();
+      let encodedAssetId: string | undefined;
+      try {
+        encodedAssetId = encodeURIComponent(asset.assetId);
+      } catch {
+        fail();
+      }
+      if (!encodedAssetId) fail();
+      const extension = new Map([
+        ["image/png", "png"],
+        ["image/jpeg", "jpg"],
+        ["font/ttf", "ttf"],
+        ["font/otf", "otf"],
+        ["model/gltf-binary", "glb"],
+        ["video/mp4", "mp4"],
+      ]).get(asset.mediaType);
+      if (!extension) fail();
+      const path = `assets/${encodedAssetId}.${extension}`;
+      if (paths.has(path)) fail();
+      paths.add(path);
+      output.push({ path, bytes: asset.bytes.slice() });
+    }
+    return output.sort((left, right) =>
+      left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+    );
+  };
+
+  const existingDistIsManaged = async (
+    path: string,
+    entry: string,
+    generations: DirectoryIdentity,
+    targetPattern: RegExp | undefined,
+    readLstat?: RawLstat,
+  ): Promise<ManagedOutput | false> => {
+    const dist = path;
+    const stat = await optionalLstat(dist, readLstat ?? (() => lstat(entry)));
+    if (!stat) return { path: dist, entry, absent: true };
+    if (!targetPattern) {
+      if (!stat.isDirectory() || stat.isSymbolicLink()) return false;
+      const directory = await captureDirectory(path, entry);
+      const receipt = await filesystem
+        .read(join(directory.handle.anchor, "build-receipt.json"), 1024)
+        .catch(() => undefined);
+      const manifest = await filesystem
+        .read(join(directory.handle.anchor, "build-manifest.json"), 8 * 1024 * 1024)
+        .catch(() => undefined);
+      if (!receipt || !manifest) return false;
+      try {
+        const parsed = parseBuildReceipt(receipt);
+        if (parsed.buildManifestHash !== buildManifestBytesHash(manifest)) return false;
+      } catch {
+        return false;
+      }
+      if (!(await sameDirectory(directory))) return false;
+      return { ...directory, receipt };
+    }
+    if (!stat.isSymbolicLink()) return false;
+    const target = await readlink(entry).catch(() => undefined);
+    const match = target?.match(targetPattern);
+    if (!match) return false;
+    if (!(await sameDirectory(generations))) return false;
+    if (!(await verifyDirectoryPath(join(generations.path, match[1]!)))) return false;
+    return { path: dist, entry, dev: stat.dev, ino: stat.ino, target: target ?? fail() };
+  };
+
+  const unchangedDist = async (expected: ManagedOutput, readLstat?: RawLstat): Promise<boolean> => {
+    const path = expected.path;
+    if ("absent" in expected)
+      return !(await optionalLstat(path, readLstat ?? (() => lstat(expected.entry))));
+    if ("receipt" in expected) {
+      if (!(await sameDirectory(expected))) return false;
+      const receipt = await filesystem
+        .read(join(expected.handle.anchor, "build-receipt.json"), 1024)
+        .catch(() => undefined);
+      return receipt !== undefined && Buffer.from(receipt).equals(expected.receipt);
+    }
+    const stat = await lstat(expected.entry).catch(() => undefined);
+    if (!stat || !stat.isSymbolicLink() || stat.dev !== expected.dev || stat.ino !== expected.ino)
+      return false;
+    return (await readlink(expected.entry).catch(() => undefined)) === expected.target;
+  };
+
+  const cleanupStaging = async (staging: DirectoryIdentity | undefined) => {
+    if (
+      !staging ||
+      !(await filesystem.sameDirectory(staging.entry, staging.handle).catch(() => false))
+    )
+      return;
+    await filesystem.rm(staging.entry).catch(() => undefined);
+  };
+
+  const cleanupTemporaryLink = async (link: LinkIdentity | undefined) => {
+    if (!link) return;
+    const stat = await lstat(link.entry).catch(() => undefined);
+    if (stat?.isSymbolicLink() && stat.dev === link.dev && stat.ino === link.ino)
+      await unlink(link.entry).catch(() => undefined);
+  };
+
+  return {
+    captureDirectory,
+    ensureDirectory,
+    createExclusiveDirectory,
+    requireSameDirectory,
+    writeExclusiveFile,
+    snapshotArtifacts,
+    verifyFileArtifacts,
+    existingDistIsManaged,
+    verifyDirectoryPath,
+    sameDirectory,
+    unchangedDist,
+    cleanupStaging,
+    cleanupTemporaryLink,
+  };
+};
+
+export const publishAtomicArtifacts = async ({
+  projectDirectory,
+  channel = "dist",
+  artifacts,
+  generationId = () => randomBytes(16).toString("hex"),
+  expectedGeneration,
+  signal,
+  isCurrentRevision,
+  testing,
+}: PublishAtomicArtifactsInput): Promise<AtomicOutputResult> => {
+  await using filesystem = new NativeFilesystem();
+  const lstat = (path: string) => filesystem.lstat(path);
+  const rename = (path: string, target: string) => filesystem.rename(path, target);
+  const symlink = (target: string, path: string) => filesystem.symlink(target, path);
+  const {
+    captureDirectory,
+    ensureDirectory,
+    createExclusiveDirectory,
+    requireSameDirectory,
+    writeExclusiveFile,
+    snapshotArtifacts,
+    verifyFileArtifacts,
+    existingDistIsManaged,
+    verifyDirectoryPath,
+    sameDirectory,
+    unchangedDist,
+    cleanupStaging,
+    cleanupTemporaryLink,
+  } = atomicFilesystem(filesystem);
+  let stage: PublicationStage = "capture-project";
+  let staging: DirectoryIdentity | undefined;
+  let temporaryLink: LinkIdentity | undefined;
+  let distStaging: DirectoryIdentity | undefined;
+  let replacement: { next: DirectoryIdentity; previous?: DirectoryIdentity } | undefined;
+  let project: DirectoryIdentity | undefined;
+  let unframe: DirectoryIdentity | undefined;
+  let preview: DirectoryIdentity | undefined;
+  let generations: DirectoryIdentity | undefined;
+  let assets: DirectoryIdentity | undefined;
+  try {
+    if (channel !== "dev" && channel !== "dist") fail();
+    if (cancelled(signal)) return { ok: false, family: "cancel", code: "cli-output-cancel" };
+    project = await captureDirectory(projectDirectory);
+    const id = generationId();
+    if (!GENERATION_ID.test(id)) fail();
+    const files = [...snapshotArtifacts(artifacts)];
+    if (channel === "dist")
+      files.push({
+        path: "build-receipt.json",
+        bytes: encodeBuildReceipt(id, artifacts.buildManifest),
+      });
+    stage = "prepare-output";
+    unframe = await ensureDirectory(project, ".unframe");
+    if (channel === "dev") preview = await ensureDirectory(unframe, "preview");
+    const outputParent = preview ?? project;
+    const pointerName = channel === "dev" ? "current" : "dist";
+    const pointerPath = join(outputParent.path, pointerName);
+    const pointerEntry = join(outputParent.handle.anchor, pointerName);
+    const targetPrefix = channel === "dev" ? "generations" : ".unframe/generations";
+    generations = await ensureDirectory(preview ?? unframe, "generations");
+    stage = "inspect-dist";
+    const readLstat = testing?.lstat;
+    const discoveredDist = await existingDistIsManaged(
+      pointerPath,
+      pointerEntry,
+      generations,
+      channel === "dev" ? MANAGED_DEV_TARGET : undefined,
+      readLstat,
+    );
+    if (discoveredDist === false) return fail();
+    const currentGeneration =
+      "absent" in discoveredDist
+        ? null
+        : "receipt" in discoveredDist
+          ? parseBuildReceipt(discoveredDist.receipt).generationId
+          : discoveredDist.target.match(MANAGED_DEV_TARGET)?.[1];
+    if (expectedGeneration !== undefined && currentGeneration !== expectedGeneration)
+      throw new PublicationStale();
+    const previousDist = discoveredDist;
+    if (cancelled(signal)) cancel();
+
+    stage = "create-staging";
+    staging = await createExclusiveDirectory(generations, `.staging-${id}`);
+    await testing?.onPhase?.("staging-created");
+    await requireSameDirectory(staging);
+    assets = await ensureDirectory(staging, "assets");
+    stage = "write-artifacts";
+    for (const file of files) {
+      if (cancelled(signal)) cancel();
+      await requireSameDirectory(staging);
+      await writeExclusiveFile(
+        file.path.startsWith("assets/") ? assets : staging,
+        file.path.replace(/^assets\//, ""),
+        file.bytes,
+      );
+      await testing?.onPhase?.("artifact-written");
+      await requireSameDirectory(staging);
+    }
+    if (cancelled(signal)) cancel();
+    await requireSameDirectory(staging);
+
+    const generation = join(generations.path, id);
+    const generationEntry = join(generations.handle.anchor, id);
+    stage = "rename-generation";
+    if (await lstat(generationEntry).catch(() => undefined)) fail();
+    await testing?.onPhase?.("before-generation-rename");
+    if (cancelled(signal)) cancel();
+    await requireSameDirectory(staging);
+    await requireSameDirectory(generations);
+    if (cancelled(signal)) cancel();
+    await rename(staging.entry, generationEntry).catch(fail);
+    staging = { ...staging, path: generation, entry: generationEntry };
+    stage = "verify-generation";
+    if (
+      !(await verifyDirectoryPath(generation)) ||
+      !(await sameDirectory(generations)) ||
+      !(await unchangedDist(previousDist, readLstat))
+    )
+      fail();
+
+    if (channel === "dist") {
+      distStaging = await createExclusiveDirectory(project, `.dist-${id}`);
+      const distAssets = await ensureDirectory(distStaging, "assets");
+      for (const file of files) {
+        if (cancelled(signal)) cancel();
+        await writeExclusiveFile(
+          file.path.startsWith("assets/") ? distAssets : distStaging,
+          file.path.replace(/^assets\//, ""),
+          file.bytes,
+        );
+      }
+      await testing?.onPhase?.("before-dist-replace");
+      if (cancelled(signal)) cancel();
+      stage = "replace-dist";
+      await requireSameDirectory(project);
+      await requireSameDirectory(unframe);
+      await requireSameDirectory(generations);
+      await requireSameDirectory(staging);
+      await requireSameDirectory(distStaging);
+      await verifyFileArtifacts(staging, files);
+      await verifyFileArtifacts(distStaging, files);
+      if (!(await unchangedDist(previousDist, readLstat))) fail();
+      if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
+      if (cancelled(signal)) cancel();
+      const next = distStaging;
+      if ("absent" in previousDist) {
+        await filesystem.renameNoReplace(next.entry, pointerEntry).catch(fail);
+        distStaging = undefined;
+        replacement = { next: { ...next, path: pointerPath, entry: pointerEntry } };
+      } else {
+        const previousDirectory = "receipt" in previousDist ? previousDist : fail();
+        await filesystem.exchange(next.entry, pointerEntry).catch(fail);
+        const expectedPrevious = { ...previousDirectory, path: next.path, entry: next.entry };
+        distStaging = undefined;
+        replacement = {
+          next: { ...next, path: pointerPath, entry: pointerEntry },
+          previous: expectedPrevious,
+        };
+        const previous = await captureDirectory(next.path, next.entry);
+        replacement = { ...replacement, previous };
+        if (previous.dev !== previousDirectory.dev || previous.ino !== previousDirectory.ino)
+          fail();
+        await requireSameDirectory(previous);
+        distStaging = previous;
+      }
+      const published = { ...next, path: pointerPath, entry: pointerEntry };
+      await requireSameDirectory(project);
+      await requireSameDirectory(unframe);
+      await requireSameDirectory(generations);
+      await requireSameDirectory(staging);
+      await requireSameDirectory(published);
+      await verifyFileArtifacts(published, files);
+      if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
+      if (cancelled(signal)) cancel();
+      if (distStaging) await requireSameDirectory(distStaging);
+      staging = undefined;
+      replacement = undefined;
+      await cleanupStaging(distStaging);
+      distStaging = undefined;
+      return { ok: true, generationId: id };
+    }
+
+    stage = "create-dist-link";
+    const temporaryPath = join(outputParent.path, `.${pointerName}-${id}`);
+    const temporaryEntry = join(outputParent.handle.anchor, `.${pointerName}-${id}`);
+    if (await lstat(temporaryEntry).catch(() => undefined)) fail();
+    await symlink(`${targetPrefix}/${id}`, temporaryEntry).catch(fail);
+    const temporaryStat = await lstat(temporaryEntry).catch(() => undefined);
+    if (!temporaryStat || !temporaryStat.isSymbolicLink()) return fail();
+    const createdTemporaryLink: LinkIdentity = {
+      path: temporaryPath,
+      entry: temporaryEntry,
+      dev: temporaryStat.dev,
+      ino: temporaryStat.ino,
+    };
+    temporaryLink = createdTemporaryLink;
+    if (cancelled(signal)) cancel();
+    await testing?.onPhase?.("before-dist-replace");
+    if (cancelled(signal)) cancel();
+    if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
+    stage = "replace-dist";
+    await requireSameDirectory(project);
+    await requireSameDirectory(unframe);
+    await requireSameDirectory(outputParent);
+    await requireSameDirectory(generations);
+    if (!(await unchangedDist(previousDist, readLstat))) fail();
+    const currentTemporary = await lstat(createdTemporaryLink.entry).catch(() => undefined);
+    if (
+      !currentTemporary?.isSymbolicLink() ||
+      currentTemporary.dev !== createdTemporaryLink.dev ||
+      currentTemporary.ino !== createdTemporaryLink.ino
+    )
+      fail();
+    if (cancelled(signal)) cancel();
+    await rename(createdTemporaryLink.entry, pointerEntry).catch(fail);
+    temporaryLink = undefined;
+    const publishedGeneration = staging;
+    staging = undefined;
+    await requireSameDirectory(project);
+    await requireSameDirectory(unframe);
+    await requireSameDirectory(outputParent);
+    await requireSameDirectory(generations);
+    await requireSameDirectory(publishedGeneration);
+    if (
+      !(await unchangedDist({
+        ...createdTemporaryLink,
+        path: pointerPath,
+        entry: pointerPath,
+        target: `${targetPrefix}/${id}`,
+      }))
+    )
+      fail();
+    return { ok: true, generationId: id };
+  } catch (error) {
+    if (replacement) {
+      const { next, previous } = replacement;
+      if (project && (await sameDirectory(project)) && (await sameDirectory(next))) {
+        if (previous && (await sameDirectory(previous))) {
+          try {
+            await filesystem.exchange(next.entry, previous.entry);
+            distStaging = { ...next, path: previous.path, entry: previous.entry };
+          } catch {
+            distStaging = undefined;
+          }
+        } else if (!previous) {
+          await cleanupStaging(next);
+        } else distStaging = undefined;
+      } else distStaging = undefined;
+    }
+    await cleanupStaging(staging);
+    await cleanupStaging(distStaging);
+    await cleanupTemporaryLink(temporaryLink);
+    if (error instanceof PublicationCancelled)
+      return { ok: false, family: "cancel", code: "cli-output-cancel" };
+    if (error instanceof PublicationStale)
+      return { ok: false, family: "io", code: "cli-output-stale" };
+    const code = error instanceof PublicationFailure ? error.code : errorCode(error);
+    const operation = error instanceof PublicationFailure ? error.operation : undefined;
+    return {
+      ok: false,
+      family: "io",
+      code: "cli-output-io",
+      detail: { stage, ...(code ? { code } : {}), ...(operation ? { operation } : {}) },
+    };
+  }
+};

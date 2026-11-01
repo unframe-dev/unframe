@@ -37,8 +37,8 @@
         # ツールチェイン。旧 mise.toml のツール固定を置換する。
         toolchain = [
           (pkgs.callPackage ./packages/config/bun.nix { })
-          pkgs.nodejs_22
-          (pkgs.pnpm.override { nodejs-slim = pkgs.nodejs-slim_22; })
+          pkgs.nodejs_24
+          (pkgs.pnpm.override { nodejs-slim = pkgs.nodejs-slim_24; })
           pkgs.go
           pkgs.golangci-lint
           pkgs.protobuf

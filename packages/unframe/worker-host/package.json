@@ -1,0 +1,34 @@
+{
+  "name": "@unframe/worker-host",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist",
+    "src/native/chromium",
+    "src/native/compile-policy.ts",
+    "src/native/darwin-launcher.c"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs"
+      }
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src test vite.config.ts",
+    "test": "vp test run",
+    "build": "vp pack"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

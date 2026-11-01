@@ -1,32 +1,114 @@
-import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
-import { encodeWireMessage, decodeWireMessage } from "@unframe/contracts/presentation";
-import { checkAuthoringProjectAssembly } from "../src/source-preparation/index.js";
+import {
+  encodeWireMessage,
+  decodeWireMessage,
+  presentationDefinitionSchema,
+} from "@unframe/contracts/presentation";
+import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import { createLocalPlayback } from "@unframe/preview";
-import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "@unframe/workspace";
-import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
+import { validatePresentationDefinition } from "@unframe/presentation";
 
 const requestId = "a".repeat(32);
 const referenceDefinition = async () => {
-  const discovered = await discoverPresentationProjectFiles(
-    fileURLToPath(new URL("../../../../examples/presentation", import.meta.url)),
-  );
-  assert(discovered.ok);
-  const loaded = loadUnframeLock(discovered.lockBytes);
-  assert(loaded.ok);
-  const checked = checkAuthoringProjectAssembly(
-    {
-      projectRoot: discovered.projectDirectory,
-      entryFile: discovered.entryFile,
-      files: discovered.files,
-      ...loaded.value.virtualSource,
+  const definition = presentationDefinitionSchema.parse(structuredClone(definitionFixture));
+  const node = {
+    ...definition.scene.nodes["node-baked"]!,
+    id: "reference-surface:surface-node",
+    surfaceId: "reference-surface",
+  };
+  const original = definition.scene.surfaces["baked"]!;
+  const surface = {
+    ...original,
+    id: "reference-surface",
+    hostNodeId: node.id,
+    states: {
+      default: original.states["default"]!,
+      "reference-surface:inactive": {
+        ...original.states["default"]!,
+        id: "reference-surface:inactive",
+      },
     },
-    loaded.value.assemblyCarrier,
-    sourceAssetBytesFor(discovered, loaded.value.lock.assets),
-  );
-  assert(checked.valid, JSON.stringify(checked.diagnostics));
-  return checked.value.definition;
+  };
+  definition.scene.nodes = { [node.id]: node };
+  definition.scene.surfaces = { [surface.id]: surface };
+  definition.flow.groups = {
+    main: {
+      id: "main",
+      initialStepId: "start",
+      steps: {
+        start: {
+          id: "start",
+          cues: [
+            {
+              id: "continue",
+              priority: 0,
+              order: 0,
+              trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
+              firePolicy: { kind: "oncePerStepEntry" },
+              actions: [
+                {
+                  kind: "surface.setState",
+                  surfaceId: surface.id,
+                  stateId: "reference-surface:inactive",
+                },
+                {
+                  kind: "timeline.play",
+                  timelineId: "reference-surface:fade",
+                  completion: "nonBlocking",
+                  conflict: "reject",
+                },
+              ],
+              next: { kind: "step", stepId: "done" },
+            },
+          ],
+        },
+        done: {
+          id: "done",
+          cues: [
+            {
+              id: "fade-complete",
+              priority: 0,
+              order: 0,
+              trigger: { kind: "timelineCompleted", timelineId: "reference-surface:fade" },
+              firePolicy: { kind: "oncePerStepEntry" },
+              actions: [],
+              next: { kind: "step", stepId: "finished" },
+            },
+          ],
+        },
+        finished: { id: "finished", cues: [] },
+      },
+    },
+  };
+  definition.flow.initialGroupId = "main";
+  definition.flow.variables = {
+    continued: {
+      id: "continued",
+      owner: { kind: "presentation" },
+      type: "boolean",
+      initialValue: false,
+    },
+  };
+  definition.flow.timelines = {
+    "reference-surface:fade": {
+      id: "reference-surface:fade",
+      owner: { kind: "presentation" },
+      durationMilliseconds: 1000,
+      tracks: [
+        {
+          target: { nodeId: node.id, property: "opacity" },
+          keyframes: [
+            { timeMilliseconds: 0, value: 1, easingToNext: "linear" },
+            { timeMilliseconds: 1000, value: 0.5 },
+          ],
+        },
+      ],
+    },
+  };
+  const parsed = presentationDefinitionSchema.parse(definition);
+  const validated = validatePresentationDefinition(parsed);
+  assert(validated.valid, JSON.stringify(validated.diagnostics));
+  return parsed;
 };
 
 describe("local Preview Runtime Core playback", () => {

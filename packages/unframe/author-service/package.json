@@ -26,9 +26,11 @@
   },
   "dependencies": {
     "@types/react": "19.3.0",
+    "@unframe/artifacts": "workspace:*",
     "@unframe/build": "workspace:*",
     "@unframe/contracts": "workspace:*",
     "@unframe/source": "workspace:*",
+    "@unframe/workspace": "workspace:*",
     "typescript": "6.0.3",
     "zod": "4.4.3"
   },

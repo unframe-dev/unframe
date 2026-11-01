@@ -1,9 +1,8 @@
-import { copyProjectFixture } from "./copy-project-fixture.js";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, expect, it, vi } from "vitest";
 import { verifyBuildIntegrity } from "@unframe/artifacts";
 import { runPresentationCli } from "../src/index.js";
@@ -57,13 +56,8 @@ const triangleGlb = () => {
 const createModelProject = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-model-source-"));
   directories.push(directory);
-  await copyProjectFixture(
-    fileURLToPath(new URL("../../../../examples/presentation/", import.meta.url)),
-    directory,
-  );
-  for (const name of await readdir(directory))
-    if (name.endsWith(".manifest.ts") || name.endsWith(".structure.tsx"))
-      await rm(join(directory, name));
+  await writeAuthoringBoundaryProjectFixture(directory);
+  await mkdir(join(directory, "assets"));
   const owner = { kind: "presentation" };
   const presentation = {
     id: "model-only",

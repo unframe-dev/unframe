@@ -1,6 +1,6 @@
 # PostCSS と Tailwind の設定互換性検証
 
-各プレゼンプロジェクトが所有する標準 config を読み、実際の PostCSS / Tailwind で CSS を生成する検証。ESM / CJS / TS、関数 config、helper import、plugin 順序、別バージョンの解決を確認した。本体での利用方法と制約は [unframe-tailwind README](../../../packages/unframe/tailwind/README.md) を参照する。
+各プレゼンプロジェクトが所有する標準 config を読み、実際の PostCSS / Tailwind で CSS を生成する検証。ESM / CJS / TS、関数 config、helper import、plugin 順序、別バージョンの解決を確認した。本体での利用方法と制約は [styles-node README](../../../packages/unframe/styles-node/README.md) を参照する。
 
 このディレクトリは独立した pnpm workspace。リポジトリ本体の package / lockfile は変更せず、実験の依存を専用 lockfile で固定する。
 
@@ -51,21 +51,9 @@ pnpm --dir scripts/experiments/tailwind-config test
 
 最適化有効時の map は `sources` に入力 CSS 名を持つ一方、`sourcesContent` に生成済みルールが含まれ、元入力は含まれなかった。最適化無効時は元入力を含む。map が返ることや再現することを、作者の元 CSS への正確な位置対応と同一視しない。
 
-## 現行 Unframe への依存取込み
+## 当時の依存取込みの観測
 
-既存の `snapshotInstalledPackages` にこの実験の依存を渡す確認は、リポジトリ root から再実行できる。
-
-```bash
-bun -e 'import { snapshotInstalledPackages } from "./packages/unframe/cli/src/filesystem/package-snapshot.ts"; await snapshotInstalledPackages(process.cwd() + "/scripts/experiments/tailwind-config")'
-```
-
-現行実装では次のエラーで停止する。
-
-```text
-Package enhanced-resolve@5.26.0: Browser mapping source must name a locked package file.
-```
-
-`enhanced-resolve` の `browser` map は `process` / `path` などの bare module key を持つ。現行 snapshot の検証はその key に `./` を要求する。この段階で停止するため、後続の native optional dependency の snapshot 成否までは確認できない。設定変換の成功と Unframe lock への取込み成功は別である。
+2026-10-14 の実験では、`enhanced-resolve` の browser map にある bare module key を当時の snapshot が拒否した。設定変換の成功と Unframe lock への取込み成功は別の検証である。現在の snapshot と styles adapter の対応範囲は実装と関連テストを参照する。
 
 ## 検証の境界
 

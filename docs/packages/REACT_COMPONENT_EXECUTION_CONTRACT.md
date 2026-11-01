@@ -1,13 +1,13 @@
 # React Component の抽出・編集・capture 契約
 
-- **Status**: ローカル Authoring の実装契約。静的抽出、全 State capture、共有値の局所編集・Undo / Redo、保存 transaction と Inspector preview を実装済み
+- **Status**: 過去の設計記録。現在の package 境界・lock 形式・対応範囲は実装と [独立パッケージ化の計画](../plans/unframe-independent-packages.md) を参照
 - **Related**: [作者向け API と工程](./REACT_COMPONENT_AUTHORING.md)、[ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 
-この文書は、ローカル Authoring の入力、失敗、保存・実行方式を定める。提供範囲と検証記録は [作者向け文書](./REACT_COMPONENT_AUTHORING.md#6-受け入れ検証と導入条件) を参照する。publish / Delivery・端末側の接続は対象外とする。
+この文書は、当時のローカル Authoring の入力、失敗、保存・実行方式の設計を記録する。提供範囲と検証記録は [作者向け文書](./REACT_COMPONENT_AUTHORING.md#6-受け入れ検証と導入条件) を参照する。publish / Delivery・端末側の接続は対象外とする。
 
 ## A1 の前提契約：canonical Surface
 
-変更前の [SemanticSurface](../../packages/contracts/src/presentation/definition.ts) は `rootFrameId` / `contentNodes` を必須とし、当時の [Core validation](../../packages/unframe/core/src/validation/definition.ts) は全 Semantic Node と Content Node の一対一対応を要求する。[Renderer の出力検証](../../packages/unframe/renderer-api/src/execution/plugin-execution.ts) も `ownedContentNodeIds` を経由して Interaction の意味を検査していた。空の root Frame と独立した Semantic Tree だけではこの契約を満たせなかった。描画と一致しない仮の Text / Frame を追加してこの条件を満たす方法は採らない。
+変更前の SemanticSurface は `rootFrameId` / `contentNodes` を必須とし、当時の Core validation は全 Semantic Node と Content Node の一対一対応を要求する。当時の Renderer の出力検証も `ownedContentNodeIds` を経由して Interaction の意味を検査していた。空の root Frame と独立した Semantic Tree だけではこの契約を満たせなかった。描画と一致しない仮の Text / Frame を追加してこの条件を満たす方法は採らない。
 
 [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) により、canonical Surface の `content` を次の二種類に明示的に分ける。
 
@@ -130,7 +130,7 @@ React JSX と Structured JSX は別の TypeScript Program で検査する。静�
 
 ## 2. Editor host と通信
 
-host は `pnpm --filter @unframe/core presentation author <absolute-project-directory>` で起動する Linux / macOS arm64 の native process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。対応範囲と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Local Editor の UI は `app/web/local-editor`、process / filesystem は CLI、pure command と patch は Compiler が所有する。API 型はこのローカル境界の所有 package に置き、Control Plane の公開 API や Realtime wire を変更しない。
+host は `pnpm --config.verify-deps-before-run=false --filter @unframe/cli presentation author <absolute-project-directory>` で起動する Linux / macOS arm64 の native process とし、同じ process が静的な Editor assets と内部 HTTP API を配信する。対応範囲と検証状態は [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。任意 origin の既存 Web ページを localhost の読み書きへ接続する構成は採らない。Local Editor の UI は `app/web/local-editor`、process は CLI、保存 I/O は workspace-node、patch は source が所有する。API 型は contracts に置き、Control Plane の公開 API や Realtime wire を変更しない。
 
 loopback IPv4 のランダム port に bind し、期待する `Host` を完全一致で検査する。起動時の 256-bit session token を起動 URL の fragment で Editor に渡し、Editor は取得後すぐ URL から除去してメモリだけに保持する。API / artifact の読み取りも `Authorization: Bearer` を必須とする。token を query、cookie、永続 storage、ログへ保存しない。state-changing request は同一 Origin と JSON content type を必須とし、CORS は許可しない。host 再起動で token は失効する。
 

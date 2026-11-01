@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { createWorkspaceSnapshot } from "../src/index.js";
+import { createProjectRevision, createWorkspaceSnapshot } from "../src/index.js";
 
 const bytes = (value: string) => new TextEncoder().encode(value);
 it("owns fixed bytes and identifies the source and lock together", () => {
@@ -34,4 +34,27 @@ it("rejects ambiguous source paths", () => {
       { path: "a", bytes: bytes("2") },
     ]),
   ).toThrow();
+});
+
+it("computes the next project revision from replaced Source and lock inputs", () => {
+  const input = {
+    configBytes: bytes("config"),
+    lockBytes: bytes("new-lock"),
+    localFiles: [
+      { path: "entry.tsx", bytes: bytes("old-source") },
+      { path: "asset.png", bytes: bytes("asset") },
+    ],
+  };
+  const expected = createWorkspaceSnapshot([
+    { path: "unframe.config.ts", bytes: input.configBytes },
+    { path: "unframe.lock", bytes: input.lockBytes },
+    { path: "entry.tsx", bytes: bytes("new-source") },
+    { path: "asset.png", bytes: bytes("asset") },
+  ]).revision;
+  expect(
+    createProjectRevision({
+      ...input,
+      entryReplacement: { path: "entry.tsx", bytes: bytes("new-source") },
+    }),
+  ).toBe(expected);
 });

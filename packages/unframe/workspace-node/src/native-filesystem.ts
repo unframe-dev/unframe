@@ -83,7 +83,14 @@ export class NativeFilesystem {
   >();
   private next = 0;
   private ended = false;
-  constructor(executable = fileURLToPath(new URL("../.cache/filesystem-helper", import.meta.url))) {
+  constructor(
+    executable = fileURLToPath(
+      new URL(
+        `../native-bin/filesystem-helper-${process.platform}-${process.arch}`,
+        import.meta.url,
+      ),
+    ),
+  ) {
     this.child = spawn(executable, [], { stdio: "pipe" });
     this.child.stderr.resume();
     const lines = createInterface({ input: this.child.stdout });

@@ -4,12 +4,12 @@ import { promisify } from "node:util";
 import { createInterface } from "node:readline";
 import { readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { editorAssetsDirectory, unityPreviewDirectory } from "@unframe/local-editor";
 import { readRegularFile } from "@unframe/workspace-node";
 import { startAuthorHost } from "./http.js";
 import { createAuthorService } from "./service.js";
 import { createDistPreviewService, createLocalPreviewService } from "./local-preview.js";
-import { readDistBuild } from "../filesystem/read-dist-build.js";
+import { readDistBuild } from "@unframe/workspace-node";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import type { AuthorService } from "@unframe/author-service";
 import { createPublicationAuth, type PublicationTarget } from "./publication-auth.js";
@@ -48,11 +48,24 @@ export const loadAuthorAssets = async (directory: string) => {
 };
 export const loadUnityPreviewAssets = async (directory: string) => {
   const assets = new Map<string, { bytes: Uint8Array; mediaType: string }>();
+  const walk = async (relative: string) => {
+    for (const entry of await readdir(join(directory, relative), { withFileTypes: true })) {
+      const path = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) await walk(path);
+      else if (entry.isFile()) {
+        const bytes = await readRegularFile(join(directory, path));
+        if (!bytes) throw new Error("Unity Preview assets must be stable regular files.");
+        assets.set(`/unity-preview/${path}`, {
+          bytes,
+          mediaType: mediaTypes[extname(path)] ?? "application/octet-stream",
+        });
+      } else throw new Error("Unity Preview assets must not contain links.");
+    }
+  };
+  await walk("");
   for (const suffix of ["loader.js", "framework.js", "data", "wasm"]) {
-    const name = `UnframePreview.${suffix}`;
-    const bytes = await readRegularFile(join(directory, "Build", name));
-    if (!bytes) throw new Error("Build Unity Preview first: nix run .#unity-preview");
-    assets.set(`/unity-preview/Build/${name}`, { bytes, mediaType: mediaTypes[extname(name)]! });
+    if (!assets.has(`/unity-preview/Build/UnframePreview.${suffix}`))
+      throw new Error("Build Unity Preview first: nix run .#unity-preview");
   }
   return assets;
 };
@@ -62,20 +75,12 @@ export const startDistPreviewHost = async (
   options: { assets?: ReadonlyMap<string, { bytes: Uint8Array; mediaType: string }> } = {},
 ) => {
   await readDistBuild(directory);
-  const assets =
-    options.assets ??
-    (await loadAuthorAssets(
-      fileURLToPath(new URL("../../../../../app/web/local-editor/dist/", import.meta.url)),
-    ));
+  const assets = options.assets ?? (await loadAuthorAssets(editorAssetsDirectory));
   const files = new Map(assets);
   const page = files.get("/");
   if (page) files.set("/dist-preview", page);
   if (!options.assets)
-    for (const [path, asset] of await loadUnityPreviewAssets(
-      fileURLToPath(
-        new URL("../../../../../.unframe/unity-preview/UnframePreview/", import.meta.url),
-      ),
-    ))
+    for (const [path, asset] of await loadUnityPreviewAssets(unityPreviewDirectory))
       files.set(path, asset);
   const source: Pick<AuthorService, "project"> = {
     async project() {
@@ -179,14 +184,8 @@ export const runAuthorProcess = async (
   }
   const assets = development
     ? new Map<string, { bytes: Uint8Array; mediaType: string }>()
-    : await loadAuthorAssets(
-        fileURLToPath(new URL("../../../../../app/web/local-editor/dist/", import.meta.url)),
-      );
-  const unity = await loadUnityPreviewAssets(
-    fileURLToPath(
-      new URL("../../../../../.unframe/unity-preview/UnframePreview/", import.meta.url),
-    ),
-  );
+    : await loadAuthorAssets(editorAssetsDirectory);
+  const unity = await loadUnityPreviewAssets(unityPreviewDirectory);
   for (const [path, asset] of unity) assets.set(path, asset);
   const configured = [
     process.env["UNFRAME_CONTROL_PLANE_URL"],

@@ -1,7 +1,7 @@
 import { createLocalPreviewService as createPreviewSession } from "@unframe/preview";
 import { AuthorError } from "@unframe/author-service";
-import { readBuildGeneration } from "../filesystem/read-build-generation.js";
-import { readDistBuild } from "../filesystem/read-dist-build.js";
+import { readBuildGeneration } from "@unframe/workspace-node";
+import { readDistBuild } from "@unframe/workspace-node";
 export const createLocalPreviewService = (
   directory: string,
   options: { readGeneration?: typeof readBuildGeneration; now?: () => number } = {},

@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { writePortableBuild } from "./helpers/portable-dist.js";
-import { readDistBuild } from "../src/filesystem/read-dist-build.js";
+import { readDistBuild } from "@unframe/workspace-node";
 import { createDistPreviewService } from "../src/author/local-preview.js";
 import { publishPresentation } from "../src/application/publish.js";
 

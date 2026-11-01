@@ -14,7 +14,7 @@ import definitionFixture from "../../../contracts/presentation/fixtures/presenta
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import buildFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { publishAtomicArtifacts } from "../src/filesystem/atomic-output.js";
+import { publishAtomicArtifacts } from "@unframe/workspace-node";
 import type { PreviewAsset } from "@unframe/preview";
 import { createLocalPreviewService } from "../src/author/local-preview.js";
 

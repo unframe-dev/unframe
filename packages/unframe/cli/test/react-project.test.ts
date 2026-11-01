@@ -1,19 +1,23 @@
+import { gunzipSync } from "node:zlib";
+import { OpaquePreparationFailure } from "@unframe/build";
+import { sourceAssetPorts } from "../src/application/media-ports.js";
+import { prepareReactProjectFixture } from "./react-project-fixture.js";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { afterEach, assert, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/source";
-import { checkAuthoringProjectAssembly } from "../src/source-preparation/index.js";
+import { checkAuthoringProjectAssembly } from "@unframe/build";
 import { runPresentationCli } from "../src/index.js";
 import * as opaquePreparation from "../src/application/opaque-renderer.js";
-import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+import * as generationReader from "@unframe/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
+import { prepareProjectSource } from "@unframe/workspace-node";
 import { loadUnframeLock } from "@unframe/workspace";
-import { refreshLocalProjectLock } from "../src/filesystem/refresh-local-lock.js";
+import { refreshLocalProjectLock } from "@unframe/workspace-node";
 import {
   hashDependencyGraph,
   hashLockedPackageContent,
@@ -23,10 +27,16 @@ import { lockedFile } from "@unframe/workspace-node";
 import { clearSourceAssetRegistration, sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
-const reference = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../../examples/presentation",
-);
+let reference: string;
+let basePresentation: Awaited<ReturnType<typeof prepareReactProjectFixture>>["presentation"];
+beforeAll(async () => {
+  const fixture = await prepareReactProjectFixture();
+  reference = fixture.directory;
+  basePresentation = fixture.presentation;
+}, 120_000);
+afterAll(async () => {
+  if (reference) await rm(reference, { recursive: true, force: true });
+});
 afterEach(async () => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -50,15 +60,8 @@ const createProject = async () => {
   assert(discovery.ok);
   const loaded = loadUnframeLock(discovery.lockBytes);
   assert(loaded.ok);
-  const checked = checkAuthoringProject({
-    projectRoot: directory,
-    entryFile: discovery.entryFile,
-    files: discovery.files,
-    ...loaded.value.virtualSource,
-  });
-  assert(checked.valid);
   const presentation = {
-    ...checked.value.presentation.value,
+    ...basePresentation,
     scene: [],
     assets: [],
     flow: {
@@ -107,7 +110,7 @@ describe("React frozen CLI path", () => {
     const loaded = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
     assert(loaded.ok);
     const sdk = loaded.value.lock.rootDependencies.find(
-      (edge) => edge.specifier === "@unframe/core",
+      (edge) => edge.specifier === "@unframe/authoring",
     );
     assert(sdk);
     const file = lockedFile(
@@ -210,6 +213,41 @@ describe("React frozen CLI path", () => {
   }, 30000);
   it("refreshes a Component lock and checks without evaluating render or opening a Browser", async () => {
     const directory = await createProject();
+    const loaded = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
+    assert(loaded.ok);
+    const runtimeGraph = loadUnframeLock(
+      gunzipSync(await readFile(new URL("./fixtures/react-graph.lock.gz", import.meta.url))),
+    );
+    assert(runtimeGraph.ok);
+    const roots = runtimeGraph.value.lock.rootDependencies.filter((edge) =>
+      ["react", "react-dom"].includes(edge.specifier),
+    );
+    const packages = new Map(runtimeGraph.value.lock.packages.map((pkg) => [pkg.key, pkg]));
+    const reachable = new Set<string>();
+    const visit = (key: `sha256:${string}`) => {
+      if (reachable.has(key)) return;
+      const pkg = packages.get(key);
+      assert(pkg);
+      reachable.add(key);
+      for (const edge of pkg.dependencies) visit(edge.packageKey);
+    };
+    for (const edge of roots) visit(edge.packageKey);
+    const graph = {
+      ...loaded.value.lock,
+      rootDependencies: [...loaded.value.lock.rootDependencies, ...roots].sort((a, b) => {
+        const left = `${a.specifier}\0${a.usage}`;
+        const right = `${b.specifier}\0${b.usage}`;
+        return left < right ? -1 : left > right ? 1 : 0;
+      }),
+      packages: [
+        ...loaded.value.lock.packages,
+        ...runtimeGraph.value.lock.packages.filter((pkg) => reachable.has(pkg.key)),
+      ].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+    };
+    await writeFile(
+      join(directory, "unframe.lock"),
+      canonicalizeJsonPayload({ ...graph, dependencyGraphHash: hashDependencyGraph(graph) }) + "\n",
+    );
     const refreshed = await runPresentationCli({
       args: ["lock", "refresh", directory, "--format", "json"],
     });
@@ -235,14 +273,15 @@ describe("React frozen CLI path", () => {
     expect(built.stderr).toContain("opaque-isolation-unavailable");
     expect(opened).toBe(false);
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(frozenLock);
-  }, 30000);
+  }, 60000);
   it("retains the bundle preparation diagnostic and existing dist", async () => {
     const directory = await createProject();
     expect((await runPresentationCli({ args: ["lock", "refresh", directory] })).exitCode).toBe(0);
     await mkdir(join(directory, "dist"));
     await writeFile(join(directory, "dist", "previous.txt"), "previous");
+    vi.spyOn(generationReader, "readExpectedBuildGeneration").mockResolvedValueOnce("a".repeat(32));
     vi.spyOn(opaquePreparation, "prepareOpaqueRenderer").mockRejectedValueOnce(
-      new opaquePreparation.OpaquePreparationFailure([
+      new OpaquePreparationFailure([
         {
           code: "compiler-opaque-bundle-input-invalid",
           message: "Runtime dependency is not locked: missing",
@@ -251,7 +290,7 @@ describe("React frozen CLI path", () => {
       ]),
     );
     const result = await runPresentationCli({ args: ["build", directory] });
-    expect(result.exitCode).toBe(1);
+    expect(result.exitCode, result.stderr).toBe(1);
     expect(result.stderr).toContain("compiler-opaque-bundle-input-invalid");
     expect(result.stderr).toContain("Runtime dependency is not locked: missing");
     expect(await readFile(join(directory, "dist", "previous.txt"), "utf8")).toBe("previous");
@@ -277,7 +316,7 @@ describe("React frozen CLI path", () => {
     const lockPath = join(directory, "unframe.lock");
     const old = loadUnframeLock(await readFile(lockPath));
     assert(old.ok);
-    const sdk = old.value.lock.packages.find((pkg) => pkg.name === "@unframe/core");
+    const sdk = old.value.lock.packages.find((pkg) => pkg.name === "@unframe/authoring");
     assert(sdk);
     const staging = await mkdtemp(join(temporaryDirectory(), "unframe-sdk-"));
     temporary.push(staging);
@@ -332,7 +371,7 @@ describe("React frozen CLI path", () => {
     expect(checked.stderr).toBe("");
     expect(checked.exitCode).toBe(0);
     await expect(
-      readFile(join(directory, "node_modules/@unframe/core/script-executed")),
+      readFile(join(directory, "node_modules/@unframe/authoring/script-executed")),
     ).rejects.toThrow();
   }, 30000);
   it("keeps v1 bytes when explicit recreation lacks package inputs", async () => {
@@ -352,13 +391,13 @@ describe("React frozen CLI path", () => {
       assert(discovered.ok);
       const lock = loadUnframeLock(discovered.lockBytes);
       assert(lock.ok);
+      const { source } = await prepareProjectSource(
+        sourceAssetPorts.styles,
+        discovered,
+        lock.value.lock,
+      );
       const checked = checkAuthoringProjectAssembly(
-        {
-          projectRoot: directory,
-          entryFile: discovered.entryFile,
-          files: discovered.files,
-          ...lock.value.virtualSource,
-        },
+        source,
         lock.value.assemblyCarrier,
         sourceAssetBytesFor(discovered, lock.value.lock.assets),
       );
@@ -425,7 +464,9 @@ describe("React frozen CLI path", () => {
       ["hero.ttf", new Uint8Array([0, 1, 2, 4])],
     ] as const) {
       await writeFile(join(directory, path), bytes);
-      expect(await refreshLocalProjectLock(directory)).toMatchObject({ ok: true });
+      expect(await refreshLocalProjectLock(sourceAssetPorts, directory)).toMatchObject({
+        ok: true,
+      });
       const changed = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
       assert(changed.ok);
       const changedLock = changed.value.lock.componentLocks.find(
@@ -440,7 +481,7 @@ describe("React frozen CLI path", () => {
       join(directory, "hero.css"),
       '.hero { background: url("https://example.com/hero.png"); }',
     );
-    const failed = await refreshLocalProjectLock(directory);
+    const failed = await refreshLocalProjectLock(sourceAssetPorts, directory);
     expect(failed.ok).toBe(false);
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(before);
     await writeFile(

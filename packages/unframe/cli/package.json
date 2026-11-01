@@ -1,0 +1,90 @@
+{
+  "name": "@unframe/cli",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "unframe": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "template"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./template": "./template/unframe.lock.gz"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs"
+      },
+      "./template": "./template/unframe.lock.gz"
+    }
+  },
+  "scripts": {
+    "dev": "bun src/process/editor-dev.ts",
+    "tui": "bun --preload @opentui/solid/preload src/tui/main.tsx",
+    "presentation": "bun src/process/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src test vite.config.ts",
+    "test": "vp test run --exclude \"**/*.integration.test.ts\" --exclude \"test-bun/**\" --maxWorkers=1 --testTimeout=60000",
+    "test:tui": "bun test --preload @opentui/solid/preload ./test-bun/tui-render.test.bun.tsx",
+    "build": "vp pack",
+    "check": "pnpm --config.verify-deps-before-run=false typecheck && pnpm --config.verify-deps-before-run=false lint && pnpm --config.verify-deps-before-run=false test && pnpm --config.verify-deps-before-run=false test:tui && pnpm --config.verify-deps-before-run=false build",
+    "pretest": "bash ../../../scripts/build-cli-filesystem.sh",
+    "predev": "bash ../../../scripts/build-cli-filesystem.sh",
+    "prepresentation": "bash ../../../scripts/build-cli-filesystem.sh",
+    "pretui": "bash ../../../scripts/build-cli-filesystem.sh",
+    "pretest:tui": "bash ../../../scripts/build-cli-filesystem.sh"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.3.0",
+    "@opentui/core": "0.4.5",
+    "@opentui/keymap": "0.4.5",
+    "@opentui/solid": "0.4.5",
+    "@unframe/api-client-typescript": "workspace:*",
+    "@unframe/artifacts": "workspace:*",
+    "@unframe/author-service": "workspace:*",
+    "@unframe/authoring": "workspace:*",
+    "@unframe/build": "workspace:*",
+    "@unframe/compiler": "workspace:*",
+    "@unframe/contracts": "workspace:*",
+    "@unframe/local-editor": "workspace:*",
+    "@unframe/media-node": "workspace:*",
+    "@unframe/presentation": "workspace:*",
+    "@unframe/preview": "workspace:*",
+    "@unframe/publish": "workspace:*",
+    "@unframe/render-browser": "workspace:*",
+    "@unframe/source": "workspace:*",
+    "@unframe/styles-node": "workspace:*",
+    "@unframe/workspace": "workspace:*",
+    "@unframe/workspace-node": "workspace:*",
+    "css-tree": "3.2.1",
+    "solid-js": "1.9.12",
+    "typescript": "6.0.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "0.5.11",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/css-tree": "^3.2.0",
+    "@types/node": "24.19.0",
+    "@types/path-is-inside": "1.0.2",
+    "@types/pngjs": "6.0.5",
+    "@types/semver": "7.7.1",
+    "@types/ssri": "7.1.5",
+    "@types/validate-npm-package-name": "4.0.2",
+    "@unframe/worker-host": "workspace:*",
+    "postcss": "8.5.29",
+    "tailwindcss": "4.3.3",
+    "tailwindcss-older": "npm:tailwindcss@4.2.1",
+    "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.2.1",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

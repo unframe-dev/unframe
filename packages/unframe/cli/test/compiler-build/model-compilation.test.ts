@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { standardComponents } from "@unframe/authoring/components";
-import { PNG_ABSOLUTE_LIMITS } from "@unframe/core/assets";
-import { checkDeclarationProject } from "../../src/build-execution/api/check-declaration-project.js";
-import { compileDeclarationProject } from "../../src/build-execution/api/compile-declaration-project.js";
-import type { CompiledDeclarationProject } from "../../src/build-execution/api/types.js";
-import { checksumBytes } from "../../src/build-execution/validation/source-assets.js";
+import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
+import { checkDeclarationProject } from "@unframe/build";
+import { compileDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
+import type { CompiledDeclarationProject } from "@unframe/build";
+import { checksumBytes } from "../fixtures-helpers/checksum.js";
 import { modelGlb, modelProject } from "./fixtures/model.js";
 
 const options = () => ({

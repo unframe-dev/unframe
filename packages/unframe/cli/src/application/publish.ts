@@ -5,7 +5,7 @@ import {
   type PublicationRemote,
   type PublishResult,
 } from "@unframe/publish";
-import { readDistBuild } from "../filesystem/read-dist-build.js";
+import { readDistBuild } from "@unframe/workspace-node";
 export type PublishInput = PublicationRemote & { directory: string; presentationId: string };
 const assetBudget = 256 * 1024 * 1024;
 const failure = (code: string): PublishResult => ({ ok: false, code });
