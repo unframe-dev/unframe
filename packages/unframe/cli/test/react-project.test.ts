@@ -12,14 +12,14 @@ import { checkAuthoringProjectAssembly } from "../src/source-preparation/index.j
 import { runPresentationCli } from "../src/index.js";
 import * as opaquePreparation from "../src/application/opaque-renderer.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import { loadUnframeLock } from "@unframe/workspace";
 import { refreshLocalProjectLock } from "../src/filesystem/refresh-local-lock.js";
 import {
   hashDependencyGraph,
   hashLockedPackageContent,
   hashPackageLocator,
-} from "../src/filesystem/lock.js";
-import { lockedFile } from "../src/filesystem/package-snapshot.js";
+} from "@unframe/workspace";
+import { lockedFile } from "@unframe/workspace-node";
 import { clearSourceAssetRegistration, sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];

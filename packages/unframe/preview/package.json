@@ -1,0 +1,39 @@
+{
+  "name": "@unframe/preview",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs"
+      }
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src test vite.config.ts",
+    "test": "vp test run",
+    "build": "NODE_OPTIONS=--max-old-space-size=8192 vp pack",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "@unframe/artifacts": "workspace:*",
+    "@unframe/contracts": "workspace:*",
+    "@unframe/delivery": "workspace:*",
+    "@unframe/playback": "workspace:*",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

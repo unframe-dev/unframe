@@ -1,14 +1,16 @@
 import { request } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { startAuthorHost } from "../src/author/http.js";
-import type { AuthorService, BuildJob } from "../src/author/contract.js";
+import type { AuthorService } from "@unframe/author-service";
+import type { LocalPublicationService } from "../src/author/publication.js";
+import type { BuildJob } from "@unframe/contracts/author-http";
 import { createLocalPreviewService } from "../src/author/local-preview.js";
 
 const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];
 afterEach(async () => {
   await Promise.all(hosts.splice(0).map((host) => host.close()));
 });
-const setup = async (development = false) => {
+const setup = async (development = false, publication?: LocalPublicationService) => {
   const service: AuthorService = {
     project: vi.fn(async () => ({
       revision: "rev",
@@ -29,6 +31,7 @@ const setup = async (development = false) => {
   const host = await startAuthorHost({
     service,
     previews,
+    ...(publication ? { publication } : {}),
     ...(development ? { development: true } : {}),
     assets: new Map([["/", { bytes: new TextEncoder().encode("editor"), mediaType: "text/html" }]]),
   });
@@ -333,4 +336,55 @@ it("accepts only the fixed Vite origin for development writes and still requires
       })
     ).status,
   ).toBe(401);
+});
+
+it("keeps unknown publication operations available through receipt queries", async () => {
+  const unknown = {
+    ok: false as const,
+    code: "cli-publish-outcome-unknown" as const,
+    outcome: "outcome-unknown" as const,
+    operation: {
+      presentationId: "p",
+      buildId: "fixed",
+      publicationEpoch: 2,
+      definitionHash: `sha256:${"a".repeat(64)}`,
+      renderBundleHash: `sha256:${"b".repeat(64)}`,
+      assetSetHash: `sha256:${"c".repeat(64)}`,
+    },
+  };
+  const publish = vi.fn(async () => unknown);
+  const query = vi
+    .fn()
+    .mockResolvedValueOnce(unknown)
+    .mockResolvedValueOnce({ ok: true, buildId: "fixed", publicationEpoch: 2 });
+  const { host } = await setup(false, { publish, query, close() {} });
+  const headers = {
+    authorization: `Bearer ${host.token}`,
+    "content-type": "application/json",
+    origin: host.origin,
+  };
+  const body = JSON.stringify({ requestId: "a".repeat(32) });
+  const unresolved = await fetch(`${host.origin}/api/publications`, {
+    method: "POST",
+    headers,
+    body,
+  });
+  expect(unresolved.status).toBe(202);
+  expect(await unresolved.json()).toEqual(unknown);
+  const stillUnknown = await fetch(`${host.origin}/api/publication-status`, {
+    method: "POST",
+    headers,
+    body,
+  });
+  expect(stillUnknown.status).toBe(202);
+  expect(await stillUnknown.json()).toEqual(unknown);
+  const confirmed = await fetch(`${host.origin}/api/publication-status`, {
+    method: "POST",
+    headers,
+    body,
+  });
+  expect(confirmed.status).toBe(200);
+  expect(await confirmed.json()).toEqual({ ok: true, buildId: "fixed", publicationEpoch: 2 });
+  expect(publish).toHaveBeenCalledTimes(1);
+  expect(query).toHaveBeenCalledTimes(2);
 });

@@ -1,9 +1,9 @@
-import { withNativeFilesystem } from "./native-filesystem.js";
+import { withNativeFilesystem } from "@unframe/workspace-node";
 import { lstat, readlink } from "node:fs/promises";
 import { join } from "node:path";
 import type { BuildArtifacts } from "@unframe/artifacts";
 import type { OutputChannel } from "./atomic-output.js";
-import { projectDirectory } from "./path-policy.js";
+import { projectDirectory } from "@unframe/workspace-node";
 import { readBuildDirectory, readDistBuild } from "./read-dist-build.js";
 
 export type FixedBuildGeneration = {

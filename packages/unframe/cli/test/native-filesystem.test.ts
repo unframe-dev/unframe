@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
-import { NativeFilesystem, withNativeFilesystem } from "../src/filesystem/native-filesystem.js";
+import { NativeFilesystem, withNativeFilesystem } from "@unframe/workspace-node";
 
 it("shares one bounded native lifetime across nested operations and releases it on failure", async () => {
   let owned: NativeFilesystem | undefined;

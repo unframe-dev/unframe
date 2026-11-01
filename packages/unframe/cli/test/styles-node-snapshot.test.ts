@@ -1,3 +1,4 @@
+import { validateNodeTransformSnapshot } from "@unframe/workspace";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile, mkdir, symlink, readFile, chmod, stat } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
@@ -9,7 +10,6 @@ import {
   snapshotNodeTransformInputs,
   materializeNodeTransformSnapshot,
   withNodeTransformSources,
-  validateNodeTransformSnapshot,
 } from "../src/styles/node-snapshot.js";
 const roots: string[] = [];
 afterEach(async () => {

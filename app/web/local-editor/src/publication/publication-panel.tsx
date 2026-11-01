@@ -49,6 +49,7 @@ export function PublicationPanel() {
           disabled={
             !s.receipt ||
             s.pending ||
+            !!s.unknown ||
             !s.auth ||
             s.auth.status === "unconfigured" ||
             s.auth.status === "pending" ||
@@ -66,6 +67,14 @@ export function PublicationPanel() {
               ? "表示した Dist を公開"
               : "公開の認証を開始"}
         </Button>
+        {s.unknown && (
+          <div role="status">
+            <p>公開結果を確認できていません。</p>
+            <Button disabled={s.pending} onClick={() => void w.publication.checkPublication()}>
+              公開結果を確認
+            </Button>
+          </div>
+        )}
         {s.error && <p role="alert">{s.error}</p>}
         {s.result && (
           <p role="status">

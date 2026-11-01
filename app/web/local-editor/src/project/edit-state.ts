@@ -1,4 +1,4 @@
-import type { AuthorInstance, EditCommand } from "@unframe/core/cli/author-contract";
+import type { AuthorInstance, EditCommand } from "@unframe/contracts/author-http";
 export function inverseProp(instance: AuthorInstance, propId: string): EditCommand | null {
   const prop = instance.props[propId];
   if (!prop?.editable) return null;

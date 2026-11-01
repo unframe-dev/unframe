@@ -1,19 +1,19 @@
-import { withNativeFilesystem } from "./native-filesystem.js";
+import { createWorkspaceSnapshot } from "@unframe/workspace";
+import { withNativeFilesystem } from "@unframe/workspace-node";
 import { join, relative } from "node:path";
-import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
 import { buildManifestBytesHash, buildReceiptSchema } from "./build-receipt.js";
 import { parseStrictJson } from "@unframe/artifacts";
-import type { LocalFileSnapshot } from "./frozen-local-files.js";
-import { acquireSourceLock } from "./source-lock.js";
-import { loadProjectConfig, type ProjectConfig } from "./load-config.js";
+import type { LocalFileSnapshot } from "@unframe/workspace";
+import { acquireSourceLock } from "@unframe/workspace-node";
+import { loadProjectConfig, type ProjectConfig } from "@unframe/workspace";
 import {
   projectDirectory,
   readDirectoryNames,
   readRegularFile,
   readBoundedRegularFile,
   rootRelativePosix,
-} from "./path-policy.js";
+} from "@unframe/workspace-node";
 
 type ProjectFailureCode =
   | "cli-cancelled"
@@ -187,15 +187,7 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
     { path: "unframe.lock", bytes: lock },
     ...snapshot.localFiles,
   ].sort((a, b) => compareCodeUnits(a.path, b.path));
-  const revision =
-    "sha256:" +
-    createHash("sha256")
-      .update(
-        JSON.stringify(
-          inputs.map(({ path, bytes }) => [path, createHash("sha256").update(bytes).digest("hex")]),
-        ),
-      )
-      .digest("hex");
+  const revision = createWorkspaceSnapshot(inputs).revision;
   return {
     ok: true,
     projectDirectory: root,

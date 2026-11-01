@@ -1,4 +1,4 @@
-import type { BuildJob } from "@unframe/core/cli/author-contract";
+import type { BuildJob } from "@unframe/contracts/author-http";
 import type { HostApi } from "../infra/host-api";
 import { createPublicationStore, type DisplayReceipt } from "./publication-store";
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -120,23 +120,49 @@ export function createPublicationController(input: {
       }
     },
     async publish() {
-      const { receipt, auth, pending, result } = store.getState();
+      const { receipt, auth, pending, result, unknown } = store.getState();
       if (
         closed ||
         !receipt ||
         auth?.status !== "authenticated" ||
         pending ||
+        unknown ||
         result?.requestId === receipt.requestId
       )
         return;
       const serial = ++epoch;
-      store.setState({ pending: true, error: null });
+      store.setState({ pending: true, error: null, result: null });
       try {
         const published = await input.api.publish(receipt.requestId, action.signal);
-        if (published.buildId !== receipt.buildIdentity)
+        const buildId = published.ok ? published.buildId : published.operation.buildId;
+        if (buildId !== receipt.buildIdentity)
           throw new Error("Publication build identity does not match the displayed Dist.");
-        if (!closed && serial === epoch)
-          store.setState({ result: { ...published, requestId: receipt.requestId } });
+        if (!closed && serial === epoch) {
+          if (published.ok)
+            store.setState({ result: { ...published, requestId: receipt.requestId } });
+          else store.setState({ unknown: { ...published, ...receipt } });
+        }
+      } catch (error) {
+        if (!closed && serial === epoch) store.setState({ error: message(error) });
+      } finally {
+        if (!closed && serial === epoch) store.setState({ pending: false });
+      }
+    },
+    async checkPublication() {
+      const { unknown, pending } = store.getState();
+      if (closed || !unknown || pending) return;
+      const serial = ++epoch;
+      store.setState({ pending: true, error: null });
+      try {
+        const published = await input.api.publicationStatus(unknown.requestId, action.signal);
+        const buildId = published.ok ? published.buildId : published.operation.buildId;
+        if (
+          buildId !== unknown.buildIdentity ||
+          (published.ok && published.publicationEpoch !== unknown.operation.publicationEpoch)
+        )
+          throw new Error("Publication receipt does not match the unresolved operation.");
+        if (!closed && serial === epoch && published.ok)
+          store.setState({ unknown: null, result: { ...published, requestId: unknown.requestId } });
       } catch (error) {
         if (!closed && serial === epoch) store.setState({ error: message(error) });
       } finally {

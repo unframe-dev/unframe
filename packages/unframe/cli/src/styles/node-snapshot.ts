@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
+import {
+  identifyNodeTransformSnapshot as identify,
+  validateNodeTransformSnapshot,
+} from "@unframe/workspace";
 import { lstat, mkdir, readdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { parseAllDocuments } from "yaml";
 
-import canonicalize from "canonicalize";
 import {
-  nodeSnapshotFileSchema,
-  nodeTransformSnapshotSchema,
   pnpmLockSchema,
   pnpmLocatorSchema,
   packageManifestSchema,
@@ -16,42 +17,9 @@ import {
   supportsPlatform,
   type NodeSnapshotFile,
   type NodeTransformSnapshot,
-} from "./snapshot-schema.js";
+} from "@unframe/workspace";
 import { probeNodeRuntime } from "./runtime.js";
-export type { NodeSnapshotFile, NodeTransformSnapshot } from "./snapshot-schema.js";
-const canonical = (value: unknown): string => {
-  const serialized = canonicalize(value);
-  if (serialized === undefined) throw new Error("Invalid Node snapshot JSON");
-  return serialized;
-};
-const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
-const canonicalFiles = (files: readonly NodeSnapshotFile[]) => {
-  const sorted = files
-    .map((file) => {
-      const parsed = nodeSnapshotFileSchema.safeParse(file);
-      if (!parsed.success) throw new Error("Invalid Node snapshot file", { cause: parsed.error });
-      return {
-        path: file.path,
-        bytes: file.bytes,
-        ...(file.executable ? { executable: true } : {}),
-      };
-    })
-    .sort((a, b) => a.path.localeCompare(b.path, "en"));
-  if (new Set(sorted.map((file) => file.path)).size !== sorted.length)
-    throw new Error("Duplicate Node snapshot file");
-  return sorted;
-};
-const identify = (
-  snapshot: Omit<NodeTransformSnapshot, "identity" | "sourceIdentity">,
-): NodeTransformSnapshot => {
-  const sourceFiles = canonicalFiles(snapshot.sourceFiles);
-  const value = { ...snapshot, sourceFiles };
-  return {
-    ...value,
-    sourceIdentity: digest(canonical(sourceFiles)),
-    identity: digest(canonical(value)),
-  };
-};
+export type { NodeSnapshotFile, NodeTransformSnapshot } from "@unframe/workspace";
 export const withNodeTransformSources = (
   snapshot: NodeTransformSnapshot,
   files: readonly NodeSnapshotFile[],
@@ -59,6 +27,7 @@ export const withNodeTransformSources = (
   const { identity: _identity, sourceIdentity: _sourceIdentity, ...value } = snapshot;
   return identify({ ...value, sourceFiles: [...files] });
 };
+const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const contained = (root: string, path: string) => {
   const rel = relative(root, path);
   return rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
@@ -317,14 +286,6 @@ export const snapshotNodeTransformInputs = async (
     packages,
     ...(adapter ? { adapter } : {}),
   });
-};
-export const validateNodeTransformSnapshot = (input: unknown): NodeTransformSnapshot => {
-  const value = nodeTransformSnapshotSchema.parse(input);
-  const { identity, sourceIdentity, ...body } = value;
-  const identified = identify(body);
-  if (identity !== identified.identity || sourceIdentity !== identified.sourceIdentity)
-    throw new Error("Node snapshot integrity mismatch");
-  return identified;
 };
 export const materializeNodeTransformSnapshot = async (
   input: NodeTransformSnapshot,

@@ -1,9 +1,9 @@
-import type { AppType } from "@unframe/control-plane/rpc";
+import type { ControlPlaneHttpContract } from "./http-contract";
 import { createAuthClient } from "better-auth/client";
 import { deviceAuthorizationClient, twoFactorClient } from "better-auth/client/plugins";
 import { hc } from "hono/client";
 
-export type ControlPlaneClient = ReturnType<typeof hc<AppType>>;
+export type ControlPlaneClient = ReturnType<typeof hc<ControlPlaneHttpContract>>;
 
 export type ControlPlaneClientOptions = {
   baseUrl: string;
@@ -16,7 +16,7 @@ export const createControlPlaneClient = ({
   fetch,
   credentials,
 }: ControlPlaneClientOptions): ControlPlaneClient =>
-  hc<AppType>(baseUrl, {
+  hc<ControlPlaneHttpContract>(baseUrl, {
     ...(fetch ? { fetch } : {}),
     ...(credentials ? { init: { credentials } } : {}),
   });

@@ -15,7 +15,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { NativeFilesystem } from "../src/filesystem/native-filesystem.js";
+import { NativeFilesystem } from "@unframe/workspace-node";
 import { publishAtomicArtifacts } from "../src/filesystem/atomic-output.js";
 
 const directories: string[] = [];
@@ -891,4 +891,20 @@ it("keeps the previous generation when asset names alias on the native filesyste
     expect(await readFile(join(directory, "dist/assets/A.png"), "utf8")).toBe("one");
     expect(await readFile(join(directory, "dist/assets/a.png"), "utf8")).toBe("two");
   }
+});
+
+it("rejects a stale expected output generation without replacing the committed generation", async () => {
+  const directory = await project();
+  const first = await publishAtomicArtifacts({
+    projectDirectory: directory,
+    artifacts: artifacts("first"),
+  });
+  expect(first.ok).toBe(true);
+  const stale = await publishAtomicArtifacts({
+    projectDirectory: directory,
+    artifacts: artifacts("second"),
+    expectedGeneration: null,
+  });
+  expect(stale).toEqual({ ok: false, family: "io", code: "cli-output-stale" });
+  expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe("definition-first");
 });

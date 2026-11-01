@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { readBoundedRegularFile } from "../src/filesystem/path-policy.js";
+import { readBoundedRegularFile } from "@unframe/workspace-node";
 
 it("rejects symlink components before reading regular file bytes", async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-bounded-symlink-"));

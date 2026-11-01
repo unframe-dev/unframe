@@ -15,12 +15,13 @@ import bundleFixture from "../../../contracts/presentation/fixtures/render-bundl
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import manifestFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
 import { checkAuthoringProject } from "@unframe/source";
-import { acquireSourceLock } from "../src/filesystem/source-lock.js";
+import { acquireSourceLock } from "@unframe/workspace-node";
 import { createAuthorService } from "../src/author/service.js";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
-import type { AuthorService, ProjectSnapshot } from "../src/author/contract.js";
+import { loadUnframeLock } from "@unframe/workspace";
+import type { AuthorService } from "@unframe/author-service";
+import type { ProjectSnapshot } from "@unframe/contracts/author-http";
 import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
@@ -212,7 +213,9 @@ describe("author service with frozen React source", () => {
     await expect
       .poll(async () => (await service.job(created.buildId)).status, { timeout: 20_000 })
       .toBe("failed");
-    expect((await service.job(created.buildId)).artifacts).toEqual([]);
+    expect((await service.job(created.buildId)).artifacts).toEqual([
+      { assetId: "image", mediaType: "image/png", instanceId: "hero-one", stateId: "default" },
+    ]);
   }, 30_000);
   it("builds explicit Dist without refreshing saved local inputs", async () => {
     const directory = await createProject();
@@ -671,7 +674,7 @@ describe("author service with frozen React source", () => {
     expect((await service.artifact(job.buildId, assetId)).bytes).toEqual(bytes);
   }, 30000);
 
-  it("keeps a build cancelled when publication finishes after cancellation", async () => {
+  it("keeps a committed build successful when inspection finishes after cancellation", async () => {
     const directory = await createProject();
     let publicationStarted!: () => void;
     const started = new Promise<void>((resolve) => {
@@ -711,11 +714,13 @@ describe("author service with frozen React source", () => {
     await service.cancel(created.buildId);
     finishPublication();
     await service.close();
-    expect((await service.job(created.buildId)).status).toBe("cancelled");
-    expect((await service.job(created.buildId)).artifacts).toEqual([]);
+    expect((await service.job(created.buildId)).status).toBe("succeeded");
+    expect((await service.job(created.buildId)).artifacts).toEqual([
+      { assetId: "image", mediaType: "image/png", instanceId: "hero-one", stateId: "default" },
+    ]);
     await expect(service.artifact(created.buildId, "image")).rejects.toMatchObject({ status: 404 });
   }, 30000);
-  it("rejects a completed generation when Source changes while its artifacts are read", async () => {
+  it("retains a committed generation with its original revision after Source changes", async () => {
     const directory = await createProject();
     let sourceChanged!: () => void;
     const changed = new Promise<void>((resolve) => {
@@ -738,8 +743,9 @@ describe("author service with frozen React source", () => {
       .poll(async () => (await service.job(created.buildId)).status, { timeout: 10_000 })
       .not.toBe("running");
     expect(await service.job(created.buildId)).toMatchObject({
-      status: "stale",
-      generationId: null,
+      status: "succeeded",
+      generationId: "f".repeat(32),
+      revision: snapshot.revision,
     });
   }, 30000);
 });

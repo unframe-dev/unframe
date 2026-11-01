@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla";
-import type { BuildJob } from "@unframe/core/cli/author-contract";
+import type { AuthorPublicationResult, BuildJob } from "@unframe/contracts/author-http";
 import type { PublicationAuth } from "../infra/host-api";
 export type DisplayReceipt = { requestId: string; buildIdentity: string };
 export type PublicationSnapshot = {
@@ -8,6 +8,7 @@ export type PublicationSnapshot = {
   pending: boolean;
   error: string | null;
   receipt: DisplayReceipt | null;
+  unknown: (Extract<AuthorPublicationResult, { ok: false }> & DisplayReceipt) | null;
   result: { buildId: string; publicationEpoch: number; requestId: string } | null;
 };
 export const createPublicationStore = () =>
@@ -18,4 +19,5 @@ export const createPublicationStore = () =>
     error: null,
     receipt: null,
     result: null,
+    unknown: null,
   }));

@@ -1,11 +1,10 @@
+import { publicationOperationSchema } from "@unframe/contracts/author-http";
+import { queryPublication } from "@unframe/publish";
+import { publishPresentation, type PublishInput } from "../application/publish.js";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
 import { watchPresentationProject } from "../application/watch-project.js";
 import type { PresentationCliResult } from "../application/types.js";
-import {
-  publishPresentation,
-  type PublishInput,
-  type PublishResult,
-} from "../application/publish.js";
+import { type PublishResult } from "@unframe/publish";
 
 type SignalName = "SIGINT" | "SIGTERM";
 
@@ -33,6 +32,7 @@ export type RunPresentationProcessInput = Readonly<{
     announce: (origin: string) => void,
   ) => Promise<PresentationCliResult>;
   publish?: (input: PublishInput) => Promise<PublishResult>;
+  query?: typeof queryPublication;
   run?: (
     input: Readonly<{ args: readonly string[]; host: Readonly<{ signal: AbortSignal }> }>,
   ) => PresentationCliResult | Promise<PresentationCliResult>;
@@ -55,12 +55,14 @@ export const runPresentationProcess = async ({
   preview = async (directory, signal, announce) =>
     (await import("./preview.js")).runPreviewProcess(directory, signal, announce),
   publish = publishPresentation,
+  query = queryPublication,
 }: RunPresentationProcessInput): Promise<PresentationCliResult> => {
   const controller = new AbortController();
   const abort = () => controller.abort();
   process.on("SIGINT", abort);
   process.on("SIGTERM", abort);
   let result: PresentationCliResult;
+  let authoritativeOutcome = false;
   try {
     const args = process.argv.slice(2);
     if (args[0] === "author" && args.length === 2 && args[1]?.startsWith("/")) {
@@ -76,6 +78,42 @@ export const runPresentationProcess = async ({
       result = await preview(args[1], controller.signal, (origin) =>
         process.stdout.write(`Preview: ${origin}\n`),
       );
+    } else if (args[0] === "publication-status" && args.length === 3) {
+      const token = process.env?.["UNFRAME_ACCESS_TOKEN"];
+      let operation: unknown;
+      try {
+        operation = JSON.parse(args[1]!);
+      } catch {
+        operation = null;
+      }
+      const parsed = publicationOperationSchema.safeParse(operation);
+      if (!token || !parsed.success)
+        result = {
+          exitCode: 2,
+          stdout: "",
+          stderr:
+            "$: usage/cli-publication-status-invalid: Supply the operation JSON, Control Plane origin, and UNFRAME_ACCESS_TOKEN.\n",
+        };
+      else {
+        const receipt = await query({
+          controlPlaneUrl: args[2]!,
+          bearerToken: token,
+          operation: parsed.data,
+          signal: controller.signal,
+        });
+        authoritativeOutcome = true;
+        result = receipt.ok
+          ? {
+              exitCode: 0,
+              stdout: `publish: ok (${receipt.buildId}, epoch ${receipt.publicationEpoch})\n`,
+              stderr: "",
+            }
+          : {
+              exitCode: 1,
+              stdout: "",
+              stderr: `$: io/${receipt.code}: Publication outcome remains unknown.\n${JSON.stringify(receipt.operation)}\n`,
+            };
+      }
     } else if (args[0] === "publish" && args.length === 4 && args[1]?.startsWith("/")) {
       const token = process.env?.["UNFRAME_ACCESS_TOKEN"];
       if (!token)
@@ -93,6 +131,7 @@ export const runPresentationProcess = async ({
           bearerToken: token,
           signal: controller.signal,
         });
+        authoritativeOutcome = sent.ok || sent.outcome === "outcome-unknown";
         result = sent.ok
           ? {
               exitCode: 0,
@@ -102,11 +141,16 @@ export const runPresentationProcess = async ({
           : {
               exitCode: sent.code === "cli-publish-cancelled" ? 130 : 1,
               stdout: "",
-              stderr: `$: io/${sent.code}: Publication could not be completed.\n`,
+              stderr: `$: io/${sent.code}: Publication could not be completed.${sent.operation ? `\n${JSON.stringify(sent.operation)}` : ""}\n`,
             };
       }
     } else result = await Promise.resolve(run({ args, host: { signal: controller.signal } }));
-    if (controller.signal.aborted && result.exitCode !== 130)
+    if (
+      controller.signal.aborted &&
+      result.exitCode !== 130 &&
+      !authoritativeOutcome &&
+      !(result.exitCode === 0 && result.generationId)
+    )
       result = {
         exitCode: 130,
         stdout: "",

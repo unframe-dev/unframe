@@ -1,8 +1,8 @@
 import { MODEL_BUILD_IDENTITY } from "../build-execution/api/compile-model-assets.js";
-import { digestBytes } from "./package-snapshot.js";
-import type { ProjectConfig } from "./load-config.js";
-import type { LocalFileSnapshot } from "./frozen-local-files.js";
-import type { LockedSourceAsset } from "./lock.js";
+import { digestBytes } from "@unframe/workspace-node";
+import type { ProjectConfig } from "@unframe/workspace";
+import type { LocalFileSnapshot } from "@unframe/workspace";
+import type { LockedSourceAsset } from "@unframe/workspace";
 import { type DeclarationProjectAssemblyCarrier } from "../source-preparation/index.js";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { createVideoValidator } from "../media/video-validator.js";

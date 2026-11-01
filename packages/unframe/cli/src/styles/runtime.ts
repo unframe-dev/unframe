@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { runtimeMetadataSchema } from "./snapshot-schema.js";
+import { runtimeMetadataSchema } from "@unframe/workspace";
 
 export const probeNodeRuntime = (nodePath: string) =>
   runtimeMetadataSchema.parse(

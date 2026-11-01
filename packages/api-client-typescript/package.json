@@ -16,7 +16,6 @@
   "dependencies": {
     "@unframe/artifacts": "workspace:*",
     "@unframe/contracts": "workspace:*",
-    "@unframe/control-plane": "workspace:*",
     "better-auth": "1.7.1",
     "hono": "^4.13.1"
   },

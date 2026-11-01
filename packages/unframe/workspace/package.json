@@ -1,0 +1,45 @@
+{
+  "name": "@unframe/workspace",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs"
+      }
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src test vite.config.ts",
+    "test": "vp test run",
+    "build": "vp pack",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "@unframe/artifacts": "workspace:*",
+    "@unframe/contracts": "workspace:*",
+    "canonicalize": "3.0.0",
+    "semver": "7.8.5",
+    "ssri": "14.0.0",
+    "typescript": "6.0.3",
+    "validate-npm-package-name": "8.0.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "@types/semver": "7.7.1",
+    "@types/ssri": "7.1.5",
+    "@types/validate-npm-package-name": "4.0.2",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

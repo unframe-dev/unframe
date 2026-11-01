@@ -5,8 +5,8 @@ import * as ts from "typescript";
 import { z } from "zod";
 import { compileStylesResultSchema, type StyleDiagnostic } from "@unframe/core/tailwind";
 import type { DiscoveredProjectFiles } from "./discover-project.js";
-import type { UnframeLock } from "./lock.js";
-import { digestBytes, lockedFile } from "./package-snapshot.js";
+import type { UnframeLock } from "@unframe/workspace";
+import { digestBytes, lockedFile } from "@unframe/workspace-node";
 import {
   snapshotNodeTransformInputs,
   withNodeTransformSources,

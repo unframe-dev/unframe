@@ -75,6 +75,7 @@ author <absolute-project-directory>
 dev <absolute-project-directory>
 preview <absolute-project-directory>
 publish <absolute-project-directory> <presentation-id> <control-plane-origin>
+publication-status '<operation-json>' <control-plane-origin>
 ```
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
@@ -153,7 +154,7 @@ build lease と検証済みの一時Distディレクトリはrevisionに含め�
 
 Linux / macOS ともに Go 製 native filesystem helper の directory FD に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。保存規則は [ADR-0022](../../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md)、OS 別の境界は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。
 
-native filesystem helper は [`scripts/build-cli-filesystem.sh`](../../../scripts/build-cli-filesystem.sh) で `packages/unframe/cli/.cache/filesystem-helper` に生成する。依存は native 専用 Go module に固定する。CLI の `presentation` / `dev` / `tui` / `test` / `test:tui` の pnpm hook は生成を行う。`vp test` の直接実行、headless API の直接利用など hook を通らない consumer は、repository root で先に同 script を実行する。Source 保存 transaction もこの helper の FD 操作を使い、schema、checksum、cache key、保持方針は TypeScript が所有する。
+native filesystem helper は [`scripts/build-cli-filesystem.sh`](../../../scripts/build-cli-filesystem.sh) で `packages/unframe/workspace-node/.cache/filesystem-helper` に生成する。依存は native 専用 Go module に固定する。CLI の `presentation` / `dev` / `tui` / `test` / `test:tui` の pnpm hook は生成を行う。`vp test` の直接実行、headless API の直接利用など hook を通らない consumer は、repository root で先に同 script を実行する。Source 保存 transaction もこの helper の FD 操作を使い、schema、checksum、cache key、保持方針は TypeScript が所有する。
 
 ## 7. Deferred
 
@@ -175,7 +176,7 @@ package に移さない。
 起動は `pnpm --filter @unframe/core presentation author /absolute/project`。
 Opaque preview には既存の固定 Browser と OS 別の隔離実行環境が必要である。
 
-`src/author/contract.ts` がローカル HTTP 境界、Compiler が Source patch、`app/web/local-editor` が画面を所有する。
+`@unframe/contracts/author-http` がローカル HTTP 契約、Source が patch 生成、Author Service が編集ユースケース、`app/web/local-editor` が画面を所有する。
 公開 scalar Props と host Transform を編集し、保存後に build を要求する。共有値・props spread は対象 Instance の局所 override として保存し、同一 session の Undo / Redo と継承への復帰を提供する。有限 State preview は Core の既存 Cue 実行器を使い、宣言済み操作と生成済み State 画像を接続する。React 内部の CSS 編集は提供しない。
 保存 revision と成功した preview revision を区別し、capture 失敗でも保存済み Source と以前の preview を保持する。
 認証・保存・回復規則は [実装契約](../../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) を参照。

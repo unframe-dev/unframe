@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promis
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, assert, expect, it } from "vitest";
-import { acquireSourceLock } from "../src/filesystem/source-lock.js";
+import { acquireSourceLock } from "@unframe/workspace-node";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const directories: string[] = [];

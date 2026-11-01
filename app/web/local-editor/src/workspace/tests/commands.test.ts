@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import type { PreviewPlaybackCommand, ProjectSnapshot } from "@unframe/core/cli/author-contract";
+import type { PreviewPlaybackCommand, ProjectSnapshot } from "@unframe/contracts/author-http";
 import type { HostApi } from "../../infra/host-api";
 import type { PreviewDriver } from "../../preview/preview-driver";
 import { createWorkspace } from "../create-workspace";
@@ -41,10 +41,10 @@ function fixture(readOnly = false) {
         artifacts: [],
       };
     },
-    preview: async (body: { requestId: string; channel: string; sourceRevision?: string }) => ({
+    preview: async (body: { requestId: string; channel: string; buildId?: string }) => ({
       requestId: body.requestId,
       buildManifest: '{"buildId":"fixed"}',
-      ...(body.sourceRevision ? { sourceRevision: body.sourceRevision } : {}),
+      ...(body.channel === "dev" ? { sourceRevision: builds.at(-1) } : {}),
     }),
     invalidateDisplay: async () => undefined,
     confirmDisplay: async () => undefined,

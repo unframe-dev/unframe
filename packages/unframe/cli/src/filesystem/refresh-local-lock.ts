@@ -1,5 +1,5 @@
 import { checkAuthoringProject } from "@unframe/source";
-import { withNativeFilesystem } from "./native-filesystem.js";
+import { withNativeFilesystem } from "@unframe/workspace-node";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { mkdir, open, rename, unlink } from "node:fs/promises";
@@ -10,12 +10,12 @@ import {
 } from "../source-preparation/index.js";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
-import { loadUnframeLock } from "./load-lock.js";
-import { hashDependencyGraph, type UnframeLock } from "./lock.js";
-import { digestBytes } from "./package-snapshot.js";
-import { projectDirectory, readDirectoryNames, readRegularFile } from "./path-policy.js";
-import { acquireSourceLock } from "./source-lock.js";
-import { acquireBuildLock } from "./build-lock.js";
+import { loadUnframeLock } from "@unframe/workspace";
+import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
+import { digestBytes } from "@unframe/workspace-node";
+import { projectDirectory, readDirectoryNames, readRegularFile } from "@unframe/workspace-node";
+import { acquireSourceLock } from "@unframe/workspace-node";
+import { acquireBuildLock } from "@unframe/workspace-node";
 import { prepareProjectSource, StylePreparationError } from "./prepare-project.js";
 import {
   createSourceAssetAssemblyCarrier,

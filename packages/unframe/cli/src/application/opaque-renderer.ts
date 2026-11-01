@@ -11,7 +11,7 @@ import {
   type OpaqueRenderProgram,
   type WebRendererConfig,
 } from "@unframe/core/renderer-web";
-import { mediaTypeFor } from "../filesystem/package-snapshot.js";
+import { mediaTypeFor } from "@unframe/workspace";
 
 export class OpaquePreparationFailure extends Error {
   constructor(

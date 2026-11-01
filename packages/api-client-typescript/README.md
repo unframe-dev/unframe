@@ -1,6 +1,6 @@
 # Control Plane TypeScript Client
 
-Control Plane の型付き `OpenAPIHono` application から公開した `AppType` を `hono/client` に適用する Hono RPC client です。入力、path parameter、status 別 response は実行ルートと同じ Zod / OpenAPI 定義から推論されます。
+`@unframe/contracts/control-plane` の生成済み OpenAPI HTTP 契約を使う型付き client です。入力、path parameter、status 別 response を HTTP 契約から導出し、Control Plane アプリの型や実装には依存しません。
 
 ```ts
 import { createControlPlaneClient } from "@unframe/api-client-typescript";

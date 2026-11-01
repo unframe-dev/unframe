@@ -1,7 +1,7 @@
 import type {
   PreviewPlaybackCommand,
   PreviewPlaybackResponse,
-} from "@unframe/core/cli/author-contract";
+} from "@unframe/contracts/author-http";
 import type { HostApi } from "../infra/host-api";
 import { HostApiError } from "../infra/host-api";
 import type { PreviewDriver } from "./preview-driver";

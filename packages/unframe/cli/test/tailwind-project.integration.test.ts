@@ -12,7 +12,7 @@ import { checkAuthoringProject } from "@unframe/source";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { startDistPreviewHost } from "../src/author/start.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import { loadUnframeLock } from "@unframe/workspace";
 import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 const execute = promisify(execFile);

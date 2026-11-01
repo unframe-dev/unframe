@@ -1,27 +1,21 @@
+import { AuthorError, type AuthorService } from "@unframe/author-service";
+import { PreviewError, type LocalPreviewService } from "@unframe/preview";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
-  AuthorError,
+  authorPublicationResultSchema,
   buildRequestSchema,
-  patchRequestSchema,
   randomIdSchema,
-  type AuthorService,
-} from "./contract.js";
+  patchRequestSchema,
+  previewRequestSchema,
+} from "@unframe/contracts/author-http";
 import {
   previewCommittedRequestSchema,
   previewPlaybackCommandSchema,
-  type LocalPreviewService,
-} from "./preview-contract.js";
+} from "@unframe/contracts/author-http";
 import { createPublicationAuth, type PublicationAuth } from "./publication-auth.js";
 import type { LocalPublicationService } from "./publication.js";
-
-const previewRequestSchema = z.discriminatedUnion("channel", [
-  z.object({ requestId: randomIdSchema, channel: z.literal("dist") }).strict(),
-  z
-    .object({ requestId: randomIdSchema, channel: z.literal("dev"), buildId: randomIdSchema })
-    .strict(),
-]);
 
 type Asset = { bytes: Uint8Array; mediaType: string };
 const jsonBody = async (request: IncomingMessage): Promise<unknown> => {
@@ -146,11 +140,11 @@ export const startAuthorHost = async ({
           return;
         }
       }
-      if (path === "/api/publications" && request.method === "POST") {
-        const parsed = z
-          .object({ requestId: randomIdSchema })
-          .strict()
-          .safeParse(await jsonBody(request));
+      if (
+        ["/api/publications", "/api/publication-status"].includes(path) &&
+        request.method === "POST"
+      ) {
+        const parsed = buildRequestSchema.safeParse(await jsonBody(request));
         if (!parsed.success) throw invalid();
         if (!publication)
           throw new AuthorError(
@@ -158,7 +152,13 @@ export const startAuthorHost = async ({
             "publication-unconfigured",
             "Configure the publication target on the Host.",
           );
-        sendJson(response, 201, await publication.publish(parsed.data.requestId));
+        const checking = path === "/api/publication-status";
+        const result = authorPublicationResultSchema.parse(
+          await (checking
+            ? publication.query(parsed.data.requestId)
+            : publication.publish(parsed.data.requestId)),
+        );
+        sendJson(response, result.ok ? (checking ? 200 : 201) : 202, result);
         return;
       }
       if (path === "/api/project" && request.method === "PATCH") {
@@ -304,11 +304,13 @@ export const startAuthorHost = async ({
       const failure =
         error instanceof AuthorError
           ? error
-          : new AuthorError(
-              500,
-              "author-io-failed",
-              "The local author host could not complete the operation.",
-            );
+          : error instanceof PreviewError
+            ? new AuthorError(error.status, error.code, error.message)
+            : new AuthorError(
+                500,
+                "author-io-failed",
+                "The local author host could not complete the operation.",
+              );
       if (!response.headersSent)
         sendJson(response, failure.status, {
           code: failure.code,

@@ -25,9 +25,9 @@ import {
 
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import { loadUnframeLock } from "@unframe/workspace";
 import { refreshLocalProjectLock } from "../src/filesystem/refresh-local-lock.js";
-import { acquireBuildLock } from "../src/filesystem/build-lock.js";
+import { acquireBuildLock } from "@unframe/workspace-node";
 import { lockSourceAssets } from "../src/filesystem/source-assets.js";
 import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
 

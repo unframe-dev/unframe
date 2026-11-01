@@ -1,7 +1,7 @@
 import type {
   LocalPreviewEnvelopeWire,
   PreviewPlaybackResponse,
-} from "@unframe/core/cli/author-contract";
+} from "@unframe/contracts/author-http";
 import type { UnityNotification } from "../infra/unity-exchange";
 export type PreviewDriver = {
   prepare(envelope: LocalPreviewEnvelopeWire, signal?: AbortSignal): Promise<string>;

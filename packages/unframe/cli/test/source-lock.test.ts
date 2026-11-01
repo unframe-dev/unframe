@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it } from "vitest";
 import { runPresentationCli } from "../src/index.js";
-import { acquireSourceLock } from "../src/filesystem/source-lock.js";
+import { acquireSourceLock } from "@unframe/workspace-node";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 const reference = fileURLToPath(new URL("../../../../examples/presentation", import.meta.url));
 const directories: string[] = [];

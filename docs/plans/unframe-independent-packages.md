@@ -85,13 +85,15 @@ SourceとCompilerは外部環境を再探索しない。描画・素材・CSS・
 
 ### 3. Workspaceと独立ユースケース
 
-- [ ] workspaceとworkspace-nodeへ編集・保存・依存固定の規則とI/Oを分離する。
-- [ ] author-service、build、preview、publishを個別パッケージとして実装する。
-- [ ] Source/lock同時保存、Build世代の競合、Preview切替、取消/commit競合を公開APIで検証する。
-- [ ] Local EditorをcontractsのAuthor HTTP契約へ接続する。
-- [ ] API clientのControl Planeアプリ型依存をHTTP契約へ置き換える。
+- [x] workspaceとworkspace-nodeへ編集・保存・依存固定の規則とI/Oを分離する。
+- [x] author-service、build、preview、publishを個別パッケージとして実装する。
+- [x] Source/lock同時保存、Build世代の競合、Preview切替、取消/commit競合を公開APIで検証する。
+- [x] Local EditorをcontractsのAuthor HTTP契約へ接続する。
+- [x] API clientのControl Planeアプリ型依存をHTTP契約へ置き換える。
 
-受け入れ条件は、状態所有者が表に一致し、公開結果不明・古い編集・古い表示世代が成功や取消に混同されないこと。
+実装結果: WorkspaceとNode adapter、4つのユースケースを独立化し、CLIとLocal Editorを公開境界へ接続した。Source/lock保存と復旧の排他、Build世代の比較、Preview切替、取消とcommitの競合、公開結果不明の照会を実装した。独立レビューで見つかった保存・lease競合と結果伝播の不備を修正した。
+
+検証: Workspace関連61件、ユースケース・CLI関連108件中107件、Local Editor 99件、HTTP 12件、API client 32件、型検査・関連lint・各packageのpack、隔離環境での6 package公開API・型宣言が成功。残る1件とCLI Authorの19件は既存の欠落動画・`examples/presentation`に依存する。通常の一時ディレクトリでは保存テストの一部が5秒でタイムアウトしたが、メモリ上の一時領域では12件成功した。PreviewとAuthor Serviceのpackには8GBのNode heapを使用する。実ブラウザ・実Control Plane接続とnative helperの配布は第4段階で確認する。
 
 ### 4. Adapterと配布
 

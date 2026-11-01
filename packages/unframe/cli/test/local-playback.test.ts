@@ -2,9 +2,9 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 import { encodeWireMessage, decodeWireMessage } from "@unframe/contracts/presentation";
 import { checkAuthoringProjectAssembly } from "../src/source-preparation/index.js";
-import { createLocalPlayback } from "../src/author/local-playback.js";
+import { createLocalPlayback } from "@unframe/preview";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import { loadUnframeLock } from "@unframe/workspace";
 import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const requestId = "a".repeat(32);

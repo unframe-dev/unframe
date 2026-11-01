@@ -24,6 +24,7 @@ pnpm-debug.log*
 # build artifacts
 dist/
 build/
+!/packages/unframe/build/
 # Unity Editor build scripts are source files, not build artifacts.
 !app/unity/Assets/Editor/MR/Build/
 .svelte-kit/

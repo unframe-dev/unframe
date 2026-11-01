@@ -16,14 +16,15 @@
     "./presentation/runtime-projection": "./src/presentation/runtime-projection.ts",
     "./presentation/semantics": "./src/presentation/semantics.ts",
     "./presentation/wire-metadata": "./src/presentation/wire-metadata.ts",
-    "./presentation/wire-types": "./presentation/wire-types.d.ts"
+    "./presentation/wire-types": "./presentation/wire-types.d.ts",
+    "./author-http": "./src/author-http.ts"
   },
   "scripts": {
     "generate:control-plane": "tsx scripts/generate-control-plane.ts",
     "check:control-plane": "tsx scripts/generate-control-plane.ts --check",
     "generate:presentation": "tsx scripts/generate-presentation.ts",
     "check:presentation": "tsx scripts/generate-presentation.ts --check",
-    "test:presentation": "tsx --test test/schema-version.test.ts test/audience-capability.test.ts test/presentation.contract.test.ts test/runtime-projection.contract.test.ts test/public-contract.test.ts test/local-preview.contract.test.ts test/presenter-authority.contract.test.ts test/runtime-authority-capacity.test.ts",
+    "test:presentation": "tsx --test test/schema-version.test.ts test/audience-capability.test.ts test/presentation.contract.test.ts test/runtime-projection.contract.test.ts test/public-contract.test.ts test/local-preview.contract.test.ts test/presenter-authority.contract.test.ts test/runtime-authority-capacity.test.ts test/author-http.contract.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src/presentation scripts test",
     "check": "pnpm check:control-plane && pnpm check:presentation && pnpm check:presentation-fixtures && pnpm check:wire-descriptor && pnpm check:wire-static && pnpm check:wire-types && pnpm check:wire-fixtures && pnpm typecheck && pnpm test:presentation && pnpm test:wire && pnpm lint",

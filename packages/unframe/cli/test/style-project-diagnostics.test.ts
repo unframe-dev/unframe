@@ -7,11 +7,11 @@ import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { checkAuthoringProject } from "@unframe/source";
 import { createAuthorService } from "../src/author/service.js";
-import type { AuthorService } from "../src/author/contract.js";
+import type { AuthorService } from "@unframe/author-service";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
-import { hashDependencyGraph } from "../src/filesystem/lock.js";
+import { loadUnframeLock } from "@unframe/workspace";
+import { hashDependencyGraph } from "@unframe/workspace";
 import { prepareProjectSource } from "../src/filesystem/prepare-project.js";
 import {
   snapshotNodeTransformInputs,

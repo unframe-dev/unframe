@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { loadProjectConfig } from "../src/filesystem/load-config.js";
+import { loadProjectConfig } from "@unframe/workspace";
 
 const parse = (source: string) => loadProjectConfig(new TextEncoder().encode(source));
 

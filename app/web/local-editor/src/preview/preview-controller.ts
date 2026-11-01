@@ -1,4 +1,4 @@
-import type { PreviewPlaybackResponse } from "@unframe/core/cli/author-contract";
+import type { PreviewPlaybackResponse } from "@unframe/contracts/author-http";
 import type { HostApi } from "../infra/host-api";
 import type { PreviewDriver } from "./preview-driver";
 import { createPreviewStore, type PreviewStore } from "./preview-store";
@@ -160,8 +160,7 @@ export function createPreviewController(input: {
           if (!current(serial)) return;
           await input.api.invalidateDisplay(signal);
           if (!current(serial)) return;
-          let generationId: string | undefined,
-            sourceRevision = revision;
+          let buildId: string | undefined;
           if (channel === "dev") {
             let job = await input.api.build(revision, id(), signal);
             activeBuild = job.buildId;
@@ -182,15 +181,12 @@ export function createPreviewController(input: {
               throw new Error(
                 `build ${job.status}: ${job.diagnostics.map((item) => item.message).join("; ")}`,
               );
-            generationId = job.generationId;
-            sourceRevision = job.revision;
+            buildId = job.buildId;
           }
           store.setState({ phase: "preparing" });
           const requestId = id();
           const envelope = await input.api.preview(
-            generationId
-              ? { requestId, channel: "dev", generationId, sourceRevision }
-              : { requestId, channel: "dist" },
+            buildId ? { requestId, channel: "dev", buildId } : { requestId, channel: "dist" },
             signal,
           );
           candidate = envelope.requestId;

@@ -3,7 +3,7 @@ import type {
   ProjectSnapshot,
   PatchRequest,
   SavedCommand,
-} from "@unframe/core/cli/author-contract";
+} from "@unframe/contracts/author-http";
 import { createProjectStore, type SaveAction, type PendingSave } from "./project-store";
 import { inverseProp, validProp } from "./edit-state";
 type ProjectPort = {

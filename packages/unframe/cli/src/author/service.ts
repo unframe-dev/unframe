@@ -1,115 +1,59 @@
-import { createHash, randomBytes } from "node:crypto";
+import { readBuildExecutionResult } from "./build-result.js";
+import { createWorkspaceSnapshot } from "@unframe/workspace";
+import {
+  createAuthorService as createService,
+  createAuthorPatch,
+  inspectAuthorSource,
+  surfaceIdFor,
+  AuthorError,
+  type AuthorService,
+} from "@unframe/author-service";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { z } from "zod";
 import {
   checkAuthoringProjectAssembly,
   computeFrozenComponentInputs,
 } from "../source-preparation/index.js";
-import {
-  checkAuthoringProject,
-  createReactScenePatch,
-  createSourceSnapshot,
-  readEditableReactScene,
-} from "@unframe/source";
+import { checkAuthoringProject } from "@unframe/source";
 import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
 import { sourceDiagnosticFamily } from "../application/source-diagnostic-family.js";
 import type { RunPresentationCliInput } from "../application/types.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
-import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
-import { loadUnframeLock } from "../filesystem/load-lock.js";
-import { hashDependencyGraph, type UnframeLock } from "../filesystem/lock.js";
+import { verifyFrozenLocalFiles } from "@unframe/workspace";
+import { loadUnframeLock } from "@unframe/workspace";
+import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
 import { prepareProjectSource, StylePreparationError } from "../filesystem/prepare-project.js";
 import { styleDiagnostics } from "../application/style-diagnostics.js";
-import { readRegularFile } from "../filesystem/path-policy.js";
-import { AuthorArtifactCache } from "./artifact-cache.js";
+import { readRegularFile } from "@unframe/workspace-node";
 import { readBuildGeneration } from "../filesystem/read-build-generation.js";
-import { acquireSourceLock } from "../filesystem/source-lock.js";
+import { acquireSourceLock } from "@unframe/workspace-node";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
 import {
   createSourceAssetAssemblyCarrier,
   resolveDevProjectSourceAssets,
 } from "../filesystem/source-assets.js";
 import {
-  AuthorError,
   type AuthorDiagnostic,
-  type AuthorService,
   type BuildJob,
   type ProjectSnapshot,
   type SavedCommand,
-} from "./contract.js";
+} from "@unframe/contracts/author-http";
 import {
   AuthorTransactionConflict,
   commitAuthorPair,
   prepareAuthorStorage,
   readAuthorReceipt,
   recoverAuthorTransactions,
-} from "./save-transaction.js";
+} from "@unframe/workspace-node";
 
 const encoder = new TextEncoder();
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-const randomId = () => randomBytes(16).toString("hex");
 const diagnostic = (
   code: string,
   message: string,
   path?: readonly (string | number)[],
-): AuthorDiagnostic => ({ code, message, ...(path ? { path } : {}) });
-const locationSchema = z.object({
-  fileName: z.string(),
-  start: z.number().int(),
-  end: z.number().int(),
-  line: z.number().int().positive(),
-  column: z.number().int().positive(),
-});
-const buildDiagnosticSchema = z
-  .object({
-    family: z.enum(["syntax", "type", "semantic", "renderer", "io", "cancel", "usage"]),
-    code: z.string(),
-    message: z.string(),
-    path: z.array(z.union([z.string(), z.number()])),
-    location: locationSchema.optional(),
-    severity: z.enum(["warning", "error"]).optional(),
-    phase: z.enum(["config", "resolve", "transform"]).optional(),
-    file: z.string().optional(),
-    line: z.number().optional(),
-    column: z.number().optional(),
-    plugin: z.string().optional(),
-  })
-  .transform(
-    ({ location, severity, phase, file, line, column, plugin, ...required }): AuthorDiagnostic => ({
-      ...required,
-      ...(location !== undefined ? { location } : {}),
-      ...(severity !== undefined ? { severity } : {}),
-      ...(phase !== undefined ? { phase } : {}),
-      ...(file !== undefined ? { file } : {}),
-      ...(line !== undefined ? { line } : {}),
-      ...(column !== undefined ? { column } : {}),
-      ...(plugin !== undefined ? { plugin } : {}),
-    }),
-  );
-const buildDiagnostics = (stderr: string): AuthorDiagnostic[] => {
-  try {
-    const output = z
-      .object({ diagnostics: z.array(buildDiagnosticSchema).min(1) })
-      .safeParse(JSON.parse(stderr));
-    if (output.success) return output.data.diagnostics;
-  } catch {
-    /* CLI output may be plain text after an unexpected failure. */
-  }
-  return [diagnostic("author-build-failed", stderr.trim() || "Build failed.")];
-};
-const buildWarnings = (stdout: string): AuthorDiagnostic[] => {
-  try {
-    const output = z
-      .object({ warnings: z.array(buildDiagnosticSchema) })
-      .safeParse(JSON.parse(stdout));
-    if (output.success)
-      return output.data.warnings.map((item) => ({ ...item, severity: "warning" }));
-  } catch {
-    /* A custom build host may return no structured warning output. */
-  }
-  return [];
-};
+): AuthorDiagnostic => ({ code, message, ...(path ? { path: [...path] } : {}) });
 const sourceDiagnostic = (item: {
   code: string;
   message: string;
@@ -158,10 +102,7 @@ const sourceRevision = async (found: Discovery, entryBytes: Uint8Array, lockByte
       file.path === found.entryFile ? { path: file.path, bytes: entryBytes } : file,
     ),
   ].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  return (
-    "sha256:" +
-    digest(encoder.encode(JSON.stringify(inputs.map(({ path, bytes }) => [path, digest(bytes)]))))
-  );
+  return createWorkspaceSnapshot(inputs).revision;
 };
 type ProjectState = {
   snapshot: ProjectSnapshot;
@@ -198,7 +139,10 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
         definition: null,
         instances: [],
         diagnostics: error.diagnostics.length
-          ? styleDiagnostics(error.diagnostics, error.code)
+          ? styleDiagnostics(error.diagnostics, error.code).map((item) => ({
+              ...item,
+              path: [...item.path],
+            }))
           : [{ ...diagnostic(error.code, error.message), severity: "error" }],
       },
     };
@@ -211,7 +155,6 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
     found.localFiles,
     loaded.value.assemblyCarrier.componentLocks,
   );
-  const catalog = checkAuthoringProject(source);
   const sourceAssets = await resolveDevProjectSourceAssets(found.assetSources, found.localFiles);
   const checked =
     frozen.length === 0 && sourceAssets.ok
@@ -222,14 +165,13 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
         )
       : undefined;
   const diagnostics: AuthorDiagnostic[] = [
-    ...styleDiagnostics(prepared.diagnostics),
+    ...styleDiagnostics(prepared.diagnostics).map((item) => ({ ...item, path: [...item.path] })),
     ...frozen.map((item) =>
       diagnostic(item.code, "Source differs from its frozen lock.", [item.path]),
     ),
     ...(!sourceAssets.ok
       ? [diagnostic(sourceAssets.code, sourceAssets.message, [sourceAssets.path])]
       : []),
-    ...(!catalog.valid ? catalog.diagnostics.map(sourceDiagnostic) : []),
     ...(checked && !checked.valid
       ? checked.diagnostics.map((item) =>
           "path" in item
@@ -238,45 +180,13 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
         )
       : []),
   ];
-  const editable =
-    catalog.valid && checked?.valid ? readEditableReactScene(catalog.value, sourceText) : undefined;
-  if (editable && !editable.ok)
-    diagnostics.push(
-      ...editable.diagnostics.map((item) =>
-        diagnostic(item.code, item.message, item.instanceId ? [item.instanceId] : []),
-      ),
-    );
-  const instances = editable?.ok
-    ? editable.value.map((item) => ({
-        instanceId: item.instanceId,
-        surfaceId: surfaceIdFor(item.instanceId),
-        props: Object.fromEntries(
-          Object.entries(item.props).map(([id, prop]) => [
-            id,
-            {
-              type: prop.kind,
-              value: prop.value,
-              editable: prop.editable,
-              inherited: prop.inherited,
-              ...(prop.editor ? { editor: prop.editor } : {}),
-              ...(prop.inheritanceExpression
-                ? { inheritanceExpression: prop.inheritanceExpression }
-                : {}),
-            },
-          ]),
-        ),
-        transform: {
-          position: [...item.transform.position] as [number, number, number],
-          rotation: [...item.transform.rotation] as [number, number, number, number],
-          scale: [...item.transform.scale] as [number, number, number],
-        },
-        transformEditable: item.transformEditable,
-        transformInherited: item.transformInherited,
-        ...(item.transformInheritanceExpression
-          ? { transformInheritanceExpression: item.transformInheritanceExpression }
-          : {}),
-      }))
-    : [];
+  const inspected = inspectAuthorSource({
+    source,
+    sourceText,
+    semanticValid: checked?.valid === true,
+  });
+  const { catalog, instances } = inspected;
+  diagnostics.push(...inspected.diagnostics);
   return {
     found,
     loaded,
@@ -293,8 +203,6 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
     },
   };
 };
-const surfaceIdFor = (instanceId: string) =>
-  "r:" + digest(encoder.encode(JSON.stringify(["react-component-v1", "surface", instanceId, ""])));
 const readPublishedArtifacts = async (
   directory: string,
   generationId: string,
@@ -347,90 +255,48 @@ export const createAuthorService = async (
     maxCompletedJobs?: number;
   } = {},
 ): Promise<AuthorService> => {
-  const maxCompletedJobs = options.maxCompletedJobs ?? 64;
-  if (!Number.isSafeInteger(maxCompletedJobs) || maxCompletedJobs < 1)
-    throw new TypeError("Invalid completed job limit");
-  await prepareAuthorStorage(directory);
-  const initial = await acquireSourceLock(directory, { allowRecovery: true });
-  if (!initial.ok) fail(409, initial.code, "Project source is busy or requires recovery.");
-  try {
-    try {
-      await recoverAuthorTransactions(directory);
-    } catch {
-      fail(409, "author-recovery-required", "Source save recovery requires attention.");
-    }
-  } finally {
-    await initial.value.release();
-  }
-  const run = options.run ?? runPresentationCli;
   const readPublished = options.readPublishedArtifacts ?? readPublishedArtifacts;
-  const jobs = new Map<string, BuildJob>();
-  const active = new Map<
-    string,
-    { controller: AbortController; promise: Promise<void> | undefined }
-  >();
-  const requests = new Map<
-    string,
-    { revision: string; buildId: string; channel: "dev" | "dist" }
-  >();
-  const completed: { buildId: string; requestId: string }[] = [];
-  const retainCompleted = (buildId: string, requestId: string) => {
-    completed.push({ buildId, requestId });
-    while (completed.length > maxCompletedJobs) {
-      const stale = completed.shift()!;
-      jobs.delete(stale.buildId);
-      requests.delete(stale.requestId);
-    }
-  };
-  const artifacts = new AuthorArtifactCache(
-    options.artifactRetention?.maxGenerations,
-    options.artifactRetention?.maxBytes,
-  );
-  let closed = false;
-  const withSource = async <T>(
-    callback: () => Promise<T>,
-    allowRecovery = false,
-    waitTimeoutMs = 0,
-    signal?: AbortSignal,
-  ): Promise<T> => {
-    if (closed) fail(409, "author-service-closed", "Author host is closed.");
-    const lease = await acquireSourceLock(directory, {
-      allowRecovery,
-      waitTimeoutMs,
-      ...(signal ? { signal } : {}),
-    });
-    if (!lease.ok) fail(409, lease.code, "Project source is busy or requires recovery.");
-    try {
-      if (closed) fail(409, "author-service-closed", "Author host is closed.");
-      if (allowRecovery) {
+  const run = options.run ?? runPresentationCli;
+  return createService(
+    {
+      initialize: async () => {
+        await prepareAuthorStorage(directory);
+        const lease = await acquireSourceLock(directory, { allowRecovery: true });
+        if (!lease.ok) fail(409, lease.code, "Project source is busy or requires recovery.");
         try {
-          await recoverAuthorTransactions(directory);
-        } catch {
-          fail(409, "author-recovery-required", "Source save recovery requires attention.");
+          try {
+            await lease.value.run(() => recoverAuthorTransactions(directory));
+          } catch {
+            fail(409, "author-recovery-required", "Source save recovery requires attention.");
+          }
+        } finally {
+          await lease.value.release();
         }
-      }
-      return await callback();
-    } finally {
-      await lease.value.release();
-    }
-  };
-  const getJob = (id: string) => {
-    const value = jobs.get(id);
-    if (!value) fail(404, "author-build-not-found", "Build job was not found.");
-    return value;
-  };
-  return {
-    project: async () => {
-      const found = await withSource(
-        () => discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true }),
-        false,
-        5000,
-      );
-      if (!found.ok) fail(500, found.code, found.message);
-      return (await readState(directory, found)).snapshot;
-    },
-    patch: (revision, request) =>
-      withSource(async () => {
+      },
+      withSource: async (callback, allowRecovery, waitTimeoutMs, signal) => {
+        const lease = await acquireSourceLock(directory, {
+          allowRecovery,
+          waitTimeoutMs,
+          ...(signal ? { signal } : {}),
+        });
+        if (!lease.ok) fail(409, lease.code, "Project source is busy or requires recovery.");
+        try {
+          return await lease.value.run(async () => {
+            if (allowRecovery) {
+              try {
+                await recoverAuthorTransactions(directory);
+              } catch {
+                fail(409, "author-recovery-required", "Source save recovery requires attention.");
+              }
+            }
+            return await callback();
+          });
+        } finally {
+          await lease.value.release();
+        }
+      },
+      project: async () => (await readState(directory)).snapshot,
+      patch: async (revision, request) => {
         const requestHash = digest(encoder.encode(JSON.stringify({ revision, request })));
         const prior = await readAuthorReceipt(directory, request.commandId);
         if (prior) {
@@ -439,30 +305,16 @@ export const createAuthorService = async (
           return prior.saved;
         }
         const current = await readState(directory);
-        if (
-          current.snapshot.revision !== revision ||
-          current.snapshot.irHash !== request.expectedIrHash
-        )
-          fail(412, "author-revision-mismatch", "Project revision or IR changed.");
-        if (!current.catalog || !current.snapshot.irHash)
-          fail(422, "author-source-invalid", "Project source cannot be edited.");
-        if (current.snapshot.instances.length === 0)
-          fail(422, "author-edit-unsupported", "Project source does not support Inspector edits.");
-        const sourceSnapshot = createSourceSnapshot(current.source);
-        if (!sourceSnapshot.ok)
-          fail(422, "author-source-invalid", "Project source cannot be snapshotted.");
-        const patched = createReactScenePatch({
-          snapshot: sourceSnapshot.value,
-          fileName: current.found.entryFile,
-          targetHash: `sha256:${digest(encoder.encode(current.sourceText))}`,
-          command: request.command,
-        });
-        if (!patched.ok)
-          fail(
-            422,
-            patched.diagnostics[0]?.code ?? "author-edit-unsupported",
-            patched.diagnostics[0]?.message ?? "Edit is unsupported.",
-          );
+        const patched = {
+          value: createAuthorPatch({
+            source: current.source,
+            sourceText: current.sourceText,
+            entryFile: current.found.entryFile,
+            snapshot: current.snapshot,
+            revision,
+            request,
+          }),
+        };
         const prepared = await sourceInput(current.found, current.loaded, patched.value.sourceText);
         const source = prepared.source;
         const catalog = checkAuthoringProject(source);
@@ -549,186 +401,40 @@ export const createAuthorService = async (
             fail(412, "author-revision-mismatch", "Project inputs changed during save.");
           throw error;
         }
-        for (const item of active.values()) item.controller.abort();
         return saved;
-      }, true),
-    build: async (revision, requestId, channel = "dev") => {
-      if (channel !== "dev" && channel !== "dist")
-        fail(400, "author-output-channel-invalid", "Invalid build channel.");
-      let start: (() => void) | undefined;
-      const response = await withSource(
-        async () => {
-          const existing = requests.get(requestId);
-          if (existing) {
-            if (existing.revision !== revision || existing.channel !== channel)
-              fail(
-                409,
-                "author-request-id-conflict",
-                "Build request ID was used for another revision.",
-              );
-            return getJob(existing.buildId);
-          }
-          if (active.size > 0) fail(409, "author-build-busy", "Another build is running.");
-          const refreshed =
-            channel === "dev"
-              ? await refreshLocalProjectLock(directory, {
-                  sourceLeaseHeld: true,
-                  expectedRevision: revision,
-                })
-              : { ok: true as const, revision };
-          if (!refreshed.ok)
-            fail(
-              refreshed.code === "cli-output-stale" ? 412 : 422,
-              refreshed.code,
-              refreshed.message,
-            );
-          const current = await readState(directory);
-          if (current.snapshot.revision !== refreshed.revision)
-            fail(412, "author-revision-mismatch", "Project revision changed.");
-          if (!current.snapshot.irHash)
-            fail(422, "author-source-invalid", "Project source cannot be built.");
-          if (closed) fail(409, "author-service-closed", "Author host is closed.");
-          const buildRevision = refreshed.revision;
-          const buildId = randomId();
-          const controller = new AbortController();
-          const job: BuildJob = {
-            buildId,
-            channel,
-            revision: buildRevision,
-            generationId: null,
-            status: "queued",
-            diagnostics: [],
-            artifacts: [],
-          };
-          const record = {
-            controller,
-            promise: undefined as Promise<void> | undefined,
-          };
-          jobs.set(buildId, job);
-          active.set(buildId, record);
-          requests.set(requestId, { revision, buildId, channel });
-          start = () => {
-            record.promise = (async () => {
-              await new Promise<void>((resolve) => setImmediate(resolve));
-              if (controller.signal.aborted) {
-                job.status = "cancelled";
-                return;
-              }
-              job.status = "running";
-              try {
-                const result = await run({
-                  args: ["build", directory, "--format", "json"],
-                  host: {
-                    signal: controller.signal,
-                    expectedRevision: buildRevision,
-                    channel,
-                  },
-                });
-                if (controller.signal.aborted || result.exitCode === 130) {
-                  job.status = "cancelled";
-                  return;
-                }
-                if (result.exitCode !== 0) {
-                  job.status = result.stderr.includes("cli-output-stale") ? "stale" : "failed";
-                  job.diagnostics = buildDiagnostics(result.stderr);
-                  return;
-                }
-                if (!result.generationId || !/^[0-9a-f]{32}$/.test(result.generationId))
-                  fail(500, "author-output-unsafe", "Build output is not a managed generation.");
-                const latest = await withSource(
-                  async () => {
-                    const found = await discoverPresentationProjectFiles(directory, {
-                      sourceLeaseHeld: true,
-                    });
-                    return found.ok ? found.revision : undefined;
-                  },
-                  false,
-                  5000,
-                  controller.signal,
-                );
-                if (controller.signal.aborted) {
-                  job.status = "cancelled";
-                  return;
-                }
-                if (latest !== buildRevision) {
-                  job.status = "stale";
-                  return;
-                }
-                const published = await readPublished(
-                  directory,
-                  result.generationId,
-                  current.snapshot.instances.map(({ instanceId }) => instanceId),
-                  channel,
-                  options.artifactRetention?.maxBytes,
-                );
-                if (controller.signal.aborted) {
-                  job.status = "cancelled";
-                  return;
-                }
-                const afterRead = await withSource(
-                  async () => {
-                    const found = await discoverPresentationProjectFiles(directory, {
-                      sourceLeaseHeld: true,
-                    });
-                    return found.ok ? found.revision : undefined;
-                  },
-                  false,
-                  5000,
-                  controller.signal,
-                );
-                if (controller.signal.aborted || afterRead !== buildRevision) {
-                  job.status = controller.signal.aborted ? "cancelled" : "stale";
-                  return;
-                }
-                artifacts.put(channel, result.generationId, published.assets);
-                job.artifacts = published.catalog;
-                job.diagnostics = buildWarnings(result.stdout);
-                job.generationId = result.generationId;
-                job.status = "succeeded";
-              } catch (error) {
-                job.status = controller.signal.aborted ? "cancelled" : "failed";
-                if (!controller.signal.aborted)
-                  job.diagnostics = [
-                    diagnostic(
-                      "author-build-failed",
-                      error instanceof Error ? error.message : "Build failed.",
-                    ),
-                  ];
-              }
-            })().finally(() => {
-              active.delete(buildId);
-              retainCompleted(buildId, requestId);
-            });
-          };
-          return job;
-        },
-        false,
-        5000,
-      );
-      start?.();
-      return response;
+      },
+      prepareBuild: async (revision, channel) => {
+        const refreshed =
+          channel === "dev"
+            ? await refreshLocalProjectLock(directory, {
+                sourceLeaseHeld: true,
+                expectedRevision: revision,
+              })
+            : { ok: true as const, revision };
+        if (!refreshed.ok)
+          fail(
+            refreshed.code === "cli-output-stale" ? 412 : 422,
+            refreshed.code,
+            refreshed.message,
+          );
+        const current = await readState(directory);
+        if (current.snapshot.revision !== refreshed.revision)
+          fail(412, "author-revision-mismatch", "Project revision changed.");
+        if (!current.snapshot.irHash)
+          fail(422, "author-source-invalid", "Project source cannot be built.");
+        return { revision: refreshed.revision, snapshot: current.snapshot };
+      },
+
+      run: async ({ revision, channel, signal }) =>
+        readBuildExecutionResult(
+          await run({
+            args: ["build", directory, "--format", "json"],
+            host: { expectedRevision: revision, channel, signal },
+          }),
+        ),
+      readPublishedArtifacts: (generation, instances, channel, maxBytes) =>
+        readPublished(directory, generation, instances, channel, maxBytes),
     },
-    job: async (id) => getJob(id),
-    cancel: async (id) => {
-      const job = getJob(id);
-      active.get(id)?.controller.abort();
-      return job;
-    },
-    artifact: async (id, assetId) => {
-      const job = getJob(id);
-      if (job.status !== "succeeded")
-        fail(404, "author-asset-not-found", "Build asset was not found.");
-      const value = job.generationId
-        ? artifacts.get(job.channel, job.generationId, assetId)
-        : undefined;
-      if (!value) fail(404, "author-asset-not-found", "Build asset was not found.");
-      return { bytes: value.bytes.slice(), mediaType: value.mediaType };
-    },
-    close: async () => {
-      closed = true;
-      for (const item of active.values()) item.controller.abort();
-      await Promise.all([...active.values()].map((item) => item.promise));
-      artifacts.clear();
-    },
-  };
+    options,
+  );
 };

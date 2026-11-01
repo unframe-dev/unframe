@@ -5,13 +5,13 @@ import { createInterface } from "node:readline";
 import { readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readRegularFile } from "../filesystem/path-policy.js";
+import { readRegularFile } from "@unframe/workspace-node";
 import { startAuthorHost } from "./http.js";
 import { createAuthorService } from "./service.js";
 import { createDistPreviewService, createLocalPreviewService } from "./local-preview.js";
 import { readDistBuild } from "../filesystem/read-dist-build.js";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import type { AuthorService } from "./contract.js";
+import type { AuthorService } from "@unframe/author-service";
 import { createPublicationAuth, type PublicationTarget } from "./publication-auth.js";
 import { createLocalPublicationService } from "./publication.js";
 

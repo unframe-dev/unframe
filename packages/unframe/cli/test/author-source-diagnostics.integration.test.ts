@@ -12,11 +12,11 @@ import { checkAuthoringProject } from "@unframe/source";
 
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import { loadUnframeLock } from "@unframe/workspace";
 import { createAuthorService } from "../src/author/service.js";
-import type { AuthorService } from "../src/author/contract.js";
-import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
-import { snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import type { AuthorService } from "@unframe/author-service";
+import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
+import { snapshotInstalledPackages } from "@unframe/workspace-node";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);

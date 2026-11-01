@@ -8,8 +8,8 @@ import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { runIsolatedWorker } from "@unframe/core/worker-host";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
-import { hashDependencyGraph } from "../src/filesystem/lock.js";
+import { loadUnframeLock } from "@unframe/workspace";
+import { hashDependencyGraph } from "@unframe/workspace";
 import { updateProjectLock } from "../src/filesystem/update-lock.js";
 import {
   snapshotNodeTransformInputs,

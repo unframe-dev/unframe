@@ -12,11 +12,12 @@ import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { checkAuthoringProject } from "@unframe/source";
 import { runPresentationCli } from "../src/index.js";
 import { createAuthorService } from "../src/author/service.js";
-import type { AuthorService, BuildJob, ProjectSnapshot } from "../src/author/contract.js";
+import type { AuthorService } from "@unframe/author-service";
+import type { BuildJob, ProjectSnapshot } from "@unframe/contracts/author-http";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
-import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
-import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import { loadUnframeLock } from "@unframe/workspace";
+import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
+import { lockedFile, snapshotInstalledPackages } from "@unframe/workspace-node";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);

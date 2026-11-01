@@ -1,5 +1,5 @@
 import { checkAuthoringProject } from "@unframe/source";
-import { withNativeFilesystem } from "./native-filesystem.js";
+import { withNativeFilesystem } from "@unframe/workspace-node";
 import {
   authoringPackageRoots,
   hasPostcssConfig,
@@ -19,14 +19,14 @@ import {
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import type { StyleDiagnostic } from "@unframe/core/tailwind";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
-import { loadUnframeLock } from "./load-lock.js";
+import { loadUnframeLock } from "@unframe/workspace";
 import { parseStrictJson } from "@unframe/artifacts";
-import { acquireSourceLock } from "./source-lock.js";
-import { acquireBuildLock } from "./build-lock.js";
-import { readRegularFile, readBoundedRegularFile } from "./path-policy.js";
+import { acquireSourceLock } from "@unframe/workspace-node";
+import { acquireBuildLock } from "@unframe/workspace-node";
+import { readRegularFile, readBoundedRegularFile } from "@unframe/workspace-node";
 import { lockSourceAssets, projectVideoTransformIdentity } from "./source-assets.js";
-import { digestBytes, snapshotInstalledPackages } from "./package-snapshot.js";
-import { hashDependencyGraph, type UnframeLock } from "./lock.js";
+import { digestBytes, snapshotInstalledPackages } from "@unframe/workspace-node";
+import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
 
 const execute = promisify(execFile);
 

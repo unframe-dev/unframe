@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolvePackageExportTargets } from "../src/filesystem/package-snapshot.js";
+import { resolvePackageExportTargets } from "@unframe/workspace-node";
 
 describe("fixed browser package export resolution", () => {
   it("preserves conditional object order and separates runtime and types", () => {

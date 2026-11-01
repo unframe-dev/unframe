@@ -3,8 +3,8 @@ import { join } from "node:path";
 import * as z from "zod";
 import type { CompilerBuildCache } from "../build-execution/cache/build-cache.js";
 import type { CompiledDeclarationProject } from "../build-execution/api/types.js";
-import { NativeFilesystem, NativeDirectory } from "./native-filesystem.js";
-import { projectDirectory } from "./path-policy.js";
+import { NativeFilesystem, NativeDirectory } from "@unframe/workspace-node";
+import { projectDirectory } from "@unframe/workspace-node";
 import { parseStrictJson } from "@unframe/artifacts";
 
 const digest = /^[0-9a-f]{64}$/u;

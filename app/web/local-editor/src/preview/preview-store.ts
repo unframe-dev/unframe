@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla";
-import type { BuildJob, PreviewPlaybackResponse } from "@unframe/core/cli/author-contract";
+import type { BuildJob, PreviewPlaybackResponse } from "@unframe/contracts/author-http";
 export type LoadedPreview = {
   channel: "dev" | "dist";
   requestId: string;

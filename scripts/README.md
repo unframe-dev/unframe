@@ -47,6 +47,8 @@ Bun は `packages/config/bun.nix` で 1.4.2 に固定しています。1.3.13 �
 
 後続のFixed Browser受け入れ処理は `examples/presentation` のcheckと実buildを2回行い、成果物のpathとhashを比較します。現在そのProjectは存在しないため、この処理を含む全体gateは完了できません。独立化の実装順と受け入れ条件は[移行計画](../docs/plans/unframe-independent-packages.md)を参照してください。
 
+CLI の公開結果が不明な場合は、出力された操作の JSON を保持し、同じ認証情報で `publication-status '<操作のJSON>' <control-plane-origin>` を実行して照会します。照会は再公開を行いません。
+
 Apple Silicon で C# consumer を生成・検査するには Rosetta 2 が必要です。固定した `Grpc.Tools 2.76.0` は macOS の x64 plugin のみを配布しています。未導入の場合は `softwareupdate --install-rosetta` でライセンスを確認してインストールしてください。platform 判定は `scripts/lib/grpc-tools.sh` で共有し、`bash scripts/contracts/test-grpc-tools.sh` で単独検証できます。
 
 Presentation v2 の Unity C# bindings は `packages/contracts/proto/` の正本から `protoc` で生成します。Unity 側に置く `.proto` コピーと生成 C# の drift は次で確認でき、正本更新後は引数を省略して生成・同期します。
@@ -92,7 +94,7 @@ PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と�
 
 ## Native helper と worker の準備
 
-CLI の path 検査、成果物公開、build cache、Source 保存 transaction は Go 製 native filesystem helper を使用します。repository root で `bash scripts/build-cli-filesystem.sh` を実行すると `packages/unframe/cli/.cache/filesystem-helper` を生成します。native 専用 Go module の依存は `packages/unframe/cli/native/go.mod` と `go.sum` で固定します。CLI の pnpm `presentation` / `dev` / `tui` / `test` / `test:tui` は hook で生成します。`vp test` の直接実行や headless API の直接利用など hook を通らない consumer は、先に同 script を実行してください。
+CLI の path 検査、成果物公開、build cache、Source 保存 transaction は Go 製 native filesystem helper を使用します。repository root で `bash scripts/build-cli-filesystem.sh` を実行すると `packages/unframe/workspace-node/.cache/filesystem-helper` を生成します。native 専用 Go module の依存は `packages/unframe/workspace-node/native/go.mod` と `go.sum` で固定します。CLI の pnpm `presentation` / `dev` / `tui` / `test` / `test:tui` は hook で生成します。`vp test` の直接実行や headless API の直接利用など hook を通らない consumer は、先に同 script を実行してください。
 
 Style / capture 共通の OS 別隔離・資源制限・終了確認は `unframe-worker-host` が所有し、Browser の配置と起動は Renderer、固定 Node graph の配置と Style 変換の準備は CLI が所有します。Linux / macOS の保証差と実機検証範囲は ADR-0026 を参照してください。
 

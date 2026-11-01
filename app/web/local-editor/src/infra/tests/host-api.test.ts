@@ -53,3 +53,28 @@ it("rejects invalid nested playback clock values", async () => {
     code: "invalid-response",
   });
 });
+it("preserves an unresolved publication response as a queryable result", async () => {
+  const outcome = {
+    ok: false,
+    code: "cli-publish-outcome-unknown",
+    outcome: "outcome-unknown",
+    operation: {
+      presentationId: "p",
+      buildId: "fixed",
+      publicationEpoch: 1,
+      definitionHash: `sha256:${"a".repeat(64)}`,
+      renderBundleHash: `sha256:${"b".repeat(64)}`,
+      assetSetHash: `sha256:${"c".repeat(64)}`,
+    },
+  };
+  const api = await host(outcome, 202);
+  await expect(api.publish("request")).resolves.toEqual(outcome);
+  await expect(api.publicationStatus("request")).resolves.toEqual(outcome);
+});
+it("rejects an unresolved publication without its operation reference", async () => {
+  const api = await host(
+    { ok: false, code: "cli-publish-outcome-unknown", outcome: "outcome-unknown" },
+    202,
+  );
+  await expect(api.publish("request")).rejects.toMatchObject({ code: "invalid-response" });
+});

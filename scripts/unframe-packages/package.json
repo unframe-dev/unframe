@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test boundaries.test.mjs",
-    "test:packed": "tsx --test packed.test.mjs authoring-packed.test.mjs source-compiler-packed.test.mjs"
+    "test": "node --test boundaries.test.mjs usecase-boundaries.test.mjs",
+    "test:packed": "tsx --test packed.test.mjs authoring-packed.test.mjs source-compiler-packed.test.mjs usecases-packed.test.mjs"
   },
   "devDependencies": {
     "@unframe/contract-fixtures": "workspace:*",

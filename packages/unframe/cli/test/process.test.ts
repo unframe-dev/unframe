@@ -157,3 +157,104 @@ it("publishes with a process-supplied token without printing it", async () => {
   expect(host.stdout.join("")).toContain("epoch 1");
   expect(host.stdout.join("") + host.stderr.join("")).not.toContain("private-token");
 });
+
+it("does not overwrite a committed build receipt after a late SIGINT", async () => {
+  const host = fakeProcess(["bun", "presentation", "build", "/project"]);
+  const result = await runPresentationProcess({
+    process: host.process,
+    run: async () => {
+      host.process.emit("SIGINT");
+      return { exitCode: 0, stdout: "build: ok\n", stderr: "", generationId: "a".repeat(32) };
+    },
+  });
+  expect(result.exitCode).toBe(0);
+  expect(host.stdout).toEqual(["build: ok\n"]);
+});
+
+it("retains an unknown publication operation after a late SIGINT", async () => {
+  const host = fakeProcess([
+    "bun",
+    "presentation",
+    "publish",
+    "/project",
+    "p",
+    "https://api.example",
+  ]);
+  Object.assign(host.process, { env: { UNFRAME_ACCESS_TOKEN: "private" } });
+  const operation = {
+    presentationId: "p",
+    buildId: "b",
+    publicationEpoch: 1,
+    definitionHash: "d",
+    renderBundleHash: "r",
+    assetSetHash: "a",
+  };
+  const result = await runPresentationProcess({
+    process: host.process,
+    publish: async () => {
+      host.process.emit("SIGINT");
+      return {
+        ok: false,
+        code: "cli-publish-outcome-unknown",
+        outcome: "outcome-unknown",
+        operation,
+      };
+    },
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.stderr).toContain("cli-publish-outcome-unknown");
+  expect(result.stderr).toContain(JSON.stringify(operation));
+});
+
+it("queries the printed publication operation without sending another publication", async () => {
+  const operation = {
+    presentationId: "p",
+    buildId: "b",
+    publicationEpoch: 1,
+    definitionHash: `sha256:${"a".repeat(64)}`,
+    renderBundleHash: `sha256:${"b".repeat(64)}`,
+    assetSetHash: `sha256:${"c".repeat(64)}`,
+  };
+  const host = fakeProcess([
+    "bun",
+    "presentation",
+    "publication-status",
+    JSON.stringify(operation),
+    "https://api.example",
+  ]);
+  Object.assign(host.process, { env: { UNFRAME_ACCESS_TOKEN: "private" } });
+  const result = await runPresentationProcess({
+    process: host.process,
+    query: async (input) => {
+      expect(input.operation).toEqual(operation);
+      expect(input.controlPlaneUrl).toBe("https://api.example");
+      return { ok: true, buildId: "b", publicationEpoch: 1 };
+    },
+    publish: async () => {
+      throw new Error("Must not republish");
+    },
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("publish: ok (b, epoch 1)");
+});
+
+it("keeps an acknowledged publication successful after a late SIGINT", async () => {
+  const host = fakeProcess([
+    "bun",
+    "presentation",
+    "publish",
+    "/project",
+    "p",
+    "https://api.example",
+  ]);
+  Object.assign(host.process, { env: { UNFRAME_ACCESS_TOKEN: "private" } });
+  const result = await runPresentationProcess({
+    process: host.process,
+    publish: async () => {
+      host.process.emit("SIGINT");
+      return { ok: true, buildId: "b", publicationEpoch: 1 };
+    },
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("publish: ok");
+});

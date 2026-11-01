@@ -1,3 +1,4 @@
+import { validateNodeTransformSnapshot } from "@unframe/workspace";
 import { createHash } from "node:crypto";
 import { satisfies } from "semver";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
@@ -6,11 +7,7 @@ import { temporaryDirectory } from "../platform/temporary-directory.js";
 import { join, relative } from "node:path";
 import { probeNodeRuntime } from "./runtime.js";
 import { runIsolatedWorker, WorkerIsolationError } from "@unframe/core/worker-host";
-import {
-  materializeNodeTransformSnapshot,
-  validateNodeTransformSnapshot,
-  type NodeTransformSnapshot,
-} from "./node-snapshot.js";
+import { materializeNodeTransformSnapshot, type NodeTransformSnapshot } from "./node-snapshot.js";
 
 export type StyleWorkerOptions = {
   readonly entries: readonly string[];

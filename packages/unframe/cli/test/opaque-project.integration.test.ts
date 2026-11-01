@@ -17,9 +17,9 @@ import { checkAuthoringProject } from "@unframe/source";
 
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-import { loadUnframeLock } from "../src/filesystem/load-lock.js";
-import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
-import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
+import { loadUnframeLock } from "@unframe/workspace";
+import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
+import { lockedFile, snapshotInstalledPackages } from "@unframe/workspace-node";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 
 const execute = promisify(execFile);

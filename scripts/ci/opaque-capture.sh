@@ -105,7 +105,7 @@ macos() {
   # shellcheck disable=SC2064
   trap "$(printf 'rm -rf -- %q' "$reports")" EXIT
   bash "${repo_root}/scripts/build-cli-filesystem.sh"
-  go -C "${repo_root}/packages/unframe/cli/native" test -vet=off ./...
+  go -C "${repo_root}/packages/unframe/workspace-node/native" test -vet=off ./...
   node --test "${repo_root}/packages/unframe/worker-host/src/native/test_native_launcher.ts"
   node --test --test-reporter=tap \
     --test-name-pattern='^native profiles compile and deny host files$' \

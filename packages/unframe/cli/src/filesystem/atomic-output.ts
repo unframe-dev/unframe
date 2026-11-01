@@ -3,7 +3,7 @@ import type { Stats } from "node:fs";
 import { constants as osConstants } from "node:os";
 import { join } from "node:path";
 import { buildManifestBytesHash, parseBuildReceipt, encodeBuildReceipt } from "./build-receipt.js";
-import { NativeFilesystem, type NativeDirectory } from "./native-filesystem.js";
+import { NativeFilesystem, type NativeDirectory } from "@unframe/workspace-node";
 
 const GENERATION_ID = /^[0-9a-f]{32}$/;
 const MANAGED_DEV_TARGET = /^generations\/([0-9a-f]{32})$/;
@@ -40,6 +40,7 @@ export type PublishAtomicArtifactsInput = {
   readonly channel?: OutputChannel;
   readonly artifacts: AtomicOutputArtifacts;
   readonly generationId?: () => string;
+  readonly expectedGeneration?: string | null;
   readonly signal?: AbortSignal;
   readonly isCurrentRevision?: () => Promise<boolean>;
   readonly testing?: {
@@ -350,6 +351,7 @@ export const publishAtomicArtifacts = async ({
   channel = "dist",
   artifacts,
   generationId = () => randomBytes(16).toString("hex"),
+  expectedGeneration,
   signal,
   isCurrentRevision,
   testing,
@@ -414,6 +416,14 @@ export const publishAtomicArtifacts = async ({
       readLstat,
     );
     if (discoveredDist === false) return fail();
+    const currentGeneration =
+      "absent" in discoveredDist
+        ? null
+        : "receipt" in discoveredDist
+          ? parseBuildReceipt(discoveredDist.receipt).generationId
+          : discoveredDist.target.match(MANAGED_DEV_TARGET)?.[1];
+    if (expectedGeneration !== undefined && currentGeneration !== expectedGeneration)
+      throw new PublicationStale();
     const previousDist = discoveredDist;
     if (cancelled(signal)) cancel();
 

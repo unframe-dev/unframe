@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { LockedSourceAsset } from "../src/filesystem/lock.js";
+import type { LockedSourceAsset } from "@unframe/workspace";
 import { resolveLockedSourceAssets } from "../src/filesystem/source-assets.js";
 import type { DiscoveredProjectFiles } from "../src/filesystem/discover-project.js";
 

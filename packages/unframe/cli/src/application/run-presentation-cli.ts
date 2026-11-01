@@ -1,3 +1,7 @@
+import { lstat } from "node:fs/promises";
+import { join } from "node:path";
+import { readBuildGeneration } from "../filesystem/read-build-generation.js";
+import { createBuildJob } from "@unframe/build";
 import { compileAuthoringProject } from "../build-execution/api/compile-authoring-project.js";
 import type { CompiledDeclarationProject } from "../build-execution/api/types.js";
 import type { AuthoringProjectDiagnostic } from "@unframe/source";
@@ -21,8 +25,8 @@ import {
 import { prepareOpaqueRenderer, OpaquePreparationFailure } from "./opaque-renderer.js";
 import { createFilesystemBuildCache } from "../filesystem/build-cache.js";
 import { publishAtomicArtifacts } from "../filesystem/atomic-output.js";
-import { acquireSourceLock } from "../filesystem/source-lock.js";
-import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
+import { acquireSourceLock } from "@unframe/workspace-node";
+import { acquireBuildLock, type BuildLock } from "@unframe/workspace-node";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
 import { updateProjectLock } from "../filesystem/update-lock.js";
 import {
@@ -32,8 +36,8 @@ import {
 } from "../filesystem/source-assets.js";
 import { createVideoValidator } from "../media/video-validator.js";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
-import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
-import { loadUnframeLock } from "../filesystem/load-lock.js";
+import { verifyFrozenLocalFiles } from "@unframe/workspace";
+import { loadUnframeLock } from "@unframe/workspace";
 import { initPresentationProject } from "../filesystem/init-project.js";
 import type {
   PresentationCliDiagnostic,
@@ -608,6 +612,23 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   const buildResult = await (async (): Promise<PresentationCliResult> => {
     let session: { close(): Promise<void> } | undefined;
     try {
+      const pointer = join(
+        discovered.projectDirectory,
+        host.channel === "dev" ? ".unframe/preview/current" : "dist",
+      );
+      const expectedGeneration = await lstat(pointer).then(
+        async () =>
+          (
+            await readBuildGeneration(discovered.projectDirectory, {
+              channel: host.channel ?? "dist",
+            })
+          ).generationId,
+        (error) => {
+          if (error && typeof error === "object" && "code" in error && error.code === "ENOENT")
+            return null;
+          throw error;
+        },
+      );
       const context = host.buildContext ?? fixedContext;
       let renderer: ReturnType<typeof createBakedWebRenderer> | undefined;
       const sessions: { close(): Promise<void> }[] = [];
@@ -680,92 +701,129 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
             "Resolved renderer plugin is absent from unframe.lock.",
           ),
         ]);
-      const compiled = await compileAuthoringProject(
-        source,
-        assemblyCarrier,
-        {
-          compiler: {
-            ...context.compiler,
-            baseEnvironmentHash: hashCanonicalJsonPayload({
-              baseEnvironmentHash: context.compiler.baseEnvironmentHash,
-              typeLibraries: hashSourceTypeLibraries(source.typeLibraries),
-            }),
-          },
-          locale: context.locale,
-          timezone: context.timezone,
-          colorScheme: context.colorScheme,
-          rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
-          renderers: renderer ? [renderer] : [],
-          encodeLimits: limits,
-          ...(Object.values(checked.value.assetSet.assets).some(
-            (asset) => asset.mediaType === "video/mp4",
-          )
-            ? { videoValidator: await createVideoValidator(host.signal) }
-            : {}),
-        },
-        sourceAssets.value.sourceAssetBytes,
-        createFilesystemBuildCache(
-          discovered.projectDirectory,
-          host.signal ? { signal: host.signal } : {},
-        ),
-      );
-      if (!compiled.valid)
-        return output(
-          host.signal?.aborted ? 130 : 1,
-          command,
-          format,
-          host.signal?.aborted
-            ? [diagnostic("cancel", "cli-cancelled", "Build was cancelled.")]
-            : compilerDiagnostics(compiled),
-        );
-      const closed = session;
-      session = undefined;
-      await closeSession(closed);
-      if (host.signal?.aborted)
-        return output(130, command, format, [
-          diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
-        ]);
-      const sourceLease = await acquireSourceLock(discovered.projectDirectory, sourceWait);
-      if (!sourceLease.ok)
-        return output(sourceLease.code === "cli-cancelled" ? 130 : 3, command, format, [
-          diagnostic(
-            sourceLease.code === "cli-cancelled" ? "cancel" : "io",
-            sourceLease.code,
-            "Source is being saved or requires recovery.",
-          ),
-        ]);
-      const published = await (async () => {
-        try {
-          return await publishAtomicArtifacts({
-            ...(host.channel ? { channel: host.channel } : {}),
-            projectDirectory: discovered.projectDirectory,
-            artifacts: artifacts(compiled.value),
-            isCurrentRevision: async () => {
-              const current = await discoverPresentationProjectFiles(discovered.projectDirectory, {
-                sourceLeaseHeld: true,
-              });
-              return current.ok && current.revision === discovered.revision;
-            },
-            ...(host.signal ? { signal: host.signal } : {}),
-          });
-        } finally {
-          await sourceLease.value.release();
+      class BuildStageFailure extends Error {
+        constructor(readonly result: PresentationCliResult) {
+          super("Build stage failed");
         }
-      })();
-      if (!published.ok)
-        return output(published.family === "cancel" ? 130 : 3, command, format, [
+      }
+      const job = createBuildJob(
+        { revision: discovered.revision, expectedGeneration },
+        {
+          prepare: async () => {
+            const compiled = await compileAuthoringProject(
+              source,
+              assemblyCarrier,
+              {
+                compiler: {
+                  ...context.compiler,
+                  baseEnvironmentHash: hashCanonicalJsonPayload({
+                    baseEnvironmentHash: context.compiler.baseEnvironmentHash,
+                    typeLibraries: hashSourceTypeLibraries(source.typeLibraries),
+                  }),
+                },
+                locale: context.locale,
+                timezone: context.timezone,
+                colorScheme: context.colorScheme,
+                rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
+                renderers: renderer ? [renderer] : [],
+                encodeLimits: limits,
+                ...(Object.values(checked.value.assetSet.assets).some(
+                  (asset) => asset.mediaType === "video/mp4",
+                )
+                  ? { videoValidator: await createVideoValidator(host.signal) }
+                  : {}),
+              },
+              sourceAssets.value.sourceAssetBytes,
+              createFilesystemBuildCache(
+                discovered.projectDirectory,
+                host.signal ? { signal: host.signal } : {},
+              ),
+            );
+            if (!compiled.valid)
+              throw new BuildStageFailure(
+                output(
+                  host.signal?.aborted ? 130 : 1,
+                  command,
+                  format,
+                  host.signal?.aborted
+                    ? [diagnostic("cancel", "cli-cancelled", "Build was cancelled.")]
+                    : compilerDiagnostics(compiled),
+                ),
+              );
+            const closed = session;
+            session = undefined;
+            if (closed) await closeSession(closed);
+            return compiled.value;
+          },
+          commit: async (value, identity) => {
+            const sourceLease = await acquireSourceLock(discovered.projectDirectory, sourceWait);
+            if (!sourceLease.ok)
+              throw new BuildStageFailure(
+                output(sourceLease.code === "cli-cancelled" ? 130 : 3, command, format, [
+                  diagnostic(
+                    sourceLease.code === "cli-cancelled" ? "cancel" : "io",
+                    sourceLease.code,
+                    "Source is being saved or requires recovery.",
+                  ),
+                ]),
+              );
+            const published = await (async () => {
+              try {
+                return await publishAtomicArtifacts({
+                  ...(host.channel ? { channel: host.channel } : {}),
+                  projectDirectory: discovered.projectDirectory,
+                  artifacts: artifacts(value),
+                  expectedGeneration: identity.expectedGeneration,
+                  isCurrentRevision: async () => {
+                    const current = await discoverPresentationProjectFiles(
+                      discovered.projectDirectory,
+                      {
+                        sourceLeaseHeld: true,
+                      },
+                    );
+                    return current.ok && current.revision === discovered.revision;
+                  },
+                  ...(host.signal ? { signal: host.signal } : {}),
+                });
+              } finally {
+                await sourceLease.value.release();
+              }
+            })();
+            if (published.ok) return { status: "committed", generation: published.generationId };
+            if (published.code === "cli-output-stale") return { status: "conflict" };
+            if (published.family === "cancel") return { status: "cancelled" };
+            throw new BuildStageFailure(
+              output(3, command, format, [
+                diagnostic(
+                  "io",
+                  published.code,
+                  published.detail
+                    ? `Build artifacts could not be published. (stage: ${published.detail.stage}${published.detail.operation ? `, operation: ${published.detail.operation}` : ""}${published.detail.code ? `, code: ${published.detail.code}` : ""})`
+                    : "Build artifacts could not be published.",
+                ),
+              ]),
+            );
+          },
+        },
+        host.signal,
+      );
+      const built = await job.result;
+      if (built.status === "failed") {
+        if (built.error instanceof BuildStageFailure) return built.error.result;
+        throw built.error;
+      }
+      if (built.status !== "succeeded")
+        return output(built.status === "cancelled" ? 130 : 3, command, format, [
           diagnostic(
-            published.family,
-            published.code,
-            published.family === "cancel"
+            built.status === "cancelled" ? "cancel" : "io",
+            built.status === "cancelled" ? "cli-cancelled" : "cli-output-stale",
+            built.status === "cancelled"
               ? "Build was cancelled."
-              : published.code === "cli-output-stale"
-                ? "Project inputs changed during build. Rebuild the current revision."
-                : published.detail
-                  ? `Build artifacts could not be published. (stage: ${published.detail.stage}${published.detail.operation ? `, operation: ${published.detail.operation}` : ""}${published.detail.code ? `, code: ${published.detail.code}` : ""})`
-                  : "Build artifacts could not be published.",
+              : "Project inputs or output generation changed during build.",
           ),
         ]);
+      const compiled = { value: built.value };
+      const published = { generationId: built.generation };
       return output(
         0,
         command,
