@@ -1,19 +1,17 @@
-import { copyProjectFixture } from "./copy-project-fixture.js";
+import { writeDiscoveryProjectFixture } from "./discovery-project-fixture.js";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it } from "vitest";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
 
-const reference = fileURLToPath(new URL("../../../../examples/presentation", import.meta.url));
 const directories: string[] = [];
 const copyProject = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-revision-"));
   directories.push(directory);
-  await copyProjectFixture(reference, directory);
+  await writeDiscoveryProjectFixture(directory);
   return directory;
 };
 afterEach(async () => {

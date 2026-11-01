@@ -1,16 +1,19 @@
 import { z } from "zod";
+const unityOptional = <T extends z.ZodType>(schema: T) =>
+  schema
+    .or(z.literal(""))
+    .transform((value) => (value === "" ? undefined : value))
+    .optional();
+
 const notificationSchema = z
   .object({
     kind: z.enum(["prepared", "committed", "playback", "restored", "failed"]),
     requestId: z.string().min(1),
-    sequence: z
-      .string()
-      .regex(/^[1-9][0-9]*$/)
-      .optional(),
-    buildIdentity: z.string().min(1).optional(),
+    sequence: unityOptional(z.string().regex(/^[1-9][0-9]*$/)),
+    buildIdentity: unityOptional(z.string().min(1)),
     message: z.string().optional(),
-    outcome: z.enum(["rejected", "failed"]).optional(),
-    phase: z.enum(["apply", "update", "restore"]).optional(),
+    outcome: unityOptional(z.enum(["rejected", "failed"])),
+    phase: unityOptional(z.enum(["apply", "update", "restore"])),
   })
   .refine(
     (value) =>
@@ -59,7 +62,7 @@ export function createUnityExchange(input: {
         const waiter = { request, finish };
         const timer = setTimeout(
           () => finish(new UnityExchangeError("Unity Preview response timed out.")),
-          input.timeoutMilliseconds ?? 10000,
+          input.timeoutMilliseconds ?? (request.kind === "prepared" ? 60_000 : 10_000),
         );
         waiters.add(waiter);
         request.signal?.addEventListener("abort", cancel, { once: true });

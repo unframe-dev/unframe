@@ -1,17 +1,17 @@
-import { lstat } from "node:fs/promises";
-import { join } from "node:path";
-import { readBuildGeneration } from "../filesystem/read-build-generation.js";
+import { createSourceAssetAssemblyCarrier } from "@unframe/build";
+import { buildMediaPorts, sourceAssetPorts } from "./media-ports.js";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { readExpectedBuildGeneration, publishProjectBuild } from "@unframe/workspace-node";
 import { createBuildJob } from "@unframe/build";
-import { compileAuthoringProject } from "../build-execution/api/compile-authoring-project.js";
-import type { CompiledDeclarationProject } from "../build-execution/api/types.js";
+import { compileAuthoringProject } from "@unframe/build";
+import type { CompiledDeclarationProject } from "@unframe/build";
 import type { AuthoringProjectDiagnostic } from "@unframe/source";
-import { prepareProjectSource, StylePreparationError } from "../filesystem/prepare-project.js";
+import { prepareProjectSource } from "@unframe/workspace-node";
+import { StylePreparationError } from "@unframe/build";
 import { styleDiagnostics } from "./style-diagnostics.js";
 import { type CompilerWarning } from "@unframe/compiler";
-import {
-  checkAuthoringProjectAssembly,
-  type AuthoringProjectPipelineResult,
-} from "../source-preparation/index.js";
+import { checkAuthoringProjectAssembly, type AuthoringProjectPipelineResult } from "@unframe/build";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { hashSourceTypeLibraries } from "@unframe/source";
 import {
@@ -20,25 +20,20 @@ import {
   createWebRendererConfigHash,
   openPlaywrightFixedBrowser,
   type FixedBrowserSession,
-} from "@unframe/core/renderer-web";
+} from "@unframe/render-browser";
 
-import { prepareOpaqueRenderer, OpaquePreparationFailure } from "./opaque-renderer.js";
-import { createFilesystemBuildCache } from "../filesystem/build-cache.js";
-import { publishAtomicArtifacts } from "../filesystem/atomic-output.js";
-import { acquireSourceLock } from "@unframe/workspace-node";
+import { prepareOpaqueRenderer } from "./opaque-renderer.js";
+import { OpaquePreparationFailure } from "@unframe/build";
+import { createFilesystemBuildCache } from "@unframe/workspace-node";
 import { acquireBuildLock, type BuildLock } from "@unframe/workspace-node";
-import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
-import { updateProjectLock } from "../filesystem/update-lock.js";
-import {
-  createSourceAssetAssemblyCarrier,
-  resolveDevProjectSourceAssets,
-  resolveProjectSourceAssets,
-} from "../filesystem/source-assets.js";
-import { createVideoValidator } from "../media/video-validator.js";
-import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
+import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
+import { updateProjectLock } from "@unframe/workspace-node";
+import { resolveDevProjectSourceAssets, resolveProjectSourceAssets } from "@unframe/workspace-node";
+import { createVideoValidator } from "@unframe/media-node";
+import { refreshLocalProjectLock } from "@unframe/workspace-node";
 import { verifyFrozenLocalFiles } from "@unframe/workspace";
 import { loadUnframeLock } from "@unframe/workspace";
-import { initPresentationProject } from "../filesystem/init-project.js";
+import { initPresentationProject } from "@unframe/workspace-node";
 import type {
   PresentationCliDiagnostic,
   PresentationCliExitCode,
@@ -384,7 +379,10 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
       diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
     ]);
   if (command === "init") {
-    const result = await initPresentationProject(directory);
+    const result = await initPresentationProject(
+      directory,
+      dirname(fileURLToPath(import.meta.resolve("@unframe/cli/template"))),
+    );
     return result.ok
       ? output(0, command, format)
       : output(3, command, format, [
@@ -393,6 +391,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   }
   if (command === "lock") {
     const result = await updateProjectLock(
+      sourceAssetPorts,
       directory,
       parsed.value.operation!,
       parsed.value.recreate ?? false,
@@ -421,7 +420,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   };
   let expectedRevision = host.expectedRevision;
   if (command !== "check" && host.channel === "dev") {
-    const refreshed = await refreshLocalProjectLock(directory, {
+    const refreshed = await refreshLocalProjectLock(sourceAssetPorts, directory, {
       ...sourceWait,
       ...(expectedRevision !== undefined ? { expectedRevision } : {}),
       ...(host.signal ? { signal: host.signal } : {}),
@@ -476,8 +475,13 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
       ]),
     ]);
   const sourceAssets = await (host.channel === "dev"
-    ? resolveDevProjectSourceAssets(discovered.assetSources, discovered.localFiles)
+    ? resolveDevProjectSourceAssets(
+        sourceAssetPorts,
+        discovered.assetSources,
+        discovered.localFiles,
+      )
     : resolveProjectSourceAssets(
+        sourceAssetPorts,
         lock.value.lock.assets,
         discovered.assetSources,
         discovered.localFiles,
@@ -527,6 +531,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   let prepared: Awaited<ReturnType<typeof prepareProjectSource>>;
   try {
     prepared = await prepareProjectSource(
+      sourceAssetPorts.styles,
       discovered,
       lock.value.lock,
       host.signal ? { signal: host.signal } : {},
@@ -612,23 +617,25 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   const buildResult = await (async (): Promise<PresentationCliResult> => {
     let session: { close(): Promise<void> } | undefined;
     try {
-      const pointer = join(
-        discovered.projectDirectory,
-        host.channel === "dev" ? ".unframe/preview/current" : "dist",
-      );
-      const expectedGeneration = await lstat(pointer).then(
-        async () =>
-          (
-            await readBuildGeneration(discovered.projectDirectory, {
-              channel: host.channel ?? "dist",
-            })
-          ).generationId,
-        (error) => {
-          if (error && typeof error === "object" && "code" in error && error.code === "ENOENT")
-            return null;
-          throw error;
-        },
-      );
+      let expectedGeneration: string | null;
+      try {
+        expectedGeneration = await readExpectedBuildGeneration(
+          discovered.projectDirectory,
+          host.channel ?? "dist",
+        );
+      } catch {
+        return host.signal?.aborted
+          ? output(130, command, format, [
+              diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+            ])
+          : output(3, command, format, [
+              diagnostic(
+                "io",
+                "cli-output-io",
+                "Build artifacts could not be published. (stage: inspect-dist)",
+              ),
+            ]);
+      }
       const context = host.buildContext ?? fixedContext;
       let renderer: ReturnType<typeof createBakedWebRenderer> | undefined;
       const sessions: { close(): Promise<void> }[] = [];
@@ -738,6 +745,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
                 discovered.projectDirectory,
                 host.signal ? { signal: host.signal } : {},
               ),
+              buildMediaPorts,
             );
             if (!compiled.valid)
               throw new BuildStageFailure(
@@ -756,39 +764,25 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
             return compiled.value;
           },
           commit: async (value, identity) => {
-            const sourceLease = await acquireSourceLock(discovered.projectDirectory, sourceWait);
-            if (!sourceLease.ok)
+            const outcome = await publishProjectBuild({
+              projectDirectory: discovered.projectDirectory,
+              artifacts: artifacts(value),
+              revision: discovered.revision,
+              expectedGeneration: identity.expectedGeneration,
+              ...sourceWait,
+              ...(host.channel ? { channel: host.channel } : {}),
+            });
+            if (outcome.kind === "lease-error")
               throw new BuildStageFailure(
-                output(sourceLease.code === "cli-cancelled" ? 130 : 3, command, format, [
+                output(outcome.code === "cli-cancelled" ? 130 : 3, command, format, [
                   diagnostic(
-                    sourceLease.code === "cli-cancelled" ? "cancel" : "io",
-                    sourceLease.code,
+                    outcome.code === "cli-cancelled" ? "cancel" : "io",
+                    outcome.code,
                     "Source is being saved or requires recovery.",
                   ),
                 ]),
               );
-            const published = await (async () => {
-              try {
-                return await publishAtomicArtifacts({
-                  ...(host.channel ? { channel: host.channel } : {}),
-                  projectDirectory: discovered.projectDirectory,
-                  artifacts: artifacts(value),
-                  expectedGeneration: identity.expectedGeneration,
-                  isCurrentRevision: async () => {
-                    const current = await discoverPresentationProjectFiles(
-                      discovered.projectDirectory,
-                      {
-                        sourceLeaseHeld: true,
-                      },
-                    );
-                    return current.ok && current.revision === discovered.revision;
-                  },
-                  ...(host.signal ? { signal: host.signal } : {}),
-                });
-              } finally {
-                await sourceLease.value.release();
-              }
-            })();
+            const published = outcome.result;
             if (published.ok) return { status: "committed", generation: published.generationId };
             if (published.code === "cli-output-stale") return { status: "conflict" };
             if (published.family === "cancel") return { status: "cancelled" };

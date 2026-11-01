@@ -5,7 +5,7 @@
 現在のコンパイラーは Authoring Source（`presentation.unframe.tsx`、lock、Theme、Component）から
 Definition、RenderBundle、AssetSet、BuildManifest、PNGとフォント素材を生成します。
 Baked WebのState切り替え、Interaction、Cue、Timelineなどは宣言した内容を本番Runtimeが実行します。
-モデル・動画・Native UIを含む契約JSON全体をコンパイルする機能は未実装です。
+モデルと動画も対応する入力・環境では生成できます。Native UI を含む契約 JSON 全体のコンパイルには対応していません。
 Unityのrendererが対応するメディア範囲と、コンパイラーが生成する範囲は異なります。
 
 `packages/contracts/presentation/fixtures/presentation-definition.json` は契約のテストfixtureで、
@@ -19,41 +19,9 @@ Authoring Source → unframe-compiler → managed dist
 → Session / Delivery / Realtime → QuestPresentationScene
 ```
 
-## `examples/presentation` をEditorで表示する
+## Local Sample
 
-リポジトリルートのターミナルで起動します。
-
-```bash
-nix run .#presentation-sample
-```
-
-`Sample ready for Unity Editor` が出たら、そのターミナルを起動したままUnityで
-`Unframe > Presentation > Play Local Sample in Editor` を選びます。
-接続先、Session ID、credentialの手入力は不要です。変更中のSceneの保存確認後に一時Sceneで
-Play Modeへ入り、終了時は元のScene構成を復元します。
-
-起動コマンドは `examples/presentation` をprivateな作業ディレクトリへコピーし、正式なコンパイラーで
-ビルドしてCLI公開します。隔離したローカルD1/R2、Control Plane、Realtimeを起動し、実APIでSessionと
-Runtime割当を作成します。Unityは通常のDelivery・素材取得・Realtime同期・描画を使用します。
-検証用管理者のログインSessionは、そのrunの隔離D1にだけ生成します。
-公開・Delivery・bootstrapは既存の認証・権限チェックを通します。
-手作業のDefinition変換やSnapshot生成は行いません。WebGL Build Supportはこのnative Editor表示には不要です。
-初回の固定Browserの準備が済んでいない場合は、下記のインストールコマンドを先に実行してください。
-
-Game画面では `Sync: ready` と `Playback: Running` を確認します。Resumeは最初に自動送信されます。
-Pause／Resumeでサーバーの再生状態を確認でき、サンプル内の操作領域をクリックすると本番SurfaceInteractionを送ります。
-`Continue`を押すとフェードし、操作を無効にした`Waiting`表示へ移ります。この例には後続の画面遷移はありません。
-Frameでカメラを表示範囲へ合わせ、ExitまたはPlay Mode終了で接続を停止します。
-Editorでは表示確認用の独立した座標を使います。Questのマーカー検出・校正の代替ではありません。
-
-接続情報は `.unframe/presentation-sample/active-connection.json` に権限0600で保存し、Unityが自動読込します。
-CAはこの接続のHTTP handlerだけに渡し、OSの信頼設定は変更しません。
-credentialをSceneやPlayerPrefsへ保存しません。サンプル環境はlocalhost限定で、Questからは接続できません。
-
-Sessionの有効期間は準備後およそ20分です。期限、Ctrl+C、サービス停止時に接続情報を削除します。
-続ける場合はコマンドを再起動し、Unityで再びメニューを選びます。異常終了・SIGKILLで
-`.unframe/presentation-sample/active.lock` が残った場合は、そのrunのプロセスが停止していることを確認してから削除します。
-ログ・証明書・ローカル認証用データはprivate runディレクトリに残るため、共有・コミットしないでください。
+初回は `nix develop --command scripts/dev/install-presentation-browser.sh` で固定 Chromium を準備してください。リポジトリ root で `nix run .#presentation-sample` を実行すると、配布テンプレートから Project を作り、ローカル Control Plane・Runtime Host と Session を準備します。`Sample ready for Unity Editor` の表示後に Unity の `Unframe > Presentation > Play Local Sample in Editor` を選択します。終了は Ctrl+C です。ローカル API の準備と終了は確認済みですが、Unity Editor での表示は未検証です。
 
 ## 1. プレゼンを個別にビルドする
 
@@ -62,24 +30,24 @@ Sessionの有効期間は準備後およそ20分です。期限、Ctrl+C、サ�
 ```bash
 nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command env PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \
-  pnpm --filter @unframe/core run presentation build "$PWD/examples/presentation"
+  pnpm --config.verify-deps-before-run=false --filter @unframe/cli run presentation build "/absolute/path/to/project"
 ```
 
-`examples/presentation/dist` はコンパイラーが管理するgenerationへのsymlinkです。
+project の `dist` はコンパイラーが管理するgenerationへのsymlinkです。
 `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json`、`assets/` を
 まとめて扱い、JSONのhashや素材参照を手動で置き換えないでください。
-この例のPresentation IDは `reference-presentation` です。
+Presentation ID は対象 project の定義に合わせてください。
 ビルドの成功だけでは公開やSession作成は行われません。
 
 ## 2. 公開とSessionの準備
 
 既存のControl Plane・Realtime環境、公開権限のある有効なcredentialが必要です。
 `UNFRAME_ACCESS_TOKEN` をプロセス環境へ渡した状態で、CLIの公開コマンドを使います。
-次はControl Plane originを `UNFRAME_CONTROL_PLANE_ORIGIN` に設定した場合の例です。
+対象の Presentation ID を `PRESENTATION_ID`、Control Plane origin を `UNFRAME_CONTROL_PLANE_ORIGIN` に設定してください。
 
 ```bash
-nix develop --command pnpm --filter @unframe/core run presentation publish \
-  "$PWD/examples/presentation" reference-presentation "$UNFRAME_CONTROL_PLANE_ORIGIN"
+nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe/cli run presentation publish \
+  "$(realpath -- /absolute/path/to/project/dist)" "$PRESENTATION_ID" "$UNFRAME_CONTROL_PLANE_ORIGIN"
 ```
 
 CLIはdistのintegrityと実素材のchecksumを検証し、Build登録・素材upload・Publication確定を行います。

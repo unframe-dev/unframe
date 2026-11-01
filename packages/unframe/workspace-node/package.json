@@ -2,8 +2,13 @@
   "name": "@unframe/workspace-node",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "unframe-filesystem-helper-darwin-arm64": "./native-bin/filesystem-helper-darwin-arm64",
+    "unframe-filesystem-helper-linux-x64": "./native-bin/filesystem-helper-linux-x64"
+  },
   "files": [
-    "dist"
+    "dist",
+    "native-bin"
   ],
   "type": "module",
   "exports": {
@@ -21,13 +26,15 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test vite.config.ts",
     "test": "vp test run",
-    "build": "vp pack",
+    "build": "bash ../../../scripts/build-cli-filesystem.sh && vp pack",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
     "@unframe/artifacts": "workspace:*",
+    "@unframe/build": "workspace:*",
     "@unframe/contracts": "workspace:*",
     "@unframe/workspace": "workspace:*",
+    "typescript": "6.0.3",
     "yaml": "2.9.0",
     "zod": "4.4.3"
   },

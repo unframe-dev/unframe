@@ -1,44 +1,28 @@
+import { sourceAssetPorts } from "../application/media-ports.js";
 import { readBuildExecutionResult } from "./build-result.js";
-import { createWorkspaceSnapshot } from "@unframe/workspace";
+import { createProjectRevision } from "@unframe/workspace";
 import {
   createAuthorService as createService,
-  createAuthorPatch,
-  inspectAuthorSource,
-  surfaceIdFor,
+  saveAuthorPatch,
+  prepareAuthorSave,
+  readAuthorArtifacts,
+  createAuthorProjectSnapshot,
   AuthorError,
   type AuthorService,
 } from "@unframe/author-service";
-import { createHash } from "node:crypto";
 import { join } from "node:path";
-import {
-  checkAuthoringProjectAssembly,
-  computeFrozenComponentInputs,
-} from "../source-preparation/index.js";
-import { checkAuthoringProject } from "@unframe/source";
-import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
-import { sourceDiagnosticFamily } from "../application/source-diagnostic-family.js";
 import type { RunPresentationCliInput } from "../application/types.js";
-import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
-import { verifyFrozenLocalFiles } from "@unframe/workspace";
+import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
 import { loadUnframeLock } from "@unframe/workspace";
-import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
-import { prepareProjectSource, StylePreparationError } from "../filesystem/prepare-project.js";
-import { styleDiagnostics } from "../application/style-diagnostics.js";
+import { prepareProjectSource } from "@unframe/workspace-node";
+import { StylePreparationError } from "@unframe/build";
 import { readRegularFile } from "@unframe/workspace-node";
-import { readBuildGeneration } from "../filesystem/read-build-generation.js";
+import { readBuildGeneration } from "@unframe/workspace-node";
 import { acquireSourceLock } from "@unframe/workspace-node";
-import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
-import {
-  createSourceAssetAssemblyCarrier,
-  resolveDevProjectSourceAssets,
-} from "../filesystem/source-assets.js";
-import {
-  type AuthorDiagnostic,
-  type BuildJob,
-  type ProjectSnapshot,
-  type SavedCommand,
-} from "@unframe/contracts/author-http";
+import { refreshLocalProjectLock } from "@unframe/workspace-node";
+import { resolveDevProjectSourceAssets } from "@unframe/workspace-node";
+import { type ProjectSnapshot } from "@unframe/contracts/author-http";
 import {
   AuthorTransactionConflict,
   commitAuthorPair,
@@ -47,38 +31,6 @@ import {
   recoverAuthorTransactions,
 } from "@unframe/workspace-node";
 
-const encoder = new TextEncoder();
-const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-const diagnostic = (
-  code: string,
-  message: string,
-  path?: readonly (string | number)[],
-): AuthorDiagnostic => ({ code, message, ...(path ? { path: [...path] } : {}) });
-const sourceDiagnostic = (item: {
-  code: string;
-  message: string;
-  fileName: string;
-  start: number;
-  end: number;
-  line: number;
-  column: number;
-}): AuthorDiagnostic => ({
-  family: sourceDiagnosticFamily(item.code),
-  code: item.code,
-  message: item.message,
-  path: item.fileName ? [item.fileName] : [],
-  ...(item.fileName
-    ? {
-        location: {
-          fileName: item.fileName,
-          start: item.start,
-          end: item.end,
-          line: item.line,
-          column: item.column,
-        },
-      }
-    : {}),
-});
 function fail(status: number, code: string, message: string): never {
   throw new AuthorError(status, code, message);
 }
@@ -88,27 +40,24 @@ type Discovery = Extract<
 >;
 type Loaded = Extract<ReturnType<typeof loadUnframeLock>, { ok: true }>;
 const sourceInput = async (found: Discovery, loaded: Loaded, replacement?: string) =>
-  prepareProjectSource(found, loaded.value.lock, {
+  prepareProjectSource(sourceAssetPorts.styles, found, loaded.value.lock, {
     refresh: true,
     ...(replacement !== undefined ? { replacement } : {}),
   });
 const sourceRevision = async (found: Discovery, entryBytes: Uint8Array, lockBytes: Uint8Array) => {
   const config = await readRegularFile(join(found.projectDirectory, "unframe.config.ts"));
   if (!config) fail(500, "author-source-io", "Project config could not be read.");
-  const inputs = [
-    { path: "unframe.config.ts", bytes: config },
-    { path: "unframe.lock", bytes: lockBytes },
-    ...found.localFiles.map((file) =>
-      file.path === found.entryFile ? { path: file.path, bytes: entryBytes } : file,
-    ),
-  ].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  return createWorkspaceSnapshot(inputs).revision;
+  return createProjectRevision({
+    configBytes: config,
+    lockBytes,
+    localFiles: found.localFiles,
+    entryReplacement: { path: found.entryFile, bytes: entryBytes },
+  });
 };
 type ProjectState = {
   snapshot: ProjectSnapshot;
   found: Discovery;
   loaded: Loaded;
-  catalog?: Extract<ReturnType<typeof checkAuthoringProject>, { valid: true }>["value"];
   sourceText: string;
   source?: unknown;
 };
@@ -121,87 +70,30 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
   const sourceText = found.files.find((file) => file.fileName === found.entryFile)?.sourceText;
   if (sourceText === undefined)
     fail(500, "author-source-missing", "Presentation source is missing.");
-  let prepared: Awaited<ReturnType<typeof sourceInput>>;
+  let prepared: Parameters<typeof createAuthorProjectSnapshot>[0]["prepared"];
   try {
-    prepared = await sourceInput(found, loaded);
+    prepared = { ok: true, ...(await sourceInput(found, loaded)) };
   } catch (error) {
     if (!(error instanceof StylePreparationError)) throw error;
-    return {
-      found,
-      loaded,
-      sourceText,
-      snapshot: {
-        revision: found.revision,
-        sourceHash: hashCanonicalJsonPayload(
-          found.files.map(({ fileName, sourceText }) => [fileName, sourceText]),
-        ),
-        irHash: null,
-        definition: null,
-        instances: [],
-        diagnostics: error.diagnostics.length
-          ? styleDiagnostics(error.diagnostics, error.code).map((item) => ({
-              ...item,
-              path: [...item.path],
-            }))
-          : [{ ...diagnostic(error.code, error.message), severity: "error" }],
-      },
+    prepared = {
+      ok: false,
+      code: error.code,
+      message: error.message,
+      diagnostics: error.diagnostics,
     };
   }
-  const { source } = prepared;
-  const fallbackHash = hashCanonicalJsonPayload(
-    source.files.map(({ fileName, sourceText }) => [fileName, sourceText]),
-  );
-  const frozen = verifyFrozenLocalFiles(
-    found.localFiles,
-    loaded.value.assemblyCarrier.componentLocks,
-  );
-  const sourceAssets = await resolveDevProjectSourceAssets(found.assetSources, found.localFiles);
-  const checked =
-    frozen.length === 0 && sourceAssets.ok
-      ? checkAuthoringProjectAssembly(
-          source,
-          createSourceAssetAssemblyCarrier(loaded.value.assemblyCarrier, sourceAssets.value.assets),
-          sourceAssets.value.sourceAssetBytes,
-        )
-      : undefined;
-  const diagnostics: AuthorDiagnostic[] = [
-    ...styleDiagnostics(prepared.diagnostics).map((item) => ({ ...item, path: [...item.path] })),
-    ...frozen.map((item) =>
-      diagnostic(item.code, "Source differs from its frozen lock.", [item.path]),
-    ),
-    ...(!sourceAssets.ok
-      ? [diagnostic(sourceAssets.code, sourceAssets.message, [sourceAssets.path])]
-      : []),
-    ...(checked && !checked.valid
-      ? checked.diagnostics.map((item) =>
-          "path" in item
-            ? { ...diagnostic(item.code, item.message, item.path), family: "semantic" as const }
-            : sourceDiagnostic(item),
-        )
-      : []),
-  ];
-  const inspected = inspectAuthorSource({
-    source,
+  const result = await createAuthorProjectSnapshot({
+    revision: found.revision,
     sourceText,
-    semanticValid: checked?.valid === true,
+    files: found.files,
+    localFiles: found.localFiles,
+    componentLocks: loaded.value.assemblyCarrier.componentLocks,
+    carrier: loaded.value.assemblyCarrier,
+    prepared,
+    resolveAssets: () =>
+      resolveDevProjectSourceAssets(sourceAssetPorts, found.assetSources, found.localFiles),
   });
-  const { catalog, instances } = inspected;
-  diagnostics.push(...inspected.diagnostics);
-  return {
-    found,
-    loaded,
-    sourceText,
-    source,
-    ...(catalog.valid ? { catalog: catalog.value } : {}),
-    snapshot: {
-      revision: found.revision,
-      sourceHash: checked?.valid ? checked.value.sourceHash : fallbackHash,
-      irHash: checked?.valid ? checked.value.definitionHash : null,
-      definition: checked?.valid ? checked.value.definition : null,
-      instances,
-      diagnostics,
-    },
-  };
+  return { found, loaded, sourceText, ...result };
 };
 const readPublishedArtifacts = async (
   directory: string,
@@ -210,40 +102,12 @@ const readPublishedArtifacts = async (
   channel: "dev" | "dist" = "dev",
   maxBytes = 256 * 1024 * 1024,
 ) => {
-  if (!/^[0-9a-f]{32}$/.test(generationId))
-    fail(500, "author-output-unsafe", "Build output is not a managed generation.");
-  const generation = await readBuildGeneration(directory, { channel, generationId });
-  const bundle = generation.artifacts.renderBundle;
-  const assetSet = generation.artifacts.assetSet;
-  const catalog: BuildJob["artifacts"] = [];
-  const catalogKeys = new Set<string>();
-  const assets = new Map<string, { bytes: Uint8Array; mediaType: string }>();
-  let totalBytes = 0;
-  for (const instanceId of instanceIds) {
-    const surface = bundle.surfaces[surfaceIdFor(instanceId)];
-    if (!surface) continue;
-    for (const renderSurface of Object.values(surface.renderSurfaces))
-      for (const artifact of Object.values(renderSurface.artifacts)) {
-        if (artifact.kind !== "baked-web") continue;
-        for (const [stateId, state] of Object.entries(artifact.states)) {
-          const assetId = state.texture.assetId;
-          const mediaType = assetSet.assets[assetId]?.mediaType;
-          if (mediaType !== "image/png") continue;
-          if (!assets.has(assetId)) {
-            totalBytes += assetSet.assets[assetId]!.encodedSizeBytes;
-            if (totalBytes > maxBytes)
-              throw new RangeError("Author artifact byte budget exceeded.");
-            assets.set(assetId, await generation.readAsset(assetId));
-          }
-          const key = JSON.stringify([instanceId, stateId, assetId]);
-          if (!catalogKeys.has(key)) {
-            catalogKeys.add(key);
-            catalog.push({ assetId, mediaType, instanceId, stateId });
-          }
-        }
-      }
-  }
-  return { catalog, assets };
+  return readAuthorArtifacts(
+    generationId,
+    () => readBuildGeneration(directory, { channel, generationId }),
+    instanceIds,
+    maxBytes,
+  );
 };
 
 export const createAuthorService = async (
@@ -296,117 +160,78 @@ export const createAuthorService = async (
         }
       },
       project: async () => (await readState(directory)).snapshot,
-      patch: async (revision, request) => {
-        const requestHash = digest(encoder.encode(JSON.stringify({ revision, request })));
-        const prior = await readAuthorReceipt(directory, request.commandId);
-        if (prior) {
-          if (prior.requestHash !== requestHash)
-            fail(409, "author-command-id-conflict", "Command ID was used for another request.");
-          return prior.saved;
-        }
-        const current = await readState(directory);
-        const patched = {
-          value: createAuthorPatch({
-            source: current.source,
-            sourceText: current.sourceText,
-            entryFile: current.found.entryFile,
-            snapshot: current.snapshot,
-            revision,
-            request,
-          }),
-        };
-        const prepared = await sourceInput(current.found, current.loaded, patched.value.sourceText);
-        const source = prepared.source;
-        const catalog = checkAuthoringProject(source);
-        if (!catalog.valid)
-          fail(
-            422,
-            catalog.diagnostics[0]?.code ?? "author-source-invalid",
-            catalog.diagnostics[0]?.message ?? "Patched source is invalid.",
-          );
-        const computed = computeFrozenComponentInputs(source, catalog.value);
-        if (!computed.valid)
-          fail(
-            422,
-            computed.diagnostics[0]?.code ?? "author-lock-invalid",
-            computed.diagnostics[0]?.message ?? "Patched lock is invalid.",
-          );
-        const base = current.loaded.value.lock;
-        const nextWithoutHash = {
-          ...base,
-          ...(prepared.styleTransform
-            ? {
-                styleTransform: prepared.styleTransform,
-                styleSourceIdentity: prepared.styleSourceIdentity,
-              }
-            : {}),
-          componentLocks: computed.value.componentLocks.map((item) => ({
-            ...item,
-          })) as UnframeLock["componentLocks"],
-          themeHashes: computed.value.themeHashes.map((item) => ({
-            themeId: item.themeId,
-            hash: item.hash as UnframeLock["themeHashes"][number]["hash"],
-          })),
-        };
-        const nextLock: UnframeLock = {
-          ...nextWithoutHash,
-          dependencyGraphHash: hashDependencyGraph(nextWithoutHash),
-        };
-        const lockBytes = encoder.encode(canonicalizeJsonPayload(nextLock) + "\n");
-        const loaded = loadUnframeLock(lockBytes);
-        if (!loaded.ok) fail(422, loaded.diagnostic.code, loaded.diagnostic.message);
-        const sourceAssets = await resolveDevProjectSourceAssets(
-          current.found.assetSources,
-          current.found.localFiles,
-        );
-        if (!sourceAssets.ok) fail(422, sourceAssets.code, sourceAssets.message);
-        const checked = checkAuthoringProjectAssembly(
-          source,
-          createSourceAssetAssemblyCarrier(loaded.value.assemblyCarrier, sourceAssets.value.assets),
-          sourceAssets.value.sourceAssetBytes,
-        );
-        if (!checked.valid)
-          fail(
-            422,
-            checked.diagnostics[0]?.code ?? "author-source-invalid",
-            checked.diagnostics[0]?.message ?? "Patched source is invalid.",
-          );
-        const afterSource = encoder.encode(patched.value.sourceText);
-        const saved: SavedCommand = {
-          revision: await sourceRevision(current.found, afterSource, lockBytes),
-          sourceHash: checked.value.sourceHash,
-          irHash: checked.value.definitionHash,
-          commandId: request.commandId,
-        };
-        const beforeSource = current.found.localFiles.find(
-          (file) => file.path === current.found.entryFile,
-        )?.bytes;
-        if (!beforeSource) fail(500, "author-source-io", "Presentation source could not be read.");
-        const latest = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
-        if (!latest.ok || latest.revision !== current.found.revision)
-          fail(412, "author-revision-mismatch", "Project inputs changed during save.");
-        try {
-          await commitAuthorPair({
-            root: directory,
-            sourcePath: current.found.entryFile,
-            beforeSource,
-            afterSource,
-            beforeLock: current.found.lockBytes,
-            afterLock: lockBytes,
-            requestHash,
-            saved,
-          });
-        } catch (error) {
-          if (error instanceof AuthorTransactionConflict)
-            fail(412, "author-revision-mismatch", "Project inputs changed during save.");
-          throw error;
-        }
-        return saved;
-      },
+      patch: (revision, request) =>
+        saveAuthorPatch(revision, request, {
+          readReceipt: (id) => readAuthorReceipt(directory, id),
+          readCurrent: () => readState(directory),
+          prepare: (current, revision, request) =>
+            prepareAuthorSave({
+              source: current.source,
+              sourceText: current.sourceText,
+              entryFile: current.found.entryFile,
+              snapshot: current.snapshot,
+              revision,
+              request,
+              lock: current.loaded.value.lock,
+              prepareSource: async (text) => {
+                const prepared = await sourceInput(current.found, current.loaded, text);
+                return {
+                  source: prepared.source,
+                  ...(prepared.styleTransform ? { styleTransform: prepared.styleTransform } : {}),
+                  ...(prepared.styleSourceIdentity
+                    ? { styleSourceIdentity: prepared.styleSourceIdentity }
+                    : {}),
+                };
+              },
+              resolveAssets: async () => {
+                const assets = await resolveDevProjectSourceAssets(
+                  sourceAssetPorts,
+                  current.found.assetSources,
+                  current.found.localFiles,
+                );
+                if (!assets.ok) fail(422, assets.code, assets.message);
+                return {
+                  assets: assets.value.assets,
+                  bytes: assets.value.sourceAssetBytes,
+                };
+              },
+              revisionFor: (source, lock) => sourceRevision(current.found, source, lock),
+            }),
+          currentRevision: async () => {
+            const latest = await discoverPresentationProjectFiles(directory, {
+              sourceLeaseHeld: true,
+            });
+            return latest.ok ? latest.revision : undefined;
+          },
+          commit: async (current, { afterSource, lockBytes, saved }, requestHash) => {
+            const beforeSource = current.found.localFiles.find(
+              (file) => file.path === current.found.entryFile,
+            )?.bytes;
+            if (!beforeSource)
+              fail(500, "author-source-io", "Presentation source could not be read.");
+            try {
+              await commitAuthorPair({
+                root: directory,
+                sourcePath: current.found.entryFile,
+                beforeSource,
+                afterSource,
+                beforeLock: current.found.lockBytes,
+                afterLock: lockBytes,
+                requestHash,
+                saved,
+              });
+            } catch (error) {
+              if (error instanceof AuthorTransactionConflict)
+                fail(412, "author-revision-mismatch", "Project inputs changed during save.");
+              throw error;
+            }
+            return saved;
+          },
+        }),
       prepareBuild: async (revision, channel) => {
         const refreshed =
           channel === "dev"
-            ? await refreshLocalProjectLock(directory, {
+            ? await refreshLocalProjectLock(sourceAssetPorts, directory, {
                 sourceLeaseHeld: true,
                 expectedRevision: revision,
               })

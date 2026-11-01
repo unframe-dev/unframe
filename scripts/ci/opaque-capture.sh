@@ -46,7 +46,7 @@ fi
 run_tests() {
   local module="$1"
   shift
-  pnpm --dir "${repo_root}" --filter @unframe/core exec vp test run --root "$module" --maxWorkers=1 --testTimeout=60000 "$@"
+  pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter "@unframe/$module" exec vp test run --maxWorkers=1 --testTimeout=60000 "$@"
 }
 
 renderer() {
@@ -55,14 +55,15 @@ renderer() {
     isolation="test/opaque-isolation-darwin.integration.test.ts"
   fi
   node --test "${repo_root}"/packages/unframe/worker-host/src/native/test_*.ts
-  run_tests renderer-web \
+  run_tests render-browser \
     "$isolation" test/opaque-capture.integration.test.ts \
     test/opaque-fonts.integration.test.ts test/opaque-runtime-lifecycle.integration.test.ts \
     test/playwright-fixed-browser.integration.test.ts
 }
 
 cli_project() {
-  run_tests cli test/opaque-project.integration.test.ts
+  run_tests cli test/opaque-project.integration.test.ts test/media-project.integration.test.ts
+  run_tests media-node test/video-validator.integration.test.ts
 }
 
 cli_author() {
@@ -71,9 +72,9 @@ cli_author() {
 }
 
 cli_styles() {
-  pnpm --dir "${repo_root}" --filter @unframe/core run build:tailwind
-  run_tests cli \
-    test/styles-worker.integration.test.ts test/tailwind-project.integration.test.ts
+  pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter @unframe/styles-node run build
+  run_tests styles-node test/styles-worker.integration.test.ts
+  run_tests cli test/tailwind-project.integration.test.ts
 }
 
 selected_tests() {
@@ -85,7 +86,7 @@ const names = process.argv.slice(2);
 process.stdout.write(`(?:${names.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
 NODE
   )"
-  run_tests renderer-web "$file" --testNamePattern "$pattern" \
+  run_tests render-browser "$file" --testNamePattern "$pattern" \
     --reporter=default --reporter=json --outputFile="${reports}/selected.json"
   node --input-type=module - "${reports}/selected.json" "$@" <<'NODE'
 import assert from 'node:assert/strict';
@@ -111,9 +112,9 @@ macos() {
     --test-name-pattern='^native profiles compile and deny host files$' \
     "${repo_root}/packages/unframe/worker-host/src/native/test_compile_policy.ts" | tee "${reports}/policy.tap"
   grep -qx '# pass 1' "${reports}/policy.tap"
-  run_tests renderer-web test/opaque-isolation-darwin.integration.test.ts
-  pnpm --dir "${repo_root}" --filter @unframe/core run build:tailwind
-  run_tests cli test/styles-worker.integration.test.ts
+  run_tests render-browser test/opaque-isolation-darwin.integration.test.ts
+  pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter @unframe/styles-node run build
+  run_tests styles-node test/styles-worker.integration.test.ts
   selected_tests test/playwright-fixed-browser.integration.test.ts \
     'provision済みmanaged ChromiumでFrame/Text相当のdocumentをPNG captureする'
   selected_tests test/opaque-capture.integration.test.ts \

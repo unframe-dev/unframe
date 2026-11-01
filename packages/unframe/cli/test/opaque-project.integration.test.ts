@@ -1,32 +1,20 @@
-import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
-import { execFile } from "node:child_process";
+import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { createHash } from "node:crypto";
-import { promisify } from "node:util";
-import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { temporaryDirectory } from "../src/platform/temporary-directory.js";
+import { cp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseAllDocuments, stringify } from "yaml";
 import { afterEach, assert, expect, it } from "vitest";
-import {
-  canonicalizeJsonPayload,
-  validatePresentationArtifacts,
-  verifyBuildIntegrity,
-} from "@unframe/artifacts";
+import { validatePresentationArtifacts, verifyBuildIntegrity } from "@unframe/artifacts";
 import { checkAuthoringProject } from "@unframe/source";
-
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
+import { prepareProjectSource } from "@unframe/workspace-node";
 import { loadUnframeLock } from "@unframe/workspace";
-import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
-import { lockedFile, snapshotInstalledPackages } from "@unframe/workspace-node";
-import { copyProjectFixture } from "./copy-project-fixture.js";
+import { lockedFile } from "@unframe/workspace-node";
+import { prepareRealReactProjectFixture } from "./real-react-project-fixture.js";
 
-const execute = promisify(execFile);
-const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
-const reference = join(repository, "examples/presentation");
+const repository = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const temporary: string[] = [];
-const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 afterEach(async () => {
   await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));
 });
@@ -36,96 +24,17 @@ const fromReference = async (directory: string) => {
   assert(discovered.ok);
   const loaded = loadUnframeLock(discovered.lockBytes);
   assert(loaded.ok);
-  const checked = checkAuthoringProject({
-    projectRoot: directory,
-    entryFile: discovered.entryFile,
-    files: discovered.files,
-    ...loaded.value.virtualSource,
-  });
-  assert(checked.valid);
+  const checked = checkAuthoringProject(
+    (await prepareProjectSource(sourceAssetPorts.styles, discovered, loaded.value.lock)).source,
+  );
+  assert(checked.valid, JSON.stringify(checked.diagnostics));
   return { loaded: loaded.value.lock, presentation: checked.value.presentation.value };
 };
 
-const installFrozenGraph = async (directory: string) => {
-  const documents = parseAllDocuments(await readFile(join(repository, "pnpm-lock.yaml"), "utf8"));
-  const lock = documents.at(-1)?.toJS() as {
-    catalogs?: unknown;
-    packageExtensionsChecksum?: unknown;
-    importers: Record<
-      string,
-      {
-        dependencies: Record<string, { specifier: string; version: string }>;
-        devDependencies: Record<string, { specifier: string; version: string }>;
-      }
-    >;
-  };
-  const web = lock.importers["app/web/console"]!;
-  const runtimeNames = ["@base-ui/react", "react", "react-dom"];
-  const typeNames = ["@types/react", "@types/react-dom"];
-  const dependencies = Object.fromEntries(
-    runtimeNames.map((name) => [name, web.dependencies[name]!]),
-  );
-  const devDependencies = Object.fromEntries(
-    typeNames.map((name) => [name, web.devDependencies[name]!]),
-  );
-  lock.importers = { ".": { dependencies, devDependencies } };
-  delete lock.catalogs;
-  delete lock.packageExtensionsChecksum;
-  await writeFile(
-    join(directory, "package.json"),
-    JSON.stringify({
-      private: true,
-      name: "unframe-opaque-fixture",
-      version: "1.0.0",
-      dependencies: Object.fromEntries(
-        Object.entries(dependencies).map(([name, item]) => [name, item.specifier]),
-      ),
-      devDependencies: Object.fromEntries(
-        Object.entries(devDependencies).map(([name, item]) => [name, item.specifier]),
-      ),
-    }),
-  );
-  await writeFile(join(directory, "pnpm-lock.yaml"), stringify(lock));
-  // The fixture reuses the installed repository lock; policy rechecks need registry metadata.
-  await execute(
-    "pnpm",
-    [
-      "install",
-      "--frozen-lockfile",
-      "--offline",
-      "--ignore-scripts",
-      "--ignore-pnpmfile",
-      "--trust-lockfile",
-    ],
-    { cwd: directory, timeout: 120_000 },
-  ).catch((error: Error & { stderr?: string; stdout?: string }) => {
-    throw new Error(`${error.stderr ?? ""}\n${error.stdout ?? ""}\n${error.message}`);
-  });
-  return snapshotInstalledPackages(directory);
-};
-
 const createProject = async (mixed = false) => {
-  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-opaque-integration-"));
+  const directory = await prepareRealReactProjectFixture();
   temporary.push(directory);
-  await copyProjectFixture(reference, directory);
-  const { loaded, presentation: initial } = await fromReference(directory);
-  if (!mixed) await clearSourceAssetRegistration(directory, "presentation.unframe.tsx");
-  const graph = await installFrozenGraph(directory);
-  const sdkPackage = loaded.packages.find((pkg) => pkg.name === "@unframe/core");
-  assert(sdkPackage);
-  const sdkEdge = loaded.rootDependencies.find((edge) => edge.specifier === "@unframe/core");
-  assert(sdkEdge);
-  const next = {
-    ...loaded,
-    packageManagerLockHash: graph.packageManagerLockHash,
-    rootDependencies: [...graph.rootDependencies, sdkEdge].sort((a, b) =>
-      compare(`${a.specifier}\0${a.usage}`, `${b.specifier}\0${b.usage}`),
-    ),
-    packages: [...graph.packages, sdkPackage].sort((a, b) => compare(a.key, b.key)),
-    assets: mixed ? loaded.assets : [],
-  };
-  const fresh: UnframeLock = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
-  await writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(fresh) + "\n");
+  const { presentation: initial } = await fromReference(directory);
   for (const name of await readdir(directory))
     if (
       !mixed &&
@@ -197,13 +106,10 @@ html, body { margin: 0; }
   const frozen = loadUnframeLock(discovered.lockBytes);
   assert(frozen.ok);
   const checked = checkAuthoringProject({
-    projectRoot: directory,
-    entryFile: discovered.entryFile,
-    files: discovered.files,
+    ...(await prepareProjectSource(sourceAssetPorts.styles, discovered, frozen.value.lock)).source,
     rawFiles: discovered.localFiles
       .filter(({ path }) => /\.(css|png|jpe?g|webp|ttf|otf)$/i.test(path))
       .map(({ path, bytes }) => lockedFile(path, bytes)),
-    ...frozen.value.virtualSource,
   });
   assert(checked.valid, JSON.stringify(checked.diagnostics));
   return directory;
@@ -277,7 +183,7 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   expect(cssRenderHash).not.toBe(initialRenderHash);
   const fontPath = join(directory, "fixture.otf");
   await cp(
-    join(repository, "packages/unframe/renderer-web/test/fixtures/UnframeFixtureCJK-Regular.otf"),
+    join(repository, "packages/unframe/render-browser/test/fixtures/UnframeFixtureCJK-Regular.otf"),
     fontPath,
   );
   await rm(join(directory, "fixture.ttf"));

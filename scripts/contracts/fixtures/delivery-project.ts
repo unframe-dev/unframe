@@ -1,4 +1,4 @@
-import { compileDeclarationProject } from "../../../packages/unframe/cli/src/build-execution/api/compile-declaration-project.js";
+import { compileDeclarationProject } from "@unframe/build";
 import {
   hashComponentManifestDeclaration,
   hashComponentStructureDeclaration,
@@ -7,13 +7,19 @@ import {
 } from "@unframe/compiler";
 import { standardComponents } from "@unframe/authoring/components";
 import type { ComponentManifest, ComponentStructure, SurfaceDeclaration } from "@unframe/authoring";
-import { PNG_ABSOLUTE_LIMITS } from "@unframe/core/assets";
+import {
+  PNG_ABSOLUTE_LIMITS,
+  PNG_ENCODER_IDENTITY,
+  MODEL_TRANSFORM_IDENTITY,
+  encodeRgbaToPng,
+  transformGlb,
+} from "@unframe/media-node";
 import {
   SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
   type RendererPlugin,
-} from "@unframe/core/renderer-api";
+} from "@unframe/build";
 
 export const createDeliveryFixtureProject = (): CompilerDeclarationProject => {
   const base = standardComponents.surface.structure;
@@ -235,6 +241,13 @@ export const buildDeliveryFixtureArtifacts = async () => {
       encodeLimits: PNG_ABSOLUTE_LIMITS,
     },
     {},
+    undefined,
+    {
+      pngIdentity: PNG_ENCODER_IDENTITY,
+      modelIdentity: MODEL_TRANSFORM_IDENTITY,
+      encodePng: encodeRgbaToPng,
+      transformModel: transformGlb,
+    },
   );
   if (!result.valid) throw new Error(JSON.stringify(result.diagnostics, null, 2));
   return result.value;

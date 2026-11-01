@@ -587,9 +587,7 @@ describe("fixed local Preview service", () => {
     source.artifacts.assetSet.assets["video-asset"] =
       assetSetManifestSchema.parse(assetSetFixture).assets["video-asset"]!;
     const videoBytes = Uint8Array.from(
-      await readFile(
-        new URL("../../../../examples/media-presentation/assets/video.mp4", import.meta.url),
-      ),
+      await readFile(new URL("../../cli/test/fixtures/media-project/video.mp4", import.meta.url)),
     );
     const videoHash = `sha256:${createHash("sha256").update(videoBytes).digest("hex")}`;
     source.artifacts.assetSet.assets["video-asset"]!.checksum = videoHash;

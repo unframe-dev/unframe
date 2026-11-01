@@ -1,5 +1,5 @@
-import type { FixedBrowserSession, WebRendererConfig } from "@unframe/core/renderer-web";
-import type { StyleDiagnostic } from "@unframe/core/tailwind";
+import type { FixedBrowserSession, WebRendererConfig } from "@unframe/render-browser";
+import type { StyleDiagnostic } from "@unframe/styles-node";
 
 export type PresentationCliExitCode = 0 | 1 | 2 | 3 | 130;
 export type PresentationDiagnosticFamily =

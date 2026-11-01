@@ -1,0 +1,62 @@
+{
+  "name": "@unframe/styles-node",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./compiler": {
+      "types": "./src/compiler.ts",
+      "import": "./dist/compiler.mjs"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs"
+      },
+      "./compiler": {
+        "types": "./dist/compiler.d.mts",
+        "import": "./dist/compiler.mjs"
+      }
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src test scripts vite.config.ts",
+    "test": "node --test test/acceptance.test.ts test/diagnostics.test.ts test/schema.test.ts && vp test run test/styles-node-snapshot.test.ts test/styles-darwin-runtime.test.ts test/style-worker-runtime.test.ts test/style-worker-location.test.ts",
+    "build": "vp pack && cp src/style-worker.ts dist/style-worker.ts && node scripts/pack-lock.mjs && tsx scripts/pack-dependencies.ts"
+  },
+  "dependencies": {
+    "@unframe/build": "workspace:*",
+    "@unframe/worker-host": "workspace:*",
+    "@unframe/workspace": "workspace:*",
+    "error-stack-parser": "2.1.4",
+    "jiti": "2.7.0",
+    "jsonc-parser": "3.3.1",
+    "path-is-inside": "1.0.2",
+    "postcss-load-config": "6.0.1",
+    "semver": "7.8.5",
+    "typescript": "6.0.3",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "0.5.11",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.19.0",
+    "@types/path-is-inside": "1.0.2",
+    "@types/semver": "7.7.1",
+    "postcss": "8.5.29",
+    "tailwindcss": "4.3.3",
+    "tailwindcss-older": "npm:tailwindcss@4.2.1",
+    "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.2.1",
+    "tsx": "^4.22.1",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

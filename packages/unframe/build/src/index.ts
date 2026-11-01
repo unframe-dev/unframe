@@ -63,3 +63,22 @@ export {
   type AuthorBuildOptions,
 } from "./author-builds.js";
 export { AuthorArtifactCache } from "./artifact-cache.js";
+
+export * from "./renderer-api/index.js";
+export * from "./source-preparation/index.js";
+export * from "./build-execution/api/compile-authoring-project.js";
+export * from "./build-execution/api/compile-declaration-project.js";
+export * from "./build-execution/api/check-declaration-project.js";
+export * from "./build-execution/api/compiler-internal-error.js";
+export type * from "./build-execution/api/types.js";
+export type * from "./build-execution/cache/build-cache.js";
+export type * from "./build-execution/api/media-ports.js";
+export {
+  MODEL_COMPILER_LIMITS,
+  createModelBuildIdentity,
+} from "./build-execution/api/compile-model-assets.js";
+export * from "./source-preparation/opaque-programs.js";
+export * from "./source-preparation/project-roots.js";
+export * from "./source-preparation/source-assets.js";
+export * from "./source-preparation/prepare-project.js";
+export * from "./source-preparation/prepare-lock.js";

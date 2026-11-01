@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import { loadUnframeLock } from "../src/index.js";
 import {
+  createProjectLock,
+  refreshProjectLock,
   hashDependencyGraph,
   hashLocalSource,
   hashLockedPackageContent,
@@ -204,4 +206,35 @@ describe("unframe.lock schema boundary", () => {
       diagnostic: { code: "cli-lock-not-canonical" },
     });
   });
+});
+
+it("serializes refreshed lock inputs with a matching dependency hash", () => {
+  const original = validLock();
+  const serialized = refreshProjectLock(original, {
+    componentLocks: original.componentLocks,
+    themeHashes: [],
+  });
+  const loaded = loadUnframeLock(serialized);
+  expect(loaded.ok).toBe(true);
+  if (!loaded.ok) return;
+  expect(loaded.value.lock.themeHashes).toEqual([]);
+  expect(loaded.value.lock.dependencyGraphHash).toBe(hashDependencyGraph(loaded.value.lock));
+  expect(new TextDecoder().decode(serialized).endsWith("\n")).toBe(true);
+});
+
+it("creates a canonical lock with default renderer plugins from a frozen graph", () => {
+  const previous = validLock();
+  const bytes = createProjectLock(previous, {
+    componentLocks: previous.componentLocks,
+    themeHashes: previous.themeHashes,
+    assets: previous.assets,
+  });
+  const loaded = loadUnframeLock(bytes);
+  expect(loaded.ok).toBe(true);
+  if (!loaded.ok) return;
+  expect(loaded.value.lock.rendererPlugins).toEqual([
+    { id: "baked-web", version: "3", contractVersion: "2" },
+    { id: "baked-web", version: "4", contractVersion: "2" },
+  ]);
+  expect(loaded.value.lock.dependencyGraphHash).toBe(hashDependencyGraph(loaded.value.lock));
 });

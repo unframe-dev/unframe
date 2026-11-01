@@ -1,42 +1,33 @@
 # Unframe Local Editor
 
-`app/web/local-editor` / `@unframe/local-editor` はローカル専用の Source Inspector、保存・履歴、Dev／Dist build、Unity Preview、Cue 時間軸の閲覧・確認と CLI を通す公開 UI です。`index.html` を `dist/` に build し、CLI Host が静的 UI と Unity player、token 認証付き HTTP API を配信します。ローカル HTTP 型と filesystem は CLI が所有します。認証・Dist の持ち込み公開・公開済みプレゼンテーションの確認・ルーム作成は [Console](../console/README.md) が担当します。
+`app/web/local-editor` / `@unframe/local-editor` はローカル専用の Source Inspector、保存・履歴、Dev／Dist build、Unity Preview、Cue 時間軸の閲覧・確認と CLI を通す公開 UI です。`index.html` を `dist/` に build し、CLI Host が静的 UI と Unity player、token 認証付き HTTP API を配信します。ローカル HTTP 契約は contracts、filesystem は CLI の Adapter が所有します。認証・Dist の持ち込み公開・公開済みプレゼンテーションの確認・ルーム作成は [Console](../console/README.md) が担当します。
 
 UI フォントは [LINE Seed JP](https://seed.line.me/index_jp.html) の Regular / Bold を同梱しています。[SIL Open Font License](public/fonts/line-seed-jp/OFL.txt) に基づいて利用・再配布します。
 
 ## Local Editor の起動
 
-対象 host は Linux x86_64 と macOS arm64 です。native 隔離の保証差と実機検証結果は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。project 指定、固定 Browser の provision、利用可能な Unity Editor の WebGL module と license が必要です。`UNITY_EDITOR` は `ProjectVersion.txt` に対応する実行ファイルを指定できます。未指定時は OS ごとの Unity Hub 標準配置を探します。
+対象 host は Linux x86_64 と macOS arm64、配布 CLI の実行には Node.js 24 以降が必要です。native 隔離の保証差と実機検証結果は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。利用者は配布された UI と Unity Preview Player を使用できます。配布物を作る場合は Unity Editor 6000.3.22f1 の WebGL module と license が必要です。
 
-初回にリポジトリ root で依存関係、固定 Browser、Unity Preview player を準備します。
+リポジトリで開発する場合は、依存関係と固定 Browser を準備し、配布用 UI と Player をビルドします。
 
 ```bash
 nix run .#setup
 nix develop --command scripts/dev/install-presentation-browser.sh
-nix run .#unity-preview
+nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe/local-editor run build:distribution
 ```
 
-開発時は2つのターミナルでそれぞれ `nix develop` に入り、リポジトリ root から次を実行します。
+2つのターミナルでそれぞれ `nix develop` に入り、次を実行します。
 
 ```bash
-# ターミナル1: Editor UI (http://127.0.0.1:5174/)
-pnpm --filter @unframe/local-editor dev
+pnpm --config.verify-deps-before-run=false --filter @unframe/local-editor dev
+pnpm --config.verify-deps-before-run=false --filter @unframe/cli dev -- /absolute/path/to/project
 ```
 
-```bash
-# ターミナル2: ローカル API / Unity player (http://127.0.0.1:5175)
-pnpm --filter @unframe/core dev -- "$PWD/examples/local-editor-showcase"
-```
+CLI が認証付きの Editor URL をブラウザで開きます。UI は HMR で変更を反映し、API と Player の要求を CLI に proxy します。再読み込み後は CLI のターミナルで `r` と Enter を入力して認証付き URL を開き直します。
 
-CLI が認証付きの Editor URL をブラウザで開きます。Local Editor は HMR で画面の変更を反映し、API と Unity player の要求を CLI に proxy します。CLI の `dev` が固定 Browser のパス設定と OS 別の起動準備を行うため、wrapper の手動指定や事前の UI build は不要です。ページ全体を再読み込みした場合は、CLI のターミナルで `r` + Enter を入力して認証付き Editor を開き直します。停止は各ターミナルで `Ctrl+C` です。
+配布物は `pnpm --config.verify-deps-before-run=false --filter @unframe/local-editor exec pnpm pack` で生成します。pack は現在の Unity Player と UI をビルドし、両方を同梱します。配布 CLI は `unframe author /absolute/path/to/project` で起動します。
 
-Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dist Preview を順に確認します。Preview は一時停止状態で開き、「再生」後に現在の Step の入力ボタンを操作できます。Step／Cue／Timeline と Surface の遷移はローカルで実行し、Unity の描画・再生処理は通常 Runtime と共通です。「一時停止」は再生時刻を保持し、「リセット」は初期状態へ戻します。本番 Realtime 接続は対象外です。
-
-フェードの確認には、ターミナル2の CLI を `Ctrl+C` で停止し、`pnpm --filter @unframe/core dev -- "$PWD/examples/presentation"` で起動し直します。表示後に「再生」→「continue」を押すと、Surface が inactive 状態へ切り替わり、host の不透明度が1秒で `1 → 0.5` に変化して Step が `finished` へ進みます。Unity 側のコード変更後は `nix run .#unity-preview` で player を再ビルドしてください。
-
-ビルド済み UI を CLI から配信する場合は、`pnpm --filter @unframe/local-editor build` の後に `presentation author /absolute/path/to/project` を実行します。Opaque capture の環境準備は [scripts README](../../../scripts/README.md) を参照してください。
-
-`presentation preview` が開く `/dist-preview` は、固定 Dist の閲覧専用です。Source 編集・Dev build・公開操作を表示せず、通常再生を利用できます。ブラウザが動画の自動再生を拒否した場合は一時停止し、「再生」の操作で再開します。
+`unframe preview <absolute-dist-directory>` が開く `/dist-preview` は、固定 Dist の閲覧専用です。Dist が symlink の場合は `realpath` で解決したディレクトリを渡してください。Source 編集・Dev build・公開操作を表示せず、通常再生を利用できます。ブラウザが動画の自動再生を拒否した場合は一時停止し、「再生」の操作で再開します。
 
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
@@ -56,4 +47,4 @@ Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` �
 nix run .#local-editor
 ```
 
-React 外の controller・変換・adapter を `src/**/tests/**/*.test.ts` の Node テストで検証します。UI／component test・E2E は設けていません。画面、固定 Browser／CSP、実 WebGL／Quest の描画は別途手動確認が必要です。Unity 変更時は `nix develop --command bash scripts/unity/test-native-editor.sh playback` を使用します。公開条件は [実装契約](../../../docs/packages/LOCAL_EDITOR_DESIGN.md) に従います。
+React 外の controller・変換・adapter を `src/**/tests/**/*.test.ts` の Node テストで検証します。配布 CLI の `test/pack-acceptance.mjs` は実 Chromium と同梱 Player の読込・Surface の実画素・再生通知を検証します。実認証・実公開・Quest 実機は別途確認が必要です。Unity 変更時は `nix develop --command bash scripts/unity/test-native-editor.sh playback` を使用します。公開条件は [実装契約](../../../docs/packages/LOCAL_EDITOR_DESIGN.md) に従います。

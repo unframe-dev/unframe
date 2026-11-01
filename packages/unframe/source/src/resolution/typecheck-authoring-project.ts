@@ -93,17 +93,44 @@ export const analyzeAuthoringProject = (
     jsx: ts.JsxEmit.ReactJSX,
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
+    baseUrl: project.projectRoot,
     noEmit: true,
     noLib: true,
     strict: true,
     target: ts.ScriptTarget.ES2022,
   } satisfies ts.CompilerOptions;
-  const host = virtualCompilerHostFor(context);
+  const hasReactComponents = [...context.sourceFiles.values()].some((file) =>
+    context.displayFileName(file).endsWith(".component.tsx"),
+  );
+  const hasLibraries = !hasReactComponents && Object.keys(project.typeLibraries).length > 0;
+  const missingPrimaryLibraries = new Set<string>();
+  const host = hasLibraries
+    ? reactCompilerHostFor(context, project.typeLibraries, missingPrimaryLibraries)
+    : virtualCompilerHostFor(context);
   const program = ts.createProgram({
     rootNames: context.projectRootFiles,
-    options: { ...options, jsxImportSource: "@unframe/authoring" },
+    options: {
+      ...options,
+      ...(hasLibraries
+        ? { noLib: false, lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"] }
+        : {}),
+      jsxImportSource: "@unframe/authoring",
+    },
     host,
   });
+  if (missingPrimaryLibraries.size > 0)
+    return {
+      ok: false,
+      diagnostics: [...missingPrimaryLibraries].sort().map((fileName) => ({
+        code: "source-type-library-missing",
+        fileName,
+        message: "The fixed Source snapshot must include this TypeScript library.",
+        start: 0,
+        end: 0,
+        line: 1,
+        column: 1,
+      })),
+    };
   const isReactProjectFile = (file: ts.SourceFile, programContext: VirtualModuleContext) => {
     if (!programContext.ownerFor(file)) return false;
     const name = programContext.displayFileName(file);
@@ -118,9 +145,6 @@ export const analyzeAuthoringProject = (
       return false;
     return !name.endsWith(".d.ts");
   };
-  const hasReactComponents = [...context.sourceFiles.values()].some((file) =>
-    context.displayFileName(file).endsWith(".component.tsx"),
-  );
   let reactContext: VirtualModuleContext | undefined;
   let reactDiagnostics: readonly ts.Diagnostic[] = [];
   if (hasReactComponents) {

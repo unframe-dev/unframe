@@ -1,4 +1,5 @@
-import { cp, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { writeDiscoveryProjectFixture } from "./discovery-project-fixture.js";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
@@ -6,7 +7,7 @@ import definition from "../../../contracts/presentation/fixtures/presentation-de
 import renderBundle from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import buildManifest from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { encodeBuildReceipt } from "../src/filesystem/build-receipt.js";
+import { encodeBuildReceipt } from "@unframe/workspace-node";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { runAuthorProcess, runDistPreviewProcess } from "../src/author/start.js";
 
@@ -16,18 +17,14 @@ const boundary = vi.hoisted(() => ({
   controller: new AbortController(),
   opened: [] as { command: string; url: string }[],
 }));
-vi.mock("node:url", async (importOriginal) => {
-  const original = await importOriginal<typeof import("node:url")>();
-  return {
-    ...original,
-    fileURLToPath: (url: string | URL) => {
-      const value = String(url);
-      if (value.endsWith("/app/web/local-editor/dist/")) return boundary.editor;
-      if (value.endsWith("/.unframe/unity-preview/UnframePreview/")) return boundary.unity;
-      return original.fileURLToPath(url);
-    },
-  };
-});
+vi.mock("@unframe/local-editor", () => ({
+  get editorAssetsDirectory() {
+    return boundary.editor;
+  },
+  get unityPreviewDirectory() {
+    return boundary.unity;
+  },
+}));
 vi.mock("node:child_process", async (importOriginal) => {
   const original = await importOriginal<typeof import("node:child_process")>();
   return {
@@ -71,10 +68,8 @@ it.each([
   for (const extension of ["loader.js", "framework.js", "wasm", "data"])
     await writeFile(join(boundary.unity, "Build", `UnframePreview.${extension}`), "fixture");
   const project = join(root, "project");
-  await cp(new URL("../../../../examples/presentation/", import.meta.url), project, {
-    recursive: true,
-    filter: (path) => !path.includes("/.unframe") && !path.includes("/dist"),
-  });
+  await mkdir(project);
+  await writeDiscoveryProjectFixture(project);
   const bundle = { ...renderBundle, definitionHash: hashCanonicalJsonPayload(definition) };
   const manifest = {
     ...buildManifest,

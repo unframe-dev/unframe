@@ -82,3 +82,6 @@ app/unity/*.alf
 
 .unframe/native-editor-regression/
 .unframe/actual-webgl-evidence/
+
+app/web/local-editor/player/
+packages/unframe/workspace-node/native-bin/

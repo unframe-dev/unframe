@@ -101,3 +101,86 @@ test("use case imports use declared public package boundaries and contain no cyc
   }
   for (const name of graph.keys()) visit(name);
 });
+
+test("adapter and CLI imports resolve through declared public package boundaries without cycles", async () => {
+  const adapterNames = ["render-browser", "media-node", "styles-node", "worker-host", "cli"];
+  const packagePaths = [
+    ...(await readdir(base, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => resolve(base, entry.name)),
+    resolve(root, "packages/contracts"),
+    resolve(root, "packages/api-client-typescript"),
+    resolve(root, "app/web/local-editor"),
+  ];
+  const packages = new Map();
+  for (const directory of packagePaths) {
+    let pkg;
+    try {
+      pkg = JSON.parse(await readFile(resolve(directory, "package.json"), "utf8"));
+    } catch (error) {
+      if (error.code === "ENOENT") continue;
+      throw error;
+    }
+    if (pkg.name?.startsWith("@unframe/")) packages.set(pkg.name, { pkg, directory });
+  }
+  for (const name of adapterNames) {
+    const fullName = `@unframe/${name}`;
+    const entry = packages.get(fullName);
+    assert.ok(entry, `${fullName}: package manifest`);
+    const directory = resolve(entry.directory, "src");
+    for (const path of await files(directory)) {
+      const ast = ts.createSourceFile(
+        path,
+        await readFile(path, "utf8"),
+        ts.ScriptTarget.Latest,
+        true,
+      );
+      const visit = (node) => {
+        let specifier;
+        if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier)
+          specifier = node.moduleSpecifier;
+        if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument))
+          specifier = node.argument.literal;
+        if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword)
+          specifier = node.arguments[0];
+        if (ts.isCallExpression(node) && node.expression.getText(ast) === "import.meta.resolve")
+          specifier = node.arguments[0];
+        if (specifier && ts.isStringLiteralLike(specifier)) {
+          const value = specifier.text;
+          if (value.startsWith(".")) {
+            const target = relative(directory, resolve(dirname(path), value));
+            assert.ok(target !== ".." && !target.startsWith(`..${sep}`), `${path}: ${value}`);
+          } else if (value.startsWith("@unframe/")) {
+            const dependency = value.split("/").slice(0, 2).join("/");
+            const target = packages.get(dependency);
+            assert.ok(target, `${path}: missing package ${dependency}`);
+            if (dependency !== fullName)
+              assert.ok(
+                entry.pkg.dependencies?.[dependency] || entry.pkg.peerDependencies?.[dependency],
+                `${path}: undeclared ${dependency}`,
+              );
+            assert.ok(
+              target.pkg.exports?.[`.${value.slice(dependency.length)}`],
+              `${path}: private ${value}`,
+            );
+          }
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(ast);
+    }
+  }
+  const active = new Set();
+  const done = new Set();
+  const visit = (name) => {
+    assert.ok(!active.has(name), `dependency cycle at ${name}`);
+    if (done.has(name)) return;
+    active.add(name);
+    const { pkg } = packages.get(name);
+    for (const dependency of Object.keys({ ...pkg.dependencies, ...pkg.peerDependencies }))
+      if (packages.has(dependency)) visit(dependency);
+    active.delete(name);
+    done.add(name);
+  };
+  for (const name of packages.keys()) visit(name);
+});

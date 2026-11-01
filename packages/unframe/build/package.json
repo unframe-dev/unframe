@@ -25,10 +25,20 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
+    "@noble/hashes": "2.3.0",
+    "@unframe/artifacts": "workspace:*",
+    "@unframe/authoring": "workspace:*",
+    "@unframe/compiler": "workspace:*",
     "@unframe/contracts": "workspace:*",
+    "@unframe/presentation": "workspace:*",
+    "@unframe/source": "workspace:*",
+    "@unframe/workspace": "workspace:*",
+    "css-tree": "3.2.1",
+    "typescript": "6.0.3",
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@types/css-tree": "^3.2.0",
     "@types/node": "24.19.0",
     "vite-plus": "catalog:",
     "vitest": "catalog:"

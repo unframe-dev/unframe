@@ -1,12 +1,13 @@
 import { generateKeyPairSync, randomBytes, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createConnection, createServer } from "node:net";
-import { cp as copy, mkdir, open, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, realpath, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as pause } from "node:timers/promises";
-import { runPresentationCli, publishPresentation } from "../../packages/unframe/cli/src/index.js";
-import { readBuildGeneration } from "../../packages/unframe/cli/src/filesystem/read-build-generation.js";
+import { runPresentationCli, publishPresentation } from "@unframe/cli";
+import { readBuildGeneration } from "@unframe/workspace-node";
+import { stopServices } from "./processes.ts";
 import { advertiseConnection, cleanupSample, samplePorts, sessionExpiry } from "./lifecycle.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -54,14 +55,14 @@ const secrets = {
   REALTIME_SIGNING_JWK: JSON.stringify(privateKey),
   SERVICE_IDENTITY_SECRET: serviceIdentity,
 };
-async function execute(command: string, args: string[], cwd = root) {
+async function execute(command: string, args: string[], cwd = root, env = process.env) {
   cancellation.signal.throwIfAborted();
   const log = await open(join(state!, "setup.log"), "a", 0o600);
   try {
     await new Promise<void>((resolve, reject) => {
       const child = spawn(command, args, {
         cwd,
-        env: process.env,
+        env,
         signal: cancellation.signal,
         stdio: ["ignore", log.fd, log.fd],
       });
@@ -86,7 +87,6 @@ async function start(command: string, args: string[], label: string, env = proce
     stdio: ["ignore", log.fd, log.fd],
   });
   children.push(child);
-  await log.close();
   const failed = () => {
     if (!cancellation.signal.aborted) {
       fatal = new Error(`${label} stopped; inspect its private run log.`);
@@ -95,6 +95,7 @@ async function start(command: string, args: string[], label: string, env = proce
   };
   child.once("error", failed);
   child.once("exit", failed);
+  await log.close();
 }
 async function waitFor(probe: () => Promise<boolean>) {
   for (let attempt = 0; attempt < 120; attempt++) {
@@ -249,11 +250,13 @@ ${runtimeEndpoint} {
     `INSERT INTO user(id,name,email,emailVerified,createdAt,updatedAt,globalRole,twoFactorEnabled) VALUES ('${userId}','Local sample','${userId}@localhost.test',1,${now},${now},'admin',0); INSERT INTO session(id,expiresAt,token,createdAt,updatedAt,userId,assurance) VALUES ('${randomUUID()}',${credentialExpiry},'${credential}',${now},${now},'${userId}','google');`,
   ]);
   const project = join(state, "presentation");
-  await copy(join(root, "examples/presentation"), project, {
-    recursive: true,
-    filter: (path) => !["dist", ".unframe"].includes(path.split("/").at(-1)!),
+  const initialized = await runPresentationCli({ args: ["init", project] });
+  await writeFile(join(state, "compiler.log"), initialized.stdout + initialized.stderr, {
+    mode: 0o600,
   });
-  console.log("Compiling examples/presentation with the production compiler.");
+  if (initialized.exitCode !== 0)
+    throw new Error("Sample initialization failed; inspect the private compiler log.");
+  console.log("Compiling the local sample with the production compiler.");
   const built = await runPresentationCli({
     args: ["build", project],
     host: { signal: cancellation.signal },
@@ -264,7 +267,7 @@ ${runtimeEndpoint} {
   const fixed = await readBuildGeneration(project, { channel: "dist" });
   const { presentationId, buildId } = fixed.artifacts.buildManifest;
   const published = await publishPresentation({
-    directory: join(project, "dist"),
+    directory: await realpath(join(project, "dist")),
     presentationId,
     controlPlaneUrl: cp,
     bearerToken: credential,
@@ -275,20 +278,11 @@ ${runtimeEndpoint} {
     await remote("/sessions", credential, { presentationId })
   ).json()) as { session: { id: string } };
   const runtimeId = randomUUID();
-  const leaseExpiry = Date.now() + 20 * 60 * 1000;
-  const assignment = (await (
-    await remote(`/sessions/${session.id}/runtime-assignment`, credential, {
-      runtimeId,
-      runtimeKind: "Cloud",
-      endpoint: runtimeEndpoint,
-      presentationRevision: 1,
-      leaseExpiresAt: new Date(leaseExpiry).toISOString(),
-    })
-  ).json()) as { assignmentEpoch: number; issuedAt: string; leaseExpiresAt: string };
   await execute(
     "go",
-    ["build", "-o", join(state, "realtime"), "./cmd/server"],
+    ["build", "-o", join(state, "realtime"), "./cmd/runtime-host"],
     join(root, "app/server/realtime"),
+    { ...process.env, CGO_ENABLED: "0" },
   );
   await start(join(state, "realtime"), [], "realtime", {
     ...process.env,
@@ -298,14 +292,9 @@ ${runtimeEndpoint} {
     REALTIME_JWKS_URL: `${cp}/.well-known/jwks.json`,
     REALTIME_CONTROL_PLANE_URL: cp,
     REALTIME_SERVICE_IDENTITY: serviceIdentity,
-    REALTIME_SESSION_ID: session.id,
     REALTIME_RUNTIME_ID: runtimeId,
-    REALTIME_RUNTIME_KIND: "Cloud",
     REALTIME_RUNTIME_ENDPOINT: runtimeEndpoint,
-    REALTIME_ASSIGNMENT_EPOCH: String(assignment.assignmentEpoch),
-    REALTIME_PRESENTATION_REVISION: "1",
-    REALTIME_ASSIGNMENT_ISSUED_AT: assignment.issuedAt,
-    REALTIME_LEASE_EXPIRES_AT: assignment.leaseExpiresAt,
+    REALTIME_HOST_CAPACITY: "1",
   });
   await waitFor(
     () =>
@@ -323,15 +312,23 @@ ${runtimeEndpoint} {
         });
       }),
   );
+  await waitFor(async () => {
+    const prepared = (await (
+      await remote(`/sessions/${session.id}/runtime-preparation`, credential, {})
+    ).json()) as { state: string };
+    return prepared.state === "starting" || prepared.state === "ready";
+  });
+  await waitFor(async () => {
+    const prepared = (await (
+      await remote(`/sessions/${session.id}/runtime-preparation`, credential)
+    ).json()) as { state: string };
+    return prepared.state === "ready";
+  });
   await remote(`/sessions/${session.id}/delivery`, credential, {
     capabilityProfileId: "quest-presentation-v2",
   });
   await remote(`/sessions/${session.id}/bootstrap`, credential, {});
-  const expiresAt = sessionExpiry(
-    Date.now(),
-    credentialExpiry,
-    Date.parse(assignment.leaseExpiresAt),
-  );
+  const expiresAt = sessionExpiry(Date.now(), credentialExpiry, Date.now() + 20 * 60 * 1000);
   cancellation.signal.throwIfAborted();
   revoke = await advertiseConnection(activeFile, {
     version: 1,
@@ -370,27 +367,7 @@ ${runtimeEndpoint} {
       await revoke?.();
     },
     async () => {
-      for (const child of children.reverse()) {
-        if (child.pid)
-          try {
-            process.kill(-child.pid, "SIGTERM");
-          } catch {
-            /* Already stopped. */
-          }
-      }
-      for (const child of children) {
-        if (child.exitCode !== null || !child.pid) continue;
-        await Promise.race([
-          new Promise<void>((resolve) => child.once("exit", () => resolve())),
-          pause(1500),
-        ]);
-        if (child.exitCode === null)
-          try {
-            process.kill(-child.pid!, "SIGKILL");
-          } catch {
-            /* Already stopped. */
-          }
-      }
+      await stopServices(children);
     },
     async () => {
       try {

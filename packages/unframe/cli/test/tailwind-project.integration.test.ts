@@ -1,22 +1,16 @@
-import { copyProjectFixture } from "./copy-project-fixture.js";
-import { execFile } from "node:child_process";
+import { prepareReactProjectFixture } from "./react-project-fixture.js";
 import { createHash } from "node:crypto";
-import { promisify } from "node:util";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { temporaryDirectory } from "../src/platform/temporary-directory.js";
+import { cp, mkdir, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, expect, it } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/source";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { startDistPreviewHost } from "../src/author/start.js";
 import { loadUnframeLock } from "@unframe/workspace";
 import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
-const execute = promisify(execFile);
-const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const repository = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const invoke = async (directory: string, ...args: string[]) => {
   const result = await runPresentationCli({ args: [...args, directory] });
   expect(result.exitCode, result.stderr).toBe(0);
@@ -54,81 +48,22 @@ const lockSummary = async (directory: string) => {
 };
 
 it("locks project-owned Tailwind with an uppercase CSS entry, captures reproducibly, invalidates all inputs, and preserves Dist on failure", async () => {
-  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-tailwind-project-"));
-  const staging = await mkdtemp(join(temporaryDirectory(), "unframe-sdk-package-"));
+  const { directory, presentation: original } = await prepareReactProjectFixture();
   try {
-    await copyProjectFixture(join(repository, "examples/presentation"), directory);
-    const found = await discoverPresentationProjectFiles(directory);
-    assert(found.ok);
-    const loaded = loadUnframeLock(found.lockBytes);
-    assert(loaded.ok);
-    const checked = checkAuthoringProject({
-      projectRoot: directory,
-      entryFile: found.entryFile,
-      files: found.files,
-      ...loaded.value.virtualSource,
-    });
-    assert(checked.valid);
-    await clearSourceAssetRegistration(directory, found.entryFile);
-    await writeFile(
-      join(directory, "unframe.lock"),
-      canonicalizeJsonPayload({ ...loaded.value.lock, assets: [] }) + "\n",
+    await clearSourceAssetRegistration(directory, "presentation.unframe.tsx");
+    await cp(
+      join(repository, "packages/unframe/cli/test/fixtures/tailwind-project/vendor"),
+      join(directory, "vendor"),
+      {
+        recursive: true,
+      },
     );
-    const sdk = loaded.value.lock.packages.find((pkg) => pkg.name === "@unframe/core");
-    assert(sdk);
-    for (const file of sdk.files) {
-      await mkdir(dirname(join(staging, "package", file.path)), { recursive: true });
-      await writeFile(
-        join(staging, "package", file.path),
-        file.encoding === "utf8" ? file.data : Buffer.from(file.data, "base64"),
+    for (const name of ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"])
+      await cp(
+        join(repository, "packages/unframe/cli/test/fixtures/tailwind-project", name),
+        join(directory, name),
       );
-    }
-    await writeFile(
-      join(staging, "package/package.json"),
-      JSON.stringify({
-        name: sdk.name,
-        version: "1.0.0",
-        type: "module",
-        exports: Object.fromEntries(
-          sdk.exports.map((entry) => [
-            entry.subpath,
-            { types: `./${entry.types}`, default: `./${entry.runtimeImport}` },
-          ]),
-        ),
-      }),
-    );
-    await mkdir(join(directory, "vendor"));
-    await execute("tar", [
-      "-czf",
-      join(directory, "vendor/authoring.tgz"),
-      "-C",
-      staging,
-      "package",
-    ]);
-    await writeFile(
-      join(directory, "package.json"),
-      JSON.stringify({
-        private: true,
-        type: "module",
-        dependencies: {
-          "@unframe/authoring": "file:vendor/authoring.tgz",
-          react: "19.2.4",
-          "react-dom": "19.2.4",
-        },
-        devDependencies: {
-          "@types/react": "19.2.14",
-          "@types/react-dom": "19.2.3",
-          postcss: "8.5.29",
-          tailwindcss: "4.3.3",
-          "@tailwindcss/postcss": "4.3.3",
-        },
-      }),
-    );
-    await execute("pnpm", ["install", "--lockfile-only", "--ignore-scripts", "--ignore-pnpmfile"], {
-      cwd: directory,
-      timeout: 120000,
-    });
-    const { theme: _theme, ...base } = checked.value.presentation.value;
+    const { theme: _theme, ...base } = original;
     const presentation = {
       ...base,
       scene: [],
@@ -220,7 +155,9 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
     await invoke(directory, "build");
     const changed = await pngHashes(directory);
     expect(changed).toEqual(devImages);
-    const preview = await startDistPreviewHost(join(directory, "dist"), { assets: new Map() });
+    const preview = await startDistPreviewHost(await realpath(join(directory, "dist")), {
+      assets: new Map(),
+    });
     try {
       const { origin } = preview;
       const requestId = "a".repeat(32);
@@ -268,6 +205,5 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
     }
   } finally {
     await rm(directory, { recursive: true, force: true });
-    await rm(staging, { recursive: true, force: true });
   }
 }, 360000);

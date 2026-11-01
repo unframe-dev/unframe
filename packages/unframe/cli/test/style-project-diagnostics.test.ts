@@ -1,31 +1,25 @@
+import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { copyProjectFixture } from "./copy-project-fixture.js";
+import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/source";
 import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "@unframe/author-service";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
 import { loadUnframeLock } from "@unframe/workspace";
 import { hashDependencyGraph } from "@unframe/workspace";
-import { prepareProjectSource } from "../src/filesystem/prepare-project.js";
-import {
-  snapshotNodeTransformInputs,
-  withNodeTransformSources,
-} from "../src/styles/node-snapshot.js";
-import { runIsolatedWorker } from "@unframe/core/worker-host";
-import type { FixedBrowserSession } from "@unframe/core/renderer-web";
-import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
+import { prepareProjectSource } from "@unframe/workspace-node";
+import { snapshotNodeTransformInputs, withNodeTransformSources } from "@unframe/styles-node";
+import { runIsolatedWorker } from "@unframe/worker-host";
+import type { FixedBrowserSession } from "@unframe/render-browser";
 
-vi.mock("@unframe/core/worker-host", async (original) => ({
-  ...(await original<typeof import("@unframe/core/worker-host")>()),
+vi.mock("@unframe/worker-host", async (original) => ({
+  ...(await original<typeof import("@unframe/worker-host")>()),
   runIsolatedWorker: vi.fn(),
 }));
-const reference = fileURLToPath(new URL("../../../../examples/presentation", import.meta.url));
 const directories: string[] = [];
 const services: AuthorService[] = [];
 afterEach(async () => {
@@ -46,40 +40,7 @@ const fixture = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-style-diagnostics-"));
   const adapter = await mkdtemp(join(temporaryDirectory(), "unframe-style-adapter-"));
   directories.push(directory, adapter);
-  await copyProjectFixture(reference, directory);
-  const original = await discoverPresentationProjectFiles(directory);
-  assert(original.ok, JSON.stringify(original));
-  const originalLock = loadUnframeLock(original.lockBytes);
-  assert(originalLock.ok);
-  const checked = checkAuthoringProject({
-    projectRoot: directory,
-    entryFile: original.entryFile,
-    files: original.files,
-    ...originalLock.value.virtualSource,
-  });
-  assert(checked.valid);
-  const { theme: _theme, ...base } = checked.value.presentation.value;
-  const presentation = {
-    ...base,
-    scene: [],
-    assets: [],
-    flow: {
-      initialGroupId: "main",
-      groups: {
-        main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
-      },
-      variables: {},
-    },
-  };
-  await clearSourceAssetRegistration(directory, original.entryFile);
-  await writeFile(
-    join(directory, "unframe.lock"),
-    canonicalizeJsonPayload({ ...originalLock.value.lock, assets: [] }) + "\n",
-  );
-  await writeFile(
-    join(directory, original.entryFile),
-    `import {definePresentation} from "@unframe/authoring"; export default definePresentation(${JSON.stringify(presentation)});`,
-  );
+  await writeAuthoringBoundaryProjectFixture(directory);
   const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
   expect(refreshed.exitCode, refreshed.stderr).toBe(0);
   const manifest = JSON.stringify({ name: "fixture-adapter", version: "1.0.0", main: "index.mjs" });
@@ -97,6 +58,7 @@ const fixture = async () => {
   assert(loaded.ok);
   const snapshot = await snapshotNodeTransformInputs(directory, {
     adapterRoot: adapter,
+    adapterDependencies: [],
     sourceFiles: found.localFiles.map(({ path, bytes }) => ({
       path,
       bytes: Buffer.from(bytes).toString("base64"),
@@ -231,7 +193,7 @@ describe("project style diagnostics", { timeout: 30_000 }, () => {
     assert(found.ok, JSON.stringify(found));
     const loaded = loadUnframeLock(found.lockBytes);
     assert(loaded.ok);
-    const prepared = await prepareProjectSource(found, loaded.value.lock);
+    const prepared = await prepareProjectSource(sourceAssetPorts.styles, found, loaded.value.lock);
     expect(prepared).toHaveProperty("diagnostics", [warning]);
   });
 
@@ -294,7 +256,9 @@ describe("project style diagnostics", { timeout: 30_000 }, () => {
     assert(found.ok, JSON.stringify(found));
     const loaded = loadUnframeLock(found.lockBytes);
     assert(loaded.ok);
-    const prepared = await prepareProjectSource(found, loaded.value.lock, { refresh: true });
+    const prepared = await prepareProjectSource(sourceAssetPorts.styles, found, loaded.value.lock, {
+      refresh: true,
+    });
     expect(prepared.source).toHaveProperty("preparedStyles.stylesheets", [
       { entry: "theme.CSS", css: "main { color: red; }" },
     ]);

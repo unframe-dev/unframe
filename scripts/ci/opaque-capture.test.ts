@@ -135,8 +135,7 @@ test(
       ({ command, args }) => command === "pnpm" && args.includes("test"),
     );
     assert.equal(tests.length, 1);
-    assert.ok(tests[0]!.args.includes("@unframe/core"));
-    assert.equal(tests[0]!.args[tests[0]!.args.indexOf("--root") + 1], "renderer-web");
+    assert.ok(tests[0]!.args.includes("@unframe/render-browser"));
     assert.ok(tests[0]!.args.includes("test/opaque-isolation.integration.test.ts"));
     assert.equal(
       tests[0]!.args.includes("test/opaque-isolation-darwin.integration.test.ts"),
@@ -157,6 +156,8 @@ const linuxIntegrationFiles = [
   "test/opaque-runtime-lifecycle.integration.test.ts",
   "test/playwright-fixed-browser.integration.test.ts",
   "test/opaque-project.integration.test.ts",
+  "test/media-project.integration.test.ts",
+  "test/video-validator.integration.test.ts",
   "test/author-capture.integration.test.ts",
   "test/author-source-diagnostics.integration.test.ts",
   "test/styles-worker.integration.test.ts",

@@ -103,6 +103,12 @@ export const resolvePackageExportTargets = (
   };
   if (manifest.browser && typeof manifest.browser === "object") {
     for (const [from, to] of Object.entries(record(manifest.browser))) {
+      if (
+        !from.startsWith(".") &&
+        /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/u.test(from) &&
+        to === false
+      )
+        continue;
       if (!from.startsWith("./") || !files.includes(from.slice(2)))
         throw new Error("Browser mapping source must name a locked package file.");
       if (

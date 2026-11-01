@@ -7,3 +7,5 @@ export * from "./snapshot-integrity.js";
 export * from "./package-files.js";
 export * from "./revision.js";
 export * from "./save.js";
+export * from "./source-assets.js";
+export * from "./construct-lock.js";

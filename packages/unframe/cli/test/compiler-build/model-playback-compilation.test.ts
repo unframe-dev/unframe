@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
-import { PNG_ABSOLUTE_LIMITS } from "@unframe/core/assets";
-import { compileDeclarationProject } from "../../src/build-execution/api/compile-declaration-project.js";
+import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
+import { compileDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
 import { modelGlb, modelProject } from "./fixtures/model.js";
 
 const options = {

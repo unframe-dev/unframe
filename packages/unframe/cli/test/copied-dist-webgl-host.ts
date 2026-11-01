@@ -3,13 +3,12 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { runPresentationCli } from "../src/index.js";
 import { startDistPreviewHost } from "../src/author/start.js";
-import { copyProjectFixture } from "./copy-project-fixture.js";
+import { createMediaProjectFixture } from "./media-project-fixture.js";
 
-const source = await mkdtemp(join(temporaryDirectory(), "unframe-dist-source-"));
+const source = await createMediaProjectFixture();
 const destination = await mkdtemp(join(temporaryDirectory(), "unframe-dist-copy-"));
 let host: Awaited<ReturnType<typeof startDistPreviewHost>> | undefined;
 try {
-  await copyProjectFixture(join(process.cwd(), "examples/media-presentation"), source);
   for (const args of [
     ["lock", "refresh", source],
     ["build", source],
@@ -18,7 +17,7 @@ try {
     if (result.exitCode) throw new Error(result.stderr);
   }
   const directory = join(destination, "dist");
-  await cp(join(source, "dist"), directory, { recursive: true });
+  await cp(join(source, "dist"), directory, { recursive: true, dereference: true });
   await rm(source, { recursive: true, force: true });
   host = await startDistPreviewHost(directory);
   process.stdout.write(JSON.stringify({ origin: host.origin, token: host.token }) + "\n");

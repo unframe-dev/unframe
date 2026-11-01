@@ -16,9 +16,9 @@ import {
   hashCanonicalJsonPayload,
   hashPresentationDefinition,
 } from "@unframe/artifacts";
-import { compileCheckedDeclarationProject } from "../../src/build-execution/api/compile-declaration-project.js";
-import { compileDeclarationProject } from "../../src/build-execution/api/compile-declaration-project.js";
-import { checkDeclarationProject } from "../../src/build-execution/api/check-declaration-project.js";
+import { compileCheckedDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
+import { compileDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
+import { checkDeclarationProject } from "@unframe/build";
 import type { CompilerDeclarationProject, CompilerSourceAsset } from "@unframe/compiler";
 type StructuredProject = Omit<CompilerDeclarationProject, "presentation" | "components"> & {
   presentation: PresentationDeclaration;
@@ -33,9 +33,9 @@ import {
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
   type RendererPlugin,
-} from "@unframe/core/renderer-api";
-import { PNG_ABSOLUTE_LIMITS } from "@unframe/core/assets";
-import { checksumBytes } from "../../src/build-execution/validation/source-assets.js";
+} from "@unframe/build";
+import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
+import { checksumBytes } from "../fixtures-helpers/checksum.js";
 
 const presentation = (): PresentationDeclaration => ({
   id: "presentation",
@@ -1638,12 +1638,12 @@ const checkDeclarationProjectWithFixtureBytes = (input: unknown) =>
 const compileDeclarationProjectWithFixtureBytes = (
   input: unknown,
   config: unknown,
-  cache?: import("../../src/build-execution/cache/build-cache.js").CompilerBuildCache,
+  cache?: import("@unframe/build").CompilerBuildCache,
 ) => compileDeclarationProject(input, config, fixtureSourceAssetBytes(input), cache);
 const compileCheckedDeclarationProjectWithFixtureBytes = (
   input: CompilerDeclarationProject,
-  checked: import("../../src/build-execution/api/types.js").CheckedDeclarationProject,
+  checked: import("@unframe/build").CheckedDeclarationProject,
   config: unknown,
-  cache?: import("../../src/build-execution/cache/build-cache.js").CompilerBuildCache,
+  cache?: import("@unframe/build").CompilerBuildCache,
 ) =>
   compileCheckedDeclarationProject(input, checked, config, fixtureSourceAssetBytes(input), cache);

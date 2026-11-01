@@ -1,10 +1,8 @@
+import { createSourceAssetAssemblyCarrier } from "@unframe/build";
+import { lockSourceAssets, resolveLockedSourceAssets } from "@unframe/workspace";
+import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { assert, expect, it } from "vitest";
-import {
-  createSourceAssetAssemblyCarrier,
-  lockSourceAssets,
-  resolveDevProjectSourceAssets,
-  resolveLockedSourceAssets,
-} from "../src/filesystem/source-assets.js";
+import { resolveDevProjectSourceAssets } from "@unframe/workspace-node";
 
 const sources = { font: { path: "assets/font.ttf", mediaType: "font/ttf" as const } };
 const sourceBytes = Uint8Array.of(0, 1, 0, 0);
@@ -13,7 +11,7 @@ const files = [{ path: sources.font.path, bytes: sourceBytes }];
 it("freezes Model transform identity and refuses a different transformer without refresh", () => {
   const models = { model: { path: "model.glb", mediaType: "model/gltf-binary" as const } };
   const input = [{ path: "model.glb", bytes: Uint8Array.of(103, 108, 84, 70) }];
-  const locked = lockSourceAssets(models, input);
+  const locked = lockSourceAssets(sourceAssetPorts, models, input);
   if (!locked.ok) throw new Error("Expected Model metadata");
   expect(locked.value.assets[0]).toHaveProperty(
     "transformIdentity",
@@ -23,14 +21,14 @@ it("freezes Model transform identity and refuses a different transformer without
     ...asset,
     transformIdentity: `sha256:${"0".repeat(64)}` as const,
   }));
-  expect(resolveLockedSourceAssets(changed, models, input)).toMatchObject({
+  expect(resolveLockedSourceAssets(sourceAssetPorts, changed, models, input)).toMatchObject({
     ok: false,
     code: "cli-source-asset-transform-mismatch",
   });
 });
 
 it("locks source metadata and keeps bytes outside the serialized lock", () => {
-  const locked = lockSourceAssets(sources, files);
+  const locked = lockSourceAssets(sourceAssetPorts, sources, files);
   expect(locked.ok).toBe(true);
   if (!locked.ok) return;
   expect(locked.value.assets).toEqual([
@@ -43,15 +41,17 @@ it("locks source metadata and keeps bytes outside the serialized lock", () => {
     },
   ]);
   expect(locked.value.sourceAssetBytes.font).toEqual(sourceBytes);
-  expect(resolveLockedSourceAssets(locked.value.assets, sources, files)).toEqual(locked);
+  expect(resolveLockedSourceAssets(sourceAssetPorts, locked.value.assets, sources, files)).toEqual(
+    locked,
+  );
   expect(JSON.stringify(locked.value.assets)).not.toContain("dataBase64");
 });
 
 it("requires explicit refresh for changed, missing, or remapped source assets", () => {
-  const locked = lockSourceAssets(sources, files);
+  const locked = lockSourceAssets(sourceAssetPorts, sources, files);
   if (!locked.ok) throw new Error("fixture could not be locked");
   const resolve = (nextSources = sources, nextFiles = files) =>
-    resolveLockedSourceAssets(locked.value.assets, nextSources, nextFiles);
+    resolveLockedSourceAssets(sourceAssetPorts, locked.value.assets, nextSources, nextFiles);
   expect(resolve(sources, [{ ...files[0]!, bytes: Uint8Array.of(0, 1, 0, 1) }])).toMatchObject({
     ok: false,
     code: "cli-source-asset-hash-mismatch",
@@ -61,16 +61,20 @@ it("requires explicit refresh for changed, missing, or remapped source assets", 
     ok: false,
     code: "cli-source-asset-lock-mismatch",
   });
-  expect(resolveLockedSourceAssets(locked.value.assets, {}, files)).toMatchObject({
-    ok: false,
-    code: "cli-source-asset-lock-mismatch",
-  });
-  expect(resolveLockedSourceAssets([], sources, files)).toMatchObject({
+  expect(resolveLockedSourceAssets(sourceAssetPorts, locked.value.assets, {}, files)).toMatchObject(
+    {
+      ok: false,
+      code: "cli-source-asset-lock-mismatch",
+    },
+  );
+  expect(resolveLockedSourceAssets(sourceAssetPorts, [], sources, files)).toMatchObject({
     ok: false,
     code: "cli-source-asset-lock-mismatch",
   });
   expect(
-    lockSourceAssets(sources, [{ ...files[0]!, bytes: Uint8Array.of(0, 1, 0, 1) }]),
+    lockSourceAssets(sourceAssetPorts, sources, [
+      { ...files[0]!, bytes: Uint8Array.of(0, 1, 0, 1) },
+    ]),
   ).not.toEqual(locked);
 });
 
@@ -85,6 +89,7 @@ it.each([
   "assembles current Dev %s metadata without replacing frozen package inputs",
   async (mediaType) => {
     const resolved = await resolveDevProjectSourceAssets(
+      sourceAssetPorts,
       { current: { path: "assets/current", mediaType } },
       [{ path: "assets/current", bytes: sourceBytes }],
     );
@@ -116,6 +121,7 @@ it.each(["model/gltf-binary", "video/mp4"] as const)(
   "captures the current %s transform identity for Dev",
   async (mediaType) => {
     const resolved = await resolveDevProjectSourceAssets(
+      sourceAssetPorts,
       { current: { path: "assets/current", mediaType } },
       [{ path: "assets/current", bytes: sourceBytes }],
     );

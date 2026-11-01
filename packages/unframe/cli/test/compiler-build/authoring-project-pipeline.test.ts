@@ -1,20 +1,20 @@
 import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import { PNG_ABSOLUTE_LIMITS } from "@unframe/core/assets";
+import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
 import {
   SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
   type RendererPlugin,
-} from "@unframe/core/renderer-api";
+} from "@unframe/build";
 import {
   checkAuthoringProjectAssembly,
   computeFrozenComponentInputs,
   type DeclarationProjectAssemblyCarrier,
-} from "../../src/source-preparation/index.js";
+} from "@unframe/build";
 import { checkAuthoringProject } from "@unframe/source";
-import { compileAuthoringProject } from "../../src/build-execution/api/compile-authoring-project.js";
+import { compileAuthoringProject } from "../fixtures-helpers/build-pipeline.js";
 
 const faults = vi.hoisted(() => ({
   typechecker: undefined as unknown,
@@ -535,5 +535,5 @@ const compileAuthoringProjectWithFixtureBytes = (
   source: unknown,
   input: unknown,
   config: unknown,
-  cache?: import("../../src/build-execution/cache/build-cache.js").CompilerBuildCache,
+  cache?: import("@unframe/build").CompilerBuildCache,
 ) => compileAuthoringProject(source, input, config, fixtureSourceAssetBytes(input), cache);

@@ -1,4 +1,4 @@
-import type { StyleDiagnostic } from "@unframe/core/tailwind";
+import type { StyleDiagnostic } from "@unframe/styles-node";
 import type { PresentationCliDiagnostic } from "./types.js";
 
 export const styleDiagnostics = (
