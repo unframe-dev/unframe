@@ -2,13 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import type { SemanticSurface } from "@unframe/presentation";
-import { SUPPORTED_RENDERER_CONTRACT_VERSION } from "@unframe/core/renderer-api";
 import { planSurfacePartitions } from "../src/api/plan-surface-partitions.js";
 
 const renderer = {
   id: "baked-web",
   version: "2",
-  contractVersion: SUPPORTED_RENDERER_CONTRACT_VERSION,
+  contractVersion: "2",
   implementationHash: "sha256:test",
 };
 

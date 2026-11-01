@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, expect, it } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/core/compiler";
+import { checkAuthoringProject } from "@unframe/source";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { startDistPreviewHost } from "../src/author/start.js";
@@ -111,7 +111,7 @@ it("locks project-owned Tailwind with an uppercase CSS entry, captures reproduci
         private: true,
         type: "module",
         dependencies: {
-          "@unframe/core/authoring": "file:vendor/authoring.tgz",
+          "@unframe/authoring": "file:vendor/authoring.tgz",
           react: "19.2.4",
           "react-dom": "19.2.4",
         },
@@ -143,14 +143,14 @@ it("locks project-owned Tailwind with an uppercase CSS entry, captures reproduci
     };
     await writeFile(
       join(directory, "presentation.unframe.tsx"),
-      `import {definePresentation} from "@unframe/core/authoring";
+      `import {definePresentation} from "@unframe/authoring";
 import {Hero} from "./Hero.component";
 const base = ${JSON.stringify(presentation)};
 export default definePresentation({...base,scene:[{id:"hero",component:Hero,props:{title:"Tailwind"},owner:{kind:"presentation"},audience:{kind:"all"},parent:{kind:"stage"},physicalSizeMeters:[1.6,0.9],fit:"contain",transform:{position:[0,1,-2],rotation:[0,0,0,1],scale:[1,1,1]}}]});`,
     );
     await writeFile(
       join(directory, "Hero.component.tsx"),
-      `import {defineComponent,editableText,prop} from "@unframe/core/authoring";
+      `import {defineComponent,editableText,prop} from "@unframe/authoring";
 import "./src/style.CSS";
 export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText({required:true})},surface:{logicalSize:[800,450]},semantics:{rootNodeIds:["title"],nodes:{title:{role:"heading",level:1,parentId:null,order:0,text:prop("title")}}},render:({texts,bindings}:{texts:{title:string};bindings:{title:{"data-unframe-binding":string}}})=><main className="w-[800px] h-[450px] bg-brand p-8"><h1 className="text-white text-5xl" {...bindings.title}>{texts.title}</h1></main>});`,
     );

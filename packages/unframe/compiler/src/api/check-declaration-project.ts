@@ -1,12 +1,10 @@
-import { snapshotSourceAssets } from "../validation/snapshot-source-assets.js";
-import type { CompilerSourceAssetBytes } from "./types.js";
 import {
   isComponentManifest,
   isComponentStructure,
   isPresentationDeclaration,
   isThemeDeclaration,
   type PresentationDeclaration,
-} from "@unframe/core/authoring";
+} from "@unframe/authoring";
 import {
   canonicalizePresentationDefinition,
   hashCanonicalJsonPayload,
@@ -36,7 +34,7 @@ import { lowerCues } from "../lowering/lower-cues.js";
 import { checkSlotComposition, sameOwner } from "../resolution/check-slot-composition.js";
 import { checkProjectAssetReferences } from "../validation/check-project-assets.js";
 import { resolveOpaqueProject } from "../resolution/resolve-opaque-component.js";
-import type { StaticReactSceneItem } from "@unframe/core/authoring";
+import type { StaticReactSceneItem } from "@unframe/authoring";
 
 type UnknownRecord = Record<string, unknown>;
 const canonicalQuaternion = (
@@ -990,7 +988,7 @@ const checkDeclarationProjectUnchecked = (
     const frameId = resolved.rootFrameId;
     const nestedSemanticFragments: {
       instance: (typeof instances)[number];
-      tree: import("@unframe/core/authoring").BaseSemanticTreeDeclaration;
+      tree: import("@unframe/authoring").BaseSemanticTreeDeclaration;
       props: ReadonlyMap<string, string | number | boolean>;
       semanticParentId?: string;
     }[] = [];
@@ -1085,7 +1083,7 @@ const checkDeclarationProjectUnchecked = (
     const semanticRootNodeIds: string[] = [];
     const appendSemanticTree = (
       semanticInstance: (typeof instances)[number],
-      tree: import("@unframe/core/authoring").BaseSemanticTreeDeclaration,
+      tree: import("@unframe/authoring").BaseSemanticTreeDeclaration,
       props: ReadonlyMap<string, string | number | boolean>,
       semanticParentId?: string,
     ) => {
@@ -1407,53 +1405,78 @@ const checkDeclarationProjectUnchecked = (
   };
 };
 
-export const prepareDeclarationProject = (
+export const resolveDeclarationProject = (
   input: unknown,
-  sourceAssetBytes: unknown = {},
-  checkedOverride?: CheckedDeclarationProject,
 ): ValidationResult<{
   project: CompilerDeclarationProject;
   checked: CheckedDeclarationProject;
-  sourceAssetBytes: CompilerSourceAssetBytes;
 }> => {
   const snapshot = safePlainClone(input);
   if (!snapshot.valid) return snapshot;
-  if (
-    snapshot.value === null ||
-    typeof snapshot.value !== "object" ||
-    Array.isArray(snapshot.value)
-  )
-    return {
-      valid: false,
-      diagnostics: [diagnostic("compiler-invalid-input", [], "Project must be a plain object.")],
-    };
-  if (!declarationProjectFieldKeysSchema.safeParse(Object.keys(snapshot.value)).success)
-    return {
-      valid: false,
-      diagnostics: [
-        diagnostic(
-          "compiler-invalid-project-field",
-          [],
-          "Project contains an unknown top-level field.",
-        ),
-      ],
-    };
-  const parsed = declarationProjectEnvelopeSchema.safeParse(snapshot.value);
-  if (!parsed.success)
-    return {
-      valid: false,
-      diagnostics: sortDiagnostics([...projectEnvelopeDiagnostics(parsed.error.issues)]),
-    };
-  const project = parsed.data as unknown as CompilerDeclarationProject;
-  const sourceAssets = snapshotSourceAssets(project.assets, sourceAssetBytes);
-  if (!sourceAssets.valid) return sourceAssets;
-  const checked = checkedOverride
-    ? { valid: true as const, value: checkedOverride, diagnostics: [] as const }
-    : checkDeclarationProjectUnchecked(project);
+  const project = snapshot.value;
+  if (project && typeof project === "object" && !Array.isArray(project) && "assets" in project) {
+    const assets = project.assets;
+    if (assets && typeof assets === "object" && !Array.isArray(assets)) {
+      let total = 0;
+      for (const [id, value] of Object.entries(assets)) {
+        const asset = value as Record<string, unknown> | null;
+        const size = asset?.encodedSizeBytes;
+        const mediaType = asset?.mediaType;
+        const valid =
+          asset &&
+          typeof asset === "object" &&
+          !Array.isArray(asset) &&
+          Object.keys(asset).length === 4 &&
+          Object.keys(asset).every((key) =>
+            ["id", "mediaType", "checksum", "encodedSizeBytes"].includes(key),
+          ) &&
+          asset.id === id &&
+          typeof mediaType === "string" &&
+          [
+            "font/ttf",
+            "font/otf",
+            "image/png",
+            "image/jpeg",
+            "model/gltf-binary",
+            "video/mp4",
+          ].includes(mediaType) &&
+          typeof asset.checksum === "string" &&
+          /^sha256:[0-9a-f]{64}$/.test(asset.checksum) &&
+          typeof size === "number" &&
+          Number.isSafeInteger(size) &&
+          size >= 0 &&
+          size <= (mediaType.startsWith("image/") ? 16 : 64) * 1024 * 1024;
+        if (!valid)
+          return {
+            valid: false,
+            diagnostics: [
+              diagnostic(
+                "compiler-invalid-asset",
+                ["assets", id],
+                "Asset descriptors must match their key and portable contract shape.",
+              ),
+            ],
+          };
+        total += size;
+        if (!Number.isSafeInteger(total) || total > 256 * 1024 * 1024)
+          return {
+            valid: false,
+            diagnostics: [
+              diagnostic(
+                "compiler-invalid-asset",
+                ["assets", id],
+                "Asset descriptors exceed the total size limit.",
+              ),
+            ],
+          };
+      }
+    }
+  }
+  const checked = checkDeclarationProjectUnchecked(snapshot.value);
   return checked.valid
     ? {
         valid: true,
-        value: { project, checked: checked.value, sourceAssetBytes: sourceAssets.value.bytes },
+        value: { project: snapshot.value as CompilerDeclarationProject, checked: checked.value },
         diagnostics: [],
       }
     : checked;
@@ -1461,10 +1484,21 @@ export const prepareDeclarationProject = (
 
 export const checkDeclarationProject = (
   input: unknown,
-  sourceAssetBytes: CompilerSourceAssetBytes = {},
 ): ValidationResult<CheckedDeclarationProject> => {
-  const prepared = prepareDeclarationProject(input, sourceAssetBytes);
-  return prepared.valid
-    ? { valid: true, value: prepared.value.checked, diagnostics: [] }
-    : prepared;
+  const resolved = resolveDeclarationProject(input);
+  return resolved.valid
+    ? { valid: true, value: resolved.value.checked, diagnostics: [] }
+    : resolved;
+};
+
+export const resolvePresentation = (input: unknown) => {
+  const result = resolveDeclarationProject(input);
+  return result.valid
+    ? {
+        valid: true as const,
+        value: result.value.checked.definition,
+        warnings: result.value.checked.warnings,
+        diagnostics: [] as const,
+      }
+    : result;
 };

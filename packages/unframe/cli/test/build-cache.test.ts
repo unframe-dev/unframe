@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rename, rm, symlink, writeFile } from "node:fs/promis
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CompiledDeclarationProject } from "@unframe/core/compiler";
+import type { CompiledDeclarationProject } from "../src/build-execution/api/types.js";
 import { createFilesystemBuildCache as createCache } from "../src/filesystem/build-cache.js";
 
 const roots: string[] = [];

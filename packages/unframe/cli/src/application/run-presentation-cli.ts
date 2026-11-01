@@ -1,14 +1,15 @@
+import { compileAuthoringProject } from "../build-execution/api/compile-authoring-project.js";
+import type { CompiledDeclarationProject } from "../build-execution/api/types.js";
+import type { AuthoringProjectDiagnostic } from "@unframe/source";
 import { prepareProjectSource, StylePreparationError } from "../filesystem/prepare-project.js";
 import { styleDiagnostics } from "./style-diagnostics.js";
+import { type CompilerWarning } from "@unframe/compiler";
 import {
   checkAuthoringProjectAssembly,
-  compileAuthoringProject,
   type AuthoringProjectPipelineResult,
-  type AuthoringProjectDiagnostic,
-  type CompiledDeclarationProject,
-  type CompilerWarning,
-} from "@unframe/core/compiler";
+} from "../source-preparation/index.js";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashSourceTypeLibraries } from "@unframe/source";
 import {
   createBakedWebRenderer,
   combineBakedWebRenderers,
@@ -683,7 +684,13 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         source,
         assemblyCarrier,
         {
-          compiler: context.compiler,
+          compiler: {
+            ...context.compiler,
+            baseEnvironmentHash: hashCanonicalJsonPayload({
+              baseEnvironmentHash: context.compiler.baseEnvironmentHash,
+              typeLibraries: hashSourceTypeLibraries(source.typeLibraries),
+            }),
+          },
           locale: context.locale,
           timezone: context.timezone,
           colorScheme: context.colorScheme,

@@ -142,15 +142,15 @@ const createModelProject = async () => {
     ),
     writeFile(
       join(directory, "presentation.unframe.tsx"),
-      `import {definePresentation} from "@unframe/core/authoring";\nexport default definePresentation(${JSON.stringify(presentation)});`,
+      `import {definePresentation} from "@unframe/authoring";\nexport default definePresentation(${JSON.stringify(presentation)});`,
     ),
     writeFile(
       join(directory, "triangle.manifest.ts"),
-      `import {defineComponentManifest} from "@unframe/core/authoring";\nexport default defineComponentManifest(${JSON.stringify(manifest)});`,
+      `import {defineComponentManifest} from "@unframe/authoring";\nexport default defineComponentManifest(${JSON.stringify(manifest)});`,
     ),
     writeFile(
       join(directory, "triangle.structure.tsx"),
-      `import {defineComponentStructure} from "@unframe/core/authoring";\nexport default defineComponentStructure(${JSON.stringify(structure)});`,
+      `import {defineComponentStructure} from "@unframe/authoring";\nexport default defineComponentStructure(${JSON.stringify(structure)});`,
     ),
   ]);
   const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });

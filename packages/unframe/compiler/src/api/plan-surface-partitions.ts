@@ -6,7 +6,7 @@ import {
   type SemanticSurface,
   type ValidationResult,
 } from "@unframe/presentation";
-import type { RendererIdentity, RenderSurfacePlan } from "@unframe/core/renderer-api";
+import type { RendererIdentity, RenderSurfacePlan } from "./plan-contract.js";
 import { compareStrings, diagnostic } from "../diagnostics/diagnostics.js";
 
 type Bounds = RenderSurfacePlan["logicalBounds"];

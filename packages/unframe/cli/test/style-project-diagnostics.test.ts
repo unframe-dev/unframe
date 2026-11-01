@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/core/compiler";
+import { checkAuthoringProject } from "@unframe/source";
 import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "../src/author/contract.js";
 import { runPresentationCli } from "../src/index.js";
@@ -78,7 +78,7 @@ const fixture = async () => {
   );
   await writeFile(
     join(directory, original.entryFile),
-    `import {definePresentation} from "@unframe/core/authoring"; export default definePresentation(${JSON.stringify(presentation)});`,
+    `import {definePresentation} from "@unframe/authoring"; export default definePresentation(${JSON.stringify(presentation)});`,
   );
   const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
   expect(refreshed.exitCode, refreshed.stderr).toBe(0);

@@ -1,9 +1,9 @@
+import type { CompilerSourceAssetBytes } from "../build-execution/api/types.js";
+import { reactResourceId } from "@unframe/compiler";
 import {
   assembleAuthoringProject,
   prepareLockedOpaqueBundleInput,
-  reactResourceId,
-  type CompilerSourceAssetBytes,
-} from "@unframe/core/compiler";
+} from "../source-preparation/index.js";
 import {
   bundleOpaqueRenderer,
   createOpaqueBakedWebRenderer,

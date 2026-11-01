@@ -1,13 +1,13 @@
+import { checkAuthoringProject } from "@unframe/source";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { mkdir, open, rename, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import {
-  checkAuthoringProject,
   checkAuthoringProjectAssembly,
   computeFrozenComponentInputs,
-} from "@unframe/core/compiler";
+} from "../source-preparation/index.js";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { loadUnframeLock } from "./load-lock.js";

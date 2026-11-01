@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { SUPPORTED_RENDERER_CONTRACT_VERSION } from "@unframe/core/renderer-api";
 import { opaquePartitionIdentity } from "../src/api/opaque-partition-identity.js";
 
 describe("opaquePartitionIdentity", () => {
@@ -7,7 +6,7 @@ describe("opaquePartitionIdentity", () => {
   const renderer = {
     id: "baked-web",
     version: "1",
-    contractVersion: SUPPORTED_RENDERER_CONTRACT_VERSION,
+    contractVersion: "2",
     implementationHash: "sha256:renderer-a",
   };
 

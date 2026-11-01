@@ -1,23 +1,9 @@
-import type { PresentationDeclaration } from "@unframe/core/authoring";
+import type { PresentationDeclaration } from "@unframe/authoring";
 import type { BuildArtifacts } from "@unframe/artifacts";
 import type { Diagnostic, PresentationDefinition } from "@unframe/presentation";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { isRecord } from "../lowering/support.js";
-import { snapshotSourceAssets } from "./snapshot-source-assets.js";
-import type { CompilerSourceAssetBytes, CompilerDeclarationProject } from "../api/types.js";
-
-export const checkProjectAssets = (
-  assetReferences: PresentationDeclaration["assets"],
-  assets: CompilerDeclarationProject["assets"],
-  surfaces: PresentationDefinition["scene"]["surfaces"],
-  sourceAssetBytes: CompilerSourceAssetBytes = {},
-  nodes: PresentationDefinition["scene"]["nodes"] = {},
-): { assetSetAssets: BuildArtifacts["assetSet"]["assets"]; diagnostics: Diagnostic[] } => {
-  const snapshot = snapshotSourceAssets(assets, sourceAssetBytes);
-  return snapshot.valid
-    ? checkProjectAssetReferences(assetReferences, snapshot.value.descriptors, surfaces, nodes)
-    : { assetSetAssets: {}, diagnostics: [...snapshot.diagnostics] };
-};
+import type { CompilerDeclarationProject } from "../api/types.js";
 
 export const checkProjectAssetReferences = (
   assetReferences: PresentationDeclaration["assets"],

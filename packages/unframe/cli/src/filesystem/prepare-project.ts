@@ -1,4 +1,5 @@
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import * as ts from "typescript";
 import { z } from "zod";
@@ -142,7 +143,18 @@ export const prepareProjectSource = async (
       ? { path: file.path, bytes: new TextEncoder().encode(options.replacement) }
       : file,
   );
+  const libraryDirectory = dirname(ts.getDefaultLibFilePath({}));
+  const typeLibraries = await Promise.all(
+    (await readdir(libraryDirectory))
+      .filter((name) => /^lib(?:\.[a-z0-9.]+)?\.d\.ts$/u.test(name))
+      .sort()
+      .map(async (fileName) => ({
+        fileName,
+        sourceText: await readFile(join(libraryDirectory, fileName), "utf8"),
+      })),
+  );
   const source = {
+    typeLibraries,
     projectRoot: found.projectDirectory,
     entryFile: found.entryFile,
     files: found.files.map((file) =>

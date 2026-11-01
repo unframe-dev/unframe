@@ -1,0 +1,226 @@
+import { describe, expect, it } from "vitest";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
+
+import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
+import { typecheckAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
+
+const project = (files: readonly { fileName: string; sourceText: string }[]) => {
+  const parsed = parseAuthoringProject({
+    projectRoot: "/virtual/presentation",
+    entryFile: "presentation.unframe.ts",
+    rootDependencies: [],
+    packages: [],
+    typeLibraries: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"].map((fileName) => ({
+      fileName,
+      sourceText: "",
+    })),
+    files,
+  });
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+  return parsed.value;
+};
+
+describe("typecheckAuthoringProject", () => {
+  it("locates a render type error in its component and a helper error in the helper source", () => {
+    const result = typecheckAuthoringProject(
+      project([
+        { fileName: "presentation.unframe.ts", sourceText: 'import "./Hero.component";' },
+        {
+          fileName: "Hero.component.tsx",
+          sourceText:
+            'import {label} from "./helper";\nexport const render = (): string => 42;\nexport const text = label;',
+        },
+        { fileName: "helper.ts", sourceText: "export const label: string = 42;" },
+      ]),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "compiler-source-type-error",
+          fileName: "Hero.component.tsx",
+          line: 2,
+        }),
+        expect.objectContaining({
+          code: "compiler-source-type-error",
+          fileName: "helper.ts",
+          line: 1,
+        }),
+      ]),
+    );
+  });
+  it("resolves relative extensionless, .js, and index imports from virtual files only", () => {
+    const result = typecheckAuthoringProject(
+      project([
+        {
+          fileName: "presentation.unframe.ts",
+          sourceText:
+            'import { extensionless } from "./extensionless";\nimport { js } from "./js-target.js";\nimport { indexed } from "./directory";\nexport const value = extensionless + js + indexed;',
+        },
+        { fileName: "extensionless.ts", sourceText: "export const extensionless: number = 1;" },
+        { fileName: "js-target.ts", sourceText: "export const js: number = 2;" },
+        { fileName: "directory/index.d.ts", sourceText: "export declare const indexed: number;" },
+      ]),
+    );
+
+    expect(result).toEqual({ ok: true, diagnostics: [] });
+  });
+
+  it("reports semantic types with root-relative UTF-16 locations", () => {
+    const result = typecheckAuthoringProject(
+      project([
+        {
+          fileName: "presentation.unframe.ts",
+          sourceText: 'export const title: string = "😀" as unknown as number;',
+        },
+      ]),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      diagnostics: [
+        {
+          code: "compiler-source-type-error",
+          fileName: "presentation.unframe.ts",
+          message: "Type 'number' is not assignable to type 'string'.",
+          start: 13,
+          end: 18,
+          line: 1,
+          column: 14,
+          typescriptCode: 2322,
+        },
+      ],
+    });
+  });
+
+  it("uses explicit virtual declaration files instead of a host standard library", () => {
+    const result = typecheckAuthoringProject(
+      project([
+        {
+          fileName: "presentation.unframe.ts",
+          sourceText: "export const title: string = virtualStandardLibraryValue;",
+        },
+        {
+          fileName: "lib.d.ts",
+          sourceText: "declare const virtualStandardLibraryValue: string;",
+        },
+      ]),
+    );
+
+    expect(result).toEqual({ ok: true, diagnostics: [] });
+  });
+
+  it("applies strict ES2022 semantic checking", () => {
+    const result = typecheckAuthoringProject(
+      project([
+        {
+          fileName: "presentation.unframe.ts",
+          sourceText:
+            "export const callback = (value) => value;\nexport const title: string = undefined;",
+        },
+      ]),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.diagnostics.map((item) => item.typescriptCode)).toEqual(
+        expect.arrayContaining([7006, 2322]),
+      );
+  });
+
+  it("collects export-from and static dynamic-import module specifiers through public AST APIs", () => {
+    const result = typecheckAuthoringProject(
+      project([
+        {
+          fileName: "presentation.unframe.ts",
+          sourceText: 'export { value } from "./exported";\nvoid import("./missing");',
+        },
+        { fileName: "exported.ts", sourceText: "export const value = 1;" },
+      ]),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.diagnostics.map((item) => item.code)).toEqual(["compiler-module-unresolved"]);
+  });
+
+  it("resolves TSX and declaration imports with their matching TypeScript extensions", () => {
+    const result = typecheckAuthoringProject(
+      project([
+        {
+          fileName: "presentation.unframe.ts",
+          sourceText:
+            'import { tsxValue } from "./component";\nimport { declarationValue } from "./declaration";\nexport const total: number = tsxValue + declarationValue;',
+        },
+        { fileName: "component.tsx", sourceText: "export const tsxValue: number = 1;" },
+        {
+          fileName: "declaration.d.ts",
+          sourceText: "export declare const declarationValue: number;",
+        },
+      ]),
+    );
+
+    expect(result).toEqual({ ok: true, diagnostics: [] });
+  });
+
+  it("fails closed for project-root escapes, unresolved relative imports, and bare packages", () => {
+    const cases = [
+      ['import "../../outside";', "compiler-module-root-escape"],
+      ['import "/outside";', "compiler-module-root-escape"],
+      ['import "./missing";', "compiler-module-unresolved"],
+      ['import ".private-package";', "compiler-module-package-unsupported"],
+      ['import "@unframe/authoring";', "compiler-module-package-unsupported"],
+    ] as const;
+
+    for (const [sourceText, code] of cases) {
+      const result = typecheckAuthoringProject(
+        project([{ fileName: "presentation.unframe.ts", sourceText }]),
+      );
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.diagnostics.map((item) => item.code)).toContain(code);
+    }
+  });
+
+  it("does not resolve an explicit source extension through an index fallback", () => {
+    const result = typecheckAuthoringProject(
+      project([
+        { fileName: "presentation.unframe.ts", sourceText: 'import "./module.ts";' },
+        { fileName: "module.ts/index.ts", sourceText: "export {};" },
+      ]),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.diagnostics.map((item) => item.code)).toEqual(["compiler-module-unresolved"]);
+  });
+});
+
+it("checks only prepared authoring entry dependencies and ignores unrelated config helpers", () => {
+  const files = [
+    { fileName: "presentation.unframe.ts", sourceText: 'export const title: string = "Hello";' },
+    {
+      fileName: "theme-helper.ts",
+      sourceText: 'import fs from "node:fs"; export default fs.readFileSync("theme.json");',
+    },
+  ];
+  const parsed = parseAuthoringProject({
+    projectRoot: "/virtual/presentation",
+    entryFile: "presentation.unframe.ts",
+    files,
+    rootDependencies: [],
+    packages: [],
+    preparedStyles: {
+      identity: `sha256:${"a".repeat(64)}`,
+      inputs: files.map((file) => ({
+        path: file.fileName,
+        hash: `sha256:${bytesToHex(sha256(new TextEncoder().encode(file.sourceText)))}`,
+      })),
+      stylesheets: [],
+    },
+  });
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) return;
+  expect(typecheckAuthoringProject(parsed.value)).toEqual({ ok: true, diagnostics: [] });
+});

@@ -9,7 +9,7 @@ import type {
   SurfaceDeclaration,
   SurfaceStateDeclaration,
   ThemeDeclaration,
-} from "@unframe/core/authoring";
+} from "@unframe/authoring";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 
 type JsonRecord = Readonly<Record<string, Json>>;

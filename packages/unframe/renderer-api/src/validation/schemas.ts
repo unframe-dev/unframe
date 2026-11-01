@@ -1,4 +1,6 @@
 import * as z from "zod";
+import { rendererIdentitySchema, renderSurfacePlanSchema } from "@unframe/compiler";
+export { rendererIdentitySchema } from "@unframe/compiler";
 import { completedSemanticTreeSchema, semanticSurfaceSchema } from "@unframe/presentation";
 
 export const rendererIdSchema = z.string().min(1);
@@ -41,29 +43,6 @@ const resolvedIntentSchema = z.strictObject({
   fallbackPolicy: z.enum(["reject", "degrade"]),
 });
 
-const renderSurfacePlanSchema = z.strictObject({
-  id: rendererIdSchema,
-  semanticSurfaceId: rendererIdSchema,
-  logicalBounds: boundsSchema,
-  layer: finiteNumberSchema,
-  ownership: z.discriminatedUnion("kind", [
-    z.strictObject({
-      kind: z.literal("structured"),
-      ownedContentNodeIds: z.array(rendererIdSchema),
-      contextNodeIds: z.array(rendererIdSchema),
-    }),
-    z.strictObject({ kind: z.literal("opaque"), bindingKeys: z.array(rendererIdSchema) }),
-  ]),
-  clipWindow: boundsSchema,
-  states: z.record(
-    z.string(),
-    z.discriminatedUnion("kind", [
-      z.strictObject({ kind: z.literal("capture") }),
-      z.strictObject({ kind: z.literal("empty") }),
-    ]),
-  ),
-});
-
 const rendererEntrySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("structured") }),
   z.strictObject({
@@ -72,13 +51,6 @@ const rendererEntrySchema = z.discriminatedUnion("kind", [
     moduleHash: rendererIdSchema,
   }),
 ]);
-
-export const rendererIdentitySchema = z.strictObject({
-  id: rendererIdSchema,
-  version: rendererIdSchema,
-  contractVersion: rendererIdSchema,
-  implementationHash: rendererIdSchema,
-});
 
 export const rendererFunctionSchema = z.function();
 

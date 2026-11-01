@@ -6,7 +6,7 @@
 - **Implementation contract**: [Lock・抽出・編集・capture](./REACT_COMPONENT_EXECUTION_CONTRACT.md)
 - **Scope**: 一ファイルの React Component → 一 import 配置 → 静的 baked-web → Editor 編集・保存 → 有限 State
 
-本書は、Web の UI ライブラリを使う Component の作者向け API と、ローカル Authoring の提供範囲を示す。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v3 の frozen check と native 隔離 Browser capture を接続している。必要な隔離 capability が欠ける場合は拒否する。Linux / macOS arm64 の機構と保証差、macOS の実機検証待ちは [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。ローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redoに対応する。Unity Preview は Core の Cue / Timer / Timeline を使うローカル再生と play / pause / reset に対応する。受け入れ範囲と導入条件は6節を参照する。
+本書は、Web の UI ライブラリを使う Component の作者向け API と、ローカル Authoring の提供範囲を示す。現行 SDK・Source・Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock の schemaVersion 1 による frozen check と native 隔離 Browser capture を接続している。必要な隔離 capability が欠ける場合は拒否する。Linux / macOS arm64 の機構と保証差、macOS の実機検証待ちは [ADR-0026](../decisions/0026-native-linux-macos-host-adapters.md) に従う。ローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redoに対応する。Unity Preview は Core の Cue / Timer / Timeline を使うローカル再生と play / pause / reset に対応する。受け入れ範囲と導入条件は6節を参照する。
 
 Surface の Structured / Opaque 表現と Renderer の binding 検証の境界は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) と [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md#a1-の前提契約canonical-surface) に従う。
 
@@ -14,7 +14,7 @@ Surface の Structured / Opaque 表現と Renderer の binding 検証の境界�
 
 Component 作者は公開契約と見た目を一ファイルで定義し、Presentation 作者は Component を一つ import して Props、3D 配置、Flow を記述する。Manifest、renderer entry、内部 Runtime ID、lock を配置のたびに手で結ばない。CSS・画像・描画 helper を別ファイルへ分けることは許す。
 
-現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe/compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe/renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/web/local-editor/src/app/main.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
+現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Source pairing](../../packages/unframe/source/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe/renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/web/local-editor/src/app/main.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
 
 ## 2. 作者向け API の三例
 
@@ -22,7 +22,7 @@ Component 作者は公開契約と見た目を一ファイルで定義し、Pres
 
 ```tsx
 // Hero.component.tsx
-import { defineComponent, editableText, prop } from "@unframe/core/authoring";
+import { defineComponent, editableText, prop } from "@unframe/authoring";
 import "./components.css";
 
 export const Hero = defineComponent({
@@ -60,7 +60,7 @@ export const Hero = defineComponent({
 
 ```tsx
 // Reveal.component.tsx
-import { defineComponent, editableText, prop, setState } from "@unframe/core/authoring";
+import { defineComponent, editableText, prop, setState } from "@unframe/authoring";
 import "./components.css";
 
 export const Reveal = defineComponent({
@@ -138,7 +138,7 @@ button に `onClick` は付けない。Runtime の Interaction → 公開 Output
 
 ```ts
 // presentation.unframe.ts
-import { definePresentation } from "@unframe/core/authoring";
+import { definePresentation } from "@unframe/authoring";
 import { Hero } from "./Hero.component";
 import { Reveal } from "./Reveal.component";
 
@@ -270,7 +270,7 @@ host の初期値は `active: true`、`visible: true`、`opacity: 1`、name は 
 
 依存更新と build を分離する。明示的な依存更新で pnpm の固定解決結果から描画に必要な依存全体を snapshot し、`unframe.lock` へ保存する。通常の check / build は network、host node_modules、registry へ fallback せず、lock を変更しない。ローカル Source 編集後は、固定外部依存を変更しない local lock 更新を明示的に行う。Editor はこの更新を保存操作に含める。手書き編集で local hash が古い場合、build は更新の必要を診断する。
 
-lock v3はOpaque / local originとsource Assetのpath/hash/sizeを固定する。旧schemaからの暗黙変換や互換fallbackは提供せず、Source を更新して lock を明示再生成する。既存 Structured の宣言と canonical 出力の意味は維持する。
+lock の schemaVersion 1 は Opaque / local originとsource Assetのpath/hash/sizeを固定する。旧schemaからの暗黙変換や互換fallbackは提供せず、Source を更新して lock を明示再生成する。既存 Structured の宣言と canonical 出力の意味は維持する。
 
 固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。通常 CSS の import と url 依存を固定 bundle に含める。PostCSS 8 / Tailwind 4 は project 所有 config / plugin と固定 Node graph を使い、CLI の隔離 Style worker で実行する。設定・依存固定・対応範囲は [Tailwind README](../../packages/unframe/tailwind/README.md) を参照する。Component の意味抽出は引き続き非実行であり、config / plugin の実行と区別する。実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
 
@@ -295,22 +295,22 @@ Source patch、再度の静的検証、local lock 再生成を成功させてか
 
 描画は保存後に実行する。capture 失敗でも検証済み Source は保持し、最後に成功した Unity Preview を古い revision として表示する。保存済み revision と表示中の artifact revision を混同しない。Undo / Redo は同じ session の保存済み編集を逆 patch として扱い、最新 hash を検証し、外部編集があれば履歴を破棄する。
 
-実行場所は native ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Local Editor、patch と検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
+実行場所は native ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Local Editor、patch は Source、意味検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
 
 ## 6. 受け入れ検証と導入条件
 
 React Component の抽出・capture・Source 保存の検証範囲を以下に示す。現在の編集入口と Dev／Dist の Unity 表示は [Local Editor](./LOCAL_EDITOR_DESIGN.md) を参照する。
 
-| 対象                 | 検証する振る舞い                                                                                          | 主な根拠                                                                                                                         |
-| -------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 静的抽出・型         | 契約 initializer の非実行、React / Structured の型検査分離、必須 Props・参照の拒否                        | Compiler の `extract-react-components` / `typecheck-authoring-project` / `react-scene-source` テスト                             |
-| capture              | 全宣言 State、binding / geometry、透明合成、固定 font / glyph、隔離と回収                                 | Renderer Web の `opaque-*.integration.test.ts`                                                                                   |
-| 分割合成             | 透明 button・空 State・clip、未分割画像と partition 合成の画素比較                                        | Compiler / Core の partition テスト、`playwright-fixed-browser.integration.test.ts`（各 channel の差は最大2 byte）               |
-| 再生成               | 全公開成果物の反復一致、配置のみ変更した PNG の一致、CSS / font / React 描画変更で PNG と描画 hash が変化 | CLI の `opaque-project.integration.test.ts`                                                                                      |
-| 編集往復             | 二 Instance の局所編集、共有元・対象外 Source・コメントの保持、Undo / Redo、保存競合・再送・recovery      | Compiler / CLI / Web の Source 編集・Author テスト                                                                               |
-| 編集 metadata と診断 | `editableText` の textarea、診断の種類・path・元 Source 位置、抽出 render / helper の描画例外             | Compiler の型位置テスト、Renderer の位置写像テスト、CLI の `author-source-diagnostics.integration.test.ts`、Web の Author テスト |
-| 鮮度と失敗           | 保存後の新 PNG、capture 失敗・build 中 cancel・外部 Source 変更で成功済み dist を保持                     | CLI の `author-capture.integration.test.ts` / revision テスト                                                                    |
-| 有限 State 成果物    | 宣言済み State の画像と Interaction / Output → Cue → Action の参照を生成・検証する                        | Compiler / CLI の混在 build、`local-playback.test.ts`。Local Preview は Cue / Timer / Timeline と play / pause / reset に対応    |
+| 対象                 | 検証する振る舞い                                                                                          | 主な根拠                                                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 静的抽出・型         | 契約 initializer の非実行、React / Structured の型検査分離、必須 Props・参照の拒否                        | Source の `extract-react-components` / `typecheck-authoring-project` / `react-scene-source` テスト                             |
+| capture              | 全宣言 State、binding / geometry、透明合成、固定 font / glyph、隔離と回収                                 | Renderer Web の `opaque-*.integration.test.ts`                                                                                 |
+| 分割合成             | 透明 button・空 State・clip、未分割画像と partition 合成の画素比較                                        | Compiler / Core の partition テスト、`playwright-fixed-browser.integration.test.ts`（各 channel の差は最大2 byte）             |
+| 再生成               | 全公開成果物の反復一致、配置のみ変更した PNG の一致、CSS / font / React 描画変更で PNG と描画 hash が変化 | CLI の `opaque-project.integration.test.ts`                                                                                    |
+| 編集往復             | 二 Instance の局所編集、共有元・対象外 Source・コメントの保持、Undo / Redo、保存競合・再送・recovery      | Source / CLI / Web の Source 編集・Author テスト                                                                               |
+| 編集 metadata と診断 | `editableText` の textarea、診断の種類・path・元 Source 位置、抽出 render / helper の描画例外             | Source の型位置テスト、Renderer の位置写像テスト、CLI の `author-source-diagnostics.integration.test.ts`、Web の Author テスト |
+| 鮮度と失敗           | 保存後の新 PNG、capture 失敗・build 中 cancel・外部 Source 変更で成功済み dist を保持                     | CLI の `author-capture.integration.test.ts` / revision テスト                                                                  |
+| 有限 State 成果物    | 宣言済み State の画像と Interaction / Output → Cue → Action の参照を生成・検証する                        | Compiler / CLI の混在 build、`local-playback.test.ts`。Local Preview は Cue / Timer / Timeline と play / pause / reset に対応  |
 
 Browser の受け入れ試験は以下で再現する。依存 install / lock refresh を含む試験全体の時間を、個別 build の時間と混同しない。
 

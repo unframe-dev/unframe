@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@unframe/artifacts": "workspace:*",
+    "@unframe/authoring": "workspace:*",
+    "@unframe/compiler": "workspace:*",
     "@unframe/contracts": "workspace:*",
     "@unframe/core": "workspace:*",
     "@unframe/delivery": "workspace:*"

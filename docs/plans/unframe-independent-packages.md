@@ -72,12 +72,16 @@ SourceとCompilerは外部環境を再探索しない。描画・素材・CSS・
 
 ### 2. Source・Compiler・Authoring
 
-- [ ] authoringを独立パッケージにし、標準Componentを移す。
-- [ ] sourceの静的解析・Source位置・patch生成をCompilerから分離する。
-- [ ] Compiler出力を解決済みPresentationとRender/Media Planに限定する。
-- [ ] 関数単位の既存APIを提案済み公開APIへ移行し、CLI内の同等処理を撤去する。
+- [x] authoringを独立パッケージにし、標準Componentを移す。
+- [x] sourceの静的解析・Source位置・patch生成をCompilerから分離する。
+- [x] Compiler出力を解決済みPresentationとRender/Media Planに限定する。
+- [x] 関数単位の既存APIを提案済み公開APIへ移行し、CLI内の同等処理を撤去する。
 
 受け入れ条件は、固定Sourceから宣言と計画を生成でき、Browser/Filesystemを起動せず検証が完結すること。編集patchは未対応編集を拒否し、基準snapshotと対象hashを保持する。
+
+実装結果: Authoring・Source・Compilerを独立化し、標準Component、固定Source解析とsnapshot付きpatch、Presentation解決とRender/Media Planを各所有者へ移した。Build実行と依存固定は現段階ではCLIに接続している。独立レビューのsnapshot照合と公開境界の指摘を修正した。
+
+検証: Authoring 79件、Source 158件、Compiler 78件と関連型検査・lint・pack、隔離環境の公開API・型宣言・固定Sourceからの計画生成が成功。CLI unitは通常環境で575成功・105失敗のうち、102件が削除済み `examples/presentation`、1件が欠落動画、2件が動画ツールの環境未設定だった。後者2件を含む動画関連11件は固定Nix環境で成功した。実CLI入力用ProjectとFixed Browser受け入れの復旧は第4段階で行う。第3段階はWorkspaceと独立ユースケースを扱う。
 
 ### 3. Workspaceと独立ユースケース
 
@@ -92,11 +96,18 @@ SourceとCompilerは外部環境を再探索しない。描画・素材・CSS・
 ### 4. Adapterと配布
 
 - [ ] render-browser、media-node、styles-node、worker-hostを独立パッケージにする。
+- [ ] `render-browser`内にChromiumの薄いラッパーを設け、Browser/Pageの生成・終了、HTML・素材の読み込み、描画準備待機、capture・geometry取得、失敗・取消時の後始末をまとめる（[#227](https://github.com/unframe-dev/unframe/issues/227)）。描画計画と成果物の生成判断はラッパーの外側に置く。
+- [ ] 描画処理で繰り返すChromium操作だけをラッパーに集約し、Playwrightの全APIを包み直さない。正常終了・失敗・取消時にリソースが解放されることを検証する。
 - [ ] CLIには操作入口とcompositionのみを残す。
 - [ ] SDK・CLI・隔離workerを別entryとして`vp pack`で生成する。
+- [ ] Local EditorのWeb UIを`vp build`で生成し、ビルド済み静的ファイルを配布可能な独立パッケージにする。CLIはパッケージの公開入口から配信対象を取得し、repository内の`app/web/local-editor/dist`への相対参照を撤去する。
+- [ ] 埋め込み用Unity Preview Playerを提供側でWeb向けに事前ビルドし、loader・framework・Wasm・dataと必要な追加アセットをLocal Editorの配布物に同梱する。UI・Player・通信契約の対応を配布時に固定し、利用者によるUnityのインストールやPlayerのビルドを不要にする。
+- [ ] repositoryのSourceや`.unframe/unity-preview`、Unity Editorが存在しない環境で、配布パッケージからLocal Editorを起動し、同梱Playerへの成果物読込・表示・再生を検証する。
 - [ ] 内部workspace依存の同梱、型宣言、dynamic import、native helper・素材の配置を確定する。
 - [ ] pack成果物と明示した外部依存だけを持つ利用環境でCLIからworkerを起動し、代表Build・Preview・公開adapter接続を検証する。実CLIへの入力にはSource・config・lockを備えた専用Projectを用意する。宣言Project fixtureだけではCLIの受け入れ検証を満たさない。
 - [ ] 移行済みの親manifest、旧entry、古い運用文書・タスク設定を整理する。
+
+Chromiumの別サーバー化は今回の範囲に含めない。利用者環境へのChrome導入回避、描画環境の共有、描画処理の独立したスケーリングが必要になった時点で判断する。その場合も同じラッパーをサーバー内部で利用する。
 
 Webアプリ本体は`vp build`を使う。Node不要の単一実行ファイル化はこの計画に含めない。
 

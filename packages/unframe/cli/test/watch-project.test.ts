@@ -26,7 +26,7 @@ describe("watchPresentationProject", () => {
     await writeFile(
       join(directory, "presentation.unframe.tsx"),
       `
-      import { definePresentation } from "@unframe/core/authoring";
+      import { definePresentation } from "@unframe/authoring";
       import theme from "./reference-theme.unframe";
       export default definePresentation({
         id: "watch", metadata: { title: "Watch" },

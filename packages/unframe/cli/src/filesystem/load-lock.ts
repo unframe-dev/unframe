@@ -1,7 +1,7 @@
 import { validateNodeTransformSnapshot } from "../styles/node-snapshot.js";
 import { createHash } from "node:crypto";
 import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/artifacts";
-import type { DeclarationProjectAssemblyCarrier } from "@unframe/core/compiler";
+import type { DeclarationProjectAssemblyCarrier } from "../source-preparation/index.js";
 import { z } from "zod";
 import { idSchema } from "@unframe/contracts/presentation";
 import { sourceAssetMediaTypeSchema, sourceAssetPathSchema } from "./load-config.js";

@@ -14,7 +14,7 @@ import definitionFixture from "../../../contracts/presentation/fixtures/presenta
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import manifestFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { checkAuthoringProject } from "@unframe/core/compiler";
+import { checkAuthoringProject } from "@unframe/source";
 import { acquireSourceLock } from "../src/filesystem/source-lock.js";
 import { createAuthorService } from "../src/author/service.js";
 import { runPresentationCli } from "../src/index.js";
@@ -34,7 +34,7 @@ afterEach(async () => {
   await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));
 });
 const component = [
-  'import {defineComponent, editableText, prop} from "@unframe/core/authoring";',
+  'import {defineComponent, editableText, prop} from "@unframe/authoring";',
   "export const Hero = defineComponent({",
   '  id: "hero", version: 1, props: {title: editableText({required: true})},',
   "  surface: {logicalSize: [800, 450]},",
@@ -95,7 +95,7 @@ const createProject = async () => {
     )
     .join(",\n");
   const source = [
-    'import {definePresentation} from "@unframe/core/authoring";',
+    'import {definePresentation} from "@unframe/authoring";',
     'import {Hero} from "./Hero.component";',
     "const base = " + JSON.stringify(presentation) + ";",
     "export default definePresentation({...base, scene: [" + scene + "]});",

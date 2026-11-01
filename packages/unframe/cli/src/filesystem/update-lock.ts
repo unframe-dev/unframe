@@ -1,3 +1,4 @@
+import { checkAuthoringProject } from "@unframe/source";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import {
   authoringPackageRoots,
@@ -12,10 +13,9 @@ import { constants } from "node:fs";
 import { open, rename, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import {
-  checkAuthoringProject,
   checkAuthoringProjectAssembly,
   computeFrozenComponentInputs,
-} from "@unframe/core/compiler";
+} from "../source-preparation/index.js";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import type { StyleDiagnostic } from "@unframe/core/tailwind";
 import { discoverPresentationProjectFiles } from "./discover-project.js";

@@ -13,7 +13,7 @@ import {
   validatePresentationArtifacts,
   verifyBuildIntegrity,
 } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/core/compiler";
+import { checkAuthoringProject } from "@unframe/source";
 
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
@@ -161,11 +161,11 @@ const createProject = async (mixed = false) => {
   };
   await writeFile(
     join(directory, "presentation.unframe.tsx"),
-    `import {definePresentation} from "@unframe/core/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(mixed ? initial : presentation)};\nconst hero = ${JSON.stringify(presentation.scene[0])};\nexport default definePresentation({...base, scene: ${mixed ? "{...base.scene, components: [...base.scene.components, {...hero, component: Hero}]}" : "[{...hero, component: Hero}]"}});`,
+    `import {definePresentation} from "@unframe/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(mixed ? initial : presentation)};\nconst hero = ${JSON.stringify(presentation.scene[0])};\nexport default definePresentation({...base, scene: ${mixed ? "{...base.scene, components: [...base.scene.components, {...hero, component: Hero}]}" : "[{...hero, component: Hero}]"}});`,
   );
   await writeFile(
     join(directory, "Hero.component.tsx"),
-    `import {defineComponent, editableText, prop} from "@unframe/core/authoring";
+    `import {defineComponent, editableText, prop} from "@unframe/authoring";
 import {Button} from "@base-ui/react/button";
 import "./hero.css";
 export const Hero = defineComponent({
@@ -333,7 +333,7 @@ it("builds Structured and finite-state React together and keeps textures stable 
   const directory = await createProject(true);
   await writeFile(
     join(directory, "Hero.component.tsx"),
-    `import {defineComponent, editableText, prop} from "@unframe/core/authoring";
+    `import {defineComponent, editableText, prop} from "@unframe/authoring";
 import "./hero.css";
 export const Hero = defineComponent({
  id:"hero",version:1,props:{title:editableText({required:true})},surface:{logicalSize:[800,450]},

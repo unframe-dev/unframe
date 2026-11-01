@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
 import { afterEach, assert, expect, it } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/core/compiler";
+import { checkAuthoringProject } from "@unframe/source";
 import { runPresentationCli } from "../src/index.js";
 import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService, BuildJob, ProjectSnapshot } from "../src/author/contract.js";
@@ -161,11 +161,11 @@ const createProject = async () => {
     .join(",\n");
   await writeFile(
     join(directory, "presentation.unframe.tsx"),
-    `import {definePresentation} from "@unframe/core/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(presentation)};\nexport default definePresentation({...base, scene: [${sceneSource}]});`,
+    `import {definePresentation} from "@unframe/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(presentation)};\nexport default definePresentation({...base, scene: [${sceneSource}]});`,
   );
   await writeFile(
     join(directory, "Hero.component.tsx"),
-    `import {defineComponent, editableText, prop} from "@unframe/core/authoring";
+    `import {defineComponent, editableText, prop} from "@unframe/authoring";
 import "./hero.css";
 export const Hero = defineComponent({
   id: "hero", version: 1,

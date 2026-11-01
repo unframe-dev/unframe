@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PresentationDefinition } from "@unframe/presentation";
-import { checkProjectAssets } from "../src/validation/check-project-assets.js";
-import { checksumBytes } from "../src/validation/source-assets.js";
+import { checkProjectAssetReferences } from "../src/validation/check-project-assets.js";
+import { checksumBytes } from "./fixtures/checksum-bytes.js";
 
 const pngBase64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aWQAAAAASUVORK5CYII=";
@@ -11,9 +11,9 @@ const imageSurface = {
   states: { initial: { contentOverrides: {} } },
 } as unknown as PresentationDefinition["scene"]["surfaces"][string];
 
-describe("checkProjectAssets", () => {
+describe("checkProjectAssetReferences", () => {
   it("accepts descriptor-only assets with independently supplied bytes", () => {
-    const result = checkProjectAssets(
+    const result = checkProjectAssetReferences(
       [{ kind: "asset-ref", assetId: "picture" }],
       {
         picture: {
@@ -24,13 +24,12 @@ describe("checkProjectAssets", () => {
         },
       },
       { surface: imageSurface },
-      { picture: pngBytes },
     );
     expect(result.diagnostics).toEqual([]);
     expect(result.assetSetAssets.picture?.encodedSizeBytes).toBe(pngBytes.length);
   });
   it("accepts a declared image carrier referenced by resolved content", () => {
-    const result = checkProjectAssets(
+    const result = checkProjectAssetReferences(
       [{ kind: "asset-ref", assetId: "picture" }],
       {
         picture: {
@@ -41,26 +40,8 @@ describe("checkProjectAssets", () => {
         },
       },
       { surface: imageSurface },
-      { picture: pngBytes },
     );
     expect(result.diagnostics).toEqual([]);
     expect(result.assetSetAssets.picture?.mediaType).toBe("image/png");
-  });
-
-  it("rejects an image carrier whose media type does not match its bytes", () => {
-    const result = checkProjectAssets(
-      [{ kind: "asset-ref", assetId: "picture" }],
-      {
-        picture: {
-          id: "picture",
-          mediaType: "image/jpeg",
-          checksum: checksumBytes(pngBytes),
-          encodedSizeBytes: pngBytes.length,
-        },
-      },
-      { surface: imageSurface },
-      { picture: pngBytes },
-    );
-    expect(result.diagnostics.map(({ code }) => code)).toContain("compiler-invalid-asset");
   });
 });

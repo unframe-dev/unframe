@@ -1,4 +1,4 @@
-import type { ComponentInstanceDeclaration, ContentNodeDeclaration } from "@unframe/core/authoring";
+import type { ComponentInstanceDeclaration, ContentNodeDeclaration } from "@unframe/authoring";
 import type { Diagnostic } from "@unframe/presentation";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import type { CompilerDeclarationProject } from "../api/types.js";

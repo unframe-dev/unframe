@@ -7,9 +7,20 @@ import test from "node:test";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const ts = createRequire(import.meta.url)("typescript");
-const names = ["presentation", "artifacts", "playback", "delivery"];
+const names = [
+  "presentation",
+  "artifacts",
+  "playback",
+  "delivery",
+  "authoring",
+  "source",
+  "compiler",
+];
 const allowed = {
   presentation: ["@unframe/contracts"],
+  authoring: ["@unframe/presentation"],
+  source: ["@unframe/authoring", "@unframe/presentation"],
+  compiler: ["@unframe/artifacts", "@unframe/authoring", "@unframe/presentation"],
   artifacts: ["@unframe/contracts", "@unframe/presentation"],
   playback: ["@unframe/contracts", "@unframe/presentation", "@unframe/artifacts"],
   delivery: [
@@ -49,7 +60,15 @@ test("domain packages expose independent manifests without the former core facad
     }
   }
   const parent = await manifest("");
-  for (const entry of [".", "./domain/model", "./runtime/cue-executor", "./strict-json"]) {
+  for (const entry of [
+    ".",
+    "./domain/model",
+    "./runtime/cue-executor",
+    "./strict-json",
+    "./authoring",
+    "./components",
+    "./compiler",
+  ]) {
     assert.equal(parent.exports[entry], undefined, `obsolete export ${entry}`);
   }
 });
@@ -96,7 +115,11 @@ test("domain source imports stay within declared package APIs", async () => {
           assert.ok(!specifier.startsWith("node:"), `${path}: platform dependency ${specifier}`);
           const parts = specifier.split("/");
           const packageName = parts.slice(0, specifier.startsWith("@") ? 2 : 1).join("/");
-          assert.ok(pkg.dependencies[packageName], `${path}: undeclared dependency ${specifier}`);
+          assert.ok(
+            pkg.dependencies[packageName] ||
+              (packageName === "react" && pkg.dependencies["@types/react"]),
+            `${path}: undeclared dependency ${specifier}`,
+          );
           const target = manifests.get(packageName);
           if (target) {
             const entry = `.${specifier.slice(packageName.length)}`;
@@ -106,4 +129,42 @@ test("domain source imports stay within declared package APIs", async () => {
       }
     }
   }
+});
+
+test("compiler public API excludes Source and build execution responsibilities", async () => {
+  const path = resolve(root, "packages/unframe/compiler/src/index.ts");
+  const source = ts.createSourceFile(
+    path,
+    await readFile(path, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const exported = new Set();
+  for (const statement of source.statements) {
+    if (
+      ts.isExportDeclaration(statement) &&
+      statement.exportClause &&
+      ts.isNamedExports(statement.exportClause)
+    ) {
+      for (const element of statement.exportClause.elements) exported.add(element.name.text);
+    }
+  }
+  for (const name of [
+    "assembleAuthoringProject",
+    "checkAuthoringProjectAssembly",
+    "computeFrozenComponentInputs",
+    "prepareLockedOpaqueBundleInput",
+    "assembleDeclarationProject",
+    "CompilerSourceAssetBytes",
+    "DeclarationProjectAssemblyCarrier",
+    "DeclarationProjectAssemblyInput",
+    "planCheckedDeclarationProject",
+    "compileDeclarationProject",
+    "compileAuthoringProject",
+    "checkDeclarationProject",
+    "resolveDeclarationProject",
+    "CheckedDeclarationProject",
+  ])
+    assert.equal(exported.has(name), false, `compiler must not export ${name}`);
+  assert.ok(exported.has("compileDeclarationPlan"));
 });

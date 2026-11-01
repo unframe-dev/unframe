@@ -1,9 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
-import { standardComponents } from "@unframe/core/components";
-import {
-  buildOpaqueComponentManifest,
-  validateStaticComponentMetadata,
-} from "@unframe/core/authoring";
+import { standardComponents } from "@unframe/authoring/components";
+import { buildOpaqueComponentManifest, validateStaticComponentMetadata } from "@unframe/authoring";
 import { checkDeclarationProject } from "../src/api/check-declaration-project.js";
 import { reactResourceId } from "../src/resolution/resolve-opaque-component.js";
 

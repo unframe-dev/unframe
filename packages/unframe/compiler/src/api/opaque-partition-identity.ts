@@ -1,5 +1,5 @@
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import type { RendererIdentity, RenderSurfacePlan } from "@unframe/core/renderer-api";
+import type { RendererIdentity, RenderSurfacePlan } from "./plan-contract.js";
 
 export const opaquePartitionIdentity = (
   surfaceId: string,

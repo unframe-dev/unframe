@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import * as z from "zod";
-import type { CompilerBuildCache, CompiledDeclarationProject } from "@unframe/core/compiler";
+import type { CompilerBuildCache } from "../build-execution/cache/build-cache.js";
+import type { CompiledDeclarationProject } from "../build-execution/api/types.js";
 import { NativeFilesystem, NativeDirectory } from "./native-filesystem.js";
 import { projectDirectory } from "./path-policy.js";
 import { parseStrictJson } from "@unframe/artifacts";

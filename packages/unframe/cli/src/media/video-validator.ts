@@ -9,7 +9,7 @@ import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { z } from "zod";
 import { runIsolatedWorker } from "@unframe/core/worker-host";
 import { validateMp4Inspection, VIDEO_VALIDATION_IDENTITY } from "@unframe/core/assets";
-import type { CompilerVideoValidator } from "@unframe/core/compiler";
+import type { CompilerVideoValidator } from "../build-execution/api/types.js";
 
 const execute = promisify(execFile);
 const digest = (bytes: Uint8Array | string) =>

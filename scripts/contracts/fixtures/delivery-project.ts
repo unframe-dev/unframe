@@ -1,16 +1,12 @@
+import { compileDeclarationProject } from "../../../packages/unframe/cli/src/build-execution/api/compile-declaration-project.js";
 import {
-  compileDeclarationProject,
   hashComponentManifestDeclaration,
   hashComponentStructureDeclaration,
   hashThemeDeclaration,
   type CompilerDeclarationProject,
-} from "@unframe/core/compiler";
-import { standardComponents } from "@unframe/core/components";
-import type {
-  ComponentManifest,
-  ComponentStructure,
-  SurfaceDeclaration,
-} from "@unframe/core/authoring";
+} from "@unframe/compiler";
+import { standardComponents } from "@unframe/authoring/components";
+import type { ComponentManifest, ComponentStructure, SurfaceDeclaration } from "@unframe/authoring";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/core/assets";
 import {
   SUPPORTED_RENDERER_CONTRACT_VERSION,

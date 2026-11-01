@@ -1,3 +1,4 @@
+import { checkAuthoringProject } from "@unframe/source";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 import {
   lstat,
@@ -16,12 +17,11 @@ import { afterEach, assert, describe, expect, it } from "vitest";
 import type { FixedBrowserSession } from "@unframe/core/renderer-web";
 
 import { canonicalizeJsonPayload, verifyBuildIntegrity } from "@unframe/artifacts";
+import { hashComponentManifestDeclaration } from "@unframe/compiler";
 import {
-  checkAuthoringProject,
   checkAuthoringProjectAssembly,
-  hashComponentManifestDeclaration,
   computeFrozenComponentInputs,
-} from "@unframe/core/compiler";
+} from "../src/source-preparation/index.js";
 
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
@@ -101,11 +101,11 @@ const defaultPropsProject = async (explicit = false) => {
   await Promise.all([
     writeFile(
       join(directory, component.manifest.fileName),
-      `import { defineComponentManifest } from "@unframe/core/authoring";\nexport default defineComponentManifest(${JSON.stringify(manifest)});\n`,
+      `import { defineComponentManifest } from "@unframe/authoring";\nexport default defineComponentManifest(${JSON.stringify(manifest)});\n`,
     ),
     writeFile(
       join(directory, checked.value.presentation.fileName),
-      `import { definePresentation } from "@unframe/core/authoring";\nexport default definePresentation(${JSON.stringify(presentation)});\n`,
+      `import { definePresentation } from "@unframe/authoring";\nexport default definePresentation(${JSON.stringify(presentation)});\n`,
     ),
     writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(lock) + "\n"),
   ]);
@@ -356,7 +356,7 @@ describe("reference Authoring Project", () => {
       ...source,
       files: declarations.map(({ fileName, value, builder }) => ({
         fileName,
-        sourceText: `import { ${builder} } from "@unframe/core/authoring";\nexport default ${builder}(${JSON.stringify(value)});\n`,
+        sourceText: `import { ${builder} } from "@unframe/authoring";\nexport default ${builder}(${JSON.stringify(value)});\n`,
       })),
     };
     const sourceAssetBytes = sourceAssetBytesFor(discovered, loaded.value.lock.assets);
@@ -462,7 +462,7 @@ describe("reference Authoring Project", () => {
     };
     await writeFile(
       join(directory, checked.value.presentation.fileName),
-      `import { definePresentation } from "@unframe/core/authoring";\nexport default definePresentation(${JSON.stringify(omitted)});\n`,
+      `import { definePresentation } from "@unframe/authoring";\nexport default definePresentation(${JSON.stringify(omitted)});\n`,
     );
     const json = await runPresentationCli({ args: ["check", directory, "--format", "json"] });
     expect(json.exitCode).toBe(0);

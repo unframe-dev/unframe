@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
 import { afterEach, assert, expect, it } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/core/compiler";
+import { checkAuthoringProject } from "@unframe/source";
 
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
@@ -55,7 +55,7 @@ it.each([
   async (variant, kind, fileName, line) => {
     const extended = variant === "extended";
     const directory = await createProject(extended);
-    const componentSource = `import {defineComponent, editableText, prop} from "@unframe/core/authoring";
+    const componentSource = `import {defineComponent, editableText, prop} from "@unframe/authoring";
 ${extended ? 'import {Button} from "@base-ui/react/button";\nimport "./hero.css";\n' : ""}${kind === "helper" ? 'import {explode} from "./helper";\n' : ""}export const Hero = defineComponent({
   id: "hero", version: 1,
   props: {title: editableText({required: true})},
@@ -223,7 +223,7 @@ const createProject = async (extended: boolean) => {
   );
   await writeFile(
     join(directory, "presentation.unframe.tsx"),
-    `import {definePresentation} from "@unframe/core/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(presentation)};\nexport default definePresentation({...base, scene: [${directHero}]});`,
+    `import {definePresentation} from "@unframe/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(presentation)};\nexport default definePresentation({...base, scene: [${directHero}]});`,
   );
   if (extended) {
     await writeFile(

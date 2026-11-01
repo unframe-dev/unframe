@@ -1,4 +1,4 @@
-import type { ActionValue, CueGuard, PresentationDeclaration } from "@unframe/core/authoring";
+import type { ActionValue, CueGuard, PresentationDeclaration } from "@unframe/authoring";
 import type { Diagnostic, PresentationDefinition } from "@unframe/presentation";
 import type { CompilerDeclarationProject } from "../api/types.js";
 import { diagnostic } from "../diagnostics/diagnostics.js";

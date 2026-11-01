@@ -1,0 +1,539 @@
+import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { PNG_ABSOLUTE_LIMITS } from "@unframe/core/assets";
+import {
+  SUPPORTED_RENDERER_CONTRACT_VERSION,
+  createRendererFingerprint,
+  evaluateFirstMilestoneSupport,
+  type RendererPlugin,
+} from "@unframe/core/renderer-api";
+import {
+  checkAuthoringProjectAssembly,
+  computeFrozenComponentInputs,
+  type DeclarationProjectAssemblyCarrier,
+} from "../../src/source-preparation/index.js";
+import { checkAuthoringProject } from "@unframe/source";
+import { compileAuthoringProject } from "../../src/build-execution/api/compile-authoring-project.js";
+
+const faults = vi.hoisted(() => ({
+  typechecker: undefined as unknown,
+  hash: undefined as unknown,
+  hashMarker: "",
+}));
+vi.mock("typescript", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("typescript")>();
+  return {
+    ...actual,
+    createProgram: (...args: unknown[]) => {
+      if (faults.typechecker !== undefined) throw faults.typechecker;
+      return Reflect.apply(actual.createProgram, actual, args);
+    },
+  };
+});
+vi.mock("@noble/hashes/sha2.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@noble/hashes/sha2.js")>();
+  return {
+    ...actual,
+    sha256: Object.assign((...args: Parameters<typeof actual.sha256>) => {
+      if (
+        faults.hash !== undefined &&
+        new TextDecoder().decode(args[0]).includes(faults.hashMarker)
+      )
+        throw faults.hash;
+      return actual.sha256(...args);
+    }, actual.sha256),
+  };
+});
+afterEach(() => {
+  faults.typechecker = undefined;
+  faults.hash = undefined;
+  faults.hashMarker = "";
+});
+
+const builders = [
+  "definePresentation",
+  "defineTheme",
+  "defineComponentManifest",
+  "defineComponentStructure",
+]
+  .map((name) => `export const ${name} = (...args: unknown[]) => { throw 0; };`)
+  .join("\n");
+
+const entrySource = `import { definePresentation } from "@unframe/authoring";
+export default definePresentation({
+  id: "presentation", metadata: { title: "Pipeline" },
+  stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] },
+  theme: { themeId: "theme" },
+  scene: {
+    spatial: [{ id: "spatial", kind: "spatial", name: "Surface", owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" }, order: 0, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] }, active: true, visible: true, opacity: 1 }],
+    components: [{ id: "instance", kind: "component-instance", componentId: "surface", version: 1, owner: { kind: "presentation" }, spatialNodeId: "spatial", props: {}, slots: {}, variants: {}, partOverrides: [] }]
+  }, assets: [{ kind: "asset-ref", assetId: "reference-font" }],
+  flow: { initialGroupId: "group", groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } } }, variables: {} }, operations: []
+});`;
+
+const themeSource = `import { defineTheme } from "@unframe/authoring";
+export default defineTheme({ id: "theme", tokens: {}, namedStyles: {} });`;
+
+const extraThemeSource = `import { defineTheme } from "@unframe/authoring";
+export default defineTheme({ id: "theme-z", tokens: {}, namedStyles: {} });`;
+
+const manifestSource = `import { defineComponentManifest } from "@unframe/authoring";
+export default defineComponentManifest({ componentId: "surface", version: 1, authoring: { mode: "structured", structure: "./surface.structure.tsx" }, props: {}, slots: {}, parts: {}, variants: {}, states: { default: { kind: "state", initial: true } }, actions: {}, outputs: {}, renderers: ["baked-web"] });`;
+
+const extraManifestSource = `import { defineComponentManifest } from "@unframe/authoring";
+export default defineComponentManifest({ componentId: "surface-z", version: 2, authoring: { mode: "structured", structure: "./surface-z.structure.tsx" }, props: {}, slots: {}, parts: {}, variants: {}, states: { default: { kind: "state", initial: true } }, actions: {}, outputs: {}, renderers: ["baked-web"] });`;
+
+const structureSource = (
+  componentId: string,
+  structureId: string,
+) => `import { defineComponentStructure } from "@unframe/authoring";
+export default defineComponentStructure({
+  id: "${structureId}", componentId: "${componentId}",
+  root: {
+    id: "${structureId}-root", kind: "surface", physicalSizeMeters: [1, 1], logicalSize: [1, 1], fit: "contain",
+    root: { id: "${structureId}-frame", kind: "frame", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 }, children: [{ id: "text", kind: "text", value: "Pipeline", semanticNodeId: "semantic-text", maxCodePoints: 64, style: { font: { kind: "asset-ref", assetId: "reference-font" }, fontSize: 32, lineHeight: 40 }, layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 } }] },
+    baseSemanticTree: { rootNodeIds: ["semantic-text"], nodes: { "semantic-text": { id: "semantic-text", parentId: null, order: 0, role: "paragraph", text: "Pipeline" } } },
+    interactions: {}, initialStateId: "default", states: { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
+    renderIntent: { updateModel: "static", interaction: "none", internalAnimation: "none", rendererPreference: "baked-web", fallbackPolicy: "reject" }
+  }, partBindings: {}, variantStyles: {}, timelines: []
+});`;
+
+type VirtualFile = { readonly fileName: string; readonly sourceText: string };
+
+const baseProject = (files: readonly VirtualFile[]) => ({
+  projectRoot: "/virtual/pipeline",
+  entryFile: "entry.ts",
+  files,
+  rootDependencies: [
+    {
+      specifier: "@unframe/authoring",
+      usage: "runtime",
+      packageKey: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
+    },
+  ],
+  packages: [
+    {
+      key: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
+      locator: "@unframe/authoring@1",
+      name: "@unframe/authoring",
+      version: "1",
+      contentIntegrity: hashCanonicalJsonPayload(builders),
+      files: [
+        {
+          path: "index.ts",
+          mediaType: "text/typescript",
+          hash: hashCanonicalJsonPayload(builders),
+          encoding: "utf8",
+          data: builders,
+        },
+      ],
+      exports: [
+        {
+          subpath: ".",
+          runtimeImport: "index.ts",
+          runtimeRequire: null,
+          types: "index.ts",
+        },
+      ],
+      dependencies: [],
+    },
+  ],
+});
+
+const sourceFiles = (): readonly VirtualFile[] => [
+  { fileName: "entry.ts", sourceText: entrySource },
+  { fileName: "theme.unframe.ts", sourceText: themeSource },
+  { fileName: "theme-z.unframe.ts", sourceText: extraThemeSource },
+  { fileName: "surface.manifest.ts", sourceText: manifestSource },
+  { fileName: "surface.structure.tsx", sourceText: structureSource("surface", "surface") },
+  { fileName: "surface-z.manifest.ts", sourceText: extraManifestSource },
+  {
+    fileName: "surface-z.structure.tsx",
+    sourceText: structureSource("surface-z", "surface-z"),
+  },
+];
+
+const virtualProject = (files?: readonly VirtualFile[]) => baseProject(files ?? sourceFiles());
+
+const carrier = (): DeclarationProjectAssemblyCarrier => {
+  const source = virtualProject();
+  const catalog = checkAuthoringProject(source);
+  if (!catalog.valid) throw new Error("Test authoring project must parse.");
+  const frozen = computeFrozenComponentInputs(source, catalog.value);
+  if (!frozen.valid) throw new Error(JSON.stringify(frozen.diagnostics));
+  return {
+    themeHashes: frozen.value.themeHashes,
+    componentLocks: frozen.value.componentLocks,
+    assets: {
+      "reference-font": {
+        id: "reference-font",
+        mediaType: "font/ttf",
+        encodedSizeBytes: 12,
+        checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+      },
+    },
+  };
+};
+
+const options = (renderer: RendererPlugin) => ({
+  compiler: { name: "unframe", version: "1", baseEnvironmentHash: "environment" },
+  locale: "ja-JP",
+  timezone: "Asia/Tokyo",
+  colorScheme: "dark" as const,
+  rendererConfigHash: "renderer-config",
+  renderers: [renderer],
+  encodeLimits: PNG_ABSOLUTE_LIMITS,
+});
+
+const diagnosticCodes = (result: {
+  readonly valid: false;
+  readonly diagnostics: readonly { code: string }[];
+}) => result.diagnostics.map(({ code }) => code);
+
+const makeRenderer = (calls?: { count: number }): RendererPlugin => {
+  const identity = {
+    id: "baked-web",
+    version: "1",
+    contractVersion: SUPPORTED_RENDERER_CONTRACT_VERSION,
+    implementationHash: "renderer-implementation",
+  } as const;
+  const capabilities = {
+    inputKinds: ["structured"] as const,
+    updateModels: ["static", "finite-state"] as const,
+    interactions: ["none", "regions"] as const,
+    internalAnimations: ["none"] as const,
+    rendererPreferences: ["baked-web"] as const,
+    fallbackPolicies: ["reject"] as const,
+    deterministic: true as const,
+  };
+  return {
+    identity,
+    capabilities,
+    support: evaluateFirstMilestoneSupport,
+    build: (input) => {
+      if (calls) calls.count += 1;
+      const [width, height] = input.context.pixelTarget;
+      return {
+        ok: true as const,
+        renderSurface: {
+          id: input.plan.id,
+          semanticSurfaceId: input.plan.semanticSurfaceId,
+          logicalBounds: input.plan.logicalBounds,
+          layer: input.plan.layer,
+        },
+        captures: Object.entries(input.plan.states)
+          .filter(([, state]) => state.kind === "capture")
+          .map(([stateId]) => {
+            const rgba = new Uint8Array(width * height * 4);
+            for (let alpha = 3; alpha < rgba.length; alpha += 4) rgba[alpha] = 255;
+            return {
+              id: `${stateId}:capture`,
+              stateId,
+              rgba,
+              pixelSize: [width, height] as [number, number],
+              colorSpace: "srgb" as const,
+              alphaMode: "opaque" as const,
+            };
+          }),
+        provenance: {
+          ...identity,
+          inputHash: input.context.inputHash,
+          buildContextHash: input.context.buildContextHash,
+          environmentHash: input.context.environmentHash,
+          rendererConfigHash: input.context.rendererConfigHash,
+          rendererFingerprint: createRendererFingerprint(
+            identity,
+            input.context.rendererConfigHash,
+          ),
+        },
+        diagnostics: [],
+      };
+    },
+  };
+};
+
+describe("Authoring source to compiler pipeline", () => {
+  it("exposes a Source internal error without publishing its cause", () => {
+    const cause = new Error("private Compiler API source");
+    faults.typechecker = cause;
+    expect(() => checkAuthoringProject(virtualProject())).toThrow(
+      expect.objectContaining({
+        name: "SourceInternalError",
+        code: "source-internal-error",
+        cause,
+        message: "Source analysis failed.",
+      }),
+    );
+  });
+
+  it("preserves the source stage through the authoring compile boundary", async () => {
+    const cause = new Error("private Compiler API source");
+    faults.typechecker = cause;
+    await expect(
+      compileAuthoringProjectWithFixtureBytes(virtualProject(), {}, {}),
+    ).rejects.toMatchObject({
+      code: "compiler-internal-error",
+      stage: "source",
+      cause,
+      message: "Compiler failed during source.",
+    });
+  });
+
+  it("exposes an unexpected assembly hash failure without publishing its cause", async () => {
+    const supplied = carrier();
+    const componentLocks = supplied.componentLocks.map((lock) => ({
+      ...lock,
+      origin:
+        lock.origin.kind === "local"
+          ? { ...lock.origin, sourceHash: "assembly-fault-trigger" }
+          : lock.origin,
+    }));
+    const cause = new Error("private assembly hash failure");
+    faults.hash = cause;
+    faults.hashMarker = "assembly-fault-trigger";
+    await expect(
+      compileAuthoringProjectWithFixtureBytes(
+        virtualProject(),
+        { ...supplied, componentLocks },
+        {},
+      ),
+    ).rejects.toMatchObject({
+      code: "compiler-internal-error",
+      stage: "assembly",
+      cause,
+      message: "Compiler failed during assembly.",
+    });
+  });
+
+  it("preserves a frozen-input internal failure without returning its cause as a diagnostic", async () => {
+    const supplied = carrier();
+    const source = virtualProject();
+    const cause = new Error("private frozen source content");
+    faults.hash = cause;
+    faults.hashMarker = "defineComponentManifest";
+    await expect(
+      compileAuthoringProjectWithFixtureBytes(source, supplied, {}),
+    ).rejects.toMatchObject({
+      code: "compiler-internal-error",
+      stage: "frozen-input",
+      cause,
+      message: "Compiler failed during frozen-input.",
+    });
+  });
+
+  it("check success returns a checked Definition without invoking a renderer", () => {
+    const result = checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(), carrier());
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(result.value.definition.presentationId).toBe("presentation");
+    expect(Object.keys(result.value.definition.scene.surfaces)).toEqual(["instance:surface-root"]);
+  });
+
+  it("compile success invokes the callable renderer and emits PNG bytes", async () => {
+    const calls = { count: 0 };
+    const result = await compileAuthoringProjectWithFixtureBytes(
+      virtualProject(),
+      carrier(),
+      options(makeRenderer(calls)),
+    );
+
+    expect(result.valid).toBe(true);
+    expect(calls.count).toBeGreaterThan(0);
+    if (!result.valid) return;
+    expect(Object.keys(result.value.assets)).toHaveLength(2);
+    const pngAssetId = Object.entries(result.value.assetSet.assets).find(
+      ([, descriptor]) => descriptor.mediaType === "image/png",
+    )?.[0];
+    expect(pngAssetId).toBeTruthy();
+    const bytes = result.value.assets[pngAssetId!]!;
+    expect(Array.from(bytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+  });
+
+  it("preserves source syntax diagnostics and exact range at the source phase", () => {
+    const files = [...virtualProject().files];
+    files[0] = { fileName: "entry.ts", sourceText: "const value = ;" };
+
+    const result = checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(files), carrier());
+
+    expect(result).toEqual({
+      valid: false,
+      phase: "source",
+      diagnostics: [
+        {
+          code: "compiler-source-syntax-error",
+          fileName: "entry.ts",
+          message: "Expression expected.",
+          start: 14,
+          end: 15,
+          line: 1,
+          column: 15,
+          typescriptCode: 1109,
+        },
+      ],
+    });
+  });
+
+  it("reports an absent explicit carrier at the assembly phase", () => {
+    const missingThemeHash = { ...carrier(), themeHashes: [] };
+
+    const result = checkAuthoringProjectAssemblyWithFixtureBytes(
+      virtualProject(),
+      missingThemeHash,
+    );
+
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.phase).toBe("assembly");
+      expect(diagnosticCodes(result)).toContain("compiler-theme-hash-missing");
+    }
+  });
+
+  it("maps renderer failures to the compile phase", async () => {
+    const renderer = makeRenderer();
+    const failingRenderer: RendererPlugin = {
+      ...renderer,
+      build: () => ({
+        ok: false,
+        diagnostics: [{ code: "test-renderer-failure", path: [], message: "render failed" }],
+      }),
+    };
+
+    const result = await compileAuthoringProjectWithFixtureBytes(
+      virtualProject(),
+      carrier(),
+      options(failingRenderer),
+    );
+
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.phase).toBe("compile");
+      expect(diagnosticCodes(result)).toContain("test-renderer-failure");
+    }
+  });
+
+  it("exposes an unexpected renderer identity failure to the host without publishing its contents", async () => {
+    const renderer = makeRenderer();
+    const cause = new Error("private renderer identity");
+    const hostileIdentity = new Proxy(renderer.identity, {
+      get: () => {
+        throw cause;
+      },
+    });
+    await expect(
+      compileAuthoringProjectWithFixtureBytes(
+        virtualProject(),
+        carrier(),
+        options({ ...renderer, identity: hostileIdentity }),
+      ),
+    ).rejects.toMatchObject({
+      name: "CompilerInternalError",
+      code: "compiler-internal-error",
+      stage: "renderer-validation",
+      cause,
+      message: "Compiler failed during renderer-validation.",
+    });
+  });
+
+  it("fails closed for hostile source, carrier, and options without executing accessors", async () => {
+    const source = new Proxy(virtualProject(), {
+      ownKeys: () => {
+        throw new Error("source ownKeys must not execute");
+      },
+    });
+    expect(() => checkAuthoringProjectAssemblyWithFixtureBytes(source, carrier())).not.toThrow();
+    const sourceResult = checkAuthoringProjectAssemblyWithFixtureBytes(source, carrier());
+    expect(sourceResult.valid).toBe(false);
+    if (!sourceResult.valid) expect(sourceResult.phase).toBe("source");
+
+    const hostileCarrier = new Proxy(carrier(), {
+      ownKeys: () => {
+        throw new Error("carrier ownKeys must not execute");
+      },
+    });
+    expect(() =>
+      checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(), hostileCarrier),
+    ).not.toThrow();
+    const carrierResult = checkAuthoringProjectAssemblyWithFixtureBytes(
+      virtualProject(),
+      hostileCarrier,
+    );
+    expect(carrierResult.valid).toBe(false);
+    if (!carrierResult.valid) {
+      expect(carrierResult.phase).toBe("assembly");
+      expect(diagnosticCodes(carrierResult)).toContain("compiler-invalid-input");
+    }
+
+    const rendererState = { count: 0 };
+    const hostileOptions = options(makeRenderer(rendererState));
+    Object.defineProperty(hostileOptions, "compiler", {
+      enumerable: true,
+      get: () => {
+        throw new Error("options compiler getter must not execute");
+      },
+    });
+    expect(
+      await compileAuthoringProjectWithFixtureBytes(virtualProject(), carrier(), hostileOptions),
+    ).toMatchObject({ valid: false, phase: "compile" });
+    const result = await compileAuthoringProjectWithFixtureBytes(
+      virtualProject(),
+      carrier(),
+      hostileOptions,
+    );
+    expect(result.valid).toBe(false);
+    if (!result.valid) expect(diagnosticCodes(result)).toContain("compiler-invalid-options");
+    expect(rendererState.count).toBe(0);
+  });
+
+  it("cannot use a catalog field to override the explicit carrier", () => {
+    const sourceResult = checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(), carrier());
+    expect(sourceResult.valid).toBe(true);
+
+    const forgedCarrier = {
+      ...carrier(),
+      catalog: { themes: [{ id: "forged", hash: "forged" }] },
+    };
+    const result = checkAuthoringProjectAssemblyWithFixtureBytes(virtualProject(), forgedCarrier);
+
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.phase).toBe("assembly");
+      expect(diagnosticCodes(result)).toContain("compiler-invalid-input");
+    }
+  });
+
+  it("is deterministic when source files are reversed", async () => {
+    const first = await compileAuthoringProjectWithFixtureBytes(
+      virtualProject(),
+      carrier(),
+      options(makeRenderer()),
+    );
+    const second = await compileAuthoringProjectWithFixtureBytes(
+      virtualProject([...virtualProject().files].reverse()),
+      carrier(),
+      options(makeRenderer()),
+    );
+
+    expect(first.valid && second.valid).toBe(true);
+    if (!first.valid || !second.valid) return;
+    expect({ ...second.value, assets: undefined }).toEqual({ ...first.value, assets: undefined });
+    expect(Object.keys(second.value.assets).sort()).toEqual(Object.keys(first.value.assets).sort());
+    for (const [assetId, bytes] of Object.entries(first.value.assets)) {
+      const secondBytes = second.value.assets[assetId]!;
+      expect(
+        secondBytes.length === bytes.length &&
+          secondBytes.every((byte, index) => byte === bytes[index]),
+      ).toBe(true);
+    }
+  }, 15_000);
+});
+
+const checkAuthoringProjectAssemblyWithFixtureBytes = (source: unknown, input: unknown) =>
+  checkAuthoringProjectAssembly(source, input, fixtureSourceAssetBytes(input));
+const compileAuthoringProjectWithFixtureBytes = (
+  source: unknown,
+  input: unknown,
+  config: unknown,
+  cache?: import("../../src/build-execution/cache/build-cache.js").CompilerBuildCache,
+) => compileAuthoringProject(source, input, config, fixtureSourceAssetBytes(input), cache);

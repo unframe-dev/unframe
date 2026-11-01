@@ -2,12 +2,15 @@ import { createHash, randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { z } from "zod";
 import {
-  checkAuthoringProject,
   checkAuthoringProjectAssembly,
   computeFrozenComponentInputs,
-  patchEditableReactScene,
+} from "../source-preparation/index.js";
+import {
+  checkAuthoringProject,
+  createReactScenePatch,
+  createSourceSnapshot,
   readEditableReactScene,
-} from "@unframe/core/compiler";
+} from "@unframe/source";
 import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
 import { sourceDiagnosticFamily } from "../application/source-diagnostic-family.js";
@@ -166,6 +169,7 @@ type ProjectState = {
   loaded: Loaded;
   catalog?: Extract<ReturnType<typeof checkAuthoringProject>, { valid: true }>["value"];
   sourceText: string;
+  source?: unknown;
 };
 const readState = async (directory: string, captured?: Discovery): Promise<ProjectState> => {
   const found =
@@ -277,6 +281,7 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
     found,
     loaded,
     sourceText,
+    source,
     ...(catalog.valid ? { catalog: catalog.value } : {}),
     snapshot: {
       revision: found.revision,
@@ -443,18 +448,22 @@ export const createAuthorService = async (
           fail(422, "author-source-invalid", "Project source cannot be edited.");
         if (current.snapshot.instances.length === 0)
           fail(422, "author-edit-unsupported", "Project source does not support Inspector edits.");
-        const patched = patchEditableReactScene(
-          current.catalog,
-          current.sourceText,
-          request.command,
-        );
+        const sourceSnapshot = createSourceSnapshot(current.source);
+        if (!sourceSnapshot.ok)
+          fail(422, "author-source-invalid", "Project source cannot be snapshotted.");
+        const patched = createReactScenePatch({
+          snapshot: sourceSnapshot.value,
+          fileName: current.found.entryFile,
+          targetHash: `sha256:${digest(encoder.encode(current.sourceText))}`,
+          command: request.command,
+        });
         if (!patched.ok)
           fail(
             422,
             patched.diagnostics[0]?.code ?? "author-edit-unsupported",
             patched.diagnostics[0]?.message ?? "Edit is unsupported.",
           );
-        const prepared = await sourceInput(current.found, current.loaded, patched.value);
+        const prepared = await sourceInput(current.found, current.loaded, patched.value.sourceText);
         const source = prepared.source;
         const catalog = checkAuthoringProject(source);
         if (!catalog.valid)
@@ -510,7 +519,7 @@ export const createAuthorService = async (
             checked.diagnostics[0]?.code ?? "author-source-invalid",
             checked.diagnostics[0]?.message ?? "Patched source is invalid.",
           );
-        const afterSource = encoder.encode(patched.value);
+        const afterSource = encoder.encode(patched.value.sourceText);
         const saved: SavedCommand = {
           revision: await sourceRevision(current.found, afterSource, lockBytes),
           sourceHash: checked.value.sourceHash,

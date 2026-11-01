@@ -7,7 +7,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject, checkAuthoringProjectAssembly } from "@unframe/core/compiler";
+import { checkAuthoringProject } from "@unframe/source";
+import { checkAuthoringProjectAssembly } from "../src/source-preparation/index.js";
 import { runPresentationCli } from "../src/index.js";
 import * as opaquePreparation from "../src/application/opaque-renderer.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
@@ -31,7 +32,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));
 });
-const component = `import {defineComponent, editableText, prop} from "@unframe/core/authoring";
+const component = `import {defineComponent, editableText, prop} from "@unframe/authoring";
 export const Hero = defineComponent({
   id: "hero", version: 1,
   props: {title: editableText({required: true})},
@@ -80,7 +81,7 @@ const createProject = async () => {
       name === "reference-locks.ts"
     )
       await rm(join(directory, name));
-  const source = `import {definePresentation} from "@unframe/core/authoring";
+  const source = `import {definePresentation} from "@unframe/authoring";
 import {Hero} from "./Hero.component";
 const base = ${JSON.stringify(presentation)};
 export default definePresentation({...base, scene: [{

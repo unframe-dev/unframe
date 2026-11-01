@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 import { encodeWireMessage, decodeWireMessage } from "@unframe/contracts/presentation";
-import { checkAuthoringProjectAssembly } from "@unframe/core/compiler";
+import { checkAuthoringProjectAssembly } from "../src/source-preparation/index.js";
 import { createLocalPlayback } from "../src/author/local-playback.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";

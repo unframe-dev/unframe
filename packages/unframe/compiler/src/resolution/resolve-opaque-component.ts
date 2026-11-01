@@ -4,7 +4,7 @@ import {
   validateStaticComponentMetadata,
   validateStaticReactSceneItem,
   type StaticReactSceneItem,
-} from "@unframe/core/authoring";
+} from "@unframe/authoring";
 import {
   canonicalizePresentationDefinition,
   hashCanonicalJsonPayload,
