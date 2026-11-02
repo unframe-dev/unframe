@@ -94,7 +94,9 @@ case "${mode}" in
     done
     go -C "${REPO_ROOT}/packages/unframe/workspace-node/native" test ./...
     go -C "${REPO_ROOT}/packages/unframe/workspace-node/native" vet ./...
+    # 型宣言ビルドを重ねると runner のメモリ上限を超えるため直列化する。
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" \
+      --workspace-concurrency=1 \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test:packed
