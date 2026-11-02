@@ -113,7 +113,8 @@ macos() {
     "${repo_root}/packages/unframe/worker-host/src/native/test_compile_policy.ts" | tee "${reports}/policy.tap"
   grep -qx '# pass 1' "${reports}/policy.tap"
   run_tests render-browser test/opaque-isolation-darwin.integration.test.ts
-  pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter @unframe/styles-node run build
+  NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}" \
+    pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter @unframe/styles-node run build
   run_tests styles-node test/styles-worker.integration.test.ts
   selected_tests test/playwright-fixed-browser.integration.test.ts \
     'provision済みmanaged ChromiumでFrame/Text相当のdocumentをPNG captureする'
