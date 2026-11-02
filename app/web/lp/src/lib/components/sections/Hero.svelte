@@ -21,7 +21,7 @@
         src="/brand/hero.png"
         alt=""
         aria-hidden="true"
-        class="pointer-events-none absolute right-0 top-[14%] hidden w-[min(78vw,960px)] opacity-70 mix-blend-multiply lg:block"
+        class="pointer-events-none absolute right-0 top-[14%] hidden w-[min(78vw,960px)] opacity-70 mix-blend-multiply 2xl:block"
     />
 
     <Header />
