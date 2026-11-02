@@ -122,6 +122,21 @@ Component migration metadata と自動変換は後続へ延期する。Action / 
 
 Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition は Compiler が具体的な Definition の値へ解決する。Runtime Text と media renderer の未対応制限を baked-web の境界で維持する。
 
+## 発表者の名前付き論理入力
+
+Structured と React は、Cue に次の入力を宣言できる。
+
+```ts
+cue({
+  id: "advance",
+  trigger: { kind: "logicalInput", action: "presenter.next" },
+  actions: [],
+  next: { kind: "step", stepId: "second" },
+});
+```
+
+`action` は英数字で始まる1〜128文字の名前とし、以降は英数字と `._:/-` を使用できる。Compiler は名前を保ち、actor を Presenter に固定する。Authoring から actor を指定できない。`event` は Surface Interaction の `semanticEvent` に変換する別の Trigger であり、論理入力の代用にはならない。入力を受けた際の Action と Step 遷移は Cue で定義し、宣言していない入力では進行しない。
+
 ## 発表者のモーション操作候補
 
 採用仕様は [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) に従う。Author は Gesture の種類だけを選択し、距離・速度・時間窓・左右の手は設定しない。Zone の幾何設定は中心位置だけとし、形状・寸法は一辺2mの軸平行な箱に固定する。Cue は通常 `oncePerStepEntry`、繰り返しが必要なものだけ `repeatable` とし、cooldown の authoring field は設けない。認識は Presenter、Guard / Cue / Action / Next の評価は Runtime が担う。

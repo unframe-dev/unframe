@@ -184,6 +184,7 @@ const linuxIntegrationFiles = [
   "test/video-validator.integration.test.ts",
   "test/author-capture.integration.test.ts",
   "test/author-source-diagnostics.integration.test.ts",
+  "test/logical-input-project.integration.test.ts",
   "test/styles-worker.integration.test.ts",
   "test/tailwind-project.integration.test.ts",
 ];
@@ -219,6 +220,7 @@ test(
     assert.deepEqual(integrationFiles(result.commands), [
       "test/author-capture.integration.test.ts",
       "test/author-source-diagnostics.integration.test.ts",
+      "test/logical-input-project.integration.test.ts",
     ]);
   },
 );

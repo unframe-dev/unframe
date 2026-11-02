@@ -89,6 +89,7 @@ const project = (scene: ReturnType<typeof item>[]) => ({
 
 describe("Opaque React lowering", () => {
   it.each([
+    { kind: "logicalInput", action: "presenter.next" },
     { kind: "gesture", gesture: "pullBackward" },
     { kind: "zoneEdge", zoneId: "front", edge: "enter" },
   ] as const)("lowers a presentation $kind without a Component Output", (trigger) => {
@@ -132,7 +133,10 @@ describe("Opaque React lowering", () => {
     });
   });
 
-  it("lowers finite State, button Interaction and Output-to-Action Cue", () => {
+  it.each([
+    { kind: "component.output", componentInstanceId: "quiz", outputId: "revealRequested" },
+    { kind: "logicalInput", action: "presenter.next" },
+  ] as const)("lowers $kind to a finite State Action and Step transition", (trigger) => {
     const finiteMetadata = validateStaticComponentMetadata({
       ...metadata,
       semantics: {
@@ -180,11 +184,8 @@ describe("Opaque React lowering", () => {
     ).toEqual(buildOpaqueComponentManifest(finiteMetadata, "hero.component.tsx#render"));
     const cue = {
       id: "show",
-      trigger: {
-        kind: "component.output",
-        componentInstanceId: "quiz",
-        outputId: "revealRequested",
-      },
+      trigger,
+      next: { kind: "step", stepId: "second" },
       actions: [
         {
           kind: "component.action",
@@ -211,7 +212,7 @@ describe("Opaque React lowering", () => {
             main: {
               id: "main",
               initialStepId: "first",
-              steps: { first: { id: "first", cues: [cue] } },
+              steps: { first: { id: "first", cues: [cue] }, second: { id: "second", cues: [] } },
             },
           },
         },
@@ -232,10 +233,14 @@ describe("Opaque React lowering", () => {
       nodes: { [reactResourceId("semantic", "quiz", "heading")]: { included: false } },
     });
     expect(result.value.definition.flow.groups.main?.steps.first?.cues[0]).toMatchObject({
-      trigger: {
-        kind: "surfaceInteraction",
-        interactionId: reactResourceId("interaction", "quiz", "reveal"),
-      },
+      trigger:
+        trigger.kind === "logicalInput"
+          ? { kind: "logicalInput", action: "presenter.next", actor: { kind: "presenter" } }
+          : {
+              kind: "surfaceInteraction",
+              interactionId: reactResourceId("interaction", "quiz", "reveal"),
+            },
+      next: { kind: "step", stepId: "second" },
       actions: [
         { kind: "surface.setState", stateId: reactResourceId("state", "quiz", "revealed") },
       ],

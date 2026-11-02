@@ -129,6 +129,19 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("lowers named logical inputs with Presenter authority", () => {
+    const input = project();
+    input.presentation.flow.groups.group!.steps.step!.cues = [
+      { id: "next", trigger: { kind: "logicalInput", action: "presenter.next" }, actions: [] },
+    ];
+    const result = checkDeclarationProjectWithFixtureBytes(input);
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) throw new Error("Expected valid logical input.");
+    expect(
+      result.value.definition.flow.groups.group!.steps.step!.cues.map((cue) => cue.trigger),
+    ).toEqual([{ kind: "logicalInput", action: "presenter.next", actor: { kind: "presenter" } }]);
+  });
+
   it("compiles authored Gestures into presenter guide metadata", () => {
     const input = project();
     input.presentation.flow.groups.group!.steps.step!.cues = [
@@ -501,7 +514,10 @@ describe("checkDeclarationProject", () => {
         .sort(),
     ).toEqual(["opaque", "structured"]);
   });
-  it("preserves source Cue positions across Structured and React lowering", () => {
+  it.each([
+    { kind: "component.output", componentInstanceId: "react-one", outputId: "clicked" },
+    { kind: "logicalInput", action: "presenter.next" },
+  ] as const)("preserves mixed Cue positions for $kind and lowers React Actions", (trigger) => {
     const input = project() as StructuredProject;
     const structured = input.components[0]!;
     structured.manifest = {
@@ -535,7 +551,9 @@ describe("checkDeclarationProject", () => {
       interactions: { next: { kind: "click", event: "next", hitPriority: 0 } },
       initialState: "ready",
       states: { ready: { semanticOverrides: [], enabledInteractionIds: ["next"] } },
-      actions: {},
+      actions: {
+        ready: { inputs: {}, preconditions: [], effects: [{ kind: "setState", stateId: "ready" }] },
+      },
       outputs: {
         clicked: { payload: {}, producer: { kind: "surfaceInteraction", interactionId: "next" } },
       },
@@ -551,7 +569,7 @@ describe("checkDeclarationProject", () => {
       fit: "contain",
       transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     };
-    const result = checkDeclarationProjectWithFixtureBytes({
+    const mixed = {
       ...input,
       presentation: {
         ...input.presentation,
@@ -571,12 +589,15 @@ describe("checkDeclarationProject", () => {
                   cues: [
                     {
                       id: "react-first",
-                      trigger: {
-                        kind: "component.output",
-                        componentInstanceId: "react-one",
-                        outputId: "clicked",
-                      },
-                      actions: [],
+                      trigger,
+                      actions: [
+                        {
+                          kind: "component.action",
+                          componentInstanceId: "react-one",
+                          actionId: "ready",
+                          arguments: {},
+                        },
+                      ],
                     },
                     {
                       id: "structured-second",
@@ -624,9 +645,21 @@ describe("checkDeclarationProject", () => {
           },
         },
       ],
-    });
+    };
+    const result = checkDeclarationProjectWithFixtureBytes(mixed);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) throw new Error("Expected valid mixed Cue.");
+    expect(
+      result.value.definition.flow.groups.group!.steps.step!.cues.find(
+        (cue) => cue.id === "react-first",
+      ),
+    ).toMatchObject({
+      trigger:
+        trigger.kind === "logicalInput"
+          ? { kind: "logicalInput", action: "presenter.next", actor: { kind: "presenter" } }
+          : { kind: "surfaceInteraction", actor: { kind: "presenter" } },
+      actions: [{ kind: "surface.setState" }],
+    });
     expect(
       Object.fromEntries(
         result.value.definition.flow.groups.group!.steps.step!.cues.map((cue) => [
@@ -635,6 +668,24 @@ describe("checkDeclarationProject", () => {
         ]),
       ),
     ).toEqual({ "react-first": 0, "structured-second": 1, "structured-explicit": 7 });
+    const firstCue = mixed.presentation.flow.groups.group.steps.step.cues[0]!;
+    mixed.presentation.flow.groups.group.steps.step.cues[0] = {
+      id: "react-first",
+      trigger,
+      actions: [
+        ...firstCue.actions,
+        {
+          kind: "component.action",
+          componentInstanceId: "instance",
+          actionId: "unresolved",
+          arguments: {},
+        },
+      ],
+    };
+    const crossKind = checkDeclarationProjectWithFixtureBytes(mixed);
+    expect(crossKind.valid ? [] : crossKind.diagnostics.map((item) => item.code)).toEqual([
+      "compiler-mixed-cue-unsupported",
+    ]);
   });
   it("identifies the lowered content as a structured tree", () => {
     const result = checkDeclarationProjectWithFixtureBytes(project());
