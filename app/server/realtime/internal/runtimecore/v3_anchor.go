@@ -2,6 +2,7 @@ package runtimecore
 
 import (
 	"errors"
+	"slices"
 	"sort"
 	"time"
 
@@ -133,4 +134,24 @@ func (s *V2Session) pruneV3FrozenAnchors() {
 		active[node.NodeId] = true
 	}
 	s.snapshot.FrozenAnchors = filterV2Slice(s.snapshot.FrozenAnchors, func(frozen *realtimev2.FrozenAnchorDisplayState) bool { return active[frozen.NodeId] })
+}
+
+// Publish derived input availability with the canonical state that determined it.
+func (s *V2Session) prepareV3LogicalInputs(previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent) []*realtimev2.ProjectedReliableEvent {
+	if slices.Equal(s.EnabledLogicalInputs(previous), s.EnabledLogicalInputs(s.snapshot)) {
+		return events
+	}
+	var replacement *realtimev2.ProjectedReliableEvent
+	if len(events) > 0 && (events[len(events)-1].GetRuntimeViewReplaced() != nil || events[len(events)-1].GetRuntimeStatusChanged() != nil) {
+		replacement = events[len(events)-1]
+	} else if len(events) > 1 && events[len(events)-1].GetPresentationEnded() != nil && events[len(events)-2].GetRuntimeStatusChanged() != nil {
+		replacement = events[len(events)-2]
+	} else {
+		replacement = s.nextEvent(&realtimev2.ProjectedReliableEvent{})
+		events = append(events, replacement)
+	}
+	view := s.canonicalV3RuntimeView()
+	view.BaseReliableSequence = replacement.Sequence
+	replacement.Payload = &realtimev2.ProjectedReliableEvent_RuntimeViewReplaced{RuntimeViewReplaced: &realtimev2.RuntimeViewReplaced{RuntimeView: view}}
+	return events
 }

@@ -137,6 +137,8 @@ Control / State は participant projection、Snapshot / replay、入力と Cue /
 
 [Presenter authority v3](../../../docs/packages/CONTRACT_PRESENTER_AUTHORITY.md) の入力受付・復旧を実装しています。Logical / Surface / Gesture / Zone は入力文脈と command epoch を検証し、認識済み Gesture / Zone の Cue を評価します。Pose は最新値と Anchor 投影に使い、server で Gesture / Zone を再認識しません。pause / resume / 再校正 / Step 入場・再接続では入力同期を要求し、Presenter の ACK をメモリ上で確定してから通常入力を再開します。
 
+`enabledLogicalInputs` は Runtime の同じ cut から導出し、pause / resume・Step 変更・Guard・Cue 消費で一覧が変わると `RuntimeViewReplaced` で更新します。Viewer への投影では一覧を除去します。入力同期が必要な遷移では、この更新を含む Reliable sequence までの適用を ACK / READY の条件にします。
+
 Outcome と共有状態は一体でメモリ上に確定し、同じ実行世代の同じ ID・内容の再送へ確定済み結果を返します。記録は容量上限前の同期 ACK と command epoch 更新で整理します。pause の凍結 Anchor を checkpoint と一括 Reliable 更新に保存し、resume 後の有効 Pose を待つ間も保持します。到達済み Step の選択は直近開始状態を復元して paused にし、Run ID・時計・参照と Timer を再構築します。開始状態全体は配布せず、Presenter 専用 catalog に選択可能な ID だけを含めます。検証範囲と残事項は[移行計画](../../../docs/plans/presenter-recognition-runtime-authority-refactor.md)を参照してください。
 
 ### 無人 Room の終了

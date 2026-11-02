@@ -114,7 +114,7 @@ func TestV2CueNextEndCompletesDurably(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 4 || events[0].GetLogicalInputAccepted() == nil || events[1].GetCueAccepted() == nil || events[2].GetRuntimeStatusChanged().GetTerminating() == nil || events[3].GetPresentationEnded() == nil || completion.envelope == nil || core.Snapshot().Clock.GetTerminating() == nil {
+	if len(events) != 4 || events[0].GetLogicalInputAccepted() == nil || events[1].GetCueAccepted() == nil || events[2].GetRuntimeViewReplaced().GetRuntimeView().GetClock().GetTerminating() == nil || events[3].GetPresentationEnded() == nil || completion.envelope == nil || core.Snapshot().Clock.GetTerminating() == nil {
 		t.Fatalf("end events=%#v completion=%#v snapshot=%#v", events, completion.envelope, core.Snapshot())
 	}
 }
@@ -362,7 +362,7 @@ func TestV2SessionPublishesMutationWhenCheckpointFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "click-1", LogicalEventName: "next"}))
-	if err != nil || len(events) != 2 || core.Snapshot().ReliableSequence != 2 || core.Snapshot().Clock.GetRunning() == nil {
+	if err != nil || len(events) != 3 || events[2].GetRuntimeViewReplaced() == nil || core.Snapshot().ReliableSequence != 3 || core.Snapshot().Clock.GetRunning() == nil {
 		t.Fatalf("save availability changed memory commit: %v %v", events, err)
 	}
 	if err := core.FlushCheckpoint(context.Background()); err == nil {
@@ -506,24 +506,24 @@ func TestV2SessionExecutesLogicalInputAndNextStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if outcome.GetAccepted().GetCueCommitted().GetCueId() != "cue-next" || outcome.GetAccepted().ReliableSequence != 1 || len(events) != 3 || events[0].GetLogicalInputAccepted() == nil || events[1].GetCueAccepted() == nil || events[2].GetStepEntered().StepId != "second" {
+	if outcome.GetAccepted().GetCueCommitted().GetCueId() != "cue-next" || outcome.GetAccepted().ReliableSequence != 1 || len(events) != 4 || events[3].GetRuntimeViewReplaced() == nil || events[0].GetLogicalInputAccepted() == nil || events[1].GetCueAccepted() == nil || events[2].GetStepEntered().StepId != "second" {
 		t.Fatalf("outcome = %#v, events = %#v", outcome, events)
 	}
-	for sequence := uint64(1); sequence <= 3; sequence++ {
+	for sequence := uint64(1); sequence <= 4; sequence++ {
 		if event := <-deliveries; event == nil || event.Sequence != sequence {
 			t.Fatalf("delivery sequence = %#v, want %d", event, sequence)
 		}
 	}
 	snapshot := core.Snapshot()
-	if snapshot.Progression.CurrentStepId != "second" || snapshot.Progression.StepEntryEpoch != 2 || snapshot.ReliableSequence != 3 {
+	if snapshot.Progression.CurrentStepId != "second" || snapshot.Progression.StepEntryEpoch != 2 || snapshot.ReliableSequence != 4 {
 		t.Fatalf("snapshot = %#v", snapshot)
 	}
 	repeated, extra, err := core.LogicalInput(identity, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "click-1", LogicalEventName: "next"}))
-	if err != nil || len(extra) != 0 || repeated.GetAccepted().ReliableSequence != 1 || core.Snapshot().ReliableSequence != 3 {
+	if err != nil || len(extra) != 0 || repeated.GetAccepted().ReliableSequence != 1 || core.Snapshot().ReliableSequence != 4 {
 		t.Fatalf("duplicate outcome = %#v, events = %#v, error = %v", repeated, extra, err)
 	}
 	replay, err := core.Replay(1)
-	if err != nil || len(replay) != 2 || replay[0].Sequence != 2 || replay[1].Sequence != 3 {
+	if err != nil || len(replay) != 3 || replay[2].Sequence != 4 || replay[0].Sequence != 2 || replay[1].Sequence != 3 {
 		t.Fatalf("replay after 1 = %#v, error = %v", replay, err)
 	}
 }
@@ -548,7 +548,7 @@ func TestV2SessionCommitsImmediateActionInDurableEventOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	flushV2(t, core)
-	if outcome.GetAccepted().GetCueCommitted() == nil || len(events) != 3 || events[0].Sequence != 1 || events[1].GetCueAccepted() == nil || events[2].GetVariableChanged().GetState().GetValue().GetNumberValue() != 2 || writer.envelope.ReliableSequence != 3 {
+	if outcome.GetAccepted().GetCueCommitted() == nil || len(events) != 4 || events[3].GetRuntimeViewReplaced() == nil || events[0].Sequence != 1 || events[1].GetCueAccepted() == nil || events[2].GetVariableChanged().GetState().GetValue().GetNumberValue() != 2 || writer.envelope.ReliableSequence != 4 {
 		t.Fatalf("outcome=%#v events=%#v checkpoint=%#v", outcome, events, writer.envelope)
 	}
 }
@@ -573,7 +573,7 @@ func TestV2SessionStartsBlockingTimelineAndDefersStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 3 || events[2].GetTimelineStarted() == nil || core.Snapshot().Progression.GetTransitioning() == nil || core.Snapshot().Progression.CurrentStepId != "start" {
+	if len(events) != 4 || events[3].GetRuntimeViewReplaced() == nil || events[2].GetTimelineStarted() == nil || core.Snapshot().Progression.GetTransitioning() == nil || core.Snapshot().Progression.CurrentStepId != "start" {
 		t.Fatalf("events=%#v snapshot=%#v", events, core.Snapshot())
 	}
 	completed, err := core.AdvanceTo(context.Background(), 100)
@@ -581,7 +581,7 @@ func TestV2SessionStartsBlockingTimelineAndDefersStep(t *testing.T) {
 		t.Fatal(err)
 	}
 	flushV2(t, core)
-	if len(completed) != 3 || completed[0].GetTimelineCompleted() == nil || completed[1].GetNodeStateCommitted().GetState().Opacity != 1 || completed[2].GetStepEntered().StepId != "second" || len(core.Snapshot().ActiveRuns) != 0 || core.Snapshot().Progression.GetStable() == nil || writer.envelope.ReliableSequence != 6 {
+	if len(completed) != 3 || completed[0].GetTimelineCompleted() == nil || completed[1].GetNodeStateCommitted().GetState().Opacity != 1 || completed[2].GetStepEntered().StepId != "second" || len(core.Snapshot().ActiveRuns) != 0 || core.Snapshot().Progression.GetStable() == nil || writer.envelope.ReliableSequence != 7 {
 		t.Fatalf("completion=%#v snapshot=%#v checkpoint=%#v", completed, core.Snapshot(), writer.envelope)
 	}
 }
@@ -602,7 +602,7 @@ func TestV2SessionSurfaceCrossfadeCompletesAtRuntimeDeadline(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "click-1", LogicalEventName: "next"}))
-	if err != nil || len(events) != 3 || events[2].GetSurfaceTransitionStarted() == nil || core.Snapshot().SurfaceStates[0].StateId != "second" || core.Snapshot().SurfaceStates[0].TransitionRunId == nil {
+	if err != nil || len(events) != 4 || events[3].GetRuntimeViewReplaced() == nil || events[2].GetSurfaceTransitionStarted() == nil || core.Snapshot().SurfaceStates[0].StateId != "second" || core.Snapshot().SurfaceStates[0].TransitionRunId == nil {
 		t.Fatalf("start events=%#v snapshot=%#v error=%v", events, core.Snapshot(), err)
 	}
 	completed, err := core.AdvanceTo(context.Background(), 100)
@@ -646,7 +646,7 @@ func TestV2SessionGroupTransitionReplacesOwnedState(t *testing.T) {
 		t.Fatal(err)
 	}
 	outcome, events, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, v3TestLogicalInput(core, &realtimev2.LogicalInputCommand{ClientEventId: "click-1", LogicalEventName: "next"}))
-	if err != nil || outcome.GetAccepted().GetCueCommitted() == nil || len(events) != 5 || events[2].GetGroupExited() == nil || events[3].GetGroupEntered() == nil || events[4].GetStepEntered() == nil {
+	if err != nil || outcome.GetAccepted().GetCueCommitted() == nil || len(events) != 6 || events[5].GetRuntimeViewReplaced() == nil || events[2].GetGroupExited() == nil || events[3].GetGroupEntered() == nil || events[4].GetStepEntered() == nil {
 		t.Fatalf("outcome=%#v events=%#v error=%v", outcome, events, err)
 	}
 	if len(events[3].GetGroupEntered().Initialization.NodeStates) != 1 || events[3].GetGroupEntered().Initialization.NodeStates[0].NodeId != "new" || core.Snapshot().Progression.CurrentGroupId != "next" || len(core.Snapshot().NodeStates) != 1 || core.Snapshot().NodeStates[0].NodeId != "new" {

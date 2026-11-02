@@ -497,9 +497,9 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	s.rememberOutcome(key, fingerprint, outcome)
 	var err error
 	if s.snapshot.Clock.GetTerminating() != nil {
-		err = s.commitV2Completion(ctx, previous, events)
+		err = s.commitV2Completion(ctx, previous, &events)
 	} else {
-		err = s.commitV2Mutation(ctx, previous, events)
+		err = s.commitV2Mutation(ctx, previous, &events)
 	}
 	if err != nil {
 		return nil, nil, err
@@ -507,10 +507,21 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(append(dueEvents, events...)), nil
 }
 
-func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
+func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, eventBatch *[]*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
+	var events []*realtimev2.ProjectedReliableEvent
+	if eventBatch != nil {
+		events = *eventBatch
+	}
+
 	s.pruneV3FrozenAnchors()
 	var err error
 	events, err = s.prepareV3Pause(previous, events)
+	if err == nil {
+		events = s.prepareV3LogicalInputs(previous, events)
+	}
+	if eventBatch != nil {
+		*eventBatch = events
+	}
 	if err == nil {
 		err = s.ensureV3CutSynchronization(previous)
 	}
@@ -537,10 +548,21 @@ func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.C
 
 // commitV2MutationVisible keeps recovery candidates private while preserving the
 // recovered cut as the basis for pause and synchronization semantics.
-func (s *V2Session) commitV2MutationVisible(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, visible *realtimev2.CanonicalRuntimeSnapshot, previousTracking ...v2TrackingEvaluator) error {
+func (s *V2Session) commitV2MutationVisible(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, eventBatch *[]*realtimev2.ProjectedReliableEvent, visible *realtimev2.CanonicalRuntimeSnapshot, previousTracking ...v2TrackingEvaluator) error {
+	var events []*realtimev2.ProjectedReliableEvent
+	if eventBatch != nil {
+		events = *eventBatch
+	}
+
 	s.pruneV3FrozenAnchors()
 	var prepareErr error
 	events, prepareErr = s.prepareV3Pause(previous, events)
+	if prepareErr == nil {
+		events = s.prepareV3LogicalInputs(previous, events)
+	}
+	if eventBatch != nil {
+		*eventBatch = events
+	}
 	if prepareErr != nil {
 		s.rollbackV2Fault(visible, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
 		return prepareErr

@@ -281,10 +281,10 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 	}
 	var err error
 	if s.snapshot.Clock.GetTerminating() != nil {
-		err = s.commitV2Completion(ctx, previous, events)
+		err = s.commitV2Completion(ctx, previous, &events)
 	} else {
 		if drainedDue || len(events) != 0 || s.snapshot.Clock.RuntimeTimeMs != previous.Clock.RuntimeTimeMs {
-			err = s.commitV2Mutation(ctx, previous, events)
+			err = s.commitV2Mutation(ctx, previous, &events)
 		}
 	}
 	if err != nil {

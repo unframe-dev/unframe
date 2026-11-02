@@ -72,9 +72,9 @@ func (s *V2Session) JoinParticipant(ctx context.Context, identity session.Identi
 	}
 	var err error
 	if durablePresence {
-		err = s.commitV2MutationVisible(ctx, previous, events, previous)
+		err = s.commitV2MutationVisible(ctx, previous, &events, previous)
 	} else {
-		err = s.commitV2Mutation(ctx, previous, events)
+		err = s.commitV2Mutation(ctx, previous, &events)
 	}
 	if err != nil {
 		return err
@@ -137,9 +137,9 @@ func (s *V2Session) LeaveParticipant(ctx context.Context, identity session.Ident
 	}
 	var err error
 	if lastConnection {
-		err = s.commitV2MutationVisible(ctx, previous, events, previous)
+		err = s.commitV2MutationVisible(ctx, previous, &events, previous)
 	} else {
-		err = s.commitV2Mutation(ctx, previous, events)
+		err = s.commitV2Mutation(ctx, previous, &events)
 	}
 	if err != nil {
 		return err

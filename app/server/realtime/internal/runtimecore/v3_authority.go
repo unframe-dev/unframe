@@ -108,7 +108,7 @@ func (s *V2Session) BeginInputSynchronization(ctx context.Context, reason realti
 		s.snapshot = previous
 		return err
 	}
-	return s.commitV2Mutation(ctx, previous, events)
+	return s.commitV2Mutation(ctx, previous, &events)
 }
 func (s *V2Session) AcknowledgeInputSynchronization(ctx context.Context, identity session.Identity, ack *realtimev2.InputSynchronizationAck) (*realtimev2.PresenterInputSynchronization, error) {
 	if identity.Role != session.RolePresenter {

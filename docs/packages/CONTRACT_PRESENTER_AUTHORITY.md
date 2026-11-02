@@ -93,6 +93,8 @@ ACK 消失では旧記録と REQUIRED を維持する。READY 消失では同じ
 
 pause / Step 復元の共有表示変更は `RuntimeViewReplaced` の完全な ParticipantRuntimeView を一つの Reliable event として適用する。profile ごとの visible closure だけを含め、base reliable sequence はその event sequence に一致させる。履歴・Outcome・private 同期情報は含めない。新 view の適用時に古い Timeline / Surface / Media / Model の再生と Anchor 表示を一括置換し、古い State frame は新 cut より前の状態を上書きしない。
 
+`enabledLogicalInputs` が pause / resume・Step 変更・Guard・Cue 消費で変わる場合も、同じ canonical cut の `RuntimeViewReplaced` で置換する。Viewer の一覧は空にする。入力同期を伴う遷移の ACK / READY は、この更新を含む Reliable sequence の適用を要求する。
+
 resume は最新の有効 Pose があればそれを用い、なければ凍結表示を保持する。`ProjectedAnchorBindingPatch` は `unavailable / sample / frozen` の oneof とし、frozen の Node ID は外側の Node ID と一致させる。新 cut に属する sample で凍結を解除し、以後は通常の500ms freshness を適用する。解除後の unavailable も凍結を除去する。最初の sample が latest-wins 配信で失われても、次の keyframe / unavailable で通常状態に収束する。resume 待ちの keyframe は frozen を明示し、未取得を unavailable に置き換えない。server は解除を canonical checkpoint にも反映する。HMD 視点と操作 UI は停止しない。
 
 Presenter にだけ private な `PresenterStepSelectionCatalog` を送る。`reached_steps` は履歴にある Group / Step ID の組を重複なし・Group / Step 順で列挙し、`reliable_sequence` まで適用してから選択 UI に反映する。入力同期と同じ Runtime lock で取得し、Control item の1 MiB上限を適用する。開始状態や他 participant の結果を含めず、Viewer には送らない。
