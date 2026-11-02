@@ -50,6 +50,12 @@
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "npm devDependencies"
+    },
+    {
+      "description": "Keep older Tailwind fixtures distinct from the current toolchain",
+      "matchManagers": ["npm"],
+      "matchDepNames": ["tailwindcss-older", "tailwindcss-postcss-older"],
+      "enabled": false
     }
   ]
 }
