@@ -671,11 +671,11 @@ importers:
         specifier: 26.6.6
         version: 26.6.6
       typescript:
-        specifier: 7.0.2
-        version: 7.0.2
+        specifier: 6.0.3
+        version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
+        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)
 
   packages/unframe/author-service:
     dependencies:
@@ -697,9 +697,6 @@ importers:
       '@unframe/workspace':
         specifier: workspace:*
         version: link:../workspace
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -707,9 +704,12 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
+        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)
 
   packages/unframe/authoring:
     dependencies:
@@ -931,11 +931,11 @@ importers:
         specifier: 26.6.6
         version: 26.6.6
       typescript:
-        specifier: 7.0.2
-        version: 7.0.2
+        specifier: 6.0.3
+        version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
+        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)
 
   packages/unframe/delivery:
     dependencies:
@@ -962,11 +962,11 @@ importers:
         specifier: 5.1.0
         version: 5.1.0
       typescript:
-        specifier: 7.0.2
-        version: 7.0.2
+        specifier: 6.0.3
+        version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
+        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)
 
   packages/unframe/media-node:
     dependencies:
@@ -1027,11 +1027,11 @@ importers:
         specifier: 5.1.0
         version: 5.1.0
       typescript:
-        specifier: 7.0.2
-        version: 7.0.2
+        specifier: 6.0.3
+        version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
+        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)
 
   packages/unframe/presentation:
     dependencies:
@@ -1049,11 +1049,11 @@ importers:
         specifier: 5.1.0
         version: 5.1.0
       typescript:
-        specifier: 7.0.2
-        version: 7.0.2
+        specifier: 6.0.3
+        version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
+        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)
 
   packages/unframe/preview:
     dependencies:
@@ -1076,9 +1076,12 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
+        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)
 
   packages/unframe/publish:
     dependencies:
@@ -1095,9 +1098,12 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
+        version: 1.4.0(@types/node@26.6.6)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.4.0))(playwright@1.63.0)(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)
 
   packages/unframe/render-browser:
     dependencies:

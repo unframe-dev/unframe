@@ -52,7 +52,7 @@
       "groupName": "npm devDependencies"
     },
     {
-      "description": "Compiler API consumers require the JavaScript TypeScript implementation",
+      "description": "Compiler APIs and workspace declaration bundling require TypeScript 6",
       "matchManagers": ["npm"],
       "matchPackageNames": ["typescript"],
       "matchFileNames": [
@@ -65,7 +65,15 @@
         "packages/unframe/cli/package.json",
         "app/web/lp/package.json",
         "packages/contracts/package.json",
-        "scripts/unframe-packages/package.json"
+        "scripts/unframe-packages/package.json",
+        "packages/unframe/presentation/package.json",
+        "packages/unframe/artifacts/package.json",
+        "packages/unframe/playback/package.json",
+        "packages/unframe/delivery/package.json",
+        "packages/unframe/compiler/package.json",
+        "packages/unframe/author-service/package.json",
+        "packages/unframe/preview/package.json",
+        "packages/unframe/publish/package.json"
       ],
       "allowedVersions": "<7"
     },
