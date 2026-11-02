@@ -1,6 +1,7 @@
 import type { AnchorSessionSnapshot } from "../experience/anchor-session";
 import type { ViewingSnapshot } from "../experience/viewing-session";
 import { safeDiagnosticError, summarizeTrackingDiagnostics } from "./tracking-summary";
+import { sanitizeAssetFailure } from "./asset-failure";
 
 function finite(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -67,6 +68,8 @@ export function buildViewerDiagnostic(options: {
                 rendering: status(runtime.rendering, ["idle", "loading", "ready", "error"]),
                 stateSync: status(runtime.stateSync, ["awaiting-keyframe", "ready"]),
                 error: safeDiagnosticError(runtime.error),
+                renderFailurePhase: status(runtime.renderFailurePhase, ["prepare", "frame"]),
+                assetFailure: sanitizeAssetFailure(runtime.assetFailure),
                 reason: safeDiagnosticError(runtime.reason),
                 reliableSequence: sequence(runtime.reliableSequence),
                 stateSequence: sequence(runtime.stateSequence),

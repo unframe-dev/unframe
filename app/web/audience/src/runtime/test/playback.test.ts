@@ -3,6 +3,7 @@ import { createRuntimePlayback } from "../playback";
 import { createRuntimeStore } from "../runtime-store";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 import { participantRuntimeViewSchema } from "@unframe/contracts/presentation";
+import { AssetLoadError } from "../../diagnostics/asset-failure";
 
 vi.mock("../runtime-store", () => ({ createRuntimeStore: vi.fn() }));
 let snapshot: {
@@ -29,6 +30,35 @@ beforeEach(() => {
     reset: vi.fn(),
     getSnapshot: () => structuredClone(snapshot),
   });
+});
+it("retains classified asset failures and clears them when a fresh snapshot recovers", async () => {
+  const failure = { kind: "png", stage: "response", code: "http-error", httpStatus: 403 } as const;
+  const present = vi
+    .fn()
+    .mockRejectedValueOnce(new AssetLoadError(failure))
+    .mockResolvedValue(undefined);
+  const playback = createRuntimePlayback({ delivery: {} as never, present, clear: vi.fn() });
+  playback.applyControl({} as never);
+  await playback.waitForIdle();
+  expect(playback.getSnapshot()).toMatchObject({
+    error: "presentation-render-failed",
+    renderFailurePhase: "prepare",
+    assetFailure: failure,
+  });
+  const exported = playback.getSnapshot().assetFailure!;
+  exported.httpStatus = 500;
+  expect(playback.getSnapshot().assetFailure?.httpStatus).toBe(403);
+  playback.applyControl({ connectionSnapshot: {} } as never);
+  await playback.waitForIdle();
+  expect(playback.getSnapshot()).toMatchObject({
+    rendering: "ready",
+    error: null,
+    assetFailure: null,
+    renderFailurePhase: null,
+  });
+  playback.reset();
+  expect(playback.getSnapshot().assetFailure).toBeNull();
+  playback.dispose();
 });
 it("coalesces updates during loading and applies the newest view without cancelling every frame", async () => {
   let finish!: () => void;
@@ -86,6 +116,8 @@ it("fails closed when rendering rejects and waits for a new snapshot", async () 
   expect(playback.getSnapshot()).toMatchObject({
     rendering: "error",
     error: "presentation-render-failed",
+    assetFailure: null,
+    renderFailurePhase: "prepare",
   });
   expect(clear).toHaveBeenCalledTimes(1);
   playback.applyState({} as never);
@@ -139,7 +171,11 @@ it("samples only a prepared view and fails closed on a frame renderer error", as
   });
   playback.prepareFrame();
   expect(clear).toHaveBeenCalledTimes(1);
-  expect(playback.getSnapshot()).toMatchObject({ error: "presentation-render-failed" });
+  expect(playback.getSnapshot()).toMatchObject({
+    error: "presentation-render-failed",
+    assetFailure: null,
+    renderFailurePhase: "frame",
+  });
   playback.prepareFrame();
   expect(frame).toHaveBeenCalledTimes(2);
   playback.dispose();

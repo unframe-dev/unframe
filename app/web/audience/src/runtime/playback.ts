@@ -6,6 +6,7 @@ import type {
 } from "@unframe/contracts/presentation";
 import { createRuntimeStore } from "./runtime-store";
 import { createRuntimeClock } from "./runtime-clock";
+import { getAssetFailure, type AssetFailureDetails } from "../diagnostics/asset-failure";
 
 export function createRuntimePlayback(options: {
   delivery: DeliveryManifestWire;
@@ -21,10 +22,14 @@ export function createRuntimePlayback(options: {
   let appliedVersion = -1;
   let pending: Promise<void> | null = null;
   let error: string | null = null;
+  let assetFailure: AssetFailureDetails | null = null;
+  let renderFailurePhase: "prepare" | "frame" | null = null;
   const clock = createRuntimeClock(options.now);
   let appliedView: ParticipantRuntimeView | null = null;
-  function failRendering() {
+  function failRendering(cause: unknown, phase: "prepare" | "frame") {
     error = "presentation-render-failed";
+    assetFailure = getAssetFailure(cause);
+    renderFailurePhase = phase;
     appliedView = null;
     generation++;
     options.clear();
@@ -44,9 +49,9 @@ export function createRuntimePlayback(options: {
           appliedView = view;
         }
       })
-      .catch(() => {
+      .catch((cause: unknown) => {
         if (disposed || generation !== currentGeneration) return;
-        failRendering();
+        failRendering(cause, "prepare");
       })
       .finally(() => {
         pending = null;
@@ -74,14 +79,18 @@ export function createRuntimePlayback(options: {
       if (time === null) return;
       try {
         options.frame(appliedView, time);
-      } catch {
-        failRendering();
+      } catch (cause) {
+        failRendering(cause, "frame");
       }
     },
     applyControl(item: ControlServerItemWire) {
       if (disposed) return;
       store.applyControl(item);
-      if (item?.connectionSnapshot && store.getSnapshot().phase === "ready") error = null;
+      if (item?.connectionSnapshot && store.getSnapshot().phase === "ready") {
+        error = null;
+        assetFailure = null;
+        renderFailurePhase = null;
+      }
       changed();
     },
     applyState(item: StateServerItemWire) {
@@ -104,6 +113,8 @@ export function createRuntimePlayback(options: {
                 ? "ready"
                 : "idle",
         error,
+        assetFailure: assetFailure ? { ...assetFailure } : null,
+        renderFailurePhase,
       };
     },
     async waitForIdle() {
@@ -116,12 +127,16 @@ export function createRuntimePlayback(options: {
     reset() {
       if (disposed) return;
       error = null;
+      assetFailure = null;
+      renderFailurePhase = null;
       store.reset();
       changed();
     },
     dispose() {
       if (disposed) return;
       disposed = true;
+      assetFailure = null;
+      renderFailurePhase = null;
       generation++;
       store.reset();
       appliedView = null;

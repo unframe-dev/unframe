@@ -14,6 +14,7 @@ import type { RuntimeInput } from "../viewing-session";
 import board from "../../fiducials/default-board.json";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import { ViewerExperience as ViewerScreen } from "../ViewerExperience";
+import { createSessionRecorder } from "../../diagnostics/session-recorder";
 import {
   createViewerApplication,
   type ViewerConnectionOptions as ViewerExperienceProps,
@@ -102,6 +103,8 @@ function setup() {
     reason: null,
     rendering: "idle",
     error: null,
+    assetFailure: null,
+    renderFailurePhase: null,
   };
   mock.start.mockImplementation(async () => {
     mock.anchor = {
@@ -408,6 +411,52 @@ test("接続callbackの例外ではinputを切断しcleanupの二重実行や機
   );
   expect(document.body.textContent).not.toContain("private-credential");
   expect(mock.reset).toHaveBeenCalled();
+});
+
+test("表示準備失敗の分類を接続診断へ記録する", async () => {
+  const props = setup();
+  const recorder = createSessionRecorder();
+  let input!: RuntimeInput;
+  render(
+    <ViewerExperience
+      {...props}
+      recorder={recorder}
+      onRuntimeInput={(value) => {
+        input = value;
+      }}
+    />,
+  );
+  await start();
+  mock.applyControl.mockImplementation(() => {
+    mock.runtime = {
+      ...mock.runtime!,
+      phase: "ready",
+      rendering: "error",
+      error: "presentation-render-failed",
+      renderFailurePhase: "prepare",
+      assetFailure: { kind: "png", stage: "response", code: "http-error", httpStatus: 403 },
+    };
+  });
+  act(() => input.applyControl({ connected: { connectionId: "test" } }));
+  expect(recorder.export().events).toContainEqual(
+    expect.objectContaining({
+      event: "assets.ready",
+      stage: "error",
+      code: "presentation-render-failed",
+      renderPhase: "prepare",
+      assetKind: "png",
+      assetStage: "response",
+      assetCode: "http-error",
+      httpStatus: 403,
+    }),
+  );
+  expect(recorder.export().events).toContainEqual(
+    expect.objectContaining({
+      event: "state.sample",
+      stage: "error",
+      code: "presentation-render-failed",
+    }),
+  );
 });
 
 test("素材準備中と終了を区別し、更新操作と退出をメニューへ集約する", async () => {

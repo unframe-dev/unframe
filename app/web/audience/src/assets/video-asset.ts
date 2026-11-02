@@ -1,7 +1,17 @@
 import { LinearFilter, SRGBColorSpace, VideoTexture } from "three";
 import { z } from "zod";
 import { safeUIntSchema } from "@unframe/contracts/presentation";
-import { assertAssetCurrent, requestAssetBytes, verifyAssetChecksum } from "./asset-transfer";
+import {
+  assertAssetCurrent,
+  requestAssetBytes,
+  verifyAssetChecksum,
+  type AssetFailureReporter,
+} from "./asset-transfer";
+import {
+  AssetLoadError,
+  getAssetFailure,
+  type AssetFailureDetails,
+} from "../diagnostics/asset-failure";
 
 export interface VideoAsset {
   assetId: string;
@@ -21,10 +31,6 @@ export interface VideoAssetOptions {
   createVideo?: () => HTMLVideoElement;
   createObjectURL?: (blob: Blob) => string;
   revokeObjectURL?: (url: string) => void;
-}
-class VideoAssetError extends Error {}
-function fail(reason: string): never {
-  throw new VideoAssetError(`Video ${reason}`);
 }
 
 const videoMetadataSchema = z.object({
@@ -48,19 +54,31 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
     texture?.dispose();
     if (objectURL) (options.revokeObjectURL ?? URL.revokeObjectURL)(objectURL);
   };
-  const checkCurrent = () => assertAssetCurrent(asset, options, fail);
+  let stage: AssetFailureDetails["stage"] = "validation";
+  const fail: AssetFailureReporter = (reason, details) => {
+    throw new AssetLoadError(
+      { kind: "video", stage, code: "validation-failed", ...details },
+      `Video ${reason}`,
+    );
+  };
+  const checkCurrent = () => assertAssetCurrent(asset, options, fail, stage);
   try {
     checkCurrent();
-    if (!videoMetadataSchema.safeParse(asset).success) fail("invalid metadata");
+    if (!videoMetadataSchema.safeParse(asset).success)
+      fail("invalid metadata", { stage: "validation", code: "invalid-metadata" });
+    stage = "request";
     const bytes = await requestAssetBytes(asset, options, {
       mimeType: "video/mp4",
       minBytes: 12,
       fail,
     });
     if (String.fromCharCode(...bytes.subarray(4, 8)) !== "ftyp")
-      throw new VideoAssetError("Video MP4 signature required");
+      fail("MP4 signature required", { stage: "validation", code: "invalid-format" });
+    stage = "checksum";
     await verifyAssetChecksum(bytes, asset.checksum, fail);
+    stage = "validation";
     checkCurrent();
+    stage = "decode";
     video = (options.createVideo ?? (() => document.createElement("video")))();
     video.preload = "auto";
     video.playsInline = true;
@@ -81,10 +99,28 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
         else resolve();
       };
       const ready = () => finish();
-      const failed = () => finish(new VideoAssetError("Video decoding failed"));
-      const cancelled = () => finish(new VideoAssetError("Video load aborted"));
+      const failed = () =>
+        finish(
+          new AssetLoadError(
+            { kind: "video", stage: "decode", code: "decode-failed" },
+            "Video decoding failed",
+          ),
+        );
+      const cancelled = () =>
+        finish(
+          new AssetLoadError(
+            { kind: "video", stage: "decode", code: "aborted" },
+            "Video load aborted",
+          ),
+        );
       const timeout = setTimeout(
-        () => finish(new VideoAssetError("Video decoding timeout")),
+        () =>
+          finish(
+            new AssetLoadError(
+              { kind: "video", stage: "decode", code: "decode-timeout" },
+              "Video decoding timeout",
+            ),
+          ),
         15000,
       );
       element.addEventListener("loadeddata", ready, { once: true });
@@ -96,12 +132,12 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
     });
     checkCurrent();
     if (element.videoWidth !== asset.pixelSize[0] || element.videoHeight !== asset.pixelSize[1])
-      throw new VideoAssetError("Video pixel dimensions mismatch");
+      fail("pixel dimensions mismatch", { stage: "decode", code: "dimensions-mismatch" });
     if (
       !Number.isFinite(element.duration) ||
       Math.abs(element.duration * 1000 - asset.durationMilliseconds) > 100
     )
-      throw new VideoAssetError("Video duration mismatch");
+      fail("duration mismatch", { stage: "decode", code: "duration-mismatch" });
     texture = new VideoTexture(element);
     texture.colorSpace = SRGBColorSpace;
     texture.minFilter = LinearFilter;
@@ -139,9 +175,12 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
       },
       synchronize(positionSeconds: number, playing: boolean) {
         if (disposed) return;
-        if (element.error) throw new VideoAssetError("Video playback failed");
+        if (element.error) fail("playback failed", { stage: "decode", code: "decode-failed" });
         if (!Number.isFinite(positionSeconds) || positionSeconds < 0)
-          throw new VideoAssetError("Invalid video playback position");
+          fail("Invalid video playback position", {
+            stage: "validation",
+            code: "invalid-metadata",
+          });
         const duration = asset.durationMilliseconds / 1000;
         const position = asset.loop
           ? positionSeconds % duration
@@ -164,8 +203,16 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
     };
   } catch (error) {
     dispose();
-    if (error instanceof VideoAssetError) throw error;
-    // DOM and network exceptions can include signed URLs.
-    throw new VideoAssetError(options.signal?.aborted ? "Video load aborted" : "Video load failed");
+    if (getAssetFailure(error)) throw error;
+    fail(options.signal?.aborted ? "load aborted" : "load failed", {
+      stage,
+      code: options.signal?.aborted
+        ? "aborted"
+        : stage === "decode"
+          ? "decode-failed"
+          : stage === "checksum"
+            ? "checksum-failed"
+            : "validation-failed",
+    });
   }
 }

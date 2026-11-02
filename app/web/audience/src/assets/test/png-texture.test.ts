@@ -1,6 +1,7 @@
 import { ClampToEdgeWrapping, LinearFilter, SRGBColorSpace } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { loadPngTexture } from "../png-texture";
+import { getAssetFailure } from "../../diagnostics/asset-failure";
 
 const bytes = new Uint8Array(33);
 bytes.set([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -285,4 +286,76 @@ describe("loadPngTexture", () => {
     await expect(loadPngTexture(asset, options)).rejects.toThrow("signature");
     expect(options.decode).not.toHaveBeenCalled();
   });
+});
+
+it.each([
+  {
+    stage: "request",
+    code: "network-error",
+    failure: () => Promise.reject(new TypeError("https://secret.test/?token=secret")),
+  },
+  {
+    stage: "response",
+    code: "http-error",
+    failure: async () => new Response(null, { status: 403 }),
+    httpStatus: 403,
+  },
+  {
+    stage: "response",
+    code: "mime-mismatch",
+    failure: async () => new Response(bytes, { headers: { "content-type": "text/html" } }),
+    httpStatus: 200,
+  },
+])("records safe PNG $stage $code failures", async ({ stage, code, failure, httpStatus }) => {
+  const error = await loadPngTexture(asset, { ...setup(), fetcher: vi.fn(failure) }).catch(
+    (error: unknown) => error,
+  );
+  expect(getAssetFailure(error)).toEqual({
+    kind: "png",
+    stage,
+    code,
+    ...(httpStatus ? { httpStatus } : {}),
+  });
+  expect(JSON.stringify(getAssetFailure(error))).not.toContain("secret");
+});
+it("distinguishes checksum and decoder failures without leaking browser errors", async () => {
+  const invalid = await loadPngTexture(
+    { ...asset, checksum: `sha256:${"0".repeat(64)}` },
+    setup(),
+  ).catch((e: unknown) => e);
+  expect(getAssetFailure(invalid)).toEqual({
+    kind: "png",
+    stage: "checksum",
+    code: "checksum-mismatch",
+  });
+  const decoded = await loadPngTexture(asset, {
+    ...setup(),
+    decode: async () => {
+      throw new Error(asset.url);
+    },
+  }).catch((e: unknown) => e);
+  expect(getAssetFailure(decoded)).toEqual({ kind: "png", stage: "decode", code: "decode-failed" });
+  expect(String(decoded)).not.toContain("secret");
+});
+
+it("records response body failures with their HTTP status", async () => {
+  const error = await loadPngTexture(asset, {
+    ...setup(),
+    fetcher: async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(new Error(asset.url));
+          },
+        }),
+        { headers: { "content-type": "image/png" } },
+      ),
+  }).catch((e: unknown) => e);
+  expect(getAssetFailure(error)).toEqual({
+    kind: "png",
+    stage: "response",
+    code: "network-error",
+    httpStatus: 200,
+  });
+  expect(String(error)).not.toContain("secret");
 });

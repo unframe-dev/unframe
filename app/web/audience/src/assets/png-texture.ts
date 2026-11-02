@@ -1,7 +1,17 @@
 import { ClampToEdgeWrapping, LinearFilter, SRGBColorSpace, Texture } from "three";
 import { z } from "zod";
 import { safeUIntSchema } from "@unframe/contracts/presentation";
-import { assertAssetCurrent, requestAssetBytes, verifyAssetChecksum } from "./asset-transfer";
+import {
+  assertAssetCurrent,
+  requestAssetBytes,
+  verifyAssetChecksum,
+  type AssetFailureReporter,
+} from "./asset-transfer";
+import {
+  AssetLoadError,
+  getAssetFailure,
+  type AssetFailureDetails,
+} from "../diagnostics/asset-failure";
 
 export interface PngTextureAsset {
   assetId: string;
@@ -20,11 +30,6 @@ interface PngTextureOptions {
   now?: () => number;
 }
 
-class PngTextureError extends Error {}
-function fail(reason: string): never {
-  throw new PngTextureError(`PNG ${reason}`);
-}
-
 const pixelSizeSchema = z.tuple([safeUIntSchema.positive(), safeUIntSchema.positive()]);
 
 export async function loadPngTexture(
@@ -32,10 +37,19 @@ export async function loadPngTexture(
   options: PngTextureOptions = {},
 ): Promise<{ texture: Texture; dispose(): void }> {
   let bitmap: ImageBitmap | undefined;
-  const checkCurrent = () => assertAssetCurrent(asset, options, fail);
+  let stage: AssetFailureDetails["stage"] = "validation";
+  const fail: AssetFailureReporter = (reason, details) => {
+    throw new AssetLoadError(
+      { kind: "png", stage, code: "validation-failed", ...details },
+      `PNG ${reason}`,
+    );
+  };
+  const checkCurrent = () => assertAssetCurrent(asset, options, fail, stage);
   try {
     checkCurrent();
-    if (!pixelSizeSchema.safeParse(asset.pixelSize).success) fail("invalid metadata");
+    if (!pixelSizeSchema.safeParse(asset.pixelSize).success)
+      fail("invalid metadata", { stage: "validation", code: "invalid-metadata" });
+    stage = "request";
     const bytes = await requestAssetBytes(asset, options, {
       mimeType: "image/png",
       minBytes: 8,
@@ -43,18 +57,21 @@ export async function loadPngTexture(
     });
     const signature = [137, 80, 78, 71, 13, 10, 26, 10];
     if (!signature.every((byte, index) => bytes[index] === byte))
-      throw new PngTextureError("PNG signature mismatch");
+      fail("signature mismatch", { stage: "validation", code: "invalid-format" });
+    stage = "checksum";
     await verifyAssetChecksum(bytes, asset.checksum, fail);
+    stage = "validation";
     if (
       bytes.length < 33 ||
       new DataView(bytes.buffer).getUint32(8) !== 13 ||
       ![73, 72, 68, 82].every((byte, index) => bytes[12 + index] === byte)
     )
-      throw new PngTextureError("PNG IHDR header missing or invalid");
+      fail("IHDR header missing or invalid", { stage: "validation", code: "invalid-format" });
     const header = new DataView(bytes.buffer);
     if (header.getUint32(16) !== asset.pixelSize[0] || header.getUint32(20) !== asset.pixelSize[1])
-      throw new PngTextureError("PNG pixel dimensions mismatch");
+      fail("pixel dimensions mismatch", { stage, code: "dimensions-mismatch" });
     checkCurrent();
+    stage = "decode";
     bitmap = await (
       options.decode ??
       ((blob: Blob) =>
@@ -66,7 +83,7 @@ export async function loadPngTexture(
     )(new Blob([bytes], { type: "image/png" }));
     checkCurrent();
     if (bitmap.width !== asset.pixelSize[0] || bitmap.height !== asset.pixelSize[1])
-      throw new PngTextureError("PNG pixel dimensions mismatch");
+      fail("pixel dimensions mismatch", { stage, code: "dimensions-mismatch" });
     const texture = new Texture(bitmap);
     texture.colorSpace = SRGBColorSpace;
     texture.generateMipmaps = false;
@@ -90,10 +107,16 @@ export async function loadPngTexture(
     };
   } catch (error) {
     bitmap?.close();
-    // Browser failures may contain the signed delivery URL, which must not reach diagnostics.
-    if (error instanceof PngTextureError) throw error;
-    throw new PngTextureError(
-      options.signal?.aborted ? "PNG texture load aborted" : "PNG texture load failed",
-    );
+    if (getAssetFailure(error)) throw error;
+    fail(options.signal?.aborted ? "texture load aborted" : "texture load failed", {
+      stage,
+      code: options.signal?.aborted
+        ? "aborted"
+        : stage === "decode"
+          ? "decode-failed"
+          : stage === "checksum"
+            ? "checksum-failed"
+            : "validation-failed",
+    });
   }
 }
