@@ -53,18 +53,8 @@ namespace Unframe.Unity.PresentationRuntime
         public bool IsPresenter => IsRunning && runtime != null && runtime.IsPresenter;
         public bool CanControlPresentation => IsRunning && !commandPending && runtime != null && CanControl;
         private string AdvanceLogicalEventName => String.IsNullOrWhiteSpace(logicalEventName) ? "presenter.next" : logicalEventName;
-        public bool HasLogicalAdvance
-        {
-            get
-            {
-                if (runtime == null || !runtime.IsPresenter) return false;
-                foreach (string name in runtime.EnabledLogicalInputs)
-                    if (String.Equals(name, AdvanceLogicalEventName, StringComparison.Ordinal)) return true;
-                return false;
-            }
-        }
         public bool CanAdvance => IsRunning && !commandPending && runtime != null && runtime.CanSendInput
-            && HasLogicalAdvance && (input == null || input.IsCompleted);
+            && (input == null || input.IsCompleted);
         public string LastErrorCode { get; private set; }
         public string LastCommandOutcomeCode => ControlReady ? runtime.LastCommandOutcomeCode : null;
         public string PlaybackStatus => ControlReady ? runtime.PlaybackStatus : "Unknown";

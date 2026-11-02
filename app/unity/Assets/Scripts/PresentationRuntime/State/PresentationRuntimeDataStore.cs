@@ -30,7 +30,6 @@ namespace Unframe.Unity.PresentationRuntime
         public ulong LastStateFrameSequence { get { return runtime.LastStateFrameSequence; } }
         public PresentationOrigin PresentationOrigin { get { return runtime.PresentationOrigin; } }
         public IEnumerable<ProjectedParticipantPresence> Participants { get { return runtime.Participants; } }
-        public IReadOnlyList<string> EnabledLogicalInputs => runtime.EnabledLogicalInputs;
         public RuntimeClockSnapshot RuntimeClock { get { return runtime.RuntimeClock; } }
         public ProgressionRuntimeState Progression { get { return runtime.Progression; } }
         public IEnumerable<RuntimeRunSnapshot> ActiveRuns { get { return runtime.ActiveRuns; } }
