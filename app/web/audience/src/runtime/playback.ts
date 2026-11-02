@@ -61,6 +61,8 @@ export function createRuntimePlayback(options: {
   function changed() {
     version++;
     const snapshot = store.getSnapshot();
+    // Group changes publish no view until exit, initialization and Step entry are complete.
+    if (snapshot.phase === "ready" && !snapshot.view) return;
     if (snapshot.phase !== "ready" || !snapshot.view) {
       generation++;
       appliedVersion = -1;

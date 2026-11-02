@@ -1,7 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { buildModelPlan } from "../model-plan";
+import { buildModelPlan, buildResidentModelAssets } from "../model-plan";
 import { modelFixture as fixture } from "./support/model-fixture";
 describe("model plan", () => {
+  it("budgets resident assets across groups without counting inactive instances", () => {
+    const { delivery, view } = fixture();
+    delivery.projectionProfile!.runtimeCatalog!.nodes!.push({
+      nodeId: "next-model",
+      parent: { stage: {} },
+      owner: { group: { groupId: "next" } },
+      model: { modelAssetId: "b" },
+    });
+    delivery.residency!.models!.models!.push({
+      ...delivery.residency!.models!.models![0]!,
+      assetId: "b",
+    });
+    delivery.assetAccess!.push({ ...delivery.assetAccess![0]!, assetId: "b" });
+    delivery.capabilityProfile!.limits!.model!.maxInstances = "1";
+    expect(buildModelPlan(delivery, view).instances).toHaveLength(1);
+    expect(buildResidentModelAssets(delivery).map((asset) => asset.assetId)).toEqual(["a", "b"]);
+    delivery.capabilityProfile!.limits!.model!.maxEncodedBytes = "150";
+    expect(() => buildResidentModelAssets(delivery)).toThrow(/budget/);
+    delivery.capabilityProfile!.limits!.model!.maxEncodedBytes = "10000";
+    delivery.assetAccess![1]!.checksum = "sha256:" + "b".repeat(64);
+    expect(() => buildResidentModelAssets(delivery)).toThrow(/integrity/);
+  });
   it("selects model assets and effective visibility", () => {
     const { delivery, view } = fixture();
     const plan = buildModelPlan(delivery, view);

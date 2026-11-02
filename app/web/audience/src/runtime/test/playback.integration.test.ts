@@ -224,7 +224,7 @@ it("applies real Snapshot and State to the PNG scene and removes it on a reliabl
   expect(contentRoot.children).toHaveLength(0);
 });
 
-it("replaces Group-owned PNG resources only after the new Group and Step are complete", async () => {
+it("retains the last complete Group until the new Group and Step are ready", async () => {
   const { delivery, snapshot, fence, nodeId, surfaceId, transform } = setup();
   const profile = delivery.projectionProfile!;
   const catalog = profile.runtimeCatalog!;
@@ -297,8 +297,8 @@ it("replaces Group-owned PNG resources only after the new Group and Step are com
     } as Parameters<typeof playback.applyControl>[0]);
   }
   send({ groupExited: { groupId: "intro", groupEntryEpoch: "1" } });
-  expect(contentRoot.children).toHaveLength(0);
-  for (const resource of previousResources) expect(resource.dispose).toHaveBeenCalledTimes(1);
+  expect(contentRoot.children).toHaveLength(1);
+  for (const resource of previousResources) expect(resource.dispose).not.toHaveBeenCalled();
   send({
     groupEntered: {
       groupId: "next",
@@ -310,7 +310,7 @@ it("replaces Group-owned PNG resources only after the new Group and Step are com
     },
   });
   await playback.waitForIdle();
-  expect(contentRoot.children).toHaveLength(0);
+  expect(contentRoot.children).toHaveLength(1);
   send({
     stepEntered: {
       groupId: "next",
@@ -324,7 +324,7 @@ it("replaces Group-owned PNG resources only after the new Group and Step are com
   expect(playback.getSnapshot().rendering).toBe("ready");
   expect(contentRoot.getObjectByName(nodeId)).toBeUndefined();
   expect(contentRoot.getObjectByName(nextNodeId)).toBeDefined();
-  expect(loadTexture.mock.calls.length).toBeGreaterThan(previousResources.length);
+  expect(loadTexture).toHaveBeenCalledTimes(previousResources.length);
   playback.dispose();
   for (const resource of resources) expect(resource.dispose).toHaveBeenCalledTimes(1);
 });

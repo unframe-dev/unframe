@@ -20,7 +20,7 @@ import {
   type ParticipantRuntimeView,
 } from "@unframe/contracts/presentation";
 import { loadModelAsset } from "../assets/model-asset";
-import { buildModelPlan, type ModelPlan } from "./model-plan";
+import { buildModelPlan, buildResidentModelAssets, type ModelPlan } from "./model-plan";
 type Loaded = Awaited<ReturnType<typeof loadModelAsset>>;
 export async function createModelPresentation(options: {
   host: { contentRoot: Group; setPresentationOrigin(value: Matrix4): void };
@@ -39,7 +39,8 @@ export async function createModelPresentation(options: {
   const key = new DirectionalLight(0xffffff, 2);
   key.position.set(2, 3, 4);
   root.add(fill, key);
-  const assetMetadata = new Map(plan.assets.map((asset) => [asset.assetId, asset]));
+  const residentAssets = buildResidentModelAssets(options.delivery);
+  const assetMetadata = new Map(residentAssets.map((asset) => [asset.assetId, asset]));
   const loaded = new Map<string, Loaded>(),
     instances = new Map<
       string,
@@ -229,57 +230,14 @@ export async function createModelPresentation(options: {
       instance.mixer.update(0);
     }
   }
-  function applyView(input: unknown) {
-    if (disposed) return false;
-    const view = participantRuntimeViewSchema.parse(input),
-      next = buildModelPlan(options.delivery, view);
-    if (
-      next.assets.some((asset) => !loaded.has(asset.assetId)) ||
-      next.instances.some((i) => instances.get(i.nodeId)?.assetId !== i.assetId)
-    )
-      return false;
-    applyPlan(next, view);
-    animate(view, view.clock.runtimeTimeMilliseconds);
-    for (const [id, item] of instances)
-      if (!next.instances.some((instance) => instance.nodeId === id)) {
-        disposeInstance(item);
-        instances.delete(id);
+  function ensureInstances(next: ModelPlan) {
+    for (const item of next.instances) {
+      const existing = instances.get(item.nodeId);
+      if (existing?.assetId === item.assetId) continue;
+      if (existing) {
+        disposeInstance(existing);
+        instances.delete(item.nodeId);
       }
-    for (const [id, asset] of loaded)
-      if (!next.assets.some((item) => item.assetId === id)) {
-        asset.dispose();
-        loaded.delete(id);
-      }
-    return true;
-  }
-  try {
-    for (const asset of plan.assets) {
-      abort();
-      const used = usage();
-      const budget = asset.textureBudget
-        ? {
-            ...asset.textureBudget,
-            maxGpuBytes: asset.textureBudget.maxGpuBytes - reserved.gpuBytes - used.gpuBytes,
-            maxBindings: asset.textureBudget.maxBindings - reserved.bindings - used.bindings,
-            maxCpuBytes: asset.textureBudget.maxCpuBytes - reserved.cpuBytes - used.cpuBytes,
-          }
-        : undefined;
-      if (
-        budget &&
-        (budget.maxGpuBytes < 0 ||
-          budget.maxBindings < 0 ||
-          budget.maxCpuBytes < asset.encodedSizeBytes)
-      )
-        throw new Error("Model presentation: aggregate resource budget exceeded");
-      const item = await (options.loadAsset ?? loadModelAsset)(
-        budget ? { ...asset, textureBudget: budget } : asset,
-        options.signal ? { signal: options.signal } : {},
-      );
-      loaded.set(asset.assetId, item);
-      abort();
-      assertBudget();
-    }
-    for (const item of plan.instances) {
       const asset = loaded.get(item.assetId)!;
       const scene = clone(asset.scene) as Group;
       const materials: {
@@ -307,7 +265,7 @@ export async function createModelPresentation(options: {
       const mixer = new AnimationMixer(scene),
         actions = new Map<string, AnimationAction>();
       instances.set(item.nodeId, { assetId: item.assetId, root: scene, mixer, actions, materials });
-      for (const clip of plan.clips.filter((c) => c.nodeId === item.nodeId)) {
+      for (const clip of next.clips.filter((c) => c.nodeId === item.nodeId)) {
         const source = asset.animations[clip.sourceAnimationIndex];
         if (!source || Math.abs(source.duration * 1000 - clip.durationMilliseconds) > 1)
           throw new Error("Model presentation: animation metadata mismatch");
@@ -325,6 +283,58 @@ export async function createModelPresentation(options: {
         );
       }
     }
+  }
+  function canApplyPlan(next: ModelPlan) {
+    return next.assets.every((asset) => loaded.has(asset.assetId));
+  }
+  function canApplyView(input: unknown) {
+    if (disposed) return false;
+    const view = participantRuntimeViewSchema.parse(input);
+    return canApplyPlan(buildModelPlan(options.delivery, view));
+  }
+  function applyView(input: unknown) {
+    if (disposed) return false;
+    const view = participantRuntimeViewSchema.parse(input),
+      next = buildModelPlan(options.delivery, view);
+    if (!canApplyPlan(next)) return false;
+    for (const [id, item] of instances)
+      if (!next.instances.some((instance) => instance.nodeId === id)) {
+        disposeInstance(item);
+        instances.delete(id);
+      }
+    ensureInstances(next);
+    applyPlan(next, view);
+    animate(view, view.clock.runtimeTimeMilliseconds);
+    return true;
+  }
+  try {
+    for (const asset of residentAssets) {
+      abort();
+      const used = usage();
+      const budget = asset.textureBudget
+        ? {
+            ...asset.textureBudget,
+            maxGpuBytes: asset.textureBudget.maxGpuBytes - reserved.gpuBytes - used.gpuBytes,
+            maxBindings: asset.textureBudget.maxBindings - reserved.bindings - used.bindings,
+            maxCpuBytes: asset.textureBudget.maxCpuBytes - reserved.cpuBytes - used.cpuBytes,
+          }
+        : undefined;
+      if (
+        budget &&
+        (budget.maxGpuBytes < 0 ||
+          budget.maxBindings < 0 ||
+          budget.maxCpuBytes < asset.encodedSizeBytes)
+      )
+        throw new Error("Model presentation: aggregate resource budget exceeded");
+      const item = await (options.loadAsset ?? loadModelAsset)(
+        budget ? { ...asset, textureBudget: budget } : asset,
+        options.signal ? { signal: options.signal } : {},
+      );
+      loaded.set(asset.assetId, item);
+      abort();
+      assertBudget();
+    }
+    ensureInstances(plan);
     applyPlan(plan, current);
     animate(current, current.clock.runtimeTimeMilliseconds);
     options.host.contentRoot.add(root);
@@ -338,8 +348,11 @@ export async function createModelPresentation(options: {
         return disposed ? { gpuBytes: 0, bindings: 0, cpuBytes: 0 } : usage();
       },
       dispose,
+      canApplyView,
       applyView,
-      prepareRender(_camera: Camera) {},
+      prepareRender(_camera: Camera) {
+        if (!disposed) root.updateWorldMatrix(true, true);
+      },
       applyAnimationFrame(input: unknown, time: number) {
         if (disposed) return;
         const view = participantRuntimeViewSchema.parse(input);

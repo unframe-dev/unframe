@@ -1,7 +1,8 @@
 import type { Camera, WebGLRenderer } from "three";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
 import type { createLiveTagAnchor } from "../rendering/live-tag-anchor";
-import { createPresentation, hasMediaResources } from "../rendering/presentation";
+import { createPresentation } from "../rendering/presentation";
+import { createPngTexturePool } from "../assets/png-texture-pool";
 import { createRuntimePlayback } from "../runtime/playback";
 
 type PresentationHost = ReturnType<typeof createLiveTagAnchor>;
@@ -17,6 +18,7 @@ export function createPresentationSession(options: {
   let renderer: SceneRenderer | null = null;
   let presentation: Awaited<ReturnType<typeof createPresentation>> | null = null;
   let presentationDelivery: DeliveryManifestWire | null = null;
+  let texturePool: Awaited<ReturnType<typeof createPngTexturePool>> | null = null;
   let runtime: ReturnType<typeof createRuntimePlayback> | null = null;
   let request: AbortController | null = null;
   let work: Promise<void> = Promise.resolve();
@@ -28,6 +30,8 @@ export function createPresentationSession(options: {
     presentation?.dispose();
     presentation = null;
     presentationDelivery = null;
+    texturePool?.dispose();
+    texturePool = null;
   }
   function clearRuntime() {
     runtime?.dispose();
@@ -47,32 +51,79 @@ export function createPresentationSession(options: {
       // The SDK preserves the current GL program; release it before disposal can delete that program.
       if (presentation) renderer?.resetState();
       if (presentationDelivery === delivery && presentation?.applyView(view)) return;
-      // Release old decoders and model instances before replacing media to stay within their limits.
-      if (
-        presentation &&
-        (hasMediaResources(delivery) ||
-          (presentationDelivery && hasMediaResources(presentationDelivery)))
-      ) {
-        presentation.dispose();
-        presentation = null;
-        presentationDelivery = null;
+      const previousPool = texturePool;
+      const previousResources = presentation?.resourceUsage ?? {
+        gpuBytes: 0,
+        bindings: 0,
+        videoDecoders: 0,
+      };
+      const previousPoolResources = {
+        gpuBytes: previousPool?.retainedCpuBytes ?? 0,
+        bindings: new Set(previousPool?.assets.map((asset) => asset.checksum) ?? []).size,
+      };
+      if (presentationDelivery !== delivery) {
+        const selected = new Map(
+          (delivery.residency?.textures?.textures ?? []).map((asset) => [asset.checksum, asset]),
+        );
+        const gpuBytes = [...selected.values()].reduce(
+          (sum, asset) => sum + Number(asset.decodedGpuBytes),
+          0,
+        );
+        const limits = delivery.capabilityProfile?.limits?.texture;
+        if (
+          selected.size > 0 &&
+          (previousResources.gpuBytes + previousPoolResources.gpuBytes + gpuBytes >
+            Number(limits?.maxGpuBytes ?? 0) ||
+            previousResources.bindings + previousPoolResources.bindings + selected.size >
+              Number(limits?.maxTextureBindings ?? 0))
+        )
+          throw new Error("PNG replacement resource budget exceeded");
       }
-      const next = await createPresentation({
-        host: currentHost,
-        delivery,
-        view,
-        signal: pending.signal,
-        residentCpuBytes: presentation?.retainedCpuBytes ?? 0,
-        fetcher: options.fetcher ?? globalThis.fetch,
-      });
-      if (!active || pending.signal.aborted || host !== currentHost) {
-        next.dispose();
-        return;
+      const pool =
+        presentationDelivery === delivery && previousPool
+          ? previousPool
+          : await createPngTexturePool({
+              delivery,
+              signal: pending.signal,
+              fetcher: options.fetcher ?? globalThis.fetch,
+              residentCpuBytes:
+                (presentation?.retainedCpuBytes ?? 0) + (previousPool?.retainedCpuBytes ?? 0),
+            });
+      let next: Awaited<ReturnType<typeof createPresentation>> | null = null;
+      try {
+        if (!active || pending.signal.aborted || host !== currentHost) return;
+        next = await createPresentation({
+          host: currentHost,
+          delivery,
+          view,
+          signal: pending.signal,
+          residentCpuBytes:
+            (presentation?.retainedCpuBytes ?? 0) +
+            (pool === previousPool ? 0 : (previousPool?.retainedCpuBytes ?? 0)),
+          residentResources: {
+            gpuBytes:
+              previousResources.gpuBytes +
+              (pool === previousPool ? 0 : previousPoolResources.gpuBytes),
+            bindings:
+              previousResources.bindings +
+              (pool === previousPool ? 0 : previousPoolResources.bindings),
+            videoDecoders: previousResources.videoDecoders,
+          },
+          pngTexturePool: pool,
+          fetcher: options.fetcher ?? globalThis.fetch,
+        });
+        if (!active || pending.signal.aborted || host !== currentHost) return;
+        if (presentation) renderer?.resetState();
+        presentation?.dispose();
+        presentation = next;
+        next = null;
+        if (previousPool !== pool) previousPool?.dispose();
+        texturePool = pool;
+        presentationDelivery = delivery;
+      } finally {
+        next?.dispose();
+        if (texturePool !== pool) pool.dispose();
       }
-      if (presentation) renderer?.resetState();
-      presentation?.dispose();
-      presentation = next;
-      presentationDelivery = delivery;
     })();
     await work;
   }

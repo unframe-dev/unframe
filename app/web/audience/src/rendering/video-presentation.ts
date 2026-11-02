@@ -181,6 +181,15 @@ export async function createVideoPresentation(options: {
       }
     frame(nextView, nextView.clock.runtimeTimeMilliseconds);
   }
+  function canApplyPlan(next: VideoPlan): boolean {
+    return !next.assets.some((a) => {
+      const previous = metadata.get(a.assetId);
+      if (!previous) return true;
+      const { url: _previousUrl, expiresAtUnixMs: _previousExpiry, ...previousContent } = previous;
+      const { url: _nextUrl, expiresAtUnixMs: _nextExpiry, ...nextContent } = a;
+      return JSON.stringify(previousContent) !== JSON.stringify(nextContent);
+    });
+  }
   try {
     for (const asset of plan.assets) {
       if (options.signal?.aborted) throw new Error("Video presentation cancelled");
@@ -213,24 +222,17 @@ export async function createVideoPresentation(options: {
     getLoadedAssets(): ReadonlyMap<string, LoadedVideo> {
       return loaded;
     },
+    canApplyView(input: unknown) {
+      return (
+        !disposed &&
+        canApplyPlan(buildVideoPlan(options.delivery, participantRuntimeViewSchema.parse(input)))
+      );
+    },
     applyView(input: unknown) {
       if (disposed) return false;
       const nextView = participantRuntimeViewSchema.parse(input),
         next = buildVideoPlan(options.delivery, nextView);
-      if (
-        next.assets.some((a) => {
-          const previous = metadata.get(a.assetId);
-          if (!previous) return true;
-          const {
-            url: _previousUrl,
-            expiresAtUnixMs: _previousExpiry,
-            ...previousContent
-          } = previous;
-          const { url: _nextUrl, expiresAtUnixMs: _nextExpiry, ...nextContent } = a;
-          return JSON.stringify(previousContent) !== JSON.stringify(nextContent);
-        })
-      )
-        return false;
+      if (!canApplyPlan(next)) return false;
       commit(next, nextView);
       return true;
     },

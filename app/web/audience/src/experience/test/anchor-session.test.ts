@@ -164,6 +164,7 @@ describe("anchor session ownership", () => {
       prepareRender: vi.fn(),
       applyAnimationFrame: vi.fn(() => true),
       retainedCpuBytes: 100,
+      canApplyView: vi.fn(() => true),
       applyView: vi.fn(() => false),
     });
     const session = setup();
@@ -187,6 +188,7 @@ describe("anchor session ownership", () => {
         prepareRender,
         applyAnimationFrame: vi.fn(() => true),
         retainedCpuBytes: 4096,
+        canApplyView: vi.fn(() => true),
         applyView: vi.fn(() => false),
       })
       .mockRejectedValueOnce(new Error("CPU budget exceeded"));
@@ -220,6 +222,7 @@ describe("anchor session ownership", () => {
       prepareRender: vi.fn(),
       applyAnimationFrame: vi.fn(() => true),
       retainedCpuBytes: 4096,
+      canApplyView: vi.fn(() => true),
       applyView: vi.fn(() => false),
     };
     const next = {
@@ -228,6 +231,7 @@ describe("anchor session ownership", () => {
       prepareRender: vi.fn(),
       applyAnimationFrame: vi.fn(() => true),
       retainedCpuBytes: 4096,
+      canApplyView: vi.fn(() => true),
       applyView: vi.fn(() => false),
     };
     vi.mocked(createPngPresentation)
@@ -241,8 +245,7 @@ describe("anchor session ownership", () => {
     const session = setup();
     await session.start();
     const first = session.presentPresentation({} as never, {});
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(createPngPresentation).toHaveBeenCalledTimes(1));
     const second = session.presentPresentation({} as never, {});
     await Promise.resolve();
     expect(createPngPresentation).toHaveBeenCalledTimes(1);
@@ -261,6 +264,7 @@ describe("anchor session ownership", () => {
       prepareRender: vi.fn(),
       applyAnimationFrame: vi.fn(() => true),
       retainedCpuBytes: 100,
+      canApplyView: vi.fn(() => true),
       applyView,
     });
     const session = setup();
@@ -315,6 +319,7 @@ it("unsets the SDK renderer program before replacing and disposing presentation 
     dispose,
     prepareRender: vi.fn(),
     retainedCpuBytes: 0,
+    canApplyView: vi.fn(() => true),
     applyView,
     applyAnimationFrame: vi.fn(() => true),
   });

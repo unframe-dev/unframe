@@ -1,7 +1,7 @@
 import { loadPngTexture } from "../assets/png-texture";
 import { buildPngPlan } from "./png-plan";
 import { admitPngMemory } from "./png-memory";
-import { createSurfacePresentation } from "./surface-presentation";
+import { createSurfacePresentation, type SurfaceTextureAsset } from "./surface-presentation";
 import type { Group, Matrix4 } from "three";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
 
@@ -12,6 +12,10 @@ export function createPngPresentation(options: {
   signal?: AbortSignal;
   residentCpuBytes?: number;
   loadTexture?: typeof loadPngTexture;
+  preloadedTextures?: readonly {
+    asset: SurfaceTextureAsset;
+    loaded: Awaited<ReturnType<typeof loadPngTexture>>;
+  }[];
 }) {
   return createSurfacePresentation({
     ...options,
