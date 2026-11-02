@@ -1,9 +1,10 @@
 import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
+import { copyProjectFixture } from "./copy-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, assert, describe, expect, it, vi } from "vite-plus/test";
+import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "@unframe/author-service";
@@ -21,7 +22,17 @@ vi.mock("@unframe/worker-host", async (original) => ({
   runIsolatedWorker: vi.fn(),
 }));
 const directories: string[] = [];
+const preparedDirectories: string[] = [];
 const services: AuthorService[] = [];
+let preparedProject: string;
+beforeAll(async () => {
+  preparedProject = await prepareFixture();
+}, 30_000);
+afterAll(async () => {
+  await Promise.all(
+    preparedDirectories.map((directory) => rm(directory, { recursive: true, force: true })),
+  );
+});
 afterEach(async () => {
   await Promise.all(services.splice(0).map((service) => service.close()));
   await Promise.all(
@@ -36,10 +47,10 @@ const successful = (diagnostics: unknown[] = []) => ({
   observedDependencies: [],
   diagnostics,
 });
-const fixture = async () => {
+const prepareFixture = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-style-diagnostics-"));
   const adapter = await mkdtemp(join(temporaryDirectory(), "unframe-style-adapter-"));
-  directories.push(directory, adapter);
+  preparedDirectories.push(directory, adapter);
   await writeAuthoringBoundaryProjectFixture(directory);
   const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
   expect(refreshed.exitCode, refreshed.stderr).toBe(0);
@@ -74,6 +85,13 @@ const fixture = async () => {
   vi.mocked(runIsolatedWorker).mockResolvedValue(successful());
   const styled = await runPresentationCli({ args: ["lock", "refresh", directory] });
   expect(styled.exitCode, styled.stderr).toBe(0);
+  return directory;
+};
+const fixture = async () => {
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-style-diagnostics-"));
+  directories.push(directory);
+  await copyProjectFixture(preparedProject, directory);
+  vi.mocked(runIsolatedWorker).mockResolvedValue(successful());
   return directory;
 };
 
