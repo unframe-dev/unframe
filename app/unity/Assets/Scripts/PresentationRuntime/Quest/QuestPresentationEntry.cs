@@ -52,9 +52,9 @@ namespace Unframe.Unity.PresentationRuntime
         public bool CalibrationReady => runtime != null && runtime.CalibrationReady;
         public bool IsPresenter => IsRunning && runtime != null && runtime.IsPresenter;
         public bool CanControlPresentation => IsRunning && !commandPending && runtime != null && CanControl;
-        public bool HasLogicalAdvance => !String.IsNullOrWhiteSpace(logicalEventName);
+        private string AdvanceLogicalEventName => String.IsNullOrWhiteSpace(logicalEventName) ? "presenter.next" : logicalEventName;
         public bool CanAdvance => IsRunning && !commandPending && runtime != null && runtime.CanSendInput
-            && HasLogicalAdvance && (input == null || input.IsCompleted);
+            && (input == null || input.IsCompleted);
         public string LastErrorCode { get; private set; }
         public string LastCommandOutcomeCode => ControlReady ? runtime.LastCommandOutcomeCode : null;
         public string PlaybackStatus => ControlReady ? runtime.PlaybackStatus : "Unknown";
@@ -81,6 +81,8 @@ namespace Unframe.Unity.PresentationRuntime
         private PresentationConnectionStage? diagnosticStage;
         private readonly QuestPresentationButtonEdges buttons = new QuestPresentationButtonEdges();
         private readonly QuestPresentationButtonEdges uiButtons = new QuestPresentationButtonEdges();
+        private readonly QuestPresentationGestureTriggers gestureTriggers = new QuestPresentationGestureTriggers();
+        private bool leftTriggerHeld, rightTriggerHeld;
         private double lastTrackingAt;
 
         private readonly PresenterRecognition recognition = new PresenterRecognition();
@@ -240,7 +242,7 @@ namespace Unframe.Unity.PresentationRuntime
             commandPending = true;
             try
             {
-                input = SendInputAsync(QuestPresentationInput.CreateLogical(logicalEventName, runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
+                input = SendInputAsync(QuestPresentationInput.CreateLogical(AdvanceLogicalEventName, runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
                 await input;
             }
             finally { commandPending = false; }
@@ -255,29 +257,35 @@ namespace Unframe.Unity.PresentationRuntime
                 diagnosticStage = currentStage;
                 diagnostics?.Record("connection.stage", stage: currentStage.ToString());
             }
-            bool nextLeft = IsPressed(XRNode.LeftHand, CommonUsages.triggerButton);
-            bool nextRight = IsPressed(XRNode.RightHand, CommonUsages.triggerButton);
+            bool nextLeft = ReadTrigger(XRNode.LeftHand, ref leftTriggerHeld);
+            bool nextRight = ReadTrigger(XRNode.RightHand, ref rightTriggerHeld);
             bool nextPrimary = IsPressed(XRNode.RightHand, CommonUsages.primaryButton);
             buttons.Sample(nextLeft, nextRight, nextPrimary, runtime.CanSendInput && PresentationInputEnabled,
                 out bool leftRayPressed, out bool rightRayPressed, out bool logicalPressed);
             uiButtons.Sample(nextLeft, nextRight, false, true, out bool uiLeft, out bool uiRight, out _);
-            if (uiLeft && TryControllerRay(XRNode.LeftHand, out Ray leftUiRay) && TryUseUiRay(leftUiRay)) leftRayPressed = false;
-            if (uiRight && TryControllerRay(XRNode.RightHand, out Ray rightUiRay) && TryUseUiRay(rightUiRay)) rightRayPressed = false;
+            bool leftConsumed = uiLeft && TryControllerRay(XRNode.LeftHand, out Ray leftUiRay) && TryUseUiRay(leftUiRay);
+            bool rightConsumed = uiRight && TryControllerRay(XRNode.RightHand, out Ray rightUiRay) && TryUseUiRay(rightUiRay);
+            if (leftConsumed) leftRayPressed = false;
+            if (rightConsumed) rightRayPressed = false;
+            gestureTriggers.Sample(nextLeft, nextRight, runtime.CanSendInput && PresentationInputEnabled,
+                leftConsumed, rightConsumed, out bool leftGestureHeld, out bool rightGestureHeld);
+            if (!runtime.CanSendInput || !PresentationInputEnabled)
+                recognition.SampleHands(Time.realtimeSinceStartupAsDouble, null, null, null, leftGestureHeld, rightGestureHeld);
             if (lifetime == null || lifetime.IsCancellationRequested) return;
             TrySendRecalibration();
             if (!runtime.SessionReady || !runtime.CalibrationReady || interactionLifetime == null || interactionLifetime.IsCancellationRequested) return;
 
-            if (!commandPending && logicalPressed && !String.IsNullOrWhiteSpace(logicalEventName)
-                && (input == null || input.IsCompleted))
-                input = SendInputAsync(QuestPresentationInput.CreateLogical(logicalEventName, runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
-            else if (!commandPending && (leftRayPressed || rightRayPressed) && (input == null || input.IsCompleted))
+            if (logicalPressed && CanAdvance)
+                _ = AdvanceAsync();
+            else if (runtime.InputSynchronization?.Catalog?.Gestures.Count == 0
+                && !commandPending && (leftRayPressed || rightRayPressed) && (input == null || input.IsCompleted))
             {
                 XRNode hand = rightRayPressed ? XRNode.RightHand : XRNode.LeftHand;
                 if (TryControllerRay(hand, out Ray ray) && runtime.TryPickInteraction(ray, out string surfaceId, out string interactionId))
                     input = SendInputAsync(QuestPresentationInput.CreateSurfaceInteraction(surfaceId, interactionId, runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
             }
 
-            if (PresentationInputEnabled) SampleRecognition();
+            if (PresentationInputEnabled) SampleRecognition(leftGestureHeld, rightGestureHeld);
             else ResetRecognition();
 
             if (runtime.CanSendTracking && Time.realtimeSinceStartupAsDouble - lastTrackingAt >= 0.1
@@ -300,7 +308,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void ResetRecognition() { recognition.Reset(null, null); recognitionRevision = 0; }
 
-        private void SampleRecognition()
+        private void SampleRecognition(bool leftTriggerHeld, bool rightTriggerHeld)
         {
             var synchronization = runtime.InputSynchronization;
             if (!runtime.CanSendInput)
@@ -320,7 +328,8 @@ namespace Unframe.Unity.PresentationRuntime
                 ? QuestPresentationTracking.ToCanonicalPose(fromLocal.position + fromLocal.rotation * sample.Position, Quaternion.identity).Position : null;
             Vector3 direction = fromLocal.rotation * head.Rotation * Vector3.forward;
             var result = recognition.SampleHands(Time.realtimeSinceStartupAsDouble, position(left), position(right), head.Available
-                ? new Unframe.Presentation.Vector3 { X = direction.x, Y = direction.y, Z = -direction.z } : null);
+                ? new Unframe.Presentation.Vector3 { X = direction.x, Y = direction.y, Z = -direction.z } : null,
+                leftTriggerHeld, rightTriggerHeld);
             if (result != null) _ = SendInputAsync(QuestPresentationInput.CreateRecognition(result, runtime.PresentationOriginVersion, synchronization.CommandEpoch), interactionLifetime.Token);
             Unframe.Presentation.Vector3 waist = null;
             if (bodySource != null && bodySource.TryGetQuestLocalPose(out Vector3 bodyPosition, out Quaternion _))
@@ -357,6 +366,14 @@ namespace Unframe.Unity.PresentationRuntime
             InputDevice device = InputDevices.GetDeviceAtXRNode(node);
             return device.isValid && device.TryGetFeatureValue(CommonUsages.isTracked, out bool tracked) && tracked
                 && device.TryGetFeatureValue(feature, out bool pressed) && pressed;
+        }
+
+        private static bool ReadTrigger(XRNode node, ref bool held)
+        {
+            InputDevice device = InputDevices.GetDeviceAtXRNode(node);
+            // Missing tracking or device data is not evidence that the user released the trigger.
+            if (device.isValid && device.TryGetFeatureValue(CommonUsages.triggerButton, out bool pressed)) held = pressed;
+            return held;
         }
 
         private bool TryControllerRay(XRNode node, out Ray ray)

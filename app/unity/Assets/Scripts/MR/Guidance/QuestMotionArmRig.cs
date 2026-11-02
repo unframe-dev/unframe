@@ -9,6 +9,7 @@ namespace Unframe.Unity.PresentationRuntime
     {
         private readonly GameObject instance;
         private readonly Animator animator;
+        private readonly Vector3 authoredScale;
         private GestureKind playing;
 
         public QuestMotionArmRig(GameObject prefab, Transform parent, bool left)
@@ -22,6 +23,16 @@ namespace Unframe.Unity.PresentationRuntime
                 Destroy(instance);
                 throw new InvalidOperationException("editable-motion-controller-missing");
             }
+            authoredScale = instance.transform.localScale;
+            instance.transform.localScale = authoredScale * QuestMotionGuideGeometry.DisplayScale;
+            Transform model = instance.transform.Find("ArmModel");
+            if (model == null)
+            {
+                Destroy(instance);
+                throw new InvalidOperationException("editable-motion-model-missing");
+            }
+            // Correct the model facing without reversing the clip's gesture translation.
+            model.localRotation = Quaternion.Euler(0, 180, 0) * model.localRotation;
             animator.applyRootMotion = false;
             animator.updateMode = AnimatorUpdateMode.UnscaledTime;
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
@@ -35,8 +46,9 @@ namespace Unframe.Unity.PresentationRuntime
             if (!visible) playing = 0;
         }
 
-        public void Play(Vector3 center, Quaternion frame, GestureKind gesture)
+        public void Play(Vector3 center, Quaternion frame, GestureKind gesture, float viewportScale)
         {
+            instance.transform.localScale = authoredScale * (QuestMotionGuideGeometry.DisplayScale * viewportScale);
             instance.transform.SetPositionAndRotation(center, frame);
             if (playing == gesture) return;
             int state = Animator.StringToHash("Base Layer." + gesture);

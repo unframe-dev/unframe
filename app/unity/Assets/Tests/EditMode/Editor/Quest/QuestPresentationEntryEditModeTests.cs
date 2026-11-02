@@ -28,7 +28,7 @@ public sealed class QuestPresentationEntryEditModeTests
         Assert.That(command.Kind, Is.EqualTo(kind));
         Assert.That(command.PresentationOriginVersion, Is.EqualTo(17));
         Assert.That(command.ClientEventId, Is.Not.Empty.And.Not.EqualTo(second.ClientEventId));
-        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateControl(kind, 0, 3));
+        Assert.That(QuestPresentationInput.CreateControl(kind, 0, 3).RuntimeControl.PresentationOriginVersion, Is.Zero);
         Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateControl(RuntimeControlKind.Unspecified, 17, 3));
     }
 
@@ -110,10 +110,12 @@ public sealed class QuestPresentationEntryEditModeTests
     }
 
     [Test]
-    public void LogicalInputRequiresExplicitNameAndCurrentOrigin()
+    public void LogicalInputRequiresExplicitNameAndPreservesInitialOrigin()
     {
         Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("", 1, new Unframe.Realtime.InputContext(), 1));
-        Assert.Throws<System.ArgumentException>(() => QuestPresentationInput.CreateLogical("advance", 0, new Unframe.Realtime.InputContext(), 1));
+        Assert.That(QuestPresentationInput.CreateLogical("advance", 0, new Unframe.Realtime.InputContext(), 1)
+            .LogicalInput.PresentationOriginVersion, Is.Zero);
+        Assert.Throws<System.ArgumentNullException>(() => QuestPresentationInput.CreateLogical("advance", 0, null, 1));
 
         var command = QuestPresentationInput.CreateLogical("advance", 7, new Unframe.Realtime.InputContext { InputEpoch = 2 }, 3);
         Assert.That(command.ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.LogicalInput));

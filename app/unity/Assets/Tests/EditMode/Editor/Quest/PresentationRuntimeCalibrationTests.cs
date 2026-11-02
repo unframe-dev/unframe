@@ -147,8 +147,11 @@ public sealed class PresentationRuntimeCalibrationTests
         }
     }
 
-    [Test]
-    public async Task EntryAdvancesOnlyAfterCalibrationSessionReadinessAndInputSynchronization()
+    [TestCase(null, "presenter.next", false)]
+    [TestCase("advance", "advance", false)]
+    [TestCase(null, "presenter.next", true)]
+    [TestCase("advance", "advance", true)]
+    public async Task EntryAdvancesAfterLiveResumeWithoutFreshAvailability(string configuredName, string expectedName, bool staleOtherInput)
     {
         var host = new GameObject("Initial origin advance");
         var lifetime = new CancellationTokenSource();
@@ -162,7 +165,7 @@ public sealed class PresentationRuntimeCalibrationTests
             typeof(QuestPresentationEntry).GetField("runtime", flags).SetValue(entry, runtime);
             typeof(QuestPresentationEntry).GetField("lifetime", flags).SetValue(entry, lifetime);
             typeof(QuestPresentationEntry).GetField("interactionLifetime", flags).SetValue(entry, interaction);
-            typeof(QuestPresentationEntry).GetField("logicalEventName", flags).SetValue(entry, "advance");
+            typeof(QuestPresentationEntry).GetField("logicalEventName", flags).SetValue(entry, configuredName);
             Assert.That(entry.CanAdvance, Is.False);
             await entry.AdvanceAsync();
             Assert.That(writer.Items, Is.Empty);
@@ -176,17 +179,52 @@ public sealed class PresentationRuntimeCalibrationTests
             Assert.That(entry.CanAdvance, Is.False);
             var store = runtime.DataStore;
             Assert.That(store.TryGetLastConnectionSnapshot(out var snapshot), Is.True);
-            snapshot.Snapshot.RuntimeView.Clock.Running = new Running();
+            snapshot.Snapshot.RuntimeView.EnabledLogicalInputs.Clear();
+            if (staleOtherInput) snapshot.Snapshot.RuntimeView.EnabledLogicalInputs.Add("unrelated");
             Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out string error), Is.True, error);
-            Assert.That(connection.InputSynchronization.TryCreateAck(0), Is.Not.Null);
+            var running = new ControlServerItem
+            {
+                ReliableEvent = new ProjectedReliableEvent
+                {
+                    Fence = snapshot.Fence.Clone(),
+                    Sequence = 1,
+                    RuntimeStatusChanged = new RuntimeStatusChanged { Running = new Running() }
+                }
+            };
+            Assert.That(store.TryReceiveControl(running, out error), Is.True, error);
+            Assert.That(entry.CanAdvance, Is.False, "Input synchronization is still required.");
+            Assert.That(connection.InputSynchronization.TryCreateAck(1), Is.Not.Null);
             var ready = RequiredSynchronization(); ready.Phase = InputSynchronizationPhase.Ready;
             Assert.That(connection.InputSynchronization.Receive(ready), Is.True);
             Assert.That(entry.CanAdvance, Is.True);
             await entry.AdvanceAsync();
             Assert.That(writer.Items.Count, Is.EqualTo(1));
-            Assert.That(writer.Items[0].LogicalInput.LogicalEventName, Is.EqualTo("advance"));
+            Assert.That(writer.Items[0].LogicalInput.LogicalEventName, Is.EqualTo(expectedName));
             Assert.That(writer.Items[0].LogicalInput.PresentationOriginVersion, Is.EqualTo(7));
             Assert.That(writer.Items[0].LogicalInput.CommandEpoch, Is.EqualTo(1));
+            store.Delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Viewer;
+            Assert.That(entry.CanAdvance, Is.False);
+            store.Delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Presenter;
+            var paused = new ControlServerItem
+            {
+                ReliableEvent = new ProjectedReliableEvent
+                {
+                    Fence = snapshot.Fence.Clone(),
+                    Sequence = 2,
+                    RuntimeStatusChanged = new RuntimeStatusChanged { Paused = new Paused { Reason = PauseReason.ExplicitPause } }
+                }
+            };
+            Assert.That(store.TryReceiveControl(paused, out error), Is.True, error);
+            Assert.That(entry.CanAdvance, Is.False);
+            running.ReliableEvent.Sequence = 3;
+            Assert.That(store.TryReceiveControl(running, out error), Is.True, error);
+            Assert.That(entry.CanAdvance, Is.True);
+            await entry.AdvanceAsync();
+            Assert.That(writer.Items.Count, Is.EqualTo(2));
+            connection.InputSynchronization.Suspend();
+            Assert.That(entry.CanAdvance, Is.False);
+            await entry.AdvanceAsync();
+            Assert.That(writer.Items.Count, Is.EqualTo(2));
         }
         finally
         {
