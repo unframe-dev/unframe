@@ -11,9 +11,9 @@
 
 [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力世代・Pause・Step 開始状態復元は採用後の実装設計である。[v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md) と生成物は更新したが、以下の責務追加の実行側 consumer は未移行である。
 
-具体的な成果物・配信・Runtime のデータ契約は [Presentation v2](./DATA_MODEL.md) を正本とする。本書は実装配置と責務を説明する。
+具体的な成果物・配信・Runtime のデータ契約は [Presentation データ契約](./DATA_MODEL.md) を正本とする。本書は実装配置と責務を説明する。
 
-Theme と Structured composition の M3A 範囲、解決順、拒否条件は [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。M3A は static `baked-web` の v2 縦断接続であり、Runtime / Delivery 接続や v1 互換出力は含めない。
+Theme と Structured composition の M3A 範囲、解決順、拒否条件は [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。M3A は static `baked-web` の authoring と compile-time 解決を対象とする。
 
 ## 1. この文書の位置付け
 
@@ -371,7 +371,7 @@ Runtime は Gesture / Zone を再認識せず、認証済み Presenter の独立
 
 Gesture の閾値・時間窓・終了判定と Zone 境界の揺れ対策は client 内部の調整値に閉じる。Definition は Gesture 種類と Zone 中心を宣言し、client が Cue や共有状態を指定しない。server cooldown と同時認識 batch は持たない。詳細な座標基準・失効条件・復旧規則は ADR-0027 と [Presentation Architecture §12](./ARCHITECTURE.md#12-v1-presentation-progression-の意味論) に従う。
 
-Unity の配信・実行は v2 consumer に統一する。旧 `PresentationImport/` と v1 JSON サンプルは廃止し、互換 importer は設けない。
+Unity の配信・実行は現行の Delivery / Runtime consumer を使用する。旧 `PresentationImport/` と旧 JSON サンプルは廃止し、互換 importer は設けない。
 
 ### 6.5 `app/server/integration`
 

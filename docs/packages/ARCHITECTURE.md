@@ -7,7 +7,7 @@
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
   - Progression semantic wire contract: Accepted（v3 Protobuf。consumer の実装・検証範囲は [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md) と [Unity README](../../app/unity/README.md) を参照）
-  - コンパイル後の Definition・配信・Runtime: v3、RenderBundle / AssetSet: v2。現行 Authoring / build host は [CLI Architecture](../../packages/unframe/cli/ARCHITECTURE.md) を参照
+  - Definition・RenderBundle・AssetSet・BuildManifest の schemaVersion: 1。配信・Runtime contract: v3。現行 Authoring / build host は [CLI Architecture](../../packages/unframe/cli/ARCHITECTURE.md) を参照
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
   - [Local Editor: Unity Preview の設計と実装計画](./LOCAL_EDITOR_DESIGN.md)
@@ -406,7 +406,7 @@ Spatial Node は `audience` を直接持ち、Semantic Surface、Interaction、M
 
 Projection は `ProjectableResourceRef` の参照 closure を満たさなければならない。visible resource が必要とする Spatial ancestor、Semantic Surface、renderer binding、Asset descriptor を欠く profile は Delivery 前に拒否する。capability 差は renderer / resolution / local overlay の選択だけを変え、Shared Progression、認可、semantic resource identity を変更しない。
 
-Presentation v2 の Timeline は `audience` を持たず、Delivery の runtime catalog に一括して含まれる。このため v2 では role 限定 Node を Timeline target にできないものとし、Compiler は `audience: { kind: "all" }` 以外の target を拒否する。Timeline audience、profile ごとの Definition / Run 投影、role 限定 Timeline の non-blocking 規則は、Zod と Delivery / Realtime Protobuf を同時に更新する後続 contract とする。
+Presentation の Timeline は `audience` を持たず、Delivery の runtime catalog に一括して含まれる。このため現行契約では role 限定 Node を Timeline target にできないものとし、Compiler は `audience: { kind: "all" }` 以外の target を拒否する。Timeline audience、profile ごとの Definition / Run 投影、role 限定 Timeline の non-blocking 規則は、Zod と Delivery / Realtime Protobuf を同時に更新する後続 contract とする。
 
 Presenter notes の内容は PublishedPresentation 内の Presenter 限定 projection resource、control の利用可否は Shared Progression から導出する Runtime View、panel の開閉や hover は Client-local State とする。Projection 自体を Action target や Variable scope にしない。
 
@@ -822,7 +822,7 @@ v1 は一つの SurfaceNode と一つの Semantic Surface を 1:1 に対応さ�
 
 ModelNode は Model Asset に内蔵された animation clip を再生できる。通常は一つの ModelNode で同時に一つの clip だけを再生し、clip crossfade 中だけ遷移元と遷移先の二つを許可する。別 ModelNode の clip は同時に再生できる。部位 mask、animation layer、additive clip 合成は対象外とし、将来用 field や拡張口を作らない。詳細な採用範囲は [ADR-0016](../decisions/0016-model-animation-scope.md) に従う。
 
-clip は Model 内部の姿勢だけを変更する。build 時に root motion を除去または無効化し、安全に変換・検証できない素材を拒否する。ModelNode の position / rotation / scale は Timeline と Node 操作が所有する。自然終了は最終姿勢、明示停止は停止時点の姿勢を保持する。crossfade 中の別 clip 要求は拒否し、自動 queue しない。Run 除去後も保持姿勢を途中参加・再接続で復元できる canonical state が必要になる。Clip ID binding、保持姿勢、配布形式の構造は [Presentation Data Model](./DATA_MODEL.md) に従う。root motion の規則、Action、Run、Snapshot、Reliable Event の field と wire は同 v2 契約に定義する。
+clip は Model 内部の姿勢だけを変更する。build 時に root motion を除去または無効化し、安全に変換・検証できない素材を拒否する。ModelNode の position / rotation / scale は Timeline と Node 操作が所有する。自然終了は最終姿勢、明示停止は停止時点の姿勢を保持する。crossfade 中の別 clip 要求は拒否し、自動 queue しない。Run 除去後も保持姿勢を途中参加・再接続で復元できる canonical state が必要になる。Clip ID binding、保持姿勢、配布形式の構造は [Presentation Data Model](./DATA_MODEL.md) に従う。root motion の規則、Action、Run、Snapshot、Reliable Event の field と wire は同データ契約と Runtime 契約に定義する。
 
 ### 7.1 Group
 
@@ -1719,7 +1719,7 @@ type TimelineDefinition = {
 - `opacity` は number、`transform.position` と `transform.scale` は Vector3、`transform.rotation` は非ゼロ Quaternion だけを値に取る。Quaternion は Compiler が Delivery 前に正規化し、Runtime も補間境界で正規化する。
 - 最終 keyframe 以外は `easingToNext` を必須とし、最終 keyframe では禁止する。easing はその keyframe から次の keyframe までの segment に適用する。
 - 同じ `target/property` を同時に所有できる Timeline Run は一つだけとする。v1 の conflict policy は `reject` のみであり、replace と additive animation は含めない。
-- Presentation v2 の Timeline catalog は全 profile に共通であるため、target は `audience: { kind: "all" }` の Spatial Node に限定する。role 限定 Timeline は後続 contract で Timeline audience と Definition / Run の投影を追加するまで許可しない。
+- Presentation の Timeline catalog は全 profile に共通であるため、target は `audience: { kind: "all" }` の Spatial Node に限定する。role 限定 Timeline は後続 contract で Timeline audience と Definition / Run の投影を追加するまで許可しない。
 - group-owned Timeline は同じ Group または presentation-owned Spatial Node、presentation-owned Timeline は presentation-owned Spatial Node だけを target にできる。
 - group-owned Timeline は Group exit 時に停止する。presentation-owned Timeline は明示的な `timeline.stop` または Presentation 終了まで Group をまたいで継続できる。Step 遷移だけではどちらも停止しない。
 - Timeline の開始・完了は Session の pause-aware logical runtime clock で決定する。Renderer acknowledgement を完了条件にしない。
@@ -2435,7 +2435,7 @@ dist/
    └─ <percent-encoded asset id>.png
 ```
 
-この出力構成は M1 当時のもので、`definition.json` は v1 の PresentationDefinition artifact である。現行の M3A では [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) に従って v2 出力へ移行済みで、v1 互換出力は維持していない。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
+この出力構成は M1 当時のものである。現行の PresentationDefinition の `schemaVersion` は `1` であり、authoring の契約は [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) を参照する。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
 
 ## 17. 現行実装との関係
 
@@ -2450,7 +2450,7 @@ dist/
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
 - 管理 Web は公開済み Dist の確認とルーム作成を担当する。Source 編集と Unity Preview は `app/web/local-editor` と CLI Author host が所有し、canonical Definition の読み取り、公開 Props / Transform 編集と Cue / Timer / Timeline のローカル Unity Preview を提供する。
 - Unity の Baked Runtime は Delivery、素材取得、Snapshot / Reliable Event、Timeline / State 表示を接続する。Native UI の接続描画と Quest 実機受け入れはこの成功範囲に含めない。
-- Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から v2 Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font / GLB / MP4 bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
+- Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font / GLB / MP4 bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
 - M3A の静的 Authoring subset では、型付き Theme token、Named Style、Props / Variants / Parts、Slot を使う Frame / Text composition と static lowering が実装済みである。
 
 - Model clipとVideoのAuthoring / Compiler / Local Coreを実装し、通常RuntimeとLocal Editorの共通Unity consumerがcanonical state / Run / logical clockから描画・再生する。
@@ -2558,11 +2558,11 @@ dist/
 5. [x] Resolution、mipmap、compression、preload、eviction policyも [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした。
 6. Component Manifest と renderer implementation の drift 検証
 7. Opaque renderer の Browser capability、module resolution、cache invalidation と Compiler / Browser / Font / Locale の再現性
-8. DeliveryManifest v2 / capability 契約に従う実装、visual regression test
+8. DeliveryManifest / capability 契約に従う実装、visual regression test
 
 ## 20. 次の設計対象
 
-blockingなTimeline / transport / Semantic / coordinate / partition / texture budget contractはすべてAcceptedになった。コンパイル後の Model animation、Asset Set、Native UI / Video、Delivery / Runtime の具体契約は [Presentation v2](./DATA_MODEL.md) を正本とする。Compiler と consumer の実装範囲は各 component の文書に従い、契約の採用を全機能の接続・実機検証の完了とは扱わない。
+blockingなTimeline / transport / Semantic / coordinate / partition / texture budget contractはすべてAcceptedになった。コンパイル後の Model animation、Asset Set、Native UI / Video、Delivery / Runtime の具体契約は [Presentation データ契約](./DATA_MODEL.md) を正本とする。Compiler と consumer の実装範囲は各 component の文書に従い、契約の採用を全機能の接続・実機検証の完了とは扱わない。
 
 中心となる思想は次のとおりである。
 
