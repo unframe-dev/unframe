@@ -25,6 +25,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test vite.config.ts",
+    "pretest": "bash ../../../scripts/build-cli-filesystem.sh",
     "test": "vp test run",
     "build": "bash ../../../scripts/build-cli-filesystem.sh && vp pack",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
