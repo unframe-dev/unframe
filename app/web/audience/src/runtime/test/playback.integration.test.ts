@@ -1,5 +1,5 @@
 import { PNG_DEFAULT_STATE, PNG_INACTIVE_STATE } from "../../test-support/png-delivery-fixture";
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { Group, Mesh, Texture } from "three";
 import type {
   ConnectionSnapshotEnvelopeWire,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { evaluateTimelineTrack } from "@unframe/playback";
 import type { PresentationDefinition } from "@unframe/contracts/presentation";

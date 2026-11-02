@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { Scene, PerspectiveCamera } from "three";
 import { createTrackingAdapter } from "../adapter";
 import type { CameraPipelineModule, XrEngine } from "../types";

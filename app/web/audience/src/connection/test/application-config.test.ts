@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import { createAudienceWebCapabilityProfile } from "@unframe/contracts/presentation";
 import { readConnectionConfig } from "../application-config";
 

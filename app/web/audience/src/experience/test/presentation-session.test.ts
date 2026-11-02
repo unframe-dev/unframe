@@ -1,5 +1,5 @@
 import { Camera, Group, Texture } from "three";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
 import { createPresentation } from "../../rendering/presentation";
 import { createPresentationSession } from "../presentation-session";

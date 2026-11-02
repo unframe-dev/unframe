@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { collectAuthorArtifacts, readAuthorArtifacts, surfaceIdFor } from "../src/index.js";
 import type { BuildArtifacts } from "@unframe/artifacts";
 

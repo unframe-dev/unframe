@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 
 import { bundleOpaqueRenderer } from "../src/index.js";

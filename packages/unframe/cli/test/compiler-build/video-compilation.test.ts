@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { standardComponents } from "@unframe/authoring/components";
 import { PNG_ABSOLUTE_LIMITS, type VideoMetadata } from "@unframe/media-node";
 import { compileDeclarationProject } from "../fixtures-helpers/build-pipeline.js";

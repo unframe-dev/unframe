@@ -52,10 +52,103 @@
       "groupName": "npm devDependencies"
     },
     {
-      "description": "Keep older Tailwind fixtures distinct from the current toolchain",
+      "description": "Compiler APIs and workspace declaration bundling require TypeScript 6",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["typescript"],
+      "matchFileNames": [
+        "packages/unframe/source/package.json",
+        "packages/unframe/workspace/package.json",
+        "packages/unframe/workspace-node/package.json",
+        "packages/unframe/build/package.json",
+        "packages/unframe/styles-node/package.json",
+        "packages/unframe/media-node/package.json",
+        "packages/unframe/cli/package.json",
+        "app/web/lp/package.json",
+        "packages/contracts/package.json",
+        "scripts/unframe-packages/package.json",
+        "packages/unframe/presentation/package.json",
+        "packages/unframe/artifacts/package.json",
+        "packages/unframe/playback/package.json",
+        "packages/unframe/delivery/package.json",
+        "packages/unframe/compiler/package.json",
+        "packages/unframe/author-service/package.json",
+        "packages/unframe/preview/package.json",
+        "packages/unframe/publish/package.json"
+      ],
+      "allowedVersions": "<7"
+    },
+    {
+      "description": "Cloudflare Workers pool supports Vitest 4",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["vitest"],
+      "matchFileNames": ["app/server/control-plane/package.json"],
+      "allowedVersions": "^4.1.0"
+    },
+    {
+      "description": "Keep authentication dependencies aligned with the current D1 account schema",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["better-auth"],
+      "matchFileNames": [
+        "app/server/control-plane/package.json",
+        "packages/api-client-typescript/package.json"
+      ],
+      "allowedVersions": "=1.7.1"
+    },
+    {
+      "description": "Keep authentication dependencies aligned with the current D1 account schema",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@better-auth/infra"],
+      "matchFileNames": [
+        "app/server/control-plane/package.json",
+        "packages/api-client-typescript/package.json"
+      ],
+      "allowedVersions": "=0.4.2"
+    },
+    {
+      "description": "Keep authentication dependencies aligned with the current D1 account schema",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["auth"],
+      "matchFileNames": [
+        "app/server/control-plane/package.json",
+        "packages/api-client-typescript/package.json"
+      ],
+      "allowedVersions": "=1.7.6"
+    },
+    {
+      "description": "Keep portable schema and wire codec behavior until a contract migration",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["zod"],
+      "allowedVersions": "=4.4.3",
+      "matchCurrentVersion": "4.4.3"
+    },
+    {
+      "description": "Keep portable schema and wire codec behavior until a contract migration",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["protobufjs"],
+      "allowedVersions": "=7.5.6"
+    },
+    {
+      "description": "Keep portable schema and wire codec behavior until a contract migration",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["protobufjs-cli"],
+      "allowedVersions": "=2.7.0"
+    },
+    {
+      "description": "Keep deliberately older Tailwind fixtures isolated from the current version",
       "matchManagers": ["npm"],
       "matchDepNames": ["tailwindcss-older", "tailwindcss-postcss-older"],
+      "matchFileNames": [
+        "packages/unframe/styles-node/package.json",
+        "packages/unframe/cli/package.json"
+      ],
       "enabled": false
+    },
+    {
+      "description": "Keep Chromium aligned with the audited Darwin sandbox policy",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["playwright-core"],
+      "matchFileNames": ["packages/unframe/render-browser/package.json"],
+      "allowedVersions": "=1.62.1"
     }
   ]
 }

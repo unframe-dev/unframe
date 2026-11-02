@@ -1,8 +1,8 @@
 <script lang="ts">
   import { ArrowLeft, ArrowUpRight, CalendarDays } from "@lucide/svelte";
   import type { Component } from "svelte";
-  import type { ContentEntry } from "$lib/content-registry";
-  import { getNewsBackNavigation, type NewsSource } from "$lib/news-navigation";
+  import type { ContentEntry } from "#lib/content-registry.js";
+  import { getNewsBackNavigation, type NewsSource } from "#lib/news-navigation.js";
   import Header from "../layout/Header.svelte";
   import Footer from "../layout/Footer.svelte";
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import iconUrl from "$lib/assets/brand/icon.svg?url";
+  import iconUrl from "#lib/assets/brand/icon.svg?url";
 
   let { compact = false, class: className = "" }: {
     compact?: boolean;

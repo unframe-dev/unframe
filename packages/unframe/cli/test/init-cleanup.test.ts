@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 
 const boundary = vi.hoisted(() => ({ target: "", enabled: false, failLock: false }));

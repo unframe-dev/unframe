@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, symlink, unlink, writeFile } from "node:fs/promises
 import { promisify } from "node:util";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { basename, dirname, join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
 

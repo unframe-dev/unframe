@@ -25,7 +25,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@noble/hashes": "2.3.0",
+    "@noble/hashes": "2.4.0",
     "@types/react": "19.3.0",
     "@unframe/authoring": "workspace:*",
     "@unframe/presentation": "workspace:*",
@@ -33,9 +33,8 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/node": "24.19.0",
+    "@types/node": "26.6.6",
     "@unframe/artifacts": "workspace:*",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }

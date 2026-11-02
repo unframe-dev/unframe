@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { createSensorMonitor } from "../sensor-monitor";
 
 function event(type: string, values: Record<string, unknown>) {

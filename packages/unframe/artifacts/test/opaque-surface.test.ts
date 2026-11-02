@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { hashCanonicalJsonPayload, validatePresentationArtifacts } from "@unframe/artifacts";
 import { validatePresentationDefinition } from "@unframe/presentation";

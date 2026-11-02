@@ -1,5 +1,5 @@
 import { assertViewerRuntimeCapabilities } from "../../../runtime/viewer-policy";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { evaluateAnimationView } from "../../../runtime/animation-view";
 import { createRuntimeStore } from "../../../runtime/runtime-store";
 import { buildPngPlan } from "../../../rendering/png-plan";

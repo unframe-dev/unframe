@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { admitPngMemory } from "../png-memory";
 
 const image = { pixelSize: [1024, 1024] as const, encodedSizeBytes: 1024 };

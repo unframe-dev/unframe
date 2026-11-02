@@ -31,10 +31,10 @@ generate() {
   local destination="$1"
   protoc --proto_path="${CONTRACTS_DIR}/proto" --csharp_out="${destination}" "${proto_files[@]}"
   dotnet restore "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" --verbosity quiet
-  local nuget_root grpc_platform grpc_plugin
-  nuget_root="$(dotnet nuget locals global-packages --list | sed 's/^global-packages: //')"
+  local grpc_tools_root grpc_platform grpc_plugin
+  grpc_tools_root="$(dotnet msbuild "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" -nologo -getProperty:PkgGrpc_Tools)"
   grpc_platform="$(grpc_tools_platform "$(uname -s)" "$(uname -m)")"
-  grpc_plugin="${nuget_root}/grpc.tools/2.76.0/tools/${grpc_platform}/grpc_csharp_plugin"
+  grpc_plugin="${grpc_tools_root}/tools/${grpc_platform}/grpc_csharp_plugin"
   if [[ ! -x "${grpc_plugin}" ]]; then
     echo "Grpc.Tools plugin is missing or not executable: ${grpc_plugin}" >&2
     return 1

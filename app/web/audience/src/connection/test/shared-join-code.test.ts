@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import { readSharedJoinCode } from "../shared-join-code";
 
 test("共有URLの参加コードをAPI形式で読み取る", () => {

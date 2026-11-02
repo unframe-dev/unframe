@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe/artifacts";
 import { verifyBuildIntegrity } from "@unframe/artifacts";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";

@@ -32,10 +32,9 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/node": "24.19.0",
-    "canonicalize": "3.0.0",
+    "@types/node": "26.6.6",
+    "canonicalize": "5.1.0",
     "typescript": "6.0.3",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }

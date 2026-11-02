@@ -3,7 +3,7 @@
   import type { Component } from "svelte";
   import Header from "../layout/Header.svelte";
   import Footer from "../layout/Footer.svelte";
-  import type { ContentEntry } from "$lib/content-registry";
+  import type { ContentEntry } from "#lib/content-registry.js";
 
   type ContentKind = "News" | "Docs";
 

@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vite-plus/test";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
 import type { PresentationCliResult } from "../src/application/types.js";
