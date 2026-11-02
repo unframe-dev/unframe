@@ -1,5 +1,5 @@
 import { createSessionRecorder } from "../../diagnostics/session-recorder";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import { createJoinController } from "../join-controller";
 import {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { createDiagnostics } from "../../../tracking/diagnostics";
 import { buildAnchorDiagnosticExport } from "../diagnostic-export";
 

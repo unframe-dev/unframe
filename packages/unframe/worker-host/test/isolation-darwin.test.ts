@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { darwinSandboxProfile, parseProcessGroup, verifyDarwinGroupSample } from "../src/darwin.js";
 
 describe("Darwin native isolation policy", () => {

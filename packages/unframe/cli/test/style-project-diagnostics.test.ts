@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, assert, describe, expect, it, vi } from "vitest";
+import { afterEach, assert, describe, expect, it, vi } from "vite-plus/test";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "@unframe/author-service";

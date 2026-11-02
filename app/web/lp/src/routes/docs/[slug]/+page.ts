@@ -1,5 +1,5 @@
 import { error } from "@sveltejs/kit";
-import { docsEntries } from "$lib/content";
+import { docsEntries } from "#lib/content.js";
 
 export const entries = () => docsEntries.map(({ slug }) => ({ slug }));
 

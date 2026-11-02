@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ArrowUpRight, CalendarDays } from "@lucide/svelte";
-  import { newsEntries } from "$lib/content";
+  import { newsEntries } from "#lib/content.js";
   import SectionLabel from "../brand/SectionLabel.svelte";
 
   const latestEntries = [...newsEntries]

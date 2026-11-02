@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { safePlainClone } from "../src/validation/safe-plain-clone.js";
 
 it("preserves well-formed surrogate pairs in JSON keys and values", () => {

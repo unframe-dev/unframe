@@ -1,7 +1,7 @@
 import { cp, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, assert, expect, it } from "vitest";
+import { afterEach, assert, expect, it } from "vite-plus/test";
 import { runPresentationCli } from "../src/index.js";
 import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "@unframe/author-service";

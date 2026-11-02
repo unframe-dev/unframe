@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { defineComponentStructure, isComponentStructure, model, Model } from "../src/index.js";
 
 const structure = () => ({

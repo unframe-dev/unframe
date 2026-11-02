@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { createAuthorProjectSnapshot } from "../src/index.js";
 
 it("exposes style preparation failures in the project snapshot", async () => {

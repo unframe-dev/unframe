@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { timePosition, timeAtPosition } from "../timeline-model";
 it("maps time and pointer positions without division by zero", () => {
   expect(timePosition(500, 1000)).toBe(50);

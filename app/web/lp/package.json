@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "imports": {
+    "#lib/*": "./src/lib/*"
+  },
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
@@ -27,7 +30,7 @@
     "svelte-check": "4.7.6",
     "tailwindcss": "^4.1.18",
     "tsx": "4.23.15",
-    "typescript": "7.0.2",
+    "typescript": "6.0.3",
     "vite": "catalog:",
     "wrangler": "4.142.0"
   }

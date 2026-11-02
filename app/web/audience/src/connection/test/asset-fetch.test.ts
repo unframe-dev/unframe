@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { createAudienceAssetFetch } from "../asset-fetch";
 import type { PreparedConnection } from "../join-controller";
 

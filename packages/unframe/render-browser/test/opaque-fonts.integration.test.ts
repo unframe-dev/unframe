@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { assert, expect, it } from "vitest";
+import { assert, expect, it } from "vite-plus/test";
 import { openOpaqueCaptureRuntime } from "../src/opaque/capture/runtime.js";
 
 const liberation = readFileSync(

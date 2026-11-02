@@ -25,20 +25,20 @@
     "check": "pnpm types:check && pnpm typecheck && pnpm lint && pnpm test && pnpm contracts:check && pnpm client:check && pnpm build"
   },
   "dependencies": {
-    "@better-auth/infra": "0.4.25",
+    "@better-auth/infra": "0.4.2",
     "@hono/zod-openapi": "^1.5.2",
     "@unframe/artifacts": "workspace:*",
     "@unframe/contracts": "workspace:*",
     "@unframe/delivery": "workspace:*",
     "aws4fetch": "1.0.20",
-    "better-auth": "1.7.15",
+    "better-auth": "1.7.1",
     "drizzle-orm": "0.45.4",
     "hono": "^4.13.1",
     "pngjs": "7.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-email": "6.11.6",
-    "zod": "4.6.7"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
@@ -49,7 +49,7 @@
     "auth": "1.7.6",
     "typescript": "^7.0.0",
     "vite-plus": "catalog:",
-    "vitest": "^5.0.0",
+    "vitest": "4.1.11",
     "wrangler": "^4.120.0"
   }
 }

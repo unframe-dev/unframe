@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { createDeliveryFixtureProject } from "./fixtures/plan-project.js";
 import { modelProject } from "./fixtures/model.js";
 import { compileDeclarationPlan } from "../src/api/compile-plan.js";

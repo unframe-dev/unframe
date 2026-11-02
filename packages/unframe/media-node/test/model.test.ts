@@ -1,6 +1,6 @@
 import { Document, NodeIO, type GLTF } from "@gltf-transform/core";
 import { KHRMaterialsUnlit } from "@gltf-transform/extensions";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vite-plus/test";
 import { encodeRgbaToPng, transformGlb } from "../src/index.js";
 import { checkModelAttributes, checkModelAnimationAllocation } from "../src/model/structure.js";
 

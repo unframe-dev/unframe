@@ -32,7 +32,7 @@
     "react-dom": "^19.2.7",
     "react-hook-form": "7.91.0",
     "tailwind-merge": "^3.6.0",
-    "zod": "4.6.7"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.61.0",
@@ -50,7 +50,6 @@
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.0",
     "vite": "catalog:",
-    "vitest": "5.0.5",
     "wrangler": "4.142.0"
   }
 }

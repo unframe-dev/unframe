@@ -13,7 +13,7 @@ import {
 } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { NativeFilesystem } from "@unframe/workspace-node";
 import { publishAtomicArtifacts } from "@unframe/workspace-node";
@@ -68,17 +68,18 @@ describe("atomic artifact publication", () => {
     const outside = await project();
     const originalMkdir = NativeFilesystem.prototype.mkdir;
     let replaced = false;
-    vi.spyOn(NativeFilesystem.prototype, "mkdir").mockImplementation(
-      async function (this: NativeFilesystem, path) {
-        if (!replaced && path.endsWith("/generations")) {
-          replaced = true;
-          const unframe = join(directory, ".unframe");
-          await rename(unframe, `${unframe}-owned`);
-          await symlink(outside, unframe);
-        }
-        return originalMkdir.call(this, path);
-      },
-    );
+    vi.spyOn(NativeFilesystem.prototype, "mkdir").mockImplementation(async function (
+      this: NativeFilesystem,
+      path,
+    ) {
+      if (!replaced && path.endsWith("/generations")) {
+        replaced = true;
+        const unframe = join(directory, ".unframe");
+        await rename(unframe, `${unframe}-owned`);
+        await symlink(outside, unframe);
+      }
+      return originalMkdir.call(this, path);
+    });
     expect(
       await publishAtomicArtifacts({ projectDirectory: directory, artifacts: artifacts() }),
     ).toMatchObject({ ok: false, family: "io" });
@@ -93,16 +94,18 @@ describe("atomic artifact publication", () => {
     await mkdir(join(outside, `.staging-${id}`, "assets"), { recursive: true });
     const originalWrite = NativeFilesystem.prototype.write;
     let replaced = false;
-    vi.spyOn(NativeFilesystem.prototype, "write").mockImplementation(
-      async function (this: NativeFilesystem, path, bytes) {
-        if (!replaced) {
-          replaced = true;
-          await rename(generations, `${generations}-owned`);
-          await symlink(outside, generations);
-        }
-        return originalWrite.call(this, path, bytes);
-      },
-    );
+    vi.spyOn(NativeFilesystem.prototype, "write").mockImplementation(async function (
+      this: NativeFilesystem,
+      path,
+      bytes,
+    ) {
+      if (!replaced) {
+        replaced = true;
+        await rename(generations, `${generations}-owned`);
+        await symlink(outside, generations);
+      }
+      return originalWrite.call(this, path, bytes);
+    });
     const result = await publishAtomicArtifacts({
       projectDirectory: directory,
       generationId: () => id,
@@ -119,19 +122,21 @@ describe("atomic artifact publication", () => {
     const id = "2".repeat(32);
     const originalRename = NativeFilesystem.prototype.rename;
     let swapped = false;
-    vi.spyOn(NativeFilesystem.prototype, "rename").mockImplementation(
-      async function (this: NativeFilesystem, path, target) {
-        if (!swapped && target.endsWith("/current")) {
-          swapped = true;
-          const preview = join(directory, ".unframe/preview");
-          await rename(preview, `${preview}-owned`);
-          await symlink(outside, preview);
-          await symlink("outside-output", join(outside, "current"));
-          await symlink("outside-temporary", join(outside, `.current-${id}`));
-        }
-        return originalRename.call(this, path, target);
-      },
-    );
+    vi.spyOn(NativeFilesystem.prototype, "rename").mockImplementation(async function (
+      this: NativeFilesystem,
+      path,
+      target,
+    ) {
+      if (!swapped && target.endsWith("/current")) {
+        swapped = true;
+        const preview = join(directory, ".unframe/preview");
+        await rename(preview, `${preview}-owned`);
+        await symlink(outside, preview);
+        await symlink("outside-output", join(outside, "current"));
+        await symlink("outside-temporary", join(outside, `.current-${id}`));
+      }
+      return originalRename.call(this, path, target);
+    });
     const result = await publishAtomicArtifacts({
       projectDirectory: directory,
       channel: "dev",
@@ -151,15 +156,17 @@ describe("atomic artifact publication", () => {
       const pointerPath = join(directory, channel === "dev" ? ".unframe/preview/current" : "dist");
       const operation = channel === "dev" ? "rename" : "renameNoReplace";
       const originalRename = NativeFilesystem.prototype[operation];
-      vi.spyOn(NativeFilesystem.prototype, operation).mockImplementation(
-        async function (this: NativeFilesystem, path, target) {
-          await originalRename.call(this, path, target);
-          if (target.endsWith(`/${pointerName}`)) {
-            await rm(pointerPath, { recursive: true, force: true });
-            await symlink("user-output", pointerPath);
-          }
-        },
-      );
+      vi.spyOn(NativeFilesystem.prototype, operation).mockImplementation(async function (
+        this: NativeFilesystem,
+        path,
+        target,
+      ) {
+        await originalRename.call(this, path, target);
+        if (target.endsWith(`/${pointerName}`)) {
+          await rm(pointerPath, { recursive: true, force: true });
+          await symlink("user-output", pointerPath);
+        }
+      });
       const result = await publishAtomicArtifacts({
         projectDirectory: directory,
         channel,
@@ -760,15 +767,17 @@ describe("atomic artifact publication", () => {
     });
     const originalExchange = NativeFilesystem.prototype.exchange;
     let corrupted = false;
-    vi.spyOn(NativeFilesystem.prototype, "exchange").mockImplementation(
-      async function (this: NativeFilesystem, path, target) {
-        await originalExchange.call(this, path, target);
-        if (!corrupted) {
-          corrupted = true;
-          await writeFile(join(directory, "dist/definition.json"), "corrupted");
-        }
-      },
-    );
+    vi.spyOn(NativeFilesystem.prototype, "exchange").mockImplementation(async function (
+      this: NativeFilesystem,
+      path,
+      target,
+    ) {
+      await originalExchange.call(this, path, target);
+      if (!corrupted) {
+        corrupted = true;
+        await writeFile(join(directory, "dist/definition.json"), "corrupted");
+      }
+    });
     const result = await publishAtomicArtifacts({
       projectDirectory: directory,
       artifacts: artifacts("next"),

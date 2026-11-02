@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { PNG } from "pngjs";
 import { chromium } from "playwright-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import {
   createBakedWebRenderer,

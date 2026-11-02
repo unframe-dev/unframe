@@ -41,9 +41,9 @@
     "path-is-inside": "1.0.2",
     "postcss-load-config": "6.0.1",
     "semver": "7.8.5",
-    "typescript": "7.0.2",
+    "typescript": "6.0.3",
     "yaml": "2.9.1",
-    "zod": "4.6.7"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/forms": "0.5.11",
@@ -56,7 +56,6 @@
     "tailwindcss-older": "npm:tailwindcss@4.2.1",
     "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.2.1",
     "tsx": "^4.22.1",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }

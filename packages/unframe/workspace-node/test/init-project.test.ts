@@ -2,7 +2,7 @@ import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { initPresentationProject } from "../src/index.js";
 
 it("excludes another project's runtime leases from initialized inputs", async () => {

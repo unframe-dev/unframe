@@ -63,8 +63,8 @@
     "@unframe/workspace-node": "workspace:*",
     "css-tree": "3.2.1",
     "solid-js": "1.9.18",
-    "typescript": "7.0.2",
-    "zod": "4.6.7"
+    "typescript": "6.0.3",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/forms": "0.5.11",
@@ -76,13 +76,13 @@
     "@types/semver": "7.7.1",
     "@types/ssri": "7.1.5",
     "@types/validate-npm-package-name": "4.0.2",
+    "@unframe/delivery": "workspace:*",
     "@unframe/worker-host": "workspace:*",
     "postcss": "8.5.29",
     "tailwindcss": "4.3.3",
     "tailwindcss-older": "npm:tailwindcss@4.2.1",
     "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.2.1",
     "vite-plus": "catalog:",
-    "vitest": "catalog:",
     "yaml": "2.9.0"
   },
   "engines": {

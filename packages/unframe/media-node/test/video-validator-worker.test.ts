@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
-import { assert, expect, it } from "vitest";
+import { assert, expect, it } from "vite-plus/test";
 import { temporaryDirectory } from "../src/temporary-directory.js";
 
 const inspect = async (sourcePath: unknown) => {
