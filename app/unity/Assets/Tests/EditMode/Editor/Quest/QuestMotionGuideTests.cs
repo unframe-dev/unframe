@@ -9,6 +9,15 @@ using Transform = UnityEngine.Transform;
 
 public sealed class QuestMotionGuideTests
 {
+    [TestCase(1, "トリガーを押したまま\n左へ薙ぎ払う")]
+    [TestCase(7, "両トリガーを押したまま\n両手を広げる")]
+    public void InstructionsExplainTheTriggerRequiredForTheGesture(int gesture, string expected)
+    {
+        var description = typeof(QuestMotionGuideView).GetMethod("Description",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        Assert.That(description.Invoke(null, new object[] { gesture }), Is.EqualTo(expected));
+    }
+
     [Test]
     public void CurrentRecognitionCatalogProducesOnlySupportedTrackedGestures()
     {
@@ -56,6 +65,89 @@ public sealed class QuestMotionGuideTests
         Assert.That(Vector3.Dot(forward, Quaternion.Euler(0, yaw, 0) * Vector3.forward), Is.GreaterThan(.999f));
     }
 
+    [TestCase(0, 0, 0)]
+    [TestCase(20, 90, 15)]
+    [TestCase(-20, -135, -15)]
+    [TestCase(90, 45, 0)]
+    public void GuideAndInstructionStayNearAndBelowTheHorizontalView(float pitch, float yaw, float roll)
+    {
+        Vector3 headPosition = new Vector3(2, 1.6f, -3);
+        Quaternion rotation = Quaternion.Euler(pitch, yaw, roll);
+        Quaternion horizontal = QuestMotionGuideGeometry.GetYawRotation(rotation);
+        Vector3 anchor = QuestMotionGuideGeometry.GetAnchorPosition(headPosition, rotation, 80, 1);
+        Vector3 localAnchor = Quaternion.Inverse(horizontal) * (anchor - headPosition);
+        Assert.That(Vector3.Distance(anchor, headPosition), Is.EqualTo(.5f).Within(.00001f));
+        Assert.That(localAnchor.x, Is.GreaterThan(0));
+        Assert.That(localAnchor.y, Is.LessThan(0));
+        Assert.That(localAnchor.z, Is.GreaterThan(0));
+        Assert.That(localAnchor.x / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(.62f).Within(.00001f));
+        Assert.That(localAnchor.y / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(-.58f).Within(.00001f));
+        Assert.That(Vector3.Dot(horizontal * Vector3.up, Vector3.up), Is.GreaterThan(.99999f));
+        Vector3 localInstruction = Quaternion.Inverse(horizontal) *
+            (QuestMotionGuideGeometry.GetInstructionPosition(anchor, rotation) - headPosition);
+        Assert.That(localInstruction.x, Is.EqualTo(localAnchor.x).Within(.00001f));
+        Assert.That(localInstruction.y - localAnchor.y, Is.EqualTo(.055f).Within(.00001f));
+    }
+
+    [Test]
+    public void LookingUpOrTiltingTheHeadDoesNotMoveTheGuide()
+    {
+        Vector3 head = new Vector3(1, 1.7f, 2);
+        var straight = QuestMotionGuideGeometry.GetAnchorPosition(head, Quaternion.Euler(0, 60, 0), 80, 1.3f);
+        var tilted = QuestMotionGuideGeometry.GetAnchorPosition(head, Quaternion.Euler(45, 60, 30), 80, 1.3f);
+        Assert.That(Vector3.Distance(straight, tilted), Is.LessThan(.00001f));
+        var movedHead = head + new Vector3(.5f, .1f, -.2f);
+        var movedGuide = QuestMotionGuideGeometry.GetAnchorPosition(movedHead, Quaternion.Euler(45, 60, 30), 80, 1.3f);
+        Assert.That(Vector3.Distance(movedGuide - tilted, movedHead - head), Is.LessThan(.00001f));
+    }
+
+    [TestCase(48, 1.333333f)]
+    [TestCase(80, 1)]
+    [TestCase(80, .6f)]
+    public void PeripheralAnchorsStayAtTheSameNearDistanceAndMirrorAcrossTheView(float verticalFov, float aspect)
+    {
+        Vector3 head = new Vector3(1, 1.7f, -2);
+        Quaternion yaw = Quaternion.Euler(0, 55, 0);
+        Vector3 guide = QuestMotionGuideGeometry.GetAnchorPosition(head, yaw, verticalFov, aspect);
+        Vector3 hud = QuestMotionGuideGeometry.GetHudPosition(head, yaw, verticalFov, aspect);
+        Assert.That(Vector3.Distance(head, guide), Is.EqualTo(.5f).Within(.00001f));
+        Assert.That(Vector3.Distance(head, hud), Is.EqualTo(.5f).Within(.00001f));
+        Vector3 localGuide = Quaternion.Inverse(yaw) * (guide - head);
+        Vector3 localHud = Quaternion.Inverse(yaw) * (hud - head);
+        Assert.That(localGuide.x, Is.EqualTo(-localHud.x).Within(.00001f));
+        Assert.That(localGuide.y, Is.EqualTo(localHud.y).Within(.00001f));
+        Assert.That(localGuide.z, Is.EqualTo(localHud.z).Within(.00001f));
+        float halfHeight = localGuide.z * Mathf.Tan(verticalFov * .5f * Mathf.Deg2Rad);
+        Assert.That(localGuide.x / (halfHeight * aspect), Is.EqualTo(.62f).Within(.00001f));
+        Assert.That(localGuide.y / halfHeight, Is.EqualTo(-.58f).Within(.00001f));
+    }
+
+    [Test]
+    public void NarrowViewsReduceVisualSizeWithoutMovingTheUiFurtherAway()
+    {
+        Assert.That(QuestMotionGuideGeometry.GetViewportScale(80, 1), Is.EqualTo(1).Within(.00001f));
+        Assert.That(QuestMotionGuideGeometry.GetViewportScale(100, 1.6f), Is.EqualTo(1).Within(.00001f));
+        Assert.That(QuestMotionGuideGeometry.GetViewportScale(80, .5f), Is.EqualTo(.5f).Within(.00001f));
+        Assert.That(QuestMotionGuideGeometry.GetViewportScale(48, 1.3f), Is.InRange(.5f, .55f));
+    }
+
+    [TestCase(0, 0, 0)]
+    [TestCase(35, 60, 20)]
+    [TestCase(-30, -90, -15)]
+    public void PeripheralPanelsFaceTheCameraWithoutTurningUpsideDown(float pitch, float yaw, float roll)
+    {
+        Vector3 head = new Vector3(1, 1.7f, -2);
+        Quaternion headRotation = Quaternion.Euler(pitch, yaw, roll);
+        foreach (float side in new[] { -1f, 1f })
+        {
+            Vector3 panel = head + QuestMotionGuideGeometry.GetYawRotation(headRotation)
+                * new Vector3(side * .22f, -.17f, .45f);
+            Quaternion facing = QuestMotionGuideGeometry.GetFacingRotation(panel, head, headRotation);
+            Assert.That(Vector3.Dot(facing * Vector3.forward, (panel - head).normalized), Is.GreaterThan(.99999f));
+            Assert.That(Vector3.Dot(facing * Vector3.up, headRotation * Vector3.up), Is.GreaterThan(0));
+        }
+    }
+
     [Test]
     public void VisualsUseEditableControllersAndPreserveSharedAssetsWhenDestroyed()
     {
@@ -72,11 +164,15 @@ public sealed class QuestMotionGuideTests
             var backplate = host.GetComponentInChildren<UnityEngine.UI.Image>(true);
             var instruction = host.GetComponentInChildren<UnityEngine.UI.Text>(true);
             Assert.That(backplate, Is.Not.Null);
-            Assert.That(backplate.color.a, Is.GreaterThanOrEqualTo(.9f));
+            Assert.That(backplate.color.a, Is.InRange(.65f, .9f));
+            Assert.That(backplate.sprite, Is.Not.Null);
+            Assert.That(backplate.type, Is.EqualTo(UnityEngine.UI.Image.Type.Sliced));
             Assert.That(backplate.raycastTarget, Is.False);
             Assert.That(instruction.raycastTarget, Is.False);
             Assert.That(instruction.gameObject, Is.Not.SameAs(backplate.gameObject));
             Assert.That(instruction.transform.parent, Is.EqualTo(backplate.transform));
+            Assert.That(Vector3.Distance(backplate.transform.localScale, Vector3.one * .00022f), Is.LessThan(.0000001f));
+            Assert.That(backplate.transform.localRotation, Is.EqualTo(Quaternion.identity));
             var skins = host.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             Assert.That(skins.Length, Is.EqualTo(2));
             Assert.That(skins[0].sharedMesh, Is.Not.SameAs(skins[1].sharedMesh));
@@ -93,11 +189,22 @@ public sealed class QuestMotionGuideTests
                 Assert.That(controllers[side].animationClips.Length, Is.EqualTo(8));
                 Assert.That(animators[side].applyRootMotion, Is.False);
                 Assert.That(animators[side].updateMode, Is.EqualTo(AnimatorUpdateMode.UnscaledTime));
+                Assert.That(animators[side].transform.localScale, Is.EqualTo(Vector3.one * .10f));
+                Transform armModel = animators[side].transform.Find("ArmModel");
+                Assert.That(armModel, Is.Not.Null);
+                Assert.That(Vector3.Dot(armModel.localRotation * Vector3.forward, Vector3.back), Is.GreaterThan(.999f));
+                Assert.That(animators[side].transform.localRotation, Is.EqualTo(Quaternion.identity));
                 string resource = "PresentationUi/MotionArms/Editable/" + (side == 0 ? "LeftMotionArm" : "RightMotionArm");
                 var prefab = Resources.Load<GameObject>(resource);
                 Assert.That(prefab, Is.Not.Null, resource);
                 Assert.That(meshes[side], Is.SameAs(prefab.GetComponentInChildren<SkinnedMeshRenderer>(true).sharedMesh));
                 Assert.That(prefab.GetComponent<QuestMotionArmAppearance>(), Is.Not.Null);
+                foreach (AnimationClip clip in controllers[side].animationClips)
+                {
+                    clip.SampleAnimation(animators[side].gameObject, clip.length * .6f);
+                    Assert.That(Vector3.Dot(armModel.localRotation * Vector3.forward, Vector3.back),
+                        Is.GreaterThan(.999f), clip.name + " must preserve the model facing correction.");
+                }
             }
         }
         finally { Object.DestroyImmediate(host); }

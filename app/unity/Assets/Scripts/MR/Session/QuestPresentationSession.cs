@@ -156,6 +156,9 @@ public sealed class QuestPresentationSession : MonoBehaviour
             var guidance = GetComponent<QuestMotionGuideView>();
             if (guidance == null) guidance = gameObject.AddComponent<QuestMotionGuideView>();
             guidance.Configure(runtime, calibrationSource.QuestTrackingOrigin, view.Head, view);
+            var hud = GetComponent<QuestPresenterHudView>();
+            if (hud == null) hud = gameObject.AddComponent<QuestPresenterHudView>();
+            hud.Configure(runtime, view.Head, view);
         }
 #if UNITY_ANDROID && !UNITY_EDITOR
         try
