@@ -186,7 +186,8 @@ public sealed class PresentationRuntimeCalibrationTests
             {
                 ReliableEvent = new ProjectedReliableEvent
                 {
-                    Fence = snapshot.Fence.Clone(), Sequence = 1,
+                    Fence = snapshot.Fence.Clone(),
+                    Sequence = 1,
                     RuntimeStatusChanged = new RuntimeStatusChanged { Running = new Running() }
                 }
             };
@@ -208,7 +209,8 @@ public sealed class PresentationRuntimeCalibrationTests
             {
                 ReliableEvent = new ProjectedReliableEvent
                 {
-                    Fence = snapshot.Fence.Clone(), Sequence = 2,
+                    Fence = snapshot.Fence.Clone(),
+                    Sequence = 2,
                     RuntimeStatusChanged = new RuntimeStatusChanged { Paused = new Paused { Reason = PauseReason.ExplicitPause } }
                 }
             };
