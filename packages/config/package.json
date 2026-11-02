@@ -13,7 +13,7 @@
     "check": "pnpm typecheck && pnpm test && pnpm lint"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.0.0",
     "tsx": "^4.22.1",
     "typescript": "^7.0.0",
     "vite-plus": "catalog:"

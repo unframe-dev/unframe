@@ -9,7 +9,7 @@
     "test": "node --test native-host.test.ts ../presentation-sample/lifecycle.test.ts ../ci/opaque-capture.test.ts"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.0.0",
     "typescript": "^7.0.0"
   }
 }

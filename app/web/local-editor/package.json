@@ -10,25 +10,25 @@
     "test": "vp test run"
   },
   "dependencies": {
-    "@base-ui/react": "1.7.0",
+    "@base-ui/react": "1.9.0",
     "@phosphor-icons/react": "2.1.10",
     "@unframe/contracts": "workspace:*",
     "@unframe/unframe-cli": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-resizable-panels": "4.14.8",
-    "zod": "4.4.3",
-    "zustand": "5.0.15"
+    "react-resizable-panels": "4.16.0",
+    "zod": "4.6.7",
+    "zustand": "5.0.16"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.2",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "6.1.1",
     "tailwindcss": "4.3.2",
     "typescript": "^7.0.0",
     "vite": "catalog:",
-    "vitest": "4.1.11"
+    "vitest": "5.0.5"
   }
 }
