@@ -1,0 +1,14 @@
+{
+  "name": "@unframe/package-checks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test boundaries.test.ts usecase-boundaries.test.ts",
+    "test:packed": "tsx --test packed.test.ts authoring-packed.test.ts source-compiler-packed.test.ts usecases-packed.test.ts"
+  },
+  "devDependencies": {
+    "@unframe/contract-fixtures": "workspace:*",
+    "tsx": "^4.22.1",
+    "typescript": "6.0.3"
+  }
+}

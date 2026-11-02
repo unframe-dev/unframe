@@ -16,7 +16,7 @@ export const assetDescriptorSchema = z.strictObject({
 });
 
 export const assetSetManifestSchema = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(1),
   assets: z.record(storageSegmentIdSchema, assetDescriptorSchema),
 });
 

@@ -29,12 +29,100 @@ const uint = (v: string | undefined, zero = false) => {
   const n = Number(v);
   return Number.isSafeInteger(n) && n >= (zero ? 0 : 1) ? n : fail("invalid integer");
 };
+function buildModelAssets(
+  delivery: DeliveryManifestWire,
+  selected: ReadonlySet<string>,
+): ModelAsset[] {
+  if (selected.size === 0) return [];
+  const capability = delivery.capabilityProfile?.model,
+    limits = delivery.capabilityProfile?.limits?.model;
+  if (
+    !capability?.supported ||
+    capability.contractVersion !== 1 ||
+    !capability.formats?.includes(1) ||
+    !limits
+  )
+    fail("unsupported model capability");
+  const assets: ModelAsset[] = [];
+  let encoded = 0;
+  for (const assetId of selected) {
+    const bindings = delivery.residency?.models?.models?.filter((v) => v.assetId === assetId) ?? [],
+      access = delivery.assetAccess?.filter((v) => v.assetId === assetId) ?? [];
+    if (bindings.length !== 1 || access.length !== 1) fail("missing model binding");
+    const b = bindings[0]!,
+      a = access[0]!;
+    if (
+      b.format !== 1 ||
+      b.requiredFeatures?.some((v) => v < 1 || v > 7 || !capability.features?.includes(v))
+    )
+      fail("unsupported model feature");
+    if (
+      !b.checksum ||
+      !/^sha256:[0-9a-f]{64}$/.test(b.checksum) ||
+      a.checksum !== b.checksum ||
+      a.mediaType !== "model/gltf-binary" ||
+      a.encodedSizeBytes !== b.encodedSizeBytes
+    )
+      fail("asset integrity mismatch");
+    const asset: ModelAsset = {
+      assetId,
+      checksum: b.checksum,
+      encodedSizeBytes: uint(b.encodedSizeBytes),
+      url: a.url ?? fail("missing URL"),
+      expiresAtUnixMs: uint(a.expiresAtUnixMs),
+      requiredFeatures: b.requiredFeatures ?? [],
+      nodeCount: uint(b.nodeCount, true),
+      primitiveCount: uint(b.primitiveCount, true),
+      vertexCount: uint(b.vertexCount, true),
+      triangleCount: uint(b.triangleCount, true),
+      maxBonesPerSkin: uint(b.maximumBonesPerSkin, true),
+      maxMorphTargetsPerPrimitive: uint(b.maximumMorphTargetsPerPrimitive, true),
+      animationClipCount: uint(b.animationClipCount, true),
+      ...(delivery.capabilityProfile?.limits?.texture
+        ? {
+            textureBudget: {
+              maxWidth: uint(delivery.capabilityProfile.limits.texture.maxTextureWidth),
+              maxHeight: uint(delivery.capabilityProfile.limits.texture.maxTextureHeight),
+              maxPixels: uint(delivery.capabilityProfile.limits.texture.maxTexturePixels),
+              maxBindings: uint(delivery.capabilityProfile.limits.texture.maxTextureBindings),
+              maxGpuBytes: uint(delivery.capabilityProfile.limits.texture.maxGpuBytes),
+              maxCpuBytes: uint(delivery.capabilityProfile.limits.texture.maxSerialLoadCpuBytes),
+            },
+          }
+        : {}),
+    };
+    encoded += asset.encodedSizeBytes;
+    if (
+      asset.nodeCount > uint(limits.maxNodes) ||
+      asset.primitiveCount > uint(limits.maxPrimitives) ||
+      asset.vertexCount > uint(limits.maxVertices) ||
+      asset.triangleCount > uint(limits.maxTriangles) ||
+      asset.maxBonesPerSkin > uint(limits.maxBonesPerSkin) ||
+      asset.maxMorphTargetsPerPrimitive > uint(limits.maxMorphTargetsPerPrimitive) ||
+      asset.animationClipCount > uint(limits.maxAnimationClipsPerAsset)
+    )
+      fail("model budget exceeded");
+    assets.push(asset);
+  }
+  if (assets.length > uint(limits.maxAssets) || encoded > uint(limits.maxEncodedBytes))
+    fail("model budget exceeded");
+  return assets;
+}
+
+export function buildResidentModelAssets(delivery: DeliveryManifestWire): ModelAsset[] {
+  const selected = new Set<string>();
+  for (const node of delivery.projectionProfile?.runtimeCatalog?.nodes ?? []) {
+    if (node.model) selected.add(node.model.modelAssetId ?? fail("missing model asset"));
+  }
+  return buildModelAssets(delivery, selected);
+}
+
 export function buildModelPlan(delivery: DeliveryManifestWire, input: unknown): ModelPlan {
   const view = participantRuntimeViewSchema.parse(input),
     profile = delivery.projectionProfile;
   if (view.frozenAnchors.length) fail("unsupported frozen Anchor display state");
   if (
-    delivery.schemaVersion !== runtimeAuthorityVersions.delivery ||
+    delivery.schemaVersion !== 1 ||
     delivery.deliveryContractVersion !== runtimeAuthorityVersions.delivery ||
     profile?.runtimeCatalog?.catalogContractVersion !== runtimeAuthorityVersions.catalog ||
     profile.projectionProfileId !== view.projectionProfileId ||
@@ -92,89 +180,28 @@ export function buildModelPlan(delivery: DeliveryManifestWire, input: unknown): 
     });
   }
   if (instances.length === 0) return { nodes, instances, assets, clips };
-  const capability = delivery.capabilityProfile?.model,
-    limits = delivery.capabilityProfile?.limits?.model;
+  assets.push(
+    ...buildModelAssets(delivery, new Set(instances.map((instance) => instance.assetId))),
+  );
+  const limits = delivery.capabilityProfile!.limits!.model!;
+  const totals = instances.reduce(
+    (sum, instance) => {
+      const asset = assets.find((asset) => asset.assetId === instance.assetId)!;
+      return {
+        nodes: sum.nodes + asset.nodeCount,
+        primitives: sum.primitives + asset.primitiveCount,
+        vertices: sum.vertices + asset.vertexCount,
+        triangles: sum.triangles + asset.triangleCount,
+      };
+    },
+    { nodes: 0, primitives: 0, vertices: 0, triangles: 0 },
+  );
   if (
-    !capability?.supported ||
-    capability.contractVersion !== 1 ||
-    !capability.formats?.includes(1) ||
-    !limits
-  )
-    fail("unsupported model capability");
-  const selected = new Set(instances.map((v) => v.assetId));
-  let encoded = 0,
-    nodeCount = 0,
-    primitives = 0,
-    vertices = 0,
-    triangles = 0;
-  for (const assetId of selected) {
-    const bindings = delivery.residency?.models?.models?.filter((v) => v.assetId === assetId) ?? [],
-      access = delivery.assetAccess?.filter((v) => v.assetId === assetId) ?? [];
-    if (bindings.length !== 1 || access.length !== 1) fail("missing model binding");
-    const b = bindings[0]!,
-      a = access[0]!;
-    if (
-      b.format !== 1 ||
-      b.requiredFeatures?.some((v) => v < 1 || v > 7 || !capability.features?.includes(v))
-    )
-      fail("unsupported model feature");
-    if (
-      !b.checksum ||
-      !/^sha256:[0-9a-f]{64}$/.test(b.checksum) ||
-      a.checksum !== b.checksum ||
-      a.mediaType !== "model/gltf-binary" ||
-      a.encodedSizeBytes !== b.encodedSizeBytes
-    )
-      fail("asset integrity mismatch");
-    const asset: ModelAsset = {
-      assetId,
-      checksum: b.checksum,
-      encodedSizeBytes: uint(b.encodedSizeBytes),
-      url: a.url ?? fail("missing URL"),
-      expiresAtUnixMs: uint(a.expiresAtUnixMs),
-      requiredFeatures: b.requiredFeatures ?? [],
-      nodeCount: uint(b.nodeCount, true),
-      primitiveCount: uint(b.primitiveCount, true),
-      vertexCount: uint(b.vertexCount, true),
-      triangleCount: uint(b.triangleCount, true),
-      maxBonesPerSkin: uint(b.maximumBonesPerSkin, true),
-      maxMorphTargetsPerPrimitive: uint(b.maximumMorphTargetsPerPrimitive, true),
-      animationClipCount: uint(b.animationClipCount, true),
-      ...(delivery.capabilityProfile?.limits?.texture
-        ? {
-            textureBudget: {
-              maxWidth: uint(delivery.capabilityProfile.limits.texture.maxTextureWidth),
-              maxHeight: uint(delivery.capabilityProfile.limits.texture.maxTextureHeight),
-              maxPixels: uint(delivery.capabilityProfile.limits.texture.maxTexturePixels),
-              maxBindings: uint(delivery.capabilityProfile.limits.texture.maxTextureBindings),
-              maxGpuBytes: uint(delivery.capabilityProfile.limits.texture.maxGpuBytes),
-              maxCpuBytes: uint(delivery.capabilityProfile.limits.texture.maxSerialLoadCpuBytes),
-            },
-          }
-        : {}),
-    };
-    const count = instances.filter((v) => v.assetId === assetId).length;
-    encoded += asset.encodedSizeBytes;
-    nodeCount += asset.nodeCount * count;
-    primitives += asset.primitiveCount * count;
-    vertices += asset.vertexCount * count;
-    triangles += asset.triangleCount * count;
-    if (
-      asset.maxBonesPerSkin > uint(limits.maxBonesPerSkin) ||
-      asset.maxMorphTargetsPerPrimitive > uint(limits.maxMorphTargetsPerPrimitive) ||
-      asset.animationClipCount > uint(limits.maxAnimationClipsPerAsset)
-    )
-      fail("model budget exceeded");
-    assets.push(asset);
-  }
-  if (
-    assets.length > uint(limits.maxAssets) ||
     instances.length > uint(limits.maxInstances) ||
-    encoded > uint(limits.maxEncodedBytes) ||
-    nodeCount > uint(limits.maxNodes) ||
-    primitives > uint(limits.maxPrimitives) ||
-    vertices > uint(limits.maxVertices) ||
-    triangles > uint(limits.maxTriangles)
+    totals.nodes > uint(limits.maxNodes) ||
+    totals.primitives > uint(limits.maxPrimitives) ||
+    totals.vertices > uint(limits.maxVertices) ||
+    totals.triangles > uint(limits.maxTriangles)
   )
     fail("model budget exceeded");
   for (const clip of catalog.modelClips ?? []) {

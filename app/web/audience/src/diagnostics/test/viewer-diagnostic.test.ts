@@ -1,6 +1,31 @@
 import { expect, test } from "vitest";
 import { buildViewerDiagnostic } from "../viewer-diagnostic";
 
+test("checkpoint keeps classified render failures without serializing asset secrets", () => {
+  const result = buildViewerDiagnostic({
+    tracking: null,
+    viewing: {
+      phase: "error",
+      runtime: {
+        renderFailurePhase: "prepare",
+        assetFailure: {
+          kind: "png",
+          stage: "request",
+          code: "network-error",
+          url: "https://private.test/?signature=secret",
+          message: "private",
+        },
+      },
+    },
+    context: {},
+  } as never);
+  expect(result.viewing?.runtime).toMatchObject({
+    renderFailurePhase: "prepare",
+    assetFailure: { kind: "png", stage: "request", code: "network-error" },
+  });
+  expect(JSON.stringify(result)).not.toMatch(/private|secret|signature|message|url/);
+});
+
 test("viewer logs retain operational states while excluding presentation and connection secrets", () => {
   const result = buildViewerDiagnostic({
     tracking: {
@@ -94,6 +119,8 @@ test("viewer logs sanitize unknown error text and do not serialize invalid statu
         reliableSequence: "private",
         stateSequence: "private",
         error: "presentation-render-failed",
+        renderFailurePhase: "https://private",
+        assetFailure: { kind: "png", stage: "request", code: "https://private" },
         reason: "secret",
         view: { activeRuns: { length: "private" } },
       },
@@ -104,6 +131,8 @@ test("viewer logs sanitize unknown error text and do not serialize invalid statu
     },
   } as never);
   expect(result.viewing?.runtime?.error).toBe("presentation-render-failed");
+  expect(result.viewing?.runtime?.renderFailurePhase).toBeNull();
+  expect(result.viewing?.runtime?.assetFailure).toBeNull();
   expect(result.tracking?.error).toBe("unclassified-error");
   expect(JSON.stringify(result)).not.toMatch(/private|secret|https:/);
 });

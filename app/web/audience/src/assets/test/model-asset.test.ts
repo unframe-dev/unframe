@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { readFile } from "node:fs/promises";
 import { Group } from "three";
 import { loadModelAsset, type ModelAsset } from "../model-asset";
+import { getAssetFailure } from "../../diagnostics/asset-failure";
 function glb(json: unknown, binary?: Uint8Array) {
   const text = new TextEncoder().encode(JSON.stringify(json));
   const padded = (text.length + 3) & ~3;
@@ -287,5 +288,30 @@ describe("implicit GLTF default material", () => {
     const parse = vi.fn(async () => ({ scene: new Group(), animations: [] }));
     await expect(loadModelAsset(f.asset, { fetcher: f.fetcher, parse })).rejects.toThrow(/feature/);
     expect(parse).not.toHaveBeenCalled();
+  });
+});
+
+it("distinguishes model download and decoder failures", async () => {
+  const f = await fixture();
+  const network = await loadModelAsset(f.asset, {
+    fetcher: async () => {
+      throw new Error(f.asset.url);
+    },
+  }).catch((e: unknown) => e);
+  expect(getAssetFailure(network)).toEqual({
+    kind: "model",
+    stage: "request",
+    code: "network-error",
+  });
+  const decode = await loadModelAsset(f.asset, {
+    fetcher: f.fetcher,
+    parse: async () => {
+      throw new Error(f.asset.url);
+    },
+  }).catch((e: unknown) => e);
+  expect(getAssetFailure(decode)).toEqual({
+    kind: "model",
+    stage: "decode",
+    code: "decode-failed",
   });
 });

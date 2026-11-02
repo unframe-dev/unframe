@@ -37,8 +37,8 @@ public static class PresentationPreviewTestFixture
         {
             SchemaVersion = 1,
             RequestId = new string(request, 32),
-            BuildManifest = "{\"schemaVersion\":2,\"buildId\":\"build:" + request + "\"}",
-            AssetSet = "{\"schemaVersion\":2,\"assets\":{}}",
+            BuildManifest = "{\"schemaVersion\":1,\"buildId\":\"build:" + request + "\"}",
+            AssetSet = "{\"schemaVersion\":1,\"assets\":{}}",
             Projection = new LocalPreviewProjection
             {
                 RuntimeCatalog = catalog,
@@ -73,7 +73,7 @@ public static class PresentationPreviewTestFixture
             envelope.Projection.TextureResidency.Textures.Add(binding);
             envelope.Projection.TextureResidency.TotalDecodedGpuBytes = 4;
             envelope.Projection.TextureResidency.MaximumPeakLoadCpuBytes = 94;
-            envelope.AssetSet = "{\"schemaVersion\":2,\"assets\":{\"asset:one\":{\"checksum\":\"" + hash + "\",\"mediaType\":\"image/png\",\"encodedSizeBytes\":86}}}";
+            envelope.AssetSet = "{\"schemaVersion\":1,\"assets\":{\"asset:one\":{\"checksum\":\"" + hash + "\",\"mediaType\":\"image/png\",\"encodedSizeBytes\":86}}}";
             envelope.Assets.Add(new LocalPreviewAsset { AssetId = "asset:one", Reference = "opaque-asset-one" });
         }
         return envelope;

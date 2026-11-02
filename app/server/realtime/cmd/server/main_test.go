@@ -343,7 +343,7 @@ func TestRevokedLeasePausesRuntimeClockAndRejectsResume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime, err := runtimecore.NewV2Session(json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`))
+	runtime, err := runtimecore.NewV2Session(json.RawMessage(`{"schemaVersion":1,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`))
 	if err != nil {
 		t.Fatal(err)
 	}

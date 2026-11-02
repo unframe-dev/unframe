@@ -29,7 +29,7 @@ const fixtures = [
   {
     typeName: "unframe.delivery.DeliveryManifest",
     value: {
-      schemaVersion: 3,
+      schemaVersion: 1,
       deliveryContractVersion: 3,
       sessionId: "session-1",
       publication: {

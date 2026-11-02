@@ -253,6 +253,16 @@ export function createAnchorSession(options: {
       },
     },
   });
+  const onContextLost = () => {
+    if (!active) return;
+    presentationSession.clearRuntime();
+    controller.stop();
+    publish({
+      stage: "error",
+      error: "描画コンテキストが失われました。カメラを再起動してください。",
+    });
+  };
+  surface.addEventListener("webglcontextlost", onContextLost);
   const timer = window.setInterval(() => {
     const timestampMs = performance.now();
     publish({
@@ -367,6 +377,7 @@ export function createAnchorSession(options: {
       controller.stop();
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", onVisibility);
+      surface.removeEventListener("webglcontextlost", onContextLost);
     },
   };
 }

@@ -1,0 +1,390 @@
+import { request } from "node:http";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { startAuthorHost } from "../src/author/http.js";
+import type { AuthorService } from "@unframe/author-service";
+import type { LocalPublicationService } from "../src/author/publication.js";
+import type { BuildJob } from "@unframe/contracts/author-http";
+import { createLocalPreviewService } from "../src/author/local-preview.js";
+
+const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];
+afterEach(async () => {
+  await Promise.all(hosts.splice(0).map((host) => host.close()));
+});
+const setup = async (development = false, publication?: LocalPublicationService) => {
+  const service: AuthorService = {
+    project: vi.fn(async () => ({
+      revision: "rev",
+      sourceHash: "source",
+      irHash: "ir",
+      definition: null,
+      instances: [],
+      diagnostics: [],
+    })),
+    patch: vi.fn(),
+    build: vi.fn(),
+    job: vi.fn(),
+    cancel: vi.fn(),
+    artifact: vi.fn(),
+    close: vi.fn(async () => {}),
+  };
+  const previews = createLocalPreviewService("/missing");
+  const host = await startAuthorHost({
+    service,
+    previews,
+    ...(publication ? { publication } : {}),
+    ...(development ? { development: true } : {}),
+    assets: new Map([["/", { bytes: new TextEncoder().encode("editor"), mediaType: "text/html" }]]),
+  });
+  hosts.push(host);
+  return { host, service, previews };
+};
+describe("local author HTTP boundary", () => {
+  it("allows verified Blob videos in the editor content security policy", async () => {
+    const { host } = await setup();
+    const response = await fetch(host.origin);
+    expect(response.headers.get("content-security-policy")).toContain("media-src 'self' blob:");
+  });
+  it("protects playback and rejects client state, clocks, and malformed input commands", async () => {
+    const { host } = await setup();
+    const headers = {
+      authorization: `Bearer ${host.token}`,
+      "content-type": "application/json",
+      origin: host.origin,
+    };
+    const body = JSON.stringify({ requestId: "a".repeat(32), command: "poll" });
+    const post = (requestBody: string, requestHeaders = headers) =>
+      fetch(`${host.origin}/api/preview-playback`, {
+        method: "POST",
+        headers: requestHeaders,
+        body: requestBody,
+      });
+    expect((await post(body, { ...headers, authorization: "" })).status).toBe(401);
+    expect((await post(body, { ...headers, origin: "https://elsewhere.invalid" })).status).toBe(
+      403,
+    );
+    expect((await post(body)).status).toBe(409);
+    expect(
+      (
+        await post(
+          JSON.stringify({ requestId: "a".repeat(32), command: "play", runtimeTimeMs: 1000 }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await post(JSON.stringify({ requestId: "a".repeat(32), command: "input" }))).status,
+    ).toBe(400);
+    expect(
+      (
+        await post(
+          JSON.stringify({
+            requestId: "a".repeat(32),
+            command: "input",
+            cueId: "continue",
+            state: {},
+          }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await post(
+          JSON.stringify({ requestId: "a".repeat(32), command: "poll", cueId: "continue" }),
+        )
+      ).status,
+    ).toBe(400);
+  });
+
+  it("does not start a delayed Preview after a later display invalidation", async () => {
+    const { host, service, previews } = await setup();
+    let entered!: () => void;
+    const readingJob = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let resolveJob!: (job: BuildJob) => void;
+    service.job = vi.fn(() => {
+      entered();
+      return new Promise<BuildJob>((resolve) => {
+        resolveJob = resolve;
+      });
+    });
+    const load = vi.spyOn(previews, "load");
+    const headers = {
+      authorization: `Bearer ${host.token}`,
+      "content-type": "application/json",
+      origin: host.origin,
+    };
+    const delayed = fetch(`${host.origin}/api/previews`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ channel: "dev", requestId: "a".repeat(32), buildId: "b".repeat(32) }),
+    });
+    await readingJob;
+    expect(
+      (await fetch(`${host.origin}/api/preview-display`, { method: "DELETE", headers, body: "{}" }))
+        .status,
+    ).toBe(204);
+    resolveJob({
+      buildId: "b".repeat(32),
+      channel: "dev",
+      revision: "rev",
+      generationId: "c".repeat(32),
+      status: "succeeded",
+      diagnostics: [],
+      artifacts: [],
+    });
+    const response = await delayed;
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "preview-request-superseded" });
+    expect(load).not.toHaveBeenCalled();
+  });
+  it("exposes only public authorization status and validates publication commands", async () => {
+    const { host } = await setup();
+    const headers = {
+      authorization: `Bearer ${host.token}`,
+      "content-type": "application/json",
+      origin: host.origin,
+    };
+    expect(await (await fetch(`${host.origin}/api/publication-auth`, { headers })).json()).toEqual({
+      status: "unconfigured",
+    });
+    expect(
+      (
+        await fetch(`${host.origin}/api/publication-auth`, {
+          headers,
+          method: "DELETE",
+          body: "{}",
+        })
+      ).status,
+    ).toBe(204);
+    expect(
+      (
+        await fetch(`${host.origin}/api/publications`, {
+          headers,
+          method: "POST",
+          body: JSON.stringify({ requestId: "a".repeat(32), path: "/tmp" }),
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await fetch(`${host.origin}/api/publications`, {
+          headers,
+          method: "POST",
+          body: JSON.stringify({ requestId: "a".repeat(32) }),
+        })
+      ).status,
+    ).toBe(409);
+  });
+  it("protects Preview load and display receipts with the same origin and bearer boundary", async () => {
+    const { host } = await setup();
+    const body = JSON.stringify({ requestId: "a".repeat(32), buildIdentity: "build" });
+    const headers = {
+      authorization: `Bearer ${host.token}`,
+      "content-type": "application/json",
+      origin: host.origin,
+    };
+    expect(
+      (
+        await fetch(`${host.origin}/api/preview-display`, {
+          method: "POST",
+          body,
+          headers: { ...headers, authorization: "" },
+        })
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await fetch(`${host.origin}/api/preview-display`, {
+          method: "POST",
+          body,
+          headers: { ...headers, origin: "https://elsewhere.invalid" },
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (await fetch(`${host.origin}/api/preview-display`, { method: "POST", body, headers })).status,
+    ).toBe(409);
+    expect(
+      (await fetch(`${host.origin}/api/preview-display`, { method: "DELETE", body: "{}", headers }))
+        .status,
+    ).toBe(204);
+    expect(
+      (
+        await fetch(`${host.origin}/api/previews`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ requestId: "a".repeat(32), channel: "dist", path: "/etc/passwd" }),
+        })
+      ).status,
+    ).toBe(400);
+  });
+  it("requires the ephemeral bearer token even for project reads", async () => {
+    const { host, service } = await setup();
+    expect((await fetch(`${host.origin}/api/project`)).status).toBe(401);
+    expect(service.project).not.toHaveBeenCalled();
+    const response = await fetch(`${host.origin}/api/project`, {
+      headers: { authorization: `Bearer ${host.token}` },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("etag")).toBe('"rev"');
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+  it("rejects cross-origin writes and unknown command fields before calling the service", async () => {
+    const { host, service } = await setup();
+    const headers = {
+      authorization: `Bearer ${host.token}`,
+      "content-type": "application/json",
+      "if-match": '"rev"',
+      origin: "https://elsewhere.invalid",
+    };
+    expect(
+      (await fetch(`${host.origin}/api/project`, { method: "PATCH", headers, body: "{}" })).status,
+    ).toBe(403);
+    headers.origin = host.origin;
+    const body = {
+      commandId: "a".repeat(32),
+      expectedIrHash: "ir",
+      command: {
+        kind: "setProp",
+        instanceId: "one",
+        propId: "title",
+        value: "new",
+        fileName: "secrets",
+      },
+    };
+    expect(
+      (
+        await fetch(`${host.origin}/api/project`, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify(body),
+        })
+      ).status,
+    ).toBe(400);
+    expect(service.patch).not.toHaveBeenCalled();
+  });
+  it("serves only the trusted editor asset catalog and never project paths", async () => {
+    const { host } = await setup();
+    const response = await fetch(host.origin);
+    expect(response.headers.get("content-length")).toBe("6");
+    expect(await response.text()).toBe("editor");
+    expect((await fetch(`${host.origin}/unframe.lock`)).status).toBe(404);
+    expect((await fetch(`${host.origin}/api/builds/../../secret`)).status).toBe(404);
+  });
+});
+
+it("returns a bounded-input diagnostic without invoking a save", async () => {
+  const { host, service } = await setup();
+  const response = await fetch(`${host.origin}/api/project`, {
+    method: "PATCH",
+    headers: {
+      authorization: `Bearer ${host.token}`,
+      origin: host.origin,
+      "content-type": "application/json",
+      "if-match": '"rev"',
+    },
+    body: JSON.stringify({
+      commandId: "a".repeat(32),
+      expectedIrHash: "ir",
+      command: { kind: "setProp", instanceId: "a", propId: "title", value: "x".repeat(256 * 1024) },
+    }),
+  });
+  expect(response.status).toBe(413);
+  expect(service.patch).not.toHaveBeenCalled();
+});
+
+it("rejects a forged Host header before serving trusted assets", async () => {
+  const { host } = await setup();
+  const status = await new Promise<number | undefined>((resolve, reject) => {
+    const req = request(host.origin, { headers: { host: "attacker.invalid" } }, (response) => {
+      response.resume();
+      resolve(response.statusCode);
+    });
+    req.on("error", reject);
+    req.end();
+  });
+  expect(status).toBe(403);
+});
+
+it("accepts only the fixed Vite origin for development writes and still requires a bearer", async () => {
+  const { host } = await setup(true);
+  const headers = {
+    authorization: `Bearer ${host.token}`,
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:5174",
+  };
+  expect(host.origin).toBe("http://127.0.0.1:5175");
+  expect(
+    (await fetch(`${host.origin}/api/preview-display`, { method: "DELETE", headers, body: "{}" }))
+      .status,
+  ).toBe(204);
+  expect(
+    (
+      await fetch(`${host.origin}/api/preview-display`, {
+        method: "DELETE",
+        headers: { ...headers, origin: host.origin },
+        body: "{}",
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (
+      await fetch(`${host.origin}/api/preview-display`, {
+        method: "DELETE",
+        headers: { ...headers, authorization: "" },
+        body: "{}",
+      })
+    ).status,
+  ).toBe(401);
+});
+
+it("keeps unknown publication operations available through receipt queries", async () => {
+  const unknown = {
+    ok: false as const,
+    code: "cli-publish-outcome-unknown" as const,
+    outcome: "outcome-unknown" as const,
+    operation: {
+      presentationId: "p",
+      buildId: "fixed",
+      publicationEpoch: 2,
+      definitionHash: `sha256:${"a".repeat(64)}`,
+      renderBundleHash: `sha256:${"b".repeat(64)}`,
+      assetSetHash: `sha256:${"c".repeat(64)}`,
+    },
+  };
+  const publish = vi.fn(async () => unknown);
+  const query = vi
+    .fn()
+    .mockResolvedValueOnce(unknown)
+    .mockResolvedValueOnce({ ok: true, buildId: "fixed", publicationEpoch: 2 });
+  const { host } = await setup(false, { publish, query, close() {} });
+  const headers = {
+    authorization: `Bearer ${host.token}`,
+    "content-type": "application/json",
+    origin: host.origin,
+  };
+  const body = JSON.stringify({ requestId: "a".repeat(32) });
+  const unresolved = await fetch(`${host.origin}/api/publications`, {
+    method: "POST",
+    headers,
+    body,
+  });
+  expect(unresolved.status).toBe(202);
+  expect(await unresolved.json()).toEqual(unknown);
+  const stillUnknown = await fetch(`${host.origin}/api/publication-status`, {
+    method: "POST",
+    headers,
+    body,
+  });
+  expect(stillUnknown.status).toBe(202);
+  expect(await stillUnknown.json()).toEqual(unknown);
+  const confirmed = await fetch(`${host.origin}/api/publication-status`, {
+    method: "POST",
+    headers,
+    body,
+  });
+  expect(confirmed.status).toBe(200);
+  expect(await confirmed.json()).toEqual({ ok: true, buildId: "fixed", publicationEpoch: 2 });
+  expect(publish).toHaveBeenCalledTimes(1);
+  expect(query).toHaveBeenCalledTimes(2);
+});

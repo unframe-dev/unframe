@@ -11,3 +11,8 @@ it("keeps an in-budget replacement and charges earlier images in its serial peak
   expect(admitPngMemory([image], 4 * 1024 * 1024, 13 * 1024 * 1024)).toBe(4 * 1024 * 1024);
   expect(() => admitPngMemory([image, image], 4 * 1024 * 1024, 13 * 1024 * 1024)).toThrow("CPU");
 });
+
+it("rejects resident memory above budget even when all textures are already loaded", () => {
+  expect(() => admitPngMemory([], 101, 100)).toThrow("budget");
+  expect(admitPngMemory([], 100, 100)).toBe(0);
+});

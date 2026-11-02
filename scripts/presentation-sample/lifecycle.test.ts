@@ -23,7 +23,7 @@ test("failed advertisement removal still stops services and releases the launche
   assert.deepEqual(steps, ["revoke", "stop", "unlock"]);
 });
 
-test("sample listeners are distinct and leases cannot outlive the credential", () => {
+test("sample listeners are distinct and the connection cannot outlive its credential or run", () => {
   assert.equal(new Set(Object.values(samplePorts)).size, 4);
   assert.equal(sessionExpiry(1_000, 2_000, 3_000), new Date(2_000).toISOString());
   assert.throws(() => sessionExpiry(2_000, 2_000, 3_000), /expired/);

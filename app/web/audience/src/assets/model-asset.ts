@@ -1,6 +1,16 @@
 import { Material, Mesh, SkinnedMesh, Texture, type AnimationClip, type Group } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { assertAssetCurrent, requestAssetBytes, verifyAssetChecksum } from "./asset-transfer";
+import {
+  assertAssetCurrent,
+  requestAssetBytes,
+  verifyAssetChecksum,
+  type AssetFailureReporter,
+} from "./asset-transfer";
+import {
+  AssetLoadError,
+  getAssetFailure,
+  type AssetFailureDetails,
+} from "../diagnostics/asset-failure";
 import { validateModelBinary } from "./glb-validation";
 export interface ModelAsset {
   assetId: string;
@@ -35,10 +45,6 @@ interface ModelOptions {
   fetcher?: typeof fetch;
   now?: () => number;
   parse?: (data: ArrayBuffer) => Promise<ModelData>;
-}
-class ModelError extends Error {}
-function fail(reason: string): never {
-  throw new ModelError(`GLB ${reason}`);
 }
 export function disposeModelScene(scene: Group | Group[]): void {
   const geometries = new Set<Mesh["geometry"]>(),
@@ -77,17 +83,28 @@ export async function loadModelAsset(
   dispose(): void;
 }> {
   let data: ModelData | undefined;
-  const checkCurrent = () => assertAssetCurrent(asset, options, fail);
+  let stage: AssetFailureDetails["stage"] = "validation";
+  const fail: AssetFailureReporter = (reason, details) => {
+    throw new AssetLoadError(
+      { kind: "model", stage, code: "validation-failed", ...details },
+      `GLB ${reason}`,
+    );
+  };
+  const checkCurrent = () => assertAssetCurrent(asset, options, fail, stage);
   try {
     checkCurrent();
+    stage = "request";
     const bytes = await requestAssetBytes(asset, options, {
       mimeType: "model/gltf-binary",
       minBytes: 20,
       fail,
     });
+    stage = "checksum";
     await verifyAssetChecksum(bytes, asset.checksum, fail);
+    stage = "validation";
     const budget = validateModelBinary(bytes, asset, fail);
     checkCurrent();
+    stage = "decode";
     data = await (
       options.parse ??
       (async (buffer) => {
@@ -112,7 +129,16 @@ export async function loadModelAsset(
     };
   } catch (error) {
     if (data) disposeModelScene(data.scenes ?? data.scene);
-    if (error instanceof ModelError) throw error;
-    throw new ModelError(options.signal?.aborted ? "GLB load aborted" : "GLB load failed");
+    if (getAssetFailure(error)) throw error;
+    fail(options.signal?.aborted ? "load aborted" : "load failed", {
+      stage,
+      code: options.signal?.aborted
+        ? "aborted"
+        : stage === "decode"
+          ? "decode-failed"
+          : stage === "checksum"
+            ? "checksum-failed"
+            : "validation-failed",
+    });
   }
 }

@@ -235,7 +235,7 @@ func startSession(ctx context.Context, a Assignment, renewals <-chan Assignment,
 	if err != nil {
 		return nil, err
 	}
-	metadata := &realtime.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: a.SessionID, RuntimeId: a.RuntimeID, RuntimeKind: realtime.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: a.AssignmentEpoch, Publication: &presentation.PublicationFence{PresentationId: bootstrap.Publication.PresentationID, PublicationEpoch: bootstrap.Publication.PublicationEpoch, PublicationManifestHash: bootstrap.Publication.PublicationManifestHash}, DefinitionHash: bootstrap.Publication.DefinitionHash, RenderBundleHash: bootstrap.Publication.RenderBundleHash}
+	metadata := &realtime.DurableCheckpointEnvelope{SchemaVersion: 1, SessionId: a.SessionID, RuntimeId: a.RuntimeID, RuntimeKind: realtime.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: a.AssignmentEpoch, Publication: &presentation.PublicationFence{PresentationId: bootstrap.Publication.PresentationID, PublicationEpoch: bootstrap.Publication.PublicationEpoch, PublicationManifestHash: bootstrap.Publication.PublicationManifestHash}, DefinitionHash: bootstrap.Publication.DefinitionHash, RenderBundleHash: bootstrap.Publication.RenderBundleHash}
 	claim := assignment.AssignmentClaim{SessionID: a.SessionID, RuntimeID: a.RuntimeID, RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: a.AssignmentEpoch, PresentationRevision: a.PresentationRevision}
 	writer := &sessionWriter{client: client, revision: a.PresentationRevision, guard: guard, slots: slots, startup: ctx}
 	if err = runtime.ConfigureDurability(writer, metadata, catalog); err != nil {

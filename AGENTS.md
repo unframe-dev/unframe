@@ -20,6 +20,7 @@ app/
 
 docs/          Architecture, API, ADR, and plan documentation
 packages/
+├── unframe/          Independent authoring, toolchain, and adapter packages
 ├── contracts/        API and protocol contracts / generated artifacts
 ├── api-client-csharp/ Generated C# Control Plane / Realtime artifacts
 └── config/           Shared TypeScript, Vite+, and Git hook configuration

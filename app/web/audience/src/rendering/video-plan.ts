@@ -48,7 +48,7 @@ export function buildVideoPlan(delivery: DeliveryManifestWire, input: unknown): 
   if (view.frozenAnchors.length) fail("unsupported frozen Anchor display state");
   const profile = delivery.projectionProfile ?? fail("missing projection");
   if (
-    delivery.schemaVersion !== runtimeAuthorityVersions.delivery ||
+    delivery.schemaVersion !== 1 ||
     delivery.deliveryContractVersion !== runtimeAuthorityVersions.delivery ||
     profile.runtimeCatalog?.catalogContractVersion !== runtimeAuthorityVersions.catalog ||
     view.projectionProfileId !== profile.projectionProfileId ||

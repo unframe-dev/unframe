@@ -13,7 +13,7 @@ const budget = <T extends z.ZodRawShape>(shape: T) =>
 
 export const capabilityProfileSchema = z
   .strictObject({
-    schemaVersion: z.literal(3),
+    schemaVersion: z.literal(1),
     capabilityProfileId: idSchema,
     contractVersions: z.strictObject({
       delivery: z.literal(3),

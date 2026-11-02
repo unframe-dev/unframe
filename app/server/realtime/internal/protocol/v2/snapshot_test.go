@@ -13,7 +13,7 @@ import (
 
 func snapshotFixture() *realtimev2.CanonicalRuntimeSnapshot {
 	return &realtimev2.CanonicalRuntimeSnapshot{
-		SchemaVersion: 3, ReliableSequence: 3, InputEpoch: 1,
+		SchemaVersion: 1, ReliableSequence: 3, InputEpoch: 1,
 		Clock:              &realtimev2.RuntimeClockSnapshot{Status: &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}},
 		Progression:        &realtimev2.ProgressionRuntimeState{CurrentGroupId: "group", GroupEntryEpoch: 1, CurrentStepId: "step", StepEntryEpoch: 1, Phase: &realtimev2.ProgressionRuntimeState_Stable{Stable: &realtimev2.StableProgression{}}},
 		StepExecution:      &realtimev2.StepExecutionSnapshot{StepEntryEpoch: 1},
@@ -29,7 +29,7 @@ func checkpointFixture(t *testing.T) (*realtimev2.DurableCheckpointEnvelope, *pr
 	recovery := recoveryEnvelope(t, &realtimev2.RuntimeRecoveryMetadata{StartedAt: "2026-10-22T00:00:00Z", Participants: []*realtimev2.RuntimeParticipantHistory{{ParticipantId: "presenter", Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER}}, CommandEpoch: 1, InputSynchronization: synchronizationFixture()})
 	digest := sha256.Sum256(payload)
 	return &realtimev2.DurableCheckpointEnvelope{
-		SchemaVersion: 3, RecoveryPayload: recovery.RecoveryPayload, RecoveryHash: recovery.RecoveryHash, CheckpointSequence: 1, SessionId: "session", RuntimeId: "runtime", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: publication(), DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64), ReliableSequence: 3, CanonicalSnapshotHash: "sha256:" + hex.EncodeToString(digest[:]), CanonicalSnapshotPayload: payload,
+		SchemaVersion: 1, RecoveryPayload: recovery.RecoveryPayload, RecoveryHash: recovery.RecoveryHash, CheckpointSequence: 1, SessionId: "session", RuntimeId: "runtime", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: publication(), DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64), ReliableSequence: 3, CanonicalSnapshotHash: "sha256:" + hex.EncodeToString(digest[:]), CanonicalSnapshotPayload: payload,
 	}, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}
 }
 func TestCheckpointRecovery(t *testing.T) {

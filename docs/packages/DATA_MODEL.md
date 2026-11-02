@@ -2,7 +2,7 @@
 
 ## 正本と読み方
 
-Definition / Delivery / Runtime は v3、RenderBundle / AssetSet は v2 を使用する。構造は Zod / Protobuf、構造だけでは表せない参照整合性・計算・状態遷移・拒否条件は以下の仕様を正本とする。両方を満たして初めて有効なデータとなる。
+Definition・RenderBundle・AssetSet・BuildManifest の `schemaVersion` は `1`、Delivery / Runtime の contract version は `3` を使用する。構造は Zod / Protobuf、構造だけでは表せない参照整合性・計算・状態遷移・拒否条件は以下の仕様を正本とする。両方を満たして初めて有効なデータとなる。
 
 [ADR-0027](../decisions/0027-presenter-recognition-and-runtime-authority.md) の Presenter 認識・入力同期・凍結表示・到達済み Step 復元を実装した。対象テストと実機未検証の範囲は移行計画に記録する。 wire・version・容量は [v3 契約](./CONTRACT_PRESENTER_AUTHORITY.md) を正本とする。
 
@@ -13,9 +13,9 @@ Definition / Delivery / Runtime は v3、RenderBundle / AssetSet は v2 を使�
 | DeliveryManifest                                                        | [delivery](../../packages/contracts/proto/unframe/delivery/delivery.proto)        | 同上                                    |
 | Command / Event / Run / Snapshot / StateFrame                           | [realtime](../../packages/contracts/proto/unframe/realtime/realtime.proto)        | 同上                                    |
 
-型・意味規則が旧 Architecture の例や初期 v1 と異なる場合は、この契約を優先する。Architecture と ADR は設計理由を説明する。v1 は初期 subset の履歴であり、現在の Compiler / Core は上記の version 組合せを生成・検証し、Delivery / Runtime / Unity と接続する。
+型・意味規則が旧 Architecture の例や初期 subset と異なる場合は、この契約を優先する。Architecture と ADR は設計理由を説明する。現在の Compiler / Core は上記の version 組合せを生成・検証し、Delivery / Runtime / Unity と接続する。
 
-M3A は Theme と Structured composition の静的 `baked-web` 経路を v2 へ接続する。その authoring と compile-time 解決規則は [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。この接続は CLI / reference project まで実装され、動的機能と consumer 接続は後続に残る。
+M3A は Theme と Structured composition の静的 `baked-web` 経路を Presentation へ接続する。その authoring と compile-time 解決規則は [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。この接続は CLI / reference project まで実装され、動的機能と consumer 接続は後続に残る。
 
 ## 情報の配置
 
@@ -66,10 +66,10 @@ Presenter client が入力を認識し、Runtime が Cue の採用と共有状�
 
 ### 実装と検証範囲
 
-Zod / Protobuf、Authoring / Compiler / Core、Realtime と Unity を v3 に揃えた。旧 motion / tracking trigger、可変 Zone size、server cooldown は受理しない。Presenter にだけ認識設定と到達済み Step ID を渡し、開始状態履歴は server に保持する。認識品質と2m Zone の妥当性は Quest 実機の別途確認が必要である。
+Presenter authority の wire contract は v3 であり、Authoring / Compiler、Realtime と Unity が対応する。旧 motion / tracking trigger、可変 Zone size、server cooldown は受理しない。Presenter にだけ認識設定と到達済み Step ID を渡し、開始状態履歴は server に保持する。認識品質と2m Zone の妥当性は Quest 実機の別途確認が必要である。
 
 [契約 package](../../packages/contracts/README.md) に生成・drift check・fixture の実行方法を記載する。JSON Schema と descriptor は生成物であり、手編集しない。
 
 構造テストの合格は、GLB importer、動画 decoder、font atlas、Runtime reducer、再接続、Quest の実機動作が実装済みであることを意味しない。意味検証は Core、投影と admission は Delivery、素材変換は Compiler、描画は各 consumer の責務となる。端末の上限値は検証済み CapabilityProfile の必須入力であり、fixture の合成値を製品設定に使わない。
 
-Core は Scene / Flow / Runtime Snapshot の意味検証と [build / 公開物の整合性検証](../../packages/unframe-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) を持つ。Compiler / CLI は Definition、RenderBundle、AssetSet、BuildManifest と素材 bytes を出力する。Delivery / Runtime consumer は v3 へ接続済みである。素材変換・端末描画・実機検証の範囲は各 consumer の文書を参照する。
+Core は Scene / Flow / Runtime Snapshot の意味検証と build / 公開物の整合性検証 を持つ。Compiler / CLI は Definition、RenderBundle、AssetSet、BuildManifest と素材 bytes を出力する。Delivery / Runtime consumer は v3 へ接続済みである。素材変換・端末描画・実機検証の範囲は各 consumer の文書を参照する。

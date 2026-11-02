@@ -110,12 +110,12 @@ func (s executionControlStream) Context() context.Context { return s.ctx }
 
 func servingExecution(t *testing.T, ctx context.Context, id string, router *transport.SessionRouter) (*runtimeExecution, context.Context, assignment.AssignmentClaim) {
 	t.Helper()
-	raw := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	raw := json.RawMessage(`{"schemaVersion":1,"presentationId":"presentation-1","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	core, err := runtimecore.NewV2Session(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	metadata := &realtime.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: id, RuntimeId: "host-1", RuntimeKind: realtime.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentation.PublicationFence{PresentationId: "presentation-1", PublicationEpoch: 1, PublicationManifestHash: "sha256:" + strings.Repeat("a", 64)}, DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64)}
+	metadata := &realtime.DurableCheckpointEnvelope{SchemaVersion: 1, SessionId: id, RuntimeId: "host-1", RuntimeKind: realtime.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentation.PublicationFence{PresentationId: "presentation-1", PublicationEpoch: 1, PublicationManifestHash: "sha256:" + strings.Repeat("a", 64)}, DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64)}
 	if err := core.ConfigureDurability(idlePersistence{}, metadata, &presentation.ProjectedRuntimeCatalog{CatalogContractVersion: 3}); err != nil {
 		t.Fatal(err)
 	}

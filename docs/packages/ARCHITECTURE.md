@@ -7,7 +7,7 @@
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
   - Progression semantic wire contract: Accepted（v3 Protobuf。consumer の実装・検証範囲は [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md) と [Unity README](../../app/unity/README.md) を参照）
-  - コンパイル後の Definition・配信・Runtime: v3、RenderBundle / AssetSet: v2。現行 Authoring / build host は [CLI Architecture](../../packages/unframe-cli/ARCHITECTURE.md) を参照
+  - Definition・RenderBundle・AssetSet・BuildManifest の schemaVersion: 1。配信・Runtime contract: v3。現行 Authoring / build host は [CLI Architecture](../../packages/unframe/cli/ARCHITECTURE.md) を参照
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
   - [Local Editor: Unity Preview の設計と実装計画](./LOCAL_EDITOR_DESIGN.md)
@@ -89,7 +89,7 @@ Session path の authority は Cloud または Venue Edge に配置された割�
 
 ### 基本原則
 
-- TSX、JSON、Protobuf は用途ごとの表現形式とする。v2 の PresentationDefinition は canonical JSON として build するが、JSON を Authoring Source にはしない。
+- TSX、JSON、Protobuf は用途ごとの表現形式とする。PresentationDefinition は canonical JSON として build するが、JSON を Authoring Source にはしない。
 - `.unframe.tsx` はプレゼンテーション全体を直接描画する巨大な実装ではなく、Component の配置と接続を行う composition root とする。
 - Component の公開契約と renderer 実装を分離する。
 - GUI と Code は同じ Semantic Authoring IR を編集する。
@@ -166,7 +166,7 @@ PresentationDefinition
 
 素材の使用箇所は `assetId` だけを参照する。checksum、media type、encoded size を持つ素材 descriptor は、Definition と RenderBundle から独立した immutable な `AssetSetManifest` に置く。Compiler は Definition、RenderBundle、AssetSetManifest、素材実体の参照完全性を検証し、Control Plane はそれぞれの hash を PublishedPresentation に固定する。現行 CLI は分離済みの `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と素材 bytes を一つの generation に公開する。独立音声用 descriptor は持たず、Video 内の audio track は Video asset の一部として検証する。
 
-エンコード方式自体は意味モデルの一部ではないが、現行 Local Compiler は v2 PresentationDefinition JSON を canonical に生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。M1 local outputでの file name は `definition.json` であり、後続の full Delivery target の layout と混同しない。
+エンコード方式自体は意味モデルの一部ではないが、現行 Local Compiler は schema version 1 の PresentationDefinition JSON を canonical に生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。M1 local outputでの file name は `definition.json` であり、後続の full Delivery target の layout と混同しない。
 
 ### 3.4 RenderBundle
 
@@ -406,7 +406,7 @@ Spatial Node は `audience` を直接持ち、Semantic Surface、Interaction、M
 
 Projection は `ProjectableResourceRef` の参照 closure を満たさなければならない。visible resource が必要とする Spatial ancestor、Semantic Surface、renderer binding、Asset descriptor を欠く profile は Delivery 前に拒否する。capability 差は renderer / resolution / local overlay の選択だけを変え、Shared Progression、認可、semantic resource identity を変更しない。
 
-Presentation v2 の Timeline は `audience` を持たず、Delivery の runtime catalog に一括して含まれる。このため v2 では role 限定 Node を Timeline target にできないものとし、Compiler は `audience: { kind: "all" }` 以外の target を拒否する。Timeline audience、profile ごとの Definition / Run 投影、role 限定 Timeline の non-blocking 規則は、Zod と Delivery / Realtime Protobuf を同時に更新する後続 contract とする。
+Presentation の Timeline は `audience` を持たず、Delivery の runtime catalog に一括して含まれる。このため現行契約では role 限定 Node を Timeline target にできないものとし、Compiler は `audience: { kind: "all" }` 以外の target を拒否する。Timeline audience、profile ごとの Definition / Run 投影、role 限定 Timeline の non-blocking 規則は、Zod と Delivery / Realtime Protobuf を同時に更新する後続 contract とする。
 
 Presenter notes の内容は PublishedPresentation 内の Presenter 限定 projection resource、control の利用可否は Shared Progression から導出する Runtime View、panel の開閉や hover は Client-local State とする。Projection 自体を Action target や Variable scope にしない。
 
@@ -443,7 +443,7 @@ Presenter control の押下は認証済み Logical Input へ変換できるが�
 Component 内部の Frame、Text、装飾などを Presentation Orchestrator へ展開して記述しない。
 
 ```tsx
-import { definePresentation } from "@unframe/unframe-authoring";
+import { definePresentation } from "@unframe/core/authoring";
 import { Hero } from "./components/Hero/Hero.manifest";
 import { Counter } from "./components/Counter/Counter.manifest";
 
@@ -552,7 +552,7 @@ Generic renderer は Structure に宣言されていない Semantic Node、State
 
 authoring mode は Component version ごとに一つに固定し、renderer ごとに Structured / Opaque を切り替えない。Structured と Opaque の変更は公開 authoring contract の破壊的変更として Component version を更新する。migration metadata と自動変換の具体契約は M3A より後に定義する。
 
-Component lock v3 は Component ID / version、local file closure または package key / subpath の origin と Manifest hash を固定する。Structured では Structure hash、Opaque では rendererInputHash も固定する。ローカル Component に package version を補わない。正確な hash 入力は React Component 実行契約0節に従う。
+Component lock は Component ID / version、local file closure または package key / subpath の origin と Manifest hash を固定する。Structured では Structure hash、Opaque では rendererInputHash も固定する。ローカル Component に package version を補わない。正確な hash 入力は React Component 実行契約0節に従う。
 
 Component Structure の共通 DSL 制約、parse / typecheck、static AST lowering は 6.1〜6.3 に従う。具体的な Primitive node union と property schema は Component contract で定義する。
 
@@ -577,7 +577,7 @@ Opaque Manifest は Action / Output lowering に必要な公開 Runtime target �
 
 Opaque renderer は Manifest の binding key に concrete geometry や artifact を対応付けるが、宣言済み target の意味や ID を変更できない。Compiler は Opaque Action / Output template の local target を `semantics` から解決し、参照先の欠落、ID や binding key の重複、必須 binding の未結合、renderer が追加した未宣言 binding を build error とする。
 
-Opaque の lock v3 は origin、Manifest hash と rendererInputHash を固定する。rendererInputHash は抽出 renderer、local 描画依存、runtime package graph、固定 tool identity から計算する。capture artifact の生成と provenance は現行の隔離 Browser capture に接続済みである。
+Opaque の lock は origin、Manifest hash と rendererInputHash を固定する。rendererInputHash は抽出 renderer、local 描画依存、runtime package graph、固定 tool identity から計算する。capture artifact の生成と provenance は現行の隔離 Browser capture に接続済みである。
 
 Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure は、GUI の source mapping と意味論的 round-trip を成立させるため、静的解析できる制限付き DSL とする。Local Compiler は import、symbol、型を解決した検証済み AST から Declaration Graph へ直接 lower し、これらの source を JavaScript として実行しない。
 
@@ -758,7 +758,7 @@ Compiler は source と lockfile を解決した後、Lossless Syntax Tree を�
 
 Normalization は少なくとも、stable ID の一意性、参照整合性、Component contract、source range との対応、context ごとの許可 node、静的 topology を検証する。unsupported syntax、未解決または許可されていない import / call、計算された ID、AST と Declaration Graph の対応欠落は build error とする。具体的な parser、TypeScript API、AST patch library は implementation design で選択できるが、この静的 lowering contract を変更してはならない。
 
-Opaque renderer はこの pipeline に入れず、通常の module bundling で renderer artifact を生成する。artifact を Layout / capture のために実行する場合は renderer 専用の隔離された Browser environment を使用する。Browser capability、固定 lock の module resolution、cache invalidation、Font / Locale は [Renderer Web Architecture](../../packages/unframe-renderer-web/ARCHITECTURE.md) と [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。platform ごとの再現性の追加検証は ADR-0026 に従う。
+Opaque renderer はこの pipeline に入れず、通常の module bundling で renderer artifact を生成する。artifact を Layout / capture のために実行する場合は renderer 専用の隔離された Browser environment を使用する。Browser capability、固定 lock の module resolution、cache invalidation、Font / Locale は [Renderer Web Architecture](../../packages/unframe/renderer-web/ARCHITECTURE.md) と [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。platform ごとの再現性の追加検証は ADR-0026 に従う。
 
 ### 6.4 GUI / Code round-trip
 
@@ -822,7 +822,7 @@ v1 は一つの SurfaceNode と一つの Semantic Surface を 1:1 に対応さ�
 
 ModelNode は Model Asset に内蔵された animation clip を再生できる。通常は一つの ModelNode で同時に一つの clip だけを再生し、clip crossfade 中だけ遷移元と遷移先の二つを許可する。別 ModelNode の clip は同時に再生できる。部位 mask、animation layer、additive clip 合成は対象外とし、将来用 field や拡張口を作らない。詳細な採用範囲は [ADR-0016](../decisions/0016-model-animation-scope.md) に従う。
 
-clip は Model 内部の姿勢だけを変更する。build 時に root motion を除去または無効化し、安全に変換・検証できない素材を拒否する。ModelNode の position / rotation / scale は Timeline と Node 操作が所有する。自然終了は最終姿勢、明示停止は停止時点の姿勢を保持する。crossfade 中の別 clip 要求は拒否し、自動 queue しない。Run 除去後も保持姿勢を途中参加・再接続で復元できる canonical state が必要になる。Clip ID binding、保持姿勢、配布形式の構造は [Presentation Data Model](./DATA_MODEL.md) に従う。root motion の規則、Action、Run、Snapshot、Reliable Event の field と wire は同 v2 契約に定義する。
+clip は Model 内部の姿勢だけを変更する。build 時に root motion を除去または無効化し、安全に変換・検証できない素材を拒否する。ModelNode の position / rotation / scale は Timeline と Node 操作が所有する。自然終了は最終姿勢、明示停止は停止時点の姿勢を保持する。crossfade 中の別 clip 要求は拒否し、自動 queue しない。Run 除去後も保持姿勢を途中参加・再接続で復元できる canonical state が必要になる。Clip ID binding、保持姿勢、配布形式の構造は [Presentation Data Model](./DATA_MODEL.md) に従う。root motion の規則、Action、Run、Snapshot、Reliable Event の field と wire は同データ契約と Runtime 契約に定義する。
 
 ### 7.1 Group
 
@@ -1719,7 +1719,7 @@ type TimelineDefinition = {
 - `opacity` は number、`transform.position` と `transform.scale` は Vector3、`transform.rotation` は非ゼロ Quaternion だけを値に取る。Quaternion は Compiler が Delivery 前に正規化し、Runtime も補間境界で正規化する。
 - 最終 keyframe 以外は `easingToNext` を必須とし、最終 keyframe では禁止する。easing はその keyframe から次の keyframe までの segment に適用する。
 - 同じ `target/property` を同時に所有できる Timeline Run は一つだけとする。v1 の conflict policy は `reject` のみであり、replace と additive animation は含めない。
-- Presentation v2 の Timeline catalog は全 profile に共通であるため、target は `audience: { kind: "all" }` の Spatial Node に限定する。role 限定 Timeline は後続 contract で Timeline audience と Definition / Run の投影を追加するまで許可しない。
+- Presentation の Timeline catalog は全 profile に共通であるため、target は `audience: { kind: "all" }` の Spatial Node に限定する。role 限定 Timeline は後続 contract で Timeline audience と Definition / Run の投影を追加するまで許可しない。
 - group-owned Timeline は同じ Group または presentation-owned Spatial Node、presentation-owned Timeline は presentation-owned Spatial Node だけを target にできる。
 - group-owned Timeline は Group exit 時に停止する。presentation-owned Timeline は明示的な `timeline.stop` または Presentation 終了まで Group をまたいで継続できる。Step 遷移だけではどちらも停止しない。
 - Timeline の開始・完了は Session の pause-aware logical runtime clock で決定する。Renderer acknowledgement を完了条件にしない。
@@ -2224,7 +2224,7 @@ Hit region は Semantic Surface State ごとに解決し、bounds は Render Sur
 
 ## 14. RenderBundle
 
-RenderBundle と texture build policy の正本は [RenderBundle schema](../../packages/contracts/src/presentation/render-bundle.ts) とする。現行 `schemaVersion` は `2` で、Surface artifact と model artifact を含む。JSON の非負整数は [common schema](../../packages/contracts/src/presentation/common.ts) の safe integer 上限を守り、Protobuf の `uint64` と同じ全範囲を JavaScript number に格納できるとは扱わない。
+RenderBundle と texture build policy の正本は [RenderBundle schema](../../packages/contracts/src/presentation/render-bundle.ts) とする。現行 `schemaVersion` は `1` で、Surface artifact と model artifact を含む。JSON の非負整数は [common schema](../../packages/contracts/src/presentation/common.ts) の safe integer 上限を守り、Protobuf の `uint64` と同じ全範囲を JavaScript number に格納できるとは扱わない。
 
 `NormalizedTextureBuildPolicyV1`はADR-0012のresolution policy version、budget policy version、long edge、State / Surface / binding count、texture dimension / pixels、rendered pixels、capture bytes、output bytes、accounted peak bytes、renderer concurrencyの正規化済み実値を持つ。`policyHash` fieldを除いたcanonical payloadのhashを`textureBuildPolicy.policyHash`として保持し、RenderBundle hashとCompiler cache keyの入力にする。wall-time、host RSS、abortはavailability guardであり、このportable objectやartifact identityへ含めない。callerが上限を縮小した場合も実際に使用した値を記録し、default値へ丸めない。per-texture pixel countは`UInt32`、`maxRenderedPixels`を含むaggregate pixel countは`UInt64`とする。
 
@@ -2366,7 +2366,7 @@ Unity Runtime
 
 Static lowering が参照できる入力は、Authoring Source、lock された Component package、Theme、Asset metadata、Compiler configuration に限定する。同じ source、lockfile、compiler version、configuration から同じ Declaration Graph と PresentationDefinition JSON を生成する。Opaque renderer artifact の Browser 実行は別の隔離境界とし、その capability と再現性は Rendering / Delivery contract で固定する。
 
-Local process は POSIX filesystem に限定し、明示された absolute project directory を root とする。同じ root の `unframe.config.ts` と `unframe.lock` を読み、上方探索はしない。configは`entryFile`と任意の`assets`登録を持つ非実行のdata-only default exportであり、lock v3はsource Assetのpath/hash/size、local file hashとself-contained package bytes / graphを固定する。通常 check / build は node_modules / network を参照しない。`check` は React Component の公開契約・renderer 抽出と canonical Opaque Surface への変換までを検証する。build は Fixed Browser を使用し、Opaque Surface の capture は隔離 worker で実行する。成果物は `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と画像・Font・GLB・MP4 assets であり、管理された `dist` を atomic replacement する。lock の明示更新と filesystem 規則は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、React 抽出境界は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。
+Local process は POSIX filesystem に限定し、明示された absolute project directory を root とする。同じ root の `unframe.config.ts` と `unframe.lock` を読み、上方探索はしない。configは`entryFile`と任意の`assets`登録を持つ非実行のdata-only default exportであり、lockはsource Assetのpath/hash/size、local file hashとself-contained package bytes / graphを固定する。通常 check / build は node_modules / network を参照しない。`check` は React Component の公開契約・renderer 抽出と canonical Opaque Surface への変換までを検証する。build は Fixed Browser を使用し、Opaque Surface の capture は隔離 worker で実行する。成果物は `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と画像・Font・GLB・MP4 assets であり、管理された `dist` を atomic replacement する。lock の明示更新と filesystem 規則は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、React 抽出境界は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。
 
 ### Control Plane
 
@@ -2435,7 +2435,7 @@ dist/
    └─ <percent-encoded asset id>.png
 ```
 
-この出力構成は M1 当時のもので、`definition.json` は v1 の PresentationDefinition artifact である。現行の M3A では [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) に従って v2 出力へ移行済みで、v1 互換出力は維持していない。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
+この出力構成は M1 当時のものである。現行の PresentationDefinition の `schemaVersion` は `1` であり、authoring の契約は [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) を参照する。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
 
 ## 17. 現行実装との関係
 
@@ -2450,7 +2450,7 @@ dist/
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
 - 管理 Web は公開済み Dist の確認とルーム作成を担当する。Source 編集と Unity Preview は `app/web/local-editor` と CLI Author host が所有し、canonical Definition の読み取り、公開 Props / Transform 編集と Cue / Timer / Timeline のローカル Unity Preview を提供する。
 - Unity の Baked Runtime は Delivery、素材取得、Snapshot / Reliable Event、Timeline / State 表示を接続する。Native UI の接続描画と Quest 実機受け入れはこの成功範囲に含めない。
-- Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から v2 Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font / GLB / MP4 bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
+- Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font / GLB / MP4 bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
 - M3A の静的 Authoring subset では、型付き Theme token、Named Style、Props / Variants / Parts、Slot を使う Frame / Text composition と static lowering が実装済みである。
 
 - Model clipとVideoのAuthoring / Compiler / Local Coreを実装し、通常RuntimeとLocal Editorの共通Unity consumerがcanonical state / Run / logical clockから描画・再生する。
@@ -2558,11 +2558,11 @@ dist/
 5. [x] Resolution、mipmap、compression、preload、eviction policyも [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした。
 6. Component Manifest と renderer implementation の drift 検証
 7. Opaque renderer の Browser capability、module resolution、cache invalidation と Compiler / Browser / Font / Locale の再現性
-8. DeliveryManifest v2 / capability 契約に従う実装、visual regression test
+8. DeliveryManifest / capability 契約に従う実装、visual regression test
 
 ## 20. 次の設計対象
 
-blockingなTimeline / transport / Semantic / coordinate / partition / texture budget contractはすべてAcceptedになった。コンパイル後の Model animation、Asset Set、Native UI / Video、Delivery / Runtime の具体契約は [Presentation v2](./DATA_MODEL.md) を正本とする。Compiler と consumer の実装範囲は各 component の文書に従い、契約の採用を全機能の接続・実機検証の完了とは扱わない。
+blockingなTimeline / transport / Semantic / coordinate / partition / texture budget contractはすべてAcceptedになった。コンパイル後の Model animation、Asset Set、Native UI / Video、Delivery / Runtime の具体契約は [Presentation データ契約](./DATA_MODEL.md) を正本とする。Compiler と consumer の実装範囲は各 component の文書に従い、契約の採用を全機能の接続・実機検証の完了とは扱わない。
 
 中心となる思想は次のとおりである。
 

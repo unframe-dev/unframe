@@ -6,9 +6,10 @@ import {
   verifyPublicationIntegrity,
   validatePresentationArtifacts,
   type BuildArtifacts,
-} from "@unframe/unframe-core";
+} from "@unframe/artifacts";
 import {
   publicationFenceSchema,
+  publishedPresentationSchema,
   type PublishedPresentation,
 } from "@unframe/contracts/presentation";
 import type { z } from "zod";
@@ -390,7 +391,15 @@ export class PublicationService {
       .limit(1)
       .get();
     if (!row) throw new PublicationError("not_found");
-    return JSON.parse(row.manifest) as PublishedPresentation;
+    let manifest: unknown;
+    try {
+      manifest = JSON.parse(row.manifest);
+    } catch {
+      throw new PublicationError("conflict");
+    }
+    const parsed = publishedPresentationSchema.safeParse(manifest);
+    if (!parsed.success) throw new PublicationError("conflict");
+    return parsed.data;
   }
 
   async publishedArtifacts(

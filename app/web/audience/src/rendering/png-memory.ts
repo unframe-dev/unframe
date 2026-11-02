@@ -10,6 +10,7 @@ export function admitPngMemory(
     budgetBytes <= 0
   )
     throw new Error("Invalid PNG CPU budget");
+  if (residentCpuBytes > budgetBytes) throw new Error("PNG replacement CPU budget exceeded");
   let retainedCpuBytes = 0;
   for (const asset of assets) {
     const decodedBytes = asset.pixelSize[0] * asset.pixelSize[1] * 4;

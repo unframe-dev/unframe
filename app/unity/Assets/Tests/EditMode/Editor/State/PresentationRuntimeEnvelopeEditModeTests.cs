@@ -127,6 +127,22 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         Assert.That(store.TryReceiveState(state.ToByteArray(), out error), Is.True, error);
     }
 
+    [TestCase(0)]
+    [TestCase(2)]
+    [TestCase(3)]
+    public void SnapshotRejectsUnsupportedSchemaVersionWithoutReplacingTheLastCut(int version)
+    {
+        var store = CreateLoadedStore(out _, out var snapshot);
+        Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
+        ControlServerItem unsupported = snapshot.Clone();
+        unsupported.ConnectionSnapshot.SchemaVersion = (uint)version;
+
+        Assert.That(store.TryReceiveControl(unsupported, out error), Is.False);
+        Assert.That(error, Does.Contain("incompatible"));
+        Assert.That(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope retained), Is.True);
+        Assert.That(retained, Is.EqualTo(snapshot.ConnectionSnapshot));
+    }
+
     [TestCase("participant")]
     [TestCase("projection")]
     [TestCase("snapshot sequence")]

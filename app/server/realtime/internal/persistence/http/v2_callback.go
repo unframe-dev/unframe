@@ -61,7 +61,7 @@ func (c *Client) CompleteEnvelope(ctx context.Context, envelope *realtimev2.Dura
 }
 
 func validCheckpointEnvelope(envelope *realtimev2.DurableCheckpointEnvelope) bool {
-	if envelope == nil || envelope.SchemaVersion != 3 || envelope.CheckpointSequence == 0 || protocolv2.ValidateMessage(envelope) != nil {
+	if envelope == nil || envelope.SchemaVersion != 1 || envelope.CheckpointSequence == 0 || protocolv2.ValidateMessage(envelope) != nil {
 		return false
 	}
 	digest := sha256.Sum256(envelope.CanonicalSnapshotPayload)

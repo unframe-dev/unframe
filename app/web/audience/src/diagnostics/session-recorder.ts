@@ -1,3 +1,5 @@
+import { sanitizeAssetFailure } from "./asset-failure";
+
 const eventNames = [
   "session.join",
   "delivery.received",
@@ -100,9 +102,28 @@ export interface SessionEventFields {
   stepId?: string | undefined;
   count?: number | undefined;
   commandId?: string | undefined;
+  renderPhase?: string | undefined;
+  assetKind?: string | undefined;
+  assetStage?: string | undefined;
+  assetCode?: string | undefined;
+  httpStatus?: number | undefined;
 }
 function sanitize(input: SessionEventFields): SessionEventFields {
   const output: Record<string, string | number> = {};
+  if (input.renderPhase === "prepare" || input.renderPhase === "frame")
+    output.renderPhase = input.renderPhase;
+  const assetFailure = sanitizeAssetFailure({
+    kind: input.assetKind,
+    stage: input.assetStage,
+    code: input.assetCode,
+    httpStatus: input.httpStatus,
+  });
+  if (assetFailure) {
+    output.assetKind = assetFailure.kind;
+    output.assetStage = assetFailure.stage;
+    output.assetCode = assetFailure.code;
+    if (assetFailure.httpStatus !== undefined) output.httpStatus = assetFailure.httpStatus;
+  }
   for (const key of ["sessionId", "runtimeId", "groupId", "stepId"] as const) {
     const value = input[key];
     if (typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value)) output[key] = value;

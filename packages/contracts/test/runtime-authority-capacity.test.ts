@@ -89,7 +89,7 @@ function recoveryMetadata(commands: Record<string, unknown>[]): Record<string, u
 
 function canonicalSnapshot(nodeCount: number): Record<string, unknown> {
   return {
-    schemaVersion: 3,
+    schemaVersion: 1,
     reliableSequence: "1",
     lastIngressSequence: "1",
     lastAllocatedRunSequence: "0",
@@ -148,7 +148,7 @@ test("a StepStartState is capped independently and canonical history is bounded"
 
   const history = Array.from({ length: 9 }, (_, index) => stepStartState(255, index + 1));
   const snapshot = encodeWireMessage("unframe.realtime.CanonicalRuntimeSnapshot", {
-    schemaVersion: 3,
+    schemaVersion: 1,
     reliableSequence: "1",
     lastIngressSequence: "1",
     lastAllocatedRunSequence: "0",
@@ -175,7 +175,7 @@ test("a StepStartState is capped independently and canonical history is bounded"
   assert.throws(
     () =>
       encodeWireMessage("unframe.realtime.CanonicalRuntimeSnapshot", {
-        schemaVersion: 3,
+        schemaVersion: 1,
         inputEpoch: "1",
         reliableSequence: "1",
         lastIngressSequence: "1",
@@ -244,7 +244,7 @@ test("worst-case durable checkpoint JSON remains below the two-megabyte D1 row c
   assert.ok(canonicalBytes.byteLength + recoveryBytes.byteLength > 1_000_000);
   assert.ok(canonicalBytes.byteLength + recoveryBytes.byteLength <= 1_048_576);
   const checkpoint = JSON.stringify({
-    schemaVersion: 3,
+    schemaVersion: 1,
     checkpointSequence: "1",
     sessionId: "s".repeat(128),
     runtimeId: "r".repeat(128),

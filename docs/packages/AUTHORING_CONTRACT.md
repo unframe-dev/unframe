@@ -2,18 +2,18 @@
 
 - **Status**: Baked-web / Model / Video builds and shared Unity playback implemented
 - **Scope**: Structured composition, Model roots, Video content, playback Actions and Outputs
-- **Related**: [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md), [Presentation v2](./DATA_MODEL.md), [Presentation Architecture](./ARCHITECTURE.md)
+- **Related**: [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md), [Presentation データ契約](./DATA_MODEL.md), [Presentation Architecture](./ARCHITECTURE.md)
 
 この文書は Structured Authoring と compile-time 解決規則の正本である。公開 TypeScript 名、Zod field、diagnostic code などの実装詳細は、以下の意味を変えない範囲で実装時に確定する。
 
-React `.component.tsx` の Props・semantics・render 分離は [React Component 実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。本書の Structured composition / layout 規則はそのまま維持する。Component Instance は package lock を持たず、catalog と lock v3 が origin と宣言 hash を接続する。
+React `.component.tsx` の Props・semantics・render 分離は [React Component 実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。本書の Structured composition / layout 規則はそのまま維持する。Component Instance は package lock を持たず、catalog と lock schema version 1 が origin と宣言 hash を接続する。
 
 ## M4 Structured graph
 
 [ADR-0022](../decisions/0022-m4-structured-rendering-and-build-cache.md) に従い、M3A の Primitive 範囲を Frame / literal Text / Image / Shape へ拡張する。初期の M3A は absolute Frame / Text に限定したが、現在の対応範囲はこの文書に記載する M4 の graph とする。
 
 - `frame` / `text` に加えて `image` / `shape` builder を使う。Image は明示 Asset reference と fit / tint / border、Shape は rectangle / ellipse / line geometry と fill / stroke / strokeWidth を必須指定する。Named Style は Frame / Text に維持し、Image / Shape は inline style を使う。
-- 各 Node の `layout` は absolute / Stack / Grid placement。Frame の `flow` は子の Stack / Grid layout、省略時は absolute。root は absolute placement。親 flow と child placement の kind、Grid の cell / span、有限な正の resolved geometry を検証する。Stack / Grid の field は Presentation v2 schema に従う。
+- 各 Node の `layout` は absolute / Stack / Grid placement。Frame の `flow` は子の Stack / Grid layout、省略時は absolute。root は absolute placement。親 flow と child placement の kind、Grid の cell / span、有限な正の resolved geometry を検証する。Stack / Grid の field は PresentationDefinition schema に従う。
 - Core の共通 resolver が State 別 logical rect を計算し、Compiler の partition / Hit Region と Renderer が共有する。Browser intrinsic layout や DOM から意味・geometry を推測しない。
 - Image source は checksum 付き PNG / JPEG bytes に限定し、host path / network 読み込みを許可しない。Variable TextとRuntime HTML / JavaScriptは未対応である。
 
@@ -29,7 +29,7 @@ CompilerはGLB変換とMP4検証を通し、logical Asset IDを保ったDefiniti
 
 ## Baked-web scope and resolution
 
-Structured 宣言を Presentation v2 と baked-web 成果物へ接続する。宣言 State ごとの visual override と、明示 Semantic Node に対応した click Interaction を扱う。State と Interaction の意味は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md)、[ADR-0021](../decisions/0021-surface-interaction-geometry.md) に従う。Native UIは未対応である。旧 v1 出力の互換経路は追加しない。
+Structured 宣言を PresentationDefinition と baked-web 成果物へ接続する。宣言 State ごとの visual override と、明示 Semantic Node に対応した click Interaction を扱う。State と Interaction の意味は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md)、[ADR-0021](../decisions/0021-surface-interaction-geometry.md) に従う。Native UIは未対応である。
 
 値の解決順は次のとおりとし、後段が同じ property を上書きする。配列は要素単位に merge せず全置換する。
 
@@ -39,7 +39,7 @@ Structured 宣言を Presentation v2 と baked-web 成果物へ接続する。�
 4. Variant
 5. 公開 Part の Instance override
 
-Named Style の継承と、一つの Primitive への複数 Named Style 適用は行わない。解決後の値は [v2 Definition schema](../../packages/contracts/src/presentation/definition.ts) に従い、必須値の不足や不正値は build error とする。
+Named Style の継承と、一つの Primitive への複数 Named Style 適用は行わない。解決後の値は [Definition schema](../../packages/contracts/src/presentation/definition.ts) に従い、必須値の不足や不正値は build error とする。
 
 ## TypeScript / JSX source
 
@@ -114,13 +114,13 @@ Text content、位置、寸法、primary font、font size、line height には�
 
 ## Version, lock, and deferred migration
 
-Component version、lock v3 の local / package origin と Theme / Manifest / Structure の hash 整合性を検証する。不適合な Props、Slots、Parts、Variants を含む package 更新は build error とし、暗黙に変換しない。
+Component version、lock schema version 1 の local / package origin と Theme / Manifest / Structure の hash 整合性を検証する。不適合な Props、Slots、Parts、Variants を含む package 更新は build error とし、暗黙に変換しない。
 
 Component migration metadata と自動変換は後続へ延期する。Action / Output、Runtime transport、partition isolate はそれぞれの契約・ADR を正本とし、本書では再定義しない。
 
 ## Implementation prerequisite
 
-Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition は Compiler が具体的な v2 値へ解決する。Runtime Text と media renderer の未対応制限を baked-web の境界で維持する。
+Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition は Compiler が具体的な Definition の値へ解決する。Runtime Text と media renderer の未対応制限を baked-web の境界で維持する。
 
 ## 発表者のモーション操作候補
 
