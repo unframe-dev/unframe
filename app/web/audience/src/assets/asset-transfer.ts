@@ -1,5 +1,10 @@
 import { contentHashSchema, safeUIntSchema } from "@unframe/contracts/presentation";
 import { z } from "zod";
+import { getAssetFailure, type AssetFailureDetails } from "../diagnostics/asset-failure";
+export type AssetFailureReporter = (
+  reason: string,
+  details?: Omit<AssetFailureDetails, "kind">,
+) => never;
 
 interface EncodedAsset {
   url: string;
@@ -25,9 +30,10 @@ export function assertAssetCurrent(
   asset: EncodedAsset,
   options: AssetRequestOptions,
   fail: TransferOptions["fail"],
+  stage: AssetFailureDetails["stage"] = "validation",
 ): void {
-  if (options.signal?.aborted) fail("load aborted");
-  assertDeliveryCurrent(asset.expiresAtUnixMs, options.now, fail);
+  if (options.signal?.aborted) fail("load aborted", { stage, code: "aborted" });
+  assertDeliveryCurrent(asset.expiresAtUnixMs, options.now, fail, stage);
 }
 
 export async function requestAssetBytes(
@@ -43,37 +49,58 @@ export async function requestAssetBytes(
   const checkCurrent = () => assertAssetCurrent(asset, options, fail);
   checkCurrent();
   if (!deliveryUrlSchema.safeParse(asset.url).success)
-    fail("URL must use HTTPS without credentials");
+    fail("URL must use HTTPS without credentials", { stage: "validation", code: "invalid-url" });
   if (!encodedAssetSchema.safeParse(asset).success || asset.encodedSizeBytes < format.minBytes)
-    fail("invalid metadata");
-  const response = await (options.fetcher ?? fetch)(asset.url, {
-    mode: "cors",
-    credentials: "omit",
-    cache: "no-store",
-    ...(options.signal ? { signal: options.signal } : {}),
-  });
+    fail("invalid metadata", { stage: "validation", code: "invalid-metadata" });
+  let response: Response;
   try {
-    checkCurrent();
-    if (!response.ok) fail("request failed");
+    response = await (options.fetcher ?? fetch)(asset.url, {
+      mode: "cors",
+      credentials: "omit",
+      cache: "no-store",
+      ...(options.signal ? { signal: options.signal } : {}),
+    });
+  } catch {
+    return fail("load failed", {
+      stage: "request",
+      code: options.signal?.aborted ? "aborted" : "network-error",
+    });
+  }
+  const responseFailure: AssetFailureReporter = (reason, details) =>
+    fail(reason, {
+      stage: "response",
+      code: "network-error",
+      ...details,
+      httpStatus: response.status,
+    });
+  const checkResponseCurrent = () =>
+    assertAssetCurrent(asset, options, responseFailure, "response");
+  try {
+    checkResponseCurrent();
+    if (!response.ok) responseFailure("request failed", { stage: "response", code: "http-error" });
     if (
       response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !==
       format.mimeType
     )
-      fail("content type required");
+      responseFailure("content type required", { stage: "response", code: "mime-mismatch" });
     return await receiveAssetBytes(response, asset.encodedSizeBytes, {
       signal: options.signal,
-      fail,
-      checkCurrent,
+      fail: responseFailure,
+      checkCurrent: checkResponseCurrent,
     });
   } catch (error) {
     await response.body?.cancel().catch(() => undefined);
-    throw error;
+    if (getAssetFailure(error)) throw error;
+    responseFailure("response read failed", {
+      stage: "response",
+      code: options.signal?.aborted ? "aborted" : "network-error",
+    });
   }
 }
 
 interface TransferOptions {
   signal?: AbortSignal | undefined;
-  fail(reason: string): never;
+  fail: AssetFailureReporter;
   checkCurrent(): void;
 }
 
@@ -82,7 +109,8 @@ async function receiveAssetBytes(
   expectedSize: number,
   { signal, fail, checkCurrent }: TransferOptions,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  if (!response.body) return fail("response body missing");
+  if (!response.body)
+    return fail("response body missing", { stage: "response", code: "body-missing" });
   const reader = response.body.getReader();
   const cancel = () => {
     void reader.cancel().catch(() => undefined);
@@ -90,7 +118,8 @@ async function receiveAssetBytes(
   signal?.addEventListener("abort", cancel, { once: true });
   try {
     const declared = response.headers.get("content-length");
-    if (declared !== null && Number(declared) !== expectedSize) fail("encoded size mismatch");
+    if (declared !== null && Number(declared) !== expectedSize)
+      fail("encoded size mismatch", { stage: "response", code: "size-mismatch" });
     const bytes = new Uint8Array(expectedSize);
     let length = 0;
     for (;;) {
@@ -98,11 +127,13 @@ async function receiveAssetBytes(
       const chunk = await reader.read();
       checkCurrent();
       if (chunk.done) break;
-      if (length + chunk.value.length > expectedSize) fail("encoded size mismatch");
+      if (length + chunk.value.length > expectedSize)
+        fail("encoded size mismatch", { stage: "response", code: "size-mismatch" });
       bytes.set(chunk.value, length);
       length += chunk.value.length;
     }
-    if (length !== expectedSize) fail("encoded size mismatch");
+    if (length !== expectedSize)
+      fail("encoded size mismatch", { stage: "response", code: "size-mismatch" });
     return bytes;
   } finally {
     signal?.removeEventListener("abort", cancel);
@@ -118,14 +149,16 @@ export async function verifyAssetChecksum(
 ): Promise<void> {
   const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   const actual = `sha256:${Array.from(hash, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
-  if (actual !== expected) fail("checksum mismatch");
+  if (actual !== expected)
+    fail("checksum mismatch", { stage: "checksum", code: "checksum-mismatch" });
 }
 
 function assertDeliveryCurrent(
   expiresAtUnixMs: number,
   now: (() => number) | undefined,
   fail: TransferOptions["fail"],
+  stage: AssetFailureDetails["stage"] = "validation",
 ): void {
   if (!Number.isFinite(expiresAtUnixMs) || expiresAtUnixMs <= (now ?? Date.now)())
-    fail("delivery URL expired");
+    fail("delivery URL expired", { stage, code: "expired" });
 }

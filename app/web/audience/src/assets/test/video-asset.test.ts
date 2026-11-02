@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadVideoAsset } from "../video-asset";
+import { getAssetFailure } from "../../diagnostics/asset-failure";
 class FakeVideo extends EventTarget {
   videoWidth = 320;
   videoHeight = 180;
@@ -130,4 +131,30 @@ describe("video asset", () => {
       loadVideoAsset(f.asset, { ...f.options, signal: controller.signal }),
     ).rejects.toThrow("aborted");
   });
+});
+
+it("reports video HTTP and decoder failures without source URLs", async () => {
+  const f = await fixture();
+  const http = await loadVideoAsset(f.asset, {
+    ...f.options,
+    fetcher: async () => new Response(null, { status: 403 }),
+  }).catch((e: unknown) => e);
+  expect(getAssetFailure(http)).toEqual({
+    kind: "video",
+    stage: "response",
+    code: "http-error",
+    httpStatus: 403,
+  });
+  const decode = await loadVideoAsset(f.asset, {
+    ...f.options,
+    createVideo: () => {
+      throw new Error(f.asset.url);
+    },
+  }).catch((e: unknown) => e);
+  expect(getAssetFailure(decode)).toEqual({
+    kind: "video",
+    stage: "decode",
+    code: "decode-failed",
+  });
+  expect(String(decode)).not.toContain(f.asset.url);
 });
