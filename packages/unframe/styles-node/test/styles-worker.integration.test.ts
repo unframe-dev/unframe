@@ -23,7 +23,7 @@ beforeAll(async () => {
   const lock = parseAllDocuments(await readFile(join(repository, "pnpm-lock.yaml"), "utf8"))
     .at(-1)!
     .toJS();
-  const tool = lock.importers["packages/unframe"].devDependencies;
+  const tool = lock.importers["packages/unframe/styles-node"].devDependencies;
   const names = ["postcss", "tailwindcss", "@tailwindcss/postcss", "@tailwindcss/forms"];
   const dependencies = Object.fromEntries(names.map((name) => [name, tool[name].specifier]));
   await writeFile(
