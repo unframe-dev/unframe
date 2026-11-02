@@ -26,14 +26,20 @@ import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 const temporary: string[] = [];
 const services: AuthorService[] = [];
 let reference: string;
+let editableReference: string;
 let basePresentation: Awaited<ReturnType<typeof prepareReactProjectFixture>>["presentation"];
 beforeAll(async () => {
   const fixture = await prepareReactProjectFixture();
   reference = fixture.directory;
   basePresentation = fixture.presentation;
+  editableReference = await mkdtemp(
+    join(temporaryDirectory(), "unframe-author-service-reference-"),
+  );
+  await prepareEditableProject(editableReference);
 }, 120_000);
 afterAll(async () => {
   if (reference) await rm(reference, { recursive: true, force: true });
+  if (editableReference) await rm(editableReference, { recursive: true, force: true });
 });
 afterEach(async () => {
   await Promise.all(services.splice(0).map((service) => service.close()));
@@ -48,9 +54,7 @@ const component = [
   "  render: ({texts}: {texts: {title: string}}) => { throw texts.title; },",
   "});",
 ].join("\n");
-const createProject = async () => {
-  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-service-"));
-  temporary.push(directory);
+const prepareEditableProject = async (directory: string) => {
   await copyProjectFixture(reference, directory);
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);
@@ -103,6 +107,11 @@ const createProject = async () => {
   await writeFile(join(directory, "Hero.component.tsx"), component);
   const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
   expect(refreshed.exitCode, refreshed.stderr).toBe(0);
+};
+const createProject = async () => {
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-service-"));
+  temporary.push(directory);
+  await copyProjectFixture(editableReference, directory);
   return directory;
 };
 const commandId = (character: string) => character.repeat(32);

@@ -29,7 +29,7 @@
     "presentation": "bun src/process/main.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test vite.config.ts",
-    "test": "vp test run --exclude \"**/*.integration.test.ts\" --exclude \"test-bun/**\" --maxWorkers=1 --testTimeout=60000",
+    "test": "vp test run --exclude \"**/*.integration.test.ts\" --exclude \"test-bun/**\" --maxWorkers=2 --testTimeout=60000",
     "test:tui": "bun test --preload @opentui/solid/preload ./test-bun/tui-render.test.bun.tsx",
     "build": "vp pack",
     "check": "pnpm --config.verify-deps-before-run=false typecheck && pnpm --config.verify-deps-before-run=false lint && pnpm --config.verify-deps-before-run=false test && pnpm --config.verify-deps-before-run=false test:tui && pnpm --config.verify-deps-before-run=false build",

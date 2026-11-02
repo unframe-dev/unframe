@@ -41,6 +41,8 @@ Audience の `dev` / `preview` は追加引数を package script へ渡します
 
 GitHub Actions では `nixbuild/nix-quick-install-action` で Nix を導入し、`magic-nix-cache-action` で Nix store をキャッシュします。
 
+Console は Browser のインストールと品質チェックを `parallel` で実行し、両方の完了後に E2E を実行します。Unity の protobuf 検査と managed dependency 検査も `parallel` で実行します。
+
 Bun は `packages/config/bun.nix` で 1.4.2 に固定しています。1.3.13 ではブラウザ終了後の追加パイプの二重 close により、成果物の出力が `EBADF` で失敗するためです。開発環境と CI は同じ Nix toolchain を使います。対象 system は Linux x86_64 と macOS arm64 です。macOS の実機検証状態と隔離の保証差は [ADR-0026](../docs/decisions/0026-native-linux-macos-host-adapters.md) に従います。
 
 `packages/contracts/` は Control Plane OpenAPI、Realtime Protocol Buffers、Presentation artifact schema の共有境界です。`nix run .#presentation` は `packages/unframe/` と配下の独立workspaceパッケージ、依存境界、配布物の公開API、契約fixtureの生成driftを検証します。`generate-valid-delivery.sh` は宣言Project fixtureを実Compilerと決定的な契約用Rendererで処理し、Browserには依存しません。このfixtureは実描画の受け入れ検証を代替しません。
@@ -87,6 +89,8 @@ nix develop --command scripts/ci/opaque-capture.sh
 通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。Linux では delegated scope を作り、macOS では native adapter を直接使用します。Opaque integration は通常の package unit test から分離しています。GitHub Actions の AppArmor 許可は Linux の専用 step の executable path に限定します。
 
 Presentation CI の型・lint・共通単体テスト、契約生成・wire 互換性検査、参照 project の二回 build は Ubuntu で実行します。Ubuntu の Opaque integration は `renderer`、`cli-project`、`cli-author`、`cli-styles` の独立した4ジョブで並列実行し、各ジョブ内は直列にして cgroup の回収検査との競合を防ぎます。macOS は native filesystem、Darwin の隔離・回収、固定 Browser・locked font の描画、native Tailwind worker の検証に限定します。各ジョブの上限は45分で、集約 CI はすべての成功を必須とします。
+
+通常の Packages check は `contracts`、`core`、`usecases`、`adapters`、`cli`、`acceptance` の6ジョブに分割します。型宣言ビルドのメモリ競合を避けるため、各ジョブ内の package 処理は直列です。`acceptance` は必要な package を自前で build し、配布物検証と参照 project の二回 build を実行します。個別実行は `nix run .#presentation -- <suite>`、全 suite のローカル実行は従来どおり `nix run .#presentation` です。
 
 個別に実行する場合は `nix develop --command scripts/ci/opaque-capture.sh <suite>` を使います。Ubuntu 用の suite は上記4つ、macOS 用は `macos` です。引数省略時は、その OS の全 Opaque integration を実行します。
 

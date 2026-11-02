@@ -54,6 +54,16 @@ reference_acceptance() {
   rm -rf "${temp}"
 }
 
+check_packages() {
+  local package
+  # 型宣言ビルドを重ねると runner のメモリ上限を超えるため直列化する。
+  for package in "$@"; do
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter "@unframe/${package}" run check
+  done
+}
+
+TMPDIR="$(realpath -- "${TMPDIR:-/tmp}")"
+export TMPDIR
 mode="${1:-check}"
 case "${mode}" in
   fix)
@@ -64,9 +74,7 @@ case "${mode}" in
   reference)
     reference_acceptance
     ;;
-  check)
-    TMPDIR="$(realpath -- "${TMPDIR:-/tmp}")"
-    export TMPDIR
+  contracts)
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/dev-scripts run check
     node --test "${REPO_ROOT}/scripts/ci/presentation.test.ts"
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test
@@ -87,6 +95,14 @@ case "${mode}" in
     dotnet run --project "${REPO_ROOT}/packages/api-client-csharp/Conformance/Unframe.Wire.Conformance.csproj" -- \
       "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/conformance.json" \
       "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/valid-delivery.json"
+    ;;
+  core)
+    check_packages presentation artifacts playback delivery authoring source compiler
+    ;;
+  usecases)
+    check_packages workspace workspace-node author-service build preview publish
+    ;;
+  adapters)
     for package in render-browser media-node styles-node worker-host; do
       for task in typecheck lint build test; do
         pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter "@unframe/${package}" run "${task}"
@@ -94,16 +110,28 @@ case "${mode}" in
     done
     go -C "${REPO_ROOT}/packages/unframe/workspace-node/native" test ./...
     go -C "${REPO_ROOT}/packages/unframe/workspace-node/native" vet ./...
-    # 型宣言ビルドを重ねると runner のメモリ上限を超えるため直列化する。
+    ;;
+  cli)
+    check_packages cli
+    ;;
+  acceptance)
+    # 配布検証は他ジョブの dist に依存せず、同じ checkout から全成果物を準備する。
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" \
       --workspace-concurrency=1 \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
-      run check
+      run build
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test:packed
+    reference_acceptance
+    ;;
+  check)
+    for suite in contracts core usecases adapters cli; do
+      bash "${BASH_SOURCE[0]}" "${suite}"
+    done
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test:packed
     reference_acceptance
     ;;
   *)
-    echo "usage: presentation.sh [check|fix|reference]" >&2
+    echo "usage: presentation.sh [check|fix|reference|contracts|core|usecases|adapters|cli|acceptance]" >&2
     exit 2
     ;;
 esac
