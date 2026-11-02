@@ -1,7 +1,7 @@
 name: Console
 
 # app/web/console (React management SPA) の品質ゲート。ci.yml から呼ばれる reusable workflow。
-# unit/build gate と Playwright E2E を分けて実行する。
+# Browser の準備と unit/build gate を並列実行し、完了後に Playwright E2E を実行する。
 on:
   workflow_call:
   workflow_dispatch:
@@ -23,11 +23,12 @@ jobs:
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile
 
-      - name: Install Playwright Chromium
-        run: nix develop --command pnpm --filter @unframe/console exec playwright install --with-deps chromium
+      - parallel:
+          - name: Install Playwright Chromium
+            run: nix develop --command pnpm --filter @unframe/console exec playwright install --with-deps chromium
 
-      - name: check / test / build
-        run: nix run .#console
+          - name: check / test / build
+            run: nix run .#console
 
       - name: Playwright E2E
         run: nix develop --command pnpm --filter @unframe/console run test:e2e

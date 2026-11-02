@@ -26,15 +26,16 @@ jobs:
       - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
       - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
 
-      - name: Unity protobuf source and C# drift check
-        run: nix run .#unity-proto -- check
+      - parallel:
+          - name: Unity protobuf source and C# drift check
+            run: nix run .#unity-proto -- check
 
-      - name: Unity managed runtime dependency checksums
-        run: |
-          nix develop --command pnpm install --frozen-lockfile
-          nix develop --command pnpm --filter @unframe/unity-scripts check
-          nix develop --command pnpm --filter @unframe/unity-scripts test
-          nix develop --command pnpm --filter @unframe/unity-scripts sync-runtime check
+          - name: Unity managed runtime dependency checksums
+            run: |
+              nix develop --command pnpm install --frozen-lockfile
+              nix develop --command pnpm --filter @unframe/unity-scripts check
+              nix develop --command pnpm --filter @unframe/unity-scripts test
+              nix develop --command pnpm --filter @unframe/unity-scripts sync-runtime check
 
   csharp-format:
     name: MR / csharp-format

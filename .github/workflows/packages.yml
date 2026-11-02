@@ -9,7 +9,11 @@ permissions:
 
 jobs:
   check:
-    name: check (ubuntu-latest)
+    name: check (${{ matrix.suite }}, ubuntu-latest)
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [contracts, core, usecases, adapters, cli, acceptance]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,13 +26,15 @@ jobs:
         run: nix develop --command pnpm install --frozen-lockfile
 
       - name: Install Fixed Browser
+        if: matrix.suite == 'acceptance'
         run: nix develop --command scripts/dev/install-presentation-browser.sh
 
       - name: Allow Fixed Browser user namespace
+        if: matrix.suite == 'acceptance'
         run: bash scripts/ci/allow-presentation-browser-userns.sh
 
-      - name: shared config / typecheck / lint / test
-        run: nix run .#presentation
+      - name: Presentation quality suite
+        run: nix run .#presentation -- "${{ matrix.suite }}"
 
   opaque-capture:
     name: opaque-capture (${{ matrix.suite }}, ubuntu-latest)
