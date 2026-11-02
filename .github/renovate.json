@@ -64,7 +64,8 @@
         "packages/unframe/media-node/package.json",
         "packages/unframe/cli/package.json",
         "app/web/lp/package.json",
-        "packages/contracts/package.json"
+        "packages/contracts/package.json",
+        "scripts/unframe-packages/package.json"
       ],
       "allowedVersions": "<7"
     },
