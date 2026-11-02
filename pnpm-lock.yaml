@@ -949,6 +949,9 @@ importers:
       '@types/validate-npm-package-name':
         specifier: 4.0.2
         version: 4.0.2
+      '@unframe/delivery':
+        specifier: workspace:*
+        version: link:../delivery
       '@unframe/worker-host':
         specifier: workspace:*
         version: link:../worker-host
