@@ -81,6 +81,19 @@ describe("loadPngTexture", () => {
     expect(options.decode).not.toHaveBeenCalled();
   });
 
+  it("releases the uploaded CPU bitmap once while keeping its texture alive", async () => {
+    const options = setup();
+    const loaded = await loadPngTexture(asset, options);
+    const disposeTexture = vi.spyOn(loaded.texture, "dispose");
+    loaded.releaseCpuCopy();
+    loaded.releaseCpuCopy();
+    expect(options.bitmap.close).toHaveBeenCalledTimes(1);
+    expect(disposeTexture).not.toHaveBeenCalled();
+    loaded.dispose();
+    expect(options.bitmap.close).toHaveBeenCalledTimes(1);
+    expect(disposeTexture).toHaveBeenCalledOnce();
+  });
+
   it("rejects a non PNG response", async () => {
     const options = setup();
     options.fetcher.mockResolvedValue(

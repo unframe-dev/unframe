@@ -92,6 +92,44 @@ describe("video asset", () => {
     f.video.dispatchEvent(new Event("seeked"));
     expect(loaded.texture.version).toBe(seekVersion);
   });
+  it("releases the decoder while preserving the uploaded frame until texture disposal", async () => {
+    const f = await fixture();
+    let callback!: VideoFrameRequestCallback;
+    let callbackId = 0;
+    const requestVideoFrameCallback = vi.fn((next: VideoFrameRequestCallback) => {
+      callback = next;
+      return ++callbackId;
+    });
+    const cancelVideoFrameCallback = vi.fn();
+    Object.assign(f.video, { requestVideoFrameCallback, cancelVideoFrameCallback });
+    const loaded = await loadVideoAsset(f.asset, f.options);
+    const disposeTexture = vi.spyOn(loaded.texture, "dispose");
+    loaded.synchronize(1, true);
+    await Promise.resolve();
+    const version = loaded.texture.version;
+    const position = f.video.currentTime;
+    const plays = f.video.play.mock.calls.length;
+    loaded.releaseDecoder();
+    loaded.releaseDecoder();
+    expect(f.video.removeAttribute).toHaveBeenCalledTimes(1);
+    expect(f.video.removeAttribute).toHaveBeenCalledWith("src");
+    expect(f.revokeObjectURL).toHaveBeenCalledOnce();
+    expect(disposeTexture).not.toHaveBeenCalled();
+    f.video.dispatchEvent(new Event("seeked"));
+    callback(0, {} as VideoFrameCallbackMetadata);
+    loaded.texture.update();
+    loaded.synchronize(1.8, true);
+    await loaded.resumePlayback();
+    expect(loaded.texture.version).toBe(version);
+    expect(f.video.currentTime).toBe(position);
+    expect(f.video.play).toHaveBeenCalledTimes(plays);
+    expect(f.video.paused).toBe(true);
+    loaded.dispose();
+    loaded.dispose();
+    expect(disposeTexture).toHaveBeenCalledOnce();
+    expect(cancelVideoFrameCallback).toHaveBeenCalledOnce();
+    expect(f.revokeObjectURL).toHaveBeenCalledOnce();
+  });
   it("rejects expired URL and integrity failures before decoding", async () => {
     const f = await fixture();
     await expect(loadVideoAsset({ ...f.asset, expiresAtUnixMs: 0 }, f.options)).rejects.toThrow(

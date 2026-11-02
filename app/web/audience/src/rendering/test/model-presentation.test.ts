@@ -8,12 +8,61 @@ import {
   BoxGeometry,
   MeshBasicMaterial,
   Matrix4,
+  Scene,
+  Camera,
+  Vector3,
 } from "three";
 import { createModelPresentation } from "../model-presentation";
 import { modelFixture as fixture } from "./support/model-fixture";
 describe("model presentation", () => {
-  it("loads models and applies a held clip using the contract clip index", async () => {
+  it("updates rendered model matrices after sampling a frame following a synchronized view", async () => {
     const { delivery, view } = fixture();
+    view.nodeStates.model!.transform = {
+      position: [0, 0, 0],
+      rotation: [0, 0, 0, 1],
+      scale: [1, 1, 1],
+    };
+    const scene = new Scene();
+    const contentRoot = new Group();
+    contentRoot.position.x = 10;
+    scene.add(contentRoot);
+    const asset = new Group();
+    const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial());
+    mesh.name = "model-mesh";
+    asset.add(mesh);
+    const presentation = await createModelPresentation({
+      delivery,
+      view,
+      host: { contentRoot, setPresentationOrigin: vi.fn() },
+      loadAsset: async () => ({ scene: asset, animations: [], dispose() {} }),
+    });
+    const sampled = structuredClone(view);
+    sampled.nodeStates.model!.transform.position = [5, 0, 0];
+    sampled.nodeStates.model!.transform.scale = [2, 2, 2];
+    const rendered = presentation.root.getObjectByName("model-mesh")!;
+    const camera = new Camera();
+    const beforeRender = () => {
+      presentation.applyAnimationFrame(sampled, 500);
+      presentation.prepareRender(camera);
+    };
+    scene.onBeforeRender = beforeRender;
+    for (let frame = 0; frame < 2; frame++) {
+      expect(presentation.applyView(view)).toBe(true);
+      // Three.js updates world matrices before invoking the scene's render callback.
+      scene.updateMatrixWorld();
+      beforeRender();
+      expect(new Vector3().setFromMatrixPosition(rendered.matrixWorld).x).toBe(15);
+      expect(new Vector3().setFromMatrixScale(rendered.matrixWorld).toArray()).toEqual([2, 2, 2]);
+    }
+    presentation.dispose();
+    mesh.geometry.dispose();
+    mesh.material.dispose();
+  });
+  it("preloads models before their group and applies a held clip using the contract clip index", async () => {
+    const { delivery, view } = fixture();
+    delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.owner = {
+      group: { groupId: "next-group" },
+    };
     delivery.capabilityProfile!.model!.features = [1, 7];
     delivery.residency!.models!.models![0]!.animationClipCount = "1";
     delivery.residency!.models!.models![0]!.requiredFeatures = [1, 7];
@@ -48,25 +97,71 @@ describe("model presentation", () => {
         dispose,
       }),
     });
+    expect(presentation.root.getObjectByName("assetRoot")).toBeUndefined();
+    view.progression.currentGroupId = "next-group";
+    expect(presentation.applyView(view)).toBe(true);
     expect(presentation.root.getObjectByName("assetRoot")!.position.x).toBeCloseTo(1);
     presentation.dispose();
     presentation.dispose();
     expect(dispose).toHaveBeenCalledTimes(1);
     expect(host.contentRoot.children).toHaveLength(0);
   });
-  it("returns false for a newly required model without mutating the current scene", async () => {
-    const { delivery, view } = fixture();
-    const host = { contentRoot: new Group(), setPresentationOrigin: (_v: Matrix4) => {} };
-    const p = await createModelPresentation({
-      delivery,
-      view,
-      host,
-      loadAsset: async () => ({ scene: new Group(), animations: [], dispose() {} }),
-    });
-    expect(p.applyView(view)).toBe(true);
-    p.dispose();
-    expect(p.applyView(view)).toBe(false);
-  });
+  it.each(["a", "b"])(
+    "preloads asset %s for a later group and creates instances without loading again",
+    async (assetId) => {
+      const { delivery, view } = fixture();
+      delivery.projectionProfile!.runtimeCatalog!.nodes!.push({
+        nodeId: "next-model",
+        parent: { stage: {} },
+        owner: { group: { groupId: "next-group" } },
+        model: { modelAssetId: assetId },
+      });
+      if (assetId === "b") {
+        delivery.residency!.models!.models!.push({
+          ...delivery.residency!.models!.models![0]!,
+          assetId,
+        });
+        delivery.assetAccess!.push({ ...delivery.assetAccess![0]!, assetId });
+      }
+      const disposeAsset = vi.fn();
+      const loadAsset = vi.fn(async () => ({
+        scene: new Group(),
+        animations: [],
+        dispose: disposeAsset,
+      }));
+      const host = { contentRoot: new Group(), setPresentationOrigin: (_v: Matrix4) => {} };
+      const p = await createModelPresentation({
+        delivery,
+        view,
+        host,
+        loadAsset,
+      });
+      const assetCount = assetId === "b" ? 2 : 1;
+      expect(loadAsset).toHaveBeenCalledTimes(assetCount);
+      expect(p.retainedCpuBytes).toBe(assetCount * 100);
+      const model = p.root.getObjectByName("model-node:model")!;
+      const initialPosition = model.position.toArray();
+      const next = structuredClone(view);
+      next.nodeStates.model!.transform.position = [9, 0, 0];
+      expect(p.canApplyView(next)).toBe(true);
+      expect(model.position.toArray()).toEqual(initialPosition);
+      next.progression.currentGroupId = "next-group";
+      next.nodeStates["next-model"] = structuredClone(next.nodeStates.model!);
+      expect(p.canApplyView(next)).toBe(true);
+      expect(p.root.getObjectByName("model-node:next-model")).toBeUndefined();
+      expect(model.position.toArray()).toEqual(initialPosition);
+      expect(p.applyView(next)).toBe(true);
+      expect(p.root.getObjectByName("model-node:next-model")).toBeDefined();
+      expect(p.applyView(view)).toBe(true);
+      expect(p.applyView(next)).toBe(true);
+      expect(loadAsset).toHaveBeenCalledTimes(assetCount);
+      expect(disposeAsset).not.toHaveBeenCalled();
+      p.dispose();
+      expect(disposeAsset).toHaveBeenCalledTimes(assetCount);
+      expect(p.canApplyView(view)).toBe(false);
+      expect(p.applyView(view)).toBe(false);
+    },
+  );
 });
 describe("model runtime clock", () => {
   async function setup() {
@@ -181,7 +276,7 @@ describe("model runtime clock", () => {
   });
 });
 describe("model lifetime", () => {
-  it("releases model assets and cloned materials after the owning Group leaves", async () => {
+  it("releases instances when their group leaves and retains model assets until disposal", async () => {
     const { delivery, view } = fixture();
     delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.owner = {
       group: { groupId: view.progression.currentGroupId },
@@ -196,10 +291,13 @@ describe("model lifetime", () => {
       host: { contentRoot: new Group(), setPresentationOrigin() {} },
       loadAsset: async () => ({ scene, animations: [], dispose }),
     });
+    const instance = p.root.getObjectByName("model-node:model")!.children[0]!.children[0] as Mesh;
+    const disposeMaterial = vi.spyOn(instance.material as MeshBasicMaterial, "dispose");
     view.progression.currentGroupId = "different";
     expect(p.applyView(view)).toBe(true);
-    expect(dispose).toHaveBeenCalledTimes(1);
-    expect(p.retainedCpuBytes).toBe(0);
+    expect(disposeMaterial).toHaveBeenCalledTimes(1);
+    expect(dispose).not.toHaveBeenCalled();
+    expect(p.retainedCpuBytes).toBe(100);
     p.dispose();
     expect(dispose).toHaveBeenCalledTimes(1);
   });
@@ -262,13 +360,13 @@ describe("model aggregate resource budgets", () => {
     ).rejects.toThrow(/budget/);
     expect(load).not.toHaveBeenCalled();
   });
-  it("reduces the second GLB budget by the actual first model resource usage", async () => {
+  it("budgets later group GLBs against the actual resource usage of already resident models", async () => {
     const { delivery, view } = budgetFixture();
     const node = structuredClone(delivery.projectionProfile!.runtimeCatalog!.nodes![0]!);
     node.nodeId = "second";
     node.model = { modelAssetId: "b" };
+    node.owner = { group: { groupId: "later" } };
     delivery.projectionProfile!.runtimeCatalog!.nodes!.push(node);
-    view.nodeStates = { ...view.nodeStates, second: structuredClone(view.nodeStates.model!) };
     delivery.assetAccess!.push({ ...delivery.assetAccess![0], assetId: "b" });
     delivery.residency!.models!.models!.push({
       ...delivery.residency!.models!.models![0],
@@ -296,6 +394,7 @@ describe("model aggregate resource budgets", () => {
       host: { contentRoot: new Group(), setPresentationOrigin() {} },
       loadAsset: load,
     });
+    expect(load).toHaveBeenCalledTimes(2);
     expect(p.resourceUsage).toEqual({ gpuBytes: 800, bindings: 2, cpuBytes: 400 });
     p.dispose();
   });
