@@ -63,7 +63,8 @@
         "packages/unframe/styles-node/package.json",
         "packages/unframe/media-node/package.json",
         "packages/unframe/cli/package.json",
-        "app/web/lp/package.json"
+        "app/web/lp/package.json",
+        "packages/contracts/package.json"
       ],
       "allowedVersions": "<7"
     },
