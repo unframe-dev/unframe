@@ -82,7 +82,8 @@
     "tailwindcss-older": "npm:tailwindcss@4.2.1",
     "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.2.1",
     "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "yaml": "2.9.0"
   },
   "engines": {
     "node": ">=24"
