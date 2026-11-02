@@ -26,17 +26,17 @@
     "@unframe/api-client-typescript": "workspace:*",
     "@unframe/contracts": "workspace:*",
     "js-aruco2": "2.0.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "three": "0.183.2",
-    "zod": "4.4.3",
-    "zustand": "5.0.15"
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "three": "0.187.0",
+    "zod": "4.6.7",
+    "zustand": "5.0.16"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.2",
-    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.0.0",
     "@types/react": "^19.2.3",
     "@types/react-dom": "^19.2.3",
     "@types/three": "0.183.1",
@@ -45,7 +45,7 @@
     "tailwindcss": "4.3.2",
     "typescript": "^7.0.0",
     "vite": "catalog:",
-    "vitest": "4.1.11",
+    "vitest": "5.0.5",
     "wrangler": "4.142.0"
   }
 }

@@ -25,15 +25,15 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@noble/hashes": "2.3.0",
+    "@noble/hashes": "2.4.0",
     "@unframe/artifacts": "workspace:*",
     "@unframe/authoring": "workspace:*",
     "@unframe/presentation": "workspace:*",
-    "zod": "4.4.3"
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@types/node": "24.19.0",
-    "typescript": "6.0.3",
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   }

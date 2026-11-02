@@ -9,6 +9,6 @@
   "devDependencies": {
     "@unframe/contract-fixtures": "workspace:*",
     "tsx": "^4.22.1",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   }
 }

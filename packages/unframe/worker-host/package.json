@@ -27,7 +27,7 @@
     "build": "vp pack"
   },
   "devDependencies": {
-    "@types/node": "24.19.0",
+    "@types/node": "26.6.6",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   }
