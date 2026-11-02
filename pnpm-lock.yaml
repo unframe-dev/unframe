@@ -1255,6 +1255,9 @@ importers:
       '@types/node':
         specifier: 24.19.0
         version: 24.19.0
+      '@unframe/artifacts':
+        specifier: workspace:*
+        version: link:../artifacts
       vite-plus:
         specifier: 'catalog:'
         version: 0.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.1(@noble/hashes@2.3.0))(svelte@5.57.1)(tsx@4.23.15)(typescript@6.0.3)(vite@8.0.13(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0))(yaml@2.9.0)
