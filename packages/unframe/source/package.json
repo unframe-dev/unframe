@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "24.19.0",
+    "@unframe/artifacts": "workspace:*",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   }
