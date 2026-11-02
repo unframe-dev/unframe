@@ -38,21 +38,68 @@ const videoMetadataSchema = z.object({
   durationMilliseconds: safeUIntSchema.positive(),
 });
 
-export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptions = {}) {
+class RetainedVideoTexture extends VideoTexture {
+  private frozen = false;
+
+  freeze() {
+    this.frozen = true;
+  }
+
+  override set needsUpdate(value: boolean) {
+    if (!this.frozen) super.needsUpdate = value;
+  }
+
+  override update() {
+    if (!this.frozen) super.update();
+  }
+}
+
+export interface LoadedVideoAsset {
+  texture: VideoTexture;
+  video: HTMLVideoElement;
+  readonly playbackBlocked: boolean;
+  synchronize(positionSeconds: number, playing: boolean): void;
+  resumePlayback(): Promise<void>;
+  releaseDecoder(): void;
+  dispose(): void;
+}
+
+export async function loadVideoAsset(
+  asset: VideoAsset,
+  options: VideoAssetOptions = {},
+): Promise<LoadedVideoAsset> {
   let video: HTMLVideoElement | undefined;
   let objectURL: string | undefined;
-  let texture: VideoTexture | undefined;
+  let texture: RetainedVideoTexture | undefined;
   let onSeeked: (() => void) | undefined;
   let disposed = false;
-  const dispose = () => {
-    if (disposed) return;
-    disposed = true;
+  let decoderReleased = false;
+  let blocked = false;
+  let pendingPlay = false;
+  let wantsPlaying = false;
+  let revision = 0;
+  const releaseDecoder = () => {
+    if (decoderReleased) return;
+    decoderReleased = true;
+    wantsPlaying = false;
+    blocked = false;
+    revision++;
+    // Retain the uploaded frame even if a previously queued video-frame callback arrives.
+    texture?.freeze();
     if (onSeeked) video?.removeEventListener("seeked", onSeeked);
     video?.pause();
     video?.removeAttribute("src");
     video?.load();
+    if (objectURL) {
+      (options.revokeObjectURL ?? URL.revokeObjectURL)(objectURL);
+      objectURL = undefined;
+    }
+  };
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    releaseDecoder();
     texture?.dispose();
-    if (objectURL) (options.revokeObjectURL ?? URL.revokeObjectURL)(objectURL);
   };
   let stage: AssetFailureDetails["stage"] = "validation";
   const fail: AssetFailureReporter = (reason, details) => {
@@ -138,7 +185,7 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
       Math.abs(element.duration * 1000 - asset.durationMilliseconds) > 100
     )
       fail("duration mismatch", { stage: "decode", code: "duration-mismatch" });
-    texture = new VideoTexture(element);
+    texture = new RetainedVideoTexture(element);
     texture.colorSpace = SRGBColorSpace;
     texture.minFilter = LinearFilter;
     texture.magFilter = LinearFilter;
@@ -146,15 +193,11 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
     // A paused frame may already have arrived before VideoTexture registers its frame callback.
     texture.needsUpdate = true;
     onSeeked = () => {
-      if (!disposed && texture) texture.needsUpdate = true;
+      if (!disposed && !decoderReleased && texture) texture.needsUpdate = true;
     };
     element.addEventListener("seeked", onSeeked);
-    let blocked = false;
-    let pendingPlay = false;
-    let wantsPlaying = false;
-    let revision = 0;
     const play = async () => {
-      if (disposed || !wantsPlaying) return;
+      if (disposed || decoderReleased || !wantsPlaying) return;
       const attempt = revision;
       pendingPlay = true;
       try {
@@ -174,7 +217,7 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
         return blocked;
       },
       synchronize(positionSeconds: number, playing: boolean) {
-        if (disposed) return;
+        if (disposed || decoderReleased) return;
         if (element.error) fail("playback failed", { stage: "decode", code: "decode-failed" });
         if (!Number.isFinite(positionSeconds) || positionSeconds < 0)
           fail("Invalid video playback position", {
@@ -199,6 +242,7 @@ export async function loadVideoAsset(asset: VideoAsset, options: VideoAssetOptio
       async resumePlayback() {
         await play();
       },
+      releaseDecoder,
       dispose,
     };
   } catch (error) {

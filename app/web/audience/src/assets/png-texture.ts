@@ -35,7 +35,7 @@ const pixelSizeSchema = z.tuple([safeUIntSchema.positive(), safeUIntSchema.posit
 export async function loadPngTexture(
   asset: PngTextureAsset,
   options: PngTextureOptions = {},
-): Promise<{ texture: Texture; dispose(): void }> {
+): Promise<{ texture: Texture; releaseCpuCopy(): void; dispose(): void }> {
   let bitmap: ImageBitmap | undefined;
   let stage: AssetFailureDetails["stage"] = "validation";
   const fail: AssetFailureReporter = (reason, details) => {
@@ -96,13 +96,20 @@ export async function loadPngTexture(
     texture.needsUpdate = true;
     const ownedBitmap = bitmap;
     let disposed = false;
+    let cpuCopyReleased = false;
+    const releaseCpuCopy = () => {
+      if (cpuCopyReleased) return;
+      cpuCopyReleased = true;
+      ownedBitmap.close();
+    };
     return {
       texture,
+      releaseCpuCopy,
       dispose() {
         if (disposed) return;
         disposed = true;
         texture.dispose();
-        ownedBitmap.close();
+        releaseCpuCopy();
       },
     };
   } catch (error) {

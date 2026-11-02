@@ -34,6 +34,7 @@ export async function createVideoPresentation(options: {
   const metadata = new Map(plan.assets.map((a) => [a.assetId, a]));
   const nodeGroups = new Map<string, Group>();
   let meshes: Mesh<PlaneGeometry, MeshBasicMaterial>[] = [];
+  let decodersReleased = false;
   let disposed = false,
     playbackEnabled = options.playbackEnabled ?? true;
   let time = view.clock.runtimeTimeMilliseconds;
@@ -118,6 +119,7 @@ export async function createVideoPresentation(options: {
       mesh.material.opacity = opacity;
       mesh.visible = opacity > 0;
     }
+    if (decodersReleased) return;
     for (const asset of plan.assets) {
       const plane = plan.planes.find((p) => p.assetId === asset.assetId)!;
       const state = view.mediaStates[plane.surfaceId];
@@ -182,6 +184,7 @@ export async function createVideoPresentation(options: {
     frame(nextView, nextView.clock.runtimeTimeMilliseconds);
   }
   function canApplyPlan(next: VideoPlan): boolean {
+    if (decodersReleased && next.assets.length) return false;
     return !next.assets.some((a) => {
       const previous = metadata.get(a.assetId);
       if (!previous) return true;
@@ -211,12 +214,22 @@ export async function createVideoPresentation(options: {
   return {
     root,
     get retainedCpuBytes() {
+      if (decodersReleased) return 0;
       return [...metadata.values()].reduce(
         (n, a) => n + a.encodedSizeBytes + a.pixelSize[0] * a.pixelSize[1] * 4,
         0,
       );
     },
+    get decoderCount() {
+      return decodersReleased ? 0 : loaded.size;
+    },
+    releaseDecoders() {
+      if (disposed || decodersReleased) return;
+      for (const asset of loaded.values()) asset.releaseDecoder();
+      decodersReleased = true;
+    },
     get playbackBlocked() {
+      if (decodersReleased) return false;
       return [...loaded.values()].some((a) => a.playbackBlocked);
     },
     getLoadedAssets(): ReadonlyMap<string, LoadedVideo> {
@@ -252,6 +265,7 @@ export async function createVideoPresentation(options: {
       frame(view, time);
     },
     async resumePlayback() {
+      if (decodersReleased) return;
       await Promise.all([...loaded.values()].map((a) => a.resumePlayback()));
     },
     dispose,

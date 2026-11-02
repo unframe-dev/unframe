@@ -1,4 +1,4 @@
-import { Group, Matrix4, type Camera } from "three";
+import { Group, Matrix4, type Camera, type Texture } from "three";
 import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
@@ -133,6 +133,7 @@ export async function createPresentation(options: {
         disposed = true;
         png.dispose();
       },
+      releaseVideoDecoders(_uploadTexture: (texture: Texture) => void) {},
       playbackBlocked: false,
       setPlaybackEnabled(_enabled: boolean) {},
       async resumePlayback() {},
@@ -142,7 +143,7 @@ export async function createPresentation(options: {
   const initialPlan = surfacePlan(options.delivery, view);
   const pngAssets = initialPlan.assets.filter((asset) => !asset.textureKey);
   const pngGpuBytes =
-    pool?.retainedCpuBytes ??
+    pool?.gpuBytes ??
     pngAssets.reduce((sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4, 0);
   const pngBindings = pool
     ? new Set(pool.assets.map((asset) => asset.checksum)).size
@@ -156,7 +157,7 @@ export async function createPresentation(options: {
     return {
       gpuBytes: assets.reduce((sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4, 0),
       bindings: assets.length,
-      videoDecoders: assets.length,
+      videoDecoders: video?.decoderCount ?? assets.length,
     };
   };
   admitResources({
@@ -273,6 +274,11 @@ export async function createPresentation(options: {
       prepareRender(camera: Camera) {
         surfaces!.prepareRender(camera);
         model!.prepareRender(camera);
+      },
+      releaseVideoDecoders(uploadTexture: (texture: Texture) => void) {
+        if (disposed || video!.decoderCount === 0) return;
+        for (const asset of video!.getLoadedAssets().values()) uploadTexture(asset.texture);
+        video!.releaseDecoders();
       },
       get playbackBlocked() {
         return video!.playbackBlocked;

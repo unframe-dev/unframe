@@ -30,6 +30,7 @@ async function setup() {
     playbackBlocked: false,
     resumePlayback: vi.fn(async () => {}),
     dispose: vi.fn(),
+    releaseDecoder: vi.fn(),
   };
   vi.mocked(loadVideoAsset).mockResolvedValue(video as never);
   const model = {
@@ -41,7 +42,7 @@ async function setup() {
     textureBindings: 0,
   };
   vi.mocked(loadModelAsset).mockResolvedValue(model);
-  const png = { texture: new Texture(), dispose: vi.fn() };
+  const png = { texture: new Texture(), dispose: vi.fn(), releaseCpuCopy: vi.fn() };
   vi.mocked(loadPngTexture).mockResolvedValue(png);
   return { scenario, store, parent, video, model, png };
 }
@@ -120,7 +121,10 @@ it("rolls back decoded media when a later resource fails without attaching a par
 
 it("uses resident slides for crossfades without reloading models or videos", async () => {
   const { scenario, store, parent, model, video } = await setup();
-  const pool = await createPngTexturePool({ delivery: scenario.delivery });
+  const pool = await createPngTexturePool({
+    delivery: scenario.delivery,
+    uploadTexture: (texture) => texture.onUpdate?.(texture),
+  });
   const textures = vi.mocked(loadPngTexture).mock.calls.length;
   expect(textures).toBe(2);
   const presentation = await createPresentation({

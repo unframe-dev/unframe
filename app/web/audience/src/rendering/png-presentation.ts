@@ -1,4 +1,4 @@
-import { loadPngTexture } from "../assets/png-texture";
+import { loadPngTexture, type PngTextureAsset } from "../assets/png-texture";
 import { buildPngPlan } from "./png-plan";
 import { admitPngMemory } from "./png-memory";
 import { createSurfacePresentation, type SurfaceTextureAsset } from "./surface-presentation";
@@ -11,10 +11,13 @@ export function createPngPresentation(options: {
   view: unknown;
   signal?: AbortSignal;
   residentCpuBytes?: number;
-  loadTexture?: typeof loadPngTexture;
+  loadTexture?: (
+    asset: PngTextureAsset,
+    options?: { signal?: AbortSignal },
+  ) => Promise<Pick<Awaited<ReturnType<typeof loadPngTexture>>, "texture" | "dispose">>;
   preloadedTextures?: readonly {
     asset: SurfaceTextureAsset;
-    loaded: Awaited<ReturnType<typeof loadPngTexture>>;
+    loaded: Pick<Awaited<ReturnType<typeof loadPngTexture>>, "texture" | "dispose">;
   }[];
 }) {
   return createSurfacePresentation({

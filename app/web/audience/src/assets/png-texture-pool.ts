@@ -1,3 +1,4 @@
+import type { Texture } from "three";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
 import { admitPngMemory } from "../rendering/png-memory";
 import { loadPngTexture, type PngTextureAsset } from "./png-texture";
@@ -106,11 +107,12 @@ export async function createPngTexturePool(options: {
   fetcher?: typeof fetch;
   residentCpuBytes?: number;
   loadTexture?: typeof loadPngTexture;
+  uploadTexture(texture: Texture): void;
 }) {
   const assets = selectedTextures(options.delivery);
   const unique = [...new Map(assets.map((asset) => [asset.checksum, asset])).values()];
   const limits = options.delivery.capabilityProfile?.limits?.texture;
-  let retainedCpuBytes = 0;
+  let gpuBytes = 0;
   if (unique.length) {
     const decoded = unique.reduce(
       (sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4,
@@ -131,11 +133,10 @@ export async function createPngTexturePool(options: {
       )
     )
       fail("texture budget exceeded");
-    retainedCpuBytes = admitPngMemory(
-      unique,
-      options.residentCpuBytes ?? 0,
-      uint(limits?.maxSerialLoadCpuBytes),
-    );
+    for (const asset of unique) {
+      admitPngMemory([asset], options.residentCpuBytes ?? 0, uint(limits?.maxSerialLoadCpuBytes));
+    }
+    gpuBytes = decoded;
   }
   const loaded = new Map<string, Awaited<ReturnType<typeof loadPngTexture>>>();
   let disposed = false;
@@ -162,6 +163,20 @@ export async function createPngTexturePool(options: {
       });
       loaded.set(asset.checksum, item);
       if (options.signal?.aborted) fail("preload cancelled");
+      const previousUpdate = item.texture.onUpdate;
+      let uploaded = false;
+      item.texture.onUpdate = (texture) => {
+        previousUpdate?.(texture);
+        uploaded = true;
+      };
+      try {
+        options.uploadTexture(item.texture);
+        if (!uploaded) fail("texture upload did not complete");
+        item.releaseCpuCopy();
+      } finally {
+        item.texture.onUpdate = previousUpdate;
+      }
+      if (options.signal?.aborted) fail("preload cancelled");
     }
   } catch (error) {
     dispose();
@@ -170,7 +185,10 @@ export async function createPngTexturePool(options: {
   return {
     assets,
     get retainedCpuBytes() {
-      return disposed ? 0 : retainedCpuBytes;
+      return 0;
+    },
+    get gpuBytes() {
+      return disposed ? 0 : gpuBytes;
     },
     getTexture,
     async loadTexture(asset: PngTextureAsset) {

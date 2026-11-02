@@ -1,4 +1,4 @@
-import type { Camera, WebGLRenderer } from "three";
+import type { Camera, WebGLRenderer, Texture } from "three";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
 import type { createLiveTagAnchor } from "../rendering/live-tag-anchor";
 import { createPresentation } from "../rendering/presentation";
@@ -6,7 +6,7 @@ import { createPngTexturePool } from "../assets/png-texture-pool";
 import { createRuntimePlayback } from "../runtime/playback";
 
 type PresentationHost = ReturnType<typeof createLiveTagAnchor>;
-type SceneRenderer = Pick<WebGLRenderer, "resetState">;
+type SceneRenderer = Pick<WebGLRenderer, "resetState" | "initTexture">;
 
 export function createPresentationSession(options: {
   canPlay(): boolean;
@@ -40,10 +40,19 @@ export function createPresentationSession(options: {
   }
   async function present(delivery: DeliveryManifestWire, view: unknown) {
     const currentHost = host;
-    if (!active || !currentHost) throw new Error("Presentation requires an active XR scene");
+    const currentRenderer = renderer;
+    if (!active || !currentHost || !currentRenderer)
+      throw new Error("Presentation requires an active XR scene");
     request?.abort();
     const pending = new AbortController();
     request = pending;
+    const uploadTexture = (texture: Texture) => {
+      try {
+        currentRenderer.initTexture(texture);
+      } finally {
+        currentRenderer.resetState();
+      }
+    };
     const previousWork = work;
     work = (async () => {
       await previousWork.catch(() => undefined);
@@ -51,6 +60,8 @@ export function createPresentationSession(options: {
       // The SDK preserves the current GL program; release it before disposal can delete that program.
       if (presentation) renderer?.resetState();
       if (presentationDelivery === delivery && presentation?.applyView(view)) return;
+      if (presentation && presentation.resourceUsage.videoDecoders > 0)
+        presentation.releaseVideoDecoders(uploadTexture);
       const previousPool = texturePool;
       const previousResources = presentation?.resourceUsage ?? {
         gpuBytes: 0,
@@ -58,7 +69,7 @@ export function createPresentationSession(options: {
         videoDecoders: 0,
       };
       const previousPoolResources = {
-        gpuBytes: previousPool?.retainedCpuBytes ?? 0,
+        gpuBytes: previousPool?.gpuBytes ?? 0,
         bindings: new Set(previousPool?.assets.map((asset) => asset.checksum) ?? []).size,
       };
       if (presentationDelivery !== delivery) {
@@ -84,6 +95,7 @@ export function createPresentationSession(options: {
           ? previousPool
           : await createPngTexturePool({
               delivery,
+              uploadTexture,
               signal: pending.signal,
               fetcher: options.fetcher ?? globalThis.fetch,
               residentCpuBytes:
