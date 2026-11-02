@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { presentationDefinitionSchema, renderBundleSchema } from "@unframe/contracts/presentation";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";

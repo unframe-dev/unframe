@@ -1,5 +1,5 @@
 import { ClampToEdgeWrapping, LinearFilter, SRGBColorSpace } from "three";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { loadPngTexture } from "../png-texture";
 import { getAssetFailure } from "../../diagnostics/asset-failure";
 

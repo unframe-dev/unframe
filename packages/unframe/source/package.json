@@ -29,12 +29,12 @@
     "@types/react": "19.3.0",
     "@unframe/authoring": "workspace:*",
     "@unframe/presentation": "workspace:*",
-    "typescript": "7.0.2",
-    "zod": "4.6.7"
+    "typescript": "6.0.3",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "@unframe/artifacts": "workspace:*",
+    "vite-plus": "catalog:"
   }
 }

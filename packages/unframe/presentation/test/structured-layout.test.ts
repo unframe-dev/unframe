@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { resolveStructuredLayout, validatePresentationDefinition } from "@unframe/presentation";
 import { makeM3AArtifacts } from "./fixtures.js";
 import originalDefinition from "../../../contracts/presentation/fixtures/presentation-definition.json";

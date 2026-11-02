@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import * as build from "../src/index.js";
 
 it("exposes fixed source assembly and declaration build through the build package", () => {

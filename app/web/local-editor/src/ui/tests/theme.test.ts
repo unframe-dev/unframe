@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { resolveTheme } from "../theme";
 it.each([
   [null, true, "dark"],

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { createPublicationAuth } from "../src/author/publication-auth.js";
 
 describe("Host device authorization", () => {

@@ -34,13 +34,12 @@
     "@unframe/build": "workspace:*",
     "@unframe/contracts": "workspace:*",
     "@unframe/workspace": "workspace:*",
-    "typescript": "7.0.2",
+    "typescript": "6.0.3",
     "yaml": "2.9.1",
-    "zod": "4.6.7"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }

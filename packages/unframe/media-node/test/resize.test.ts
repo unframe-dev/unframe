@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { RESIZE_IDENTITY, resizeRgba, type ResizeRequest } from "../src/index.js";
 import { INTERNAL_PNG_HARD_CAPS } from "../src/png/constants.js";
 

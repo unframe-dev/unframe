@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
-import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { checkAuthoringProjectAssembly } from "@unframe/build";
 import { runPresentationCli } from "../src/index.js";

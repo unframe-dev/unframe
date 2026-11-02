@@ -29,11 +29,10 @@
     "@unframe/contracts": "workspace:*",
     "@unframe/delivery": "workspace:*",
     "@unframe/playback": "workspace:*",
-    "zod": "4.6.7"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }

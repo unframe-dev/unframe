@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 

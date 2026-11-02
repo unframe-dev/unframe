@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import definition from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../contracts/presentation/fixtures/render-bundle.json";

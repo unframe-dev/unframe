@@ -28,7 +28,6 @@
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }

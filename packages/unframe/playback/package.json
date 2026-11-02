@@ -28,13 +28,12 @@
     "@unframe/artifacts": "workspace:*",
     "@unframe/contracts": "workspace:*",
     "@unframe/presentation": "workspace:*",
-    "zod": "4.6.7"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
     "canonicalize": "5.1.0",
     "typescript": "7.0.2",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }

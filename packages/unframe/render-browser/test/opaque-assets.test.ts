@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { validateOpaqueAsset } from "../src/opaque/capture/assets.js";
 
 it.each([

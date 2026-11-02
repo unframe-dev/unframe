@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import type { PreparedConnection } from "../../connection/join-controller";
 import type { BoardConfig } from "../../fiducials/config";
 import { createViewerApplication } from "../viewer-application";

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test } from "vite-plus/test";
 import { SdkProgress } from "../SdkProgress";
 afterEach(cleanup);
 test("カメラ開始と実際のSDK更新受信を区別し、更新停止も表示する", () => {

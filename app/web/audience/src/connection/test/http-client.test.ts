@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { encodeWireMessage } from "@unframe/contracts/presentation";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import {

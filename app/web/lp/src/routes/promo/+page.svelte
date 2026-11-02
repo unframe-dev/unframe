@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Globe } from "@lucide/svelte";
-  import GradientWave from "$lib/components/brand/GradientWave.svelte";
-  import iconUrl from "$lib/assets/brand/icon.svg?url";
+  import GradientWave from "#lib/components/brand/GradientWave.svelte";
+  import iconUrl from "#lib/assets/brand/icon.svg?url";
 
   const visualSrc = "/brand/promo-mr-architecture-presenter-transparent.png";
 </script>

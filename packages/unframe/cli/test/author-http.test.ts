@@ -1,5 +1,5 @@
 import { request } from "node:http";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { startAuthorHost } from "../src/author/http.js";
 import type { AuthorService } from "@unframe/author-service";
 import type { LocalPublicationService } from "../src/author/publication.js";

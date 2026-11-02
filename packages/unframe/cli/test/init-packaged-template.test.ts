@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { initPresentationProject } from "@unframe/workspace-node";
 import { loadUnframeLock } from "@unframe/workspace";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";

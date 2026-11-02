@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { startDistPreviewHost } from "../src/author/start.js";
 import { writePortableBuild } from "./helpers/portable-dist.js";
 

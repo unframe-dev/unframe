@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { glbStructureSchema } from "../glb-structure";
 
 describe("GLB structural indexes", () => {

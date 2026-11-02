@@ -34,13 +34,12 @@
     "@unframe/source": "workspace:*",
     "@unframe/workspace": "workspace:*",
     "css-tree": "3.2.1",
-    "typescript": "7.0.2",
-    "zod": "4.6.7"
+    "typescript": "6.0.3",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/css-tree": "^3.2.0",
     "@types/node": "26.6.6",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }

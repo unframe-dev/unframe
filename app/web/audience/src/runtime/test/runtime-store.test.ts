@@ -1,6 +1,6 @@
 import { PNG_DEFAULT_STATE, PNG_INACTIVE_STATE } from "../../test-support/png-delivery-fixture";
 import { encodeWireMessage } from "@unframe/contracts/presentation";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type {
   ConnectionSnapshotEnvelopeWire,
   DeliveryManifestWire,

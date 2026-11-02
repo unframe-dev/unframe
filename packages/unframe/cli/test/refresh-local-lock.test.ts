@@ -3,7 +3,7 @@ import { writeStyleBoundaryProjectFixture } from "./style-boundary-project-fixtu
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it } from "vite-plus/test";
 import { refreshLocalProjectLock } from "@unframe/workspace-node";
 
 const directories: string[] = [];

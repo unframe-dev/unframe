@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 import { AudienceStage } from "../AudienceStage";
 afterEach(cleanup);
 test("SDK待機を位置認識と区別し、状態を説明する", () => {

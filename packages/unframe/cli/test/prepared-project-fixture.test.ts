@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { runPresentationCli } from "../src/index.js";
 import { prepareProjectFixture } from "./prepared-project-fixture.js";
 

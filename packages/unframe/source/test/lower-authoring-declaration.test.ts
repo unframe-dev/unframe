@@ -1,5 +1,5 @@
 import { normalizeDeclarationGraph } from "../src/normalization/normalize-declaration-graph.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 
 import { lowerAuthoringDeclarationFile } from "../src/lowering/lower-authoring-declaration.js";

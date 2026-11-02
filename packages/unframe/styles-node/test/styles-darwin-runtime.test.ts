@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/temporary-directory.js";
 import { join } from "node:path";
 import { stringify } from "yaml";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { snapshotNodeTransformInputs } from "../src/node-snapshot.js";
 
 vi.mock("../src/runtime.js", () => ({

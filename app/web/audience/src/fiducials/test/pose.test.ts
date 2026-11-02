@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { Euler, Quaternion, Vector3 } from "three";
 import { estimateMarkerPose } from "../pose";
 import type { CameraIntrinsics } from "../frame-source";

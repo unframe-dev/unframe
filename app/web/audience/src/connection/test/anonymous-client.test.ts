@@ -1,6 +1,6 @@
 import { audienceWebCapabilityProfileId } from "@unframe/contracts/presentation";
 import { createServer } from "node:http";
-import { afterEach, assert, expect, it, vi } from "vitest";
+import { afterEach, assert, expect, it, vi } from "vite-plus/test";
 import { createAnonymousAudienceClient } from "../anonymous-client";
 import { readSharedJoinCode } from "../shared-join-code";
 

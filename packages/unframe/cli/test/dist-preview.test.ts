@@ -1,7 +1,7 @@
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { assert, expect, it } from "vitest";
+import { assert, expect, it } from "vite-plus/test";
 import { createDistPreviewService } from "../src/author/local-preview.js";
 import { startDistPreviewHost } from "../src/author/start.js";
 import { writePortableBuild } from "./helpers/portable-dist.js";
