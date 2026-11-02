@@ -22,22 +22,35 @@ MR（Quest / Unity）とWebXR（Audience）の同じSessionで、入室・資料
 
 イベントには `index`、`atUtc`、`elapsedMs`、固定の `event` 名と、該当する場合だけ次の項目を含みます。
 
-| 項目                                 | 用途                                       |
-| ------------------------------------ | ------------------------------------------ |
-| `sessionId`                          | 同じルームの記録をまとめる                 |
-| `runtimeId` / `assignmentEpoch`      | Runtimeの再割り当て前後を区別する          |
-| `publicationEpoch`                   | 配信された公開版を照合する                 |
-| `stage` / `code`                     | 接続・取得・再同期の段階と安全な結果コード |
-| `direction` / `kind`                 | 送受信方向とメッセージ種別                 |
-| `commandId`                          | MRの操作送信と受理・拒否結果を対応付ける   |
-| `reliableSequence` / `stateSequence` | 受信の到達点・欠落・復旧を照合する         |
-| `runtimeTimeMs`                      | 同じRuntime内の再生時刻を比較する          |
-| `groupId` / `stepId`                 | 適用された進行状態を比較する               |
-| `count`                              | 対象数などの数値                           |
+| 項目                                     | 用途                                                      |
+| ---------------------------------------- | --------------------------------------------------------- |
+| `sessionId`                              | 同じルームの記録をまとめる                                |
+| `runtimeId` / `assignmentEpoch`          | Runtimeの再割り当て前後を区別する                         |
+| `publicationEpoch`                       | 配信された公開版を照合する                                |
+| `stage` / `code`                         | 接続・取得・再同期の段階と安全な結果コード                |
+| `direction` / `kind`                     | 送受信方向とメッセージ種別                                |
+| `commandId`                              | MRの操作送信と受理・拒否結果を対応付ける                  |
+| `reliableSequence` / `stateSequence`     | 受信の到達点・欠落・復旧を照合する                        |
+| `runtimeTimeMs`                          | 同じRuntime内の再生時刻を比較する                         |
+| `groupId` / `stepId`                     | 適用された進行状態を比較する                              |
+| `count`                                  | 対象数などの数値                                          |
+| `renderPhase`                            | WebXRの表示準備中／フレーム描画中の失敗を区別する         |
+| `assetKind` / `assetStage` / `assetCode` | WebXRで読み込めなかった素材種別・処理段階・安全な失敗分類 |
+| `httpStatus`                             | 素材取得でHTTP応答を受信できた場合のステータス            |
 
 Epochと連番は、JavaScriptの整数精度を超える値を壊さないよう10進文字列で保存します。ID・種別・結果コードは許可した項目だけを取り出します。token、credential、署名付きURL、APIの送受信本文、素材名、IPアドレス、カメラ画像・画素、任意の例外メッセージは記録しません。
 
 高頻度のState・Pose等はサンプリングし、全フレームを保存しません。`droppedEvents`が0より大きい場合、古いイベントが512件の上限で失われています。欠落した先頭部分を「その処理は起きなかった」と判断しないでください。
+
+### WebXRの表示準備エラー
+
+`assets.ready` は素材HTTP取得だけでなく、資料の構築・描画準備を含む状態です。`stage: "error"` のときは `code` と追加の失敗分類を確認します。`renderPhase: "prepare"` は初期表示や資料更新の準備、`"frame"` は準備完了後のフレーム描画です。
+
+素材読み込みの失敗を分類できた場合は、`assetKind`（`png` / `model` / `video`）、`assetStage`（`validation` / `request` / `response` / `checksum` / `decode`）、`assetCode` を記録します。HTTP応答を受信した場合だけ `httpStatus` を含めます。取得拒否、メディア種別・サイズ・チェックサムの不一致、デコード失敗などの切り分けに使用します。分類できない例外は汎用の `presentation-render-failed` に留め、任意の例外メッセージは出力しません。
+
+ブラウザーはCORSによる拒否と他のネットワーク障害を区別できない場合があります。`network-error` だけでCORSが原因とは断定せず、ブラウザーの通信エラーまたは配信先の設定と照合してください。署名付きURLや資格を診断へ追加する必要はありません。
+
+視聴画面の「状態をJSON保存」でも、`runtime.renderFailurePhase` と `runtime.assetFailure` に同じ分類を保存します。こちらは追跡・マーカーの現在状態の確認にも使用できます。過去に保存したJSONには追加項目がないため、更新後のアプリで障害を再現して保存してください。
 
 ## 照合する順序
 

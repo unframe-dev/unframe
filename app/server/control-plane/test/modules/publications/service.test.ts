@@ -6,6 +6,7 @@ import definition from "../../../../../../packages/contracts/presentation/fixtur
 import renderBundle from "../../../../../../packages/contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../../../../packages/contracts/presentation/fixtures/asset-set-manifest.json";
 import buildManifest from "../../../../../../packages/contracts/presentation/fixtures/build-manifest.json";
+import publishedPresentation from "../../../../../../packages/contracts/presentation/fixtures/published-presentation.json";
 import { PublicationAssetAccess } from "../../../src/modules/publications/asset-access";
 import { DeliveryService } from "../../../src/modules/publications/delivery";
 import { validateConfig } from "../../../src/config";
@@ -125,6 +126,26 @@ describe("publication service", () => {
       env.DB.prepare("DELETE FROM presentation_builds WHERE presentation_id = 'demo'"),
       env.DB.prepare("UPDATE presentations SET revision = 1 WHERE id = 'demo'"),
     ]);
+  });
+  it.each([
+    ["obsolete schema", JSON.stringify({ ...publishedPresentation, schemaVersion: 3 })],
+    ["malformed JSON", "{"],
+  ])("rejects a stored publication with %s", async (_label, manifest) => {
+    await env.DB.prepare(
+      "INSERT INTO presentation_builds (presentation_id, build_id, target_revision, artifacts, created_at) VALUES ('demo', 'build-1', 1, '{}', '2026')",
+    ).run();
+    await env.DB.prepare(
+      "INSERT INTO presentation_publications (presentation_id, epoch, build_id, manifest, published_at) VALUES ('demo', 1, 'build-1', ?, '2026')",
+    )
+      .bind(manifest)
+      .run();
+    const app = createApp({ identityProvider: async () => owner });
+    const response = await app.fetch(
+      new Request("https://example.test/presentations/demo/publication"),
+      runtimeEnvironment(),
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: { code: "conflict" } });
   });
   it("rejects build IDs that escape a publication storage segment", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);

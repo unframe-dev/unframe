@@ -33,11 +33,11 @@ MR デバイス上でプレゼンテーションを表示
 
 `app/server/` は Control Plane と Realtime Backend の親ディレクトリです。旧 Go/Huma/Turso/R2 HTTP API は削除済みで、各 component は独立した実行・依存・deployment 単位です。Component 間の境界は [app/server/ARCHITECTURE.md](./app/server/ARCHITECTURE.md)、内部設計は [Control Plane](./app/server/control-plane/ARCHITECTURE.md) と [Realtime Backend](./app/server/realtime/ARCHITECTURE.md) の各文書を参照してください。
 
-旧 Go HTTP API の OpenAPI と client は削除済みです。現在は Control Plane の OpenAPI / Hono RPC client と Realtime の Protocol Buffers / Go 生成物を各 component の実装から生成し、Unity / C# consumer の生成・接続は未実装です。
+Control Plane の OpenAPI は `packages/contracts/` に出力し、Realtime の Protocol Buffers は同ディレクトリの `proto/` を正本とします。Go と C# の consumer は生成済みです。Unity は専用の生成 Realtime client を使用し、`packages/api-client-csharp/` の Control Plane client は Unity に未接続です。
 
 ## 現在のステータス
 
-`app/` 配下のアプリケーションと `lp/` は WIP です。Control Plane は認証、Presentation / Asset API、Session lifecycle と Realtime bootstrap を実装しています。Realtime Backend は認証付き gRPC 接続と page-change の in-memory fan-out を実装していますが、replay / resume や完全な Runtime 同期は未実装です。Web は認証・Dist の検証・公開・ルーム作成を担当し、Local Editor はローカル Source の編集・Unity Preview と CLI 経由の公開を担当します。Unity はローカル JSON importer と presentation element loader を実装しています。変換 pipeline と background job は未実装です。
+`app/` 配下のアプリケーションは WIP です。Control Plane は認証、Presentation / Asset API、Session lifecycle と Realtime bootstrap を実装しています。Realtime Backend は認証付き gRPC / WebSocket の Control・State 接続、Runtime snapshot、replay / resume、Control Plane への checkpoint・completion 通知を実装しています。Web は認証・Dist の検証・公開・ルーム作成を担当し、Local Editor はローカル Source の編集・Unity Preview と CLI 経由の公開を担当します。Unity は MR 描画と生成 Realtime client による session 参加・Runtime 受信を実装しています。変換 pipeline と background job は未実装です。
 
 ## リポジトリ
 
@@ -46,16 +46,16 @@ app/
 ├── web/
 │   ├── console/      認証・Dist 検証・公開・ルーム作成
 │   ├── local-editor/ ローカル Source 編集・Unity Preview
-│   └── audience/     観客向け Web XR の参加・視聴
+│   ├── audience/     観客向け Web XR の参加・視聴
+│   └── lp/           Landing Page
 ├── server/    Control Plane / Realtime Backend
 └── unity/     Unity ベースの MR Application
 
-lp/            Landing Page
-packages/      契約境界、C# client placeholder、共有設定
+packages/      契約境界、API client、共有設定
 docs/          アーキテクチャ、設計判断、ドキュメント
 ```
 
-`app/web/` 配下の3アプリは、それぞれ独立した package・ビルド・起動設定を持ちます。管理画面は [Console README](./app/web/console/README.md)、ローカル編集は [Local Editor README](./app/web/local-editor/README.md) を参照してください。
+`app/web/` 配下の4アプリは、それぞれ独立した package・ビルド・起動設定を持ちます。管理画面は [Console README](./app/web/console/README.md)、ローカル編集は [Local Editor README](./app/web/local-editor/README.md) を参照してください。
 
 Audience の検査は `nix run .#audience`、開発サーバーは `nix run .#audience -- dev` で実行します。匿名 Viewer のルーム参加と Runtime 受信によるライブ視聴を実装済みで、公開環境とスマートフォンでの総合受入は未実施です。SDK 配置と実機検証は [Audience README](./app/web/audience/README.md) を参照してください。
 

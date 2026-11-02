@@ -1,3 +1,5 @@
+import { principalRevision } from "@/shared/api/session-events";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -7,18 +9,18 @@ import { Button } from "@/shared/ui/button";
 import { PublicationList } from "@/features/presentations/publication-list";
 import {
   createRoom,
-  getPresentation,
-  getPublication,
   getRoom,
   getRuntimePreparation,
   prepareRuntime,
   startRoom,
   endRoom,
-  type Presentation,
-  type Publication,
   type Room,
 } from "@/features/presentations/management-api";
 import { ManagementError, managementErrorMessage } from "@/features/presentations/management-model";
+import {
+  presentationQueryOptions,
+  publicationQueryOptions,
+} from "@/features/presentations/presentation-queries";
 import { PublicationDetails } from "@/features/presentations/publication-details";
 import styles from "@/app/shell/application-content.module.css";
 
@@ -66,10 +68,7 @@ export function RoomDetails({ room }: { room: Room }) {
 }
 
 export function RoomsPage({ presentationId }: { presentationId: string }) {
-  const [selected, setSelected] = useState<{
-    presentation: Presentation;
-    publication: Publication;
-  }>();
+  const [selectedId, setSelectedId] = useState(presentationId);
   const [created, setCreated] = useState(false);
   const navigate = useNavigate();
   const client = useQueryClient();
@@ -82,35 +81,33 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
   }, []);
   const [uncertain, setUncertain] = useState(false);
   const submitting = useRef(false);
-  const initial = useQuery({
-    queryKey: ["room-selection", presentationId],
-    enabled: Boolean(presentationId),
-    retry: false,
-    queryFn: async () => ({
-      presentation: await getPresentation(presentationId),
-      publication: await getPublication(presentationId),
-    }),
-  });
+  const presentation = useQuery(presentationQueryOptions(selectedId));
+  const publication = useQuery(publicationQueryOptions(selectedId));
+  const initialError = presentation.error ?? publication.error;
+  const initialPending = presentation.isPending || publication.isPending;
   const selection =
-    selected ??
-    (initial.data?.publication
-      ? { presentation: initial.data.presentation, publication: initial.data.publication }
-      : undefined);
+    !initialError && presentation.data && publication.data
+      ? { presentation: presentation.data, publication: publication.data }
+      : undefined;
   const mutation = useMutation({
     mutationFn: createRoom,
     retry: false,
-    onSuccess: (result) => {
+    onMutate: () => principalRevision(),
+    onSuccess: (result, _presentationId, principal) => {
+      if (principal !== principalRevision()) return;
       setCreated(true);
-      void client.invalidateQueries({ queryKey: ["owned-rooms"] });
       if (active.current)
         void navigate({ to: "/rooms/$sessionId", params: { sessionId: result.session.id } });
     },
-    onError: (error) => {
+    onError: (error, _presentationId, principal) => {
+      if (principal !== principalRevision()) return;
       // A lost response or server error may follow a committed Session creation.
       if (!(error instanceof ManagementError) || error.status >= 500) setUncertain(true);
     },
-    onSettled: (_result, error) => {
+    onSettled: async (_result, error, _presentationId, principal) => {
+      if (principal !== principalRevision()) return;
       if (error) submitting.current = false;
+      await client.invalidateQueries({ queryKey: ["owned-rooms"] });
     },
   });
   const submit = () => {
@@ -125,18 +122,30 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
       </header>
       <OwnedRoomList />
       <>
-        {presentationId && initial.isPending ? (
-          <p role="status">公開情報を読み込んでいます…</p>
+        {selectedId && initialPending ? (
+          <div
+            role="status"
+            aria-label="公開情報を読み込んでいます…"
+            className="grid gap-4 border-b py-8"
+          >
+            <Skeleton className="h-7 w-72 max-w-full" />
+            <Skeleton className="h-4 w-full max-w-xl" />
+            <Skeleton className="h-12 w-36" />
+            <Skeleton className="h-5 w-24" />
+          </div>
         ) : null}
-        {initial.isError ? (
+        {initialError ? (
           <p role="alert">
-            {managementErrorMessage(initial.error)}{" "}
-            <Button variant="outline" onClick={() => void initial.refetch()}>
+            {managementErrorMessage(initialError)}{" "}
+            <Button
+              variant="outline"
+              onClick={() => void Promise.all([presentation.refetch(), publication.refetch()])}
+            >
               選択情報を再取得
             </Button>
           </p>
         ) : null}
-        {initial.isSuccess && !initial.data.publication ? <p>未公開</p> : null}
+        {selectedId && !initialError && !initialPending && !publication.data ? <p>未公開</p> : null}
         {selection ? (
           <section className="grid gap-4 border-b py-8" aria-label="選択したプレゼンテーション">
             <h2 className="text-xl">{selection.presentation.name}</h2>
@@ -159,9 +168,9 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
           </p>
         ) : null}
         <PublicationList
-          onSelect={(presentation, publication) => {
+          onSelect={(id) => {
             if (!mutation.isPending && !uncertain) {
-              setSelected({ presentation, publication });
+              setSelectedId(id);
               mutation.reset();
             }
           }}
@@ -195,7 +204,21 @@ export function RoomPage({ sessionId }: { sessionId: string }) {
             ルーム情報を再取得
           </Button>
         </div>
-        {query.isPending ? <p role="status">ルームを読み込んでいます…</p> : null}
+        {query.isPending ? (
+          <div role="status" aria-label="ルームを読み込んでいます…" className="grid gap-6">
+            <div className="grid gap-3">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-5 w-72 max-w-full" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+            <Skeleton className="h-5 w-24" />
+            <div className="flex flex-wrap gap-3">
+              <Skeleton className="h-12 w-36" />
+              <Skeleton className="h-12 w-28" />
+            </div>
+          </div>
+        ) : null}
         {query.isError ? <p role="alert">{managementErrorMessage(query.error)}</p> : null}
         {query.isSuccess ? (
           <>
@@ -225,17 +248,21 @@ function RoomControls({ room }: { room: Room }) {
     },
     retry: false,
     onMutate: async () => {
+      const principal = principalRevision();
       await client.cancelQueries({ queryKey: preparationKey });
       await client.cancelQueries({ queryKey: roomKey });
+      return principal;
     },
-    onSuccess: (result) => {
+    onSuccess: (result, _action, principal) => {
+      if (principal !== principalRevision()) return;
       if (result.action === "prepare") client.setQueryData(preparationKey, result.value);
       else {
         client.setQueryData(roomKey, result.value);
         if (result.value.state === "Ended") client.setQueryData(preparationKey, { state: "ended" });
       }
     },
-    onError: async (_error, action) => {
+    onError: async (_error, action, principal) => {
+      if (principal !== principalRevision()) return;
       if (action !== "prepare") {
         await Promise.all([
           client.invalidateQueries({ queryKey: roomKey }),
@@ -243,8 +270,10 @@ function RoomControls({ room }: { room: Room }) {
         ]);
       }
     },
-    onSettled: () => {
+    onSettled: async (_result, _error, action, principal) => {
+      if (principal !== principalRevision()) return;
       submitting.current = false;
+      if (action !== "prepare") await client.invalidateQueries({ queryKey: ["owned-rooms"] });
     },
   });
   const preparation = useQuery({
@@ -286,6 +315,11 @@ function RoomControls({ room }: { room: Room }) {
         <>
           {starting || (busy && mutation.variables === "prepare") ? (
             <p role="status">発表環境を準備しています。</p>
+          ) : null}
+          {preparation.isPending ? (
+            <div role="status" aria-label="発表環境を読み込んでいます…">
+              <Skeleton className="h-5 w-56 max-w-full" />
+            </div>
           ) : null}
           {ready ? <p role="status">発表環境の準備ができました。</p> : null}
           <div className="flex flex-wrap gap-3">

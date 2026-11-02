@@ -433,7 +433,7 @@ presentation/
 
 - `.unframe/cache/` は再生成可能な build cache である。`.unframe/authoring/` の receipt / journal は保存・回復状態であり、cache と同じ規則で削除しない。
 - `dist/` は Build の成果物であり Authoring Source ではない。
-- `unframe.lock` の schemaVersion は 1 であり、現行の読込と検証は CLI が所有する。
+- `unframe.lock` の schemaVersion は 1 であり、読込と検証は `@unframe/workspace` が所有し、CLI が利用する。
 - reference projectはproduction用の隠れたdefault contractにせず、公開fixtureとして検証する。
 
 ## 10. Documentation hierarchy

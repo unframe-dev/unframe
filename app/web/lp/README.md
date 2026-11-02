@@ -29,7 +29,7 @@ pnpm --filter @unframe/site run dev
 
 ## Cloudflare Workers
 
-Wrangler の設定は `lp/wrangler.toml` が正とします。初回のみCloudflareへログインします。
+Wrangler の設定は `app/web/lp/wrangler.toml` が正とします。初回のみCloudflareへログインします。
 
 ```bash
 pnpm --filter @unframe/site exec wrangler login
@@ -51,7 +51,7 @@ LP は `un-fra.me` の `/`、`/news`・`/news/*`、`/docs`・`/docs/*` と静的
 `/_app/*`・`/brand/*`・`/favicon/*` を配信します。その他のパスは Console Worker が配信し、
 Header の「試してみる」は同じ origin の `/signup`、「ログイン」は `/login` に進みます。
 LP の開発サーバー単独では Console の画面は配信されません。
-DNS レコードと Worker route の正本はリポジトリ外の [`infra`](../../infra/README.md) Terraform です。
+DNS レコードと Worker route の正本はリポジトリ外の [`infra`](../../../../infra/README.md) Terraform です。
 
 本番のデプロイには、対象ゾーンへのアクセス権を持つCloudflare APIトークン、またはWranglerの
 ログインセッションが必要です。

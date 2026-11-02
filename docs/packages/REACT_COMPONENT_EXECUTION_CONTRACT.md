@@ -24,9 +24,9 @@ React source / 実行可能 module は Compiler の描画用入力に留め、po
 
 共通モデルを変更しない場合、A1 の canonical lowering / CLI check 成功という完了条件を維持できない。別案は抽出・capture の隔離試作までに範囲を縮め、canonical / Editor 接続の前に再度設計することである。元の縦断検証目標に沿い、共通モデルまで拡張する方針を採用した。
 
-## 0. Lock v3 と生成 ID
+## 0. Lock と生成 ID
 
-`unframe.lock`はcanonical JSONのv3である。Source正本のlocal filesと登録したsource Assetはlockに複製せず、root-relative pathとbytes hashで固定し、Assetにはmedia typeとsizeも記録する。外部依存は文字列・binary とも bytes を lock に含める。概略型は次のとおりであり、unknown field、重複 key、不正 UTF-8 / base64、未参照の外部 package、欠けた参照は拒否する。
+`unframe.lock`はschema version 1のcanonical JSONである。Source正本のlocal filesと登録したsource Assetはlockに複製せず、root-relative pathとbytes hashで固定し、Assetにはmedia typeとsizeも記録する。外部依存は文字列・binary とも bytes を lock に含める。概略型は次のとおりであり、unknown field、重複 key、不正 UTF-8 / base64、未参照の外部 package、欠けた参照は拒否する。
 
 ```ts
 type Hash = `sha256:${string}`;
@@ -61,7 +61,9 @@ type ComponentLock = {
   manifestHash: Hash;
 } & ({ mode: "structured"; structureHash: Hash } | { mode: "opaque"; rendererInputHash: Hash });
 type UnframeLock = {
-  schemaVersion: 3;
+  styleTransform?: NodeTransformSnapshot;
+  styleSourceIdentity?: string;
+  schemaVersion: 1;
   packageSnapshotProfile: "pnpm-lock9-locator-v1";
   resolutionProfile: "browser-import-production-types-v1";
   extractionProfile: "react-component-v1";
@@ -71,9 +73,19 @@ type UnframeLock = {
   dependencyGraphHash: Hash;
   themeHashes: { themeId: string; hash: Hash }[];
   componentLocks: ComponentLock[];
-  assets: { id: string; path: string; mediaType: string; hash: Hash; size: number }[];
+  assets: {
+    id: string;
+    path: string;
+    mediaType: string;
+    hash: Hash;
+    size: number;
+    transformIdentity?: Hash;
+  }[];
+  rendererPlugins: { id: string; version: string; contractVersion: string }[];
 };
 ```
+
+`NodeTransformSnapshot` の形は [schema](../../packages/unframe/workspace/src/snapshot-schema.ts) を正本とする。`styleTransform` と `styleSourceIdentity` は両方を指定するか両方を省略する。lock 内の `styleTransform.sourceFiles` は空であり、`styleSourceIdentity` は小文字の SHA-256 hex 64 桁とする。
 
 source Assetは非実行の`unframe.config.ts`の`assets: { [assetId]: { path, mediaType } }`で登録する。check/buildは登録とlockの一致、filesystem snapshotのsize/hashを検証し、Compilerへdescriptorとbytesを分離して渡す。素材の変更は明示的なlock更新を要求し、Dev buildの自動local hash更新では採用しない。旧schemaの暗黙読込は行わない。
 
@@ -100,11 +112,11 @@ package dependency の循環は edge graph として扱い、依存先 integrity
 
 通常 check / build は全 hash と参照を再計算する。実装済みの `lock refresh` は固定 graph を保持し、`lock update` は `pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --force --verify-store-integrity` 後の依存を読み直す。workspace / link 依存の配布 snapshot は未対応であり、明示的に拒否する。reference fixture の SDK は手製の型 snapshot で、実 package 配布の検証を示さない。`lock refresh <project>` は現在の固定 package graph で local Component / Theme hash だけを更新し、`lock update <project>` は明示された pnpm frozen install の結果から外部 bytes / exports / graph を再 snapshot する。どちらも package install script を実行しない。packageManagerLockHash は解決元 `pnpm-lock.yaml` bytes の SHA-256 で、更新時だけ読む。新しい外部 import を local refresh で追加した場合は依存更新を要求する。描画が必要な image/font は lock asset carrier または local files / package files のどれか一つから解決し、bytes と拡張子・mediaType を一致検証する。初期 capture の対応形式は4節で限定する。
 
-Compiler の `ComponentPackageLock` / assembly carrier はこの origin + mode union へ移す。ローカル Component に架空の packageVersion を補わない。Structured の既存 Instance にある packageLock と sample の lock import を取り除き、catalog が origin を決定する。同じ `(componentId,version)` に異なる origin / 内容が解決したら重複定義として拒否する。旧 v1 の読み込み分岐は追加せず、loader、carrier、guard、`sameLock`、reference、fixture、drift test を A1 で一緒に更新する。Structured の宣言と canonical 出力の意味は維持する。
+Component の origin は catalog が決定し、ローカル Component に架空の packageVersion を補わない。同じ `(componentId,version)` に異なる origin / 内容が解決したら重複定義として拒否する。
 
 React 経路の生成 ID は、既存の portable ID 制約に収まる `r:` + SHA-256 hex とする。hash input は `JSON.stringify(["react-component-v1",kind,instanceId,localKey])`、kind は `host / surface / semantic / interaction / action / output / state`。host / surface の localKey は空文字で、公開 record key と namespace を混同しない。文字列を区切り文字で直接連結しない。生成後は既存の ID 一意性検査も行う。Component の version、ファイル移動、並べ替え、Props 変更では同じ Instance の ID は変わらず、Instance ID の rename は明示的な identity 変更になる。既存 Structured の ID 算出は変更しない。
 
-既存 v1 project の移行は、Source を新しい宣言形式へ明示更新した後、`lock update <project> --recreate` で行う。この操作は旧 lock を入力として解釈せず、Source、project 設定、固定した pnpm 解決結果から v2 全体を新規生成する。旧 lock にしかない asset / package bytes は継承しないため、再生成可能な入力へ明示的に戻す必要がある。新 lock の全検証が成功した場合だけ旧ファイルを置換し、失敗時は旧 bytes を保持する。通常の update / refresh / check / build は v1 を拒否してこの手順を案内する。A1 は v1 fixture からの明示再生成成功と、入力不足・検証失敗時の旧 lock 保持を検証する。
+現行の schema version と形に合わない lock は、Source と project 設定を現行形式へ更新し、`lock update <project> --recreate` で再生成する。この操作は既存 lock を入力として解釈せず、Source、project 設定、固定した pnpm 解決結果から新規生成する。旧 lock にしかない asset / package bytes は継承しないため、再生成可能な入力へ戻す必要がある。新 lock の検証が成功した場合だけ旧ファイルを置換し、失敗時は旧 bytes を保持する。
 
 ## 1. Source の分類と抽出
 

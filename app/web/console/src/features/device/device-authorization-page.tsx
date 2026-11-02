@@ -1,7 +1,8 @@
+import { Skeleton } from "@/shared/ui/skeleton";
 import { GoogleLogoIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { controlPlaneAuth as auth } from "@/features/auth/control-plane-auth";
+import { useState } from "react";
+import { controlPlaneAuth as auth, useAuthSession } from "@/features/auth/control-plane-auth";
 import { BrandLink } from "@/shared/brand/brand-link";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -43,41 +44,17 @@ function deviceCallbackUrl(userCode: string) {
 
 export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: string }) {
   const [userCode, setUserCode] = useState(initialUserCode);
-  const [sessionReady, setSessionReady] = useState(false);
-  const [sessionAttempt, setSessionAttempt] = useState(0);
-  const [sessionFailure, setSessionFailure] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const session = useAuthSession();
+  const sessionReady = !session.isPending;
+  const sessionFailure = session.isError;
+  const signedIn = Boolean(session.data);
   const [state, setState] = useState<PageState>("entry");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>();
 
-  useEffect(() => {
-    let active = true;
-    void auth
-      .getSession()
-      .then((result) => {
-        if (!active) return;
-        setSignedIn(Boolean(result.data));
-        setSessionFailure(false);
-        setSessionReady(true);
-      })
-      .catch(() => {
-        if (!active) return;
-        setSignedIn(false);
-        setSessionFailure(true);
-        setMessage(errorMessage());
-        setSessionReady(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, [sessionAttempt]);
-
   const retrySession = () => {
     setMessage(undefined);
-    setSessionFailure(false);
-    setSessionReady(false);
-    setSessionAttempt((attempt) => attempt + 1);
+    void session.refetch();
   };
 
   const verify = async () => {
@@ -161,9 +138,9 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
           </p>
         </header>
         <div className={styles.deviceActions}>
-          {message ? (
+          {message || sessionFailure ? (
             <p role="alert" className="rounded-md border border-[var(--destructive)] p-3 text-sm">
-              {message}
+              {message ?? errorMessage()}
             </p>
           ) : null}
           {terminalMessage ? (
@@ -176,7 +153,11 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
           ) : null}
 
           {!sessionReady ? (
-            <p className="text-sm text-[var(--muted)]">ログイン状態を確認しています…</p>
+            <div role="status" aria-label="ログイン状態を確認しています…" className="grid gap-3">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
           ) : !signedIn ? (
             <div className="grid gap-3">
               <p className="rounded-md border p-3 text-sm">

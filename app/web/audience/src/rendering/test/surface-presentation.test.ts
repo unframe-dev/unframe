@@ -68,3 +68,72 @@ it("keeps equal-checksum video decoders as separate samplers and decodes video c
   scene.dispose();
   expect(loaded.every((value) => vi.mocked(value.dispose).mock.calls.length === 1)).toBe(true);
 });
+
+it("switches to a resident texture without loading and keeps it across group entries", async () => {
+  const view = participantRuntimeViewSchema.parse(runtimeFixture);
+  const asset = (id: string) => ({
+    assetId: id,
+    checksum: `sha256:${id.repeat(64)}`,
+    encodedSizeBytes: 12,
+    pixelSize: [1, 1] as const,
+    alphaMode: "opaque" as const,
+    url: `https://example.test/${id}`,
+    expiresAtUnixMs: Date.now() + 1000,
+  });
+  const one = asset("a"),
+    two = asset("b");
+  const first = { texture: new Texture(), dispose: vi.fn() };
+  const second = { texture: new Texture(), dispose: vi.fn() };
+  let selected = one;
+  const loadTexture = vi.fn();
+  const admitMemory = vi.fn(() => 0);
+  const scene = await createSurfacePresentation({
+    host: { contentRoot: new Group(), setPresentationOrigin: vi.fn() },
+    delivery: {},
+    view,
+    preloadedTextures: [
+      { asset: one, loaded: first },
+      { asset: two, loaded: second },
+    ],
+    loadTexture,
+    admitMemory,
+    assetCpuBytes: () => 4,
+    buildPlan: () => ({
+      nodes: [
+        { id: "node-baked", parentId: null, transform: view.nodeStates["node-baked"]!.transform },
+      ],
+      assets: [selected],
+      planes: [
+        {
+          id: "plane",
+          nodeId: "node-baked",
+          surfaceId: "baked",
+          assetId: selected.assetId,
+          width: 1,
+          height: 1,
+          x: 0,
+          y: 0,
+          layer: 0,
+          uv: [0, 0, 1, 1],
+          opacity: 1,
+          alphaMode: "opaque",
+        },
+      ],
+    }),
+  });
+  expect(admitMemory).toHaveBeenCalledWith([], 0);
+  selected = two;
+  const next = structuredClone(view);
+  next.progression.groupEntryEpoch++;
+  expect(scene.applyView(next)).toBe(true);
+  expect((scene.root.getObjectByName("plane") as Mesh).material).toMatchObject({
+    map: second.texture,
+  });
+  selected = one;
+  expect(scene.applyView(view)).toBe(true);
+  expect(loadTexture).not.toHaveBeenCalled();
+  expect(first.dispose).not.toHaveBeenCalled();
+  expect(second.dispose).not.toHaveBeenCalled();
+  expect(scene.retainedCpuBytes).toBe(0);
+  scene.dispose();
+});

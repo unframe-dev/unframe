@@ -49,7 +49,7 @@ root export は native module を import しない。OpenTUI の Zig core を必
 または `pnpm tui` を使う。これにより Node / Vitest 上の headless check と build は native TUI lifecycle から
 独立する。
 
-lock v3 は self-contained package bytes、local file hash、source Assetのpath/hash/sizeを検証する。`refresh` は固定依存 graph を保持し、`update` はスクリプト無効の frozen pnpm install 後に snapshot を取り直す。`--recreate` は旧schemaを読み替えずSourceから新規生成し、失敗時は旧 lock を保持する。workspace / link dependency は未対応で、root-relative tarball と registry locator を対象とする。
+schema version 1 の lock は self-contained package bytes、local file hash、source Assetのpath/hash/sizeを検証する。`refresh` は固定依存 graph を保持し、`update` はスクリプト無効の frozen pnpm install 後に snapshot を取り直す。`--recreate` は旧schemaを読み替えずSourceから新規生成し、失敗時は旧 lock を保持する。workspace / link dependency は未対応で、root-relative tarball と registry locator を対象とする。
 
 ## 2. Command contract
 
@@ -93,7 +93,7 @@ Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer
 
 Prop / Variant の default を省略によって採用した場合、`check` と `build` は exit code `0` のまま warning を返す。成功 JSON の `warnings` は Instance ID、Prop / Variant 名、default 値、path を保持する。text 形式は成功を stdout、warning を stderr に出す。`build` の事前検証と compile で同じ warning を二重表示しない。default と同じ値を明示した場合は warning を出さない。
 
-`unframe.config.ts`の`assets`はlogical Asset IDから`{ path, mediaType }`へのdata-only登録であり、pathはproject内のregular fileを指す。lock v3のassetは`id`、`path`、`mediaType`、`hash`、`size`を持つ。bytesはfilesystem snapshotからCompilerの独立入力へ渡し、lockやdeclaration projectのJSONへ埋め込まない。登録済み素材は一ファイル64 MiB、合計256 MiBまで読み込み、Compilerは画像16 MiB・フォント/GLB64 MiBの上限と実bytesのhash/size/signatureも検証する。CheckとDist buildは素材・登録・変換条件がlockと異なる場合に拒否し、明示的な`lock refresh`/`lock update`で採用する。AuthorとDev buildは最新素材を取り込み、そのhashと変換条件をDev用snapshotへ固定する。Devはlockの素材pinと既存Distを更新しない。GLBはCompilerの静的Model変換へ渡し、配布GLBをlogical Asset IDのままatomic出力する。MP4は隔離validatorで検証し、Video artifactと配布MP4へ接続する。raster sizeはCLI optionではなくADR-0012の長辺2048 policyから導出する。
+`unframe.config.ts`の`assets`はlogical Asset IDから`{ path, mediaType }`へのdata-only登録であり、pathはproject内のregular fileを指す。lock の asset は `id`、`path`、`mediaType`、`hash`、`size` と任意の `transformIdentity` を持つ。bytesはfilesystem snapshotからCompilerの独立入力へ渡し、lockやdeclaration projectのJSONへ埋め込まない。登録済み素材は一ファイル64 MiB、合計256 MiBまで読み込み、Compilerは画像16 MiB・フォント/GLB64 MiBの上限と実bytesのhash/size/signatureも検証する。CheckとDist buildは素材・登録・変換条件がlockと異なる場合に拒否し、明示的な`lock refresh`/`lock update`で採用する。AuthorとDev buildは最新素材を取り込み、そのhashと変換条件をDev用snapshotへ固定する。Devはlockの素材pinと既存Distを更新しない。GLBはCompilerの静的Model変換へ渡し、配布GLBをlogical Asset IDのままatomic出力する。MP4は隔離validatorで検証し、Video artifactと配布MP4へ接続する。raster sizeはCLI optionではなくADR-0012の長辺2048 policyから導出する。
 
 ## 3. Artifact boundary
 

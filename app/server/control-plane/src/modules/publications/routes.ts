@@ -2,6 +2,7 @@ import { viewerIdentity, viewerToken } from "../viewer-credentials/identity";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
+import { etag } from "hono/etag";
 import type { AppEnvironment } from "../../config";
 import {
   createPublicationBuildRoute,
@@ -122,6 +123,18 @@ export function createPublicationRoutes(options: PublicationRouteOptions) {
     }
     await next();
   });
+  app.use(
+    "/presentations/:presentationId/builds/:buildId/thumbnail",
+    async (context, next) => {
+      await next();
+      // The ETag middleware replaces 304 responses and their original headers.
+      context.header(
+        "Cache-Control",
+        context.res.status === 200 || context.res.status === 304 ? "private, no-cache" : "no-store",
+      );
+    },
+    etag({ generateDigest: (bytes) => crypto.subtle.digest("SHA-256", bytes) }),
+  );
   return app
     .openapi(createPublicationBuildRoute, async (context) =>
       context.json(
@@ -167,7 +180,7 @@ export function createPublicationRoutes(options: PublicationRouteOptions) {
       return new Response(bytes, {
         headers: {
           "content-type": "image/png",
-          "cache-control": "private, no-store",
+          "cache-control": "private, no-cache",
           "x-content-type-options": "nosniff",
           "content-length": String(bytes.byteLength),
         },

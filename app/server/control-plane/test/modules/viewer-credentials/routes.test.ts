@@ -73,6 +73,11 @@ it("scopes, rotates, expires and revokes anonymous credentials without managemen
     expiresAt: string;
   };
   expect(credential.expiresAt).toBe("2026-10-27T01:00:00.000Z");
+  await expect(
+    env.DB.prepare("SELECT name, image, emailVerified FROM user WHERE id = ?")
+      .bind(credential.participantId)
+      .first(),
+  ).resolves.toEqual({ name: "Anonymous viewer", image: null, emailVerified: 0 });
   for (const [path, method, body] of [
     ["/presentations", "GET", undefined],
     ["/sessions", "POST", { presentationId: suffix }],

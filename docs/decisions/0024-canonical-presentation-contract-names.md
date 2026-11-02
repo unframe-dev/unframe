@@ -4,6 +4,8 @@
 
 Accepted
 
+このADRのバージョン値は採用当時の決定を示す。現行のPresentation成果物・Capability・Snapshotのschema versionは `1`、通信protocolは `v3` であり、各contract versionは [runtime authority](../../packages/contracts/src/presentation/runtime-authority.ts) を参照する。
+
 ## Context
 
 Presentation契約は完全版と初期subsetが並存していた。現行packagesは完全版を使うため、名前のV2 suffixと旧subsetの公開は不要である。
@@ -36,4 +38,4 @@ Protobuf breaking baselineは正式名のdescriptorに更新する。更新時�
 
 schema drift、breaking検査のnegative test、TypeScript / Go / C#のwire conformanceで生成物を確認する。unknown enum / 必須 variant / version の拒否、Delivery closure / budget、snapshot / checkpoint / fence の対象テストを維持する。wire の変更は正本、descriptor baseline、consumer、検証を同じ変更で更新する。
 
-旧Realtime v1の一時的な例外は旧実行経路の撤去に伴い終了した。現行の通信契約は v2 だけとし、互換 fallback を追加しない。
+旧Realtime v1の一時的な例外は旧実行経路の撤去に伴い終了した。採用時の通信契約は v2 とし、互換 fallback を追加しなかった。

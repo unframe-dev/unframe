@@ -4,7 +4,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "noPropertyAccessFromIndexSignature": false,
-    "types": ["@cloudflare/workers-types"]
+    "types": ["@cloudflare/workers-types", "node"]
   },
   "include": ["src", "vitest.config.ts", "vitest.startup.config.ts"]
 }

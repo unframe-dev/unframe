@@ -87,6 +87,7 @@ sync_tree "${temp}/csharp/proto" "${REPO_ROOT}/packages/api-client-csharp/Genera
 sync_tree "${temp}/openapi/src/Unframe.ControlPlane" "${REPO_ROOT}/packages/api-client-csharp/Generated/ControlPlane" 'C# Control Plane'
 if [[ "${mode}" == check ]]; then
   cmp "${temp}/provenance.sha256" "${REPO_ROOT}/packages/api-client-csharp/Generated/provenance.sha256"
+  bash "${script_dir}/test-csharp-profile-image.sh"
 else
   cp "${temp}/provenance.sha256" "${REPO_ROOT}/packages/api-client-csharp/Generated/provenance.sha256"
 fi

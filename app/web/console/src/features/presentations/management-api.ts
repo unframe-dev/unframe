@@ -1,17 +1,12 @@
 import { sessionJoinCodeSchema } from "@unframe/contracts/control-plane-http";
-import { createControlPlaneClient } from "@unframe/api-client-typescript";
+import { controlPlaneClient as client } from "@/shared/api/control-plane-client";
 import {
   publicationFenceSchema,
   publishedPresentationSchema,
 } from "@unframe/contracts/presentation";
 import { z } from "zod";
-import { ManagementError, mapConcurrent } from "./management-model";
+import { ManagementError } from "./management-model";
 
-const baseUrl = import.meta.env["VITE_CONTROL_PLANE_URL"] || "https://api.un-fra.me";
-const client = createControlPlaneClient({
-  baseUrl,
-  credentials: "include",
-});
 const presentationSchema = z.object({ id: z.string(), name: z.string() });
 const sessionSchema = z.object({
   id: z.string(),
@@ -43,8 +38,8 @@ async function readJson(response: Pick<Response, "ok" | "status" | "json">): Pro
   }
   return response.json();
 }
-export async function listPresentations() {
-  const response = await client.presentations.$get();
+export async function listPresentations(signal?: AbortSignal) {
+  const response = await client.presentations.$get(undefined, { init: { signal: signal ?? null } });
   return z.object({ presentations: z.array(presentationSchema) }).parse(await readJson(response))
     .presentations;
 }
@@ -71,22 +66,6 @@ export async function getPublication(
     return null;
   }
   return publishedPresentationSchema.parse(await readJson(response));
-}
-export async function loadPublications(
-  presentations: Presentation[],
-  signal?: AbortSignal,
-): Promise<PublicationResult[]> {
-  return mapConcurrent(presentations, 3, async (presentation) => {
-    try {
-      signal?.throwIfAborted();
-      const publication = await getPublication(presentation.id, signal);
-      return publication
-        ? { presentation, state: "published", publication }
-        : { presentation, state: "unpublished" };
-    } catch (error) {
-      return { presentation, state: "error", error };
-    }
-  });
 }
 export async function createRoom(presentationId: string) {
   return z

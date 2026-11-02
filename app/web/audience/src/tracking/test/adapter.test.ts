@@ -41,7 +41,7 @@ function fixture() {
       xrScene: () => ({
         scene: new Scene(),
         camera: new PerspectiveCamera(),
-        renderer: { resetState: vi.fn() },
+        renderer: { resetState: vi.fn(), initTexture: vi.fn() },
       }),
     },
     XrController: { configure: vi.fn(), pipelineModule: () => ({ name: "reality" }) },

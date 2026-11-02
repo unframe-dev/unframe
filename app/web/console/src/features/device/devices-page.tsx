@@ -1,3 +1,4 @@
+import { Skeleton } from "@/shared/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { z } from "zod";
@@ -51,7 +52,17 @@ export function DevicesPage() {
             デバイス一覧を再取得
           </Button>
         </div>
-        {query.isPending ? <p role="status">デバイスを読み込んでいます…</p> : null}
+        {query.isPending ? (
+          <div role="status" aria-label="デバイスを読み込んでいます…" className="grid gap-5">
+            {[0, 1, 2].map((row) => (
+              <div key={row} className="grid gap-3">
+                <Skeleton className="h-6 w-48 max-w-full" />
+                <Skeleton className="h-4 w-64 max-w-full" />
+                <Skeleton className="h-4 w-56 max-w-full" />
+              </div>
+            ))}
+          </div>
+        ) : null}
         {query.isError ? (
           <p role="alert">
             デバイスを読み込めませんでした。ログイン状態を確認して再取得してください。

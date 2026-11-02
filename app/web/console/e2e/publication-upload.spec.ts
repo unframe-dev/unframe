@@ -333,17 +333,10 @@ test("retains an in-flight publication across route changes and refreshes the ac
     await leaveAndReturn(page);
     await expect(page.getByRole("button", { name: "公開しています…", exact: true })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Dist フォルダを選び直す" })).toBeDisabled();
-    const listResponse = page.waitForResponse(
-      (response) =>
-        new URL(response.url()).port !== "4173" &&
-        new URL(response.url()).pathname === "/presentations" &&
-        response.request().method() === "GET",
-    );
     await page
       .getByRole("navigation", { name: "メインナビゲーション" })
       .getByRole("link", { name: "ホーム", exact: true })
       .click();
-    await listResponse;
     await expect(page.getByText("プレゼンテーションがありません。", { exact: true })).toBeVisible();
     const previousReads = server.requests.filter(
       ({ path, method }) => path === "/presentations" && method === "GET",
@@ -362,6 +355,55 @@ test("retains an in-flight publication across route changes and refreshes the ac
     ).toBeGreaterThan(previousReads);
     await page.getByRole("link", { name: "プレゼンテーションを公開", exact: true }).click();
     await expect(page.getByText("公開しました。", { exact: true })).toBeVisible();
+    expect(server.publicationRequests).toBe(1);
+  } finally {
+    release();
+  }
+});
+
+test("updates a selected publication when a background publication completes", async ({
+  page,
+  dist,
+}) => {
+  const server = await remote(page, dist);
+  server.exists = true;
+  server.current = publication(dist, 1, "old-build");
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.onPublication = async (route) => {
+    await pending;
+    server.current = publication(dist, 2);
+    await route.fulfill({ status: 201, json: server.current });
+  };
+  await page.route("**/sessions?*", (route) =>
+    route.fulfill({ json: { sessions: [], nextCursor: null } }),
+  );
+  try {
+    await chooseDist(page, dist);
+    await page.getByRole("button", { name: "公開する", exact: true }).click();
+    await expect.poll(() => server.publicationRequests).toBe(1);
+    await page
+      .getByRole("navigation", { name: "メインナビゲーション" })
+      .getByRole("link", { name: "ルーム", exact: true })
+      .click();
+    await page
+      .getByRole("button", {
+        name: `${dist.fixture.artifacts.definition.metadata.title}を選択`,
+        exact: true,
+      })
+      .click();
+    const selection = page.getByRole("region", { name: "選択したプレゼンテーション", exact: true });
+    await selection.getByText("技術情報", { exact: true }).click();
+    const epoch = selection
+      .locator("dt")
+      .filter({ hasText: /^Publication epoch$/ })
+      .locator("..")
+      .locator("dd");
+    await expect(epoch).toHaveText("1");
+    release();
+    await expect(epoch).toHaveText("2");
     expect(server.publicationRequests).toBe(1);
   } finally {
     release();

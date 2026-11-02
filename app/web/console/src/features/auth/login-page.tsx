@@ -1,8 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { controlPlaneAuth as auth } from "@/features/auth/control-plane-auth";
+import { controlPlaneAuth as auth, resetSessionCache } from "@/features/auth/control-plane-auth";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -26,6 +27,11 @@ export function LoginPage({
   error?: string;
 } = {}) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const finishLogin = async () => {
+    await resetSessionCache(queryClient);
+    await navigate({ to: "/home" });
+  };
   const [message, setMessage] = useState("");
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [mfa, setMfa] = useState(false);
@@ -53,7 +59,7 @@ export function LoginPage({
         );
         return;
       }
-      await navigate({ to: "/home" });
+      await finishLogin();
     } catch {
       setMessage("ログインできませんでした。もう一度お試しください。");
     }
@@ -70,7 +76,7 @@ export function LoginPage({
         <p role="status">メールアドレスを確認しました。</p>
       ) : null}
       {mfa ? (
-        <MfaForm onDone={() => void navigate({ to: "/home" })} />
+        <MfaForm onDone={() => void finishLogin()} />
       ) : (
         <>
           <form onSubmit={submit}>

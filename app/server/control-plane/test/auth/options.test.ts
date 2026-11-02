@@ -217,6 +217,41 @@ async function decideDeviceCode(
   });
 }
 
+describe("profile image ownership", () => {
+  it.each([null, "https://elsewhere.example/avatar.png"])(
+    "rejects generic image changes (%s) without losing the owned image reference",
+    async (image) => {
+      const session = await seedBrowserSession();
+      const current = `https://example.com/user-images/${session.userId}/${crypto.randomUUID()}.png`;
+      await env.DB.prepare("UPDATE user SET image = ? WHERE id = ?")
+        .bind(current, session.userId)
+        .run();
+      const response = await requestAuth("/update-user", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ image }),
+      });
+      expect(response.status).toBe(400);
+      expect(
+        await env.DB.prepare("SELECT image FROM user WHERE id = ?").bind(session.userId).first(),
+      ).toEqual({ image: current });
+    },
+  );
+
+  it("continues to allow name changes through the generic user API", async () => {
+    const session = await seedBrowserSession();
+    const response = await requestAuth("/update-user", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ name: "New Name" }),
+    });
+    expect(response.status).toBe(200);
+    expect(
+      await env.DB.prepare("SELECT name FROM user WHERE id = ?").bind(session.userId).first(),
+    ).toEqual({ name: "New Name" });
+  });
+});
+
 describe("Better Auth device authorization", () => {
   it("enrolls TOTP and completes an email/password MFA challenge", async () => {
     const test = mailbox();
@@ -977,7 +1012,7 @@ describe("Better Auth device authorization", () => {
     const allowed = await request("https://un-fra.me");
     expect(allowed.headers.get("access-control-allow-origin")).toBe("https://un-fra.me");
     expect(allowed.headers.get("access-control-allow-credentials")).toBe("true");
-    expect(allowed.headers.get("access-control-expose-headers")).toBe("set-auth-token");
+    expect(allowed.headers.get("access-control-expose-headers")).toBe("set-auth-token,ETag");
 
     const rejected = await request("https://other.example.com");
     expect(rejected.headers.get("access-control-allow-origin")).toBeNull();

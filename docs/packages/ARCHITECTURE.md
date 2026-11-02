@@ -89,7 +89,7 @@ Session path の authority は Cloud または Venue Edge に配置された割�
 
 ### 基本原則
 
-- TSX、JSON、Protobuf は用途ごとの表現形式とする。v2 の PresentationDefinition は canonical JSON として build するが、JSON を Authoring Source にはしない。
+- TSX、JSON、Protobuf は用途ごとの表現形式とする。PresentationDefinition は canonical JSON として build するが、JSON を Authoring Source にはしない。
 - `.unframe.tsx` はプレゼンテーション全体を直接描画する巨大な実装ではなく、Component の配置と接続を行う composition root とする。
 - Component の公開契約と renderer 実装を分離する。
 - GUI と Code は同じ Semantic Authoring IR を編集する。
@@ -166,7 +166,7 @@ PresentationDefinition
 
 素材の使用箇所は `assetId` だけを参照する。checksum、media type、encoded size を持つ素材 descriptor は、Definition と RenderBundle から独立した immutable な `AssetSetManifest` に置く。Compiler は Definition、RenderBundle、AssetSetManifest、素材実体の参照完全性を検証し、Control Plane はそれぞれの hash を PublishedPresentation に固定する。現行 CLI は分離済みの `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と素材 bytes を一つの generation に公開する。独立音声用 descriptor は持たず、Video 内の audio track は Video asset の一部として検証する。
 
-エンコード方式自体は意味モデルの一部ではないが、現行 Local Compiler は v2 PresentationDefinition JSON を canonical に生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。M1 local outputでの file name は `definition.json` であり、後続の full Delivery target の layout と混同しない。
+エンコード方式自体は意味モデルの一部ではないが、現行 Local Compiler は schema version 1 の PresentationDefinition JSON を canonical に生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。M1 local outputでの file name は `definition.json` であり、後続の full Delivery target の layout と混同しない。
 
 ### 3.4 RenderBundle
 
@@ -552,7 +552,7 @@ Generic renderer は Structure に宣言されていない Semantic Node、State
 
 authoring mode は Component version ごとに一つに固定し、renderer ごとに Structured / Opaque を切り替えない。Structured と Opaque の変更は公開 authoring contract の破壊的変更として Component version を更新する。migration metadata と自動変換の具体契約は M3A より後に定義する。
 
-Component lock v3 は Component ID / version、local file closure または package key / subpath の origin と Manifest hash を固定する。Structured では Structure hash、Opaque では rendererInputHash も固定する。ローカル Component に package version を補わない。正確な hash 入力は React Component 実行契約0節に従う。
+Component lock は Component ID / version、local file closure または package key / subpath の origin と Manifest hash を固定する。Structured では Structure hash、Opaque では rendererInputHash も固定する。ローカル Component に package version を補わない。正確な hash 入力は React Component 実行契約0節に従う。
 
 Component Structure の共通 DSL 制約、parse / typecheck、static AST lowering は 6.1〜6.3 に従う。具体的な Primitive node union と property schema は Component contract で定義する。
 
@@ -577,7 +577,7 @@ Opaque Manifest は Action / Output lowering に必要な公開 Runtime target �
 
 Opaque renderer は Manifest の binding key に concrete geometry や artifact を対応付けるが、宣言済み target の意味や ID を変更できない。Compiler は Opaque Action / Output template の local target を `semantics` から解決し、参照先の欠落、ID や binding key の重複、必須 binding の未結合、renderer が追加した未宣言 binding を build error とする。
 
-Opaque の lock v3 は origin、Manifest hash と rendererInputHash を固定する。rendererInputHash は抽出 renderer、local 描画依存、runtime package graph、固定 tool identity から計算する。capture artifact の生成と provenance は現行の隔離 Browser capture に接続済みである。
+Opaque の lock は origin、Manifest hash と rendererInputHash を固定する。rendererInputHash は抽出 renderer、local 描画依存、runtime package graph、固定 tool identity から計算する。capture artifact の生成と provenance は現行の隔離 Browser capture に接続済みである。
 
 Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure は、GUI の source mapping と意味論的 round-trip を成立させるため、静的解析できる制限付き DSL とする。Local Compiler は import、symbol、型を解決した検証済み AST から Declaration Graph へ直接 lower し、これらの source を JavaScript として実行しない。
 
@@ -2224,7 +2224,7 @@ Hit region は Semantic Surface State ごとに解決し、bounds は Render Sur
 
 ## 14. RenderBundle
 
-RenderBundle と texture build policy の正本は [RenderBundle schema](../../packages/contracts/src/presentation/render-bundle.ts) とする。現行 `schemaVersion` は `2` で、Surface artifact と model artifact を含む。JSON の非負整数は [common schema](../../packages/contracts/src/presentation/common.ts) の safe integer 上限を守り、Protobuf の `uint64` と同じ全範囲を JavaScript number に格納できるとは扱わない。
+RenderBundle と texture build policy の正本は [RenderBundle schema](../../packages/contracts/src/presentation/render-bundle.ts) とする。現行 `schemaVersion` は `1` で、Surface artifact と model artifact を含む。JSON の非負整数は [common schema](../../packages/contracts/src/presentation/common.ts) の safe integer 上限を守り、Protobuf の `uint64` と同じ全範囲を JavaScript number に格納できるとは扱わない。
 
 `NormalizedTextureBuildPolicyV1`はADR-0012のresolution policy version、budget policy version、long edge、State / Surface / binding count、texture dimension / pixels、rendered pixels、capture bytes、output bytes、accounted peak bytes、renderer concurrencyの正規化済み実値を持つ。`policyHash` fieldを除いたcanonical payloadのhashを`textureBuildPolicy.policyHash`として保持し、RenderBundle hashとCompiler cache keyの入力にする。wall-time、host RSS、abortはavailability guardであり、このportable objectやartifact identityへ含めない。callerが上限を縮小した場合も実際に使用した値を記録し、default値へ丸めない。per-texture pixel countは`UInt32`、`maxRenderedPixels`を含むaggregate pixel countは`UInt64`とする。
 
@@ -2366,7 +2366,7 @@ Unity Runtime
 
 Static lowering が参照できる入力は、Authoring Source、lock された Component package、Theme、Asset metadata、Compiler configuration に限定する。同じ source、lockfile、compiler version、configuration から同じ Declaration Graph と PresentationDefinition JSON を生成する。Opaque renderer artifact の Browser 実行は別の隔離境界とし、その capability と再現性は Rendering / Delivery contract で固定する。
 
-Local process は POSIX filesystem に限定し、明示された absolute project directory を root とする。同じ root の `unframe.config.ts` と `unframe.lock` を読み、上方探索はしない。configは`entryFile`と任意の`assets`登録を持つ非実行のdata-only default exportであり、lock v3はsource Assetのpath/hash/size、local file hashとself-contained package bytes / graphを固定する。通常 check / build は node_modules / network を参照しない。`check` は React Component の公開契約・renderer 抽出と canonical Opaque Surface への変換までを検証する。build は Fixed Browser を使用し、Opaque Surface の capture は隔離 worker で実行する。成果物は `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と画像・Font・GLB・MP4 assets であり、管理された `dist` を atomic replacement する。lock の明示更新と filesystem 規則は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、React 抽出境界は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。
+Local process は POSIX filesystem に限定し、明示された absolute project directory を root とする。同じ root の `unframe.config.ts` と `unframe.lock` を読み、上方探索はしない。configは`entryFile`と任意の`assets`登録を持つ非実行のdata-only default exportであり、lockはsource Assetのpath/hash/size、local file hashとself-contained package bytes / graphを固定する。通常 check / build は node_modules / network を参照しない。`check` は React Component の公開契約・renderer 抽出と canonical Opaque Surface への変換までを検証する。build は Fixed Browser を使用し、Opaque Surface の capture は隔離 worker で実行する。成果物は `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と画像・Font・GLB・MP4 assets であり、管理された `dist` を atomic replacement する。lock の明示更新と filesystem 規則は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、React 抽出境界は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。
 
 ### Control Plane
 

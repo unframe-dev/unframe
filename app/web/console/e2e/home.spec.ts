@@ -105,20 +105,15 @@ test("shows current publication details and reloads a republished build", async 
   await expect(page.getByText("4", { exact: true })).toBeVisible();
 });
 
-for (const [status, message] of [
-  [401, "ログインの有効期限が切れました。ログインし直してください。"],
-  [403, "この情報を参照・操作する権限がありません。"],
-] as const) {
-  test(`distinguishes publication HTTP ${status} from unpublished`, async ({ page }) => {
-    await published(page);
-    await page.route("**/publication", (route) =>
-      route.fulfill({ status, json: { error: { code: "failed" } } }),
-    );
-    await page.goto("/home");
-    await expect(page.getByRole("alert")).toHaveText(message);
-    await expect(page.getByText("未公開")).toHaveCount(0);
-  });
-}
+test("distinguishes publication HTTP 403 from unpublished", async ({ page }) => {
+  await published(page);
+  await page.route("**/publication", (route) =>
+    route.fulfill({ status: 403, json: { error: { code: "failed" } } }),
+  );
+  await page.goto("/home");
+  await expect(page.getByRole("alert")).toHaveText("この情報を参照・操作する権限がありません。");
+  await expect(page.getByText("未公開")).toHaveCount(0);
+});
 
 test("recovers from a network failure by explicit refetch", async ({ page }) => {
   await published(page);
@@ -404,7 +399,7 @@ test("isolates a pending room creation from the room chooser after navigation", 
   expect(requests).toBe(2);
 });
 
-for (const status of [401, 403, 409]) {
+for (const status of [403, 409]) {
   test(`shows room creation HTTP ${status} without claiming success`, async ({ page }) => {
     await published(page);
     await page.route("**/sessions", (route) =>
@@ -548,22 +543,18 @@ test("hides stale invitations after an unknown rotation result until explicit re
   await expect(page.getByText("JKLM-NPQR", { exact: true })).toBeVisible();
 });
 
-for (const status of [401, 403]) {
-  test(`does not share a code when current-code access is denied (HTTP ${status})`, async ({
-    page,
-  }) => {
-    await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
-    await page.route("**/join-code", (route) =>
-      route.fulfill({ status, json: { error: { code: "forbidden" } } }),
-    );
-    await page.goto("/rooms/room-1");
-    await expect(page.getByRole("alert")).toBeVisible();
-    await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
-    await expect(
-      page.getByRole("button", { name: "ルームコードを更新", exact: true }),
-    ).toBeDisabled();
-  });
-}
+test("does not share a code when current-code access is denied (HTTP 403)", async ({ page }) => {
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
+  await page.route("**/join-code", (route) =>
+    route.fulfill({ status: 403, json: { error: { code: "forbidden" } } }),
+  );
+  await page.goto("/rooms/room-1");
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "ルームコードを更新", exact: true }),
+  ).toBeDisabled();
+});
 
 test("keeps sharing blocked across navigation while a rotation is pending or uncertain", async ({
   page,
@@ -611,4 +602,281 @@ test("keeps sharing blocked across navigation while a rotation is pending or unc
   await expect(page.getByRole("link", { name: "匿名 Viewer で開く" })).toHaveCount(0);
   await page.getByRole("button", { name: "ルームコードを再取得" }).click();
   await expect(page.getByText("JKLM-NPQR", { exact: true })).toBeVisible();
+});
+
+test("refreshes a cached owned-room list after starting and ending a room", async ({ page }) => {
+  await published(page);
+  let current = room;
+  let reads = 0;
+  await page.route("**/sessions?*", (route) => {
+    reads++;
+    return route.fulfill({ json: { sessions: [current], nextCursor: null } });
+  });
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: current }));
+  await page.route("**/runtime-preparation", (route) =>
+    route.fulfill({
+      json: {
+        state: "ready",
+        runtimeId: "runtime-1",
+        assignmentEpoch: 1,
+        leaseExpiresAt: "2027-10-28T00:00:00.000Z",
+      },
+    }),
+  );
+  await page.route("**/sessions/room-1/start", (route) => {
+    current = { ...current, state: "Presenting" };
+    return route.fulfill({ json: current });
+  });
+  await page.route("**/sessions/room-1/end", (route) => {
+    current = { ...current, state: "Ended" };
+    return route.fulfill({ json: current });
+  });
+  await page.goto("/rooms");
+  const owned = page.getByRole("region", { name: "作成したルーム", exact: true });
+  await expect(owned.getByText("Waiting", { exact: true })).toBeVisible();
+  const initialReads = reads;
+  await owned.getByRole("link", { name: "room-1", exact: true }).click();
+  await page.getByRole("button", { name: "発表を開始", exact: true }).click();
+  await expect(page.getByText("Presenting", { exact: true })).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "メインナビゲーション" })
+    .getByRole("link", { name: "ルーム", exact: true })
+    .click();
+  await expect(owned.getByText("Presenting", { exact: true })).toBeVisible();
+  expect(reads).toBeGreaterThan(initialReads);
+  const beforeEnd = reads;
+  await owned.getByRole("link", { name: "room-1", exact: true }).click();
+  await page.getByRole("button", { name: "発表を終了", exact: true }).click();
+  await expect(page.getByText("このルームの発表は終了しました。", { exact: true })).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "メインナビゲーション" })
+    .getByRole("link", { name: "ルーム", exact: true })
+    .click();
+  await expect(owned.getByText("Ended", { exact: true })).toBeVisible();
+  expect(reads).toBeGreaterThan(beforeEnd);
+});
+
+test("refreshes owned rooms when a creation response is uncertain", async ({ page }) => {
+  await published(page);
+  let committed = false;
+  await page.route("**/sessions?*", (route) =>
+    route.fulfill({
+      json: {
+        sessions: committed ? [room] : [],
+        nextCursor: null,
+      },
+    }),
+  );
+  await page.route("**/sessions", (route) => {
+    committed = true;
+    return route.fulfill({ status: 503, json: { error: { code: "unavailable" } } });
+  });
+  await page.goto("/rooms");
+  await expect(page.getByText("作成したルームはありません。", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: `${presentation.name}を選択`, exact: true }).click();
+  await page.getByRole("button", { name: "ルームを作成", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("ルームが作成された可能性");
+  await expect(
+    page
+      .getByRole("region", { name: "作成したルーム", exact: true })
+      .getByRole("link", { name: "room-1", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "ルームを作成", exact: true })).toBeDisabled();
+});
+
+async function unauthorizedAfterExpiry(page: Page, pattern: string) {
+  let expired = false;
+  await page.route("**/api/auth/get-session", (route) =>
+    expired ? route.fulfill({ json: null }) : route.fallback(),
+  );
+  await page.route(pattern, (route) => {
+    expired = true;
+    return route.fulfill({ status: 401, json: { error: { code: "unauthorized" } } });
+  });
+}
+
+test("redirects to login when publication access returns HTTP 401", async ({ page }) => {
+  await published(page);
+  await unauthorizedAfterExpiry(page, "**/publication");
+  await page.goto("/home");
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { name: "Login.", exact: true })).toBeVisible();
+  await expect(page.getByText("未公開", { exact: true })).toHaveCount(0);
+});
+
+test("redirects to login when room creation returns HTTP 401 without claiming success", async ({
+  page,
+}) => {
+  await published(page);
+  await unauthorizedAfterExpiry(page, "**/sessions");
+  await page.goto(`/rooms?presentationId=${presentation.id}`);
+  await page.getByRole("button", { name: "ルームを作成", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    page.getByRole("heading", { name: "ルームを作成しました", exact: true }),
+  ).toHaveCount(0);
+});
+
+test("redirects to login when join-code access returns HTTP 401 without sharing an invitation", async ({
+  page,
+}) => {
+  await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
+  await unauthorizedAfterExpiry(page, "**/join-code");
+  await page.goto("/rooms/room-1");
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("link", { name: "匿名 Viewer で開く", exact: true })).toHaveCount(0);
+});
+
+async function delayMutationBody(page: Page, pathname: string) {
+  await page.addInitScript((path) => {
+    const fetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await fetch(...args);
+      const input = args[0];
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      const method = args[1]?.method ?? (input instanceof Request ? input.method : "GET");
+      if (url.pathname === path && method === "POST") {
+        const json = response.json.bind(response);
+        response.json = async () => {
+          document.documentElement.dataset["mutationBodyPending"] = "true";
+          await new Promise<void>((resolve) =>
+            window.addEventListener("release-room-body", () => resolve(), { once: true }),
+          );
+          return json();
+        };
+      }
+      return response;
+    };
+  }, pathname);
+}
+
+async function announceAccountChange(page: Page) {
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "unframe.auth.changed",
+        newValue: "changed-account",
+      }),
+    );
+  });
+}
+
+for (const responseStatus of [200, 503]) {
+  test(`ignores an old account's delayed room action body (HTTP ${responseStatus})`, async ({
+    page,
+  }) => {
+    let switched = false;
+    let currentAccountReads = 0;
+    await delayMutationBody(page, "/sessions/room-1/start");
+    await page.route("**/api/auth/get-session", (route) =>
+      switched
+        ? route.fulfill({
+            json: {
+              user: { id: "other-user", name: "別のユーザー", emailVerified: true },
+              session: { id: "other-session", expiresAt: "2099-01-01T00:00:00.000Z" },
+            },
+          })
+        : route.fallback(),
+    );
+    await page.route("**/sessions/room-1", (route) => {
+      if (!switched) return route.fulfill({ json: room });
+      currentAccountReads++;
+      return route.fulfill({ status: 403, json: { error: { code: "forbidden" } } });
+    });
+    await page.route("**/runtime-preparation", (route) =>
+      route.fulfill({
+        json: {
+          state: "ready",
+          runtimeId: "runtime-1",
+          assignmentEpoch: 1,
+          leaseExpiresAt: "2027-10-28T00:00:00.000Z",
+        },
+      }),
+    );
+    await page.route("**/sessions/room-1/start", (route) =>
+      route.fulfill({
+        status: responseStatus,
+        json:
+          responseStatus === 200
+            ? { ...room, state: "Presenting" }
+            : { error: { code: "unavailable" } },
+      }),
+    );
+    try {
+      await page.goto("/rooms/room-1");
+      await page.getByRole("button", { name: "発表を開始", exact: true }).click();
+      await page.waitForFunction(
+        () => document.documentElement.dataset["mutationBodyPending"] === "true",
+      );
+      switched = true;
+      await announceAccountChange(page);
+      await expect(page.getByRole("alert")).toHaveText(
+        "この情報を参照・操作する権限がありません。",
+      );
+      const baselineReads = currentAccountReads;
+      await page.evaluate(() => window.dispatchEvent(new Event("release-room-body")));
+      await page.waitForLoadState("networkidle");
+      await expect(page.getByRole("alert")).toHaveText(
+        "この情報を参照・操作する権限がありません。",
+      );
+      await expect(page.getByText("Presenting", { exact: true })).toHaveCount(0);
+      expect(currentAccountReads).toBe(baselineReads);
+    } finally {
+      await page.evaluate(() => window.dispatchEvent(new Event("release-room-body")));
+    }
+  });
+}
+
+test("ignores an old account's delayed room creation body without invalidating the new room list", async ({
+  page,
+}) => {
+  await published(page);
+  let switched = false;
+  let currentAccountReads = 0;
+  await delayMutationBody(page, "/sessions");
+  await page.route("**/api/auth/get-session", (route) =>
+    switched
+      ? route.fulfill({
+          json: {
+            user: { id: "other-user", name: "別のユーザー", emailVerified: true },
+            session: { id: "other-session", expiresAt: "2099-01-01T00:00:00.000Z" },
+          },
+        })
+      : route.fallback(),
+  );
+  await page.route("**/presentations", (route) =>
+    route.fulfill({ json: { presentations: switched ? [] : [presentation] } }),
+  );
+  await page.route("**/sessions?*", (route) => {
+    if (switched) currentAccountReads++;
+    return route.fulfill({
+      json: { sessions: switched ? [{ ...room, id: "other-room" }] : [], nextCursor: null },
+    });
+  });
+  await page.route("**/sessions", (route) =>
+    route.fulfill({ status: 201, json: { session: room, joinCode: "OLD-CODE" } }),
+  );
+  try {
+    await page.goto("/rooms");
+    await page.getByRole("button", { name: `${presentation.name}を選択`, exact: true }).click();
+    await page.getByRole("button", { name: "ルームを作成", exact: true }).click();
+    await page.waitForFunction(
+      () => document.documentElement.dataset["mutationBodyPending"] === "true",
+    );
+    switched = true;
+    await announceAccountChange(page);
+    await expect(page.getByRole("link", { name: "other-room", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "ルーム一覧を再取得", exact: true }),
+    ).toBeEnabled();
+    const baselineReads = currentAccountReads;
+    await page.evaluate(() => window.dispatchEvent(new Event("release-room-body")));
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveURL(/\/rooms(?:\?presentationId=)?$/);
+    await expect(page.getByRole("link", { name: "other-room", exact: true })).toBeVisible();
+    await expect(page.getByText("OLD-CODE", { exact: true })).toHaveCount(0);
+    expect(currentAccountReads).toBe(baselineReads);
+  } finally {
+    await page.evaluate(() => window.dispatchEvent(new Event("release-room-body")));
+  }
 });

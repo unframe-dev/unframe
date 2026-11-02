@@ -47,7 +47,7 @@ function setup(response: Response) {
 describe("Audience HTTP client", () => {
   it.each([2, 3])("rejects a Delivery schema version %i response", async (schemaVersion) => {
     const bytes = encodeWireMessage("unframe.delivery.DeliveryManifest", fixture.value);
-    expect(bytes.slice(0, 2)).toEqual([8, 1]);
+    expect(Array.from(bytes.slice(0, 2))).toEqual([8, 1]);
     bytes[1] = schemaVersion;
     const { client } = setup(
       new Response(new Uint8Array(bytes), {

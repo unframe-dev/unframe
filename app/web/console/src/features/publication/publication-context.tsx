@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "@/shared/api/authenticated-fetch";
 import { createPublicationClient } from "@unframe/api-client-typescript/publication";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -8,6 +9,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { presentationKeys } from "@/features/presentations/presentation-queries";
 import { createPublicationController } from "./publication-controller";
 
 const PublicationContext = createContext<ReturnType<typeof createPublicationController> | null>(
@@ -20,6 +22,7 @@ export function PublicationWorkflowProvider({ children }: { children: ReactNode 
       createPublicationClient({
         baseUrl: import.meta.env["VITE_CONTROL_PLANE_URL"] || "https://api.un-fra.me",
         credentials: "include",
+        fetch: authenticatedFetch,
       }),
     ),
   );
@@ -28,10 +31,11 @@ export function PublicationWorkflowProvider({ children }: { children: ReactNode 
   useEffect(() => () => controller.dispose(), [controller]);
   useEffect(() => {
     if (state.status !== "published") return;
-    void queries.invalidateQueries({ queryKey: ["presentations"] });
-    void queries.invalidateQueries({ queryKey: ["publications"] });
+    void queries.invalidateQueries({ queryKey: presentationKeys.list, exact: true });
     void queries.invalidateQueries({
-      queryKey: ["presentation", state.selection.dist.artifacts.buildManifest.presentationId],
+      queryKey: presentationKeys.detail(
+        state.selection.dist.artifacts.buildManifest.presentationId,
+      ),
     });
   }, [state, queries]);
   return <PublicationContext value={controller}>{children}</PublicationContext>;

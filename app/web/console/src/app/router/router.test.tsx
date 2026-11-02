@@ -1,4 +1,5 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +7,7 @@ import { AppProviders } from "@/app/providers/app-providers";
 import { createAppRouter } from "./router";
 
 const auth = vi.hoisted(() => ({
+  $store: { atoms: { $sessionSignal: { listen: () => () => {} } } },
   getSession: vi.fn(),
   signIn: { social: vi.fn() },
   verifyDeviceAuthorization: vi.fn(),
@@ -18,10 +20,14 @@ vi.mock("@unframe/api-client-typescript", async (importOriginal) => ({
 
 async function renderRoute(path: string) {
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
+  function TestRouter() {
+    const queryClient = useQueryClient();
+    return <RouterProvider router={router} context={{ queryClient }} />;
+  }
 
   render(
     <AppProviders>
-      <RouterProvider router={router} />
+      <TestRouter />
     </AppProviders>,
   );
   return router;
