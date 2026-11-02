@@ -27,6 +27,7 @@ test("the public presentation export exposes the current contract without a vers
     await readFile(resolve(import.meta.dirname, "../package.json"), "utf8"),
   );
   assert.deepEqual(Object.keys(manifest.exports).sort(), [
+    "./author-http",
     "./control-plane",
     "./control-plane-http",
     "./presentation",
