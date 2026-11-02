@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it } from "vite-plus/test";
 import { createHostApi } from "../host-api";
 const servers: ReturnType<typeof createServer>[] = [];
 afterEach(() => {

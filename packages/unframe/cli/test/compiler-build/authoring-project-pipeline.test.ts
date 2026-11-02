@@ -1,5 +1,5 @@
 import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
 import {

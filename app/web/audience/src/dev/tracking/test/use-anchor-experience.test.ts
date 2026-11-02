@@ -9,7 +9,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 import { useAnchorExperience } from "../use-anchor-experience";
 import { AnchorExperienceView } from "../AnchorExperienceView";
 import { loadBoardConfig } from "../../../fiducials/config";

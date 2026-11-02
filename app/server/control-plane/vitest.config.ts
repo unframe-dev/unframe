@@ -15,7 +15,6 @@ export default defineConfig({
       wrangler: {
         configPath: "./wrangler.toml",
       },
-      // vitest-pool-workers 0.20.3 bundles Miniflare with support through 2026-08-01.
       miniflare: {
         compatibilityDate: "2026-08-01",
         outboundService(request) {

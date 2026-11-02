@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { Euler, Matrix4, Quaternion, Vector3 } from "three";
 import {
   createTagLocalizationState,

@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { changePrincipal } from "@/shared/api/session-events";
 import { updateProfileImage } from "./profile-image-api";
 

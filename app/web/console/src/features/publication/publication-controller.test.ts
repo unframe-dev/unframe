@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { createPublicationClient } from "@unframe/api-client-typescript/publication";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { createPublicationController } from "./publication-controller";

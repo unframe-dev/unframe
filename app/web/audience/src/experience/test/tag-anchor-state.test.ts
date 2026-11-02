@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { Euler, Matrix4, Quaternion, Vector3 } from "three";
 import type { RigidPose } from "../../fiducials/alignment";
 import type { BoardConfig } from "../../fiducials/config";

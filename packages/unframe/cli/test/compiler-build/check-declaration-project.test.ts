@@ -1,5 +1,5 @@
 import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import capabilityFixture from "../../../../contracts/presentation/fixtures/capability-profile.json";
 import { standardComponents } from "@unframe/authoring/components";
 import type {

@@ -85,3 +85,5 @@ app/unity/*.alf
 
 app/web/local-editor/player/
 packages/unframe/workspace-node/native-bin/
+
+.vitest/

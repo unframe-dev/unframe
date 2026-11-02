@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vite-plus/test";
 
 import { hashCanonicalJsonPayload, validateRenderBundle } from "@unframe/artifacts";
 import { makeM3AArtifacts } from "./fixtures.js";

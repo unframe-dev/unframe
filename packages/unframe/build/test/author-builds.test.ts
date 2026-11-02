@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { createAuthorBuildService, type AuthorBuildPorts } from "../src/index.js";
 
 const snapshot = {

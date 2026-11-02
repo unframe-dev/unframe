@@ -1,4 +1,4 @@
-import { it, expect } from "vitest";
+import { it, expect } from "vite-plus/test";
 import { audienceJoinUrl } from "./room-sharing-model";
 
 it("builds the anonymous invitation in the URL fragment", () => {

@@ -9,6 +9,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +17,29 @@ import { afterEach, test } from "node:test";
 
 const script = fileURLToPath(new URL("./opaque-capture.sh", import.meta.url));
 const repository = fileURLToPath(new URL("../../", import.meta.url));
+test("managed Chromium matches the audited Darwin sandbox policy", () => {
+  const rendererRequire = createRequire(
+    join(repository, "packages/unframe/render-browser/package.json"),
+  );
+  const browserManifest = JSON.parse(
+    readFileSync(
+      join(dirname(rendererRequire.resolve("playwright-core/package.json")), "browsers.json"),
+      "utf8",
+    ),
+  );
+  const policyManifest = JSON.parse(
+    readFileSync(
+      join(repository, "packages/unframe/worker-host/src/native/chromium/manifest.json"),
+      "utf8",
+    ),
+  );
+  const chromium = browserManifest.browsers.find(
+    (browser: { name: string }) => browser.name === "chromium-headless-shell",
+  );
+  assert.ok(chromium);
+  assert.equal(chromium.browserVersion, policyManifest.version);
+});
+
 const temporary: string[] = [];
 afterEach(() => {
   for (const root of temporary.splice(0)) rmSync(root, { recursive: true, force: true });

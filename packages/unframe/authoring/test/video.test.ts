@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { isComponentStructure } from "../src/index.js";
 
 it("accepts Video content with a fixed Asset reference and loop", () => {

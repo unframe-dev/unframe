@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 const host = window as Window & { XR8?: unknown; THREE?: unknown };
 afterEach(() => {
   delete host.XR8;
