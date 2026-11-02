@@ -6,6 +6,7 @@ import {
   viewerCredentialSchema,
 } from "@unframe/contracts/control-plane-http";
 import { createRoute, z } from "@hono/zod-openapi";
+import { requireJsonContentType } from "./json-body";
 import {
   storageSegmentIdSchema,
   publicationFenceSchema,
@@ -109,6 +110,7 @@ export const publicRoutes = [
     method: "post",
     path: "/presentations",
     security,
+    middleware: [requireJsonContentType],
     request: {
       body: {
         required: true,
@@ -161,6 +163,7 @@ export const publicRoutes = [
     method: "put",
     path: "/presentations/{id}",
     security,
+    middleware: [requireJsonContentType],
     request: {
       params: idParameter,
       body: {
@@ -194,6 +197,7 @@ export const publicRoutes = [
     method: "delete",
     path: "/presentations/{id}",
     security,
+    middleware: [requireJsonContentType],
     request: {
       params: idParameter,
       body: {
@@ -218,6 +222,7 @@ export const publicRoutes = [
     method: "post",
     path: "/assets/uploads",
     security,
+    middleware: [requireJsonContentType],
     request: {
       body: {
         required: true,
@@ -313,6 +318,7 @@ export const publicRoutes = [
     method: "post",
     path: "/sessions",
     security,
+    middleware: [requireJsonContentType],
     request: {
       body: {
         required: true,
@@ -343,6 +349,7 @@ export const publicRoutes = [
     method: "post",
     path: "/sessions/join",
     security,
+    middleware: [requireJsonContentType],
     request: {
       body: {
         required: true,
@@ -466,6 +473,7 @@ export const publicRoutes = [
     method: "post",
     path: "/callbacks/checkpoints",
     security: serviceSecurity,
+    middleware: [requireJsonContentType],
     request: {
       body: {
         required: true,
@@ -488,6 +496,7 @@ export const publicRoutes = [
     method: "post",
     path: "/callbacks/completions",
     security: serviceSecurity,
+    middleware: [requireJsonContentType],
     request: {
       body: {
         required: true,
@@ -510,6 +519,7 @@ export const publicRoutes = [
     method: "post",
     path: "/venue-edges",
     security: adminSecurity,
+    middleware: [requireJsonContentType],
     request: {
       body: {
         required: true,
@@ -533,6 +543,7 @@ export const publicRoutes = [
     method: "post",
     path: "/venue-edges/{edgeId}/rotate",
     security: adminSecurity,
+    middleware: [requireJsonContentType],
     request: {
       params: edgeIdParameter,
       body: {
@@ -579,6 +590,7 @@ export const publicRoutes = [
     method: "post",
     path: "/sessions/{sessionId}/runtime-assignment",
     security: adminSecurity,
+    middleware: [requireJsonContentType],
     request: {
       params: sessionAssignmentParameter,
       body: {
@@ -633,6 +645,7 @@ export const publicRoutes = [
     method: "post",
     path: "/venue-edges/{edgeId}/register",
     security: edgeSecurity,
+    middleware: [requireJsonContentType],
     request: {
       params: edgeIdParameter,
       body: {
@@ -666,6 +679,7 @@ export const publicRoutes = [
     method: "post",
     path: "/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/renew",
     security: edgeSecurity,
+    middleware: [requireJsonContentType],
     request: {
       params: edgeLeaseParameter,
       body: {
@@ -800,6 +814,7 @@ export const createPublicationBuildRoute = createRoute({
   method: "post",
   path: "/presentations/{presentationId}/builds",
   security,
+  middleware: [requireJsonContentType],
   request: {
     params: publicationPresentationId,
     body: {
@@ -873,6 +888,7 @@ export const publishPresentationRoute = createRoute({
   method: "post",
   path: "/presentations/{presentationId}/publications",
   security,
+  middleware: [requireJsonContentType],
   request: {
     params: publicationPresentationId,
     body: {
@@ -953,6 +969,7 @@ export const deliveryManifestRoute = createRoute({
   method: "post",
   path: "/sessions/{sessionId}/delivery",
   security,
+  middleware: [requireJsonContentType],
   request: {
     params: z.object({ sessionId: identifierSchema }).strict(),
     body: {
@@ -1133,6 +1150,7 @@ export const issueViewerCredentialRoute = createRoute({
   path: "/viewer-credentials",
   description:
     "Join as an anonymous viewer. Bearer credentials expire after one hour and may be rotated for up to 24 hours.",
+  middleware: [requireJsonContentType],
   request: {
     body: {
       required: true,
@@ -1257,6 +1275,7 @@ export const runtimeHostStartRoute = createRoute({
   method: "post",
   path: "/internal/runtime/hosts/{runtimeId}/start",
   security: serviceSecurity,
+  middleware: [requireJsonContentType],
   request: {
     params: hostParams,
     body: {
@@ -1286,6 +1305,7 @@ export const runtimeHostHeartbeatRoute = createRoute({
   method: "post",
   path: "/internal/runtime/hosts/{runtimeId}/heartbeat",
   security: serviceSecurity,
+  middleware: [requireJsonContentType],
   request: {
     params: hostParams,
     body: {
