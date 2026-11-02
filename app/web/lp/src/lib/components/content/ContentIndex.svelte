@@ -12,12 +12,12 @@
     kind,
     title,
     description,
-  } = $props<{
+  }: {
     entries: ContentEntry<Component>[];
     kind: ContentKind;
     title: string;
     description: string;
-  }>();
+  } = $props();
 
   const basePath = $derived(kind.toLowerCase());
   const sourceQuery = $derived(kind === "News" ? "?from=news" : "");
