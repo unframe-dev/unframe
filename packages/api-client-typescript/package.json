@@ -17,7 +17,7 @@
     "@unframe/contracts": "workspace:*",
     "@unframe/control-plane": "workspace:*",
     "@unframe/unframe-core": "workspace:*",
-    "better-auth": "1.7.1",
+    "better-auth": "1.7.15",
     "hono": "^4.13.1"
   },
   "devDependencies": {
