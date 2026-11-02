@@ -30,7 +30,7 @@
     "@unframe/compiler": "workspace:*",
     "@unframe/presentation": "workspace:*",
     "@unframe/worker-host": "workspace:*",
-    "playwright-core": "1.64.1",
+    "playwright-core": "1.62.1",
     "pngjs": "7.0.0",
     "rolldown": "1.2.16",
     "zod": "4.4.3"

@@ -133,6 +133,13 @@
         "packages/unframe/cli/package.json"
       ],
       "enabled": false
+    },
+    {
+      "description": "Keep Chromium aligned with the audited Darwin sandbox policy",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["playwright-core"],
+      "matchFileNames": ["packages/unframe/render-browser/package.json"],
+      "allowedVersions": "=1.62.1"
     }
   ]
 }
