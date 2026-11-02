@@ -1,6 +1,40 @@
 import { expect, test } from "vitest";
 import { createSessionRecorder } from "../session-recorder";
 
+test("素材失敗の分類とHTTP状態だけを保存し任意文字列を除外する", () => {
+  const recorder = createSessionRecorder();
+  recorder.record("assets.ready", {
+    stage: "error",
+    code: "presentation-render-failed",
+    renderPhase: "prepare",
+    assetKind: "png",
+    assetStage: "response",
+    assetCode: "http-error",
+    httpStatus: 403,
+    url: "https://private.test/?signature=secret",
+    message: "private-message",
+  } as never);
+  expect(recorder.export().events[0]).toMatchObject({
+    code: "presentation-render-failed",
+    renderPhase: "prepare",
+    assetKind: "png",
+    assetStage: "response",
+    assetCode: "http-error",
+    httpStatus: 403,
+  });
+  recorder.record("assets.ready", {
+    renderPhase: "private",
+    assetKind: "https://private.test",
+    assetStage: "private",
+    assetCode: "private",
+    httpStatus: 999,
+  } as never);
+  const invalid = recorder.export().events[1]!;
+  for (const field of ["renderPhase", "assetKind", "assetStage", "assetCode", "httpStatus"])
+    expect(invalid).not.toHaveProperty(field);
+  expect(JSON.stringify(recorder.export())).not.toMatch(/private|secret|signature|message|url/);
+});
+
 test("512件の履歴を保持し秘密・自由文字列を含めない", () => {
   let now = 1000;
   const recorder = createSessionRecorder({
