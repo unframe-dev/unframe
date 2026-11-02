@@ -8,6 +8,56 @@ using UnityEngine;
 
 public sealed class PresentationRuntimeEnvelopeEditModeTests
 {
+    [Test]
+    public void LogicalInputAvailabilityFollowsSnapshotsReplacementViewsAndDeliveryReset()
+    {
+        var store = CreateLoadedStore(out var delivery, out var snapshot);
+        var view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
+        foreach (var node in delivery.ProjectionProfile.RuntimeCatalog.Nodes)
+        {
+            node.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+            if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model)
+                view.ModelClipStates.Add(new ModelClipRuntimeState { ModelNodeId = node.NodeId, DefaultPose = new DefaultModelPose() });
+        }
+        foreach (var surface in delivery.ProjectionProfile.RuntimeCatalog.Surfaces)
+            surface.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        foreach (var variable in delivery.ProjectionProfile.RuntimeCatalog.Variables)
+            variable.Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:inactive" } };
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        view.EnabledLogicalInputs.Clear();
+        view.EnabledLogicalInputs.Add("presenter.next");
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.EnabledLogicalInputs, Is.EquivalentTo(new[] { "presenter.next" }));
+        view.EnabledLogicalInputs.Clear();
+        Assert.That(store.EnabledLogicalInputs, Is.EquivalentTo(new[] { "presenter.next" }));
+        view.BaseReliableSequence = 1;
+        view.EnabledLogicalInputs.Add("presenter.back");
+        var replacement = new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                OccurredAtRuntimeTimeMs = view.Clock.RuntimeTimeMs,
+                RuntimeViewReplaced = new RuntimeViewReplaced { RuntimeView = view },
+            },
+        };
+        Assert.That(store.TryReceiveControl(replacement, out error), Is.True, error);
+        Assert.That(store.EnabledLogicalInputs, Is.EquivalentTo(new[] { "presenter.back" }));
+        view.BaseReliableSequence = 2;
+        view.EnabledLogicalInputs.Clear();
+        replacement.ReliableEvent.Sequence = 2;
+        Assert.That(store.TryReceiveControl(replacement, out error), Is.True, error);
+        Assert.That(store.EnabledLogicalInputs, Is.Empty);
+        view.BaseReliableSequence = 3;
+        view.EnabledLogicalInputs.Add("presenter.next");
+        replacement.ReliableEvent.Sequence = 3;
+        Assert.That(store.TryReceiveControl(replacement, out error), Is.True, error);
+        Assert.That(store.EnabledLogicalInputs, Is.Not.Empty);
+        Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
+        Assert.That(store.EnabledLogicalInputs, Is.Empty);
+    }
+
     [TestCase("accepted", "accepted")]
     [TestCase("rejected", "rejected:InputUnavailable")]
     [TestCase("no-op", "no-op:AlreadyPaused")]

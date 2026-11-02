@@ -36,6 +36,7 @@ namespace Unframe.Unity.PresentationRuntime
         private RuntimeClockSnapshot clock;
         private ProgressionRuntimeState progression;
         private readonly Dictionary<string, RuntimeRunSnapshot> activeRuns = new Dictionary<string, RuntimeRunSnapshot>();
+        private readonly List<string> enabledLogicalInputs = new List<string>();
 
         internal PresentationRuntimeStateStore(PresentationDeliveryCatalog delivery)
         {
@@ -49,6 +50,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             get { List<ProjectedParticipantPresence> result = new List<ProjectedParticipantPresence>(); foreach (ProjectedParticipantPresence participant in participants.Values) result.Add(participant.Clone()); return result; }
         }
+        internal IReadOnlyList<string> EnabledLogicalInputs => enabledLogicalInputs.ToArray();
         internal RuntimeClockSnapshot RuntimeClock { get { return clock?.Clone(); } }
         internal ProgressionRuntimeState Progression { get { return progression?.Clone(); } }
         internal IEnumerable<RuntimeRunSnapshot> ActiveRuns
@@ -127,6 +129,7 @@ namespace Unframe.Unity.PresentationRuntime
             clock = null;
             progression = null;
             activeRuns.Clear();
+            enabledLogicalInputs.Clear();
         }
 
         internal bool TryReceiveControl(byte[] payload, out string error)
@@ -279,6 +282,8 @@ namespace Unframe.Unity.PresentationRuntime
             hasSnapshot = true;
             lastConnectionSnapshot = envelope.Clone();
             mediaStates.Clear(); foreach (var media in view.MediaStates) mediaStates.Add(media.SurfaceId, media.Clone());
+            enabledLogicalInputs.Clear();
+            enabledLogicalInputs.AddRange(view.EnabledLogicalInputs);
             clock = view.Clock.Clone();
             progression = view.Progression.Clone();
             activeRuns.Clear();
@@ -349,6 +354,8 @@ namespace Unframe.Unity.PresentationRuntime
                     foreach (var media in replacement.MediaStates) mediaStates.Add(media.SurfaceId, media.Clone());
                     activeRuns.Clear();
                     foreach (var run in replacement.ActiveRuns) activeRuns.Add(RunKey(run.RunId), run.Clone());
+                    enabledLogicalInputs.Clear();
+                    enabledLogicalInputs.AddRange(replacement.EnabledLogicalInputs);
                     clock = replacement.Clock.Clone();
                     progression = replacement.Progression.Clone();
                     anchorSamples.Clear();

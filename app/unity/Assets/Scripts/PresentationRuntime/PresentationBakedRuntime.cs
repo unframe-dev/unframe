@@ -86,6 +86,7 @@ namespace Unframe.Unity.PresentationRuntime
         public event System.Action InputInvalidated;
         public event System.Action<ResyncReason> SnapshotResynchronizationRequired;
         public void DiscardPendingInputs() => connection?.DiscardPendingInputs();
+        public IReadOnlyList<string> EnabledLogicalInputs => store.EnabledLogicalInputs;
         public PresenterInputSynchronizationState InputSynchronization => connection?.InputSynchronization;
         public bool CanSendInput
         {
