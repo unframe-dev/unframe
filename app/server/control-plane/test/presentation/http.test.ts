@@ -175,6 +175,24 @@ describe("presentation HTTP API", () => {
     expect(missingContentType.status).toBe(400);
     expect(unknownField.status).toBe(400);
   });
+  it.each([
+    "application/json",
+    "application/json; charset=utf-8",
+    'application/json; charset="utf-8"',
+    "application/example+json",
+    'application/json; charset="utf-8"; profile="demo"',
+  ])("accepts JSON registration with %s", async (contentType) => {
+    const app = createApp({
+      repository: new Repository(),
+      identityProvider: async () => ({ userId: "owner", globalRole: "user" }),
+    });
+    const response = await request(app, "/presentations", {
+      method: "POST",
+      headers: { "content-type": contentType },
+      body: JSON.stringify({ id: "presentation-1", name: "Demo" }),
+    });
+    expect(response.status).toBe(201);
+  });
   it("rejects Definition payloads at the metadata registration boundary", async () => {
     const app = createApp({
       repository: new Repository(),
