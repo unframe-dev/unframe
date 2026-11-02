@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { readCachedBuild } from "../../src/build-execution/cache/build-cache.js";
 
 const expected = {

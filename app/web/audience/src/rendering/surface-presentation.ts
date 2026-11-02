@@ -133,8 +133,9 @@ export async function createSurfacePresentation(options: {
   const cameraCenter = new Vector3();
   function prepareRender(camera: Camera) {
     if (disposed) return;
+    root.matrixWorldNeedsUpdate = true;
+    root.updateWorldMatrix(true, true);
     for (const surface of surfaceGroups.values()) {
-      surface.updateWorldMatrix(true, false);
       cameraCenter
         .setFromMatrixPosition(surface.matrixWorld)
         .applyMatrix4(camera.matrixWorldInverse);

@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { Group, Mesh, ShaderMaterial, SRGBColorSpace, Texture } from "three";
 import { participantRuntimeViewSchema } from "@unframe/contracts/presentation";
 import runtimeFixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";

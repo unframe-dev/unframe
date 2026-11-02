@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { MAX_DETECTOR_PIXELS, validateGrayFrame } from "../detector-frame";
 import { createDetectorWorker } from "../worker-client";
 

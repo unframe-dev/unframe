@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { encodeDarwinRegistry } from "../src/darwin-browser.js";
 
 describe("Darwin browser identity registry boundary", () => {

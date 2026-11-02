@@ -1,7 +1,7 @@
 import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { updateProjectLock } from "@unframe/workspace-node";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 

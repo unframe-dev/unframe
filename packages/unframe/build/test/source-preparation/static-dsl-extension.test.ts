@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { lowerAuthoringDeclarationFile } from "@unframe/source";
 import { parseAuthoringProject } from "@unframe/source";

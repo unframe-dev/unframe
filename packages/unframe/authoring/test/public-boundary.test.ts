@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { defineTheme } from "@unframe/authoring";
 import { standardComponents, standardTheme } from "@unframe/authoring/components";
 

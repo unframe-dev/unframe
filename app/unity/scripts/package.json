@@ -8,7 +8,7 @@
     "sync-runtime": "node sync-runtime-dependencies.ts"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.0.0",
     "@types/yauzl": "3.4.0",
     "typescript": "^7.0.0",
     "yauzl": "3.4.0",

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, expect, it } from "vitest";
+import { assert, expect, it } from "vite-plus/test";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { runPresentationCli } from "../src/index.js";
 import { startDistPreviewHost } from "../src/author/start.js";

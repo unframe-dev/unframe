@@ -40,10 +40,10 @@
     "pretest:tui": "bash ../../../scripts/build-cli-filesystem.sh"
   },
   "dependencies": {
-    "@noble/hashes": "2.3.0",
-    "@opentui/core": "0.4.5",
-    "@opentui/keymap": "0.4.5",
-    "@opentui/solid": "0.4.5",
+    "@noble/hashes": "2.4.0",
+    "@opentui/core": "0.8.1",
+    "@opentui/keymap": "0.8.1",
+    "@opentui/solid": "0.8.1",
     "@unframe/api-client-typescript": "workspace:*",
     "@unframe/artifacts": "workspace:*",
     "@unframe/author-service": "workspace:*",
@@ -62,7 +62,7 @@
     "@unframe/workspace": "workspace:*",
     "@unframe/workspace-node": "workspace:*",
     "css-tree": "3.2.1",
-    "solid-js": "1.9.12",
+    "solid-js": "1.9.18",
     "typescript": "6.0.3",
     "zod": "4.4.3"
   },
@@ -70,7 +70,7 @@
     "@tailwindcss/forms": "0.5.11",
     "@tailwindcss/postcss": "4.3.3",
     "@types/css-tree": "^3.2.0",
-    "@types/node": "24.19.0",
+    "@types/node": "26.6.6",
     "@types/path-is-inside": "1.0.2",
     "@types/pngjs": "6.0.5",
     "@types/semver": "7.7.1",
@@ -83,7 +83,6 @@
     "tailwindcss-older": "npm:tailwindcss@4.2.1",
     "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.2.1",
     "vite-plus": "catalog:",
-    "vitest": "catalog:",
     "yaml": "2.9.0"
   },
   "engines": {

@@ -19,7 +19,6 @@ import (
 	persistencehttp "github.com/unframe-dev/unframe/app/server/realtime/internal/persistence/http"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	transportgrpc "github.com/unframe-dev/unframe/app/server/realtime/internal/transport/grpc"
-	"golang.org/x/net/http2"
 )
 
 func runVenueEdge(ctx context.Context, listener net.Listener, deps transportgrpc.Dependencies, readiness func(context.Context) error, client *persistencehttp.Client, pin persistencehttp.BootstrapPublication, originClient *http.Client, shutdownContext func() context.Context) error {
@@ -84,9 +83,6 @@ func runVenueEdge(ctx context.Context, listener net.Listener, deps transportgrpc
 		gateway.ServeHTTP(w, r)
 	})
 	httpServer := &http.Server{Handler: handler, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{certificate}}, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
-	if err = http2.ConfigureServer(httpServer, &http2.Server{}); err != nil {
-		return err
-	}
 	if err = checkApplicationReadiness(ctx, readinessCheckTimeout, readiness); err != nil {
 		return err
 	}

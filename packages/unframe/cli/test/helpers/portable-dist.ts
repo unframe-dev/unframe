@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { assert, expect } from "vitest";
+import { assert, expect } from "vite-plus/test";
 import { hashCanonicalJsonPayload, verifyBuildIntegrity } from "@unframe/artifacts";
 import definition from "../../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../../contracts/presentation/fixtures/render-bundle.json";

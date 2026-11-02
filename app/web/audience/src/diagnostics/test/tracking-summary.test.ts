@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import { safeDiagnosticError, summarizeTrackingDiagnostics } from "../tracking-summary";
 
 test("診断は許可したイベントと計測値のみを残し、画像・URL・任意エラー文を除外する", () => {

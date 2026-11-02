@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { createBuildJob } from "../src/index.js";
 
 it("keeps a committed generation successful when cancellation races with commit", async () => {

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { assert, expect, it } from "vitest";
+import { assert, expect, it } from "vite-plus/test";
 import { testFontAsset } from "./fixtures/static-renderer.js";
 import { openOpaqueCaptureRuntime } from "../src/opaque/capture/runtime.js";
 

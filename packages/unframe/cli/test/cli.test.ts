@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import filesystem from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";

@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, rm, symlink } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { projectDirectory } from "@unframe/workspace-node";
 

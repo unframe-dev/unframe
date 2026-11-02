@@ -1,5 +1,5 @@
 import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 import type {
   ConnectionSnapshotEnvelopeWire,
   DeliveryManifestWire,

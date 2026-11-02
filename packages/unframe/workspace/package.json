@@ -27,7 +27,7 @@
   "dependencies": {
     "@unframe/artifacts": "workspace:*",
     "@unframe/contracts": "workspace:*",
-    "canonicalize": "3.0.0",
+    "canonicalize": "5.1.0",
     "semver": "7.8.5",
     "ssri": "14.0.0",
     "typescript": "6.0.3",
@@ -35,11 +35,10 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/node": "24.19.0",
+    "@types/node": "26.6.6",
     "@types/semver": "7.7.1",
     "@types/ssri": "7.1.5",
     "@types/validate-npm-package-name": "4.0.2",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }

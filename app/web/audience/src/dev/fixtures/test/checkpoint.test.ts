@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import { summarizeRuntime } from "../checkpoint";
 
 test("runtime概要は固定fixtureの進行・変数を保持し、履歴として独立する", () => {

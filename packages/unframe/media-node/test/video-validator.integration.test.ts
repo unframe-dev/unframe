@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { createVideoValidator } from "../src/video-validator.js";
 
 it("fully decodes the pinned H264/AAC fixture in the isolated media worker", async () => {

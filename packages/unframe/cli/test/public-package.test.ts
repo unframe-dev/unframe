@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { runPresentationCli } from "@unframe/cli";
 
 it("公開入口から不正なコマンドを拒否する", async () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { prepareProjectSource, StylePreparationError } from "../src/index.js";
 
 describe("source preparation style port", () => {

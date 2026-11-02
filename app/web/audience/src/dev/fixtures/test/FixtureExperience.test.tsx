@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 import { FixtureExperience } from "../FixtureExperience";
 import type { AnchorSessionSnapshot } from "../../../experience/anchor-session";
 

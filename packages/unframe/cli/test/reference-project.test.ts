@@ -13,7 +13,7 @@ import {
 } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, assert, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it } from "vite-plus/test";
 import type { FixedBrowserSession } from "@unframe/render-browser";
 
 import { canonicalizeJsonPayload, verifyBuildIntegrity } from "@unframe/artifacts";

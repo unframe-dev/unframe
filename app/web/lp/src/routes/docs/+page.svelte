@@ -1,6 +1,6 @@
 <script lang="ts">
-  import ContentIndex from "$lib/components/content/ContentIndex.svelte";
-  import { docsEntries } from "$lib/content";
+  import ContentIndex from "#lib/components/content/ContentIndex.svelte";
+  import { docsEntries } from "#lib/content.js";
 </script>
 
 <ContentIndex

@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { createPublicationController } from "../publication-controller";
 import type { HostApi } from "../../infra/host-api";
 

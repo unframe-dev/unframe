@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { createAuthorPatch, inspectAuthorSource } from "../src/index.js";
 
 it("rejects a stale editing revision before parsing or patching its source", () => {

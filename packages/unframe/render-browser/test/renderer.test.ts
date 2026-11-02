@@ -2,7 +2,7 @@ import { runInNewContext } from "node:vm";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { PNG } from "pngjs";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vite-plus/test";
 import {
   createBakedWebRenderer,
   createWebRendererConfigHash,

@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { isFixtureRoute } from "../routes";
 it("opens fixture controls only in development with an explicit query", () => {
   expect(isFixtureRoute(true, "?fixture=1&size=36")).toBe(true);

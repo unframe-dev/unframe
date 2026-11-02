@@ -11,7 +11,7 @@ import {
 } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vite-plus/test";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { writePortableBuild } from "./helpers/portable-dist.js";
 import { readDistBuild } from "@unframe/workspace-node";

@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { writeDiscoveryProjectFixture } from "./discovery-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, assert, expect, it } from "vitest";
+import { afterEach, assert, expect, it } from "vite-plus/test";
 import { runPresentationCli } from "../src/index.js";
 import { acquireSourceLock } from "@unframe/workspace-node";
 import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
