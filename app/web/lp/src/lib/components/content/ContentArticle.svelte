@@ -8,11 +8,11 @@
 
   type ContentKind = "News" | "Docs";
 
-  let { entry, kind, source = "news" } = $props<{
+  let { entry, kind, source = "news" }: {
     entry: ContentEntry<Component>;
     kind: ContentKind;
     source?: NewsSource;
-  }>();
+  } = $props();
 
   const Content = $derived(entry.component);
   const basePath = $derived(kind.toLowerCase());
