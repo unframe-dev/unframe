@@ -47,4 +47,4 @@ Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` �
 nix run .#local-editor
 ```
 
-React 外の controller・変換・adapter を `src/**/tests/**/*.test.ts` の Node テストで検証します。配布 CLI の `test/pack-acceptance.mjs` は実 Chromium と同梱 Player の読込・Surface の実画素・再生通知を検証します。実認証・実公開・Quest 実機は別途確認が必要です。Unity 変更時は `nix develop --command bash scripts/unity/test-native-editor.sh playback` を使用します。公開条件は [実装契約](../../../docs/packages/LOCAL_EDITOR_DESIGN.md) に従います。
+React 外の controller・変換・adapter を `src/**/tests/**/*.test.ts` の Node テストで検証します。配布 CLI の `test/pack-acceptance.ts` は実 Chromium と同梱 Player の読込・Surface の実画素・再生通知を検証します。実認証・実公開・Quest 実機は別途確認が必要です。Unity 変更時は `nix develop --command bash scripts/unity/test-native-editor.sh playback` を使用します。公開条件は [実装契約](../../../docs/packages/LOCAL_EDITOR_DESIGN.md) に従います。

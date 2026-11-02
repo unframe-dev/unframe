@@ -116,4 +116,4 @@ nix run .#presentation-sample
 
 共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。 本番の共通再生・配信受信・Native UI・モデルの回帰は `nix develop --command bash scripts/unity/test-native-editor.sh rendering` を使用し、同じdirectoryの `rendering.xml` と `rendering.log` を確認します。WebGL PreviewはBaked描画と共通再生・検証だけを取り込み、本番専用のメディア実装を含めません。
 
-Local Editor の品質ゲートは `nix run .#local-editor`（型検査・Node ロジックテスト・build）です。配布 CLI の `test/pack-acceptance.mjs` は実 Chromium と同梱 Player の読込・Surface の実画素・再生通知を検証します。専用 Nix app はなく、実認証・実公開・実機は別途確認が必要です。
+Local Editor の品質ゲートは `nix run .#local-editor`（型検査・Node ロジックテスト・build）です。配布 CLI の `test/pack-acceptance.ts` は実 Chromium と同梱 Player の読込・Surface の実画素・再生通知を検証します。専用 Nix app はなく、実認証・実公開・実機は別途確認が必要です。

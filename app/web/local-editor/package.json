@@ -20,7 +20,7 @@
     "build": "vp build",
     "check": "tsc --noEmit",
     "test": "vp test run",
-    "build:distribution": "nix run ../../..#unity-preview && vp build && node package-player.mjs && node --test test/package.check.mjs",
+    "build:distribution": "nix run ../../..#unity-preview && vp build && node package-player.ts && node --test test/package.check.ts",
     "prepack": "pnpm --config.verify-deps-before-run=false run build:distribution"
   },
   "dependencies": {

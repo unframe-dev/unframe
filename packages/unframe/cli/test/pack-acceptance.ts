@@ -3,17 +3,23 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { createServer } from "node:http";
+import { createServer, type Server } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
+declare global {
+  interface Window {
+    __unframeEvents: { kind: string }[];
+  }
+}
+
 // runtime must contain installed distribution packages and their declared external dependencies.
 const [runtimeArg, projectArg, browserExecutable] = process.argv.slice(2);
 if (!runtimeArg || !projectArg || !browserExecutable)
-  throw new Error("Usage: node pack-acceptance.mjs <runtime> <project> <chromium>");
+  throw new Error("Usage: node pack-acceptance.ts <runtime> <project> <chromium>");
 const runtime = resolve(runtimeArg);
 const project = resolve(projectArg);
 const executable = join(runtime, "node_modules/@unframe/cli/dist/cli.mjs");
@@ -26,9 +32,9 @@ const { default: canonicalize } = await import(
 const temp = await mkdtemp(join(tmpdir(), "unframe-pack-acceptance-"));
 let preview;
 let browser;
-let server;
-const run = (args, extraEnv = {}) =>
-  new Promise((done, fail) => {
+let server: Server | undefined;
+const run = (args: string[], extraEnv: NodeJS.ProcessEnv = {}) =>
+  new Promise<{ code: number | null; output: string }>((done, fail) => {
     const child = spawn(process.execPath, [executable, ...args], {
       cwd: runtime,
       env: { ...process.env, ...extraEnv },
@@ -50,12 +56,17 @@ try {
   await cp(join(project, "dist"), dist, { recursive: true });
   const manifest = JSON.parse(await readFile(join(dist, "build-manifest.json"), "utf8"));
   const assetSet = JSON.parse(await readFile(join(dist, "asset-set.json"), "utf8"));
-  const requests = [];
+  const requests: {
+    method: string | undefined;
+    path: string;
+    token: string | undefined;
+    size: number;
+  }[] = [];
   server = createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
     const body = Buffer.concat(chunks);
-    const path = request.url;
+    const path = request.url ?? "";
     requests.push({
       method: request.method,
       path,
@@ -89,9 +100,12 @@ try {
     }
     response.writeHead(500).end();
   });
-  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  const listeningServer = server;
+  await new Promise<void>((done) => listeningServer.listen(0, "127.0.0.1", done));
+  const address = listeningServer.address();
+  assert(address && typeof address !== "string");
   const published = await run(
-    ["publish", dist, manifest.presentationId, `http://127.0.0.1:${server.address().port}`],
+    ["publish", dist, manifest.presentationId, `http://127.0.0.1:${address.port}`],
     { UNFRAME_ACCESS_TOKEN: "acceptance-token" },
   );
   assert.equal(published.code, 0, published.output);
@@ -131,11 +145,11 @@ try {
   await page.addInitScript(() => {
     window.__unframeEvents = [];
     window.addEventListener("unframe-preview", (event) =>
-      window.__unframeEvents.push(event.detail),
+      window.__unframeEvents.push((event as CustomEvent<{ kind: string }>).detail),
     );
   });
   const playerFiles = new Set();
-  page.on("response", (response) => {
+  page.on("response", (response: { url(): string; ok(): boolean }) => {
     const path = new URL(response.url()).pathname;
     if (response.ok() && path.startsWith("/unity-preview/Build/"))
       playerFiles.add(path.split("/").pop());
@@ -181,7 +195,7 @@ try {
   );
   await page.getByRole("button", { name: "再生", exact: true }).click();
   await page.waitForFunction(
-    (previous) =>
+    (previous: number) =>
       window.__unframeEvents.filter((event) => event.kind === "playback").length > previous,
     previousPlaybackEvents,
     { timeout: 30_000 },
@@ -192,6 +206,11 @@ try {
 } finally {
   await browser?.close();
   preview?.kill("SIGTERM");
-  if (server) await new Promise((done) => server.close(done));
+  if (server) {
+    const listeningServer = server;
+    await new Promise<void>((done, fail) =>
+      listeningServer.close((error) => (error ? fail(error) : done())),
+    );
+  }
   await rm(temp, { recursive: true, force: true });
 }

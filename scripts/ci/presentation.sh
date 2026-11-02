@@ -68,7 +68,7 @@ case "${mode}" in
     TMPDIR="$(realpath -- "${TMPDIR:-/tmp}")"
     export TMPDIR
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/dev-scripts run check
-    node --test "${REPO_ROOT}/scripts/ci/presentation.test.mjs"
+    node --test "${REPO_ROOT}/scripts/ci/presentation.test.ts"
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/contract-fixtures typecheck
     pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/contract-fixtures test
