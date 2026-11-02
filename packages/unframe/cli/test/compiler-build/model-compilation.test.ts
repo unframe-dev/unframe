@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { standardComponents } from "@unframe/authoring/components";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
 import { checkDeclarationProject } from "@unframe/build";

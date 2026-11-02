@@ -5,7 +5,7 @@ import { temporaryDirectory } from "../src/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
-import { afterEach, afterAll, beforeAll, expect, it, vi } from "vitest";
+import { afterEach, afterAll, beforeAll, expect, it, vi } from "vite-plus/test";
 import {
   snapshotNodeTransformInputs,
   withNodeTransformSources,

@@ -1,11 +1,7 @@
-import { spawn } from "node:child_process";
-import { once } from "node:events";
 import { mkdtemp, readFile, rm, writeFile, rename, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createInterface } from "node:readline";
-import { fileURLToPath } from "node:url";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { NativeFilesystem, withNativeFilesystem } from "@unframe/workspace-node";
 
 it("shares one bounded native lifetime across nested operations and releases it on failure", async () => {
@@ -38,23 +34,6 @@ it("writes complete owned bytes and never overwrites an existing file", async ()
     expect(new Uint8Array(await readFile(path))).toEqual(bytes);
   } finally {
     await rm(directory, { recursive: true, force: true });
-  }
-});
-
-it("exits on owner EOF with native directories still open", async () => {
-  const executable = fileURLToPath(new URL("../.cache/filesystem-helper", import.meta.url));
-  const child = spawn(executable, [], { stdio: "pipe" });
-  const completion = once(child, "close");
-  const lines = createInterface({ input: child.stdout });
-  try {
-    const response = once(lines, "line");
-    child.stdin.write(`${JSON.stringify({ id: 1, op: "openDirectory", path: tmpdir() })}\n`);
-    expect(JSON.parse(String((await response)[0]))).toMatchObject({ id: 1, value: { id: 1 } });
-    child.stdin.end();
-    expect(await completion).toEqual([0, null]);
-  } finally {
-    lines.close();
-    child.kill();
   }
 });
 

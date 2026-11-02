@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { createViteConfig } from "./vite.config";
 
 describe("Vite configuration", () => {

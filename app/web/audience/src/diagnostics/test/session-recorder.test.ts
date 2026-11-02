@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import { createSessionRecorder } from "../session-recorder";
 
 test("素材失敗の分類とHTTP状態だけを保存し任意文字列を除外する", () => {

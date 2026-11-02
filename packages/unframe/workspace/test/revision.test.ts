@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { createProjectRevision, createWorkspaceSnapshot } from "../src/index.js";
 
 const bytes = (value: string) => new TextEncoder().encode(value);

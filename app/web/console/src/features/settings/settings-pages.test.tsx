@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { ProfilePage, SecurityPage } from "./settings-pages";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { sessionKey } from "@/features/auth/control-plane-auth";

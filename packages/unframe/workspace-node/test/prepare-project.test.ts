@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { prepareProjectSource } from "../src/index.js";
 
 it("loads TypeScript libraries and delegates Source preparation with the supplied CSS port", async () => {

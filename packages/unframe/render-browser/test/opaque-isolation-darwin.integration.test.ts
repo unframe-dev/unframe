@@ -3,7 +3,7 @@ import type { Writable } from "node:stream";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { chromium } from "playwright-core";
 import { managedHeadlessShell } from "../src/browser/runtime-environment.js";
 import { runIsolatedOpaqueWorker } from "../src/opaque/isolation/run-isolated-opaque-worker.js";

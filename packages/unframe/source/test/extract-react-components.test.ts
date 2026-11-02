@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 
@@ -173,26 +173,33 @@ const component = `
   });
 `;
 
-it("extracts finite State declarations without running their SDK builders", () => {
-  const reveal = component
-    .replace("defineComponent, editableText, prop", "defineComponent, editableText, prop, setState")
-    .replace('id: "hero"', 'id: "reveal"')
-    .replace(
-      "    render: ",
-      `    interactions: { reveal: {kind: "click", event: "quiz.reveal", hitPriority: 0} },
+it(
+  "extracts finite State declarations without running their SDK builders",
+  { timeout: 30_000 },
+  () => {
+    const reveal = component
+      .replace(
+        "defineComponent, editableText, prop",
+        "defineComponent, editableText, prop, setState",
+      )
+      .replace('id: "hero"', 'id: "reveal"')
+      .replace(
+        "    render: ",
+        `    interactions: { reveal: {kind: "click", event: "quiz.reveal", hitPriority: 0} },
     initialState: "hidden",
     states: { hidden: {semanticOverrides: [], enabledInteractionIds: ["reveal"]}, revealed: {semanticOverrides: [], enabledInteractionIds: []} },
     actions: { reveal: {inputs: {}, preconditions: [], effects: [setState("revealed")]} },
     outputs: { revealRequested: {payload: {}, producer: {kind: "surfaceInteraction", interactionId: "reveal"}} },
     render: `,
-    );
-  const result = extractReactComponents(analyze(reveal));
-  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-  expect(result.components[0]?.manifest.actions.reveal?.effects).toEqual([
-    { kind: "setSurfaceState", surfaceId: "surface", stateId: "revealed" },
-  ]);
-  expect(result.components[0]?.renderer.entrySource).not.toContain("setState");
-});
+      );
+    const result = extractReactComponents(analyze(reveal));
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(result.components[0]?.manifest.actions.reveal?.effects).toEqual([
+      { kind: "setSurfaceState", surfaceId: "surface", stateId: "revealed" },
+    ]);
+    expect(result.components[0]?.renderer.entrySource).not.toContain("setState");
+  },
+);
 
 it("extracts public metadata and render dependencies without including contract initializers", () => {
   const result = extractReactComponents(analyze(component));

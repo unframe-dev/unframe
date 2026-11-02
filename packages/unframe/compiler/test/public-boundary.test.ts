@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import * as compiler from "../src/index.js";
 
 it("does not export Source preparation or build execution from the compiler", () => {

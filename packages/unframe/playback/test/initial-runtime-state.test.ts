@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { presentationDefinitionSchema } from "@unframe/contracts/presentation";
 import fixture from "../../../contracts/presentation/fixtures/initial-runtime-state.json";
 import { createInitialRuntimeState } from "@unframe/playback";

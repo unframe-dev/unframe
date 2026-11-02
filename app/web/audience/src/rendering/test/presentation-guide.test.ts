@@ -1,5 +1,5 @@
 import { AxesHelper, Group, LineLoop } from "three";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { createPresentationGuide } from "../presentation-guide";
 
 describe("createPresentationGuide", () => {

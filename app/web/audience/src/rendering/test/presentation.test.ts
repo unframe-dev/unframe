@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { AnimationClip, Group, Texture, Mesh, ShaderMaterial } from "three";
 import { createPresentation } from "../presentation";
 import { createMediaFixtureScenario } from "../../dev/fixtures/media-scenario";

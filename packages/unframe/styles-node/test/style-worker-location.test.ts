@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/temporary-directory.js";
 import { join } from "node:path";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 
 it("locates project and adapter from the worker and excludes the temporary root from output", async () => {
   const root = await mkdtemp(join(temporaryDirectory(), "unframe-worker-location-"));

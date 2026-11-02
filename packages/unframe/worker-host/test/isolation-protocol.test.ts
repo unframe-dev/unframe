@@ -1,6 +1,6 @@
 import { ChildProcess, spawn } from "node:child_process";
 import { PassThrough } from "node:stream";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { workerProtocol } from "../src/protocol.js";
 
 describe("opaque worker protocol", () => {

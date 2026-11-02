@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { opaquePartitionIdentity } from "../src/api/opaque-partition-identity.js";
 
 describe("opaquePartitionIdentity", () => {

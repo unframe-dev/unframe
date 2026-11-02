@@ -3,7 +3,7 @@ import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 const temporaryDirectory = () => realpathSync(tmpdir());
 import { join } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it } from "vite-plus/test";
 import { resolvePackageExportTargets, snapshotInstalledPackages } from "../src/index.js";
 
 it("continues to a later types condition when an import has no matching declaration", () => {

@@ -1,6 +1,6 @@
 import { runInNewContext } from "node:vm";
 import { inflateSync } from "node:zlib";
-import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vite-plus/test";
 import {
   PNG_ABSOLUTE_LIMITS,
   PNG_ENCODER_IDENTITY,

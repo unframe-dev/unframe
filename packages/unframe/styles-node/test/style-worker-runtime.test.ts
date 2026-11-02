@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { snapshotNodeTransformInputs, withNodeTransformSources } from "../src/node-snapshot.js";
 import { runStyleWorker } from "../src/run-style-worker.js";
 

@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { createRuntimeClock } from "../runtime-clock";
 
 it("advances running time but does not restart its reference for unchanged State updates", () => {

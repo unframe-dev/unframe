@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { getWorkerIsolationIdentity, WorkerIsolationError } from "@unframe/worker-host";
 
 it("exposes the worker isolation policy and error through its package entry", () => {

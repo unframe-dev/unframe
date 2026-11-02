@@ -45,7 +45,13 @@ async function boundedBytes(request: Request, maximum: number): Promise<ArrayBuf
 }
 
 async function boundedBuildEnvelope(request: Request): Promise<Request> {
-  if (!request.body) throw new HTTPException(400);
+  if (!request.body)
+    throw new HTTPException(400, {
+      res: Response.json(
+        { error: { code: "validation_error", message: "JSON body required" } },
+        { status: 400 },
+      ),
+    });
   const chunks: Uint8Array[] = [];
   const reader = request.body.getReader();
   let length = 0;

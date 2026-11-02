@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { frame, image, shape, validateStaticBuilderResult } from "../src/index.js";
 
 const clear = { red: 0, green: 0, blue: 0, alpha: 0 };

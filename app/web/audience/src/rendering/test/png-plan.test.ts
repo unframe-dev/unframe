@@ -1,5 +1,5 @@
 import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import {
   assetSetManifestSchema,
   participantRuntimeViewSchema,

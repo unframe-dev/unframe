@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, assert, expect, it } from "vitest";
+import { afterEach, assert, expect, it } from "vite-plus/test";
 import { acquireSourceLock } from "@unframe/workspace-node";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 

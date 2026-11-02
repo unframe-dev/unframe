@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vite-plus/test";
 import { standardComponents } from "@unframe/authoring/components";
 import { buildOpaqueComponentManifest, validateStaticComponentMetadata } from "@unframe/authoring";
 import { checkDeclarationProject } from "../src/api/check-declaration-project.js";

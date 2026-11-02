@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it } from "vite-plus/test";
 import { acquireSourceLock, recoverAuthorTransactions } from "../src/index.js";
 
 const roots: string[] = [];

@@ -3,7 +3,7 @@ import { createServer as createHttpServer } from "node:http";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, assert, expect, it } from "vitest";
+import { afterEach, assert, expect, it } from "vite-plus/test";
 import { createServer, type ViteDevServer } from "vite";
 import editorConfig from "../../../vite.config";
 

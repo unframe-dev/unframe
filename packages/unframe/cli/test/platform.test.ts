@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { nativeHost } from "../src/platform/host.js";
 
 it("selects native browser and process supervision for supported hosts", () => {

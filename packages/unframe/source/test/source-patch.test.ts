@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { createReactScenePatch, createSourceSnapshot } from "../src/index.js";
 
 it("rejects a target whose supplied hash does not match its source", () => {

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { cp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, assert, expect, it } from "vitest";
+import { afterEach, assert, expect, it } from "vite-plus/test";
 import { validatePresentationArtifacts, verifyBuildIntegrity } from "@unframe/artifacts";
 import { checkAuthoringProject } from "@unframe/source";
 import { runPresentationCli } from "../src/index.js";

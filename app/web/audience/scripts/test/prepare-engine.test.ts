@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { prepareEngine } from "../prepare-engine.ts";
 describe("SDK distribution", () => {
   it("copies every artifact unchanged and records hashes including notices", async () => {

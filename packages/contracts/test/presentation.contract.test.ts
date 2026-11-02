@@ -35,7 +35,7 @@ for (const [name, schema] of schemas) {
   const sample = await fixture(name);
   test(`${name}: Zod and portable JSON Schema accept the complete fixture`, () => {
     const result = schema.safeParse(sample);
-    assert.equal(result.success, true, result.success ? undefined : result.error.message);
+    assert.equal(result.success, true, result.error?.message ?? "Expected a valid fixture");
     assert.equal(validate(sample), true, ajv.errorsText(validate.errors));
   });
   test(`${name}: both schemas reject wrong major and unknown transport fields`, () => {
@@ -412,7 +412,7 @@ test("Presenter gesture triggers accept the eight recognized gestures", () => {
       gesture,
     };
     const result = presentationDefinitionSchema.safeParse(valid);
-    assert.equal(result.success, true, result.success ? undefined : result.error.message);
+    assert.equal(result.success, true, result.error?.message ?? "Expected a valid fixture");
     assert.equal(validateDefinition(valid), true, ajv.errorsText(validateDefinition.errors));
   }
 });
@@ -429,7 +429,7 @@ test("Zones expose only their center and Presenter edges need no recognition tun
       edge,
     };
     const result = presentationDefinitionSchema.safeParse(valid);
-    assert.equal(result.success, true, result.success ? undefined : result.error.message);
+    assert.equal(result.success, true, result.error?.message ?? "Expected a valid fixture");
     assert.equal(validateDefinition(valid), true, ajv.errorsText(validateDefinition.errors));
   }
   for (const change of [

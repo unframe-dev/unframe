@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import { viewingPhase } from "../viewing-phase";
 const running = {
   stage: "running",

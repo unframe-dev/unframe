@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { authenticatedFetch } from "./authenticated-fetch";
 import { changePrincipal, notifySessionChanged, subscribeSessionChanges } from "./session-events";
 

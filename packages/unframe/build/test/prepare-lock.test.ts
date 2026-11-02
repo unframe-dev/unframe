@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { prepareLockUpdate, prepareLockRefresh } from "../src/index.js";
 import { createProjectLock } from "@unframe/workspace";
 

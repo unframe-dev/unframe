@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import canonicalize from "canonicalize";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";

@@ -1,5 +1,5 @@
 import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { Camera, Group, Mesh, Texture } from "three";
 import {
   participantRuntimeViewSchema,
