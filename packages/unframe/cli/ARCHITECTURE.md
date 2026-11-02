@@ -154,7 +154,7 @@ build lease と検証済みの一時Distディレクトリはrevisionに含め�
 
 Linux / macOS ともに Go 製 native filesystem helper の directory FD に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。保存規則は [ADR-0022](../../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md)、OS 別の境界は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。
 
-native filesystem helper は [`scripts/build-cli-filesystem.sh`](../../../scripts/build-cli-filesystem.sh) で `packages/unframe/workspace-node/.cache/filesystem-helper` に生成する。依存は native 専用 Go module に固定する。CLI の `presentation` / `dev` / `tui` / `test` / `test:tui` の pnpm hook は生成を行う。`vp test` の直接実行、headless API の直接利用など hook を通らない consumer は、repository root で先に同 script を実行する。Source 保存 transaction もこの helper の FD 操作を使い、schema、checksum、cache key、保持方針は TypeScript が所有する。
+native filesystem helper は [`scripts/build-cli-filesystem.sh`](../../../scripts/build-cli-filesystem.sh) で `packages/unframe/workspace-node/native-bin/filesystem-helper-<platform>-<arch>` に生成する。依存は native 専用 Go module に固定する。CLI の `presentation` / `dev` / `tui` / `test` / `test:tui` の pnpm hook は生成を行う。`vp test` の直接実行、headless API の直接利用など hook を通らない consumer は、repository root で先に同 script を実行する。Source 保存 transaction もこの helper の FD 操作を使い、schema、checksum、cache key、保持方針は TypeScript が所有する。
 
 ## 7. Deferred
 
