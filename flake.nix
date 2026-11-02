@@ -37,8 +37,8 @@
         # ツールチェイン。旧 mise.toml のツール固定を置換する。
         toolchain = [
           (pkgs.callPackage ./packages/config/bun.nix { })
-          pkgs.nodejs_22
-          (pkgs.pnpm.override { nodejs-slim = pkgs.nodejs-slim_22; })
+          pkgs.nodejs_24
+          (pkgs.pnpm.override { nodejs-slim = pkgs.nodejs-slim_24; })
           pkgs.go
           pkgs.golangci-lint
           pkgs.protobuf
@@ -117,7 +117,7 @@
         darwinOpaqueLauncher = pkgs.stdenv.mkDerivation {
           pname = "unframe-darwin-opaque";
           version = "4";
-          src = ./packages/unframe-worker-host/src/native;
+          src = ./packages/unframe/worker-host/src/native;
           nativeBuildInputs = [ pkgs.nodejs_22 ];
           dontFixup = true;
           buildPhase = ''

@@ -168,7 +168,7 @@ func newV2InitialState(raw json.RawMessage, mediaSpecs map[string]map[string]v2M
 		return nil, err
 	}
 	var definition v2Definition
-	if err := json.Unmarshal(raw, &definition); err != nil || definition.SchemaVersion != 3 || definition.PresentationID == "" {
+	if err := json.Unmarshal(raw, &definition); err != nil || definition.SchemaVersion != 1 || definition.PresentationID == "" {
 		return nil, ErrV2RuntimeDefinition
 	}
 	for id, node := range definition.Scene.Nodes {
@@ -240,7 +240,7 @@ func newV2InitialState(raw json.RawMessage, mediaSpecs map[string]map[string]v2M
 		return nil, ErrV2RuntimeDefinition
 	}
 	snapshot := &realtimev2.CanonicalRuntimeSnapshot{
-		SchemaVersion:      3,
+		SchemaVersion:      1,
 		InputEpoch:         1,
 		Clock:              &realtimev2.RuntimeClockSnapshot{Status: &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}},
 		Progression:        &realtimev2.ProgressionRuntimeState{CurrentGroupId: group.ID, GroupEntryEpoch: 1, CurrentStepId: step.ID, StepEntryEpoch: 1, Phase: &realtimev2.ProgressionRuntimeState_Stable{Stable: &realtimev2.StableProgression{}}},

@@ -77,7 +77,7 @@ describe("createControlPlaneClient", () => {
     expectTypeOf<Extract<keyof Response, "cf" | "webSocket">>().toEqualTypeOf<never>();
   });
 
-  it("exposes inferred Hono RPC request and response types", () => {
+  it("derives typed requests and responses from the HTTP contract", () => {
     type GetPresentationRequest = InferRequestType<
       ControlPlaneClient["presentations"][":id"]["$get"]
     >;

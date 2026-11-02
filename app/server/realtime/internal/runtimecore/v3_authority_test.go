@@ -15,7 +15,7 @@ import (
 )
 
 func TestV3InputSynchronizationBarrierAndOutcomeReuse(t *testing.T) {
-	core, err := NewV2Session(json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[{"id":"next","trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"next":{"kind":"stay"},"actions":[]}]}}}},"variables":{},"timelines":{}}}`))
+	core, err := NewV2Session(json.RawMessage(`{"schemaVersion":1,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[{"id":"next","trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"next"},"firePolicy":{"kind":"repeatable"},"next":{"kind":"stay"},"actions":[]}]}}}},"variables":{},"timelines":{}}}`))
 	if err != nil {
 		t.Fatal(err)
 	}

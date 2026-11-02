@@ -35,7 +35,7 @@ func v2ParallelCore(t *testing.T, definition json.RawMessage, writer V2Checkpoin
 	if err != nil {
 		t.Fatal(err)
 	}
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 1, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(writer, metadata, catalog); err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func (observe v2CompletionObserver) CompleteCheckpoint(_ context.Context, envelo
 }
 
 func TestV2CompletionCallbackKeepsPreviousCutReadable(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	for _, test := range []struct {
 		name string
 		err  error
@@ -148,7 +148,7 @@ func TestV2CompletionCallbackKeepsPreviousCutReadable(t *testing.T) {
 }
 
 func TestV2ResumeValidatorRunsWithoutSessionMutex(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	core := v2ParallelCore(t, definition, checkpointCommitObserver(func(*realtimev2.DurableCheckpointEnvelope) error { return nil }))
 	identity := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
 	if _, _, err := core.RuntimeControl(context.Background(), identity, v3TestRuntimeControl(core, &realtimev2.RuntimeControlCommand{ClientEventId: "pause-1", Kind: realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE})); err != nil {
@@ -190,7 +190,7 @@ func TestV2ResumeValidatorRunsWithoutSessionMutex(t *testing.T) {
 }
 
 func TestV2AdvanceFromWallIgnoresOlderTickAfterSerialization(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"demo","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	core, err := newV3RegressionSession(definition)
 	if err != nil {
 		t.Fatal(err)

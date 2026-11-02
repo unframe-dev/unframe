@@ -610,7 +610,7 @@ const cueSchema = z.strictObject({
 });
 
 export const presentationDefinitionSchema = z.strictObject({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(1),
   presentationId: idSchema,
   metadata: z.strictObject({ title: z.string().min(1) }),
   stage: z.strictObject({

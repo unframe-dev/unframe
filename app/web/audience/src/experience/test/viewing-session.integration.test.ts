@@ -1,3 +1,4 @@
+import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
 import { afterEach, expect, test, vi } from "vitest";
 import type {
   ConnectionSnapshotEnvelopeWire,
@@ -6,7 +7,7 @@ import type {
   RuntimeProjectionFenceWire,
   StateServerItemWire,
 } from "@unframe/contracts/presentation";
-import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
+import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import { createRuntimePlayback } from "../../runtime/playback";
 import { createViewingSession } from "../viewing-session";
 
@@ -30,7 +31,7 @@ function contractFixture() {
     scale: { x: 1, y: 1, z: 1 },
   };
   const snapshot: ConnectionSnapshotEnvelopeWire = {
-    schemaVersion: 3,
+    schemaVersion: 1,
     connectionId: "connection",
     fence,
     projectionInstance: delivery.projectionInstance!,
@@ -52,7 +53,7 @@ function contractFixture() {
           stable: {},
         },
         nodeStates: [{ nodeId, active: true, visible: true, opacity: 1, transform }],
-        surfaceStates: [{ surfaceId, stateId: "reference-surface:default" }],
+        surfaceStates: [{ surfaceId, stateId: PNG_DEFAULT_STATE }],
         variables: [],
         activeRuns: [],
         mediaStates: [],

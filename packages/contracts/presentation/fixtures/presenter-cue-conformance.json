@@ -1,6 +1,6 @@
 {
   "definition": {
-    "schemaVersion": 3,
+    "schemaVersion": 1,
     "presentationId": "presenter-cue-conformance",
     "metadata": {
       "title": "Presenter Cue conformance"

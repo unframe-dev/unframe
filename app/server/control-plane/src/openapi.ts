@@ -946,6 +946,7 @@ export const getPublicationRoute = createRoute({
     401: errorResponse("Unauthorized"),
     403: errorResponse("Forbidden"),
     404: errorResponse("Publication not found"),
+    409: errorResponse("Stored publication is incompatible or invalid"),
   },
 });
 export const deliveryManifestRoute = createRoute({

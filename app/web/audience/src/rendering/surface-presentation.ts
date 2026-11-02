@@ -118,10 +118,17 @@ export async function createSurfacePresentation(options: {
   admitMemory(assets: SurfaceTextureAsset[], residentCpuBytes: number): number;
   assetCpuBytes(asset: SurfaceTextureAsset): number;
   surfaceVisible?(surfaceId: string, view: ParticipantRuntimeView): boolean;
+  preloadedTextures?: readonly { asset: SurfaceTextureAsset; loaded: LoadedTexture }[];
 }) {
   const view = participantRuntimeViewSchema.parse(options.view);
   const plan = options.buildPlan(options.delivery, view);
-  let retainedCpuBytes = options.admitMemory(plan.assets, options.residentCpuBytes ?? 0);
+  const preloaded = new Map(
+    (options.preloadedTextures ?? []).map((entry) => [textureKey(entry.asset), entry]),
+  );
+  let retainedCpuBytes = options.admitMemory(
+    plan.assets.filter((asset) => !preloaded.has(textureKey(asset))),
+    options.residentCpuBytes ?? 0,
+  );
   const surfaceGroups = new Map<string, Group>();
   const cameraCenter = new Vector3();
   function prepareRender(camera: Camera) {
@@ -138,12 +145,17 @@ export async function createSurfacePresentation(options: {
   const root = new Group();
   root.name = "surface-presentation-stage";
   root.matrixAutoUpdate = false;
-  const textures = new Map<string, LoadedTexture>();
+  const textures = new Map<string, LoadedTexture>(
+    [...preloaded].map(([key, entry]) => [key, entry.loaded]),
+  );
   let meshes: Mesh<PlaneGeometry, PngMaterial>[] = [];
   let nodeGroups = new Map<string, Group>();
   let meshPlanes = new Map<Mesh<PlaneGeometry, PngMaterial>, PngPlane>();
   let appliedView = view;
-  const loadedAssets = new Map(plan.assets.map((asset) => [textureKey(asset), asset]));
+  const loadedAssets = new Map([
+    ...[...preloaded].map(([key, entry]) => [key, entry.asset] as const),
+    ...plan.assets.map((asset) => [textureKey(asset), asset] as const),
+  ]);
   let disposed = false;
   let groupEntry = { id: view.progression.currentGroupId, epoch: view.progression.groupEntryEpoch };
   function dispose() {
@@ -154,7 +166,7 @@ export async function createSurfacePresentation(options: {
       mesh.geometry.dispose();
       mesh.material.dispose();
     }
-    for (const asset of textures.values()) asset.dispose();
+    for (const [key, asset] of textures) if (!preloaded.has(key)) asset.dispose();
   }
   function checkAbort() {
     if (options.signal?.aborted) throw new Error("PNG presentation cancelled");
@@ -362,10 +374,7 @@ export async function createSurfacePresentation(options: {
     );
     return true;
   }
-  function applyView(input: unknown): boolean {
-    if (disposed) return false;
-    const nextView = participantRuntimeViewSchema.parse(input);
-    const nextPlan = options.buildPlan(options.delivery, nextView);
+  function canApplyPlan(nextPlan: SurfacePlan): boolean {
     for (const asset of nextPlan.assets) {
       const loaded = loadedAssets.get(textureKey(asset));
       if (!loaded) return false;
@@ -378,6 +387,19 @@ export async function createSurfacePresentation(options: {
       )
         throw new Error("PNG presentation: conflicting loaded texture metadata");
     }
+    return true;
+  }
+  function canApplyView(input: unknown): boolean {
+    return (
+      !disposed &&
+      canApplyPlan(options.buildPlan(options.delivery, participantRuntimeViewSchema.parse(input)))
+    );
+  }
+  function applyView(input: unknown): boolean {
+    if (disposed) return false;
+    const nextView = participantRuntimeViewSchema.parse(input);
+    const nextPlan = options.buildPlan(options.delivery, nextView);
+    if (!canApplyPlan(nextPlan)) return false;
     const completedTransition = appliedView.activeRuns.some(
       (run) =>
         run.kind === "surfaceTransition" &&
@@ -397,7 +419,7 @@ export async function createSurfacePresentation(options: {
     ) {
       const required = new Set(nextPlan.assets.map(textureKey));
       for (const [checksum, loaded] of textures) {
-        if (required.has(checksum)) continue;
+        if (required.has(checksum) || preloaded.has(checksum)) continue;
         loaded.dispose();
         textures.delete(checksum);
         const asset = loadedAssets.get(checksum)!;
@@ -411,6 +433,7 @@ export async function createSurfacePresentation(options: {
   try {
     checkAbort();
     for (const asset of plan.assets) {
+      if (preloaded.has(textureKey(asset))) continue;
       const loaded = await options.loadTexture(
         asset,
         options.signal ? { signal: options.signal } : {},
@@ -428,6 +451,7 @@ export async function createSurfacePresentation(options: {
         return retainedCpuBytes;
       },
       applyView,
+      canApplyView,
       applyAnimationFrame,
     };
   } catch (error) {

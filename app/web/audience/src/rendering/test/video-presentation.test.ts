@@ -1,3 +1,4 @@
+import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
 import { describe, expect, it, vi } from "vitest";
 import { Group, VideoTexture } from "three";
 import { participantRuntimeViewSchema } from "@unframe/contracts/presentation";
@@ -12,6 +13,7 @@ describe("video presentation", () => {
     const loaded = {
       texture: new VideoTexture({} as HTMLVideoElement),
       video: {} as HTMLVideoElement,
+      releaseDecoder: vi.fn(),
       synchronize: vi.fn(),
       dispose: vi.fn(),
       playbackBlocked: false,
@@ -63,6 +65,7 @@ describe("video presentation", () => {
     const loaded = {
       texture: new VideoTexture({} as HTMLVideoElement),
       video: {} as HTMLVideoElement,
+      releaseDecoder: vi.fn(),
       synchronize,
       dispose,
       playbackBlocked: false,
@@ -106,6 +109,42 @@ describe("video presentation", () => {
     expect(dispose).toHaveBeenCalledOnce();
     expect(host.contentRoot.children).toHaveLength(0);
   });
+  it("releases decoders without disposing the visible texture and refuses to resume a released asset", async () => {
+    const f = videoFixture();
+    const view = participantRuntimeViewSchema.parse(f.view);
+    const loaded = {
+      texture: new VideoTexture({} as HTMLVideoElement),
+      video: {} as HTMLVideoElement,
+      synchronize: vi.fn(),
+      releaseDecoder: vi.fn(),
+      dispose: vi.fn(),
+      playbackBlocked: false,
+      resumePlayback: vi.fn(async () => undefined),
+    };
+    const presentation = await createVideoPresentation({
+      host: { contentRoot: new Group(), setPresentationOrigin: vi.fn() },
+      delivery: f.delivery,
+      view,
+      loadAsset: vi.fn(async () => loaded) as typeof loadVideoAsset,
+    });
+    expect(presentation.decoderCount).toBe(1);
+    expect(presentation.retainedCpuBytes).toBeGreaterThan(0);
+    loaded.synchronize.mockClear();
+    presentation.releaseDecoders();
+    presentation.releaseDecoders();
+    expect(presentation.decoderCount).toBe(0);
+    expect(presentation.retainedCpuBytes).toBe(0);
+    expect(loaded.releaseDecoder).toHaveBeenCalledOnce();
+    expect(loaded.dispose).not.toHaveBeenCalled();
+    expect([...presentation.getLoadedAssets().values()][0]!.texture).toBe(loaded.texture);
+    expect(presentation.canApplyView(view)).toBe(false);
+    presentation.applyAnimationFrame(view, 1000);
+    await presentation.resumePlayback();
+    expect(loaded.synchronize).not.toHaveBeenCalled();
+    expect(loaded.resumePlayback).not.toHaveBeenCalled();
+    presentation.dispose();
+    expect(loaded.dispose).toHaveBeenCalledOnce();
+  });
   it("releases videos no longer selected and refuses unloaded replacements", async () => {
     const f = videoFixture();
     const view = participantRuntimeViewSchema.parse(f.view);
@@ -113,6 +152,7 @@ describe("video presentation", () => {
     const loaded = {
       texture: new VideoTexture({} as HTMLVideoElement),
       video: {} as HTMLVideoElement,
+      releaseDecoder: vi.fn(),
       synchronize: vi.fn(),
       dispose,
       playbackBlocked: false,
@@ -131,7 +171,7 @@ describe("video presentation", () => {
     expect(presentation.applyView(view)).toBe(false);
     expect(dispose).not.toHaveBeenCalled();
     artifact.durationMs = "2000";
-    render.stateBindings![0] = { stateId: "reference-surface:default", empty: {} };
+    render.stateBindings![0] = { stateId: PNG_DEFAULT_STATE, empty: {} };
     expect(presentation.applyView(view)).toBe(true);
     expect(dispose).toHaveBeenCalledOnce();
     expect(presentation.getLoadedAssets().size).toBe(0);

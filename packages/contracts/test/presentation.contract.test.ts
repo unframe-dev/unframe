@@ -40,7 +40,7 @@ for (const [name, schema] of schemas) {
   });
   test(`${name}: both schemas reject wrong major and unknown transport fields`, () => {
     for (const invalid of [
-      { ...sample, schemaVersion: 1 },
+      { ...sample, schemaVersion: 2 },
       { ...sample, sessionId: "session" },
     ]) {
       assert.equal(schema.safeParse(invalid).success, false);
@@ -459,7 +459,7 @@ test("Zones expose only their center and Presenter edges need no recognition tun
   }
 });
 
-test("Recognition publication requires the new schema and contract majors", async () => {
+test("Recognition publication requires the current schema and contract versions", async () => {
   for (const [name, schema] of schemas.filter(([name]) =>
     [
       "presentation-definition",
@@ -469,7 +469,7 @@ test("Recognition publication requires the new schema and contract majors", asyn
     ].includes(name),
   )) {
     const valid = await fixture(name);
-    valid.schemaVersion = 3;
+    valid.schemaVersion = 1;
     if (valid.contractVersions) {
       Object.assign(valid.contractVersions, {
         delivery: 3,
@@ -477,7 +477,7 @@ test("Recognition publication requires the new schema and contract majors", asyn
         progression: 2,
         projection: 2,
       });
-      if (name !== "capability-profile") valid.contractVersions.definition = 3;
+      if (name !== "capability-profile") valid.contractVersions.definition = 1;
     }
     const validate = ajv.getSchema(
       `https://contracts.unframe.dev/presentation/${name}.schema.json`,

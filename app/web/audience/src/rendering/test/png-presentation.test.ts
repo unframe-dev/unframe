@@ -1,10 +1,11 @@
+import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
 import { expect, it, vi } from "vitest";
 import { Camera, Group, Mesh, Texture } from "three";
 import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
 } from "@unframe/contracts/presentation";
-import deliveryFixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
+import { pngDeliveryFixture as deliveryFixture } from "../../test-support/png-delivery-fixture";
 import runtimeFixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 import { createPngPresentation } from "../png-presentation";
 import * as pngPlan from "../png-plan";
@@ -19,7 +20,7 @@ function fixture() {
     [nodeId]: { ...structuredClone(runtimeFixture.nodeStates["node-baked"]), opacity: 1 },
   } as typeof view.nodeStates;
   view.surfaceStates = {
-    [surfaceId]: { stateId: "reference-surface:default" },
+    [surfaceId]: { stateId: PNG_DEFAULT_STATE },
   } as typeof view.surfaceStates;
   view.variables = {} as typeof view.variables;
   view.presentationOrigin.pose.position = [0.5, 1, -2];
@@ -518,7 +519,7 @@ function transitionFixture() {
   const run = {
     kind: "surfaceTransition" as const,
     surfaceId,
-    fromStateId: "reference-surface:default",
+    fromStateId: PNG_DEFAULT_STATE,
     toStateId: nextState,
     durationMilliseconds: 1000,
     completion: "blocking" as const,

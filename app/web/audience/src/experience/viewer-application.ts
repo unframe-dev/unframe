@@ -193,6 +193,12 @@ export function createViewerApplication(
         options.recorder?.record("assets.ready", {
           stage: runtime.rendering,
           sessionId: options.connection.session?.id,
+          code: runtime.error ?? undefined,
+          renderPhase: runtime.renderFailurePhase ?? undefined,
+          assetKind: runtime.assetFailure?.kind,
+          assetStage: runtime.assetFailure?.stage,
+          assetCode: runtime.assetFailure?.code,
+          httpStatus: runtime.assetFailure?.httpStatus,
         });
     }
     options.recorder?.observe({
@@ -203,6 +209,7 @@ export function createViewerApplication(
       groupId: runtime?.view?.progression.currentGroupId,
       stepId: runtime?.view?.progression.currentStepId,
       stage: viewing.phase,
+      code: viewing.error ?? undefined,
       reliableSequence: runtime?.reliableSequence,
       stateSequence: runtime?.stateSequence,
       runtimeTimeMs: runtime?.view?.clock.runtimeTimeMilliseconds,

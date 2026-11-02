@@ -11,14 +11,14 @@ import (
 )
 
 func TestV2ModelSessionRejectsTinySpeedWithoutAllocatingRun(t *testing.T) {
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"demo","scene":{"nodes":{"actor":{"id":"actor","kind":"model","assetId":"avatar","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.play","nodeId":"actor","clipId":"walk","speed":1e-300,"loop":false,"completion":"nonBlocking","transition":{"kind":"immediate"}}],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
-	bundle := json.RawMessage(`{"schemaVersion":2,"surfaces":{},"models":{"avatar":{"assetId":"avatar","clips":{"walk":{"sourceAnimationIndex":3,"durationMilliseconds":125}}}}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"demo","scene":{"nodes":{"actor":{"id":"actor","kind":"model","assetId":"avatar","owner":{"kind":"presentation"},"parent":{"kind":"stage"},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"play","priority":1,"order":0,"trigger":{"kind":"logicalInput","actor":{"kind":"presenter"},"action":"play"},"firePolicy":{"kind":"repeatable"},"actions":[{"kind":"modelClip.play","nodeId":"actor","clipId":"walk","speed":1e-300,"loop":false,"completion":"nonBlocking","transition":{"kind":"immediate"}}],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+	bundle := json.RawMessage(`{"schemaVersion":1,"surfaces":{},"models":{"avatar":{"assetId":"avatar","clips":{"walk":{"sourceAnimationIndex":3,"durationMilliseconds":125}}}}}`)
 	core, err := newV3RegressionSessionWithBundle(definition, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
 	freezeV2WallClock(core)
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 1, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
 	}

@@ -46,7 +46,11 @@ export interface XrEngine {
   };
   Threejs: {
     pipelineModule(): CameraPipelineModule;
-    xrScene(): { scene: Scene; camera: Camera; renderer: Pick<WebGLRenderer, "resetState"> };
+    xrScene(): {
+      scene: Scene;
+      camera: Camera;
+      renderer: Pick<WebGLRenderer, "resetState" | "initTexture">;
+    };
   };
   XrController: {
     configure(options: { disableWorldTracking: boolean; scale: "absolute" }): void;
@@ -75,7 +79,7 @@ export interface TrackingCallbacks {
   onScene(
     scene: Scene,
     camera: Camera,
-    renderer: Pick<WebGLRenderer, "resetState">,
+    renderer: Pick<WebGLRenderer, "resetState" | "initTexture">,
   ): void | (() => void);
   onDetections(frame: FiducialFrame, result: DetectorResult): void;
   onTracking(status: "NORMAL" | "LIMITED"): void;

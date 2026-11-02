@@ -19,7 +19,7 @@ import (
 
 func TestPauseReplacementAndResumeStateShareFrozenDisplay(t *testing.T) {
 	service, profile := newV2LeaseTestService(t, allowAllAssignment{})
-	definition := json.RawMessage(`{"schemaVersion":3,"presentationId":"presentation-1","scene":{"nodes":{"badge":{"id":"badge","kind":"container","owner":{"kind":"presentation"},"parent":{"kind":"anchor","target":"body","owner":{"kind":"presenter"},"followPosition":true,"followRotation":false},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
+	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"presentation-1","scene":{"nodes":{"badge":{"id":"badge","kind":"container","owner":{"kind":"presentation"},"parent":{"kind":"anchor","target":"body","owner":{"kind":"presenter"},"followPosition":true,"followRotation":false},"transform":{"position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]},"active":true,"visible":true,"opacity":1}},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}},"variables":{},"timelines":{}}}`)
 	core, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
@@ -31,7 +31,7 @@ func TestPauseReplacementAndResumeStateShareFrozenDisplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 3, SessionId: service.bootstrap.Assignment.SessionID, RuntimeId: service.bootstrap.Assignment.RuntimeID, RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: service.bootstrap.Assignment.AssignmentEpoch, Publication: &presentationv2.PublicationFence{PresentationId: service.bootstrap.Publication.PresentationID, PublicationEpoch: service.bootstrap.Publication.PublicationEpoch, PublicationManifestHash: service.bootstrap.Publication.PublicationManifestHash}, DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64)}
+	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 1, SessionId: service.bootstrap.Assignment.SessionID, RuntimeId: service.bootstrap.Assignment.RuntimeID, RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: service.bootstrap.Assignment.AssignmentEpoch, Publication: &presentationv2.PublicationFence{PresentationId: service.bootstrap.Publication.PresentationID, PublicationEpoch: service.bootstrap.Publication.PublicationEpoch, PublicationManifestHash: service.bootstrap.Publication.PublicationManifestHash}, DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64)}
 	if err := core.ConfigureDurability(&switchableV2Checkpoint{}, metadata, profile.RuntimeCatalog); err != nil {
 		t.Fatal(err)
 	}
