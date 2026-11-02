@@ -76,6 +76,7 @@
     "@types/semver": "7.7.1",
     "@types/ssri": "7.1.5",
     "@types/validate-npm-package-name": "4.0.2",
+    "@unframe/delivery": "workspace:*",
     "@unframe/worker-host": "workspace:*",
     "postcss": "8.5.29",
     "tailwindcss": "4.3.3",
