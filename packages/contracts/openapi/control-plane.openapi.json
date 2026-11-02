@@ -14732,7 +14732,7 @@
                     "schemaVersion": {
                       "type": "number",
                       "enum": [
-                        3
+                        1
                       ]
                     },
                     "presentationId": {
@@ -14775,19 +14775,19 @@
                         "definition": {
                           "type": "number",
                           "enum": [
-                            3
+                            1
                           ]
                         },
                         "renderBundle": {
                           "type": "number",
                           "enum": [
-                            2
+                            1
                           ]
                         },
                         "assetSet": {
                           "type": "number",
                           "enum": [
-                            2
+                            1
                           ]
                         },
                         "delivery": {
@@ -15312,7 +15312,7 @@
                     "schemaVersion": {
                       "type": "number",
                       "enum": [
-                        3
+                        1
                       ]
                     },
                     "presentationId": {
@@ -15355,19 +15355,19 @@
                         "definition": {
                           "type": "number",
                           "enum": [
-                            3
+                            1
                           ]
                         },
                         "renderBundle": {
                           "type": "number",
                           "enum": [
-                            2
+                            1
                           ]
                         },
                         "assetSet": {
                           "type": "number",
                           "enum": [
-                            2
+                            1
                           ]
                         },
                         "delivery": {
@@ -15486,6 +15486,36 @@
           },
           "404": {
             "description": "Publication not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stored publication is incompatible or invalid",
             "content": {
               "application/json": {
                 "schema": {

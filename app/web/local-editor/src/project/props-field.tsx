@@ -1,4 +1,4 @@
-import type { AuthorInstance } from "@unframe/unframe-cli/author-contract";
+import type { AuthorInstance } from "@unframe/contracts/author-http";
 import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 export function PropsField({

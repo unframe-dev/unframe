@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 1,
   "deliveryContractVersion": 3,
   "sessionId": "session:local",
   "publication": {
@@ -9,7 +9,7 @@
   },
   "capabilityProfile": {
     "capabilityProfileId": "capability:local",
-    "schemaVersion": 3,
+    "schemaVersion": 1,
     "contractVersions": {
       "delivery": 3,
       "runtime": 3,

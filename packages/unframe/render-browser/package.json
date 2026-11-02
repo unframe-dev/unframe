@@ -1,0 +1,44 @@
+{
+  "name": "@unframe/render-browser",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs"
+      }
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src test vite.config.ts",
+    "test": "vp test run --exclude '**/*.integration.test.ts'",
+    "build": "vp pack"
+  },
+  "dependencies": {
+    "@jridgewell/trace-mapping": "0.3.31",
+    "@noble/hashes": "2.3.0",
+    "@unframe/build": "workspace:*",
+    "@unframe/compiler": "workspace:*",
+    "@unframe/presentation": "workspace:*",
+    "@unframe/worker-host": "workspace:*",
+    "playwright-core": "1.62.1",
+    "pngjs": "7.0.0",
+    "rolldown": "1.1.5",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "@types/pngjs": "6.0.5",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

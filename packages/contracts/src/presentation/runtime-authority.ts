@@ -1,20 +1,20 @@
 import { z } from "zod";
 
 export const runtimeAuthorityVersions = Object.freeze({
-  definition: 3,
-  renderBundle: 2,
-  assetSet: 2,
-  buildManifest: 3,
-  publication: 3,
-  capability: 3,
+  definition: 1,
+  renderBundle: 1,
+  assetSet: 1,
+  buildManifest: 1,
+  publication: 1,
+  capability: 1,
   delivery: 3,
   protocol: "v3",
   runtime: 3,
   progression: 2,
   projection: 2,
   catalog: 3,
-  snapshot: 3,
-  checkpoint: 3,
+  snapshot: 1,
+  checkpoint: 1,
   localPreview: 1,
 } as const);
 
@@ -106,11 +106,11 @@ export function validateAuthorityWireValue(typeName: string, value: Record<strin
       );
   }
   const schemaMajors: Readonly<Record<string, number>> = {
-    CanonicalRuntimeSnapshot: 3,
-    ConnectionSnapshotEnvelope: 3,
-    DurableCheckpointEnvelope: 3,
-    CapabilityProfile: 3,
-    DeliveryManifest: 3,
+    CanonicalRuntimeSnapshot: 1,
+    ConnectionSnapshotEnvelope: 1,
+    DurableCheckpointEnvelope: 1,
+    CapabilityProfile: 1,
+    DeliveryManifest: 1,
   };
   if (name && schemaMajors[name] !== undefined && value["schemaVersion"] !== schemaMajors[name])
     throw new TypeError(`${name} schema major is incompatible`);

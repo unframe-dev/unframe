@@ -21,7 +21,7 @@ afterEach(() => {
   for (const root of temporary.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-type Command = { command: string; args: string[] };
+type Command = { command: string; args: string[]; nodeOptions?: string };
 const smokeTests = {
   "test/playwright-fixed-browser.integration.test.ts": [
     "provision済みmanaged ChromiumでFrame/Text相当のdocumentをPNG captureする",
@@ -61,7 +61,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 const command=path.basename(process.argv[1])==='record-node'?'node':path.basename(process.argv[1]);
 const args=process.argv.slice(2);
-fs.appendFileSync(process.env.CI_TEST_COMMANDS,JSON.stringify({command,args})+'\\n');
+fs.appendFileSync(process.env.CI_TEST_COMMANDS,JSON.stringify({command,args,nodeOptions:process.env.NODE_OPTIONS})+'\\n');
 const output=args.find(arg=>arg.startsWith('--outputFile='));
 if(command==='pnpm'&&output){
   const cases=JSON.parse(process.env.CI_TEST_SMOKE_TESTS);
@@ -135,7 +135,7 @@ test(
       ({ command, args }) => command === "pnpm" && args.includes("test"),
     );
     assert.equal(tests.length, 1);
-    assert.ok(tests[0]!.args.includes("@unframe/unframe-renderer-web"));
+    assert.ok(tests[0]!.args.includes("@unframe/render-browser"));
     assert.ok(tests[0]!.args.includes("test/opaque-isolation.integration.test.ts"));
     assert.equal(
       tests[0]!.args.includes("test/opaque-isolation-darwin.integration.test.ts"),
@@ -156,6 +156,8 @@ const linuxIntegrationFiles = [
   "test/opaque-runtime-lifecycle.integration.test.ts",
   "test/playwright-fixed-browser.integration.test.ts",
   "test/opaque-project.integration.test.ts",
+  "test/media-project.integration.test.ts",
+  "test/video-validator.integration.test.ts",
   "test/author-capture.integration.test.ts",
   "test/author-source-diagnostics.integration.test.ts",
   "test/styles-worker.integration.test.ts",
@@ -187,7 +189,7 @@ test(
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.commands.filter(({ command }) => command === "build-filesystem").length, 1);
     assert.equal(
-      result.commands.some(({ args }) => args.includes("@unframe/unframe-tailwind")),
+      result.commands.some(({ args }) => args.includes("build:tailwind")),
       false,
     );
     assert.deepEqual(integrationFiles(result.commands), [
@@ -250,6 +252,27 @@ test("the macOS suite keeps native checks and omits the long shared CLI scenario
     result.commands.some(({ args }) => args.includes("typecheck")),
     false,
   );
+});
+
+test("styles-node builds use a sufficient default heap and preserve an explicit override", () => {
+  for (const [nodeOptions, expected] of [
+    ["", "--max-old-space-size=8192"],
+    ["--max-old-space-size=4096", "--max-old-space-size=4096"],
+  ]) {
+    const result = fixture("Darwin").run(["macos"], { NODE_OPTIONS: nodeOptions });
+    assert.equal(result.status, 0, result.stderr);
+    const build = result.commands.find(
+      ({ command, args }) =>
+        command === "pnpm" && args.includes("@unframe/styles-node") && args.includes("build"),
+    );
+    assert.ok(build);
+    assert.equal(build.nodeOptions, expected);
+    const testRun = result.commands.find(
+      ({ command, args }) =>
+        command === "pnpm" && args.includes("test/styles-worker.integration.test.ts"),
+    );
+    assert.equal(testRun?.nodeOptions, nodeOptions);
+  }
 });
 
 test("macOS smoke tests must all pass, including when only one expected case disappears", () => {

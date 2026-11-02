@@ -7,7 +7,7 @@ namespace Unframe.Unity.PresentationRuntime
 {
     internal sealed class PresentationDeliveryCatalog
     {
-        private const uint DeliverySchemaVersion = 3;
+        private const uint DeliverySchemaVersion = 1;
         private const uint DeliveryContractVersion = 3;
         private const uint RuntimeCatalogContractVersion = 3;
 

@@ -16,7 +16,7 @@ import (
 )
 
 func TestSnapshotCatchUpReplacesOverflowedCut(t *testing.T) {
-	core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":3,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
+	core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":1,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestSnapshotCatchUpStopsAtAttemptAndTimeLimits(t *testing.T) {
 		startTimeout bool
 	}{{name: "attempts", overflow: true}, {name: "preparation timeout"}, {name: "delivery timeout", startTimeout: true}} {
 		t.Run(test.name, func(t *testing.T) {
-			core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":3,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
+			core, err := runtimecore.NewV2Session([]byte(`{"schemaVersion":1,"presentationId":"p","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"g","groups":{"g":{"id":"g","initialStepId":"s","steps":{"s":{"id":"s","cues":[]}}}},"variables":{},"timelines":{}}}`))
 			if err != nil {
 				t.Fatal(err)
 			}

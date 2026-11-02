@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { Texture } from "three";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
-import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
+import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import type { PngTextureAsset } from "../png-texture";
 import { createPngTexturePool } from "../png-texture-pool";
 

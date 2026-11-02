@@ -243,7 +243,7 @@ const m3dStepStartStateSchema = z.strictObject({
 });
 
 export const m3dCueRuntimeSnapshotSchema = z.strictObject({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(1),
   inputEpoch: positiveSafeUIntSchema,
   stepStartHistory: z.array(m3dStepStartStateSchema),
   reliableSequence: safeUIntSchema,

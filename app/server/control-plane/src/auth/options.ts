@@ -89,7 +89,7 @@ export function createAuthOptions(
       user: {
         update: {
           before: async (user: Record<string, unknown>) => {
-            if (user.image !== undefined)
+            if (user["image"] !== undefined)
               throw new APIError("BAD_REQUEST", { message: "Use the profile image API" });
             return { data: user };
           },

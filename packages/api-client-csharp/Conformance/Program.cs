@@ -68,7 +68,7 @@ foreach (var path in args)
                 {
                     var fromJson = JsonParser.Default.Parse<DeliveryManifest>(value);
                     var fromWire = DeliveryManifest.Parser.ParseFrom(expected);
-                    if (!fromJson.Equals(fromWire) ||
+                    if (fromWire.SchemaVersion != 1 || !fromJson.Equals(fromWire) ||
                         (Path.GetFileName(path) == "conformance.json" && !fromWire.ToByteArray().SequenceEqual(expected)) ||
                         !DeliveryManifest.Parser.ParseFrom(fromWire.ToByteArray()).Equals(fromWire))
                         throw new Exception("DeliveryManifest JSON/binary conformance failed");

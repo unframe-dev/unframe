@@ -1,0 +1,10 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "types": ["node"]
+  },
+  "include": ["generate-valid-delivery.ts", "fixtures/**/*.ts"]
+}

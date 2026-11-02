@@ -15,6 +15,27 @@ public sealed class PresentationPreviewTransactionEditModeTests
         return Task.FromResult(new PresentationPreviewAssetData(PresentationPreviewTestFixture.Png, "image/png"));
     }
 
+    [TestCase("envelope", 0)]
+    [TestCase("envelope", 2)]
+    [TestCase("envelope", 3)]
+    [TestCase("build", 0)]
+    [TestCase("build", 2)]
+    [TestCase("build", 3)]
+    [TestCase("assets", 0)]
+    [TestCase("assets", 2)]
+    [TestCase("assets", 3)]
+    public void PreviewRejectsUnsupportedSchemaVersions(string part, int version)
+    {
+        var envelope = PresentationPreviewTestFixture.Create();
+        Assert.That(PresentationLocalPreviewAdapter.TryCreate(envelope, out _, out string error), Is.True, error);
+        if (part == "envelope") envelope.SchemaVersion = (uint)version;
+        else if (part == "build") envelope.BuildManifest = envelope.BuildManifest.Replace("\"schemaVersion\":1", "\"schemaVersion\":" + version);
+        else envelope.AssetSet = envelope.AssetSet.Replace("\"schemaVersion\":1", "\"schemaVersion\":" + version);
+
+        Assert.That(PresentationLocalPreviewAdapter.TryCreate(envelope, out _, out error), Is.False);
+        Assert.That(error, Is.EqualTo("preview.envelope-invalid"));
+    }
+
     [UnityTest]
     public IEnumerator PreparedSceneRemainsHiddenUntilMatchingCommitAndSharesTextureOnSwap()
     {

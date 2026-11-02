@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 1,
   "reliableSequence": 0,
   "lastIngressSequence": 0,
   "lastAllocatedRunSequence": 0,

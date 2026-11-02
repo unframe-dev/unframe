@@ -317,6 +317,20 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(store.LastReliableSequence, Is.EqualTo(2));
     }
 
+    [TestCase(0U)]
+    [TestCase(2U)]
+    [TestCase(3U)]
+    public void DeliveryRejectsUnsupportedSchemaVersions(uint version)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.SchemaVersion = version;
+        Assert.That(new PresentationRuntimeDataStore().TryReceiveDelivery(delivery, out _), Is.False);
+
+        delivery = CreateDelivery();
+        delivery.CapabilityProfile.SchemaVersion = version;
+        Assert.That(new PresentationRuntimeDataStore().TryReceiveDelivery(delivery, out _), Is.False);
+    }
+
     [TestCase(2U, 1U)]
     [TestCase(1U, 2U)]
     public void DeliveryRejectsUnknownProgressionAndProjectionVersions(uint progression, uint projection)
@@ -624,7 +638,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
 
         ConnectionSnapshotEnvelope snapshot = new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 3,
+            SchemaVersion = 1,
             Fence = CreateFence(delivery),
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             ReliableSequence = 4,
@@ -1722,7 +1736,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         fence.PresentationOriginVersion = origin.Version;
         return new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 3,
+            SchemaVersion = 1,
             Fence = fence,
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             ReliableSequence = sequence,
@@ -1856,7 +1870,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
 
         DeliveryManifest delivery = new DeliveryManifest
         {
-            SchemaVersion = 3,
+            SchemaVersion = 1,
             DeliveryContractVersion = 3,
             SessionId = "session:main",
             Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
@@ -1865,7 +1879,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             AssetSetHash = "sha256:" + new string('d', 64),
             CapabilityProfile = new CapabilityProfile
             {
-                SchemaVersion = 3,
+                SchemaVersion = 1,
                 CapabilityProfileId = "capability:quest",
                 ContractVersions = new ContractVersions { Delivery = 3, Runtime = 3, Progression = 2, Projection = 2 },
                 Renderers = new RendererCapabilities { NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1 } },
@@ -1916,7 +1930,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         ConnectionSnapshotEnvelope snapshot = new ConnectionSnapshotEnvelope
         {
-            SchemaVersion = 3,
+            SchemaVersion = 1,
             Fence = CreateFence(delivery),
             ProjectionInstance = delivery.ProjectionInstance.Clone(),
             Snapshot = new ProjectedRuntimeSnapshot

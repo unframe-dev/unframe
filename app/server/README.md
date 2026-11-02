@@ -34,6 +34,8 @@ pnpm --filter @unframe/control-plane run dev
 
 Publication の `buildId` と AssetSet の asset ID は、英数字で始まり、以降は英数字・`.`・`_`・`:`・`-` からなる1〜128文字の単一 storage segment です。`/` は使用できません。R2 署名ではキーを segment ごとに encode し、URL pathname の decode 結果が元のキーと一致しない dot segment などを拒否します。
 
+現行の Presentation 成果物と checkpoint は schema version `1` のみ受理します。旧形式の build・publication は再 build・再公開が必要ですが、旧 publication の fence を取得する移行手順は未整備です。旧 checkpoint の自動移行はなく、復旧時は 409 を返します。Unity とサーバーも対応するバージョンを揃えてください。
+
 `PUBLICATION_ASSET_ORIGIN` は任意の HTTPS origin（path・query・credentials なし）です。設定すると、Delivery の素材 URL は同じ Control Plane の `ASSETS` binding を読む `/publication-assets/{presentationId}/{buildId}/{assetId}` へ向き、対象素材と最大5分の期限を `SERVICE_IDENTITY_SECRET` の用途別 HMAC で拘束します。返送前に公開済み build の media type・size・checksum を照合します。未設定時は既存 R2 backend の署名 URL を使用します。ローカル検証では Worker と同じストレージへ接続する HTTPS 入口をこの origin に指定してください。
 
 ## Room の管理 API

@@ -34,8 +34,8 @@ export type SampleConnection = Readonly<{
   presentationId: string;
   buildId: string;
 }>;
-export function sessionExpiry(now: number, credentialExpiry: number, leaseExpiry: number): string {
-  const expiry = Math.min(credentialExpiry, leaseExpiry);
+export function sessionExpiry(now: number, credentialExpiry: number, runExpiry: number): string {
+  const expiry = Math.min(credentialExpiry, runExpiry);
   if (!Number.isFinite(expiry) || expiry <= now) throw new Error("Sample session expired.");
   return new Date(expiry).toISOString();
 }

@@ -85,8 +85,8 @@ namespace Unframe.Unity.PresentationRuntime
                 Struct manifest = JsonParser.Default.Parse<Struct>(envelope.BuildManifest);
                 Struct assetSet = JsonParser.Default.Parse<Struct>(envelope.AssetSet);
                 string buildId = StringField(manifest, "buildId");
-                if (NumberField(manifest, "schemaVersion") != 2 || !PresentationDeliveryCatalog.IsId(buildId)
-                    || NumberField(assetSet, "schemaVersion") != 2) return false;
+                if (NumberField(manifest, "schemaVersion") != 1 || !PresentationDeliveryCatalog.IsId(buildId)
+                    || NumberField(assetSet, "schemaVersion") != 1) return false;
                 LocalPreviewProjection projection = envelope.Projection;
                 if (projection.RuntimeCatalog.PresenterRecognition != null || projection.LocalOverlays.Count != 0 || projection.RuntimeCatalog.CatalogContractVersion != 3
                     ) return false;
