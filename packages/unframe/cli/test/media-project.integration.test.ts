@@ -1,6 +1,6 @@
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { assert, expect, it } from "vitest";
+import { assert, expect, it } from "vite-plus/test";
 import { verifyBuildIntegrity } from "@unframe/artifacts";
 import { createLocalPlayback } from "@unframe/preview";
 import { runPresentationCli } from "../src/index.js";

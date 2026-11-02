@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { presentationDefinitionSchema } from "@unframe/contracts/presentation";
 
 import fixture from "../../../contracts/presentation/fixtures/presenter-cue-conformance.json";

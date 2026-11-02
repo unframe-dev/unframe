@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { buildModelPlan, buildResidentModelAssets } from "../model-plan";
 import { modelFixture as fixture } from "./support/model-fixture";
 describe("model plan", () => {

@@ -1,4 +1,4 @@
-import { assert, expect, it } from "vitest";
+import { assert, expect, it } from "vite-plus/test";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { parseAuthoringProject } from "@unframe/source";

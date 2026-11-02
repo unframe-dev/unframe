@@ -1,5 +1,5 @@
 import { createSessionRecorder } from "../../diagnostics/session-recorder";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { decodeWireMessage, encodeWireMessage } from "@unframe/contracts/presentation";
 import type { PreparedConnection } from "../join-controller";
 import type { RuntimeInput } from "../../experience/viewing-session";

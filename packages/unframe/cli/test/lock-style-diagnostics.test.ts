@@ -4,7 +4,7 @@ import { writeStyleBoundaryProjectFixture } from "./style-boundary-project-fixtu
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, assert, expect, it, vi } from "vitest";
+import { afterEach, assert, expect, it, vi } from "vite-plus/test";
 import { canonicalizeJsonPayload } from "@unframe/artifacts";
 import { runIsolatedWorker } from "@unframe/worker-host";
 import { runPresentationCli } from "../src/index.js";

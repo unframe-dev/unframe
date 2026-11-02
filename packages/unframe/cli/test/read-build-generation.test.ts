@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vite-plus/test";
 import definition from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../contracts/presentation/fixtures/asset-set-manifest.json";

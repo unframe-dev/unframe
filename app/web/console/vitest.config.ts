@@ -1,4 +1,4 @@
-import { configDefaults, defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vite-plus";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({

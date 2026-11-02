@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, assert, expect, it, vi } from "vitest";
+import { afterEach, assert, expect, it, vi } from "vite-plus/test";
 import { changePrincipal } from "@/shared/api/session-events";
 import { RoomSharing } from "./room-sharing";
 

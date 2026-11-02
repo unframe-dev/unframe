@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { resolvePackageExportTargets } from "@unframe/workspace-node";
 
 describe("fixed browser package export resolution", () => {

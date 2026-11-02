@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile, rename, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { NativeFilesystem, withNativeFilesystem } from "@unframe/workspace-node";
 
 it("shares one bounded native lifetime across nested operations and releases it on failure", async () => {

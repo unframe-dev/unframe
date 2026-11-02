@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { writeDiscoveryProjectFixture } from "./discovery-project-fixture.js";
 import { join } from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import definition from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../contracts/presentation/fixtures/render-bundle.json";

@@ -5,11 +5,11 @@
     index,
     children,
     tone = "light",
-  } = $props<{
+  }: {
     index: string;
     children: Snippet;
     tone?: "light" | "dark";
-  }>();
+  } = $props();
 </script>
 
 <div class={`eyebrow section-label inline-flex items-center gap-3 ${tone === "dark" ? "text-white/55" : "text-night/50"}`}>

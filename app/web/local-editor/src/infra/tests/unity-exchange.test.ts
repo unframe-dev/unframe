@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { createUnityExchange } from "../unity-exchange";
 
 it("ignores an older playback sequence and rejects missing notifications at the deadline", async () => {

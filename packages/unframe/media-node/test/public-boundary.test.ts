@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { resizeRgba } from "@unframe/media-node";
 
 it("rejects an invalid image through the media package", () => {

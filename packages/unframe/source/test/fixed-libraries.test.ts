@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { checkAuthoringProject } from "../src/index.js";
 
 it("rejects a React source snapshot without its TypeScript libraries", () => {
@@ -26,7 +26,7 @@ it("identifies library contents independent of their order", async () => {
 
 it("analyzes React source using only the supplied library snapshot", async () => {
   const ts = await import("typescript");
-  const { vi } = await import("vitest");
+  const { vi } = await import("vite-plus/test");
   const { parseAuthoringProject, analyzeAuthoringProject } = await import("../src/index.js");
   const readFile = vi.spyOn(ts.sys, "readFile").mockImplementation(() => {
     throw new Error("unexpected filesystem read");

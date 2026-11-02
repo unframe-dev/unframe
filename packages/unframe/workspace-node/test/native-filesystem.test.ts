@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 
 it("exits on owner EOF with native directories still open", async () => {
   const executable = fileURLToPath(

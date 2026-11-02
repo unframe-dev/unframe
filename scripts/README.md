@@ -49,7 +49,7 @@ Bun は `packages/config/bun.nix` で 1.4.2 に固定しています。1.3.13 �
 
 CLI の公開結果が不明な場合は、出力された操作の JSON を保持し、同じ認証情報で `publication-status '<操作のJSON>' <control-plane-origin>` を実行して照会します。照会は再公開を行いません。
 
-Apple Silicon で C# consumer を生成・検査するには Rosetta 2 が必要です。固定した `Grpc.Tools 2.76.0` は macOS の x64 plugin のみを配布しています。未導入の場合は `softwareupdate --install-rosetta` でライセンスを確認してインストールしてください。platform 判定は `scripts/lib/grpc-tools.sh` で共有し、`bash scripts/contracts/test-grpc-tools.sh` で単独検証できます。
+`Unframe.Wire.csproj` が参照する `Grpc.Tools` の macOS plugin は x64 / arm64 の universal binary です。platform 判定は `scripts/lib/grpc-tools.sh` で共有し、`bash scripts/contracts/test-grpc-tools.sh` で単独検証できます。
 
 Presentation v2 の Unity C# bindings は `packages/contracts/proto/` の正本から `protoc` で生成します。Unity 側に置く `.proto` コピーと生成 C# の drift は次で確認でき、正本更新後は引数を省略して生成・同期します。
 

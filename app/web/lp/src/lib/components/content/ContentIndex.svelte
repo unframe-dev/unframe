@@ -3,7 +3,7 @@
   import type { Component } from "svelte";
   import Header from "../layout/Header.svelte";
   import Footer from "../layout/Footer.svelte";
-  import type { ContentEntry } from "$lib/content-registry";
+  import type { ContentEntry } from "#lib/content-registry.js";
 
   type ContentKind = "News" | "Docs";
 
@@ -12,12 +12,12 @@
     kind,
     title,
     description,
-  } = $props<{
+  }: {
     entries: ContentEntry<Component>[];
     kind: ContentKind;
     title: string;
     description: string;
-  }>();
+  } = $props();
 
   const basePath = $derived(kind.toLowerCase());
   const sourceQuery = $derived(kind === "News" ? "?from=news" : "");

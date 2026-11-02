@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { openOpaqueCaptureRuntime } from "../src/opaque/capture/runtime.js";
 
 const boundary = vi.hoisted(() => ({

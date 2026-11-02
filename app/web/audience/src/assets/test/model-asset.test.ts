@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { readFile } from "node:fs/promises";
 import { Group } from "three";
 import { loadModelAsset, type ModelAsset } from "../model-asset";

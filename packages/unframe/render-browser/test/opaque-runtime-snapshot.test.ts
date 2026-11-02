@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, writeFile, symlink, rm, readFile, lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { it, expect } from "vitest";
+import { it, expect } from "vite-plus/test";
 import { snapshotOpaqueRuntimeDirectory } from "../src/opaque/capture/runtime-snapshot.js";
 
 it("rejects a dependency symlink to a file outside its runtime root", async () => {

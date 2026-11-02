@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import { buildViewerDiagnostic } from "../viewer-diagnostic";
 
 test("checkpoint keeps classified render failures without serializing asset secrets", () => {

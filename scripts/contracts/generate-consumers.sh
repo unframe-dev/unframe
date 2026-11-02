@@ -32,9 +32,9 @@ protoc --proto_path="${proto_root}" \
   "${protos[@]}"
 protoc --proto_path="${proto_root}" --csharp_out="${temp}/csharp/proto" "${protos[@]}"
 dotnet restore "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" --verbosity quiet
-nuget_root="$(dotnet nuget locals global-packages --list | sed 's/^global-packages: //')"
+grpc_tools_root="$(dotnet msbuild "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" -nologo -getProperty:PkgGrpc_Tools)"
 grpc_platform="$(grpc_tools_platform "$(uname -s)" "$(uname -m)")"
-grpc_plugin="${nuget_root}/grpc.tools/2.76.0/tools/${grpc_platform}/grpc_csharp_plugin"
+grpc_plugin="${grpc_tools_root}/tools/${grpc_platform}/grpc_csharp_plugin"
 if [[ ! -x "${grpc_plugin}" ]]; then
   echo "Grpc.Tools plugin is missing or not executable: ${grpc_plugin}" >&2
   exit 1
@@ -62,7 +62,7 @@ bun "${script_dir}/normalize-csharp-source.ts" "${temp}/openapi/src/Unframe.Cont
   printf 'protoc-gen-go=%s\n' "$(protoc-gen-go --version)"
   printf 'protoc-gen-go-grpc=%s\n' "$(protoc-gen-go-grpc --version)"
   printf 'openapi-generator-cli=%s\n' "$(openapi-generator-cli version)"
-  printf 'Grpc.Tools=2.76.0\n'
+  printf 'Grpc.Tools=%s\n' "$(basename "${grpc_tools_root}")"
 } >> "${temp}/provenance.sha256"
 
 sync_tree() {

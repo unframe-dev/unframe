@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { checksumBytes } from "../../src/build-execution/validation/source-assets.js";
 import { snapshotSourceAssets } from "../../src/build-execution/validation/snapshot-source-assets.js";
 

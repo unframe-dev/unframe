@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { refreshProjectLock } from "@unframe/workspace";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { prepareAuthorSave, saveAuthorPatch } from "../src/index.js";
 import type { PatchRequest } from "@unframe/contracts/author-http";
 

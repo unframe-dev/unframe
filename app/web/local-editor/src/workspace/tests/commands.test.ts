@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import type { PreviewPlaybackCommand, ProjectSnapshot } from "@unframe/contracts/author-http";
 import type { HostApi } from "../../infra/host-api";
 import type { PreviewDriver } from "../../preview/preview-driver";

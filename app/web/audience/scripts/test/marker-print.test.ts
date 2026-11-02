@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vite-plus/test";
 
 const root = pathToFileURL(`${process.cwd()}/`);
 function blackBounds(source: string) {

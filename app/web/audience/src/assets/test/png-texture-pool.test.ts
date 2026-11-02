@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { Texture } from "three";
 import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
