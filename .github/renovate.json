@@ -122,6 +122,16 @@
       "matchManagers": ["npm"],
       "matchPackageNames": ["protobufjs-cli"],
       "allowedVersions": "=2.7.0"
+    },
+    {
+      "description": "Keep deliberately older Tailwind fixtures isolated from the current version",
+      "matchManagers": ["npm"],
+      "matchDepNames": ["tailwindcss-older", "tailwindcss-postcss-older"],
+      "matchFileNames": [
+        "packages/unframe/styles-node/package.json",
+        "packages/unframe/cli/package.json"
+      ],
+      "enabled": false
     }
   ]
 }
