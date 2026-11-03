@@ -1,3 +1,4 @@
+import { WebSocket } from "ws";
 import { createProjectChanges } from "../src/author/project-changes.js";
 import { request, Server } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -34,6 +35,52 @@ const emptyPreviewArtifacts = (): BuildArtifacts => {
   buildManifest.assetSetHash = hashCanonicalJsonPayload(assetSet);
   return { definition, renderBundle, assetSet, buildManifest };
 };
+
+// Exercise the socket boundary while retaining Response assertions for command results.
+async function previewSocketRequest(url: string, init: RequestInit) {
+  const headers = new Headers(init.headers);
+  const parsed = new URL(url);
+  const socket = new WebSocket(`${parsed.origin.replace("http", "ws")}/api/editor-events`, {
+    headers: { origin: headers.get("origin") ?? "" },
+  });
+  return new Promise<Response>((resolve, reject) => {
+    let authenticated = false;
+    socket.on("error", reject);
+    socket.on("unexpected-response", (_request, response) => {
+      response.resume();
+      resolve(new Response(null, { status: response.statusCode ?? 500 }));
+    });
+    socket.on("open", () =>
+      socket.send(
+        JSON.stringify({ token: (headers.get("authorization") ?? "").replace(/^Bearer /, "") }),
+      ),
+    );
+    socket.on("close", () => resolve(new Response(null, { status: authenticated ? 400 : 401 })));
+    socket.on("message", (data) => {
+      const message = JSON.parse(data.toString());
+      if (message.type === "ready") {
+        authenticated = true;
+        const body = JSON.parse(String(init.body ?? "{}"));
+        const operation =
+          parsed.pathname === "/api/preview-playback"
+            ? { method: "playback", body }
+            : init.method === "DELETE"
+              ? { method: "invalidateDisplay" }
+              : { method: "confirmDisplay", body };
+        socket.send(JSON.stringify({ id: 1, operation }));
+      } else if (message.type === "error" || message.type === "result") {
+        const status =
+          message.type === "error" ? message.status : message.value === null ? 204 : 200;
+        resolve(
+          new Response(status === 204 ? null : JSON.stringify(message.value ?? message), {
+            status,
+          }),
+        );
+        socket.close();
+      }
+    });
+  });
+}
 
 const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];
 afterEach(async () => {
@@ -193,7 +240,7 @@ describe("local author HTTP boundary", () => {
     };
     const body = JSON.stringify({ requestId: "a".repeat(32), command: "poll" });
     const post = (requestBody: string, requestHeaders = headers) =>
-      fetch(`${host.origin}/api/preview-playback`, {
+      previewSocketRequest(`${host.origin}/api/preview-playback`, {
         method: "POST",
         headers: requestHeaders,
         body: requestBody,
@@ -260,8 +307,13 @@ describe("local author HTTP boundary", () => {
     });
     await readingJob;
     expect(
-      (await fetch(`${host.origin}/api/preview-display`, { method: "DELETE", headers, body: "{}" }))
-        .status,
+      (
+        await previewSocketRequest(`${host.origin}/api/preview-display`, {
+          method: "DELETE",
+          headers,
+          body: "{}",
+        })
+      ).status,
     ).toBe(204);
     resolveJob({
       buildId: "b".repeat(32),
@@ -325,7 +377,7 @@ describe("local author HTTP boundary", () => {
     };
     expect(
       (
-        await fetch(`${host.origin}/api/preview-display`, {
+        await previewSocketRequest(`${host.origin}/api/preview-display`, {
           method: "POST",
           body,
           headers: { ...headers, authorization: "" },
@@ -334,7 +386,7 @@ describe("local author HTTP boundary", () => {
     ).toBe(401);
     expect(
       (
-        await fetch(`${host.origin}/api/preview-display`, {
+        await previewSocketRequest(`${host.origin}/api/preview-display`, {
           method: "POST",
           body,
           headers: { ...headers, origin: "https://elsewhere.invalid" },
@@ -342,11 +394,22 @@ describe("local author HTTP boundary", () => {
       ).status,
     ).toBe(403);
     expect(
-      (await fetch(`${host.origin}/api/preview-display`, { method: "POST", body, headers })).status,
+      (
+        await previewSocketRequest(`${host.origin}/api/preview-display`, {
+          method: "POST",
+          body,
+          headers,
+        })
+      ).status,
     ).toBe(409);
     expect(
-      (await fetch(`${host.origin}/api/preview-display`, { method: "DELETE", body: "{}", headers }))
-        .status,
+      (
+        await previewSocketRequest(`${host.origin}/api/preview-display`, {
+          method: "DELETE",
+          body: "{}",
+          headers,
+        })
+      ).status,
     ).toBe(204);
     expect(
       (
@@ -454,12 +517,17 @@ it("accepts only the fixed Vite origin for development writes and still requires
     origin: "http://127.0.0.1:5174",
   };
   expect(
-    (await fetch(`${host.origin}/api/preview-display`, { method: "DELETE", headers, body: "{}" }))
-      .status,
+    (
+      await previewSocketRequest(`${host.origin}/api/preview-display`, {
+        method: "DELETE",
+        headers,
+        body: "{}",
+      })
+    ).status,
   ).toBe(204);
   expect(
     (
-      await fetch(`${host.origin}/api/preview-display`, {
+      await previewSocketRequest(`${host.origin}/api/preview-display`, {
         method: "DELETE",
         headers: { ...headers, origin: host.origin },
         body: "{}",
@@ -468,7 +536,7 @@ it("accepts only the fixed Vite origin for development writes and still requires
   ).toBe(403);
   expect(
     (
-      await fetch(`${host.origin}/api/preview-display`, {
+      await previewSocketRequest(`${host.origin}/api/preview-display`, {
         method: "DELETE",
         headers: { ...headers, authorization: "" },
         body: "{}",
@@ -609,7 +677,7 @@ it("keeps the displayed Preview through a waiting and failed Dev build until rep
     body: JSON.stringify({ requestId: "b".repeat(32) }),
   });
   const play = () =>
-    fetch(`${host.origin}/api/preview-playback`, {
+    previewSocketRequest(`${host.origin}/api/preview-playback`, {
       method: "POST",
       headers,
       body: JSON.stringify({ requestId, command: "poll" }),
@@ -647,7 +715,7 @@ it("keeps the displayed Preview through a waiting and failed Dev build until rep
   });
   expect(replacement.status).toBe(200);
   expect((await play()).status).toBe(409);
-  const confirmed = await fetch(`${host.origin}/api/preview-display`, {
+  const confirmed = await previewSocketRequest(`${host.origin}/api/preview-display`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -656,7 +724,7 @@ it("keeps the displayed Preview through a waiting and failed Dev build until rep
     }),
   });
   expect(confirmed.status).toBe(204);
-  const nextPlayback = await fetch(`${host.origin}/api/preview-playback`, {
+  const nextPlayback = await previewSocketRequest(`${host.origin}/api/preview-playback`, {
     method: "POST",
     headers,
     body: JSON.stringify({ requestId: nextRequestId, command: "poll" }),

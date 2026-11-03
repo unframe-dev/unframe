@@ -23,6 +23,7 @@ function fixture(readOnly = false) {
   const builds: string[] = [];
   let sequence = 0;
   const api = {
+    subscribePlayback: () => () => undefined,
     projectChanges: async (cursor?: string, signal?: AbortSignal) => {
       if (!cursor) return { cursor: "a".repeat(32) + ":0", changed: true };
       await new Promise<void>((resolve) =>

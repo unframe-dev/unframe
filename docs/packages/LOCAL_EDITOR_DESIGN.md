@@ -91,9 +91,9 @@ Delivery は描画 catalog・素材・fence を提供し、本番の Node／Surf
 
 ### ローカル再生
 
-Local Host は commit 済み request ごとに Core の Cue state と単調時計を持つ。`POST /api/preview-playback` は `requestId` と `command`（`poll`／`play`／`pause`／`reset`／`input`／`movePresenter`／`gesture`／`semanticEvent`／`surfaceInteraction`／`selectStep` と下記の確認・復旧 command）を受け、`input` のみ現在実行可能な `cueId` を指定する。`gesture` は種類、`semanticEvent` はイベント名と actor、`surfaceInteraction` は Surface／interaction ID を受ける。`selectStep` は存在する Group／Step を指定し、新しい run の初期状態で一時停止する。過去の実行結果は引き継がず、任意の状態・時刻は受け付けない。入力候補と guard・競合・完了・timer の評価は Core に委譲する。既存の Bearer／Origin 検証を適用し、古い request と実行不能な入力は `409` で拒否する。
+Local Host は commit 済み request ごとに Core の Cue state と単調時計を持つ。`/api/editor-events` WebSocket の `playback` 操作は `requestId` と `command`（`poll`／`play`／`pause`／`reset`／`input`／`movePresenter`／`gesture`／`semanticEvent`／`surfaceInteraction`／`selectStep` と下記の確認・復旧 command）を受け、`input` のみ現在実行可能な `cueId` を指定する。`gesture` は種類、`semanticEvent` はイベント名と actor、`surfaceInteraction` は Surface／interaction ID を受ける。`selectStep` は存在する Group／Step を指定し、新しい run の初期状態で一時停止する。過去の実行結果は引き継がず、任意の状態・時刻は受け付けない。入力候補と guard・競合・完了・timer の評価は Core に委譲する。接続時に Host／Origin を検証し、最初の JSON メッセージの `token` で Editor session を認証する。古い request と実行不能な入力は `409` のエラー応答で拒否する。
 
-応答は `LocalPreviewPlaybackState`（request、sequence、現在の Group、Node／Surface 状態、ActiveRuns、RuntimeClock）と現在の Group／Step・入力候補・終了状態を返す。Web は約100ms間隔で直列に取得し、Unity の `Playback` acknowledgement を待つ。Unity は catalog と sequence を検証して状態を適用し、共通プレイヤーを毎 frame 更新する。reset は時刻をゼロに戻し、run の識別子を更新するが sequence は戻さない。新しい load・invalidate・終了で再生要求を無効化し、古い応答を破棄する。再生状態は Source や Dist へ保存しない。
+応答は `LocalPreviewPlaybackState`（request、sequence、現在の Group、Node／Surface 状態、ActiveRuns、RuntimeClock）と現在の Group／Step・入力候補・終了状態を返す。Host は再生中だけ約100ms間隔で状態を配信し、Web が Unity の `Playback` acknowledgement を受けて `applied` を送るまで次の配信を待つ。一時停止中とビルド待機中は定期配信しない。初回同期、操作、状態配信、反映確認と表示 commit／無効化は同じ WebSocket 接続を使う。切断時は最後の反映確認済み状態へ復元し、一時停止して再同期する。Unity は catalog と sequence を検証して状態を適用し、共通プレイヤーを毎 frame 更新する。reset は時刻をゼロに戻し、run の識別子を更新するが sequence は戻さない。新しい load・invalidate・終了で再生要求を無効化し、古い応答を破棄する。再生状態は Source や Dist へ保存しない。
 
 ### Zone の確認
 
