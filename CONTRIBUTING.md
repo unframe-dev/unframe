@@ -103,6 +103,7 @@ nix run .#setup
 | Realtime check / test / build / race | `nix run .#realtime`                                          |
 | Console check / test / build         | `nix run .#console`                                           |
 | Local Editor check / test / build    | `nix run .#local-editor`                                      |
+| Local Editor 開発                    | `nix run .#local-editor -- dev <project-directory>`           |
 | Audience check / test / build        | `nix run .#audience`                                          |
 | Audience 開発 / build preview        | `nix run .#audience -- dev` / `nix run .#audience -- preview` |
 | LP test / check / build              | `nix run .#lp`                                                |

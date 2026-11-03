@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# app/web/local-editor (local Source editor) の品質処理。
+# app/web/local-editor (local Source editor) の品質処理と開発起動。
 #   check (既定): check / test / build
 #   fix         : vp fmt (format)
 # fix の結果は autofix.yml が commit する。
@@ -9,10 +9,20 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${DIR}/../lib/paths.sh"
 
 mode="${1:-check}"
+if [ "$#" -gt 0 ]; then
+  shift
+fi
 
 test -f "${LOCAL_EDITOR_DIR}/package.json"
 
 case "${mode}" in
+  dev)
+    if [ "$#" -ne 1 ]; then
+      echo "usage: local-editor.sh dev <project-directory>" >&2
+      exit 2
+    fi
+    exec pnpm --config.verify-deps-before-run=false --filter @unframe-dev/cli run dev -- "$1"
+    ;;
   fix)
     log "local-editor(fix): vp fmt"
     pnpm --config.verify-deps-before-run=false exec vp fmt "${LOCAL_EDITOR_DIR}"
@@ -24,7 +34,7 @@ case "${mode}" in
     pnpm --config.verify-deps-before-run=false --filter "${LOCAL_EDITOR_FILTER}" run build
     ;;
   *)
-    echo "usage: local-editor.sh [check|fix]" >&2
+    echo "usage: local-editor.sh [check|fix|dev <project-directory>]" >&2
     exit 2
     ;;
 esac

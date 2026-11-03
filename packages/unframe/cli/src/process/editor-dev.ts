@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAuthorProcess } from "../author/start.js";
+import { runWithEditorDevServer } from "./editor-dev-server.js";
 
 const args = process.argv.slice(2);
 const scoped = args[0] === "--inside-editor-scope";
@@ -21,13 +22,17 @@ const run = async () => {
   process.on("SIGTERM", abort);
   try {
     if (!host.cgroup) {
-      await runAuthorProcess(directory, controller.signal, true);
+      await runWithEditorDevServer(repository, controller.signal, (signal) =>
+        runAuthorProcess(directory, signal, true),
+      );
       return;
     }
     if (scoped) {
       if (!process.env["UNFRAME_OPAQUE_CGROUP_ROOT"])
         throw new Error("Opaque capture scope was not prepared.");
-      await runAuthorProcess(directory, controller.signal, true);
+      await runWithEditorDevServer(repository, controller.signal, (signal) =>
+        runAuthorProcess(directory, signal, true),
+      );
       return;
     }
     const child = spawn(
