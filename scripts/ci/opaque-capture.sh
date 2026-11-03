@@ -61,6 +61,11 @@ renderer() {
     test/playwright-fixed-browser.integration.test.ts
 }
 
+prepare_cli() {
+  bash "${repo_root}/scripts/build-cli-filesystem.sh"
+  pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter @unframe-dev/cli run build:analysis
+}
+
 cli_project() {
   run_tests cli test/opaque-project.integration.test.ts test/media-project.integration.test.ts
   run_tests media-node test/video-validator.integration.test.ts
@@ -69,7 +74,7 @@ cli_project() {
 cli_author() {
   run_tests cli \
     test/author-capture.integration.test.ts test/author-source-diagnostics.integration.test.ts \
-    test/logical-input-project.integration.test.ts
+    test/logical-input-project.integration.test.ts test/author-service-lock-sync.integration.test.ts
 }
 
 cli_styles() {
@@ -132,7 +137,7 @@ macos() {
 case "$suite" in
   renderer) renderer ;;
   cli-project | cli-author | cli-styles)
-    bash "${repo_root}/scripts/build-cli-filesystem.sh"
+    prepare_cli
     case "$suite" in
       cli-project) cli_project ;;
       cli-author) cli_author ;;
@@ -141,7 +146,7 @@ case "$suite" in
     ;;
   macos) macos ;;
   all)
-    bash "${repo_root}/scripts/build-cli-filesystem.sh"
+    prepare_cli
     renderer
     cli_project
     cli_author

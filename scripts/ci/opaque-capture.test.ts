@@ -185,6 +185,7 @@ const linuxIntegrationFiles = [
   "test/author-capture.integration.test.ts",
   "test/author-source-diagnostics.integration.test.ts",
   "test/logical-input-project.integration.test.ts",
+  "test/author-service-lock-sync.integration.test.ts",
   "test/styles-worker.integration.test.ts",
   "test/tailwind-project.integration.test.ts",
 ];
@@ -221,6 +222,7 @@ test(
       "test/author-capture.integration.test.ts",
       "test/author-source-diagnostics.integration.test.ts",
       "test/logical-input-project.integration.test.ts",
+      "test/author-service-lock-sync.integration.test.ts",
     ]);
   },
 );
@@ -350,3 +352,25 @@ test(
     assert.deepEqual(integrationFiles(result.commands).sort(), linuxIntegrationFiles.toSorted());
   },
 );
+
+for (const suite of ["cli-project", "cli-author", "cli-styles"]) {
+  test(
+    `the ${suite} shard builds the analysis worker before CLI tests`,
+    { skip: process.platform !== "linux" },
+    () => {
+      const result = fixture().run([suite]);
+      assert.equal(result.status, 0, result.stderr);
+      const analysis = result.commands.findIndex(
+        ({ command, args }) =>
+          command === "pnpm" &&
+          args.includes("@unframe-dev/cli") &&
+          args.includes("build:analysis"),
+      );
+      const cliTests = result.commands.findIndex(
+        ({ command, args }) =>
+          command === "pnpm" && args.includes("@unframe-dev/cli") && args.includes("test"),
+      );
+      assert.ok(analysis >= 0 && analysis < cliTests);
+    },
+  );
+}

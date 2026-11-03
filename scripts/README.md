@@ -100,7 +100,7 @@ nix develop --command scripts/ci/opaque-capture.sh
 
 通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。Linux では delegated scope を作り、macOS では native adapter を直接使用します。Opaque integration は通常の package unit test から分離しています。GitHub Actions の AppArmor 許可は Linux の専用 step の executable path に限定します。
 
-Presentation CI の型・lint・共通単体テスト、契約生成・wire 互換性検査、参照 project の二回 build は Ubuntu で実行します。Ubuntu の Opaque integration は `renderer`、`cli-project`、`cli-author`、`cli-styles` の独立した4ジョブで並列実行し、各ジョブ内は直列にして cgroup の回収検査との競合を防ぎます。macOS は native filesystem、Darwin の隔離・回収、固定 Browser・locked font の描画、native Tailwind worker の検証に限定します。各ジョブの上限は45分で、集約 CI はすべての成功を必須とします。
+Presentation CI の型・lint・共通単体テスト、契約生成・wire 互換性検査、参照 project の二回 build は Ubuntu で実行します。Ubuntu の Opaque integration は `renderer`、`cli-project`、`cli-author`、`cli-styles` の独立した4ジョブで並列実行し、各ジョブ内は直列にして cgroup の回収検査との競合を防ぎます。 CLI の各 Opaque ジョブは filesystem helper と analysis worker を準備し、CLI 単体テストのジョブは style worker も先にビルドします。macOS は native filesystem、Darwin の隔離・回収、固定 Browser・locked font の描画、native Tailwind worker の検証に限定します。各ジョブの上限は45分で、集約 CI はすべての成功を必須とします。
 
 通常の Packages check は `contracts`、`core`、`usecases`、`adapters`、`cli`、`acceptance` の6ジョブに分割します。型宣言ビルドのメモリ競合を避けるため、各ジョブ内の package 処理は直列です。`acceptance` は必要な package を自前で build し、配布物検証と参照 project の二回 build を実行します。個別実行は `nix run .#presentation -- <suite>`、全 suite のローカル実行は従来どおり `nix run .#presentation` です。
 
@@ -110,7 +110,7 @@ PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と�
 
 ## Native helper と worker の準備
 
-CLI の path 検査、成果物公開、build cache、Source 保存 transaction は Go 製 native filesystem helper を使用します。repository root で `bash scripts/build-cli-filesystem.sh` を実行すると `packages/unframe/workspace-node/native-bin/` に Linux x86_64 と macOS arm64 向け helper を生成します。native 専用 Go module の依存は `packages/unframe/workspace-node/native/go.mod` と `go.sum` で固定します。CLI の pnpm `presentation` / `dev` / `tui` / `test` / `test:tui` は hook で生成します。`vp test` の直接実行や headless API の直接利用など hook を通らない consumer は、先に同 script を実行してください。
+CLI の path 検査、成果物公開、build cache、Source 保存 transaction は Go 製 native filesystem helper を使用します。repository root で `bash scripts/build-cli-filesystem.sh` を実行すると `packages/unframe/workspace-node/native-bin/` に Linux x86_64 と macOS arm64 向け helper を生成します。native 専用 Go module の依存は `packages/unframe/workspace-node/native/go.mod` と `go.sum` で固定します。CLI の pnpm `presentation` / `dev` / `tui` / `test` / `test:tui` は hook で生成します。`vp test` の直接実行や headless API の直接利用など hook を通らない consumer は、先に同 script を実行してください。Author 分析を使う場合は、`pnpm --filter @unframe-dev/cli run build:analysis` も必要です。
 
 Style / capture 共通の OS 別隔離・資源制限・終了確認は `@unframe-dev/worker-host` が所有し、Browser の配置と起動は Renderer、固定 Node graph の配置と Style 変換の準備は `@unframe-dev/styles-node` が所有します。Linux / macOS の保証差と実機検証範囲は ADR-0026 を参照してください。
 
