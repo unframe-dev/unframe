@@ -9,7 +9,6 @@ export function PropsInspector() {
   const s = useStore(workspace.project.store);
   const [next, setNext] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
-  const selected = s.project?.instances.find((i) => i.instanceId === s.selectedId);
   const disabled =
     s.status === "saving" || s.status === "conflict" || !!s.pending || !s.project?.irHash;
   const choose = (id: string) => {
@@ -40,7 +39,7 @@ export function PropsInspector() {
             id={id}
             prop={prop}
             disabled={disabled}
-            changed={!Object.is(prop.value, selected?.props[id]?.value)}
+            changed={s.dirtyPropIds.has(id)}
             onChange={(value) => workspace.project.editProp(id, value)}
             onSave={() => void workspace.commands.saveProps(id)}
           />
@@ -76,11 +75,10 @@ export function PropsInspector() {
           <Button
             disabled={disabled}
             onClick={async () => {
-              for (const [id, prop] of Object.entries(s.draft?.props ?? {})) {
-                if (!Object.is(prop.value, selected?.props[id]?.value)) {
-                  await workspace.commands.saveProps(id);
-                  if (workspace.project.store.getState().pending) break;
-                }
+              for (const id of Object.keys(s.draft?.props ?? {})) {
+                if (!s.dirtyPropIds.has(id)) continue;
+                await workspace.commands.saveProps(id);
+                if (workspace.project.store.getState().pending) break;
               }
               if (workspace.project.store.getState().status === "clean") {
                 workspace.project.selectInstance(next);
