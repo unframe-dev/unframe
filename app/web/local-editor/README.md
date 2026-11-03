@@ -62,7 +62,7 @@ Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` �
 
 保存内容の検証、Dev lock の再計算、描画と成果物の一時書き込みは Source ロック外で進め、保存・lock 更新・成果物の確定時に再取得して revision を検証します。競合した結果は確定せず、保存要求の再送は同じ command ID の receipt と照合します。Host 終了時には待機を中断し、受付済み build は取消でも待機を中断できます。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。
 
-公開には `UNFRAME_CONTROL_PLANE_URL`、`UNFRAME_WEB_ORIGIN`、`UNFRAME_DEVICE_CLIENT_ID` を Host 起動時にすべて設定します。origin は HTTPS、または loopback HTTP を指定します。承認画面は設定済み Web origin の `/device` で開き、bearer と `device_code` は Host のメモリーだけに保持します。公開は Unity の commit と初期 playback 適用が確認された Dist と現在の `dist` が一致する場合だけ開始し、受付後は upload 元を固定します。
+公開には `UNFRAME_CONTROL_PLANE_URL`、`UNFRAME_WEB_ORIGIN`、`UNFRAME_DEVICE_CLIENT_ID` を Host 起動時にすべて設定します。origin は HTTPS、または loopback HTTP を指定します。承認画面は設定済み Web origin の `/device` で開き、bearer と `device_code` は Host のメモリーだけに保持します。認証待ちの確認は Host が認証サービスの指定間隔で行い、UI への状態変更通知は Preview と同じ WebSocket 接続を使います。UI は認証状態を定期取得せず、再接続時に最新状態を受け取ります。公開は Unity の commit と初期 playback 適用が確認された Dist と現在の `dist` が一致する場合だけ開始し、受付後は upload 元を固定します。
 
 ## 品質ゲート
 

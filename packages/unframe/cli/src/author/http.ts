@@ -357,6 +357,7 @@ export const startAuthorHost = async ({
   });
   const events = startEditorSocket({
     server,
+    auth,
     authority: () => authority,
     origin: () => origin,
     token,

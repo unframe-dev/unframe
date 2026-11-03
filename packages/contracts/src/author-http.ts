@@ -450,6 +450,7 @@ export const editorSocketRequestSchema = z
   .strict();
 export const editorSocketMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ready") }).strict(),
+  z.object({ type: z.literal("publicationAuth"), value: publicationAuthSchema }).strict(),
   z
     .object({ type: z.literal("result"), id: z.number().int().positive(), value: z.unknown() })
     .strict(),

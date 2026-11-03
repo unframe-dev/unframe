@@ -2,6 +2,7 @@ import {
   editorSocketMessageSchema,
   previewPlaybackResponseSchema,
   type EditorSocketOperation,
+  type PublicationAuth,
   type PreviewPlaybackResponse,
 } from "@unframe-dev/contracts/author-http";
 import { encodeWireMessage } from "@unframe-dev/contracts/presentation";
@@ -20,6 +21,16 @@ export function createEditorSocket(token: string, baseUrl?: string) {
     state(value: PreviewPlaybackResponse): void;
     disconnected: ((error: unknown) => void) | undefined;
   }>();
+  const authListeners = new Set<(value: PublicationAuth) => void>();
+  let authSnapshot: PublicationAuth | undefined;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  function retry() {
+    if (disposed || !authListeners.size || retryTimer !== undefined) return;
+    retryTimer = setTimeout(() => {
+      retryTimer = undefined;
+      void connect().catch(retry);
+    }, 500);
+  }
   const disconnected = () =>
     new HostApiError(503, "editor-socket-disconnected", "Editor connection interrupted.");
   function parsePlayback(value: unknown): PreviewPlaybackResponse {
@@ -30,6 +41,8 @@ export function createEditorSocket(token: string, baseUrl?: string) {
   function connect(): Promise<WebSocket> {
     if (disposed) return Promise.reject(disconnected());
     if (connecting) return connecting;
+    clearTimeout(retryTimer);
+    retryTimer = undefined;
     const url = new URL("/api/editor-events", baseUrl ?? location.href);
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const connection = new WebSocket(url);
@@ -45,6 +58,9 @@ export function createEditorSocket(token: string, baseUrl?: string) {
             ready = true;
             clearTimeout(timeout);
             resolve(connection);
+          } else if (message.type === "publicationAuth") {
+            authSnapshot = message.value;
+            for (const listener of authListeners) listener(message.value);
           } else if (message.type === "playback") {
             const value = parsePlayback(message.value);
             for (const listener of listeners) listener.state(value);
@@ -72,6 +88,8 @@ export function createEditorSocket(token: string, baseUrl?: string) {
         if (socket !== connection) return;
         socket = undefined;
         connecting = undefined;
+        authSnapshot = undefined;
+        retry();
         const error = disconnected();
         reject(error);
         for (const request of pending.values()) request.reject(error);
@@ -140,10 +158,26 @@ export function createEditorSocket(token: string, baseUrl?: string) {
         listeners.delete(listener);
       };
     },
+    subscribePublicationAuth(state: (value: PublicationAuth) => void) {
+      if (disposed) return () => undefined;
+      authListeners.add(state);
+      if (authSnapshot) state(authSnapshot);
+      void connect().catch(retry);
+      return () => {
+        authListeners.delete(state);
+        if (!authListeners.size) {
+          clearTimeout(retryTimer);
+          retryTimer = undefined;
+        }
+      };
+    },
     dispose() {
       disposed = true;
+      clearTimeout(retryTimer);
       socket?.close();
       listeners.clear();
+      authListeners.clear();
+      authSnapshot = undefined;
     },
   };
 }

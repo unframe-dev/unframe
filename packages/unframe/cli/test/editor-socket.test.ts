@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { startAuthorHost } from "../src/author/http.js";
 import { createProjectChanges } from "../src/author/project-changes.js";
 import { PreviewError, type LocalPreviewService } from "@unframe-dev/preview";
-import type { PreviewPlaybackResponse } from "@unframe-dev/contracts/author-http";
+import type { PublicationAuth, PreviewPlaybackResponse } from "@unframe-dev/contracts/author-http";
 import { createHostApi } from "../../../../app/web/local-editor/src/infra/host-api.js";
 
 const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];
@@ -14,7 +14,10 @@ afterEach(async () => {
   await Promise.all(hosts.splice(0).map((host) => host.close()));
   vi.unstubAllGlobals();
 });
-async function setup() {
+async function setup(
+  auth?: import("../src/author/publication-auth.js").PublicationAuth,
+  failedConnections = 0,
+) {
   let running = false;
   let sequence = 0;
   let latest: PreviewPlaybackResponse;
@@ -48,6 +51,7 @@ async function setup() {
     changes: createProjectChanges(),
     previews,
     assets: new Map(),
+    ...(auth ? { auth } : {}),
   });
   hosts.push(host);
   // Browsers supply Origin automatically; Node's socket needs it explicitly.
@@ -56,12 +60,18 @@ async function setup() {
     "WebSocket",
     class extends WebSocket {
       constructor(url: string | URL) {
-        super(url, { origin: host.origin });
+        super(connections.length < failedConnections ? `${url}/unavailable` : url, {
+          origin: host.origin,
+        });
         connections.push(this);
       }
     },
   );
-  const api = createHostApi(host.token, { baseUrl: host.origin });
+  const api = createHostApi(host.token, {
+    baseUrl: host.origin,
+    fetch: (url, init) =>
+      fetch(url, { ...init, headers: { ...init?.headers, origin: host.origin } }),
+  });
   clients.push(api);
   return { host, api, previews, connections };
 }
@@ -196,4 +206,92 @@ it("does not restart acknowledgement-gated playback after rejected inputs or sta
   expect(pushed).toHaveLength(1);
   await api.playback({ requestId, command: "applied", sequence: pushed[0]!.state.sequence! });
   await vi.waitFor(() => expect(pushed).toHaveLength(2));
+});
+
+it("shares auth snapshots and changes with Preview, reconnects while idle and stops on dispose", async () => {
+  const { createPublicationAuth } = await import("../src/author/publication-auth.js");
+  const auth = createPublicationAuth({
+    controlPlaneUrl: "https://api.example.com",
+    webOrigin: "https://web.example.com",
+    clientId: "editor",
+    fetch: (async () =>
+      Response.json({
+        device_code: "secret-device",
+        user_code: "code",
+        interval: 300,
+        expires_in: 600,
+        verification_uri_complete: "https://web.example.com/device?user_code=code",
+      })) as typeof fetch,
+  });
+  const { api, connections } = await setup(auth);
+  const states: PublicationAuth[] = [];
+  const unsubscribe = api.subscribePublicationAuth((state) => states.push(state));
+  await vi.waitFor(() => expect(states).toEqual([{ status: "signed-out" }]));
+  await api.confirmDisplay(requestId, "build");
+  expect(connections).toHaveLength(1);
+  await api.beginPublicationAuth();
+  await vi.waitFor(() => expect(states.at(-1)?.status).toBe("pending"));
+  expect(JSON.stringify(states)).not.toContain("secret-device");
+  connections[0]!.terminate();
+  await vi.waitFor(() => expect(connections).toHaveLength(2));
+  await vi.waitFor(() => expect(states).toHaveLength(3));
+  expect(states[2]).toEqual(states[1]);
+  await api.cancelPublicationAuth();
+  await vi.waitFor(() => expect(states.at(-1)).toEqual({ status: "signed-out" }));
+  unsubscribe();
+  api.dispose();
+  await wait(600);
+  expect(connections).toHaveLength(2);
+});
+
+it("retries auth-only subscriptions after an initial connection failure and cancels retries on unsubscribe", async () => {
+  const { api, connections } = await setup(undefined, 1);
+  const states: PublicationAuth[] = [];
+  const unsubscribe = api.subscribePublicationAuth((state) => states.push(state));
+  await vi.waitFor(() => expect(states).toEqual([{ status: "unconfigured" }]));
+  expect(connections).toHaveLength(2);
+  const lateStates: PublicationAuth[] = [];
+  const unsubscribeLate = api.subscribePublicationAuth((state) => lateStates.push(state));
+  expect(lateStates).toEqual([{ status: "unconfigured" }]);
+  expect(connections).toHaveLength(2);
+  connections[1]!.terminate();
+  await once(connections[1]!, "close");
+  unsubscribe();
+  unsubscribeLate();
+  await wait(600);
+  expect(connections).toHaveLength(2);
+});
+
+it("does not overwrite a changed auth state with an older initial snapshot", async () => {
+  const { createPublicationAuth } = await import("../src/author/publication-auth.js");
+  const auth = createPublicationAuth({
+    controlPlaneUrl: "https://api.example.com",
+    webOrigin: "https://web.example.com",
+    clientId: "editor",
+    fetch: (async () =>
+      Response.json({
+        device_code: "private-device",
+        user_code: "code",
+        interval: 300,
+        expires_in: 600,
+        verification_uri_complete: "https://web.example.com/device?user_code=code",
+      })) as typeof fetch,
+  });
+  let finish!: (value: import("../src/author/publication-auth.js").PublicationAuthStatus) => void;
+  vi.spyOn(auth, "status").mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const { api } = await setup(auth);
+  const states: PublicationAuth[] = [];
+  api.subscribePublicationAuth((state) => states.push(state));
+  await vi.waitFor(() => expect(auth.status).toHaveBeenCalledOnce());
+  await auth.start();
+  await vi.waitFor(() => expect(states.at(-1)?.status).toBe("pending"));
+  finish({ status: "signed-out" });
+  await wait(20);
+  expect(states).toHaveLength(1);
+  expect(states[0]?.status).toBe("pending");
 });
