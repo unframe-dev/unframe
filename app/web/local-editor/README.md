@@ -28,7 +28,7 @@ nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor run build:distribution
 ```
 
-開発時は次の1コマンドで UI 開発サーバーと CLI を起動します。
+開発時は次の1コマンドで UI 開発サーバーと CLI を起動します。 API と Player のリクエストは CLI の準備完了まで最大20秒待機し、準備できない場合は503で終了します。
 
 ```bash
 nix run .#local-editor -- dev ./example
