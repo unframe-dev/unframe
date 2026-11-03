@@ -808,6 +808,35 @@ it("revokes publication receipts during recovery and permanently invalidates fai
   expect(service.playback({ requestId: requestB, command: "poll" }).occurrences).toEqual([]);
 });
 
+it("recovers through the service from the last acknowledged state after an unseen push", async () => {
+  const service = createLocalPreviewService("/project", {
+    readGeneration: async () => generation(),
+  });
+  await service.load({ requestId: requestA, channel: "dist" });
+  service.committed({ requestId: requestA, buildIdentity: "build-a" });
+  const initial = service.playback({ requestId: requestA, command: "poll" });
+  service.playback({ requestId: requestA, command: "applied", sequence: initial.state.sequence! });
+  service.playback({ requestId: requestA, command: "play" });
+  const restored = service.playback({
+    requestId: requestA,
+    command: "recover",
+    sequence: initial.state.sequence!,
+  });
+  expect(restored.state.clock).toHaveProperty("paused");
+  await expect(service.pinDisplayedDist(requestA)).rejects.toThrow();
+  service.playback({ requestId: requestA, command: "applied", sequence: restored.state.sequence! });
+  expect(() =>
+    service.playback({
+      requestId: requestA,
+      command: "recover",
+      sequence: initial.state.sequence!,
+    }),
+  ).toThrow();
+  await expect(service.pinDisplayedDist(requestA)).resolves.toMatchObject({
+    generationId: generationA,
+  });
+});
+
 it("requires the initial playback acknowledgement before publishing a newly committed request", async () => {
   const service = createLocalPreviewService("/project", {
     readGeneration: async () => generation(),

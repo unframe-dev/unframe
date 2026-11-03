@@ -78,7 +78,6 @@ type Candidate = {
   playback: ReturnType<typeof createLocalPlayback>;
   receiptHealthy: boolean;
   recovering: boolean;
-  lastSequence?: string | undefined;
 };
 
 export type PreviewAsset = { bytes: Uint8Array; mediaType: string };
@@ -277,15 +276,9 @@ export const createLocalPreviewService = (
       }
       if (displayed.recovering && input.command !== "applied" && input.command !== "recover")
         fail(409, "preview-recovering", "Preview recovery must finish before playback continues.");
-      if (input.command === "recover") {
-        if (input.sequence !== displayed.lastSequence)
-          fail(409, "preview-stale", "Playback recovery sequence is stale.");
-        displayed.receiptHealthy = false;
-        displayed.recovering = true;
-      }
       const response = displayed.playback(input);
-      displayed.lastSequence = response.state.sequence;
       displayed.receiptHealthy = input.command === "applied";
+      if (input.command === "recover") displayed.recovering = true;
       if (input.command === "applied") displayed.recovering = false;
       return response;
     },
