@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vite-plus/test";
-import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe/artifacts";
-import { verifyBuildIntegrity } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe-dev/artifacts";
+import { verifyBuildIntegrity } from "@unframe-dev/artifacts";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetsFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import manifestFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { publishFixedBuild, queryPublication } from "@unframe/publish";
+import { publishFixedBuild, queryPublication } from "@unframe-dev/publish";
 
 function build() {
   const parsed = verifyBuildIntegrity({

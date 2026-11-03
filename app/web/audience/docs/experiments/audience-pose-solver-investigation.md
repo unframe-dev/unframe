@@ -58,7 +58,7 @@ frame73のSDK予測との位置差は約50.8cm→約1.26cm。ただしSDKの正�
 再生コマンド（出力先を明示する）:
 
 ```bash
-pnpm --filter @unframe/audience exec node scripts/analyze-pose-log.mjs /path/to/audience-anchor-comparison-log.json /tmp/audience-pose-replay.json
+pnpm --filter @unframe-dev/audience exec node scripts/analyze-pose-log.mjs /path/to/audience-anchor-comparison-log.json /tmp/audience-pose-replay.json
 ```
 
 記録済みの旧結果と現在の推定器による再計算を比較する。省略されたフレームの補完はせず、入力のリング欠落件数を出力へ引き継ぐ。

@@ -1,7 +1,7 @@
 import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import runtime from "../../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 export function modelFixture() {
   const view = participantRuntimeViewSchema.parse(runtime);

@@ -22,7 +22,7 @@ Component 作者は公開契約と見た目を一ファイルで定義し、Pres
 
 ```tsx
 // Hero.component.tsx
-import { defineComponent, editableText, prop } from "@unframe/authoring";
+import { defineComponent, editableText, prop } from "@unframe-dev/authoring";
 import "./components.css";
 
 export const Hero = defineComponent({
@@ -60,7 +60,7 @@ export const Hero = defineComponent({
 
 ```tsx
 // Reveal.component.tsx
-import { defineComponent, editableText, prop, setState } from "@unframe/authoring";
+import { defineComponent, editableText, prop, setState } from "@unframe-dev/authoring";
 import "./components.css";
 
 export const Reveal = defineComponent({
@@ -138,7 +138,7 @@ button に `onClick` は付けない。Runtime の Interaction → 公開 Output
 
 ```ts
 // presentation.unframe.ts
-import { definePresentation } from "@unframe/authoring";
+import { definePresentation } from "@unframe-dev/authoring";
 import { Hero } from "./Hero.component";
 import { Reveal } from "./Reveal.component";
 

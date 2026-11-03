@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { assert, describe, expect, it, vi } from "vite-plus/test";
 import { readBrowserDist } from "./read-dist";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import { createHash } from "node:crypto";
 import { distFixture, memoryFile } from "./test-support/dist-fixture";
 

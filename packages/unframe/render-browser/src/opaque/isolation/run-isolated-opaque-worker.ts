@@ -3,7 +3,7 @@ import {
   runIsolatedWorker,
   type IsolatedWorkerInput,
   type IsolatedWorkerOptions,
-} from "@unframe/worker-host";
+} from "@unframe-dev/worker-host";
 
 export const runIsolatedOpaqueWorker = (
   input: Pick<IsolatedWorkerInput, "workerPath" | "runtimePaths" | "input"> & {

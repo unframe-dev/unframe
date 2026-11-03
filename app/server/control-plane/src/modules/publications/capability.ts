@@ -5,7 +5,7 @@ import {
   capabilityProfileSchema,
   runtimeAuthorityVersions,
   type CapabilityProfile,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 
 const bakedWebQuestProfile = capabilityProfileSchema.parse({
   schemaVersion: runtimeAuthorityVersions.capability,

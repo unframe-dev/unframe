@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AuthorError } from "@unframe/author-service";
+import { AuthorError } from "@unframe-dev/author-service";
 
 export type PublicationAuthStatus = {
   status: "unconfigured" | "signed-out" | "pending" | "authenticated" | "denied" | "expired";

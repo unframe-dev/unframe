@@ -7,13 +7,18 @@ export default defineConfig({
     dts: { eager: true },
     deps: {
       alwaysBundle: [
-        /^@unframe\/(?:artifacts|contracts)(?:\/|$)/,
+        /^@unframe-dev\/(?:artifacts|contracts)(?:\/|$)/,
         /^@noble\/hashes(?:\/|$)/,
         "canonicalize",
       ],
-      neverBundle: [/^@unframe\/(?:workspace|build)(?:\/|$)/, /^zod(?:\/|$)/, "yaml", "typescript"],
+      neverBundle: [
+        /^@unframe-dev\/(?:workspace|build)(?:\/|$)/,
+        /^zod(?:\/|$)/,
+        "yaml",
+        "typescript",
+      ],
       onlyBundle: false,
-      onlyImport: ["@unframe/workspace", "@unframe/build", "zod", "yaml", "typescript"],
+      onlyImport: ["@unframe-dev/workspace", "@unframe-dev/build", "zod", "yaml", "typescript"],
     },
     format: "esm",
     platform: "node",

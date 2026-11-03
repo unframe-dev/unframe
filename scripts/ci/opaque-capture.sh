@@ -46,7 +46,7 @@ fi
 run_tests() {
   local module="$1"
   shift
-  pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter "@unframe/$module" exec vp test run --maxWorkers=1 --testTimeout=60000 "$@"
+  pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter "@unframe-dev/$module" exec vp test run --maxWorkers=1 --testTimeout=60000 "$@"
 }
 
 renderer() {
@@ -73,7 +73,7 @@ cli_author() {
 }
 
 cli_styles() {
-  pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter @unframe/styles-node run build
+  pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter @unframe-dev/styles-node run build
   run_tests styles-node test/styles-worker.integration.test.ts
   run_tests cli test/tailwind-project.integration.test.ts
 }
@@ -115,7 +115,7 @@ macos() {
   grep -qx '# pass 1' "${reports}/policy.tap"
   run_tests render-browser test/opaque-isolation-darwin.integration.test.ts
   NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}" \
-    pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter @unframe/styles-node run build
+    pnpm --config.verify-deps-before-run=false --dir "${repo_root}" --filter @unframe-dev/styles-node run build
   run_tests styles-node test/styles-worker.integration.test.ts
   selected_tests test/playwright-fixed-browser.integration.test.ts \
     'provision済みmanaged ChromiumでFrame/Text相当のdocumentをPNG captureする'

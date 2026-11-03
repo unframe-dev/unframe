@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { Camera, Group, Scene } from "three";
 import { createAnchorSession } from "../anchor-session";
 import deliveryFixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import { createTrackingAdapter } from "../../tracking/adapter";
 import { createPngPresentation } from "../../rendering/png-presentation";
 import { createLiveTagAnchor } from "../../rendering/live-tag-anchor";

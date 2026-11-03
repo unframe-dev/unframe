@@ -7,13 +7,13 @@ export default defineConfig({
     dts: { eager: true },
     deps: {
       alwaysBundle: [
-        /^@unframe\/contracts(?:\/|$)/,
+        /^@unframe-dev\/contracts(?:\/|$)/,
         /^@noble\/hashes(?:\/|$)/,
         "canonicalize",
         "jsonc-parser",
       ],
       neverBundle: [
-        /^@unframe\/(?!contracts(?:\/|$))/,
+        /^@unframe-dev\/(?!contracts(?:\/|$))/,
         /^zod(?:\/|$)/,
         "typescript",
         "react",
@@ -22,7 +22,7 @@ export default defineConfig({
       onlyBundle: false,
       onlyImport: [
         /^node:/,
-        /^@unframe\/(?!contracts(?:\/|$))/,
+        /^@unframe-dev\/(?!contracts(?:\/|$))/,
         "zod",
         "typescript",
         "react",

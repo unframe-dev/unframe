@@ -363,6 +363,6 @@ publishedAt: "2026-07-18"
 - [ ] 画像、SVG、iframe の代替情報が実際の内容と一致する
 - [ ] 長い日本語タイトル、0件、1件、多数件のコンテンツで崩れない
 - [ ] OGP のタイトル、説明、画像がページ内容と一致する
-- [ ] `pnpm --filter @unframe/site run check` が成功する
-- [ ] `pnpm --filter @unframe/site run test` が成功する
-- [ ] `pnpm --filter @unframe/site run build` が成功する
+- [ ] `pnpm --filter @unframe-dev/site run check` が成功する
+- [ ] `pnpm --filter @unframe-dev/site run test` が成功する
+- [ ] `pnpm --filter @unframe-dev/site run build` が成功する

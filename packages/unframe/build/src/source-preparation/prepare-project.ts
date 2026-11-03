@@ -4,7 +4,7 @@ import {
   type NodeTransformSnapshot,
   type NodeSnapshotFile,
   type UnframeLock,
-} from "@unframe/workspace";
+} from "@unframe-dev/workspace";
 import { hasPostcssConfig } from "./project-roots.js";
 
 export type StyleDiagnostic = {

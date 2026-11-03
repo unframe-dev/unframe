@@ -1,6 +1,6 @@
-import { verifyBuildIntegrity, type BuildArtifacts } from "@unframe/artifacts";
+import { verifyBuildIntegrity, type BuildArtifacts } from "@unframe-dev/artifacts";
 import { z } from "zod";
-import { parseStrictJson } from "@unframe/artifacts";
+import { parseStrictJson } from "@unframe-dev/artifacts";
 
 export type BrowserDistFile = Readonly<{
   webkitRelativePath: string;

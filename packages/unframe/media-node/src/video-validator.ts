@@ -6,11 +6,11 @@ import { temporaryDirectory } from "./temporary-directory.js";
 import { join } from "node:path";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { z } from "zod";
-import { runIsolatedWorker } from "@unframe/worker-host";
+import { runIsolatedWorker } from "@unframe-dev/worker-host";
 import { validateMp4Inspection } from "./video/validate-mp4-inspection.js";
 import { VIDEO_VALIDATION_IDENTITY } from "./video/types.js";
-import type { Json } from "@unframe/authoring";
-import type { ValidationResult } from "@unframe/presentation";
+import type { Json } from "@unframe-dev/authoring";
+import type { ValidationResult } from "@unframe-dev/presentation";
 import type { VideoMetadata } from "./video/types.js";
 
 type CompilerVideoValidator = {

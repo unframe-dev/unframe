@@ -2,8 +2,8 @@ import { watch, type FSWatcher } from "node:fs";
 import { lstat, readdir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
-import { AuthorError } from "@unframe/author-service";
-import type { ProjectChange } from "@unframe/contracts/author-http";
+import { AuthorError } from "@unframe-dev/author-service";
+import type { ProjectChange } from "@unframe-dev/contracts/author-http";
 
 export type ProjectChanges = {
   wait(cursor?: string, signal?: AbortSignal): Promise<ProjectChange>;

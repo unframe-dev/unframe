@@ -1,6 +1,6 @@
-import type { CanonicalRuntimeSnapshot } from "@unframe/contracts/presentation/runtime-projection";
-import type { PresentationDefinition } from "@unframe/contracts/presentation/definition";
-import type { RenderBundle } from "@unframe/contracts/presentation/render-bundle";
+import type { CanonicalRuntimeSnapshot } from "@unframe-dev/contracts/presentation/runtime-projection";
+import type { PresentationDefinition } from "@unframe-dev/contracts/presentation/definition";
+import type { RenderBundle } from "@unframe-dev/contracts/presentation/render-bundle";
 import type { CueState, RuntimeRun, RuntimeRunCause, RuntimeRunId } from "./cue-executor.js";
 
 type ModelRun = Extract<RuntimeRun, { kind: "modelClip" }>;

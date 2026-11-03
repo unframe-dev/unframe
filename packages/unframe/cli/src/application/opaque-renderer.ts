@@ -1,9 +1,9 @@
-import { type CompilerSourceAssetBytes } from "@unframe/build";
+import { type CompilerSourceAssetBytes } from "@unframe-dev/build";
 import {
   createOpaqueBakedWebRenderer,
   openOpaqueCaptureRuntime,
   type WebRendererConfig,
-} from "@unframe/render-browser";
+} from "@unframe-dev/render-browser";
 import { runAnalysisOperation } from "../author/analysis-client.js";
 
 export const prepareOpaqueRenderer = async (

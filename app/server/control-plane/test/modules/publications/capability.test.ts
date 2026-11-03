@@ -1,7 +1,7 @@
 import {
   audienceWebCapabilityProfileId,
   createAudienceWebCapabilityProfile,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import definition from "../../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../../../../packages/contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../../../../packages/contracts/presentation/fixtures/asset-set-manifest.json";
@@ -12,8 +12,8 @@ import {
   selectDeliveryArtifacts,
   type BuildSourceInput,
   type DeliverySourceInput,
-} from "@unframe/delivery";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+} from "@unframe-dev/delivery";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import { assert, describe, expect, it } from "vitest";
 import { normalizedCapability } from "../../../src/modules/publications/capability";
 

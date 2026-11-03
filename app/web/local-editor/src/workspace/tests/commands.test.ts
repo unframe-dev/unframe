@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vite-plus/test";
-import type { PreviewPlaybackCommand, ProjectSnapshot } from "@unframe/contracts/author-http";
+import type { PreviewPlaybackCommand, ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import type { HostApi } from "../../infra/host-api";
 import type { PreviewDriver } from "../../preview/preview-driver";
 import { createWorkspace } from "../create-workspace";

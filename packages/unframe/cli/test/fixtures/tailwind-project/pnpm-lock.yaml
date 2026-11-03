@@ -8,7 +8,7 @@ importers:
 
   .:
     dependencies:
-      '@unframe/authoring':
+      '@unframe-dev/authoring':
         specifier: file:vendor/authoring.tgz
         version: file:vendor/authoring.tgz
       react:
@@ -156,8 +156,8 @@ packages:
   '@types/react@19.2.14':
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
 
-  '@unframe/authoring@file:vendor/authoring.tgz':
-    resolution: {integrity: sha512-DARqaDof1cfGQqgvWu7anhH8EzfDtRGAdPiwB1h/9yA+3IZP6hs1I474+/njupnQvx34XWIcrgEJ3xfPJonHBQ==, tarball: file:vendor/authoring.tgz}
+  '@unframe-dev/authoring@file:vendor/authoring.tgz':
+    resolution: {integrity: sha512-VAbjtGFWdo78F2OswJSViPLBrpUhXraKfF1QyzjVT4oakZCdms7TfQh1u2WQ4MZUVN8LKWMsQ4mPK9+RE5ToPg==, tarball: file:vendor/authoring.tgz}
     version: 1.0.0
 
   csstype@3.2.3:
@@ -390,7 +390,7 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@unframe/authoring@file:vendor/authoring.tgz': {}
+  '@unframe-dev/authoring@file:vendor/authoring.tgz': {}
 
   csstype@3.2.3: {}
 

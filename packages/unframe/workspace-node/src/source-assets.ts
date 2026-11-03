@@ -1,12 +1,12 @@
-import type { LockedSourceAsset } from "@unframe/workspace";
-import type { ProjectConfig } from "@unframe/workspace";
-import type { LocalFileSnapshot } from "@unframe/workspace";
+import type { LockedSourceAsset } from "@unframe-dev/workspace";
+import type { ProjectConfig } from "@unframe-dev/workspace";
+import type { LocalFileSnapshot } from "@unframe-dev/workspace";
 import {
   lockSourceAssets,
   resolveLockedSourceAssets,
   type SourceAssetIdentities,
   type SourceAssetsResult,
-} from "@unframe/workspace";
+} from "@unframe-dev/workspace";
 
 export type SourceAssetPorts = SourceAssetIdentities & {
   videoTransformIdentity: () => Promise<`sha256:${string}`>;

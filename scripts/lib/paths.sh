@@ -7,25 +7,25 @@ export REPO_ROOT
 
 # app/server/control-plane (Cloudflare Workers / Hono)
 export CONTROL_PLANE_DIR="${REPO_ROOT}/app/server/control-plane"
-export CONTROL_PLANE_FILTER="@unframe/control-plane"
+export CONTROL_PLANE_FILTER="@unframe-dev/control-plane"
 # app/server/realtime (Go gRPC backend)
 export REALTIME_SERVER_DIR="${REPO_ROOT}/app/server/realtime"
 # app/web/console (React management SPA)
 export CONSOLE_DIR="${REPO_ROOT}/app/web/console"
-export CONSOLE_FILTER="@unframe/console"
+export CONSOLE_FILTER="@unframe-dev/console"
 # app/web/local-editor (React local authoring UI)
 export LOCAL_EDITOR_DIR="${REPO_ROOT}/app/web/local-editor"
-export LOCAL_EDITOR_FILTER="@unframe/local-editor"
+export LOCAL_EDITOR_FILTER="@unframe-dev/local-editor"
 # app/web/audience (Web XR viewer)
 export AUDIENCE_DIR="${REPO_ROOT}/app/web/audience"
-export AUDIENCE_FILTER="@unframe/audience"
+export AUDIENCE_FILTER="@unframe-dev/audience"
 # app/web/lp (SvelteKit SSG)
 export LP_DIR="${REPO_ROOT}/app/web/lp"
-export LP_FILTER="@unframe/site"
+export LP_FILTER="@unframe-dev/site"
 # packages/contracts (future API / protocol boundaries)
 export CONTRACTS_DIR="${REPO_ROOT}/packages/contracts"
 # packages/config (shared TypeScript and repository tooling configuration)
-export CONFIG_FILTER="@unframe/config"
+export CONFIG_FILTER="@unframe-dev/config"
 # packages/unframe (Presentation build pipeline package)
 export PRESENTATION_PACKAGES_FILTER="./packages/unframe/**"
 # 共有 git hooks (packages/config/githooks)。core.hooksPath はリポジトリ相対で設定する。

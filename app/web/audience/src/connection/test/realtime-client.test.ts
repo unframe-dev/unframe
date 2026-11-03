@@ -1,6 +1,6 @@
 import { createSessionRecorder } from "../../diagnostics/session-recorder";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { decodeWireMessage, encodeWireMessage } from "@unframe/contracts/presentation";
+import { decodeWireMessage, encodeWireMessage } from "@unframe-dev/contracts/presentation";
 import type { PreparedConnection } from "../join-controller";
 import type { RuntimeInput } from "../../experience/viewing-session";
 import { createAudienceRealtime } from "../realtime-client";

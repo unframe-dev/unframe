@@ -3,16 +3,16 @@ import { CompilerInternalError } from "../../build-execution/api/compiler-intern
 import * as ts from "typescript";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import { type ValidationResult } from "@unframe/presentation";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
+import { type ValidationResult } from "@unframe-dev/presentation";
 import type { DeclarationProjectComponentLock } from "../api/types.js";
-import type { PairedAuthoringDeclarationCatalog } from "@unframe/source";
-import { parseAuthoringProject, type ParsedAuthoringProjectValue } from "@unframe/source";
+import type { PairedAuthoringDeclarationCatalog } from "@unframe-dev/source";
+import { parseAuthoringProject, type ParsedAuthoringProjectValue } from "@unframe-dev/source";
 import {
   hashComponentManifestDeclaration,
   hashComponentStructureDeclaration,
   hashThemeDeclaration,
-} from "@unframe/compiler";
+} from "@unframe-dev/compiler";
 
 class FrozenInputError extends Error {}
 

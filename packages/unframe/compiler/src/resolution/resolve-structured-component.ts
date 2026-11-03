@@ -15,8 +15,8 @@ import type {
   TokenCategory,
   TokenReference,
   VariantStyleOverride,
-} from "@unframe/authoring";
-import type { Diagnostic, PresentationDefinition } from "@unframe/presentation";
+} from "@unframe-dev/authoring";
+import type { Diagnostic, PresentationDefinition } from "@unframe-dev/presentation";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { resourceId } from "../lowering/support.js";
 

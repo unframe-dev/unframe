@@ -4,7 +4,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it, vi } from "vite-plus/test";
-import { encodeRgbaToPng } from "@unframe/media-node";
+import { encodeRgbaToPng } from "@unframe-dev/media-node";
 import { runPresentationCli } from "../src/index.js";
 import { createAuthorService } from "../src/author/service.js";
 
@@ -15,7 +15,7 @@ afterEach(async () => {
   );
 });
 
-const template = dirname(fileURLToPath(import.meta.resolve("@unframe/cli/template")));
+const template = dirname(fileURLToPath(import.meta.resolve("@unframe-dev/cli/template")));
 
 it("initializes the registered asset files together with the project source", async () => {
   const parent = await mkdtemp(join(temporaryDirectory(), "unframe-source-assets-init-"));

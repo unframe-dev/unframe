@@ -2,9 +2,9 @@ import {
   controlPlaneIdentifierSchema as identifier,
   sessionJoinCodeSchema,
   viewerCredentialSchema,
-} from "@unframe/contracts/control-plane-http";
-import { createControlPlaneClient } from "@unframe/api-client-typescript";
-import type { paths } from "@unframe/contracts/control-plane";
+} from "@unframe-dev/contracts/control-plane-http";
+import { createControlPlaneClient } from "@unframe-dev/api-client-typescript";
+import type { paths } from "@unframe-dev/contracts/control-plane";
 import { z } from "zod";
 import {
   AudienceConnectionError,

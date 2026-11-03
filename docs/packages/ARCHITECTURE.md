@@ -443,7 +443,7 @@ Presenter control の押下は認証済み Logical Input へ変換できるが�
 Component 内部の Frame、Text、装飾などを Presentation Orchestrator へ展開して記述しない。
 
 ```tsx
-import { definePresentation } from "@unframe/core/authoring";
+import { definePresentation } from "@unframe-dev/core/authoring";
 import { Hero } from "./components/Hero/Hero.manifest";
 import { Counter } from "./components/Counter/Counter.manifest";
 
@@ -489,7 +489,7 @@ Component ごとの test file や test directory はこの source 構成に含�
 
 ```ts
 export const Hero = defineComponentManifest({
-  componentId: "@unframe/components/Hero",
+  componentId: "@unframe-dev/components/Hero",
   version: 1,
 
   authoring: {
@@ -1030,7 +1030,8 @@ type RenderSurface = {
 };
 
 type RenderSurfaceStateBinding =
-  { kind: "empty" } | { kind: "artifacts"; artifactIds: RendererArtifactId[] };
+  | { kind: "empty" }
+  | { kind: "artifacts"; artifactIds: RendererArtifactId[] };
 ```
 
 `logicalBounds` は親 Semantic Surface の logical coordinate spaceで表す。RenderSurfaceIdはauthor-stable IDではなく、partition strategy、SemanticSurfaceId、renderer contract、paint順のowned Node、bounds、layerのcanonical descriptorから導出するbuild-local IDである。完全なalgorithmとprovenanceは [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。

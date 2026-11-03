@@ -1,6 +1,6 @@
 import { expect, it } from "vite-plus/test";
 import { collectAuthorArtifacts, readAuthorArtifacts, surfaceIdFor } from "../src/index.js";
-import type { BuildArtifacts } from "@unframe/artifacts";
+import type { BuildArtifacts } from "@unframe-dev/artifacts";
 
 it("reads shared PNG bytes once and rejects output beyond the byte budget", async () => {
   const png = {

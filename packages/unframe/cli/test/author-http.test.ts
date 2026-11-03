@@ -2,9 +2,9 @@ import { createProjectChanges } from "../src/author/project-changes.js";
 import { request } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { startAuthorHost } from "../src/author/http.js";
-import { AuthorError, type AuthorService } from "@unframe/author-service";
+import { AuthorError, type AuthorService } from "@unframe-dev/author-service";
 import type { LocalPublicationService } from "../src/author/publication.js";
-import type { BuildJob } from "@unframe/contracts/author-http";
+import type { BuildJob } from "@unframe-dev/contracts/author-http";
 import { createLocalPreviewService } from "../src/author/local-preview.js";
 
 const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];

@@ -1,4 +1,4 @@
-import type { CompilerSourceAsset } from "@unframe/compiler";
+import type { CompilerSourceAsset } from "@unframe-dev/compiler";
 import type { DeclarationProjectAssemblyCarrier } from "./api/types.js";
 
 export const createSourceAssetAssemblyCarrier = (

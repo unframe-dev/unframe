@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import type { StatusCode } from "hono/utils/http-status";
-import type { paths } from "@unframe/contracts/control-plane";
+import type { paths } from "@unframe-dev/contracts/control-plane";
 
 type RpcPath<Path extends string> = Path extends `${infer Head}{${infer Param}}${infer Tail}`
   ? `${Head}:${Param}${RpcPath<Tail>}`

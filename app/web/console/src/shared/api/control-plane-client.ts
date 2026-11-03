@@ -1,4 +1,4 @@
-import { createControlPlaneClient } from "@unframe/api-client-typescript";
+import { createControlPlaneClient } from "@unframe-dev/api-client-typescript";
 import { authenticatedFetch } from "./authenticated-fetch";
 
 export const controlPlaneClient = createControlPlaneClient({

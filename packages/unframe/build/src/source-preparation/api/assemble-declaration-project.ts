@@ -6,19 +6,23 @@ import type {
   ComponentStructure,
   StaticComponentMetadata,
   ThemeDeclaration,
-} from "@unframe/authoring";
-import { isComponentManifest, isComponentStructure, isThemeDeclaration } from "@unframe/authoring";
-import type { Diagnostic, ValidationResult } from "@unframe/presentation";
+} from "@unframe-dev/authoring";
+import {
+  isComponentManifest,
+  isComponentStructure,
+  isThemeDeclaration,
+} from "@unframe-dev/authoring";
+import type { Diagnostic, ValidationResult } from "@unframe-dev/presentation";
 import { sortDiagnostics, diagnostic } from "../../build-execution/diagnostics/diagnostics.js";
 import { safePlainClone } from "../../build-execution/validation/safe-plain-clone.js";
-import { resolveAuthoringStructurePath } from "@unframe/source";
+import { resolveAuthoringStructurePath } from "@unframe-dev/source";
 import { checkDeclarationProject } from "../../build-execution/api/check-declaration-project.js";
 import {
   hashComponentManifestDeclaration,
   hashComponentStructureDeclaration,
   hashThemeDeclaration,
-} from "@unframe/compiler";
-import type { CompilerDeclarationProject } from "@unframe/compiler";
+} from "@unframe-dev/compiler";
+import type { CompilerDeclarationProject } from "@unframe-dev/compiler";
 
 const nonEmptyStringSchema = z.string().min(1);
 const sourceOriginSchema = z

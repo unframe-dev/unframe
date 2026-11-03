@@ -1,6 +1,6 @@
 import { assert, describe, expect, it } from "vite-plus/test";
 
-import { parseStrictJson } from "@unframe/artifacts";
+import { parseStrictJson } from "@unframe-dev/artifacts";
 
 const bytes = (source: string) => new TextEncoder().encode(source);
 

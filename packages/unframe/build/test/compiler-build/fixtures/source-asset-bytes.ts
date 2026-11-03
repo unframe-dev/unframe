@@ -1,4 +1,4 @@
-import type { CompilerSourceAssetBytes } from "@unframe/build";
+import type { CompilerSourceAssetBytes } from "@unframe-dev/build";
 
 const font = Uint8Array.of(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 const png = Uint8Array.from(

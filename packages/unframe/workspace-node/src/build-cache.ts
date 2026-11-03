@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import * as z from "zod";
-import type { CompilerBuildCache, CompiledDeclarationProject } from "@unframe/build";
+import type { CompilerBuildCache, CompiledDeclarationProject } from "@unframe-dev/build";
 import { NativeFilesystem, NativeDirectory } from "./native-filesystem.js";
 import { projectDirectory } from "./path-policy.js";
-import { parseStrictJson } from "@unframe/artifacts";
+import { parseStrictJson } from "@unframe-dev/artifacts";
 
 const digest = /^[0-9a-f]{64}$/u;
 const keyPattern = /^sha256:[0-9a-f]{64}$/u;

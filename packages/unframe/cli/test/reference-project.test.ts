@@ -1,5 +1,5 @@
 import { sourceAssetPorts } from "../src/application/media-ports.js";
-import { checkAuthoringProject } from "@unframe/source";
+import { checkAuthoringProject } from "@unframe-dev/source";
 import {
   lstat,
   cp,
@@ -14,18 +14,18 @@ import {
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, assert, describe, expect, it } from "vite-plus/test";
-import type { FixedBrowserSession } from "@unframe/render-browser";
+import type { FixedBrowserSession } from "@unframe-dev/render-browser";
 
-import { canonicalizeJsonPayload, verifyBuildIntegrity } from "@unframe/artifacts";
-import { hashComponentManifestDeclaration } from "@unframe/compiler";
-import { checkAuthoringProjectAssembly, computeFrozenComponentInputs } from "@unframe/build";
+import { canonicalizeJsonPayload, verifyBuildIntegrity } from "@unframe-dev/artifacts";
+import { hashComponentManifestDeclaration } from "@unframe-dev/compiler";
+import { checkAuthoringProjectAssembly, computeFrozenComponentInputs } from "@unframe-dev/build";
 
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { loadUnframeLock } from "@unframe/workspace";
-import { refreshLocalProjectLock } from "@unframe/workspace-node";
-import { acquireBuildLock } from "@unframe/workspace-node";
-import { lockSourceAssets } from "@unframe/workspace";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { loadUnframeLock } from "@unframe-dev/workspace";
+import { refreshLocalProjectLock } from "@unframe-dev/workspace-node";
+import { acquireBuildLock } from "@unframe-dev/workspace-node";
+import { lockSourceAssets } from "@unframe-dev/workspace";
 import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const temporaryDirectories: string[] = [];
@@ -96,11 +96,11 @@ const defaultPropsProject = async (explicit = false) => {
   await Promise.all([
     writeFile(
       join(directory, component.manifest.fileName),
-      `import { defineComponentManifest } from "@unframe/authoring";\nexport default defineComponentManifest(${JSON.stringify(manifest)});\n`,
+      `import { defineComponentManifest } from "@unframe-dev/authoring";\nexport default defineComponentManifest(${JSON.stringify(manifest)});\n`,
     ),
     writeFile(
       join(directory, checked.value.presentation.fileName),
-      `import { definePresentation } from "@unframe/authoring";\nexport default definePresentation(${JSON.stringify(presentation)});\n`,
+      `import { definePresentation } from "@unframe-dev/authoring";\nexport default definePresentation(${JSON.stringify(presentation)});\n`,
     ),
     writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(lock) + "\n"),
   ]);
@@ -358,7 +358,7 @@ describe("reference Authoring Project", () => {
       ...source,
       files: declarations.map(({ fileName, value, builder }) => ({
         fileName,
-        sourceText: `import { ${builder} } from "@unframe/authoring";\nexport default ${builder}(${JSON.stringify(value)});\n`,
+        sourceText: `import { ${builder} } from "@unframe-dev/authoring";\nexport default ${builder}(${JSON.stringify(value)});\n`,
       })),
     };
     const sourceAssetBytes = sourceAssetBytesFor(discovered, loaded.value.lock.assets);
@@ -464,7 +464,7 @@ describe("reference Authoring Project", () => {
     };
     await writeFile(
       join(directory, checked.value.presentation.fileName),
-      `import { definePresentation } from "@unframe/authoring";\nexport default definePresentation(${JSON.stringify(omitted)});\n`,
+      `import { definePresentation } from "@unframe-dev/authoring";\nexport default definePresentation(${JSON.stringify(omitted)});\n`,
     );
     const json = await runPresentationCli({ args: ["check", directory, "--format", "json"] });
     expect(json.exitCode).toBe(0);

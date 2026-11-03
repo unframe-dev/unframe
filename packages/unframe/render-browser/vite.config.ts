@@ -7,14 +7,14 @@ export default defineConfig({
     dts: { eager: true },
     deps: {
       alwaysBundle: [
-        /^@unframe\/(?!build(?:\/|$))/,
+        /^@unframe-dev\/(?!build(?:\/|$))/,
         /^@noble\/hashes(?:\/|$)/,
         "canonicalize",
         "jsonc-parser",
         "@jridgewell/trace-mapping",
       ],
       neverBundle: [
-        "@unframe/build",
+        "@unframe-dev/build",
         /^zod(?:\/|$)/,
         "typescript",
         "react",
@@ -25,7 +25,7 @@ export default defineConfig({
       ],
       onlyBundle: false,
       onlyImport: [
-        "@unframe/build",
+        "@unframe-dev/build",
         /^node:/,
         "zod",
         "typescript",

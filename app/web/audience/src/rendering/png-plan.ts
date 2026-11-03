@@ -3,7 +3,7 @@ import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
   type ParticipantRuntimeView,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 
 export interface PngAsset {
   assetId: string;

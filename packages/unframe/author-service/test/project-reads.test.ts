@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from "vite-plus/test";
-import type { ProjectSnapshot } from "@unframe/contracts/author-http";
+import type { ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import { createAuthorService, type AuthorService, type AuthorServicePorts } from "../src/index.js";
 
 const services: AuthorService[] = [];

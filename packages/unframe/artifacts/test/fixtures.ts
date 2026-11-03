@@ -1,4 +1,4 @@
-import type { PresentationDefinition, RenderBundle } from "@unframe/contracts/presentation";
+import type { PresentationDefinition, RenderBundle } from "@unframe-dev/contracts/presentation";
 
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";

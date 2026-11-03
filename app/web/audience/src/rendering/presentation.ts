@@ -3,7 +3,7 @@ import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
   type ParticipantRuntimeView,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { createPngPresentation } from "./png-presentation";
 import { createSurfacePresentation, type SurfacePlan } from "./surface-presentation";
 import { buildPngPlan } from "./png-plan";

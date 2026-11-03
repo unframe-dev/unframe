@@ -1,4 +1,4 @@
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 
 const viewerRole = 2;
 

@@ -1,13 +1,13 @@
-import { createNodeStylePreparationPort } from "@unframe/styles-node";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import { createModelBuildIdentity, type BuildMediaPorts } from "@unframe/build";
+import { createNodeStylePreparationPort } from "@unframe-dev/styles-node";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
+import { createModelBuildIdentity, type BuildMediaPorts } from "@unframe-dev/build";
 import {
   PNG_ENCODER_IDENTITY,
   MODEL_TRANSFORM_IDENTITY,
   encodeRgbaToPng,
   transformGlb,
   createVideoValidator,
-} from "@unframe/media-node";
+} from "@unframe-dev/media-node";
 
 export const buildMediaPorts: BuildMediaPorts = {
   pngIdentity: PNG_ENCODER_IDENTITY,

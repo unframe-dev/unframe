@@ -8,7 +8,7 @@ cd "$root"
 mkdir -p "$project/package" "$fixture/vendor" "$project/vendor"
 bun -e 'import { sdkFixtureSource } from "./packages/unframe/cli/test/authoring-sdk-fixture.ts"; await Bun.write(process.argv[1], sdkFixtureSource);' "$project/package/index.ts"
 cat > "$project/package/package.json" <<'JSON'
-{"name":"@unframe/authoring","version":"1.0.0","type":"module","exports":{".":{"types":"./index.ts","import":"./index.ts"}}}
+{"name":"@unframe-dev/authoring","version":"1.0.0","type":"module","exports":{".":{"types":"./index.ts","import":"./index.ts"}}}
 JSON
 tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - -C "$project" package | gzip -n > "$fixture/vendor/authoring.tgz"
 cp "$fixture/package.json" "$fixture/pnpm-workspace.yaml" "$project/"

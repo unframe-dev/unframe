@@ -7,12 +7,12 @@
 ```bash
 nix run .#setup
 nix develop
-pnpm --filter @unframe/console dev
+pnpm --filter @unframe-dev/console dev
 ```
 
 `VITE_AUDIENCE_URL` は参加先の HTTPS origin（path・query・ユーザー情報なし）で、未設定時は `https://app.un-fra.me` を使います。参加 URL は `/#join=ルームコード` 形式で、QR は同じ URL をブラウザー内で生成します。
 
-`VITE_CONTROL_PLANE_URL` は Control Plane API の origin で、未設定時は `https://api.un-fra.me` を使います。ブラウザー認証は Better Auth client、製品 API は `@unframe/api-client-typescript` の Hono RPC client と TanStack Query を使い、cookie を送信します。
+`VITE_CONTROL_PLANE_URL` は Control Plane API の origin で、未設定時は `https://api.un-fra.me` を使います。ブラウザー認証は Better Auth client、製品 API は `@unframe-dev/api-client-typescript` の Hono RPC client と TanStack Query を使い、cookie を送信します。
 
 ## 管理画面
 
@@ -53,8 +53,8 @@ Home のサムネイルは認証付きの `GET /presentations/{presentationId}/b
 
 ```bash
 nix run .#console
-pnpm --filter @unframe/console test:e2e
-pnpm --filter @unframe/console cf:deploy:dry-run
+pnpm --filter @unframe-dev/console test:e2e
+pnpm --filter @unframe-dev/console cf:deploy:dry-run
 ```
 
 Console の E2E と、Local Editor・実 Control Plane・Unity の統合検証は別です。後者は [scripts README](../../../scripts/README.md#local-editor-と-unity) を参照してください。
@@ -71,13 +71,13 @@ Console の E2E と、Local Editor・実 Control Plane・Unity の統合検証�
 Vite の `base` は `/` で、Router に `basepath` は設定しません。本番では LP が `/`、`/news/*`、`/docs/*` を所有し、Console Worker は Application route を配信する構成を sibling infra repository と合わせて設定します。Worker 設定変更後は binding 型を再生成してください。
 
 ```bash
-pnpm --filter @unframe/console run cf:types
+pnpm --filter @unframe-dev/console run cf:types
 ```
 
 production build 後、Vite plugin が `dist/unframe_web_editor/wrangler.json` と `dist/client` を生成します。ローカルの Cloudflare preview は生成済み設定を使います。
 
 ```bash
-pnpm --filter @unframe/console run build
+pnpm --filter @unframe-dev/console run build
 pnpm --dir app/web/console exec wrangler dev --config dist/unframe_web_editor/wrangler.json
 ```
 

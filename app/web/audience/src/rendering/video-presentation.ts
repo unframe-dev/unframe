@@ -12,7 +12,7 @@ import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
   type ParticipantRuntimeView,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { loadVideoAsset } from "../assets/video-asset";
 import { buildVideoPlan, type VideoPlan } from "./video-plan";
 

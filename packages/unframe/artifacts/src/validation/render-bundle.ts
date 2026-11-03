@@ -1,16 +1,16 @@
-import type { RenderBundle } from "@unframe/contracts/presentation/render-bundle";
+import type { RenderBundle } from "@unframe-dev/contracts/presentation/render-bundle";
 
-import type { Diagnostic, ValidationResult } from "@unframe/presentation";
+import type { Diagnostic, ValidationResult } from "@unframe-dev/presentation";
 import { hashCanonicalJsonPayload } from "../canonicalization/payload.js";
-import { parseRenderBundleInput } from "@unframe/presentation/validation";
-import { validateRegions, validateSemanticRoles } from "@unframe/presentation/validation";
+import { parseRenderBundleInput } from "@unframe-dev/presentation/validation";
+import { validateRegions, validateSemanticRoles } from "@unframe-dev/presentation/validation";
 import {
   diagnostic,
   pathSegment,
   sorted,
   structuralDiagnostic,
   validateRecordIds,
-} from "@unframe/presentation/validation";
+} from "@unframe-dev/presentation/validation";
 
 const equalSet = (left: Iterable<string>, right: Iterable<string>) => {
   const a = new Set(left);

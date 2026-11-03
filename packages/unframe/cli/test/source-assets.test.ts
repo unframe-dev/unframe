@@ -1,8 +1,8 @@
-import { createSourceAssetAssemblyCarrier } from "@unframe/build";
-import { lockSourceAssets, resolveLockedSourceAssets } from "@unframe/workspace";
+import { createSourceAssetAssemblyCarrier } from "@unframe-dev/build";
+import { lockSourceAssets, resolveLockedSourceAssets } from "@unframe-dev/workspace";
 import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { assert, expect, it } from "vite-plus/test";
-import { resolveDevProjectSourceAssets } from "@unframe/workspace-node";
+import { resolveDevProjectSourceAssets } from "@unframe-dev/workspace-node";
 
 const sources = { font: { path: "assets/font.ttf", mediaType: "font/ttf" as const } };
 const sourceBytes = Uint8Array.of(0, 1, 0, 0);

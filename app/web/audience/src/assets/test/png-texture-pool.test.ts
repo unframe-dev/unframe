@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vite-plus/test";
 import { Texture } from "three";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import type { PngTextureAsset } from "../png-texture";
 import { createPngTexturePool } from "../png-texture-pool";

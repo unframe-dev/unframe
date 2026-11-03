@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 
 import { collectAuthoringDeclarations } from "../src/project/collect-authoring-declarations.js";
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
@@ -24,16 +24,16 @@ const analyze = (
     files,
     rootDependencies: [
       {
-        specifier: "@unframe/authoring",
+        specifier: "@unframe-dev/authoring",
         usage: "runtime",
-        packageKey: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
+        packageKey: hashCanonicalJsonPayload(["@unframe-dev/authoring", "1"]),
       },
     ],
     packages: [
       {
-        key: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
-        locator: "@unframe/authoring@1",
-        name: "@unframe/authoring",
+        key: hashCanonicalJsonPayload(["@unframe-dev/authoring", "1"]),
+        locator: "@unframe-dev/authoring@1",
+        name: "@unframe-dev/authoring",
         version: "1",
         contentIntegrity: hashCanonicalJsonPayload(builders),
         files: [
@@ -64,7 +64,7 @@ const analyze = (
 };
 
 const source = (builder: string, value = "{}") =>
-  `import { ${builder} } from "@unframe/authoring"; export default ${builder}(${value});`;
+  `import { ${builder} } from "@unframe-dev/authoring"; export default ${builder}(${value});`;
 
 describe("collectAuthoringDeclarations", () => {
   it("rejects a declaration entry file without treating it as a skipped ambient file", () => {
@@ -107,7 +107,7 @@ describe("collectAuthoringDeclarations", () => {
           {
             fileName: "z.unframe.ts",
             sourceText:
-              'import { defineTheme } from "@unframe/authoring"; export default defineTheme();',
+              'import { defineTheme } from "@unframe-dev/authoring"; export default defineTheme();',
           },
         ],
         "entry.d.ts",
@@ -224,7 +224,7 @@ describe("collectAuthoringDeclarations", () => {
         {
           fileName: "z.unframe.ts",
           sourceText:
-            'import { defineTheme } from "@unframe/authoring"; export default defineTheme();',
+            'import { defineTheme } from "@unframe-dev/authoring"; export default defineTheme();',
         },
         { fileName: "a.ts", sourceText: "export {};" },
       ]),

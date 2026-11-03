@@ -1,6 +1,9 @@
 import { assert, describe, expect, it } from "vite-plus/test";
-import { standardComponents } from "@unframe/authoring/components";
-import { buildOpaqueComponentManifest, validateStaticComponentMetadata } from "@unframe/authoring";
+import { standardComponents } from "@unframe-dev/authoring/components";
+import {
+  buildOpaqueComponentManifest,
+  validateStaticComponentMetadata,
+} from "@unframe-dev/authoring";
 import { checkDeclarationProject } from "../src/api/check-declaration-project.js";
 import { reactResourceId } from "../src/resolution/resolve-opaque-component.js";
 

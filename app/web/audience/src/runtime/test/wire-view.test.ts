@@ -3,7 +3,7 @@ import {
   decodeWireMessage,
   encodeWireMessage,
   type ParticipantRuntimeViewWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 import { toParticipantView } from "../wire-view";
 

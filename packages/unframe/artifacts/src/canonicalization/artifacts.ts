@@ -1,9 +1,9 @@
-import type { ValidationResult } from "@unframe/presentation";
+import type { ValidationResult } from "@unframe-dev/presentation";
 import { canonicalJson } from "./canonical-json.js";
 import { hashCanonicalJson } from "./hash.js";
-import { validatePresentationDefinition } from "@unframe/presentation";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 import { validateRenderBundle } from "../validation/render-bundle.js";
-import { diagnostic } from "@unframe/presentation/validation";
+import { diagnostic } from "@unframe-dev/presentation/validation";
 const validatedCanonicalJson = <T>(
   input: unknown,
   validate: (value: unknown) => ValidationResult<T>,

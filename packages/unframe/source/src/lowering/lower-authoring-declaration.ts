@@ -1,5 +1,5 @@
 import * as ts from "typescript";
-import { validateStaticBuilderResult } from "@unframe/authoring";
+import { validateStaticBuilderResult } from "@unframe-dev/authoring";
 import { builderResultShape } from "../normalization/builder-result-shape.js";
 import {
   collectPackageValueProvenance,
@@ -230,7 +230,7 @@ const unwrap = (value: ts.Expression): ts.Expression =>
     ? unwrap(value.expression)
     : value;
 const isSdk = (p: PackageValueProvenance | undefined) =>
-  p?.packageName === "@unframe/authoring" && p.subpath === ".";
+  p?.packageName === "@unframe-dev/authoring" && p.subpath === ".";
 
 export type ReactComponentFacade = ReadonlyMap<
   string,
@@ -937,7 +937,7 @@ const createEvaluator = (
     )
       return;
     if (
-      resolved.packageExport?.packageName !== "@unframe/authoring" ||
+      resolved.packageExport?.packageName !== "@unframe-dev/authoring" ||
       resolved.packageExport.subpath !== "." ||
       clause.name ||
       !clause.namedBindings ||

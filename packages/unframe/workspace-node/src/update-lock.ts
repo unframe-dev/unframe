@@ -3,7 +3,7 @@ import {
   prepareLockUpdate,
   type StylePreparationError,
   type StylePreparationPort,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { readTypeLibraries } from "./prepare-project.js";
 import { execFile } from "node:child_process";

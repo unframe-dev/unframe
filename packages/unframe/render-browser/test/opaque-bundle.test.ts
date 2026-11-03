@@ -188,7 +188,7 @@ describe("bundleOpaqueRenderer", () => {
           "src/renderer.tsx",
           [
             'import React from "react";',
-            'import { defineOpaqueRenderer } from "@unframe/renderer-runtime";',
+            'import { defineOpaqueRenderer } from "@unframe-dev/renderer-runtime";',
             'import { label } from "./label";',
             'import "./style.css";',
             'import iconUrl from "./icon.png";',

@@ -24,7 +24,7 @@ publishedAt: "2026-07-18"
 ## 開発
 
 ```bash
-pnpm --filter @unframe/site run dev
+pnpm --filter @unframe-dev/site run dev
 ```
 
 ## Cloudflare Workers
@@ -32,15 +32,15 @@ pnpm --filter @unframe/site run dev
 Wrangler の設定は `app/web/lp/wrangler.toml` が正とします。初回のみCloudflareへログインします。
 
 ```bash
-pnpm --filter @unframe/site exec wrangler login
-pnpm --filter @unframe/site exec wrangler whoami
+pnpm --filter @unframe-dev/site exec wrangler login
+pnpm --filter @unframe-dev/site exec wrangler whoami
 ```
 
 デプロイ前の検証と本番デプロイは次のコマンドを使います。
 
 ```bash
-pnpm --filter @unframe/site run cf:deploy:dry-run
-pnpm --filter @unframe/site run cf:deploy
+pnpm --filter @unframe-dev/site run cf:deploy:dry-run
+pnpm --filter @unframe-dev/site run cf:deploy
 ```
 
 `cf:deploy` はWranglerのbuild hookから `pnpm run build` を実行し、`build/` をアップロードします。

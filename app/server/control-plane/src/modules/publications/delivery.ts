@@ -5,12 +5,12 @@ import {
   sessionParticipants,
   sessionParticipantCapabilities,
 } from "../../adapters/d1/schema";
-import { encodeWireMessage, type CapabilityProfile } from "@unframe/contracts/presentation";
+import { encodeWireMessage, type CapabilityProfile } from "@unframe-dev/contracts/presentation";
 import {
   buildDeliveryManifest,
   buildProjectionProfile,
   selectDeliveryArtifacts,
-} from "@unframe/delivery";
+} from "@unframe-dev/delivery";
 import { R2Presigner } from "../../adapters/assets/r2-presigner";
 import type { RuntimeConfig } from "../../config";
 import type { Identity } from "../../presentation/service";

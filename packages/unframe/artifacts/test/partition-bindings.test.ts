@@ -1,6 +1,6 @@
 import { assert, describe, expect, it } from "vite-plus/test";
 
-import { hashCanonicalJsonPayload, validateRenderBundle } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload, validateRenderBundle } from "@unframe-dev/artifacts";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 describe("partition State bindings", () => {

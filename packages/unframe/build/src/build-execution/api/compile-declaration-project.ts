@@ -10,8 +10,12 @@ import {
   validatePresentationArtifacts,
   verifyBuildIntegrity,
   type BuildArtifacts,
-} from "@unframe/artifacts";
-import { type Diagnostic, type RenderBundle, type ValidationResult } from "@unframe/presentation";
+} from "@unframe-dev/artifacts";
+import {
+  type Diagnostic,
+  type RenderBundle,
+  type ValidationResult,
+} from "@unframe-dev/presentation";
 import {
   SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
@@ -28,7 +32,7 @@ import { compilerBuildOptionsSchema } from "../validation/project-schemas.js";
 import { safeBuildOptionsSnapshot } from "../validation/safe-build-options.js";
 import { encodeSourceAssetBase64 } from "../validation/source-assets.js";
 import { derivedResourceId, resourceId } from "../lowering/support.js";
-import { compileDeclarationPlan } from "@unframe/compiler";
+import { compileDeclarationPlan } from "@unframe-dev/compiler";
 import { checkDeclarationProject } from "./check-declaration-project.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { snapshotSourceAssets } from "../validation/snapshot-source-assets.js";

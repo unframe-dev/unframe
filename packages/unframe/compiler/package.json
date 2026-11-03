@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/compiler",
+  "name": "@unframe-dev/compiler",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -26,9 +26,9 @@
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
-    "@unframe/artifacts": "workspace:*",
-    "@unframe/authoring": "workspace:*",
-    "@unframe/presentation": "workspace:*",
+    "@unframe-dev/artifacts": "workspace:*",
+    "@unframe-dev/authoring": "workspace:*",
+    "@unframe-dev/presentation": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {

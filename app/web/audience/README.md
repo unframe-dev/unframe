@@ -47,7 +47,7 @@ nix run .#audience -- preview
 
 `audience`は型検査・lint・単体テスト・本番ビルド。`preview`は既に作成した成果物を配信する。`dev`と`build`の事前処理でSDKと検出器資産を準備する。スマートフォンのカメラには信頼されたHTTPSが必要。一時トンネルはプロセス停止で利用できなくなる。
 
-マーカー資産再生成：`nix develop --command pnpm --filter @unframe/audience run markers:generate`。
+マーカー資産再生成：`nix develop --command pnpm --filter @unframe-dev/audience run markers:generate`。
 
 ### Cloudflare Workers
 
@@ -56,13 +56,13 @@ nix run .#audience -- preview
 Workers Builds のルートを `app/web/audience`、ビルドコマンドを `pnpm run build`、デプロイコマンドを `pnpm run cf:deploy` に設定する。ローカルではリポジトリルートから次を実行する。
 
 ```bash
-pnpm --filter @unframe/audience run build
-pnpm --filter @unframe/audience run cf:deploy:dry-run
+pnpm --filter @unframe-dev/audience run build
+pnpm --filter @unframe-dev/audience run cf:deploy:dry-run
 ```
 
 非本番ブランチのプレビューコマンドは `pnpm exec wrangler preview` に設定する。`wrangler.toml` の空の `[previews]` でプレビューを有効にし、静的アセットはトップレベルの `[assets]` を使う。
 
-全リクエストを Worker 経由で配信し、呼び出しログを100%のサンプリング率で保存する。Cloudflare の対象 Worker の Observability、または `pnpm --filter @unframe/audience run cf:tail` で確認できる。ログの URL からクエリ文字列を除去する。ブラウザ内の console／追跡診断は送信しない。Worker 経由の配信には Workers のリクエスト上限・課金が適用される。
+全リクエストを Worker 経由で配信し、呼び出しログを100%のサンプリング率で保存する。Cloudflare の対象 Worker の Observability、または `pnpm --filter @unframe-dev/audience run cf:tail` で確認できる。ログの URL からクエリ文字列を除去する。ブラウザ内の console／追跡診断は送信しない。Worker 経由の配信には Workers のリクエスト上限・課金が適用される。
 
 ## 構成
 

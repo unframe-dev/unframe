@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/api-client-typescript",
+  "name": "@unframe-dev/api-client-typescript",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,13 +14,13 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
-    "@unframe/artifacts": "workspace:*",
-    "@unframe/contracts": "workspace:*",
+    "@unframe-dev/artifacts": "workspace:*",
+    "@unframe-dev/contracts": "workspace:*",
     "better-auth": "1.7.1",
     "hono": "^4.13.1"
   },
   "devDependencies": {
-    "@unframe/config": "workspace:*",
+    "@unframe-dev/config": "workspace:*",
     "typescript": "^7.0.0",
     "vite-plus": "catalog:"
   }

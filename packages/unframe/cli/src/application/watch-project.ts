@@ -1,4 +1,4 @@
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 import { runPresentationCli } from "./run-presentation-cli.js";
 import type { PresentationCliResult } from "./types.js";
 

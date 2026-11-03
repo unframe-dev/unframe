@@ -12,9 +12,9 @@ export default defineConfig({
     dts: { eager: true },
     deps: {
       alwaysBundle: [],
-      neverBundle: [/^zod(?:\/|$)/, /^@unframe\/presentation$/, /^react(?:\/|$)/],
+      neverBundle: [/^zod(?:\/|$)/, /^@unframe-dev\/presentation$/, /^react(?:\/|$)/],
       onlyBundle: false,
-      onlyImport: ["zod", "@unframe/presentation", "react"],
+      onlyImport: ["zod", "@unframe-dev/presentation", "react"],
     },
     format: "esm",
     platform: "neutral",

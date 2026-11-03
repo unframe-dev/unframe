@@ -4,7 +4,7 @@ import type {
   SemanticSurface,
   ValidationResult,
 } from "../domain/model.js";
-import { completedSemanticTreeSchema } from "@unframe/contracts/presentation/semantics";
+import { completedSemanticTreeSchema } from "@unframe-dev/contracts/presentation/semantics";
 import { parseIdInput, parseSemanticSurfaceInput } from "../validation/contract-input.js";
 import {
   diagnostic,

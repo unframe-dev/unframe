@@ -1,4 +1,4 @@
-import { audienceWebCapabilityProfileId } from "@unframe/contracts/presentation";
+import { audienceWebCapabilityProfileId } from "@unframe-dev/contracts/presentation";
 import { env } from "cloudflare:test";
 import { sha256JoinCode } from "../../../src/modules/sessions/service";
 import { describe, expect, it } from "vitest";

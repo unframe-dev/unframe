@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import { lowerAuthoringDeclarationFile } from "@unframe/source";
-import { parseAuthoringProject } from "@unframe/source";
-import { analyzeAuthoringProject } from "@unframe/source";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
+import { lowerAuthoringDeclarationFile } from "@unframe-dev/source";
+import { parseAuthoringProject } from "@unframe-dev/source";
+import { analyzeAuthoringProject } from "@unframe-dev/source";
 
-import { checkAuthoringProject } from "@unframe/source";
-import { hashThemeDeclaration } from "@unframe/compiler";
+import { checkAuthoringProject } from "@unframe-dev/source";
+import { hashThemeDeclaration } from "@unframe-dev/compiler";
 import { checkAuthoringProjectAssembly } from "../../src/source-preparation/index.js";
 
 const builders = [
@@ -32,16 +32,16 @@ const project = (files: readonly VirtualFile[]) => ({
   files,
   rootDependencies: [
     {
-      specifier: "@unframe/authoring",
+      specifier: "@unframe-dev/authoring",
       usage: "runtime",
-      packageKey: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
+      packageKey: hashCanonicalJsonPayload(["@unframe-dev/authoring", "1"]),
     },
   ],
   packages: [
     {
-      key: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
-      locator: "@unframe/authoring@1",
-      name: "@unframe/authoring",
+      key: hashCanonicalJsonPayload(["@unframe-dev/authoring", "1"]),
+      locator: "@unframe-dev/authoring@1",
+      name: "@unframe-dev/authoring",
       version: "1",
       contentIntegrity: hashCanonicalJsonPayload(builders),
       files: [
@@ -67,7 +67,7 @@ const project = (files: readonly VirtualFile[]) => ({
 });
 
 const literalSource = `
-import { definePresentation } from "@unframe/authoring";
+import { definePresentation } from "@unframe-dev/authoring";
 export default definePresentation({
   id: "presentation",
   metadata: { title: "Composed" },
@@ -82,7 +82,7 @@ export default definePresentation({
 const themeFile: VirtualFile = {
   fileName: "theme.unframe.ts",
   sourceText:
-    'import { defineTheme } from "@unframe/authoring"; export default defineTheme({ id: "theme", tokens: {}, namedStyles: {} });',
+    'import { defineTheme } from "@unframe-dev/authoring"; export default defineTheme({ id: "theme", tokens: {}, namedStyles: {} });',
 };
 
 const composedFiles = (): readonly VirtualFile[] => [
@@ -112,8 +112,8 @@ export const selectedAxes = namedAxes;`,
   {
     fileName: "entry.ts",
     sourceText: `
-import type { PresentationDeclaration } from "@unframe/authoring";
-import { definePresentation } from "@unframe/authoring";
+import type { PresentationDeclaration } from "@unframe-dev/authoring";
+import { definePresentation } from "@unframe-dev/authoring";
 import { metadata, stage } from "./shared.js";
 const empty = [] as const;
 const identity = "presentation";
@@ -168,7 +168,7 @@ describe("extended static TypeScript authoring", () => {
         {
           fileName: "manifest-values.ts",
           sourceText: `
-import { defineTheme } from "@unframe/authoring";
+import { defineTheme } from "@unframe-dev/authoring";
 const theme = defineTheme({ id: "helper-theme", tokens: {}, namedStyles: {} });
 export const themeId = theme.id;
 export const copied = { ...theme, id: "copied-theme" };`,
@@ -187,7 +187,7 @@ export const copied = { ...theme, id: "copied-theme" };`,
         {
           fileName: "builder-values.ts",
           sourceText: `
-import { after, state, stringProp, surfaceState } from "@unframe/authoring";
+import { after, state, stringProp, surfaceState } from "@unframe-dev/authoring";
 const property = stringProp({ default: "x" });
 const initial = state();
 const transition = surfaceState("surface", "active");
@@ -213,7 +213,7 @@ export const values = {
     [
       "strict object field",
       `
-import { stringProp } from "@unframe/authoring";
+import { stringProp } from "@unframe-dev/authoring";
 const declaration = stringProp({ default: "x", extra: "Injected" } as any);
 export const escaped = declaration.extra;`,
       "compiler-static-property-access-invalid",
@@ -221,7 +221,7 @@ export const escaped = declaration.extra;`,
     [
       "builder semantic constraint",
       `
-import { after } from "@unframe/authoring";
+import { after } from "@unframe-dev/authoring";
 const declaration = after(-1);
 export const escaped = declaration.afterMilliseconds;`,
       "compiler-static-property-access-invalid",
@@ -229,21 +229,21 @@ export const escaped = declaration.afterMilliseconds;`,
     [
       "spread composition",
       `
-import { stringProp } from "@unframe/authoring";
+import { stringProp } from "@unframe-dev/authoring";
 const declaration = stringProp({ default: "x", extra: "Injected" } as any);
 export const escaped = { ...declaration };`,
       "compiler-static-object-spread-invalid",
     ],
     [
       "generated discriminator conflict",
-      `import { stringProp } from "@unframe/authoring";
+      `import { stringProp } from "@unframe-dev/authoring";
 const declaration = stringProp({ kind: "bad", default: "x" } as any);
 export const escaped = declaration.default;`,
       "compiler-static-property-access-invalid",
     ],
     [
       "generated positional field conflict",
-      `import { playTimeline } from "@unframe/authoring";
+      `import { playTimeline } from "@unframe-dev/authoring";
 const declaration = playTimeline("original", { timelineId: "replacement", completion: "blocking" } as any);
 export const escaped = { ...declaration };`,
       "compiler-static-object-spread-invalid",
@@ -274,7 +274,7 @@ export const escaped = { ...declaration };`,
       (_, index) =>
         `const f${index} = frame({ id: "frame", layout, children: ${index === 0 ? "[]" : `[f${index - 1}, f${index - 1}]`} });`,
     ).join("\n");
-    const sourceText = `import { frame, definePresentation } from "@unframe/authoring";
+    const sourceText = `import { frame, definePresentation } from "@unframe-dev/authoring";
 const layout = { kind: "absolute", x: 0, y: 0, width: 100, height: 100 };
 ${levels}
 export default definePresentation({ id: f12.id });`;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { hashCanonicalJsonPayload, validatePresentationArtifacts } from "@unframe/artifacts";
-import { validatePresentationDefinition } from "@unframe/presentation";
+import { hashCanonicalJsonPayload, validatePresentationArtifacts } from "@unframe-dev/artifacts";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 const opaqueFixture = () => {

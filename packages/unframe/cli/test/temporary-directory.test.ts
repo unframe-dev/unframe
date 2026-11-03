@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, symlink } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, it, vi } from "vite-plus/test";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
-import { projectDirectory } from "@unframe/workspace-node";
+import { projectDirectory } from "@unframe-dev/workspace-node";
 
 const selection = vi.hoisted(() => ({ root: undefined as string | undefined }));
 vi.mock("node:os", async (original) => {

@@ -15,7 +15,7 @@ import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
   type ParticipantRuntimeView,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import type { PngPlan, PngPlane, PngAsset } from "./png-plan";
 
 type TransitionFrames = Record<

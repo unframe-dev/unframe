@@ -19,7 +19,7 @@ it("keeps publication pinned to the displayed Dist and rejects a mismatched resu
 });
 
 it("cancels a Dist build whose creation finishes after disposal", async () => {
-  let finish!: (job: import("@unframe/contracts/author-http").BuildJob) => void;
+  let finish!: (job: import("@unframe-dev/contracts/author-http").BuildJob) => void;
   const cancel = vi.fn(async () => ({}));
   const api = {
     distBuild: async () =>

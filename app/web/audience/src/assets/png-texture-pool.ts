@@ -1,5 +1,5 @@
 import type { Texture } from "three";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import { admitPngMemory } from "../rendering/png-memory";
 import { loadPngTexture, type PngTextureAsset } from "./png-texture";
 

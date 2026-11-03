@@ -14,10 +14,10 @@ import {
   savedCommandSchema,
   publicationAuthSchema,
   previewPlaybackResponseSchema,
-} from "@unframe/contracts/author-http";
-import { encodeWireMessage } from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/author-http";
+import { encodeWireMessage } from "@unframe-dev/contracts/presentation";
 import { z } from "zod";
-export type { PublicationAuth } from "@unframe/contracts/author-http";
+export type { PublicationAuth } from "@unframe-dev/contracts/author-http";
 const text = z.string().min(1);
 export class HostApiError extends Error {
   constructor(

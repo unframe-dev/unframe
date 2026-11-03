@@ -13,9 +13,9 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   capabilityProfileSchema,
   publishedPresentationSchema,
-} from "@unframe/contracts/presentation";
-import { buildProjectionProfile, selectDeliveryArtifacts } from "@unframe/delivery";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+} from "@unframe-dev/contracts/presentation";
+import { buildProjectionProfile, selectDeliveryArtifacts } from "@unframe-dev/delivery";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import type { AppEnvironment } from "../../config";
 import {
   internalRuntimeBootstrapRoute,

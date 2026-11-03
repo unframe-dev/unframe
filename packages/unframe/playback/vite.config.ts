@@ -6,7 +6,7 @@ export default defineConfig({
     entry: { index: "src/index.ts" },
     dts: { eager: true },
     deps: {
-      alwaysBundle: [/^@unframe\//, /^@noble\/hashes(?:\/|$)/, "canonicalize", "jsonc-parser"],
+      alwaysBundle: [/^@unframe-dev\//, /^@noble\/hashes(?:\/|$)/, "canonicalize", "jsonc-parser"],
       neverBundle: [/^zod(?:\/|$)/],
       onlyBundle: false,
       onlyImport: ["zod"],

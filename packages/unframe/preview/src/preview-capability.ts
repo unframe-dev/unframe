@@ -1,7 +1,7 @@
 import {
   createUnityMediaCapabilityProfile,
   type CapabilityProfile,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 
 export const previewCapability = (): CapabilityProfile => {
   const profile = createUnityMediaCapabilityProfile();

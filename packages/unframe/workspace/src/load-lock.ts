@@ -1,9 +1,9 @@
 import { validateNodeTransformSnapshot } from "./snapshot-integrity.js";
 import { createHash } from "node:crypto";
-import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import type { DeclarationProjectAssemblyCarrier } from "./assembly-carrier.js";
 import { z } from "zod";
-import { idSchema } from "@unframe/contracts/presentation";
+import { idSchema } from "@unframe-dev/contracts/presentation";
 import { sourceAssetMediaTypeSchema, sourceAssetPathSchema } from "./load-config.js";
 
 import {
@@ -15,7 +15,7 @@ import {
   type UnframeLock,
 } from "./lock.js";
 import { mediaTypeFor } from "./package-files.js";
-import { parseStrictJson } from "@unframe/artifacts";
+import { parseStrictJson } from "@unframe-dev/artifacts";
 
 const hash = z.templateLiteral(["sha256:", z.string().regex(/^[0-9a-f]{64}$/u)]);
 const nonempty = z.string().min(1);

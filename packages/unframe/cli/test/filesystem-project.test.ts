@@ -5,7 +5,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 
 const execFile = promisify(execFileCallback);
 

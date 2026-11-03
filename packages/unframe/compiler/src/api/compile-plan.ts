@@ -2,7 +2,7 @@ import {
   materializeCompletedSemanticTree,
   type SemanticSurface,
   type ValidationResult,
-} from "@unframe/presentation";
+} from "@unframe-dev/presentation";
 import {
   rendererIdentitySchema,
   type RendererIdentity,
@@ -106,7 +106,7 @@ export const planCheckedDeclarationProject = (
       const reactScene = Array.isArray(project.presentation.scene)
         ? project.presentation.scene
         : (project.presentation.scene as { components: readonly unknown[] }).components.filter(
-            (item): item is import("@unframe/authoring").StaticReactSceneItem =>
+            (item): item is import("@unframe-dev/authoring").StaticReactSceneItem =>
               typeof item === "object" && item !== null && "component" in item,
           );
       const instance = reactScene.find(

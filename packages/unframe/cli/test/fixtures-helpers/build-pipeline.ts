@@ -7,13 +7,13 @@ import {
   type CompilerBuildCache,
   type CompilerDeclarationProject,
   type CompilerSourceAssetBytes,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 import {
   encodeRgbaToPng,
   MODEL_TRANSFORM_IDENTITY,
   PNG_ENCODER_IDENTITY,
   transformGlb,
-} from "@unframe/media-node";
+} from "@unframe-dev/media-node";
 
 const media: BuildMediaPorts = {
   pngIdentity: PNG_ENCODER_IDENTITY,

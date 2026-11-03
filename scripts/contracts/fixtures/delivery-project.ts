@@ -1,25 +1,29 @@
-import { compileDeclarationProject } from "@unframe/build";
+import { compileDeclarationProject } from "@unframe-dev/build";
 import {
   hashComponentManifestDeclaration,
   hashComponentStructureDeclaration,
   hashThemeDeclaration,
   type CompilerDeclarationProject,
-} from "@unframe/compiler";
-import { standardComponents } from "@unframe/authoring/components";
-import type { ComponentManifest, ComponentStructure, SurfaceDeclaration } from "@unframe/authoring";
+} from "@unframe-dev/compiler";
+import { standardComponents } from "@unframe-dev/authoring/components";
+import type {
+  ComponentManifest,
+  ComponentStructure,
+  SurfaceDeclaration,
+} from "@unframe-dev/authoring";
 import {
   PNG_ABSOLUTE_LIMITS,
   PNG_ENCODER_IDENTITY,
   MODEL_TRANSFORM_IDENTITY,
   encodeRgbaToPng,
   transformGlb,
-} from "@unframe/media-node";
+} from "@unframe-dev/media-node";
 import {
   SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
   type RendererPlugin,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 
 export const createDeliveryFixtureProject = (): CompilerDeclarationProject => {
   const base = standardComponents.surface.structure;

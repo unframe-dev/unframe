@@ -90,7 +90,7 @@ const surfaceNode = spatial({
 });
 
 const surfaceManifest = defineComponentManifest({
-  componentId: "@unframe/components/Surface",
+  componentId: "@unframe-dev/components/Surface",
   version: 1,
   authoring: { mode: "structured", structure: "./Surface.structure.ts" },
   props: {
@@ -202,7 +202,7 @@ describe("reference authoring project", () => {
     expect(presentation).toBe(referencePresentation);
     expect(presentation.stage.size).toEqual([4, 3, 2]);
     expect(presentation.scene.spatial[0]?.id).toBe("surface-node-title");
-    expect(presentation.scene.components[0]?.componentId).toBe("@unframe/components/Surface");
+    expect(presentation.scene.components[0]?.componentId).toBe("@unframe-dev/components/Surface");
     expect(presentation.flow.groups["group-intro"]?.steps["step-intro"]?.cues).toEqual([]);
     expect(titleSurface.baseSemanticTree.nodes["semantic-title"]?.role).toBe("heading");
     expect(titleSurface.initialStateId).toBe("state-default");

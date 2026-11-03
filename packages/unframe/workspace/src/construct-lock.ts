@@ -1,4 +1,4 @@
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { hashDependencyGraph, type UnframeLock } from "./lock.js";
 
 type ComponentInput = {

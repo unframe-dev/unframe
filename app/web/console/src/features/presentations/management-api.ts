@@ -1,9 +1,9 @@
-import { sessionJoinCodeSchema } from "@unframe/contracts/control-plane-http";
+import { sessionJoinCodeSchema } from "@unframe-dev/contracts/control-plane-http";
 import { controlPlaneClient as client } from "@/shared/api/control-plane-client";
 import {
   publicationFenceSchema,
   publishedPresentationSchema,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { z } from "zod";
 import { ManagementError } from "./management-model";
 

@@ -1,7 +1,7 @@
 import type {
   ProjectedReliableEventWire_payload,
   RuntimeRunSnapshotWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { createFixtureScenario, type FixtureScenario } from "./scenario";
 
 export async function createMediaFixtureScenario(

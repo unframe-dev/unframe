@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
-import { presentationDefinitionSchema, renderBundleSchema } from "@unframe/contracts/presentation";
+import {
+  presentationDefinitionSchema,
+  renderBundleSchema,
+} from "@unframe-dev/contracts/presentation";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
-import { advanceCueClock, createCueState, executeCueEvent } from "@unframe/playback";
-import { validatePresentationDefinition } from "@unframe/presentation";
+import { advanceCueClock, createCueState, executeCueEvent } from "@unframe-dev/playback";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 
 const timeline = {
   name: "Timeline",

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compileStylesResultSchema } from "@unframe/styles-node/compiler";
+import { compileStylesResultSchema } from "@unframe-dev/styles-node/compiler";
 
 test("worker results reject malformed diagnostics and dependencies", () => {
   assert.equal(

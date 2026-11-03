@@ -52,7 +52,7 @@ PNGはHTTPS・CORS・credentials omit・no-storeで取得する。期限・media
 
 この段階の対象は静的なPNG状態である。native-ui・動画・model・shape・light・Presenter anchor・Local Overlay・active run／遷移中の状態は未対応として拒否し、黙って欠落させない。Snapshot・更新イベントの静的PNGへの適用は以下のRuntime受け口で対応する。Timeline・Surfaceクロスフェードは以下のアニメーション層で対応し、動画・GLBは工程6の作業となる。診断用ガイドと製品データは別で、製品へfixture URLや模擬Backendを追加していない。現在の画面は引き続き位置合わせ用ガイドであり、自動的にfixtureプレゼンをロードしない。
 
-`@unframe/contracts`をAudienceのworkspace依存へ追加し、pnpm-lockのAudience importerだけを更新した。共有契約・Backend・インフラ・CI設定の変更はない。
+`@unframe-dev/contracts`をAudienceのworkspace依存へ追加し、pnpm-lockのAudience importerだけを更新した。共有契約・Backend・インフラ・CI設定の変更はない。
 
 検証: `nix run .#audience`は155テスト・型検査・lint・build成功。追加の27テストでは契約fixtureのwire往復・素材対応、fit／UV、階層・表示・予算、PNG取得の拒否条件、取消・巻き戻し・セッション所有を確認した。PNGモジュール単独のブラウザ向けbundleも成功。画像デコードとGPU表示のテストはテストダブルを用いており、実ブラウザの画素表示、実機のカメラ同時負荷、実サーバー素材取得は未検証。
 

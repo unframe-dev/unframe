@@ -4,7 +4,7 @@ import {
   encodeWireMessage,
   type ControlServerItemWire,
   type StateServerItemWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import type { RuntimeInput, ViewingSnapshot } from "../experience/viewing-session";
 import { viewerRuntimeCapabilities } from "../runtime/viewer-policy";
 import type { PreparedConnection } from "./join-controller";

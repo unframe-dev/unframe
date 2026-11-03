@@ -9,7 +9,7 @@ import {
 describe("standard Surface contract", () => {
   it("exposes only the implemented structured baked-web contract", () => {
     expect(standardSurfaceManifest).toMatchObject({
-      componentId: "@unframe/components/Surface",
+      componentId: "@unframe-dev/components/Surface",
       version: 1,
       authoring: {
         mode: "structured",
@@ -136,7 +136,7 @@ describe("standard Surface contract", () => {
   it("preserves literal public contract types", () => {
     expectTypeOf(
       standardSurfaceManifest.componentId,
-    ).toEqualTypeOf<"@unframe/components/Surface">();
+    ).toEqualTypeOf<"@unframe-dev/components/Surface">();
     expectTypeOf(standardSurfaceManifest.authoring.mode).toEqualTypeOf<"structured">();
     expectTypeOf(standardSurfaceManifest.renderers[0]).toEqualTypeOf<"baked-web">();
     expectTypeOf(standardSurfaceStructure.root.id).toEqualTypeOf<"surface-root">();

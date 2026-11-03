@@ -9,8 +9,8 @@ import {
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   type BuildIntegrityInput,
-} from "@unframe/artifacts";
-import { renderBundleSchema } from "@unframe/contracts/presentation";
+} from "@unframe-dev/artifacts";
+import { renderBundleSchema } from "@unframe-dev/contracts/presentation";
 import { PublicationService } from "../../../src/modules/publications/service";
 import { firstThumbnailTexture } from "../../../src/modules/publications/thumbnail";
 import { createApp } from "../../../src/app";

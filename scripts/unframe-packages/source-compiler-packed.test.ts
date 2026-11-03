@@ -18,7 +18,7 @@ test("packed Source and Compiler work from fixed inputs without workspace source
     for (const name of ["authoring", "presentation", "artifacts", "source", "compiler"]) {
       const source = resolve(root, "packages/unframe", name);
       const pkg = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
-      const target = join(directory, "node_modules/@unframe", name);
+      const target = join(directory, "node_modules/@unframe-dev", name);
       await mkdir(target, { recursive: true });
       await cp(join(source, "dist"), join(target, "dist"), { recursive: true });
       await writeFile(
@@ -60,18 +60,18 @@ test("packed Source and Compiler work from fixed inputs without workspace source
       files: [
         {
           fileName: "entry.ts",
-          sourceText: `import { definePresentation } from "@unframe/authoring";
+          sourceText: `import { definePresentation } from "@unframe-dev/authoring";
 export default definePresentation({ id: "fixed-source", metadata: { title: "Fixed" }, stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] }, scene: { spatial: [], components: [] }, assets: [], flow: { initialGroupId: "group", groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } } }, variables: {} }, operations: [] });`,
         },
       ],
       rootDependencies: [
-        { specifier: "@unframe/authoring", usage: "runtime", packageKey: hash("a") },
+        { specifier: "@unframe-dev/authoring", usage: "runtime", packageKey: hash("a") },
       ],
       packages: [
         {
           key: hash("a"),
-          locator: "@unframe/authoring@1",
-          name: "@unframe/authoring",
+          locator: "@unframe-dev/authoring@1",
+          name: "@unframe-dev/authoring",
           version: "1",
           contentIntegrity: hash("b"),
           files: [
@@ -96,8 +96,8 @@ export default definePresentation({ id: "fixed-source", metadata: { title: "Fixe
       `
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { checkAuthoringProject, hashSourceTypeLibraries } from "@unframe/source";
-import { compileDeclarationPlan } from "@unframe/compiler";
+import { checkAuthoringProject, hashSourceTypeLibraries } from "@unframe-dev/source";
+import { compileDeclarationPlan } from "@unframe-dev/compiler";
 const source = checkAuthoringProject({projectRoot:"/virtual", entryFile:"entry.component.tsx", files:[{fileName:"entry.component.tsx", sourceText:"export const value = 1;"}], rootDependencies:[], packages:[]});
 assert.equal(source.valid, false);
 assert.ok(source.diagnostics.some(d => d.code === "source-type-library-missing"));
@@ -118,8 +118,8 @@ assert.equal(Object.keys(plan.value.renderPlan.surfaces).length, 1);
     await writeFile(
       join(directory, "consumer.mts"),
       `
-import { checkAuthoringProject } from "@unframe/source";
-import { compileDeclarationPlan, type CompilerDeclarationProject } from "@unframe/compiler";
+import { checkAuthoringProject } from "@unframe-dev/source";
+import { compileDeclarationPlan, type CompilerDeclarationProject } from "@unframe-dev/compiler";
 declare const project: CompilerDeclarationProject;
 void [checkAuthoringProject, compileDeclarationPlan(project)];
 `,

@@ -1,4 +1,4 @@
-import type { SavedCommand } from "@unframe/contracts/author-http";
+import type { SavedCommand } from "@unframe-dev/contracts/author-http";
 
 export type WorkspaceSave = {
   root: string;

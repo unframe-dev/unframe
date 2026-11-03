@@ -1,5 +1,5 @@
 import { expect, it } from "vite-plus/test";
-import { authoringPackageRoots, hasPostcssConfig } from "@unframe/build";
+import { authoringPackageRoots, hasPostcssConfig } from "@unframe-dev/build";
 
 it("selects browser dependencies from Authoring imports without executing Node config helpers", () => {
   const roots = authoringPackageRoots({

@@ -1,4 +1,4 @@
-import type { Diagnostic } from "@unframe/presentation";
+import type { Diagnostic } from "@unframe-dev/presentation";
 import {
   type CompilerResolvedSurfaceInput,
   type RendererBuildResult,

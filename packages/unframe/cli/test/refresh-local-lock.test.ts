@@ -7,7 +7,7 @@ import { syncBuiltinESMExports } from "node:module";
 import * as ts from "typescript";
 import { prepareReactProjectFixture } from "./react-project-fixture.js";
 import { afterEach, assert, expect, it, vi } from "vite-plus/test";
-import { acquireSourceLock, refreshLocalProjectLock } from "@unframe/workspace-node";
+import { acquireSourceLock, refreshLocalProjectLock } from "@unframe-dev/workspace-node";
 
 const directories: string[] = [];
 afterEach(async () => {

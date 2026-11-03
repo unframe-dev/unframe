@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import type { PublishedPresentation } from "@unframe/contracts/presentation";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import type { PublishedPresentation } from "@unframe-dev/contracts/presentation";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 
 const presentations = [
   { id: "gallery-1", name: "春のプロダクト紹介" },

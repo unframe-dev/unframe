@@ -4,8 +4,8 @@ import {
   hashCanonicalJsonPayload,
   validatePresentationArtifacts,
   validateRenderBundle,
-} from "@unframe/artifacts";
-import { validatePresentationDefinition } from "@unframe/presentation";
+} from "@unframe-dev/artifacts";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 const codes = (result: ReturnType<typeof validatePresentationDefinition>) =>

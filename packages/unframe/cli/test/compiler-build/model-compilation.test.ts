@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
-import { standardComponents } from "@unframe/authoring/components";
-import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
-import { checkDeclarationProject } from "@unframe/build";
+import { standardComponents } from "@unframe-dev/authoring/components";
+import { PNG_ABSOLUTE_LIMITS } from "@unframe-dev/media-node";
+import { checkDeclarationProject } from "@unframe-dev/build";
 import { compileDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
-import type { CompiledDeclarationProject } from "@unframe/build";
+import type { CompiledDeclarationProject } from "@unframe-dev/build";
 import { checksumBytes } from "../fixtures-helpers/checksum.js";
 import { modelGlb, modelProject } from "./fixtures/model.js";
 
@@ -273,7 +273,7 @@ it("still requires a renderer when a Model shares the project with a Surface", a
     { ...model, manifest: surface.manifest, structure: surface.structure },
   ];
   const scene = project.presentation
-    .scene as import("@unframe/authoring").PresentationDeclaration["scene"];
+    .scene as import("@unframe-dev/authoring").PresentationDeclaration["scene"];
   project.presentation.scene = {
     spatial: [...scene.spatial, { ...scene.spatial[0]!, id: "surface-host", order: 2 }],
     components: [

@@ -4,18 +4,18 @@ import {
   isPresentationDeclaration,
   isThemeDeclaration,
   type PresentationDeclaration,
-} from "@unframe/authoring";
+} from "@unframe-dev/authoring";
 import {
   canonicalizePresentationDefinition,
   hashCanonicalJsonPayload,
   hashPresentationDefinition,
-} from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
 import {
   validatePresentationDefinition,
   type Diagnostic,
   type PresentationDefinition,
   type ValidationResult,
-} from "@unframe/presentation";
+} from "@unframe-dev/presentation";
 import {
   declarationProjectEnvelopeSchema,
   structuredSceneEnvelopeSchema,
@@ -34,7 +34,7 @@ import { lowerCues } from "../lowering/lower-cues.js";
 import { checkSlotComposition, sameOwner } from "../resolution/check-slot-composition.js";
 import { checkProjectAssetReferences } from "../validation/check-project-assets.js";
 import { resolveOpaqueProject } from "../resolution/resolve-opaque-component.js";
-import type { StaticReactSceneItem } from "@unframe/authoring";
+import type { StaticReactSceneItem } from "@unframe-dev/authoring";
 
 type UnknownRecord = Record<string, unknown>;
 const canonicalQuaternion = (
@@ -994,7 +994,7 @@ const checkDeclarationProjectUnchecked = (
     const frameId = resolved.rootFrameId;
     const nestedSemanticFragments: {
       instance: (typeof instances)[number];
-      tree: import("@unframe/authoring").BaseSemanticTreeDeclaration;
+      tree: import("@unframe-dev/authoring").BaseSemanticTreeDeclaration;
       props: ReadonlyMap<string, string | number | boolean>;
       semanticParentId?: string;
     }[] = [];
@@ -1089,7 +1089,7 @@ const checkDeclarationProjectUnchecked = (
     const semanticRootNodeIds: string[] = [];
     const appendSemanticTree = (
       semanticInstance: (typeof instances)[number],
-      tree: import("@unframe/authoring").BaseSemanticTreeDeclaration,
+      tree: import("@unframe-dev/authoring").BaseSemanticTreeDeclaration,
       props: ReadonlyMap<string, string | number | boolean>,
       semanticParentId?: string,
     ) => {

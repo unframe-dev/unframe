@@ -5,7 +5,7 @@ import type {
   ConnectionSnapshotEnvelopeWire,
   DeliveryManifestWire,
   RuntimeProjectionFenceWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import { createRuntimePlayback } from "../playback";
 import { createPngPresentation } from "../../rendering/png-presentation";

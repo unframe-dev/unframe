@@ -4,11 +4,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as ts from "typescript";
 import { afterAll, afterEach, assert, beforeAll, expect, it, vi } from "vite-plus/test";
-import type { AuthorService } from "@unframe/author-service";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { encodeRgbaToPng } from "@unframe/media-node";
+import type { AuthorService } from "@unframe-dev/author-service";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
+import { encodeRgbaToPng } from "@unframe-dev/media-node";
 import { createAuthorService } from "../src/author/service.js";
-import { acquireSourceLock } from "@unframe/workspace-node";
+import { acquireSourceLock } from "@unframe-dev/workspace-node";
 import { runPresentationCli } from "../src/index.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { copyProjectFixture } from "./copy-project-fixture.js";
@@ -133,7 +133,7 @@ const registeredImageProject = async () => {
       'assets: [{ kind: "asset-ref", assetId: "image" }],',
     ),
   );
-  const template = dirname(fileURLToPath(import.meta.resolve("@unframe/cli/template")));
+  const template = dirname(fileURLToPath(import.meta.resolve("@unframe-dev/cli/template")));
   await writeFile(
     join(directory, "surface.structure.tsx"),
     (await readFile(join(template, "surface.structure.tsx"), "utf8")).replace(

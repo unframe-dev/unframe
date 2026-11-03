@@ -1,5 +1,5 @@
 import type { NodeTransformSnapshot } from "./snapshot-schema.js";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import type { ProjectConfig } from "./load-config.js";
 
 export type ContentHash = `sha256:${string}`;

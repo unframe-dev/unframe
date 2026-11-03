@@ -1,9 +1,9 @@
 import type { CheckedDeclarationProject } from "../../build-execution/api/types.js";
 import type { CompilerSourceAssetBytes } from "../../build-execution/api/types.js";
-import type { CompilerDeclarationProject } from "@unframe/compiler";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import type { CompilerDeclarationProject } from "@unframe-dev/compiler";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import { computeFrozenComponentInputs } from "../semantic/frozen-component-inputs.js";
-import { checkAuthoringProject } from "@unframe/source";
+import { checkAuthoringProject } from "@unframe-dev/source";
 import { assembleDeclarationProjectValidated } from "./assemble-declaration-project.js";
 import { safePlainClone } from "../../build-execution/validation/safe-plain-clone.js";
 import type { AuthoringProjectPipelineResult } from "./types.js";

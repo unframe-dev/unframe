@@ -1,4 +1,4 @@
-import { decodeWireMessage, encodeWireMessage } from "@unframe/contracts/presentation";
+import { decodeWireMessage, encodeWireMessage } from "@unframe-dev/contracts/presentation";
 
 import { parseWireUInt } from "./wire-validation";
 

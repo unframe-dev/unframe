@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
-import { hashCanonicalJsonPayload, validatePresentationArtifacts } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload, validatePresentationArtifacts } from "@unframe-dev/artifacts";
 
 type RecordValue = Record<string, any>;
 

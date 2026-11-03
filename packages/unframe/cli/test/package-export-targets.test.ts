@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { resolvePackageExportTargets } from "@unframe/workspace-node";
+import { resolvePackageExportTargets } from "@unframe-dev/workspace-node";
 
 describe("fixed browser package export resolution", () => {
   it("preserves conditional object order and separates runtime and types", () => {

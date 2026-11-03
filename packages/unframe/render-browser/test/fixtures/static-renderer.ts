@@ -1,6 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { createRendererFingerprint, type CompilerResolvedSurfaceInput } from "@unframe/build";
+import { createRendererFingerprint, type CompilerResolvedSurfaceInput } from "@unframe-dev/build";
 
 import {
   createBakedWebRenderer,

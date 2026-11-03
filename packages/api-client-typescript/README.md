@@ -1,9 +1,9 @@
 # Control Plane TypeScript Client
 
-`@unframe/contracts/control-plane` の生成済み OpenAPI HTTP 契約を使う型付き client です。入力、path parameter、status 別 response を HTTP 契約から導出し、Control Plane アプリの型や実装には依存しません。
+`@unframe-dev/contracts/control-plane` の生成済み OpenAPI HTTP 契約を使う型付き client です。入力、path parameter、status 別 response を HTTP 契約から導出し、Control Plane アプリの型や実装には依存しません。
 
 ```ts
-import { createControlPlaneClient } from "@unframe/api-client-typescript";
+import { createControlPlaneClient } from "@unframe-dev/api-client-typescript";
 
 const client = createControlPlaneClient({
   baseUrl: "https://api.un-fra.me",
@@ -19,7 +19,7 @@ if (response.ok) {
 
 ## Dist の公開
 
-`@unframe/api-client-typescript/publication` の `createPublicationClient` は CLI と Console が共有する公開処理です。Cookie の `credentials: "include"` または `bearerToken` の一方を指定し、Console は `getTarget`、CLI は `readFence` で現在の公開版を取得し、取得した fence を `expectedPublicationFence` として `publish` に渡します。素材の検証・固定後にビルド登録、素材送信、公開確定を行い、公開応答の整合性も検証します。
+`@unframe-dev/api-client-typescript/publication` の `createPublicationClient` は CLI と Console が共有する公開処理です。Cookie の `credentials: "include"` または `bearerToken` の一方を指定し、Console は `getTarget`、CLI は `readFence` で現在の公開版を取得し、取得した fence を `expectedPublicationFence` として `publish` に渡します。素材の検証・固定後にビルド登録、素材送信、公開確定を行い、公開応答の整合性も検証します。
 
 公開確定要求の結果が不明な場合は `outcome: "unknown"` を返します。クライアントは自動再送せず、呼出側が現在の公開情報と照合します。
 
@@ -28,7 +28,7 @@ if (response.ok) {
 認証は Control Plane OpenAPI とは別の、Better Auth `1.7.1` に固定したバージョン付き契約境界です。Google / email-password sign-in、email verification、password reset、session、device authorization、TOTP / backup code MFA を型付きで利用できます。
 
 ```ts
-import { createControlPlaneAuthClient } from "@unframe/api-client-typescript";
+import { createControlPlaneAuthClient } from "@unframe-dev/api-client-typescript";
 
 let bearerToken: string | undefined;
 const auth = createControlPlaneAuthClient({

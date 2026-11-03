@@ -1,4 +1,4 @@
-import type { ProjectSnapshot } from "@unframe/contracts/author-http";
+import type { ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 
 export type TimelineDefinition = NonNullable<ProjectSnapshot["definition"]>;
 export type FlowGroup = TimelineDefinition["flow"]["groups"][string];

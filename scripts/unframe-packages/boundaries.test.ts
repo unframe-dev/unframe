@@ -17,17 +17,17 @@ const names = [
   "compiler",
 ];
 const allowed = {
-  presentation: ["@unframe/contracts"],
-  authoring: ["@unframe/presentation"],
-  source: ["@unframe/authoring", "@unframe/presentation"],
-  compiler: ["@unframe/artifacts", "@unframe/authoring", "@unframe/presentation"],
-  artifacts: ["@unframe/contracts", "@unframe/presentation"],
-  playback: ["@unframe/contracts", "@unframe/presentation", "@unframe/artifacts"],
+  presentation: ["@unframe-dev/contracts"],
+  authoring: ["@unframe-dev/presentation"],
+  source: ["@unframe-dev/authoring", "@unframe-dev/presentation"],
+  compiler: ["@unframe-dev/artifacts", "@unframe-dev/authoring", "@unframe-dev/presentation"],
+  artifacts: ["@unframe-dev/contracts", "@unframe-dev/presentation"],
+  playback: ["@unframe-dev/contracts", "@unframe-dev/presentation", "@unframe-dev/artifacts"],
   delivery: [
-    "@unframe/contracts",
-    "@unframe/presentation",
-    "@unframe/artifacts",
-    "@unframe/playback",
+    "@unframe-dev/contracts",
+    "@unframe-dev/presentation",
+    "@unframe-dev/artifacts",
+    "@unframe-dev/playback",
   ],
 };
 const manifest = async (name) =>
@@ -48,13 +48,13 @@ async function sources(directory) {
 test("domain packages expose independent manifests without the former core facade", async () => {
   for (const name of names) {
     const pkg = await manifest(name);
-    assert.equal(pkg.name, `@unframe/${name}`);
+    assert.equal(pkg.name, `@unframe-dev/${name}`);
     assert.ok(pkg.exports["."]);
     for (const command of ["typecheck", "lint", "test", "build", "check"]) {
       assert.ok(pkg.scripts[command], `${name}: ${command}`);
     }
     for (const dependency of Object.keys(pkg.dependencies).filter((value) =>
-      value.startsWith("@unframe/"),
+      value.startsWith("@unframe-dev/"),
     )) {
       assert.ok(allowed[name].includes(dependency), `${name} must not depend on ${dependency}`);
     }
@@ -65,26 +65,26 @@ test("domain packages expose independent manifests without the former core facad
 test("adapters and CLI expose independent package boundaries", async () => {
   for (const name of ["render-browser", "media-node", "styles-node", "worker-host", "cli"]) {
     const pkg = await manifest(name);
-    assert.equal(pkg.name, `@unframe/${name}`);
+    assert.equal(pkg.name, `@unframe-dev/${name}`);
     assert.ok(pkg.exports["."]);
     for (const command of ["typecheck", "lint", "test", "build"]) {
       assert.ok(pkg.scripts[command], `${name}: ${command}`);
     }
-    assert.equal(pkg.dependencies?.["@unframe/core"], undefined);
+    assert.equal(pkg.dependencies?.["@unframe-dev/core"], undefined);
   }
 });
 
 test("domain source imports stay within declared package APIs", async () => {
   const manifests = new Map(
-    await Promise.all(names.map(async (name) => [`@unframe/${name}`, await manifest(name)])),
+    await Promise.all(names.map(async (name) => [`@unframe-dev/${name}`, await manifest(name)])),
   );
   manifests.set(
-    "@unframe/contracts",
+    "@unframe-dev/contracts",
     JSON.parse(await readFile(resolve(root, "packages/contracts/package.json"), "utf8")),
   );
   for (const name of names) {
     const directory = resolve(root, "packages/unframe", name, "src");
-    const pkg = manifests.get(`@unframe/${name}`);
+    const pkg = manifests.get(`@unframe-dev/${name}`);
     for (const path of await sources(directory)) {
       const source = ts.createSourceFile(
         path,

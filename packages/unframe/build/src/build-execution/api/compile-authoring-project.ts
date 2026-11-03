@@ -1,5 +1,5 @@
 import type { BuildMediaPorts } from "./media-ports.js";
-import { SourceInternalError } from "@unframe/source";
+import { SourceInternalError } from "@unframe-dev/source";
 import type { CompilerSourceAssetBytes } from "./types.js";
 import {
   assembleAuthoringProject,

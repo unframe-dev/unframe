@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { quaternionSchema, safeUIntSchema } from "@unframe/contracts/presentation";
+import { quaternionSchema, safeUIntSchema } from "@unframe-dev/contracts/presentation";
 
 const decimalUIntSchema = z.string().regex(/^(0|[1-9][0-9]*)$/);
 export function parseWireUInt(

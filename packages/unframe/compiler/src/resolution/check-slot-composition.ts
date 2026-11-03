@@ -1,5 +1,5 @@
-import type { ComponentInstanceDeclaration, ContentNodeDeclaration } from "@unframe/authoring";
-import type { Diagnostic } from "@unframe/presentation";
+import type { ComponentInstanceDeclaration, ContentNodeDeclaration } from "@unframe-dev/authoring";
+import type { Diagnostic } from "@unframe-dev/presentation";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import type { CompilerDeclarationProject } from "../api/types.js";
 

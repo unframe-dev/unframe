@@ -1,6 +1,6 @@
 # Unframe Local Editor
 
-`app/web/local-editor` / `@unframe/local-editor` はローカル専用の Source Inspector、保存・履歴、Dev／Dist build、Unity Preview、Cue 時間軸の閲覧・確認と CLI を通す公開 UI です。`index.html` を `dist/` に build し、CLI Host が静的 UI と Unity player、token 認証付き HTTP API を配信します。ローカル HTTP 契約は contracts、filesystem は CLI の Adapter が所有します。認証・Dist の持ち込み公開・公開済みプレゼンテーションの確認・ルーム作成は [Console](../console/README.md) が担当します。
+`app/web/local-editor` / `@unframe-dev/local-editor` はローカル専用の Source Inspector、保存・履歴、Dev／Dist build、Unity Preview、Cue 時間軸の閲覧・確認と CLI を通す公開 UI です。`index.html` を `dist/` に build し、CLI Host が静的 UI と Unity player、token 認証付き HTTP API を配信します。ローカル HTTP 契約は contracts、filesystem は CLI の Adapter が所有します。認証・Dist の持ち込み公開・公開済みプレゼンテーションの確認・ルーム作成は [Console](../console/README.md) が担当します。
 
 UI フォントは [LINE Seed JP](https://seed.line.me/index_jp.html) の Regular / Bold を同梱しています。[SIL Open Font License](public/fonts/line-seed-jp/OFL.txt) に基づいて利用・再配布します。
 
@@ -13,19 +13,19 @@ UI フォントは [LINE Seed JP](https://seed.line.me/index_jp.html) の Regula
 ```bash
 nix run .#setup
 nix develop --command scripts/dev/install-presentation-browser.sh
-nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe/local-editor run build:distribution
+nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor run build:distribution
 ```
 
 2つのターミナルでそれぞれ `nix develop` に入り、次を実行します。
 
 ```bash
-pnpm --config.verify-deps-before-run=false --filter @unframe/local-editor dev
-pnpm --config.verify-deps-before-run=false --filter @unframe/cli dev -- /absolute/path/to/project
+pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor dev
+pnpm --config.verify-deps-before-run=false --filter @unframe-dev/cli dev -- /absolute/path/to/project
 ```
 
 CLI が認証付きの Editor URL をブラウザで開きます。UI は HMR で変更を反映し、API と Player の要求を CLI に proxy します。同じ Host の UI HMR では認証済み Workspace、選択、パネル配置、未保存入力と Unity canvas を保持します。controller や Host の処理を変更した場合は再起動してください。ページ全体を再読み込みした場合は CLI のターミナルで `r` と Enter を入力して認証付き URL を開き直します。
 
-配布物は `pnpm --config.verify-deps-before-run=false --filter @unframe/local-editor exec pnpm pack` で生成します。pack は現在の Unity Player と UI をビルドし、両方を同梱します。配布 CLI は `unframe author /absolute/path/to/project` で起動します。
+配布物は `pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor exec pnpm pack` で生成します。pack は現在の Unity Player と UI をビルドし、両方を同梱します。配布 CLI は `unframe author /absolute/path/to/project` で起動します。
 
 `unframe preview <absolute-dist-directory>` が開く `/dist-preview` は、固定 Dist の閲覧専用です。Dist が symlink の場合は `realpath` で解決したディレクトリを渡してください。Source 編集・Dev build・公開操作を表示せず、通常再生を利用できます。ブラウザが動画の自動再生を拒否した場合は一時停止し、「再生」の操作で再開します。
 

@@ -23,6 +23,7 @@ test("published manifests do not depend on private workspace packages", async ()
       });
       if (!manifest) continue;
       const source = JSON.parse(manifest);
+      assert.match(source.name, /^@unframe-dev\//, `${source.name} has the wrong npm scope`);
       assert.notEqual(source.private, true, `${source.name} must be publishable`);
       execFileSync(
         "pnpm",
@@ -39,7 +40,7 @@ test("published manifests do not depend on private workspace packages", async ()
       const packed = JSON.parse(
         execFileSync("tar", ["-xOf", tarball, "package/package.json"], { encoding: "utf8" }),
       );
-      for (const name of ["@unframe/contracts", "@unframe/api-client-typescript"]) {
+      for (const name of ["@unframe-dev/contracts", "@unframe-dev/api-client-typescript"]) {
         assert.equal(
           packed.dependencies?.[name],
           undefined,

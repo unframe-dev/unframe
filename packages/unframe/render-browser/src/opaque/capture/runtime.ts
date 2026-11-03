@@ -1,4 +1,7 @@
-import { assertWorkerIsolationAvailable, getWorkerIsolationIdentity } from "@unframe/worker-host";
+import {
+  assertWorkerIsolationAvailable,
+  getWorkerIsolationIdentity,
+} from "@unframe-dev/worker-host";
 import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";

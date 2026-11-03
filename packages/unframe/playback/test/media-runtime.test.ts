@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
-import { presentationDefinitionSchema, renderBundleSchema } from "@unframe/contracts/presentation";
+import {
+  presentationDefinitionSchema,
+  renderBundleSchema,
+} from "@unframe-dev/contracts/presentation";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import {
@@ -8,7 +11,7 @@ import {
   advanceCueClock,
   createM3dCueRuntimeSnapshot,
   validateCanonicalRuntimeSnapshot,
-} from "@unframe/playback";
+} from "@unframe-dev/playback";
 
 const setup = () => {
   const definition = presentationDefinitionSchema.parse(structuredClone(definitionFixture));

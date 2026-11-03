@@ -5,8 +5,8 @@ import {
   completeRuntimeRun,
   createCueState,
   executeCueEvent,
-} from "@unframe/playback";
-import { validatePresentationDefinition } from "@unframe/presentation";
+} from "@unframe-dev/playback";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 const setup = () => {

@@ -1,13 +1,13 @@
-import type { CompletedSemanticTree as ContractCompletedSemanticTree } from "@unframe/contracts/presentation/semantics";
+import type { CompletedSemanticTree as ContractCompletedSemanticTree } from "@unframe-dev/contracts/presentation/semantics";
 import type {
   PresentationDefinition as ContractPresentationDefinition,
   SemanticSurface as ContractSemanticSurface,
   SurfaceContentNode as ContractSurfaceContentNode,
-} from "@unframe/contracts/presentation/definition";
+} from "@unframe-dev/contracts/presentation/definition";
 import type {
   RenderBundle as ContractRenderBundle,
   TextureArtifact as ContractTextureArtifact,
-} from "@unframe/contracts/presentation/render-bundle";
+} from "@unframe-dev/contracts/presentation/render-bundle";
 
 type DeepReadonly<T> = T extends readonly unknown[]
   ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }

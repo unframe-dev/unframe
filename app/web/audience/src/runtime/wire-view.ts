@@ -7,7 +7,7 @@ import {
   type RuntimeRunIdWire,
   type ScalarValueWire,
   type Vector3Wire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 
 import { canonicalQuaternionSchema, parseWireUInt } from "./wire-validation";
 

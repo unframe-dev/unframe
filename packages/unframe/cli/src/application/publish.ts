@@ -1,11 +1,11 @@
-import { createPublicationClient } from "@unframe/api-client-typescript/publication";
+import { createPublicationClient } from "@unframe-dev/api-client-typescript/publication";
 import {
   publishFixedBuild,
   readPublicationFence,
   type PublicationRemote,
   type PublishResult,
-} from "@unframe/publish";
-import { readDistBuild } from "@unframe/workspace-node";
+} from "@unframe-dev/publish";
+import { readDistBuild } from "@unframe-dev/workspace-node";
 export type PublishInput = PublicationRemote & { directory: string; presentationId: string };
 const assetBudget = 256 * 1024 * 1024;
 const failure = (code: string): PublishResult => ({ ok: false, code });

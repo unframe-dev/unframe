@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/worker-host",
+  "name": "@unframe-dev/worker-host",
   "version": "0.0.1",
   "private": false,
   "files": [

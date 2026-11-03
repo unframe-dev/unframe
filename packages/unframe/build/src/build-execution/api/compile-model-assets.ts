@@ -1,7 +1,7 @@
 import type { BuildMediaPorts, ModelLimits } from "./media-ports.js";
-import type { Json } from "@unframe/authoring";
-import type { BuildArtifacts } from "@unframe/artifacts";
-import type { RenderBundle, ValidationResult } from "@unframe/presentation";
+import type { Json } from "@unframe-dev/authoring";
+import type { BuildArtifacts } from "@unframe-dev/artifacts";
+import type { RenderBundle, ValidationResult } from "@unframe-dev/presentation";
 import type { CompilerSourceAsset, CompilerSourceAssetBytes } from "./types.js";
 
 export const MODEL_COMPILER_LIMITS = Object.freeze({

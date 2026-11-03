@@ -144,7 +144,7 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
     rootNames: [fileName],
     options: {
       jsx: ts.JsxEmit.ReactJSX,
-      jsxImportSource: "@unframe/authoring",
+      jsxImportSource: "@unframe-dev/authoring",
       noLib: true,
       noResolve: true,
     },

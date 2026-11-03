@@ -1,6 +1,6 @@
-import { getPresentationWireType } from "@unframe/contracts/presentation/wire-metadata";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import { snapshotPlainJson } from "@unframe/artifacts/plain-json";
+import { getPresentationWireType } from "@unframe-dev/contracts/presentation/wire-metadata";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
+import { snapshotPlainJson } from "@unframe-dev/artifacts/plain-json";
 
 type WireType = ReturnType<typeof getPresentationWireType>;
 const profileTypeName = "unframe.delivery.ProjectionProfileDescriptor";

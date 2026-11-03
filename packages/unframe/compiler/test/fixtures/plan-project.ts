@@ -4,8 +4,12 @@ import {
   hashThemeDeclaration,
   type CompilerDeclarationProject,
 } from "../../src/index.js";
-import { standardComponents } from "@unframe/authoring/components";
-import type { ComponentManifest, ComponentStructure, SurfaceDeclaration } from "@unframe/authoring";
+import { standardComponents } from "@unframe-dev/authoring/components";
+import type {
+  ComponentManifest,
+  ComponentStructure,
+  SurfaceDeclaration,
+} from "@unframe-dev/authoring";
 
 export const createDeliveryFixtureProject = (): CompilerDeclarationProject => {
   const base = standardComponents.surface.structure;

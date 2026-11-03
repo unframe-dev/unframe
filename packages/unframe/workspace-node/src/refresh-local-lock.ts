@@ -3,14 +3,14 @@ import {
   prepareLockRefresh,
   type StylePreparationError,
   type StylePreparationPort,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { mkdir, open, rename, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
-import { createProjectRevision } from "@unframe/workspace";
+import { createProjectRevision } from "@unframe-dev/workspace";
 import { digestBytes } from "./package-snapshot.js";
 import { projectDirectory, readDirectoryNames } from "./path-policy.js";
 import { acquireSourceLock } from "./source-lock.js";

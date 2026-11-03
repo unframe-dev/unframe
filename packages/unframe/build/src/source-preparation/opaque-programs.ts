@@ -1,4 +1,4 @@
-import { reactResourceId } from "@unframe/compiler";
+import { reactResourceId } from "@unframe-dev/compiler";
 import type { CompilerSourceAssetBytes } from "../build-execution/api/types.js";
 import {
   assembleAuthoringProject,

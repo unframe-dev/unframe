@@ -8,14 +8,14 @@ import { cp, readFile, readdir, rm, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/source";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
+import { checkAuthoringProject } from "@unframe-dev/source";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { prepareProjectSource } from "@unframe/workspace-node";
-import { loadUnframeLock } from "@unframe/workspace";
-import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
-import { lockedFile, snapshotInstalledPackages } from "@unframe/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { prepareProjectSource } from "@unframe-dev/workspace-node";
+import { loadUnframeLock } from "@unframe-dev/workspace";
+import { hashDependencyGraph, type UnframeLock } from "@unframe-dev/workspace";
+import { lockedFile, snapshotInstalledPackages } from "@unframe-dev/workspace-node";
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const installFrozenGraph = async (directory: string) => {
@@ -180,11 +180,11 @@ export const createWebglCaptureProject = async (
     .join(",\n");
   await writeFile(
     join(directory, "presentation.unframe.tsx"),
-    `import {definePresentation} from "@unframe/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(presentation)};\nexport default definePresentation({...base, scene: [${sceneSource}]});`,
+    `import {definePresentation} from "@unframe-dev/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(presentation)};\nexport default definePresentation({...base, scene: [${sceneSource}]});`,
   );
   await writeFile(
     join(directory, "Hero.component.tsx"),
-    `import {defineComponent, editableText, prop} from "@unframe/authoring";
+    `import {defineComponent, editableText, prop} from "@unframe-dev/authoring";
 import "./hero.css";
 export const Hero = defineComponent({
   id: "hero", version: 1,

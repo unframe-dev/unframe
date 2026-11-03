@@ -1,9 +1,9 @@
-import type { PresentationDefinition } from "@unframe/contracts/presentation/definition";
+import type { PresentationDefinition } from "@unframe-dev/contracts/presentation/definition";
 import type {
   NodeRuntimeStateWire,
   SurfaceRuntimeStateWire,
-} from "@unframe/contracts/presentation/wire-types";
-import { validatePresentationDefinition } from "@unframe/presentation";
+} from "@unframe-dev/contracts/presentation/wire-types";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 
 export type InitialRuntimeState = {
   nodeStates: NodeRuntimeStateWire[];

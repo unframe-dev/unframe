@@ -9,7 +9,7 @@ import {
   type StateServerItemWire,
   type RuntimeRunSnapshotWire,
   type RuntimeRunIdWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { toParticipantView } from "./wire-view";
 import { assertViewerDelivery, assertViewerRuntimeCapabilities } from "./viewer-policy";
 import { evaluateAnimationView } from "./animation-view";

@@ -4,7 +4,7 @@ import {
   type ControlServerItemWire,
   type DeliveryManifestWire,
   type StateServerItemWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import type { createAnchorSession } from "./anchor-session";
 import type { createRuntimePlayback } from "../runtime/playback";
 

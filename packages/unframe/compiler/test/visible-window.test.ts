@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
-import type { SemanticSurface } from "@unframe/presentation";
+import type { SemanticSurface } from "@unframe-dev/presentation";
 import { planSurfacePartitions } from "../src/api/plan-surface-partitions.js";
 
 const renderer = {

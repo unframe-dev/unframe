@@ -1,7 +1,7 @@
 import type {
   DeliveryManifestWire,
   ResidencyPlanWire,
-} from "@unframe/contracts/presentation/wire-types";
+} from "@unframe-dev/contracts/presentation/wire-types";
 import type { BuildSourceInput } from "./input.js";
 import type { DeliverySelection } from "./selection.js";
 

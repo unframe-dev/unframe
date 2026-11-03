@@ -8,7 +8,7 @@ describe("parseAuthoringSource", () => {
     const result = parseAuthoringSource({
       fileName: "presentation.unframe.tsx",
       sourceText:
-        'import { definePresentation } from "@unframe/authoring";\nexport default <main />;',
+        'import { definePresentation } from "@unframe-dev/authoring";\nexport default <main />;',
     });
 
     expect(result.ok).toBe(true);

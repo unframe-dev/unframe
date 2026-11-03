@@ -10,7 +10,7 @@ import {
   type StaticComponentMetadata,
   type StaticReactSceneItem,
   type ThemeDeclaration,
-} from "@unframe/authoring";
+} from "@unframe-dev/authoring";
 import type { DeclarationSourceOrigin } from "../lowering/lower-authoring-declaration.js";
 import type {
   CollectedAuthoringDeclaration,

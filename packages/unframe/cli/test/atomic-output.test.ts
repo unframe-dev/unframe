@@ -15,8 +15,8 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { acquireSourceLock, NativeFilesystem } from "@unframe/workspace-node";
-import { publishAtomicArtifacts } from "@unframe/workspace-node";
+import { acquireSourceLock, NativeFilesystem } from "@unframe-dev/workspace-node";
+import { publishAtomicArtifacts } from "@unframe-dev/workspace-node";
 
 const directories: string[] = [];
 const encoder = new TextEncoder();

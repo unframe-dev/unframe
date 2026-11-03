@@ -114,7 +114,7 @@ export const analyzeAuthoringProject = (
       ...(hasLibraries
         ? { noLib: false, lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"] }
         : {}),
-      jsxImportSource: "@unframe/authoring",
+      jsxImportSource: "@unframe-dev/authoring",
     },
     host,
   });

@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla";
-import type { AuthorPublicationResult, BuildJob } from "@unframe/contracts/author-http";
+import type { AuthorPublicationResult, BuildJob } from "@unframe-dev/contracts/author-http";
 import type { PublicationAuth } from "../infra/host-api";
 export type DisplayReceipt = { requestId: string; buildIdentity: string };
 export type PublicationSnapshot = {

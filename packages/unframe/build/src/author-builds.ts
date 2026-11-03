@@ -1,5 +1,9 @@
 import { randomBytes } from "node:crypto";
-import type { AuthorDiagnostic, BuildJob, ProjectSnapshot } from "@unframe/contracts/author-http";
+import type {
+  AuthorDiagnostic,
+  BuildJob,
+  ProjectSnapshot,
+} from "@unframe-dev/contracts/author-http";
 import { AuthorArtifactCache } from "./artifact-cache.js";
 const randomId = () => randomBytes(16).toString("hex");
 export type AuthorBuildOptions = {

@@ -5,19 +5,19 @@ import {
   type M3dCueRuntimeSnapshot,
   type M3dCueParticipantRuntimeView,
   type RuntimeVisibilitySelection,
-} from "@unframe/contracts/presentation/runtime-projection";
+} from "@unframe-dev/contracts/presentation/runtime-projection";
 import {
   type PresentationDefinition,
   presentationDefinitionSchema,
-} from "@unframe/contracts/presentation/definition";
+} from "@unframe-dev/contracts/presentation/definition";
 import {
   type RenderBundle,
   renderBundleSchema,
-} from "@unframe/contracts/presentation/render-bundle";
+} from "@unframe-dev/contracts/presentation/render-bundle";
 import type { CueState } from "./cue-executor.js";
 import { modelClipPosition } from "./media-runtime.js";
-import { snapshotPlainJson } from "@unframe/artifacts/plain-json";
-import { hasCanonicalQuaternionSign, isUnitQuaternion } from "@unframe/presentation/validation";
+import { snapshotPlainJson } from "@unframe-dev/artifacts/plain-json";
+import { hasCanonicalQuaternionSign, isUnitQuaternion } from "@unframe-dev/presentation/validation";
 
 const sorted = (values: Iterable<string>) => [...values].sort();
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

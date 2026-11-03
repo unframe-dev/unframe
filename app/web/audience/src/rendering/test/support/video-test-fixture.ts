@@ -3,7 +3,7 @@ import {
   decodeWireMessage,
   encodeWireMessage,
   type DeliveryManifestWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as deliveryFixture } from "../../../test-support/png-delivery-fixture";
 import runtimeFixture from "../../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 export function videoFixture() {

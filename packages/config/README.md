@@ -1,4 +1,4 @@
-# `@unframe/config`
+# `@unframe-dev/config`
 
 ワークスペースで共有する TypeScript 設定と git hooks を置きます。
 各アプリ・パッケージはここから設定を extends / import します。

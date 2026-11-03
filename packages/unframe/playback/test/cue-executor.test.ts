@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { advanceCueClock, createCueState, executeCueEvent } from "@unframe/playback";
+import { advanceCueClock, createCueState, executeCueEvent } from "@unframe-dev/playback";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 const setup = () => {

@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/render-browser",
+  "name": "@unframe-dev/render-browser",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -26,10 +26,10 @@
   "dependencies": {
     "@jridgewell/trace-mapping": "0.3.31",
     "@noble/hashes": "2.4.0",
-    "@unframe/build": "workspace:*",
-    "@unframe/compiler": "workspace:*",
-    "@unframe/presentation": "workspace:*",
-    "@unframe/worker-host": "workspace:*",
+    "@unframe-dev/build": "workspace:*",
+    "@unframe-dev/compiler": "workspace:*",
+    "@unframe-dev/presentation": "workspace:*",
+    "@unframe-dev/worker-host": "workspace:*",
     "playwright-core": "1.62.1",
     "pngjs": "7.0.0",
     "rolldown": "1.2.16",

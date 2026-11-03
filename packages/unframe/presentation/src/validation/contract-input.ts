@@ -1,14 +1,14 @@
-import { idSchema } from "@unframe/contracts/presentation/common";
+import { idSchema } from "@unframe-dev/contracts/presentation/common";
 import {
   presentationDefinitionSchema,
   semanticSurfaceSchema,
   type PresentationDefinition,
   type SemanticSurface,
-} from "@unframe/contracts/presentation/definition";
+} from "@unframe-dev/contracts/presentation/definition";
 import {
   renderBundleSchema,
   type RenderBundle,
-} from "@unframe/contracts/presentation/render-bundle";
+} from "@unframe-dev/contracts/presentation/render-bundle";
 import type * as z from "zod";
 
 type SnapshotResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false };

@@ -106,7 +106,7 @@ const analyze = (
       ...extraFiles,
     ],
     rootDependencies: [
-      { specifier: "@unframe/authoring", usage: "runtime", packageKey: hash },
+      { specifier: "@unframe-dev/authoring", usage: "runtime", packageKey: hash },
       { specifier: "react", usage: "runtime", packageKey: reactHash },
       ...(packaged
         ? [{ specifier: "ui-kit", usage: "runtime", packageKey: `sha256:${"2".repeat(64)}` }]
@@ -115,8 +115,8 @@ const analyze = (
     packages: [
       {
         key: hash,
-        locator: "@unframe/authoring@1",
-        name: "@unframe/authoring",
+        locator: "@unframe-dev/authoring@1",
+        name: "@unframe-dev/authoring",
         version: "1",
         contentIntegrity: hash,
         files: [
@@ -190,7 +190,7 @@ const analyze = (
                 },
               ],
               dependencies: [
-                { specifier: "@unframe/authoring", usage: "runtime", packageKey: hash },
+                { specifier: "@unframe-dev/authoring", usage: "runtime", packageKey: hash },
               ],
             },
           ]
@@ -214,7 +214,7 @@ const analyze = (
 };
 
 const component = `
-  import { defineComponent, editableText, prop } from "@unframe/authoring";
+  import { defineComponent, editableText, prop } from "@unframe-dev/authoring";
   const label = "Welcome ";
   const decorate = (value: string) => value;
   export const Hero = defineComponent({
@@ -229,7 +229,7 @@ const component = `
 `;
 
 it("creates a patch bound to the analyzed source snapshot and target hash", () => {
-  const presentation = `import {definePresentation} from "@unframe/authoring";
+  const presentation = `import {definePresentation} from "@unframe-dev/authoring";
     import {Hero} from "ui-kit";
     export default definePresentation({id: "deck", metadata: { title: "Deck" }, stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] }, scene: [{id: "opening", component: Hero, owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" }, physicalSizeMeters: [1, 1], fit: "contain", transform: { position: [0,0,0], rotation: [0,0,0,1], scale: [1,1,1] }, props: {title: "Hi"}}], assets: [], flow: { initialGroupId: "group", groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } } }, variables: {} }, operations: []});`;
   const input = analyze(component, presentation, undefined, [], true);

@@ -1,5 +1,5 @@
 import { expect, it } from "vite-plus/test";
-import { getWorkerIsolationIdentity, WorkerIsolationError } from "@unframe/worker-host";
+import { getWorkerIsolationIdentity, WorkerIsolationError } from "@unframe-dev/worker-host";
 
 it("exposes the worker isolation policy and error through its package entry", () => {
   expect(getWorkerIsolationIdentity()).toMatchObject({

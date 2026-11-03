@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 
 import { lowerAuthoringDeclarationFile } from "../src/lowering/lower-authoring-declaration.js";
 import { normalizeDeclarationGraph } from "../src/normalization/normalize-declaration-graph.js";
@@ -34,17 +34,17 @@ export declare const jsx: (tag: unknown, props: unknown, key?: unknown) => any;
 export { jsx as jsxs };`,
     },
   ];
-  const packageKey = hashCanonicalJsonPayload(["@unframe/authoring", "1"]);
+  const packageKey = hashCanonicalJsonPayload(["@unframe-dev/authoring", "1"]);
   const parsed = parseAuthoringProject({
     projectRoot: "/virtual/jsx",
     entryFile: "entry.structure.tsx",
     files: [{ fileName: "entry.structure.tsx", sourceText }],
-    rootDependencies: [{ specifier: "@unframe/authoring", usage: "runtime", packageKey }],
+    rootDependencies: [{ specifier: "@unframe-dev/authoring", usage: "runtime", packageKey }],
     packages: [
       {
         key: packageKey,
-        locator: "@unframe/authoring@1",
-        name: "@unframe/authoring",
+        locator: "@unframe-dev/authoring@1",
+        name: "@unframe-dev/authoring",
         version: "1",
         contentIntegrity: hashCanonicalJsonPayload(sdkFiles),
         files: sdkFiles.map((file) => ({
@@ -81,7 +81,7 @@ export { jsx as jsxs };`,
 describe("Authoring JSX lowering", () => {
   it("lowers verified SDK tags into the same declaration graph builders", () => {
     const analyzed = analyze(`
-import { defineComponentStructure, Surface, Frame, Text, Slot } from "@unframe/authoring";
+import { defineComponentStructure, Surface, Frame, Text, Slot } from "@unframe-dev/authoring";
 const layout = { kind: "absolute", x: 0, y: 0, width: 100, height: 40 } as const;
 const label = "Hello";
 const root = <Surface id="surface" physicalSizeMeters={[1, 1]} logicalSize={[100, 100]} fit="contain" baseSemanticTree={{ rootNodeIds: [], nodes: {} }} interactions={{}} initialStateId="default" states={{ default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } }} renderIntent={{ updateModel: "static", interaction: "none", internalAnimation: "none", rendererPreference: "baked-web", fallbackPolicy: "reject" }}>
@@ -110,7 +110,7 @@ export default defineComponentStructure({ id: "structure", componentId: "compone
     ["implicit key", 'const root = <Frame key="x" />;'],
   ])("rejects %s without executing JSX runtime", (_label, declaration) => {
     const analyzed = analyze(`
-import { defineComponentStructure, Surface, Frame } from "@unframe/authoring";
+import { defineComponentStructure, Surface, Frame } from "@unframe-dev/authoring";
 ${declaration}
 export default defineComponentStructure({ id: "s", componentId: "c", root, partBindings: {}, variantStyles: {}, timelines: [] });`);
     const result = lowerAuthoringDeclarationFile(analyzed);
@@ -127,7 +127,7 @@ export default defineComponentStructure({ id: "s", componentId: "c", root, partB
 
   it("accepts canonical declaration values at the same JSX boundaries as the SDK", () => {
     const analyzed = analyze(`
-import { defineComponentStructure, Surface, Frame, Text } from "@unframe/authoring";
+import { defineComponentStructure, Surface, Frame, Text } from "@unframe-dev/authoring";
 const layout = { kind: "absolute", x: 0, y: 0, width: 10, height: 10 } as const;
 const canonicalText = { kind: "text", id: "canonical", layout, value: "value" } as const;
 const canonicalSlot = { kind: "slot-placeholder", id: "slot", slotId: "content", layout } as const;
@@ -148,7 +148,7 @@ export default defineComponentStructure({ id: "structure", componentId: "compone
     ["ComponentInstance empty children", "<ComponentInstance children={[]} />"],
   ])("rejects %s consistently with the JSX SDK", (_label, expression) => {
     const analyzed = analyze(`
-import { defineComponentStructure, Surface, Frame, Text, Slot, ComponentInstance } from "@unframe/authoring";
+import { defineComponentStructure, Surface, Frame, Text, Slot, ComponentInstance } from "@unframe-dev/authoring";
 const root = ${expression};
 export default defineComponentStructure({ id: "s", componentId: "c", root, partBindings: {}, variantStyles: {}, timelines: [] });`);
 
@@ -164,7 +164,7 @@ export default defineComponentStructure({ id: "s", componentId: "c", root, partB
 
   it("normalizes JSX and builder declarations to the same value", () => {
     const jsx = analyze(`
-import { defineComponentStructure, Surface, Frame, Text } from "@unframe/authoring";
+import { defineComponentStructure, Surface, Frame, Text } from "@unframe-dev/authoring";
 const layout = { kind: "absolute", x: 0, y: 0, width: 10, height: 10 } as const;
 const root = <Surface id="surface"><Frame id="root" layout={layout}><Text id="text" layout={layout}>
   hello
@@ -172,7 +172,7 @@ const root = <Surface id="surface"><Frame id="root" layout={layout}><Text id="te
 </Text></Frame></Surface>;
 export default defineComponentStructure({ id: "s", componentId: "c", root, partBindings: {}, variantStyles: {}, timelines: [] });`);
     const builders = analyze(`
-import { defineComponentStructure, surface, frame, text } from "@unframe/authoring";
+import { defineComponentStructure, surface, frame, text } from "@unframe-dev/authoring";
 const layout = { kind: "absolute", x: 0, y: 0, width: 10, height: 10 } as const;
 const root = surface({ id: "surface", root: frame({ id: "root", layout, children: [text({ id: "text", layout, value: "hello world" })] }) });
 export default defineComponentStructure({ id: "s", componentId: "c", root, partBindings: {}, variantStyles: {}, timelines: [] });`);
@@ -193,7 +193,7 @@ export default defineComponentStructure({ id: "s", componentId: "c", root, partB
 
 it("lowers JSX Model as a Component root", () => {
   const analyzed = analyze(
-    'import {defineComponentStructure, Model} from "@unframe/authoring"; export default defineComponentStructure({id:"structure", componentId:"model-component", partBindings:{}, variantStyles:{}, timelines:[], root:<Model id="model" asset={{kind:"asset-ref",assetId:"mesh"}} />});',
+    'import {defineComponentStructure, Model} from "@unframe-dev/authoring"; export default defineComponentStructure({id:"structure", componentId:"model-component", partBindings:{}, variantStyles:{}, timelines:[], root:<Model id="model" asset={{kind:"asset-ref",assetId:"mesh"}} />});',
   );
   const lowered = lowerAuthoringDeclarationFile(analyzed);
   expect(lowered.ok).toBe(true);
@@ -206,7 +206,7 @@ it("lowers JSX Model as a Component root", () => {
 
 it("lowers JSX Video as Frame content without executing tags", () => {
   const analyzed = analyze(
-    'import {defineComponentStructure,Frame,Video} from "@unframe/authoring"; export default defineComponentStructure({id:"structure",componentId:"video",partBindings:{},variantStyles:{},timelines:[],root:<Frame id="frame" layout={{kind:"absolute",x:0,y:0,width:10,height:10}}><Video id="movie" asset={{kind:"asset-ref",assetId:"movie"}} loop={false} /></Frame>});',
+    'import {defineComponentStructure,Frame,Video} from "@unframe-dev/authoring"; export default defineComponentStructure({id:"structure",componentId:"video",partBindings:{},variantStyles:{},timelines:[],root:<Frame id="frame" layout={{kind:"absolute",x:0,y:0,width:10,height:10}}><Video id="movie" asset={{kind:"asset-ref",assetId:"movie"}} loop={false} /></Frame>});',
   );
   const lowered = lowerAuthoringDeclarationFile(analyzed);
   expect(lowered.ok).toBe(true);

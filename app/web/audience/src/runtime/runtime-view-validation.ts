@@ -5,7 +5,7 @@ import type {
   VariableStateWire,
   RuntimeRunSnapshotWire,
   RuntimeRunIdWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { requireValue, uint, id } from "./runtime-input";
 import { toParticipantView } from "./wire-view";
 import { assertViewerInputs } from "./viewer-policy";

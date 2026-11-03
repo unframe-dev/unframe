@@ -3,10 +3,10 @@ import {
   encodeWireMessage,
   decodeWireMessage,
   presentationDefinitionSchema,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
-import { createLocalPlayback } from "@unframe/preview";
-import { validatePresentationDefinition } from "@unframe/presentation";
+import { createLocalPlayback } from "@unframe-dev/preview";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 
 const requestId = "a".repeat(32);
 const referenceDefinition = async () => {

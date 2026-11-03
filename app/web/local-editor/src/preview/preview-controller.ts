@@ -1,4 +1,4 @@
-import type { BuildJob, PreviewPlaybackResponse } from "@unframe/contracts/author-http";
+import type { BuildJob, PreviewPlaybackResponse } from "@unframe-dev/contracts/author-http";
 import type { HostApi } from "../infra/host-api";
 import type { PreviewDriver } from "./preview-driver";
 import { createPreviewStore, type LoadedPreview, type PreviewStore } from "./preview-store";

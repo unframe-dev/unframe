@@ -2,7 +2,7 @@ import {
   decodeWireMessage,
   encodeWireMessage,
   runtimeAuthorityLimits,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { HTTPException } from "hono/http-exception";
 
 const invalid = () =>

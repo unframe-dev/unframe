@@ -60,7 +60,7 @@ const rootSurface = surface({
 
 export const standardSurfaceStructure = defineComponentStructure({
   id: "standard-surface-structure",
-  componentId: "@unframe/components/Surface",
+  componentId: "@unframe-dev/components/Surface",
   source: { file: "standard-surface.structure.ts" },
   root: rootSurface,
   partBindings: {},

@@ -1,5 +1,5 @@
 import { expect, it } from "vite-plus/test";
-import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
+import { PNG_ABSOLUTE_LIMITS } from "@unframe-dev/media-node";
 import { compileDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
 import { modelGlb, modelProject } from "./fixtures/model.js";
 

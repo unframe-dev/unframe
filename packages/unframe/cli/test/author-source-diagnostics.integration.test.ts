@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it } from "vite-plus/test";
 import { runPresentationCli } from "../src/index.js";
 import { createAuthorService } from "../src/author/service.js";
-import type { AuthorService } from "@unframe/author-service";
+import type { AuthorService } from "@unframe-dev/author-service";
 import { createWebglCaptureProject } from "./local-editor-webgl-fixture.js";
 
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -26,7 +26,7 @@ for (const [variant, kind, fileName, line] of [
     async () => {
       const extended = variant === "extended";
       const directory = await createProject(extended);
-      const componentSource = `import {defineComponent, editableText, prop} from "@unframe/authoring";
+      const componentSource = `import {defineComponent, editableText, prop} from "@unframe-dev/authoring";
 ${extended ? 'import {Button} from "@base-ui/react/button";\nimport "./hero.css";\n' : ""}${kind === "helper" ? 'import {explode} from "./helper";\n' : ""}export const Hero = defineComponent({
   id: "hero", version: 1,
   props: {title: editableText({required: true})},

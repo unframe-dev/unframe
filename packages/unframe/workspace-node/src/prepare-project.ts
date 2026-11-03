@@ -4,8 +4,8 @@ import * as ts from "typescript";
 import {
   prepareProjectSource as prepareBuildSource,
   type StylePreparationPort,
-} from "@unframe/build";
-import type { UnframeLock } from "@unframe/workspace";
+} from "@unframe-dev/build";
+import type { UnframeLock } from "@unframe-dev/workspace";
 import type { DiscoveredProjectFiles } from "./discover-project.js";
 
 type Discovery = Extract<DiscoveredProjectFiles, { ok: true }>;

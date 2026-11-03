@@ -2,7 +2,7 @@ import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
-import { readBoundedRegularFile } from "@unframe/workspace-node";
+import { readBoundedRegularFile } from "@unframe-dev/workspace-node";
 
 describe("readBoundedRegularFile", () => {
   it("rejects sparse regular files above the limit without allocating their declared size", async () => {

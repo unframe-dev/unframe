@@ -47,7 +47,9 @@ it.each(["update", "refresh"] as const)(
         operation === "update"
           ? updateProjectLock(ports, directory, "refresh", false)
           : refreshLocalProjectLock(ports, directory);
-      await expect(result).rejects.toThrow("Source lease IO failed");
+      if (operation === "update") await expect(result).rejects.toThrow("Source lease IO failed");
+      else
+        await expect(result).resolves.toMatchObject({ ok: false, code: "cli-lock-refresh-failed" });
       await expect(lstat(join(directory, buildLockFileName))).rejects.toMatchObject({
         code: "ENOENT",
       });

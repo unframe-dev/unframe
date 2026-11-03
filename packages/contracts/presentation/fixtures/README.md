@@ -2,7 +2,7 @@
 
 JSON は ModelNode、一つずつの baked-web / native-ui / video Surface、数値 Variable、モデル clip 再生 Cue を持つ合成公開物です。Definition → Bundle → Build → Publication の canonical hash と Asset descriptor の一致をテストします。
 
-Fixture の変更後は `pnpm --filter @unframe/contracts generate:presentation-fixtures` で参照 hash を更新し、`check:presentation-fixtures` で同期を確認します。
+Fixture の変更後は `pnpm --filter @unframe-dev/contracts generate:presentation-fixtures` で参照 hash を更新し、`check:presentation-fixtures` で同期を確認します。
 
 素材 checksum、モデル件数、Capability の値は構造検証用の合成値です。実バイトは付属せず、素材検査・GPU admission・動画再生の成功例ではありません。製品の端末 profile として使用しないでください。
 

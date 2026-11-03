@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
-import { verifyBuildIntegrity } from "@unframe/artifacts";
+import { verifyBuildIntegrity } from "@unframe-dev/artifacts";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { projectDirectory, readBoundedRegularFile } from "./path-policy.js";
-import { parseStrictJson } from "@unframe/artifacts";
+import { parseStrictJson } from "@unframe-dev/artifacts";
 import { buildManifestBytesHash, parseBuildReceipt } from "./build-receipt.js";
 import type { FixedBuildGeneration } from "./read-build-generation.js";
 

@@ -1,10 +1,10 @@
-import { publicationOperationSchema } from "@unframe/contracts/author-http";
-import { queryPublication } from "@unframe/publish";
+import { publicationOperationSchema } from "@unframe-dev/contracts/author-http";
+import { queryPublication } from "@unframe-dev/publish";
 import { publishPresentation, type PublishInput } from "../application/publish.js";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
 import { watchPresentationProject } from "../application/watch-project.js";
 import type { PresentationCliResult } from "../application/types.js";
-import { type PublishResult } from "@unframe/publish";
+import { type PublishResult } from "@unframe-dev/publish";
 
 type SignalName = "SIGINT" | "SIGTERM";
 

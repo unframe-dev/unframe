@@ -1,7 +1,7 @@
 import * as z from "zod";
-import { rendererIdentitySchema, renderSurfacePlanSchema } from "@unframe/compiler";
-export { rendererIdentitySchema } from "@unframe/compiler";
-import { completedSemanticTreeSchema, semanticSurfaceSchema } from "@unframe/presentation";
+import { rendererIdentitySchema, renderSurfacePlanSchema } from "@unframe-dev/compiler";
+export { rendererIdentitySchema } from "@unframe-dev/compiler";
+import { completedSemanticTreeSchema, semanticSurfaceSchema } from "@unframe-dev/presentation";
 
 export const rendererIdSchema = z.string().min(1);
 const finiteNumberSchema = z.number().finite();

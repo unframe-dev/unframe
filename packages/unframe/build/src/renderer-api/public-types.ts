@@ -4,7 +4,7 @@ import type {
   SemanticSurface,
   SurfaceRenderIntent,
   ValidationResult,
-} from "@unframe/presentation";
+} from "@unframe-dev/presentation";
 import type * as z from "zod";
 
 import type {

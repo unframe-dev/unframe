@@ -2,7 +2,7 @@ import { assert, describe, expect, it } from "vite-plus/test";
 import {
   canonicalRuntimeSnapshotSchema,
   type CanonicalRuntimeSnapshot,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import definition from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
@@ -10,7 +10,7 @@ import buildManifest from "../../../contracts/presentation/fixtures/build-manife
 import publishedPresentation from "../../../contracts/presentation/fixtures/published-presentation.json";
 import capability from "../../../contracts/presentation/fixtures/capability-profile.json";
 import snapshotFixture from "../../../contracts/presentation/fixtures/m3d-cue-runtime-snapshot.json";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import type { DeliverySourceInput } from "../src/delivery/input.js";
 import { projectCanonicalParticipantRuntimeView } from "../src/runtime/canonical-participant-projection.js";
 

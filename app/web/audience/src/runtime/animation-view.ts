@@ -8,7 +8,7 @@ import {
   type ParticipantRuntimeView,
   type ProjectedTimelineTrackWire,
   type TimelineKeyframeWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { Quaternion } from "three";
 import { canonicalQuaternionSchema, parseWireUInt } from "./wire-validation";
 

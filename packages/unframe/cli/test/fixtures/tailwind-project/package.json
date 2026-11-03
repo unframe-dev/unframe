@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@unframe/authoring": "file:vendor/authoring.tgz",
+    "@unframe-dev/authoring": "file:vendor/authoring.tgz",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

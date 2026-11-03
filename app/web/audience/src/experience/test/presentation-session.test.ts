@@ -1,6 +1,6 @@
 import { Camera, Group, Texture } from "three";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import { createPresentation } from "../../rendering/presentation";
 import { createPresentationSession } from "../presentation-session";
 import { createPngTexturePool } from "../../assets/png-texture-pool";

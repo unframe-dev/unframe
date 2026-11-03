@@ -4,7 +4,7 @@ import type {
   EditCommand,
   PatchRequest,
   ProjectSnapshot,
-} from "@unframe/contracts/author-http";
+} from "@unframe-dev/contracts/author-http";
 export type HistoryEntry = { forward: EditCommand; inverse: EditCommand; revision: string };
 export type SaveAction =
   | { kind: "new"; forward: EditCommand; inverse: EditCommand }

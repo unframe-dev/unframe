@@ -4,13 +4,13 @@ import { cp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it } from "vite-plus/test";
-import { validatePresentationArtifacts, verifyBuildIntegrity } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/source";
+import { validatePresentationArtifacts, verifyBuildIntegrity } from "@unframe-dev/artifacts";
+import { checkAuthoringProject } from "@unframe-dev/source";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { prepareProjectSource } from "@unframe/workspace-node";
-import { loadUnframeLock } from "@unframe/workspace";
-import { lockedFile } from "@unframe/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { prepareProjectSource } from "@unframe-dev/workspace-node";
+import { loadUnframeLock } from "@unframe-dev/workspace";
+import { lockedFile } from "@unframe-dev/workspace-node";
 import { prepareRealReactProjectFixture } from "./real-react-project-fixture.js";
 
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -70,11 +70,11 @@ const createProject = async (mixed = false) => {
   };
   await writeFile(
     join(directory, "presentation.unframe.tsx"),
-    `import {definePresentation} from "@unframe/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(mixed ? initial : presentation)};\nconst hero = ${JSON.stringify(presentation.scene[0])};\nexport default definePresentation({...base, scene: ${mixed ? "{...base.scene, components: [...base.scene.components, {...hero, component: Hero}]}" : "[{...hero, component: Hero}]"}});`,
+    `import {definePresentation} from "@unframe-dev/authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(mixed ? initial : presentation)};\nconst hero = ${JSON.stringify(presentation.scene[0])};\nexport default definePresentation({...base, scene: ${mixed ? "{...base.scene, components: [...base.scene.components, {...hero, component: Hero}]}" : "[{...hero, component: Hero}]"}});`,
   );
   await writeFile(
     join(directory, "Hero.component.tsx"),
-    `import {defineComponent, editableText, prop} from "@unframe/authoring";
+    `import {defineComponent, editableText, prop} from "@unframe-dev/authoring";
 import {Button} from "@base-ui/react/button";
 import "./hero.css";
 export const Hero = defineComponent({
@@ -239,7 +239,7 @@ it("builds Structured and finite-state React together and keeps textures stable 
   const directory = await createProject(true);
   await writeFile(
     join(directory, "Hero.component.tsx"),
-    `import {defineComponent, editableText, prop} from "@unframe/authoring";
+    `import {defineComponent, editableText, prop} from "@unframe-dev/authoring";
 import "./hero.css";
 export const Hero = defineComponent({
  id:"hero",version:1,props:{title:editableText({required:true})},surface:{logicalSize:[800,450]},

@@ -1,5 +1,5 @@
 import { authenticatedFetch } from "@/shared/api/authenticated-fetch";
-import { createPublicationClient } from "@unframe/api-client-typescript/publication";
+import { createPublicationClient } from "@unframe-dev/api-client-typescript/publication";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,

@@ -2,8 +2,8 @@ import { fileURLToPath } from "node:url";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, it } from "vite-plus/test";
-import { initPresentationProject } from "@unframe/workspace-node";
-import { loadUnframeLock } from "@unframe/workspace";
+import { initPresentationProject } from "@unframe-dev/workspace-node";
+import { loadUnframeLock } from "@unframe-dev/workspace";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 
 it("creates an independent project with its pinned lock from the distributed template", async () => {

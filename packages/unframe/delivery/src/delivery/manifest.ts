@@ -1,10 +1,10 @@
 import { asUint64, modelFeature, featureSet, buildResidencyPlan } from "./residency.js";
-import type { CapabilityProfile } from "@unframe/contracts/presentation/capability";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation/wire-types";
-import { idSchema } from "@unframe/contracts/presentation/common";
+import type { CapabilityProfile } from "@unframe-dev/contracts/presentation/capability";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation/wire-types";
+import { idSchema } from "@unframe-dev/contracts/presentation/common";
 import { buildProjectionProfile } from "./profile.js";
 import type { DeliverySourceInput } from "./input.js";
-import { snapshotPlainJson } from "@unframe/artifacts/plain-json";
+import { snapshotPlainJson } from "@unframe-dev/artifacts/plain-json";
 
 const limits = (value: Record<string, string | number>) =>
   Object.fromEntries(

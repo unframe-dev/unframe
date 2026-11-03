@@ -1,4 +1,4 @@
-import type { Diagnostic, ValidationResult } from "@unframe/presentation";
+import type { Diagnostic, ValidationResult } from "@unframe-dev/presentation";
 
 import type {
   CompilerResolvedSurfaceInput,

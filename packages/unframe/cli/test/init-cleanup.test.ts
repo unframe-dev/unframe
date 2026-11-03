@@ -42,7 +42,7 @@ it("preserves a concurrent file if template copying fails", async () => {
   try {
     boundary.target = join(parent, "project");
     boundary.enabled = true;
-    const { initPresentationProject } = await import("@unframe/workspace-node");
+    const { initPresentationProject } = await import("@unframe-dev/workspace-node");
     expect(
       await initPresentationProject(
         boundary.target,
@@ -64,7 +64,7 @@ it("removes its partial lock when writing fails", async () => {
   try {
     boundary.target = join(parent, "project");
     boundary.failLock = true;
-    const { initPresentationProject } = await import("@unframe/workspace-node");
+    const { initPresentationProject } = await import("@unframe-dev/workspace-node");
     expect(
       await initPresentationProject(
         boundary.target,

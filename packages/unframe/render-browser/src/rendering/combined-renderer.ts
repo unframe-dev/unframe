@@ -4,7 +4,7 @@ import {
   executeRendererPlugin,
   prepareRendererBuildInput,
   type RendererPlugin,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 import { hash } from "../config/config-environment.js";
 
 /** Both fixed implementations remain responsible for their own input and output boundaries. */

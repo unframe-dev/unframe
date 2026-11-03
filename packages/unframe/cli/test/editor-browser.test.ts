@@ -2,12 +2,12 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { writeDiscoveryProjectFixture } from "./discovery-project-fixture.js";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import definition from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import buildManifest from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { encodeBuildReceipt } from "@unframe/workspace-node";
+import { encodeBuildReceipt } from "@unframe-dev/workspace-node";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { runAuthorProcess, runDistPreviewProcess } from "../src/author/start.js";
 
@@ -17,7 +17,7 @@ const boundary = vi.hoisted(() => ({
   controller: new AbortController(),
   opened: [] as { command: string; url: string }[],
 }));
-vi.mock("@unframe/local-editor", () => ({
+vi.mock("@unframe-dev/local-editor", () => ({
   get editorAssetsDirectory() {
     return boundary.editor;
   },

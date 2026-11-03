@@ -3,7 +3,7 @@ import { createAuthorPatch, inspectAuthorSource } from "../src/index.js";
 
 const inspectScene = (scene: string, declarations = "") => {
   const sourceText = `
-import { definePresentation } from "@unframe/authoring";
+import { definePresentation } from "@unframe-dev/authoring";
 ${declarations}
 export default definePresentation({
   id: "presentation",
@@ -21,7 +21,7 @@ export default definePresentation({
       files: [{ fileName: "presentation.tsx", sourceText }],
       rootDependencies: [
         {
-          specifier: "@unframe/authoring",
+          specifier: "@unframe-dev/authoring",
           usage: "runtime",
           packageKey: `sha256:${"a".repeat(64)}`,
         },
@@ -29,8 +29,8 @@ export default definePresentation({
       packages: [
         {
           key: `sha256:${"a".repeat(64)}`,
-          locator: "@unframe/authoring@1",
-          name: "@unframe/authoring",
+          locator: "@unframe-dev/authoring@1",
+          name: "@unframe-dev/authoring",
           version: "1",
           contentIntegrity: `sha256:${"b".repeat(64)}`,
           files: [

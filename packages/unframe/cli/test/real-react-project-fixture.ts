@@ -3,7 +3,7 @@ import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { loadUnframeLock } from "@unframe/workspace";
+import { loadUnframeLock } from "@unframe-dev/workspace";
 import { prepareProjectFixture } from "./prepared-project-fixture.js";
 
 const decompress = promisify(gunzip);

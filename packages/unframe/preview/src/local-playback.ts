@@ -1,4 +1,4 @@
-import type { PresentationDefinition, RenderBundle } from "@unframe/contracts/presentation";
+import type { PresentationDefinition, RenderBundle } from "@unframe-dev/contracts/presentation";
 import {
   advanceCueClock,
   createCueState,
@@ -7,13 +7,13 @@ import {
   type CueInput,
   type CueCapture,
   type CueState,
-} from "@unframe/playback";
+} from "@unframe-dev/playback";
 import { PreviewError } from "./error.js";
 import type {
   CueOccurrence,
   PreviewPlaybackCommand,
   PreviewPlaybackResponse,
-} from "@unframe/contracts/author-http";
+} from "@unframe-dev/contracts/author-http";
 import { projectPlaybackWire } from "./playback-wire.js";
 
 type Cue = PresentationDefinition["flow"]["groups"][string]["steps"][string]["cues"][number];

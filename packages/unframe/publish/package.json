@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/publish",
+  "name": "@unframe-dev/publish",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -25,12 +25,12 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@unframe/artifacts": "workspace:*",
+    "@unframe-dev/artifacts": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "@unframe/api-client-typescript": "workspace:*",
+    "@unframe-dev/api-client-typescript": "workspace:*",
     "typescript": "6.0.3",
     "vite-plus": "catalog:"
   }

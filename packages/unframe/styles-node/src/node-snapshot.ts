@@ -3,7 +3,7 @@ import { gunzipSync } from "node:zlib";
 import {
   identifyNodeTransformSnapshot as identify,
   validateNodeTransformSnapshot,
-} from "@unframe/workspace";
+} from "@unframe-dev/workspace";
 import { lstat, mkdir, readdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { parseAllDocuments } from "yaml";
@@ -18,9 +18,9 @@ import {
   supportsPlatform,
   type NodeSnapshotFile,
   type NodeTransformSnapshot,
-} from "@unframe/workspace";
+} from "@unframe-dev/workspace";
 import { probeNodeRuntime } from "./runtime.js";
-export type { NodeSnapshotFile, NodeTransformSnapshot } from "@unframe/workspace";
+export type { NodeSnapshotFile, NodeTransformSnapshot } from "@unframe-dev/workspace";
 export const withNodeTransformSources = (
   snapshot: NodeTransformSnapshot,
   files: readonly NodeSnapshotFile[],

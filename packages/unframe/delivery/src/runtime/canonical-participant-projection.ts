@@ -2,11 +2,11 @@ import {
   canonicalRuntimeSnapshotSchema,
   participantRuntimeViewSchema,
   type ParticipantRuntimeView,
-} from "@unframe/contracts/presentation/runtime-projection";
+} from "@unframe-dev/contracts/presentation/runtime-projection";
 import { parseDeliveryInputs, type DeliverySourceInput } from "../delivery/input.js";
 import { buildProjectionProfile } from "../delivery/profile.js";
-import { snapshotPlainJson } from "@unframe/artifacts/plain-json";
-import { validateCanonicalRuntimeSnapshot } from "@unframe/playback";
+import { snapshotPlainJson } from "@unframe-dev/artifacts/plain-json";
+import { validateCanonicalRuntimeSnapshot } from "@unframe-dev/playback";
 
 const select = <T>(values: Record<string, T>, ids: readonly string[]): Record<string, T> =>
   Object.fromEntries(ids.filter((id) => Object.hasOwn(values, id)).map((id) => [id, values[id]!]));

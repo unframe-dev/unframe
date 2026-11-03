@@ -56,7 +56,7 @@ test("packed Workspace and use cases execute and resolve declarations without re
       const manifest = join(source, "package.json");
       const pkg = JSON.parse(await readFile(manifest, "utf8"));
       assert.ok(pkg.publishConfig?.exports, `${name}: distribution exports are required`);
-      const target = join(directory, "node_modules/@unframe", name);
+      const target = join(directory, "node_modules/@unframe-dev", name);
       await mkdir(target, { recursive: true });
       await execute(
         "pnpm",
@@ -65,14 +65,14 @@ test("packed Workspace and use cases execute and resolve declarations without re
       );
       await execute("tar", [
         "-xzf",
-        join(directory, `unframe-${name}-${pkg.version}.tgz`),
+        join(directory, `unframe-dev-${name}-${pkg.version}.tgz`),
         "--strip-components=1",
         "-C",
         target,
       ]);
       const resolver = createRequire(manifest);
       for (const dependency of Object.keys(pkg.dependencies ?? {}))
-        if (!dependency.startsWith("@unframe/")) await copyExternal(dependency, resolver);
+        if (!dependency.startsWith("@unframe-dev/")) await copyExternal(dependency, resolver);
     }
     const resolver = createRequire(join(root, "packages/unframe/author-service/package.json"));
     await copyExternal("@types/node", resolver);
@@ -94,16 +94,16 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import canonicalize from "canonicalize";
-import { createWorkspaceSnapshot, createWorkspaceSave } from "@unframe/workspace";
-import { NativeStats, acquireBuildLock } from "@unframe/workspace-node";
-import { createBuildJob, prepareLockRefresh } from "@unframe/build";
-import * as browserRenderer from "@unframe/render-browser";
+import { createWorkspaceSnapshot, createWorkspaceSave } from "@unframe-dev/workspace";
+import { NativeStats, acquireBuildLock } from "@unframe-dev/workspace-node";
+import { createBuildJob, prepareLockRefresh } from "@unframe-dev/build";
+import * as browserRenderer from "@unframe-dev/render-browser";
 assert.ok(Object.keys(browserRenderer).length > 0);
 const invalidLock = await prepareLockRefresh({found: {projectDirectory: "/virtual", entryFile: "main.ts", files: [], localFiles: [], assetSources: {}, lockBytes: new TextEncoder().encode("invalid")}}, {readTypeLibraries: async () => { throw new Error("unused"); }, styles: {}, modelTransformIdentity: "sha256:model", videoTransformIdentity: async () => { throw new Error("unused"); }});
 assert.equal(invalidLock.ok, false);
-import { createAuthorService } from "@unframe/author-service";
-import { createLocalPreviewService, PreviewError } from "@unframe/preview";
-import { readPublicationFence, queryPublication } from "@unframe/publish";
+import { createAuthorService } from "@unframe-dev/author-service";
+import { createLocalPreviewService, PreviewError } from "@unframe-dev/preview";
+import { readPublicationFence, queryPublication } from "@unframe-dev/publish";
 const bytes = new TextEncoder().encode("fixed source");
 const snapshot = createWorkspaceSnapshot([{path: "entry.ts", bytes}]);
 bytes[0] = 0;
@@ -175,12 +175,12 @@ assert.deepEqual(await queryPublication({...remote, operation}), {ok: false, cod
     await writeFile(
       join(directory, "consumer.mts"),
       `
-import { createWorkspaceSnapshot, type WorkspaceSnapshot } from "@unframe/workspace";
-import { NativeStats, type BuildLock } from "@unframe/workspace-node";
-import { createBuildJob, type BuildState } from "@unframe/build";
-import { createAuthorService, type AuthorServicePorts } from "@unframe/author-service";
-import { createLocalPreviewService, type PreviewGenerationReader } from "@unframe/preview";
-import { queryPublication, type PublicationOperation } from "@unframe/publish";
+import { createWorkspaceSnapshot, type WorkspaceSnapshot } from "@unframe-dev/workspace";
+import { NativeStats, type BuildLock } from "@unframe-dev/workspace-node";
+import { createBuildJob, type BuildState } from "@unframe-dev/build";
+import { createAuthorService, type AuthorServicePorts } from "@unframe-dev/author-service";
+import { createLocalPreviewService, type PreviewGenerationReader } from "@unframe-dev/preview";
+import { queryPublication, type PublicationOperation } from "@unframe-dev/publish";
 const snapshot: WorkspaceSnapshot = createWorkspaceSnapshot([{path: "entry.ts", bytes: new Uint8Array()}]);
 const build = createBuildJob({revision: snapshot.revision, expectedGeneration: null}, {prepare: async () => 1, commit: async () => ({status: "committed", generation: "new"})});
 const state: BuildState = build.state();

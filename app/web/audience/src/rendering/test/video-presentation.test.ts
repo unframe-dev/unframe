@@ -1,7 +1,7 @@
 import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { Group, VideoTexture } from "three";
-import { participantRuntimeViewSchema } from "@unframe/contracts/presentation";
+import { participantRuntimeViewSchema } from "@unframe-dev/contracts/presentation";
 import { videoFixture } from "./support/video-test-fixture";
 import { createVideoPresentation } from "../video-presentation";
 import type { loadVideoAsset } from "../../assets/video-asset";

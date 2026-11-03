@@ -1,16 +1,16 @@
 import { PreviewError } from "./error.js";
 import { createHash, randomBytes } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import type { LocalPreviewEnvelopeWire } from "@unframe/contracts/presentation";
-import { buildRuntimeProjection } from "@unframe/delivery";
+import type { LocalPreviewEnvelopeWire } from "@unframe-dev/contracts/presentation";
+import { buildRuntimeProjection } from "@unframe-dev/delivery";
 import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   type BuildArtifacts,
-} from "@unframe/artifacts";
-import { createInitialRuntimeState, createCueState } from "@unframe/playback";
-import { randomIdSchema } from "@unframe/contracts/author-http";
+} from "@unframe-dev/artifacts";
+import { createInitialRuntimeState, createCueState } from "@unframe-dev/playback";
+import { randomIdSchema } from "@unframe-dev/contracts/author-http";
 import { projectPlaybackResourcesWire } from "./playback-wire.js";
 import { createLocalPlayback } from "./local-playback.js";
 import { previewCapability } from "./preview-capability.js";
@@ -22,7 +22,7 @@ import {
   type PreviewCommittedRequest,
   type PreviewPlaybackCommand,
   type PreviewPlaybackResponse,
-} from "@unframe/contracts/author-http";
+} from "@unframe-dev/contracts/author-http";
 
 function fail(status: number, code: string, message: string): never {
   throw new PreviewError(status, code, message);

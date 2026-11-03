@@ -3,7 +3,7 @@ import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
   type ParticipantRuntimeView,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import type { ModelAsset } from "../assets/model-asset";
 export interface ModelPlan {
   nodes: {

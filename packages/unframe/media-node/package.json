@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/media-node",
+  "name": "@unframe-dev/media-node",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -27,9 +27,9 @@
     "@gltf-transform/core": "4.5.1",
     "@gltf-transform/extensions": "4.5.1",
     "@noble/hashes": "2.4.0",
-    "@unframe/authoring": "workspace:*",
-    "@unframe/presentation": "workspace:*",
-    "@unframe/worker-host": "workspace:*",
+    "@unframe-dev/authoring": "workspace:*",
+    "@unframe-dev/presentation": "workspace:*",
+    "@unframe-dev/worker-host": "workspace:*",
     "gltf-validator": "2.0.0-dev.3.10",
     "typescript": "6.0.3",
     "zod": "4.4.3"

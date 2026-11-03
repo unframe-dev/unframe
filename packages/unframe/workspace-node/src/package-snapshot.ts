@@ -1,10 +1,10 @@
-import { mediaTypeFor } from "@unframe/workspace";
+import { mediaTypeFor } from "@unframe-dev/workspace";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { join, posix } from "node:path";
 import { parseDocument } from "yaml";
-import { parseStrictJson } from "@unframe/artifacts";
+import { parseStrictJson } from "@unframe-dev/artifacts";
 import { readDirectoryNames, readRegularFile } from "./path-policy.js";
 import {
   hashPackageLocator,
@@ -13,7 +13,7 @@ import {
   type LockedFile,
   type PackageSnapshot,
   type LockedDependency,
-} from "@unframe/workspace";
+} from "@unframe-dev/workspace";
 
 const record = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value))

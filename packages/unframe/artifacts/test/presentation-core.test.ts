@@ -7,11 +7,11 @@ import {
   hashPresentationDefinition,
   validatePresentationArtifacts,
   validateRenderBundle,
-} from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
 import {
   materializeCompletedSemanticTree,
   validatePresentationDefinition,
-} from "@unframe/presentation";
+} from "@unframe-dev/presentation";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 describe("Presentation artifact contracts", () => {

@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/audience",
+  "name": "@unframe-dev/audience",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -23,8 +23,8 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^9.5.0",
-    "@unframe/api-client-typescript": "workspace:*",
-    "@unframe/contracts": "workspace:*",
+    "@unframe-dev/api-client-typescript": "workspace:*",
+    "@unframe-dev/contracts": "workspace:*",
     "js-aruco2": "2.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",

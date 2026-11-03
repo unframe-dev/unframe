@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/local-editor",
+  "name": "@unframe-dev/local-editor",
   "version": "0.1.0",
   "private": false,
   "files": [
@@ -37,7 +37,7 @@
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@unframe/contracts": "workspace:*",
+    "@unframe-dev/contracts": "workspace:*",
     "@vitejs/plugin-react": "6.1.2",
     "tailwindcss": "4.3.3",
     "typescript": "^7.0.0",

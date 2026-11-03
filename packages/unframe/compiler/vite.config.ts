@@ -6,13 +6,13 @@ export default defineConfig({
     entry: { index: "src/index.ts" },
     dts: { eager: true },
     deps: {
-      alwaysBundle: [/^@unframe\/contracts(?:\/|$)/, /^@noble\/hashes(?:\/|$)/],
-      neverBundle: [/^@unframe\/(?!contracts(?:\/|$))/, /^zod(?:\/|$)/, "react"],
+      alwaysBundle: [/^@unframe-dev\/contracts(?:\/|$)/, /^@noble\/hashes(?:\/|$)/],
+      neverBundle: [/^@unframe-dev\/(?!contracts(?:\/|$))/, /^zod(?:\/|$)/, "react"],
       onlyBundle: false,
       onlyImport: [
-        "@unframe/artifacts",
-        "@unframe/authoring",
-        "@unframe/presentation",
+        "@unframe-dev/artifacts",
+        "@unframe-dev/authoring",
+        "@unframe-dev/presentation",
         "zod",
         "react",
       ],

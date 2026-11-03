@@ -38,14 +38,14 @@ reference_acceptance() {
   temp="$(mktemp -d)"
   trap 'rm -rf -- "$temp"' RETURN
   bash "${REPO_ROOT}/packages/unframe/cli/test/prepare-pack-project.sh" "${temp}"
-  pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/cli exec tsc --noEmit -p "${temp}/tsconfig.json"
+  pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/cli exec tsc --noEmit -p "${temp}/tsconfig.json"
   log "presentation(check): reference project check"
-  pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/cli run presentation check "${temp}"
+  pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/cli run presentation check "${temp}"
   log "presentation(check): Fixed Browser reference build (first)"
-  pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/cli run presentation build "${temp}"
+  pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/cli run presentation build "${temp}"
   first_manifest="$(manifest "${temp}")"
   log "presentation(check): Fixed Browser reference build (second)"
-  pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/cli run presentation build "${temp}"
+  pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/cli run presentation build "${temp}"
   second_manifest="$(manifest "${temp}")"
   test "${first_manifest}" = "${second_manifest}"
   log "presentation(check): compiled Delivery wire fixture"
@@ -58,7 +58,7 @@ check_packages() {
   local package
   # 型宣言ビルドを重ねると runner のメモリ上限を超えるため直列化する。
   for package in "$@"; do
-    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter "@unframe/${package}" run check
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter "@unframe-dev/${package}" run check
   done
 }
 
@@ -75,15 +75,15 @@ case "${mode}" in
     reference_acceptance
     ;;
   contracts)
-    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/dev-scripts run check
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/dev-scripts run check
     node --test "${REPO_ROOT}/scripts/ci/presentation.test.ts"
-    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test
-    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/contract-fixtures typecheck
-    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/contract-fixtures test
-    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/contract-fixtures check
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/package-checks test
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/contract-fixtures typecheck
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/contract-fixtures test
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/contract-fixtures check
     log "presentation(check): shared config / package checks"
     pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
-    pnpm --config.verify-deps-before-run=false --filter @unframe/contracts run check
+    pnpm --config.verify-deps-before-run=false --filter @unframe-dev/contracts run check
     log "presentation(check): generated Go/C# consumers and wire compatibility"
     bash "${REPO_ROOT}/scripts/contracts/test-grpc-tools.sh"
     "${REPO_ROOT}/scripts/contracts/generate-consumers.sh" check
@@ -105,7 +105,7 @@ case "${mode}" in
   adapters)
     for package in render-browser media-node styles-node worker-host; do
       for task in typecheck lint build test; do
-        pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter "@unframe/${package}" run "${task}"
+        pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter "@unframe-dev/${package}" run "${task}"
       done
     done
     go -C "${REPO_ROOT}/packages/unframe/workspace-node/native" test ./...
@@ -120,14 +120,14 @@ case "${mode}" in
       --workspace-concurrency=1 \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run build
-    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test:packed
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/package-checks test:packed
     reference_acceptance
     ;;
   check)
     for suite in contracts core usecases adapters cli; do
       bash "${BASH_SOURCE[0]}" "${suite}"
     done
-    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe/package-checks test:packed
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/package-checks test:packed
     reference_acceptance
     ;;
   *)

@@ -1,8 +1,8 @@
 import { expect, it } from "vite-plus/test";
-import { presentationDefinitionSchema } from "@unframe/contracts/presentation";
+import { presentationDefinitionSchema } from "@unframe-dev/contracts/presentation";
 
 import fixture from "../../../contracts/presentation/fixtures/presenter-cue-conformance.json";
-import { advanceCueClock, createCueState, executeCueEvent } from "@unframe/playback";
+import { advanceCueClock, createCueState, executeCueEvent } from "@unframe-dev/playback";
 import type { CueInput } from "../src/runtime/cue-executor.js";
 
 it("matches the shared Presenter Cue ordering, repeat, Timer and Run trace", () => {

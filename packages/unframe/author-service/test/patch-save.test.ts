@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { refreshProjectLock } from "@unframe/workspace";
+import { refreshProjectLock } from "@unframe-dev/workspace";
 import { expect, it } from "vite-plus/test";
 import { prepareAuthorSave, saveAuthorPatch } from "../src/index.js";
-import type { PatchRequest } from "@unframe/contracts/author-http";
+import type { PatchRequest } from "@unframe-dev/contracts/author-http";
 
 const hashFor = (revision: string) =>
   createHash("sha256").update(JSON.stringify({ revision, request })).digest("hex");

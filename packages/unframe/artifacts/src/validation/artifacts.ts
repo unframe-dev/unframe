@@ -3,12 +3,12 @@ import type {
   SemanticSurface,
   SurfaceContentNode,
   ValidationResult,
-} from "@unframe/presentation";
+} from "@unframe-dev/presentation";
 import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "../canonicalization/payload.js";
-import { materializeCompletedSemanticTree } from "@unframe/presentation";
-import { resolveStructuredLayout, type LogicalRect } from "@unframe/presentation";
-import { diagnostic, pathSegment, sorted } from "@unframe/presentation/validation";
-import { validatePresentationDefinition } from "@unframe/presentation";
+import { materializeCompletedSemanticTree } from "@unframe-dev/presentation";
+import { resolveStructuredLayout, type LogicalRect } from "@unframe-dev/presentation";
+import { diagnostic, pathSegment, sorted } from "@unframe-dev/presentation/validation";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 import { validateRenderBundle } from "./render-bundle.js";
 
 const sameSet = (left: Iterable<string>, right: Iterable<string>) => {

@@ -6,12 +6,12 @@ import {
   verifyPublicationIntegrity,
   validatePresentationArtifacts,
   type BuildArtifacts,
-} from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
 import {
   publicationFenceSchema,
   publishedPresentationSchema,
   type PublishedPresentation,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import type { z } from "zod";
 import { and, desc, eq, exists } from "drizzle-orm";
 import { createD1Database } from "../../adapters/d1/database";

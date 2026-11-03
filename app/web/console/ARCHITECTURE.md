@@ -5,7 +5,7 @@
 ## 責務と通信
 
 ```text
-React feature → @unframe/api-client-typescript → Control Plane
+React feature → @unframe-dev/api-client-typescript → Control Plane
 ```
 
 - Better Auth client による認証・アカウント設定と device 承認。

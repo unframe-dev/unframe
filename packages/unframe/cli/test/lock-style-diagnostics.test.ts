@@ -5,17 +5,17 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, assert, expect, it, vi } from "vite-plus/test";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { runIsolatedWorker } from "@unframe/worker-host";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
+import { runIsolatedWorker } from "@unframe-dev/worker-host";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { loadUnframeLock } from "@unframe/workspace";
-import { hashDependencyGraph } from "@unframe/workspace";
-import { updateProjectLock } from "@unframe/workspace-node";
-import { snapshotNodeTransformInputs, withNodeTransformSources } from "@unframe/styles-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { loadUnframeLock } from "@unframe-dev/workspace";
+import { hashDependencyGraph } from "@unframe-dev/workspace";
+import { updateProjectLock } from "@unframe-dev/workspace-node";
+import { snapshotNodeTransformInputs, withNodeTransformSources } from "@unframe-dev/styles-node";
 
-vi.mock("@unframe/worker-host", async (original) => ({
-  ...(await original<typeof import("@unframe/worker-host")>()),
+vi.mock("@unframe-dev/worker-host", async (original) => ({
+  ...(await original<typeof import("@unframe-dev/worker-host")>()),
   runIsolatedWorker: vi.fn(),
 }));
 const directories: string[] = [];

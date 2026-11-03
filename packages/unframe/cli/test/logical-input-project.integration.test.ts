@@ -2,7 +2,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, expect, it } from "vite-plus/test";
-import { hashCanonicalJsonPayload, verifyBuildIntegrity } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload, verifyBuildIntegrity } from "@unframe-dev/artifacts";
 import { runPresentationCli } from "../src/index.js";
 import { publishPresentation } from "../src/application/publish.js";
 import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";

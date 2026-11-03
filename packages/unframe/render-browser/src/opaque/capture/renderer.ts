@@ -4,7 +4,7 @@ import {
   type RendererPlugin,
   type RendererBuildFailure,
   type RawSurfaceCapture,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 import type { WebRendererConfig } from "../../public-types.js";
 import { snapshotConfig, configHashFromSnapshot } from "../../config/config-environment.js";
 import { opaqueRenderProgramSchema, type OpaqueProgramSnapshot } from "./program-schema.js";
@@ -13,7 +13,7 @@ import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
 import { originalPositionFor, sourceContentFor, TraceMap } from "@jridgewell/trace-mapping";
 import { validateOpaqueBindings } from "./bindings.js";
 
-import type { OpaqueRenderProgram } from "@unframe/build";
+import type { OpaqueRenderProgram } from "@unframe-dev/build";
 
 const failure = (code: string, path: readonly (string | number)[] = []): RendererBuildFailure => ({
   ok: false,

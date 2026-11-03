@@ -1,4 +1,4 @@
-import { validateNodeTransformSnapshot } from "@unframe/workspace";
+import { validateNodeTransformSnapshot } from "@unframe-dev/workspace";
 import { createHash } from "node:crypto";
 import { satisfies } from "semver";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
@@ -6,7 +6,7 @@ import { mkdtemp, readFile, rm, writeFile, realpath } from "node:fs/promises";
 import { temporaryDirectory } from "./temporary-directory.js";
 import { join, relative } from "node:path";
 import { probeNodeRuntime } from "./runtime.js";
-import { runIsolatedWorker, WorkerIsolationError } from "@unframe/worker-host";
+import { runIsolatedWorker, WorkerIsolationError } from "@unframe-dev/worker-host";
 import { materializeNodeTransformSnapshot, type NodeTransformSnapshot } from "./node-snapshot.js";
 
 export type StyleWorkerOptions = {

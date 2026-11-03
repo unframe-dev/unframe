@@ -1,5 +1,5 @@
 import { gzipSync } from "node:zlib";
-import { validateNodeTransformSnapshot } from "@unframe/workspace";
+import { validateNodeTransformSnapshot } from "@unframe-dev/workspace";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile, mkdir, symlink, readFile, chmod, stat } from "node:fs/promises";
 import { temporaryDirectory } from "../src/temporary-directory.js";

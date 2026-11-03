@@ -1,4 +1,4 @@
-import type { CompilerDeclarationProject } from "@unframe/compiler";
+import type { CompilerDeclarationProject } from "@unframe-dev/compiler";
 import { checksumBytes } from "../../fixtures-helpers/checksum.js";
 
 export const modelGlb = (rootDistance = 2): Uint8Array => {

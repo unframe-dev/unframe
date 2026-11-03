@@ -4,8 +4,8 @@ import { parseAuthoringProject } from "../src/project/parse-authoring-project.js
 
 const packageEntry = () => ({
   key: `sha256:${"a".repeat(64)}`,
-  locator: "@unframe/theme@1.0.0",
-  name: "@unframe/theme",
+  locator: "@unframe-dev/theme@1.0.0",
+  name: "@unframe-dev/theme",
   version: "1.0.0",
   contentIntegrity: `sha256:${"b".repeat(64)}`,
   files: [
@@ -26,7 +26,7 @@ const input = () => ({
   files: [{ fileName: "presentation.unframe.ts", sourceText: "export {};" }],
   rawFiles: [],
   rootDependencies: [
-    { specifier: "@unframe/theme", usage: "types" as const, packageKey: packageEntry().key },
+    { specifier: "@unframe-dev/theme", usage: "types" as const, packageKey: packageEntry().key },
   ],
   packages: [packageEntry()],
 });
@@ -43,7 +43,7 @@ describe("parseAuthoringProject locked packages v2", () => {
     expect(result.value.rootDependencies).toEqual(input().rootDependencies);
     expect(result.value.packages[0]).toMatchObject({
       key: packageEntry().key,
-      name: "@unframe/theme",
+      name: "@unframe-dev/theme",
     });
     expect(result.value.packages[0]?.files["index.d.ts"]?.fileName).toBe(
       `unframe-package://${"a".repeat(64)}/index.d.ts`,

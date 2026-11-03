@@ -6,7 +6,7 @@ import {
   readEditableReactScene,
   type CheckAuthoringProjectResult,
   type ReactScenePatch,
-} from "@unframe/source";
+} from "@unframe-dev/source";
 import type {
   AuthorDiagnostic,
   AuthorInstance,
@@ -14,7 +14,7 @@ import type {
   ProjectSnapshot,
   SavedCommand,
   PatchRequest,
-} from "@unframe/contracts/author-http";
+} from "@unframe-dev/contracts/author-http";
 import {
   createAuthorBuildService,
   computeFrozenComponentInputs,
@@ -22,15 +22,15 @@ import {
   createSourceAssetAssemblyCarrier,
   type AuthorBuildPorts,
   type AuthorBuildRequestOptions,
-} from "@unframe/build";
-import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe/artifacts";
+} from "@unframe-dev/build";
+import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe-dev/artifacts";
 import {
   refreshProjectLock,
   verifyFrozenLocalFiles,
   loadUnframeLock,
   type UnframeLock,
   type LockedSourceAsset,
-} from "@unframe/workspace";
+} from "@unframe-dev/workspace";
 export class AuthorError extends Error {
   constructor(
     readonly status: number,

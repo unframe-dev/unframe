@@ -1,6 +1,6 @@
 import { normalizeDeclarationGraph } from "../src/normalization/normalize-declaration-graph.js";
 import { describe, expect, it } from "vite-plus/test";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 
 import { lowerAuthoringDeclarationFile } from "../src/lowering/lower-authoring-declaration.js";
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
@@ -89,7 +89,7 @@ const analyze = (
   } = {},
 ) => {
   const presentationPackage = {
-    packageName: "@unframe/authoring",
+    packageName: "@unframe-dev/authoring",
     packageVersion: "1",
     packageIntegrity: "integrity",
     files: [{ fileName: "index.ts", sourceText: builderModule }],
@@ -158,7 +158,7 @@ const lower = (sourceText: string, options?: Parameters<typeof analyze>[1]) =>
 describe("lowerAuthoringDeclarationFile", () => {
   it("lowers a direct provenanced root call without executing throwing builders", () => {
     const sourceText = [
-      'import { definePresentation as presentation, stringProp as string, after } from "@unframe/authoring";',
+      'import { definePresentation as presentation, stringProp as string, after } from "@unframe-dev/authoring";',
       'export default presentation({ emoji: "😀", title: string({ default: "Hello" }), timer: after(100), number: -0, flags: [true, false, null] });',
     ].join("\n");
     const result = lower(sourceText);
@@ -217,7 +217,7 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("preserves UTF-16 offsets and line columns after multiline emoji text", () => {
     const sourceText = [
-      'import { definePresentation, stringProp } from "@unframe/authoring";',
+      'import { definePresentation, stringProp } from "@unframe-dev/authoring";',
       "export default definePresentation({",
       '  emoji: "😀",',
       "  value: stringProp({",
@@ -256,12 +256,12 @@ describe("lowerAuthoringDeclarationFile", () => {
   it("rejects unprovenanced root forms and root builders nested as values", () => {
     for (const sourceText of [
       "const definePresentation = (...args: unknown[]) => args; export default definePresentation({});",
-      'import * as presentation from "@unframe/authoring"; export default presentation.definePresentation({});',
-      'import presentation from "@unframe/authoring"; export default presentation({});',
-      'import type { definePresentation } from "@unframe/authoring"; const local = (...args: unknown[]) => args; export default local({});',
-      'import { definePresentation } from "@unframe/authoring"; const local = definePresentation; export default local({});',
-      'import { fakeBuilder } from "@unframe/authoring"; export default fakeBuilder({});',
-      'import { definePresentation } from "@unframe/authoring"; export default definePresentation({ nested: definePresentation({}) });',
+      'import * as presentation from "@unframe-dev/authoring"; export default presentation.definePresentation({});',
+      'import presentation from "@unframe-dev/authoring"; export default presentation({});',
+      'import type { definePresentation } from "@unframe-dev/authoring"; const local = (...args: unknown[]) => args; export default local({});',
+      'import { definePresentation } from "@unframe-dev/authoring"; const local = definePresentation; export default local({});',
+      'import { fakeBuilder } from "@unframe-dev/authoring"; export default fakeBuilder({});',
+      'import { definePresentation } from "@unframe-dev/authoring"; export default definePresentation({ nested: definePresentation({}) });',
     ]) {
       expect(lower(sourceText)).toMatchObject({
         ok: false,
@@ -276,7 +276,7 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("preserves ordered multi-argument nested builder calls", () => {
     const result = lower(
-      'import { definePresentation, setSurfaceState } from "@unframe/authoring"; export default definePresentation({ effect: setSurfaceState("surface", "state") });',
+      'import { definePresentation, setSurfaceState } from "@unframe-dev/authoring"; export default definePresentation({ effect: setSurfaceState("surface", "state") });',
     );
 
     expect(result).toMatchObject({
@@ -308,7 +308,7 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("reports the exact stable range for root and nested builder signatures", () => {
     const rootSource =
-      'import { definePresentation } from "@unframe/authoring"; export default definePresentation();';
+      'import { definePresentation } from "@unframe-dev/authoring"; export default definePresentation();';
     const root = lower(rootSource);
     expect(root).toEqual({
       ok: false,
@@ -325,7 +325,7 @@ describe("lowerAuthoringDeclarationFile", () => {
       ]),
     });
     const nestedSource =
-      'import { definePresentation, after } from "@unframe/authoring"; export default definePresentation({ timer: after("bad") });';
+      'import { definePresentation, after } from "@unframe-dev/authoring"; export default definePresentation({ timer: after("bad") });';
     const nested = lower(nestedSource);
     const badStart = nestedSource.indexOf("after(");
     expect(nested).toMatchObject({
@@ -345,21 +345,21 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("accepts every builder signature class", () => {
     for (const sourceText of [
-      'import { defineTheme } from "@unframe/authoring"; export default defineTheme({});',
-      'import { defineComponentManifest } from "@unframe/authoring"; export default defineComponentManifest({});',
-      'import { defineComponentStructure } from "@unframe/authoring"; export default defineComponentStructure({});',
-      'import { definePresentation, state } from "@unframe/authoring"; export default definePresentation({ value: state() });',
-      'import { definePresentation, stringProp } from "@unframe/authoring"; export default definePresentation({ value: stringProp({}) });',
-      'import { definePresentation, surfaceState } from "@unframe/authoring"; export default definePresentation({ value: surfaceState("a", "b") });',
-      'import { definePresentation, playTimeline } from "@unframe/authoring"; export default definePresentation({ value: playTimeline("a", {}) });',
-      'import { definePresentation, after } from "@unframe/authoring"; export default definePresentation({ value: after(-0) });',
+      'import { defineTheme } from "@unframe-dev/authoring"; export default defineTheme({});',
+      'import { defineComponentManifest } from "@unframe-dev/authoring"; export default defineComponentManifest({});',
+      'import { defineComponentStructure } from "@unframe-dev/authoring"; export default defineComponentStructure({});',
+      'import { definePresentation, state } from "@unframe-dev/authoring"; export default definePresentation({ value: state() });',
+      'import { definePresentation, stringProp } from "@unframe-dev/authoring"; export default definePresentation({ value: stringProp({}) });',
+      'import { definePresentation, surfaceState } from "@unframe-dev/authoring"; export default definePresentation({ value: surfaceState("a", "b") });',
+      'import { definePresentation, playTimeline } from "@unframe-dev/authoring"; export default definePresentation({ value: playTimeline("a", {}) });',
+      'import { definePresentation, after } from "@unframe-dev/authoring"; export default definePresentation({ value: after(-0) });',
     ])
       expect(lower(sourceText)).toMatchObject({ ok: true });
   });
 
   it("rejects optional root and nested calls at their call ranges", () => {
     const rootSource =
-      'import { definePresentation } from "@unframe/authoring"; export default definePresentation?.({});';
+      'import { definePresentation } from "@unframe-dev/authoring"; export default definePresentation?.({});';
     const root = lower(rootSource);
     const rootStart = rootSource.indexOf("definePresentation?.");
     expect(root).toMatchObject({
@@ -373,7 +373,7 @@ describe("lowerAuthoringDeclarationFile", () => {
       ],
     });
     const nestedSource =
-      'import { definePresentation, after } from "@unframe/authoring"; export default definePresentation({ value: after?.(1) });';
+      'import { definePresentation, after } from "@unframe-dev/authoring"; export default definePresentation({ value: after?.(1) });';
     const nested = lower(nestedSource);
     const nestedStart = nestedSource.indexOf("after?.");
     expect(nested).toMatchObject({
@@ -390,10 +390,10 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("rejects side-effect, namespace, default, and non-builder value imports", () => {
     for (const sourceText of [
-      'import "@unframe/authoring"; import { definePresentation } from "@unframe/authoring"; export default definePresentation({});',
-      'import * as builders from "@unframe/authoring"; import { definePresentation } from "@unframe/authoring"; export default definePresentation({});',
-      'import defaultBuilder, { definePresentation } from "@unframe/authoring"; export default definePresentation({});',
-      'import { fakeBuilder, definePresentation } from "@unframe/authoring"; export default definePresentation({});',
+      'import "@unframe-dev/authoring"; import { definePresentation } from "@unframe-dev/authoring"; export default definePresentation({});',
+      'import * as builders from "@unframe-dev/authoring"; import { definePresentation } from "@unframe-dev/authoring"; export default definePresentation({});',
+      'import defaultBuilder, { definePresentation } from "@unframe-dev/authoring"; export default definePresentation({});',
+      'import { fakeBuilder, definePresentation } from "@unframe-dev/authoring"; export default definePresentation({});',
     ]) {
       expect(lower(sourceText)).toMatchObject({
         ok: false,
@@ -409,7 +409,7 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("reports exact stable diagnostics for unsupported static expression forms", () => {
     const prefix =
-      'import { definePresentation } from "@unframe/authoring"; export default definePresentation(';
+      'import { definePresentation } from "@unframe-dev/authoring"; export default definePresentation(';
     const cases = [
       {
         value: "{ __proto__: 1 }",
@@ -445,7 +445,7 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("uses UTF-16 offsets and canonical ordering for multiple lowerable diagnostics", () => {
     const sourceText =
-      'import { definePresentation } from "@unframe/authoring"; export default definePresentation({ emoji: "😀", __proto__: 1, x: ({ a: 1 }).a, values: [1,,2] });';
+      'import { definePresentation } from "@unframe-dev/authoring"; export default definePresentation({ emoji: "😀", __proto__: 1, x: ({ a: 1 }).a, values: [1,,2] });';
     const result = lower(sourceText);
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -463,7 +463,7 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("rejects local aliases at the top-level statement range", () => {
     const sourceText =
-      'import { definePresentation } from "@unframe/authoring"; const local = definePresentation; export default local({});';
+      'import { definePresentation } from "@unframe-dev/authoring"; const local = definePresentation; export default local({});';
     const result = lower(sourceText);
     expect(result).toMatchObject({
       ok: false,
@@ -484,7 +484,7 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("rejects the second duplicate object key at its exact range", () => {
     const sourceText = [
-      'import { definePresentation } from "@unframe/authoring";',
+      'import { definePresentation } from "@unframe-dev/authoring";',
       "export default definePresentation({ a: 1, // @ts-ignore",
       "a: 2 });",
     ].join("\n");
@@ -507,7 +507,7 @@ describe("lowerAuthoringDeclarationFile", () => {
 
   it("accepts project-relative imports and rejects foreign package values", () => {
     const localSource = [
-      'import { definePresentation } from "@unframe/authoring";',
+      'import { definePresentation } from "@unframe-dev/authoring";',
       'import { localValue } from "./local";',
       "export default definePresentation({ value: localValue });",
     ].join("\n");
@@ -517,7 +517,7 @@ describe("lowerAuthoringDeclarationFile", () => {
     expect(local).toMatchObject({ ok: true });
 
     const foreignSource = [
-      'import { definePresentation } from "@unframe/authoring";',
+      'import { definePresentation } from "@unframe-dev/authoring";',
       'import { foreign } from "foreign";',
       "export default definePresentation({ value: foreign });",
     ].join("\n");
@@ -552,7 +552,7 @@ describe("lowerAuthoringDeclarationFile", () => {
 
 it("extracts a constant logical Model root without executing builders", () => {
   const result = lower(
-    'import {defineComponentStructure,model,assetRef} from "@unframe/authoring"; export default defineComponentStructure({id:"model",componentId:"model-component",partBindings:{},variantStyles:{},timelines:[],root:model({id:"root",asset:assetRef({assetId:"mesh"})})});',
+    'import {defineComponentStructure,model,assetRef} from "@unframe-dev/authoring"; export default defineComponentStructure({id:"model",componentId:"model-component",partBindings:{},variantStyles:{},timelines:[],root:model({id:"root",asset:assetRef({assetId:"mesh"})})});',
   );
   expect(result.ok).toBe(true);
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
@@ -565,7 +565,7 @@ it("extracts a constant logical Model root without executing builders", () => {
 
 it("extracts Video and clip playback builders without executing Source", () => {
   const result = lower(
-    'import {defineComponentStructure,video,assetRef,playModelClip,modelClipCompleted,seekMedia} from "@unframe/authoring"; export default defineComponentStructure({root:video({id:"movie",asset:assetRef({assetId:"movie"}),loop:false}),play:playModelClip({nodeId:"root",clipId:"clip-0",speed:1,loop:false,completion:"blocking",transition:{kind:"immediate"},conflict:"reject"}),done:modelClipCompleted({nodeId:"root",clipId:"clip-0"}),seek:seekMedia({surfaceId:"surface",positionSeconds:{kind:"literal",value:1}})});',
+    'import {defineComponentStructure,video,assetRef,playModelClip,modelClipCompleted,seekMedia} from "@unframe-dev/authoring"; export default defineComponentStructure({root:video({id:"movie",asset:assetRef({assetId:"movie"}),loop:false}),play:playModelClip({nodeId:"root",clipId:"clip-0",speed:1,loop:false,completion:"blocking",transition:{kind:"immediate"},conflict:"reject"}),done:modelClipCompleted({nodeId:"root",clipId:"clip-0"}),seek:seekMedia({surfaceId:"surface",positionSeconds:{kind:"literal",value:1}})});',
   );
   expect(result.ok).toBe(true);
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));

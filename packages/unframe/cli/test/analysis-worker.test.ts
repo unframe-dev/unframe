@@ -1,13 +1,13 @@
 import { rm } from "node:fs/promises";
 import { afterAll, assert, beforeAll, expect, it } from "vite-plus/test";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import type { StylePreparationPort } from "@unframe/build";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
+import type { StylePreparationPort } from "@unframe-dev/build";
 import {
   hashDependencyGraph,
   identifyNodeTransformSnapshot,
   loadUnframeLock,
-} from "@unframe/workspace";
-import { discoverPresentationProjectFiles, readTypeLibraries } from "@unframe/workspace-node";
+} from "@unframe-dev/workspace";
+import { discoverPresentationProjectFiles, readTypeLibraries } from "@unframe-dev/workspace-node";
 import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { runAnalysisOperation } from "../src/author/analysis-client.js";
 import type { AnalysisInputs } from "../src/author/analysis-protocol.js";

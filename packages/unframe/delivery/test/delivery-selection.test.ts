@@ -8,19 +8,19 @@ import {
   buildManifestSchema,
   encodeWireMessage,
   decodeWireMessage,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import capabilityFixture from "../../../contracts/presentation/fixtures/capability-profile.json";
 import publicationFixture from "../../../contracts/presentation/fixtures/published-presentation.json";
 import buildFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { buildRuntimeProjection, selectBuildArtifacts } from "@unframe/delivery";
+import { buildRuntimeProjection, selectBuildArtifacts } from "@unframe-dev/delivery";
 import { selectDeliveryArtifacts } from "../src/delivery/selection.js";
 import { buildProjectionProfile } from "../src/delivery/profile.js";
 import { calculateProjectionProfileId } from "../src/delivery/profile-identity.js";
 import { buildDeliveryManifest } from "../src/delivery/manifest.js";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 
 const definition = presentationDefinitionSchema.parse(definitionFixture);
 const bundle = renderBundleSchema.parse(bundleFixture);

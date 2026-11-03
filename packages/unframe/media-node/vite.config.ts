@@ -6,8 +6,8 @@ export default defineConfig({
     entry: { index: "src/index.ts" },
     dts: { eager: true },
     deps: {
-      alwaysBundle: [/^@unframe\/(?!worker-host$)/],
-      neverBundle: ["@unframe/worker-host", "react"],
+      alwaysBundle: [/^@unframe-dev\/(?!worker-host$)/],
+      neverBundle: ["@unframe-dev/worker-host", "react"],
       onlyBundle: false,
     },
     format: "esm",

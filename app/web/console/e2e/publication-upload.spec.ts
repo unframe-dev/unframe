@@ -3,8 +3,8 @@ import { mkdtemp, mkdir, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test as base, type Page, type Route } from "@playwright/test";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import type { PublishedPresentation } from "@unframe/contracts/presentation";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
+import type { PublishedPresentation } from "@unframe-dev/contracts/presentation";
 import { distFixture } from "../src/features/publication/test-support/dist-fixture";
 
 type Dist = { directory: string; fixture: ReturnType<typeof distFixture> };

@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { hashDependencyGraph, type UnframeLock } from "@unframe/workspace";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
+import { hashDependencyGraph, type UnframeLock } from "@unframe-dev/workspace";
 import { writeDiscoveryProjectFixture } from "./discovery-project-fixture.js";
 
 export const writeStyleBoundaryProjectFixture = async (directory: string) => {

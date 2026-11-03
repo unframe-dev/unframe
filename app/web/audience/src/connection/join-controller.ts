@@ -1,5 +1,5 @@
 import type { SessionRecorder } from "../diagnostics/session-recorder";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { assertViewerDelivery } from "../runtime/viewer-policy";
 import {

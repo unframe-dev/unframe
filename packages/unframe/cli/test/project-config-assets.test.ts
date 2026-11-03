@@ -1,5 +1,5 @@
 import { expect, it } from "vite-plus/test";
-import { loadProjectConfig } from "@unframe/workspace";
+import { loadProjectConfig } from "@unframe-dev/workspace";
 
 const parse = (source: string) => loadProjectConfig(new TextEncoder().encode(source));
 

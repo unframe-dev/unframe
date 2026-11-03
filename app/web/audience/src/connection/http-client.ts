@@ -3,10 +3,10 @@ import {
   sessionJoinCodeSchema,
   sessionResourceSchema,
   realtimeConnectionSchema,
-} from "@unframe/contracts/control-plane-http";
-import { createControlPlaneClient } from "@unframe/api-client-typescript";
-import type { paths } from "@unframe/contracts/control-plane";
-import { decodeWireMessage, type DeliveryManifestWire } from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/control-plane-http";
+import { createControlPlaneClient } from "@unframe-dev/api-client-typescript";
+import type { paths } from "@unframe-dev/contracts/control-plane";
+import { decodeWireMessage, type DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import { z } from "zod";
 
 export type Session =

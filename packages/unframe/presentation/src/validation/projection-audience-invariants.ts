@@ -1,4 +1,4 @@
-import type { PresentationDefinition } from "@unframe/contracts/presentation/definition";
+import type { PresentationDefinition } from "@unframe-dev/contracts/presentation/definition";
 
 import type { Diagnostic } from "../domain/model.js";
 import { diagnostic, pathSegment } from "./shared.js";

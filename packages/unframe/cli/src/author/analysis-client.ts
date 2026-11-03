@@ -1,12 +1,12 @@
-import { bundleOpaqueRenderer } from "@unframe/render-browser";
-import { OpaquePreparationFailure } from "@unframe/build";
+import { bundleOpaqueRenderer } from "@unframe-dev/render-browser";
+import { OpaquePreparationFailure } from "@unframe-dev/build";
 import { Worker } from "node:worker_threads";
 import { z } from "zod";
-import { AuthorError } from "@unframe/author-service";
-import { projectSnapshotSchema, savedCommandSchema } from "@unframe/contracts/author-http";
-import { validateNodeTransformSnapshot } from "@unframe/workspace";
+import { AuthorError } from "@unframe-dev/author-service";
+import { projectSnapshotSchema, savedCommandSchema } from "@unframe-dev/contracts/author-http";
+import { validateNodeTransformSnapshot } from "@unframe-dev/workspace";
 import { sourceAssetPorts } from "../application/media-ports.js";
-import type { prepareLockRefresh } from "@unframe/build";
+import type { prepareLockRefresh } from "@unframe-dev/build";
 import type { AnalysisOperations } from "./analysis-protocol.js";
 
 const diagnostic = z.strictObject({
@@ -144,7 +144,7 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
   if (signal?.aborted)
     throw new AuthorError(409, "cli-cancelled", "Project analysis was cancelled.");
   const worker = new Worker(
-    new URL("../analysis/worker.mjs", import.meta.resolve("@unframe/cli/template")),
+    new URL("../analysis/worker.mjs", import.meta.resolve("@unframe-dev/cli/template")),
     { workerData: { operation, input } },
   );
   const controller = new AbortController();

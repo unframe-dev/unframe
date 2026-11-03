@@ -6,14 +6,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { parseAllDocuments, stringify } from "yaml";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import {
   hashDependencyGraph,
   hashLockedPackageContent,
   loadUnframeLock,
   type UnframeLock,
-} from "@unframe/workspace";
-import { lockedFile, snapshotInstalledPackages } from "@unframe/workspace-node";
+} from "@unframe-dev/workspace";
+import { lockedFile, snapshotInstalledPackages } from "@unframe-dev/workspace-node";
 import { sdkFixtureSource } from "./authoring-sdk-fixture.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -23,6 +23,7 @@ try {
   const documents = parseAllDocuments(await readFile(join(root, "pnpm-lock.yaml"), "utf8"));
   const lock = documents.at(-1)?.toJS() as {
     catalogs?: unknown;
+    overrides?: unknown;
     packageExtensionsChecksum?: unknown;
     importers: Record<
       string,
@@ -41,6 +42,7 @@ try {
   );
   lock.importers = { ".": { dependencies, devDependencies } };
   delete lock.catalogs;
+  delete lock.overrides;
   delete lock.packageExtensionsChecksum;
   await writeFile(
     join(temporary, "package.json"),
@@ -82,7 +84,7 @@ try {
       edge,
     ]),
   );
-  const sdk = loaded.value.lock.packages.find((pkg) => pkg.name === "@unframe/authoring");
+  const sdk = loaded.value.lock.packages.find((pkg) => pkg.name === "@unframe-dev/authoring");
   if (!sdk) throw new Error("Authoring package is missing");
   const smallSdk = {
     ...sdk,

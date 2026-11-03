@@ -30,7 +30,7 @@ Authoring Source → unframe-compiler → managed dist
 ```bash
 nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command env PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \
-  pnpm --config.verify-deps-before-run=false --filter @unframe/cli run presentation build "/absolute/path/to/project"
+  pnpm --config.verify-deps-before-run=false --filter @unframe-dev/cli run presentation build "/absolute/path/to/project"
 ```
 
 project の `dist` はコンパイラーが管理するgenerationへのsymlinkです。
@@ -46,7 +46,7 @@ Presentation ID は対象 project の定義に合わせてください。
 対象の Presentation ID を `PRESENTATION_ID`、Control Plane origin を `UNFRAME_CONTROL_PLANE_ORIGIN` に設定してください。
 
 ```bash
-nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe/cli run presentation publish \
+nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe-dev/cli run presentation publish \
   "$(realpath -- /absolute/path/to/project/dist)" "$PRESENTATION_ID" "$UNFRAME_CONTROL_PLANE_ORIGIN"
 ```
 

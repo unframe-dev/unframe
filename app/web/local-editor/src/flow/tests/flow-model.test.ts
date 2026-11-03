@@ -1,5 +1,5 @@
 import { expect, it } from "vite-plus/test";
-import type { ProjectSnapshot } from "@unframe/contracts/author-http";
+import type { ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
 import { createTimelineView, cueTimelines, triggerTiming, type FlowCue } from "../flow-model";
 

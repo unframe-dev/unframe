@@ -1,4 +1,4 @@
-import { audienceWebCapabilityProfileId } from "@unframe/contracts/presentation";
+import { audienceWebCapabilityProfileId } from "@unframe-dev/contracts/presentation";
 import { createAudienceHttpClient } from "./http-client";
 
 export function readConnectionConfig(

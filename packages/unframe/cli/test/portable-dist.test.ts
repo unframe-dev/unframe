@@ -12,9 +12,9 @@ import {
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vite-plus/test";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import { writePortableBuild } from "./helpers/portable-dist.js";
-import { readDistBuild } from "@unframe/workspace-node";
+import { readDistBuild } from "@unframe-dev/workspace-node";
 import { createDistPreviewService } from "../src/author/local-preview.js";
 import { publishPresentation } from "../src/application/publish.js";
 

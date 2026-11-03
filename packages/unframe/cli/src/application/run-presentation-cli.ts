@@ -1,45 +1,48 @@
 import type { AnalysisOperations } from "../author/analysis-protocol.js";
 import { runAnalysisOperation, prepareLockRefreshInWorker } from "../author/analysis-client.js";
-import { createSourceAssetAssemblyCarrier } from "@unframe/build";
+import { createSourceAssetAssemblyCarrier } from "@unframe-dev/build";
 import { buildMediaPorts, sourceAssetPorts } from "./media-ports.js";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readExpectedBuildGeneration, publishProjectBuild } from "@unframe/workspace-node";
-import { createBuildJob } from "@unframe/build";
+import { readExpectedBuildGeneration, publishProjectBuild } from "@unframe-dev/workspace-node";
+import { createBuildJob } from "@unframe-dev/build";
 import {
   compileCheckedDeclarationProject,
   checkDeclarationProject,
   type CompilerDeclarationProject,
-} from "@unframe/build";
-import type { CompiledDeclarationProject } from "@unframe/build";
-import type { AuthoringProjectDiagnostic } from "@unframe/source";
-import { prepareProjectSource } from "@unframe/workspace-node";
-import { StylePreparationError } from "@unframe/build";
+} from "@unframe-dev/build";
+import type { CompiledDeclarationProject } from "@unframe-dev/build";
+import type { AuthoringProjectDiagnostic } from "@unframe-dev/source";
+import { prepareProjectSource } from "@unframe-dev/workspace-node";
+import { StylePreparationError } from "@unframe-dev/build";
 import { styleDiagnostics } from "./style-diagnostics.js";
-import { type CompilerWarning } from "@unframe/compiler";
-import { type AuthoringProjectPipelineResult } from "@unframe/build";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import { hashSourceTypeLibraries } from "@unframe/source";
+import { type CompilerWarning } from "@unframe-dev/compiler";
+import { type AuthoringProjectPipelineResult } from "@unframe-dev/build";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
+import { hashSourceTypeLibraries } from "@unframe-dev/source";
 import {
   createBakedWebRenderer,
   combineBakedWebRenderers,
   createWebRendererConfigHash,
   openPlaywrightFixedBrowser,
   type FixedBrowserSession,
-} from "@unframe/render-browser";
+} from "@unframe-dev/render-browser";
 
 import { prepareOpaqueRenderer } from "./opaque-renderer.js";
-import { OpaquePreparationFailure } from "@unframe/build";
-import { createFilesystemBuildCache } from "@unframe/workspace-node";
-import { acquireBuildLock, type BuildLock } from "@unframe/workspace-node";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { updateProjectLock } from "@unframe/workspace-node";
-import { resolveDevProjectSourceAssets, resolveProjectSourceAssets } from "@unframe/workspace-node";
-import { createVideoValidator } from "@unframe/media-node";
-import { refreshLocalProjectLock } from "@unframe/workspace-node";
-import { verifyFrozenLocalFiles } from "@unframe/workspace";
-import { loadUnframeLock } from "@unframe/workspace";
-import { initPresentationProject } from "@unframe/workspace-node";
+import { OpaquePreparationFailure } from "@unframe-dev/build";
+import { createFilesystemBuildCache } from "@unframe-dev/workspace-node";
+import { acquireBuildLock, type BuildLock } from "@unframe-dev/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { updateProjectLock } from "@unframe-dev/workspace-node";
+import {
+  resolveDevProjectSourceAssets,
+  resolveProjectSourceAssets,
+} from "@unframe-dev/workspace-node";
+import { createVideoValidator } from "@unframe-dev/media-node";
+import { refreshLocalProjectLock } from "@unframe-dev/workspace-node";
+import { verifyFrozenLocalFiles } from "@unframe-dev/workspace";
+import { loadUnframeLock } from "@unframe-dev/workspace";
+import { initPresentationProject } from "@unframe-dev/workspace-node";
 import type {
   PresentationCliDiagnostic,
   PresentationCliExitCode,
@@ -387,7 +390,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   if (command === "init") {
     const result = await initPresentationProject(
       directory,
-      dirname(fileURLToPath(import.meta.resolve("@unframe/cli/template"))),
+      dirname(fileURLToPath(import.meta.resolve("@unframe-dev/cli/template"))),
     );
     return result.ok
       ? output(0, command, format)

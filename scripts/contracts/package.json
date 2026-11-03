@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/contract-fixtures",
+  "name": "@unframe-dev/contract-fixtures",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,13 +13,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@unframe/artifacts": "workspace:*",
-    "@unframe/authoring": "workspace:*",
-    "@unframe/build": "workspace:*",
-    "@unframe/compiler": "workspace:*",
-    "@unframe/contracts": "workspace:*",
-    "@unframe/delivery": "workspace:*",
-    "@unframe/media-node": "workspace:*"
+    "@unframe-dev/artifacts": "workspace:*",
+    "@unframe-dev/authoring": "workspace:*",
+    "@unframe-dev/build": "workspace:*",
+    "@unframe-dev/compiler": "workspace:*",
+    "@unframe-dev/contracts": "workspace:*",
+    "@unframe-dev/delivery": "workspace:*",
+    "@unframe-dev/media-node": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

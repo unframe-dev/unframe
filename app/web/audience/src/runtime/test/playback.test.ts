@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from "vite-plus/test";
 import { createRuntimePlayback } from "../playback";
 import { createRuntimeStore } from "../runtime-store";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
-import { participantRuntimeViewSchema } from "@unframe/contracts/presentation";
+import { participantRuntimeViewSchema } from "@unframe-dev/contracts/presentation";
 import { AssetLoadError } from "../../diagnostics/asset-failure";
 
 vi.mock("../runtime-store", () => ({ createRuntimeStore: vi.fn() }));

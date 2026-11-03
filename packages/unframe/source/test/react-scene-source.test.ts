@@ -6,7 +6,7 @@ import {
 } from "../src/editing/react-scene-source.js";
 import type { PairedAuthoringDeclarationCatalog } from "../src/project/pair-authoring-declarations.js";
 
-const source = `import { definePresentation } from "@unframe/authoring";
+const source = `import { definePresentation } from "@unframe-dev/authoring";
 // Keep this comment and the shared constant.
 const sharedTitle = "Shared";
 export default definePresentation({

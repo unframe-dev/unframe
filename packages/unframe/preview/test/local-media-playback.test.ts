@@ -3,10 +3,10 @@ import {
   type PresentationDefinition,
   presentationDefinitionSchema,
   renderBundleSchema,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
-import { createLocalPlayback } from "@unframe/preview";
+import { createLocalPlayback } from "@unframe-dev/preview";
 
 const media = { kind: "media.play", surfaceId: "video" } as const;
 const model = {

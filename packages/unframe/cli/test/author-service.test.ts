@@ -9,18 +9,18 @@ import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
-} from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import manifestFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { acquireSourceLock, publishAtomicArtifacts } from "@unframe/workspace-node";
+import { acquireSourceLock, publishAtomicArtifacts } from "@unframe-dev/workspace-node";
 import { createAuthorService } from "../src/author/service.js";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { loadUnframeLock } from "@unframe/workspace";
-import type { AuthorService } from "@unframe/author-service";
-import type { ProjectSnapshot } from "@unframe/contracts/author-http";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { loadUnframeLock } from "@unframe-dev/workspace";
+import type { AuthorService } from "@unframe-dev/author-service";
+import type { ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
@@ -46,7 +46,7 @@ afterEach(async () => {
   await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));
 });
 const component = [
-  'import {defineComponent, editableText, prop} from "@unframe/authoring";',
+  'import {defineComponent, editableText, prop} from "@unframe-dev/authoring";',
   "export const Hero = defineComponent({",
   '  id: "hero", version: 1, props: {title: editableText({required: true})},',
   "  surface: {logicalSize: [800, 450]},",
@@ -98,7 +98,7 @@ const prepareEditableProject = async (directory: string) => {
     )
     .join(",\n");
   const source = [
-    'import {definePresentation} from "@unframe/authoring";',
+    'import {definePresentation} from "@unframe-dev/authoring";',
     'import {Hero} from "./Hero.component";',
     "const base = " + JSON.stringify(presentation) + ";",
     "export default definePresentation({...base, scene: [" + scene + "]});",

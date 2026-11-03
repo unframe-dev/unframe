@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { runtimeMetadataSchema } from "@unframe/workspace";
+import { runtimeMetadataSchema } from "@unframe-dev/workspace";
 
 export const probeNodeRuntime = (nodePath: string) =>
   runtimeMetadataSchema.parse(

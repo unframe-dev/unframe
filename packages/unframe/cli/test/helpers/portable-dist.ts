@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { assert, expect } from "vite-plus/test";
-import { hashCanonicalJsonPayload, verifyBuildIntegrity } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload, verifyBuildIntegrity } from "@unframe-dev/artifacts";
 import definition from "../../../../contracts/presentation/fixtures/presentation-definition.json";
 import renderBundle from "../../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import buildManifest from "../../../../contracts/presentation/fixtures/build-manifest.json";
-import { publishAtomicArtifacts } from "@unframe/workspace-node";
+import { publishAtomicArtifacts } from "@unframe-dev/workspace-node";
 
 export const writePortableBuild = async (project: string, generationId = "a".repeat(32)) => {
   const parsed = verifyBuildIntegrity({ definition, renderBundle, assetSet, buildManifest });

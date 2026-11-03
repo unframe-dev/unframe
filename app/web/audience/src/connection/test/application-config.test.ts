@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createAudienceWebCapabilityProfile } from "@unframe/contracts/presentation";
+import { createAudienceWebCapabilityProfile } from "@unframe-dev/contracts/presentation";
 import { readConnectionConfig } from "../application-config";
 
 test("接続情報を仮の値で補わず設定待ちとする", () => {

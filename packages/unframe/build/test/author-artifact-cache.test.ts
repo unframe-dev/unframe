@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { AuthorArtifactCache } from "@unframe/build";
+import { AuthorArtifactCache } from "@unframe-dev/build";
 
 const assets = (size = 1) =>
   new Map([["image", { bytes: new Uint8Array(size), mediaType: "image/png" }]]);

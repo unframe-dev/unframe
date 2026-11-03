@@ -106,7 +106,7 @@ post-lowering declaration の検査は Authoring package の pure type guard を
 
 Static DSL は top-level `const`、型注釈、`as const`、`satisfies`、project-relative named / default import、静的 property access、shorthand、object / array spread を解決する。object spread は左から右へ適用し後の値を採用し、raw な重複 explicit key と `__proto__` は拒否する。参照先の値は definition origin、解決不能は use-site origin を保持する。循環参照に加え、展開深さ 128 または Declaration Graph 50,000 node を超える入力を stable diagnostic で停止する。
 
-TSX は `jsxImportSource = "@unframe/core/authoring"` で型検査し、provenance 検証済みの `Surface`、`Model`、`Video`、`Frame`、`Text`、`Slot`、`ComponentInstance` を builder と同じ Graph へ lower する。Frame children は静的配列を再帰的に flatten して順序を保つ。custom component、Fragment、`key` / `ref`、lowercase tag、children の競合を拒否する。任意関数、可変 binding、代入、getter / method、control flow、dynamic import は拒否し、Compiler は Authoring Source、JSX runtime、SDK 関数を実行しない。
+TSX は `jsxImportSource = "@unframe-dev/core/authoring"` で型検査し、provenance 検証済みの `Surface`、`Model`、`Video`、`Frame`、`Text`、`Slot`、`ComponentInstance` を builder と同じ Graph へ lower する。Frame children は静的配列を再帰的に flatten して順序を保つ。custom component、Fragment、`key` / `ref`、lowercase tag、children の競合を拒否する。任意関数、可変 binding、代入、getter / method、control flow、dynamic import は拒否し、Compiler は Authoring Source、JSX runtime、SDK 関数を実行しない。
 
 ## 5. Public API
 

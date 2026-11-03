@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { VideoMetadata } from "./media-ports.js";
-import type { ValidationResult } from "@unframe/presentation";
+import type { ValidationResult } from "@unframe-dev/presentation";
 import type {
   CompilerSourceAsset,
   CompilerSourceAssetBytes,

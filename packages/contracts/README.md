@@ -7,25 +7,25 @@ Control Plane と Realtime Backend の共有境界を置きます。
 `app/server/control-plane/src/openapi.ts` の route 定義と、それを実ハンドラへ登録する型付き
 `OpenAPIHono` application が生成元です。実行時検証と文書生成は同じ Zod schema を使います。
 `openapi/control-plane.openapi.json` と `src/control-plane.openapi.ts` は生成物であり、手編集しません。後者は
-`@unframe/contracts/control-plane` から import できます。
+`@unframe-dev/contracts/control-plane` から import できます。
 
 ```sh
-pnpm --filter @unframe/contracts generate:control-plane
-pnpm --filter @unframe/contracts check:control-plane
+pnpm --filter @unframe-dev/contracts generate:control-plane
+pnpm --filter @unframe-dev/contracts check:control-plane
 ```
 
 Control Plane の `src/openapi.ts`、共有 schema、HTTP routeを変更した場合は型を再生成し、drift checkを通してください。TypeScript runtime client は生成 path 型ではなく Hono RPC の `AppType` を使います。生成物は Unity / C# など言語非依存の契約境界として維持します。
 
 ## Presentation
 
-完成版の構造は `src/presentation/` の Zod と `proto/unframe/{presentation,delivery,realtime}/` の Protobuf が正本です。型は `@unframe/contracts/presentation` から import できます。参照整合性・状態遷移・拒否条件は [Presentation データ契約](../../docs/packages/DATA_MODEL.md) を併読してください。実機対応の検証は含みません。
+完成版の構造は `src/presentation/` の Zod と `proto/unframe/{presentation,delivery,realtime}/` の Protobuf が正本です。型は `@unframe-dev/contracts/presentation` から import できます。参照整合性・状態遷移・拒否条件は [Presentation データ契約](../../docs/packages/DATA_MODEL.md) を併読してください。実機対応の検証は含みません。
 
 repository root の Nix development shell で実行します。
 
 ```sh
-pnpm --filter @unframe/contracts generate:presentation
-pnpm --filter @unframe/contracts check:presentation
-pnpm --filter @unframe/contracts test:presentation
+pnpm --filter @unframe-dev/contracts generate:presentation
+pnpm --filter @unframe-dev/contracts check:presentation
+pnpm --filter @unframe-dev/contracts test:presentation
 ```
 
 `presentation/*.schema.json` と `contract.pb` は生成物です。fixture は合成データで、モデル・動画・フォントの実バイトや実機測定値を含みません。構造の受理・拒否と生成物の一致を検証し、素材の変換・描画成功とは区別します。

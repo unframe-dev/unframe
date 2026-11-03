@@ -4,15 +4,15 @@ import { promisify } from "node:util";
 import { createInterface } from "node:readline";
 import { readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { editorAssetsDirectory, unityPreviewDirectory } from "@unframe/local-editor";
-import { readRegularFile } from "@unframe/workspace-node";
+import { editorAssetsDirectory, unityPreviewDirectory } from "@unframe-dev/local-editor";
+import { readRegularFile } from "@unframe-dev/workspace-node";
 import { watchProjectChanges, type ProjectChanges } from "./project-changes.js";
 import { startAuthorHost } from "./http.js";
 import { createAuthorService } from "./service.js";
 import { createDistPreviewService, createLocalPreviewService } from "./local-preview.js";
-import { readDistBuild } from "@unframe/workspace-node";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import type { AuthorService } from "@unframe/author-service";
+import { readDistBuild } from "@unframe-dev/workspace-node";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
+import type { AuthorService } from "@unframe-dev/author-service";
 import { createPublicationAuth, type PublicationTarget } from "./publication-auth.js";
 import { createLocalPublicationService } from "./publication.js";
 
@@ -44,7 +44,7 @@ export const loadAuthorAssets = async (directory: string) => {
   };
   await walk("");
   if (!assets.has("/"))
-    throw new Error("Build the local editor first: pnpm --filter @unframe/local-editor build");
+    throw new Error("Build the local editor first: pnpm --filter @unframe-dev/local-editor build");
   return assets;
 };
 export const loadUnityPreviewAssets = async (directory: string) => {
@@ -181,7 +181,7 @@ export const runAuthorProcess = async (
     } catch {
       if (signal.aborted) return;
       throw new Error(
-        "Start the Local Editor dev server first: pnpm --filter @unframe/local-editor dev",
+        "Start the Local Editor dev server first: pnpm --filter @unframe-dev/local-editor dev",
       );
     }
   }

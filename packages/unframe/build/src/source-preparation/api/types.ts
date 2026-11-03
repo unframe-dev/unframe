@@ -1,7 +1,7 @@
-import type { ComponentPackageLock } from "@unframe/authoring";
-import type { Diagnostic } from "@unframe/presentation";
-import type { PairedAuthoringDeclarationCatalog } from "@unframe/source";
-import type { CompilerSourceAsset } from "@unframe/compiler";
+import type { ComponentPackageLock } from "@unframe-dev/authoring";
+import type { Diagnostic } from "@unframe-dev/presentation";
+import type { PairedAuthoringDeclarationCatalog } from "@unframe-dev/source";
+import type { CompilerSourceAsset } from "@unframe-dev/compiler";
 
 export type DeclarationProjectThemeHash = {
   readonly themeId: string;
@@ -23,7 +23,7 @@ export type AuthoringProjectPipelineResult<T> =
   | {
       readonly valid: false;
       readonly phase: "source";
-      readonly diagnostics: readonly import("@unframe/source").AuthoringProjectDiagnostic[];
+      readonly diagnostics: readonly import("@unframe-dev/source").AuthoringProjectDiagnostic[];
     }
   | {
       readonly valid: false;

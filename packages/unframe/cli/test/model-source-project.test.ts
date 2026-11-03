@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { verifyBuildIntegrity } from "@unframe/artifacts";
+import { verifyBuildIntegrity } from "@unframe-dev/artifacts";
 import { runPresentationCli } from "../src/index.js";
 
 const directories: string[] = [];
@@ -136,15 +136,15 @@ const createModelProject = async () => {
     ),
     writeFile(
       join(directory, "presentation.unframe.tsx"),
-      `import {definePresentation} from "@unframe/authoring";\nexport default definePresentation(${JSON.stringify(presentation)});`,
+      `import {definePresentation} from "@unframe-dev/authoring";\nexport default definePresentation(${JSON.stringify(presentation)});`,
     ),
     writeFile(
       join(directory, "triangle.manifest.ts"),
-      `import {defineComponentManifest} from "@unframe/authoring";\nexport default defineComponentManifest(${JSON.stringify(manifest)});`,
+      `import {defineComponentManifest} from "@unframe-dev/authoring";\nexport default defineComponentManifest(${JSON.stringify(manifest)});`,
     ),
     writeFile(
       join(directory, "triangle.structure.tsx"),
-      `import {defineComponentStructure} from "@unframe/authoring";\nexport default defineComponentStructure(${JSON.stringify(structure)});`,
+      `import {defineComponentStructure} from "@unframe-dev/authoring";\nexport default defineComponentStructure(${JSON.stringify(structure)});`,
     ),
   ]);
   const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });

@@ -1,7 +1,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { PNG } from "pngjs";
-import type { CompilerResolvedSurfaceInput, RendererBuildFailure } from "@unframe/build";
+import type { CompilerResolvedSurfaceInput, RendererBuildFailure } from "@unframe-dev/build";
 
 export const imageDataUri = (
   assetId: string,

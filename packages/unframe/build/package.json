@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/build",
+  "name": "@unframe-dev/build",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -26,12 +26,12 @@
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
-    "@unframe/artifacts": "workspace:*",
-    "@unframe/authoring": "workspace:*",
-    "@unframe/compiler": "workspace:*",
-    "@unframe/presentation": "workspace:*",
-    "@unframe/source": "workspace:*",
-    "@unframe/workspace": "workspace:*",
+    "@unframe-dev/artifacts": "workspace:*",
+    "@unframe-dev/authoring": "workspace:*",
+    "@unframe-dev/compiler": "workspace:*",
+    "@unframe-dev/presentation": "workspace:*",
+    "@unframe-dev/source": "workspace:*",
+    "@unframe-dev/workspace": "workspace:*",
     "css-tree": "3.2.1",
     "typescript": "6.0.3",
     "zod": "4.4.3"
@@ -39,7 +39,7 @@
   "devDependencies": {
     "@types/css-tree": "^3.2.0",
     "@types/node": "26.6.6",
-    "@unframe/contracts": "workspace:*",
+    "@unframe-dev/contracts": "workspace:*",
     "vite-plus": "catalog:"
   }
 }

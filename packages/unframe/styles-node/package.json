@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/styles-node",
+  "name": "@unframe-dev/styles-node",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -32,9 +32,9 @@
     "build": "vp pack && cp src/style-worker.ts dist/style-worker.ts && node scripts/pack-lock.ts && tsx scripts/pack-dependencies.ts"
   },
   "dependencies": {
-    "@unframe/build": "workspace:*",
-    "@unframe/worker-host": "workspace:*",
-    "@unframe/workspace": "workspace:*",
+    "@unframe-dev/build": "workspace:*",
+    "@unframe-dev/worker-host": "workspace:*",
+    "@unframe-dev/workspace": "workspace:*",
     "error-stack-parser": "2.1.4",
     "jiti": "2.7.0",
     "jsonc-parser": "3.3.1",

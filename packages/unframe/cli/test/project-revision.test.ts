@@ -5,7 +5,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, assert, expect, it } from "vite-plus/test";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 
 const directories: string[] = [];
 const copyProject = async () => {

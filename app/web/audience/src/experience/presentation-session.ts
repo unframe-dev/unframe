@@ -1,5 +1,5 @@
 import type { Camera, WebGLRenderer, Texture } from "three";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import type { createLiveTagAnchor } from "../rendering/live-tag-anchor";
 import { createPresentation } from "../rendering/presentation";
 import { createPngTexturePool } from "../assets/png-texture-pool";

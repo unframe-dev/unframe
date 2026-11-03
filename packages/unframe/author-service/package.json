@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/author-service",
+  "name": "@unframe-dev/author-service",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -26,16 +26,16 @@
   },
   "dependencies": {
     "@types/react": "19.3.0",
-    "@unframe/artifacts": "workspace:*",
-    "@unframe/build": "workspace:*",
-    "@unframe/source": "workspace:*",
-    "@unframe/workspace": "workspace:*",
+    "@unframe-dev/artifacts": "workspace:*",
+    "@unframe-dev/build": "workspace:*",
+    "@unframe-dev/source": "workspace:*",
+    "@unframe-dev/workspace": "workspace:*",
     "typescript": "6.0.3",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "@unframe/contracts": "workspace:*",
+    "@unframe-dev/contracts": "workspace:*",
     "vite-plus": "catalog:"
   }
 }

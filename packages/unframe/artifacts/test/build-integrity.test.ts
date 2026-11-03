@@ -4,7 +4,7 @@ import definition from "../../../contracts/presentation/fixtures/presentation-de
 import renderBundle from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import buildManifest from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { verifyBuildIntegrity } from "@unframe/artifacts";
+import { verifyBuildIntegrity } from "@unframe-dev/artifacts";
 
 const fixture = () => structuredClone({ definition, renderBundle, assetSet, buildManifest });
 

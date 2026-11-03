@@ -1,4 +1,4 @@
-import { createControlPlaneAuthClient } from "@unframe/api-client-typescript";
+import { createControlPlaneAuthClient } from "@unframe-dev/api-client-typescript";
 import { queryOptions, useQuery, type QueryClient } from "@tanstack/react-query";
 import { authenticatedFetch } from "@/shared/api/authenticated-fetch";
 import {

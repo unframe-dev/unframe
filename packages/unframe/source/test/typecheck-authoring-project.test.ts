@@ -171,7 +171,7 @@ describe("typecheckAuthoringProject", () => {
       ['import "/outside";', "compiler-module-root-escape"],
       ['import "./missing";', "compiler-module-unresolved"],
       ['import ".private-package";', "compiler-module-package-unsupported"],
-      ['import "@unframe/authoring";', "compiler-module-package-unsupported"],
+      ['import "@unframe-dev/authoring";', "compiler-module-package-unsupported"],
     ] as const;
 
     for (const [sourceText, code] of cases) {

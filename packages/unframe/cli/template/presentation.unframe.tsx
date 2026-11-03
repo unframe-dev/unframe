@@ -1,4 +1,4 @@
-import { definePresentation } from "@unframe/authoring";
+import { definePresentation } from "@unframe-dev/authoring";
 export default definePresentation({
   id: "packed-project",
   metadata: { title: "Packed project" },

@@ -4,7 +4,7 @@ import {
   executeRendererPlugin,
   type CompilerResolvedSurfaceInput,
   type OpaqueRenderProgram,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "../src/opaque/capture/types.js";
 import {
   createOpaqueBakedWebRenderer,

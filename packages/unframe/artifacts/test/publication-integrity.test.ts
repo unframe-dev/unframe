@@ -8,7 +8,7 @@ import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-
 import buildManifestFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
 import publishedPresentationFixture from "../../../contracts/presentation/fixtures/published-presentation.json";
 import renderBundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
-import { hashCanonicalJsonPayload, verifyPublicationIntegrity } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload, verifyPublicationIntegrity } from "@unframe-dev/artifacts";
 
 type JsonRecord = Record<string, unknown>;
 

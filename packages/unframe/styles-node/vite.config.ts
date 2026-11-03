@@ -6,8 +6,8 @@ export default defineConfig({
     entry: { index: "src/index.ts", compiler: "src/compiler.ts" },
     dts: { eager: true },
     deps: {
-      alwaysBundle: [/^@unframe\/(?!worker-host$|build$)/],
-      neverBundle: ["@unframe/worker-host", "@unframe/build", "jsonc-parser", "react"],
+      alwaysBundle: [/^@unframe-dev\/(?!worker-host$|build$)/],
+      neverBundle: ["@unframe-dev/worker-host", "@unframe-dev/build", "jsonc-parser", "react"],
       onlyBundle: false,
     },
     format: "esm",

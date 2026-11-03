@@ -3,7 +3,7 @@ import {
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   type BuildArtifacts,
-} from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
 import definitionFixture from "../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../contracts/presentation/fixtures/render-bundle.json";
 import assetsFixture from "../../contracts/presentation/fixtures/asset-set-manifest.json";

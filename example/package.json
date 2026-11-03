@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@unframe/authoring": "workspace:*"
+    "@unframe-dev/authoring": "workspace:*"
   }
 }

@@ -4,7 +4,7 @@ import {
   encodeWireMessage,
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as deliveryFixture } from "../../test-support/png-delivery-fixture";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 import { evaluateAnimationView } from "../animation-view";

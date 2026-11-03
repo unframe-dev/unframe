@@ -1,12 +1,12 @@
-import { createWorkspaceSnapshot } from "@unframe/workspace";
+import { createWorkspaceSnapshot } from "@unframe-dev/workspace";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { join, relative } from "node:path";
 import { lstat } from "node:fs/promises";
 import { buildManifestBytesHash, buildReceiptSchema } from "./build-receipt.js";
-import { parseStrictJson } from "@unframe/artifacts";
-import type { LocalFileSnapshot } from "@unframe/workspace";
+import { parseStrictJson } from "@unframe-dev/artifacts";
+import type { LocalFileSnapshot } from "@unframe-dev/workspace";
 import { acquireSourceLock } from "./source-lock.js";
-import { loadProjectConfig, type ProjectConfig } from "@unframe/workspace";
+import { loadProjectConfig, type ProjectConfig } from "@unframe-dev/workspace";
 import {
   projectDirectory,
   readDirectoryNames,

@@ -1,4 +1,4 @@
-# @unframe/styles-node
+# @unframe-dev/styles-node
 
 プレゼンプロジェクト所有の PostCSS 設定を読み、描画用 CSS を生成する Node API。PostCSS 8 と、公式 plugin を使用する場合の Tailwind 4 を対象とする。標準の ESM / CJS / TS・関数 config、CSS-first 設定、公式 `@config` / `@plugin` を使用できる。
 
@@ -31,8 +31,8 @@ source map は保持するが、作者の元 CSS へのエラー位置変換は�
 
 lock の最大サイズは、native binary を含む依存のため128 MiB。
 
-`compileStylesResultSchema` と API の型は同じ Zod スキーマから公開する。Node worker が読み込む JavaScript は `pnpm --filter @unframe/styles-node run build` で `dist/` に生成する。
+`compileStylesResultSchema` と API の型は同じ Zod スキーマから公開する。Node worker が読み込む JavaScript は `pnpm --filter @unframe-dev/styles-node run build` で `dist/` に生成する。
 
-パッケージの設定互換性テストは `pnpm --filter @unframe/styles-node run test`。隔離・実描画テストは `styles-worker.integration.test.ts` と CLI の `tailwind-project.integration.test.ts` を使う。CSS Modules、SVGR、WOFF2、import alias は対象外。
+パッケージの設定互換性テストは `pnpm --filter @unframe-dev/styles-node run test`。隔離・実描画テストは `styles-worker.integration.test.ts` と CLI の `tailwind-project.integration.test.ts` を使う。CSS Modules、SVGR、WOFF2、import alias は対象外。
 
 実 Browser を使う統合テストでは、導入済みの固定 Chromium に `PLAYWRIGHT_BROWSERS_PATH` を合わせる。CI はリポジトリの `.cache/playwright` を使用する。

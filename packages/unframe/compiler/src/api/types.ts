@@ -7,9 +7,9 @@ import type {
   PresentationDeclaration,
   ThemeDeclaration,
   SourceMetadata,
-} from "@unframe/authoring";
-import type { BuildArtifacts } from "@unframe/artifacts";
-import type { PresentationDefinition } from "@unframe/presentation";
+} from "@unframe-dev/authoring";
+import type { BuildArtifacts } from "@unframe-dev/artifacts";
+import type { PresentationDefinition } from "@unframe-dev/presentation";
 
 export type CompilerDeclarationProject = {
   presentation:

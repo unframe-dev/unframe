@@ -22,7 +22,7 @@ if (!runtimeArg || !projectArg || !browserExecutable)
   throw new Error("Usage: node pack-acceptance.ts <runtime> <project> <chromium>");
 const runtime = resolve(runtimeArg);
 const project = resolve(projectArg);
-const executable = join(runtime, "node_modules/@unframe/cli/dist/cli.mjs");
+const executable = join(runtime, "node_modules/@unframe-dev/cli/dist/cli.mjs");
 const require = createRequire(join(runtime, "package.json"));
 const { chromium } = require("playwright-core");
 const { PNG } = require("pngjs");

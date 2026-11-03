@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile, rename, symlink } from "node:fs/promi
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vite-plus/test";
-import { NativeFilesystem, withNativeFilesystem } from "@unframe/workspace-node";
+import { NativeFilesystem, withNativeFilesystem } from "@unframe-dev/workspace-node";
 
 it("shares one bounded native lifetime across nested operations and releases it on failure", async () => {
   let owned: NativeFilesystem | undefined;

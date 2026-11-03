@@ -27,7 +27,7 @@ Google アカウントを同じメールの既存パスワードアカウント�
 
 ```sh
 nix run .#control-plane
-pnpm --filter @unframe/control-plane run dev
+pnpm --filter @unframe-dev/control-plane run dev
 ```
 
 `nix run .#control-plane` は binding 型、TypeScript、lint、Workers runtime test、OpenAPI / TypeScript client drift、deploy dry-runを検証します。実環境の resource ID と secret を設定する手順は [`control-plane/README.md`](./control-plane/README.md) を参照してください。

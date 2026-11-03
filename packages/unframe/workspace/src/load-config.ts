@@ -8,7 +8,7 @@ import {
   isStringLiteral,
   type Expression,
 } from "typescript";
-import { idSchema } from "@unframe/contracts/presentation";
+import { idSchema } from "@unframe-dev/contracts/presentation";
 import { z } from "zod";
 
 const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });

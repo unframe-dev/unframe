@@ -1,7 +1,7 @@
 import { assert, expect, it } from "vite-plus/test";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { parseAuthoringProject } from "@unframe/source";
+import { parseAuthoringProject } from "@unframe-dev/source";
 import { computeFrozenComponentInputs } from "../../src/source-preparation/index.js";
 
 const hash = (text: string) => `sha256:${bytesToHex(sha256(new TextEncoder().encode(text)))}`;

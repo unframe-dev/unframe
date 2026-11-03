@@ -1,4 +1,4 @@
-import type { ParticipantRuntimeView } from "@unframe/contracts/presentation";
+import type { ParticipantRuntimeView } from "@unframe-dev/contracts/presentation";
 
 type RuntimeClock = ParticipantRuntimeView["clock"];
 

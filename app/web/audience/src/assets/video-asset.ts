@@ -1,6 +1,6 @@
 import { LinearFilter, SRGBColorSpace, VideoTexture } from "three";
 import { z } from "zod";
-import { safeUIntSchema } from "@unframe/contracts/presentation";
+import { safeUIntSchema } from "@unframe-dev/contracts/presentation";
 import {
   assertAssetCurrent,
   requestAssetBytes,

@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vite-plus/test";
 import { prepareLockUpdate, prepareLockRefresh } from "../src/index.js";
-import { createProjectLock } from "@unframe/workspace";
+import { createProjectLock } from "@unframe-dev/workspace";
 
 const found = {
   projectDirectory: "/project",

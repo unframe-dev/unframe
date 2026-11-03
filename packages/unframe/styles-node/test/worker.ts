@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { packageManifestSchema } from "../src/schemas.ts";
-import { compileStyles } from "@unframe/styles-node/compiler";
+import { compileStyles } from "@unframe-dev/styles-node/compiler";
 let input = "";
 for await (const chunk of process.stdin) input += chunk;
 const request = z

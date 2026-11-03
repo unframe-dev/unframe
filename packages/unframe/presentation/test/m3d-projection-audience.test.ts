@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { validatePresentationDefinition } from "@unframe/presentation";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 const fixture = () => {

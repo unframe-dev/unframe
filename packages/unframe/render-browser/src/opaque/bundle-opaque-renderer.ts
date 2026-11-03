@@ -46,14 +46,14 @@ type ModuleSnapshot = Readonly<OpaqueRendererModule>;
 
 const VIRTUAL_PREFIX = "unframe:opaque/";
 const RUNTIME_ID = "unframe:renderer-runtime";
-const RUNTIME_SPECIFIER = "@unframe/renderer-runtime";
+const RUNTIME_SPECIFIER = "@unframe-dev/renderer-runtime";
 const RUNTIME_SOURCE = "export const defineOpaqueRenderer = (renderer) => renderer;";
 const BOOTSTRAP_PATH = "__unframe__/bootstrap.ts";
 const BOOTSTRAP_SOURCE = [
   'import * as React from "react";',
   'import { createRoot } from "react-dom/client";',
   'import { flushSync } from "react-dom";',
-  'import { render } from "@unframe/renderer-entry";',
+  'import { render } from "@unframe-dev/renderer-entry";',
   "let root;",
   "globalThis.__unframeMount = (input) => {",
   '  const element = document.getElementById("unframe-root");',
@@ -342,7 +342,7 @@ export const bundleOpaqueRenderer = async (input: unknown): Promise<OpaqueRender
           },
           resolveId(specifier, importer, options) {
             if (specifier === entryId && importer === undefined) return entryId;
-            if (specifier === "@unframe/renderer-entry" && importer === entryId)
+            if (specifier === "@unframe-dev/renderer-entry" && importer === entryId)
               return `${VIRTUAL_PREFIX}${snapshot.entry}`;
             if (specifier === RUNTIME_SPECIFIER) return RUNTIME_ID;
             if (!importer?.startsWith(VIRTUAL_PREFIX))

@@ -12,7 +12,7 @@
 4. Control の nonce で `/browser/state` を接続する。Snapshot の素材適用と StateConnected を確認後、Snapshot の cut に対する StateReady を送る。
 5. 既存 Control／State の更新を Runtime に適用する。Cue／Flow を観客端末で再実行しない。
 
-`connection/audience-session.ts` が参加から退出までを所有し、`experience/viewer-application.ts` が SDK・Runtime 入力の寿命を管理する。React は資格を含まない状態だけを購読する。HTTP は共有 Hono RPC クライアントを使い、サーバーと Audience は `@unframe/contracts/control-plane-http` の応答スキーマを共有する。ブラウザ固有の URL・資格・ID 制約と、Delivery／bootstrap の参照整合性・期限は受信側でも検査する。
+`connection/audience-session.ts` が参加から退出までを所有し、`experience/viewer-application.ts` が SDK・Runtime 入力の寿命を管理する。React は資格を含まない状態だけを購読する。HTTP は共有 Hono RPC クライアントを使い、サーバーと Audience は `@unframe-dev/contracts/control-plane-http` の応答スキーマを共有する。ブラウザ固有の URL・資格・ID 制約と、Delivery／bootstrap の参照整合性・期限は受信側でも検査する。
 
 HTTP の生成元は [openapi.ts](../../../server/control-plane/src/openapi.ts)、通信の正本は [Browser Realtime transport](../../../../packages/contracts/browser-realtime.md)。API 資格と Runtime JWT を混同しない。
 

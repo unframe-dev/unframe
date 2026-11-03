@@ -8,14 +8,14 @@ import {
   renderBundleSchema,
   assetSetManifestSchema,
   buildManifestSchema,
-} from "@unframe/contracts/presentation";
-import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/artifacts";
+} from "@unframe-dev/contracts/presentation";
+import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import buildFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { publishAtomicArtifacts } from "@unframe/workspace-node";
-import type { PreviewAsset } from "@unframe/preview";
+import { publishAtomicArtifacts } from "@unframe-dev/workspace-node";
+import type { PreviewAsset } from "@unframe-dev/preview";
 import { createLocalPreviewService } from "../src/author/local-preview.js";
 
 const requestA = "a".repeat(32);

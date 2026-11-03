@@ -7,7 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
-import { buildDeliveryFixtureArtifacts } from "@unframe/contract-fixtures/delivery-project";
+import { buildDeliveryFixtureArtifacts } from "@unframe-dev/contract-fixtures/delivery-project";
 
 const execute = promisify(execFile);
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -19,7 +19,7 @@ test("packed domain APIs and declarations work with only their declared external
     for (const name of names) {
       const source = resolve(root, "packages/unframe", name);
       const pkg = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
-      const target = join(directory, "node_modules/@unframe", name);
+      const target = join(directory, "node_modules/@unframe-dev", name);
       await mkdir(target, { recursive: true });
       await cp(join(source, "dist"), join(target, "dist"), { recursive: true });
       assert.ok(pkg.publishConfig?.exports, `${name}: missing distribution exports`);
@@ -58,12 +58,12 @@ test("packed domain APIs and declarations work with only their declared external
       `
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { validatePresentationDefinition } from "@unframe/presentation";
-import { parseRenderBundleInput } from "@unframe/presentation/validation";
-import { verifyBuildIntegrity, hashCanonicalJsonPayload, parseStrictJson } from "@unframe/artifacts";
-import { snapshotPlainJson } from "@unframe/artifacts/plain-json";
-import { createInitialRuntimeState } from "@unframe/playback";
-import { buildDeliveryManifest, buildProjectionProfile, selectBuildArtifacts } from "@unframe/delivery";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
+import { parseRenderBundleInput } from "@unframe-dev/presentation/validation";
+import { verifyBuildIntegrity, hashCanonicalJsonPayload, parseStrictJson } from "@unframe-dev/artifacts";
+import { snapshotPlainJson } from "@unframe-dev/artifacts/plain-json";
+import { createInitialRuntimeState } from "@unframe-dev/playback";
+import { buildDeliveryManifest, buildProjectionProfile, selectBuildArtifacts } from "@unframe-dev/delivery";
 const read = name => JSON.parse(readFileSync(new URL(name + ".json", import.meta.url), "utf8"));
 const source = read("build-input");
 const definition = validatePresentationDefinition(source.definition, {fullDelivery: true});
@@ -124,16 +124,16 @@ assert.equal(manifest.projectionProfile.projectionProfileId, profile.projectionP
     await writeFile(
       join(directory, "consumer.mts"),
       `
-import { validatePresentationDefinition, type PresentationDefinition } from "@unframe/presentation";
-import { parseRenderBundleInput } from "@unframe/presentation/validation";
-import { verifyBuildIntegrity, parseStrictJson, type BuildArtifacts } from "@unframe/artifacts";
-import { snapshotPlainJson } from "@unframe/artifacts/plain-json";
-import { createInitialRuntimeState, type InitialRuntimeState } from "@unframe/playback";
+import { validatePresentationDefinition, type PresentationDefinition } from "@unframe-dev/presentation";
+import { parseRenderBundleInput } from "@unframe-dev/presentation/validation";
+import { verifyBuildIntegrity, parseStrictJson, type BuildArtifacts } from "@unframe-dev/artifacts";
+import { snapshotPlainJson } from "@unframe-dev/artifacts/plain-json";
+import { createInitialRuntimeState, type InitialRuntimeState } from "@unframe-dev/playback";
 import {
   buildDeliveryManifest, buildProjectionProfile, buildRuntimeProjection,
   selectBuildArtifacts, type BuildSourceInput, type DeliverySourceInput,
   type DeliveryManifestBuildInput, type ProjectionProfileResult, type RuntimeProjectionResult,
-} from "@unframe/delivery";
+} from "@unframe-dev/delivery";
 declare const definition: PresentationDefinition;
 declare const artifacts: BuildArtifacts;
 declare const input: BuildSourceInput;

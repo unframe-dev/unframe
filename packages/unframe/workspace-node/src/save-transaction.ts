@@ -2,9 +2,9 @@ import { withSourceTransaction } from "./source-lock.js";
 import { createHash, randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, parse } from "node:path";
 import { projectDirectory, readRegularFile, rootRelativePosix } from "./path-policy.js";
-import { createWorkspaceSave, type WorkspaceSave, loadProjectConfig } from "@unframe/workspace";
+import { createWorkspaceSave, type WorkspaceSave, loadProjectConfig } from "@unframe-dev/workspace";
 import { NativeFilesystem, withNativeFilesystem } from "./native-filesystem.js";
-import type { SavedCommand } from "@unframe/contracts/author-http";
+import type { SavedCommand } from "@unframe-dev/contracts/author-http";
 
 const idPattern = /^[0-9a-f]{32}$/;
 export class AuthorTransactionConflict extends Error {}

@@ -1,5 +1,5 @@
 import { parentPort, workerData } from "node:worker_threads";
-import { createAuthorProjectSnapshot, prepareAuthorSave } from "@unframe/author-service";
+import { createAuthorProjectSnapshot, prepareAuthorSave } from "@unframe-dev/author-service";
 import {
   prepareProjectSource,
   prepareLockRefresh,
@@ -7,14 +7,14 @@ import {
   prepareOpaquePrograms,
   StylePreparationError,
   type StylePreparationPort,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 import {
   loadUnframeLock,
   lockSourceAssets,
   createProjectRevision,
   identifyNodeTransformSnapshot,
   mediaTypeFor,
-} from "@unframe/workspace";
+} from "@unframe-dev/workspace";
 import type { AnalysisRequest, AnalysisInputs } from "./analysis-protocol.js";
 
 if (!parentPort) throw new Error("Analysis worker requires a parent channel.");
@@ -100,7 +100,7 @@ const execute = async (request: AnalysisRequest) => {
         mediaTypeFor,
         bundle: async (input) =>
           (await call("bundle", [input])) as Awaited<
-            ReturnType<import("@unframe/build").OpaqueBundlePort["bundle"]>
+            ReturnType<import("@unframe-dev/build").OpaqueBundlePort["bundle"]>
           >,
       },
     );

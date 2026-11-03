@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import type { PresentationDefinition } from "@unframe/presentation";
+import type { PresentationDefinition } from "@unframe-dev/presentation";
 import { checkProjectAssetReferences } from "../src/validation/check-project-assets.js";
 import { checksumBytes } from "./fixtures/checksum-bytes.js";
 

@@ -1,9 +1,9 @@
 import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { LockedSourceAsset } from "@unframe/workspace";
-import { resolveLockedSourceAssets } from "@unframe/workspace";
-import type { DiscoveredProjectFiles } from "@unframe/workspace-node";
+import type { LockedSourceAsset } from "@unframe-dev/workspace";
+import { resolveLockedSourceAssets } from "@unframe-dev/workspace";
+import type { DiscoveredProjectFiles } from "@unframe-dev/workspace-node";
 
 export const sourceAssetBytesFor = (
   discovered: Extract<DiscoveredProjectFiles, { ok: true }>,

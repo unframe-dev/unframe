@@ -55,12 +55,12 @@ CLI の公開結果が不明な場合は、出力された操作の JSON を保�
 
 ### npm パッケージの公開
 
-`packages/unframe/*` と CLI が利用する `@unframe/local-editor` を npm に公開します。Unity Editor 6000.3.22f1、WebGL module、license が必要です。Local Editor の pack 時に UI と Unity Preview Player をビルドします。
+`packages/unframe/*` と CLI が利用する `@unframe-dev/local-editor` を npm に公開します。Unity Editor 6000.3.22f1、WebGL module、license が必要です。Local Editor の pack 時に UI と Unity Preview Player をビルドします。
 
 ```bash
 pnpm -r --workspace-concurrency=1 --filter './packages/unframe/*' run build
-pnpm -r --filter './packages/unframe/*' --filter @unframe/local-editor publish --access public --dry-run
-pnpm -r --filter './packages/unframe/*' --filter @unframe/local-editor publish --access public
+pnpm -r --filter './packages/unframe/*' --filter @unframe-dev/local-editor publish --access public --dry-run
+pnpm -r --filter './packages/unframe/*' --filter @unframe-dev/local-editor publish --access public
 ```
 
 公開前に各パッケージのバージョンを確認してください。公開済みのバージョンは再利用できません。
@@ -106,13 +106,13 @@ Presentation CI の型・lint・共通単体テスト、契約生成・wire 互�
 
 個別に実行する場合は `nix develop --command scripts/ci/opaque-capture.sh <suite>` を使います。Ubuntu 用の suite は上記4つ、macOS 用は `macos` です。引数省略時は、その OS の全 Opaque integration を実行します。
 
-PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と依存も固定します。OS を切り替えた場合は、移行先の同じ隔離 profile 内で `pnpm --config.verify-deps-before-run=false --filter @unframe/cli run presentation lock update <absolute-project-directory>` を実行します。`lock refresh` では runtime を切り替えません。
+PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と依存も固定します。OS を切り替えた場合は、移行先の同じ隔離 profile 内で `pnpm --config.verify-deps-before-run=false --filter @unframe-dev/cli run presentation lock update <absolute-project-directory>` を実行します。`lock refresh` では runtime を切り替えません。
 
 ## Native helper と worker の準備
 
 CLI の path 検査、成果物公開、build cache、Source 保存 transaction は Go 製 native filesystem helper を使用します。repository root で `bash scripts/build-cli-filesystem.sh` を実行すると `packages/unframe/workspace-node/native-bin/` に Linux x86_64 と macOS arm64 向け helper を生成します。native 専用 Go module の依存は `packages/unframe/workspace-node/native/go.mod` と `go.sum` で固定します。CLI の pnpm `presentation` / `dev` / `tui` / `test` / `test:tui` は hook で生成します。`vp test` の直接実行や headless API の直接利用など hook を通らない consumer は、先に同 script を実行してください。
 
-Style / capture 共通の OS 別隔離・資源制限・終了確認は `@unframe/worker-host` が所有し、Browser の配置と起動は Renderer、固定 Node graph の配置と Style 変換の準備は `@unframe/styles-node` が所有します。Linux / macOS の保証差と実機検証範囲は ADR-0026 を参照してください。
+Style / capture 共通の OS 別隔離・資源制限・終了確認は `@unframe-dev/worker-host` が所有し、Browser の配置と起動は Renderer、固定 Node graph の配置と Style 変換の準備は `@unframe-dev/styles-node` が所有します。Linux / macOS の保証差と実機検証範囲は ADR-0026 を参照してください。
 
 ## Local Editor と Unity
 

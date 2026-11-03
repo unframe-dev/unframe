@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { test } from "node:test";
-import * as contract from "@unframe/contracts/presentation";
+import * as contract from "@unframe-dev/contracts/presentation";
 
 test("the Unity media profile admits bounded GLB and H264/audio without mutable shared state", () => {
   const profile = contract.createUnityMediaCapabilityProfile();
@@ -42,7 +42,7 @@ test("the public presentation export exposes the current contract without a vers
     "./presentation/wire-metadata",
     "./presentation/wire-types",
   ]);
-  const retiredPath = "@unframe/contracts/presentation/v2";
+  const retiredPath = "@unframe-dev/contracts/presentation/v2";
   await assert.rejects(import(retiredPath), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
   assert.equal(
     Object.keys(contract).some((name) => name.includes("V2")),

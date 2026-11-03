@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/preview",
+  "name": "@unframe-dev/preview",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -25,14 +25,14 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@unframe/artifacts": "workspace:*",
-    "@unframe/delivery": "workspace:*",
-    "@unframe/playback": "workspace:*",
+    "@unframe-dev/artifacts": "workspace:*",
+    "@unframe-dev/delivery": "workspace:*",
+    "@unframe-dev/playback": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "@unframe/contracts": "workspace:*",
+    "@unframe-dev/contracts": "workspace:*",
     "typescript": "6.0.3",
     "vite-plus": "catalog:"
   }

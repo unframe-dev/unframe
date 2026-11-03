@@ -1,5 +1,5 @@
-import type { TextureArtifact, RenderBundle, ValidationResult } from "@unframe/presentation";
-import type { Json } from "@unframe/authoring";
+import type { TextureArtifact, RenderBundle, ValidationResult } from "@unframe-dev/presentation";
+import type { Json } from "@unframe-dev/authoring";
 
 export type EncodeLimits = Readonly<{
   maxWidth: number;

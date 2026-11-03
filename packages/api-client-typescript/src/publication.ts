@@ -2,14 +2,14 @@ import {
   publicationFenceSchema,
   publishedPresentationSchema,
   type PublishedPresentation,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   verifyPublicationIntegrity,
   type BuildArtifacts,
-} from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
 
 export type PublicationFence = {
   presentationId: string;

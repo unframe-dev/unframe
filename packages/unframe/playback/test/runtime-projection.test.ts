@@ -3,7 +3,7 @@ import {
   m3dCueRuntimeSnapshotSchema,
   type CanonicalRuntimeSnapshot,
   type PresentationDefinition,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import snapshotFixture from "../../../contracts/presentation/fixtures/m3d-cue-runtime-snapshot.json";

@@ -4,9 +4,9 @@ import {
   queryPublication,
   type PublishResult,
   type PublicationOperation,
-} from "@unframe/publish";
-import { AuthorError } from "@unframe/author-service";
-import type { LocalPreviewService } from "@unframe/preview";
+} from "@unframe-dev/publish";
+import { AuthorError } from "@unframe-dev/author-service";
+import type { LocalPreviewService } from "@unframe-dev/preview";
 import type { PublicationAuth, PublicationTarget } from "./publication-auth.js";
 
 export function createLocalPublicationService(

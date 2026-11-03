@@ -1,10 +1,10 @@
-import { resolvePresentation } from "@unframe/compiler";
+import { resolvePresentation } from "@unframe-dev/compiler";
 import {
   canonicalizePresentationDefinition,
   hashCanonicalJsonPayload,
   hashPresentationDefinition,
-} from "@unframe/artifacts";
-import type { ValidationResult } from "@unframe/presentation";
+} from "@unframe-dev/artifacts";
+import type { ValidationResult } from "@unframe-dev/presentation";
 import type { CheckedDeclarationProject, CompilerSourceAssetBytes } from "./types.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { snapshotSourceAssets } from "../validation/snapshot-source-assets.js";

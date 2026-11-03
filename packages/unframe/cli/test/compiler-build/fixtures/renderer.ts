@@ -3,7 +3,7 @@ import {
   evaluateFirstMilestoneSupport,
   createRendererFingerprint,
   type RendererPlugin,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 export const fixtureRenderer: RendererPlugin = {
   identity: {
     id: "baked-web",

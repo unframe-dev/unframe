@@ -21,8 +21,8 @@ const auth = vi.hoisted(() => ({
     disable: vi.fn(),
   },
 }));
-vi.mock("@unframe/api-client-typescript", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@unframe/api-client-typescript")>()),
+vi.mock("@unframe-dev/api-client-typescript", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@unframe-dev/api-client-typescript")>()),
   createControlPlaneAuthClient: vi.fn(() => auth),
 }));
 const clients: QueryClient[] = [];

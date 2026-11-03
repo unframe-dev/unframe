@@ -1,4 +1,4 @@
-import { decodeWireMessage, encodeWireMessage } from "@unframe/contracts/presentation";
+import { decodeWireMessage, encodeWireMessage } from "@unframe-dev/contracts/presentation";
 import { seedCloudHost } from "../../fixtures/runtime-host";
 import { env } from "cloudflare:test";
 import { describe, expect, it, assert } from "vitest";

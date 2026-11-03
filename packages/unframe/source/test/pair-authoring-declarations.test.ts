@@ -8,7 +8,7 @@ import {
   defineTheme,
   frame,
   validateStaticComponentMetadata,
-} from "@unframe/authoring";
+} from "@unframe-dev/authoring";
 import type { CollectedAuthoringDeclaration } from "../src/project/collect-authoring-declarations.js";
 import {
   pairAuthoringDeclarations,

@@ -79,7 +79,7 @@ JSON schema 20の`experiment`は`anchorSmoothing:false`と`displayStabilization`
 PoC中は軽いデバッグを優先していたが、最終構成をCIへ接続してコミットする時点で既存テストの整合を確認した。旧tag-onlyモードのSDK姿勢除外と、初期NORMAL callbackを考慮していなかったサンプリングfixtureを現行仕様へ修正した。追跡runtimeと採用済みのブレ補正の挙動は変更していない。
 
 - `nix run .#audience`: 型検査・lint・既存テスト111件・本番ビルドが成功。
-- `pnpm --filter @unframe/config run check`: 型検査・hook fixture・format/lintが成功。
+- `pnpm --filter @unframe-dev/config run check`: 型検査・hook fixture・format/lintが成功。
 - `nix flake check`: macOS arm64のflake出力検証が成功。既存のapp metaとformatter名に関する警告があり、Linux出力の実行検証は含まれない。
 - `bash -n scripts/ci/audience.sh scripts/ci/check.sh scripts/lib/paths.sh`: 成功。
 - `nix run .#check`: 失敗。Presentationの既存`packages/unframe-cli/test/react-project.test.ts`にある「recreates v1 from a frozen pnpm archive without running package scripts」で`semantic/cli-lock-update-failed: The encoded data was not valid for encoding utf-8`が発生。CLIテストは420件成功・1件失敗。これ以降の集約ゲートは完了していないため、リポジトリ全体の成功とはしない。Audienceの代替検証は上記の公式単独ゲートで実施した。失敗したCLIの1件は通常環境で単発再現し、`COPYFILE_DISABLE=1`を付けた同一1件では成功した。macOSのbsdtarが含めるAppleDoubleメタデータとUTF-8読取の経路に原因を切り分けた。CLIのソースやテストは変更せず、環境を変えた単発成功を通常の全体ゲート成功とは扱わない。

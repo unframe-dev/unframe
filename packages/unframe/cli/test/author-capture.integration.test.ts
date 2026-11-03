@@ -3,8 +3,8 @@ import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vite-plus/test";
 import { createAuthorService } from "../src/author/service.js";
-import type { AuthorService } from "@unframe/author-service";
-import type { BuildJob, ProjectSnapshot } from "@unframe/contracts/author-http";
+import type { AuthorService } from "@unframe-dev/author-service";
+import type { BuildJob, ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import { createWebglCaptureProject } from "./local-editor-webgl-fixture.js";
 
 const temporary: string[] = [];

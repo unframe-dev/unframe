@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { sessionJoinCodeSchema } from "@unframe/contracts/control-plane-http";
+import { sessionJoinCodeSchema } from "@unframe-dev/contracts/control-plane-http";
 import encodeQR from "qr";
 
 const audienceOriginSchema = z.url().refine((value) => {

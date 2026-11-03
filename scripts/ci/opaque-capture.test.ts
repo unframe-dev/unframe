@@ -159,7 +159,7 @@ test(
       ({ command, args }) => command === "pnpm" && args.includes("test"),
     );
     assert.equal(tests.length, 1);
-    assert.ok(tests[0]!.args.includes("@unframe/render-browser"));
+    assert.ok(tests[0]!.args.includes("@unframe-dev/render-browser"));
     assert.ok(tests[0]!.args.includes("test/opaque-isolation.integration.test.ts"));
     assert.equal(
       tests[0]!.args.includes("test/opaque-isolation-darwin.integration.test.ts"),
@@ -289,7 +289,7 @@ test("styles-node builds use a sufficient default heap and preserve an explicit 
     assert.equal(result.status, 0, result.stderr);
     const build = result.commands.find(
       ({ command, args }) =>
-        command === "pnpm" && args.includes("@unframe/styles-node") && args.includes("build"),
+        command === "pnpm" && args.includes("@unframe-dev/styles-node") && args.includes("build"),
     );
     assert.ok(build);
     assert.equal(build.nodeOptions, expected);

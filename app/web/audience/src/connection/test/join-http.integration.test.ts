@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { encodeWireMessage, type DeliveryManifestWire } from "@unframe/contracts/presentation";
+import { encodeWireMessage, type DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import { createAudienceHttpClient, type Session, type Bootstrap } from "../http-client";
 import { createJoinController } from "../join-controller";

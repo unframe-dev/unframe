@@ -3,7 +3,7 @@ import {
   buildOpaqueComponentManifest,
   validateStaticComponentMetadata,
   type StaticComponentMetadata,
-} from "@unframe/authoring";
+} from "@unframe-dev/authoring";
 import {
   evaluateStaticAuthoringExpression,
   type DeclarationGraphValue,
@@ -98,7 +98,7 @@ const isVerifiedComponentBuilder = (analyzed: Analyzed, expression: ts.LeftHandS
   return (
     ts.isImportDeclaration(importDeclaration) &&
     ts.isStringLiteralLike(importDeclaration.moduleSpecifier) &&
-    importDeclaration.moduleSpecifier.text === "@unframe/authoring" &&
+    importDeclaration.moduleSpecifier.text === "@unframe-dev/authoring" &&
     (declaration.propertyName?.text ?? declaration.name.text) === "defineComponent"
   );
 };
@@ -288,7 +288,7 @@ const renderEntry = (
     )
       continue;
     const specifier = declaration.moduleSpecifier.text;
-    if (specifier === "@unframe/authoring")
+    if (specifier === "@unframe-dev/authoring")
       return diagnostic(
         analyzed,
         declaration,
@@ -310,7 +310,7 @@ const renderEntry = (
   }
   for (const [declaration, names] of imports) {
     const specifier = (declaration.moduleSpecifier as ts.StringLiteral).text;
-    if (specifier === "@unframe/authoring")
+    if (specifier === "@unframe-dev/authoring")
       return diagnostic(
         analyzed,
         declaration,
@@ -444,7 +444,7 @@ const renderEntry = (
       )
         continue;
       const dependency = statement.moduleSpecifier.text;
-      if (dependency === "@unframe/authoring")
+      if (dependency === "@unframe-dev/authoring")
         return diagnostic(
           analyzed,
           statement,

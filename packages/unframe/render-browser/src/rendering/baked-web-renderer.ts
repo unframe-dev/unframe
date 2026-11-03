@@ -10,8 +10,8 @@ import {
   type RendererCapabilities,
   type RendererPlugin,
   type RendererSupportRequest,
-} from "@unframe/build";
-import { resolveStructuredLayout } from "@unframe/presentation";
+} from "@unframe-dev/build";
+import { resolveStructuredLayout } from "@unframe-dev/presentation";
 
 import { snapshotDenseArray, snapshotStrictRecord } from "../validation/safe-data.js";
 import { decodeFontAsset, fontFamilyForChecksum, type FontCoverage } from "./font-assets.js";

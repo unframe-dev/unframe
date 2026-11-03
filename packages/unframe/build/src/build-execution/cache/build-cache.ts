@@ -6,7 +6,7 @@ import {
   hashCanonicalJsonPayload,
   validatePresentationArtifacts,
   verifyBuildIntegrity,
-} from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import type { CheckedDeclarationProject, CompiledDeclarationProject } from "../api/types.js";
 

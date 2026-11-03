@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import type { PresentationDefinition } from "@unframe/contracts/presentation";
-import { validatePresentationDefinition } from "@unframe/presentation";
+import type { PresentationDefinition } from "@unframe-dev/contracts/presentation";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 type Cue = PresentationDefinition["flow"]["groups"][string]["steps"][string]["cues"][number];

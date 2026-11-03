@@ -2,7 +2,7 @@ import {
   decodeWireMessage,
   encodeWireMessage,
   type DeliveryManifestWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import fixture from "../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 
 export const PNG_DEFAULT_STATE = "png:default";

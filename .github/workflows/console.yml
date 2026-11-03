@@ -25,10 +25,10 @@ jobs:
 
       - parallel:
           - name: Install Playwright Chromium
-            run: nix develop --command pnpm --filter @unframe/console exec playwright install --with-deps chromium
+            run: nix develop --command pnpm --filter @unframe-dev/console exec playwright install --with-deps chromium
 
           - name: check / test / build
             run: nix run .#console
 
       - name: Playwright E2E
-        run: nix develop --command pnpm --filter @unframe/console run test:e2e
+        run: nix develop --command pnpm --filter @unframe-dev/console run test:e2e

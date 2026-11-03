@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vite-plus/test";
-import type { ProjectSnapshot, PatchRequest } from "@unframe/contracts/author-http";
+import type { ProjectSnapshot, PatchRequest } from "@unframe-dev/contracts/author-http";
 import { createProjectController } from "../project-controller";
 const snapshot = (revision = "r1", value = "before"): ProjectSnapshot => ({
   revision,

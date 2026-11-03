@@ -13,7 +13,7 @@ const manifests = async () =>
   new Map(
     await Promise.all(
       names.map(async (name) => [
-        `@unframe/${name}`,
+        `@unframe-dev/${name}`,
         JSON.parse(await readFile(resolve(base, name, "package.json"), "utf8")),
       ]),
     ),
@@ -43,7 +43,7 @@ test("use case imports use declared public package boundaries and contain no cyc
   const packages = await manifests();
   const graph = new Map();
   for (const [name, pkg] of packages) {
-    const directory = resolve(base, name.slice("@unframe/".length), "src");
+    const directory = resolve(base, name.slice("@unframe-dev/".length), "src");
     const edges = new Set();
     graph.set(name, edges);
     for (const path of await files(directory)) {
@@ -83,7 +83,7 @@ test("use case imports use declared public package boundaries and contain no cyc
               );
               edges.add(dependency);
             }
-            assert.notEqual(dependency, "@unframe/core", `${path}: CLI dependency`);
+            assert.notEqual(dependency, "@unframe-dev/core", `${path}: CLI dependency`);
           }
         }
         ts.forEachChild(node, visit);
@@ -123,10 +123,10 @@ test("adapter and CLI imports resolve through declared public package boundaries
       if (error.code === "ENOENT") continue;
       throw error;
     }
-    if (pkg.name?.startsWith("@unframe/")) packages.set(pkg.name, { pkg, directory });
+    if (pkg.name?.startsWith("@unframe-dev/")) packages.set(pkg.name, { pkg, directory });
   }
   for (const name of adapterNames) {
-    const fullName = `@unframe/${name}`;
+    const fullName = `@unframe-dev/${name}`;
     const entry = packages.get(fullName);
     assert.ok(entry, `${fullName}: package manifest`);
     const directory = resolve(entry.directory, "src");
@@ -152,7 +152,7 @@ test("adapter and CLI imports resolve through declared public package boundaries
           if (value.startsWith(".")) {
             const target = relative(directory, resolve(dirname(path), value));
             assert.ok(target !== ".." && !target.startsWith(`..${sep}`), `${path}: ${value}`);
-          } else if (value.startsWith("@unframe/")) {
+          } else if (value.startsWith("@unframe-dev/")) {
             const dependency = value.split("/").slice(0, 2).join("/");
             const target = packages.get(dependency);
             assert.ok(target, `${path}: missing package ${dependency}`);

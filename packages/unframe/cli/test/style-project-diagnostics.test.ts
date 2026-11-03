@@ -5,20 +5,20 @@ import { copyProjectFixture } from "./copy-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vite-plus/test";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { createAuthorService } from "../src/author/service.js";
-import type { AuthorService } from "@unframe/author-service";
+import type { AuthorService } from "@unframe-dev/author-service";
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { loadUnframeLock } from "@unframe/workspace";
-import { hashDependencyGraph } from "@unframe/workspace";
-import { prepareProjectSource } from "@unframe/workspace-node";
-import { snapshotNodeTransformInputs, withNodeTransformSources } from "@unframe/styles-node";
-import { runIsolatedWorker } from "@unframe/worker-host";
-import type { FixedBrowserSession } from "@unframe/render-browser";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { loadUnframeLock } from "@unframe-dev/workspace";
+import { hashDependencyGraph } from "@unframe-dev/workspace";
+import { prepareProjectSource } from "@unframe-dev/workspace-node";
+import { snapshotNodeTransformInputs, withNodeTransformSources } from "@unframe-dev/styles-node";
+import { runIsolatedWorker } from "@unframe-dev/worker-host";
+import type { FixedBrowserSession } from "@unframe-dev/render-browser";
 
-vi.mock("@unframe/worker-host", async (original) => ({
-  ...(await original<typeof import("@unframe/worker-host")>()),
+vi.mock("@unframe-dev/worker-host", async (original) => ({
+  ...(await original<typeof import("@unframe-dev/worker-host")>()),
   runIsolatedWorker: vi.fn(),
 }));
 const directories: string[] = [];

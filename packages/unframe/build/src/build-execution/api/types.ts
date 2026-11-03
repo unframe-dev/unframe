@@ -1,10 +1,10 @@
 import type { EncodeLimits, VideoMetadata } from "./media-ports.js";
-import type { BuildArtifacts } from "@unframe/artifacts";
-import type { RenderBundle } from "@unframe/presentation";
+import type { BuildArtifacts } from "@unframe-dev/artifacts";
+import type { RenderBundle } from "@unframe-dev/presentation";
 import type { RendererPlugin } from "../../renderer-api/index.js";
-import type { CompilerWarning } from "@unframe/compiler";
-import type { PresentationDefinition } from "@unframe/presentation";
-export type { CompilerDeclarationProject, CompilerSourceAsset } from "@unframe/compiler";
+import type { CompilerWarning } from "@unframe-dev/compiler";
+import type { PresentationDefinition } from "@unframe-dev/presentation";
+export type { CompilerDeclarationProject, CompilerSourceAsset } from "@unframe-dev/compiler";
 
 export type CheckedDeclarationProject = {
   definition: PresentationDefinition;
@@ -18,13 +18,13 @@ export type CheckedDeclarationProject = {
 export type CompilerSourceAssetBytes = Readonly<Record<string, Uint8Array>>;
 
 export type CompilerVideoValidator = {
-  readonly identity: import("@unframe/authoring").Json;
+  readonly identity: import("@unframe-dev/authoring").Json;
   validate(input: {
     readonly sourceId: string;
     readonly bytes: Uint8Array;
     readonly checksum: string;
     readonly encodedSizeBytes: number;
-  }): Promise<import("@unframe/presentation").ValidationResult<VideoMetadata>>;
+  }): Promise<import("@unframe-dev/presentation").ValidationResult<VideoMetadata>>;
 };
 export type CompilerBuildOptions = {
   readonly videoValidator?: CompilerVideoValidator;

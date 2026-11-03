@@ -14,17 +14,17 @@ import {
   audienceWebCapabilityProfileId,
   decodeWireMessage,
   type DeliveryManifestWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { normalizedCapability } from "../../../src/modules/publications/capability";
-import { buildProjectionProfile } from "@unframe/delivery";
+import { buildProjectionProfile } from "@unframe-dev/delivery";
 import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   validatePresentationArtifacts,
   type BuildIntegrityInput,
-} from "@unframe/artifacts";
-import { renderBundleSchema } from "@unframe/contracts/presentation";
+} from "@unframe-dev/artifacts";
+import { renderBundleSchema } from "@unframe-dev/contracts/presentation";
 import { PublicationError, PublicationService } from "../../../src/modules/publications/service";
 import { D1SessionRepository } from "../../../src/modules/sessions/repository";
 import { createApp } from "../../../src/app";

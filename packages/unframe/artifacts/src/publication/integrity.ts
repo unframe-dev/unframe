@@ -2,25 +2,25 @@ import {
   assetSetManifestSchema,
   type AssetDescriptor,
   type AssetSetManifest,
-} from "@unframe/contracts/presentation/asset-set";
+} from "@unframe-dev/contracts/presentation/asset-set";
 import {
   buildManifestSchema,
   publishedPresentationSchema,
   type BuildManifest,
   type PublishedPresentation,
-} from "@unframe/contracts/presentation/publication";
+} from "@unframe-dev/contracts/presentation/publication";
 import {
   presentationDefinitionSchema,
   type PresentationDefinition,
-} from "@unframe/contracts/presentation/definition";
+} from "@unframe-dev/contracts/presentation/definition";
 import {
   renderBundleSchema,
   type RenderBundle,
-} from "@unframe/contracts/presentation/render-bundle";
+} from "@unframe-dev/contracts/presentation/render-bundle";
 import type { ZodType } from "zod";
 
 import { hashCanonicalJsonPayload } from "../canonicalization/payload.js";
-import type { Diagnostic, ValidationResult } from "@unframe/presentation";
+import type { Diagnostic, ValidationResult } from "@unframe-dev/presentation";
 import { snapshotPlainJson } from "./plain-json.js";
 
 export type BuildArtifacts = {

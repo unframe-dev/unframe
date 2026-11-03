@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { loadUnframeLock } from "../src/index.js";

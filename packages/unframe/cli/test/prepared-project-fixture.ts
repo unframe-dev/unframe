@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { loadUnframeLock } from "@unframe/workspace";
+import { loadUnframeLock } from "@unframe-dev/workspace";
 
 const decompress = promisify(gunzip);
 const fixture = fileURLToPath(new URL("./fixtures/pack-project/", import.meta.url));

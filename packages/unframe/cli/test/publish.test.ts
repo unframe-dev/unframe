@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { encodeBuildReceipt } from "@unframe/workspace-node";
+import { encodeBuildReceipt } from "@unframe-dev/workspace-node";
 import { publishPresentation } from "../src/application/publish.js";
 
 describe("publishPresentation", () => {

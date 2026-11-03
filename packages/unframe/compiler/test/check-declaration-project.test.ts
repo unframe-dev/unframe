@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vite-plus/test";
-import { standardComponents } from "@unframe/authoring/components";
+import { standardComponents } from "@unframe-dev/authoring/components";
 import type {
   ComponentManifest,
   ComponentPackageLock,
   ComponentStructure,
   PresentationDeclaration,
   SurfaceDeclaration,
-} from "@unframe/authoring";
-import { buildOpaqueComponentManifest, validateStaticComponentMetadata } from "@unframe/authoring";
-import { type SemanticSurface, validatePresentationDefinition } from "@unframe/presentation";
-import { canonicalizePresentationDefinition } from "@unframe/artifacts";
+} from "@unframe-dev/authoring";
+import {
+  buildOpaqueComponentManifest,
+  validateStaticComponentMetadata,
+} from "@unframe-dev/authoring";
+import { type SemanticSurface, validatePresentationDefinition } from "@unframe-dev/presentation";
+import { canonicalizePresentationDefinition } from "@unframe-dev/artifacts";
 import { checkDeclarationProject } from "../src/api/check-declaration-project.js";
 import type { CompilerDeclarationProject, CompilerSourceAsset } from "../src/index.js";
 type StructuredProject = Omit<CompilerDeclarationProject, "presentation" | "components"> & {
@@ -741,7 +744,7 @@ describe("checkDeclarationProject", () => {
     };
     (
       input.presentation.flow.groups.group!.steps.step!.cues as unknown as Array<
-        import("@unframe/authoring").CueDeclaration
+        import("@unframe-dev/authoring").CueDeclaration
       >
     ).push({
       id: "start",
@@ -757,7 +760,7 @@ describe("checkDeclarationProject", () => {
     });
     (
       input.presentation.flow.groups.group!.steps.step!.cues as unknown as Array<
-        import("@unframe/authoring").CueDeclaration
+        import("@unframe-dev/authoring").CueDeclaration
       >
     ).push({
       id: "finished",
@@ -1883,7 +1886,7 @@ describe("checkDeclarationProject", () => {
     expect(result.value.sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.definitionHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.sourceHash).toBe(
-      "sha256:d76fe9a10ae41c742cecda8b85b0a5e44bb242273601dbb6b2d0d4d2002c667b",
+      "sha256:a68e2819e5e201f0531db49b3673eb91d9bcab7da97923b90feacb52bbe044af",
     );
     expect(result.value.definitionHash).toBe(
       "sha256:dc6226d909273046178f55ff7c3ba3369b18db4bae82378b452e1267f0ba6aab",

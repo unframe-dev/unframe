@@ -1,8 +1,8 @@
 import { expect, it } from "vite-plus/test";
-import { standardComponents } from "@unframe/authoring/components";
-import { PNG_ABSOLUTE_LIMITS, type VideoMetadata } from "@unframe/media-node";
+import { standardComponents } from "@unframe-dev/authoring/components";
+import { PNG_ABSOLUTE_LIMITS, type VideoMetadata } from "@unframe-dev/media-node";
 import { compileDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
-import type { CompilerBuildOptions } from "@unframe/build";
+import type { CompilerBuildOptions } from "@unframe-dev/build";
 import { checksumBytes } from "../fixtures-helpers/checksum.js";
 import { modelProject } from "./fixtures/model.js";
 import { fixtureRenderer } from "./fixtures/renderer.js";
@@ -51,7 +51,7 @@ const project = () => {
   input.themes = [{ declaration: standardComponents.theme, hash: `sha256:${"0".repeat(64)}` }];
   input.presentation.theme = { themeId: standardComponents.theme.id };
   const scene = input.presentation
-    .scene as import("@unframe/authoring").PresentationDeclaration["scene"];
+    .scene as import("@unframe-dev/authoring").PresentationDeclaration["scene"];
   input.presentation.scene = {
     spatial: [scene.spatial[0]!],
     components: [
@@ -377,11 +377,11 @@ it.each(["opacity", "clip", "twoVideos"])(
 );
 
 it("reuses validated Video cache entries and binds validator identity", async () => {
-  const entries = new Map<string, import("@unframe/build").CompiledDeclarationProject>();
+  const entries = new Map<string, import("@unframe-dev/build").CompiledDeclarationProject>();
   let validations = 0;
   const cache = {
     get: (key: string) => entries.get(key),
-    set: (key: string, value: import("@unframe/build").CompiledDeclarationProject) => {
+    set: (key: string, value: import("@unframe-dev/build").CompiledDeclarationProject) => {
       entries.set(key, value);
     },
   };

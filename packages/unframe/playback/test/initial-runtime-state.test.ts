@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
-import { presentationDefinitionSchema } from "@unframe/contracts/presentation";
+import { presentationDefinitionSchema } from "@unframe-dev/contracts/presentation";
 import fixture from "../../../contracts/presentation/fixtures/initial-runtime-state.json";
-import { createInitialRuntimeState } from "@unframe/playback";
+import { createInitialRuntimeState } from "@unframe-dev/playback";
 
 const definition = () => presentationDefinitionSchema.parse(fixture.definition);
 

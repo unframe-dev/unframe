@@ -1,4 +1,4 @@
-import { checkAuthoringProject } from "@unframe/source";
+import { checkAuthoringProject } from "@unframe-dev/source";
 import {
   createProjectLock,
   refreshProjectLock,
@@ -6,7 +6,7 @@ import {
   lockSourceAssets,
   type ProjectConfig,
   type UnframeLock,
-} from "@unframe/workspace";
+} from "@unframe-dev/workspace";
 import { checkAuthoringProjectAssembly, computeFrozenComponentInputs } from "./index.js";
 import { createSourceAssetAssemblyCarrier } from "./source-assets.js";
 import { authoringPackageRoots, hasPostcssConfig } from "./project-roots.js";

@@ -2,7 +2,7 @@ import { expect, test } from "vite-plus/test";
 import type {
   ParticipantRuntimeViewWire,
   ProjectedRuntimeCatalogWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { validateRuntimeView } from "../runtime-view-validation";
 
 test("validation uses each supplied Group cut without retaining or mutating session state", () => {

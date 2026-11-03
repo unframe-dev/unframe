@@ -12,4 +12,4 @@ if [[ "${mode}" != "generate" && "${mode}" != "check" ]]; then
 fi
 
 pnpm --dir "${REPO_ROOT}" --config.verify-deps-before-run=false \
-  --filter @unframe/contract-fixtures run "${mode}"
+  --filter @unframe-dev/contract-fixtures run "${mode}"

@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/presentation",
+  "name": "@unframe-dev/presentation",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "@unframe/contracts": "workspace:*",
+    "@unframe-dev/contracts": "workspace:*",
     "canonicalize": "5.1.0",
     "typescript": "6.0.3",
     "vite-plus": "catalog:"

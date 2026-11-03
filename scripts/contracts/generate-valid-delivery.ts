@@ -7,8 +7,8 @@ import {
   buildDeliveryManifest,
   calculateProjectionProfileId,
   selectDeliveryArtifacts,
-} from "@unframe/delivery";
-import { hashCanonicalJsonPayload, verifyPublicationIntegrity } from "@unframe/artifacts";
+} from "@unframe-dev/delivery";
+import { hashCanonicalJsonPayload, verifyPublicationIntegrity } from "@unframe-dev/artifacts";
 import {
   decodeWireMessage,
   encodeWireMessage,

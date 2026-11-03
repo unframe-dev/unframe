@@ -1,4 +1,4 @@
-import { decodeWireMessage, encodeWireMessage } from "@unframe/contracts/presentation";
+import { decodeWireMessage, encodeWireMessage } from "@unframe-dev/contracts/presentation";
 import { describe, expect, it } from "vitest";
 import { HTTPException } from "hono/http-exception";
 import {

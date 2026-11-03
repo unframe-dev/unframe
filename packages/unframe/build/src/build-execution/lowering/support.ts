@@ -1,8 +1,8 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
-import type { ComponentPackageLock } from "@unframe/authoring";
-import type { Diagnostic } from "@unframe/presentation";
+import type { ComponentPackageLock } from "@unframe-dev/authoring";
+import type { Diagnostic } from "@unframe-dev/presentation";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { nonEmptyStringSchema } from "../validation/project-schemas.js";
 

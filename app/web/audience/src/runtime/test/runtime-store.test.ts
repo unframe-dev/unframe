@@ -1,5 +1,5 @@
 import { PNG_DEFAULT_STATE, PNG_INACTIVE_STATE } from "../../test-support/png-delivery-fixture";
-import { encodeWireMessage } from "@unframe/contracts/presentation";
+import { encodeWireMessage } from "@unframe-dev/contracts/presentation";
 import { describe, expect, it } from "vite-plus/test";
 import type {
   ConnectionSnapshotEnvelopeWire,
@@ -7,7 +7,7 @@ import type {
   RuntimeProjectionFenceWire,
   RuntimeRunSnapshotWire,
   ControlServerItemWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import { createRuntimeStore } from "../runtime-store";
 import { createRuntimeReducer, createRuntimeState } from "../runtime-core";

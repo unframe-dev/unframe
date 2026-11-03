@@ -8,13 +8,13 @@ import {
   buildManifestSchema,
   encodeWireMessage,
   decodeWireMessage,
-} from "@unframe/contracts/presentation";
-import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe/artifacts";
+} from "@unframe-dev/contracts/presentation";
+import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe-dev/artifacts";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import buildFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import type { PreviewAsset } from "@unframe/preview";
+import type { PreviewAsset } from "@unframe-dev/preview";
 import { createLocalPreviewService } from "../src/index.js";
 
 const requestA = "a".repeat(32);

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vite-plus/test";
-import { encodeWireMessage } from "@unframe/contracts/presentation";
+import { encodeWireMessage } from "@unframe-dev/contracts/presentation";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import {
   AudienceConnectionError,

@@ -3,7 +3,7 @@ import type {
   DeliveryManifestWire,
   ParticipantRuntimeView,
   StateServerItemWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { createRuntimeStore } from "./runtime-store";
 import { createRuntimeClock } from "./runtime-clock";
 import { getAssetFailure, type AssetFailureDetails } from "../diagnostics/asset-failure";

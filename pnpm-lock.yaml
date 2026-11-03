@@ -195,13 +195,13 @@ importers:
       '@hono/zod-openapi':
         specifier: ^1.5.2
         version: 1.6.3(hono@4.13.16)(zod@4.4.3)
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../../../packages/unframe/artifacts
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts
-      '@unframe/delivery':
+      '@unframe-dev/delivery':
         specifier: workspace:*
         version: link:../../../packages/unframe/delivery
       aws4fetch:
@@ -295,10 +295,10 @@ importers:
       '@mui/material':
         specifier: ^9.5.0
         version: 9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@unframe/api-client-typescript':
+      '@unframe-dev/api-client-typescript':
         specifier: workspace:*
         version: link:../../../packages/api-client-typescript
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts
       js-aruco2:
@@ -377,13 +377,13 @@ importers:
       '@tanstack/react-router':
         specifier: 1.170.46
         version: 1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@unframe/api-client-typescript':
+      '@unframe-dev/api-client-typescript':
         specifier: workspace:*
         version: link:../../../packages/api-client-typescript
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../../../packages/unframe/artifacts
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts
       class-variance-authority:
@@ -496,7 +496,7 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.3.0(@types/react@19.3.0)
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts
       '@vitejs/plugin-react':
@@ -563,7 +563,7 @@ importers:
 
   example:
     dependencies:
-      '@unframe/authoring':
+      '@unframe-dev/authoring':
         specifier: workspace:*
         version: link:../packages/unframe/authoring
 
@@ -571,10 +571,10 @@ importers:
 
   packages/api-client-typescript:
     dependencies:
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../unframe/artifacts
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../contracts
       better-auth:
@@ -584,7 +584,7 @@ importers:
         specifier: ^4.13.1
         version: 4.13.16
     devDependencies:
-      '@unframe/config':
+      '@unframe-dev/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -657,7 +657,7 @@ importers:
       '@noble/hashes':
         specifier: 2.4.0
         version: 2.4.0
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
       canonicalize:
@@ -673,7 +673,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
       typescript:
@@ -688,16 +688,16 @@ importers:
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
-      '@unframe/build':
+      '@unframe-dev/build':
         specifier: workspace:*
         version: link:../build
-      '@unframe/source':
+      '@unframe-dev/source':
         specifier: workspace:*
         version: link:../source
-      '@unframe/workspace':
+      '@unframe-dev/workspace':
         specifier: workspace:*
         version: link:../workspace
       typescript:
@@ -710,7 +710,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
       vite-plus:
@@ -722,7 +722,7 @@ importers:
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
       zod:
@@ -744,22 +744,22 @@ importers:
       '@noble/hashes':
         specifier: 2.4.0
         version: 2.4.0
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
-      '@unframe/authoring':
+      '@unframe-dev/authoring':
         specifier: workspace:*
         version: link:../authoring
-      '@unframe/compiler':
+      '@unframe-dev/compiler':
         specifier: workspace:*
         version: link:../compiler
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
-      '@unframe/source':
+      '@unframe-dev/source':
         specifier: workspace:*
         version: link:../source
-      '@unframe/workspace':
+      '@unframe-dev/workspace':
         specifier: workspace:*
         version: link:../workspace
       css-tree:
@@ -778,7 +778,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
       vite-plus:
@@ -799,49 +799,49 @@ importers:
       '@opentui/solid':
         specifier: 0.8.1
         version: 0.8.1(solid-js@1.9.18)(supports-color@10.2.2)(typescript@6.0.3)(web-tree-sitter@0.25.10)
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
-      '@unframe/author-service':
+      '@unframe-dev/author-service':
         specifier: workspace:*
         version: link:../author-service
-      '@unframe/authoring':
+      '@unframe-dev/authoring':
         specifier: workspace:*
         version: link:../authoring
-      '@unframe/build':
+      '@unframe-dev/build':
         specifier: workspace:*
         version: link:../build
-      '@unframe/compiler':
+      '@unframe-dev/compiler':
         specifier: workspace:*
         version: link:../compiler
-      '@unframe/local-editor':
+      '@unframe-dev/local-editor':
         specifier: workspace:*
         version: link:../../../app/web/local-editor
-      '@unframe/media-node':
+      '@unframe-dev/media-node':
         specifier: workspace:*
         version: link:../media-node
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
-      '@unframe/preview':
+      '@unframe-dev/preview':
         specifier: workspace:*
         version: link:../preview
-      '@unframe/publish':
+      '@unframe-dev/publish':
         specifier: workspace:*
         version: link:../publish
-      '@unframe/render-browser':
+      '@unframe-dev/render-browser':
         specifier: workspace:*
         version: link:../render-browser
-      '@unframe/source':
+      '@unframe-dev/source':
         specifier: workspace:*
         version: link:../source
-      '@unframe/styles-node':
+      '@unframe-dev/styles-node':
         specifier: workspace:*
         version: link:../styles-node
-      '@unframe/workspace':
+      '@unframe-dev/workspace':
         specifier: workspace:*
         version: link:../workspace
-      '@unframe/workspace-node':
+      '@unframe-dev/workspace-node':
         specifier: workspace:*
         version: link:../workspace-node
       css-tree:
@@ -884,16 +884,16 @@ importers:
       '@types/validate-npm-package-name':
         specifier: 4.0.2
         version: 4.0.2
-      '@unframe/api-client-typescript':
+      '@unframe-dev/api-client-typescript':
         specifier: workspace:*
         version: link:../../api-client-typescript
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
-      '@unframe/delivery':
+      '@unframe-dev/delivery':
         specifier: workspace:*
         version: link:../delivery
-      '@unframe/worker-host':
+      '@unframe-dev/worker-host':
         specifier: workspace:*
         version: link:../worker-host
       postcss:
@@ -920,13 +920,13 @@ importers:
       '@noble/hashes':
         specifier: 2.4.0
         version: 2.4.0
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
-      '@unframe/authoring':
+      '@unframe-dev/authoring':
         specifier: workspace:*
         version: link:../authoring
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
       zod:
@@ -945,13 +945,13 @@ importers:
 
   packages/unframe/delivery:
     dependencies:
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
-      '@unframe/playback':
+      '@unframe-dev/playback':
         specifier: workspace:*
         version: link:../playback
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
       zod:
@@ -961,7 +961,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
       canonicalize:
@@ -985,13 +985,13 @@ importers:
       '@noble/hashes':
         specifier: 2.4.0
         version: 2.4.0
-      '@unframe/authoring':
+      '@unframe-dev/authoring':
         specifier: workspace:*
         version: link:../authoring
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
-      '@unframe/worker-host':
+      '@unframe-dev/worker-host':
         specifier: workspace:*
         version: link:../worker-host
       gltf-validator:
@@ -1013,10 +1013,10 @@ importers:
 
   packages/unframe/playback:
     dependencies:
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
       zod:
@@ -1026,7 +1026,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
       canonicalize:
@@ -1048,7 +1048,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
       canonicalize:
@@ -1063,13 +1063,13 @@ importers:
 
   packages/unframe/preview:
     dependencies:
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
-      '@unframe/delivery':
+      '@unframe-dev/delivery':
         specifier: workspace:*
         version: link:../delivery
-      '@unframe/playback':
+      '@unframe-dev/playback':
         specifier: workspace:*
         version: link:../playback
       zod:
@@ -1079,7 +1079,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
       typescript:
@@ -1091,7 +1091,7 @@ importers:
 
   packages/unframe/publish:
     dependencies:
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
       zod:
@@ -1101,7 +1101,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/api-client-typescript':
+      '@unframe-dev/api-client-typescript':
         specifier: workspace:*
         version: link:../../api-client-typescript
       typescript:
@@ -1119,16 +1119,16 @@ importers:
       '@noble/hashes':
         specifier: 2.4.0
         version: 2.4.0
-      '@unframe/build':
+      '@unframe-dev/build':
         specifier: workspace:*
         version: link:../build
-      '@unframe/compiler':
+      '@unframe-dev/compiler':
         specifier: workspace:*
         version: link:../compiler
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
-      '@unframe/worker-host':
+      '@unframe-dev/worker-host':
         specifier: workspace:*
         version: link:../worker-host
       playwright-core:
@@ -1165,10 +1165,10 @@ importers:
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
-      '@unframe/authoring':
+      '@unframe-dev/authoring':
         specifier: workspace:*
         version: link:../authoring
-      '@unframe/presentation':
+      '@unframe-dev/presentation':
         specifier: workspace:*
         version: link:../presentation
       typescript:
@@ -1181,7 +1181,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
       vite-plus:
@@ -1190,13 +1190,13 @@ importers:
 
   packages/unframe/styles-node:
     dependencies:
-      '@unframe/build':
+      '@unframe-dev/build':
         specifier: workspace:*
         version: link:../build
-      '@unframe/worker-host':
+      '@unframe-dev/worker-host':
         specifier: workspace:*
         version: link:../worker-host
-      '@unframe/workspace':
+      '@unframe-dev/workspace':
         specifier: workspace:*
         version: link:../workspace
       error-stack-parser:
@@ -1275,7 +1275,7 @@ importers:
 
   packages/unframe/workspace:
     dependencies:
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
       canonicalize:
@@ -1309,7 +1309,7 @@ importers:
       '@types/validate-npm-package-name':
         specifier: 4.0.2
         version: 4.0.2
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
       vite-plus:
@@ -1318,13 +1318,13 @@ importers:
 
   packages/unframe/workspace-node:
     dependencies:
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../artifacts
-      '@unframe/build':
+      '@unframe-dev/build':
         specifier: workspace:*
         version: link:../build
-      '@unframe/workspace':
+      '@unframe-dev/workspace':
         specifier: workspace:*
         version: link:../workspace
       typescript:
@@ -1340,7 +1340,7 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../contracts
       vite-plus:
@@ -1349,25 +1349,25 @@ importers:
 
   scripts/contracts:
     dependencies:
-      '@unframe/artifacts':
+      '@unframe-dev/artifacts':
         specifier: workspace:*
         version: link:../../packages/unframe/artifacts
-      '@unframe/authoring':
+      '@unframe-dev/authoring':
         specifier: workspace:*
         version: link:../../packages/unframe/authoring
-      '@unframe/build':
+      '@unframe-dev/build':
         specifier: workspace:*
         version: link:../../packages/unframe/build
-      '@unframe/compiler':
+      '@unframe-dev/compiler':
         specifier: workspace:*
         version: link:../../packages/unframe/compiler
-      '@unframe/contracts':
+      '@unframe-dev/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@unframe/delivery':
+      '@unframe-dev/delivery':
         specifier: workspace:*
         version: link:../../packages/unframe/delivery
-      '@unframe/media-node':
+      '@unframe-dev/media-node':
         specifier: workspace:*
         version: link:../../packages/unframe/media-node
     devDependencies:
@@ -1392,16 +1392,16 @@ importers:
 
   scripts/presentation-sample:
     dependencies:
-      '@unframe/cli':
+      '@unframe-dev/cli':
         specifier: workspace:*
         version: link:../../packages/unframe/cli
-      '@unframe/workspace-node':
+      '@unframe-dev/workspace-node':
         specifier: workspace:*
         version: link:../../packages/unframe/workspace-node
 
   scripts/unframe-packages:
     devDependencies:
-      '@unframe/contract-fixtures':
+      '@unframe-dev/contract-fixtures':
         specifier: workspace:*
         version: link:../contracts
       tsx:

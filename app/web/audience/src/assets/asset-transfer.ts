@@ -1,4 +1,4 @@
-import { contentHashSchema, safeUIntSchema } from "@unframe/contracts/presentation";
+import { contentHashSchema, safeUIntSchema } from "@unframe-dev/contracts/presentation";
 import { z } from "zod";
 import { getAssetFailure, type AssetFailureDetails } from "../diagnostics/asset-failure";
 export type AssetFailureReporter = (

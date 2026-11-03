@@ -49,7 +49,7 @@ pnpm types
 pnpm test
 pnpm deploy
 pnpm auth:schema:generate
-pnpm --filter @unframe/contracts generate:control-plane
+pnpm --filter @unframe-dev/contracts generate:control-plane
 ```
 
 `pnpm types` は Wrangler binding 型を再生成します。`auth:schema:generate` は Better Auth の参照用 SQL を ignored の `.generated/` へ出力し、review 済み migration を直接上書きしません。

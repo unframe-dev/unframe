@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { PublishedPresentation } from "@unframe/contracts/presentation";
+import type { PublishedPresentation } from "@unframe-dev/contracts/presentation";
 
 const presentation = { id: "presentation-1", name: "公開済みプレゼン" };
 const publication = {

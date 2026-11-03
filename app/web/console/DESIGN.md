@@ -174,10 +174,10 @@ motion は状態変化と空間関係の理解に使います。装飾のため�
 画面変更では desktop と mobile の実表示、keyboard 操作、focus、loading、error、empty state を確認します。機能追加と不具合修正は Explore、Red、Green、Refactor の順で進めます。
 
 ```bash
-pnpm --filter @unframe/console run check
-pnpm --filter @unframe/console run test
-pnpm --filter @unframe/console run build
-pnpm --filter @unframe/console run test:e2e
+pnpm --filter @unframe-dev/console run check
+pnpm --filter @unframe-dev/console run test
+pnpm --filter @unframe-dev/console run build
+pnpm --filter @unframe-dev/console run test:e2e
 nix run .#check
 ```
 

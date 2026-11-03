@@ -1,6 +1,6 @@
 import type { ProjectChanges } from "./project-changes.js";
-import { AuthorError, type AuthorService } from "@unframe/author-service";
-import { PreviewError, type LocalPreviewService } from "@unframe/preview";
+import { AuthorError, type AuthorService } from "@unframe-dev/author-service";
+import { PreviewError, type LocalPreviewService } from "@unframe-dev/preview";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -12,11 +12,11 @@ import {
   randomIdSchema,
   patchRequestSchema,
   previewRequestSchema,
-} from "@unframe/contracts/author-http";
+} from "@unframe-dev/contracts/author-http";
 import {
   previewCommittedRequestSchema,
   previewPlaybackCommandSchema,
-} from "@unframe/contracts/author-http";
+} from "@unframe-dev/contracts/author-http";
 import { createPublicationAuth, type PublicationAuth } from "./publication-auth.js";
 import type { LocalPublicationService } from "./publication.js";
 

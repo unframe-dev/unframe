@@ -16,7 +16,7 @@ const builders = [
   .join("\n");
 
 const presentationSource = `
-import { definePresentation } from "@unframe/authoring";
+import { definePresentation } from "@unframe-dev/authoring";
 export default definePresentation({
   id: "presentation",
   metadata: { title: "Presentation" },
@@ -33,7 +33,7 @@ const project = (files = [{ fileName: "entry.ts", sourceText: presentationSource
   files,
   rootDependencies: [
     {
-      specifier: "@unframe/authoring",
+      specifier: "@unframe-dev/authoring",
       usage: "runtime",
       packageKey: `sha256:${"a".repeat(64)}`,
     },
@@ -41,8 +41,8 @@ const project = (files = [{ fileName: "entry.ts", sourceText: presentationSource
   packages: [
     {
       key: `sha256:${"a".repeat(64)}`,
-      locator: "@unframe/authoring@1",
-      name: "@unframe/authoring",
+      locator: "@unframe-dev/authoring@1",
+      name: "@unframe-dev/authoring",
       version: "1",
       contentIntegrity: `sha256:${"b".repeat(64)}`,
       files: [
@@ -75,7 +75,7 @@ describe("checkAuthoringProject", () => {
         {
           fileName: "theme.unframe.ts",
           sourceText:
-            'import { defineTheme } from "@unframe/authoring"; export default defineTheme({ id: "theme", tokens: {}, namedStyles: { title: 42 } });',
+            'import { defineTheme } from "@unframe-dev/authoring"; export default defineTheme({ id: "theme", tokens: {}, namedStyles: { title: 42 } });',
         },
       ]),
     );
@@ -141,7 +141,7 @@ describe("checkAuthoringProject", () => {
       {
         fileName: "theme.unframe.ts",
         sourceText:
-          'import { defineTheme } from "@unframe/authoring"; export default defineTheme({ id: "theme", tokens: {}, namedStyles: {} });',
+          'import { defineTheme } from "@unframe-dev/authoring"; export default defineTheme({ id: "theme", tokens: {}, namedStyles: {} });',
       },
       { fileName: "entry.ts", sourceText: presentationSource },
     ];

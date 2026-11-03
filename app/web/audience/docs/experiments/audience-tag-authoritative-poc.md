@@ -35,7 +35,7 @@ anchorログschema11。strategy、sdkScale、tagAuthoritativePolicyを保存す�
 
 スマートフォンでタグを映したまま「静止→回転→移動後静止」を各5秒程度記録し、次に短い横移動とタグの不可視を試す。要求精度・7m・長時間保持の達成は未検証。SDK absoluteへ変更したこととタグ優先化の両方が変わるため、改善があっても原因を一方だけに帰属させない。
 
-型検査・lint: `pnpm --filter @unframe/audience run check`成功。本番ビルド: 同`run build`成功。公開HTTPSのentry JSとビルド成果物のSHA-256一致を確認した。既存previewが4175を使用していたため、新規起動はport使用中で終了し、既存の配信を再利用した。スマートフォン実機・GPUラボは未実施。変更は未コミット。
+型検査・lint: `pnpm --filter @unframe-dev/audience run check`成功。本番ビルド: 同`run build`成功。公開HTTPSのentry JSとビルド成果物のSHA-256一致を確認した。既存previewが4175を使用していたため、新規起動はport使用中で終了し、既存の配信を再利用した。スマートフォン実機・GPUラボは未実施。変更は未コミット。
 
 ## タグ検出とSLAMの分離（schema12）
 

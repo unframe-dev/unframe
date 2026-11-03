@@ -4,7 +4,7 @@ import { requireSession } from "./require-session";
 import { notifySessionChanged } from "@/shared/api/session-events";
 
 const auth = vi.hoisted(() => ({ getSession: vi.fn() }));
-vi.mock("@unframe/api-client-typescript", () => ({
+vi.mock("@unframe-dev/api-client-typescript", () => ({
   createControlPlaneAuthClient: vi.fn(() => auth),
 }));
 

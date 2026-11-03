@@ -1,7 +1,7 @@
 import { defineComponentManifest, state } from "../index.js";
 
 export const standardSurfaceManifest = defineComponentManifest({
-  componentId: "@unframe/components/Surface",
+  componentId: "@unframe-dev/components/Surface",
   version: 1,
   source: { file: "standard-surface.manifest.ts" },
   authoring: {

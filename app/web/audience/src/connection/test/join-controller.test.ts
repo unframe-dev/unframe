@@ -8,7 +8,7 @@ import {
   type Session,
   type createAudienceHttpClient,
 } from "../http-client";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 
 const clock = Date.parse("2026-10-23T00:00:00Z");
 function setup() {

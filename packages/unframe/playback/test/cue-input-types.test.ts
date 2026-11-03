@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import type { CueInput } from "@unframe/playback";
+import type { CueInput } from "@unframe-dev/playback";
 
 const common = {
   actor: { kind: "participant", role: "presenter" },

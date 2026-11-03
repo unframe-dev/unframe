@@ -1,16 +1,16 @@
 import {
   capabilityProfileSchema,
   type CapabilityProfile,
-} from "@unframe/contracts/presentation/capability";
+} from "@unframe-dev/contracts/presentation/capability";
 import {
   verifyPublicationIntegrity,
   verifyBuildIntegrity,
   type BuildArtifacts,
   type PublicationArtifacts,
   type PublicationIntegrityInput,
-} from "@unframe/artifacts";
-import { snapshotPlainJson } from "@unframe/artifacts/plain-json";
-import { validatePresentationArtifacts } from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
+import { snapshotPlainJson } from "@unframe-dev/artifacts/plain-json";
+import { validatePresentationArtifacts } from "@unframe-dev/artifacts";
 
 export type BuildSourceInput = BuildArtifacts & { capability: CapabilityProfile };
 

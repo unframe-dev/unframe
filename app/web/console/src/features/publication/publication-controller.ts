@@ -3,8 +3,8 @@ import {
   type createPublicationClient,
   type PublicationProgress,
   type PublicationTarget,
-} from "@unframe/api-client-typescript/publication";
-import { verifyPublicationIntegrity } from "@unframe/artifacts";
+} from "@unframe-dev/api-client-typescript/publication";
+import { verifyPublicationIntegrity } from "@unframe-dev/artifacts";
 import {
   BrowserDistError,
   readBrowserDist,

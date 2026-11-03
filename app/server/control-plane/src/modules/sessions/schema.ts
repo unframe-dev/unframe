@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { sessionStateSchema, sessionJoinCodeSchema } from "@unframe/contracts/control-plane-http";
+import {
+  sessionStateSchema,
+  sessionJoinCodeSchema,
+} from "@unframe-dev/contracts/control-plane-http";
 
 export { sessionStateSchema };
 export const joinCodeSchema = sessionJoinCodeSchema;

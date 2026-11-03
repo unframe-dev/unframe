@@ -1,5 +1,5 @@
-import { createPublicationClient } from "@unframe/api-client-typescript/publication";
-import type { BuildArtifacts } from "@unframe/artifacts";
+import { createPublicationClient } from "@unframe-dev/api-client-typescript/publication";
+import type { BuildArtifacts } from "@unframe-dev/artifacts";
 export type PublicationFence = {
   presentationId: string;
   publicationEpoch: number;

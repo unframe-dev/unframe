@@ -1,6 +1,6 @@
-import type { PresentationDeclaration } from "@unframe/authoring";
-import type { BuildArtifacts } from "@unframe/artifacts";
-import type { Diagnostic, PresentationDefinition } from "@unframe/presentation";
+import type { PresentationDeclaration } from "@unframe-dev/authoring";
+import type { BuildArtifacts } from "@unframe-dev/artifacts";
+import type { Diagnostic, PresentationDefinition } from "@unframe-dev/presentation";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { isRecord } from "../lowering/support.js";
 import type { CompilerDeclarationProject } from "../api/types.js";

@@ -1,4 +1,4 @@
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import type { AnalysisOperations } from "./analysis-protocol.js";
 import { runAnalysisOperation, prepareLockRefreshInWorker } from "./analysis-client.js";
 import { sourceAssetPorts } from "../application/media-ports.js";
@@ -9,22 +9,22 @@ import {
   readAuthorArtifacts,
   AuthorError,
   type AuthorService,
-} from "@unframe/author-service";
+} from "@unframe-dev/author-service";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
 import type { RunPresentationCliInput } from "../application/types.js";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { readTypeLibraries } from "@unframe/workspace-node";
-import { readBuildGeneration } from "@unframe/workspace-node";
-import { acquireSourceLock } from "@unframe/workspace-node";
-import { refreshLocalProjectLock } from "@unframe/workspace-node";
-import { type ProjectSnapshot } from "@unframe/contracts/author-http";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { readTypeLibraries } from "@unframe-dev/workspace-node";
+import { readBuildGeneration } from "@unframe-dev/workspace-node";
+import { acquireSourceLock } from "@unframe-dev/workspace-node";
+import { refreshLocalProjectLock } from "@unframe-dev/workspace-node";
+import { type ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import {
   AuthorTransactionConflict,
   commitAuthorPair,
   prepareAuthorStorage,
   readAuthorReceipt,
   recoverAuthorTransactions,
-} from "@unframe/workspace-node";
+} from "@unframe-dev/workspace-node";
 
 function fail(status: number, code: string, message: string): never {
   throw new AuthorError(status, code, message);

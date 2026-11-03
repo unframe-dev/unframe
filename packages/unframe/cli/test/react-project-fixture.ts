@@ -1,12 +1,16 @@
 import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProject } from "@unframe/source";
-import { hashDependencyGraph, hashLockedPackageContent, loadUnframeLock } from "@unframe/workspace";
-import { lockedFile } from "@unframe/workspace-node";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { prepareProjectSource } from "@unframe/workspace-node";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
+import { checkAuthoringProject } from "@unframe-dev/source";
+import {
+  hashDependencyGraph,
+  hashLockedPackageContent,
+  loadUnframeLock,
+} from "@unframe-dev/workspace";
+import { lockedFile } from "@unframe-dev/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { prepareProjectSource } from "@unframe-dev/workspace-node";
 import { prepareProjectFixture } from "./prepared-project-fixture.js";
 import { sdkFixtureSource } from "./authoring-sdk-fixture.js";
 
@@ -19,7 +23,9 @@ export const prepareReactProjectFixture = async () => {
   const { source } = await prepareProjectSource(sourceAssetPorts.styles, found, loaded.value.lock);
   const checked = checkAuthoringProject(source);
   if (!checked.valid) throw new Error(JSON.stringify(checked.diagnostics));
-  const original = loaded.value.lock.packages.find((item) => item.name === "@unframe/authoring");
+  const original = loaded.value.lock.packages.find(
+    (item) => item.name === "@unframe-dev/authoring",
+  );
   if (!original) throw new Error("Authoring fixture package is missing");
   const { contentIntegrity: _integrity, ...metadata } = original;
   const small = {
@@ -32,7 +38,7 @@ export const prepareReactProjectFixture = async () => {
     ...loaded.value.lock,
     packages: [{ ...small, contentIntegrity: hashLockedPackageContent(small) }],
     rootDependencies: loaded.value.lock.rootDependencies.filter(
-      (edge) => edge.specifier === "@unframe/authoring",
+      (edge) => edge.specifier === "@unframe-dev/authoring",
     ),
     assets: [],
   };

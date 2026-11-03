@@ -4,18 +4,18 @@ import {
   validateStaticComponentMetadata,
   validateStaticReactSceneItem,
   type StaticReactSceneItem,
-} from "@unframe/authoring";
+} from "@unframe-dev/authoring";
 import {
   canonicalizePresentationDefinition,
   hashCanonicalJsonPayload,
   hashPresentationDefinition,
-} from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
 import {
   validatePresentationDefinition,
   type Diagnostic,
   type PresentationDefinition,
   type ValidationResult,
-} from "@unframe/presentation";
+} from "@unframe-dev/presentation";
 import type {
   CheckedDeclarationProject,
   CompilerDeclarationProject,

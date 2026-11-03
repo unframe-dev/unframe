@@ -1,25 +1,28 @@
 import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
 import { describe, expect, it } from "vite-plus/test";
 import capabilityFixture from "../../../../contracts/presentation/fixtures/capability-profile.json";
-import { standardComponents } from "@unframe/authoring/components";
+import { standardComponents } from "@unframe-dev/authoring/components";
 import type {
   ComponentManifest,
   ComponentPackageLock,
   ComponentStructure,
   PresentationDeclaration,
   SurfaceDeclaration,
-} from "@unframe/authoring";
-import { buildOpaqueComponentManifest, validateStaticComponentMetadata } from "@unframe/authoring";
-import { buildRuntimeProjection } from "@unframe/delivery";
+} from "@unframe-dev/authoring";
+import {
+  buildOpaqueComponentManifest,
+  validateStaticComponentMetadata,
+} from "@unframe-dev/authoring";
+import { buildRuntimeProjection } from "@unframe-dev/delivery";
 import {
   canonicalizePresentationDefinition,
   hashCanonicalJsonPayload,
   hashPresentationDefinition,
-} from "@unframe/artifacts";
+} from "@unframe-dev/artifacts";
 import { compileCheckedDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
 import { compileDeclarationProject } from "../fixtures-helpers/build-pipeline.js";
-import { checkDeclarationProject } from "@unframe/build";
-import type { CompilerDeclarationProject, CompilerSourceAsset } from "@unframe/compiler";
+import { checkDeclarationProject } from "@unframe-dev/build";
+import type { CompilerDeclarationProject, CompilerSourceAsset } from "@unframe-dev/compiler";
 type StructuredProject = Omit<CompilerDeclarationProject, "presentation" | "components"> & {
   presentation: PresentationDeclaration;
   components: {
@@ -33,8 +36,8 @@ import {
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
   type RendererPlugin,
-} from "@unframe/build";
-import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
+} from "@unframe-dev/build";
+import { PNG_ABSOLUTE_LIMITS } from "@unframe-dev/media-node";
 import { checksumBytes } from "../fixtures-helpers/checksum.js";
 
 const presentation = (): PresentationDeclaration => ({
@@ -1638,12 +1641,12 @@ const checkDeclarationProjectWithFixtureBytes = (input: unknown) =>
 const compileDeclarationProjectWithFixtureBytes = (
   input: unknown,
   config: unknown,
-  cache?: import("@unframe/build").CompilerBuildCache,
+  cache?: import("@unframe-dev/build").CompilerBuildCache,
 ) => compileDeclarationProject(input, config, fixtureSourceAssetBytes(input), cache);
 const compileCheckedDeclarationProjectWithFixtureBytes = (
   input: CompilerDeclarationProject,
-  checked: import("@unframe/build").CheckedDeclarationProject,
+  checked: import("@unframe-dev/build").CheckedDeclarationProject,
   config: unknown,
-  cache?: import("@unframe/build").CompilerBuildCache,
+  cache?: import("@unframe-dev/build").CompilerBuildCache,
 ) =>
   compileCheckedDeclarationProject(input, checked, config, fixtureSourceAssetBytes(input), cache);

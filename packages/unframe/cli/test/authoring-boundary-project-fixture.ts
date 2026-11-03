@@ -1,14 +1,14 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import {
   hashDependencyGraph,
   hashLockedPackageContent,
   hashPackageLocator,
   type PackageSnapshot,
   type UnframeLock,
-} from "@unframe/workspace";
-import { lockedFile } from "@unframe/workspace-node";
+} from "@unframe-dev/workspace";
+import { lockedFile } from "@unframe-dev/workspace-node";
 import { writeStyleBoundaryProjectFixture } from "./style-boundary-project-fixture.js";
 
 export const writeAuthoringBoundaryProjectFixture = async (directory: string) => {
@@ -22,9 +22,9 @@ export const writeAuthoringBoundaryProjectFixture = async (directory: string) =>
     .map((name) => `export function ${name}<T>(value: T): T { return value; }`)
     .join("\n");
   const pkg: PackageSnapshot = {
-    key: hashPackageLocator("@unframe/authoring@1.0.0"),
-    locator: "@unframe/authoring@1.0.0",
-    name: "@unframe/authoring",
+    key: hashPackageLocator("@unframe-dev/authoring@1.0.0"),
+    locator: "@unframe-dev/authoring@1.0.0",
+    name: "@unframe-dev/authoring",
     version: "1.0.0",
     contentIntegrity: `sha256:${"0".repeat(64)}`,
     files: [lockedFile("index.ts", new TextEncoder().encode(sdkSource))],
@@ -38,7 +38,9 @@ export const writeAuthoringBoundaryProjectFixture = async (directory: string) =>
     resolutionProfile: "browser-import-production-types-v1",
     extractionProfile: "react-component-v1",
     packageManagerLockHash: `sha256:${"0".repeat(64)}`,
-    rootDependencies: [{ specifier: "@unframe/authoring", usage: "runtime", packageKey: pkg.key }],
+    rootDependencies: [
+      { specifier: "@unframe-dev/authoring", usage: "runtime", packageKey: pkg.key },
+    ],
     packages: [pkg],
     dependencyGraphHash: `sha256:${"0".repeat(64)}`,
     themeHashes: [],
@@ -54,7 +56,7 @@ export const writeAuthoringBoundaryProjectFixture = async (directory: string) =>
   await writeFile(
     join(directory, "presentation.unframe.tsx"),
     `
-import { definePresentation } from "@unframe/authoring";
+import { definePresentation } from "@unframe-dev/authoring";
 export default definePresentation({
   id: "boundary-project", metadata: { title: "Boundary" },
   stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] },

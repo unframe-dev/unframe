@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, assert, expect, it } from "vite-plus/test";
-import { acquireSourceLock } from "@unframe/workspace-node";
+import { acquireSourceLock } from "@unframe-dev/workspace-node";
 import { runPresentationCli } from "../src/index.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 

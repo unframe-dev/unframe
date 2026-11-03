@@ -12,8 +12,8 @@ Generation uses the Unity scripts workspace's ZIP library to read only selected
 entries into memory, with download and expansion limits and checksum verification:
 
 ```sh
-nix develop --command pnpm --filter @unframe/unity-scripts sync-runtime check
-nix develop --command pnpm --filter @unframe/unity-scripts sync-runtime generate
+nix develop --command pnpm --filter @unframe-dev/unity-scripts sync-runtime check
+nix develop --command pnpm --filter @unframe-dev/unity-scripts sync-runtime generate
 ```
 
 The HTTP/2 handler supports Android arm64 and provides a Linux x64 build. Editor

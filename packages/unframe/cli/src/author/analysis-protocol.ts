@@ -1,11 +1,14 @@
-import type { ProjectSnapshot, PatchRequest } from "@unframe/contracts/author-http";
-import type { discoverPresentationProjectFiles, readTypeLibraries } from "@unframe/workspace-node";
+import type { ProjectSnapshot, PatchRequest } from "@unframe-dev/contracts/author-http";
+import type {
+  discoverPresentationProjectFiles,
+  readTypeLibraries,
+} from "@unframe-dev/workspace-node";
 import type {
   assembleAuthoringProject,
   prepareLockRefresh,
   OpaqueRenderProgram,
-} from "@unframe/build";
-import type { prepareAuthorSave } from "@unframe/author-service";
+} from "@unframe-dev/build";
+import type { prepareAuthorSave } from "@unframe-dev/author-service";
 
 export type CapturedProject = Extract<
   Awaited<ReturnType<typeof discoverPresentationProjectFiles>>,

@@ -2,7 +2,7 @@ import { expect, it, vi } from "vite-plus/test";
 import type {
   PreviewPlaybackResponse,
   PreviewPlaybackCommand,
-} from "@unframe/contracts/author-http";
+} from "@unframe-dev/contracts/author-http";
 import { UnityExchangeError } from "../../infra/unity-exchange";
 import { createPlaybackController } from "../playback-controller";
 const state = (requestId: string, sequence = "1"): PreviewPlaybackResponse => ({

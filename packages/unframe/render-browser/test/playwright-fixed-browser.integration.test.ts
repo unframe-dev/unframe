@@ -8,7 +8,7 @@ import {
   createWebRendererConfigHash,
   openPlaywrightFixedBrowser,
 } from "../src/index.js";
-import type { CompilerResolvedSurfaceInput } from "@unframe/build";
+import type { CompilerResolvedSurfaceInput } from "@unframe-dev/build";
 import {
   adapterIdentity,
   config,

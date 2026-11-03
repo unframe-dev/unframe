@@ -8,8 +8,8 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 
 import { extractReactComponents } from "../src/project/extract-react-components.js";
 import { collectAuthoringDeclarations } from "../src/project/collect-authoring-declarations.js";
-import { parseAuthoringProject } from "@unframe/source";
-import { analyzeAuthoringProject } from "@unframe/source";
+import { parseAuthoringProject } from "@unframe-dev/source";
+import { analyzeAuthoringProject } from "@unframe-dev/source";
 
 const libraryDirectory = dirname(createRequire(import.meta.url).resolve("typescript"));
 const typeLibraries = readdirSync(libraryDirectory)
@@ -47,7 +47,7 @@ const analyze = (
       ...extraFiles,
     ],
     rootDependencies: [
-      { specifier: "@unframe/authoring", usage: "runtime", packageKey: hash },
+      { specifier: "@unframe-dev/authoring", usage: "runtime", packageKey: hash },
       { specifier: "react", usage: "runtime", packageKey: reactHash },
       ...(packaged
         ? [{ specifier: "ui-kit", usage: "runtime", packageKey: `sha256:${"2".repeat(64)}` }]
@@ -56,8 +56,8 @@ const analyze = (
     packages: [
       {
         key: hash,
-        locator: "@unframe/authoring@1",
-        name: "@unframe/authoring",
+        locator: "@unframe-dev/authoring@1",
+        name: "@unframe-dev/authoring",
         version: "1",
         contentIntegrity: hash,
         files: [
@@ -131,7 +131,7 @@ const analyze = (
                 },
               ],
               dependencies: [
-                { specifier: "@unframe/authoring", usage: "runtime", packageKey: hash },
+                { specifier: "@unframe-dev/authoring", usage: "runtime", packageKey: hash },
               ],
             },
           ]
@@ -159,7 +159,7 @@ const analyze = (
 };
 
 const component = `
-  import { defineComponent, editableText, prop } from "@unframe/authoring";
+  import { defineComponent, editableText, prop } from "@unframe-dev/authoring";
   const label = "Welcome ";
   const decorate = (value: string) => value;
   export const Hero = defineComponent({
@@ -246,7 +246,7 @@ it("rejects top-level effects even when render does not reference them", () => {
 
 it("lowers a component import in a presentation to its static descriptor", () => {
   const presentation = `
-    import {definePresentation} from "@unframe/authoring";
+    import {definePresentation} from "@unframe-dev/authoring";
     import {Hero} from "./Hero.component";
     export default definePresentation({id: "deck", scene: [{id: "opening", component: Hero, props: {title: "Hi"}}]});
   `;
@@ -261,7 +261,7 @@ it("lowers a component import in a presentation to its static descriptor", () =>
 
 it("extracts a locked package Component through its explicit export", () => {
   const presentation = `
-    import {definePresentation} from "@unframe/authoring";
+    import {definePresentation} from "@unframe-dev/authoring";
     import {Hero} from "ui-kit";
     export default definePresentation({id: "deck", scene: [{id: "opening", component: Hero, props: {title: "Hi"}}]});
   `;
@@ -278,7 +278,7 @@ it("extracts a locked package Component through its explicit export", () => {
 
 it("typechecks a locked package Component in the React environment", () => {
   const presentation = `
-    import {definePresentation} from "@unframe/authoring";
+    import {definePresentation} from "@unframe-dev/authoring";
     import {Hero} from "ui-kit";
     export default definePresentation({id: "deck", scene: [{id: "opening", component: Hero, props: {title: "Hi"}}]});
   `;
@@ -295,7 +295,7 @@ it("typechecks a locked package Component in the React environment", () => {
 
 it("resolves a package Component through a local named barrel", () => {
   const presentation = `
-    import {definePresentation} from "@unframe/authoring";
+    import {definePresentation} from "@unframe-dev/authoring";
     import {Hero} from "./barrel";
     export default definePresentation({id: "deck", scene: [{id: "opening", component: Hero, props: {title: "Hi"}}]});
   `;
@@ -321,7 +321,7 @@ it("keeps a referenced render helper out of static DSL validation", () => {
     'import {decorate} from "./helper";',
   );
   const presentation = `
-    import {definePresentation} from "@unframe/authoring";
+    import {definePresentation} from "@unframe-dev/authoring";
     import {Hero} from "./Hero.component";
     export default definePresentation({id: "deck", scene: [{id: "opening", component: Hero, props: {title: "Hi"}}]});
   `;
@@ -335,7 +335,7 @@ it("keeps a referenced render helper out of static DSL validation", () => {
 
 it("still rejects an unrelated project module with a top-level call", () => {
   const presentation = `
-    import {definePresentation} from "@unframe/authoring";
+    import {definePresentation} from "@unframe-dev/authoring";
     import {Hero} from "./Hero.component";
     export default definePresentation({id: "deck", scene: [{id: "opening", component: Hero, props: {title: "Hi"}}]});
   `;
@@ -358,7 +358,7 @@ it("keeps a locked CSS side-effect import in the isolated render entry", () => {
 });
 
 it("rejects a side-effect import of the public contract runtime", () => {
-  const result = extractReactComponents(analyze(`import "@unframe/authoring";\n${component}`));
+  const result = extractReactComponents(analyze(`import "@unframe-dev/authoring";\n${component}`));
   expect(result).toMatchObject({
     ok: false,
     diagnostics: [{ code: "compiler-react-render-contract-reference" }],
@@ -389,7 +389,7 @@ it("rejects a render helper that imports the contract runtime transitively", () 
       {
         fileName: "helper.ts",
         sourceText:
-          'import {defineComponent} from "@unframe/authoring"; export const decorate = (value: string) => value;',
+          'import {defineComponent} from "@unframe-dev/authoring"; export const decorate = (value: string) => value;',
       },
     ]),
   );

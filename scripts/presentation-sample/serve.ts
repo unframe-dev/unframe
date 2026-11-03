@@ -5,8 +5,8 @@ import { mkdir, open, realpath, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as pause } from "node:timers/promises";
-import { runPresentationCli, publishPresentation } from "@unframe/cli";
-import { readBuildGeneration } from "@unframe/workspace-node";
+import { runPresentationCli, publishPresentation } from "@unframe-dev/cli";
+import { readBuildGeneration } from "@unframe-dev/workspace-node";
 import { stopServices } from "./processes.ts";
 import { advertiseConnection, cleanupSample, samplePorts, sessionExpiry } from "./lifecycle.ts";
 
@@ -164,7 +164,7 @@ try {
       .join("\n"),
     { mode: 0o600 },
   );
-  const wrangler = ["--filter", "@unframe/control-plane", "exec", "wrangler"];
+  const wrangler = ["--filter", "@unframe-dev/control-plane", "exec", "wrangler"];
   await execute("pnpm", [
     ...wrangler,
     "d1",

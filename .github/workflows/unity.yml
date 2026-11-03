@@ -33,9 +33,9 @@ jobs:
           - name: Unity managed runtime dependency checksums
             run: |
               nix develop --command pnpm install --frozen-lockfile
-              nix develop --command pnpm --filter @unframe/unity-scripts check
-              nix develop --command pnpm --filter @unframe/unity-scripts test
-              nix develop --command pnpm --filter @unframe/unity-scripts sync-runtime check
+              nix develop --command pnpm --filter @unframe-dev/unity-scripts check
+              nix develop --command pnpm --filter @unframe-dev/unity-scripts test
+              nix develop --command pnpm --filter @unframe-dev/unity-scripts sync-runtime check
 
   csharp-format:
     name: MR / csharp-format

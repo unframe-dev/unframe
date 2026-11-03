@@ -2,7 +2,7 @@ import {
   runtimeAuthorityVersions,
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import type { VideoAsset } from "../assets/video-asset";
 import type { PngNode, PngPlane } from "./png-plan";
 

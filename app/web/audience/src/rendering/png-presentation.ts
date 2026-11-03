@@ -3,7 +3,7 @@ import { buildPngPlan } from "./png-plan";
 import { admitPngMemory } from "./png-memory";
 import { createSurfacePresentation, type SurfaceTextureAsset } from "./surface-presentation";
 import type { Group, Matrix4 } from "three";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 
 export function createPngPresentation(options: {
   host: { contentRoot: Group; setPresentationOrigin(value: Matrix4): void };

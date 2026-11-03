@@ -1,19 +1,19 @@
 import { fixtureSourceAssetBytes } from "./fixtures/source-asset-bytes.js";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
-import { PNG_ABSOLUTE_LIMITS } from "@unframe/media-node";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
+import { PNG_ABSOLUTE_LIMITS } from "@unframe-dev/media-node";
 import {
   SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
   type RendererPlugin,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 import {
   checkAuthoringProjectAssembly,
   computeFrozenComponentInputs,
   type DeclarationProjectAssemblyCarrier,
-} from "@unframe/build";
-import { checkAuthoringProject } from "@unframe/source";
+} from "@unframe-dev/build";
+import { checkAuthoringProject } from "@unframe-dev/source";
 import { compileAuthoringProject } from "../fixtures-helpers/build-pipeline.js";
 
 const faults = vi.hoisted(() => ({
@@ -60,7 +60,7 @@ const builders = [
   .map((name) => `export const ${name} = (...args: unknown[]) => { throw 0; };`)
   .join("\n");
 
-const entrySource = `import { definePresentation } from "@unframe/authoring";
+const entrySource = `import { definePresentation } from "@unframe-dev/authoring";
 export default definePresentation({
   id: "presentation", metadata: { title: "Pipeline" },
   stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] },
@@ -72,22 +72,22 @@ export default definePresentation({
   flow: { initialGroupId: "group", groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } } }, variables: {} }, operations: []
 });`;
 
-const themeSource = `import { defineTheme } from "@unframe/authoring";
+const themeSource = `import { defineTheme } from "@unframe-dev/authoring";
 export default defineTheme({ id: "theme", tokens: {}, namedStyles: {} });`;
 
-const extraThemeSource = `import { defineTheme } from "@unframe/authoring";
+const extraThemeSource = `import { defineTheme } from "@unframe-dev/authoring";
 export default defineTheme({ id: "theme-z", tokens: {}, namedStyles: {} });`;
 
-const manifestSource = `import { defineComponentManifest } from "@unframe/authoring";
+const manifestSource = `import { defineComponentManifest } from "@unframe-dev/authoring";
 export default defineComponentManifest({ componentId: "surface", version: 1, authoring: { mode: "structured", structure: "./surface.structure.tsx" }, props: {}, slots: {}, parts: {}, variants: {}, states: { default: { kind: "state", initial: true } }, actions: {}, outputs: {}, renderers: ["baked-web"] });`;
 
-const extraManifestSource = `import { defineComponentManifest } from "@unframe/authoring";
+const extraManifestSource = `import { defineComponentManifest } from "@unframe-dev/authoring";
 export default defineComponentManifest({ componentId: "surface-z", version: 2, authoring: { mode: "structured", structure: "./surface-z.structure.tsx" }, props: {}, slots: {}, parts: {}, variants: {}, states: { default: { kind: "state", initial: true } }, actions: {}, outputs: {}, renderers: ["baked-web"] });`;
 
 const structureSource = (
   componentId: string,
   structureId: string,
-) => `import { defineComponentStructure } from "@unframe/authoring";
+) => `import { defineComponentStructure } from "@unframe-dev/authoring";
 export default defineComponentStructure({
   id: "${structureId}", componentId: "${componentId}",
   root: {
@@ -107,16 +107,16 @@ const baseProject = (files: readonly VirtualFile[]) => ({
   files,
   rootDependencies: [
     {
-      specifier: "@unframe/authoring",
+      specifier: "@unframe-dev/authoring",
       usage: "runtime",
-      packageKey: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
+      packageKey: hashCanonicalJsonPayload(["@unframe-dev/authoring", "1"]),
     },
   ],
   packages: [
     {
-      key: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
-      locator: "@unframe/authoring@1",
-      name: "@unframe/authoring",
+      key: hashCanonicalJsonPayload(["@unframe-dev/authoring", "1"]),
+      locator: "@unframe-dev/authoring@1",
+      name: "@unframe-dev/authoring",
       version: "1",
       contentIntegrity: hashCanonicalJsonPayload(builders),
       files: [
@@ -535,5 +535,5 @@ const compileAuthoringProjectWithFixtureBytes = (
   source: unknown,
   input: unknown,
   config: unknown,
-  cache?: import("@unframe/build").CompilerBuildCache,
+  cache?: import("@unframe-dev/build").CompilerBuildCache,
 ) => compileAuthoringProject(source, input, config, fixtureSourceAssetBytes(input), cache);

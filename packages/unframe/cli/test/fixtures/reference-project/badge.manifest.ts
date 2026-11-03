@@ -1,4 +1,4 @@
-import { defineComponentManifest } from "@unframe/authoring";
+import { defineComponentManifest } from "@unframe-dev/authoring";
 export default defineComponentManifest({
   componentId: "badge-component",
   version: 1,

@@ -1,10 +1,10 @@
 import * as ts from "typescript";
 import { cssDependencies } from "../syntax/css-dependencies.js";
 import { localCssDependency } from "./css-url-policy.js";
-import type { ValidationResult } from "@unframe/presentation";
-import type { CompilerDeclarationProject } from "@unframe/compiler";
-import { parseAuthoringProject } from "@unframe/source";
-import type { ParsedLockedPackage } from "@unframe/source";
+import type { ValidationResult } from "@unframe-dev/presentation";
+import type { CompilerDeclarationProject } from "@unframe-dev/compiler";
+import { parseAuthoringProject } from "@unframe-dev/source";
+import type { ParsedLockedPackage } from "@unframe-dev/source";
 
 type OpaqueComponent = Extract<
   CompilerDeclarationProject["components"][number],
@@ -211,7 +211,7 @@ export const prepareLockedOpaqueBundleInput = (
         Object.hasOwn(browser, specifier)
       )
         throw new Error(`Reachable browser mapping is unsupported: ${owner!.name}/${specifier}`);
-      if (specifier === "@unframe/authoring")
+      if (specifier === "@unframe-dev/authoring")
         throw new Error("Public Component contract may not be bundled.");
       if (!/^(?:@[a-z0-9._-]+\/[a-z0-9._-]+|[a-z0-9._-]+)(?:\/[A-Za-z0-9._/-]+)?$/u.test(specifier))
         throw new Error(`Runtime import is not a package specifier: ${specifier}`);

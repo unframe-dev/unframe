@@ -1,7 +1,7 @@
 import type {
   CompletedSemanticTree,
   SemanticTreeDefinition,
-} from "@unframe/contracts/presentation/semantics";
+} from "@unframe-dev/contracts/presentation/semantics";
 
 import type { Diagnostic } from "../domain/model.js";
 import { materializeCompletedSemanticTree } from "../semantic-tree/materialize.js";

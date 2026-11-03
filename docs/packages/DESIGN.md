@@ -139,11 +139,11 @@ Target implementation directory は担当実装を開始する時点で追加す
 
 ### 4.1 Presentation と実行時の純粋処理
 
-`@unframe/presentation` は解決済みモデルと意味検証、`@unframe/artifacts` は成果物の整合性、`@unframe/playback` は再生状態、`@unframe/delivery` は配信計画を所有する。
+`@unframe-dev/presentation` は解決済みモデルと意味検証、`@unframe-dev/artifacts` は成果物の整合性、`@unframe-dev/playback` は再生状態、`@unframe-dev/delivery` は配信計画を所有する。
 
 ### 4.2 `packages/unframe/authoring`
 
-`@unframe/authoring` は宣言 schema、DSL、JSX と標準 Component・Theme を所有する。Source の静的解析は `@unframe/source` が担当する。
+`@unframe-dev/authoring` は宣言 schema、DSL、JSX と標準 Component・Theme を所有する。Source の静的解析は `@unframe-dev/source` が担当する。
 
 **Responsibilities**
 
@@ -168,11 +168,11 @@ Target implementation directory は担当実装を開始する時点で追加す
 - Control Plane persistence
 - Runtime progression evaluation
 
-このパッケージは `@unframe/presentation` の型と Zod に依存する。Compiler や Local Editor へ逆依存しない。
+このパッケージは `@unframe-dev/presentation` の型と Zod に依存する。Compiler や Local Editor へ逆依存しない。
 
 ### 4.3 標準 Component
 
-`@unframe/authoring/components` は標準 Surface の Manifest・構造と標準 Theme を公開する。
+`@unframe-dev/authoring/components` は標準 Surface の Manifest・構造と標準 Theme を公開する。
 
 ### 4.4 `packages/unframe/renderer-api`
 
@@ -253,9 +253,9 @@ OS toolやcodec依存はこのモジュールかそのadapterに閉じ込め、`
 
 ### 4.7 Source と Compiler
 
-`@unframe/source` は固定 Source の静的解析、宣言と位置情報、前提付き編集 patch を所有する。TypeScript の標準ライブラリを含む解析入力は呼び出し側が固定する。
+`@unframe-dev/source` は固定 Source の静的解析、宣言と位置情報、前提付き編集 patch を所有する。TypeScript の標準ライブラリを含む解析入力は呼び出し側が固定する。
 
-`@unframe/compiler` は宣言と素材情報から Presentation を解決し、Render Plan と Media Plan を生成する。描画、素材変換、成果物の生成は呼び出し側が担当する。
+`@unframe-dev/compiler` は宣言と素材情報から Presentation を解決し、Render Plan と Media Plan を生成する。描画、素材変換、成果物の生成は呼び出し側が担当する。
 
 ### 4.8 `packages/unframe/cli`
 
@@ -433,7 +433,7 @@ presentation/
 
 - `.unframe/cache/` は再生成可能な build cache である。`.unframe/authoring/` の receipt / journal は保存・回復状態であり、cache と同じ規則で削除しない。
 - `dist/` は Build の成果物であり Authoring Source ではない。
-- `unframe.lock` の schemaVersion は 1 であり、読込と検証は `@unframe/workspace` が所有し、CLI が利用する。
+- `unframe.lock` の schemaVersion は 1 であり、読込と検証は `@unframe-dev/workspace` が所有し、CLI が利用する。
 - reference projectはproduction用の隠れたdefault contractにせず、公開fixtureとして検証する。
 
 ## 10. Documentation hierarchy

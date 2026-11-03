@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { AuthorDiagnostic } from "@unframe/contracts/author-http";
-import type { AuthorBuildExecutionResult } from "@unframe/build";
+import type { AuthorDiagnostic } from "@unframe-dev/contracts/author-http";
+import type { AuthorBuildExecutionResult } from "@unframe-dev/build";
 import type { PresentationCliResult } from "../application/types.js";
 const diagnostic = (
   code: string,

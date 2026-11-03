@@ -1,10 +1,10 @@
 import { buildResidencyPlan, type DeliveryResidencyPlan } from "./residency.js";
-import type { PresentationDefinition } from "@unframe/contracts/presentation/definition";
-import type { RenderBundle } from "@unframe/contracts/presentation/render-bundle";
+import type { PresentationDefinition } from "@unframe-dev/contracts/presentation/definition";
+import type { RenderBundle } from "@unframe-dev/contracts/presentation/render-bundle";
 import type {
   ProjectionProfileDescriptorWire,
   ProjectedRuntimeCatalogWire,
-} from "@unframe/contracts/presentation/wire-types";
+} from "@unframe-dev/contracts/presentation/wire-types";
 import { calculateProjectionProfileId } from "./profile-identity.js";
 import { selectDeliveryArtifactsParsed, type DeliverySelection } from "./selection.js";
 import { parseDeliveryInputs, parseBuildInputs } from "./input.js";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
-import { validatePresentationDefinition } from "@unframe/presentation";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 
 type JsonRecord = Record<string, any>;
 

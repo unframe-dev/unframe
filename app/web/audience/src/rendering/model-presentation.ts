@@ -18,7 +18,7 @@ import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
   type ParticipantRuntimeView,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { loadModelAsset } from "../assets/model-asset";
 import { buildModelPlan, buildResidentModelAssets, type ModelPlan } from "./model-plan";
 type Loaded = Awaited<ReturnType<typeof loadModelAsset>>;

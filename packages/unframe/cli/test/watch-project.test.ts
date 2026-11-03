@@ -2,7 +2,7 @@ import { mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vite-plus/test";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
 import type { PresentationCliResult } from "../src/application/types.js";
 
@@ -22,7 +22,7 @@ describe("watchPresentationProject", () => {
     await writeFile(
       join(directory, "presentation.unframe.tsx"),
       `
-      import { definePresentation } from "@unframe/authoring";
+      import { definePresentation } from "@unframe-dev/authoring";
       export default definePresentation({
         id: "watch", metadata: { title: "Watch" },
         stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] },

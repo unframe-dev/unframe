@@ -1,5 +1,5 @@
 import { expect, it } from "vite-plus/test";
-import type { DeliveryManifestWire } from "@unframe/contracts/presentation";
+import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import {
   assertViewerDelivery,

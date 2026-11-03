@@ -4,14 +4,14 @@ import {
   sessionResourceSchema,
   realtimeConnectionSchema,
   viewerCredentialSchema,
-} from "@unframe/contracts/control-plane-http";
+} from "@unframe-dev/contracts/control-plane-http";
 import { createRoute, z } from "@hono/zod-openapi";
 import { requireJsonContentType } from "./json-body";
 import {
   storageSegmentIdSchema,
   publicationFenceSchema,
   publishedPresentationSchema,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import { assetInitInputSchema, assetMediaTypeSchema } from "./modules/assets/schema";
 import {
   checkpointInputSchema,

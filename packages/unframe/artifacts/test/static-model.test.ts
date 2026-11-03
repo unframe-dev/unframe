@@ -1,4 +1,4 @@
-import type { PresentationDefinition, RenderBundle } from "@unframe/contracts/presentation";
+import type { PresentationDefinition, RenderBundle } from "@unframe-dev/contracts/presentation";
 import { describe, expect, it } from "vite-plus/test";
 
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
@@ -9,8 +9,8 @@ import {
   hashPresentationDefinition,
   validatePresentationArtifacts,
   validateRenderBundle,
-} from "@unframe/artifacts";
-import { validatePresentationDefinition } from "@unframe/presentation";
+} from "@unframe-dev/artifacts";
+import { validatePresentationDefinition } from "@unframe-dev/presentation";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 const makeStaticModelArtifacts = () => {

@@ -1,4 +1,4 @@
-import { sessionJoinCodeSchema } from "@unframe/contracts/control-plane-http";
+import { sessionJoinCodeSchema } from "@unframe-dev/contracts/control-plane-http";
 
 export function readSharedJoinCode(fragment: string): string | null {
   const codes = new URLSearchParams(fragment.slice(1)).getAll("join");

@@ -1,5 +1,5 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import { publicationFenceSchema } from "@unframe/contracts/presentation";
+import { publicationFenceSchema } from "@unframe-dev/contracts/presentation";
 import type { z } from "zod";
 import {
   and,

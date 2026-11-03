@@ -197,7 +197,7 @@ describe("model runtime clock", () => {
     });
     return {
       presentation,
-      view: view as unknown as import("@unframe/contracts/presentation").ParticipantRuntimeView,
+      view: view as unknown as import("@unframe-dev/contracts/presentation").ParticipantRuntimeView,
     };
   }
   it("samples from reference position and applies speed only to elapsed time", async () => {

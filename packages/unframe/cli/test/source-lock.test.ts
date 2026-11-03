@@ -4,8 +4,8 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, assert, expect, it } from "vite-plus/test";
 import { runPresentationCli } from "../src/index.js";
-import { acquireSourceLock } from "@unframe/workspace-node";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
+import { acquireSourceLock } from "@unframe-dev/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 const directories: string[] = [];
 afterEach(async () => {
   await Promise.all(

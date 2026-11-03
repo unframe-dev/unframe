@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { identifyNodeTransformSnapshot } from "@unframe/workspace";
+import { identifyNodeTransformSnapshot } from "@unframe-dev/workspace";
 import { snapshotNodeTransformInputs } from "../src/node-snapshot.js";
 
 const adapterRoot = fileURLToPath(new URL("../", import.meta.url));

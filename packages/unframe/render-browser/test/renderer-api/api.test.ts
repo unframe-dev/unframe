@@ -14,7 +14,7 @@ import {
   type RendererCapabilities,
   type RendererConformanceFixture,
   type RendererPlugin,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 
 const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => {
   if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");

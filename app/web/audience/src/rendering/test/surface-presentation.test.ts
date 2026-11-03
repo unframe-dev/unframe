@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vite-plus/test";
 import { Group, Mesh, ShaderMaterial, SRGBColorSpace, Texture } from "three";
-import { participantRuntimeViewSchema } from "@unframe/contracts/presentation";
+import { participantRuntimeViewSchema } from "@unframe-dev/contracts/presentation";
 import runtimeFixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 import { createSurfacePresentation, type SurfacePlan } from "../surface-presentation";
 

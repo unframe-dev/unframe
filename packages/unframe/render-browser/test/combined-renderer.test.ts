@@ -3,7 +3,7 @@ import {
   createRendererFingerprint,
   evaluateRendererSupport,
   type RendererPlugin,
-} from "@unframe/build";
+} from "@unframe-dev/build";
 import { inputFor } from "./fixtures/static-renderer.js";
 import { combineBakedWebRenderers } from "../src/rendering/combined-renderer.js";
 

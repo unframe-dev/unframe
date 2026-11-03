@@ -3,7 +3,7 @@ import type {
   ControlServerItemWire,
   DeliveryManifestWire,
   ProjectedReliableEventWire_payload,
-} from "@unframe/contracts/presentation";
+} from "@unframe-dev/contracts/presentation";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 
 export interface FixtureScenario {

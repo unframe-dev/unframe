@@ -1,6 +1,6 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { StylePreparationPort } from "@unframe/build";
+import type { StylePreparationPort } from "@unframe-dev/build";
 import { snapshotNodeTransformInputs, withNodeTransformSources } from "./node-snapshot.js";
 import { runStyleWorker } from "./run-style-worker.js";
 import { compileStylesResultSchema } from "./schemas.js";
@@ -10,7 +10,7 @@ export const createNodeStylePreparationPort = (): StylePreparationPort => ({
     snapshotNodeTransformInputs(projectRoot, {
       sourceFiles,
       adapterRoot: dirname(
-        dirname(fileURLToPath(import.meta.resolve("@unframe/styles-node/compiler"))),
+        dirname(fileURLToPath(import.meta.resolve("@unframe-dev/styles-node/compiler"))),
       ),
       adapterSubpath: "./compiler",
       adapterDependencySnapshot: "dist/adapter-dependencies.json.gz",

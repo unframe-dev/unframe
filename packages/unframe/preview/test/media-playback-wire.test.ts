@@ -4,11 +4,11 @@ import {
   renderBundleSchema,
   encodeWireMessage,
   decodeWireMessage,
-} from "@unframe/contracts/presentation";
-import { createCueState, executeCueEvent, advanceCueClock } from "@unframe/playback";
+} from "@unframe-dev/contracts/presentation";
+import { createCueState, executeCueEvent, advanceCueClock } from "@unframe-dev/playback";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
-import { projectPlaybackWire } from "@unframe/preview";
+import { projectPlaybackWire } from "@unframe-dev/preview";
 
 describe("Preview canonical playback wire", () => {
   it("roundtrips Model and Media clocks using the Realtime message types", () => {

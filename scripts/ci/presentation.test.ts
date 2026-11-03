@@ -83,8 +83,8 @@ test("reference gate prepares the project, builds twice, and validates delivery 
   assert.equal(result.status, 0, result.stderr);
   const log = readFileSync(f.log, "utf8");
   assert.match(log, /prepare/);
-  assert.match(log, /@unframe\/cli run presentation check/);
-  assert.equal((log.match(/@unframe\/cli run presentation build/g) ?? []).length, 2);
+  assert.match(log, /@unframe-dev\/cli run presentation check/);
+  assert.equal((log.match(/@unframe-dev\/cli run presentation build/g) ?? []).length, 2);
   assert.match(log, /wire .*generate-valid-delivery.ts validate/);
 });
 for (const variant of ["missing-png", "changed", "invalid-wire"])
@@ -109,7 +109,7 @@ test("package suites cover every package check exactly once without Browser acce
     assert.equal(result.status, 0, result.stderr);
     const log = readFileSync(f.log, "utf8");
     actual.push(
-      ...Array.from(log.matchAll(/--filter (@unframe\/[^ ]+) run check/g), (match) => match[1]),
+      ...Array.from(log.matchAll(/--filter (@unframe-dev\/[^ ]+) run check/g), (match) => match[1]),
     );
     assert.doesNotMatch(log, /presentation build|test:packed/);
   }
@@ -127,8 +127,8 @@ test("acceptance suite prepares distribution builds before packed and Browser ac
   assert.equal(result.status, 0, result.stderr);
   const log = readFileSync(f.log, "utf8");
   assert.match(log, /--workspace-concurrency=1 --filter .*packages\/unframe.* run build/);
-  assert.match(log, /@unframe\/package-checks test:packed/);
-  assert.equal((log.match(/@unframe\/cli run presentation build/g) ?? []).length, 2);
+  assert.match(log, /@unframe-dev\/package-checks test:packed/);
+  assert.equal((log.match(/@unframe-dev\/cli run presentation build/g) ?? []).length, 2);
 });
 
 test("acceptance stops when distribution preparation fails", () => {

@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/source",
+  "name": "@unframe-dev/source",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -27,14 +27,14 @@
   "dependencies": {
     "@noble/hashes": "2.4.0",
     "@types/react": "19.3.0",
-    "@unframe/authoring": "workspace:*",
-    "@unframe/presentation": "workspace:*",
+    "@unframe-dev/authoring": "workspace:*",
+    "@unframe-dev/presentation": "workspace:*",
     "typescript": "6.0.3",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "@unframe/artifacts": "workspace:*",
+    "@unframe-dev/artifacts": "workspace:*",
     "vite-plus": "catalog:"
   }
 }

@@ -6,7 +6,7 @@ import { createAuthorService } from "../src/author/service.js";
 import { startAuthorHost } from "../src/author/http.js";
 import { createLocalPreviewService } from "../src/author/local-preview.js";
 import { loadAuthorAssets, loadUnityPreviewAssets } from "../src/author/start.js";
-import { editorAssetsDirectory, unityPreviewDirectory } from "@unframe/local-editor";
+import { editorAssetsDirectory, unityPreviewDirectory } from "@unframe-dev/local-editor";
 const directory =
   process.env["UNFRAME_WEBGL_FIXTURE"] === "media"
     ? await createMediaProjectFixture()

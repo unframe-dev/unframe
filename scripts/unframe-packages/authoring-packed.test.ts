@@ -16,7 +16,7 @@ test("packed authoring APIs and types work without the workspace source", async 
     for (const name of ["authoring", "presentation"]) {
       const source = resolve(root, "packages/unframe", name);
       const pkg = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
-      const target = join(directory, "node_modules/@unframe", name);
+      const target = join(directory, "node_modules/@unframe-dev", name);
       await mkdir(target, { recursive: true });
       await cp(join(source, "dist"), join(target, "dist"), { recursive: true });
       await writeFile(
@@ -45,10 +45,10 @@ test("packed authoring APIs and types work without the workspace source", async 
       join(directory, "consumer.mjs"),
       `
 import assert from "node:assert/strict";
-import { defineTheme } from "@unframe/authoring";
-import { standardComponents, standardTheme } from "@unframe/authoring/components";
-import { jsx } from "@unframe/authoring/jsx-runtime";
-import { jsxDEV } from "@unframe/authoring/jsx-dev-runtime";
+import { defineTheme } from "@unframe-dev/authoring";
+import { standardComponents, standardTheme } from "@unframe-dev/authoring/components";
+import { jsx } from "@unframe-dev/authoring/jsx-runtime";
+import { jsxDEV } from "@unframe-dev/authoring/jsx-dev-runtime";
 assert.equal(typeof defineTheme, "function");
 assert.equal(standardComponents.theme, standardTheme);
 assert.equal(typeof jsx, "function");
@@ -58,9 +58,9 @@ assert.equal(typeof jsxDEV, "function");
     await writeFile(
       join(directory, "consumer.mts"),
       `
-import { defineTheme } from "@unframe/authoring";
-import { standardTheme } from "@unframe/authoring/components";
-import { jsx } from "@unframe/authoring/jsx-runtime";
+import { defineTheme } from "@unframe-dev/authoring";
+import { standardTheme } from "@unframe-dev/authoring/components";
+import { jsx } from "@unframe-dev/authoring/jsx-runtime";
 const theme: typeof standardTheme = defineTheme(standardTheme);
 void [theme, jsx];
 `,

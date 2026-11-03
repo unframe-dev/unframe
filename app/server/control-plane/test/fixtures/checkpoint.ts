@@ -1,4 +1,4 @@
-import { encodeWireMessage } from "@unframe/contracts/presentation";
+import { encodeWireMessage } from "@unframe-dev/contracts/presentation";
 
 export async function checkpointEnvelope(sessionId = "session", reliableSequence = "5") {
   const progression = {

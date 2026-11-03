@@ -1,4 +1,4 @@
-import type { AuthorInstance } from "@unframe/contracts/author-http";
+import type { AuthorInstance } from "@unframe-dev/contracts/author-http";
 import { useStore } from "zustand";
 import { useWorkspace } from "../app/workspace-provider";
 import { Button } from "../ui/button";

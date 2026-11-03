@@ -1,5 +1,5 @@
 {
-  "name": "@unframe/authoring",
+  "name": "@unframe-dev/authoring",
   "version": "0.0.1",
   "private": false,
   "files": [
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@types/react": "19.3.0",
-    "@unframe/presentation": "workspace:*",
+    "@unframe-dev/presentation": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {

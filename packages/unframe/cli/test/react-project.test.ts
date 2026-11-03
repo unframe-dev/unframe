@@ -1,5 +1,5 @@
 import { gunzipSync } from "node:zlib";
-import { OpaquePreparationFailure } from "@unframe/build";
+import { OpaquePreparationFailure } from "@unframe-dev/build";
 import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { prepareReactProjectFixture } from "./react-project-fixture.js";
 import { copyProjectFixture } from "./copy-project-fixture.js";
@@ -9,21 +9,21 @@ import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:f
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vite-plus/test";
-import { canonicalizeJsonPayload } from "@unframe/artifacts";
-import { checkAuthoringProjectAssembly } from "@unframe/build";
+import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
+import { checkAuthoringProjectAssembly } from "@unframe-dev/build";
 import { runPresentationCli } from "../src/index.js";
 import * as opaquePreparation from "../src/application/opaque-renderer.js";
-import * as generationReader from "@unframe/workspace-node";
-import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { prepareProjectSource } from "@unframe/workspace-node";
-import { loadUnframeLock } from "@unframe/workspace";
-import { refreshLocalProjectLock } from "@unframe/workspace-node";
+import * as generationReader from "@unframe-dev/workspace-node";
+import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { prepareProjectSource } from "@unframe-dev/workspace-node";
+import { loadUnframeLock } from "@unframe-dev/workspace";
+import { refreshLocalProjectLock } from "@unframe-dev/workspace-node";
 import {
   hashDependencyGraph,
   hashLockedPackageContent,
   hashPackageLocator,
-} from "@unframe/workspace";
-import { lockedFile } from "@unframe/workspace-node";
+} from "@unframe-dev/workspace";
+import { lockedFile } from "@unframe-dev/workspace-node";
 import { clearSourceAssetRegistration, sourceAssetBytesFor } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
@@ -42,7 +42,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));
 });
-const component = `import {defineComponent, editableText, prop} from "@unframe/authoring";
+const component = `import {defineComponent, editableText, prop} from "@unframe-dev/authoring";
 export const Hero = defineComponent({
   id: "hero", version: 1,
   props: {title: editableText({required: true})},
@@ -84,7 +84,7 @@ const createProject = async () => {
       name === "reference-locks.ts"
     )
       await rm(join(directory, name));
-  const source = `import {definePresentation} from "@unframe/authoring";
+  const source = `import {definePresentation} from "@unframe-dev/authoring";
 import {Hero} from "./Hero.component";
 const base = ${JSON.stringify(presentation)};
 export default definePresentation({...base, scene: [{
@@ -110,7 +110,7 @@ describe("React frozen CLI path", () => {
     const loaded = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
     assert(loaded.ok);
     const sdk = loaded.value.lock.rootDependencies.find(
-      (edge) => edge.specifier === "@unframe/authoring",
+      (edge) => edge.specifier === "@unframe-dev/authoring",
     );
     assert(sdk);
     const file = lockedFile(
@@ -316,7 +316,7 @@ describe("React frozen CLI path", () => {
     const lockPath = join(directory, "unframe.lock");
     const old = loadUnframeLock(await readFile(lockPath));
     assert(old.ok);
-    const sdk = old.value.lock.packages.find((pkg) => pkg.name === "@unframe/authoring");
+    const sdk = old.value.lock.packages.find((pkg) => pkg.name === "@unframe-dev/authoring");
     assert(sdk);
     const staging = await mkdtemp(join(temporaryDirectory(), "unframe-sdk-"));
     temporary.push(staging);
@@ -371,7 +371,7 @@ describe("React frozen CLI path", () => {
     expect(checked.stderr).toBe("");
     expect(checked.exitCode).toBe(0);
     await expect(
-      readFile(join(directory, "node_modules/@unframe/authoring/script-executed")),
+      readFile(join(directory, "node_modules/@unframe-dev/authoring/script-executed")),
     ).rejects.toThrow();
   }, 30000);
   it("keeps v1 bytes when explicit recreation lacks package inputs", async () => {

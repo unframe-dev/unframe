@@ -1,6 +1,6 @@
-import type { PresentationDefinition } from "@unframe/contracts/presentation/definition";
+import type { PresentationDefinition } from "@unframe-dev/contracts/presentation/definition";
 
-import { canonicalizeQuaternion } from "@unframe/presentation/validation";
+import { canonicalizeQuaternion } from "@unframe-dev/presentation/validation";
 
 type Timeline = PresentationDefinition["flow"]["timelines"][string];
 type Track = Timeline["tracks"][number];

@@ -7,15 +7,15 @@ export default defineConfig({
     dts: { eager: true },
     deps: {
       alwaysBundle: [
-        /^@unframe\/(?!build$|workspace$|artifacts$)/,
+        /^@unframe-dev\/(?!build$|workspace$|artifacts$)/,
         /^@noble\/hashes(?:\/|$)/,
         "canonicalize",
         "jsonc-parser",
       ],
       neverBundle: [
-        "@unframe/build",
-        "@unframe/workspace",
-        "@unframe/artifacts",
+        "@unframe-dev/build",
+        "@unframe-dev/workspace",
+        "@unframe-dev/artifacts",
         /^zod(?:\/|$)/,
         "typescript",
         "react",
@@ -23,9 +23,9 @@ export default defineConfig({
       onlyBundle: false,
       onlyImport: [
         /^node:/,
-        "@unframe/build",
-        "@unframe/workspace",
-        "@unframe/artifacts",
+        "@unframe-dev/build",
+        "@unframe-dev/workspace",
+        "@unframe-dev/artifacts",
         "zod",
         "typescript",
         "react",

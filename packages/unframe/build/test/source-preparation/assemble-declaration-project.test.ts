@@ -1,22 +1,22 @@
 import { fixtureSourceAssetBytes } from "../compiler-build/fixtures/source-asset-bytes.js";
 import { describe, expect, it } from "vite-plus/test";
-import { standardComponents } from "@unframe/authoring/components";
-import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import { standardComponents } from "@unframe-dev/authoring/components";
+import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import type {
   ComponentManifest,
   ComponentStructure,
   PresentationDeclaration,
-} from "@unframe/authoring";
+} from "@unframe-dev/authoring";
 import {
   hashComponentManifestDeclaration,
   hashComponentStructureDeclaration,
   hashThemeDeclaration,
-} from "@unframe/compiler";
+} from "@unframe-dev/compiler";
 import {
   assembleDeclarationProject,
   type DeclarationProjectAssemblyInput,
 } from "../../src/source-preparation/index.js";
-import { checkAuthoringProject, type PairedAuthoringDeclarationCatalog } from "@unframe/source";
+import { checkAuthoringProject, type PairedAuthoringDeclarationCatalog } from "@unframe-dev/source";
 
 const referenceFont = {
   id: "reference-font",
@@ -679,7 +679,7 @@ describe("assembleDeclarationProject", () => {
       files: [
         {
           fileName: "entry.ts",
-          sourceText: `import { definePresentation } from "@unframe/authoring";
+          sourceText: `import { definePresentation } from "@unframe-dev/authoring";
 export default definePresentation({
   id: "presentation", metadata: { title: "Presentation" },
   stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] },
@@ -693,17 +693,17 @@ export default definePresentation({
         },
         {
           fileName: "theme.unframe.ts",
-          sourceText: `import { defineTheme } from "@unframe/authoring";
+          sourceText: `import { defineTheme } from "@unframe-dev/authoring";
 export default defineTheme({ id: "theme", tokens: {}, namedStyles: {} });`,
         },
         {
           fileName: "surface.manifest.ts",
-          sourceText: `import { defineComponentManifest } from "@unframe/authoring";
+          sourceText: `import { defineComponentManifest } from "@unframe-dev/authoring";
 export default defineComponentManifest({ componentId: "surface", version: 1, authoring: { mode: "structured", structure: "./surface.structure.tsx" }, props: {}, slots: {}, parts: {}, variants: {}, states: { default: { kind: "state", initial: true } }, actions: {}, outputs: {}, renderers: ["baked-web"] });`,
         },
         {
           fileName: "surface.structure.tsx",
-          sourceText: `import { defineComponentStructure } from "@unframe/authoring";
+          sourceText: `import { defineComponentStructure } from "@unframe-dev/authoring";
 export default defineComponentStructure({
   id: "surface-structure", componentId: "surface",
   root: {
@@ -718,16 +718,16 @@ export default defineComponentStructure({
       ],
       rootDependencies: [
         {
-          specifier: "@unframe/authoring",
+          specifier: "@unframe-dev/authoring",
           usage: "runtime",
-          packageKey: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
+          packageKey: hashCanonicalJsonPayload(["@unframe-dev/authoring", "1"]),
         },
       ],
       packages: [
         {
-          key: hashCanonicalJsonPayload(["@unframe/authoring", "1"]),
-          locator: "@unframe/authoring@1",
-          name: "@unframe/authoring",
+          key: hashCanonicalJsonPayload(["@unframe-dev/authoring", "1"]),
+          locator: "@unframe-dev/authoring@1",
+          name: "@unframe-dev/authoring",
           version: "1",
           contentIntegrity: hashCanonicalJsonPayload(builders),
           files: [

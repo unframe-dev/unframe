@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { evaluateTimelineTrack } from "@unframe/playback";
-import type { PresentationDefinition } from "@unframe/contracts/presentation";
+import { evaluateTimelineTrack } from "@unframe-dev/playback";
+import type { PresentationDefinition } from "@unframe-dev/contracts/presentation";
 
 type Track = PresentationDefinition["flow"]["timelines"][string]["tracks"][number];
 
