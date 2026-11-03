@@ -5,7 +5,7 @@ import {
   validateNodeTransformSnapshot,
 } from "@unframe-dev/workspace";
 import { lstat, mkdir, readdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, matchesGlob, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, matchesGlob, posix, relative, resolve, sep } from "node:path";
 import { parseAllDocuments } from "yaml";
 
 import {
@@ -62,8 +62,12 @@ const collectFiles = async (root: string): Promise<NodeSnapshotFile[]> => {
 };
 const workspaceMember = (patterns: readonly string[], key: string) =>
   key === "." ||
-  (patterns.some((pattern) => !pattern.startsWith("!") && matchesGlob(key, pattern)) &&
-    !patterns.some((pattern) => pattern.startsWith("!") && matchesGlob(key, pattern.slice(1))));
+  (patterns.some(
+    (pattern) => !pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern)),
+  ) &&
+    !patterns.some(
+      (pattern) => pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern.slice(1))),
+    ));
 const yamlFile = async (path: string, lockStream = false) => {
   const stat = await lstat(path).catch((error: NodeJS.ErrnoException) => {
     if (error.code === "ENOENT") return undefined;
@@ -124,6 +128,31 @@ const readAdapterLock = async (directory: string) => {
   const root = installedRoot ?? (await readLock(directory, true)).root;
   return { root, lock, importer, workspacePatterns: undefined };
 };
+export const snapshotNodeRuntime = async (
+  requestedNodePath?: string,
+): Promise<NodeTransformSnapshot["runtime"]> => {
+  const nodePath = await realpath(
+    requestedNodePath ?? process.env.UNFRAME_STYLE_NODE ?? process.execPath,
+  );
+  const runtime = probeNodeRuntime(nodePath);
+  const closure = process.env.UNFRAME_STYLE_RUNTIME_CLOSURE
+    ? (await readFile(process.env.UNFRAME_STYLE_RUNTIME_CLOSURE, "utf8")).trim().split(/\s+/).sort()
+    : [];
+  return {
+    nodePath,
+    nodeHash: digest(await readFile(nodePath)),
+    ...runtime,
+    mode: "production",
+    closure,
+    environment:
+      runtime.platform === "linux"
+        ? {
+            ...(process.env.NIX_LD ? { NIX_LD: await realpath(process.env.NIX_LD) } : {}),
+            NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
+          }
+        : {},
+  };
+};
 export const snapshotNodeTransformInputs = async (
   projectRoot: string,
   options: {
@@ -136,10 +165,7 @@ export const snapshotNodeTransformInputs = async (
   } = {},
 ): Promise<NodeTransformSnapshot> => {
   const root = await realpath(projectRoot);
-  const nodePath = await realpath(
-    options.nodePath ?? process.env.UNFRAME_STYLE_NODE ?? process.execPath,
-  );
-  const runtimeData = probeNodeRuntime(nodePath);
+  const runtime = await snapshotNodeRuntime(options.nodePath);
   const packages: {
     id: string;
     locator: string;
@@ -148,16 +174,38 @@ export const snapshotNodeTransformInputs = async (
     dependencies: Record<string, string>;
   }[] = [];
   const seen = new Map<string, string>();
+  type DependencyInput = { version: string; from: string; linkBase: string; optional: boolean };
+  const importerDependencies = (
+    importer: Awaited<ReturnType<typeof readLock>>["importer"],
+    directory: string,
+  ) =>
+    new Map(
+      Object.entries({
+        ...importer.dependencies,
+        ...importer.devDependencies,
+        ...importer.optionalDependencies,
+      }).map(([name, entry]) => [
+        name,
+        {
+          version: entry.version,
+          from: directory,
+          linkBase: directory,
+          optional: Object.hasOwn(importer.optionalDependencies, name),
+        },
+      ]),
+    );
   const visit = async (
     name: string,
     version: string,
     from: string,
     context: Awaited<ReturnType<typeof readLock>>,
     optional = false,
+    consumer: ReadonlyMap<string, DependencyInput> = importerDependencies(context.importer, from),
+    linkBase = from,
   ): Promise<string | undefined> => {
     const snapshots = context.lock.snapshots;
     const workspace = version.startsWith("link:");
-    const workspaceRoot = workspace ? resolve(from, version.slice(5)) : undefined;
+    const workspaceRoot = workspace ? resolve(linkBase, version.slice(5)) : undefined;
     const workspaceKey = workspaceRoot
       ? relative(context.root, workspaceRoot).split(sep).join("/") || "."
       : undefined;
@@ -170,7 +218,7 @@ export const snapshotNodeTransformInputs = async (
         !context.lock.importers[workspaceKey!])
     )
       throw new Error("Node linked dependency must be a declared workspace importer");
-    const locator = workspace
+    let locator = workspace
       ? `${name}@workspace:${workspaceKey}`
       : Object.hasOwn(snapshots, `${name}@${version}`)
         ? `${name}@${version}`
@@ -222,10 +270,10 @@ export const snapshotNodeTransformInputs = async (
       throw new Error(`Installed package does not match pnpm locator: ${locator}`);
     const compatible = [manifest, ...(packageRecord ? [packageRecord] : [])].every(
       (metadata) =>
-        supportsPlatform(metadata.os, runtimeData.platform) &&
-        supportsPlatform(metadata.cpu, runtimeData.arch) &&
-        (runtimeData.platform !== "linux" ||
-          supportsPlatform(metadata.libc, runtimeData.libc === "non-glibc" ? "musl" : "glibc")),
+        supportsPlatform(metadata.os, runtime.platform) &&
+        supportsPlatform(metadata.cpu, runtime.arch) &&
+        (runtime.platform !== "linux" ||
+          supportsPlatform(metadata.libc, runtime.libc === "non-glibc" ? "musl" : "glibc")),
     );
     if (!compatible) {
       if (optional) return undefined;
@@ -236,6 +284,54 @@ export const snapshotNodeTransformInputs = async (
       ? `sha256-${createHash("sha256").update(JSON.stringify(files)).digest("base64")}`
       : packageRecord?.resolution.integrity;
     if (!integrity) throw new Error("Node package archive integrity is missing");
+    const linked = workspace ? context.lock.importers[workspaceKey!] : undefined;
+    const locked = snapshots[locator];
+    const own = workspace
+      ? importerDependencies(linked!, packageRoot)
+      : new Map<string, DependencyInput>();
+    const edges = workspace
+      ? new Map(
+          [...own].filter(
+            ([dependency]) =>
+              Object.hasOwn(linked!.dependencies, dependency) ||
+              Object.hasOwn(linked!.optionalDependencies, dependency),
+          ),
+        )
+      : new Map(
+          Object.entries({ ...locked!.dependencies, ...locked!.optionalDependencies }).map(
+            ([dependency, version]) => [
+              dependency,
+              {
+                version,
+                from: packageRoot,
+                linkBase: context.root,
+                optional: Object.hasOwn(locked!.optionalDependencies, dependency),
+              },
+            ],
+          ),
+        );
+    if (workspace) {
+      const peers = Object.keys(manifest.peerDependencies ?? {}).sort();
+      for (const peer of peers) {
+        const input = consumer.get(peer) ?? own.get(peer);
+        if (input) edges.set(peer, input);
+      }
+      locator += peers
+        .filter((peer) => edges.has(peer))
+        .map((peer) => {
+          const input = edges.get(peer)!;
+          const identity = input.version.startsWith("link:")
+            ? `workspace:${
+                relative(context.root, resolve(input.linkBase, input.version.slice(5)))
+                  .split(sep)
+                  .join("/") || "."
+              }`
+            : input.version;
+          return `(${peer}@${identity})`;
+        })
+        .join("");
+      pnpmLocatorSchema.parse(locator);
+    }
     const key = `${context.root}\0${locator}\0${packageRoot}`;
     const previous = seen.get(key);
     if (previous) return previous;
@@ -249,32 +345,15 @@ export const snapshotNodeTransformInputs = async (
       dependencies: Object.create(null) as Record<string, string>,
     };
     packages.push(item);
-    const linked = workspace ? context.lock.importers[workspaceKey!] : undefined;
-    const locked = snapshots[locator];
-    const peers = manifest.peerDependencies;
-    const peerEntries =
-      workspace && peers && typeof peers === "object"
-        ? Object.entries(linked!.devDependencies).filter(([name]) => Object.hasOwn(peers, name))
-        : [];
-    const edges = workspace
-      ? {
-          ...Object.fromEntries(peerEntries),
-          ...linked!.dependencies,
-          ...linked!.optionalDependencies,
-        }
-      : { ...locked!.dependencies, ...locked!.optionalDependencies };
-    for (const dependency of Object.keys(edges).sort()) {
+    for (const [dependency, input] of [...edges].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
       const child = await visit(
         dependency,
-        workspace
-          ? (edges[dependency] as { version: string }).version
-          : (edges[dependency] as string),
-        packageRoot,
+        input.version,
+        input.from,
         context,
-        Object.hasOwn(
-          workspace ? linked!.optionalDependencies : locked!.optionalDependencies,
-          dependency,
-        ),
+        input.optional,
+        edges,
+        input.linkBase,
       );
       if (child) item.dependencies[dependency] = child;
     }
@@ -388,25 +467,9 @@ export const snapshotNodeTransformInputs = async (
     }
     adapter = { packageId, entry };
   }
-  const closure = process.env.UNFRAME_STYLE_RUNTIME_CLOSURE
-    ? (await readFile(process.env.UNFRAME_STYLE_RUNTIME_CLOSURE, "utf8")).trim().split(/\s+/).sort()
-    : [];
   return identify({
     version: 1,
-    runtime: {
-      nodePath,
-      nodeHash: digest(await readFile(nodePath)),
-      ...runtimeData,
-      mode: "production",
-      closure,
-      environment:
-        runtimeData.platform === "linux"
-          ? {
-              ...(process.env.NIX_LD ? { NIX_LD: await realpath(process.env.NIX_LD) } : {}),
-              NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
-            }
-          : {},
-    },
+    runtime,
     sourceFiles: [...(options.sourceFiles ?? (await collectFiles(root)))],
     rootDependencies,
     packages,

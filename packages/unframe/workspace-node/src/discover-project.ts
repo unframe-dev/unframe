@@ -6,7 +6,11 @@ import { buildManifestBytesHash, buildReceiptSchema } from "./build-receipt.js";
 import { parseStrictJson } from "@unframe-dev/artifacts";
 import type { LocalFileSnapshot } from "@unframe-dev/workspace";
 import { acquireSourceLock } from "./source-lock.js";
-import { readPnpmProjectLock, PnpmProjectLockError } from "./package-snapshot.js";
+import {
+  readLinkedWorkspaceInputs,
+  readPnpmProjectLock,
+  PnpmProjectLockError,
+} from "./package-snapshot.js";
 import { loadProjectConfig, type ProjectConfig } from "@unframe-dev/workspace";
 import {
   projectDirectory,
@@ -44,6 +48,7 @@ export type DiscoveredProjectFiles =
         path: string;
         bytes: Uint8Array;
         workspaceBytes?: Uint8Array;
+        linkedWorkspaceInputs?: Awaited<ReturnType<typeof readLinkedWorkspaceInputs>>;
       };
       readonly files: readonly ProjectSourceFile[];
       readonly localFiles: readonly LocalFileSnapshot[];
@@ -191,12 +196,19 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
       "Project entryFile must name a regular non-symbolic-link file within the project root.",
     );
   let packageManagerLock:
-    | { path: string; bytes: Uint8Array; workspaceBytes?: Uint8Array }
+    | {
+        path: string;
+        bytes: Uint8Array;
+        workspaceBytes?: Uint8Array;
+        linkedWorkspaceInputs?: Awaited<ReturnType<typeof readLinkedWorkspaceInputs>>;
+      }
     | undefined;
   try {
     const dependency = await readPnpmProjectLock(root);
+    const linkedWorkspaceInputs = await readLinkedWorkspaceInputs(root);
     packageManagerLock = {
       path: join(dependency.directory, "pnpm-lock.yaml"),
+      ...(linkedWorkspaceInputs.length ? { linkedWorkspaceInputs } : {}),
       bytes: dependency.bytes.slice(),
       ...(dependency.workspaceBytes ? { workspaceBytes: dependency.workspaceBytes.slice() } : {}),
     };
@@ -212,6 +224,9 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
     lockBytes: lock,
     localFiles: snapshot.localFiles,
     ...(packageManagerLock ? { packageManagerLockBytes: packageManagerLock.bytes } : {}),
+    ...(packageManagerLock?.linkedWorkspaceInputs
+      ? { packageManagerLinkedInputs: packageManagerLock.linkedWorkspaceInputs }
+      : {}),
     ...(packageManagerLock?.workspaceBytes
       ? { packageManagerWorkspaceBytes: packageManagerLock.workspaceBytes }
       : {}),

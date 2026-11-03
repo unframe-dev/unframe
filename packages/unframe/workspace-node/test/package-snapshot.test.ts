@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { afterEach, expect, it } from "vite-plus/test";
 import {
   readPnpmProjectLock,
+  readLinkedWorkspaceInputs,
+  readLinkedWorkspaceDirectories,
   resolvePackageExportTargets,
   snapshotInstalledPackages,
 } from "../src/index.js";
@@ -405,7 +407,7 @@ it.each(["./missing.js", "../outside.js"])(
   },
 );
 
-it.each(["dependencies", "devDependencies"])(
+it.each(["dependencies", "devDependencies", "consumer"])(
   "snapshots a workspace importer and its %s peer closure",
   async (dependencyField) => {
     const root = await mkdtemp(join(temporaryDirectory(), "unframe-workspace-snapshot-"));
@@ -428,9 +430,8 @@ importers:
   example:
     dependencies:
       sdk: {specifier: 'workspace:*', version: 'link:../packages/sdk'}
-  packages/sdk:
-    ${dependencyField}:
-      dependency: {specifier: 1.0.0, version: 1.0.0}
+${dependencyField === "consumer" ? "      dependency: {specifier: 1.0.0, version: 1.0.0}" : ""}
+  packages/sdk:${dependencyField === "consumer" ? " {}" : `\n    ${dependencyField}:\n      dependency: {specifier: 1.0.0, version: 1.0.0}`}
 snapshots:
   dependency@1.0.0: {}
 `,
@@ -455,13 +456,15 @@ snapshots:
     const graph = await snapshotInstalledPackages(project);
     const sdk = graph.packages.find((pkg) => pkg.name === "sdk");
     const dep = graph.packages.find((pkg) => pkg.name === "dependency");
-    expect(sdk?.locator).toBe("sdk@workspace:packages/sdk");
+    expect(sdk?.locator).toBe("sdk@workspace:packages/sdk(dependency@1.0.0)");
     expect(sdk?.dependencies).toEqual([
       { specifier: "dependency", usage: "runtime", packageKey: dep?.key },
     ]);
-    expect(graph.rootDependencies).toEqual([
-      { specifier: "sdk", usage: "runtime", packageKey: sdk?.key },
-    ]);
+    expect(graph.rootDependencies).toContainEqual({
+      specifier: "sdk",
+      usage: "runtime",
+      packageKey: sdk?.key,
+    });
   },
 );
 
@@ -544,4 +547,259 @@ snapshots: {}
   await symlink(outside, join(root, "packages/sdk"));
   await symlink(outside, join(project, "node_modules/sdk"));
   await expect(snapshotInstalledPackages(project)).rejects.toThrow("declared workspace");
+});
+
+it("recognizes relative workspace patterns when selecting a parent lock", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-relative-workspace-"));
+  directories.push(root);
+  const project = join(root, "packages/sdk");
+  await mkdir(project, { recursive: true });
+  await writeFile(
+    join(root, "pnpm-workspace.yaml"),
+    "packages: ['./packages/*', '!./packages/private-*']\n",
+  );
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    "lockfileVersion: '9.0'\nimporters: {'packages/sdk': {}, 'packages/private-sdk': {}}\nsnapshots: {}\n",
+  );
+  expect((await readPnpmProjectLock(project)).importerKey).toBe("packages/sdk");
+});
+
+it("honors relative negated workspace patterns when selecting a parent lock", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-negated-workspace-"));
+  directories.push(root);
+  const project = join(root, "packages/private-sdk");
+  await mkdir(project, { recursive: true });
+  await writeFile(
+    join(root, "pnpm-workspace.yaml"),
+    "packages: ['packages/*', '!./packages/private-*']\n",
+  );
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    "lockfileVersion: '9.0'\nimporters: {'packages/private-sdk': {}}\nsnapshots: {}\n",
+  );
+  await expect(readPnpmProjectLock(project)).rejects.toMatchObject({ code: "missing" });
+});
+
+it("tracks the exact locked files of reachable linked workspace packages", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-linked-inputs-"));
+  directories.push(root);
+  const project = join(root, "project");
+  const sdk = join(root, "packages/sdk");
+  await mkdir(project);
+  await mkdir(join(sdk, "node_modules"), { recursive: true });
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [project, 'packages/*']\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  project:
+    dependencies:
+      sdk: {version: 'link:../packages/sdk'}
+  packages/sdk:
+    dependencies:
+      project: {version: 'link:../../project'}
+  packages/unrelated: {}
+snapshots: {}
+`,
+  );
+  await writeFile(
+    join(sdk, "package.json"),
+    JSON.stringify({ name: "sdk", version: "1.0.0", main: "index.js" }),
+  );
+  await writeFile(join(sdk, "index.js"), "export const value = 1;");
+  const before = await readLinkedWorkspaceInputs(project);
+  expect(before).toEqual([
+    {
+      directory: sdk,
+      workspaceKey: "packages/sdk",
+      contentIntegrity: expect.stringMatching(/^sha256:/),
+    },
+  ]);
+  await writeFile(join(sdk, "node_modules/ignored.js"), "ignored");
+  await writeFile(join(project, "source.tsx"), "project source edit");
+  expect(await readLinkedWorkspaceInputs(project)).toEqual(before);
+  await writeFile(join(sdk, "index.js"), "export const value = 2;");
+  expect((await readLinkedWorkspaceInputs(project))[0]?.contentIntegrity).not.toBe(
+    before[0]?.contentIntegrity,
+  );
+});
+
+it("keeps separate snapshots for the same workspace package with different consumer peers", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-peer-context-"));
+  directories.push(root);
+  const project = join(root, "project");
+  const sdk = join(root, "packages/sdk");
+  await mkdir(join(project, "node_modules"), { recursive: true });
+  await mkdir(sdk, { recursive: true });
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [project, 'packages/*']\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  project:
+    dependencies:
+      first: {version: 'link:../packages/first'}
+      second: {version: 'link:../packages/second'}
+  packages/first:
+    dependencies:
+      sdk: {version: 'link:../sdk'}
+      dependency: {version: 1.0.0}
+  packages/second:
+    dependencies:
+      sdk: {version: 'link:../sdk'}
+      dependency: {version: 2.0.0}
+  packages/sdk: {}
+snapshots:
+  dependency@1.0.0: {}
+  dependency@2.0.0: {}
+`,
+  );
+  await writeFile(
+    join(sdk, "package.json"),
+    JSON.stringify({
+      name: "sdk",
+      version: "1.0.0",
+      main: "index.js",
+      peerDependencies: { dependency: "*" },
+    }),
+  );
+  await writeFile(join(sdk, "index.js"), "export {value} from 'dependency';");
+  for (const [name, version] of [
+    ["first", "1.0.0"],
+    ["second", "2.0.0"],
+  ]) {
+    const consumer = join(root, "packages", name!);
+    const dependency = join(
+      root,
+      `node_modules/.pnpm/dependency@${version}/node_modules/dependency`,
+    );
+    await mkdir(join(consumer, "node_modules"), { recursive: true });
+    await mkdir(dependency, { recursive: true });
+    await writeFile(
+      join(consumer, "package.json"),
+      JSON.stringify({ name, version: "1.0.0", main: "index.js" }),
+    );
+    await writeFile(join(consumer, "index.js"), "export {value} from 'sdk';");
+    await writeFile(
+      join(dependency, "package.json"),
+      JSON.stringify({ name: "dependency", version, main: "index.js" }),
+    );
+    await writeFile(join(dependency, "index.js"), `export const value = '${version}';`);
+    await symlink(consumer, join(project, "node_modules", name!));
+    await symlink(sdk, join(consumer, "node_modules/sdk"));
+    await symlink(dependency, join(consumer, "node_modules/dependency"));
+  }
+  const graph = await snapshotInstalledPackages(project);
+  const sdks = graph.packages.filter((pkg) => pkg.name === "sdk");
+  expect(sdks.map((pkg) => pkg.locator).sort()).toEqual([
+    "sdk@workspace:packages/sdk(dependency@1.0.0)",
+    "sdk@workspace:packages/sdk(dependency@2.0.0)",
+  ]);
+  for (const pkg of sdks) {
+    const peer = graph.packages.find(
+      (candidate) => candidate.key === pkg.dependencies[0]?.packageKey,
+    );
+    expect(pkg.locator).toContain(`(dependency@${peer?.version})`);
+  }
+});
+
+it("discovers linked directories even while their files are absent", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-missing-linked-directory-"));
+  directories.push(root);
+  const project = join(root, "project");
+  await mkdir(project);
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [project, 'packages/*']\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  project:
+    dependencies:
+      sdk: {version: 'link:../packages/sdk'}
+  packages/sdk:
+    dependencies:
+      nested: {version: 'link:../nested'}
+  packages/nested: {}
+snapshots: {}
+`,
+  );
+  expect(await readLinkedWorkspaceDirectories(project)).toEqual([
+    { directory: join(root, "packages/nested"), workspaceKey: "packages/nested" },
+    { directory: join(root, "packages/sdk"), workspaceKey: "packages/sdk" },
+  ]);
+  await expect(readLinkedWorkspaceInputs(project)).rejects.toThrow();
+});
+
+it("distinguishes workspace peers with the same relative link from different consumers", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-workspace-peer-context-"));
+  directories.push(root);
+  const project = join(root, "project");
+  const sdk = join(root, "packages/sdk");
+  await mkdir(join(project, "node_modules"), { recursive: true });
+  await mkdir(sdk, { recursive: true });
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [project, 'packages/**']\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  project:
+    dependencies:
+      first: {version: 'link:../packages/first/app'}
+      second: {version: 'link:../packages/second/app'}
+  packages/first/app:
+    dependencies:
+      sdk: {version: 'link:../../sdk'}
+      dependency: {version: 'link:../theme'}
+  packages/second/app:
+    dependencies:
+      sdk: {version: 'link:../../sdk'}
+      dependency: {version: 'link:../theme'}
+  packages/first/theme: {}
+  packages/second/theme: {}
+  packages/sdk: {}
+snapshots: {}
+`,
+  );
+  await writeFile(
+    join(sdk, "package.json"),
+    JSON.stringify({
+      name: "sdk",
+      version: "1.0.0",
+      main: "index.js",
+      peerDependencies: { dependency: "*" },
+    }),
+  );
+  await writeFile(join(sdk, "index.js"), "export {value} from 'dependency';");
+  for (const name of ["first", "second"]) {
+    const consumer = join(root, "packages", name, "app");
+    const dependency = join(root, "packages", name, "theme");
+    await mkdir(join(consumer, "node_modules"), { recursive: true });
+    await mkdir(dependency, { recursive: true });
+    await writeFile(
+      join(consumer, "package.json"),
+      JSON.stringify({ name, version: "1.0.0", main: "index.js" }),
+    );
+    await writeFile(join(consumer, "index.js"), "export {value} from 'sdk';");
+    await writeFile(
+      join(dependency, "package.json"),
+      JSON.stringify({ name: "dependency", version: "1.0.0", main: "index.js" }),
+    );
+    await writeFile(join(dependency, "index.js"), `export const value = '${name}';`);
+    await symlink(consumer, join(project, "node_modules", name));
+    await symlink(sdk, join(consumer, "node_modules/sdk"));
+    await symlink(dependency, join(consumer, "node_modules/dependency"));
+  }
+  const graph = await snapshotInstalledPackages(project);
+  const sdks = graph.packages.filter((pkg) => pkg.name === "sdk");
+  expect(sdks.map((pkg) => pkg.locator).sort()).toEqual([
+    "sdk@workspace:packages/sdk(dependency@workspace:packages/first/theme)",
+    "sdk@workspace:packages/sdk(dependency@workspace:packages/second/theme)",
+  ]);
+  for (const pkg of sdks) {
+    const peer = graph.packages.find(
+      (candidate) => candidate.key === pkg.dependencies[0]?.packageKey,
+    );
+    expect(pkg.locator).toContain(`(${peer?.locator})`);
+  }
 });

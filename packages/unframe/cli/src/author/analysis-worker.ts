@@ -213,6 +213,9 @@ const execute = async (request: AnalysisRequest) => {
         ...(input.found.packageManagerLock?.workspaceBytes
           ? { packageManagerWorkspaceBytes: input.found.packageManagerLock.workspaceBytes }
           : {}),
+        ...(input.found.packageManagerLock?.linkedWorkspaceInputs
+          ? { packageManagerLinkedInputs: input.found.packageManagerLock.linkedWorkspaceInputs }
+          : {}),
         localFiles: input.found.localFiles,
         entryReplacement: { path: input.found.entryFile, bytes: source },
       }),

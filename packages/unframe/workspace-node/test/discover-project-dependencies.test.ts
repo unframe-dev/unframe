@@ -100,3 +100,40 @@ it("captures workspace configuration and fences catalog changes without a lock e
   expect(after.packageManagerLock?.bytes).toEqual(before.packageManagerLock?.bytes);
   expect(after.revision).not.toBe(before.revision);
 });
+
+it("includes linked workspace content in revisions and ignores unrelated workspace packages", async () => {
+  const { workspace, directory } = await project();
+  const linked = join(workspace, "packages/sdk");
+  const unrelated = join(workspace, "packages/other");
+  await mkdir(linked, { recursive: true });
+  await mkdir(unrelated, { recursive: true });
+  await writeFile(join(linked, "package.json"), '{"name":"sdk","version":"1.0.0"}');
+  await writeFile(join(linked, "index.ts"), "export const value = 1;");
+  await writeFile(join(unrelated, "index.ts"), "export const other = 1;");
+  await writeFile(join(workspace, "pnpm-workspace.yaml"), 'packages: ["projects/*", "packages/*"]');
+  await writeFile(
+    join(workspace, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  projects/slides:
+    dependencies:
+      sdk:
+        specifier: workspace:*
+        version: link:../../packages/sdk
+  packages/sdk: {}
+  packages/other: {}
+packages: {}
+snapshots: {}
+`,
+  );
+  const before = await discoverPresentationProjectFiles(directory);
+  assert(before.ok);
+  await writeFile(join(linked, "index.ts"), "export const value = 2;");
+  const changed = await discoverPresentationProjectFiles(directory);
+  assert(changed.ok);
+  expect(changed.revision).not.toBe(before.revision);
+  await writeFile(join(unrelated, "index.ts"), "export const other = 2;");
+  const unrelatedChanged = await discoverPresentationProjectFiles(directory);
+  assert(unrelatedChanged.ok);
+  expect(unrelatedChanged.revision).toBe(changed.revision);
+});

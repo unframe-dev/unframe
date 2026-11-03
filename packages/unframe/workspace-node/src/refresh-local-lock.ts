@@ -104,6 +104,9 @@ const refreshLocalProjectLockWithinScope = async (
       ...(found.packageManagerLock
         ? { packageManagerLockBytes: found.packageManagerLock.bytes }
         : {}),
+      ...(found.packageManagerLock?.linkedWorkspaceInputs
+        ? { packageManagerLinkedInputs: found.packageManagerLock.linkedWorkspaceInputs }
+        : {}),
       ...(found.packageManagerLock?.workspaceBytes
         ? { packageManagerWorkspaceBytes: found.packageManagerLock.workspaceBytes }
         : {}),

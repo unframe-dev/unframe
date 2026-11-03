@@ -375,8 +375,12 @@ const yamlRecord = (bytes: Uint8Array, lockStream = false) => {
 };
 const workspaceMember = (patterns: readonly string[], key: string) =>
   key === "." ||
-  (patterns.some((pattern) => !pattern.startsWith("!") && matchesGlob(key, pattern)) &&
-    !patterns.some((pattern) => pattern.startsWith("!") && matchesGlob(key, pattern.slice(1))));
+  (patterns.some(
+    (pattern) => !pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern)),
+  ) &&
+    !patterns.some(
+      (pattern) => pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern.slice(1))),
+    ));
 
 export class PnpmProjectLockError extends Error {
   constructor(
@@ -467,6 +471,72 @@ const readPnpmProjectLockWithinScope = async (directory: string) => {
 export const readPnpmProjectLock: typeof readPnpmProjectLockWithinScope = (...args) =>
   withNativeFilesystem(() => readPnpmProjectLockWithinScope(...args));
 
+const readLinkedWorkspaceDirectoriesWithinScope = async (
+  directory: string,
+): Promise<{ directory: string; workspaceKey: string }[]> => {
+  const projectRoot = await realpath(directory);
+  const context = await readPnpmProjectLockWithinScope(projectRoot);
+  const importers = record(context.lock.importers);
+  const visited = new Set([context.importerKey]);
+  const inputs: { directory: string; workspaceKey: string }[] = [];
+  const visit = async (key: string): Promise<void> => {
+    const importer = record(importers[key]);
+    const from = resolve(context.directory, key);
+    const dependencies = {
+      ...record(importer.dependencies ?? {}),
+      ...record(importer.devDependencies ?? {}),
+      ...record(importer.optionalDependencies ?? {}),
+    };
+    for (const value of Object.values(dependencies)) {
+      const version = text(record(value).version);
+      if (!version.startsWith("link:")) continue;
+      const linked = resolve(from, version.slice(5));
+      const workspaceKey = relative(context.directory, linked).split(sep).join("/") || ".";
+      if (
+        !context.workspacePatterns ||
+        !contained(context.directory, linked) ||
+        !workspaceMember(context.workspacePatterns, workspaceKey) ||
+        !Object.hasOwn(importers, workspaceKey)
+      )
+        throw new Error("Linked package must be a declared workspace importer.");
+      const actual = await realpath(linked).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
+        throw error;
+      });
+      if (actual !== undefined && actual !== linked)
+        throw new Error("Linked workspace package must not redirect through a symlink.");
+      if (visited.has(workspaceKey)) continue;
+      visited.add(workspaceKey);
+      inputs.push({ directory: linked, workspaceKey });
+      await visit(workspaceKey);
+    }
+  };
+  await visit(context.importerKey);
+  return inputs.sort((a, b) => compare(a.workspaceKey, b.workspaceKey));
+};
+
+export const readLinkedWorkspaceDirectories: typeof readLinkedWorkspaceDirectoriesWithinScope = (
+  ...args
+) => withNativeFilesystem(() => readLinkedWorkspaceDirectoriesWithinScope(...args));
+
+const readLinkedWorkspaceInputsWithinScope = async (directory: string) => {
+  const directories = await readLinkedWorkspaceDirectoriesWithinScope(directory);
+  const inputs: { directory: string; workspaceKey: string; contentIntegrity: ContentHash }[] = [];
+  for (const input of directories) {
+    if ((await realpath(input.directory)) !== input.directory)
+      throw new Error("Linked workspace package must not redirect through a symlink.");
+    const files = await packageFiles(input.directory);
+    inputs.push({
+      ...input,
+      contentIntegrity: digestBytes(new TextEncoder().encode(JSON.stringify(files))),
+    });
+  }
+  return inputs;
+};
+
+export const readLinkedWorkspaceInputs: typeof readLinkedWorkspaceInputsWithinScope = (...args) =>
+  withNativeFilesystem(() => readLinkedWorkspaceInputsWithinScope(...args));
+
 /** Reads only an explicitly installed pnpm graph; never evaluates package or lifecycle code. */
 const snapshotInstalledPackagesWithinScope = async (
   root: string,
@@ -486,11 +556,25 @@ const snapshotInstalledPackagesWithinScope = async (
       ...record(input.dependencies ?? {}),
       ...record(input.optionalDependencies ?? {}),
     });
+  type DependencyInput = { version: string; from: string; linkBase: string };
+  const importerDependencies = (input: Record<string, unknown>, directory: string) =>
+    new Map(
+      Object.entries({
+        ...record(input.dependencies ?? {}),
+        ...record(input.devDependencies ?? {}),
+        ...record(input.optionalDependencies ?? {}),
+      }).map(([name, value]) => [
+        name,
+        { version: text(record(value).version), from: directory, linkBase: directory },
+      ]),
+    );
+  const roots = importerDependencies(importer, projectRoot);
   const visit = async (
     specifier: string,
     version: string,
     from: string,
     linkBase = from,
+    consumer: ReadonlyMap<string, DependencyInput> = roots,
   ): Promise<ContentHash> => {
     if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(specifier))
       throw new Error("Invalid dependency specifier.");
@@ -508,7 +592,7 @@ const snapshotInstalledPackagesWithinScope = async (
         !Object.hasOwn(record(lock.importers), workspaceKey!))
     )
       throw new Error("Linked package must be a declared workspace importer.");
-    const locator = workspace
+    let locator = workspace
       ? `${specifier}@workspace:${workspaceKey}`
       : Object.hasOwn(snapshots, `${specifier}@${version}`)
         ? `${specifier}@${version}`
@@ -521,8 +605,7 @@ const snapshotInstalledPackagesWithinScope = async (
         locator.startsWith("/"))
     )
       throw new Error("Dependency must resolve to a fixed pnpm snapshot locator.");
-    const key = hashPackageLocator(locator);
-    if (packages.has(locator)) return key;
+    if (!workspace && packages.has(locator)) return hashPackageLocator(locator);
     let packageRoot: string | undefined;
     for (let current = from; ; current = dirname(current)) {
       try {
@@ -565,6 +648,51 @@ const snapshotInstalledPackagesWithinScope = async (
       throw new Error(
         `Installed package ${name}@${actualVersion} does not match pnpm locator ${locator}.`,
       );
+    const snapshot = workspace
+      ? record(record(lock.importers)[workspaceKey!])
+      : record(snapshots[locator]);
+    const ownDependencies = workspace
+      ? importerDependencies(snapshot, packageRoot)
+      : new Map(
+          dependencyEntries(snapshot).map(([name, value]) => [
+            name,
+            {
+              version: text(value),
+              from: packageRoot,
+              linkBase: context.directory,
+            },
+          ]),
+        );
+    const edges = new Map(
+      workspace
+        ? [...ownDependencies].filter(([name]) =>
+            dependencyEntries(snapshot).some(([dependency]) => dependency === name),
+          )
+        : ownDependencies,
+    );
+    if (workspace) {
+      const peers = Object.keys(record(manifest.peerDependencies ?? {})).sort(compare);
+      for (const peer of peers) {
+        const input = consumer.get(peer) ?? ownDependencies.get(peer);
+        if (input) edges.set(peer, input);
+      }
+      locator += peers
+        .filter((peer) => edges.has(peer))
+        .map((peer) => {
+          const input = edges.get(peer)!;
+          const identity = input.version.startsWith("link:")
+            ? `workspace:${
+                relative(context.directory, resolve(input.linkBase, input.version.slice(5)))
+                  .split(sep)
+                  .join("/") || "."
+              }`
+            : input.version;
+          return `(${peer}@${identity})`;
+        })
+        .join("");
+    }
+    const key = hashPackageLocator(locator);
+    if (packages.has(locator)) return key;
     let exports: PackageSnapshot["exports"];
     try {
       const nestedManifests: Record<string, Record<string, unknown>> = {};
@@ -596,15 +724,6 @@ const snapshotInstalledPackagesWithinScope = async (
       contentIntegrity: "sha256:",
     };
     packages.set(locator, item);
-    const snapshot = workspace
-      ? record(record(lock.importers)[workspaceKey!])
-      : record(snapshots[locator]);
-    const peerEntries = workspace
-      ? Object.entries(record(snapshot.devDependencies ?? {})).filter(([name]) =>
-          Object.hasOwn(record(manifest.peerDependencies ?? {}), name),
-        )
-      : [];
-    const edges = new Map([...peerEntries, ...dependencyEntries(snapshot)]);
     for (const [dependency, value] of edges) {
       const usage = dependency.startsWith("@types/") ? "types" : "runtime";
       item.dependencies.push({
@@ -612,9 +731,10 @@ const snapshotInstalledPackagesWithinScope = async (
         usage,
         packageKey: await visit(
           dependency,
-          workspace ? text(record(value).version) : text(value),
-          packageRoot,
-          workspace ? packageRoot : context.directory,
+          value.version,
+          value.from,
+          value.linkBase,
+          new Map([...ownDependencies, ...edges]),
         ),
       });
     }
@@ -625,17 +745,12 @@ const snapshotInstalledPackagesWithinScope = async (
     return key;
   };
   const rootDependencies: LockedDependency[] = [];
-  const roots = {
-    ...record(importer.dependencies ?? {}),
-    ...record(importer.devDependencies ?? {}),
-    ...record(importer.optionalDependencies ?? {}),
-  };
-  for (const [specifier, input] of Object.entries(roots)) {
+  for (const [specifier, input] of roots) {
     if (options.rootSpecifiers && !options.rootSpecifiers.includes(specifier)) continue;
     rootDependencies.push({
       specifier: typeSpecifier(specifier),
       usage: specifier.startsWith("@types/") ? "types" : "runtime",
-      packageKey: await visit(specifier, text(record(input).version), projectRoot, projectRoot),
+      packageKey: await visit(specifier, input.version, projectRoot, projectRoot),
     });
   }
   rootDependencies.sort((a, b) =>

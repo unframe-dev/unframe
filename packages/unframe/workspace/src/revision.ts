@@ -39,6 +39,7 @@ export const createProjectRevision = (input: {
   entryReplacement?: LocalFileSnapshot;
   packageManagerLockBytes?: Uint8Array;
   packageManagerWorkspaceBytes?: Uint8Array;
+  packageManagerLinkedInputs?: readonly { directory: string; contentIntegrity: string }[];
 }): WorkspaceSnapshot["revision"] => {
   const sourceRevision = createWorkspaceSnapshot([
     { path: "unframe.config.ts", bytes: input.configBytes },
@@ -59,14 +60,28 @@ export const createProjectRevision = (input: {
             ]),
           ),
         )}`;
-  return input.packageManagerWorkspaceBytes === undefined
-    ? packageRevision
+  const workspaceRevision: WorkspaceSnapshot["revision"] =
+    input.packageManagerWorkspaceBytes === undefined
+      ? packageRevision
+      : `sha256:${digest(
+          new TextEncoder().encode(
+            JSON.stringify([
+              "unframe-project-with-package-workspace-v1",
+              packageRevision,
+              digest(input.packageManagerWorkspaceBytes),
+            ]),
+          ),
+        )}`;
+  return !input.packageManagerLinkedInputs?.length
+    ? workspaceRevision
     : `sha256:${digest(
         new TextEncoder().encode(
           JSON.stringify([
-            "unframe-project-with-package-workspace-v1",
-            packageRevision,
-            digest(input.packageManagerWorkspaceBytes),
+            "unframe-project-with-linked-workspaces-v1",
+            workspaceRevision,
+            [...input.packageManagerLinkedInputs]
+              .sort((a, b) => (a.directory < b.directory ? -1 : a.directory > b.directory ? 1 : 0))
+              .map(({ directory, contentIntegrity }) => [directory, contentIntegrity]),
           ]),
         ),
       )}`;

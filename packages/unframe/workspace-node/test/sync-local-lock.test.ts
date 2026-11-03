@@ -1,10 +1,11 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile, unlink } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile, unlink, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import {
+  type NodeTransformSnapshot,
   createProjectLock,
   identifyNodeTransformSnapshot,
   loadUnframeLock,
@@ -68,7 +69,7 @@ async function fixture() {
   const ports = {
     modelTransformIdentity: `sha256:${"a".repeat(64)}` as const,
     videoTransformIdentity: vi.fn(),
-    styles: { snapshot: vi.fn(), withSources: vi.fn(), compile: vi.fn() },
+    styles: { runtime: vi.fn(), snapshot: vi.fn(), withSources: vi.fn(), compile: vi.fn() },
   };
   return { directory, log: join(root, "install.log"), ports, prepareRefresh, prepareUpdate };
 }
@@ -135,6 +136,26 @@ it("freezes new PostCSS configuration, skips CSS-only edits, and catches configu
   const closure = process.env.UNFRAME_STYLE_RUNTIME_CLOSURE
     ? (await readFile(process.env.UNFRAME_STYLE_RUNTIME_CLOSURE, "utf8")).trim().split(/\s+/).sort()
     : [];
+  const runtime: NodeTransformSnapshot["runtime"] = {
+    nodePath,
+    nodeHash: createHash("sha256")
+      .update(await readFile(nodePath))
+      .digest("hex"),
+    version: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    libc: "test-libc",
+    mode: "production",
+    closure,
+    environment:
+      process.platform === "linux"
+        ? {
+            ...(process.env.NIX_LD ? { NIX_LD: await realpath(process.env.NIX_LD) } : {}),
+            NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
+          }
+        : {},
+  };
+  f.ports.styles.runtime.mockResolvedValue(runtime);
   const options = {
     ...f,
     prepareUpdate: (async (_input, ports) => {
@@ -142,25 +163,7 @@ it("freezes new PostCSS configuration, skips CSS-only edits, and catches configu
       if (!installed.ok) return installed;
       const style = identifyNodeTransformSnapshot({
         version: 1,
-        runtime: {
-          nodePath,
-          nodeHash: createHash("sha256")
-            .update(await readFile(nodePath))
-            .digest("hex"),
-          version: process.versions.node,
-          platform: process.platform,
-          arch: process.arch,
-          libc: "glibc",
-          mode: "production",
-          closure,
-          environment:
-            process.platform === "linux"
-              ? {
-                  ...(process.env.NIX_LD ? { NIX_LD: await realpath(process.env.NIX_LD) } : {}),
-                  NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
-                }
-              : {},
-        },
+        runtime,
         sourceFiles: [],
         rootDependencies: {},
         packages: [],
@@ -216,7 +219,7 @@ it("freezes new PostCSS configuration, skips CSS-only edits, and catches configu
   } = frozen.value.lock.styleTransform;
   const previousRuntime = identifyNodeTransformSnapshot({
     ...runtimeBody,
-    runtime: { ...frozen.value.lock.styleTransform.runtime, nodeHash: "a".repeat(64) },
+    runtime: { ...frozen.value.lock.styleTransform.runtime, version: "v0.0.0", libc: "old-libc" },
   });
   await writeFile(
     join(f.directory, "unframe.lock"),
@@ -313,5 +316,69 @@ it("releases leases and leaves the lock intact on cancellation", async () => {
   expect(await readFile(join(f.directory, "unframe.lock"))).toEqual(before);
   expect(await createLocalProjectLockSynchronizer(f.ports, f.directory, f)()).toEqual(
     expect.objectContaining({ ok: true }),
+  );
+});
+
+it("resnapshots linked package content in an existing and a fresh synchronization session", async () => {
+  const f = await fixture();
+  const workspace = join(f.directory, "..");
+  const linked = join(workspace, "sdk");
+  await mkdir(linked);
+  await writeFile(
+    join(linked, "package.json"),
+    '{"name":"sdk","version":"1.0.0","exports":"./index.js"}',
+  );
+  await writeFile(join(linked, "index.js"), "export const value = 1;");
+  await writeFile(join(f.directory, "package.json"), '{"dependencies":{"sdk":"workspace:*"}}');
+  await writeFile(
+    join(f.directory, "presentation.ts"),
+    'import {value} from "sdk"; export default {value};',
+  );
+  await unlink(join(f.directory, "pnpm-lock.yaml"));
+  await writeFile(join(workspace, "pnpm-workspace.yaml"), 'packages: ["project", "sdk"]');
+  await writeFile(
+    join(workspace, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  project:
+    dependencies:
+      sdk:
+        specifier: workspace:*
+        version: link:../sdk
+  sdk: {}
+packages: {}
+snapshots: {}
+`,
+  );
+  await mkdir(join(f.directory, "node_modules"));
+  await symlink(linked, join(f.directory, "node_modules/sdk"));
+  const options = {
+    ...f,
+    prepareUpdate: (async (_input, ports) => ({
+      ok: true,
+      bytes: createProjectLock(await ports.snapshotInstalledPackages(["sdk"]), {
+        componentLocks: [],
+        themeHashes: [],
+        assets: [],
+      }),
+    })) satisfies typeof prepareLockUpdate,
+  };
+  const sync = createLocalProjectLockSynchronizer(f.ports, f.directory, options);
+  expect(await sync()).toMatchObject({ ok: true });
+  await writeFile(join(linked, "index.js"), "export const value = 2;");
+  expect(await sync()).toMatchObject({ ok: true });
+  let loaded = loadUnframeLock(await readFile(join(f.directory, "unframe.lock")));
+  if (!loaded.ok) throw new Error("Invalid fixture lock");
+  expect(loaded.value.lock.packages[0]?.files.find((file) => file.path === "index.js")?.data).toBe(
+    "export const value = 2;",
+  );
+  await writeFile(join(linked, "index.js"), "export const value = 3;");
+  expect(await createLocalProjectLockSynchronizer(f.ports, f.directory, options)()).toMatchObject({
+    ok: true,
+  });
+  loaded = loadUnframeLock(await readFile(join(f.directory, "unframe.lock")));
+  if (!loaded.ok) throw new Error("Invalid fixture lock");
+  expect(loaded.value.lock.packages[0]?.files.find((file) => file.path === "index.js")?.data).toBe(
+    "export const value = 3;",
   );
 });

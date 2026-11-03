@@ -1,6 +1,4 @@
-import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { lstat, readFile, realpath, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import {
   authoringPackageRoots,
@@ -9,11 +7,17 @@ import {
   prepareLockUpdate,
   type StylePreparationPort,
 } from "@unframe-dev/build";
-import { loadUnframeLock, type UnframeLock } from "@unframe-dev/workspace";
+import {
+  loadUnframeLock,
+  type UnframeLock,
+  type NodeTransformSnapshot,
+} from "@unframe-dev/workspace";
 import type { SourceAssetPorts } from "./source-assets.js";
 import {
   digestBytes,
+  lockedFile,
   PnpmProjectLockError,
+  readLinkedWorkspaceInputs,
   readPnpmProjectLock,
   snapshotInstalledPackages,
 } from "./package-snapshot.js";
@@ -64,7 +68,9 @@ const typeSpecifier = (name: string) =>
 
 /** Session-scoped dependency synchronization; only successful lock commits are cached. */
 export function createLocalProjectLockSynchronizer(
-  ports: SourceAssetPorts & { styles: StylePreparationPort },
+  ports: SourceAssetPorts & {
+    styles: StylePreparationPort & { runtime(): Promise<NodeTransformSnapshot["runtime"]> };
+  },
   directory: string,
   options: {
     prepareRefresh?: typeof prepareLockRefresh;
@@ -72,37 +78,6 @@ export function createLocalProjectLockSynchronizer(
   } = {},
 ) {
   let committed: { fingerprint: string; dependencyHash: string } | undefined;
-  let binary: { key: string; hash: string } | undefined;
-  async function runtime() {
-    const nodePath = await realpath(process.env.UNFRAME_STYLE_NODE ?? process.execPath);
-    const stat = await lstat(nodePath);
-    const key = JSON.stringify([nodePath, stat.size, stat.mtimeMs, stat.ctimeMs]);
-    if (binary?.key !== key) {
-      const hash = createHash("sha256");
-      for await (const chunk of createReadStream(nodePath)) hash.update(chunk);
-      binary = { key, hash: hash.digest("hex") };
-    }
-    const closure = process.env.UNFRAME_STYLE_RUNTIME_CLOSURE
-      ? (await readFile(process.env.UNFRAME_STYLE_RUNTIME_CLOSURE, "utf8"))
-          .trim()
-          .split(/\s+/)
-          .sort()
-      : [];
-    return {
-      nodePath,
-      nodeHash: binary.hash,
-      platform: process.platform,
-      arch: process.arch,
-      closure,
-      environment:
-        process.platform === "linux"
-          ? {
-              ...(process.env.NIX_LD ? { NIX_LD: await realpath(process.env.NIX_LD) } : {}),
-              NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
-            }
-          : {},
-    };
-  }
   async function inputs(found: Found) {
     const manifestFile = found.localFiles.find((file) => file.path === "package.json");
     const postcss = hasPostcssConfig(found);
@@ -111,6 +86,7 @@ export function createLocalProjectLockSynchronizer(
       ? record(JSON.parse(new TextDecoder().decode(manifestFile.bytes)))
       : {};
     const pnpm = await readPnpmProjectLock(directory);
+    const linkedWorkspaceInputs = await readLinkedWorkspaceInputs(directory);
     const dependencies = Object.assign(
       {},
       ...["dependencies", "devDependencies", "optionalDependencies"].map((key) =>
@@ -118,7 +94,7 @@ export function createLocalProjectLockSynchronizer(
       ),
     );
     const roots = authoringPackageRoots(found).filter((name) => Object.hasOwn(dependencies, name));
-    const runtimeIdentity = postcss ? await runtime() : undefined;
+    const runtimeIdentity = postcss ? await ports.styles.runtime() : undefined;
     const fingerprint = digestBytes(
       Buffer.from(
         JSON.stringify({
@@ -126,6 +102,7 @@ export function createLocalProjectLockSynchronizer(
           workspace: pnpm.workspaceBytes ? digestBytes(pnpm.workspaceBytes) : undefined,
           manifest: Object.fromEntries(dependencyFields.map((key) => [key, manifest[key]])),
           roots,
+          linkedWorkspaceInputs,
           postcss: [
             manifest.postcss,
             ...found.localFiles
@@ -162,6 +139,7 @@ export function createLocalProjectLockSynchronizer(
     ).every(Boolean);
     return {
       fingerprint,
+      linkedWorkspaceInputs,
       pnpmHash: digestBytes(pnpm.bytes),
       postcss,
       runtimeIdentity,
@@ -214,6 +192,36 @@ export function createLocalProjectLockSynchronizer(
             runtimeMatches &&
             current.importerMatches &&
             current.installed &&
+            current.linkedWorkspaceInputs.every(
+              ({ workspaceKey, contentIntegrity }) =>
+                lock.packages
+                  .filter((pkg) =>
+                    pkg.locator.split("(")[0]?.endsWith(`@workspace:${workspaceKey}`),
+                  )
+                  .every(
+                    (pkg) =>
+                      digestBytes(new TextEncoder().encode(JSON.stringify(pkg.files))) ===
+                      contentIntegrity,
+                  ) &&
+                (lock.styleTransform?.packages ?? [])
+                  .filter((pkg) =>
+                    pkg.locator.split("(")[0]?.endsWith(`@workspace:${workspaceKey}`),
+                  )
+                  .every(
+                    (pkg) =>
+                      digestBytes(
+                        new TextEncoder().encode(
+                          JSON.stringify(
+                            pkg.files
+                              .map((file) =>
+                                lockedFile(file.path, Buffer.from(file.bytes, "base64")),
+                              )
+                              .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
+                          ),
+                        ),
+                      ) === contentIntegrity,
+                  ),
+            ) &&
             current.roots.every((name) =>
               lock.rootDependencies.some(
                 (root) =>

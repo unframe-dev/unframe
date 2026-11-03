@@ -1,11 +1,18 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { StylePreparationPort } from "@unframe-dev/build";
-import { snapshotNodeTransformInputs, withNodeTransformSources } from "./node-snapshot.js";
+import {
+  snapshotNodeRuntime,
+  snapshotNodeTransformInputs,
+  withNodeTransformSources,
+} from "./node-snapshot.js";
 import { runStyleWorker } from "./run-style-worker.js";
 import { compileStylesResultSchema } from "./schemas.js";
 
-export const createNodeStylePreparationPort = (): StylePreparationPort => ({
+export const createNodeStylePreparationPort = (): StylePreparationPort & {
+  runtime: typeof snapshotNodeRuntime;
+} => ({
+  runtime: snapshotNodeRuntime,
   snapshot: (projectRoot, sourceFiles) =>
     snapshotNodeTransformInputs(projectRoot, {
       sourceFiles,

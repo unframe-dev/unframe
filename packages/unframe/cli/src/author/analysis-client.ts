@@ -10,6 +10,7 @@ import type {
   prepareLockRefresh,
   prepareLockUpdate,
   LockPreparationPorts,
+  StylePreparationPort,
 } from "@unframe-dev/build";
 import type { AnalysisOperations } from "./analysis-protocol.js";
 
@@ -140,7 +141,8 @@ const messageSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-type Ports = Pick<typeof sourceAssetPorts, "styles" | "videoTransformIdentity"> & {
+type Ports = Pick<typeof sourceAssetPorts, "videoTransformIdentity"> & {
+  styles: StylePreparationPort;
   update?: Pick<LockPreparationPorts, "install" | "snapshotInstalledPackages"> & {
     projectDirectory: string;
   };

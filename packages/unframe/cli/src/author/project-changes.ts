@@ -1,9 +1,13 @@
 import { watch, type FSWatcher } from "node:fs";
 import { lstat, readdir } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { randomBytes } from "node:crypto";
 import { AuthorError } from "@unframe-dev/author-service";
-import { readPnpmProjectLock, PnpmProjectLockError } from "@unframe-dev/workspace-node";
+import {
+  readPnpmProjectLock,
+  readLinkedWorkspaceDirectories,
+  PnpmProjectLockError,
+} from "@unframe-dev/workspace-node";
 import type { ProjectChange } from "@unframe-dev/contracts/author-http";
 
 export type ProjectChanges = {
@@ -77,12 +81,21 @@ export const watchProjectChanges = async (
   const root = resolve(directory);
   const changes = createProjectChanges();
   const watchers = new Map<string, { watcher: FSWatcher; device: number; inode: number }>();
-  const dependencyWatchers = new Map<string, { watcher: FSWatcher; names: Set<string> }>();
+  const dependencyWatchers = new Map<
+    string,
+    { watcher: FSWatcher; names: Set<string>; device: number; inode: number }
+  >();
   let selectedLockDirectory: string | undefined;
+  let linkedDirectories: readonly string[] = [];
   const excluded = new Set([".git", ".unframe", "dist", "node_modules"]);
-  const ignored = (parent: string, name: string) =>
+  const linkedDirectory = (path: string) =>
+    linkedDirectories.some(
+      (directory) => path === directory || path.startsWith(`${directory}${sep}`),
+    );
+  const linkedExcluded = new Set([".git", ".unframe", ".cache", "node_modules"]);
+  const ignored = (parent: string, name: string, linked = false) =>
     mode === "source" &&
-    (excluded.has(name) ||
+    ((linked ? linkedExcluded : excluded).has(name) ||
       (parent === root && [".unframe-source.lock", ".unframe-build.lock"].includes(name)));
   let closed = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -91,8 +104,16 @@ export const watchProjectChanges = async (
     if (mode !== "source") return;
     try {
       selectedLockDirectory = (await readPnpmProjectLock(root)).directory;
+      try {
+        linkedDirectories = (await readLinkedWorkspaceDirectories(root)).map(
+          (input) => input.directory,
+        );
+      } catch {
+        // Keep observing the last valid dependency paths while the lock is being repaired.
+      }
     } catch (error) {
       if (!(error instanceof PnpmProjectLockError)) throw error;
+      if (selectedLockDirectory !== error.directory) linkedDirectories = [];
       selectedLockDirectory = error.directory;
     }
     const wanted = new Map<string, Set<string>>();
@@ -109,10 +130,20 @@ export const watchProjectChanges = async (
       include(selectedLockDirectory, "pnpm-lock.yaml");
       include(selectedLockDirectory, "pnpm-workspace.yaml");
     }
+    for (const directory of linkedDirectories)
+      for (let current = directory; dirname(current) !== current; current = dirname(current))
+        include(dirname(current), basename(current));
     if (closed) return;
     for (const [directory, existing] of dependencyWatchers) {
       const names = wanted.get(directory);
-      if (names) existing.names = names;
+      const stat = await lstat(directory).catch(() => undefined);
+      if (
+        names &&
+        stat?.isDirectory() &&
+        stat.dev === existing.device &&
+        stat.ino === existing.inode
+      )
+        existing.names = names;
       else {
         existing.watcher.close();
         dependencyWatchers.delete(directory);
@@ -120,12 +151,28 @@ export const watchProjectChanges = async (
     }
     for (const [directory, names] of wanted) {
       if (dependencyWatchers.has(directory)) continue;
-      const watcher = watch(directory, (_event, name) => {
-        if (name !== null && dependencyWatchers.get(directory)?.names.has(name.toString()))
-          schedule();
+      const stat = await lstat(directory).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
+        throw error;
       });
-      watcher.on("error", (error) => changes.fail(error));
-      dependencyWatchers.set(directory, { watcher, names });
+      if (!stat?.isDirectory() || stat.isSymbolicLink()) continue;
+      try {
+        const watcher = watch(directory, (_event, name) => {
+          if (name === null || dependencyWatchers.get(directory)?.names.has(name.toString()))
+            schedule();
+        });
+        watcher.on("error", (error) => changes.fail(error));
+        dependencyWatchers.set(directory, { watcher, names, device: stat.dev, inode: stat.ino });
+      } catch (error) {
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          ["ENOENT", "ENOTDIR"].includes(String(error.code))
+        )
+          continue;
+        throw error;
+      }
     }
   };
   const reconcile = async () => {
@@ -152,7 +199,7 @@ export const watchProjectChanges = async (
       if (!watchers.has(path)) {
         try {
           const watcher = watch(path, (_event, name) => {
-            if (name === null || !ignored(path, name.toString())) schedule();
+            if (name === null || !ignored(path, name.toString(), linkedDirectory(path))) schedule();
           });
           watcher.on("error", (error) => changes.fail(error));
           watchers.set(path, { watcher, device: stat.dev, inode: stat.ino });
@@ -178,10 +225,12 @@ export const watchProjectChanges = async (
         throw error;
       });
       for (const entry of entries)
-        if (entry.isDirectory() && !ignored(path, entry.name)) await scan(join(path, entry.name));
+        if (entry.isDirectory() && !ignored(path, entry.name, linkedDirectory(path)))
+          await scan(join(path, entry.name));
     };
-    await scan(root);
     await reconcileDependencies();
+    for (const directory of linkedDirectories) await scan(directory);
+    await scan(root);
     if (closed) return;
     for (const [path, value] of watchers)
       if (!seen.has(path)) {
