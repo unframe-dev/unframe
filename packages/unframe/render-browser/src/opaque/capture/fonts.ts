@@ -229,7 +229,9 @@ export const createOpaqueFontValidator = async (
             candidatePaths.includes(font.path),
           );
           if (candidates.length === 0) throw new Error("opaque-font-unlocked");
-          for (const character of node.nodeValue) {
+          // CSS handles tabs and line breaks without requiring their own font glyphs.
+          const glyphCharacters = node.nodeValue.replace(/[\t\n\r]/g, "");
+          for (const character of glyphCharacters) {
             if (!candidates.some((font) => font.supports(character.codePointAt(0)!)))
               throw new Error("opaque-font-glyph-missing");
           }
@@ -251,7 +253,7 @@ export const createOpaqueFontValidator = async (
                 throw new Error("opaque-font-unlocked");
               return lockedFont.supports;
             });
-          for (const character of node.nodeValue) {
+          for (const character of glyphCharacters) {
             if (!coverages.some((supports) => supports(character.codePointAt(0)!)))
               throw new Error("opaque-font-glyph-missing");
           }
