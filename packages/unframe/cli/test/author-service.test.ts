@@ -5,11 +5,7 @@ import { copyProjectFixture } from "./copy-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vite-plus/test";
-import {
-  canonicalizeJsonPayload,
-  hashCanonicalJsonPayload,
-  verifyBuildIntegrity,
-} from "@unframe-dev/artifacts";
+import { hashCanonicalJsonPayload, verifyBuildIntegrity } from "@unframe-dev/artifacts";
 import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
@@ -18,7 +14,6 @@ import { acquireSourceLock, publishAtomicArtifacts } from "@unframe-dev/workspac
 import { createAuthorService } from "../src/author/service.js";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
-import { loadUnframeLock } from "@unframe-dev/workspace";
 import type { AuthorService } from "@unframe-dev/author-service";
 import type { ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
@@ -58,8 +53,6 @@ const prepareEditableProject = async (directory: string) => {
   await copyProjectFixture(reference, directory);
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);
-  const loaded = loadUnframeLock(discovered.lockBytes);
-  assert(loaded.ok);
   const presentation = {
     ...basePresentation,
     scene: [],
@@ -73,10 +66,6 @@ const prepareEditableProject = async (directory: string) => {
     },
   };
   await clearSourceAssetRegistration(directory, discovered.entryFile);
-  await writeFile(
-    join(directory, "unframe.lock"),
-    canonicalizeJsonPayload({ ...loaded.value.lock, assets: [] }) + "\n",
-  );
   for (const name of await readdir(directory))
     if (
       name.endsWith(".manifest.ts") ||
@@ -105,8 +94,6 @@ const prepareEditableProject = async (directory: string) => {
   ].join("\n");
   await writeFile(join(directory, "presentation.unframe.tsx"), source);
   await writeFile(join(directory, "Hero.component.tsx"), component);
-  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshed.exitCode, refreshed.stderr).toBe(0);
 };
 const createProject = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-service-"));
@@ -242,13 +229,11 @@ describe("author service with frozen React source", () => {
       }),
     });
     services.push(service);
-    const beforeLock = await readFile(join(directory, "unframe.lock"));
     const snapshot = await service.project();
     const job = await service.build(snapshot.revision, commandId("a"), "dist");
     await expect.poll(async () => (await service.job(job.buildId)).status).toBe("succeeded");
     expect(builtChannel).toBe("dist");
     expect(job.revision).toBe(snapshot.revision);
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(beforeLock);
   }, 30000);
   it("builds compiler-valid source without Inspector metadata", async () => {
     const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-readonly-"));
@@ -270,9 +255,8 @@ describe("author service with frozen React source", () => {
     await expect.poll(async () => (await service.job(job.buildId)).status).toBe("succeeded");
   }, 30000);
 
-  it("retains the prior lock and external Source when local refresh fails", async () => {
+  it("retains invalid external Source when input preparation fails", async () => {
     const directory = await createProject();
-    const beforeLock = await readFile(join(directory, "unframe.lock"));
     const invalidSource = component.replace(
       "props: {title: editableText({required: true})}",
       "props: {title: missingSymbol}",
@@ -284,13 +268,10 @@ describe("author service with frozen React source", () => {
     await expect(service.build(snapshot.revision, commandId("7"))).rejects.toMatchObject({
       status: 422,
     });
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(beforeLock);
     expect(await readFile(join(directory, "Hero.component.tsx"), "utf8")).toBe(invalidSource);
   }, 30000);
-  it("refreshes saved local inputs and builds the refreshed revision in the Dev channel", async () => {
+  it("builds captured local inputs at the same revision in the Dev channel", async () => {
     const directory = await createProject();
-    const lockPath = join(directory, "unframe.lock");
-    const beforeLock = JSON.parse(await readFile(lockPath, "utf8"));
     await writeFile(join(directory, "Hero.component.tsx"), component + "\n// external save\n");
     let builtRevision: string | undefined;
     let builtChannel: string | undefined;
@@ -313,14 +294,9 @@ describe("author service with frozen React source", () => {
     const refreshed = await discoverPresentationProjectFiles(directory);
     assert(refreshed.ok);
     expect(created.revision).toBe(refreshed.revision);
-    expect(created.revision).not.toBe(saved.revision);
+    expect(created.revision).toBe(saved.revision);
     expect(builtRevision).toBe(created.revision);
     expect(builtChannel).toBe("dev");
-    const afterLock = JSON.parse(await readFile(lockPath, "utf8"));
-    expect(afterLock.packages).toEqual(beforeLock.packages);
-    expect(afterLock.rootDependencies).toEqual(beforeLock.rootDependencies);
-    expect(afterLock.assets).toEqual(beforeLock.assets);
-    expect(afterLock.componentLocks).not.toEqual(beforeLock.componentLocks);
   }, 30000);
   it("returns editor metadata and structured build diagnostics", async () => {
     const directory = await createProject();
@@ -382,8 +358,6 @@ describe("author service with frozen React source", () => {
           "transform: {...sharedTransform, /* keep this comment */ position: [0, 1, -2]}}",
         ),
     );
-    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
     const before = await readFile(sourcePath, "utf8");
     const service = await createAuthorService(directory);
     services.push(service);
@@ -430,8 +404,6 @@ describe("author service with frozen React source", () => {
           "}",
         ),
     );
-    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
     const sharedSource = await readFile(sourcePath, "utf8");
     const service = await createAuthorService(directory);
     services.push(service);
@@ -467,8 +439,6 @@ describe("author service with frozen React source", () => {
         .replace('props: {title: "Original 1"}', "props: sharedProps")
         .replace('props: {title: "Original 2"}', "props: sharedProps"),
     );
-    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
     const sharedSource = await readFile(sourcePath, "utf8");
     const service = await createAuthorService(directory);
     services.push(service);
@@ -505,8 +475,6 @@ describe("author service with frozen React source", () => {
         .replace('props: {title: "Original 1"}', "props: {title: sharedTitle}")
         .replace('props: {title: "Original 2"}', "props: {title: sharedTitle}"),
     );
-    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
     const sharedSource = await readFile(sourcePath, "utf8");
     const service = await createAuthorService(directory);
     services.push(service);
@@ -572,7 +540,7 @@ describe("author service with frozen React source", () => {
     expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(0);
   }, 30000);
 
-  it("keeps source, lock, and successful dist on a rejected edit", async () => {
+  it("keeps source and successful dist on a rejected edit", async () => {
     const directory = await createProject();
     const service = await createAuthorService(directory);
     services.push(service);
@@ -581,7 +549,6 @@ describe("author service with frozen React source", () => {
     const initial = await service.project();
     const sourcePath = join(directory, "presentation.unframe.tsx");
     const beforeSource = await readFile(sourcePath);
-    const beforeLock = await readFile(join(directory, "unframe.lock"));
     await expect(
       service.patch(initial.revision, {
         commandId: commandId("c"),
@@ -590,7 +557,6 @@ describe("author service with frozen React source", () => {
       }),
     ).rejects.toMatchObject({ status: 422 });
     expect(await readFile(sourcePath)).toEqual(beforeSource);
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(beforeLock);
     expect(await readFile(join(directory, "dist", "previous.txt"), "utf8")).toBe("previous build");
     expect((await discoverPresentationProjectFiles(directory)).ok).toBe(true);
   }, 30000);
@@ -896,7 +862,6 @@ it("rejects a Dev build whose Source changed before dependency synchronization",
   const service = await createAuthorService(directory, { run });
   services.push(service);
   const initial = await service.project();
-  const lock = await readFile(join(directory, "unframe.lock"));
   await writeFile(
     join(directory, "Hero.component.tsx"),
     component + "\n// changed after capture\n",
@@ -905,5 +870,4 @@ it("rejects a Dev build whose Source changed before dependency synchronization",
     status: 412,
   });
   expect(run).not.toHaveBeenCalled();
-  expect(await readFile(join(directory, "unframe.lock"))).toEqual(lock);
 }, 30_000);

@@ -106,7 +106,7 @@ Presentation CI の型・lint・共通単体テスト、契約生成・wire 互�
 
 個別に実行する場合は `nix develop --command scripts/ci/opaque-capture.sh <suite>` を使います。Ubuntu 用の suite は上記4つ、macOS 用は `macos` です。引数省略時は、その OS の全 Opaque integration を実行します。
 
-PostCSS / Tailwind を使う project の `unframe.lock` は native runtime と依存も固定します。OS を切り替えた場合は、移行先の同じ隔離 profile 内で `pnpm --config.verify-deps-before-run=false --filter @unframe-dev/cli run presentation lock update <absolute-project-directory>` を実行します。`lock refresh` では runtime を切り替えません。
+PostCSS / Tailwind を使う project は、その実行環境で依存を導入してから同じ隔離 profile 内で check / build します。Unframe は導入済み依存と現在の native runtime から worker 入力を生成し、lock 更新コマンドは使用しません。
 
 ## Native helper と worker の準備
 

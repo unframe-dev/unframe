@@ -5,18 +5,15 @@ import {
   prepareProjectSource as prepareBuildSource,
   type StylePreparationPort,
 } from "@unframe-dev/build";
-import type { UnframeLock } from "@unframe-dev/workspace";
+import type { InstalledDependencyGraph } from "@unframe-dev/workspace";
 import type { DiscoveredProjectFiles } from "./discover-project.js";
 
 type Discovery = Extract<DiscoveredProjectFiles, { ok: true }>;
 export const prepareProjectSource = async (
   styles: StylePreparationPort,
   found: Discovery,
-  graph: Pick<
-    UnframeLock,
-    "rootDependencies" | "packages" | "styleTransform" | "styleSourceIdentity"
-  >,
-  options: { update?: boolean; refresh?: boolean; signal?: AbortSignal; replacement?: string } = {},
+  graph: InstalledDependencyGraph,
+  options: { signal?: AbortSignal; replacement?: string } = {},
 ) => {
   const typeLibraries = await readTypeLibraries();
   return prepareBuildSource(found, graph, options, { typeLibraries, styles });

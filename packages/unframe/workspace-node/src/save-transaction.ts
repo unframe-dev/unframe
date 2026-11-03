@@ -200,8 +200,6 @@ type Journal = {
   sourcePath: string;
   beforeSourceHash: string;
   afterSourceHash: string;
-  beforeLockHash: string;
-  afterLockHash: string;
   requestHash: string;
   saved: SavedCommand;
 };
@@ -232,8 +230,6 @@ const readJournal = async (path: string): Promise<Journal> => {
     !idPattern.test(journal.saved?.commandId ?? "") ||
     !/^[0-9a-f]{64}$/.test(journal.beforeSourceHash) ||
     !/^[0-9a-f]{64}$/.test(journal.afterSourceHash) ||
-    !/^[0-9a-f]{64}$/.test(journal.beforeLockHash) ||
-    !/^[0-9a-f]{64}$/.test(journal.afterLockHash) ||
     !/^[0-9a-f]{64}$/.test(journal.requestHash)
   )
     throw new Error("Author journal is invalid.");
@@ -283,7 +279,7 @@ const writeReceipt = async (root: string, journal: Journal) => {
   await writeNew(path, bytes);
 };
 
-/** Recovery runs under the project source lease before any reader sees a source/lock pair. */
+/** Recovery runs under the project source lease before any reader sees Source. */
 const recoverAuthorTransactionsWithinLease = async (root: string) =>
   withNativeFilesystem(async () => {
     await prepareAuthorStorage(root);
@@ -308,30 +304,21 @@ const recoverAuthorTransactionsWithinLease = async (root: string) =>
       if (journal.state === "committed" && (await readAuthorReceipt(root, name))) continue;
       const sourcePath = rootRelativePosix(root, journal.sourcePath);
       if (!sourcePath) throw new Error("Author journal source path is invalid.");
-      const lockPath = join(root, "unframe.lock");
       const source = await readRegularFile(sourcePath);
-      const lock = await readRegularFile(lockPath);
-      if (!source || !lock) throw new Error("Author transaction target is missing.");
+      if (!source) throw new Error("Author transaction target is missing.");
       const sourceHash = hash(source);
-      const lockHash = hash(lock);
-      if (
-        ![journal.beforeSourceHash, journal.afterSourceHash].includes(sourceHash) ||
-        ![journal.beforeLockHash, journal.afterLockHash].includes(lockHash)
-      )
+      if (![journal.beforeSourceHash, journal.afterSourceHash].includes(sourceHash))
         throw new Error("Author transaction target changed externally.");
       if (journal.state === "applying") {
         const beforeSource = await checkedBackup(
           join(path, "source.before"),
           journal.beforeSourceHash,
         );
-        const beforeLock = await checkedBackup(join(path, "lock.before"), journal.beforeLockHash);
         if (sourceHash !== journal.beforeSourceHash)
           await replaceChecked(sourcePath, sourceHash, beforeSource);
-        if (lockHash !== journal.beforeLockHash)
-          await replaceChecked(lockPath, lockHash, beforeLock);
         await removePrivateDirectory(path);
       } else if (journal.state === "committed") {
-        if (sourceHash !== journal.afterSourceHash || lockHash !== journal.afterLockHash)
+        if (sourceHash !== journal.afterSourceHash)
           throw new Error("Committed author transaction target changed externally.");
         await writeReceipt(root, journal);
       }
@@ -365,7 +352,7 @@ export const readAuthorReceipt = async (
     return value as { requestHash: string; saved: SavedCommand };
   });
 
-export const commitAuthorPair = (request: WorkspaceSave) => {
+export const commitAuthorSource = (request: WorkspaceSave) => {
   const input = createWorkspaceSave(request);
   return withSourceTransaction(input.root, () =>
     withNativeFilesystem(async () => {
@@ -376,7 +363,6 @@ export const commitAuthorPair = (request: WorkspaceSave) => {
         throw new Error("Author source does not match the project entry.");
       const sourcePath = rootRelativePosix(root, input.sourcePath);
       if (!sourcePath) throw new Error("Author source path is invalid.");
-      const lockPath = join(root, "unframe.lock");
       const path = transactionPath(root, saved.commandId);
       const stagingParent = join(root, ".unframe/authoring/staging");
       const stagedPath = join(stagingParent, saved.commandId);
@@ -386,8 +372,6 @@ export const commitAuthorPair = (request: WorkspaceSave) => {
         sourcePath: input.sourcePath,
         beforeSourceHash: hash(input.beforeSource),
         afterSourceHash: hash(input.afterSource),
-        beforeLockHash: hash(input.beforeLock),
-        afterLockHash: hash(input.afterLock),
         requestHash: input.requestHash,
         saved,
       };
@@ -399,8 +383,6 @@ export const commitAuthorPair = (request: WorkspaceSave) => {
         await safeDirectory(stagedPath, true);
         await writeNew(join(stagedPath, "source.before"), input.beforeSource);
         await writeNew(join(stagedPath, "source.after"), input.afterSource);
-        await writeNew(join(stagedPath, "lock.before"), input.beforeLock);
-        await writeNew(join(stagedPath, "lock.after"), input.afterLock);
         await writeNew(join(stagedPath, "journal.json"), jsonBytes(journal));
         await syncDirectory(stagedPath);
         await syncDirectory(stagingParent);
@@ -411,26 +393,13 @@ export const commitAuthorPair = (request: WorkspaceSave) => {
       }
       try {
         const currentSource = await readRegularFile(sourcePath);
-        const currentLock = await readRegularFile(lockPath);
-        if (
-          !currentSource ||
-          !currentLock ||
-          hash(currentSource) !== journal.beforeSourceHash ||
-          hash(currentLock) !== journal.beforeLockHash
-        )
+        if (!currentSource || hash(currentSource) !== journal.beforeSourceHash)
           throw new AuthorTransactionConflict("Author transaction target changed externally.");
         journal.state = "applying";
         await writeAtomic(join(path, "journal.json"), jsonBytes(journal));
         await replaceChecked(sourcePath, journal.beforeSourceHash, input.afterSource);
-        await replaceChecked(lockPath, journal.beforeLockHash, input.afterLock);
         const finalSource = await readRegularFile(sourcePath);
-        const finalLock = await readRegularFile(lockPath);
-        if (
-          !finalSource ||
-          !finalLock ||
-          hash(finalSource) !== journal.afterSourceHash ||
-          hash(finalLock) !== journal.afterLockHash
-        )
+        if (!finalSource || hash(finalSource) !== journal.afterSourceHash)
           throw new Error("Author transaction output changed externally.");
         journal.state = "committed";
         await writeAtomic(join(path, "journal.json"), jsonBytes(journal));

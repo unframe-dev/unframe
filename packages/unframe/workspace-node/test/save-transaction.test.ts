@@ -17,7 +17,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import {
   acquireSourceLock,
   AuthorTransactionConflict,
-  commitAuthorPair,
+  commitAuthorSource,
   readAuthorReceipt,
   prepareAuthorStorage,
   recoverAuthorTransactions,
@@ -36,7 +36,6 @@ const fixture = async () => {
     'export default { entryFile: "presentation.unframe.tsx" };',
   );
   await writeFile(join(root, "presentation.unframe.tsx"), "before source");
-  await writeFile(join(root, "unframe.lock"), "before lock");
   return root;
 };
 const commandId = "a".repeat(32);
@@ -45,8 +44,6 @@ const input = (root: string) => ({
   sourcePath: "presentation.unframe.tsx",
   beforeSource: new TextEncoder().encode("before source"),
   afterSource: new TextEncoder().encode("after source"),
-  beforeLock: new TextEncoder().encode("before lock"),
-  afterLock: new TextEncoder().encode("after lock"),
   requestHash: "b".repeat(64),
   saved: {
     revision: "sha256:changed",
@@ -69,15 +66,15 @@ describe("author source transaction", () => {
     const root = await fixture();
     await prepareAuthorStorage(root);
     await chmod(join(root, ".unframe", "authoring"), 0o755);
-    await expect(commitAuthorPair(input(root))).rejects.toThrow("permissions are unsafe");
+    await expect(commitAuthorSource(input(root))).rejects.toThrow("permissions are unsafe");
     expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("before source");
   });
 
-  it("persists the pair and a durable receipt", async () => {
+  it("persists Source without a lock and a durable receipt", async () => {
     const root = await fixture();
-    await commitAuthorPair(input(root));
+    await commitAuthorSource(input(root));
     expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("after source");
-    expect(await readFile(join(root, "unframe.lock"), "utf8")).toBe("after lock");
+    await expect(readFile(join(root, "unframe.lock"))).rejects.toMatchObject({ code: "ENOENT" });
     expect(await readAuthorReceipt(root, commandId)).toEqual({
       requestHash: "b".repeat(64),
       saved: input(root).saved,
@@ -86,34 +83,62 @@ describe("author source transaction", () => {
     expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("after source");
   });
 
-  it("fixes source and lock bytes before asynchronous saving begins", async () => {
+  it("accepts consecutive Source saves and retains both receipts", async () => {
     const root = await fixture();
-    const request = input(root);
-    const saving = commitAuthorPair(request);
-    request.afterSource.fill(0);
-    request.afterLock.fill(0);
-    await saving;
-    expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("after source");
-    expect(await readFile(join(root, "unframe.lock"), "utf8")).toBe("after lock");
+    const first = input(root);
+    await commitAuthorSource(first);
+    const second = {
+      ...input(root),
+      beforeSource: first.afterSource,
+      afterSource: new TextEncoder().encode("second source"),
+      saved: { ...first.saved, commandId: "c".repeat(32) },
+    };
+    await commitAuthorSource(second);
+    await recoverAuthorTransactions(root);
+    expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("second source");
+    expect((await readAuthorReceipt(root, first.saved.commandId))?.saved).toEqual(first.saved);
+    expect((await readAuthorReceipt(root, second.saved.commandId))?.saved).toEqual(second.saved);
   });
 
-  it("allows only one concurrent save and keeps its source and lock pair", async () => {
+  it("recovers a committed Source save whose receipt was interrupted", async () => {
+    const root = await fixture();
+    await commitAuthorSource(input(root));
+    await unlink(join(root, ".unframe", "authoring", "receipts", commandId + ".json"));
+    await recoverAuthorTransactions(root);
+    expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("after source");
+    expect(await readAuthorReceipt(root, commandId)).toEqual({
+      requestHash: input(root).requestHash,
+      saved: input(root).saved,
+    });
+  });
+
+  it("fixes Source bytes before asynchronous saving begins", async () => {
+    const root = await fixture();
+    const request = input(root);
+    const saving = commitAuthorSource(request);
+    request.afterSource.fill(0);
+    await saving;
+    expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("after source");
+  });
+
+  it("allows only one concurrent save and keeps its Source", async () => {
     for (let round = 0; round < 3; round++) {
       const root = await fixture();
       const first = input(root);
       const second = {
         ...input(root),
         afterSource: new TextEncoder().encode("second source"),
-        afterLock: new TextEncoder().encode("second lock"),
         saved: { ...input(root).saved, commandId: "c".repeat(32) },
       };
-      const results = await Promise.allSettled([commitAuthorPair(first), commitAuthorPair(second)]);
+      const results = await Promise.allSettled([
+        commitAuthorSource(first),
+        commitAuthorSource(second),
+      ]);
       expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
       const winner = results[0]!.status === "fulfilled" ? first : second;
       expect(await readFile(join(root, "presentation.unframe.tsx"))).toEqual(
         Buffer.from(winner.afterSource),
       );
-      expect(await readFile(join(root, "unframe.lock"))).toEqual(Buffer.from(winner.afterLock));
       expect(await readAuthorReceipt(root, winner.saved.commandId)).toEqual({
         requestHash: winner.requestHash,
         saved: winner.saved,
@@ -122,7 +147,6 @@ describe("author source transaction", () => {
       expect(await readFile(join(root, "presentation.unframe.tsx"))).toEqual(
         Buffer.from(winner.afterSource),
       );
-      expect(await readFile(join(root, "unframe.lock"))).toEqual(Buffer.from(winner.afterLock));
     }
   });
 
@@ -139,14 +163,13 @@ describe("author source transaction", () => {
           saved: { ...input(root).saved, commandId: "c".repeat(32) },
         };
         const results = await Promise.allSettled([
-          commitAuthorPair(first),
-          commitAuthorPair(second),
+          commitAuthorSource(first),
+          commitAuthorSource(second),
         ]);
         expect(results.map((result) => result.status)).toEqual(["fulfilled", "rejected"]);
         await recoverAuthorTransactions(root);
       });
       expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("after source");
-      expect(await readFile(join(root, "unframe.lock"), "utf8")).toBe("after lock");
     } finally {
       await lease.value.release();
     }
@@ -161,17 +184,16 @@ describe("author source transaction", () => {
     if (!lease.ok) throw new Error("Fixture lease failed");
     try {
       await expect(recoverAuthorTransactions(root)).rejects.toThrow();
-      await expect(commitAuthorPair(input(root))).rejects.toThrow();
+      await expect(commitAuthorSource(input(root))).rejects.toThrow();
       expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("before source");
-      expect(await readFile(join(root, "unframe.lock"), "utf8")).toBe("before lock");
     } finally {
       await lease.value.release();
     }
   });
 
-  it("rolls back an interrupted applying pair and unblocks later reads", async () => {
+  it("rolls back an interrupted applying Source save and unblocks later reads", async () => {
     const root = await fixture();
-    await commitAuthorPair(input(root));
+    await commitAuthorSource(input(root));
     const transaction = join(root, ".unframe", "authoring", "transactions", commandId);
     await unlink(join(root, ".unframe", "authoring", "receipts", commandId + ".json"));
     const journal = JSON.parse(await readFile(join(transaction, "journal.json"), "utf8"));
@@ -179,15 +201,14 @@ describe("author source transaction", () => {
     await writeFile(join(transaction, "journal.json"), JSON.stringify(journal), { mode: 0o600 });
     await recoverAuthorTransactions(root);
     expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("before source");
-    expect(await readFile(join(root, "unframe.lock"), "utf8")).toBe("before lock");
     await expect(readFile(join(transaction, "journal.json"))).rejects.toMatchObject({
       code: "ENOENT",
     });
   });
 
-  it("recovers an interrupted pair before accepting a new save", async () => {
+  it("recovers an interrupted Source save before accepting a new save", async () => {
     const root = await fixture();
-    await commitAuthorPair(input(root));
+    await commitAuthorSource(input(root));
     const transaction = join(root, ".unframe", "authoring", "transactions", commandId);
     await unlink(join(root, ".unframe", "authoring", "receipts", commandId + ".json"));
     const journal = JSON.parse(await readFile(join(transaction, "journal.json"), "utf8"));
@@ -196,12 +217,10 @@ describe("author source transaction", () => {
     const next = {
       ...input(root),
       afterSource: new TextEncoder().encode("next source"),
-      afterLock: new TextEncoder().encode("next lock"),
       saved: { ...input(root).saved, commandId: "c".repeat(32) },
     };
-    await commitAuthorPair(next);
+    await commitAuthorSource(next);
     expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("next source");
-    expect(await readFile(join(root, "unframe.lock"), "utf8")).toBe("next lock");
     await recoverAuthorTransactions(root);
     expect(await readAuthorReceipt(root, next.saved.commandId)).toEqual({
       requestHash: next.requestHash,
@@ -211,7 +230,7 @@ describe("author source transaction", () => {
 
   it("preserves external edits instead of overwriting them during recovery", async () => {
     const root = await fixture();
-    await commitAuthorPair(input(root));
+    await commitAuthorSource(input(root));
     const transaction = join(root, ".unframe", "authoring", "transactions", commandId);
     await unlink(join(root, ".unframe", "authoring", "receipts", commandId + ".json"));
     const journal = JSON.parse(await readFile(join(transaction, "journal.json"), "utf8"));
@@ -225,7 +244,7 @@ describe("author source transaction", () => {
   it("refuses a journal targeting a different project file", async () => {
     const root = await fixture();
     await writeFile(join(root, "other.txt"), "before source");
-    await commitAuthorPair(input(root));
+    await commitAuthorSource(input(root));
     const transaction = join(root, ".unframe", "authoring", "transactions", commandId);
     const journal = JSON.parse(await readFile(join(transaction, "journal.json"), "utf8"));
     journal.sourcePath = "other.txt";
@@ -234,12 +253,11 @@ describe("author source transaction", () => {
     expect(await readFile(join(root, "other.txt"), "utf8")).toBe("before source");
   });
 
-  it("reports an external edit before commit without changing either file", async () => {
+  it("reports an external edit before commit without changing Source", async () => {
     const root = await fixture();
     await writeFile(join(root, "presentation.unframe.tsx"), "external edit");
-    await expect(commitAuthorPair(input(root))).rejects.toBeInstanceOf(AuthorTransactionConflict);
+    await expect(commitAuthorSource(input(root))).rejects.toBeInstanceOf(AuthorTransactionConflict);
     expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("external edit");
-    expect(await readFile(join(root, "unframe.lock"), "utf8")).toBe("before lock");
     expect(await readdir(join(root, ".unframe", "authoring", "transactions"))).toEqual([]);
   });
 });

@@ -28,14 +28,14 @@ export const runStyleWorker = async (
     .update(await readFile(nodePath))
     .digest("hex");
   if (nodePath !== snapshot.runtime.nodePath || nodeHash !== snapshot.runtime.nodeHash)
-    throw new Error("Style worker runtime differs from locked runtime; update the lock");
+    throw new Error("Style worker runtime changed after input capture; retry the build");
   const current = probeNodeRuntime(nodePath);
   if (
     (["version", "platform", "arch", "libc"] as const).some(
       (key) => current[key] !== snapshot.runtime[key],
     )
   )
-    throw new Error("Style worker runtime differs from locked runtime; update the lock");
+    throw new Error("Style worker runtime changed after input capture; retry the build");
   if (!satisfies(snapshot.runtime.version, "24.x"))
     throw new Error("Style worker requires Node 24");
   for (const entry of options.entries)
@@ -49,7 +49,7 @@ export const runStyleWorker = async (
   };
   const directory = temporary.path;
   const placed = await materializeNodeTransformSnapshot(snapshot, directory);
-  if (!placed.adapterPath) throw new Error("Style adapter is missing from locked snapshot");
+  if (!placed.adapterPath) throw new Error("Style adapter is missing from captured snapshot");
   const adapterPath = `./${relative(directory, placed.adapterPath).split("\\").join("/")}`;
   const workerPath = join(directory, "worker.mjs");
   const workerSource = await readFile(new URL("./style-worker.ts", import.meta.url), "utf8");
@@ -67,7 +67,7 @@ export const runStyleWorker = async (
           .sort()
       : []);
   if (JSON.stringify([...runtimePaths].sort()) !== JSON.stringify(snapshot.runtime.closure))
-    throw new Error("Style worker runtime closure differs from locked runtime; update the lock");
+    throw new Error("Style worker runtime closure changed after input capture; retry the build");
   return await runIsolatedWorker(
     {
       workerPath,

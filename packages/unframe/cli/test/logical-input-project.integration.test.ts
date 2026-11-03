@@ -36,8 +36,6 @@ it("builds the declared Presenter input with its action and step transition", as
     },`,
       ),
     );
-    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
     const result = await runPresentationCli({ args: ["build", directory] });
     expect(result.exitCode, result.stderr).toBe(0);
     const artifact = async (name: string) =>

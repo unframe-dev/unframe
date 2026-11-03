@@ -3,11 +3,7 @@ import { lstat, readdir } from "node:fs/promises";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { randomBytes } from "node:crypto";
 import { AuthorError } from "@unframe-dev/author-service";
-import {
-  readPnpmProjectLock,
-  readLinkedWorkspaceDirectories,
-  PnpmProjectLockError,
-} from "@unframe-dev/workspace-node";
+import { readInstalledDependencyInputs } from "@unframe-dev/workspace-node";
 import type { ProjectChange } from "@unframe-dev/contracts/author-http";
 
 export type ProjectChanges = {
@@ -85,7 +81,6 @@ export const watchProjectChanges = async (
     string,
     { watcher: FSWatcher; names: Set<string>; device: number; inode: number }
   >();
-  let selectedLockDirectory: string | undefined;
   let linkedDirectories: readonly string[] = [];
   const excluded = new Set([".git", ".unframe", "dist", "node_modules"]);
   const linkedDirectory = (path: string) =>
@@ -97,24 +92,57 @@ export const watchProjectChanges = async (
     mode === "source" &&
     ((linked ? linkedExcluded : excluded).has(name) ||
       (parent === root && [".unframe-source.lock", ".unframe-build.lock"].includes(name)));
+  const fingerprint = async (path: string) => {
+    const stat = await lstat(path).catch(() => undefined);
+    return stat
+      ? `${stat.dev}:${stat.ino}:${stat.mode}:${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`
+      : undefined;
+  };
+  const observeDirectory = async (
+    directory: string,
+    changed: (name: string | null) => void,
+    accepts: (name: string) => boolean = () => true,
+  ) => {
+    const initial = await readdir(directory);
+    const observed = new Map(
+      await Promise.all(
+        initial
+          .filter(accepts)
+          .map(async (name) => [name, await fingerprint(join(directory, name))] as const),
+      ),
+    );
+    let pending = Promise.resolve();
+    return watch(directory, (_event, name) => {
+      if (name === null) {
+        changed(null);
+        return;
+      }
+      const entry = name.toString();
+      if (!accepts(entry)) return;
+      pending = pending
+        .then(async () => {
+          const current = await fingerprint(join(directory, entry));
+          if (observed.get(entry) === current) return;
+          observed.set(entry, current);
+          changed(entry);
+        })
+        .catch((error: unknown) =>
+          changes.fail(error instanceof Error ? error : new Error("Project watch failed.")),
+        );
+    });
+  };
   let closed = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let scanning = Promise.resolve();
+  let notifiedState: string | undefined;
+  let unknownEvents = 0;
+  let notifiedUnknownEvents = 0;
   const reconcileDependencies = async () => {
     if (mode !== "source") return;
     try {
-      selectedLockDirectory = (await readPnpmProjectLock(root)).directory;
-      try {
-        linkedDirectories = (await readLinkedWorkspaceDirectories(root)).map(
-          (input) => input.directory,
-        );
-      } catch {
-        // Keep observing the last valid dependency paths while the lock is being repaired.
-      }
-    } catch (error) {
-      if (!(error instanceof PnpmProjectLockError)) throw error;
-      if (selectedLockDirectory !== error.directory) linkedDirectories = [];
-      selectedLockDirectory = error.directory;
+      linkedDirectories = (await readInstalledDependencyInputs(root)).directories;
+    } catch {
+      // Preserve dependency observation while an installation is incomplete.
     }
     const wanted = new Map<string, Set<string>>();
     const include = (directory: string, name: string) => {
@@ -123,16 +151,33 @@ export const watchProjectChanges = async (
       wanted.set(directory, names);
     };
     for (let directory = dirname(root); ; directory = dirname(directory)) {
-      include(directory, "pnpm-workspace.yaml");
+      for (const name of [
+        "package.json",
+        "pnpm-workspace.yaml",
+        "pnpm-lock.yaml",
+        "package-lock.json",
+        "npm-shrinkwrap.json",
+        "yarn.lock",
+        "bun.lock",
+        "bun.lockb",
+        "node_modules",
+      ])
+        include(directory, name);
       if (dirname(directory) === directory) break;
-    }
-    if (selectedLockDirectory && selectedLockDirectory !== root) {
-      include(selectedLockDirectory, "pnpm-lock.yaml");
-      include(selectedLockDirectory, "pnpm-workspace.yaml");
     }
     for (const directory of linkedDirectories)
       for (let current = directory; dirname(current) !== current; current = dirname(current))
         include(dirname(current), basename(current));
+    for (const owner of [root, ...linkedDirectories]) {
+      for (let directory = owner; ; directory = dirname(directory)) {
+        include(directory, "node_modules");
+        const modules = join(directory, "node_modules");
+        include(modules, "*");
+        for (const name of await readdir(modules).catch(() => []))
+          if (name.startsWith("@")) include(join(modules, name), "*");
+        if (dirname(directory) === directory) break;
+      }
+    }
     if (closed) return;
     for (const [directory, existing] of dependencyWatchers) {
       const names = wanted.get(directory);
@@ -157,10 +202,22 @@ export const watchProjectChanges = async (
       });
       if (!stat?.isDirectory() || stat.isSymbolicLink()) continue;
       try {
-        const watcher = watch(directory, (_event, name) => {
-          if (name === null || dependencyWatchers.get(directory)?.names.has(name.toString()))
-            schedule();
-        });
+        const accepts = (name: string) => {
+          const selected = dependencyWatchers.get(directory)?.names ?? names;
+          return selected.has("*") || selected.has(name);
+        };
+        const watcher = await observeDirectory(
+          directory,
+          (name) => {
+            if (
+              name === null ||
+              dependencyWatchers.get(directory)?.names.has("*") ||
+              dependencyWatchers.get(directory)?.names.has(name.toString())
+            )
+              schedule(name === null);
+          },
+          accepts,
+        );
         watcher.on("error", (error) => changes.fail(error));
         dependencyWatchers.set(directory, { watcher, names, device: stat.dev, inode: stat.ino });
       } catch (error) {
@@ -177,6 +234,14 @@ export const watchProjectChanges = async (
   };
   const reconcile = async () => {
     const seen = new Set<string>();
+    const inputs = new Map<string, string | undefined>();
+    const recordInput = async (path: string) => {
+      const stat = await lstat(path).catch(() => undefined);
+      inputs.set(
+        path,
+        stat?.isDirectory() ? `${stat.dev}:${stat.ino}:directory` : await fingerprint(path),
+      );
+    };
     const scan = async (path: string) => {
       if (closed) return;
       const stat = await lstat(path).catch((error: unknown) => {
@@ -191,6 +256,7 @@ export const watchProjectChanges = async (
       });
       if (closed || !stat?.isDirectory() || stat.isSymbolicLink()) return;
       seen.add(path);
+      await recordInput(path);
       const existing = watchers.get(path);
       if (existing && (existing.device !== stat.dev || existing.inode !== stat.ino)) {
         existing.watcher.close();
@@ -198,8 +264,9 @@ export const watchProjectChanges = async (
       }
       if (!watchers.has(path)) {
         try {
-          const watcher = watch(path, (_event, name) => {
-            if (name === null || !ignored(path, name.toString(), linkedDirectory(path))) schedule();
+          const watcher = await observeDirectory(path, (name) => {
+            if (name === null || !ignored(path, name.toString(), linkedDirectory(path)))
+              schedule(name === null);
           });
           watcher.on("error", (error) => changes.fail(error));
           watchers.set(path, { watcher, device: stat.dev, inode: stat.ino });
@@ -224,35 +291,55 @@ export const watchProjectChanges = async (
           return [];
         throw error;
       });
-      for (const entry of entries)
-        if (entry.isDirectory() && !ignored(path, entry.name, linkedDirectory(path)))
-          await scan(join(path, entry.name));
+      for (const entry of entries) {
+        if (ignored(path, entry.name, linkedDirectory(path))) continue;
+        const child = join(path, entry.name);
+        if (entry.isDirectory()) await scan(child);
+        else await recordInput(child);
+      }
     };
     await reconcileDependencies();
     for (const directory of linkedDirectories) await scan(directory);
     await scan(root);
+    for (const [directory, { names }] of dependencyWatchers) {
+      const selected = names.has("*") ? await readdir(directory).catch(() => []) : [...names];
+      for (const name of selected) await recordInput(join(directory, name));
+    }
     if (closed) return;
     for (const [path, value] of watchers)
       if (!seen.has(path)) {
         value.watcher.close();
         watchers.delete(path);
       }
+    return JSON.stringify(
+      [...inputs].sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)),
+    );
   };
-  const schedule = () => {
-    if (closed || timer) return;
+  const schedule = (unknown = false) => {
+    if (closed) return;
+    if (unknown) ++unknownEvents;
+    if (timer) return;
     timer = setTimeout(() => {
       timer = undefined;
       scanning = scanning
         .then(reconcile)
-        .then(() => changes.notify())
+        .then((state) => {
+          if (!closed && (state !== notifiedState || unknownEvents !== notifiedUnknownEvents)) {
+            notifiedState = state;
+            notifiedUnknownEvents = unknownEvents;
+            changes.notify();
+          }
+        })
         .catch((error: unknown) =>
           changes.fail(error instanceof Error ? error : new Error("Project watch failed.")),
         );
     }, 100);
   };
-  const parent = watch(dirname(root), (_event, name) => {
-    if (name === null || name.toString() === basename(root)) schedule();
-  });
+  const parent = await observeDirectory(
+    dirname(root),
+    (name) => schedule(name === null),
+    (name) => name === basename(root),
+  );
   parent.on("error", (error) => changes.fail(error));
   const close = () => {
     if (closed) return;
@@ -266,7 +353,7 @@ export const watchProjectChanges = async (
     changes.close();
   };
   try {
-    await reconcile();
+    notifiedState = await reconcile();
     return { wait: changes.wait, close };
   } catch (error) {
     close();

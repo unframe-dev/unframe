@@ -57,7 +57,7 @@ export const assembleAuthoringProject = (
           code: "compiler-frozen-component-lock-mismatch",
           path: ["componentLocks"],
           message:
-            "Component origins, source closure, or renderer inputs differ from the frozen lock. Refresh the lock explicitly.",
+            "Component origins, source closure, or renderer inputs differ from the captured build inputs.",
         },
       ],
     };

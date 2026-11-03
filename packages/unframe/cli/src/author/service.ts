@@ -1,10 +1,6 @@
 import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import type { AnalysisOperations } from "./analysis-protocol.js";
-import {
-  runAnalysisOperation,
-  prepareLockRefreshInWorker,
-  prepareLockUpdateInWorker,
-} from "./analysis-client.js";
+import { runAnalysisOperation } from "./analysis-client.js";
 import { sourceAssetPorts } from "../application/media-ports.js";
 import { readBuildExecutionResult } from "./build-result.js";
 import {
@@ -20,11 +16,10 @@ import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 import { readTypeLibraries } from "@unframe-dev/workspace-node";
 import { readBuildGeneration } from "@unframe-dev/workspace-node";
 import { acquireSourceLock } from "@unframe-dev/workspace-node";
-import { createLocalProjectLockSynchronizer } from "@unframe-dev/workspace-node";
 import { type ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import {
   AuthorTransactionConflict,
-  commitAuthorPair,
+  commitAuthorSource,
   prepareAuthorStorage,
   readAuthorReceipt,
   recoverAuthorTransactions,
@@ -66,10 +61,6 @@ export const createAuthorService = async (
     maxCompletedJobs?: number;
   } = {},
 ): Promise<AuthorService> => {
-  const synchronizeLocalLock = createLocalProjectLockSynchronizer(sourceAssetPorts, directory, {
-    prepareRefresh: prepareLockRefreshInWorker,
-    prepareUpdate: prepareLockUpdateInWorker,
-  });
   const readPublished = options.readPublishedArtifacts ?? readPublishedArtifacts;
   const run = options.run ?? runPresentationCli;
   let closed = false;
@@ -213,20 +204,18 @@ export const createAuthorService = async (
             });
             return latest.ok ? latest.revision : undefined;
           },
-          commit: async (current, { afterSource, lockBytes, saved }, requestHash) => {
+          commit: async (current, { afterSource, saved }, requestHash) => {
             const beforeSource = current.found.localFiles.find(
               (file) => file.path === current.found.entryFile,
             )?.bytes;
             if (!beforeSource)
               fail(500, "author-source-io", "Presentation source could not be read.");
             try {
-              await commitAuthorPair({
+              await commitAuthorSource({
                 root: directory,
                 sourcePath: current.found.entryFile,
                 beforeSource,
                 afterSource,
-                beforeLock: current.found.lockBytes,
-                afterLock: lockBytes,
                 requestHash,
                 saved,
               });
@@ -278,27 +267,13 @@ export const createAuthorService = async (
           return false;
         }
       },
-      prepareBuild: async (revision, channel, signal) => {
-        const refreshed =
-          channel === "dev"
-            ? await synchronizeLocalLock({
-                signal,
-                waitTimeoutMs: Number.POSITIVE_INFINITY,
-                expectedRevision: revision,
-              })
-            : { ok: true as const, revision };
-        if (!refreshed.ok)
-          fail(
-            refreshed.code === "cli-output-stale" ? 412 : 422,
-            refreshed.code,
-            refreshed.message,
-          );
+      prepareBuild: async (revision, _channel, signal) => {
         const current = await readState(signal);
-        if (current.snapshot.revision !== refreshed.revision)
+        if (current.snapshot.revision !== revision)
           fail(412, "author-revision-mismatch", "Project revision changed.");
         if (!current.snapshot.irHash)
           fail(422, "author-source-invalid", "Project source cannot be built.");
-        return { revision: refreshed.revision, snapshot: current.snapshot };
+        return { revision, snapshot: current.snapshot };
       },
 
       run: async ({ revision, channel, signal }) =>

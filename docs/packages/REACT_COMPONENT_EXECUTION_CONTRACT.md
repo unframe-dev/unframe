@@ -1,5 +1,7 @@
 # React Component の抽出・編集・capture 契約
 
+> 現行の依存入力契約は [CLI Architecture](../../packages/unframe/cli/ARCHITECTURE.md) を参照。以下の永続 `unframe.lock`・lock 更新・保存時の lock 更新に関する記述は過去の設計であり、廃止済みです。
+
 - **Status**: 過去の設計記録。現在の package 境界・lock 形式・対応範囲は実装と [独立パッケージ化の計画](../plans/unframe-independent-packages.md) を参照
 - **Related**: [作者向け API と工程](./REACT_COMPONENT_AUTHORING.md)、[ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 

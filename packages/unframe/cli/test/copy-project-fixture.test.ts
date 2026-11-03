@@ -14,10 +14,10 @@ it("copies source inputs without copying publication state or active leases", as
     await mkdir(join(source, "dist"));
     await writeFile(join(source, ".unframe-source.lock"), "active reader");
     await writeFile(join(source, ".unframe-build.lock"), "active build");
-    await writeFile(join(source, "unframe.lock"), "frozen inputs");
+    await writeFile(join(source, "package.json"), "project manifest");
     await copyProjectFixture(source, destination);
-    expect(await readdir(destination)).toEqual(["unframe.lock"]);
-    expect(await readFile(join(destination, "unframe.lock"), "utf8")).toBe("frozen inputs");
+    expect(await readdir(destination)).toEqual(["package.json"]);
+    expect(await readFile(join(destination, "package.json"), "utf8")).toBe("project manifest");
     expect(await readFile(join(source, ".unframe-source.lock"), "utf8")).toBe("active reader");
     expect(await readdir(source)).toHaveLength(5);
   } finally {

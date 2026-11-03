@@ -94,7 +94,7 @@ Session path の authority は Cloud または Venue Edge に配置された割�
 - Component の公開契約と renderer 実装を分離する。
 - GUI と Code は同じ Semantic Authoring IR を編集する。
 - GUI が任意の TSX、CSS、JavaScript を完全に逆解析できるとはみなさない。
-- Local Compiler は Presentation Orchestrator、Theme Declaration、Component Manifest、Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。M1 の project discovery、config / lock、hash、managed output は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md) を正本とする。
+- Local Compiler は Presentation Orchestrator、Theme Declaration、Component Manifest、Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。project discovery、config、managed output の背景は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、現行の導入済み依存・入力 snapshot・revision は [CLI Architecture](../../packages/unframe/cli/ARCHITECTURE.md) を参照する。
 - Opaque renderer だけが通常の TS / React / CSS を bundle して renderer artifact を生成する。renderer の実行環境は Authoring DSL の lowering から分離する。
 - Control Plane と Unity Runtime は Authoring Source、React、CSS、renderer source を実行しない。
 - PresentationDefinition JSON、Texture、Video、Protobuf は生成物であり、編集元の正本にはしない。
@@ -587,7 +587,7 @@ Opaque renderer は通常の TS / React / CSS として bundle し、renderer ar
 
 ### 5.4 Component Instance と Detach
 
-Structured Component Instance は Component ID / version、Props、Variant、Slot binding、公開 Part override、resource owner を持つ。lock の接続は catalog が生成する。Component Instance から生成する Spatial Node、Timeline、Variable、Zone は同じ owner を継承し、Component Manifest や Structure が別 scope へ上書きしない。共有 lifetime が必要な内容は別の presentation-owned Component Instance として配置する。
+Structured Component Instance は Component ID / version、Props、Variant、Slot binding、公開 Part override、resource owner を持つ。入力 carrier の接続は catalog が生成する。Component Instance から生成する Spatial Node、Timeline、Variable、Zone は同じ owner を継承し、Component Manifest や Structure が別 scope へ上書きしない。共有 lifetime が必要な内容は別の presentation-owned Component Instance として配置する。
 
 Component 内部では local ID を使用し、Compiler が Instance ID と local ID から安定した Runtime ID を生成する。Global Flow は Component 内部 Node を直接参照せず、公開 Part、Action、Output を参照する。
 
@@ -599,9 +599,9 @@ Structured Component の抽象を超えた編集が必要な場合は Detach す
 - Package 更新から切り離す。
 - Delivery artifact や Texture から Component source を復元しない。
 
-Detach は Structured Component を project-local な Manifest と Structure へ materialize する one-way operation とする。Compiler は現在の Props、Variant、Slot、公開 Part override を適用し、Orchestrator 上の Component Instance ID と resource owner、local Component source 内の内部 local ID、公開 Part / Action / Output ID を維持して、外部 Component package の lock を外す。Global Flow の公開参照は同じ論理 ID を参照し続けなければならない。
+Detach は Structured Component を project-local な Manifest と Structure へ materialize する one-way operation とする。Compiler は現在の Props、Variant、Slot、公開 Part override を適用し、Orchestrator 上の Component Instance ID と resource owner、local Component source 内の内部 local ID、公開 Part / Action / Output ID を維持して、外部 Component package への参照を外す。Global Flow の公開参照は同じ論理 ID を参照し続けなければならない。
 
-Detach は Compiler が対応する宣言 AST から canonical な local Manifest / Structure AST を生成し、再度 static lowering と検証を通した後に source と lockfile を原子的に保存する。nested Component Instance は参照を維持し、再帰的に Detach しない。元 package の ID と version は provenance として保持できるが、更新や自動 reattach には使用しない。v1 は reattach と Opaque Component の Detach を持たない。
+Detach は Compiler が対応する宣言 AST から canonical な local Manifest / Structure AST を生成し、再度 static lowering と検証を通した後に source を原子的に保存する。nested Component Instance は参照を維持し、再帰的に Detach しない。元 package の ID と version は provenance として保持できるが、更新や自動 reattach には使用しない。v1 は reattach と Opaque Component の Detach を持たない。
 
 Opaque Component は editable な Component Structure を持たないため Detach できない。renderer source、DOM、Texture、Video artifact から Structured authoring subtree を生成しない。
 
@@ -722,7 +722,7 @@ Presentation Orchestrator、Theme Declaration、Component Manifest、Structured 
 
 v1 の DSL で許可する構文は次に限定する。
 
-- lockfile で固定した Component Manifest、Compiler SDK、Primitive、型の静的 ESM import
+- 取得済み依存 graph 内の Component Manifest、Compiler SDK、Primitive、型の静的 ESM import
 - `definePresentation`、`defineTheme`、Manifest builder、Structure Primitive など Compiler が認識する宣言 API
 - literal、object / array literal、JSX、immutable な `const`、型注釈、type-only import
 - literal stable ID による参照
@@ -754,7 +754,7 @@ Declaration Graph
 Semantic Authoring IR
 ```
 
-Compiler は source と lockfile を解決した後、Lossless Syntax Tree を保持したまま import、symbol、型、DSL signature を検証する。lowering は AST と解決済み symbol だけを入力とし、Authoring Source を transpile、bundle、実行しない。Declaration Graph は plain data であり、関数、closure、DOM、React object、renderer object を含めない。
+Source frontend は取得済み source と依存 snapshot を解決した後、Lossless Syntax Tree を保持したまま import、symbol、型、DSL signature を検証する。lowering は AST と解決済み symbol だけを入力とし、Authoring Source を transpile、bundle、実行しない。Declaration Graph は plain data であり、関数、closure、DOM、React object、renderer object を含めない。
 
 Normalization は少なくとも、stable ID の一意性、参照整合性、Component contract、source range との対応、context ごとの許可 node、静的 topology を検証する。unsupported syntax、未解決または許可されていない import / call、計算された ID、AST と Declaration Graph の対応欠落は build error とする。具体的な parser、TypeScript API、AST patch library は implementation design で選択できるが、この静的 lowering contract を変更してはならない。
 
@@ -788,7 +788,7 @@ Code
 - Semantic command
 - Conflict diagnostics
 
-Authoring Source と lockfile を永続的な正本とし、Declaration Graph と Semantic Authoring IR は再生成可能な派生物とする。GUI の Semantic Command は対象 Stable ID、期待する source hash と IR hash を持ち、Lossless Syntax Tree を patch した後に再度 static lowering と validation を行う。現在の hash と一致しない command は stale conflict として拒否し、自動 merge しない。成功した source patch と lockfile 更新は原子的に保存する。
+Authoring Source を永続的な正本とし、Declaration Graph と Semantic Authoring IR は再生成可能な派生物とする。GUI の Semantic Command は対象 Stable ID、期待する source hash と IR hash を持ち、Lossless Syntax Tree を patch した後に再度 static lowering と validation を行う。現在の hash と一致しない command は stale conflict として拒否し、自動 merge しない。成功した source patch は原子的に保存する。
 
 保証する round-trip は正規化後の意味論的同値性であり、任意の手書きソースについて文字列単位の完全一致を保証しない。patch 対象外の comment と formatting は Lossless Syntax Tree で保持する。Compiler は Stable ID、source range、Component contract と対応できない Declaration Graph を生成せず、制限付き DSL の範囲で対応を作れない source を build error とする。
 
@@ -2365,9 +2365,9 @@ Unity Runtime
 - PresentationDefinition を canonical JSON として serialize する。
 - PresentationDefinition と RenderBundle の hash を対応付ける。
 
-Static lowering が参照できる入力は、Authoring Source、lock された Component package、Theme、Asset metadata、Compiler configuration に限定する。同じ source、lockfile、compiler version、configuration から同じ Declaration Graph と PresentationDefinition JSON を生成する。Opaque renderer artifact の Browser 実行は別の隔離境界とし、その capability と再現性は Rendering / Delivery contract で固定する。
+Static lowering が参照できる入力は、Authoring Source、取得済み Component package、Theme、Asset metadata、Compiler configuration に限定する。同じ source、依存 snapshot、compiler version、configuration から同じ Declaration Graph と PresentationDefinition JSON を生成する。Opaque renderer artifact の Browser 実行は別の隔離境界とし、その capability と再現性は Rendering / Delivery contract で固定する。
 
-Local process は POSIX filesystem に限定し、明示された absolute project directory を root とする。同じ root の `unframe.config.ts` と `unframe.lock` を読み、上方探索はしない。configは`entryFile`と任意の`assets`登録を持つ非実行のdata-only default exportであり、lockはsource Assetのpath/hash/size、local file hashとself-contained package bytes / graphを固定する。通常 check / build は node_modules / network を参照しない。`check` は React Component の公開契約・renderer 抽出と canonical Opaque Surface への変換までを検証する。build は Fixed Browser を使用し、Opaque Surface の capture は隔離 worker で実行する。成果物は `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と画像・Font・GLB・MP4 assets であり、管理された `dist` を atomic replacement する。lock の明示更新と filesystem 規則は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、React 抽出境界は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。
+Local process は POSIX filesystem に限定し、明示された project directory の `unframe.config.ts` と Source を読む。依存導入はプロジェクトのパッケージマネージャーが所有し、CLI は導入済み `node_modules` から workspace・symlink・peer context を含む snapshot を取得する。PnP は未対応。Compiler は取得済み入力だけを使い、Component・Theme・素材・style の整合性を検証する。再利用する build 結果は `.unframe/cache/` に保存し、入力変更で無効化する。公開直前に revision を再検証し、生成済み Dist を atomic replacement する。異なる環境での完全な再 build 一致は要求せず、公開内容は Dist が保持する。詳細は [CLI Architecture](../../packages/unframe/cli/ARCHITECTURE.md) を参照。
 
 ### Control Plane
 
@@ -2451,7 +2451,7 @@ dist/
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
 - 管理 Web は公開済み Dist の確認とルーム作成を担当する。Source 編集と Unity Preview は `app/web/local-editor` と CLI Author host が所有し、canonical Definition の読み取り、公開 Props / Transform 編集と Cue / Timer / Timeline のローカル Unity Preview を提供する。
 - Unity の Baked Runtime は Delivery、素材取得、Snapshot / Reliable Event、Timeline / State 表示を接続する。Native UI の接続描画と Quest 実機受け入れはこの成功範囲に含めない。
-- Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font / GLB / MP4 bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
+- Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / 導入済み依存 から Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font / GLB / MP4 bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
 - M3A の静的 Authoring subset では、型付き Theme token、Named Style、Props / Variants / Parts、Slot を使う Frame / Text composition と static lowering が実装済みである。
 
 - Model clipとVideoのAuthoring / Compiler / Local Coreを実装し、通常RuntimeとLocal Editorの共通Unity consumerがcanonical state / Run / logical clockから描画・再生する。
@@ -2463,7 +2463,7 @@ dist/
 - Semantic Authoring IR
 - `.unframe.tsx` Orchestrator
 - Orchestrator / Manifest / Structure AST の static lowering、Declaration Graph normalization、Source frontendからCompiler compositionへの接続
-- Canonical PresentationDefinition JSON の deterministic serialization（Core API、post-lowering declaration、Authoring SourceからのCompiler artifact生成、filesystem config / lockとatomic outputは実装済み。現行 local outputのfile nameは`definition.json`）
+- Canonical PresentationDefinition JSON の deterministic serialization（Core API、post-lowering declaration、Authoring SourceからのCompiler artifact生成、filesystem config / 導入済み依存とatomic outputは実装済み。現行 local outputのfile nameは`definition.json`）
 - Component Manifest と package format
 - Structured / Opaque authoring mode
 - Spatial Tree / Surface Tree のcanonical schema（Stage、SurfaceNode、Frame / Text、State、baked-web Render Intentの初期subsetはJSON Schema Draft 2020-12として実装済み）

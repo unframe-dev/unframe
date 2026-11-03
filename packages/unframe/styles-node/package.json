@@ -29,7 +29,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test scripts vite.config.ts",
     "test": "node --test test/acceptance.test.ts test/diagnostics.test.ts test/schema.test.ts && vp test run test/styles-node-snapshot.test.ts test/styles-darwin-runtime.test.ts test/style-worker-runtime.test.ts test/style-worker-location.test.ts test/style-package-roots.test.ts",
-    "build": "vp pack && cp src/style-worker.ts dist/style-worker.ts && node scripts/pack-lock.ts && tsx scripts/pack-dependencies.ts"
+    "build": "vp pack && cp src/style-worker.ts dist/style-worker.ts && tsx scripts/pack-dependencies.ts"
   },
   "dependencies": {
     "@unframe-dev/build": "workspace:*",

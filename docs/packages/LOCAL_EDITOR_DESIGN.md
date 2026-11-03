@@ -15,7 +15,7 @@ Web UI は Local Host の project 読み込み、公開 Props の保存、診断
 ## 2. 所有権とデータ経路
 
 ```text
-Authoring Source + assets + config + lock
+Authoring Source + assets + config + installed dependencies
                │ snapshot / validate / compile
                ▼
 Definition + RenderBundle + AssetSet + BuildManifest + assets
@@ -77,7 +77,7 @@ channel は固定 enum とし、任意の output path は受け付けない。�
 
 Dist Preview は load 開始時に generation を固定する。publish は、正常表示中の Dist Preview の build identity／artifact hashes と現在の `dist` が一致する場合だけ開始する。Dev 表示中・Dist 未表示・不一致の場合は Dist Preview の読み込みを要求し、upload を開始しない。照合と generation の固定を一つの受付処理で行い、以降の `dist` 更新で upload 元を切り替えない。hash の照合対象は canonical artifact と参照素材の bytes。publish 完了は、固定した成果物と公開結果の一致で確認する。過去 generation を選んで公開する UI は初期範囲に含めない。
 
-publish は固定 Dist の完全性を検証し、現在の Source／lock を読み直して build したり、最新ローカル revision との一致を要求したりしない。A を build・表示した後に Source を B へ保存しても、現在の `dist` が A のままなら A を公開できる。公開先の競合は、公開要求に固定した期待 PublicationFence（初回は未公開）と CP の現在値を原子的に照合して検出する。別の publish が先行した場合は競合として返し、期待値を自動更新して再送しない。認可・Asset readiness・active-use lock は維持する。CP の Draft revision とローカル Source revision の一致を公開条件にする旧方針は置き換える。
+publish は固定 Dist の完全性を検証し、現在の Source を読み直して build したり、最新ローカル revision との一致を要求したりしない。A を build・表示した後に Source を B へ保存しても、現在の `dist` が A のままなら A を公開できる。公開先の競合は、公開要求に固定した期待 PublicationFence（初回は未公開）と CP の現在値を原子的に照合して検出する。別の publish が先行した場合は競合として返し、期待値を自動更新して再送しない。認可・Asset readiness・active-use lock は維持する。CP の Draft revision とローカル Source revision の一致を公開条件にする旧方針は置き換える。
 
 ### Core の共通描画選択
 
@@ -130,7 +130,7 @@ Preview の cross-application envelope は次の field を持つ。canonical sch
 | ---------------------------- | ------------------------------------------------------------------------------------------------- |
 | `schemaVersion`              | Local Preview envelope の version。canonical artifact の version と区別する                       |
 | `requestId`                  | Web UI が各 load に発行する一意 ID。Bridge の結果・commit・discard は同じ ID を使う               |
-| `sourceRevision`             | lock refresh 確定後の build 入力 revision。Dist Preview は `null`                                 |
+| `sourceRevision`             | 取得済み build 入力の revision。Dist Preview は `null`                                            |
 | `buildManifest` / `assetSet` | 固定 generation の検証済み canonical artifact                                                     |
 | `projection`                 | 共通描画選択結果。publication key／profile identity を含めない                                    |
 | `initialState`               | Core が導出した初期 Node／Surface／Variable 状態。Session／assignment／replay の field を含めない |
@@ -144,19 +144,13 @@ Unity は decoded dimensions と texture metadata の一致も検証する。loc
 
 ## 4. 更新と失敗時の挙動
 
-### Dev の依存同期とローカル lock refresh
+### Dev の入力生成
 
-Dev は保存済み Source・ローカル素材の変更を検知し、対応する component／theme の file closure の hash を refresh してから build する。対象素材はその closure 内のローカルファイルとする。`lock.assets` の素材 pin（path／hash／size）は保持し、現在の素材 bytes は Dev build の入力として検証する。依存入力が固定 snapshot と一致する場合は package graph を維持し、local hash と整合性 hash のみ再計算する。依存設定・pnpm lock・PostCSS 設定・必要な runtime を確認し、同期が必要なら frozen install 後に package／style snapshot を更新する。同じ入力で同期済みなら install と再 snapshot を省略する。package script・pnpmfile は実行せず、pnpm lock の再解決・書き換えや非対応形式の `unframe.lock` の再作成は行わない。通常の check／本番 build は Source／lock の frozen 入力を検証し、自動 refresh しない。publish は固定 Dist のみを検証する。
-
-Host は Source lease 内で config・lock・Source・アセット・スタイルの入力を取得し、解析・保存内容の検証・Dev lock の再計算・描画・成果物の一時書き込みは解放後に行う。保存、Dev lock 更新、成果物の確定時には lease を再取得し、全入力の revision を再検査する。保存要求の並行再送は確定済み receipt も再確認する。途中の外部保存で revision が変わった結果は stale として拒否し、古い結果で新しい入力を上書きしない。refresh 失敗時は既存 lock と正常表示を維持して診断を出し、Source は巻き戻さない。成功した refresh 自身の lock 更新を追跡し、watcher が無限に refresh／build を繰り返さない。
-
-CPU を使う解析・検証は取得済み入力を渡した Worker で行う。Worker が必要とするスタイル・メディア処理は Host への要求として実行し、Host が取消と子プロセスの後始末を所有する。
-
-revision は config・Source・lock・アセット・スタイルと、選択した `pnpm-lock.yaml` と workspace 設定の bytes を含む。pnpm workspace の親 lock も対象 importer と workspace 宣言を確認して選択し、その変更を監視する。refresh は開始時の revision を前提に確定し、確定後の revision を Dev build の入力として固定する。Host は確定後の snapshot を UI へ通知して `savedRevision` を更新し、同じ値を `buildingRevision` と envelope の `sourceRevision` に使う。refresh 自身の変更と外部保存を区別し、build 中にさらに入力が変わった場合はその結果を stale とする。
+Dev は導入済み `node_modules` と保存済み Source・素材から毎回入力を生成する。依存の導入・更新はプロジェクトのパッケージマネージャーが所有する。workspace・symlink・peer dependency を含む取得済み graph と local files を revision に含め、公開前に再検証する。Compiler と隔離 worker は取得済み入力を使う。永続 lock の更新は行わず、publish は生成済み Dist を検証する。
 
 ### 表示の更新
 
-- Host は project 内の入力ファイルを監視し、認証付き `GET /api/project/changes` で変更を通知する。UI は通知後に snapshot を取得し、無変更時は取得を繰り返さない。cursor の差分で取得中・再接続中の変更を拾い、取得失敗時は cursor を進めず再試行する。生成物と依存インストール先は監視対象から除外し、固定依存は lock の更新を検知し、インストール先の差替えは監視しない。監視自体が故障した場合は Host を再起動する。閲覧専用 Dist は成果物の更新を監視する。
+- Host は project 内の入力ファイルを監視し、認証付き `GET /api/project/changes` で変更を通知する。UI は通知後に snapshot を取得し、無変更時は取得を繰り返さない。cursor の差分で取得中・再接続中の変更を拾い、取得失敗時は cursor を進めず再試行する。生成物を除外し、導入済み依存の実体とインストール先の差替えも監視する。監視自体が故障した場合は Host を再起動する。閲覧専用 Dist は成果物の更新を監視する。
 - UI は `savedRevision`、`buildingRevision`、`loadedBuildIdentity` を区別し、保存済み内容と現在の表示が異なるときに明示する。
 - 初回 Dev 選択と手動再読込は即時に build を要求する。保存成功・外部変更による自動更新は200msでまとめ、最新 revision を要求する。同じ revision の進行中要求は共有し、未保存の editor buffer は入力にしない。
 - Host は要求の Source revision を検証してから旧 Dev 処理を取り消し、その後始末を待って最新の準備・build を開始する。Dist build はこの自動置換の対象にしない。UI は受付待ちの旧要求も結果を回収して取り消す。旧要求の build／asset load／Unity load が完了しても、現在選択している mode と要求に一致しなければ表示へ反映しない。

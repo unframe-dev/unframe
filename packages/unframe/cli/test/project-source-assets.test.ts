@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it, vi } from "vite-plus/test";
 import { encodeRgbaToPng } from "@unframe-dev/media-node";
 import { runPresentationCli } from "../src/index.js";
+import { installFixtureGraph, readFixtureGraph } from "./installed-project-fixture.js";
 import { createAuthorService } from "../src/author/service.js";
 
 const directories: string[] = [];
@@ -25,6 +26,10 @@ it("initializes the registered asset files together with the project source", as
   expect(initialized.exitCode, initialized.stderr).toBe(0);
   expect(await readFile(join(directory, "assets", "white.png"))).toEqual(
     await readFile(join(template, "assets", "white.png")),
+  );
+  await installFixtureGraph(
+    directory,
+    await readFixtureGraph(new URL("./fixtures/pack-project-graph.json.gz", import.meta.url)),
   );
   const checked = await runPresentationCli({ args: ["check", directory] });
   expect(checked.exitCode, checked.stderr).toBe(0);
@@ -47,14 +52,11 @@ const assetProject = async () => {
     "theme.unframe.ts",
   ])
     await copyFile(join(template, name), join(directory, name));
-  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshed.exitCode, refreshed.stderr).toBe(0);
   return directory;
 };
 
-it("keeps changed source bytes frozen for Dist while Author follows local assets", async () => {
+it("uses changed source asset bytes for both check and Author", async () => {
   const directory = await assetProject();
-  const lockBefore = await readFile(join(directory, "unframe.lock"));
   const image = encodeRgbaToPng({
     sourceId: "white",
     rgba: Uint8Array.of(255, 0, 0, 255),
@@ -75,29 +77,12 @@ it("keeps changed source bytes frozen for Dist while Author follows local assets
   } finally {
     await service.close();
   }
-  const openFixedBrowser = vi.fn(async () => {
-    throw new Error("source validation must run first");
-  });
-  for (const command of ["check", "build"] as const) {
-    const result = await runPresentationCli({
-      args: [command, directory],
-      host: { openFixedBrowser },
-    });
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("cli-source-asset-hash-mismatch");
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(lockBefore);
-  }
-  expect(openFixedBrowser).not.toHaveBeenCalled();
-  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshed.exitCode, refreshed.stderr).toBe(0);
-  expect(await readFile(join(directory, "unframe.lock"))).not.toEqual(lockBefore);
   const checked = await runPresentationCli({ args: ["check", directory] });
   expect(checked.exitCode, checked.stderr).toBe(0);
 }, 30_000);
 
-it("rejects invalid local asset bytes in Dev without updating the frozen lock", async () => {
+it("rejects invalid captured asset bytes before rendering", async () => {
   const directory = await assetProject();
-  const lock = await readFile(join(directory, "unframe.lock"));
   await writeFile(join(directory, "assets/white.png"), Uint8Array.of(1, 2, 3, 4));
   const openFixedBrowser = vi.fn(async () => {
     throw new Error("invalid assets must fail before capture");
@@ -109,5 +94,4 @@ it("rejects invalid local asset bytes in Dev without updating the frozen lock", 
   expect(result.exitCode).toBe(1);
   expect(result.stderr).toContain("compiler-invalid-asset");
   expect(openFixedBrowser).not.toHaveBeenCalled();
-  expect(await readFile(join(directory, "unframe.lock"))).toEqual(lock);
 });

@@ -20,7 +20,6 @@ it("keeps artifact staging outside the Source lease and project input snapshot",
       join(project, "unframe.config.ts"),
       'export default {entryFile:"presentation.ts"};',
     );
-    await writeFile(join(project, "unframe.lock"), "{}");
     await writeFile(join(project, "presentation.ts"), "export default {};");
     const captured = await discoverPresentationProjectFiles(project);
     assert(captured.ok);

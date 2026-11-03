@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { afterEach, assert, expect, it } from "vite-plus/test";
 import { acquireSourceLock } from "@unframe-dev/workspace-node";
 import { runPresentationCli } from "../src/index.js";
+import { installFixtureGraph, readFixtureGraph } from "./installed-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 
 const directories: string[] = [];
@@ -17,6 +18,10 @@ it("lets a cancellable Editor read wait for a source inspection longer than five
   directories.push(parent);
   const directory = join(parent, "project");
   expect((await runPresentationCli({ args: ["init", directory] })).exitCode).toBe(0);
+  await installFixtureGraph(
+    directory,
+    await readFixtureGraph(new URL("./fixtures/pack-project-graph.json.gz", import.meta.url)),
+  );
   const lease = await acquireSourceLock(directory);
   assert(lease.ok);
   const controller = new AbortController();
@@ -38,6 +43,10 @@ it("cancels an Editor build while another source operation owns the lease", asyn
   directories.push(parent);
   const directory = join(parent, "project");
   expect((await runPresentationCli({ args: ["init", directory] })).exitCode).toBe(0);
+  await installFixtureGraph(
+    directory,
+    await readFixtureGraph(new URL("./fixtures/pack-project-graph.json.gz", import.meta.url)),
+  );
   const lease = await acquireSourceLock(directory);
   assert(lease.ok);
   const controller = new AbortController();

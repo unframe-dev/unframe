@@ -1,9 +1,7 @@
-import type { LockedSourceAsset } from "@unframe-dev/workspace";
 import type { ProjectConfig } from "@unframe-dev/workspace";
 import type { LocalFileSnapshot } from "@unframe-dev/workspace";
 import {
   lockSourceAssets,
-  resolveLockedSourceAssets,
   type SourceAssetIdentities,
   type SourceAssetsResult,
 } from "@unframe-dev/workspace";
@@ -16,7 +14,7 @@ const failure = (code: string, path: string): SourceAssetsResult => ({
   ok: false,
   code,
   path,
-  message: "Source Assets differ from the frozen lock. Refresh the lock explicitly.",
+  message: "Source Assets could not be prepared.",
 });
 
 export const projectVideoTransformIdentity = async (
@@ -26,25 +24,6 @@ export const projectVideoTransformIdentity = async (
   Object.values(sources).some((source) => source.mediaType === "video/mp4")
     ? await ports.videoTransformIdentity()
     : undefined;
-
-export const resolveProjectSourceAssets = async (
-  ports: SourceAssetPorts,
-  locked: readonly LockedSourceAsset[],
-  sources: ProjectConfig["assets"],
-  files: readonly LocalFileSnapshot[],
-): Promise<SourceAssetsResult> => {
-  try {
-    return resolveLockedSourceAssets(
-      ports,
-      locked,
-      sources,
-      files,
-      await projectVideoTransformIdentity(ports, sources),
-    );
-  } catch {
-    return failure("cli-source-asset-transform-unavailable", "unframe.lock");
-  }
-};
 
 export const resolveDevProjectSourceAssets = async (
   ports: SourceAssetPorts,

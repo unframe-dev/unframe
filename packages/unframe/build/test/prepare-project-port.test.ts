@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vite-plus/test";
-import { prepareProjectSource, StylePreparationError } from "../src/index.js";
+import { prepareProjectSource } from "../src/index.js";
 
 describe("source preparation style port", () => {
   const found = {
@@ -13,10 +13,8 @@ describe("source preparation style port", () => {
     ],
   };
   const graph = {
-    rootDependencies: {},
-    packages: {},
-    styleTransform: null,
-    styleSourceIdentity: null,
+    rootDependencies: [],
+    packages: [],
   };
   it("requests an explicit snapshot and worker and preserves the frozen identity", async () => {
     const snapshot = { identity: "identity", sourceIdentity: "source" } as never;
@@ -32,7 +30,7 @@ describe("source preparation style port", () => {
     const result = await prepareProjectSource(
       found,
       graph as never,
-      { update: true, replacement: "new" },
+      { replacement: "new" },
       { typeLibraries: [], styles },
     );
     expect(styles.snapshot).toHaveBeenCalledOnce();
@@ -42,15 +40,6 @@ describe("source preparation style port", () => {
       "sha256:identity",
     );
     expect(result.styleSourceIdentity).toBe("source");
-  });
-  it("requires an explicit lock update before invoking the adapter", async () => {
-    const styles = { snapshot: vi.fn(), withSources: vi.fn(), compile: vi.fn() };
-    await expect(
-      prepareProjectSource(found, graph as never, {}, { typeLibraries: [], styles }),
-    ).rejects.toMatchObject({
-      code: "cli-style-lock-update-required",
-    } satisfies Partial<StylePreparationError>);
-    expect(styles.snapshot).not.toHaveBeenCalled();
   });
   it("does not call the style adapter without configuration", async () => {
     const styles = { snapshot: vi.fn(), withSources: vi.fn(), compile: vi.fn() };
@@ -63,25 +52,19 @@ describe("source preparation style port", () => {
     expect(styles.snapshot).not.toHaveBeenCalled();
     expect(styles.compile).not.toHaveBeenCalled();
   });
-  it("rejects changed frozen sources unless refresh is explicit", async () => {
-    const snapshot = { identity: "identity", sourceIdentity: "changed" } as never;
+  it("captures changed styles on each preparation without a refresh operation", async () => {
     const styles = {
-      snapshot: vi.fn(),
-      withSources: vi.fn().mockReturnValue(snapshot),
+      snapshot: vi
+        .fn()
+        .mockResolvedValueOnce({ identity: "first", sourceIdentity: "old" })
+        .mockResolvedValueOnce({ identity: "second", sourceIdentity: "new" }),
+      withSources: vi.fn().mockImplementation((value) => value),
       compile: vi.fn().mockResolvedValue({ ok: true, diagnostics: [], stylesheets: [] }),
     };
-    const locked = { ...graph, styleTransform: snapshot, styleSourceIdentity: "original" };
-    await expect(
-      prepareProjectSource(found, locked as never, {}, { typeLibraries: [], styles }),
-    ).rejects.toMatchObject({ code: "cli-style-source-changed" });
-    expect(styles.compile).not.toHaveBeenCalled();
-    await prepareProjectSource(
-      found,
-      locked as never,
-      { refresh: true },
-      { typeLibraries: [], styles },
-    );
-    expect(styles.compile).toHaveBeenCalledOnce();
+    const first = await prepareProjectSource(found, graph, {}, { typeLibraries: [], styles });
+    const second = await prepareProjectSource(found, graph, {}, { typeLibraries: [], styles });
+    expect(first.styleSourceIdentity).toBe("old");
+    expect(second.styleSourceIdentity).toBe("new");
   });
   it("preserves worker diagnostics and reports worker failures", async () => {
     const snapshot = { identity: "identity", sourceIdentity: "source" } as never;
@@ -97,10 +80,10 @@ describe("source preparation style port", () => {
         .mockRejectedValueOnce(new Error("worker error")),
     };
     await expect(
-      prepareProjectSource(found, graph as never, { update: true }, { typeLibraries: [], styles }),
+      prepareProjectSource(found, graph as never, {}, { typeLibraries: [], styles }),
     ).rejects.toMatchObject({ code: "cli-style-transform-failed", diagnostics });
     await expect(
-      prepareProjectSource(found, graph as never, { update: true }, { typeLibraries: [], styles }),
+      prepareProjectSource(found, graph as never, {}, { typeLibraries: [], styles }),
     ).rejects.toMatchObject({ code: "cli-style-worker-failed", message: "worker error" });
   });
 });

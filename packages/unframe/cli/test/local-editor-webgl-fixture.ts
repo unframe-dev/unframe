@@ -1,105 +1,17 @@
 import { sourceAssetPorts } from "../src/application/media-ports.js";
 import assert from "node:assert/strict";
+import { installFixtureGraph, readFixtureGraph } from "./installed-project-fixture.js";
 import { prepareProjectFixture } from "./prepared-project-fixture.js";
 import { prepareRealReactProjectFixture } from "./real-react-project-fixture.js";
 import { prepareReactProjectFixture } from "./react-project-fixture.js";
-import { createRequire } from "node:module";
-import { cp, readFile, readdir, rm, writeFile, mkdir } from "node:fs/promises";
+import { cp, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseAllDocuments, stringify } from "yaml";
-import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { checkAuthoringProject } from "@unframe-dev/source";
-import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 import { prepareProjectSource } from "@unframe-dev/workspace-node";
-import { loadUnframeLock } from "@unframe-dev/workspace";
-import { hashDependencyGraph, type UnframeLock } from "@unframe-dev/workspace";
-import { lockedFile, snapshotInstalledPackages } from "@unframe-dev/workspace-node";
+import { lockedFile } from "@unframe-dev/workspace-node";
 const repository = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-const installFrozenGraph = async (directory: string) => {
-  const documents = parseAllDocuments(await readFile(join(repository, "pnpm-lock.yaml"), "utf8"));
-  const lock = documents.at(-1)?.toJS() as {
-    catalogs?: unknown;
-    packageExtensionsChecksum?: unknown;
-    importers: Record<
-      string,
-      {
-        dependencies: Record<string, { specifier: string; version: string }>;
-        devDependencies: Record<string, { specifier: string; version: string }>;
-      }
-    >;
-  };
-  const web = lock.importers["app/web/local-editor"]!;
-  const runtimeNames = ["react", "react-dom"];
-  const typeNames = ["@types/react", "@types/react-dom"];
-  const dependencies = Object.fromEntries(
-    runtimeNames.map((name) => [name, web.dependencies[name]!]),
-  );
-  const devDependencies = Object.fromEntries(
-    typeNames.map((name) => [name, web.devDependencies[name]!]),
-  );
-  lock.importers = { ".": { dependencies, devDependencies } };
-  const frozen = lock as typeof lock & {
-    packages: Record<string, unknown>;
-    snapshots: Record<string, unknown>;
-  };
-  const prefixes = [
-    "react@",
-    "react-dom@",
-    "scheduler@",
-    "@types/react@",
-    "@types/react-dom@",
-    "csstype@",
-  ];
-  frozen.packages = Object.fromEntries(
-    Object.entries(frozen.packages).filter(([key]) =>
-      prefixes.some((prefix) => key.startsWith(prefix)),
-    ),
-  );
-  frozen.snapshots = Object.fromEntries(
-    Object.entries(frozen.snapshots).filter(([key]) =>
-      prefixes.some((prefix) => key.startsWith(prefix)),
-    ),
-  );
-  delete lock.catalogs;
-  delete lock.packageExtensionsChecksum;
-  await writeFile(
-    join(directory, "package.json"),
-    JSON.stringify({
-      private: true,
-      name: "unframe-author-capture-fixture",
-      version: "1.0.0",
-      dependencies: Object.fromEntries(
-        Object.entries(dependencies).map(([name, item]) => [name, item.specifier]),
-      ),
-      devDependencies: Object.fromEntries(
-        Object.entries(devDependencies).map(([name, item]) => [name, item.specifier]),
-      ),
-    }),
-  );
-  await writeFile(join(directory, "pnpm-lock.yaml"), stringify(lock));
-  const require = createRequire(join(repository, "app/web/local-editor/package.json"));
-  const roots = new Map<string, string>();
-  for (const name of [...runtimeNames, ...typeNames])
-    roots.set(name, dirname(require.resolve(`${name}/package.json`)));
-  roots.set(
-    "scheduler",
-    dirname(require.resolve("scheduler/package.json", { paths: [roots.get("react-dom")!] })),
-  );
-  roots.set(
-    "csstype",
-    dirname(require.resolve("csstype/package.json", { paths: [roots.get("@types/react")!] })),
-  );
-  for (const [name, root] of roots) {
-    const target = join(directory, "node_modules", name);
-    await mkdir(dirname(target), { recursive: true });
-    await cp(root, target, { recursive: true, dereference: true });
-  }
-  return snapshotInstalledPackages(directory);
-};
-
 export const createWebglCaptureProject = async (
   kind: "opaque" | "structured" = "opaque",
   extended = false,
@@ -113,34 +25,17 @@ export const createWebglCaptureProject = async (
   if (kind === "structured") return directory;
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);
-  const loaded = loadUnframeLock(discovered.lockBytes);
-  assert(loaded.ok);
   const initial = checkAuthoringProject(
-    (await prepareProjectSource(sourceAssetPorts.styles, discovered, loaded.value.lock)).source,
+    (await prepareProjectSource(sourceAssetPorts.styles, discovered, discovered.dependencyGraph))
+      .source,
   );
   assert(initial.valid, JSON.stringify(initial.diagnostics));
   if (!extended) {
-    const graph = await installFrozenGraph(directory);
-    const edges = new Map(
-      [...loaded.value.lock.rootDependencies, ...graph.rootDependencies].map((edge) => [
-        `${edge.specifier}\0${edge.usage}`,
-        edge,
-      ]),
+    const runtime = await readFixtureGraph(
+      new URL("./fixtures/react-graph.json.gz", import.meta.url),
     );
-    const packages = new Map(
-      [...loaded.value.lock.packages, ...graph.packages].map((pkg) => [pkg.key, pkg]),
-    );
-    const next = {
-      ...loaded.value.lock,
-      packageManagerLockHash: graph.packageManagerLockHash,
-      rootDependencies: [...edges.values()].sort((a, b) =>
-        compare(`${a.specifier}\0${a.usage}`, `${b.specifier}\0${b.usage}`),
-      ),
-      packages: [...packages.values()].sort((a, b) => compare(a.key, b.key)),
-      assets: [],
-    };
-    const fresh: UnframeLock = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
-    await writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(fresh) + "\n");
+    await rm(join(directory, "node_modules"), { recursive: true });
+    await installFixtureGraph(directory, runtime);
   }
   for (const name of await readdir(directory))
     if (
@@ -207,15 +102,16 @@ h1 { font-weight: 400; }`,
     join(repository, "app/unity/Assets/TextMesh Pro/Fonts/LiberationSans.ttf"),
     join(directory, "fixture.ttf"),
   );
-  const lock = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  assert.equal(lock.exitCode, 0, lock.stderr);
   const checkedFiles = await discoverPresentationProjectFiles(directory);
   assert(checkedFiles.ok);
-  const checkedLock = loadUnframeLock(checkedFiles.lockBytes);
-  assert(checkedLock.ok);
   const checked = checkAuthoringProject({
-    ...(await prepareProjectSource(sourceAssetPorts.styles, checkedFiles, checkedLock.value.lock))
-      .source,
+    ...(
+      await prepareProjectSource(
+        sourceAssetPorts.styles,
+        checkedFiles,
+        checkedFiles.dependencyGraph,
+      )
+    ).source,
     rawFiles: checkedFiles.localFiles
       .filter(({ path }) => /\.(css|png|jpe?g|webp|ttf|otf)$/i.test(path))
       .map(({ path, bytes }) => lockedFile(path, bytes)),

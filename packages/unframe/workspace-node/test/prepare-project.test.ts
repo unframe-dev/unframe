@@ -9,7 +9,12 @@ it("loads TypeScript libraries and delegates Source preparation with the supplie
     entryFile: "entry.tsx",
     assetSources: {},
     revision: "sha256:source",
-    lockBytes: new Uint8Array(),
+    dependencyGraph: {
+      rootDependencies: [],
+      packages: [],
+      dependencyHash: `sha256:${"0".repeat(64)}` as const,
+    },
+    dependencyHash: `sha256:${"0".repeat(64)}`,
     configBytes: new Uint8Array(),
     files: [{ fileName: "entry.tsx", sourceText: "export default {};" }],
     localFiles: [{ path: "entry.tsx", bytes: new TextEncoder().encode("export default {};") }],
@@ -58,7 +63,12 @@ it("passes configured CSS inputs to the caller's style adapter", async () => {
     entryFile: "entry.tsx",
     assetSources: {},
     revision: "sha256:source",
-    lockBytes: new Uint8Array(),
+    dependencyGraph: {
+      rootDependencies: [],
+      packages: [],
+      dependencyHash: `sha256:${"0".repeat(64)}` as const,
+    },
+    dependencyHash: `sha256:${"0".repeat(64)}`,
     configBytes: new Uint8Array(),
     files: [{ fileName: "entry.tsx", sourceText: "export default {};" }],
     localFiles: [
@@ -71,7 +81,7 @@ it("passes configured CSS inputs to the caller's style adapter", async () => {
     styles,
     found,
     { rootDependencies: [], packages: [] },
-    { update: true },
+    {},
   );
   expect(styles.snapshot).toHaveBeenCalledWith(
     "/project",

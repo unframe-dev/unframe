@@ -1,18 +1,12 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { createAuthorProjectSnapshot, prepareAuthorSave } from "@unframe-dev/author-service";
 import {
-  prepareProjectSource,
-  prepareLockRefresh,
-  prepareLockUpdate,
-  type LockPreparationPorts,
+  prepareProjectInputs,
   assembleAuthoringProject,
   prepareOpaquePrograms,
-  StylePreparationError,
   type StylePreparationPort,
 } from "@unframe-dev/build";
 import {
-  loadUnframeLock,
-  lockSourceAssets,
   createProjectRevision,
   identifyNodeTransformSnapshot,
   mediaTypeFor,
@@ -32,7 +26,7 @@ channel.on("message", (message: { kind: string; id: number; value?: unknown; err
   else waiter.resolve(message.value);
 });
 const call = (
-  method: "styles" | "video" | "bundle" | "install" | "packages" | "styleSnapshot",
+  method: "styles" | "video" | "bundle" | "styleSnapshot",
   args: unknown[],
 ): Promise<unknown> => {
   const id = ++nextId;
@@ -42,9 +36,8 @@ const call = (
   });
 };
 const styles: StylePreparationPort = {
-  snapshot: async () => {
-    throw new Error("Analysis may only use captured style inputs.");
-  },
+  snapshot: async (_directory, files) =>
+    (await call("styleSnapshot", [files])) as Awaited<ReturnType<StylePreparationPort["snapshot"]>>,
   withSources: (snapshot, files) => {
     const { identity: _identity, sourceIdentity: _sourceIdentity, ...value } = snapshot;
     return identifyNodeTransformSnapshot({ ...value, sourceFiles: [...files] });
@@ -55,45 +48,37 @@ const styles: StylePreparationPort = {
     >,
 };
 const videoTransformIdentity = async () => (await call("video", [])) as `sha256:${string}`;
-const loaded = (input: AnalysisInputs) => {
-  const result = loadUnframeLock(input.found.lockBytes);
+const prepare = async (input: AnalysisInputs, replacement?: string) => {
+  const found =
+    replacement === undefined
+      ? input.found
+      : {
+          ...input.found,
+          files: input.found.files.map((file) =>
+            file.fileName === input.found.entryFile ? { ...file, sourceText: replacement } : file,
+          ),
+          localFiles: input.found.localFiles.map((file) =>
+            file.path === input.found.entryFile
+              ? { ...file, bytes: new TextEncoder().encode(replacement) }
+              : file,
+          ),
+        };
+  return prepareProjectInputs(
+    { found, graph: input.found.dependencyGraph },
+    {
+      styles,
+      readTypeLibraries: async () => input.typeLibraries,
+      modelTransformIdentity: input.modelTransformIdentity,
+      videoTransformIdentity,
+    },
+  );
+};
+const requirePrepared = async (input: AnalysisInputs, replacement?: string) => {
+  const result = await prepare(input, replacement);
   if (!result.ok)
-    throw Object.assign(new Error(result.diagnostic.message), {
-      status: 422,
-      code: result.diagnostic.code,
-    });
+    throw Object.assign(new Error(result.message), { status: 422, code: result.code });
   return result.value;
 };
-const assets = async (input: AnalysisInputs) => {
-  try {
-    return lockSourceAssets(
-      { modelTransformIdentity: input.modelTransformIdentity },
-      input.found.assetSources,
-      input.found.localFiles,
-      Object.values(input.found.assetSources).some((asset) => asset.mediaType === "video/mp4")
-        ? await videoTransformIdentity()
-        : undefined,
-    );
-  } catch {
-    return {
-      ok: false as const,
-      code: "cli-source-asset-transform-unavailable",
-      path: "unframe.config.ts",
-      message: "Source Assets differ from the frozen lock. Refresh the lock explicitly.",
-    };
-  }
-};
-const prepare = (
-  input: AnalysisInputs,
-  lock: ReturnType<typeof loaded>["lock"],
-  replacement?: string,
-) =>
-  prepareProjectSource(
-    input.found,
-    lock,
-    { refresh: true, ...(replacement !== undefined ? { replacement } : {}) },
-    { styles, typeLibraries: input.typeLibraries },
-  );
 
 const execute = async (request: AnalysisRequest) => {
   if (request.operation === "opaque") {
@@ -119,68 +104,64 @@ const execute = async (request: AnalysisRequest) => {
     if (!result.valid) return result;
     return { valid: true, value: { project: result.value.project }, diagnostics: [] };
   }
-  if (request.operation === "update")
-    return prepareLockUpdate(request.input, {
-      styles: {
-        ...styles,
-        snapshot: async (_directory, files) =>
-          (await call("styleSnapshot", [files])) as Awaited<
-            ReturnType<StylePreparationPort["snapshot"]>
-          >,
-      },
-      readTypeLibraries: async () => request.input.typeLibraries,
-      modelTransformIdentity: request.input.modelTransformIdentity,
-      videoTransformIdentity,
-      install: async () =>
-        (await call("install", [])) as Awaited<ReturnType<LockPreparationPorts["install"]>>,
-      snapshotInstalledPackages: async (roots) =>
-        (await call("packages", [roots])) as Awaited<
-          ReturnType<LockPreparationPorts["snapshotInstalledPackages"]>
-        >,
-    });
-  if (request.operation === "refresh")
-    return prepareLockRefresh(
-      { found: request.input.found },
-      {
-        styles,
-        readTypeLibraries: async () => request.input.typeLibraries,
-        modelTransformIdentity: request.input.modelTransformIdentity,
-        videoTransformIdentity,
-      },
-    );
   const input = request.input;
-  const graph = loaded(input);
   const sourceText = input.found.files.find(
     (file) => file.fileName === input.found.entryFile,
   )?.sourceText;
   if (sourceText === undefined) throw new Error("Captured project entry is missing.");
   if (request.operation === "project") {
-    let prepared: Parameters<typeof createAuthorProjectSnapshot>[0]["prepared"];
-    try {
-      prepared = { ok: true, ...(await prepare(input, graph.lock)) };
-    } catch (error) {
-      if (!(error instanceof StylePreparationError)) throw error;
-      prepared = {
-        ok: false,
-        code: error.code,
-        message: error.message,
-        diagnostics: error.diagnostics,
-      };
-    }
+    const result = await prepare(input);
+    if (!result.ok && !("prepared" in result))
+      return (
+        await createAuthorProjectSnapshot({
+          revision: input.found.revision,
+          sourceText,
+          files: input.found.files,
+          localFiles: input.found.localFiles,
+          componentLocks: [],
+          carrier: { componentLocks: [], themeHashes: [], assets: {} },
+          prepared: {
+            ok: false,
+            code: result.code,
+            message: result.message,
+            diagnostics: "diagnostics" in result ? result.diagnostics : [],
+          },
+          resolveAssets: async () => {
+            throw new Error("Failed inputs cannot resolve assets.");
+          },
+        })
+      ).snapshot;
+    const prepared = result.ok
+      ? result.value
+      : {
+          ...result.prepared,
+          assemblyCarrier:
+            "assemblyCarrier" in result
+              ? result.assemblyCarrier
+              : { componentLocks: [], themeHashes: [], assets: {} },
+          assets: "assets" in result ? result.assets : [],
+          sourceAssetBytes: "sourceAssetBytes" in result ? result.sourceAssetBytes : {},
+        };
     return (
       await createAuthorProjectSnapshot({
         revision: input.found.revision,
         sourceText,
         files: input.found.files,
         localFiles: input.found.localFiles,
-        componentLocks: graph.assemblyCarrier.componentLocks,
-        carrier: graph.assemblyCarrier,
-        prepared,
-        resolveAssets: () => assets(input),
+        componentLocks: prepared.assemblyCarrier.componentLocks,
+        carrier: prepared.assemblyCarrier,
+        prepared: { ok: true, source: prepared.source, diagnostics: prepared.diagnostics },
+        resolveAssets: async () => ({
+          ok: true,
+          value: {
+            assets: prepared.assets,
+            sourceAssetBytes: prepared.sourceAssetBytes,
+          },
+        }),
       })
     ).snapshot;
   }
-  const prepared = await prepare(input, graph.lock);
+  const prepared = await requirePrepared(input);
   return prepareAuthorSave({
     source: prepared.source,
     sourceText,
@@ -188,34 +169,11 @@ const execute = async (request: AnalysisRequest) => {
     snapshot: request.input.snapshot,
     revision: request.input.revision,
     request: request.input.request,
-    lock: graph.lock,
-    prepareSource: async (text) => {
-      const result = await prepare(input, graph.lock, text);
-      return {
-        source: result.source,
-        ...(result.styleTransform ? { styleTransform: result.styleTransform } : {}),
-        ...(result.styleSourceIdentity ? { styleSourceIdentity: result.styleSourceIdentity } : {}),
-      };
-    },
-    resolveAssets: async () => {
-      const result = await assets(input);
-      if (!result.ok)
-        throw Object.assign(new Error(result.message), { status: 422, code: result.code });
-      return { assets: result.value.assets, bytes: result.value.sourceAssetBytes };
-    },
-    revisionFor: async (source, lock) =>
+    prepareSource: (text) => requirePrepared(input, text),
+    revisionFor: async (source) =>
       createProjectRevision({
         configBytes: input.found.configBytes,
-        lockBytes: lock,
-        ...(input.found.packageManagerLock
-          ? { packageManagerLockBytes: input.found.packageManagerLock.bytes }
-          : {}),
-        ...(input.found.packageManagerLock?.workspaceBytes
-          ? { packageManagerWorkspaceBytes: input.found.packageManagerLock.workspaceBytes }
-          : {}),
-        ...(input.found.packageManagerLock?.linkedWorkspaceInputs
-          ? { packageManagerLinkedInputs: input.found.packageManagerLock.linkedWorkspaceInputs }
-          : {}),
+        dependencyHash: input.found.dependencyHash,
         localFiles: input.found.localFiles,
         entryReplacement: { path: input.found.entryFile, bytes: source },
       }),

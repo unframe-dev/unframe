@@ -15,7 +15,7 @@ afterEach(async () => {
 });
 
 it.each(["unset", "explicit"])(
-  "rejects a lock-selected executable without executing it when the host runtime is %s",
+  "rejects a snapshot-selected executable without executing it when the host runtime is %s",
   async (selection) => {
     const directory = await mkdtemp(join(temporaryDirectory(), "unframe-runtime-trust-"));
     directories.push(directory);
@@ -53,6 +53,6 @@ it.each(["unset", "explicit"])(
     const attempt = runStyleWorker(forged, { entries: [] });
     await expect(attempt).rejects.toThrow();
     await expect(readFile(marker)).rejects.toMatchObject({ code: "ENOENT" });
-    await expect(attempt).rejects.toThrow("runtime differs");
+    await expect(attempt).rejects.toThrow("runtime changed after input capture");
   },
 );

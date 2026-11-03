@@ -17,20 +17,13 @@ import type {
 } from "@unframe-dev/contracts/author-http";
 import {
   createAuthorBuildService,
-  computeFrozenComponentInputs,
   checkAuthoringProjectAssembly,
   createSourceAssetAssemblyCarrier,
   type AuthorBuildPorts,
   type AuthorBuildRequestOptions,
 } from "@unframe-dev/build";
 import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe-dev/artifacts";
-import {
-  refreshProjectLock,
-  verifyFrozenLocalFiles,
-  loadUnframeLock,
-  type UnframeLock,
-  type LockedSourceAsset,
-} from "@unframe-dev/workspace";
+import { verifyFrozenLocalFiles, type LockedSourceAsset } from "@unframe-dev/workspace";
 export class AuthorError extends Error {
   constructor(
     readonly status: number,
@@ -128,18 +121,13 @@ export async function prepareAuthorSave(input: {
   snapshot: ProjectSnapshot;
   revision: string;
   request: PatchRequest;
-  lock: UnframeLock;
   prepareSource(text: string): Promise<{
     source: unknown;
-    styleTransform?: UnframeLock["styleTransform"];
-    styleSourceIdentity?: string;
+    assemblyCarrier: Parameters<typeof createSourceAssetAssemblyCarrier>[0];
+    sourceAssetBytes: Readonly<Record<string, Uint8Array>>;
   }>;
-  resolveAssets(): Promise<{
-    assets: readonly LockedSourceAsset[];
-    bytes: Readonly<Record<string, Uint8Array>>;
-  }>;
-  revisionFor(source: Uint8Array, lock: Uint8Array): Promise<string>;
-}): Promise<{ afterSource: Uint8Array; lockBytes: Uint8Array; saved: SavedCommand }> {
+  revisionFor(source: Uint8Array): Promise<string>;
+}): Promise<{ afterSource: Uint8Array; saved: SavedCommand }> {
   const patch = createAuthorPatch(input);
   const prepared = await input.prepareSource(patch.sourceText);
   const catalog = checkAuthoringProject(prepared.source);
@@ -149,28 +137,11 @@ export async function prepareAuthorSave(input: {
       catalog.diagnostics[0]?.code ?? "author-source-invalid",
       catalog.diagnostics[0]?.message ?? "Patched source is invalid.",
     );
-  const computed = computeFrozenComponentInputs(prepared.source, catalog.value);
-  if (!computed.valid)
-    fail(
-      422,
-      computed.diagnostics[0]?.code ?? "author-lock-invalid",
-      computed.diagnostics[0]?.message ?? "Patched lock is invalid.",
-    );
-  const lockBytes = refreshProjectLock(input.lock, {
-    componentLocks: computed.value.componentLocks,
-    themeHashes: computed.value.themeHashes,
-    ...(prepared.styleTransform
-      ? {
-          styleTransform: prepared.styleTransform,
-          styleSourceIdentity: prepared.styleSourceIdentity,
-        }
-      : {}),
-  });
-  const loaded = loadUnframeLock(lockBytes);
-  if (!loaded.ok) fail(422, loaded.diagnostic.code, loaded.diagnostic.message);
-  const assets = await input.resolveAssets();
-  const carrier = createSourceAssetAssemblyCarrier(loaded.value.assemblyCarrier, assets.assets);
-  const checked = checkAuthoringProjectAssembly(prepared.source, carrier, assets.bytes);
+  const checked = checkAuthoringProjectAssembly(
+    prepared.source,
+    prepared.assemblyCarrier,
+    prepared.sourceAssetBytes,
+  );
   if (!checked.valid)
     fail(
       422,
@@ -180,9 +151,8 @@ export async function prepareAuthorSave(input: {
   const afterSource = encoder.encode(patch.sourceText);
   return {
     afterSource,
-    lockBytes,
     saved: {
-      revision: await input.revisionFor(afterSource, lockBytes),
+      revision: await input.revisionFor(afterSource),
       sourceHash: checked.value.sourceHash,
       irHash: checked.value.definitionHash,
       commandId: input.request.commandId,
@@ -291,7 +261,7 @@ export async function createAuthorProjectSnapshot(input: {
   files: readonly { fileName: string; sourceText: string }[];
   localFiles: Parameters<typeof verifyFrozenLocalFiles>[0];
   componentLocks: Parameters<typeof verifyFrozenLocalFiles>[1];
-  carrier: Extract<ReturnType<typeof loadUnframeLock>, { ok: true }>["value"]["assemblyCarrier"];
+  carrier: Parameters<typeof createSourceAssetAssemblyCarrier>[0];
   prepared:
     | {
         ok: true;
@@ -336,20 +306,16 @@ export async function createAuthorProjectSnapshot(input: {
     frozen.length === 0 && sourceAssets.ok
       ? checkAuthoringProjectAssembly(
           source,
-          createSourceAssetAssemblyCarrier(
-            input.carrier as Extract<
-              ReturnType<typeof loadUnframeLock>,
-              { ok: true }
-            >["value"]["assemblyCarrier"],
-            sourceAssets.value.assets,
-          ),
+          createSourceAssetAssemblyCarrier(input.carrier, sourceAssets.value.assets),
           sourceAssets.value.sourceAssetBytes,
         )
       : undefined;
   const diagnostics: AuthorDiagnostic[] = [
     ...styleAuthorDiagnostics(prepared.diagnostics),
     ...frozen.map((item) =>
-      authorDiagnostic(item.code, "Source differs from its frozen lock.", [item.path]),
+      authorDiagnostic(item.code, "Source differs from its captured component inputs.", [
+        item.path,
+      ]),
     ),
     ...(!sourceAssets.ok
       ? [authorDiagnostic(sourceAssets.code, sourceAssets.message, [sourceAssets.path])]
