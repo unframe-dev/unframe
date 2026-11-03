@@ -1,8 +1,12 @@
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
+import * as ts from "typescript";
 import {
   identifyNodeTransformSnapshot as identify,
   validateNodeTransformSnapshot,
+  workspacePackageFileRoots,
+  isWorkspacePackageSnapshotPath,
+  workspaceSourcePackageSpecifiers,
 } from "@unframe-dev/workspace";
 import { lstat, mkdir, readdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -33,14 +37,19 @@ const contained = (root: string, path: string) => {
   const rel = relative(root, path);
   return rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 };
-const collectFiles = async (root: string): Promise<NodeSnapshotFile[]> => {
+const collectFiles = async (root: string, workspace = false): Promise<NodeSnapshotFile[]> => {
   const files: NodeSnapshotFile[] = [];
+  const roots = workspace
+    ? workspacePackageFileRoots(JSON.parse(await readFile(join(root, "package.json"), "utf8")))
+    : undefined;
   const walk = async (directory: string) => {
     for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) =>
       a.name.localeCompare(b.name, "en"),
     )) {
       if (["node_modules", ".git", ".unframe"].includes(entry.name)) continue;
       const path = join(directory, entry.name);
+      const sourcePath = relative(root, path).split(sep).join("/");
+      if (roots && !isWorkspacePackageSnapshotPath(sourcePath, roots)) continue;
       const actual = await realpath(path);
       if (!contained(root, actual))
         throw new Error(`Snapshot symlink escapes root: ${relative(root, path)}`);
@@ -60,10 +69,67 @@ const collectFiles = async (root: string): Promise<NodeSnapshotFile[]> => {
   await walk(root);
   return files;
 };
+const collectEntryFiles = async (root: string, entry: string): Promise<NodeSnapshotFile[]> => {
+  const files = new Map<string, NodeSnapshotFile>();
+  const pending = [entry];
+  while (pending.length) {
+    const path = pending.pop()!;
+    if (files.has(path)) continue;
+    const full = join(root, path);
+    const actual = await realpath(full);
+    const metadata = await lstat(full);
+    if (!contained(root, actual) || !metadata.isFile() || metadata.isSymbolicLink())
+      throw new Error("Node adapter entry closure contains an unsafe file");
+    const bytes = await readFile(full);
+    files.set(path, {
+      path,
+      bytes: bytes.toString("base64"),
+      ...((metadata.mode & 0o111) !== 0 ? { executable: true } : {}),
+    });
+    if (!/\.[cm]?[jt]sx?$/iu.test(path)) continue;
+    for (const reference of ts.preProcessFile(bytes.toString("utf8"), true, true).importedFiles) {
+      if (!reference.fileName.startsWith(".")) continue;
+      const target = resolve(dirname(full), reference.fileName);
+      if (!contained(root, target)) throw new Error("Node adapter import escapes package");
+      let found: string | undefined;
+      for (const candidate of [
+        target,
+        `${target}.js`,
+        `${target}.mjs`,
+        `${target}.cjs`,
+        `${target}.ts`,
+        `${target}.json`,
+        join(target, "index.js"),
+      ]) {
+        const metadata = await lstat(candidate).catch((error) => {
+          if (
+            (error as NodeJS.ErrnoException).code === "ENOENT" ||
+            (error as NodeJS.ErrnoException).code === "ENOTDIR"
+          )
+            return undefined;
+          throw error;
+        });
+        if (metadata?.isFile()) {
+          found = relative(root, candidate).split(sep).join("/");
+          break;
+        }
+      }
+      if (!found) throw new Error(`Node adapter relative import is missing: ${reference.fileName}`);
+      pending.push(found);
+    }
+  }
+  return [...files.values()].sort((a, b) => a.path.localeCompare(b.path, "en"));
+};
 const readLock = async (directory: string, workspace: boolean) => {
-  let root = await realpath(directory);
+  const projectRoot = await realpath(directory);
+  let root = projectRoot;
   for (;;) {
     try {
+      if (root !== projectRoot) {
+        const marker = await lstat(join(root, "pnpm-workspace.yaml"));
+        if (!marker.isFile())
+          throw new Error("Node project workspace marker must be a regular file");
+      }
       const documents = parseAllDocuments(await readFile(join(root, "pnpm-lock.yaml"), "utf8"), {
         uniqueKeys: true,
       });
@@ -71,7 +137,7 @@ const readLock = async (directory: string, workspace: boolean) => {
       if (!document || documents.some((item) => item.errors.length))
         throw new Error("Invalid pnpm lock YAML");
       const lock = pnpmLockSchema.parse(document.toJS({ maxAliasCount: 100 }));
-      const importer = lock.importers[relative(root, directory).split(sep).join("/") || "."];
+      const importer = lock.importers[relative(root, projectRoot).split(sep).join("/") || "."];
       if (!importer) throw new Error("Node adapter pnpm importer is missing");
       return { root, lock, importer };
     } catch (error) {
@@ -108,6 +174,7 @@ export const snapshotNodeTransformInputs = async (
     readonly adapterDependencies?: readonly string[];
     readonly adapterDependencySnapshot?: string;
     readonly nodePath?: string;
+    readonly rootSpecifiers?: readonly string[];
   } = {},
 ): Promise<NodeTransformSnapshot> => {
   const root = await realpath(projectRoot);
@@ -131,9 +198,28 @@ export const snapshotNodeTransformInputs = async (
     optional = false,
   ): Promise<string | undefined> => {
     const snapshots = context.lock.snapshots;
-    const locator = Object.hasOwn(snapshots, `${name}@${version}`) ? `${name}@${version}` : version;
+    let workspaceDirectory: string | undefined;
+    let workspaceImporter: typeof context.importer | undefined;
+    if (version.startsWith("link:")) {
+      const target = version.slice(5);
+      const fromImporter =
+        context.lock.importers[relative(context.root, from).split(sep).join("/") || "."];
+      if (!fromImporter || !target || target.includes("\\") || isAbsolute(target))
+        throw new Error("Node workspace dependency must resolve from a locked importer");
+      workspaceDirectory = resolve(from, target);
+      if (workspaceDirectory === context.root || !contained(context.root, workspaceDirectory))
+        throw new Error("Node workspace dependency escapes workspace");
+      workspaceImporter =
+        context.lock.importers[relative(context.root, workspaceDirectory).split(sep).join("/")];
+      if (!workspaceImporter) throw new Error("Node workspace dependency importer is missing");
+    }
+    const locator = workspaceDirectory
+      ? `${name}@workspace:${relative(context.root, workspaceDirectory).split(sep).join("/")}`
+      : Object.hasOwn(snapshots, `${name}@${version}`)
+        ? `${name}@${version}`
+        : version;
     pnpmLocatorSchema.parse(locator);
-    if (!Object.hasOwn(snapshots, locator))
+    if (!workspaceDirectory && !Object.hasOwn(snapshots, locator))
       throw new Error("Node dependency must have a fixed pnpm snapshot locator");
     let current = from;
     let packageRoot: string | undefined;
@@ -154,21 +240,29 @@ export const snapshotNodeTransformInputs = async (
       if (optional) return undefined;
       throw new Error(`Missing Node dependency: ${name}`);
     }
-    if (!contained(join(context.root, "node_modules"), packageRoot))
+    if (
+      workspaceDirectory
+        ? packageRoot !== workspaceDirectory
+        : !contained(join(context.root, "node_modules"), packageRoot)
+    )
       throw new Error("Node dependency escapes installed graph");
     const manifest = packageManifestSchema.parse(
       JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8")),
     );
     const nameVersion = `${manifest.name}@${manifest.version}`;
     const baseLocator = locator.split("(")[0]!;
-    const packageRecord = context.lock.packages[baseLocator];
+    const packageRecord = workspaceDirectory
+      ? { resolution: { integrity: undefined }, version: manifest.version }
+      : context.lock.packages[baseLocator];
     if (!packageRecord) throw new Error("Node package is missing from pnpm lock");
     if (
-      baseLocator !== nameVersion &&
-      !(
-        baseLocator.startsWith(`${manifest.name}@file:`) &&
-        packageRecord.version === manifest.version
-      )
+      workspaceDirectory
+        ? manifest.name !== name
+        : baseLocator !== nameVersion &&
+          !(
+            baseLocator.startsWith(`${manifest.name}@file:`) &&
+            packageRecord.version === manifest.version
+          )
     )
       throw new Error(`Installed package does not match pnpm locator: ${locator}`);
     const compatible = [manifest, packageRecord].every(
@@ -182,7 +276,10 @@ export const snapshotNodeTransformInputs = async (
       if (optional) return undefined;
       throw new Error(`Node dependency does not support the locked platform: ${locator}`);
     }
-    const integrity = packageRecord.resolution.integrity;
+    const files = await collectFiles(packageRoot, workspaceDirectory !== undefined);
+    const integrity = workspaceDirectory
+      ? `workspace-content:${digest(JSON.stringify(files))}`
+      : packageRecord.resolution.integrity;
     if (!integrity) throw new Error("Node package archive integrity is missing");
     const key = `${context.root}\0${locator}\0${packageRoot}`;
     const previous = seen.get(key);
@@ -193,19 +290,35 @@ export const snapshotNodeTransformInputs = async (
       id,
       locator,
       integrity,
-      files: await collectFiles(packageRoot),
+      files,
       dependencies: Object.create(null) as Record<string, string>,
     };
     packages.push(item);
-    const locked = snapshots[locator]!;
+    const locked = workspaceImporter ?? snapshots[locator]!;
+    const references = workspaceImporter
+      ? workspaceSourcePackageSpecifiers(
+          files.map((file) => ({
+            path: file.path,
+            source: Buffer.from(file.bytes, "base64").toString("utf8"),
+          })),
+        )
+      : [];
+    const requiredDevelopment = Object.fromEntries(
+      Object.entries(workspaceImporter?.devDependencies ?? {}).filter(([name]) =>
+        references.includes(name),
+      ),
+    );
     const edges = {
+      ...requiredDevelopment,
       ...locked.dependencies,
       ...locked.optionalDependencies,
     };
     for (const dependency of Object.keys(edges).sort()) {
       const child = await visit(
         dependency,
-        edges[dependency]!,
+        workspaceImporter
+          ? (edges[dependency] as (typeof context.importer.dependencies)[string]).version
+          : (edges[dependency] as string),
         packageRoot,
         context,
         Object.hasOwn(locked.optionalDependencies, dependency),
@@ -214,7 +327,7 @@ export const snapshotNodeTransformInputs = async (
     }
     return id;
   };
-  const context = await readLock(root, false);
+  const context = await readLock(root, true);
   const rootDependencies: Record<string, string> = Object.create(null) as Record<string, string>;
   const rootEdges = {
     ...context.importer.dependencies,
@@ -222,6 +335,7 @@ export const snapshotNodeTransformInputs = async (
     ...context.importer.optionalDependencies,
   };
   for (const name of Object.keys(rootEdges).sort()) {
+    if (options.rootSpecifiers && !options.rootSpecifiers.includes(name)) continue;
     const id = await visit(
       name,
       rootEdges[name]!.version,
@@ -265,14 +379,7 @@ export const snapshotNodeTransformInputs = async (
               path: "package.json",
               bytes: (await readFile(join(adapterRoot, "package.json"))).toString("base64"),
             },
-            ...(await collectFiles(join(adapterRoot, dirname(entry))))
-              .filter(
-                (file) => `${dirname(entry)}/${file.path}` !== options.adapterDependencySnapshot,
-              )
-              .map((file) => ({
-                ...file,
-                path: `${dirname(entry)}/${file.path}`,
-              })),
+            ...(await collectEntryFiles(adapterRoot, entry)),
           ]
         : await collectFiles(adapterRoot),
       dependencies: Object.create(null) as Record<string, string>,

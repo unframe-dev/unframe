@@ -386,6 +386,221 @@ snapshots:
   expect(graph.rootDependencies.map((edge) => edge.specifier)).toEqual(["first"]);
 });
 
+it("snapshots a workspace importer and linked packages from the shared installed graph", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-workspace-"));
+  directories.push(root);
+  const project = join(root, "example");
+  const authoring = join(root, "packages/authoring");
+  const presentation = join(root, "packages/presentation");
+  const library = join(root, "node_modules/.pnpm/library@1.0.0/node_modules/library");
+  for (const directory of [project, authoring, presentation, library]) {
+    await mkdir(join(directory, "node_modules"), { recursive: true });
+  }
+  for (const [directory, name] of [
+    [authoring, "authoring"],
+    [presentation, "presentation"],
+    [library, "library"],
+  ] as const) {
+    await writeFile(
+      join(directory, "package.json"),
+      JSON.stringify({ name, version: "1.0.0", main: "index.js" }),
+    );
+    await writeFile(join(directory, "index.js"), "export const value = 1;");
+  }
+  await writeFile(join(root, "pnpm-workspace.yaml"), 'packages: ["example", "packages/*"]\n');
+  await symlink(authoring, join(project, "node_modules/authoring"));
+  await symlink(presentation, join(authoring, "node_modules/presentation"));
+  await symlink(library, join(presentation, "node_modules/library"));
+  await writeFile(join(authoring, ".env.local"), "PRIVATE_TOKEN=must-not-be-frozen");
+  await writeFile(join(authoring, "helper.js"), "export const helper = 1;");
+  await mkdir(join(authoring, ".unframe"));
+  await writeFile(join(authoring, ".unframe/cache.json"), '{"private":"must-not-be-frozen"}');
+  await mkdir(join(authoring, "notes"));
+  await writeFile(join(authoring, "notes/private.txt"), "must-not-be-frozen");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `---
+lockfileVersion: '9.0'
+importers:
+  .:
+    configDependencies: {}
+    packageManagerDependencies:
+      pnpm: {specifier: 12.16.1, version: 12.16.1}
+snapshots: {}
+---
+lockfileVersion: '9.0'
+importers:
+  .: {}
+  example:
+    dependencies:
+      authoring: {specifier: 'workspace:*', version: 'link:../packages/authoring'}
+  packages/authoring:
+    dependencies:
+      presentation: {specifier: 'workspace:*', version: 'link:../presentation'}
+  packages/presentation:
+    dependencies:
+      library: {specifier: 1.0.0, version: 1.0.0}
+snapshots:
+  library@1.0.0: {}
+`,
+  );
+  const graph = await snapshotInstalledPackages(project);
+  expect(graph.packages.map((entry) => entry.name).sort()).toEqual([
+    "authoring",
+    "library",
+    "presentation",
+  ]);
+  expect(graph.rootDependencies.map((edge) => edge.specifier)).toEqual(["authoring"]);
+  const byName = new Map(graph.packages.map((entry) => [entry.name, entry]));
+  expect(byName.get("authoring")?.files.map((file) => file.path)).toEqual([
+    "helper.js",
+    "index.js",
+    "package.json",
+  ]);
+  expect(byName.get("authoring")?.dependencies).toEqual([
+    { specifier: "presentation", usage: "runtime", packageKey: byName.get("presentation")?.key },
+  ]);
+  expect(byName.get("presentation")?.dependencies).toEqual([
+    { specifier: "library", usage: "runtime", packageKey: byName.get("library")?.key },
+  ]);
+});
+
+it.each([
+  {
+    version: "link:../../outside",
+    target: "outside",
+    error: "Workspace dependency must remain inside the workspace.",
+  },
+  {
+    version: "link:../packages/library",
+    target: "workspace/packages/other",
+    error: "Installed package must remain inside the project node_modules snapshot.",
+  },
+])(
+  "rejects a workspace dependency outside its locked package: $version",
+  async ({ version, target, error }) => {
+    const root = await mkdtemp(join(temporaryDirectory(), "unframe-workspace-link-"));
+    directories.push(root);
+    const workspace = join(root, "workspace");
+    const project = join(workspace, "example");
+    await mkdir(join(project, "node_modules"), { recursive: true });
+    await mkdir(join(root, target), { recursive: true });
+    await symlink(join(root, target), join(project, "node_modules/library"));
+    await writeFile(
+      join(workspace, "pnpm-workspace.yaml"),
+      'packages: ["example", "packages/*"]\n',
+    );
+    await writeFile(
+      join(workspace, "pnpm-lock.yaml"),
+      `lockfileVersion: '9.0'
+importers:
+  .: {}
+  example:
+    dependencies:
+      library: {specifier: 'workspace:*', version: '${version}'}
+  packages/library: {}
+snapshots: {}
+`,
+    );
+    await expect(snapshotInstalledPackages(project)).rejects.toThrow(error);
+  },
+);
+
+it("does not use an ancestor standalone lock as a workspace lock", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-no-workspace-"));
+  directories.push(root);
+  const project = join(root, "example");
+  await mkdir(project);
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  .: {}
+  example: {}
+snapshots: {}
+`,
+  );
+  await expect(snapshotInstalledPackages(project)).rejects.toThrow(
+    "A regular pnpm-lock.yaml is required for lock update.",
+  );
+});
+
+it("rejects a linked workspace package without a locked dependency importer", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-workspace-missing-importer-"));
+  directories.push(root);
+  const project = join(root, "example");
+  const local = join(root, "packages/local");
+  await mkdir(join(project, "node_modules"), { recursive: true });
+  await mkdir(local, { recursive: true });
+  await writeFile(
+    join(local, "package.json"),
+    JSON.stringify({ name: "local", version: "1.0.0", main: "index.js" }),
+  );
+  await writeFile(join(local, "index.js"), 'export const value = "local";');
+  await symlink(local, join(project, "node_modules/local"));
+  await writeFile(join(root, "pnpm-workspace.yaml"), 'packages: ["example", "packages/*"]\n');
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  .: {}
+  example:
+    dependencies:
+      local: {specifier: 'workspace:*', version: 'link:../packages/local'}
+snapshots: {}
+`,
+  );
+  await expect(snapshotInstalledPackages(project)).rejects.toThrow(
+    "Workspace dependency importer is missing from the pnpm lock: packages/local.",
+  );
+});
+
+it("locks only development dependencies referenced by captured workspace source", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-workspace-source-deps-"));
+  directories.push(root);
+  const project = join(root, "example");
+  const local = join(root, "packages/local");
+  const contracts = join(root, "packages/contracts");
+  for (const directory of [project, local, contracts])
+    await mkdir(join(directory, "node_modules"), { recursive: true });
+  await writeFile(
+    join(local, "package.json"),
+    JSON.stringify({ name: "local", version: "1.0.0", main: "index.ts" }),
+  );
+  await writeFile(join(local, "index.ts"), 'export type { Contract } from "contracts";');
+  await writeFile(
+    join(contracts, "package.json"),
+    JSON.stringify({ name: "contracts", version: "1.0.0", main: "index.ts" }),
+  );
+  await writeFile(join(contracts, "index.ts"), "export type Contract = string;");
+  await symlink(local, join(project, "node_modules/local"));
+  await symlink(contracts, join(local, "node_modules/contracts"));
+  await writeFile(join(root, "pnpm-workspace.yaml"), 'packages: ["example", "packages/*"]\n');
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  .: {}
+  example:
+    dependencies:
+      local: {specifier: 'workspace:*', version: 'link:../packages/local'}
+  packages/local:
+    devDependencies:
+      contracts: {specifier: 'workspace:*', version: 'link:../contracts'}
+      unused-tool: {specifier: '1.0.0', version: '1.0.0'}
+  packages/contracts: {}
+snapshots:
+  unused-tool@1.0.0: {}
+`,
+  );
+  const graph = await snapshotInstalledPackages(project);
+  expect(graph.packages.map((entry) => entry.name).sort()).toEqual(["contracts", "local"]);
+  const contractPackage = graph.packages.find((entry) => entry.name === "contracts");
+  expect(graph.packages.find((entry) => entry.name === "local")?.dependencies).toEqual([
+    { specifier: "contracts", usage: "runtime", packageKey: contractPackage?.key },
+  ]);
+});
+
 it("keeps disabled dependency browser mappings in the locked manifest", () => {
   expect(
     resolvePackageExportTargets({ main: "./index.js", browser: { fs: false } }, ["index.js"]),

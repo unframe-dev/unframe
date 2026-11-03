@@ -16,7 +16,7 @@ import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readRegularFile, readBoundedRegularFile } from "./path-policy.js";
-import { digestBytes, snapshotInstalledPackages } from "./package-snapshot.js";
+import { digestBytes, readPnpmProjectLock, snapshotInstalledPackages } from "./package-snapshot.js";
 
 const execute = promisify(execFile);
 
@@ -56,14 +56,20 @@ const updateProjectLockWithinScope = async (
         ...ports,
         readTypeLibraries,
         install: async () => {
-          if (
-            !(await readRegularFile(join(directory, "package.json"))) ||
-            !(await readRegularFile(join(directory, "pnpm-lock.yaml")))
-          )
+          if (!(await readRegularFile(join(directory, "package.json"))))
             return failure(
               "cli-lock-package-input-missing",
               "Lock update requires regular package.json and pnpm-lock.yaml inputs.",
             );
+          let packageLock: Awaited<ReturnType<typeof readPnpmProjectLock>>;
+          try {
+            packageLock = await readPnpmProjectLock(directory);
+          } catch {
+            return failure(
+              "cli-lock-package-input-missing",
+              "Lock update requires a regular package.json and a pnpm lock importer.",
+            );
+          }
           await execute(
             "pnpm",
             [
@@ -71,10 +77,10 @@ const updateProjectLockWithinScope = async (
               "--frozen-lockfile",
               "--ignore-scripts",
               "--ignore-pnpmfile",
-              "--force",
+              ...(packageLock.workspace ? [] : ["--force"]),
               "--verify-store-integrity",
             ],
-            { cwd: directory, signal, timeout: 120_000, maxBuffer: 1024 * 1024 },
+            { cwd: packageLock.directory, signal, timeout: 120_000, maxBuffer: 1024 * 1024 },
           );
           return { ok: true as const };
         },

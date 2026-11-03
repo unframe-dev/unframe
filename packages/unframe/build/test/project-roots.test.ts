@@ -1,6 +1,25 @@
 import { expect, it } from "vite-plus/test";
 import { authoringPackageRoots, hasPostcssConfig } from "@unframe-dev/build";
 
+it("includes imports from independent declaration roots while excluding Node config helpers", () => {
+  const roots = authoringPackageRoots({
+    entryFile: "presentation.unframe.tsx",
+    files: [
+      {
+        fileName: "presentation.unframe.tsx",
+        sourceText: 'import { definePresentation } from "@unframe-dev/authoring";',
+      },
+      { fileName: "logo.manifest.ts", sourceText: 'import { manifest } from "model-kit";' },
+      { fileName: "logo.structure.tsx", sourceText: 'import { root } from "./model-helper";' },
+      { fileName: "model-helper.ts", sourceText: 'import { transform } from "model-layout";' },
+      { fileName: "theme.unframe.ts", sourceText: 'import { theme } from "brand-theme";' },
+      { fileName: "tailwind.config.ts", sourceText: 'import colors from "config-colors";' },
+    ],
+  });
+  expect(roots).toEqual(expect.arrayContaining(["model-kit", "model-layout", "brand-theme"]));
+  expect(roots).not.toContain("config-colors");
+});
+
 it("selects browser dependencies from Authoring imports without executing Node config helpers", () => {
   const roots = authoringPackageRoots({
     entryFile: "deck.tsx",

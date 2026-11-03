@@ -325,6 +325,66 @@ it.each([
   else await expect(materialized).resolves.toHaveProperty("projectRoot");
 });
 
+it("snapshots a workspace project's local dependency and relocates its registry dependency", async () => {
+  const workspace = await temporary();
+  const project = join(workspace, "example");
+  const local = join(workspace, "packages/local");
+  const library = join(workspace, "node_modules/.pnpm/library@1/node_modules/library");
+  for (const directory of [project, local, library])
+    await mkdir(join(directory, "node_modules"), { recursive: true });
+  await writeFile(
+    join(project, "package.json"),
+    JSON.stringify({ dependencies: { local: "workspace:*" } }),
+  );
+  await writeFile(
+    join(local, "package.json"),
+    JSON.stringify({ name: "local", version: "1", main: "index.cjs" }),
+  );
+  await writeFile(join(local, "index.cjs"), "module.exports = require('./helper.cjs');");
+  await writeFile(join(local, "helper.cjs"), "module.exports = require('library');");
+  await writeFile(
+    join(library, "package.json"),
+    JSON.stringify({ name: "library", version: "1", main: "index.cjs" }),
+  );
+  await writeFile(join(library, "index.cjs"), "module.exports = 'workspace library';");
+  await symlink(local, join(project, "node_modules/local"));
+  await symlink(library, join(local, "node_modules/library"));
+  await writeFile(join(local, ".env.local"), "PRIVATE_TOKEN=must-not-be-frozen");
+  await mkdir(join(local, ".unframe"));
+  await writeFile(join(local, ".unframe/cache.json"), '{"private":"must-not-be-frozen"}');
+  await mkdir(join(local, "notes"));
+  await writeFile(join(local, "notes/private.txt"), "must-not-be-frozen");
+  await writeFile(join(workspace, "pnpm-workspace.yaml"), 'packages: ["example", "packages/*"]\n');
+  await writeFile(
+    join(workspace, "pnpm-lock.yaml"),
+    stringify({
+      lockfileVersion: "9.0",
+      importers: {
+        ".": {},
+        example: { dependencies: { local: { version: "link:../packages/local" } } },
+        "packages/local": {
+          devDependencies: { library: { version: "1" }, "unused-tool": { version: "1" } },
+        },
+      },
+      packages: { "library@1": { resolution: { integrity: "sha512-YWJj" } } },
+      snapshots: { "library@1": {} },
+    }),
+  );
+  const snapshot = await snapshotNodeTransformInputs(project);
+  const placed = await materializeNodeTransformSnapshot(snapshot, await temporary());
+  const require = createRequire(join(placed.projectRoot, "package.json"));
+  expect(require("local")).toBe("workspace library");
+  expect(
+    snapshot.packages
+      .find((entry) => entry.locator.startsWith("local@"))
+      ?.files.map((file) => file.path),
+  ).toEqual(["helper.cjs", "index.cjs", "package.json"]);
+  expect(snapshot.packages.map((entry) => entry.locator).sort()).toEqual([
+    "library@1",
+    "local@workspace:packages/local",
+  ]);
+});
+
 it("snapshots an adapter subpath without unrelated package modules or dependencies", async () => {
   const project = await temporary();
   await writeFile(join(project, "package.json"), "{}");
@@ -338,8 +398,17 @@ it("snapshots an adapter subpath without unrelated package modules or dependenci
   await writeFile(join(adapterRoot, "cli", "private.ts"), "export {};");
   await writeFile(
     join(adapterRoot, "tailwind", "dist", "index.js"),
+    "export {compile} from './chunk.js';",
+  );
+  await writeFile(
+    join(adapterRoot, "tailwind/dist/chunk.js"),
     "export const compile = () => 'compiled';",
   );
+  await writeFile(
+    join(adapterRoot, "tailwind/dist/unrelated.js"),
+    "export const unrelated = true;",
+  );
+  await writeFile(join(adapterRoot, "tailwind/dist/index.js.map"), "{};");
   await writeFile(
     join(adapterRoot, "package.json"),
     JSON.stringify({
@@ -358,6 +427,7 @@ it("snapshots an adapter subpath without unrelated package modules or dependenci
   expect(snapshot.packages).toHaveLength(1);
   expect(snapshot.packages[0]?.files.map(({ path }) => path)).toEqual([
     "package.json",
+    "tailwind/dist/chunk.js",
     "tailwind/dist/index.js",
   ]);
   const placed = await materializeNodeTransformSnapshot(snapshot, await temporary());

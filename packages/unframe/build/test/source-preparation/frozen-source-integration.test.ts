@@ -2,11 +2,16 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { expect, it } from "vite-plus/test";
+import { assert, expect, it } from "vite-plus/test";
+import { resolvePresentation } from "@unframe-dev/compiler";
+import { modelGlb } from "../../../compiler/test/fixtures/model.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 
-import { computeFrozenComponentInputs } from "../../src/source-preparation/index.js";
+import {
+  assembleAuthoringProject,
+  computeFrozenComponentInputs,
+} from "../../src/source-preparation/index.js";
 import { checkAuthoringProject } from "@unframe-dev/source";
 
 const libraryDirectory = dirname(createRequire(import.meta.url).resolve("typescript"));
@@ -204,4 +209,81 @@ it("freezes a package component resolved by the Source public API", () => {
     valid: false,
     diagnostics: [{ code: "compiler-frozen-input-invalid" }],
   });
+}, 20000);
+
+it("extracts and compiles a shared Timeline for a React surface and direct Model", () => {
+  const presentation = `
+    import { definePresentation } from "@unframe-dev/authoring";
+    import { Hero } from "./Hero.component";
+    export default definePresentation({
+      id: "deck", metadata: { title: "Deck" },
+      stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [4, 3, 4] },
+      scene: [
+        { id: "logo", model: { kind: "asset-ref", assetId: "logo-model" }, owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" }, opacity: 0, transform: { position: [0,0,0], rotation: [0,0,0,1], scale: [1,1,1] } },
+        { id: "text", component: Hero, props: { title: "Hello" }, owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" }, opacity: 0, physicalSizeMeters: [1,1], fit: "contain", transform: { position: [0,0,0], rotation: [0,0,0,1], scale: [1,1,1] } },
+      ],
+      assets: [{ kind: "asset-ref", assetId: "logo-model" }],
+      flow: {
+        initialGroupId: "group", variables: {},
+        timelines: [{ id: "opening", durationMilliseconds: 900, tracks: [
+          { target: { kind: "instance", instanceId: "logo", property: "opacity" }, keyframes: [{ timeMilliseconds: 0, value: 0, easingToNext: "linear" }, { timeMilliseconds: 900, value: 1 }] },
+          { target: { kind: "instance", instanceId: "text", property: "opacity" }, keyframes: [{ timeMilliseconds: 0, value: 0, easingToNext: "linear" }, { timeMilliseconds: 900, value: 1 }] },
+        ] }],
+        groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [
+          { id: "start", trigger: { kind: "timer", afterMilliseconds: 1 }, actions: [{ kind: "timeline.play", timelineId: "opening", completion: "nonBlocking" }] },
+          { id: "done", trigger: { kind: "timelineCompleted", timelineId: "opening" }, actions: [] },
+        ] } } } },
+      }, operations: [],
+    });
+  `;
+  const input = analyze(component, presentation);
+  const catalog = checkAuthoringProject(input);
+  assert(catalog.valid, JSON.stringify(catalog.diagnostics));
+  expect(catalog.value.components).toHaveLength(1);
+  expect(catalog.value.presentation.value.scene).toMatchObject([
+    { id: "logo", model: { kind: "asset-ref", assetId: "logo-model" } },
+    { id: "text", component: { id: "hero", version: 1 } },
+  ]);
+  expect(catalog.value.presentation.value.flow.timelines).toMatchObject([
+    {
+      id: "opening",
+      tracks: [{ target: { instanceId: "logo" } }, { target: { instanceId: "text" } }],
+    },
+  ]);
+  const frozen = computeFrozenComponentInputs(input, catalog.value);
+  assert(frozen.valid, JSON.stringify(frozen.diagnostics));
+  const bytes = modelGlb();
+  const checksum = `sha256:${bytesToHex(sha256(bytes))}`;
+  const assembled = assembleAuthoringProject(
+    input,
+    {
+      themeHashes: [],
+      componentLocks: frozen.value.componentLocks,
+      assets: {
+        "logo-model": {
+          id: "logo-model",
+          mediaType: "model/gltf-binary",
+          encodedSizeBytes: bytes.length,
+          checksum,
+        },
+      },
+    },
+    { "logo-model": bytes },
+  );
+  assert(assembled.valid, JSON.stringify(assembled.diagnostics));
+  const result = resolvePresentation(assembled.value.project);
+  assert(result.valid, JSON.stringify(result.diagnostics));
+  const logo = Object.values(result.value.scene.nodes).find((node) => node.name === "logo");
+  const text = Object.values(result.value.scene.nodes).find((node) => node.name === "text");
+  assert(logo?.kind === "model");
+  assert(text?.kind === "surface");
+  const [timeline] = Object.values(result.value.flow.timelines);
+  assert(timeline);
+  expect(timeline.tracks.map((track) => track.target.nodeId).sort()).toEqual(
+    [logo.id, text.id].sort(),
+  );
+  const cues = result.value.flow.groups.group!.steps.step!.cues;
+  expect(cues[0]?.trigger).toEqual({ kind: "timer", afterMilliseconds: 1 });
+  expect(cues[0]?.actions).toMatchObject([{ kind: "timeline.play", timelineId: timeline.id }]);
+  expect(cues[1]?.trigger).toEqual({ kind: "timelineCompleted", timelineId: timeline.id });
 }, 20000);
