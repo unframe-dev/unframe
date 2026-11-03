@@ -1,4 +1,5 @@
 packages:
+  - "example"
   - "app/*"
   - "app/web/*"
   - "app/server/control-plane"

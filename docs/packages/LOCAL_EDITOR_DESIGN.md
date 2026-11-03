@@ -46,6 +46,8 @@ Definition + RenderBundle + AssetSet + BuildManifest + assets
 
 `app/web/local-editor/src/app/main.tsx` が token を取り出し、workspace を生成する。`workspace/create-workspace.ts` が project／preview／publication controller と workspace 単位の Zustand vanilla store を組み立て、commands が feature 間の操作を接続する。React は selector 購読と入力・focus を所有し、HTTP／build・認証 polling／Unity 配送は controller と `infra/` の adapter が所有する。Unity canvas は固定 viewport に一つだけ接続し、テーマやパネル操作では作り直さない。`dispose` で通信・timer・通知待ち・Unity を終了する。
 
+UI HMR ではメモリー上の session に token・Workspace・React root を保持し、同じ Host の接続、選択、パネル配置、未保存 Props と入力途中の文字列を再利用する。Unity canvas は Workspace ごとに保持し、view の再接続でも作り直さない。React effect の再実行では Workspace を破棄せず、Host の切替・ページ終了時に破棄する。controller の実装変更は再起動で適用する。
+
 公開 Props の draft は project controller が管理する。保存は直列で、保存完了後に履歴を確定する。結果不明の保存は同一 command ID・基準 revision・command で再送する。外部変更で draft を消さず、競合時には自動上書きしない。Transform の編集 UI は提供しない。`index.html` から `dist` を生成し、Local Host が同一 origin で配信する。旧 Author entry、Slide／Element 文書、localStorage 文書保存、React 3D viewport は編集経路から撤去した。
 
 対象は CLI 起動時に指定した project であり、ブラウザーから任意 filesystem path を開く API はない。管理 Web は認証・device 承認・account settings、公開済み Dist の確認とルーム作成を担当する。ローカル Editor の起動・保存・Preview はログインなしで利用する。
@@ -146,10 +148,12 @@ revision は config・Source・lock・アセット・スタイルを含むロー
 
 ### 表示の更新
 
+- Host は project 内の入力ファイルを監視し、認証付き `GET /api/project/changes` で変更を通知する。UI は通知後に snapshot を取得し、無変更時は取得を繰り返さない。cursor の差分で取得中・再接続中の変更を拾い、取得失敗時は cursor を進めず再試行する。生成物と依存インストール先は監視対象から除外し、固定依存は lock の更新を検知し、インストール先の差替えは監視しない。監視自体が故障した場合は Host を再起動する。閲覧専用 Dist は成果物の更新を監視する。
 - UI は `savedRevision`、`buildingRevision`、`loadedBuildIdentity` を区別し、保存済み内容と現在の表示が異なるときに明示する。
 - 初回 Dev 選択と手動再読込は即時に build を要求する。保存成功・外部変更による自動更新は200msでまとめ、最新 revision を要求する。同じ revision の進行中要求は共有し、未保存の editor buffer は入力にしない。
 - Host は要求の Source revision を検証してから旧 Dev 処理を取り消し、その後始末を待って最新の準備・build を開始する。Dist build はこの自動置換の対象にしない。UI は受付待ちの旧要求も結果を回収して取り消す。旧要求の build／asset load／Unity load が完了しても、現在選択している mode と要求に一致しなければ表示へ反映しない。
 - 同じ入力で直近に成功した Dev generation が保持されている場合は、重い準備処理の前に再利用を判定する。全入力 revision、現在の generation、成功時の成果物 identity、全アセットの内容を照合し、前後の Source と参照先が変わっていない場合だけ再利用する。失敗・取消・削除・改変済みの成果物は再利用しない。
+- 更新中は直前に commit した画面を残し、小さく「更新待ち」「ビルド中」「表示反映中」を示す。操作・公開可能な表示記録とは分離し、更新開始時に旧記録を失効させる。全面の準備表示は初回だけとし、更新失敗時も旧画面を残して診断と再試行を提示する。
 - build 成功時に完成 Dev generation を公開する。Unity 表示の成功は別に管理する。候補 scene と素材を準備し、最新要求であることを確かめてから表示を交換する。
 - Bridge は `prepare(requestId)` の成功通知後に Web UI が mode／最新要求を照合し、`commit(requestId)` または `discard(requestId)` を送る。Unity は現在の要求に一致する候補だけを commit する。mode 切り替え時は要求を無効化し、古い load 成功だけで scene を交換しない。
 - Unity は scene の交換完了後に `committed(requestId, buildIdentity)` を返す。Web UI は現在の mode／要求と一致する通知だけで表示成功を確定し、認証済み Host API に報告する。Host は発行済み Preview 要求の固定 generation・artifact hashes と結び付けて表示済み記録を持つ。publish はその requestId を指定し、Host が現在の Dist 表示記録と照合する。これは協調する Editor の操作条件であり、CP の認可を代替しない。
@@ -168,4 +172,4 @@ revision は config・Source・lock・アセット・スタイルを含むロー
 | 共通描画・素材 integrity・交換・故障と復元通知   | Unity の Preview／Rendering EditMode テスト                                 |
 | Proto drift                                      | Contracts の `check:wire-*`、`nix run .#unity-proto -- check`               |
 
-Local Editor の E2E／component test と専用実行経路は撤去した。controller の test double や EditMode の成功は、実 WebGL／Quest の描画、固定 Browser／CSP、認証画面の手動操作を保証しない。再設計時の検証・未確認事項は [実装・受入記録](../plans/local-editor-preview-ui-refactor.md) を参照する。Unity player はコード変更後に `nix run .#unity-preview` で再生成する。
+Local Editor の専用 E2E 実行経路はない。controller の Node テストと状態表示の HTML 出力テストの成功は、実 WebGL／Quest の描画、固定 Browser／CSP、認証画面の手動操作を保証しない。再設計時の検証・未確認事項は [実装・受入記録](../plans/local-editor-preview-ui-refactor.md) を参照する。Unity player はコード変更後に `nix run .#unity-preview` で再生成する。

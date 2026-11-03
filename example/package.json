@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@unframe/authoring": "file:vendor/unframe-authoring-0.1.0.tgz"
+    "@unframe/authoring": "workspace:*"
   }
 }
