@@ -70,17 +70,23 @@ function FlowGraph() {
   const definition = useStore(w.project.store, (s) => s.project?.definition);
   const selection = useStore(w.ui, (s) => s.selection);
   const playback = useStore(w.preview.store, (s) => s.playback);
+  const followingPlayback = playback?.mode === "normal" && !!playback.state.clock?.running;
   const group = definition
     ? createTimelineView(definition).groups.find(
-        (g) => g.id === (selection.groupId ?? definition.flow.initialGroupId),
+        (g) =>
+          g.id ===
+          (followingPlayback
+            ? playback.groupId
+            : (selection.groupId ?? definition.flow.initialGroupId)),
       )
     : null;
   return group ? (
     <div className="flow-graph-panel">
       <ProgressionTimeline
         group={group}
-        selectedStepId={selection.stepId}
-        selectedCueId={selection.cueId}
+        followingPlayback={followingPlayback}
+        selectedStepId={selection.groupId === group.id ? selection.stepId : null}
+        selectedCueId={selection.groupId === group.id ? selection.cueId : null}
         currentStepId={playback?.groupId === group.id ? playback.stepId : null}
         onSelectCue={(stepId, cueId) => w.commands.selectFlow({ groupId: group.id, stepId, cueId })}
         onSelectStep={(stepId) => w.commands.selectFlow({ groupId: group.id, stepId, cueId: null })}
