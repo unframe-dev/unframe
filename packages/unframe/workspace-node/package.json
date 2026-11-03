@@ -1,7 +1,7 @@
 {
   "name": "@unframe/workspace-node",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.0.1",
+  "private": false,
   "bin": {
     "unframe-filesystem-helper-darwin-arm64": "./native-bin/filesystem-helper-darwin-arm64",
     "unframe-filesystem-helper-linux-x64": "./native-bin/filesystem-helper-linux-x64"
