@@ -96,3 +96,45 @@ test("回転操作で立方体が10秒かけて一周し、パネルとロゴを
   assert.equal(complete.nodes[cubeId].opacity, 1);
   assert.equal(complete.nodes[panelId].opacity, 1);
 });
+
+test("回転後の次へで一拍置いて×を出し、当初案だけをまとめて退場させる", () => {
+  const detail = input(showOriginal(), "presenter.next").state;
+  const turning = input(detail, "presenter.rotate").state;
+  assert.equal(input(turning, "presenter.next").outcome.kind, "none");
+  const stopped = advanceCueClock(definition, turning, 13862).state;
+  const rejected = input(stopped, "presenter.next");
+  assert.equal(rejected.outcome.kind, "accepted");
+  const markId = reactResourceId("host", "rejection-mark");
+  assert.equal(stopped.nodes[markId].opacity, 0);
+  assert.equal(input(rejected.state, "presenter.next").outcome.kind, "none");
+  const paused = advanceCueClock(definition, rejected.state, 14463).state;
+  assert.equal(paused.nodes[markId].opacity, 0);
+  assert.deepEqual(paused.nodes[cubeId], stopped.nodes[cubeId]);
+  assert.deepEqual(paused.nodes[panelId], stopped.nodes[panelId]);
+  const timeline = definition.flow.timelines[paused.activeRuns[0].timelineId];
+  const at = (id, property, milliseconds) => {
+    const track = timeline.tracks.find(
+      (track) => track.target.nodeId === id && track.target.property === property,
+    );
+    assert.ok(track);
+    return evaluateTimelineTrack(track, timeline.durationMilliseconds, milliseconds);
+  };
+  assert.equal(at(markId, "opacity", 600), 0);
+  assert.equal(at(markId, "opacity", 820), 1);
+  assert.equal(at(markId, "opacity", 1420), 1);
+  for (const id of [markId, panelId, cubeId]) {
+    assert.equal(at(id, "opacity", 1420), 1);
+    assert.ok(at(id, "opacity", 1770) > 0 && at(id, "opacity", 1770) < 1);
+    assert.ok(at(id, "transform.position", 1770)[1] < at(id, "transform.position", 1420)[1]);
+  }
+  assert.ok(timeline.tracks.every((track) => ![brandId, logoId].includes(track.target.nodeId)));
+  const complete = advanceCueClock(definition, paused, 15983).state;
+  assert.equal(complete.currentStepId, "original-dismissed");
+  assert.equal(complete.activeRuns.length, 0);
+  assert.equal(complete.ended, false);
+  for (const id of [markId, panelId, cubeId]) assert.equal(complete.nodes[id].opacity, 0);
+  for (const state of [paused, complete]) {
+    assert.deepEqual(state.nodes[brandId], stopped.nodes[brandId]);
+    assert.deepEqual(state.nodes[logoId], stopped.nodes[logoId]);
+  }
+});

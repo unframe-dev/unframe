@@ -2,6 +2,8 @@ import { definePresentation } from "@unframe-dev/authoring";
 import { OpeningBrand } from "./opening.component";
 import { OriginalPanel } from "./original-panel.component";
 import { originalTimelines } from "./original.timelines";
+import { RejectionMark } from "./rejection.component";
+import { rejectionTimeline } from "./rejection.timeline";
 
 export default definePresentation({
   id: "presentation-8928636a-3e4f-49ac-8d2a-c0bfa3be8219",
@@ -15,6 +17,18 @@ export default definePresentation({
     { kind: "asset-ref", assetId: "demo-cube" },
   ],
   scene: [
+    {
+      id: "rejection-mark",
+      component: RejectionMark,
+      props: {},
+      owner: { kind: "presentation" },
+      audience: { kind: "all" },
+      parent: { kind: "stage" },
+      physicalSizeMeters: [1.4, 1.4],
+      fit: "contain",
+      opacity: 0,
+      transform: { position: [0, 1.4, -1.5], rotation: [0, 0, 0, 1], scale: [0.8, 0.8, 0.8] },
+    },
     {
       id: "brand",
       component: OpeningBrand,
@@ -157,7 +171,40 @@ export default definePresentation({
               },
             ],
           },
-          "original-shown": { id: "original-shown", cues: [] },
+          "original-shown": {
+            id: "original-shown",
+            cues: [
+              {
+                id: "reject-original",
+                trigger: { kind: "logicalInput", action: "presenter.next" },
+                actions: [],
+                next: { kind: "step", stepId: "original-reject" },
+              },
+            ],
+          },
+          "original-reject": {
+            id: "original-reject",
+            cues: [
+              {
+                id: "dismiss-original",
+                trigger: { kind: "timer", afterMilliseconds: 1 },
+                actions: [
+                  {
+                    kind: "timeline.play",
+                    timelineId: "original-reject",
+                    completion: "nonBlocking",
+                  },
+                ],
+              },
+              {
+                id: "original-dismissed",
+                trigger: { kind: "timelineCompleted", timelineId: "original-reject" },
+                actions: [],
+                next: { kind: "step", stepId: "original-dismissed" },
+              },
+            ],
+          },
+          "original-dismissed": { id: "original-dismissed", cues: [] },
         },
       },
     },
@@ -217,6 +264,7 @@ export default definePresentation({
         ],
       },
       ...originalTimelines,
+      rejectionTimeline,
     ],
     variables: {},
   },
