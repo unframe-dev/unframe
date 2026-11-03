@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { publicationOperationSchema } from "@unframe-dev/contracts/author-http";
 import { queryPublication } from "@unframe-dev/publish";
 import { publishPresentation, type PublishInput } from "../application/publish.js";
@@ -65,17 +66,17 @@ export const runPresentationProcess = async ({
   let authoritativeOutcome = false;
   try {
     const args = process.argv.slice(2);
-    if (args[0] === "author" && args.length === 2 && args[1]?.startsWith("/")) {
-      await author(args[1], controller.signal);
+    if (args[0] === "author" && args.length === 2 && args[1] && !args[1].startsWith("-")) {
+      await author(resolve(args[1]), controller.signal);
       result = { exitCode: 0, stdout: "", stderr: "" };
-    } else if (args[0] === "dev" && args.length === 2 && args[1]?.startsWith("/")) {
-      await dev(args[1], controller.signal, (build) => {
+    } else if (args[0] === "dev" && args.length === 2 && args[1] && !args[1].startsWith("-")) {
+      await dev(resolve(args[1]), controller.signal, (build) => {
         if (build.stdout) process.stdout.write(build.stdout);
         if (build.stderr) process.stderr.write(build.stderr);
       });
       result = { exitCode: 0, stdout: "", stderr: "" };
-    } else if (args[0] === "preview" && args.length === 2 && args[1]?.startsWith("/")) {
-      result = await preview(args[1], controller.signal, (origin) =>
+    } else if (args[0] === "preview" && args.length === 2 && args[1] && !args[1].startsWith("-")) {
+      result = await preview(resolve(args[1]), controller.signal, (origin) =>
         process.stdout.write(`Preview: ${origin}\n`),
       );
     } else if (args[0] === "publication-status" && args.length === 3) {
@@ -114,7 +115,7 @@ export const runPresentationProcess = async ({
               stderr: `$: io/${receipt.code}: Publication outcome remains unknown.\n${JSON.stringify(receipt.operation)}\n`,
             };
       }
-    } else if (args[0] === "publish" && args.length === 4 && args[1]?.startsWith("/")) {
+    } else if (args[0] === "publish" && args.length === 4 && args[1] && !args[1].startsWith("-")) {
       const token = process.env?.["UNFRAME_ACCESS_TOKEN"];
       if (!token)
         result = {
@@ -125,7 +126,7 @@ export const runPresentationProcess = async ({
         };
       else {
         const sent = await publish({
-          directory: args[1],
+          directory: resolve(args[1]),
           presentationId: args[2]!,
           controlPlaneUrl: args[3]!,
           bearerToken: token,

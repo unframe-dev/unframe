@@ -2,7 +2,7 @@ import type { AnalysisOperations } from "../author/analysis-protocol.js";
 import { runAnalysisOperation, prepareLockRefreshInWorker } from "../author/analysis-client.js";
 import { createSourceAssetAssemblyCarrier } from "@unframe-dev/build";
 import { buildMediaPorts, sourceAssetPorts } from "./media-ports.js";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readExpectedBuildGeneration, publishProjectBuild } from "@unframe-dev/workspace-node";
 import { createBuildJob } from "@unframe-dev/build";
@@ -86,7 +86,7 @@ const limits = Object.freeze({
   maxOutputBytes: 65 * 1024 * 1024,
 });
 const usage =
-  "Usage: unframe-cli init|check|build|test <absolute-project-directory> [--format text|json]\n       unframe-cli dev|author <absolute-project-directory>\n       unframe-cli preview <absolute-dist-directory>\n       unframe-cli publish <absolute-dist-directory> <presentation-id> <control-plane-origin>\n       unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]";
+  "Usage: unframe init|check|build|test <project-directory> [--format text|json]\n       unframe dev|author <project-directory>\n       unframe preview <dist-directory>\n       unframe publish <dist-directory> <presentation-id> <control-plane-origin>\n       unframe lock refresh|update <project-directory> [--recreate] [--format text|json]";
 const rendererDiagnosticCodes = new Set([
   "unsupported-structured-tree",
   "invalid-render-scale",
@@ -243,14 +243,15 @@ const parse = (
     const recreate = positional[3] === "--recreate";
     if (
       (operation === "refresh" || operation === "update") &&
-      positional[2]?.startsWith("/") &&
+      positional[2] &&
+      !positional[2].startsWith("-") &&
       (positional.length === 3 ||
         (positional.length === 4 && recreate && operation === "update")) &&
       (at < 0 || (at === args.length - 2 && ["text", "json"].includes(args[at + 1] ?? "")))
     )
       return {
         ok: true,
-        value: { command, operation, directory: positional[2], format, recreate },
+        value: { command, operation, directory: resolve(positional[2]), format, recreate },
       };
     return {
       ok: false,
@@ -260,7 +261,7 @@ const parse = (
         diagnostic(
           "usage",
           "cli-invalid-usage",
-          "Usage: unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]",
+          "Usage: unframe lock refresh|update <project-directory> [--recreate] [--format text|json]",
         ),
       ],
     };
@@ -269,7 +270,8 @@ const parse = (
     !command ||
     (at >= 0 && (at !== args.length - 2 || !["text", "json"].includes(args[at + 1] ?? ""))) ||
     positional.length !== 2 ||
-    !positional[1]?.startsWith("/")
+    !positional[1] ||
+    positional[1].startsWith("-")
   )
     return command
       ? {
@@ -279,7 +281,7 @@ const parse = (
           diagnostics: [diagnostic("usage", "cli-invalid-usage", usage)],
         }
       : { ok: false, format, diagnostics: [diagnostic("usage", "cli-invalid-usage", usage)] };
-  return { ok: true, value: { command, directory: positional[1], format } };
+  return { ok: true, value: { command, directory: resolve(positional[1]), format } };
 };
 const compilerDiagnostics = (
   result: Exclude<AuthoringProjectPipelineResult<unknown>, { valid: true }>,

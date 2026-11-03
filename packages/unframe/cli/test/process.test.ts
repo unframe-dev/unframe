@@ -1,3 +1,4 @@
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 
 import { runPresentationProcess } from "../src/index.js";
@@ -258,3 +259,87 @@ it("keeps an acknowledged publication successful after a late SIGINT", async () 
   expect(result.exitCode).toBe(0);
   expect(result.stdout).toContain("publish: ok");
 });
+
+it.each(["author", "dev", "preview"])(
+  "accepts relative paths for %s from the invoking working directory",
+  async (command) => {
+    const paths = [
+      [".", process.cwd()],
+      ["./slides", join(process.cwd(), "slides")],
+      ["../slides", join(dirname(process.cwd()), "slides")],
+      ["slides with spaces", join(process.cwd(), "slides with spaces")],
+    ];
+    for (const [path, expected] of paths) {
+      const host = fakeProcess(["node", "unframe", command, path!]);
+      let received: string | undefined;
+      const accept = async (directory: string) => {
+        received = directory;
+      };
+      const result = await runPresentationProcess({
+        process: host.process,
+        author: accept,
+        dev: accept,
+        preview: async (directory) => {
+          received = directory;
+          return { exitCode: 0, stdout: "", stderr: "" };
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(received).toBe(expected);
+    }
+  },
+);
+
+it("resolves a relative Dist path for publication without changing its ID or origin", async () => {
+  const host = fakeProcess(["node", "unframe", "publish", "./dist", "p", "https://api.example"]);
+  Object.assign(host.process, { env: { UNFRAME_ACCESS_TOKEN: "private" } });
+  let received: unknown;
+  const result = await runPresentationProcess({
+    process: host.process,
+    publish: async (input) => {
+      received = input;
+      return { ok: true, buildId: "b", publicationEpoch: 1 };
+    },
+  });
+  expect(result.exitCode).toBe(0);
+  expect(received).toMatchObject({
+    directory: join(process.cwd(), "dist"),
+    presentationId: "p",
+    controlPlaneUrl: "https://api.example",
+  });
+});
+
+it.each(["author", "dev", "preview", "publish"])(
+  "rejects empty paths and option names for %s",
+  async (command) => {
+    for (const path of ["", "--format"]) {
+      const host = fakeProcess([
+        "node",
+        "unframe",
+        command,
+        path,
+        ...(command === "publish" ? ["p", "https://api.example"] : []),
+      ]);
+      Object.assign(host.process, { env: { UNFRAME_ACCESS_TOKEN: "private" } });
+      let dispatched = false;
+      const accept = async () => {
+        dispatched = true;
+      };
+      const result = await runPresentationProcess({
+        process: host.process,
+        author: accept,
+        dev: accept,
+        preview: async () => {
+          dispatched = true;
+          return { exitCode: 0, stdout: "", stderr: "" };
+        },
+        publish: async () => {
+          dispatched = true;
+          return { ok: true, buildId: "b", publicationEpoch: 1 };
+        },
+      });
+      expect(result.exitCode).toBe(2);
+      expect(dispatched).toBe(false);
+    }
+  },
+);

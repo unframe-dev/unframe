@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import filesystem from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 
@@ -10,6 +10,75 @@ import { runPresentationCli } from "../src/index.js";
 import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 
 describe("runPresentationCli", () => {
+  it("initializes and checks relative project paths including spaces, dot, and parent", async () => {
+    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-relative-cli-"));
+    const directory = join(parent, "project with spaces");
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(parent);
+    try {
+      const initialized = await runPresentationCli({ args: ["init", "project with spaces"] });
+      expect(initialized.exitCode, initialized.stderr).toBe(0);
+      cwd.mockReturnValue(directory);
+      const checked = await runPresentationCli({ args: ["check", "."] });
+      expect(checked.exitCode, checked.stderr).toBe(0);
+      await mkdir(join(directory, "nested"));
+      cwd.mockReturnValue(join(directory, "nested"));
+      const parentChecked = await runPresentationCli({ args: ["check", ".."] });
+      expect(parentChecked.exitCode, parentChecked.stderr).toBe(0);
+    } finally {
+      cwd.mockRestore();
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+  it.each(["refresh", "update"])("accepts a relative project for lock %s", async (operation) => {
+    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-relative-lock-"));
+    const directory = join(parent, "project with spaces");
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(parent);
+    try {
+      const initialized = await runPresentationCli({ args: ["init", "project with spaces"] });
+      expect(initialized.exitCode, initialized.stderr).toBe(0);
+      cwd.mockReturnValue(directory);
+      const locked = await runPresentationCli({ args: ["lock", operation, "."] });
+      expect(locked.exitCode, locked.stderr).toBe(0);
+    } finally {
+      cwd.mockRestore();
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+  it.each(["build", "test"])(
+    "resolves a relative %s path before filesystem discovery",
+    async (command) => {
+      const parent = await mkdtemp(join(temporaryDirectory(), "unframe-relative-discovery-"));
+      const cwd = vi.spyOn(process, "cwd").mockReturnValue(parent);
+      try {
+        const result = await runPresentationCli({
+          args: [command, "missing project", "--format", "json"],
+        });
+        expect(result.exitCode).toBe(3);
+        expect(JSON.parse(result.stderr)).toMatchObject({
+          diagnostics: [{ family: "io", path: [join(parent, "missing project")] }],
+        });
+      } finally {
+        cwd.mockRestore();
+        await rm(parent, { recursive: true, force: true });
+      }
+    },
+  );
+  it.each([
+    ["init"],
+    ["init", ""],
+    ["check", "--unknown"],
+    ["build", ".", "--unknown"],
+    ["test", ".", "--format", "unknown"],
+    ["lock", "refresh"],
+    ["lock", "refresh", ""],
+    ["lock", "update", "--unknown"],
+    ["lock", "refresh", ".", "--recreate"],
+    ["lock", "update", ".", "--format", "unknown"],
+  ])("rejects invalid arguments %j", async (...args) => {
+    const result = await runPresentationCli({ args });
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("usage/cli-invalid-usage");
+  });
   it("ignores transient runtime leases when initializing from the template", async () => {
     const parent = await mkdtemp(join(temporaryDirectory(), "unframe-init-lease-"));
     const directory = join(parent, "project");
@@ -102,7 +171,7 @@ describe("runPresentationCli", () => {
     const result = await runPresentationCli({ args: ["build", "/project", "/output"] });
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("usage/cli-invalid-usage");
-    expect(result.stderr).toContain("<absolute-project-directory>");
+    expect(result.stderr).toContain("<project-directory>");
   });
 
   it("emits stable JSON usage diagnostics", async () => {
