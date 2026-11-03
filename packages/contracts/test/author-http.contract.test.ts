@@ -5,6 +5,7 @@ import {
   projectSnapshotSchema,
   buildJobSchema,
   previewPlaybackCommandSchema,
+  editorSocketRequestSchema,
 } from "../src/author-http";
 
 test("Author HTTP validates stale-edit preconditions and rejects unsupported commands", () => {
@@ -252,4 +253,36 @@ test("Presenter orientation uses the Unity squared-norm tolerance", () => {
     }).success,
     false,
   );
+});
+
+test("Presenter paths accept bounded ordered poses and validate every sample", () => {
+  const base = { requestId: "a".repeat(32), command: "movePresenterPath" };
+  const sample = { position: [0, 0, 0], rotation: [0, 1, 0, 0] };
+  assert.equal(
+    editorSocketRequestSchema.safeParse({
+      id: 1,
+      operation: {
+        method: "playback",
+        body: { ...base, samples: [sample] },
+      },
+    }).success,
+    true,
+  );
+  for (const length of [1, 256])
+    assert.equal(
+      previewPlaybackCommandSchema.safeParse({
+        ...base,
+        samples: Array.from({ length }, () => sample),
+      }).success,
+      true,
+    );
+  for (const samples of [
+    [],
+    Array(2),
+    Array.from({ length: 257 }, () => sample),
+    [sample, { position: [Infinity, 0, 0] }],
+    [sample, { position: [0, 0, 0], rotation: [0, 0, 0, 2] }],
+    [{ ...sample, edge: "enter" }],
+  ])
+    assert.equal(previewPlaybackCommandSchema.safeParse({ ...base, samples }).success, false);
 });

@@ -140,6 +140,17 @@ export const previewEventActorSchema = z.discriminatedUnion("kind", [
     })
     .strict(),
 ]);
+export const previewPresenterPathLimit = 256;
+export const previewPresenterSampleSchema = z
+  .object({
+    position: previewPositionSchema,
+    rotation: previewRotationSchema.optional(),
+  })
+  .strict();
+export const previewPresenterPathSchema = z
+  .array(previewPresenterSampleSchema)
+  .min(1)
+  .max(previewPresenterPathLimit);
 export const previewPlaybackCommandSchema = z.discriminatedUnion("command", [
   z
     .object({
@@ -178,6 +189,13 @@ export const previewPlaybackCommandSchema = z.discriminatedUnion("command", [
       command: z.literal("movePresenter"),
       position: previewPositionSchema,
       rotation: previewRotationSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      requestId: randomIdSchema,
+      command: z.literal("movePresenterPath"),
+      samples: previewPresenterPathSchema,
     })
     .strict(),
   z

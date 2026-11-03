@@ -293,3 +293,146 @@ it("leaves guard evaluation and once-per-step consumption to the Cue executor", 
   move([2, 0, 0]);
   expect(move([0, 0, 0]).occurrences).toEqual(entered.occurrences);
 });
+
+it("evaluates every queued movement and publishes only the final pose", () => {
+  const { playback } = setup((definition) => {
+    const exit = definition.flow.groups.intro!.steps.start!.cues[1]!;
+    exit.guard = {
+      kind: "compare",
+      left: { kind: "nodeField", nodeId: "node-baked", field: "opacity" },
+      operator: "eq",
+      right: 0.25,
+    };
+    definition.flow.groups.intro!.steps.start!.cues[0]!.actions = [
+      {
+        kind: "node.patch",
+        nodeId: "node-baked",
+        patch: { opacity: { kind: "literal", value: 0.25 } },
+      },
+    ];
+  });
+  playback({ requestId, command: "movePresenter", position: [2, 0, 0] });
+  const before = playback({ requestId, command: "play" });
+  const moved = playback({
+    requestId,
+    command: "movePresenterPath",
+    samples: [
+      { position: [0, 0, 0], rotation: [0, 1, 0, 0] },
+      { position: [0.5, 0, 0] },
+      { position: [3, 0, 0] },
+    ],
+  });
+  expect(moved.occurrences.map((value) => value.cueId)).toEqual(["enter", "exit"]);
+  expect(moved.spatial?.presenterPosition).toEqual([3, 0, 0]);
+  expect(moved.spatial?.presenterRotation).toEqual([0, 1, 0, 0]);
+  expect(BigInt(moved.state.sequence!)).toBe(BigInt(before.state.sequence!) + 1n);
+});
+
+it.each(
+  [
+    [],
+    Array(2),
+    [{ position: [0, 0, 0] }, { position: [NaN, 0, 0] }],
+    Array.from({ length: 257 }, () => ({ position: [0, 0, 0] })),
+  ].map((samples) => ({ samples })),
+)("rejects invalid paths atomically", ({ samples }) => {
+  const { playback } = setup();
+  playback({ requestId, command: "play" });
+  expect(() =>
+    playback({ requestId, command: "movePresenterPath", samples } as PreviewPlaybackCommand),
+  ).toThrow("Presenter path");
+  const current = playback({ requestId, command: "poll" });
+  expect(current.spatial?.presenterPosition).toEqual([0, 0, 0]);
+  expect(current.occurrences).toEqual([]);
+});
+
+it.each(["step", "group"] as const)(
+  "reseeds a changed %s within a path before recognizing the next physical edge",
+  (kind) => {
+    const { playback, move } = setup((definition) => {
+      definition.stage.zones = {
+        a: { id: "a", owner: { kind: "presentation" }, center: [0, 0, 0] },
+        z: { id: "z", owner: { kind: "presentation" }, center: [0, 0, 0] },
+      };
+      const first = zoneCue("first", "enter", "a");
+      first.next =
+        kind === "step" ? { kind: "step", stepId: "next" } : { kind: "group", groupId: "next" };
+      definition.flow.groups.intro!.steps.start!.cues = [first, zoneCue("old", "enter", "z")];
+      const next = {
+        id: "next",
+        cues: [zoneCue("exit-next", "exit", "z"), zoneCue("enter-next", "enter", "z")],
+      };
+      if (kind === "step") definition.flow.groups.intro!.steps.next = next;
+      else definition.flow.groups.next = { id: "next", initialStepId: "next", steps: { next } };
+    });
+    move([2, 0, 0]);
+    playback({ requestId, command: "play" });
+    const moved = playback({
+      requestId,
+      command: "movePresenterPath",
+      samples: [
+        { position: [0, 0, 0] },
+        { position: [0, 0, 0] },
+        { position: [2, 0, 0] },
+        { position: [0, 0, 0] },
+      ],
+    });
+    expect(moved.stepId).toBe("next");
+    expect(moved.occurrences.map((value) => value.cueId)).toEqual([
+      "first",
+      "exit-next",
+      "enter-next",
+    ]);
+    expect(moved.spatial?.presenterPosition).toEqual([0, 0, 0]);
+  },
+);
+
+it("preserves physical order across multiple Zones in one path", () => {
+  const { playback, move } = setup((definition) => {
+    definition.stage.zones.back = {
+      id: "back",
+      owner: { kind: "presentation" },
+      center: [5, 0, 0],
+    };
+    definition.flow.groups.intro!.steps.start!.cues.push(
+      zoneCue("enter-back", "enter", "back"),
+      zoneCue("exit-back", "exit", "back"),
+    );
+  });
+  move([-2, 0, 0]);
+  playback({ requestId, command: "play" });
+  const moved = playback({
+    requestId,
+    command: "movePresenterPath",
+    samples: [
+      { position: [0, 0, 0] },
+      { position: [2, 0, 0] },
+      { position: [5, 0, 0] },
+      { position: [8, 0, 0] },
+    ],
+  });
+  expect(moved.occurrences.map((value) => value.cueId)).toEqual([
+    "enter",
+    "exit",
+    "enter-back",
+    "exit-back",
+  ]);
+  expect(moved.spatial?.presenterPosition).toEqual([8, 0, 0]);
+});
+
+it("executes a repeatable Zone Cue again when a path returns to the Zone", () => {
+  const { playback, move } = setup();
+  move([2, 0, 0]);
+  playback({ requestId, command: "play" });
+  const moved = playback({
+    requestId,
+    command: "movePresenterPath",
+    samples: [{ position: [0, 0, 0] }, { position: [2, 0, 0] }, { position: [0, 0, 0] }],
+  });
+  expect(moved.occurrences.find((value) => value.cueId === "enter")?.occurrenceId).toBe(
+    `${requestId}:3`,
+  );
+  expect(moved.occurrences.find((value) => value.cueId === "exit")?.occurrenceId).toBe(
+    `${requestId}:2`,
+  );
+});
