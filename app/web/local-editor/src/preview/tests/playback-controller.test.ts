@@ -123,3 +123,107 @@ it("pauses after browser activation refusal and accepts a later play", async () 
     controller.dispose();
   }
 });
+
+it("delivers spatial state before acknowledging the Host playback", async () => {
+  const spatial = {
+    presenterPosition: [0, 1, 2] as [number, number, number],
+    zones: [
+      {
+        zoneId: "stage",
+        center: [0, 0, 0] as [number, number, number],
+        active: true,
+        inside: false,
+      },
+    ],
+  };
+  const delivered: unknown[] = [];
+  const controller = createPlaybackController({
+    api: {
+      playback: async (command) => {
+        if (command.command === "applied") expect(delivered).toEqual([spatial]);
+        return { ...state("r"), spatial };
+      },
+    },
+    driver: {
+      playback: async (_state, _signal, next) => {
+        delivered.push(next);
+      },
+    },
+    onState: () => undefined,
+    onFault: () => undefined,
+    onDiagnostic: () => undefined,
+  });
+  controller.load("r");
+  await vi.waitFor(() => expect(delivered).toEqual([spatial]));
+  controller.dispose();
+});
+
+it("recovers a rejected spatial update because ordinary playback was already applied", async () => {
+  const response = state("r", "2");
+  const commands: PreviewPlaybackCommand[] = [];
+  const failure = new UnityExchangeError("preview.spatial-input-invalid", {
+    kind: "failed",
+    requestId: "r",
+    sequence: "2",
+    outcome: "rejected",
+    phase: "spatial",
+  });
+  const fault = vi.fn();
+  const diagnostic = vi.fn();
+  const controller = createPlaybackController({
+    api: {
+      playback: async (command) => {
+        commands.push(command);
+        return response;
+      },
+    },
+    driver: {
+      playback: async () => {
+        throw failure;
+      },
+    },
+    onState: () => undefined,
+    onFault: fault,
+    onDiagnostic: diagnostic,
+  });
+  try {
+    controller.load("r");
+    await vi.waitFor(() => expect(fault).toHaveBeenCalledWith(failure, response));
+    controller.command({ command: "movePresenter", position: [1, 0, 0] });
+    await Promise.resolve();
+    expect(commands).toEqual([{ requestId: "r", command: "poll" }]);
+    expect(diagnostic).not.toHaveBeenCalled();
+  } finally {
+    controller.dispose();
+  }
+});
+
+it("keeps an ordinary rejected playback input as a diagnostic", async () => {
+  const failure = new UnityExchangeError("preview.input-invalid", {
+    kind: "failed",
+    requestId: "r",
+    sequence: "1",
+    outcome: "rejected",
+    phase: "apply",
+  });
+  const fault = vi.fn();
+  const diagnostic = vi.fn();
+  const controller = createPlaybackController({
+    api: { playback: async () => state("r") },
+    driver: {
+      playback: async () => {
+        throw failure;
+      },
+    },
+    onState: () => undefined,
+    onFault: fault,
+    onDiagnostic: diagnostic,
+  });
+  try {
+    controller.load("r");
+    await vi.waitFor(() => expect(diagnostic).toHaveBeenCalledWith(failure));
+    expect(fault).not.toHaveBeenCalled();
+  } finally {
+    controller.dispose();
+  }
+});

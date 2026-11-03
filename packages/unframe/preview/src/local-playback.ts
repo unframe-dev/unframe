@@ -9,18 +9,27 @@ import {
   type CueState,
 } from "@unframe-dev/playback";
 import { PreviewError } from "./error.js";
+import { previewPositionSchema, previewRotationSchema } from "@unframe-dev/contracts/author-http";
 import type {
   CueOccurrence,
   PreviewPlaybackCommand,
   PreviewPlaybackResponse,
 } from "@unframe-dev/contracts/author-http";
 import { projectPlaybackWire } from "./playback-wire.js";
+import {
+  sampleSpatial,
+  spatialContext,
+  projectSpatial,
+  type SpatialSnapshot,
+} from "./local-spatial.js";
 
 type Cue = PresentationDefinition["flow"]["groups"][string]["steps"][string]["cues"][number];
 const cueInput = (cue: Cue, causeEventId: string): CueInput | undefined => {
   const base = { payload: {}, causeEventId };
   const actor = { kind: "participant", role: "presenter" } as const;
   switch (cue.trigger.kind) {
+    case "gesture":
+      return { ...base, actor, kind: "gesture", gesture: cue.trigger.gesture };
     case "logicalInput":
       return { ...base, actor, kind: "logicalInput", action: cue.trigger.action };
     case "semanticEvent":
@@ -53,6 +62,7 @@ export const createLocalPlayback = ({
   visibleNodeIds,
   visibleSurfaceIds,
   visibleTimelineIds,
+  visibleVariableIds = new Set(),
   now,
 }: {
   requestId: string;
@@ -61,6 +71,7 @@ export const createLocalPlayback = ({
   visibleNodeIds: ReadonlySet<string>;
   visibleSurfaceIds: ReadonlySet<string>;
   visibleTimelineIds: ReadonlySet<string>;
+  visibleVariableIds?: ReadonlySet<string>;
   now: () => number;
 }): ((input: PreviewPlaybackCommand) => PreviewPlaybackResponse) => {
   let runEpoch = 1;
@@ -80,10 +91,23 @@ export const createLocalPlayback = ({
     offset: number;
   };
   let inspection: Inspection | undefined;
+  let spatial = sampleSpatial(definition, state, spatialContext(state, false), [0, 0, 0]).snapshot;
+  const context = () => spatialContext(state, playing, inspection?.inspectionId);
+  const syncSpatial = () => {
+    if (spatial.context !== context())
+      spatial = sampleSpatial(
+        definition,
+        state,
+        context(),
+        spatial.presenterPosition,
+        spatial,
+      ).snapshot;
+  };
   let lastResponse: PreviewPlaybackResponse | undefined;
   type Checkpoint = {
     state: CueState;
     inspection: Inspection | undefined;
+    spatial: SpatialSnapshot;
     occurrences: Array<[string, Recorded]>;
   };
   let lastGood: Checkpoint | undefined;
@@ -153,6 +177,30 @@ export const createLocalPlayback = ({
 
   return (command: PreviewPlaybackCommand): PreviewPlaybackResponse => {
     if (command.requestId !== requestId) reject("Preview request is stale.");
+    if (
+      command.command === "movePresenter" &&
+      !previewPositionSchema.safeParse(command.position).success
+    )
+      throw new PreviewError(
+        400,
+        "preview-position-invalid",
+        "Presenter position must be finite float32 XYZ coordinates.",
+      );
+    if (
+      command.command === "movePresenter" &&
+      command.rotation &&
+      !previewRotationSchema.safeParse(command.rotation).success
+    )
+      throw new PreviewError(
+        400,
+        "preview-rotation-invalid",
+        "Presenter rotation must be a unit quaternion.",
+      );
+    if (
+      command.command === "selectStep" &&
+      !definition.flow.groups[command.groupId]?.steps[command.stepId]
+    )
+      throw new PreviewError(400, "preview-step-invalid", "Selected Step does not exist.");
     if (command.command === "invalidateDisplay") reject("Preview display requires a new load.");
     if (command.command === "applied") {
       if (
@@ -177,6 +225,8 @@ export const createLocalPlayback = ({
       occurrences.clear();
       for (const [key, occurrence] of restored.occurrences) occurrences.set(key, copy(occurrence));
       playing = false;
+      spatial = copy(restored.spatial);
+      spatial.context = context();
     }
     if (command.command === "seekCue") {
       if (!inspection || inspection.inspectionId !== command.inspectionId)
@@ -212,7 +262,12 @@ export const createLocalPlayback = ({
       (!inspectionIds.has(command.inspectionId) || inspection)
     )
       reject("Cue inspection is stale.");
-    if (inspection && (command.command === "input" || command.command === "reset"))
+    if (
+      inspection &&
+      ["input", "reset", "gesture", "semanticEvent", "surfaceInteraction", "selectStep"].includes(
+        command.command,
+      )
+    )
       reject("Normal playback commands are unavailable during Cue inspection.");
     const time = now();
     if (playing && !state.ended) {
@@ -227,6 +282,7 @@ export const createLocalPlayback = ({
         if (offset === duration) playing = false;
       } else advanceNormal(target);
     }
+    if (command.command !== "recover") syncSpatial();
     switch (command.command) {
       case "play":
         if (
@@ -244,24 +300,87 @@ export const createLocalPlayback = ({
         playing = false;
         break;
       case "reset":
-        state = createCueState(definition, ++runEpoch, renderBundle);
+      case "selectStep":
+        state = createCueState(
+          definition,
+          ++runEpoch,
+          renderBundle,
+          command.command === "selectStep"
+            ? { groupId: command.groupId, stepId: command.stepId }
+            : undefined,
+        );
         occurrences.clear();
-        lastGood = undefined;
         pending = undefined;
-        acknowledgedSequence = undefined;
         playing = false;
         referenceTime = time;
         referenceRuntimeTime = 0;
+        spatial = sampleSpatial(definition, state, context(), [0, 0, 0]).snapshot;
         break;
+      case "movePresenter": {
+        const sampled = sampleSpatial(definition, state, context(), command.position, spatial);
+        spatial = sampled.snapshot;
+        if (command.rotation) spatial.presenterRotation = [...command.rotation];
+        if (playing && !inspection) {
+          const inputContext = context();
+          for (const edge of sampled.edges) {
+            const result = executeCueEvent(
+              definition,
+              state,
+              {
+                kind: "zoneEdge",
+                ...edge,
+                actor: { kind: "participant", role: "presenter" },
+                payload: {},
+                causeEventId: `preview:${requestId}:${sequence + 1n}:${edge.zoneId}:${edge.edge}`,
+              },
+              { capture: true },
+            );
+            if (result.capture) record(result.capture);
+            state = result.state;
+            advanceNormal(state.runtimeTimeMilliseconds);
+            if (context() !== inputContext) break;
+          }
+        }
+        break;
+      }
+      case "gesture":
+      case "semanticEvent":
+      case "surfaceInteraction":
       case "input": {
-        const entry = playing && availableInputs().find(({ cue }) => cue.id === command.cueId);
-        if (!entry)
+        const base = { payload: {}, causeEventId: `preview:${requestId}:${sequence + 1n}` };
+        const actor = { kind: "participant", role: "presenter" } as const;
+        const event: CueInput | undefined =
+          command.command === "input"
+            ? availableInputs().find(({ cue }) => cue.id === command.cueId)?.input
+            : command.command === "gesture"
+              ? { ...base, actor, kind: "gesture", gesture: command.gesture }
+              : command.command === "surfaceInteraction"
+                ? visibleSurfaceIds.has(command.surfaceId)
+                  ? {
+                      ...base,
+                      actor,
+                      kind: "surfaceInteraction",
+                      surfaceId: command.surfaceId,
+                      interactionId: command.interactionId,
+                    }
+                  : undefined
+                : {
+                    ...base,
+                    actor: command.actor.kind === "presenter" ? actor : command.actor,
+                    kind: "semanticEvent",
+                    event: command.event,
+                  };
+        if (
+          !playing ||
+          !event ||
+          executeCueEvent(definition, state, event).outcome.kind !== "accepted"
+        )
           throw new PreviewError(
             409,
             "preview-input-unavailable",
             "Preview input is not currently executable.",
           );
-        const result = executeCueEvent(definition, state, entry.input, { capture: true });
+        const result = executeCueEvent(definition, state, event, { capture: true });
         if (result.capture) record(result.capture);
         state = result.state;
         advanceNormal(state.runtimeTimeMilliseconds);
@@ -301,7 +420,9 @@ export const createLocalPlayback = ({
         break;
     }
     if (state.ended) playing = false;
+    if (command.command !== "recover") syncSpatial();
     sequence += 1n;
+    const spatialState = projectSpatial(definition, state, spatial);
     const response: PreviewPlaybackResponse = {
       state: projectPlaybackWire(
         requestId,
@@ -311,6 +432,7 @@ export const createLocalPlayback = ({
         visibleNodeIds,
         visibleSurfaceIds,
         visibleTimelineIds,
+        visibleVariableIds,
       ),
       mode: inspection ? "inspection" : "normal",
       inspection: inspection
@@ -324,12 +446,47 @@ export const createLocalPlayback = ({
       occurrences: [...occurrences.values()].map((entry) => copy(entry.metadata)),
       inputs: inspection
         ? []
-        : availableInputs().map(({ cue }) => ({ cueId: cue.id, label: cue.id })),
+        : availableInputs()
+            .filter(
+              ({ cue }) => cue.trigger.kind !== "gesture" && cue.trigger.kind !== "semanticEvent",
+            )
+            .map(({ cue }) => ({ cueId: cue.id, label: cue.id })),
+      simulation: {
+        gestures: [
+          ...new Set(
+            availableInputs().flatMap(({ cue }) =>
+              cue.trigger.kind === "gesture" ? [cue.trigger.gesture] : [],
+            ),
+          ),
+        ],
+        events: [
+          ...new Map(
+            availableInputs().flatMap(({ cue }) => {
+              if (cue.trigger.kind !== "semanticEvent") return [];
+              const entry = {
+                event: cue.trigger.event,
+                actor:
+                  cue.trigger.actor.kind === "presenter"
+                    ? { kind: "presenter" as const }
+                    : {
+                        kind: "system" as const,
+                        source: cue.trigger.actor.source ?? ("runtime" as const),
+                      },
+              };
+              return [[JSON.stringify(entry), entry] as const];
+            }),
+          ).values(),
+        ],
+        steps: Object.entries(definition.flow.groups).flatMap(([groupId, group]) =>
+          Object.keys(group.steps).map((stepId) => ({ groupId, stepId })),
+        ),
+      },
       groupId: state.currentGroupId,
       stepId: state.currentStepId,
       ended: state.ended,
+      ...(spatialState ? { spatial: spatialState } : {}),
     };
-    pending = copy({ state, inspection, occurrences: [...occurrences.entries()] });
+    pending = copy({ state, inspection, spatial, occurrences: [...occurrences.entries()] });
     lastResponse = response;
     return copy(response);
   };

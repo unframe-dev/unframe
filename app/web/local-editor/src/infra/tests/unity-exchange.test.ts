@@ -178,3 +178,24 @@ it("accepts Unity's empty unused fields in a prepared notification", async () =>
   await expect(result).resolves.toBe("build");
   exchange.dispose();
 });
+
+it("requires the matching spatial sequence before completing its exchange", async () => {
+  const exchange = createUnityExchange({ send: () => undefined });
+  const pending = exchange.request({
+    requestId: "r",
+    kind: "spatial",
+    sequence: "3",
+    method: "Spatial",
+    value: "{}",
+  });
+  let settled = false;
+  void pending.then(() => {
+    settled = true;
+  });
+  exchange.notify({ requestId: "r", kind: "spatial", sequence: "2" });
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  exchange.notify({ requestId: "r", kind: "spatial", sequence: "3" });
+  await expect(pending).resolves.toBe("3");
+  exchange.dispose();
+});

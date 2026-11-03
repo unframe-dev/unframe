@@ -49,7 +49,7 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        public bool TryBuild(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy,
+        public bool TryBuild(IPresentationNativeRenderView store, PresentationNodeHierarchy hierarchy,
             IReadOnlyDictionary<string, string> assetPaths, out string error)
         {
             Clear();
@@ -99,7 +99,7 @@ namespace Unframe.Unity.PresentationRuntime
                         BuildNode(artifact.RootNodeId, nodes, artifactRoot.transform, null, partition, assetPaths, new HashSet<string>());
                     }
                 }
-                NativeUiResidencyPlan residency = store.Delivery.Residency?.NativeUi;
+                NativeUiResidencyPlan residency = store.NativeUiResidency;
                 if (residency != null)
                     foreach (string fontId in residency.FontAssetIds)
                     {
@@ -164,7 +164,7 @@ namespace Unframe.Unity.PresentationRuntime
             partition.Meshes.Add(text, new PresentationNativeTextMesh(text, partition.Texts.Count - 1));
         }
 
-        public bool TryRefresh(PresentationRuntimeDataStore store, double runtimeTimeMs, out string error)
+        public bool TryRefresh(IPresentationNativeRenderView store, double runtimeTimeMs, out string error)
         {
             if (!IsReady) { Disable(); error = "asset_residency_lost"; return false; }
             foreach (Partition partition in partitions)
@@ -194,7 +194,7 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
-        public bool TryPickInteraction(Ray ray, PresentationRuntimeDataStore store,
+        public bool TryPickInteraction(Ray ray, IPresentationRenderView store,
             out string surfaceId, out string interactionId, out float surfaceDistance)
         {
             surfaceId = null;

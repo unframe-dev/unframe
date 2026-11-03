@@ -9,7 +9,7 @@ using Unframe.Realtime;
 
 namespace Unframe.Unity.PresentationRuntime
 {
-    public sealed class PresentationLocalPreviewInput : IPresentationRenderView
+    public sealed class PresentationLocalPreviewInput : IPresentationNativeRenderView
     {
         private readonly LocalPreviewEnvelope envelope;
         private readonly Dictionary<string, ProjectedSurfaceDefinition> surfaces;
@@ -17,6 +17,9 @@ namespace Unframe.Unity.PresentationRuntime
         private Dictionary<string, SurfaceRuntimeState> surfaceStates;
         private Dictionary<string, MediaRuntimeState> mediaStates = new Dictionary<string, MediaRuntimeState>();
         private Dictionary<string, ModelClipRuntimeState> clipStates = new Dictionary<string, ModelClipRuntimeState>();
+        private readonly Dictionary<string, VariableState> variableStates = new Dictionary<string, VariableState>();
+        private UnityEngine.Vector3 presenterPosition;
+        private UnityEngine.Quaternion presenterRotation = UnityEngine.Quaternion.identity;
         private List<RuntimeRunSnapshot> activeRuns = new List<RuntimeRunSnapshot>();
         internal readonly Dictionary<string, AssetAccessBinding> Assets;
         internal readonly Dictionary<string, string> References;
@@ -33,6 +36,7 @@ namespace Unframe.Unity.PresentationRuntime
             surfaceStates = states;
             Assets = assets;
             References = references;
+            foreach (var state in envelope.InitialState.VariableStates) variableStates.Add(state.VariableId, state);
             foreach (var state in envelope.InitialState.MediaStates) mediaStates.Add(state.SurfaceId, state);
             foreach (var state in envelope.InitialState.ModelClipStates) clipStates.Add(state.ModelNodeId, state);
         }
@@ -65,7 +69,40 @@ namespace Unframe.Unity.PresentationRuntime
         public bool TryGetSurface(string id, out ProjectedSurfaceDefinition value) { return surfaces.TryGetValue(id, out value); }
         public bool TryGetNodeState(string id, out NodeRuntimeState value) { return nodeStates.TryGetValue(id, out value); }
         public bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { return surfaceStates.TryGetValue(id, out value); }
-        public bool TryGetAnchorSample(string nodeId, out ProjectedAnchorBindingSample value) { value = null; return false; }
+        public bool TryGetAsset(string id, out AssetAccessBinding value) => Assets.TryGetValue(id, out value);
+        public bool TryGetVariableState(string id, out VariableState value) => variableStates.TryGetValue(id, out value);
+        internal void ReplaceVariables(IEnumerable<VariableState> values)
+        {
+            variableStates.Clear();
+            foreach (var value in values) variableStates.Add(value.VariableId, value);
+        }
+        public NativeUiResidencyPlan NativeUiResidency => envelope.Projection.NativeUiResidency;
+        internal void SetPresenterPose(UnityEngine.Vector3 position, UnityEngine.Quaternion rotation)
+        { presenterPosition = position; presenterRotation = rotation; }
+        public bool TryGetAnchorSample(string nodeId, out ProjectedAnchorBindingSample value)
+        {
+            value = null;
+            foreach (var node in Catalog.Nodes)
+            {
+                if (node.NodeId != nodeId || node.Parent.PresenterAnchor == null) continue;
+                var anchor = node.Parent.PresenterAnchor;
+                value = new ProjectedAnchorBindingSample();
+                UnityEngine.Vector3 offset;
+                switch (anchor.Target)
+                {
+                    case AnchorTarget.Body: offset = UnityEngine.Vector3.zero; break;
+                    case AnchorTarget.Head: offset = new UnityEngine.Vector3(0, .65f, 0); break;
+                    case AnchorTarget.LeftHand: offset = new UnityEngine.Vector3(-.35f, .25f, -.25f); break;
+                    case AnchorTarget.RightHand: offset = new UnityEngine.Vector3(.35f, .25f, -.25f); break;
+                    default: return false;
+                }
+                UnityEngine.Vector3 position = presenterPosition + presenterRotation * offset;
+                if (anchor.FollowPosition) value.Position = new Vector3 { X = position.x, Y = position.y, Z = -position.z };
+                if (anchor.FollowRotation) value.Rotation = new Quaternion { X = -presenterRotation.x, Y = -presenterRotation.y, Z = presenterRotation.z, W = presenterRotation.w };
+                return true;
+            }
+            return false;
+        }
     }
 
     public static class PresentationLocalPreviewAdapter
@@ -92,7 +129,7 @@ namespace Unframe.Unity.PresentationRuntime
                     ) return false;
                 var capabilities = new HashSet<RuntimeCapability>();
                 foreach (RuntimeCapability capability in projection.RequiredRuntimeCapabilities)
-                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition && capability != RuntimeCapability.ModelClip && capability != RuntimeCapability.VideoPlayback)
+                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition && capability != RuntimeCapability.ModelClip && capability != RuntimeCapability.VideoPlayback && capability != RuntimeCapability.Tracking)
                         || !capabilities.Add(capability)) return false;
 
                 var nodes = new Dictionary<string, ProjectedNodeDefinition>();
@@ -101,9 +138,11 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     if (!PresentationDeliveryCatalog.IsId(node.NodeId) || nodes.ContainsKey(node.NodeId)
                         || !ValidOwner(node.Owner) || node.Parent == null
-                        || node.Parent.ParentCase != SpatialParent.ParentOneofCase.Stage && node.Parent.ParentCase != SpatialParent.ParentOneofCase.Node
+                        || node.Parent.ParentCase != SpatialParent.ParentOneofCase.Stage && node.Parent.ParentCase != SpatialParent.ParentOneofCase.Node && node.Parent.ParentCase != SpatialParent.ParentOneofCase.PresenterAnchor
                         || node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Container && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Surface
                         && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Model) return false;
+                    if (node.Parent.PresenterAnchor != null && (node.Parent.PresenterAnchor.Target < AnchorTarget.Head || node.Parent.PresenterAnchor.Target > AnchorTarget.Body
+                        || !node.Parent.PresenterAnchor.FollowPosition && !node.Parent.PresenterAnchor.FollowRotation)) return false;
                     nodes.Add(node.NodeId, node);
                 }
                 foreach (ProjectedNodeDefinition node in nodes.Values)
@@ -152,7 +191,7 @@ namespace Unframe.Unity.PresentationRuntime
                     Struct descriptor = ObjectField(descriptors, asset.AssetId);
                     string checksum = StringField(descriptor, "checksum");
                     double encoded = NumberField(descriptor, "encodedSizeBytes");
-                    if (!PresentationDeliveryCatalog.IsContentHash(checksum) || StringField(descriptor, "mediaType") != "image/png" && StringField(descriptor, "mediaType") != "model/gltf-binary" && StringField(descriptor, "mediaType") != "video/mp4"
+                    if (!PresentationDeliveryCatalog.IsContentHash(checksum) || StringField(descriptor, "mediaType") != "image/png" && StringField(descriptor, "mediaType") != "model/gltf-binary" && StringField(descriptor, "mediaType") != "video/mp4" && StringField(descriptor, "mediaType") != "font/ttf" && StringField(descriptor, "mediaType") != "font/otf"
                         || encoded <= 0 || encoded > 64 * 1024 * 1024 || encoded != Math.Floor(encoded)) return false;
                     assets.Add(asset.AssetId, new AssetAccessBinding
                     {
@@ -164,12 +203,13 @@ namespace Unframe.Unity.PresentationRuntime
                     references.Add(asset.AssetId, asset.Reference);
                 }
                 foreach (DeliveredRenderSurface render in projection.RenderSurfaces)
-                    if (render.RendererKind != RendererKind.BakedWeb && render.RendererKind != RendererKind.Video) return false;
+                    if (render.RendererKind != RendererKind.BakedWeb && render.RendererKind != RendererKind.Video && render.RendererKind != RendererKind.NativeUi) return false;
                 TextureCapability textureCapability = PreviewTextureCapability();
                 if (!PresentationDeliveryCatalog.TryValidateRenderGraph(projection.RenderSurfaces, projection.SemanticSurfaces,
                     new RendererCapabilities
                     {
                         BakedWeb = textureCapability,
+                        NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1, Features = { NativeUiFeature.Clip } },
                         Video = new VideoCapability
                         {
                             Supported = true,
@@ -179,7 +219,37 @@ namespace Unframe.Unity.PresentationRuntime
                     }, surfaces, assets, out error)
                     || !PresentationBakedDeliveryValidation.TryValidate(projection.RenderSurfaces, projection.TextureResidency,
                         textureCapability, PreviewTextureLimits(projection.TextureResidency.BudgetTierId), assets.Values, out error)) return false;
+                var variableDefinitions = new Dictionary<string, ProjectedVariableDefinition>();
+                foreach (var variable in projection.RuntimeCatalog.Variables) variableDefinitions.Add(variable.VariableId, variable);
+                foreach (var render in projection.RenderSurfaces)
+                    foreach (var artifact in render.Artifacts)
+                        if (artifact.NativeUi != null && !PresentationRichDeliveryValidation.TryValidateNativeUiArtifact(artifact.NativeUi, assets, variableDefinitions, out error)) return false;
                 var selectedAssets = new HashSet<string>();
+                var fontAssets = new HashSet<string>();
+                foreach (var render in projection.RenderSurfaces)
+                    foreach (var artifact in render.Artifacts)
+                        if (artifact.NativeUi != null)
+                            foreach (var node in artifact.NativeUi.Nodes)
+                                if (node.Text != null) fontAssets.Add(node.Text.Font.Primary.AssetId);
+                if (fontAssets.Count > 0)
+                {
+                    var plan = projection.NativeUiResidency;
+                    if (plan == null || plan.BudgetTierId != "local-web-preview" || fontAssets.Count > 32
+                        || plan.FontAssetCount != (ulong)fontAssets.Count || plan.FontAssetIds.Count != fontAssets.Count
+                        || !fontAssets.SetEquals(plan.FontAssetIds) || plan.Glyphs.Count > 65536) return false;
+                    var checksums = new HashSet<string>();
+                    foreach (string id in fontAssets)
+                    {
+                        if (!assets.TryGetValue(id, out var font) || font.MediaType != "font/ttf" && font.MediaType != "font/otf") return false;
+                        checksums.Add(font.Checksum);
+                    }
+                    var glyphs = new HashSet<string>();
+                    foreach (var glyph in plan.Glyphs)
+                        if (!checksums.Contains(glyph.FontChecksum) || glyph.UnicodeScalar > 0x10ffff
+                            || glyph.UnicodeScalar >= 0xd800 && glyph.UnicodeScalar <= 0xdfff
+                            || !glyphs.Add(glyph.FontChecksum + ":" + glyph.UnicodeScalar)) return false;
+                }
+                foreach (string id in fontAssets) selectedAssets.Add(id);
                 foreach (TextureResidencyBinding binding in projection.TextureResidency.Textures) selectedAssets.Add(binding.AssetId);
                 foreach (DeliveredRenderSurface render in projection.RenderSurfaces)
                     foreach (DeliveredArtifact artifact in render.Artifacts)
@@ -244,6 +314,7 @@ namespace Unframe.Unity.PresentationRuntime
                 }
                 foreach (ProjectedSurfaceDefinition surface in surfaces.Values)
                     if (Owned(surface.Owner, initialGroup) != initialSurfaces.ContainsKey(surface.SurfaceId)) return false;
+                if (!ValidVariables(projection.RuntimeCatalog, envelope.InitialState.VariableStates, initialGroup)) return false;
                 input = new PresentationLocalPreviewInput(envelope, buildId, surfaces, initialNodes, initialSurfaces, assets, references);
                 error = null;
                 return true;
@@ -254,6 +325,21 @@ namespace Unframe.Unity.PresentationRuntime
                 error = "preview.envelope-invalid";
                 return false;
             }
+        }
+
+        internal static bool ValidVariables(ProjectedRuntimeCatalog catalog, IEnumerable<VariableState> values, string group)
+        {
+            var definitions = new Dictionary<string, ProjectedVariableDefinition>();
+            foreach (var definition in catalog.Variables) if (Owned(definition.Owner, group)) definitions.Add(definition.VariableId, definition);
+            foreach (var state in values)
+            {
+                if (!definitions.TryGetValue(state.VariableId, out var definition) || state.Value == null) return false;
+                if (definition.Type == ScalarType.Number && (state.Value.ValueCase != ScalarValue.ValueOneofCase.NumberValue || Double.IsNaN(state.Value.NumberValue) || Double.IsInfinity(state.Value.NumberValue))
+                    || definition.Type == ScalarType.String && state.Value.ValueCase != ScalarValue.ValueOneofCase.StringValue
+                    || definition.Type == ScalarType.Boolean && state.Value.ValueCase != ScalarValue.ValueOneofCase.BooleanValue) return false;
+                definitions.Remove(state.VariableId);
+            }
+            return definitions.Count == 0;
         }
 
         public static bool RequestIdValid(string value)

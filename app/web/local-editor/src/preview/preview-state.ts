@@ -13,7 +13,7 @@ export function acceptsNotification(
   );
 }
 export function requiresRecovery(notification: UnityNotification): boolean {
-  return notification.outcome !== "rejected";
+  return notification.phase === "spatial" || notification.outcome !== "rejected";
 }
 
 export function previewStatusLabel(state: PreviewSnapshot): string {

@@ -55,7 +55,7 @@ it.each([
   ["darwin", "arm64", "open", "author"],
   ["linux", "x64", "xdg-open", "dist"],
   ["darwin", "arm64", "open", "dist"],
-])("opens authenticated %s/%s %s browser for %s", async (platform, arch, command, mode) => {
+])("opens %s/%s %s browser for %s without a token URL", async (platform, arch, command, mode) => {
   const root = await mkdtemp(join(temporaryDirectory(), "unframe-editor-browser-"));
   roots.push(root);
   boundary.editor = join(root, "editor");
@@ -108,8 +108,8 @@ it.each([
       command,
       url: expect.stringMatching(
         mode === "author"
-          ? /^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]+$/u
-          : /^http:\/\/127\.0\.0\.1:\d+\/dist-preview#token=[0-9a-f]+$/u,
+          ? /^http:\/\/127\.0\.0\.1:\d+\/$/u
+          : /^http:\/\/127\.0\.0\.1:\d+\/dist-preview$/u,
       ),
     },
   ]);

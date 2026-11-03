@@ -128,4 +128,51 @@ public sealed class UnframePreviewBridgeEditModeTests
         finally { Object.DestroyImmediate(root); }
     }
 
+    [UnityTest]
+    public IEnumerator SpatialAcknowledgesOnlyTheAppliedRequestAndSequenceAndPreservesGuidesOnRejection()
+    {
+        var root = new GameObject("UnframePreview");
+        try
+        {
+            var bridge = root.AddComponent<UnframePreview>();
+            var events = new List<PresentationPreviewEvent>();
+            bridge.Notification += events.Add;
+            bridge.Configure("{\"token\":\"preview-token\"}");
+            var input = PresentationPreviewTestFixture.Create();
+            bridge.Prepare(JsonFormatter.Default.Format(input));
+            while (events.Count == 0) yield return null;
+            bridge.Commit(input.RequestId);
+            var playback = new LocalPreviewPlaybackState
+            {
+                RequestId = input.RequestId,
+                Sequence = 1,
+                CurrentGroupId = "group:first",
+                NodeStates = { input.InitialState.NodeStates },
+                SurfaceStates = { input.InitialState.SurfaceStates },
+                Clock = new RuntimeClockSnapshot { Paused = new Paused() },
+            };
+            bridge.Playback(JsonFormatter.Default.Format(playback));
+            string spatial = "{\"requestId\":\"" + input.RequestId + "\",\"sequence\":\"1\",\"presenterPosition\":[2,1,3],\"presenterRotation\":[0,0,0,1],\"zones\":[]}";
+            bridge.View("overhead");
+            bridge.Spatial(spatial);
+            Assert.That(events[3].kind, Is.EqualTo("spatial"));
+            Assert.That(events[3].sequence, Is.EqualTo("1"));
+            Transform guides = root.transform.Find("Preview spatial guides");
+            Assert.That(guides.gameObject.activeSelf, Is.True);
+            Vector3 position = guides.Find("Presenter").localPosition;
+            bridge.Spatial(spatial.Replace("\"sequence\":\"1\"", "\"sequence\":\"2\""));
+            Assert.That(events[4].outcome, Is.EqualTo("rejected"));
+            Assert.That(events[4].phase, Is.EqualTo("spatial"));
+            Assert.That(guides.Find("Presenter").localPosition, Is.EqualTo(position));
+            bridge.Spatial(spatial.Replace("[2,1,3]", "[2,1]"));
+            Assert.That(events[5].message, Is.EqualTo("preview.spatial-input-invalid"));
+            Assert.That(guides.Find("Presenter").localPosition, Is.EqualTo(position));
+            bridge.Invalidate("");
+            Assert.That(guides.gameObject.activeSelf, Is.False);
+            bridge.Spatial(spatial);
+            Assert.That(events[6].message, Is.EqualTo("preview.spatial-request-mismatch"));
+        }
+        finally { Object.DestroyImmediate(root); }
+    }
+
 }

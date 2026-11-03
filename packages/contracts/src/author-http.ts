@@ -5,7 +5,20 @@ import {
 } from "./presentation/definition";
 import type { LocalPreviewPlaybackStateWire } from "../presentation/wire-types";
 
+export const editorSessionSchema = z
+  .object({
+    token: z
+      .string()
+      .length(64)
+      .regex(/^[0-9a-f]{64}$/i),
+  })
+  .strict();
+
 const vector3 = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);
+export const previewPositionSchema = vector3.refine(
+  (position) => position.every((value) => Number.isFinite(Math.fround(value))),
+  "Position exceeds the Preview coordinate range.",
+);
 export const transformSchema = z
   .object({
     position: vector3,
@@ -102,7 +115,71 @@ export const previewCommittedRequestSchema = z
     buildIdentity: z.string().min(1),
   })
   .strict();
+export const previewRotationSchema = z
+  .tuple([z.number().finite(), z.number().finite(), z.number().finite(), z.number().finite()])
+  .refine(
+    (rotation) => Math.abs(rotation.reduce((sum, value) => sum + value * value, 0) - 1) <= 0.00001,
+    "Presenter rotation must be a unit quaternion.",
+  );
+export const previewGestureSchema = z.enum([
+  "swipeLeft",
+  "swipeRight",
+  "swipeUp",
+  "swipeDown",
+  "pushForward",
+  "pullBackward",
+  "spreadHands",
+  "closeHands",
+]);
+export const previewEventActorSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("presenter") }).strict(),
+  z
+    .object({
+      kind: z.literal("system"),
+      source: z.enum(["timer", "timeline", "media", "runtime"]),
+    })
+    .strict(),
+]);
 export const previewPlaybackCommandSchema = z.discriminatedUnion("command", [
+  z
+    .object({
+      requestId: randomIdSchema,
+      command: z.literal("gesture"),
+      gesture: previewGestureSchema,
+    })
+    .strict(),
+  z
+    .object({
+      requestId: randomIdSchema,
+      command: z.literal("semanticEvent"),
+      event: z.string().min(1).max(1024),
+      actor: previewEventActorSchema,
+    })
+    .strict(),
+  z
+    .object({
+      requestId: randomIdSchema,
+      command: z.literal("surfaceInteraction"),
+      surfaceId: z.string().min(1).max(1024),
+      interactionId: z.string().min(1).max(1024),
+    })
+    .strict(),
+  z
+    .object({
+      requestId: randomIdSchema,
+      command: z.literal("selectStep"),
+      groupId: z.string().min(1).max(1024),
+      stepId: z.string().min(1).max(1024),
+    })
+    .strict(),
+  z
+    .object({
+      requestId: randomIdSchema,
+      command: z.literal("movePresenter"),
+      position: previewPositionSchema,
+      rotation: previewRotationSchema.optional(),
+    })
+    .strict(),
   z
     .object({ requestId: randomIdSchema, command: z.enum(["poll", "play", "pause", "reset"]) })
     .strict(),
@@ -221,13 +298,48 @@ export const publicationAuthSchema = z.object({
   expiresAt: z.number().finite().optional(),
 });
 export type PublicationAuth = z.infer<typeof publicationAuthSchema>;
+export const previewPresenterPositionSchema = z
+  .object({ requestId: randomIdSchema, position: previewPositionSchema })
+  .strict();
+export const previewSpatialStateSchema = z
+  .object({
+    presenterPosition: previewPositionSchema,
+    presenterRotation: previewRotationSchema.optional(),
+    zones: z.array(
+      z
+        .object({
+          zoneId: text,
+          center: previewPositionSchema,
+          active: z.boolean(),
+          inside: z.boolean(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+export type PreviewSpatialState = z.infer<typeof previewSpatialStateSchema>;
+export const previewSpatialFrameSchema = previewSpatialStateSchema
+  .extend({
+    requestId: randomIdSchema,
+    sequence: z.string().regex(/^[1-9][0-9]*$/),
+  })
+  .strict();
+
 export const previewPlaybackResponseSchema = z
   .object({
     state: z.object({ requestId: text, sequence: z.string().regex(/^\d+$/) }).passthrough(),
     inputs: z.array(z.object({ cueId: text, label: z.string() })),
+    simulation: z
+      .object({
+        gestures: z.array(previewGestureSchema),
+        events: z.array(z.object({ event: text, actor: previewEventActorSchema })),
+        steps: z.array(z.object({ groupId: text, stepId: text })),
+      })
+      .optional(),
     groupId: z.string(),
     stepId: z.string(),
     ended: z.boolean(),
+    spatial: previewSpatialStateSchema.optional(),
     mode: z.enum(["normal", "inspection"]),
     inspection: z
       .object({
@@ -293,7 +405,11 @@ export type PreviewPlaybackResponse = {
   [K in "mode" | "inspection" | "occurrences" | "inputs" | "groupId" | "stepId" | "ended"]: z.infer<
     typeof previewPlaybackResponseSchema
   >[K];
-} & { state: LocalPreviewPlaybackStateWire };
+} & {
+  state: LocalPreviewPlaybackStateWire;
+  spatial?: PreviewSpatialState;
+  simulation?: z.infer<typeof previewPlaybackResponseSchema>["simulation"];
+};
 export type { LocalPreviewEnvelopeWire } from "../presentation/wire-types";
 
 export const publicationOperationSchema = z.object({

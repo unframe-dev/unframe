@@ -7,13 +7,13 @@ const unityOptional = <T extends z.ZodType>(schema: T) =>
 
 const notificationSchema = z
   .object({
-    kind: z.enum(["prepared", "committed", "playback", "restored", "failed"]),
+    kind: z.enum(["prepared", "committed", "playback", "restored", "spatial", "failed"]),
     requestId: z.string().min(1),
     sequence: unityOptional(z.string().regex(/^[1-9][0-9]*$/)),
     buildIdentity: unityOptional(z.string().min(1)),
     message: z.string().optional(),
     outcome: unityOptional(z.enum(["rejected", "failed"])),
-    phase: unityOptional(z.enum(["apply", "update", "restore"])),
+    phase: unityOptional(z.enum(["apply", "update", "restore", "spatial"])),
   })
   .refine(
     (value) =>

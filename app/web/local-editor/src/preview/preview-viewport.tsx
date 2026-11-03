@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { useWorkspace } from "../app/workspace-provider";
+import { SpatialControls } from "./spatial-controls";
 import { retainPreviewCanvas } from "../app/viewport-canvas";
 export function PreviewViewport() {
   const w = useWorkspace();
@@ -18,5 +19,10 @@ export function PreviewViewport() {
     w.connectViewport(canvas);
     return () => canvas.remove();
   }, [w]);
-  return <div className="preview-stage" ref={container} />;
+  return (
+    <>
+      <SpatialControls />
+      <div className="preview-stage" ref={container} />
+    </>
+  );
 }

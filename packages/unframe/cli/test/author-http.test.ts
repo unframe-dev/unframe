@@ -1,5 +1,5 @@
 import { createProjectChanges } from "../src/author/project-changes.js";
-import { request } from "node:http";
+import { request, Server } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { startAuthorHost } from "../src/author/http.js";
 import { AuthorError, type AuthorService } from "@unframe-dev/author-service";
@@ -10,8 +10,20 @@ import { createLocalPreviewService } from "../src/author/local-preview.js";
 const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];
 afterEach(async () => {
   await Promise.all(hosts.splice(0).map((host) => host.close()));
+  vi.restoreAllMocks();
 });
 const setup = async (development = false, publication?: LocalPublicationService) => {
+  if (development) {
+    const listen = Server.prototype.listen;
+    // Keep development-origin checks independent of a running CLI on its fixed port.
+    vi.spyOn(Server.prototype, "listen").mockImplementationOnce(function (
+      this: Server,
+      ...args: unknown[]
+    ) {
+      args[0] = 0;
+      return Reflect.apply(listen, this, args) as Server;
+    });
+  }
   const service: AuthorService = {
     project: vi.fn(async () => ({
       revision: "rev",
@@ -42,6 +54,100 @@ const setup = async (development = false, publication?: LocalPublicationService)
   return { host, service, previews, changes };
 };
 describe("local author HTTP boundary", () => {
+  it("bootstraps an Editor session from its own origin without an existing credential", async () => {
+    const { host } = await setup();
+    const response = await fetch(`${host.origin}/api/editor-session`, {
+      method: "POST",
+      headers: { origin: host.origin, "x-unframe-editor": "1" },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    const session = (await response.json()) as { token: string };
+    expect(session).toEqual({ token: host.token });
+    const project = await fetch(`${host.origin}/api/project`, {
+      headers: { authorization: `Bearer ${session.token}` },
+    });
+    expect(project.status).toBe(200);
+  });
+  it.each([undefined, "null", "https://elsewhere.invalid", "http://127.0.0.1:5174"])(
+    "does not disclose an Editor credential to origin %s",
+    async (origin) => {
+      const { host } = await setup();
+      const response = await fetch(`${host.origin}/api/editor-session`, {
+        method: "POST",
+        headers: { "x-unframe-editor": "1", ...(origin ? { origin } : {}) },
+      });
+      expect(response.status).toBe(403);
+      expect(response.headers.get("access-control-allow-origin")).toBeNull();
+      expect(await response.text()).not.toContain(host.token);
+    },
+  );
+  it.each([undefined, "0"])(
+    "requires the Editor request header rather than a simple browser request (%s)",
+    async (header) => {
+      const { host } = await setup();
+      const response = await fetch(`${host.origin}/api/editor-session`, {
+        method: "POST",
+        headers: { origin: host.origin, ...(header ? { "x-unframe-editor": header } : {}) },
+      });
+      expect(response.status).toBe(403);
+      expect(await response.text()).not.toContain(host.token);
+    },
+  );
+  it.each(["GET", "OPTIONS", "PUT"])(
+    "does not disclose an Editor credential through %s",
+    async (method) => {
+      const { host } = await setup();
+      const response = await fetch(`${host.origin}/api/editor-session`, {
+        method,
+        headers: { origin: host.origin, "x-unframe-editor": "1" },
+      });
+      expect(response.status).toBe(403);
+      expect(response.headers.get("access-control-allow-origin")).toBeNull();
+      expect(await response.text()).not.toContain(host.token);
+    },
+  );
+  it("rejects a forged Host before issuing an Editor credential", async () => {
+    const { host } = await setup();
+    const response = await new Promise<{ status: number | undefined; body: string }>(
+      (resolve, reject) => {
+        const req = request(
+          `${host.origin}/api/editor-session`,
+          {
+            method: "POST",
+            headers: { host: "attacker.invalid", origin: host.origin, "x-unframe-editor": "1" },
+          },
+          (incoming) => {
+            let body = "";
+            incoming.setEncoding("utf8");
+            incoming.on("data", (chunk: string) => (body += chunk));
+            incoming.on("end", () => resolve({ status: incoming.statusCode, body }));
+            incoming.on("error", reject);
+          },
+        );
+        req.on("error", reject);
+        req.end();
+      },
+    );
+    expect(response.status).toBe(403);
+    expect(response.body).not.toContain(host.token);
+  });
+  it("bootstraps development only from the fixed Editor origin", async () => {
+    const { host } = await setup(true);
+    const response = await fetch(`${host.origin}/api/editor-session`, {
+      method: "POST",
+      headers: { origin: "http://127.0.0.1:5174", "x-unframe-editor": "1" },
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ token: host.token });
+    const rejected = await fetch(`${host.origin}/api/editor-session`, {
+      method: "POST",
+      headers: { origin: host.origin, "x-unframe-editor": "1" },
+    });
+    expect(rejected.status).toBe(403);
+    expect(await rejected.text()).not.toContain(host.token);
+  });
   it("allows verified Blob videos in the editor content security policy", async () => {
     const { host } = await setup();
     const response = await fetch(host.origin);
@@ -316,7 +422,6 @@ it("accepts only the fixed Vite origin for development writes and still requires
     "content-type": "application/json",
     origin: "http://127.0.0.1:5174",
   };
-  expect(host.origin).toBe("http://127.0.0.1:5175");
   expect(
     (await fetch(`${host.origin}/api/preview-display`, { method: "DELETE", headers, body: "{}" }))
       .status,

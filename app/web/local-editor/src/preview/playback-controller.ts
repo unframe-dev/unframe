@@ -6,6 +6,7 @@ import type { HostApi } from "../infra/host-api";
 import { HostApiError } from "../infra/host-api";
 import type { PreviewDriver } from "./preview-driver";
 import { UnityExchangeError } from "../infra/unity-exchange";
+import { requiresRecovery } from "./preview-state";
 
 type WithoutRequest<T> = T extends unknown ? Omit<T, "requestId"> : never;
 export type PlaybackIntent = WithoutRequest<PreviewPlaybackCommand>;
@@ -42,7 +43,7 @@ export function createPlaybackController(input: {
       if (!current(serial)) return;
       if (response.state.requestId !== id)
         throw new HostApiError(409, "stale-response", "Playback response request does not match.");
-      await input.driver.playback(response.state, signal);
+      await input.driver.playback(response.state, signal, response.spatial);
       if (!current(serial)) return;
       // Host records only a state that Unity has acknowledged successfully.
       const confirmed = await input.api.playback(
@@ -71,11 +72,16 @@ export function createPlaybackController(input: {
         input.onDiagnostic(error, unavailable);
       } else if (
         error instanceof UnityExchangeError &&
-        error.message === "video-user-activation-required"
+        error.message === "video-user-activation-required" &&
+        error.notification?.phase !== "spatial"
       ) {
         pending = [{ command: "pause" }];
         input.onDiagnostic(error);
-      } else if (error instanceof UnityExchangeError && error.notification?.outcome === "rejected")
+      } else if (
+        error instanceof UnityExchangeError &&
+        error.notification &&
+        !requiresRecovery(error.notification)
+      )
         input.onDiagnostic(error);
       else {
         requestId = undefined;

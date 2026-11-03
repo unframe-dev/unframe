@@ -5665,6 +5665,10 @@
                 "videoResidency": {
                   "type": "unframe.delivery.VideoResidencyPlan",
                   "id": 11
+                },
+                "nativeUiResidency": {
+                  "type": "unframe.delivery.NativeUiResidencyPlan",
+                  "id": 12
                 }
               }
             },
@@ -5689,6 +5693,11 @@
                   "rule": "repeated",
                   "type": "unframe.realtime.ModelClipRuntimeState",
                   "id": 4
+                },
+                "variableStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.VariableState",
+                  "id": 5
                 }
               }
             },
@@ -5734,6 +5743,11 @@
                   "rule": "repeated",
                   "type": "unframe.realtime.ModelClipRuntimeState",
                   "id": 9
+                },
+                "variableStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.VariableState",
+                  "id": 10
                 }
               }
             },

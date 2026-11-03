@@ -1,6 +1,11 @@
-import type { BuildJob, PreviewPlaybackResponse } from "@unframe-dev/contracts/author-http";
+import { previewPositionSchema, previewRotationSchema } from "@unframe-dev/contracts/author-http";
+import type {
+  BuildJob,
+  PreviewPlaybackResponse,
+  PreviewSpatialState,
+} from "@unframe-dev/contracts/author-http";
 import type { HostApi } from "../infra/host-api";
-import type { PreviewDriver } from "./preview-driver";
+import type { PreviewDriver, PreviewView } from "./preview-driver";
 import { createPreviewStore, type LoadedPreview, type PreviewStore } from "./preview-store";
 import { createPlaybackController } from "./playback-controller";
 import { acceptsNotification, requiresRecovery } from "./preview-state";
@@ -77,14 +82,18 @@ export function createPreviewController(input: {
   const playback = createPlaybackController({
     api: input.api,
     driver: input.driver,
-    onState: (state) =>
+    onState: (state) => {
+      const view = state.spatial ? store.getState().view : "perspective";
+      if (view !== store.getState().view) applyView(view);
       store.setState({
+        view,
         playback: state,
         status: "ready",
         phase: "ready",
         recovery: "healthy",
         error: null,
-      }),
+      });
+    },
     onDiagnostic: (error, unavailable) =>
       store.setState({
         error: message(error),
@@ -114,7 +123,7 @@ export function createPreviewController(input: {
         signal,
       );
       if (!current(serial)) return;
-      await input.driver.restore(restored.state, signal);
+      await input.driver.restore(restored.state, signal, restored.spatial);
       if (!current(serial)) return;
       const confirmed = await input.api.playback(
         { requestId: loaded.requestId, command: "applied", sequence: restored.state.sequence! },
@@ -157,7 +166,10 @@ export function createPreviewController(input: {
   const unsubscribe = input.driver.subscribeFailure((notification) => {
     const snapshot = store.getState();
     if (snapshot.status !== "ready" || !acceptsNotification(snapshot, notification)) return;
-    if (notification.message === "video-user-activation-required") {
+    if (
+      notification.message === "video-user-activation-required" &&
+      notification.phase !== "spatial"
+    ) {
       playback.command({ command: "pause" });
       store.setState({ error: notification.message });
     } else if (requiresRecovery(notification))
@@ -167,6 +179,66 @@ export function createPreviewController(input: {
       );
     else store.setState({ error: notification.message ?? "Unity Preview input was rejected." });
   });
+  function movePresenter(
+    position: PreviewSpatialState["presenterPosition"],
+    rotation?: [number, number, number, number],
+  ) {
+    const snapshot = store.getState();
+    if (
+      closed ||
+      snapshot.status !== "ready" ||
+      snapshot.playback?.mode !== "normal" ||
+      !snapshot.playback.spatial
+    )
+      return;
+    const parsed = previewPositionSchema.safeParse(position);
+    if (!parsed.success || (rotation && !previewRotationSchema.safeParse(rotation).success)) return;
+    playback.command({
+      command: "movePresenter",
+      position: parsed.data,
+      ...(rotation ? { rotation } : {}),
+    });
+  }
+  const unsubscribePresenter = input.driver.subscribePresenter((movement) => {
+    const snapshot = store.getState();
+    if (snapshot.view !== "overhead" || snapshot.loaded?.requestId !== movement.requestId) return;
+    movePresenter(movement.position);
+  });
+  const unsubscribeInteraction = input.driver.subscribeInteraction((interaction) => {
+    const snapshot = store.getState();
+    if (
+      closed ||
+      snapshot.status !== "ready" ||
+      snapshot.loaded?.requestId !== interaction.requestId ||
+      snapshot.playback?.mode !== "normal" ||
+      !snapshot.playback.state.clock?.running
+    )
+      return;
+    playback.command({
+      command: "surfaceInteraction",
+      surfaceId: interaction.surfaceId,
+      interactionId: interaction.interactionId,
+    });
+  });
+  function applyView(view: PreviewView) {
+    const serial = epoch;
+    store.setState({ view });
+    void input.driver.view(view).catch((error: unknown) => {
+      if (current(serial) && store.getState().view === view)
+        store.setState({ error: message(error) });
+    });
+  }
+  function setView(view: PreviewView) {
+    const snapshot = store.getState();
+    if (
+      closed ||
+      snapshot.status !== "ready" ||
+      snapshot.playback?.mode !== "normal" ||
+      !snapshot.playback.spatial
+    )
+      return;
+    applyView(view);
+  }
   function request(
     channel: "dev" | "dist",
     revision: string,
@@ -272,6 +344,8 @@ export function createPreviewController(input: {
             if (!current(serial)) return;
             if (committed !== identity)
               throw new Error("Committed Preview build identity does not match.");
+            await input.driver.view(store.getState().view);
+            if (!current(serial)) return;
             const displayed: LoadedPreview = {
               channel,
               requestId: candidate,
@@ -328,12 +402,16 @@ export function createPreviewController(input: {
     playback,
     request,
     cancel,
+    setView,
+    movePresenter,
     dispose: async () => {
       if (closed) return;
       const stopped = Promise.all([...builds].map(cancelBuild));
       void cancel().catch(() => undefined);
       closed = true;
       unsubscribe();
+      unsubscribePresenter();
+      unsubscribeInteraction();
       playback.dispose();
       try {
         await input.driver.dispose();

@@ -41,6 +41,8 @@ export function createCommands(input: {
     redo: () => (input.readOnly ? Promise.resolve() : input.project.redo()),
     selectPreviewChannel: input.selectChannel,
     reloadPreview: input.reload,
+    previewView: input.preview.setView,
+    movePresenter: input.preview.movePresenter,
     buildDist: input.buildDist,
     selectFlow(selection: FlowSelection) {
       input.ui.setState({

@@ -67,6 +67,93 @@ public sealed class PresentationPreviewPlaybackEditModeTests
         };
     }
 
+    [TestCase(AnchorTarget.Body, 0, 0, 0)]
+    [TestCase(AnchorTarget.Head, 0, .65, 0)]
+    [TestCase(AnchorTarget.LeftHand, -.35, .25, .25)]
+    [TestCase(AnchorTarget.RightHand, .35, .25, .25)]
+    public void VirtualPresenterUsesDistinctBodyHeadAndHandAnchors(AnchorTarget target, double x, double y, double z)
+    {
+        var envelope = PresentationPreviewTestFixture.Create();
+        envelope.Projection.RuntimeCatalog.Nodes[0].Parent = new SpatialParent { PresenterAnchor = new PresenterAnchorParent { Target = target, FollowPosition = true, FollowRotation = true } };
+        Assert.That(PresentationLocalPreviewAdapter.TryCreate(envelope, out var input, out string error), Is.True, error);
+        Assert.That(input.TryGetAnchorSample("node:stage", out var sample), Is.True);
+        Assert.That(sample.Position.X, Is.EqualTo(x).Within(0.0001));
+        Assert.That(sample.Position.Y, Is.EqualTo(y).Within(0.0001));
+        Assert.That(sample.Position.Z, Is.EqualTo(z).Within(0.0001));
+    }
+
+    [UnityTest]
+    public IEnumerator VirtualPresenterPoseMovesTheSharedAnchorHierarchy()
+    {
+        var envelope = PresentationPreviewTestFixture.Create();
+        envelope.Projection.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
+        { PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Body, FollowPosition = true, FollowRotation = true } };
+        var root = new GameObject("presenter rehearsal");
+        using (var transaction = new PresentationPreviewTransaction(root.transform))
+        {
+            try
+            {
+                var load = transaction.PrepareAsync(envelope, (_, __, ___) => Task.FromResult<PresentationPreviewAssetData>(null), CancellationToken.None);
+                while (!load.IsCompleted) yield return null;
+                load.GetAwaiter().GetResult();
+                transaction.Commit(envelope.RequestId);
+                Assert.That(transaction.TryPlayback(State(envelope, 1, 0), 0, out var error), Is.True, error);
+                string json = "{\"requestId\":\"" + envelope.RequestId + "\",\"sequence\":\"1\",\"presenterPosition\":[2,1,3],\"presenterRotation\":[0,0.7071067811865475,0,0.7071067811865476],\"zones\":[]}";
+                Assert.That(PresentationPreviewSpatialState.TryParse(json, out var pose), Is.True);
+                Assert.That(transaction.TryApplySpatial(pose, out error), Is.True, error);
+                var anchor = root.GetComponentsInChildren<UnityEngine.Transform>(true);
+                UnityEngine.Transform node = null;
+                foreach (var item in anchor) if (item.name == "node:stage") node = item;
+                Assert.That(node, Is.Not.Null);
+                Assert.That(node.position, Is.EqualTo(new UnityEngine.Vector3(2, 1, -3)));
+                Assert.That(UnityEngine.Quaternion.Angle(node.rotation, UnityEngine.Quaternion.Euler(0, -90, 0)), Is.LessThan(0.001));
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator PreviewNativeSurfaceUsesTheCommonRendererAndSemanticHitRegions()
+    {
+        var envelope = PresentationPreviewTestFixture.Create();
+        var render = envelope.Projection.RenderSurfaces[0];
+        render.RendererKind = Unframe.Delivery.RendererKind.NativeUi;
+        render.Artifacts.Add(new Unframe.Delivery.DeliveredArtifact
+        {
+            NativeUi = new Unframe.Delivery.NativeUiArtifact
+            {
+                ArtifactId = "native:group",
+                ContractVersion = 1,
+                RootNodeId = "root",
+                Nodes = { new Unframe.Delivery.NativeUiNode { Group = new Unframe.Delivery.NativeUiGroup { NodeId = "root", Bounds = new Unframe.Delivery.LogicalBounds { Width = 1, Height = 1 } } } }
+            }
+        });
+        render.StateBindings[0].Artifact = new Unframe.Delivery.ArtifactStateBinding { ArtifactId = "native:group" };
+        envelope.Projection.SemanticSurfaces[0].States[0].InteractiveRegions.Add(new Unframe.Delivery.InteractiveRegion
+        { InteractionId = "continue", NormalizedBounds = new Unframe.Delivery.LogicalBounds { X = .25, Y = .25, Width = .5, Height = .5 } });
+        var root = new GameObject("native rehearsal");
+        using (var transaction = new PresentationPreviewTransaction(root.transform))
+        {
+            try
+            {
+                var load = transaction.PrepareAsync(envelope, (_, __, ___) => Task.FromResult<PresentationPreviewAssetData>(null), CancellationToken.None);
+                while (!load.IsCompleted) yield return null;
+                load.GetAwaiter().GetResult();
+                transaction.Commit(envelope.RequestId);
+                Assert.That(transaction.TryPlayback(State(envelope, 1, 0), 0, out var error), Is.True, error);
+                Assert.That(root.GetComponentInChildren<Canvas>(), Is.Not.Null);
+                var ray = new Ray(new UnityEngine.Vector3(0, 0, -1), UnityEngine.Vector3.forward);
+                Assert.That(transaction.TryPickInteraction(ray, out string surfaceId, out string interactionId), Is.True);
+                Assert.That(surfaceId, Is.EqualTo("surface:one"));
+                Assert.That(interactionId, Is.EqualTo("continue"));
+                Assert.That(transaction.TryPickInteraction(new Ray(new UnityEngine.Vector3(.49f, .49f, -1), UnityEngine.Vector3.forward), out _, out _), Is.False);
+                Assert.That(transaction.TryPlayback(State(envelope, 2, 0, false), 1, out error), Is.True, error);
+                Assert.That(transaction.TryPickInteraction(ray, out _, out _), Is.False);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+    }
+
     [UnityTest]
     public IEnumerator PlaybackInterpolatesPausesAndKeepsCanonicalStateAfterTimelineEnds()
     {

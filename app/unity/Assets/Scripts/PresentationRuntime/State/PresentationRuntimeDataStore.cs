@@ -11,7 +11,7 @@ namespace Unframe.Unity.PresentationRuntime
     /// Entry point combining the validated Delivery catalog with the latest projected Runtime state.
     /// It owns no Unity objects or rendering behaviour.
     /// </summary>
-    public sealed class PresentationRuntimeDataStore : IPresentationRenderView
+    public sealed class PresentationRuntimeDataStore : IPresentationNativeRenderView
     {
         private readonly PresentationDeliveryCatalog delivery = new PresentationDeliveryCatalog();
         private readonly PresentationRuntimeStateStore runtime;
@@ -171,6 +171,7 @@ namespace Unframe.Unity.PresentationRuntime
         public bool TryGetAsset(string id, out AssetAccessBinding value) { return delivery.TryGetAsset(id, out value); }
         public bool TryGetModel(string assetId, out ModelResidencyBinding value) { return delivery.TryGetModel(assetId, out value); }
         public bool TryGetTimeline(string id, out ProjectedTimelineDefinition value) { return delivery.TryGetTimeline(id, out value); }
+        public Unframe.Delivery.NativeUiResidencyPlan NativeUiResidency => Delivery.Residency?.NativeUi;
         public bool TryGetVariable(string id, out ProjectedVariableDefinition value) { return delivery.TryGetVariable(id, out value); }
         public bool TryGetModelClip(string modelNodeId, string clipId, out ProjectedModelClipDefinition value) { return delivery.TryGetModelClip(modelNodeId, clipId, out value); }
         public bool TryGetNodeState(string id, out NodeRuntimeState value) { return runtime.TryGetNodeState(id, out value); }

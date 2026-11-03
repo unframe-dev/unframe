@@ -297,6 +297,62 @@ a {
   flex-direction: column;
   background: var(--background);
 }
+.spatial-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.spatial-view-controls,
+.presenter-coordinates,
+.presenter-coordinate,
+.spatial-zones {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.spatial-view-controls {
+  gap: 2px;
+}
+.spatial-view-controls .button[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--border);
+}
+.presenter-coordinates {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.presenter-coordinates > span {
+  white-space: nowrap;
+}
+.presenter-coordinate {
+  color: var(--muted);
+  gap: 4px;
+}
+.presenter-coordinate input[type="number"] {
+  width: 68px;
+  padding: 3px 5px;
+  font-variant-numeric: tabular-nums;
+}
+.spatial-zones {
+  flex-wrap: wrap;
+  margin-left: auto;
+  font-size: 11px;
+}
+.spatial-zone {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.spatial-zone-inside {
+  color: var(--accent);
+}
+.spatial-zone-inactive {
+  opacity: 0.5;
+}
 .preview-stage {
   flex: 1;
   min-height: 0;
@@ -707,4 +763,16 @@ code {
 }
 .compact-panel .flow-tree {
   height: auto;
+}
+
+.simulation-controls,
+.simulation-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.simulation-controls select {
+  max-width: 18rem;
+  min-width: 0;
 }

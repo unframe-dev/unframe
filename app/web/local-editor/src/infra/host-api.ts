@@ -8,6 +8,7 @@ import {
   type SavedCommand,
   type LocalPreviewEnvelopeWire,
   authorPublicationResultSchema,
+  editorSessionSchema,
   projectChangeSchema,
   projectSnapshotSchema,
   buildJobSchema,
@@ -28,11 +29,21 @@ export class HostApiError extends Error {
     super(message);
   }
 }
-export function takeEditorToken(): string | null {
-  const fragment = location.hash;
-  history.replaceState(history.state, "", location.pathname + location.search);
-  const token = new URLSearchParams(fragment.slice(1)).get("token");
-  return token && /^[0-9a-f]{64}$/i.test(token) ? token : null;
+export async function getEditorToken(): Promise<string> {
+  const response = await fetch("/api/editor-session", {
+    method: "POST",
+    headers: { "x-unframe-editor": "1" },
+    mode: "same-origin",
+    credentials: "omit",
+    cache: "no-store",
+  });
+  if (!response.ok)
+    throw new HostApiError(
+      response.status,
+      "editor-session-unavailable",
+      "Editor connection failed.",
+    );
+  return editorSessionSchema.parse(await response.json()).token;
 }
 export function createHostApi(
   token: string,

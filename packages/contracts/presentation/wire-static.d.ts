@@ -33271,6 +33271,9 @@ export namespace unframe {
             /** LocalPreviewProjection videoResidency. */
             videoResidency?: (unframe.delivery.VideoResidencyPlan.$Properties|null);
 
+            /** LocalPreviewProjection nativeUiResidency. */
+            nativeUiResidency?: (unframe.delivery.NativeUiResidencyPlan.$Properties|null);
+
             /**
              * Creates a new LocalPreviewProjection instance using the specified properties.
              * @param [properties] Properties to set
@@ -33388,6 +33391,9 @@ export namespace unframe {
                 /** LocalPreviewProjection videoResidency */
                 videoResidency?: (unframe.delivery.VideoResidencyPlan.$Properties|null);
 
+                /** LocalPreviewProjection nativeUiResidency */
+                nativeUiResidency?: (unframe.delivery.NativeUiResidencyPlan.$Properties|null);
+
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
             }
@@ -33405,6 +33411,7 @@ export namespace unframe {
               textureResidency?: unframe.delivery.TextureResidencyPlan.$Shape|null;
               modelResidency?: unframe.delivery.ModelResidencyPlan.$Shape|null;
               videoResidency?: unframe.delivery.VideoResidencyPlan.$Shape|null;
+              nativeUiResidency?: unframe.delivery.NativeUiResidencyPlan.$Shape|null;
               $unknowns?: Uint8Array[];
             };
         }
@@ -33439,6 +33446,9 @@ export namespace unframe {
 
             /** LocalPreviewInitialState modelClipStates. */
             modelClipStates: unframe.realtime.ModelClipRuntimeState.$Properties[];
+
+            /** LocalPreviewInitialState variableStates. */
+            variableStates: unframe.realtime.VariableState.$Properties[];
 
             /**
              * Creates a new LocalPreviewInitialState instance using the specified properties.
@@ -33536,6 +33546,9 @@ export namespace unframe {
                 /** LocalPreviewInitialState modelClipStates */
                 modelClipStates?: (unframe.realtime.ModelClipRuntimeState.$Properties[]|null);
 
+                /** LocalPreviewInitialState variableStates */
+                variableStates?: (unframe.realtime.VariableState.$Properties[]|null);
+
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
             }
@@ -33546,6 +33559,7 @@ export namespace unframe {
               surfaceStates?: unframe.realtime.SurfaceRuntimeState.$Shape[]|null;
               mediaStates?: unframe.realtime.MediaRuntimeState.$Shape[]|null;
               modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Shape[]|null;
+              variableStates?: unframe.realtime.VariableState.$Shape[]|null;
               $unknowns?: Uint8Array[];
             };
         }
@@ -33595,6 +33609,9 @@ export namespace unframe {
 
             /** LocalPreviewPlaybackState modelClipStates. */
             modelClipStates: unframe.realtime.ModelClipRuntimeState.$Properties[];
+
+            /** LocalPreviewPlaybackState variableStates. */
+            variableStates: unframe.realtime.VariableState.$Properties[];
 
             /**
              * Creates a new LocalPreviewPlaybackState instance using the specified properties.
@@ -33707,6 +33724,9 @@ export namespace unframe {
                 /** LocalPreviewPlaybackState modelClipStates */
                 modelClipStates?: (unframe.realtime.ModelClipRuntimeState.$Properties[]|null);
 
+                /** LocalPreviewPlaybackState variableStates */
+                variableStates?: (unframe.realtime.VariableState.$Properties[]|null);
+
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
             }
@@ -33722,6 +33742,7 @@ export namespace unframe {
               currentGroupId?: string|null;
               mediaStates?: unframe.realtime.MediaRuntimeState.$Shape[]|null;
               modelClipStates?: unframe.realtime.ModelClipRuntimeState.$Shape[]|null;
+              variableStates?: unframe.realtime.VariableState.$Shape[]|null;
               $unknowns?: Uint8Array[];
             };
         }

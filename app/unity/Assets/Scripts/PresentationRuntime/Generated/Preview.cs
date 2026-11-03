@@ -34,7 +34,7 @@ namespace Unframe.Preview {
             "dW5mcmFtZS5wcmV2aWV3LkxvY2FsUHJldmlld1Byb2plY3Rpb24SQAoNaW5p",
             "dGlhbF9zdGF0ZRgHIAEoCzIpLnVuZnJhbWUucHJldmlldy5Mb2NhbFByZXZp",
             "ZXdJbml0aWFsU3RhdGUSMgoGYXNzZXRzGAggAygLMiIudW5mcmFtZS5wcmV2",
-            "aWV3LkxvY2FsUHJldmlld0Fzc2V0QhIKEF9zb3VyY2VfcmV2aXNpb24ikgUK",
+            "aWV3LkxvY2FsUHJldmlld0Fzc2V0QhIKEF9zb3VyY2VfcmV2aXNpb24i2AUK",
             "FkxvY2FsUHJldmlld1Byb2plY3Rpb24SGAoQdmlzaWJsZV9ub2RlX2lkcxgB",
             "IAMoCRIbChN2aXNpYmxlX3N1cmZhY2VfaWRzGAIgAygJEhwKFHZpc2libGVf",
             "dmFyaWFibGVfaWRzGAMgAygJEkEKD3JlbmRlcl9zdXJmYWNlcxgEIAMoCzIo",
@@ -49,34 +49,38 @@ namespace Unframe.Preview {
             "bmZyYW1lLmRlbGl2ZXJ5LlRleHR1cmVSZXNpZGVuY3lQbGFuEj0KD21vZGVs",
             "X3Jlc2lkZW5jeRgKIAEoCzIkLnVuZnJhbWUuZGVsaXZlcnkuTW9kZWxSZXNp",
             "ZGVuY3lQbGFuEj0KD3ZpZGVvX3Jlc2lkZW5jeRgLIAEoCzIkLnVuZnJhbWUu",
-            "ZGVsaXZlcnkuVmlkZW9SZXNpZGVuY3lQbGFuIpECChhMb2NhbFByZXZpZXdJ",
-            "bml0aWFsU3RhdGUSNwoLbm9kZV9zdGF0ZXMYASADKAsyIi51bmZyYW1lLnJl",
-            "YWx0aW1lLk5vZGVSdW50aW1lU3RhdGUSPQoOc3VyZmFjZV9zdGF0ZXMYAiAD",
-            "KAsyJS51bmZyYW1lLnJlYWx0aW1lLlN1cmZhY2VSdW50aW1lU3RhdGUSOQoM",
-            "bWVkaWFfc3RhdGVzGAMgAygLMiMudW5mcmFtZS5yZWFsdGltZS5NZWRpYVJ1",
-            "bnRpbWVTdGF0ZRJCChFtb2RlbF9jbGlwX3N0YXRlcxgEIAMoCzInLnVuZnJh",
-            "bWUucmVhbHRpbWUuTW9kZWxDbGlwUnVudGltZVN0YXRlIsQDChlMb2NhbFBy",
-            "ZXZpZXdQbGF5YmFja1N0YXRlEhIKCnJlcXVlc3RfaWQYASABKAkSEAoIc2Vx",
-            "dWVuY2UYAiABKAQSNwoLbm9kZV9zdGF0ZXMYAyADKAsyIi51bmZyYW1lLnJl",
-            "YWx0aW1lLk5vZGVSdW50aW1lU3RhdGUSPQoOc3VyZmFjZV9zdGF0ZXMYBCAD",
-            "KAsyJS51bmZyYW1lLnJlYWx0aW1lLlN1cmZhY2VSdW50aW1lU3RhdGUSOQoL",
-            "YWN0aXZlX3J1bnMYBSADKAsyJC51bmZyYW1lLnJlYWx0aW1lLlJ1bnRpbWVS",
-            "dW5TbmFwc2hvdBI1CgVjbG9jaxgGIAEoCzImLnVuZnJhbWUucmVhbHRpbWUu",
-            "UnVudGltZUNsb2NrU25hcHNob3QSGAoQY3VycmVudF9ncm91cF9pZBgHIAEo",
-            "CRI5CgxtZWRpYV9zdGF0ZXMYCCADKAsyIy51bmZyYW1lLnJlYWx0aW1lLk1l",
-            "ZGlhUnVudGltZVN0YXRlEkIKEW1vZGVsX2NsaXBfc3RhdGVzGAkgAygLMicu",
-            "dW5mcmFtZS5yZWFsdGltZS5Nb2RlbENsaXBSdW50aW1lU3RhdGUiOAoRTG9j",
-            "YWxQcmV2aWV3QXNzZXQSEAoIYXNzZXRfaWQYASABKAkSEQoJcmVmZXJlbmNl",
-            "GAIgASgJQlFaT2dpdGh1Yi5jb20vdW5mcmFtZS1kZXYvdW5mcmFtZS9hcHAv",
-            "c2VydmVyL3JlYWx0aW1lL2ludGVybmFsL2dlbi9wcmV2aWV3O3ByZXZpZXdi",
-            "BnByb3RvMw=="));
+            "ZGVsaXZlcnkuVmlkZW9SZXNpZGVuY3lQbGFuEkQKE25hdGl2ZV91aV9yZXNp",
+            "ZGVuY3kYDCABKAsyJy51bmZyYW1lLmRlbGl2ZXJ5Lk5hdGl2ZVVpUmVzaWRl",
+            "bmN5UGxhbiLLAgoYTG9jYWxQcmV2aWV3SW5pdGlhbFN0YXRlEjcKC25vZGVf",
+            "c3RhdGVzGAEgAygLMiIudW5mcmFtZS5yZWFsdGltZS5Ob2RlUnVudGltZVN0",
+            "YXRlEj0KDnN1cmZhY2Vfc3RhdGVzGAIgAygLMiUudW5mcmFtZS5yZWFsdGlt",
+            "ZS5TdXJmYWNlUnVudGltZVN0YXRlEjkKDG1lZGlhX3N0YXRlcxgDIAMoCzIj",
+            "LnVuZnJhbWUucmVhbHRpbWUuTWVkaWFSdW50aW1lU3RhdGUSQgoRbW9kZWxf",
+            "Y2xpcF9zdGF0ZXMYBCADKAsyJy51bmZyYW1lLnJlYWx0aW1lLk1vZGVsQ2xp",
+            "cFJ1bnRpbWVTdGF0ZRI4Cg92YXJpYWJsZV9zdGF0ZXMYBSADKAsyHy51bmZy",
+            "YW1lLnJlYWx0aW1lLlZhcmlhYmxlU3RhdGUi/gMKGUxvY2FsUHJldmlld1Bs",
+            "YXliYWNrU3RhdGUSEgoKcmVxdWVzdF9pZBgBIAEoCRIQCghzZXF1ZW5jZRgC",
+            "IAEoBBI3Cgtub2RlX3N0YXRlcxgDIAMoCzIiLnVuZnJhbWUucmVhbHRpbWUu",
+            "Tm9kZVJ1bnRpbWVTdGF0ZRI9Cg5zdXJmYWNlX3N0YXRlcxgEIAMoCzIlLnVu",
+            "ZnJhbWUucmVhbHRpbWUuU3VyZmFjZVJ1bnRpbWVTdGF0ZRI5CgthY3RpdmVf",
+            "cnVucxgFIAMoCzIkLnVuZnJhbWUucmVhbHRpbWUuUnVudGltZVJ1blNuYXBz",
+            "aG90EjUKBWNsb2NrGAYgASgLMiYudW5mcmFtZS5yZWFsdGltZS5SdW50aW1l",
+            "Q2xvY2tTbmFwc2hvdBIYChBjdXJyZW50X2dyb3VwX2lkGAcgASgJEjkKDG1l",
+            "ZGlhX3N0YXRlcxgIIAMoCzIjLnVuZnJhbWUucmVhbHRpbWUuTWVkaWFSdW50",
+            "aW1lU3RhdGUSQgoRbW9kZWxfY2xpcF9zdGF0ZXMYCSADKAsyJy51bmZyYW1l",
+            "LnJlYWx0aW1lLk1vZGVsQ2xpcFJ1bnRpbWVTdGF0ZRI4Cg92YXJpYWJsZV9z",
+            "dGF0ZXMYCiADKAsyHy51bmZyYW1lLnJlYWx0aW1lLlZhcmlhYmxlU3RhdGUi",
+            "OAoRTG9jYWxQcmV2aWV3QXNzZXQSEAoIYXNzZXRfaWQYASABKAkSEQoJcmVm",
+            "ZXJlbmNlGAIgASgJQlFaT2dpdGh1Yi5jb20vdW5mcmFtZS1kZXYvdW5mcmFt",
+            "ZS9hcHAvc2VydmVyL3JlYWx0aW1lL2ludGVybmFsL2dlbi9wcmV2aWV3O3By",
+            "ZXZpZXdiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Unframe.Presentation.RuntimeReflection.Descriptor, global::Unframe.Delivery.DeliveryReflection.Descriptor, global::Unframe.Realtime.RealtimeReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewEnvelope), global::Unframe.Preview.LocalPreviewEnvelope.Parser, new[]{ "SchemaVersion", "RequestId", "SourceRevision", "BuildManifest", "AssetSet", "Projection", "InitialState", "Assets" }, new[]{ "SourceRevision" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewProjection), global::Unframe.Preview.LocalPreviewProjection.Parser, new[]{ "VisibleNodeIds", "VisibleSurfaceIds", "VisibleVariableIds", "RenderSurfaces", "SemanticSurfaces", "LocalOverlays", "RequiredRuntimeCapabilities", "RuntimeCatalog", "TextureResidency", "ModelResidency", "VideoResidency" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewInitialState), global::Unframe.Preview.LocalPreviewInitialState.Parser, new[]{ "NodeStates", "SurfaceStates", "MediaStates", "ModelClipStates" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewPlaybackState), global::Unframe.Preview.LocalPreviewPlaybackState.Parser, new[]{ "RequestId", "Sequence", "NodeStates", "SurfaceStates", "ActiveRuns", "Clock", "CurrentGroupId", "MediaStates", "ModelClipStates" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewProjection), global::Unframe.Preview.LocalPreviewProjection.Parser, new[]{ "VisibleNodeIds", "VisibleSurfaceIds", "VisibleVariableIds", "RenderSurfaces", "SemanticSurfaces", "LocalOverlays", "RequiredRuntimeCapabilities", "RuntimeCatalog", "TextureResidency", "ModelResidency", "VideoResidency", "NativeUiResidency" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewInitialState), global::Unframe.Preview.LocalPreviewInitialState.Parser, new[]{ "NodeStates", "SurfaceStates", "MediaStates", "ModelClipStates", "VariableStates" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewPlaybackState), global::Unframe.Preview.LocalPreviewPlaybackState.Parser, new[]{ "RequestId", "Sequence", "NodeStates", "SurfaceStates", "ActiveRuns", "Clock", "CurrentGroupId", "MediaStates", "ModelClipStates", "VariableStates" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Preview.LocalPreviewAsset), global::Unframe.Preview.LocalPreviewAsset.Parser, new[]{ "AssetId", "Reference" }, null, null, null, null)
           }));
     }
@@ -615,6 +619,7 @@ namespace Unframe.Preview {
       textureResidency_ = other.textureResidency_ != null ? other.textureResidency_.Clone() : null;
       modelResidency_ = other.modelResidency_ != null ? other.modelResidency_.Clone() : null;
       videoResidency_ = other.videoResidency_ != null ? other.videoResidency_.Clone() : null;
+      nativeUiResidency_ = other.nativeUiResidency_ != null ? other.nativeUiResidency_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -749,6 +754,18 @@ namespace Unframe.Preview {
       }
     }
 
+    /// <summary>Field number for the "native_ui_residency" field.</summary>
+    public const int NativeUiResidencyFieldNumber = 12;
+    private global::Unframe.Delivery.NativeUiResidencyPlan nativeUiResidency_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Unframe.Delivery.NativeUiResidencyPlan NativeUiResidency {
+      get { return nativeUiResidency_; }
+      set {
+        nativeUiResidency_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -775,6 +792,7 @@ namespace Unframe.Preview {
       if (!object.Equals(TextureResidency, other.TextureResidency)) return false;
       if (!object.Equals(ModelResidency, other.ModelResidency)) return false;
       if (!object.Equals(VideoResidency, other.VideoResidency)) return false;
+      if (!object.Equals(NativeUiResidency, other.NativeUiResidency)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -793,6 +811,7 @@ namespace Unframe.Preview {
       if (textureResidency_ != null) hash ^= TextureResidency.GetHashCode();
       if (modelResidency_ != null) hash ^= ModelResidency.GetHashCode();
       if (videoResidency_ != null) hash ^= VideoResidency.GetHashCode();
+      if (nativeUiResidency_ != null) hash ^= NativeUiResidency.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -834,6 +853,10 @@ namespace Unframe.Preview {
         output.WriteRawTag(90);
         output.WriteMessage(VideoResidency);
       }
+      if (nativeUiResidency_ != null) {
+        output.WriteRawTag(98);
+        output.WriteMessage(NativeUiResidency);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -867,6 +890,10 @@ namespace Unframe.Preview {
         output.WriteRawTag(90);
         output.WriteMessage(VideoResidency);
       }
+      if (nativeUiResidency_ != null) {
+        output.WriteRawTag(98);
+        output.WriteMessage(NativeUiResidency);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -895,6 +922,9 @@ namespace Unframe.Preview {
       }
       if (videoResidency_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(VideoResidency);
+      }
+      if (nativeUiResidency_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(NativeUiResidency);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -938,6 +968,12 @@ namespace Unframe.Preview {
           VideoResidency = new global::Unframe.Delivery.VideoResidencyPlan();
         }
         VideoResidency.MergeFrom(other.VideoResidency);
+      }
+      if (other.nativeUiResidency_ != null) {
+        if (nativeUiResidency_ == null) {
+          NativeUiResidency = new global::Unframe.Delivery.NativeUiResidencyPlan();
+        }
+        NativeUiResidency.MergeFrom(other.NativeUiResidency);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -1013,6 +1049,13 @@ namespace Unframe.Preview {
               VideoResidency = new global::Unframe.Delivery.VideoResidencyPlan();
             }
             input.ReadMessage(VideoResidency);
+            break;
+          }
+          case 98: {
+            if (nativeUiResidency_ == null) {
+              NativeUiResidency = new global::Unframe.Delivery.NativeUiResidencyPlan();
+            }
+            input.ReadMessage(NativeUiResidency);
             break;
           }
         }
@@ -1091,6 +1134,13 @@ namespace Unframe.Preview {
             input.ReadMessage(VideoResidency);
             break;
           }
+          case 98: {
+            if (nativeUiResidency_ == null) {
+              NativeUiResidency = new global::Unframe.Delivery.NativeUiResidencyPlan();
+            }
+            input.ReadMessage(NativeUiResidency);
+            break;
+          }
         }
       }
     }
@@ -1137,6 +1187,7 @@ namespace Unframe.Preview {
       surfaceStates_ = other.surfaceStates_.Clone();
       mediaStates_ = other.mediaStates_.Clone();
       modelClipStates_ = other.modelClipStates_.Clone();
+      variableStates_ = other.variableStates_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -1190,6 +1241,17 @@ namespace Unframe.Preview {
       get { return modelClipStates_; }
     }
 
+    /// <summary>Field number for the "variable_states" field.</summary>
+    public const int VariableStatesFieldNumber = 5;
+    private static readonly pb::FieldCodec<global::Unframe.Realtime.VariableState> _repeated_variableStates_codec
+        = pb::FieldCodec.ForMessage(42, global::Unframe.Realtime.VariableState.Parser);
+    private readonly pbc::RepeatedField<global::Unframe.Realtime.VariableState> variableStates_ = new pbc::RepeatedField<global::Unframe.Realtime.VariableState>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Unframe.Realtime.VariableState> VariableStates {
+      get { return variableStates_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -1209,6 +1271,7 @@ namespace Unframe.Preview {
       if(!surfaceStates_.Equals(other.surfaceStates_)) return false;
       if(!mediaStates_.Equals(other.mediaStates_)) return false;
       if(!modelClipStates_.Equals(other.modelClipStates_)) return false;
+      if(!variableStates_.Equals(other.variableStates_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -1220,6 +1283,7 @@ namespace Unframe.Preview {
       hash ^= surfaceStates_.GetHashCode();
       hash ^= mediaStates_.GetHashCode();
       hash ^= modelClipStates_.GetHashCode();
+      hash ^= variableStates_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -1242,6 +1306,7 @@ namespace Unframe.Preview {
       surfaceStates_.WriteTo(output, _repeated_surfaceStates_codec);
       mediaStates_.WriteTo(output, _repeated_mediaStates_codec);
       modelClipStates_.WriteTo(output, _repeated_modelClipStates_codec);
+      variableStates_.WriteTo(output, _repeated_variableStates_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -1256,6 +1321,7 @@ namespace Unframe.Preview {
       surfaceStates_.WriteTo(ref output, _repeated_surfaceStates_codec);
       mediaStates_.WriteTo(ref output, _repeated_mediaStates_codec);
       modelClipStates_.WriteTo(ref output, _repeated_modelClipStates_codec);
+      variableStates_.WriteTo(ref output, _repeated_variableStates_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -1270,6 +1336,7 @@ namespace Unframe.Preview {
       size += surfaceStates_.CalculateSize(_repeated_surfaceStates_codec);
       size += mediaStates_.CalculateSize(_repeated_mediaStates_codec);
       size += modelClipStates_.CalculateSize(_repeated_modelClipStates_codec);
+      size += variableStates_.CalculateSize(_repeated_variableStates_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -1286,6 +1353,7 @@ namespace Unframe.Preview {
       surfaceStates_.Add(other.surfaceStates_);
       mediaStates_.Add(other.mediaStates_);
       modelClipStates_.Add(other.modelClipStates_);
+      variableStates_.Add(other.variableStates_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -1321,6 +1389,10 @@ namespace Unframe.Preview {
             modelClipStates_.AddEntriesFrom(input, _repeated_modelClipStates_codec);
             break;
           }
+          case 42: {
+            variableStates_.AddEntriesFrom(input, _repeated_variableStates_codec);
+            break;
+          }
         }
       }
     #endif
@@ -1354,6 +1426,10 @@ namespace Unframe.Preview {
           }
           case 34: {
             modelClipStates_.AddEntriesFrom(ref input, _repeated_modelClipStates_codec);
+            break;
+          }
+          case 42: {
+            variableStates_.AddEntriesFrom(ref input, _repeated_variableStates_codec);
             break;
           }
         }
@@ -1411,6 +1487,7 @@ namespace Unframe.Preview {
       currentGroupId_ = other.currentGroupId_;
       mediaStates_ = other.mediaStates_.Clone();
       modelClipStates_ = other.modelClipStates_.Clone();
+      variableStates_ = other.variableStates_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -1523,6 +1600,17 @@ namespace Unframe.Preview {
       get { return modelClipStates_; }
     }
 
+    /// <summary>Field number for the "variable_states" field.</summary>
+    public const int VariableStatesFieldNumber = 10;
+    private static readonly pb::FieldCodec<global::Unframe.Realtime.VariableState> _repeated_variableStates_codec
+        = pb::FieldCodec.ForMessage(82, global::Unframe.Realtime.VariableState.Parser);
+    private readonly pbc::RepeatedField<global::Unframe.Realtime.VariableState> variableStates_ = new pbc::RepeatedField<global::Unframe.Realtime.VariableState>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Unframe.Realtime.VariableState> VariableStates {
+      get { return variableStates_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -1547,6 +1635,7 @@ namespace Unframe.Preview {
       if (CurrentGroupId != other.CurrentGroupId) return false;
       if(!mediaStates_.Equals(other.mediaStates_)) return false;
       if(!modelClipStates_.Equals(other.modelClipStates_)) return false;
+      if(!variableStates_.Equals(other.variableStates_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -1563,6 +1652,7 @@ namespace Unframe.Preview {
       if (CurrentGroupId.Length != 0) hash ^= CurrentGroupId.GetHashCode();
       hash ^= mediaStates_.GetHashCode();
       hash ^= modelClipStates_.GetHashCode();
+      hash ^= variableStates_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -1602,6 +1692,7 @@ namespace Unframe.Preview {
       }
       mediaStates_.WriteTo(output, _repeated_mediaStates_codec);
       modelClipStates_.WriteTo(output, _repeated_modelClipStates_codec);
+      variableStates_.WriteTo(output, _repeated_variableStates_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -1633,6 +1724,7 @@ namespace Unframe.Preview {
       }
       mediaStates_.WriteTo(ref output, _repeated_mediaStates_codec);
       modelClipStates_.WriteTo(ref output, _repeated_modelClipStates_codec);
+      variableStates_.WriteTo(ref output, _repeated_variableStates_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -1660,6 +1752,7 @@ namespace Unframe.Preview {
       }
       size += mediaStates_.CalculateSize(_repeated_mediaStates_codec);
       size += modelClipStates_.CalculateSize(_repeated_modelClipStates_codec);
+      size += variableStates_.CalculateSize(_repeated_variableStates_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -1692,6 +1785,7 @@ namespace Unframe.Preview {
       }
       mediaStates_.Add(other.mediaStates_);
       modelClipStates_.Add(other.modelClipStates_);
+      variableStates_.Add(other.variableStates_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -1750,6 +1844,10 @@ namespace Unframe.Preview {
             modelClipStates_.AddEntriesFrom(input, _repeated_modelClipStates_codec);
             break;
           }
+          case 82: {
+            variableStates_.AddEntriesFrom(input, _repeated_variableStates_codec);
+            break;
+          }
         }
       }
     #endif
@@ -1806,6 +1904,10 @@ namespace Unframe.Preview {
           }
           case 74: {
             modelClipStates_.AddEntriesFrom(ref input, _repeated_modelClipStates_codec);
+            break;
+          }
+          case 82: {
+            variableStates_.AddEntriesFrom(ref input, _repeated_variableStates_codec);
             break;
           }
         }

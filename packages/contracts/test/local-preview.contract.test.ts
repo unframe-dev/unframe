@@ -16,6 +16,7 @@ test("Preview playback carries ordered state and the shared runtime clock withou
     activeRuns: [],
     mediaStates: [],
     modelClipStates: [],
+    variableStates: [{ variableId: "caption", value: { stringValue: "Ready" } }],
     clock: { runtimeTimeMs: "500", paused: {} },
     currentGroupId: "main",
   };
@@ -63,7 +64,13 @@ test("Preview reuses the catalog and state messages without a publication or ses
       localOverlays: [],
       requiredRuntimeCapabilities: [],
     },
-    initialState: { nodeStates: [], surfaceStates: [], mediaStates: [], modelClipStates: [] },
+    initialState: {
+      nodeStates: [],
+      surfaceStates: [],
+      mediaStates: [],
+      modelClipStates: [],
+      variableStates: [],
+    },
     assets: [],
   };
   const decoded = decodeWireMessage(

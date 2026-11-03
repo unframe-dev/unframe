@@ -25,6 +25,10 @@ export function createWorkspace({
   let requestedRevision: string | null = null;
   let connected = false;
   const failureListeners = new Set<Parameters<PreviewDriver["subscribeFailure"]>[0]>();
+  const presenterListeners = new Set<Parameters<PreviewDriver["subscribePresenter"]>[0]>();
+  const interactionListeners = new Set<Parameters<PreviewDriver["subscribeInteraction"]>[0]>();
+  let unsubscribeInteraction: (() => void) | undefined;
+  let unsubscribePresenter: (() => void) | undefined;
   let unsubscribeDriver: (() => void) | undefined;
   const withDriver = () => {
     if (!driver) throw new Error("Preview canvas is not connected.");
@@ -35,6 +39,19 @@ export function createWorkspace({
     commit: (...args) => withDriver().commit(...args),
     playback: (...args) => withDriver().playback(...args),
     restore: (...args) => withDriver().restore(...args),
+    view: (...args) => withDriver().view(...args),
+    subscribeInteraction(listener) {
+      interactionListeners.add(listener);
+      return () => {
+        interactionListeners.delete(listener);
+      };
+    },
+    subscribePresenter(listener) {
+      presenterListeners.add(listener);
+      return () => {
+        presenterListeners.delete(listener);
+      };
+    },
     discard: (...args) => driver?.discard(...args) ?? Promise.resolve(),
     invalidate: () => driver?.invalidate() ?? Promise.resolve(),
     subscribeFailure(listener) {
@@ -43,6 +60,8 @@ export function createWorkspace({
     },
     async dispose() {
       unsubscribeDriver?.();
+      unsubscribePresenter?.();
+      unsubscribeInteraction?.();
       const current = driver;
       driver = null;
       await current?.dispose();
@@ -171,6 +190,12 @@ export function createWorkspace({
       unsubscribeDriver = driver.subscribeFailure((event) => {
         for (const listener of failureListeners) listener(event);
       });
+      unsubscribePresenter = driver.subscribePresenter((movement) => {
+        for (const listener of presenterListeners) listener(movement);
+      });
+      unsubscribeInteraction = driver.subscribeInteraction((interaction) => {
+        for (const listener of interactionListeners) listener(interaction);
+      });
       request();
     },
     dispose() {
@@ -181,6 +206,8 @@ export function createWorkspace({
       publication.dispose();
       void preview.dispose().catch(() => undefined);
       failureListeners.clear();
+      presenterListeners.clear();
+      interactionListeners.clear();
     },
   };
 }

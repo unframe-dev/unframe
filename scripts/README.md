@@ -116,7 +116,7 @@ Style / capture 共通の OS 別隔離・資源制限・終了確認は `@unfram
 
 ## Local Editor と Unity
 
-Local Editor の開発は、Local Editor の `dev` と CLI の `dev` を別ターミナルで起動します。CLI の起動入口が OS 別の隔離経路と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Local Editor README](../app/web/local-editor/README.md#local-editor-の起動) を参照してください。
+Local Editor の開発は `nix run .#local-editor -- dev <project-directory>` で UI 開発サーバーと CLI をまとめて起動します。UI の準備後に Editor を開き、終了時は両方を停止します。CLI の起動入口が OS 別の隔離経路と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Local Editor README](../app/web/local-editor/README.md#local-editor-の起動) を参照してください。
 
 ```bash
 nix run .#unity-editor -- -projectPath "$PWD/app/unity"
@@ -130,6 +130,6 @@ nix run .#presentation-sample
 
 `unity-preview` は共有 Runtime の描画・Preview 部分から `.unframe/unity-preview/project` を生成し、WebGL player を `.unframe/unity-preview/UnframePreview` に出力します。生成 Assets は再構成し、Library／build cache は再利用します。build log は `.unframe/unity-preview/logs/build.log` です。
 
-共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。 本番の共通再生・配信受信・Native UI・モデルの回帰は `nix develop --command bash scripts/unity/test-native-editor.sh rendering` を使用し、同じdirectoryの `rendering.xml` と `rendering.log` を確認します。WebGL PreviewはBaked描画と共通再生・検証だけを取り込み、本番専用のメディア実装を含めません。
+共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。 本番の共通再生・配信受信・Native UI・モデルの回帰は `nix develop --command bash scripts/unity/test-native-editor.sh rendering` を使用し、同じdirectoryの `rendering.xml` と `rendering.log` を確認します。WebGL Preview は Baked／Native UI の共通描画・再生・検証を取り込み、動画には Preview 用のブラウザー連携を使います。
 
 Local Editor の品質ゲートは `nix run .#local-editor`（型検査・Node ロジックテスト・build）です。配布 CLI の `test/pack-acceptance.ts` は実 Chromium と同梱 Player の読込・Surface の実画素・再生通知を検証します。専用 Nix app はなく、実認証・実公開・実機は別途確認が必要です。

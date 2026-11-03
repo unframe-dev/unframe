@@ -24,19 +24,46 @@ namespace Unframe.Unity.PresentationRuntime
     {
         [Serializable]
         private sealed class Configuration { public string token; }
+        [Serializable]
+        private sealed class SpatialIdentity { public string requestId; public string sequence; }
+        [Serializable]
+        private sealed class InteractionEvent { public string requestId; public string surfaceId; public string interactionId; }
+        [Serializable]
+        private sealed class PresenterPositionEvent { public string requestId; public double[] position; }
         private PresentationPreviewTransaction transaction;
         private string bearer;
         private long generation;
         private string latestRequest;
+        private PresentationPreviewSpatial spatial;
+        private bool spatialReady;
+        private string view = "perspective";
         public event Action<PresentationPreviewEvent> Notification;
 
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")]
         private static extern void UnframePreviewNotify(string payload);
+        [DllImport("__Internal")]
+        private static extern void UnframePreviewPresenterMove(string payload);
+        [DllImport("__Internal")]
+        private static extern void UnframePreviewInteraction(string payload);
 #endif
 
         private void Awake() { EnsureTransaction(); }
-        private void EnsureTransaction() { if (transaction == null) transaction = new PresentationPreviewTransaction(transform); }
+        private void EnsureTransaction()
+        {
+            if (transaction == null) transaction = new PresentationPreviewTransaction(transform);
+        }
+        private void EnsureSpatial()
+        {
+            if (spatial != null) return;
+            spatial = new PresentationPreviewSpatial(transform);
+            spatial.PresenterMoved += (requestId, position) =>
+            {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                UnframePreviewPresenterMove(JsonUtility.ToJson(new PresenterPositionEvent { requestId = requestId, position = position }));
+#endif
+            };
+        }
 
         public void Configure(string json)
         {
@@ -59,6 +86,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 EnsureTransaction();
                 transaction.Invalidate();
+                spatialReady = false;
                 latestRequest = null;
                 if (String.IsNullOrEmpty(bearer)) throw new InvalidOperationException("preview.not-configured");
                 LocalPreviewEnvelope envelope = JsonParser.Default.Parse<LocalPreviewEnvelope>(json);
@@ -86,8 +114,11 @@ namespace Unframe.Unity.PresentationRuntime
                 if (requestId != latestRequest) throw new InvalidOperationException("preview.prepared-request-mismatch");
                 string identity = transaction.Commit(requestId);
                 latestRequest = null;
+                spatialReady = false;
+                spatial?.Clear();
                 PresentationPreviewCamera camera = Camera.main?.GetComponent<PresentationPreviewCamera>();
                 camera?.Frame(transform);
+                camera?.SetView(view);
                 Emit("committed", requestId, identity, null);
             }
             catch (Exception exception)
@@ -119,12 +150,46 @@ namespace Unframe.Unity.PresentationRuntime
                     Emit("failed", requestId, null, error, sequence, transaction.PlaybackRejected ? "rejected" : "failed", phase);
                     return;
                 }
+                spatialReady = false;
                 Emit(restoring ? "restored" : "playback", requestId, null, null, sequence);
             }
             catch (Exception)
             {
                 Emit("failed", requestId, null, "preview.playback-input-invalid", sequence, "rejected", phase);
             }
+        }
+        public void Spatial(string json)
+        {
+            string requestId = null; string sequence = null;
+            try
+            {
+                SpatialIdentity identity = JsonUtility.FromJson<SpatialIdentity>(json);
+                requestId = identity?.requestId; sequence = identity?.sequence;
+                if (!PresentationPreviewSpatialState.TryParse(json, out var state))
+                    throw new InvalidOperationException("preview.spatial-input-invalid");
+                if (transaction == null || transaction.PlaybackFaulted || transaction.LoadedRequestId != state.RequestId
+                    || transaction.PlaybackRequestId != state.RequestId || transaction.PlaybackSequence != state.Sequence)
+                    throw new InvalidOperationException("preview.spatial-request-mismatch");
+                if (!transaction.TryApplySpatial(state, out string error)) throw new InvalidOperationException(error);
+                EnsureSpatial();
+                spatial.Apply(state);
+                PresentationPreviewCamera camera = Camera.main?.GetComponent<PresentationPreviewCamera>();
+                camera?.SetSpatialBounds(spatial.Bounds);
+                spatial.SetVisible(view == "overhead");
+                spatialReady = true;
+                Emit("spatial", requestId, null, null, sequence);
+            }
+            catch (Exception exception)
+            {
+                Emit("failed", requestId, null, exception is InvalidOperationException ? exception.Message : "preview.spatial-input-invalid", sequence, "rejected", "spatial");
+            }
+        }
+        public void View(string value)
+        {
+            if (value != "perspective" && value != "overhead") return;
+            view = value;
+            Camera.main?.GetComponent<PresentationPreviewCamera>()?.SetView(value);
+            spatial?.SetVisible(view == "overhead");
         }
         private bool activationBlocked;
         private void Update()
@@ -139,6 +204,14 @@ namespace Unframe.Unity.PresentationRuntime
                 return;
             }
             activationBlocked = false;
+            if (spatialReady && view == "overhead") spatial?.UpdateInteraction(Camera.main);
+            else if (spatialReady && Input.GetMouseButtonDown(0) && Camera.main != null && Camera.main.pixelRect.Contains(Input.mousePosition)
+                && transaction.TryPickInteraction(Camera.main.ScreenPointToRay(Input.mousePosition), out string surfaceId, out string interactionId))
+            {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                UnframePreviewInteraction(JsonUtility.ToJson(new InteractionEvent { requestId = transaction.PlaybackRequestId, surfaceId = surfaceId, interactionId = interactionId }));
+#endif
+            }
         }
 
         public void Discard(string requestId)
@@ -151,6 +224,8 @@ namespace Unframe.Unity.PresentationRuntime
             latestRequest = null;
             activationBlocked = false;
             transaction?.Invalidate();
+            spatialReady = false;
+            spatial?.Clear();
         }
         private void Emit(string kind, string requestId, string identity, string message, string sequence = null, string outcome = null, string phase = null)
         {
@@ -161,6 +236,6 @@ namespace Unframe.Unity.PresentationRuntime
 #endif
         }
         private void OnDisable() { Invalidate(""); }
-        private void OnDestroy() { transaction?.Dispose(); transaction = null; bearer = null; }
+        private void OnDestroy() { spatial?.Dispose(); spatial = null; transaction?.Dispose(); transaction = null; bearer = null; }
     }
 }

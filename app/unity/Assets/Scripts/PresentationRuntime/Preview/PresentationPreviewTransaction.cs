@@ -29,6 +29,8 @@ namespace Unframe.Unity.PresentationRuntime
             internal readonly PresentationNodeHierarchy Hierarchy = new PresentationNodeHierarchy();
             internal readonly PresentationTextureResidency Textures = new PresentationTextureResidency();
             internal PresentationBakedSurfaceRenderer Renderer;
+            internal readonly PresentationNativeSurfaceRenderer Native = new PresentationNativeSurfaceRenderer();
+            internal readonly PresentationRuntimeAssetFiles Files = new PresentationRuntimeAssetFiles();
             internal readonly PresentationVideoResidency Videos;
             internal readonly PresentationModelResidency Models = new PresentationModelResidency();
             internal readonly PresentationPlaybackPlayer Playback = new PresentationPlaybackPlayer();
@@ -54,6 +56,8 @@ namespace Unframe.Unity.PresentationRuntime
                 if (Root != null) Root.SetActive(false);
                 Playback.Clear();
                 Renderer?.Dispose();
+                Native.Dispose();
+                Files.Dispose();
                 Models.Dispose();
                 Videos.Dispose();
                 Hierarchy.Clear();
@@ -165,11 +169,20 @@ namespace Unframe.Unity.PresentationRuntime
                 CheckLatest(expectedGeneration, token);
                 next.Renderer = new PresentationBakedSurfaceRenderer();
                 if (!next.Renderer.TryBuild(input, next.Hierarchy, out error)) throw new InvalidOperationException(error);
+                if (input.NativeUiResidency != null)
+                    foreach (string fontId in input.NativeUiResidency.FontAssetIds)
+                    {
+                        var asset = await assetProvider(input.RequestId, input.References[fontId], token);
+                        CheckLatest(expectedGeneration, token);
+                        if (asset == null || asset.MediaType != input.Assets[fontId].MediaType) throw new InvalidOperationException("preview.font-media-type-invalid");
+                        next.Files.Add(input.Assets[fontId], asset.Bytes);
+                    }
+                if (!next.Native.TryBuild(input, next.Hierarchy, next.Files.Paths, out error)) throw new InvalidOperationException(error);
                 next.Playback.Models = next.Models;
                 await next.Videos.BuildAsync(input, next.Hierarchy, async (id, videoToken) => await assetProvider(input.RequestId, input.References[id], videoToken), token);
                 CheckLatest(expectedGeneration, token);
                 next.Playback.Videos = next.Videos;
-                if (!next.Playback.TryRefresh(input, next.Hierarchy, next.Renderer, next.Textures, 0, out error)) throw new InvalidOperationException(error);
+                if (!next.Playback.TryRefresh(input, next.Hierarchy, (double time, out string refreshError) => Refresh(next, time, out refreshError), 0, out error)) throw new InvalidOperationException(error);
                 next.Playback.Models = next.Models;
                 next.Prepared = true;
                 return input.RequestId;
@@ -244,7 +257,7 @@ namespace Unframe.Unity.PresentationRuntime
                 current.Clock = state.Clock.Clone();
                 current.ClockReceivedAt = now;
                 if (restoring) current.Playback.Clear();
-                if (!current.Playback.TryRefresh(current.Input, current.Hierarchy, current.Renderer, current.Textures,
+                if (!current.Playback.TryRefresh(current.Input, current.Hierarchy, (double time, out string refreshError) => Refresh(current, time, out refreshError),
                     current.Clock.RuntimeTimeMs, out error, current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running))
                 {
                     if (error == "video-user-activation-required")
@@ -277,7 +290,7 @@ namespace Unframe.Unity.PresentationRuntime
             try
             {
                 double time = PresentationPlaybackPlayer.SampleRuntimeTimeMs(current.Clock, current.ClockReceivedAt, now);
-                if (current.Playback.TryUpdate(current.Input, current.Hierarchy, current.Renderer, current.Textures, time, out error,
+                if (current.Playback.TryUpdate(current.Input, current.Hierarchy, (double sampledTime, out string refreshError) => Refresh(current, sampledTime, out refreshError), time, out error,
                     current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)) return true;
                 if (error == "video-user-activation-required")
                 {
@@ -289,6 +302,44 @@ namespace Unframe.Unity.PresentationRuntime
             StopPlayback();
             return false;
         }
+
+        private static bool Refresh(Scene scene, double time, out string error)
+        {
+            error = "asset_residency_lost";
+            if (!scene.Files.IsReady) return false;
+            return scene.Renderer.TryRefresh(scene.Input, scene.Textures, time, out error)
+                && scene.Native.TryRefresh(scene.Input, time, out error);
+        }
+
+        public bool TryApplySpatial(PresentationPreviewSpatialState state, out string error)
+        {
+            CheckAccess();
+            error = "preview.spatial-request-mismatch";
+            if (state == null || current == null || current.Faulted || playbackRequestId != state.RequestId || current.Sequence != state.Sequence) return false;
+            current.Input.SetPresenterPose(state.PresenterPosition, state.PresenterRotation);
+            new PresentationNodeStateApplier().ApplyAnchors(current.Input, current.Hierarchy);
+            error = null;
+            return true;
+        }
+
+        public bool TryPickInteraction(Ray ray, out string surfaceId, out string interactionId)
+        {
+            CheckAccess();
+            surfaceId = interactionId = null;
+            if (current == null || current.Faulted || playbackRequestId == null || current.Clock?.StatusCase != RuntimeClockSnapshot.StatusOneofCase.Running) return false;
+            bool picked = current.Renderer.TryPickInteraction(ray, current.Input, current.Textures, out string selected, out string interaction, out float nearest);
+            bool nativePicked = current.Native.TryPickInteraction(ray, current.Input, out string nativeSurface, out string nativeInteraction, out float nativeDistance);
+            if (IsNearer(nativeSurface, nativeDistance, selected, nearest))
+            { picked = nativePicked; selected = nativeSurface; interaction = nativeInteraction; nearest = nativeDistance; }
+            bool videoPicked = current.Videos.TryPickInteraction(ray, current.Input, out string videoSurface, out string videoInteraction, out float videoDistance);
+            if (IsNearer(videoSurface, videoDistance, selected, nearest))
+            { picked = videoPicked; selected = videoSurface; interaction = videoInteraction; }
+            if (!picked) return false;
+            surfaceId = selected; interactionId = interaction;
+            return true;
+        }
+        private static bool IsNearer(string candidate, float distance, string selected, float nearest) =>
+            candidate != null && (distance < nearest || distance == nearest && (selected == null || StringComparer.Ordinal.Compare(candidate, selected) < 0));
 
         private void StopPlayback()
         {

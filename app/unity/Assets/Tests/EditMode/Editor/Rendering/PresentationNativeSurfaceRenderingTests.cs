@@ -15,6 +15,63 @@ using Unframe.Unity.PresentationRuntime;
 public sealed class PresentationNativeSurfaceRenderingTests
 {
     [UnityTest]
+    public IEnumerator PreviewLoadsDeliveredFontAndRefreshesNativeVariableText()
+    {
+        byte[] fontBytes = File.ReadAllBytes(Path.Combine(Application.dataPath, "TextMesh Pro/Fonts/LiberationSans.ttf"));
+        string checksum;
+        using (var sha = System.Security.Cryptography.SHA256.Create()) checksum = "sha256:" + System.BitConverter.ToString(sha.ComputeHash(fontBytes)).Replace("-", "").ToLowerInvariant();
+        var envelope = PresentationPreviewTestFixture.Create();
+        envelope.AssetSet = "{\"schemaVersion\":1,\"assets\":{\"font\":{\"checksum\":\"" + checksum + "\",\"mediaType\":\"font/ttf\",\"encodedSizeBytes\":" + fontBytes.Length + "}}}";
+        envelope.Assets.Add(new Unframe.Preview.LocalPreviewAsset { AssetId = "font", Reference = "font-reference" });
+        envelope.Projection.VisibleVariableIds.Add("score");
+        envelope.Projection.RuntimeCatalog.Variables.Add(new ProjectedVariableDefinition { VariableId = "score", Type = ScalarType.Number, Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() } });
+        envelope.InitialState.VariableStates.Add(new VariableState { VariableId = "score", Value = new ScalarValue { NumberValue = 12 } });
+        envelope.Projection.NativeUiResidency = new NativeUiResidencyPlan { BudgetTierId = "local-web-preview", FontAssetCount = 1, FontAssetIds = { "font" }, Glyphs = { new GlyphResidencyKey { FontChecksum = checksum, UnicodeScalar = '1' }, new GlyphResidencyKey { FontChecksum = checksum, UnicodeScalar = '2' }, new GlyphResidencyKey { FontChecksum = checksum, UnicodeScalar = '3' } } };
+        var surface = envelope.Projection.RuntimeCatalog.Surfaces[0];
+        surface.LogicalSize = new Unframe.Presentation.Vector2 { X = 100, Y = 100 };
+        var render = envelope.Projection.RenderSurfaces[0];
+        render.RendererKind = RendererKind.NativeUi;
+        render.LogicalBounds = new LogicalBounds { Width = 100, Height = 100 };
+        render.StateBindings[0].Artifact = new ArtifactStateBinding { ArtifactId = "text" };
+        render.Artifacts.Add(new DeliveredArtifact
+        {
+            NativeUi = new NativeUiArtifact
+            {
+                ArtifactId = "text",
+                ContractVersion = 1,
+                RootNodeId = "label",
+                Nodes = { new NativeUiNode { Text = new NativeUiText
+            {
+                NodeId = "label", Bounds = new LogicalBounds { Width = 100, Height = 100 },
+                Font = new ResolvedFont { Primary = new FontFace { AssetId = "font" } }, FontSize = 20, LineHeight = 24,
+                Color = new Unframe.Delivery.SrgbaColor { Red = 1, Green = 1, Blue = 1, Alpha = 1 }, Align = NativeTextAlign.Start, Overflow = NativeTextOverflow.Clip, MaxCodePoints = 16,
+                Value = new NativeTextValue { NumberVariable = new NumberVariableText { VariableId = "score" } }
+            } } }
+            }
+        });
+        var root = new GameObject("native preview text");
+        using (var transaction = new PresentationPreviewTransaction(root.transform))
+        {
+            try
+            {
+                var task = transaction.PrepareAsync(envelope, (_, __, ___) => Task.FromResult(new PresentationPreviewAssetData(fontBytes, "font/ttf")), CancellationToken.None);
+                while (!task.IsCompleted) yield return null;
+                task.GetAwaiter().GetResult();
+                transaction.Commit(envelope.RequestId);
+                var text = root.GetComponentInChildren<TextMeshProUGUI>(true);
+                var state = new Unframe.Preview.LocalPreviewPlaybackState { RequestId = envelope.RequestId, Sequence = 1, CurrentGroupId = "group:first", Clock = new RuntimeClockSnapshot { Paused = new Paused() }, NodeStates = { envelope.InitialState.NodeStates }, SurfaceStates = { envelope.InitialState.SurfaceStates }, VariableStates = { new VariableState { VariableId = "score", Value = new ScalarValue { NumberValue = 12 } } } };
+                Assert.That(transaction.TryPlayback(state, 0, out string error), Is.True, error);
+                Assert.That(text.text, Is.EqualTo("12"));
+                state.Sequence = 2;
+                state.VariableStates[0].Value.NumberValue = 23;
+                Assert.That(transaction.TryPlayback(state, 0, out error), Is.True, error);
+                Assert.That(text.text, Is.EqualTo("23"));
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+    }
+
+    [UnityTest]
     public IEnumerator NativeOnlySurfaceRetainsItsSemanticInteraction()
     {
         Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,

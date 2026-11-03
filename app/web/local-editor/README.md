@@ -6,6 +6,18 @@ UI フォントは [LINE Seed JP](https://seed.line.me/index_jp.html) の Regula
 
 ## Local Editor の起動
 
+配布 CLI では、編集するプロジェクトで次を実行します。
+
+```bash
+unframe author .
+```
+
+Editor とローカル API が起動し、ブラウザが開きます。変更時の Preview build も Editor が行うため、開発サーバーや `unframe dev` の別起動は不要です。`Ctrl+C` で終了します。`unframe dev` は Editor を開かず、ビルド監視だけを行うコマンドです。
+
+CLI のディレクトリ引数は、実行時の作業ディレクトリを基準に相対パスでも指定できます（`./slides`、`../slides`、`./dist` など）。
+
+### リポジトリでの開発
+
 対象 host は Linux x86_64 と macOS arm64、配布 CLI の実行には Node.js 24 以降が必要です。native 隔離の保証差と実機検証結果は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。利用者は配布された UI と Unity Preview Player を使用できます。配布物を作る場合は Unity Editor 6000.3.22f1 の WebGL module と license が必要です。
 
 リポジトリで開発する場合は、依存関係と固定 Browser を準備し、配布用 UI と Player をビルドします。
@@ -16,24 +28,27 @@ nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor run build:distribution
 ```
 
-2つのターミナルでそれぞれ `nix develop` に入り、次を実行します。
+開発時は次の1コマンドで UI 開発サーバーと CLI を起動します。
 
 ```bash
-pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor dev
-pnpm --config.verify-deps-before-run=false --filter @unframe-dev/cli dev -- /absolute/path/to/project
+nix run .#local-editor -- dev ./example
 ```
 
-CLI が認証付きの Editor URL をブラウザで開きます。UI は HMR で変更を反映し、API と Player の要求を CLI に proxy します。同じ Host の UI HMR では認証済み Workspace、選択、パネル配置、未保存入力と Unity canvas を保持します。controller や Host の処理を変更した場合は再起動してください。ページ全体を再読み込みした場合は CLI のターミナルで `r` と Enter を入力して認証付き URL を開き直します。
+UI の準備ができると CLI が Editor をブラウザで開きます。`Ctrl+C` で両方を終了します。port 5174 が使用中の場合は、既存のサーバーを終了してから起動してください。CLI 起動後は表示された Editor URL を直接開いても接続でき、再読み込みや別タブでも認証操作は不要です。接続用 token は起動時に Host から取得し、メモリーだけに保持します。UI は HMR で変更を反映し、API と Player の要求を CLI に proxy します。同じ Host の UI HMR では認証済み Workspace、選択、パネル配置、未保存入力と Unity canvas を保持します。ページ全体の再読み込みでは未保存入力を保持しません。controller や Host の処理を変更した場合は再起動してください。
 
-配布物は `pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor exec pnpm pack` で生成します。pack は現在の Unity Player と UI をビルドし、両方を同梱します。配布 CLI は `unframe author /absolute/path/to/project` で起動します。
+配布物は `pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor exec pnpm pack` で生成します。pack は現在の Unity Player と UI をビルドし、両方を同梱します。
 
-`unframe preview <absolute-dist-directory>` が開く `/dist-preview` は、固定 Dist の閲覧専用です。Dist が symlink の場合は `realpath` で解決したディレクトリを渡してください。Source 編集・Dev build・公開操作を表示せず、通常再生を利用できます。ブラウザが動画の自動再生を拒否した場合は一時停止し、「再生」の操作で再開します。
+`unframe preview <dist-directory>` が開く `/dist-preview` は、固定 Dist の閲覧専用です。Dist が symlink の場合は `realpath` で解決したディレクトリを渡してください。Source 編集・Dev build・公開操作を表示せず、通常再生を利用できます。ブラウザが動画の自動再生を拒否した場合は一時停止し、「再生」の操作で再開します。
 
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
 Host は Source・config・lock・アセット・スタイルを Source ロック内で取得し、解放後に取得済み入力から解析します。重い解析・検証は同梱の Worker で行い、スタイル・メディア変換やブラウザの子プロセスは Host が管理します。同じ revision の成功結果と進行中の解析を再利用し、後から取得した revision を古い解析の完了で上書きしません。ツールチェーンや Host の実装を変更した場合は Host を再起動してください。
 
 Host のファイル監視による変更通知を受けて project を再取得します。通知は認証付きの変更待機 API を使い、無変更時の1秒ごとの project 取得は行いません。更新中も直前の Preview を残し、小さい状態表示で更新待ち・ビルド中・表示反映中を示します。更新失敗でも直前の画面は残しますが、失効した表示記録での再生・公開は止めます。
+
+Preview は Viewer 向けに投影し、Presenter 専用コンテンツを表示対象から外します。通常視点と俯瞰を切り替えられます。俯瞰では共通原点の AprilTag、Zone の枠、仮想 Presenter の腰位置を表示します。Presenter は俯瞰のクリック・ドラッグ、または XYZ 入力後の Enter・フォーカス移動で移動します。「向き」で水平回転を変更し、Presenter に追従する配置も確認できます。頭・両手の追従先には、腰からの固定オフセットで作る仮想姿勢を使います。再生中に Zone の境界を越えると、現在の Group／Step で条件を満たす進入・退出 Cue が実行されます。一時停止中も位置・向きを変更できますが、Zone の Cue は発火しません。再開時には現在位置を基準に判定を始めます。原点タグは位置確認用のガイドで、実カメラの認識や校正は行いません。位置・視点の操作は Source や Dist に保存しません。
+
+再生中は現在の Step で実行可能な Gesture や外部イベントを選んで送信し、Surface 上の操作領域をクリックして Cue を実行できます。Native UI は本番と共通のレンダラーで表示します。「Step へ移動」は選択した Group／Step の初期状態へ戻して一時停止し、「再生」でそこからリハーサルできます。過去の Step での操作結果は引き継がず、Presenter の位置・向きも初期値へ戻します。
 
 左の Group／Step／Cue 一覧から閲覧対象を選び、中央下部で時間軸・進行図・問題、右側で Cue／キーの詳細と公開 Props を確認します。選択だけでは Cue を実行しません。Cue 詳細はきっかけ・条件・アクション・遷移先をまとめ、優先度と候補順は「実行設定」を開いて確認します。時間軸はズーム・横スクロールに対応し、Timeline と Surface crossfade を表示します。テーマ、左右パネルの開閉、横・縦分割のサイズを調整できます。
 

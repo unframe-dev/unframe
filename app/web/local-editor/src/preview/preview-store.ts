@@ -1,4 +1,5 @@
 import { createStore } from "zustand/vanilla";
+import type { PreviewView } from "./preview-driver";
 import type { BuildJob, PreviewPlaybackResponse } from "@unframe-dev/contracts/author-http";
 export type LoadedPreview = {
   channel: "dev" | "dist";
@@ -16,6 +17,7 @@ export type PreviewPhase =
   | "ready"
   | "failed";
 export type PreviewSnapshot = {
+  view: PreviewView;
   phase: PreviewPhase;
   recovery: "healthy" | "restoring" | "reloadRequired";
   channel: "dev" | "dist";
@@ -28,6 +30,7 @@ export type PreviewSnapshot = {
 };
 export const createPreviewStore = () =>
   createStore<PreviewSnapshot>(() => ({
+    view: "perspective",
     channel: "dev",
     status: "idle",
     phase: "idle",

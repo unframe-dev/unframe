@@ -15,6 +15,7 @@ import { projectPlaybackResourcesWire } from "./playback-wire.js";
 import { createLocalPlayback } from "./local-playback.js";
 import { previewCapability } from "./preview-capability.js";
 import {
+  previewPositionSchema,
   previewCommittedRequestSchema,
   previewPlaybackCommandSchema,
   previewLoadRequestSchema,
@@ -57,7 +58,7 @@ const parseRequest = <T>(parsed: { success: true; data: T } | { success: false }
 
 const projectPreviewBuild = (artifacts: BuildArtifacts) => {
   try {
-    return buildRuntimeProjection({ ...artifacts, capability: previewCapability() }, "presenter");
+    return buildRuntimeProjection({ ...artifacts, capability: previewCapability() }, "viewer");
   } catch (error) {
     fail(
       422,
@@ -158,27 +159,17 @@ export const createLocalPreviewService = (
       );
       checkCurrent(expectedEpoch, signal);
       const artifacts = readVerifiedArtifacts(fixed.artifacts);
-      const { projection, selection, residency } = projectPreviewBuild(artifacts);
       if (
-        projection.requiredRuntimeCapabilities?.some((value) => value === 6) ||
-        projection.runtimeCatalog?.nodes?.some(
-          (node) => node.parent && "presenterAnchor" in node.parent,
-        ) ||
-        Object.values(artifacts.definition.flow.groups).some((group) =>
-          Object.values(group.steps).some((step) =>
-            step.cues.some(
-              (cue) => cue.trigger.kind === "zoneEdge" || cue.trigger.kind === "gesture",
-            ),
-          ),
+        Object.values(artifacts.definition.stage.zones).some(
+          (zone) => !previewPositionSchema.safeParse(zone.center).success,
         )
       )
         fail(
           422,
-          "preview-tracking-unsupported",
-          "Local Preview does not support tracking inputs or presenter anchors.",
+          "preview-zone-center-unsupported",
+          "Local Preview requires Zone centers representable as finite float32 coordinates.",
         );
-      if (projection.localOverlays?.length)
-        fail(422, "preview-overlay-unsupported", "Local Preview does not support local overlays.");
+      const { projection, selection, residency } = projectPreviewBuild(artifacts);
       const assets = new Map<string, PreviewAsset>();
       const references = new Map<string, string>();
       const assetBindings = [];
@@ -196,6 +187,7 @@ export const createLocalPreviewService = (
       const initial = createInitialRuntimeState(artifacts.definition);
       const visibleNodes = new Set(selection.visibleNodeIds);
       const visibleSurfaces = new Set(selection.visibleSurfaceIds);
+      const visibleVariables = new Set(selection.visibleVariableIds);
       const envelope: LocalPreviewEnvelopeWire = {
         schemaVersion: 1,
         requestId: input.requestId,
@@ -211,12 +203,14 @@ export const createLocalPreviewService = (
           textureResidency: residency.textures,
           modelResidency: residency.models,
           videoResidency: residency.video,
+          nativeUiResidency: residency.nativeUi,
         },
         initialState: {
           ...projectPlaybackResourcesWire(
             createCueState(artifacts.definition, 1, artifacts.renderBundle),
             visibleNodes,
             visibleSurfaces,
+            visibleVariables,
           ),
           nodeStates: initial.nodeStates.filter((node) => visibleNodes.has(node.nodeId!)),
           surfaceStates: initial.surfaceStates.filter((surface) =>
@@ -241,6 +235,7 @@ export const createLocalPreviewService = (
           renderBundle: artifacts.renderBundle,
           visibleNodeIds: visibleNodes,
           visibleSurfaceIds: visibleSurfaces,
+          visibleVariableIds: visibleVariables,
           visibleTimelineIds: new Set(
             (projection.runtimeCatalog?.timelines ?? []).map((timeline) => timeline.timelineId!),
           ),

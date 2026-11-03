@@ -9,6 +9,17 @@ namespace Unframe.Unity.PresentationRuntime
         private float distance = 4;
         private float yaw;
         private float pitch;
+        private bool overhead;
+        private Bounds spatialBounds = new Bounds(Vector3.zero, new Vector3(4, 2, 4));
+        public bool IsOverhead { get { return overhead; } }
+
+        public void SetSpatialBounds(Bounds bounds) { spatialBounds = bounds; if (overhead) Apply(); }
+        public void SetView(string view)
+        {
+            if (view != "perspective" && view != "overhead") throw new System.ArgumentException("preview.view-invalid");
+            overhead = view == "overhead";
+            Apply();
+        }
 
         public void Frame(Transform presentation)
         {
@@ -27,6 +38,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private void Update()
         {
+            if (overhead) { Apply(); return; }
             if (Input.GetMouseButton(0))
             {
                 yaw += Input.GetAxis("Mouse X") * 3;
@@ -39,6 +51,16 @@ namespace Unframe.Unity.PresentationRuntime
         }
         private void Apply()
         {
+            Camera camera = GetComponent<Camera>();
+            camera.orthographic = overhead;
+            if (overhead)
+            {
+                float aspect = Mathf.Max(0.01f, camera.aspect);
+                camera.orthographicSize = Mathf.Max(2, spatialBounds.extents.z, spatialBounds.extents.x / aspect) * 1.2f;
+                transform.rotation = Quaternion.Euler(90, 0, 0);
+                transform.position = new Vector3(spatialBounds.center.x, spatialBounds.max.y + Mathf.Max(10, camera.orthographicSize * 2), spatialBounds.center.z);
+                return;
+            }
             transform.rotation = Quaternion.Euler(pitch, yaw, 0);
             transform.position = focus - transform.forward * distance;
         }

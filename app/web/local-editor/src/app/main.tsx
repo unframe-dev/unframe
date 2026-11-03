@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { createHostApi, takeEditorToken } from "../infra/host-api";
+import { createHostApi, getEditorToken } from "../infra/host-api";
 import { createUnityPreviewDriver } from "../infra/unity-preview";
 import { createWorkspace } from "../workspace/create-workspace";
 import { WorkspaceProvider } from "./workspace-provider";
@@ -18,15 +18,18 @@ type EditorSession = {
   close(): void;
 };
 const previous = import.meta.hot?.data.session as EditorSession | undefined;
-const token = takeEditorToken() ?? previous?.token ?? null;
 const target = document.getElementById("root");
 if (!target) throw new Error("Editor root is missing");
+if (!previous) target.textContent = "CLI に接続中…";
+const token = await getEditorToken().catch(() => null);
 const readOnly = location.pathname === "/dist-preview";
 let session = reuseEditorSession(previous, token, target, readOnly);
-if (!token)
+if (!token) {
+  session?.close();
+  session = null;
   target.textContent =
-    "CLI のターミナルで r + Enter を入力して Editor を開いてください。ページを再読み込みした場合も、同じ操作で開き直してください。";
-else {
+    "CLI に接続できません。CLI を起動してから、このページを再読み込みしてください。";
+} else {
   if (!session) {
     const theme = readTheme();
     applyTheme(theme);

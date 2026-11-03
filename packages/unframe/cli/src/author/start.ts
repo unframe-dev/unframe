@@ -118,7 +118,7 @@ export const runDistPreviewProcess = async (
   return runEditorHost(
     host,
     signal,
-    `${host.origin}/dist-preview#token=${host.token}`,
+    `${host.origin}/dist-preview`,
     hostPlatform.browserCommand,
     () => {
       announce(`${host.origin}/dist-preview`);
@@ -141,9 +141,7 @@ const runEditorHost = async (
       });
     } catch {
       if (!signal.aborted)
-        process.stderr.write(
-          "Could not open the browser. Enter r to retry opening the authenticated Preview.\n",
-        );
+        process.stderr.write("Could not open the browser. Enter r to retry opening the Editor.\n");
     }
   };
   const terminal = process.stdin.isTTY ? createInterface({ input: process.stdin }) : undefined;
@@ -181,7 +179,7 @@ export const runAuthorProcess = async (
     } catch {
       if (signal.aborted) return;
       throw new Error(
-        "Start the Local Editor dev server first: pnpm --filter @unframe-dev/local-editor dev",
+        "Local Editor dev server is unavailable. Restart the Local Editor development command.",
       );
     }
   }
@@ -229,12 +227,10 @@ export const runAuthorProcess = async (
     await service.close();
     throw error;
   }
-  const browserUrl = development
-    ? `http://127.0.0.1:5174/#token=${host.token}`
-    : `${host.origin}/#token=${host.token}`;
+  const browserUrl = development ? "http://127.0.0.1:5174/" : `${host.origin}/`;
   await runEditorHost(host, signal, browserUrl, hostPlatform.browserCommand, () => {
     process.stdout.write(
-      `Local author API: ${host.origin}\nEditor: ${development ? "http://127.0.0.1:5174/" : host.origin}\nProject: ${directory}\nEnter r to reopen the authenticated Editor. Stop with Ctrl+C.\n`,
+      `Local author API: ${host.origin}\nEditor: ${development ? "http://127.0.0.1:5174/" : host.origin}\nProject: ${directory}\nEnter r to reopen the Editor. Stop with Ctrl+C.\n`,
     );
   });
 };

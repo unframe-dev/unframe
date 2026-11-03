@@ -42,6 +42,9 @@ function fixture() {
     restore: async () => undefined,
     discard: async () => undefined,
     invalidate: async () => undefined,
+    view: async () => undefined,
+    subscribePresenter: () => () => undefined,
+    subscribeInteraction: () => () => undefined,
     subscribeFailure: () => () => undefined,
     dispose: async () => undefined,
   };
@@ -578,6 +581,281 @@ it("pauses after asynchronous video activation refusal without restoring the sce
     );
     expect(commands.some((command) => command.command === "recover")).toBe(false);
     expect(controller.store.getState().status).toBe("ready");
+  } finally {
+    await controller.dispose();
+  }
+});
+
+it("only accepts Presenter movement for the committed normal overhead view", async () => {
+  const { api, driver, commands } = fixture();
+  let move: Parameters<PreviewDriver["subscribePresenter"]>[0] = () => undefined;
+  const stop = vi.fn();
+  driver.subscribePresenter = (listener) => {
+    move = listener;
+    return stop;
+  };
+  driver.view = vi.fn(async () => undefined);
+  const original = api.playback;
+  api.playback = async (...args) => ({
+    ...(await original(...args)),
+    spatial: { presenterPosition: [0, 0, 0], zones: [] },
+  });
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    const requestId = controller.store.getState().loaded!.requestId;
+    controller.store.setState({
+      playback: {
+        ...response(requestId, "1"),
+        spatial: { presenterPosition: [0, 0, 0], zones: [] },
+      },
+    });
+    move({ requestId, position: [1, 0, 0] });
+    expect(commands.some((command) => command.command === "movePresenter")).toBe(false);
+    controller.setView("overhead");
+    move({ requestId: "old", position: [1, 0, 0] });
+    expect(commands.some((command) => command.command === "movePresenter")).toBe(false);
+    move({ requestId, position: [2, 0, 0] });
+    await vi.waitFor(() =>
+      expect(commands).toContainEqual({
+        requestId,
+        command: "movePresenter",
+        position: [2, 0, 0],
+      }),
+    );
+    expect(driver.view).toHaveBeenLastCalledWith("overhead");
+  } finally {
+    await controller.dispose();
+  }
+  expect(stop).toHaveBeenCalledOnce();
+});
+
+it("forwards spatial state while restoring a confirmed playback", async () => {
+  const { api, driver } = fixture();
+  const spatial = { presenterPosition: [1, 0, 0] as [number, number, number], zones: [] };
+  const original = api.playback;
+  api.playback = async (...args) => ({ ...(await original(...args)), spatial });
+  let fail: Parameters<PreviewDriver["subscribeFailure"]>[0] = () => undefined;
+  driver.subscribeFailure = (listener) => {
+    fail = listener;
+    return () => undefined;
+  };
+  driver.restore = vi.fn(async () => undefined);
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    const requestId = controller.store.getState().loaded!.requestId;
+    fail({ kind: "failed", requestId, sequence: "1", outcome: "failed", phase: "update" });
+    await vi.waitFor(() =>
+      expect(driver.restore).toHaveBeenCalledWith(
+        expect.objectContaining({ requestId }),
+        expect.any(AbortSignal),
+        spatial,
+      ),
+    );
+  } finally {
+    await controller.dispose();
+  }
+});
+
+it("recovers a rejected spatial frame to the last acknowledged Host state", async () => {
+  const { api, driver, commands } = fixture();
+  driver.playback = async (state) => {
+    if (state.sequence === "2")
+      throw new UnityExchangeError("preview.spatial-input-invalid", {
+        kind: "failed",
+        requestId: state.requestId!,
+        sequence: "2",
+        outcome: "rejected",
+        phase: "spatial",
+      });
+  };
+  driver.restore = vi.fn(async () => undefined);
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    controller.playback.command({ command: "movePresenter", position: [1, 0, 0] });
+    await vi.waitFor(() => expect(driver.restore).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    expect(commands).toContainEqual(expect.objectContaining({ command: "recover", sequence: "2" }));
+    expect(commands).not.toContainEqual(
+      expect.objectContaining({ command: "applied", sequence: "2" }),
+    );
+  } finally {
+    await controller.dispose();
+  }
+});
+
+it("requires a new load when the initial spatial frame has no confirmed recovery state", async () => {
+  const { api, driver, commands } = fixture();
+  const original = api.playback;
+  api.playback = async (command, ...args) => {
+    if (command.command === "recover") {
+      commands.push(command);
+      throw new Error("No confirmed playback state is available for recovery.");
+    }
+    return original(command, ...args);
+  };
+  driver.playback = async (state) => {
+    throw new UnityExchangeError("preview.spatial-input-invalid", {
+      kind: "failed",
+      requestId: state.requestId!,
+      sequence: state.sequence!,
+      outcome: "rejected",
+      phase: "spatial",
+    });
+  };
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("reload-required"));
+    expect(commands.filter((command) => command.command === "recover")).toHaveLength(1);
+    expect(commands).toContainEqual(expect.objectContaining({ command: "invalidateDisplay" }));
+    expect(commands.some((command) => command.command === "applied")).toBe(false);
+  } finally {
+    await controller.dispose();
+  }
+});
+
+it("invalidates the display if the spatial frame also fails during restoration", async () => {
+  const { api, driver, commands } = fixture();
+  driver.playback = async () => {
+    throw new Error("Partial playback application");
+  };
+  driver.restore = async (state) => {
+    throw new UnityExchangeError("preview.spatial-input-invalid", {
+      kind: "failed",
+      requestId: state.requestId!,
+      sequence: state.sequence!,
+      outcome: "rejected",
+      phase: "spatial",
+    });
+  };
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("reload-required"));
+    expect(commands.filter((command) => command.command === "recover")).toHaveLength(1);
+    expect(commands).toContainEqual(expect.objectContaining({ command: "invalidateDisplay" }));
+    expect(commands.some((command) => command.command === "applied")).toBe(false);
+  } finally {
+    await controller.dispose();
+  }
+});
+
+it("recovers an asynchronous spatial rejection instead of repeatedly polling it", async () => {
+  const { api, driver, commands } = fixture();
+  let notify: Parameters<PreviewDriver["subscribeFailure"]>[0] = () => undefined;
+  driver.subscribeFailure = (listener) => {
+    notify = listener;
+    return () => undefined;
+  };
+  driver.restore = vi.fn(async () => undefined);
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    const state = controller.store.getState().playback!.state;
+    notify({
+      kind: "failed",
+      requestId: state.requestId!,
+      sequence: state.sequence!,
+      outcome: "rejected",
+      phase: "spatial",
+      message: "preview.spatial-input-invalid",
+    });
+    await vi.waitFor(() => expect(driver.restore).toHaveBeenCalledOnce());
+    expect(commands).toContainEqual(expect.objectContaining({ command: "recover" }));
+  } finally {
+    await controller.dispose();
+  }
+});
+
+it("rejects out-of-range Presenter positions without poisoning a later valid move", async () => {
+  const { api, driver, commands } = fixture();
+  const original = api.playback;
+  api.playback = async (...args) => ({
+    ...(await original(...args)),
+    spatial: { presenterPosition: [0, 0, 0], zones: [] },
+  });
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    controller.movePresenter([1e100, 0, 0]);
+    controller.movePresenter([0, 1, 0]);
+    await vi.waitFor(() =>
+      expect(commands).toContainEqual(
+        expect.objectContaining({ command: "movePresenter", position: [0, 1, 0] }),
+      ),
+    );
+    expect(commands.filter((command) => command.command === "movePresenter")).toHaveLength(1);
+  } finally {
+    await controller.dispose();
+  }
+});
+
+it("routes Surface hits only for the displayed request during normal running playback", async () => {
+  const { api, driver, commands } = fixture();
+  let interact: Parameters<PreviewDriver["subscribeInteraction"]>[0] = () => undefined;
+  const stop = vi.fn();
+  driver.subscribeInteraction = (listener) => {
+    interact = listener;
+    return stop;
+  };
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    const requestId = controller.store.getState().loaded!.requestId;
+    const hit = { requestId, surfaceId: "screen", interactionId: "next" };
+    interact(hit);
+    expect(commands.some((command) => command.command === "surfaceInteraction")).toBe(false);
+    controller.store.setState({
+      playback: {
+        ...response(requestId, "1"),
+        state: { requestId, sequence: "1", clock: { runtimeTimeMs: "0", running: {} } },
+      },
+    });
+    interact({ ...hit, requestId: "old" });
+    expect(commands.some((command) => command.command === "surfaceInteraction")).toBe(false);
+    interact(hit);
+    await vi.waitFor(() =>
+      expect(commands).toContainEqual({ ...hit, command: "surfaceInteraction" }),
+    );
+  } finally {
+    await controller.dispose();
+  }
+  expect(stop).toHaveBeenCalledOnce();
+});
+
+it("supplies validated Presenter orientation while paused", async () => {
+  const { api, driver, commands } = fixture();
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    const requestId = controller.store.getState().loaded!.requestId;
+    controller.store.setState({
+      playback: {
+        ...response(requestId, "1"),
+        spatial: { presenterPosition: [0, 0, 0], zones: [] },
+      },
+    });
+    controller.movePresenter([1, 0, 0], [0, 0, 0, 2]);
+    expect(commands.some((command) => command.command === "movePresenter")).toBe(false);
+    controller.movePresenter([1, 0, 0], [0, 1, 0, 0]);
+    await vi.waitFor(() =>
+      expect(commands).toContainEqual({
+        requestId,
+        command: "movePresenter",
+        position: [1, 0, 0],
+        rotation: [0, 1, 0, 0],
+      }),
+    );
   } finally {
     await controller.dispose();
   }

@@ -1,6 +1,7 @@
 import { useStore } from "zustand";
 import { PlayIcon, PauseIcon, ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { useWorkspace } from "../app/workspace-provider";
+import { SimulationControls } from "./simulation-controls";
 import { Button } from "../ui/button";
 export function PlaybackControls() {
   const w = useWorkspace();
@@ -65,6 +66,7 @@ export function PlaybackControls() {
           </Button>
         )}
       </div>
+      <SimulationControls />
       <div className="flex gap-2 flex-wrap">
         {!inspection &&
           p?.inputs.map((input) => (

@@ -8,7 +8,7 @@
 
 保存済みのローカル project を Dev Preview で確認し、明示 build で生成した同じ `dist` を Dist Preview・Control Plane 公開・本番読み込みに使用する。
 
-Preview は Structured／Opaque Source から生成した canonical baked-web Surface、Stage／container 配下の配置、Step／Cue／Timeline、Surface の遷移、カメラの視点操作を扱う。表示の初期値とローカル進行は Core の既存規則から導出する。公開後の本番読み込み E2E は native Unity Editor で実 Realtime Snapshot を受け取る。WebGL の本番 Realtime 接続、Quest 実機は別の検証対象とする。未対応描画入力である Model、video、native-ui、tracking anchor などは load error にする。
+Preview は Structured／Opaque Source から生成した canonical baked-web／native-ui Surface、Stage／container／Presenter anchor 配下の配置、Step／Cue／Timeline、Surface の遷移、カメラの視点操作を扱う。表示の初期値とローカル進行は Core の既存規則から導出する。公開後の本番読み込み E2E は native Unity Editor で実 Realtime Snapshot を受け取る。WebGL の本番 Realtime 接続、Quest 実機は別の検証対象とする。Model と video は対応する residency plan で読み込み、Native UI は共通レンダラーで表示し、Gesture・外部イベント・Surface 操作と仮想 Presenter の姿勢を入力できる。Zone は仮想 Presenter によるローカル判定を扱う。
 
 Web UI は Local Host の project 読み込み、公開 Props の保存、診断表示を扱う。Inspector 編集は対応する React scene に限る。編集用 metadata を得られない Source も Compiler の検証を通れば build・表示でき、UI は閲覧と診断を提供する。その他の Source は外部 editor で保存して Dev Preview に反映する。Unity 上の選択・Gizmo・Component 配置は拡張目標であり、初期の完了条件に含めない。
 
@@ -44,7 +44,7 @@ Definition + RenderBundle + AssetSet + BuildManifest + assets
 
 ### Local Editor と管理 Web
 
-`app/web/local-editor/src/app/main.tsx` が token を取り出し、workspace を生成する。`workspace/create-workspace.ts` が project／preview／publication controller と workspace 単位の Zustand vanilla store を組み立て、commands が feature 間の操作を接続する。React は selector 購読と入力・focus を所有し、HTTP／build・認証 polling／Unity 配送は controller と `infra/` の adapter が所有する。Unity canvas は固定 viewport に一つだけ接続し、テーマやパネル操作では作り直さない。`dispose` で通信・timer・通知待ち・Unity を終了する。
+`app/web/local-editor/src/app/main.tsx` が Host の接続 API から token を取得し、workspace を生成する。`workspace/create-workspace.ts` が project／preview／publication controller と workspace 単位の Zustand vanilla store を組み立て、commands が feature 間の操作を接続する。React は selector 購読と入力・focus を所有し、HTTP／build・認証 polling／Unity 配送は controller と `infra/` の adapter が所有する。Unity canvas は固定 viewport に一つだけ接続し、テーマやパネル操作では作り直さない。`dispose` で通信・timer・通知待ち・Unity を終了する。
 
 UI HMR ではメモリー上の session に token・Workspace・React root を保持し、同じ Host の接続、選択、パネル配置、未保存 Props と入力途中の文字列を再利用する。Unity canvas は Workspace ごとに保持し、view の再接続でも作り直さない。React effect の再実行では Workspace を破棄せず、Host の切替・ページ終了時に破棄する。controller の実装変更は再起動で適用する。
 
@@ -87,13 +87,21 @@ Delivery は従来どおり `verifyPublicationIntegrity` を通し、共通結�
 
 Delivery は描画 catalog・素材・fence を提供し、本番の Node／Surface の現在状態は割り当て済み Runtime Core の `ConnectionSnapshot` から取得する。本番 Adapter は Session／Publication／profile／assignment fence と Snapshot の sequence を検証してから共通 renderer に状態を渡す。復旧・進行済み Snapshot を Definition の宣言初期値へ戻さない。
 
-role は presenter、capability は Web Preview の実装済み機能を表す固定 profile とする。初期 Group と Surface State は Definition の宣言値を使い、Node の active／visible／opacity／local Transform を Core の初期化規則に従って生成する。読み込み直後は一時停止し、再生操作まで Cue／timer は進行させない。catalog に含まれても現在の表示状態に存在しない Group-owned ノードは inactive とする。
+描画の role は viewer、capability は Web Preview の実装済み機能を表す固定 profile とする。初期 Group と Surface State は Definition の宣言値を使い、Node の active／visible／opacity／local Transform を Core の初期化規則に従って生成する。読み込み直後は一時停止し、再生操作まで Cue／timer は進行させない。catalog に含まれても現在の表示状態に存在しない Group-owned ノードは inactive とする。
 
 ### ローカル再生
 
-Local Host は commit 済み request ごとに Core の Cue state と単調時計を持つ。`POST /api/preview-playback` は `requestId` と `command`（`poll`／`play`／`pause`／`reset`／`input` と下記の確認・復旧 command）を受け、`input` のみ現在実行可能な `cueId` を指定する。通常再生では任意の状態・時刻を受け付けない。入力候補と guard・競合・完了・timer の評価は Core に委譲する。既存の Bearer／Origin 検証を適用し、古い request と実行不能な入力は `409` で拒否する。
+Local Host は commit 済み request ごとに Core の Cue state と単調時計を持つ。`POST /api/preview-playback` は `requestId` と `command`（`poll`／`play`／`pause`／`reset`／`input`／`movePresenter`／`gesture`／`semanticEvent`／`surfaceInteraction`／`selectStep` と下記の確認・復旧 command）を受け、`input` のみ現在実行可能な `cueId` を指定する。`gesture` は種類、`semanticEvent` はイベント名と actor、`surfaceInteraction` は Surface／interaction ID を受ける。`selectStep` は存在する Group／Step を指定し、新しい run の初期状態で一時停止する。過去の実行結果は引き継がず、任意の状態・時刻は受け付けない。入力候補と guard・競合・完了・timer の評価は Core に委譲する。既存の Bearer／Origin 検証を適用し、古い request と実行不能な入力は `409` で拒否する。
 
 応答は `LocalPreviewPlaybackState`（request、sequence、現在の Group、Node／Surface 状態、ActiveRuns、RuntimeClock）と現在の Group／Step・入力候補・終了状態を返す。Web は約100ms間隔で直列に取得し、Unity の `Playback` acknowledgement を待つ。Unity は catalog と sequence を検証して状態を適用し、共通プレイヤーを毎 frame 更新する。reset は時刻をゼロに戻し、run の識別子を更新するが sequence は戻さない。新しい load・invalidate・終了で再生要求を無効化し、古い応答を破棄する。再生状態は Source や Dist へ保存しない。
+
+### Zone の確認
+
+`movePresenter` は Unity の float 座標で表現できる有限値の腰位置 `[x,y,z]`（Presentation 座標）と任意の単位 quaternion `[x,y,z,w]` を受け、Host が有効な Zone の進入・退出を既存の Cue 実行器へ渡す。判定は各軸で中心から±1m、一度内側に入った後は±1.03mを超えて退出する。初回・再開・Step／Group 切替時は現在位置を記録するだけで進入を作らない。停止中・確認中・遷移中・終了後は発火しない。reset／selectStep は位置を原点・向きを初期値へ戻し、recover は適用確認済みの位置と所属状態を復元する。
+
+応答の `spatial` は Zone の有無によらず腰位置・向きと各 Zone の中心・有効状態・内外状態を返す。Web は再生状態の適用後に `Spatial`（`{requestId, sequence, presenterPosition, presenterRotation, zones}`）を Unity に送り、同じ識別子の ACK を待ってから Host へ適用を確認する。視点切替は `View(perspective|overhead)`、俯瞰からの位置入力は requestId 付きの `unframe-preview-presenter` 通知で伝える。Surface の ray 判定結果は `unframe-preview-interaction`（requestId、surfaceId、interactionId）で Web へ伝え、通常再生中に Host へ送る。古い request の位置・Surface 入力は破棄する。
+
+Unity は共通原点の tag36h11 ID 0、Zone 枠と Presenter を表示する。タグは俯瞰で位置を確認する表示用ガイドであり、実機の画像認識・校正には接続しない。通常視点へ戻ると以前のカメラ位置を復元する。Presenter anchor の Body は腰、Head は腰から上方0.65m、LeftHand／RightHand は左右0.35m・上方0.25m・前方0.25mの仮想姿勢とし、腰の向きに合わせて回転させる。実際の頭・手のトラッキングは行わない。これらの確認操作は Source・Dist を変更しない。
 
 ### Cue 確認と適用確認
 
@@ -108,7 +116,7 @@ Core の `executeCueEvent`／`advanceCueClock` は `{ capture: true }` の明示
 | `recover`           | 故障 sequence。最後の正常 checkpoint を新 sequence・一時停止で返す          |
 | `invalidateDisplay` | request の表示・再生・確認記録を失効する                                    |
 
-応答は `mode`、`inspection`、最新 `occurrences` と完全 playback state を含む。確認中の play／poll は確認範囲だけを進め、timer／completion による後続進行を行わない。reset／load／invalidate は記録を失効する。重複開始・終了は同じ session を再実行せず、終了済み ID や置換済み occurrence は409で拒否する。不正時刻は400で、範囲を暗黙 clamp しない。
+応答は `mode`、`inspection`、最新 `occurrences` と完全 playback state を含む。確認中の play／poll は確認範囲だけを進め、timer／completion による後続進行を行わない。reset／selectStep／load／invalidate は記録を失効する。重複開始・終了は同じ session を再実行せず、終了済み ID や置換済み occurrence は409で拒否する。不正時刻は400で、範囲を暗黙 clamp しない。
 
 ブラウザーは HTTP と Unity の acknowledgement を直列に待ち、適用成功後だけ `applied` を送る。`prepared`／`committed` は build identity、`playback`／`restored` は request・sequence を照合する。`failed` の `outcome`（入力拒否 `rejected`／適用故障 `failed`）と `phase`（apply／update／restore）を区別する。入力拒否だけでは正常 scene の復旧を開始しない。部分適用・後続 frame 故障・通知 timeout は操作と公開を止め、`recover` → Unity `Restore` → `restored` → Host `applied` の順に復旧する。復元失敗は receipt と request を失効し、明示再読込で新 request を作る。初期適用未確認・復旧中・復旧失敗の receipt は公開に使えない。
 
@@ -118,15 +126,15 @@ Local Author Host は固定 generation の4つの artifact JSONを `verifyBuildI
 
 Preview の cross-application envelope は次の field を持つ。canonical schema と publication 非依存の nested message を再利用し、Preview 独自の Node・Surface・artifact 定義を複製しない。fence を持つ Delivery／Snapshot envelope は流用しない。
 
-| field                        | 契約                                                                                    |
-| ---------------------------- | --------------------------------------------------------------------------------------- |
-| `schemaVersion`              | Local Preview envelope の version。canonical artifact の version と区別する             |
-| `requestId`                  | Web UI が各 load に発行する一意 ID。Bridge の結果・commit・discard は同じ ID を使う     |
-| `sourceRevision`             | lock refresh 確定後の build 入力 revision。Dist Preview は `null`                       |
-| `buildManifest` / `assetSet` | 固定 generation の検証済み canonical artifact                                           |
-| `projection`                 | 共通描画選択結果。publication key／profile identity を含めない                          |
-| `initialState`               | Core が導出した初期 Node／Surface 状態。Session／assignment／replay の field を含めない |
-| `assets`                     | 選択 closure の Asset ID と opaque reference の対応。path や任意 URL は含めない         |
+| field                        | 契約                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| `schemaVersion`              | Local Preview envelope の version。canonical artifact の version と区別する                       |
+| `requestId`                  | Web UI が各 load に発行する一意 ID。Bridge の結果・commit・discard は同じ ID を使う               |
+| `sourceRevision`             | lock refresh 確定後の build 入力 revision。Dist Preview は `null`                                 |
+| `buildManifest` / `assetSet` | 固定 generation の検証済み canonical artifact                                                     |
+| `projection`                 | 共通描画選択結果。publication key／profile identity を含めない                                    |
+| `initialState`               | Core が導出した初期 Node／Surface／Variable 状態。Session／assignment／replay の field を含めない |
+| `assets`                     | 選択 closure の Asset ID と opaque reference の対応。path や任意 URL は含めない                   |
 
 Host のローカル HTTP API は CLI の Author contract が所有し、envelope の schema と C# consumer は同じ正本から生成・drift 検査する。正本は `packages/contracts/proto/unframe/preview/preview.proto`。canonical JSON は文字列として保持し、projection／initial state は既存 Proto message を再利用する。Dist の `source_revision` は optional field の absence で表す。TypeScript wire descriptor／static binding／型は Contracts の `generate:wire-*` scripts、C# と Unity の Proto コピーは `nix run .#unity-proto` で生成する。対応する `check:wire-*` と `nix run .#unity-proto -- check` で drift を検査する。
 

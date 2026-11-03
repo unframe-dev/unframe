@@ -213,10 +213,14 @@ export const createCueState = (
   definition: PresentationDefinition,
   assignmentEpoch: number,
   renderBundle?: RenderBundle,
+  start?: { groupId: string; stepId: string },
 ): CueState => {
   if (!Number.isSafeInteger(assignmentEpoch) || assignmentEpoch <= 0)
     throw new RangeError("Assignment epoch must be a positive safe integer.");
-  const groupId = definition.flow.initialGroupId;
+  const groupId = start?.groupId ?? definition.flow.initialGroupId;
+  const stepId = start?.stepId ?? definition.flow.groups[groupId]?.initialStepId;
+  if (!stepId || !definition.flow.groups[groupId]?.steps[stepId])
+    throw new RangeError("Initial rehearsal Step does not exist.");
   const state: CueState = {
     playbackCatalog: initializePlaybackCatalog(definition, renderBundle),
     mediaStates: {},
@@ -241,7 +245,7 @@ export const createCueState = (
     timerStates: {},
   };
   initializeResources(definition, state, groupId, true);
-  enterStep(definition, state, definition.flow.groups[groupId]!.initialStepId);
+  enterStep(definition, state, stepId);
   return state;
 };
 

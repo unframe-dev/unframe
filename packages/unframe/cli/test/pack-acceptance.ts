@@ -136,7 +136,7 @@ try {
     url = await readFile(urlFile, "utf8").catch(() => "");
     if (!url) await delay(100);
   }
-  assert(url, "CLI did not open the authenticated Preview URL");
+  assert(url, "CLI did not open the Preview URL");
   const args = process.env.UNFRAME_ACCEPTANCE_BROWSER_ARGS
     ? JSON.parse(process.env.UNFRAME_ACCEPTANCE_BROWSER_ARGS)
     : [];

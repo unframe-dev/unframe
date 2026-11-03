@@ -60,21 +60,21 @@ snapshot と explicit validation で boundary validation する。host の callb
 invocation と Compiler / Renderer の cross-boundary semantic diagnostics は、この構造検査の後に扱う。
 
 ```text
-init <absolute-project-directory> [--format text|json]
-check <absolute-project-directory> [--format text|json]
-test <absolute-project-directory> [--format text|json]
-build <absolute-project-directory> [--format text|json]
-lock refresh <absolute-project-directory> [--format text|json]
-lock update <absolute-project-directory> [--recreate] [--format text|json]
+init <project-directory> [--format text|json]
+check <project-directory> [--format text|json]
+test <project-directory> [--format text|json]
+build <project-directory> [--format text|json]
+lock refresh <project-directory> [--format text|json]
+lock update <project-directory> [--recreate] [--format text|json]
 ```
 
 process entrypoint は上記を headless API へ委譲し、次の command を追加する。
 
 ```text
-author <absolute-project-directory>
-dev <absolute-project-directory>
-preview <absolute-project-directory>
-publish <absolute-project-directory> <presentation-id> <control-plane-origin>
+author <project-directory>
+dev <project-directory>
+preview <dist-directory>
+publish <dist-directory> <presentation-id> <control-plane-origin>
 publication-status '<operation-json>' <control-plane-origin>
 ```
 
@@ -109,7 +109,7 @@ build の成功時だけ、CLI は次の deterministic な全ファイルを辞�
 
 filesystem host はcomplete artifact setを内部generationへ固定し、`build-receipt.json`を含む通常ディレクトリとして`dist`へ公開する。receiptはgeneration IDとbuild manifest bytesのhashを持つ。既存Distの置換は同一親FD配下のディレクトリ交換で原子的に行い、公開前後のbytesとidentityを検証する。失敗またはcancelではprevious Distを保持する。
 
-`dist`は元素材・Source・lock・`.unframe`への参照を持たず、そのディレクトリだけを別の場所へコピーできる。`preview <absolute-dist-directory>`は再ビルドせず共通Unity playerで表示し、編集・build APIを提供しない。`publish <absolute-dist-directory> <presentation-id> <control-plane-origin>`は同じDistの全素材bytesをhash・サイズで検証してから送信する。Preview用Web UIとUnity playerはCLI側の実行環境に必要である。local BuildManifest の `sourceDraftRevision` は `0` とし、publication と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
+`dist`は元素材・Source・lock・`.unframe`への参照を持たず、そのディレクトリだけを別の場所へコピーできる。`preview <dist-directory>`は再ビルドせず共通Unity playerで表示し、編集・build APIを提供しない。`publish <dist-directory> <presentation-id> <control-plane-origin>`は同じDistの全素材bytesをhash・サイズで検証してから送信する。Preview用Web UIとUnity playerはCLI側の実行環境に必要である。local BuildManifest の `sourceDraftRevision` は `0` とし、publication と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
 discovery / read / write I/O は exit code `3` とする。
 
 ## 4. Interactive TUI boundary
@@ -173,9 +173,8 @@ package に移さない。
 
 ## 8. Local Author host
 
-`author` は native host の loopback に Web Inspector を配信し、Linux は `xdg-open`、macOS arm64 は `open` で起動 URL を開く。token 付き URL はログに出さず、origin だけを表示する。
-先に repository root で `pnpm --filter @unframe-dev/local-editor build` を実行する。
-起動は `pnpm --filter @unframe-dev/core presentation author /absolute/project`。
+`unframe author .` は同梱の Editor と Unity Player、ローカル API を native host の loopback で配信し、Linux は `xdg-open`、macOS arm64 は `open` でブラウザを開く。別途 UI 開発サーバーやビルド監視を起動する必要はない。Editor は同一 Origin の接続 API から token を取得してメモリーだけに保持し、URL やログには含めない。
+CLI のディレクトリ引数は相対パスも受け付け、実行時の作業ディレクトリを基準に絶対パスへ解決して内部へ渡す。
 Opaque preview には既存の固定 Browser と OS 別の隔離実行環境が必要である。
 
 `@unframe-dev/contracts/author-http` がローカル HTTP 契約、Source が patch 生成、Author Service が編集ユースケース、`app/web/local-editor` が画面を所有する。

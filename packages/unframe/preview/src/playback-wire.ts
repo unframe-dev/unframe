@@ -37,10 +37,25 @@ const clipWire = (clip: Clip) => ({
 const easingWire = (value: Extract<RuntimeRun, { kind: "surfaceTransition" }>["easing"]) =>
   ({ linear: 1, cubicIn: 2, cubicOut: 3, cubicInOut: 4 })[value];
 export const projectPlaybackResourcesWire = (
-  state: Pick<CueState, "mediaStates" | "modelClipStates">,
+  state: Pick<CueState, "mediaStates" | "modelClipStates"> & Partial<Pick<CueState, "variables">>,
   visibleNodeIds: ReadonlySet<string>,
   visibleSurfaceIds: ReadonlySet<string>,
-): Pick<LocalPreviewPlaybackStateWire, "mediaStates" | "modelClipStates"> => ({
+  visibleVariableIds: ReadonlySet<string> = new Set(),
+): Pick<LocalPreviewPlaybackStateWire, "mediaStates" | "modelClipStates" | "variableStates"> => ({
+  variableStates: Object.entries(state.variables ?? {})
+    .filter(([id]) => visibleVariableIds.has(id))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([variableId, value]) => ({
+      variableId,
+      value:
+        value === null
+          ? { nullValue: {} }
+          : typeof value === "string"
+            ? { stringValue: value }
+            : typeof value === "boolean"
+              ? { booleanValue: value }
+              : { numberValue: value },
+    })),
   mediaStates: Object.entries(state.mediaStates)
     .filter(([id]) => visibleSurfaceIds.has(id))
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
@@ -129,11 +144,12 @@ export const projectPlaybackWire = (
   visibleNodeIds: ReadonlySet<string>,
   visibleSurfaceIds: ReadonlySet<string>,
   visibleTimelineIds: ReadonlySet<string>,
+  visibleVariableIds: ReadonlySet<string> = new Set(),
 ): LocalPreviewPlaybackStateWire => ({
   requestId,
   sequence: String(sequence),
   currentGroupId: state.currentGroupId,
-  ...projectPlaybackResourcesWire(state, visibleNodeIds, visibleSurfaceIds),
+  ...projectPlaybackResourcesWire(state, visibleNodeIds, visibleSurfaceIds, visibleVariableIds),
   nodeStates: Object.entries(state.nodes)
     .filter(([nodeId]) => visibleNodeIds.has(nodeId))
     .sort(([a], [b]) => a.localeCompare(b))

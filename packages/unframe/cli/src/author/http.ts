@@ -5,6 +5,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
+  editorSessionSchema,
   authorPublicationResultSchema,
   projectChangesQuerySchema,
   projectChangeSchema,
@@ -105,6 +106,20 @@ export const startAuthorHost = async ({
           "content-length": asset.bytes.byteLength,
         });
         response.end(asset.bytes);
+        return;
+      }
+      if (path === "/api/editor-session") {
+        if (
+          request.method !== "POST" ||
+          request.headers.origin !== (development ? "http://127.0.0.1:5174" : origin) ||
+          request.headers["x-unframe-editor"] !== "1"
+        )
+          throw new AuthorError(
+            403,
+            "author-origin-rejected",
+            "Editor sessions require a same-origin Editor request.",
+          );
+        sendJson(response, 200, editorSessionSchema.parse({ token }));
         return;
       }
       const supplied = Buffer.from(request.headers.authorization ?? "");

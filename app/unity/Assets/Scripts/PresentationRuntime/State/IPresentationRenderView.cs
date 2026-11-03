@@ -9,6 +9,13 @@ namespace Unframe.Unity.PresentationRuntime
     /// Validated catalog and current spatial state consumed by the common renderer.
     /// Admission, publication fencing, and asset loading belong to the supplying adapter.
     /// </summary>
+    public interface IPresentationNativeRenderView : IPresentationRenderView
+    {
+        NativeUiResidencyPlan NativeUiResidency { get; }
+        bool TryGetAsset(string id, out AssetAccessBinding value);
+        bool TryGetVariableState(string id, out VariableState value);
+    }
+
     public interface IPresentationRenderView
     {
         ProjectedRuntimeCatalog Catalog { get; }

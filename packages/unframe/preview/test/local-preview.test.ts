@@ -104,6 +104,49 @@ describe("fixed local Preview service", () => {
     ).toBe(false);
   });
 
+  it.each(["viewer", "presenter"] as const)(
+    "admits only Viewer-visible content from the %s role",
+    async (role) => {
+      const source = generation();
+      source.artifacts.definition.scene.nodes["node-baked"]!.audience = { kind: "role", role };
+      source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+        source.artifacts.definition,
+      );
+      source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+      source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+        source.artifacts.renderBundle,
+      );
+      const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+      const envelope = await service.load({ requestId: requestA, channel: "dist" });
+      expect(envelope.projection?.visibleNodeIds?.includes("node-baked")).toBe(role === "viewer");
+    },
+  );
+
+  it("loads Native UI with the shared renderer residency and initial variables", async () => {
+    const source = generation();
+    const original = presentationDefinitionSchema.parse(definitionFixture);
+    const bundle = renderBundleSchema.parse(bundleFixture);
+    source.artifacts.definition.scene.nodes["node-native"] = original.scene.nodes["node-native"]!;
+    source.artifacts.definition.scene.surfaces.native = original.scene.surfaces.native!;
+    source.artifacts.renderBundle.surfaces.native = bundle.surfaces.native!;
+    source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+      source.artifacts.definition,
+    );
+    source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+    source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+      source.artifacts.renderBundle,
+    );
+    const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    expect(envelope.projection?.nativeUiResidency?.budgetTierId).toBe("local-web-preview");
+    expect(
+      envelope.projection?.renderSurfaces?.some((surface) =>
+        surface.artifacts?.some((artifact) => !!artifact.nativeUi),
+      ),
+    ).toBe(true);
+    expect(envelope.initialState?.variableStates).toBeDefined();
+  });
+
   it("starts committed playback paused and binds commands to the display request", async () => {
     let now = 100;
     const service = createLocalPreviewService("/project", {
@@ -159,7 +202,7 @@ describe("fixed local Preview service", () => {
   it("keeps timeline runs outside the delivered catalog private while advancing their completion", async () => {
     const source = generation();
     const { definition, renderBundle, buildManifest } = source.artifacts;
-    definition.scene.nodes["node-baked"]!.audience = { kind: "role", role: "viewer" };
+    definition.scene.nodes["node-baked"]!.audience = { kind: "role", role: "presenter" };
     definition.flow.timelines.hidden = {
       id: "hidden",
       owner: { kind: "presentation" },
@@ -509,44 +552,103 @@ describe("fixed local Preview service", () => {
     expect(selected).toEqual(["texture"]);
   });
 
-  it.each(["gesture", "zoneEdge"] as const)(
-    "rejects %s recognition in Local Preview",
-    async (kind) => {
-      const source = generation();
-      source.artifacts.definition.stage.zones.front = {
-        id: "front",
-        owner: { kind: "presentation" },
-        center: [0, 0, 0],
-      };
-      source.artifacts.definition.flow.groups.intro!.steps.start!.cues = [
-        {
-          id: "recognize",
-          priority: 0,
-          order: 0,
-          trigger:
-            kind === "gesture"
-              ? { kind, actor: { kind: "presenter" }, gesture: "swipeLeft" }
-              : { kind, actor: { kind: "presenter" }, zoneId: "front", edge: "enter" },
-          firePolicy: { kind: "repeatable" },
-          actions: [],
-          next: { kind: "stay" },
-        },
-      ];
-      source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
-        source.artifacts.definition,
-      );
-      source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
-      source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
-        source.artifacts.renderBundle,
-      );
-      const service = createLocalPreviewService("/project", { readGeneration: async () => source });
-      await expect(service.load({ requestId: requestA, channel: "dist" })).rejects.toMatchObject({
-        code: "preview-tracking-unsupported",
-      });
-    },
-  );
+  it("loads Gesture Cues for simulated input", async () => {
+    const source = generation();
+    source.artifacts.definition.stage.zones.front = {
+      id: "front",
+      owner: { kind: "presentation" },
+      center: [0, 0, 0],
+    };
+    source.artifacts.definition.flow.groups.intro!.steps.start!.cues = [
+      {
+        id: "recognize",
+        priority: 0,
+        order: 0,
+        trigger: { kind: "gesture", actor: { kind: "presenter" }, gesture: "swipeLeft" },
+        firePolicy: { kind: "repeatable" },
+        actions: [],
+        next: { kind: "stay" },
+      },
+    ];
+    source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+      source.artifacts.definition,
+    );
+    source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+    source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+      source.artifacts.renderBundle,
+    );
+    const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+    await expect(service.load({ requestId: requestA, channel: "dist" })).resolves.toHaveProperty(
+      "projection",
+    );
+  });
 
-  it("rejects tracking anchors while ordinary Cues remain declarative", async () => {
+  it("rejects Zone centers outside the Unity float32 range before preparing the Preview", async () => {
+    const source = generation();
+    source.artifacts.definition.stage.zones.far = {
+      id: "far",
+      owner: { kind: "presentation" },
+      center: [1e100, 0, 0],
+    };
+    source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+      source.artifacts.definition,
+    );
+    source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+    source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+      source.artifacts.renderBundle,
+    );
+    const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+    await expect(service.load({ requestId: requestA, channel: "dist" })).rejects.toMatchObject({
+      status: 422,
+      code: "preview-zone-center-unsupported",
+    });
+  });
+
+  it("loads Zone cues without requiring tracking capabilities from Unity", async () => {
+    const source = generation();
+    source.artifacts.definition.stage.zones.front = {
+      id: "front",
+      owner: { kind: "presentation" },
+      center: [0, 0, 0],
+    };
+    source.artifacts.definition.flow.groups.intro!.steps.start!.cues = [
+      {
+        id: "enter",
+        order: 0,
+        priority: 0,
+        trigger: { kind: "zoneEdge", actor: { kind: "presenter" }, zoneId: "front", edge: "enter" },
+        firePolicy: { kind: "repeatable" },
+        actions: [],
+        next: { kind: "stay" },
+      },
+    ];
+    source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+      source.artifacts.definition,
+    );
+    source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+    source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+      source.artifacts.renderBundle,
+    );
+    const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    expect(envelope.projection?.requiredRuntimeCapabilities).not.toContain(7);
+    expect(envelope.projection?.runtimeCatalog).not.toHaveProperty("presenterRecognition");
+    service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    expect(service.playback({ requestId: requestA, command: "poll" }).spatial).toMatchObject({
+      presenterPosition: [0, 0, 0],
+    });
+    expect(() =>
+      service.playback({ requestId: requestB, command: "movePresenter", position: [1, 2, 3] }),
+    ).toThrow();
+    expect(() =>
+      service.playback({ requestId: requestA, command: "movePresenter", position: [NaN, 2, 3] }),
+    ).toThrow();
+    expect(
+      service.playback({ requestId: requestA, command: "poll" }).spatial?.presenterPosition,
+    ).toEqual([0, 0, 0]);
+  });
+
+  it("loads Presenter anchors for simulated tracking", async () => {
     const source = generation();
     source.artifacts.definition.scene.nodes["node-baked"]!.parent = {
       kind: "anchor",
@@ -563,9 +665,9 @@ describe("fixed local Preview service", () => {
       source.artifacts.renderBundle,
     );
     const service = createLocalPreviewService("/project", { readGeneration: async () => source });
-    await expect(service.load({ requestId: requestA, channel: "dist" })).rejects.toMatchObject({
-      code: "preview-tracking-unsupported",
-    });
+    await expect(service.load({ requestId: requestA, channel: "dist" })).resolves.toHaveProperty(
+      "projection",
+    );
   });
 
   it("rejects artifact JSON tampering before preparing a candidate", async () => {

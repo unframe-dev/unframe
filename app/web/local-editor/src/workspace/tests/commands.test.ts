@@ -80,6 +80,9 @@ function fixture(readOnly = false) {
     restore: async () => undefined,
     discard: async () => undefined,
     invalidate: async () => undefined,
+    view: async () => undefined,
+    subscribePresenter: () => () => undefined,
+    subscribeInteraction: () => () => undefined,
     subscribeFailure: () => () => undefined,
     dispose: disposed,
   };

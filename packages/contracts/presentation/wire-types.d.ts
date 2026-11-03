@@ -740,6 +740,7 @@ export interface LocalPreviewInitialStateWire {
   surfaceStates?: SurfaceRuntimeStateWire[];
   mediaStates?: MediaRuntimeStateWire[];
   modelClipStates?: ModelClipRuntimeStateWire[];
+  variableStates?: VariableStateWire[];
 }
 
 export interface LocalPreviewPlaybackStateWire {
@@ -752,6 +753,7 @@ export interface LocalPreviewPlaybackStateWire {
   currentGroupId?: string;
   mediaStates?: MediaRuntimeStateWire[];
   modelClipStates?: ModelClipRuntimeStateWire[];
+  variableStates?: VariableStateWire[];
 }
 
 export interface LocalPreviewProjectionWire {
@@ -766,6 +768,7 @@ export interface LocalPreviewProjectionWire {
   textureResidency?: TextureResidencyPlanWire;
   modelResidency?: ModelResidencyPlanWire;
   videoResidency?: VideoResidencyPlanWire;
+  nativeUiResidency?: NativeUiResidencyPlanWire;
 }
 
 export interface AnchorBindingUnavailableWire {

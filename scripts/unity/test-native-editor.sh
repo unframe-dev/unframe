@@ -30,7 +30,7 @@ for file in PresentationCalibrationState PresentationCalibrationMath QuestPresen
 done
 cp "$root/app/unity/Assets/Scripts/MR/Session/QuestOnboardingFlow.cs" "$assets/Unframe/Scripts/Quest/"
 find "$root/app/unity/Assets/Plugins" -maxdepth 1 -type f \( -name '*.dll' -o -name '*.dll.meta' \) -exec cp {} "$assets/Unframe/Plugins/" \;
-cp "$root/app/unity/Assets/Resources/BakedSurface.shader" "$assets/Unframe/Resources/"
+cp "$root/app/unity/Assets/Resources/BakedSurface.shader" "$root/app/unity/Assets/Resources/PreviewSpatial.shader" "$assets/Unframe/Resources/"
 mkdir -p "$assets/Tests/EditMode/Editor"
 cp -R "$root/app/unity/Assets/Tests/EditMode/Editor/FixturesData" "$assets/Tests/EditMode/Editor/"
 cp "$root/app/unity/Assets/Tests/EditMode/Editor/Support/"*.cs "$assets/Tests/Editor/"
@@ -67,12 +67,13 @@ elif [[ "$mode" == playback ]]; then
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewPlaybackEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTransactionEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/UnframePreviewBridgeEditModeTests.cs" "$assets/Tests/Editor/"
+  cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewSpatialEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Transport/PresentationControlPlaneConnectionEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationTextureResidencyEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationVideoLifecycleEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationModelRuntimeEditModeTests.cs" "$assets/Tests/Editor/"
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationBakedRenderingEditModeTests.cs" "$assets/Tests/Editor/"
-  filter='PresentationBakedRuntimeDownloadEditModeTests|PresentationBakedRenderingEditModeTests|PresentationTextureResidencyEditModeTests|PresentationVideoLifecycleEditModeTests|PresentationControlPlaneConnectionEditModeTests|PresentationModelRuntimeEditModeTests|PresentationPreviewPlaybackEditModeTests|PresentationPreviewTransactionEditModeTests|UnframePreviewBridgeEditModeTests'
+  filter='PresentationBakedRuntimeDownloadEditModeTests|PresentationBakedRenderingEditModeTests|PresentationTextureResidencyEditModeTests|PresentationVideoLifecycleEditModeTests|PresentationControlPlaneConnectionEditModeTests|PresentationModelRuntimeEditModeTests|PresentationPreviewPlaybackEditModeTests|PresentationPreviewTransactionEditModeTests|UnframePreviewBridgeEditModeTests|PresentationPreviewSpatialEditModeTests'
   graphics=(-nographics)
 elif [[ "$mode" == rendering ]]; then
   for area in Rendering Delivery State Persistence Transport; do
