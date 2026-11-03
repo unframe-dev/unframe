@@ -66,6 +66,15 @@ export const patchRequestSchema = z
     command: editCommandSchema,
   })
   .strict();
+export const projectChangeCursorSchema = z.string().regex(/^[0-9a-f]{32}:(0|[1-9][0-9]{0,15})$/);
+export const projectChangesQuerySchema = z
+  .object({ cursor: projectChangeCursorSchema.optional() })
+  .strict();
+export const projectChangeSchema = z
+  .object({ cursor: projectChangeCursorSchema, changed: z.boolean() })
+  .strict();
+export type ProjectChange = z.infer<typeof projectChangeSchema>;
+
 export const buildRequestSchema = z.object({ requestId: randomIdSchema }).strict();
 
 export const previewRequestSchema = z.discriminatedUnion("channel", [

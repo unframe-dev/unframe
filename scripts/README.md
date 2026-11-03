@@ -53,6 +53,18 @@ CLI の公開結果が不明な場合は、出力された操作の JSON を保�
 
 `Unframe.Wire.csproj` が参照する `Grpc.Tools` の macOS plugin は x64 / arm64 の universal binary です。platform 判定は `scripts/lib/grpc-tools.sh` で共有し、`bash scripts/contracts/test-grpc-tools.sh` で単独検証できます。
 
+### npm パッケージの公開
+
+`packages/unframe/*` と CLI が利用する `@unframe/local-editor` を npm に公開します。Unity Editor 6000.3.22f1、WebGL module、license が必要です。Local Editor の pack 時に UI と Unity Preview Player をビルドします。
+
+```bash
+pnpm -r --workspace-concurrency=1 --filter './packages/unframe/*' run build
+pnpm -r --filter './packages/unframe/*' --filter @unframe/local-editor publish --access public --dry-run
+pnpm -r --filter './packages/unframe/*' --filter @unframe/local-editor publish --access public
+```
+
+公開前に各パッケージのバージョンを確認してください。公開済みのバージョンは再利用できません。
+
 Presentation v2 の Unity C# bindings は `packages/contracts/proto/` の正本から `protoc` で生成します。Unity 側に置く `.proto` コピーと生成 C# の drift は次で確認でき、正本更新後は引数を省略して生成・同期します。
 
 ```bash

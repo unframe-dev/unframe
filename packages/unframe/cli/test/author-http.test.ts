@@ -1,3 +1,4 @@
+import { createProjectChanges } from "../src/author/project-changes.js";
 import { request } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { startAuthorHost } from "../src/author/http.js";
@@ -28,7 +29,9 @@ const setup = async (development = false, publication?: LocalPublicationService)
     close: vi.fn(async () => {}),
   };
   const previews = createLocalPreviewService("/missing");
+  const changes = createProjectChanges();
   const host = await startAuthorHost({
+    changes,
     service,
     previews,
     ...(publication ? { publication } : {}),
@@ -36,7 +39,7 @@ const setup = async (development = false, publication?: LocalPublicationService)
     assets: new Map([["/", { bytes: new TextEncoder().encode("editor"), mediaType: "text/html" }]]),
   });
   hosts.push(host);
-  return { host, service, previews };
+  return { host, service, previews, changes };
 };
 describe("local author HTTP boundary", () => {
   it("allows verified Blob videos in the editor content security policy", async () => {
@@ -447,4 +450,42 @@ it("does not invalidate the current Preview when a stale build POST is rejected"
   });
   expect(response.status).toBe(412);
   expect(invalidate).not.toHaveBeenCalled();
+});
+
+it("authenticates cursor observations, rejects unknown query fields and resumes missed changes", async () => {
+  const { host, changes, service } = await setup();
+  expect((await fetch(`${host.origin}/api/project/changes`)).status).toBe(401);
+  const headers = { authorization: `Bearer ${host.token}` };
+  const first = await fetch(`${host.origin}/api/project/changes`, { headers });
+  expect(first.status).toBe(200);
+  const initial = await first.json();
+  expect(initial.changed).toBe(true);
+  expect((await fetch(`${host.origin}/api/project/changes?token=secret`, { headers })).status).toBe(
+    400,
+  );
+  expect((await fetch(`${host.origin}/api/project/changes?cursor=bad`, { headers })).status).toBe(
+    400,
+  );
+  expect(
+    (
+      await fetch(
+        `${host.origin}/api/project/changes?cursor=${initial.cursor}&cursor=${initial.cursor}`,
+        { headers },
+      )
+    ).status,
+  ).toBe(400);
+  const abort = new AbortController();
+  const pending = fetch(`${host.origin}/api/project/changes?cursor=${initial.cursor}`, {
+    headers,
+    signal: abort.signal,
+  });
+  const cancelled = expect(pending).rejects.toBeDefined();
+  abort.abort();
+  await cancelled;
+  changes.notify();
+  const resumed = await fetch(`${host.origin}/api/project/changes?cursor=${initial.cursor}`, {
+    headers,
+  });
+  expect(await resumed.json()).toMatchObject({ changed: true });
+  expect(service.project).not.toHaveBeenCalled();
 });

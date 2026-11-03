@@ -15,3 +15,18 @@ export function acceptsNotification(
 export function requiresRecovery(notification: UnityNotification): boolean {
   return notification.outcome !== "rejected";
 }
+
+export function previewStatusLabel(state: PreviewSnapshot): string {
+  if (state.status === "loading") {
+    if (state.phase === "pending") return "更新待ち";
+    if (state.phase === "building") return "ビルド中";
+    return "表示反映中";
+  }
+  return {
+    idle: "待機中",
+    ready: "表示確認済み",
+    recovering: "表示を復旧中",
+    "reload-required": "再読込が必要",
+    error: state.displayed ? "更新失敗" : "表示失敗",
+  }[state.status];
+}

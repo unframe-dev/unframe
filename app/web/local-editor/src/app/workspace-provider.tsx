@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import type { Workspace } from "../workspace/create-workspace";
 const Context = createContext<Workspace | null>(null);
 export function WorkspaceProvider({
@@ -8,10 +8,6 @@ export function WorkspaceProvider({
   workspace: Workspace;
   children: ReactNode;
 }) {
-  useEffect(() => {
-    workspace.start();
-    return () => workspace.dispose();
-  }, [workspace]);
   return <Context.Provider value={workspace}>{children}</Context.Provider>;
 }
 export function useWorkspace() {

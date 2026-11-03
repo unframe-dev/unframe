@@ -23,7 +23,7 @@ pnpm --config.verify-deps-before-run=false --filter @unframe/local-editor dev
 pnpm --config.verify-deps-before-run=false --filter @unframe/cli dev -- /absolute/path/to/project
 ```
 
-CLI が認証付きの Editor URL をブラウザで開きます。UI は HMR で変更を反映し、API と Player の要求を CLI に proxy します。再読み込み後は CLI のターミナルで `r` と Enter を入力して認証付き URL を開き直します。
+CLI が認証付きの Editor URL をブラウザで開きます。UI は HMR で変更を反映し、API と Player の要求を CLI に proxy します。同じ Host の UI HMR では認証済み Workspace、選択、パネル配置、未保存入力と Unity canvas を保持します。controller や Host の処理を変更した場合は再起動してください。ページ全体を再読み込みした場合は CLI のターミナルで `r` と Enter を入力して認証付き URL を開き直します。
 
 配布物は `pnpm --config.verify-deps-before-run=false --filter @unframe/local-editor exec pnpm pack` で生成します。pack は現在の Unity Player と UI をビルドし、両方を同梱します。配布 CLI は `unframe author /absolute/path/to/project` で起動します。
 
@@ -32,6 +32,8 @@ CLI が認証付きの Editor URL をブラウザで開きます。UI は HMR �
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
 Host は Source・config・lock・アセット・スタイルを Source ロック内で取得し、解放後に取得済み入力から解析します。重い解析・検証は同梱の Worker で行い、スタイル・メディア変換やブラウザの子プロセスは Host が管理します。同じ revision の成功結果と進行中の解析を再利用し、後から取得した revision を古い解析の完了で上書きしません。ツールチェーンや Host の実装を変更した場合は Host を再起動してください。
+
+Host のファイル監視による変更通知を受けて project を再取得します。通知は認証付きの変更待機 API を使い、無変更時の1秒ごとの project 取得は行いません。更新中も直前の Preview を残し、小さい状態表示で更新待ち・ビルド中・表示反映中を示します。更新失敗でも直前の画面は残しますが、失効した表示記録での再生・公開は止めます。
 
 左の Group／Step／Cue 一覧から閲覧対象を選び、中央下部で時間軸・進行図・問題、右側で Cue／キーの詳細と公開 Props を確認します。選択だけでは Cue を実行しません。Cue 詳細はきっかけ・条件・アクション・遷移先をまとめ、優先度と候補順は「実行設定」を開いて確認します。時間軸はズーム・横スクロールに対応し、Timeline と Surface crossfade を表示します。テーマ、左右パネルの開閉、横・縦分割のサイズを調整できます。
 

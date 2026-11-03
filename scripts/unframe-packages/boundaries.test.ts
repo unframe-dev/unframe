@@ -118,6 +118,7 @@ test("domain source imports stay within declared package APIs", async () => {
           const packageName = parts.slice(0, specifier.startsWith("@") ? 2 : 1).join("/");
           assert.ok(
             pkg.dependencies[packageName] ||
+              pkg.devDependencies?.[packageName] ||
               (packageName === "react" && pkg.dependencies["@types/react"]),
             `${path}: undeclared dependency ${specifier}`,
           );

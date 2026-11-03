@@ -18,6 +18,7 @@ export type UiState = {
   tab: "timeline" | "flow" | "diagnostics";
   selection: FlowSelection;
   key: KeySelection | null;
+  propInputs: Record<string, { value: string | number | boolean; text: string }>;
 };
 export const createUiStore = (theme: Theme) =>
   createStore<UiState>(() => ({
@@ -29,4 +30,5 @@ export const createUiStore = (theme: Theme) =>
     tab: "timeline",
     selection: { groupId: null, stepId: null, cueId: null },
     key: null,
+    propInputs: {},
   }));

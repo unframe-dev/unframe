@@ -1,7 +1,7 @@
 import type { BuildJob, PreviewPlaybackResponse } from "@unframe/contracts/author-http";
 import type { HostApi } from "../infra/host-api";
 import type { PreviewDriver } from "./preview-driver";
-import { createPreviewStore, type PreviewStore } from "./preview-store";
+import { createPreviewStore, type LoadedPreview, type PreviewStore } from "./preview-store";
 import { createPlaybackController } from "./playback-controller";
 import { acceptsNotification, requiresRecovery } from "./preview-state";
 import { UnityExchangeError } from "../infra/unity-exchange";
@@ -186,7 +186,7 @@ export function createPreviewController(input: {
     store.setState({
       channel,
       status: "loading",
-      phase: channel === "dev" ? "building" : "preparing",
+      phase: channel === "dev" ? (options.debounce ? "pending" : "building") : "preparing",
       recovery: "healthy",
       loaded: null,
       playback: null,
@@ -210,6 +210,7 @@ export function createPreviewController(input: {
         if (!current(serial)) return;
         let buildId: string | undefined;
         if (channel === "dev") {
+          store.setState({ phase: "building" });
           build = [...builds].find((item) => item.key === key && !item.cancellation);
           if (!build) {
             // Keep the receipt reachable after a newer request invalidates this load.
@@ -271,17 +272,16 @@ export function createPreviewController(input: {
             if (!current(serial)) return;
             if (committed !== identity)
               throw new Error("Committed Preview build identity does not match.");
-            store.setState({ phase: "confirming" });
+            const displayed: LoadedPreview = {
+              channel,
+              requestId: candidate,
+              buildIdentity: identity,
+              sourceRevision: envelope.sourceRevision ?? null,
+            };
+            store.setState({ phase: "confirming", displayed });
             await input.api.confirmDisplay(candidate, identity, signal);
             if (!current(serial)) return;
-            store.setState({
-              loaded: {
-                channel,
-                requestId: candidate,
-                buildIdentity: identity,
-                sourceRevision: envelope.sourceRevision ?? null,
-              },
-            });
+            store.setState({ loaded: displayed });
             playback.load(candidate);
             candidate = undefined;
           } finally {

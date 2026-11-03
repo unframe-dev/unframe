@@ -56,7 +56,8 @@ export function createWorkspace({
   }
   function update(revision: string) {
     if (requestedRevision === null) request(revision);
-    else if (channel === "dev" && revision !== requestedRevision) request(revision, true);
+    else if ((channel === "dev" || readOnly) && revision !== requestedRevision)
+      request(revision, true);
   }
   const project = createProjectController({
     api,

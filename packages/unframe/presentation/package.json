@@ -30,11 +30,11 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@unframe/contracts": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
+    "@unframe/contracts": "workspace:*",
     "canonicalize": "5.1.0",
     "typescript": "6.0.3",
     "vite-plus": "catalog:"

@@ -78,6 +78,95 @@ const job = (revision: string, status: BuildJob["status"] = "succeeded"): BuildJ
   diagnostics: [],
   artifacts: [],
 });
+it("keeps the displayed snapshot while waiting, building, and preparing a replacement", async () => {
+  vi.useFakeTimers();
+  const { api, driver, commands } = fixture();
+  let finishBuild!: (value: BuildJob) => void;
+  let finishPrepare!: (value: string) => void;
+  api.build = vi.fn(
+    async () =>
+      new Promise<BuildJob>((resolve) => {
+        finishBuild = resolve;
+      }),
+  );
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.advanceTimersByTimeAsync(0);
+    const displayed = controller.store.getState().loaded;
+    expect(displayed).not.toBeNull();
+    driver.prepare = async () =>
+      new Promise<string>((resolve) => {
+        finishPrepare = resolve;
+      });
+    controller.request("dev", "latest", { debounce: true });
+    expect(controller.store.getState()).toMatchObject({
+      status: "loading",
+      phase: "pending",
+      displayed,
+      loaded: null,
+      playback: null,
+      error: null,
+    });
+    const count = commands.length;
+    controller.playback.command({ command: "play" });
+    await vi.advanceTimersByTimeAsync(200);
+    expect(controller.store.getState().phase).toBe("building");
+    expect(controller.store.getState().displayed).toEqual(displayed);
+    expect(commands).toHaveLength(count);
+    finishBuild(job("latest"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(controller.store.getState().phase).toBe("preparing");
+    expect(controller.store.getState().displayed).toEqual(displayed);
+    finishPrepare("fixed");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(controller.store.getState().status).toBe("ready");
+    expect(controller.store.getState().displayed).toEqual(controller.store.getState().loaded);
+    expect(controller.store.getState().displayed?.requestId).not.toBe(displayed?.requestId);
+  } finally {
+    await controller.dispose();
+    vi.useRealTimers();
+  }
+});
+it("keeps the prior picture after a failed replacement without reactivating its receipt", async () => {
+  const { api, driver } = fixture();
+  const controller = createPreviewController({ api, driver });
+  controller.request("dist", "first");
+  await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+  const displayed = controller.store.getState().loaded;
+  driver.prepare = async () => {
+    throw new Error("replacement failed");
+  };
+  controller.request("dist", "next");
+  await vi.waitFor(() => expect(controller.store.getState().status).toBe("error"));
+  expect(controller.store.getState()).toMatchObject({
+    displayed,
+    loaded: null,
+    error: "replacement failed",
+  });
+  await controller.dispose();
+});
+it("records a committed picture separately while its receipt still awaits confirmation", async () => {
+  const { api, driver } = fixture();
+  let confirm!: () => void;
+  api.confirmDisplay = async () =>
+    new Promise<void>((resolve) => {
+      confirm = resolve;
+    });
+  const controller = createPreviewController({ api, driver });
+  expect(controller.store.getState().displayed).toBeNull();
+  controller.request("dist", "first");
+  await vi.waitFor(() => expect(confirm).toBeDefined());
+  expect(controller.store.getState()).toMatchObject({
+    status: "loading",
+    phase: "confirming",
+    loaded: null,
+    displayed: { channel: "dist", buildIdentity: "fixed" },
+  });
+  confirm();
+  await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+  await controller.dispose();
+});
 it("retries a rejected build acceptance on manual reload of the same revision", async () => {
   const { api, driver } = fixture();
   api.build = vi

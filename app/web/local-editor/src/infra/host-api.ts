@@ -8,6 +8,7 @@ import {
   type SavedCommand,
   type LocalPreviewEnvelopeWire,
   authorPublicationResultSchema,
+  projectChangeSchema,
   projectSnapshotSchema,
   buildJobSchema,
   savedCommandSchema,
@@ -81,6 +82,12 @@ export function createHostApi(
     if (value !== undefined) throw new Error("Expected no content.");
   };
   return {
+    projectChanges: (cursor?: string, signal?: AbortSignal) =>
+      request(
+        `/api/project/changes${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+        (value) => projectChangeSchema.parse(value),
+        signal,
+      ),
     project: (signal?: AbortSignal) =>
       request(
         "/api/project",

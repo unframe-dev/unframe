@@ -17,6 +17,9 @@ import { createTimelineView, cueDestination } from "../flow/flow-model";
 import { Group, Panel, Separator, useDefaultLayout } from "../ui/resizable";
 import { Tabs } from "../ui/tabs";
 import { Button } from "../ui/button";
+import type { PreviewSnapshot } from "../preview/preview-store";
+import { previewStatusLabel } from "../preview/preview-state";
+import { connectViewportLayout } from "./workspace-layout";
 function Details() {
   const w = useWorkspace();
   const definition = useStore(w.project.store, (s) => s.project?.definition);
@@ -81,41 +84,33 @@ function FlowGraph() {
     <p className="empty-state">Group を選択</p>
   );
 }
-function PreviewNotice() {
-  const w = useWorkspace();
-  const status = useStore(w.preview.store, (s) => s.status);
-  if (status === "ready") return null;
+export function PreviewNotice({ view, reload }: { view: PreviewSnapshot; reload(): void }) {
+  if (view.status === "ready") return null;
+  const compact = view.displayed !== null;
+  const failed = view.status === "error" || view.status === "reload-required";
   return (
-    <div className="preview-notice" role="status">
-      {status === "loading" ? (
-        "Unity Preview を準備しています…"
-      ) : status === "recovering" ? (
-        "表示を復旧しています…"
-      ) : status === "reload-required" || status === "error" ? (
-        <>
-          <span>表示を確認できません。</span>
-          <Button onClick={() => w.commands.reloadPreview()}>Preview を再読込</Button>
-        </>
-      ) : (
-        "Preview を待っています"
-      )}
+    <div
+      className={`preview-notice${compact ? " preview-notice-compact" : ""}`}
+      role={failed ? "alert" : "status"}
+    >
+      <span>
+        {!compact && view.status === "loading"
+          ? "Unity Preview を準備しています…"
+          : previewStatusLabel(view)}
+      </span>
+      {failed && <Button onClick={reload}>{compact ? "再試行" : "Preview を再読込"}</Button>}
     </div>
   );
+}
+function WorkspacePreviewNotice() {
+  const w = useWorkspace();
+  const view = useStore(w.preview.store);
+  return <PreviewNotice view={view} reload={() => w.commands.reloadPreview()} />;
 }
 export function WorkspaceShell() {
   const w = useWorkspace();
   const compact = useStore(w.ui, (s) => s.compact);
-  useEffect(() => {
-    const media = matchMedia("(max-width: 900px)");
-    const update = () =>
-      w.ui.setState({
-        compact: media.matches,
-        ...(media.matches ? { leftOpen: false, rightOpen: false } : {}),
-      });
-    update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, [w]);
+  useEffect(() => connectViewportLayout(w.ui, matchMedia("(max-width: 900px)")), [w]);
   const left = useStore(w.ui, (s) => s.leftOpen);
   const right = useStore(w.ui, (s) => s.rightOpen);
   const tab = useStore(w.ui, (s) => s.tab);
@@ -158,7 +153,7 @@ export function WorkspaceShell() {
             <Panel id="viewport" defaultSize="62%" minSize="180px">
               <div className="viewport-panel">
                 <PreviewViewport />
-                <PreviewNotice />
+                <WorkspacePreviewNotice />
                 <PlaybackControls />
               </div>
             </Panel>

@@ -74,3 +74,16 @@ test("Author HTTP dev Preview selects a completed Build rather than internal sto
     false,
   );
 });
+
+test("Project change observations reject credentials, unknown fields and malformed cursors", async () => {
+  const { projectChangesQuerySchema, projectChangeSchema } = await import("../src/author-http");
+  const cursor = "a".repeat(32) + ":42";
+  assert.equal(projectChangesQuerySchema.safeParse({ cursor }).success, true);
+  assert.equal(projectChangesQuerySchema.safeParse({ token: "secret" }).success, false);
+  assert.equal(projectChangesQuerySchema.safeParse({ cursor: "42" }).success, false);
+  assert.equal(projectChangeSchema.safeParse({ cursor, changed: true }).success, true);
+  assert.equal(
+    projectChangeSchema.safeParse({ cursor, changed: true, revision: "extra" }).success,
+    false,
+  );
+});

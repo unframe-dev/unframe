@@ -3,10 +3,12 @@ import type {
   ProjectSnapshot,
   PatchRequest,
   SavedCommand,
+  ProjectChange,
 } from "@unframe/contracts/author-http";
 import { createProjectStore, type SaveAction, type PendingSave } from "./project-store";
 import { inverseProp, validProp } from "./edit-state";
 type ProjectPort = {
+  projectChanges(cursor?: string, signal?: AbortSignal): Promise<ProjectChange>;
   project(signal?: AbortSignal): Promise<ProjectSnapshot>;
   patch(revision: string, body: PatchRequest, signal?: AbortSignal): Promise<SavedCommand>;
 };
@@ -26,8 +28,8 @@ export function createProjectController({
   let disposed = false;
   let epoch = 0;
   let readSerial = 0;
-  let reading = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let started = false;
+  let retry: (() => void) | undefined;
   const state = store.getState;
   function accept(next: ProjectSnapshot, own = false) {
     if (disposed) return;
@@ -57,7 +59,7 @@ export function createProjectController({
     onProject(next);
   }
   async function refresh() {
-    if (disposed) return;
+    if (disposed) return false;
     const version = epoch,
       serial = ++readSerial;
     try {
@@ -65,25 +67,50 @@ export function createProjectController({
       if (version === epoch && serial === readSerial) {
         accept(next);
         if (state().status === "clean") store.setState({ error: null });
+        return true;
       }
     } catch (error) {
       if (!disposed && version === epoch && serial === readSerial)
         store.setState({ error: String(error) });
     }
+    return false;
   }
   function start() {
-    if (disposed || timer || reading) return;
-    const poll = async () => {
-      reading = true;
-      await refresh();
-      reading = false;
-      if (!disposed)
-        timer = setTimeout(() => {
-          timer = undefined;
-          void poll();
-        }, 1000);
-    };
-    void poll();
+    if (disposed || started) return;
+    started = true;
+    void (async () => {
+      let cursor: string | undefined;
+      let delay = 1000;
+      let observationError: string | undefined;
+      while (!disposed) {
+        try {
+          const change = await api.projectChanges(cursor, abort.signal);
+          if (disposed) return;
+          if (change.changed && !(await refresh()))
+            throw new Error(state().error ?? "Project refresh failed.");
+          cursor = change.cursor;
+          delay = 1000;
+          if (observationError && state().error === observationError)
+            store.setState({ error: null });
+          observationError = undefined;
+        } catch (error) {
+          if (disposed) return;
+          if (state().status === "clean" || state().error === null) {
+            observationError = String(error);
+            store.setState({ error: observationError });
+          }
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, delay);
+            retry = () => {
+              clearTimeout(timer);
+              resolve();
+            };
+          });
+          retry = undefined;
+          delay = Math.min(10_000, delay * 2);
+        }
+      }
+    })();
   }
   function selectInstance(id: string | null) {
     const s = state();
@@ -314,7 +341,7 @@ export function createProjectController({
       disposed = true;
       ++epoch;
       abort.abort();
-      clearTimeout(timer);
+      retry?.();
     },
   };
 }

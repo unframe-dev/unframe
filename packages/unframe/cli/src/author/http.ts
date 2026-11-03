@@ -1,3 +1,4 @@
+import type { ProjectChanges } from "./project-changes.js";
 import { AuthorError, type AuthorService } from "@unframe/author-service";
 import { PreviewError, type LocalPreviewService } from "@unframe/preview";
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -5,6 +6,8 @@ import { z } from "zod";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
   authorPublicationResultSchema,
+  projectChangesQuerySchema,
+  projectChangeSchema,
   buildRequestSchema,
   randomIdSchema,
   patchRequestSchema,
@@ -48,6 +51,7 @@ const invalid = () => new AuthorError(400, "author-invalid-request", "Request sh
 
 export const startAuthorHost = async ({
   service,
+  changes,
   previews,
   assets,
   auth = createPublicationAuth(),
@@ -55,6 +59,7 @@ export const startAuthorHost = async ({
   development = false,
 }: {
   service: AuthorService | Pick<AuthorService, "project">;
+  changes: ProjectChanges;
   previews: LocalPreviewService;
   assets: ReadonlyMap<string, Asset>;
   auth?: PublicationAuth;
@@ -91,7 +96,7 @@ export const startAuthorHost = async ({
         throw new AuthorError(403, "author-host-rejected", "Host does not match this session.");
       const url = new URL(request.url ?? "/", origin);
       const path = url.pathname;
-      if (url.search) throw invalid();
+      if (url.search && path !== "/api/project/changes") throw invalid();
       if (!path.startsWith("/api/")) {
         const asset = request.method === "GET" ? assets.get(path) : undefined;
         if (!asset) throw new AuthorError(404, "author-not-found", "Resource was not found.");
@@ -111,6 +116,30 @@ export const startAuthorHost = async ({
           throw new AuthorError(403, "author-origin-rejected", "Writes require the same origin.");
         if (request.headers["content-type"]?.split(";")[0]?.trim() !== "application/json")
           throw invalid();
+      }
+      if (path === "/api/project/changes" && request.method === "GET") {
+        const query = projectChangesQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+        if (
+          !query.success ||
+          [...url.searchParams.keys()].length !== new Set(url.searchParams.keys()).size
+        )
+          throw invalid();
+        const controller = new AbortController();
+        const disconnected = () => {
+          if (!response.writableEnded) controller.abort();
+        };
+        response.on("close", disconnected);
+        if (response.destroyed) disconnected();
+        try {
+          sendJson(
+            response,
+            200,
+            projectChangeSchema.parse(await changes.wait(query.data.cursor, controller.signal)),
+          );
+        } finally {
+          response.removeListener("close", disconnected);
+        }
+        return;
       }
       if (path === "/api/project" && request.method === "GET") {
         const project = await service.project();
@@ -355,6 +384,7 @@ export const startAuthorHost = async ({
     token,
     async close() {
       ++previewOperation;
+      changes.close();
       auth.close();
       publication?.close();
       previews.close();

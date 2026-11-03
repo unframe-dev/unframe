@@ -29,7 +29,6 @@
     "@unframe/artifacts": "workspace:*",
     "@unframe/authoring": "workspace:*",
     "@unframe/compiler": "workspace:*",
-    "@unframe/contracts": "workspace:*",
     "@unframe/presentation": "workspace:*",
     "@unframe/source": "workspace:*",
     "@unframe/workspace": "workspace:*",
@@ -40,6 +39,7 @@
   "devDependencies": {
     "@types/css-tree": "^3.2.0",
     "@types/node": "26.6.6",
+    "@unframe/contracts": "workspace:*",
     "vite-plus": "catalog:"
   }
 }

@@ -328,6 +328,22 @@ a {
   border-radius: 6px;
   max-width: 90%;
 }
+.preview-notice-compact {
+  left: auto;
+  right: 28px;
+  top: 28px;
+  transform: none;
+  padding: 5px 8px;
+  font-size: 11px;
+  max-width: calc(100% - 56px);
+  pointer-events: none;
+}
+.preview-notice-compact .button {
+  pointer-events: auto;
+}
+.preview-notice-compact[role="alert"] {
+  color: var(--danger);
+}
 .playback-controls {
   border-top: 1px solid var(--border);
   padding: 5px 12px;

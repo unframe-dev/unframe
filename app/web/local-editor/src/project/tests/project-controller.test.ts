@@ -20,6 +20,12 @@ const snapshot = (revision = "r1", value = "before"): ProjectSnapshot => ({
 function setup() {
   let current = snapshot();
   const api = {
+    projectChanges: vi.fn(async (_cursor?: string, signal?: AbortSignal) => {
+      await new Promise<void>((resolve) =>
+        signal?.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      return { cursor: "a".repeat(32) + ":0", changed: false };
+    }),
     project: vi.fn(async () => current),
     patch: vi.fn(async (_revision: string, request: PatchRequest) => {
       current = snapshot("r2", "after");
@@ -209,4 +215,84 @@ describe("project controller", () => {
     await pending;
     expect(controller.store.getState().project).toBeNull();
   });
+});
+
+it("reads only after notifications, catches changes during a read and stops observations on disposal", async () => {
+  vi.useFakeTimers();
+  try {
+    const { api, controller } = setup();
+    const notifications = [
+      Promise.withResolvers<{ cursor: string; changed: boolean }>(),
+      Promise.withResolvers<{ cursor: string; changed: boolean }>(),
+      Promise.withResolvers<{ cursor: string; changed: boolean }>(),
+    ];
+    api.projectChanges
+      .mockImplementationOnce(() => notifications[0]!.promise)
+      .mockImplementationOnce(() => notifications[1]!.promise)
+      .mockImplementationOnce(() => notifications[2]!.promise);
+    controller.start();
+    controller.start();
+    notifications[0]!.resolve({ cursor: "first", changed: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.project).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(api.project).toHaveBeenCalledOnce();
+    notifications[1]!.resolve({ cursor: "second", changed: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.project).toHaveBeenCalledTimes(2);
+    expect(api.projectChanges.mock.calls[1]?.[0]).toBe("first");
+    controller.dispose();
+    notifications[2]!.resolve({ cursor: "late", changed: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.project).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("retries a failed read without acknowledging its notification cursor", async () => {
+  vi.useFakeTimers();
+  try {
+    const { api, controller } = setup();
+    const change = { cursor: "a".repeat(32) + ":1", changed: true };
+    api.projectChanges.mockResolvedValueOnce(change).mockResolvedValueOnce(change);
+    api.project.mockRejectedValueOnce(new Error("Transient capture failure"));
+    controller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.project).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(api.project).toHaveBeenCalledTimes(2);
+    expect(api.projectChanges.mock.calls.slice(0, 2).map(([cursor]) => cursor)).toEqual([
+      undefined,
+      undefined,
+    ]);
+    expect(api.projectChanges.mock.calls[2]?.[0]).toBe(change.cursor);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(api.project).toHaveBeenCalledTimes(2);
+    controller.dispose();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("reconnects at the same cursor and clears its transport error without polling the project", async () => {
+  vi.useFakeTimers();
+  try {
+    const { api, controller } = setup();
+    const cursor = "a".repeat(32) + ":1";
+    api.projectChanges
+      .mockResolvedValueOnce({ cursor, changed: true })
+      .mockRejectedValueOnce(new Error("Connection interrupted"))
+      .mockResolvedValueOnce({ cursor, changed: false });
+    controller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(controller.store.getState().error).toContain("Connection interrupted");
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(api.projectChanges.mock.calls[2]?.[0]).toBe(cursor);
+    expect(api.project).toHaveBeenCalledOnce();
+    expect(controller.store.getState().error).toBeNull();
+    controller.dispose();
+  } finally {
+    vi.useRealTimers();
+  }
 });

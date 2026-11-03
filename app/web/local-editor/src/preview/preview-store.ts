@@ -8,6 +8,7 @@ export type LoadedPreview = {
 };
 export type PreviewPhase =
   | "idle"
+  | "pending"
   | "building"
   | "preparing"
   | "committing"
@@ -19,6 +20,7 @@ export type PreviewSnapshot = {
   recovery: "healthy" | "restoring" | "reloadRequired";
   channel: "dev" | "dist";
   status: "idle" | "loading" | "ready" | "recovering" | "reload-required" | "error";
+  displayed: LoadedPreview | null;
   loaded: LoadedPreview | null;
   job: BuildJob | null;
   playback: PreviewPlaybackResponse | null;
@@ -30,6 +32,7 @@ export const createPreviewStore = () =>
     status: "idle",
     phase: "idle",
     recovery: "healthy",
+    displayed: null,
     loaded: null,
     job: null,
     playback: null,

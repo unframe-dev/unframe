@@ -6,6 +6,7 @@ import { readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { editorAssetsDirectory, unityPreviewDirectory } from "@unframe/local-editor";
 import { readRegularFile } from "@unframe/workspace-node";
+import { watchProjectChanges, type ProjectChanges } from "./project-changes.js";
 import { startAuthorHost } from "./http.js";
 import { createAuthorService } from "./service.js";
 import { createDistPreviewService, createLocalPreviewService } from "./local-preview.js";
@@ -96,9 +97,11 @@ export const startDistPreviewHost = async (
     },
   };
   const previews = createDistPreviewService(directory);
+  const changes = await watchProjectChanges(directory, "dist");
   try {
-    return await startAuthorHost({ service: source, previews, assets: files });
+    return await startAuthorHost({ service: source, changes, previews, assets: files });
   } catch (error) {
+    changes.close();
     previews.close();
     throw error;
   }
@@ -207,9 +210,12 @@ export const runAuthorProcess = async (
   const service = await createAuthorService(directory);
   const previews = createLocalPreviewService(directory);
   let host: Awaited<ReturnType<typeof startAuthorHost>>;
+  let changes: ProjectChanges | undefined;
   try {
+    changes = await watchProjectChanges(directory);
     host = await startAuthorHost({
       service,
+      changes,
       development,
       assets,
       previews,
@@ -217,6 +223,7 @@ export const runAuthorProcess = async (
       publication: createLocalPublicationService(previews, auth, target),
     });
   } catch (error) {
+    changes?.close();
     auth.close();
     previews.close();
     await service.close();

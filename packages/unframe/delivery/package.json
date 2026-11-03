@@ -26,13 +26,13 @@
   },
   "dependencies": {
     "@unframe/artifacts": "workspace:*",
-    "@unframe/contracts": "workspace:*",
     "@unframe/playback": "workspace:*",
     "@unframe/presentation": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
+    "@unframe/contracts": "workspace:*",
     "canonicalize": "5.1.0",
     "typescript": "6.0.3",
     "vite-plus": "catalog:"

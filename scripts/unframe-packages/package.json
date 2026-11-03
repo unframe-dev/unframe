@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test boundaries.test.ts usecase-boundaries.test.ts",
+    "test": "node --test boundaries.test.ts usecase-boundaries.test.ts publication.test.ts",
     "test:packed": "tsx --test packed.test.ts authoring-packed.test.ts source-compiler-packed.test.ts usecases-packed.test.ts"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 import type { AuthorInstance } from "@unframe/contracts/author-http";
-import { useState, useEffect } from "react";
+import { useStore } from "zustand";
+import { useWorkspace } from "../app/workspace-provider";
 import { Button } from "../ui/button";
 export function PropsField({
   id,
@@ -16,8 +17,11 @@ export function PropsField({
   onChange: (value: string | number | boolean) => void;
   onSave: () => void;
 }) {
-  const [text, setText] = useState(String(prop.value));
-  useEffect(() => setText(String(prop.value)), [prop.value]);
+  const workspace = useWorkspace();
+  const selected = useStore(workspace.project.store, (s) => s.selectedId);
+  const key = JSON.stringify([selected, id]);
+  const input = useStore(workspace.ui, (s) => s.propInputs[key]);
+  const text = input && Object.is(input.value, prop.value) ? input.text : String(prop.value);
   const invalid = prop.type === "number" && (text.trim() === "" || !Number.isFinite(Number(text)));
   return (
     <div className="props-field">
@@ -50,9 +54,14 @@ export function PropsField({
             aria-invalid={invalid}
             disabled={disabled || !prop.editable}
             onChange={(e) => {
-              setText(e.target.value);
-              const value = prop.type === "number" ? Number(e.target.value) : e.target.value;
-              if (e.target.value.trim() !== "" || prop.type !== "number") onChange(value);
+              const text = e.target.value;
+              const value = prop.type === "number" ? Number(text) : text;
+              if (prop.type !== "number" || (text.trim() !== "" && Number.isFinite(value)))
+                onChange(value);
+              const current = workspace.project.store.getState().draft?.props[id]?.value;
+              workspace.ui.setState((s) => ({
+                propInputs: { ...s.propInputs, [key]: { value: current ?? prop.value, text } },
+              }));
             }}
           />
         )}

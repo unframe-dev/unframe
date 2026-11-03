@@ -70,7 +70,9 @@ test("use case imports use declared public package boundaries and contain no cyc
             const parts = value.split("/");
             const dependency = parts.slice(0, value.startsWith("@") ? 2 : 1).join("/");
             assert.ok(
-              pkg.dependencies?.[dependency] || pkg.peerDependencies?.[dependency],
+              pkg.dependencies?.[dependency] ||
+                pkg.devDependencies?.[dependency] ||
+                pkg.peerDependencies?.[dependency],
               `${path}: undeclared ${dependency}`,
             );
             const target = packages.get(dependency);
@@ -156,7 +158,9 @@ test("adapter and CLI imports resolve through declared public package boundaries
             assert.ok(target, `${path}: missing package ${dependency}`);
             if (dependency !== fullName)
               assert.ok(
-                entry.pkg.dependencies?.[dependency] || entry.pkg.peerDependencies?.[dependency],
+                entry.pkg.dependencies?.[dependency] ||
+                  entry.pkg.devDependencies?.[dependency] ||
+                  entry.pkg.peerDependencies?.[dependency],
                 `${path}: undeclared ${dependency}`,
               );
             assert.ok(

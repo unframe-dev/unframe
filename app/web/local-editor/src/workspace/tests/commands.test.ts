@@ -23,6 +23,13 @@ function fixture(readOnly = false) {
   const builds: string[] = [];
   let sequence = 0;
   const api = {
+    projectChanges: async (cursor?: string, signal?: AbortSignal) => {
+      if (!cursor) return { cursor: "a".repeat(32) + ":0", changed: true };
+      await new Promise<void>((resolve) =>
+        signal?.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      return { cursor, changed: false };
+    },
     project: async () => structuredClone(project),
     patch: async (_revision: string, body: { commandId: string }) => {
       project = { ...project, revision: "r2", sourceHash: "r2" };

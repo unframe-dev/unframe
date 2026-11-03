@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@unframe/artifacts": "workspace:*",
-    "@unframe/contracts": "workspace:*",
     "canonicalize": "5.1.0",
     "semver": "7.8.5",
     "ssri": "14.0.0",
@@ -39,6 +38,7 @@
     "@types/semver": "7.8.0",
     "@types/ssri": "7.1.5",
     "@types/validate-npm-package-name": "4.0.2",
+    "@unframe/contracts": "workspace:*",
     "vite-plus": "catalog:"
   }
 }

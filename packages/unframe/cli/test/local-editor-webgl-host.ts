@@ -1,3 +1,4 @@
+import { watchProjectChanges } from "../src/author/project-changes.js";
 import { rm } from "node:fs/promises";
 import { createMediaProjectFixture } from "./media-project-fixture.js";
 import { createWebglCaptureProject } from "./local-editor-webgl-fixture.js";
@@ -17,7 +18,12 @@ const previews = createLocalPreviewService(directory);
 const assets = await loadAuthorAssets(editorAssetsDirectory);
 for (const [path, asset] of await loadUnityPreviewAssets(unityPreviewDirectory))
   assets.set(path, asset);
-const host = await startAuthorHost({ service, previews, assets });
+const host = await startAuthorHost({
+  changes: await watchProjectChanges(directory),
+  service,
+  previews,
+  assets,
+});
 process.stdout.write(JSON.stringify({ origin: host.origin, token: host.token, directory }) + "\n");
 await new Promise<void>((resolve) => {
   process.once("SIGTERM", resolve);

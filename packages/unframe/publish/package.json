@@ -25,12 +25,12 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@unframe/api-client-typescript": "workspace:*",
     "@unframe/artifacts": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
+    "@unframe/api-client-typescript": "workspace:*",
     "typescript": "6.0.3",
     "vite-plus": "catalog:"
   }

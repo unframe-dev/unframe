@@ -78,3 +78,18 @@ it("rejects an unresolved publication without its operation reference", async ()
   );
   await expect(api.publish("request")).rejects.toMatchObject({ code: "invalid-response" });
 });
+
+it("keeps notification authentication in the header and validates the strict change response", async () => {
+  const cursor = "a".repeat(32) + ":5";
+  const api = createHostApi("secret", {
+    fetch: async (path, init) => {
+      expect(String(path)).toBe(`/api/project/changes?cursor=${encodeURIComponent(cursor)}`);
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer secret");
+      expect(String(path)).not.toContain("secret");
+      return new Response(JSON.stringify({ cursor, changed: true }));
+    },
+  });
+  expect(await api.projectChanges(cursor)).toEqual({ cursor, changed: true });
+  const malformed = await host({ cursor, changed: true, extra: true });
+  await expect(malformed.projectChanges()).rejects.toMatchObject({ code: "invalid-response" });
+});
