@@ -38,7 +38,7 @@ func (s *V2Session) expireIdleLocked(ctx context.Context, now time.Time) (bool, 
 		s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
 		return false, err
 	}
-	if err := s.commitV2Completion(ctx, previous, events); err != nil {
+	if err := s.commitV2Completion(ctx, previous, &events); err != nil {
 		return false, err
 	}
 	return true, nil

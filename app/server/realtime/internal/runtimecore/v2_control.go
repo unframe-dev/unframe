@@ -151,10 +151,10 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 	}
 	s.rememberOutcome(key, fingerprint, outcome)
 	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END {
-		if err := s.commitV2Completion(ctx, previous, events); err != nil {
+		if err := s.commitV2Completion(ctx, previous, &events); err != nil {
 			return nil, nil, err
 		}
-	} else if err := s.commitV2Mutation(ctx, previous, events); err != nil {
+	} else if err := s.commitV2Mutation(ctx, previous, &events); err != nil {
 		return nil, nil, err
 	}
 	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME {
@@ -249,7 +249,16 @@ func (s *V2Session) prepareV2Termination(events []*realtimev2.ProjectedReliableE
 	return events, nil
 }
 
-func (s *V2Session) commitV2Completion(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
+func (s *V2Session) commitV2Completion(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, eventBatch *[]*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
+	var events []*realtimev2.ProjectedReliableEvent
+	if eventBatch != nil {
+		events = *eventBatch
+	}
+	events = s.prepareV3LogicalInputs(previous, events)
+	if eventBatch != nil {
+		*eventBatch = events
+	}
+
 	recovery := s.v2Recovery()
 	metadata := proto.Clone(s.checkpointMetadata).(*realtimev2.DurableCheckpointEnvelope)
 	s.durability.version++

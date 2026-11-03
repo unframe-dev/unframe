@@ -252,7 +252,7 @@ func (s *V2Session) selectV3Step(ctx context.Context, command *realtimev2.Runtim
 	s.capacityFault = nil
 	s.rememberOutcome(key, fingerprint, outcome)
 	events := []*realtimev2.ProjectedReliableEvent{event}
-	if err := s.commitV2Mutation(ctx, previous, events); err != nil {
+	if err := s.commitV2Mutation(ctx, previous, &events); err != nil {
 		return nil, nil, err
 	}
 	return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(events), nil
@@ -268,7 +268,7 @@ func (s *V2Session) pauseV3CapacityFault(ctx context.Context, previous *realtime
 	pause := &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION}
 	s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: pause}
 	event := s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_RuntimeStatusChanged{RuntimeStatusChanged: &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Paused{Paused: pause}}}})
-	if err := s.commitV2Mutation(ctx, previous, []*realtimev2.ProjectedReliableEvent{event}); err != nil {
+	if err := s.commitV2Mutation(ctx, previous, &[]*realtimev2.ProjectedReliableEvent{event}); err != nil {
 		return err
 	}
 	s.faultGeneration++

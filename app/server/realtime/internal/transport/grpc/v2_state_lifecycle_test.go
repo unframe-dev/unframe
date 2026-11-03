@@ -186,7 +186,7 @@ func TestV2StateWaitsForVisibleReliableSendCompletion(t *testing.T) {
 	var release sync.Once
 	defer release.Do(func() { close(gate) })
 	c := newV2LifecycleConnection(t, true, func(item *realtimev2.ControlServerItem) {
-		if item.GetReliableEvent().GetRuntimeStatusChanged().GetRunning() != nil {
+		if item.GetReliableEvent().GetRuntimeStatusChanged().GetRunning() != nil || item.GetReliableEvent().GetRuntimeViewReplaced().GetRuntimeView().GetClock().GetRunning() != nil {
 			close(blocked)
 			<-gate
 		}
@@ -207,7 +207,7 @@ func TestV2StateWaitsForVisibleReliableSendCompletion(t *testing.T) {
 	for resumeSequence == 0 {
 		select {
 		case item := <-c.controlOutput:
-			if event := item.GetReliableEvent(); event.GetRuntimeStatusChanged().GetRunning() != nil {
+			if event := item.GetReliableEvent(); event.GetRuntimeStatusChanged().GetRunning() != nil || event.GetRuntimeViewReplaced().GetRuntimeView().GetClock().GetRunning() != nil {
 				resumeSequence = event.Sequence
 			}
 		case <-time.After(time.Second):
@@ -266,7 +266,7 @@ func TestV2RunningStateFallsSilentUntilFreshResumeKeyframe(t *testing.T) {
 	for resumedSequence == 0 {
 		select {
 		case item := <-c.controlOutput:
-			if event := item.GetReliableEvent(); event.GetRuntimeStatusChanged().GetRunning() != nil {
+			if event := item.GetReliableEvent(); event.GetRuntimeStatusChanged().GetRunning() != nil || event.GetRuntimeViewReplaced().GetRuntimeView().GetClock().GetRunning() != nil {
 				resumedSequence = event.Sequence
 			}
 		case <-time.After(time.Second):
