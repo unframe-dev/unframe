@@ -370,11 +370,7 @@ export const createLocalPlayback = ({
                     kind: "semanticEvent",
                     event: command.event,
                   };
-        if (
-          !playing ||
-          !event ||
-          executeCueEvent(definition, state, event).outcome.kind !== "accepted"
-        )
+        if (!event || executeCueEvent(definition, state, event).outcome.kind !== "accepted")
           throw new PreviewError(
             409,
             "preview-input-unavailable",
@@ -424,15 +420,14 @@ export const createLocalPlayback = ({
     sequence += 1n;
     const spatialState = projectSpatial(definition, state, spatial);
     const inputs = availableInputs();
-    const nextInput =
-      !inspection && playing
-        ? [...inputs].sort(
-            (a, b) =>
-              b.cue.priority - a.cue.priority ||
-              a.cue.order - b.cue.order ||
-              (a.cue.id < b.cue.id ? -1 : a.cue.id > b.cue.id ? 1 : 0),
-          )[0]
-        : undefined;
+    const nextInput = !inspection
+      ? [...inputs].sort(
+          (a, b) =>
+            b.cue.priority - a.cue.priority ||
+            a.cue.order - b.cue.order ||
+            (a.cue.id < b.cue.id ? -1 : a.cue.id > b.cue.id ? 1 : 0),
+        )[0]
+      : undefined;
     const response: PreviewPlaybackResponse = {
       state: projectPlaybackWire(
         requestId,

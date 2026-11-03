@@ -22,67 +22,75 @@ const setup = (change: (definition: PresentationDefinition) => void) => {
     now: () => 0,
   });
 };
-it("delivers a selected Gesture to the Cue engine and respects consumption", () => {
-  const playback = setup((d) => {
-    d.flow.groups.intro!.steps.start!.cues = [
-      {
-        id: "swipe",
-        order: 0,
-        priority: 0,
-        trigger: { kind: "gesture", gesture: "swipeLeft", actor: { kind: "presenter" } },
-        firePolicy: { kind: "oncePerStepEntry" },
-        actions: [],
-        next: { kind: "stay" },
-      },
-    ];
-  });
-  playback({ requestId, command: "play" });
-  expect(
-    playback({ requestId, command: "gesture", gesture: "swipeLeft" }).occurrences.map(
-      (o) => o.cueId,
-    ),
-  ).toEqual(["swipe"]);
-  expect(() => playback({ requestId, command: "gesture", gesture: "swipeLeft" })).toThrow();
-});
-it("injects an event with its source and exposes event identities", () => {
-  const playback = setup((d) => {
-    d.flow.groups.intro!.steps.start!.cues = [
-      {
-        id: "external",
-        order: 0,
-        priority: 0,
-        trigger: {
-          kind: "semanticEvent",
-          event: "sensor",
-          actor: { kind: "system", source: "runtime" },
+it.each(["paused", "playing"])(
+  "delivers a selected Gesture while %s and respects consumption",
+  (mode) => {
+    const playback = setup((d) => {
+      d.flow.groups.intro!.steps.start!.cues = [
+        {
+          id: "swipe",
+          order: 0,
+          priority: 0,
+          trigger: { kind: "gesture", gesture: "swipeLeft", actor: { kind: "presenter" } },
+          firePolicy: { kind: "oncePerStepEntry" },
+          actions: [],
+          next: { kind: "stay" },
         },
-        firePolicy: { kind: "repeatable" },
-        actions: [],
-        next: { kind: "stay" },
-      },
-    ];
-  });
-  const playing = playback({ requestId, command: "play" });
-  expect(playing.simulation?.events).toEqual([
-    { event: "sensor", actor: { kind: "system", source: "runtime" } },
-  ]);
-  expect(() =>
-    playback({
-      requestId,
-      command: "semanticEvent",
-      event: "sensor",
-      actor: { kind: "system", source: "media" },
-    }),
-  ).toThrow();
-  expect(
-    playback({
-      requestId,
-      command: "semanticEvent",
-      event: "sensor",
-      actor: { kind: "system", source: "runtime" },
-    }).occurrences.map((o) => o.cueId),
-  ).toEqual(["external"]);
-});
+      ];
+    });
+    playback({ requestId, command: "play" });
+    playback({ requestId, command: mode === "paused" ? "pause" : "poll" });
+    expect(
+      playback({ requestId, command: "gesture", gesture: "swipeLeft" }).occurrences.map(
+        (o) => o.cueId,
+      ),
+    ).toEqual(["swipe"]);
+    expect(() => playback({ requestId, command: "gesture", gesture: "swipeLeft" })).toThrow();
+  },
+);
+it.each(["paused", "playing"])(
+  "injects an event while %s with its source and exposes event identities",
+  (mode) => {
+    const playback = setup((d) => {
+      d.flow.groups.intro!.steps.start!.cues = [
+        {
+          id: "external",
+          order: 0,
+          priority: 0,
+          trigger: {
+            kind: "semanticEvent",
+            event: "sensor",
+            actor: { kind: "system", source: "runtime" },
+          },
+          firePolicy: { kind: "repeatable" },
+          actions: [],
+          next: { kind: "stay" },
+        },
+      ];
+    });
+    playback({ requestId, command: "play" });
+    const result = playback({ requestId, command: mode === "paused" ? "pause" : "poll" });
+    expect(result.simulation?.events).toEqual([
+      { event: "sensor", actor: { kind: "system", source: "runtime" } },
+    ]);
+    expect(() =>
+      playback({
+        requestId,
+        command: "semanticEvent",
+        event: "sensor",
+        actor: { kind: "system", source: "media" },
+      }),
+    ).toThrow();
+    expect(
+      playback({
+        requestId,
+        command: "semanticEvent",
+        event: "sensor",
+        actor: { kind: "system", source: "runtime" },
+      }).occurrences.map((o) => o.cueId),
+    ).toEqual(["external"]);
+  },
+);
 it("starts a fresh paused rehearsal at the selected Step with its timers armed", () => {
   const playback = setup((d) => {
     d.flow.groups.other = {
@@ -169,14 +177,14 @@ it("delivers Surface interaction identity instead of choosing a Cue ID", () => {
       },
     ];
   });
-  expect(() =>
-    playback({
-      requestId,
-      command: "surfaceInteraction",
-      surfaceId: "baked",
-      interactionId: "button",
-    }),
-  ).toThrow();
+  const paused = playback({
+    requestId,
+    command: "surfaceInteraction",
+    surfaceId: "baked",
+    interactionId: "button",
+  });
+  expect(paused.occurrences.map((o) => o.cueId)).toEqual(["click"]);
+  expect(paused.state.clock?.paused).toBeDefined();
   playback({ requestId, command: "play" });
   expect(() =>
     playback({
@@ -339,7 +347,7 @@ it("selects by priority while excluding guarded inputs", () => {
   expect(playback({ requestId, command: "input", cueId: "low" }).simulation?.nextInput).toBeNull();
 });
 
-it("does not offer the next event while paused or inspecting a Cue", () => {
+it("offers and executes inputs before play and while paused, but not during inspection", () => {
   const playback = setup((definition) => {
     definition.flow.groups.intro!.steps.start!.cues = [
       {
@@ -353,16 +361,24 @@ it("does not offer the next event while paused or inspecting a Cue", () => {
       },
     ];
   });
-  expect(playback({ requestId, command: "poll" }).simulation?.nextInput).toBeNull();
+  expect(playback({ requestId, command: "poll" }).simulation?.nextInput).toEqual({ cueId: "next" });
+  const beforePlay = playback({ requestId, command: "input", cueId: "next" });
+  expect(beforePlay.occurrences.map((o) => o.cueId)).toEqual(["next"]);
+  expect(beforePlay.state.clock?.paused).toBeDefined();
   playback({ requestId, command: "play" });
   const fired = playback({ requestId, command: "input", cueId: "next" });
   expect(fired.simulation?.nextInput).toEqual({ cueId: "next" });
-  expect(playback({ requestId, command: "pause" }).simulation?.nextInput).toBeNull();
+  expect(playback({ requestId, command: "pause" }).simulation?.nextInput).toEqual({
+    cueId: "next",
+  });
+  const paused = playback({ requestId, command: "input", cueId: "next" });
+  expect(paused.state.clock?.paused).toBeDefined();
+  expect(paused.state.clock?.runtimeTimeMs).toBe("0");
   const inspected = playback({
     requestId,
     command: "inspectCue",
     inspectionId: "b".repeat(32),
-    occurrenceId: fired.occurrences[0]!.occurrenceId,
+    occurrenceId: paused.occurrences[0]!.occurrenceId,
   });
   expect(inspected.simulation?.nextInput).toBeNull();
 });
