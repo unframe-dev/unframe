@@ -413,3 +413,74 @@ it("keeps comments and object shape when removing a spread prop override", () =>
   });
   expect(restored).toEqual({ ok: true, value: text, diagnostics: [] });
 });
+
+it("edits a React instance while preserving a direct Model and shared Timeline", () => {
+  const modelText =
+    '    { id: "logo", model: { kind: "asset-ref", assetId: "logo" }, owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" }, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] } },\n';
+  const timelineText = '  flow: { timelines: [{ id: "fade" }] },\n';
+  const text = source
+    .replace("  scene: [\n", `  scene: [\n${modelText}`)
+    .replace("\n});", `\n${timelineText}});`);
+  const base = fixture(text);
+  const model = {
+    id: "logo",
+    model: { kind: "asset-ref", assetId: "logo" },
+    owner: { kind: "presentation" },
+    audience: { kind: "all" },
+    parent: { kind: "stage" },
+    transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+  };
+  const modelStart = text.indexOf(modelText) + 4;
+  const modelEnd = modelStart + modelText.trim().length - 1;
+  const value = base.presentation.value as unknown as { scene: unknown[] };
+  const mixed = {
+    ...base,
+    presentation: {
+      ...base.presentation,
+      value: { ...value, scene: [model, ...value.scene] },
+      sourceMap: [
+        {
+          path: ["scene", 0],
+          origin: {
+            fileName: "presentation.unframe.tsx",
+            start: modelStart,
+            end: modelEnd,
+            line: 1,
+            column: 1,
+          },
+        },
+        ...base.presentation.sourceMap.map((entry) => ({
+          ...entry,
+          path: ["scene", Number(entry.path[1]) + 1],
+        })),
+      ],
+    },
+  } as unknown as PairedAuthoringDeclarationCatalog;
+  const read = readEditableReactScene(mixed, text);
+  expect(read.ok && read.value.map((item) => item.instanceId)).toEqual(["first", "second"]);
+  const patched = patchEditableReactScene(mixed, text, {
+    kind: "setProp",
+    instanceId: "first",
+    propId: "title",
+    value: "Changed",
+  });
+  expect(patched).toEqual({
+    ok: true,
+    value: text.replace('title: "One"', 'title: "Changed"'),
+    diagnostics: [],
+  });
+  const invalid = {
+    ...mixed,
+    presentation: {
+      ...mixed.presentation,
+      value: {
+        ...value,
+        scene: [{ ...model, model: { kind: "asset-ref", assetId: "" } }, ...value.scene],
+      },
+    },
+  } as unknown as PairedAuthoringDeclarationCatalog;
+  expect(readEditableReactScene(invalid, text)).toMatchObject({
+    ok: false,
+    diagnostics: [{ code: "compiler-edit-scene-invalid" }],
+  });
+});

@@ -35,6 +35,7 @@ import { checkSlotComposition, sameOwner } from "../resolution/check-slot-compos
 import { checkProjectAssetReferences } from "../validation/check-project-assets.js";
 import { resolveOpaqueProject } from "../resolution/resolve-opaque-component.js";
 import type { StaticReactSceneItem } from "@unframe-dev/authoring";
+import { lowerSceneTimelines } from "../lowering/lower-scene-timelines.js";
 
 type UnknownRecord = Record<string, unknown>;
 const canonicalQuaternion = (
@@ -132,6 +133,28 @@ const checkDeclarationProjectUnchecked = (
       typeof item === "object" && item !== null && "component" in item,
   );
   if (reactItems.length) {
+    if (
+      project.presentation.flow.timelines?.length ||
+      Object.values(project.presentation.flow.groups).some((group) =>
+        Object.values(group.steps).some((step) =>
+          step.cues.some(
+            (cue) =>
+              cue.trigger.kind === "timelineCompleted" ||
+              cue.actions.some((action) => action.kind === "timeline.play"),
+          ),
+        ),
+      )
+    )
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic(
+            "compiler-mixed-scene-timeline-unsupported",
+            ["presentation", "scene"],
+            "Shared Scene Timelines require the scene array API. Place Models and React Components in scene instead of mixing Structured instances and React Components.",
+          ),
+        ],
+      };
     const structuredItems = (mixedScene.components as readonly unknown[]).filter(
       (item) => !reactItems.includes(item as StaticReactSceneItem),
     );
@@ -183,10 +206,14 @@ const checkDeclarationProjectUnchecked = (
                       if (
                         cue.trigger.kind === "logicalInput" ||
                         cue.trigger.kind === "gesture" ||
-                        cue.trigger.kind === "zoneEdge"
+                        cue.trigger.kind === "zoneEdge" ||
+                        cue.trigger.kind === "timer" ||
+                        cue.trigger.kind === "timelineCompleted"
                       ) {
-                        const belongsToReact = cue.actions.some((action) =>
-                          reactIds.has(action.componentInstanceId),
+                        const belongsToReact = cue.actions.some(
+                          (action) =>
+                            action.kind === "component.action" &&
+                            reactIds.has(action.componentInstanceId),
                         );
                         return belongsToReact === react;
                       }
@@ -194,7 +221,9 @@ const checkDeclarationProjectUnchecked = (
                       const belongsToReact = reactIds.has(outputTrigger.componentInstanceId);
                       if (
                         cue.actions.some(
-                          (action) => reactIds.has(action.componentInstanceId) !== belongsToReact,
+                          (action) =>
+                            action.kind === "component.action" &&
+                            reactIds.has(action.componentInstanceId) !== belongsToReact,
                         )
                       )
                         return false;
@@ -215,14 +244,22 @@ const checkDeclarationProjectUnchecked = (
             (trigger.kind === "component.output" &&
               cue.actions.some(
                 (action) =>
+                  action.kind === "component.action" &&
                   reactIds.has(action.componentInstanceId) !==
-                  reactIds.has(trigger.componentInstanceId),
+                    reactIds.has(trigger.componentInstanceId),
               )) ||
             ((trigger.kind === "logicalInput" ||
+              trigger.kind === "timer" ||
               trigger.kind === "gesture" ||
               trigger.kind === "zoneEdge") &&
-              cue.actions.some((action) => reactIds.has(action.componentInstanceId)) &&
-              cue.actions.some((action) => !reactIds.has(action.componentInstanceId)))
+              cue.actions.some(
+                (action) =>
+                  action.kind === "component.action" && reactIds.has(action.componentInstanceId),
+              ) &&
+              cue.actions.some(
+                (action) =>
+                  action.kind === "component.action" && !reactIds.has(action.componentInstanceId),
+              ))
           )
             return {
               valid: false,
@@ -262,9 +299,15 @@ const checkDeclarationProjectUnchecked = (
     if (!opaque.valid) return opaque;
     const structuredNodeIds = new Set(Object.keys(structured.value.definition.scene.nodes));
     const structuredSurfaceIds = new Set(Object.keys(structured.value.definition.scene.surfaces));
+    const structuredTimelineIds = new Set(Object.keys(structured.value.definition.flow.timelines));
     if (
       Object.keys(opaque.value.definition.scene.nodes).some((id) => structuredNodeIds.has(id)) ||
-      Object.keys(opaque.value.definition.scene.surfaces).some((id) => structuredSurfaceIds.has(id))
+      Object.keys(opaque.value.definition.scene.surfaces).some((id) =>
+        structuredSurfaceIds.has(id),
+      ) ||
+      Object.keys(opaque.value.definition.flow.timelines).some((id) =>
+        structuredTimelineIds.has(id),
+      )
     )
       return {
         valid: false,
@@ -300,6 +343,10 @@ const checkDeclarationProjectUnchecked = (
       },
       flow: {
         ...structured.value.definition.flow,
+        timelines: {
+          ...structured.value.definition.flow.timelines,
+          ...opaque.value.definition.flow.timelines,
+        },
         groups: Object.fromEntries(
           Object.entries(structured.value.definition.flow.groups).map(([groupId, group]) => [
             groupId,
@@ -478,7 +525,9 @@ const checkDeclarationProjectUnchecked = (
         diagnostic(
           "compiler-component-not-found",
           path,
-          "Component manifest must resolve exactly once.",
+          entries.length === 0
+            ? `Component instance '${instance.id}' references '${instance.componentId}' version ${instance.version}, but no manifest was collected. Add the Component declaration, or correct this instance's componentId and version.`
+            : `Component instance '${instance.id}' references '${instance.componentId}' version ${instance.version}, but ${entries.length} manifests were collected. Remove duplicate declarations for this componentId and version.`,
         ),
       );
       continue;
@@ -774,16 +823,20 @@ const checkDeclarationProjectUnchecked = (
           action.preconditions.length ||
           action.effects.some(
             (effect) =>
-              !["playModelClip", "pauseModelClip", "resumeModelClip", "stopModelClip"].includes(
-                effect.kind,
-              ),
+              ![
+                "playModelClip",
+                "pauseModelClip",
+                "resumeModelClip",
+                "stopModelClip",
+                "playTimeline",
+              ].includes(effect.kind),
           ))
       )
         diagnostics.push(
           diagnostic(
             "compiler-model-feature-unsupported",
             [...path, "manifest", "actions", actionId],
-            "Model Actions support only fixed clip playback on the root.",
+            "Model Actions support fixed clip playback and host Timelines.",
           ),
         );
     }
@@ -802,15 +855,70 @@ const checkDeclarationProjectUnchecked = (
       if (
         root.kind === "model" &&
         output.producer.kind !== "modelClipCompleted" &&
-        output.producer.kind !== "timer"
+        output.producer.kind !== "timer" &&
+        output.producer.kind !== "timelineCompleted"
       )
         diagnostics.push(
           diagnostic(
             "compiler-model-feature-unsupported",
             [...path, "manifest", "outputs", outputId],
-            "Model Outputs support clip completion and timers.",
+            "Model Outputs support clip completion, Timeline completion and timers.",
           ),
         );
+    }
+    if (root.kind === "model" || root.kind === "surface") {
+      const nodeId = resourceId(instance.id, spatial.id);
+      const surfaceId = root.kind === "surface" ? resourceId(instance.id, root.id) : undefined;
+      for (const [timelineIndex, timeline] of entry.structure.timelines.entries()) {
+        const timelinePath = [...path, "structure", "timelines", timelineIndex];
+        const id = resourceId(instance.id, timeline.id);
+        if (Object.hasOwn(timelines, id) || id === nodeId || id === surfaceId || used.has(id))
+          diagnostics.push(
+            diagnostic(
+              "compiler-resource-id-collision",
+              timelinePath,
+              "Lowered resource IDs must be unique.",
+            ),
+          );
+        used.add(id);
+        const tracks: (typeof timelines)[string]["tracks"] = [];
+        for (const [trackIndex, track] of timeline.tracks.entries()) {
+          const keyframes: (typeof tracks)[number]["keyframes"] = [];
+          for (const [frameIndex, keyframe] of track.keyframes.entries()) {
+            let value = keyframe.value;
+            if (
+              track.target.property === "transform.rotation" &&
+              Array.isArray(value) &&
+              value.length === 4
+            ) {
+              const rotation = canonicalQuaternion(value as [number, number, number, number]);
+              if (!rotation)
+                diagnostics.push(
+                  diagnostic(
+                    "compiler-timeline-quaternion-invalid",
+                    [...timelinePath, "tracks", trackIndex, "keyframes", frameIndex, "value"],
+                    "Timeline rotation must be a finite nonzero Quaternion.",
+                  ),
+                );
+              else value = rotation;
+            }
+            keyframes.push({
+              timeMilliseconds: keyframe.timeMilliseconds,
+              value: value as (typeof keyframes)[number]["value"],
+              ...(keyframe.easingToNext === undefined
+                ? {}
+                : { easingToNext: keyframe.easingToNext }),
+            });
+          }
+          tracks.push({ target: { nodeId, property: track.target.property }, keyframes });
+        }
+        timelines[id] = {
+          id,
+          owner: instance.owner,
+          durationMilliseconds: timeline.durationMilliseconds,
+          tracks,
+        };
+      }
     }
     if (root.kind === "model") {
       if (
@@ -826,7 +934,6 @@ const checkDeclarationProjectUnchecked = (
           instance.slots,
           instance.variants,
         ].some((value) => Object.keys(value).length !== 0) ||
-        entry.structure.timelines.length ||
         instance.partOverrides.length ||
         entry.manifest.renderers.length
       )
@@ -834,7 +941,7 @@ const checkDeclarationProjectUnchecked = (
           diagnostic(
             "compiler-model-feature-unsupported",
             path,
-            "Model Components require empty props, slots, parts, variants, states, Timelines and renderer declarations.",
+            "Model Components require empty props, slots, parts, variants, states and renderer declarations.",
           ),
         );
       const nodeId = resourceId(instance.id, spatial.id);
@@ -928,54 +1035,6 @@ const checkDeclarationProjectUnchecked = (
       );
     const surfaceId = resourceId(instance.id, root.id);
     const nodeId = resourceId(instance.id, spatial.id);
-    for (const [timelineIndex, timeline] of entry.structure.timelines.entries()) {
-      const timelinePath = [...path, "structure", "timelines", timelineIndex];
-      const id = resourceId(instance.id, timeline.id);
-      if (Object.hasOwn(timelines, id) || id === nodeId || id === surfaceId || used.has(id))
-        diagnostics.push(
-          diagnostic(
-            "compiler-resource-id-collision",
-            timelinePath,
-            "Lowered resource IDs must be unique.",
-          ),
-        );
-      used.add(id);
-      const tracks: (typeof timelines)[string]["tracks"] = [];
-      for (const [trackIndex, track] of timeline.tracks.entries()) {
-        const keyframes: (typeof tracks)[number]["keyframes"] = [];
-        for (const [frameIndex, keyframe] of track.keyframes.entries()) {
-          let value = keyframe.value;
-          if (
-            track.target.property === "transform.rotation" &&
-            Array.isArray(value) &&
-            value.length === 4
-          ) {
-            const rotation = canonicalQuaternion(value as [number, number, number, number]);
-            if (!rotation)
-              diagnostics.push(
-                diagnostic(
-                  "compiler-timeline-quaternion-invalid",
-                  [...timelinePath, "tracks", trackIndex, "keyframes", frameIndex, "value"],
-                  "Timeline rotation must be a finite nonzero Quaternion.",
-                ),
-              );
-            else value = rotation;
-          }
-          keyframes.push({
-            timeMilliseconds: keyframe.timeMilliseconds,
-            value: value as (typeof keyframes)[number]["value"],
-            ...(keyframe.easingToNext === undefined ? {} : { easingToNext: keyframe.easingToNext }),
-          });
-        }
-        tracks.push({ target: { nodeId, property: track.target.property }, keyframes });
-      }
-      timelines[id] = {
-        id,
-        owner: instance.owner,
-        durationMilliseconds: timeline.durationMilliseconds,
-        tracks,
-      };
-    }
     if (surfaceId === nodeId || used.has(surfaceId) || used.has(nodeId))
       diagnostics.push(
         diagnostic("compiler-resource-id-collision", path, "Lowered resource IDs must be unique."),
@@ -1357,6 +1416,20 @@ const checkDeclarationProjectUnchecked = (
       groups[groupId].steps[stepId] = { id: step.id, cues: [] };
   }
   diagnostics.push(...lowerCues(presentation, components, groups));
+  diagnostics.push(
+    ...lowerSceneTimelines(
+      presentation.id,
+      presentation.flow.timelines,
+      new Map(
+        presentation.scene.components.flatMap((instance) =>
+          instance.spatialNodeId
+            ? [[instance.id, resourceId(instance.id, instance.spatialNodeId)] as const]
+            : [],
+        ),
+      ),
+      timelines,
+    ),
+  );
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
   const variables: PresentationDefinition["flow"]["variables"] = {};
   for (const [variableId, variable] of Object.entries(presentation.flow.variables))

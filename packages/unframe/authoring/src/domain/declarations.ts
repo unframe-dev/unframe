@@ -627,7 +627,18 @@ export type GestureTrigger = {
     | "spreadHands"
     | "closeHands";
 };
+export type SceneTimelineDeclaration = Omit<ComponentTimelineDeclaration, "tracks"> & {
+  tracks: readonly (Omit<ComponentTimelineDeclaration["tracks"][number], "target"> & {
+    target: {
+      kind: "instance";
+      instanceId: string;
+      property: ComponentTimelineDeclaration["tracks"][number]["target"]["property"];
+    };
+  })[];
+};
 export type CueTrigger =
+  | { kind: "timer"; afterMilliseconds: number }
+  | { kind: "timelineCompleted"; timelineId: string }
   | { kind: "logicalInput"; action: string }
   | { kind: "event"; event: string }
   | ComponentOutputReference
@@ -653,7 +664,10 @@ export type CueNext =
   | { kind: "group"; groupId: string };
 export type CueDeclaration = StableDeclaration & {
   trigger: CueTrigger;
-  actions: readonly ComponentActionInvocation[];
+  actions: readonly (
+    | ComponentActionInvocation
+    | { kind: "timeline.play"; timelineId: string; completion: "blocking" | "nonBlocking" }
+  )[];
   priority?: number;
   order?: number;
   guard?: CueGuard;
@@ -676,6 +690,7 @@ export type FlowDeclaration = {
   initialGroupId: string;
   groups: Readonly<Record<string, FlowGroupDeclaration>>;
   variables: Readonly<Record<string, VariableDeclaration>>;
+  timelines?: readonly SceneTimelineDeclaration[];
 };
 export type PresentationDeclaration = StableDeclaration & {
   metadata: { title: string };

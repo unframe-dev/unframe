@@ -249,3 +249,36 @@ it("creates a patch bound to the analyzed source snapshot and target hash", () =
   });
   if (result.ok) expect(result.value.sourceText).toContain('title: "New"');
 }, 20000);
+
+it("patches and restores a React prop without changing Model or shared Timeline", () => {
+  const presentation = `import {definePresentation} from "@unframe-dev/authoring";
+    import {Hero} from "ui-kit";
+    export default definePresentation({id: "deck", metadata: { title: "Deck" }, stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] },
+      scene: [
+        {id: "logo", model: {kind: "asset-ref", assetId: "logo"}, owner: {kind: "presentation"}, audience: {kind: "all"}, parent: {kind: "stage"}, transform: {position: [0,0,0], rotation: [0,0,0,1], scale: [1,1,1]}},
+        {id: "opening", component: Hero, owner: {kind: "presentation"}, audience: {kind: "all"}, parent: {kind: "stage"}, physicalSizeMeters: [1,1], fit: "contain", transform: {position: [0,0,0], rotation: [0,0,0,1], scale: [1,1,1]}, props: {title: "Hi"}}
+      ], assets: [{kind: "asset-ref", assetId: "logo"}], flow: { initialGroupId: "group", groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [{id: "start", trigger: {kind: "timer", afterMilliseconds: 1}, actions: [{kind: "timeline.play", timelineId: "fade", completion: "nonBlocking"}]}] } } } }, variables: {}, timelines: [{id: "fade", durationMilliseconds: 100, tracks: [{target: {kind: "instance", instanceId: "logo", property: "opacity"}, keyframes: [{timeMilliseconds: 0, value: 0, easingToNext: "linear"}, {timeMilliseconds: 100, value: 1}]}]}] }, operations: []});`;
+  const snapshot = createSourceSnapshot(analyze(component, presentation, undefined, [], true));
+  expect(snapshot.ok).toBe(true);
+  if (!snapshot.ok) return;
+  const changed = createReactScenePatch({
+    snapshot: snapshot.value,
+    fileName: "presentation.ts",
+    targetHash: hashText(presentation),
+    command: { kind: "setProp", instanceId: "opening", propId: "title", value: "New" },
+  });
+  expect(changed.ok).toBe(true);
+  if (!changed.ok) return;
+  const changedText = presentation.replace('title: "Hi"', 'title: "New"');
+  expect(changed.value.sourceText).toBe(changedText);
+  const next = createSourceSnapshot(analyze(component, changedText, undefined, [], true));
+  expect(next.ok).toBe(true);
+  if (!next.ok) return;
+  const restored = createReactScenePatch({
+    snapshot: next.value,
+    fileName: "presentation.ts",
+    targetHash: hashText(changedText),
+    command: { kind: "setProp", instanceId: "opening", propId: "title", value: "Hi" },
+  });
+  expect(restored.ok && restored.value.sourceText).toBe(presentation);
+}, 20000);

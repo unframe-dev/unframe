@@ -4,11 +4,13 @@ import {
   isPresentationDeclaration,
   isThemeDeclaration,
   validateStaticReactSceneItem,
+  validateStaticSceneItem,
   type ComponentManifest,
   type ComponentStructure,
   type PresentationDeclaration,
   type StaticComponentMetadata,
   type StaticReactSceneItem,
+  type StaticSceneItem,
   type ThemeDeclaration,
 } from "@unframe-dev/authoring";
 import type { DeclarationSourceOrigin } from "../lowering/lower-authoring-declaration.js";
@@ -43,7 +45,7 @@ export type PairedComponentDeclaration =
     };
 
 type ReactPresentationDeclaration = Omit<PresentationDeclaration, "scene"> & {
-  readonly scene: readonly StaticReactSceneItem[];
+  readonly scene: readonly StaticSceneItem[];
 };
 type MixedPresentationDeclaration = Omit<PresentationDeclaration, "scene"> & {
   readonly scene: Omit<PresentationDeclaration["scene"], "components"> & {
@@ -193,7 +195,7 @@ const isReactPresentation = (value: unknown): value is ReactPresentationDeclarat
   if (!isPresentationDeclaration({ ...presentation, scene: { spatial: [], components: [] } }))
     return false;
   try {
-    presentation.scene.forEach(validateStaticReactSceneItem);
+    presentation.scene.forEach(validateStaticSceneItem);
     return true;
   } catch {
     return false;
@@ -448,7 +450,7 @@ export const pairAuthoringDeclarations = (
           manifest,
           ["authoring", "structure"],
           "compiler-component-structure-not-found",
-          `No collected component structure exists at '${structurePath}'.`,
+          `Component '${manifest.value.componentId}' in '${manifest.fileName}' references missing structure '${structurePath}'. Add a defineComponentStructure declaration there, or correct authoring.structure in the manifest.`,
         ),
       );
       continue;
@@ -479,7 +481,7 @@ export const pairAuthoringDeclarations = (
         structure,
         [],
         "compiler-component-structure-unreferenced",
-        `Component structure '${structure.fileName}' is not referenced by a structured component manifest.`,
+        `Component '${structure.value.componentId}' structure '${structure.fileName}' has no referring manifest. Add a defineComponentManifest declaration with componentId '${structure.value.componentId}' and authoring.structure pointing to this file, or remove the unused structure.`,
       ),
     );
   }

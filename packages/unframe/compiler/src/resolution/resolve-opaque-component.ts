@@ -2,8 +2,9 @@ import {
   buildOpaqueComponentManifest,
   isPresentationDeclaration,
   validateStaticComponentMetadata,
-  validateStaticReactSceneItem,
+  validateStaticSceneItem,
   type StaticReactSceneItem,
+  type StaticSceneItem,
 } from "@unframe-dev/authoring";
 import {
   canonicalizePresentationDefinition,
@@ -24,15 +25,24 @@ import type {
 import { diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
 import { hashJson, renderIntent } from "../lowering/support.js";
 import { checkProjectAssetReferences } from "../validation/check-project-assets.js";
+import { lowerSceneTimelines, sceneTimelineId } from "../lowering/lower-scene-timelines.js";
 
 type ReactProject = CompilerDeclarationProject & {
   presentation: Omit<CompilerDeclarationProject["presentation"], "scene"> & {
-    scene: readonly StaticReactSceneItem[];
+    scene: readonly StaticSceneItem[];
   };
 };
 
 export const reactResourceId = (
-  kind: "host" | "surface" | "semantic" | "interaction" | "action" | "output" | "state",
+  kind:
+    | "host"
+    | "surface"
+    | "semantic"
+    | "interaction"
+    | "action"
+    | "output"
+    | "state"
+    | "timeline",
   instanceId: string,
   localKey = "",
 ): string =>
@@ -87,19 +97,20 @@ export const resolveOpaqueProject = (
 
   const nodes: PresentationDefinition["scene"]["nodes"] = {};
   const surfaces: PresentationDefinition["scene"]["surfaces"] = {};
+  const timelines: PresentationDefinition["flow"]["timelines"] = {};
   const seenInstances = new Set<string>();
   const usedIds = new Set<string>();
   for (const [index, raw] of presentation.scene.entries()) {
     const path = ["presentation", "scene", index] as const;
-    let item: StaticReactSceneItem;
+    let item: StaticSceneItem;
     try {
-      item = validateStaticReactSceneItem(raw);
+      item = validateStaticSceneItem(raw);
     } catch {
       diagnostics.push(
         diagnostic(
           "compiler-invalid-react-instance",
           path,
-          "React scene item has an invalid static descriptor.",
+          "Scene item must declare a valid React component or Model asset and placement.",
         ),
       );
       continue;
@@ -115,6 +126,38 @@ export const resolveOpaqueProject = (
       continue;
     }
     seenInstances.add(item.id);
+    if ("model" in item) {
+      const hostId = reactResourceId("host", item.id);
+      const rotation = canonicalRotation(item.transform.rotation);
+      if (!rotation)
+        diagnostics.push(
+          diagnostic(
+            "compiler-invalid-quaternion",
+            [...path, "transform", "rotation"],
+            `Model "${item.id}" rotation must be a finite nonzero quaternion.`,
+          ),
+        );
+      nodes[hostId] = {
+        id: hostId,
+        kind: "model",
+        name: item.id,
+        owner: item.owner,
+        audience: item.audience,
+        parent: item.parent,
+        order: index,
+        active: true,
+        visible: true,
+        opacity: item.opacity ?? 1,
+        transform: {
+          position: [...item.transform.position],
+          rotation: rotation ?? [0, 0, 0, 1],
+          scale: [...item.transform.scale],
+        },
+        assetId: item.model.assetId,
+      };
+      usedIds.add(hostId);
+      continue;
+    }
     const candidates = project.components.filter(
       ({ manifest }) =>
         manifest.componentId === item.component.id && manifest.version === item.component.version,
@@ -124,7 +167,7 @@ export const resolveOpaqueProject = (
         diagnostic(
           "compiler-component-not-found",
           path,
-          "Opaque Component must resolve exactly once.",
+          `Scene instance "${item.id}" requires one React Component "${item.component.id}" version ${item.component.version}; found ${candidates.length}. Import its defineComponent declaration and check its ID and version.`,
         ),
       );
       continue;
@@ -273,6 +316,9 @@ export const resolveOpaqueProject = (
       ),
       ...Object.keys(metadata.actions ?? {}).map((key) => reactResourceId("action", item.id, key)),
       ...Object.keys(metadata.outputs ?? {}).map((key) => reactResourceId("output", item.id, key)),
+      ...(metadata.timelines ?? []).map((timeline) =>
+        reactResourceId("timeline", item.id, timeline.id),
+      ),
       ...Object.keys(semanticNodes),
     ]) {
       if (usedIds.has(id))
@@ -300,9 +346,38 @@ export const resolveOpaqueProject = (
       order: index,
       active: true,
       visible: true,
-      opacity: 1,
+      opacity: item.opacity ?? 1,
       surfaceId,
     };
+    for (const timeline of metadata.timelines ?? []) {
+      const id = reactResourceId("timeline", item.id, timeline.id);
+      timelines[id] = {
+        id,
+        owner: item.owner,
+        durationMilliseconds: timeline.durationMilliseconds,
+        tracks: timeline.tracks.map((track) => ({
+          target: { nodeId: hostId, property: track.target.property },
+          keyframes: track.keyframes.map((keyframe) => {
+            if (
+              track.target.property !== "transform.rotation" ||
+              !Array.isArray(keyframe.value) ||
+              keyframe.value.length !== 4
+            )
+              return { ...keyframe };
+            const rotation = canonicalRotation(keyframe.value as [number, number, number, number]);
+            if (!rotation)
+              diagnostics.push(
+                diagnostic(
+                  "compiler-invalid-quaternion",
+                  [...path, "timelines", timeline.id],
+                  "Timeline rotation must be a finite nonzero quaternion.",
+                ),
+              );
+            return { ...keyframe, value: rotation ?? keyframe.value };
+          }),
+        })),
+      };
+    }
     surfaces[surfaceId] = {
       id: surfaceId,
       hostNodeId: hostId,
@@ -376,6 +451,14 @@ export const resolveOpaqueProject = (
       },
     };
   }
+  diagnostics.push(
+    ...lowerSceneTimelines(
+      presentation.id,
+      presentation.flow.timelines,
+      new Map(Object.values(nodes).map((node) => [node.name!, node.id])),
+      timelines,
+    ),
+  );
   const groups: PresentationDefinition["flow"]["groups"] = {};
   for (const [groupId, group] of Object.entries(presentation.flow.groups)) {
     groups[groupId] = { id: group.id, initialStepId: group.initialStepId, steps: {} };
@@ -396,7 +479,9 @@ export const resolveOpaqueProject = (
           cue.trigger.kind !== "logicalInput" &&
           cue.trigger.kind !== "component.output" &&
           cue.trigger.kind !== "gesture" &&
-          cue.trigger.kind !== "zoneEdge"
+          cue.trigger.kind !== "zoneEdge" &&
+          cue.trigger.kind !== "timer" &&
+          cue.trigger.kind !== "timelineCompleted"
         ) {
           diagnostics.push(
             diagnostic(
@@ -408,9 +493,25 @@ export const resolveOpaqueProject = (
           continue;
         }
         const outputTrigger = cue.trigger;
+        if (
+          outputTrigger.kind === "timelineCompleted" &&
+          !timelines[sceneTimelineId(presentation.id, outputTrigger.timelineId)]
+        ) {
+          diagnostics.push(
+            diagnostic(
+              "compiler-timeline-not-found",
+              [...path, "trigger"],
+              `Scene Timeline "${outputTrigger.timelineId}" is not declared. Add it to flow.timelines or correct the Timeline ID.`,
+            ),
+          );
+          continue;
+        }
         const triggerInstance =
           outputTrigger.kind === "component.output"
-            ? presentation.scene.find((item) => item.id === outputTrigger.componentInstanceId)
+            ? presentation.scene.find(
+                (item): item is StaticReactSceneItem =>
+                  "component" in item && item.id === outputTrigger.componentInstanceId,
+              )
             : undefined;
         const triggerComponent =
           triggerInstance &&
@@ -423,15 +524,12 @@ export const resolveOpaqueProject = (
           outputTrigger.kind === "component.output"
             ? triggerComponent?.manifest.outputs[outputTrigger.outputId]
             : undefined;
-        if (
-          outputTrigger.kind === "component.output" &&
-          (!triggerInstance || !output || output.producer.kind !== "surfaceInteraction")
-        ) {
+        if (outputTrigger.kind === "component.output" && (!triggerInstance || !output)) {
           diagnostics.push(
             diagnostic(
               "compiler-output-not-found",
               [...path, "trigger"],
-              "Component Output must resolve to a declared surface Interaction.",
+              "Component Output must resolve to a declared producer.",
             ),
           );
           continue;
@@ -439,8 +537,22 @@ export const resolveOpaqueProject = (
         const actions: (typeof cues)[number]["actions"] = [];
         for (const [actionIndex, invocation] of cue.actions.entries()) {
           const actionPath = [...path, "actions", actionIndex];
+          if (invocation.kind === "timeline.play") {
+            const id = sceneTimelineId(presentation.id, invocation.timelineId);
+            if (!timelines[id])
+              diagnostics.push(
+                diagnostic(
+                  "compiler-timeline-not-found",
+                  actionPath,
+                  `Scene Timeline "${invocation.timelineId}" is not declared. Add it to flow.timelines or correct the Timeline ID.`,
+                ),
+              );
+            actions.push({ ...invocation, timelineId: id, conflict: "reject" });
+            continue;
+          }
           const targetInstance = presentation.scene.find(
-            (item) => item.id === invocation.componentInstanceId,
+            (item): item is StaticReactSceneItem =>
+              "component" in item && item.id === invocation.componentInstanceId,
           );
           const targetComponent =
             targetInstance &&
@@ -464,13 +576,15 @@ export const resolveOpaqueProject = (
             Object.keys(invocation.arguments).length ||
             Object.keys(declaration.inputs).length ||
             declaration.preconditions.length ||
-            declaration.effects.some((effect) => effect.kind !== "setSurfaceState")
+            declaration.effects.some(
+              (effect) => effect.kind !== "setSurfaceState" && effect.kind !== "playTimeline",
+            )
           ) {
             diagnostics.push(
               diagnostic(
                 "compiler-opaque-action-invalid",
                 actionPath,
-                "React Action requires no inputs or preconditions and only finite State effects.",
+                "React Action requires no inputs or preconditions and only State or Timeline effects.",
               ),
             );
             continue;
@@ -482,6 +596,13 @@ export const resolveOpaqueProject = (
                 surfaceId: reactResourceId("surface", targetInstance.id),
                 stateId: reactResourceId("state", targetInstance.id, effect.stateId),
                 ...(effect.transition ? { transition: effect.transition } : {}),
+              });
+            else if (effect.kind === "playTimeline")
+              actions.push({
+                kind: "timeline.play",
+                timelineId: reactResourceId("timeline", targetInstance.id, effect.timelineId),
+                completion: effect.completion,
+                conflict: "reject",
               });
         }
         if (cue.guard) {
@@ -499,28 +620,50 @@ export const resolveOpaqueProject = (
           priority: cue.priority ?? 0,
           order: cue.order ?? index,
           trigger:
-            outputTrigger.kind === "logicalInput"
-              ? { kind: "logicalInput", action: outputTrigger.action, actor: { kind: "presenter" } }
-              : outputTrigger.kind === "zoneEdge"
-                ? { ...outputTrigger, actor: { kind: "presenter" } }
-                : outputTrigger.kind === "gesture"
-                  ? ({
-                      kind: "gesture",
+            outputTrigger.kind === "timer"
+              ? { ...outputTrigger }
+              : outputTrigger.kind === "timelineCompleted"
+                ? {
+                    kind: "timelineCompleted",
+                    timelineId: sceneTimelineId(presentation.id, outputTrigger.timelineId),
+                  }
+                : outputTrigger.kind === "logicalInput"
+                  ? {
+                      kind: "logicalInput",
+                      action: outputTrigger.action,
                       actor: { kind: "presenter" },
-                      gesture: outputTrigger.gesture,
-                    } as (typeof cues)[number]["trigger"])
-                  : {
-                      kind: "surfaceInteraction",
-                      actor: { kind: "presenter" },
-                      surfaceId: reactResourceId("surface", triggerInstance!.id),
-                      interactionId: reactResourceId(
-                        "interaction",
-                        triggerInstance!.id,
-                        output!.producer.kind === "surfaceInteraction"
-                          ? output!.producer.interactionId
-                          : "",
-                      ),
-                    },
+                    }
+                  : outputTrigger.kind === "zoneEdge"
+                    ? { ...outputTrigger, actor: { kind: "presenter" } }
+                    : outputTrigger.kind === "gesture"
+                      ? ({
+                          kind: "gesture",
+                          actor: { kind: "presenter" },
+                          gesture: outputTrigger.gesture,
+                        } as (typeof cues)[number]["trigger"])
+                      : output?.producer.kind === "timer"
+                        ? { kind: "timer", afterMilliseconds: output.producer.afterMilliseconds }
+                        : output?.producer.kind === "timelineCompleted"
+                          ? {
+                              kind: "timelineCompleted",
+                              timelineId: reactResourceId(
+                                "timeline",
+                                triggerInstance!.id,
+                                output.producer.timelineId,
+                              ),
+                            }
+                          : {
+                              kind: "surfaceInteraction",
+                              actor: { kind: "presenter" },
+                              surfaceId: reactResourceId("surface", triggerInstance!.id),
+                              interactionId: reactResourceId(
+                                "interaction",
+                                triggerInstance!.id,
+                                output!.producer.kind === "surfaceInteraction"
+                                  ? output!.producer.interactionId
+                                  : "",
+                              ),
+                            },
           fixedPayload: Object.fromEntries(
             Object.entries(output?.payload ?? {}).map(([key, field]) => [key, field.value]),
           ),
@@ -546,7 +689,12 @@ export const resolveOpaqueProject = (
       type: variable.type,
       initialValue: variable.initialValue,
     };
-  const checkedAssets = checkProjectAssetReferences(presentation.assets, project.assets, surfaces);
+  const checkedAssets = checkProjectAssetReferences(
+    presentation.assets,
+    project.assets,
+    surfaces,
+    nodes,
+  );
   diagnostics.push(...checkedAssets.diagnostics);
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
   const definition: PresentationDefinition = {
@@ -564,7 +712,7 @@ export const resolveOpaqueProject = (
       ),
     },
     scene: { nodes, surfaces },
-    flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines: {} },
+    flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines },
   };
   const checked = validatePresentationDefinition(definition);
   if (!checked.valid) return { valid: false, diagnostics: sortDiagnostics(checked.diagnostics) };

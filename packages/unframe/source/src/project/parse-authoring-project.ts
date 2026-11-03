@@ -10,6 +10,7 @@ import {
 } from "./parse-locked-packages.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { parseAuthoringSource } from "../syntax/parse-authoring-source.js";
+import { declarationFileRole } from "./declaration-file-role.js";
 
 type ProjectSourceDiagnostic = {
   readonly code: string;
@@ -412,6 +413,9 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
     }
   };
   visit(entryFile);
+  if (preparedStyles)
+    for (const file of files)
+      if (declarationFileRole(file.fileName, entryFile)) visit(file.fileName);
   const parsedFiles: Record<string, ts.SourceFile> = {};
   for (const file of [...files].sort((left, right) =>
     left.fileName < right.fileName ? -1 : left.fileName > right.fileName ? 1 : 0,

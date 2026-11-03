@@ -110,7 +110,8 @@ export const planCheckedDeclarationProject = (
               typeof item === "object" && item !== null && "component" in item,
           );
       const instance = reactScene.find(
-        (item) => reactResourceId("surface", item.id) === surface.id,
+        (item): item is import("@unframe-dev/authoring").StaticReactSceneItem =>
+          "component" in item && reactResourceId("surface", item.id) === surface.id,
       );
       const component =
         instance &&

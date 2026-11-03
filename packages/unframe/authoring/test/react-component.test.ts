@@ -24,6 +24,88 @@ const hero = {
 } as const;
 
 describe("React Component static metadata", () => {
+  it("declares host Timelines and automatic Outputs without finite States", () => {
+    const component = defineComponent({
+      ...hero,
+      timelines: [
+        {
+          id: "opening",
+          durationMilliseconds: 900,
+          tracks: [
+            {
+              target: { kind: "host", property: "opacity" },
+              keyframes: [
+                { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+                { timeMilliseconds: 900, value: 1 },
+              ],
+            },
+          ],
+        },
+      ],
+      actions: {
+        play: {
+          inputs: {},
+          preconditions: [],
+          effects: [{ kind: "playTimeline", timelineId: "opening", completion: "nonBlocking" }],
+        },
+      },
+      outputs: {
+        started: { payload: {}, producer: { kind: "timer", afterMilliseconds: 1 } },
+        finished: { payload: {}, producer: { kind: "timelineCompleted", timelineId: "opening" } },
+      },
+      render: () => null,
+    });
+    const { render: _render, ...metadata } = component;
+    const manifest = buildOpaqueComponentManifest(
+      validateStaticComponentMetadata(metadata),
+      "brand.component.tsx#render",
+    );
+    expect(manifest.actions.play?.effects).toEqual([
+      { kind: "playTimeline", timelineId: "opening", completion: "nonBlocking" },
+    ]);
+    expect(manifest.outputs.started?.producer).toEqual({ kind: "timer", afterMilliseconds: 1 });
+    expect(manifest.outputs.finished?.producer).toEqual({
+      kind: "timelineCompleted",
+      timelineId: "opening",
+    });
+    expect(() =>
+      definePresentation({
+        id: "demo",
+        metadata: { title: "Demo" },
+        stage: {
+          coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
+          size: [4, 3, 4],
+        },
+        scene: [
+          {
+            id: "brand",
+            component,
+            props: { title: "Unframe" },
+            owner: { kind: "presentation" },
+            audience: { kind: "all" },
+            parent: { kind: "stage" },
+            physicalSizeMeters: [1.6, 0.9],
+            fit: "contain",
+            transform: { position: [0, 1.6, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+            opacity: 0,
+          },
+        ],
+        assets: [],
+        flow: {
+          initialGroupId: "main",
+          groups: {
+            main: {
+              id: "main",
+              initialStepId: "opening",
+              steps: { opening: { id: "opening", cues: [] } },
+            },
+          },
+          variables: {},
+        },
+        operations: [],
+      }),
+    ).not.toThrow();
+  });
   it("lowers finite states and public operations into the canonical opaque manifest", () => {
     const metadata = validateStaticComponentMetadata({
       ...hero,
@@ -79,6 +161,36 @@ describe("React Component static metadata", () => {
         },
       },
     });
+  });
+  it("rejects dangling Action and completion Output Timeline references", () => {
+    expect(() =>
+      validateStaticComponentMetadata({
+        ...hero,
+        actions: {
+          play: {
+            inputs: {},
+            preconditions: [],
+            effects: [{ kind: "playTimeline", timelineId: "missing", completion: "nonBlocking" }],
+          },
+        },
+      }),
+    ).toThrow("Unknown Action Timeline");
+    expect(() =>
+      validateStaticComponentMetadata({
+        ...hero,
+        outputs: {
+          finished: { payload: {}, producer: { kind: "timelineCompleted", timelineId: "missing" } },
+        },
+      }),
+    ).toThrow("Unknown Output Timeline");
+  });
+  it("rejects a zero-delay timer Output at the React metadata boundary", () => {
+    const metadata = {
+      ...hero,
+      outputs: { started: { payload: {}, producer: { kind: "timer", afterMilliseconds: 0 } } },
+    } as const;
+    expect(() => validateStaticComponentMetadata(metadata)).toThrow();
+    expect(() => defineComponent({ ...metadata, render: () => null })).toThrow();
   });
   it("rejects dangling State, Interaction and semantic override references", () => {
     const base = {

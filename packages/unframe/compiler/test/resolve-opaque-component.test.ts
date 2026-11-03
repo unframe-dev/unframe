@@ -6,6 +6,7 @@ import {
 } from "@unframe-dev/authoring";
 import { checkDeclarationProject } from "../src/api/check-declaration-project.js";
 import { reactResourceId } from "../src/resolution/resolve-opaque-component.js";
+import { resolvePresentation } from "../src/index.js";
 
 const metadata = validateStaticComponentMetadata({
   id: "hero",
@@ -91,6 +92,107 @@ const project = (scene: ReturnType<typeof item>[]) => ({
 });
 
 describe("Opaque React lowering", () => {
+  it.each([false, true])(
+    "lowers host Timeline actions and timer/completion Outputs (mixed=%s)",
+    (mixed) => {
+      const input = project([item("brand")]);
+      const animated = validateStaticComponentMetadata({
+        ...metadata,
+        timelines: [
+          {
+            id: "opening",
+            durationMilliseconds: 3000,
+            tracks: [
+              {
+                target: { kind: "host", property: "opacity" },
+                keyframes: [
+                  { timeMilliseconds: 0, value: 0, easingToNext: "cubicInOut" },
+                  { timeMilliseconds: 3000, value: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+        actions: {
+          play: {
+            inputs: {},
+            preconditions: [],
+            effects: [{ kind: "playTimeline", timelineId: "opening", completion: "nonBlocking" }],
+          },
+        },
+        outputs: {
+          started: { payload: {}, producer: { kind: "timer", afterMilliseconds: 1 } },
+          finished: { payload: {}, producer: { kind: "timelineCompleted", timelineId: "opening" } },
+        },
+      });
+      input.components[0] = {
+        ...input.components[0]!,
+        metadata: animated,
+        manifest: buildOpaqueComponentManifest(animated, "hero.component.tsx#render"),
+      };
+      const openingCues = [
+        {
+          id: "start",
+          trigger: { kind: "component.output", componentInstanceId: "brand", outputId: "started" },
+          actions: [
+            {
+              kind: "component.action",
+              componentInstanceId: "brand",
+              actionId: "play",
+              arguments: {},
+            },
+          ],
+        },
+        {
+          id: "finished",
+          trigger: { kind: "component.output", componentInstanceId: "brand", outputId: "finished" },
+          actions: [],
+        },
+      ];
+      const scene = input.presentation.scene.map((item) => ({ ...item, opacity: 0 }));
+      const result = resolvePresentation({
+        ...input,
+        presentation: {
+          ...input.presentation,
+          scene: mixed ? { spatial: [], components: scene } : scene,
+          flow: {
+            ...input.presentation.flow,
+            groups: {
+              main: {
+                id: "main",
+                initialStepId: "first",
+                steps: { first: { id: "first", cues: openingCues } },
+              },
+            },
+          },
+        },
+      });
+      assert.isTrue(result.valid, JSON.stringify(result.diagnostics));
+      const hostId = reactResourceId("host", "brand");
+      const timelineId = reactResourceId("timeline", "brand", "opening");
+      expect(result.value.scene.nodes[hostId]?.opacity).toBe(0);
+      expect(result.value.flow.timelines[timelineId]).toEqual({
+        id: timelineId,
+        owner: { kind: "presentation" },
+        durationMilliseconds: 3000,
+        tracks: [
+          {
+            target: { nodeId: hostId, property: "opacity" },
+            keyframes: [
+              { timeMilliseconds: 0, value: 0, easingToNext: "cubicInOut" },
+              { timeMilliseconds: 3000, value: 1 },
+            ],
+          },
+        ],
+      });
+      const cues = result.value.flow.groups.main!.steps.first!.cues;
+      expect(cues[0]?.trigger).toEqual({ kind: "timer", afterMilliseconds: 1 });
+      expect(cues[0]?.actions).toEqual([
+        { kind: "timeline.play", timelineId, completion: "nonBlocking", conflict: "reject" },
+      ]);
+      expect(cues[1]?.trigger).toEqual({ kind: "timelineCompleted", timelineId });
+    },
+  );
   it.each([
     { kind: "logicalInput", action: "presenter.next" },
     { kind: "gesture", gesture: "pullBackward" },

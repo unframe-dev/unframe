@@ -1,4 +1,5 @@
 import * as ts from "typescript";
+import { validateStaticSceneItem } from "@unframe-dev/authoring";
 
 import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
 import { parseAuthoringSource } from "../syntax/parse-authoring-source.js";
@@ -232,6 +233,14 @@ const sceneItems = (
         "compiler-edit-scene-unsupported",
         "Scene item cannot be uniquely matched to a direct source declaration.",
       );
+    if (Object.hasOwn(value, "model")) {
+      try {
+        validateStaticSceneItem(value);
+      } catch {
+        return fail("compiler-edit-scene-invalid", "Scene item is invalid.");
+      }
+      continue;
+    }
     result.push({
       value,
       syntax: {

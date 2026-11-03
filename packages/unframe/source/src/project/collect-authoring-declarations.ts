@@ -1,4 +1,5 @@
 import type { DeclarationSourceOrigin } from "../lowering/lower-authoring-declaration.js";
+import { declarationFileRole } from "./declaration-file-role.js";
 import {
   normalizeDeclarationGraph,
   type DeclarationSourceMapEntry,
@@ -59,24 +60,6 @@ export type CollectedAuthoringDeclarationsSuccess = Extract<
   CollectedAuthoringDeclarations,
   { readonly ok: true }
 >;
-
-const roleFor = (fileName: string, entryFileName: string) => {
-  if (fileName === entryFileName)
-    return { role: "presentation", rootBuilder: "definePresentation" } as const;
-  if (fileName.endsWith(".unframe.ts"))
-    return { role: "theme", rootBuilder: "defineTheme" } as const;
-  if (fileName.endsWith(".manifest.ts"))
-    return {
-      role: "component-manifest",
-      rootBuilder: "defineComponentManifest",
-    } as const;
-  if (fileName.endsWith(".structure.tsx"))
-    return {
-      role: "component-structure",
-      rootBuilder: "defineComponentStructure",
-    } as const;
-  return undefined;
-};
 
 const compareDiagnostics = (
   left: DeclarationCollectionDiagnostic,
@@ -147,7 +130,7 @@ export const collectAuthoringDeclarations = (
   const declarations: CollectedAuthoringDeclaration[] = [];
   for (const { sourceFile, fileName } of files) {
     if (fileName.endsWith(".d.ts")) continue;
-    const role = roleFor(fileName, entryFileName);
+    const role = declarationFileRole(fileName, entryFileName);
     if (!role) continue;
     const lowered = lowerAuthoringDeclarationFile(analyzed, sourceFile, false, reactFacades);
     if (!lowered.ok) {

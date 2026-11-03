@@ -14,7 +14,7 @@ Surface の Structured / Opaque 表現と Renderer の binding 検証の境界�
 
 Component 作者は公開契約と見た目を一ファイルで定義し、Presentation 作者は Component を一つ import して Props、3D 配置、Flow を記述する。Manifest、renderer entry、内部 Runtime ID、lock を配置のたびに手で結ばない。CSS・画像・描画 helper を別ファイルへ分けることは許す。
 
-現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Source pairing](../../packages/unframe/source/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe/renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/web/local-editor/src/app/main.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
+現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Source pairing](../../packages/unframe/source/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe/render-browser/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Local Editor](../../app/web/local-editor/src/app/main.tsx) は Source Inspector と Unity Preview を統合し、CLI Host に接続する。
 
 ## 2. 作者向け API の三例
 
@@ -231,6 +231,24 @@ export default definePresentation({
 
 Opaque の Theme 指定は任意とし、未指定でも宣言検証を通す。明示した場合は参照先が一意に解決することを検証する。Structured の Theme 解決規則は維持する。
 
+### 2.4 React と Model を一つの Timeline で動かす
+
+`scene` 配列には React の `component` 配置と、`model: { kind: "asset-ref", assetId: "logo-model" }` の配置を混在できる。Model の配置には独立した Manifest / Structure は不要である。両者の `id`、`owner`、`audience`、`parent`、`transform`、初期 `opacity` は同じ規則で指定する。現在は Presentation 所有、全員向け、Stage 直下に限定する。Model の素材は `unframe.config.ts` と Presentation の `assets` に登録する。
+
+配置をまたぐ演出は `flow.timelines` に定義する。各 track の target は `{ kind: "instance", instanceId: "logo", property: "opacity" }` のように scene の配置 ID を参照する。property は `opacity` / `transform.position` / `transform.rotation` / `transform.scale`。Component 内部の host Timeline と同じ duration、keyframe、easing の規則を使う。文字と Model の track を同じ Timeline に入れると、一つの Runtime run として開始・完了する。
+
+```ts
+{
+  id: "start-opening",
+  trigger: { kind: "timer", afterMilliseconds: 1 },
+  actions: [
+    { kind: "timeline.play", timelineId: "opening", completion: "nonBlocking" },
+  ],
+}
+```
+
+Cue の `timer` は Step 進入からの正整数 ms、`timeline.play` は `flow.timelines` の ID を参照する。同じ Timeline の再生中、または別の再生と Node の property が重なる場合は競合を拒否する。`{ kind: "timelineCompleted", timelineId: "opening" }` で共有 Timeline の完了を受け取れる。既存の Structured / React 混在 object scene では共有 Timeline を使えない。配列 API の配置対象は React Component と Model asset に限る。実際の配置と全 track は [開幕サンプル](../../example/presentation.unframe.tsx)、動作検証は [開幕テスト](../../example/test/opening.test.mjs) を参照する。
+
 ## 3. 静的抽出と描画の境界
 
 ```text
@@ -264,15 +282,15 @@ Presentation ──→ Instance / host Spatial / Surface ──→ isolated Brow
 | scene 配列順                                  | host の order。並べ替えても ID は変えない                                                                   |
 | React source / CSS / font / 画像 / 依存       | renderer entry hash、依存 integrity、provenance と成果物                                                    |
 
-host の初期値は `active: true`、`visible: true`、`opacity: 1`、name は Instance ID とする。初期 API は Transform 全要素と物理サイズを必須にする。静的 Component が states を省略した場合、単一の `default` State と空の公開操作を生成する。State を宣言した場合は initialState を必須にし、暗黙の State は加えない。
+host の初期値は `active: true`、`visible: true`、name は Instance ID とする。`opacity` は指定値を使い、省略時は1。Transform 全要素は必須であり、React 配置には物理サイズと fit も指定する。Model 配置には物理サイズと fit を持たせない。静的 Component が states を省略した場合、単一の `default` State と空の公開操作を生成する。State を宣言した場合は initialState を必須にし、暗黙の State は加えない。
 
-ローカル Component は entry と到達する local files の hash で revision を識別し、配布 package の version / integrity を持たない。外部 package は pnpm locator と content integrity、dependency graph で固定する。lock / assembly は local / package origin と structured / opaque mode の union に変更する。具体的な serialized shape、循環依存の扱い、hash 入力と生成 ID の算出は [実装 contract 0節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v3-と生成-id) を正本とする。
+ローカル Component は entry と到達する local files の hash で revision を識別し、配布 package の version / integrity を持たない。外部 package は pnpm locator と content integrity、dependency graph で固定する。lock / assembly は local / package origin と structured / opaque mode の union に変更する。具体的な serialized shape、循環依存の扱い、hash 入力と生成 ID の算出は [実装 contract 0節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-と生成-id) を正本とする。
 
 依存更新と build を分離する。明示的な依存更新で pnpm の固定解決結果から描画に必要な依存全体を snapshot し、`unframe.lock` へ保存する。通常の check / build は network、host node_modules、registry へ fallback せず、lock を変更しない。ローカル Source 編集後は、固定外部依存を変更しない local lock 更新を明示的に行う。Editor はこの更新を保存操作に含める。手書き編集で local hash が古い場合、build は更新の必要を診断する。
 
 lock の schemaVersion 1 は Opaque / local originとsource Assetのpath/hash/sizeを固定する。旧schemaからの暗黙変換や互換fallbackは提供せず、Source を更新して lock を明示再生成する。既存 Structured の宣言と canonical 出力の意味は維持する。
 
-固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。通常 CSS の import と url 依存を固定 bundle に含める。PostCSS 8 / Tailwind 4 は project 所有 config / plugin と固定 Node graph を使い、CLI の隔離 Style worker で実行する。設定・依存固定・対応範囲は [Tailwind README](../../packages/unframe/tailwind/README.md) を参照する。Component の意味抽出は引き続き非実行であり、config / plugin の実行と区別する。実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
+固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。通常 CSS の import と url 依存を固定 bundle に含める。PostCSS 8 / Tailwind 4 は project 所有 config / plugin と固定 Node graph を使い、CLI の隔離 Style worker で実行する。設定・依存固定・対応範囲は [Styles Node README](../../packages/unframe/styles-node/README.md) を参照する。Component の意味抽出は引き続き非実行であり、config / plugin の実行と区別する。実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
 
 入力 lock に capture checksum を含めない。生成 PNG 等の checksum は AssetSet / BuildManifest に記録し、source・renderer・環境との整合は既存 build integrity で検証する。Manifest の意味 hash と renderer source hash を区別し、CSS だけの変更でも描画依存と成果物が更新されるようにする。位置だけを変えた場合、Definition 等の hash は変わり得るが、同じ描画条件の PNG bytes は変わらない。現行 CLI は build 全体の cache を持ち、hit でも全成果物と checksum を再検証する。State ごとの細粒度 capture cache は未実装である。
 
