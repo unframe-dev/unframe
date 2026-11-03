@@ -50,6 +50,38 @@ public sealed class PresentationPreviewSpatialEditModeTests
     }
 
     [Test]
+    public void FloorStaysAtGroundLevelInBothViewsAndIsRemovedOnClear()
+    {
+        var root = new GameObject("spatial");
+        try
+        {
+            using var guides = new PresentationPreviewSpatial(root.transform);
+            PresentationPreviewSpatialState.TryParse(Valid, out var state);
+            guides.Apply(state);
+            Transform floor = root.transform.Find("Preview floor");
+            Assert.That(floor, Is.Not.Null);
+            Assert.That(floor.gameObject.activeInHierarchy, Is.True);
+            Assert.That(floor.localPosition.y, Is.Zero);
+            Assert.That(floor.GetComponent<Collider>(), Is.Null);
+            Mesh mesh = floor.GetComponent<MeshFilter>().sharedMesh;
+            Assert.That(mesh.bounds.size.y, Is.Zero);
+            Assert.That(mesh.bounds.Contains(Vector3.zero), Is.True);
+            Material material = floor.GetComponent<Renderer>().sharedMaterial;
+            Assert.That(material.renderQueue, Is.EqualTo((int)UnityEngine.Rendering.RenderQueue.Geometry));
+            Assert.That(material.GetFloat("_ZWrite"), Is.EqualTo(1));
+            Assert.That(material.GetFloat("_ZTest"), Is.EqualTo((float)UnityEngine.Rendering.CompareFunction.LessEqual));
+            Assert.That(material.mainTexture.wrapMode, Is.EqualTo(TextureWrapMode.Repeat));
+            guides.SetVisible(true);
+            Assert.That(floor.gameObject.activeInHierarchy, Is.True);
+            guides.SetVisible(false);
+            Assert.That(floor.gameObject.activeInHierarchy, Is.True);
+            guides.Clear();
+            Assert.That(root.transform.Find("Preview floor"), Is.Null);
+        }
+        finally { Object.DestroyImmediate(root); }
+    }
+
+    [Test]
     public void OverheadViewRestoresThePreviousPerspectivePose()
     {
         var root = new GameObject("camera");

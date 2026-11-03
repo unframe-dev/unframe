@@ -5,7 +5,7 @@ import type {
   PreviewPlaybackCommand,
   PreviewPlaybackResponse,
 } from "@unframe-dev/contracts/author-http";
-import type { HostApi } from "../../infra/host-api";
+import { HostApiError, type HostApi } from "../../infra/host-api";
 import type { PreviewDriver } from "../preview-driver";
 import { createPreviewController } from "../preview-controller";
 import { UnityExchangeError } from "../../infra/unity-exchange";
@@ -104,11 +104,10 @@ it("keeps the displayed snapshot while waiting, building, and preparing a replac
       });
     controller.request("dev", "latest", { debounce: true });
     expect(controller.store.getState()).toMatchObject({
-      status: "loading",
+      status: "ready",
       phase: "pending",
       displayed,
-      loaded: null,
-      playback: null,
+      loaded: displayed,
       error: null,
     });
     const count = commands.length;
@@ -116,7 +115,10 @@ it("keeps the displayed snapshot while waiting, building, and preparing a replac
     await vi.advanceTimersByTimeAsync(200);
     expect(controller.store.getState().phase).toBe("building");
     expect(controller.store.getState().displayed).toEqual(displayed);
-    expect(commands).toHaveLength(count);
+    expect(commands.slice(count)).toContainEqual({
+      requestId: displayed!.requestId,
+      command: "play",
+    });
     finishBuild(job("latest"));
     await vi.advanceTimersByTimeAsync(0);
     expect(controller.store.getState().phase).toBe("preparing");
@@ -860,3 +862,208 @@ it("supplies validated Presenter orientation while paused", async () => {
     await controller.dispose();
   }
 });
+
+it("continues the displayed playback while a Dev build waits for source access", async () => {
+  vi.useFakeTimers();
+  const { api, driver, commands } = fixture();
+  let finish!: (value: BuildJob) => void;
+  api.build = async () =>
+    new Promise<BuildJob>((resolve) => {
+      finish = resolve;
+    });
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.advanceTimersByTimeAsync(0);
+    const loaded = controller.store.getState().loaded;
+    controller.request("dev", "next");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(controller.store.getState()).toMatchObject({
+      status: "ready",
+      phase: "building",
+      loaded,
+    });
+    controller.playback.command({ command: "play" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(commands).toContainEqual({ requestId: loaded!.requestId, command: "play" });
+    finish(job("next"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(controller.store.getState().loaded?.requestId).not.toBe(loaded!.requestId);
+  } finally {
+    finish?.(job("next"));
+    await vi.advanceTimersByTimeAsync(0);
+    await controller.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it.each(["request", "job"])(
+  "retries temporary source contention from the %s without another edit",
+  async (failure) => {
+    vi.useFakeTimers();
+    const { api, driver } = fixture();
+    let attempts = 0;
+    api.build = async (revision) => {
+      if (++attempts === 1) {
+        if (failure === "request")
+          throw new HostApiError(409, "cli-source-lock-unavailable", "Source is busy");
+        return {
+          ...job(revision, "failed"),
+          diagnostics: [{ code: "cli-source-lock-unavailable", message: "Source is busy" }],
+        };
+      }
+      return job(revision);
+    };
+    const controller = createPreviewController({ api, driver });
+    try {
+      controller.request("dev", "same");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(controller.store.getState().status).toBe("loading");
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(controller.store.getState().status).toBe("ready");
+      expect(controller.store.getState().loaded?.channel).toBe("dev");
+    } finally {
+      await controller.dispose();
+      vi.useRealTimers();
+    }
+  },
+);
+
+it("stops a pending contention retry when a newer revision is requested", async () => {
+  vi.useFakeTimers();
+  const { api, driver } = fixture();
+  const revisions: string[] = [];
+  api.build = async (revision) => {
+    revisions.push(revision);
+    if (revision === "old") throw new HostApiError(409, "cli-source-lock-unavailable", "Busy");
+    return job(revision);
+  };
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dev", "old");
+    await vi.advanceTimersByTimeAsync(0);
+    controller.request("dev", "new");
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(revisions).toEqual(["old", "new"]);
+    expect(controller.store.getState().job?.revision).toBe("new");
+  } finally {
+    await controller.dispose();
+    vi.useRealTimers();
+  }
+});
+it("keeps the previous playback usable after a source recovery error without retrying it", async () => {
+  vi.useFakeTimers();
+  const { api, driver, commands } = fixture();
+  const build = vi.fn(async () => {
+    throw new HostApiError(409, "cli-source-recovery-required", "Recovery required");
+  });
+  api.build = build;
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.advanceTimersByTimeAsync(0);
+    const loaded = controller.store.getState().loaded;
+    controller.request("dev", "broken");
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(build).toHaveBeenCalledOnce();
+    expect(controller.store.getState()).toMatchObject({
+      status: "ready",
+      phase: "failed",
+      loaded,
+      error: "Recovery required",
+    });
+    controller.playback.command({ command: "play" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(commands).toContainEqual({ requestId: loaded!.requestId, command: "play" });
+  } finally {
+    await controller.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it("retries using the revision produced by Dev lock refresh", async () => {
+  vi.useFakeTimers();
+  const { api, driver } = fixture();
+  const revisions: string[] = [];
+  api.build = async (revision) => {
+    revisions.push(revision);
+    if (revisions.length === 1)
+      return {
+        ...job("refreshed", "failed"),
+        diagnostics: [{ code: "cli-source-lock-unavailable", message: "Busy" }],
+      };
+    if (revision !== "refreshed")
+      throw new HostApiError(412, "author-revision-mismatch", "Stale revision");
+    return job(revision);
+  };
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dev", "original");
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(revisions).toEqual(["original", "refreshed"]);
+    expect(controller.store.getState().status).toBe("ready");
+  } finally {
+    await controller.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it.each(["resolve", "reject"])(
+  "ignores an old recovery that completes with %s after Dev replacement",
+  async (completion) => {
+    vi.useFakeTimers();
+    const { api, driver } = fixture();
+    let notify!: Parameters<PreviewDriver["subscribeFailure"]>[0];
+    driver.subscribeFailure = (listener) => {
+      notify = listener;
+      return () => undefined;
+    };
+    let finishBuild!: (value: BuildJob) => void;
+    api.build = async () =>
+      new Promise<BuildJob>((resolve) => {
+        finishBuild = resolve;
+      });
+    let finishRecovery!: (value: PreviewPlaybackResponse) => void;
+    let rejectRecovery!: (reason: Error) => void;
+    const playback = api.playback;
+    api.playback = async (command, signal) =>
+      command.command === "recover"
+        ? new Promise<PreviewPlaybackResponse>((resolve, reject) => {
+            finishRecovery = resolve;
+            rejectRecovery = reject;
+          })
+        : playback(command, signal);
+    const restore = vi.fn(async () => undefined);
+    driver.restore = restore;
+    const controller = createPreviewController({ api, driver });
+    try {
+      controller.request("dist", "first");
+      await vi.advanceTimersByTimeAsync(0);
+      const old = controller.store.getState().playback!;
+      controller.request("dev", "next");
+      await vi.advanceTimersByTimeAsync(0);
+      notify({
+        kind: "failed",
+        outcome: "failed",
+        requestId: old.state.requestId!,
+        sequence: old.state.sequence!,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(controller.store.getState().status).toBe("recovering");
+      finishBuild(job("next"));
+      await vi.advanceTimersByTimeAsync(0);
+      const loaded = controller.store.getState().loaded;
+      expect(loaded?.requestId).not.toBe(old.state.requestId);
+      if (completion === "resolve") finishRecovery(old);
+      else rejectRecovery(new Error("Old recovery failed"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(restore).not.toHaveBeenCalled();
+      expect(controller.store.getState()).toMatchObject({ status: "ready", loaded });
+    } finally {
+      finishBuild?.(job("next"));
+      await vi.advanceTimersByTimeAsync(0);
+      await controller.dispose();
+      vi.useRealTimers();
+    }
+  },
+);

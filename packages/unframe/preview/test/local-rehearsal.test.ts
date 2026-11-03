@@ -254,3 +254,115 @@ it("recovers the confirmed rehearsal when applying a selected Step fails", () =>
   const recovered = playback({ requestId, command: "recover", sequence: selected.state.sequence! });
   expect(recovered.stepId).toBe("start");
 });
+
+it("offers the next executable trigger and advances through waiting events", () => {
+  const playback = setup((definition) => {
+    definition.flow.groups.intro!.steps.start!.cues = [
+      {
+        id: "second",
+        order: 1,
+        priority: 0,
+        trigger: { kind: "semanticEvent", event: "ready", actor: { kind: "presenter" } },
+        firePolicy: { kind: "oncePerStepEntry" },
+        actions: [],
+        next: { kind: "stay" },
+      },
+      {
+        id: "first",
+        order: 0,
+        priority: 0,
+        trigger: { kind: "gesture", gesture: "swipeLeft", actor: { kind: "presenter" } },
+        firePolicy: { kind: "oncePerStepEntry" },
+        actions: [],
+        next: { kind: "stay" },
+      },
+    ];
+  });
+  const playing = playback({ requestId, command: "play" });
+  expect(playing.simulation?.nextInput).toEqual({ cueId: "first" });
+  const first = playback({ requestId, command: "input", cueId: "first" });
+  expect(first.occurrences.map((occurrence) => occurrence.cueId)).toEqual(["first"]);
+  expect(first.simulation?.nextInput).toEqual({ cueId: "second" });
+  const second = playback({ requestId, command: "input", cueId: "second" });
+  expect(second.occurrences.map((occurrence) => occurrence.cueId)).toEqual(["first", "second"]);
+  expect(second.simulation?.nextInput).toBeNull();
+});
+
+it("selects by priority while excluding guarded inputs", () => {
+  const playback = setup((definition) => {
+    definition.flow.variables.enabled = {
+      id: "enabled",
+      owner: { kind: "presentation" },
+      type: "boolean",
+      initialValue: false,
+    };
+    definition.flow.groups.intro!.steps.start!.cues = [
+      {
+        id: "guarded",
+        priority: 20,
+        order: 0,
+        trigger: { kind: "logicalInput", action: "blocked", actor: { kind: "presenter" } },
+        guard: {
+          kind: "compare",
+          left: { kind: "variable", variableId: "enabled" },
+          operator: "eq",
+          right: true,
+        },
+        firePolicy: { kind: "oncePerStepEntry" },
+        actions: [],
+        next: { kind: "stay" },
+      },
+      {
+        id: "low",
+        priority: 0,
+        order: 0,
+        trigger: { kind: "logicalInput", action: "low", actor: { kind: "presenter" } },
+        firePolicy: { kind: "oncePerStepEntry" },
+        actions: [],
+        next: { kind: "stay" },
+      },
+      {
+        id: "high",
+        priority: 10,
+        order: 1,
+        trigger: { kind: "logicalInput", action: "high", actor: { kind: "presenter" } },
+        firePolicy: { kind: "oncePerStepEntry" },
+        actions: [],
+        next: { kind: "stay" },
+      },
+    ];
+  });
+  expect(playback({ requestId, command: "play" }).simulation?.nextInput).toEqual({ cueId: "high" });
+  expect(playback({ requestId, command: "input", cueId: "high" }).simulation?.nextInput).toEqual({
+    cueId: "low",
+  });
+  expect(playback({ requestId, command: "input", cueId: "low" }).simulation?.nextInput).toBeNull();
+});
+
+it("does not offer the next event while paused or inspecting a Cue", () => {
+  const playback = setup((definition) => {
+    definition.flow.groups.intro!.steps.start!.cues = [
+      {
+        id: "next",
+        priority: 0,
+        order: 0,
+        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
+        firePolicy: { kind: "repeatable" },
+        actions: [],
+        next: { kind: "stay" },
+      },
+    ];
+  });
+  expect(playback({ requestId, command: "poll" }).simulation?.nextInput).toBeNull();
+  playback({ requestId, command: "play" });
+  const fired = playback({ requestId, command: "input", cueId: "next" });
+  expect(fired.simulation?.nextInput).toEqual({ cueId: "next" });
+  expect(playback({ requestId, command: "pause" }).simulation?.nextInput).toBeNull();
+  const inspected = playback({
+    requestId,
+    command: "inspectCue",
+    inspectionId: "b".repeat(32),
+    occurrenceId: fired.occurrences[0]!.occurrenceId,
+  });
+  expect(inspected.simulation?.nextInput).toBeNull();
+});

@@ -423,6 +423,16 @@ export const createLocalPlayback = ({
     if (command.command !== "recover") syncSpatial();
     sequence += 1n;
     const spatialState = projectSpatial(definition, state, spatial);
+    const inputs = availableInputs();
+    const nextInput =
+      !inspection && playing
+        ? [...inputs].sort(
+            (a, b) =>
+              b.cue.priority - a.cue.priority ||
+              a.cue.order - b.cue.order ||
+              (a.cue.id < b.cue.id ? -1 : a.cue.id > b.cue.id ? 1 : 0),
+          )[0]
+        : undefined;
     const response: PreviewPlaybackResponse = {
       state: projectPlaybackWire(
         requestId,
@@ -446,22 +456,23 @@ export const createLocalPlayback = ({
       occurrences: [...occurrences.values()].map((entry) => copy(entry.metadata)),
       inputs: inspection
         ? []
-        : availableInputs()
+        : inputs
             .filter(
               ({ cue }) => cue.trigger.kind !== "gesture" && cue.trigger.kind !== "semanticEvent",
             )
             .map(({ cue }) => ({ cueId: cue.id, label: cue.id })),
       simulation: {
+        nextInput: nextInput ? { cueId: nextInput.cue.id } : null,
         gestures: [
           ...new Set(
-            availableInputs().flatMap(({ cue }) =>
+            inputs.flatMap(({ cue }) =>
               cue.trigger.kind === "gesture" ? [cue.trigger.gesture] : [],
             ),
           ),
         ],
         events: [
           ...new Map(
-            availableInputs().flatMap(({ cue }) => {
+            inputs.flatMap(({ cue }) => {
               if (cue.trigger.kind !== "semanticEvent") return [];
               const entry = {
                 event: cue.trigger.event,

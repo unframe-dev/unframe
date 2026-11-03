@@ -235,7 +235,7 @@ export const startAuthorHost = async ({
               signal: controller.signal,
               onAccepted: () => {
                 ++previewOperation;
-                previews.invalidate();
+                if (path === "/api/dist-builds") previews.invalidate();
               },
             },
           );

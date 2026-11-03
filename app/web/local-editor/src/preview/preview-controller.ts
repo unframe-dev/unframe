@@ -4,12 +4,13 @@ import type {
   PreviewPlaybackResponse,
   PreviewSpatialState,
 } from "@unframe-dev/contracts/author-http";
-import type { HostApi } from "../infra/host-api";
+import { HostApiError, type HostApi } from "../infra/host-api";
 import type { PreviewDriver, PreviewView } from "./preview-driver";
 import { createPreviewStore, type LoadedPreview, type PreviewStore } from "./preview-store";
 import { createPlaybackController } from "./playback-controller";
 import { acceptsNotification, requiresRecovery } from "./preview-state";
 import { UnityExchangeError } from "../infra/unity-exchange";
+const temporaryLocks = new Set(["cli-source-lock-unavailable", "cli-build-lock-unavailable"]);
 const id = () => crypto.randomUUID().replaceAll("-", "");
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const wait = (milliseconds: number, signal: AbortSignal) =>
@@ -39,6 +40,7 @@ export function createPreviewController(input: {
   let epoch = 0,
     closed = false,
     abort = new AbortController();
+  let recoveryAbort = new AbortController();
   let loadQueue = Promise.resolve();
   type Build = {
     key: string;
@@ -85,13 +87,18 @@ export function createPreviewController(input: {
     onState: (state) => {
       const view = state.spatial ? store.getState().view : "perspective";
       if (view !== store.getState().view) applyView(view);
+      const snapshot = store.getState();
+      const updating =
+        snapshot.phase === "building" ||
+        snapshot.phase === "pending" ||
+        snapshot.phase === "failed";
       store.setState({
         view,
         playback: state,
         status: "ready",
-        phase: "ready",
+        phase: updating ? snapshot.phase : "ready",
         recovery: "healthy",
-        error: null,
+        error: updating ? snapshot.error : null,
       });
     },
     onDiagnostic: (error, unavailable) =>
@@ -112,8 +119,10 @@ export function createPreviewController(input: {
   async function recover(error: unknown, response: PreviewPlaybackResponse | null) {
     const serial = epoch,
       loaded = store.getState().loaded,
-      signal = abort.signal;
+      signal = AbortSignal.any([abort.signal, recoveryAbort.signal]);
     if (closed || !loaded || store.getState().status === "recovering") return;
+    const active = () =>
+      current(serial) && !signal.aborted && store.getState().loaded?.requestId === loaded.requestId;
     playback.invalidate();
     store.setState({ status: "recovering", recovery: "restoring", error: message(error) });
     try {
@@ -122,14 +131,14 @@ export function createPreviewController(input: {
         { requestId: loaded.requestId, command: "recover", sequence: response.state.sequence },
         signal,
       );
-      if (!current(serial)) return;
+      if (!active()) return;
       await input.driver.restore(restored.state, signal, restored.spatial);
-      if (!current(serial)) return;
+      if (!active()) return;
       const confirmed = await input.api.playback(
         { requestId: loaded.requestId, command: "applied", sequence: restored.state.sequence! },
         signal,
       );
-      if (!current(serial)) return;
+      if (!active()) return;
       if (
         confirmed.state.requestId !== loaded.requestId ||
         confirmed.state.sequence !== restored.state.sequence
@@ -144,7 +153,7 @@ export function createPreviewController(input: {
       });
       playback.load(loaded.requestId);
     } catch (failure) {
-      if (!current(serial)) return;
+      if (!active()) return;
       try {
         await input.api.playback(
           { requestId: loaded.requestId, command: "invalidateDisplay" },
@@ -153,7 +162,7 @@ export function createPreviewController(input: {
       } catch {
         /* The Host may already have invalidated the request. */
       }
-      if (current(serial))
+      if (active())
         store.setState({
           status: "reload-required",
           phase: "failed",
@@ -254,26 +263,34 @@ export function createPreviewController(input: {
     abort.abort();
     abort = new AbortController();
     const signal = abort.signal;
-    playback.invalidate();
+    const retained =
+      channel === "dev" && store.getState().status === "ready" && store.getState().loaded !== null;
+    if (!retained) playback.invalidate();
     store.setState({
       channel,
-      status: "loading",
+      status: retained ? "ready" : "loading",
       phase: channel === "dev" ? (options.debounce ? "pending" : "building") : "preparing",
       recovery: "healthy",
-      loaded: null,
-      playback: null,
+      ...(!retained ? { loaded: null, playback: null } : {}),
       error: null,
       job: null,
     });
     for (const build of builds)
       if (build.key !== key) void cancelBuild(build).catch(() => undefined);
-    // Invalidate waiters immediately so an obsolete Unity exchange cannot hold the next load.
-    const invalidation = input.driver.invalidate();
-    void invalidation.catch(() => undefined);
-    const invalidated = enqueue(async () => {
-      await invalidation;
-      if (current(serial)) await input.api.invalidateDisplay(signal);
-    });
+    const invalidate = () => {
+      recoveryAbort.abort();
+      recoveryAbort = new AbortController();
+      playback.invalidate();
+      store.setState({ status: "loading", loaded: null, playback: null });
+      // Invalidate waiters immediately so an obsolete Unity exchange cannot hold the next load.
+      const invalidation = input.driver.invalidate();
+      void invalidation.catch(() => undefined);
+      return enqueue(async () => {
+        await invalidation;
+        if (current(serial)) await input.api.invalidateDisplay(signal);
+      });
+    };
+    const invalidated = retained ? undefined : invalidate();
     const start = () => {
       scheduled = undefined;
       let build: Build | undefined;
@@ -282,37 +299,56 @@ export function createPreviewController(input: {
         if (!current(serial)) return;
         let buildId: string | undefined;
         if (channel === "dev") {
-          store.setState({ phase: "building" });
-          build = [...builds].find((item) => item.key === key && !item.cancellation);
-          if (!build) {
-            // Keep the receipt reachable after a newer request invalidates this load.
-            build = { key, accepted: input.api.build(revision, id()) };
-            builds.add(build);
-          }
-          let job: BuildJob;
-          try {
-            job = await build.accepted;
-          } catch (error) {
-            builds.delete(build);
-            throw error;
+          let buildRevision = revision;
+          while (current(serial)) {
+            try {
+              store.setState({ phase: "building" });
+              build = [...builds].find((item) => item.key === key && !item.cancellation);
+              if (!build) {
+                // Keep the receipt reachable after a newer request invalidates this load.
+                build = { key, accepted: input.api.build(buildRevision, id()) };
+                builds.add(build);
+              }
+              let job: BuildJob;
+              try {
+                job = await build.accepted;
+              } catch (error) {
+                builds.delete(build);
+                throw error;
+              }
+              if (!current(serial)) return;
+              buildRevision = job.revision;
+              input.onRevision?.(job.revision);
+              store.setState({ job });
+              while (running(job)) {
+                await wait(input.pollMilliseconds ?? 250, signal);
+                job = await input.api.job(job.buildId, signal);
+                if (!current(serial)) return;
+                store.setState({ job });
+              }
+              builds.delete(build);
+              if (
+                job.status === "failed" &&
+                job.diagnostics.length > 0 &&
+                job.diagnostics.every((item) => temporaryLocks.has(item.code))
+              )
+                throw new HostApiError(409, job.diagnostics[0]!.code, "Project source is busy.");
+              if (job.status !== "succeeded" || !job.generationId)
+                throw new Error(
+                  `build ${job.status}: ${job.diagnostics.map((item) => item.message).join("; ")}`,
+                );
+              buildId = job.buildId;
+              break;
+            } catch (error) {
+              if (!(error instanceof HostApiError) || !temporaryLocks.has(error.code)) throw error;
+              if (build) builds.delete(build);
+              build = undefined;
+              await wait(1000, signal);
+            }
           }
           if (!current(serial)) return;
-          input.onRevision?.(job.revision);
-          store.setState({ job });
-          while (running(job)) {
-            await wait(input.pollMilliseconds ?? 250, signal);
-            job = await input.api.job(job.buildId, signal);
-            if (!current(serial)) return;
-            store.setState({ job });
-          }
-          builds.delete(build);
-          if (job.status !== "succeeded" || !job.generationId)
-            throw new Error(
-              `build ${job.status}: ${job.diagnostics.map((item) => item.message).join("; ")}`,
-            );
-          buildId = job.buildId;
         }
-        await invalidated;
+        await (invalidated ?? invalidate());
         if (!current(serial)) return;
         await enqueue(async () => {
           let candidate: string | undefined;
@@ -365,7 +401,11 @@ export function createPreviewController(input: {
       })()
         .catch((error: unknown) => {
           if (current(serial))
-            store.setState({ status: "error", phase: "failed", error: message(error) });
+            store.setState({
+              status: store.getState().loaded ? "ready" : "error",
+              phase: "failed",
+              error: message(error),
+            });
         })
         .finally(async () => {
           if (build && ((!current(serial) && desiredKey !== key) || closed))

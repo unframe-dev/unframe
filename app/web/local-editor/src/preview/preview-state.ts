@@ -17,11 +17,12 @@ export function requiresRecovery(notification: UnityNotification): boolean {
 }
 
 export function previewStatusLabel(state: PreviewSnapshot): string {
-  if (state.status === "loading") {
+  if (state.status === "loading" || state.phase === "pending" || state.phase === "building") {
     if (state.phase === "pending") return "更新待ち";
     if (state.phase === "building") return "ビルド中";
     return "表示反映中";
   }
+  if (state.phase === "failed" && state.loaded) return "更新失敗";
   return {
     idle: "待機中",
     ready: "表示確認済み",
