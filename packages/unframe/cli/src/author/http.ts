@@ -21,7 +21,8 @@ import {
 import { createPublicationAuth, type PublicationAuth } from "./publication-auth.js";
 import type { LocalPublicationService } from "./publication.js";
 
-type Asset = { bytes: Uint8Array; mediaType: string };
+import { createStaticAssetStore, type StaticAsset } from "./static-assets.js";
+import { pipeline } from "node:stream/promises";
 const jsonBody = async (request: IncomingMessage): Promise<unknown> => {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -62,7 +63,7 @@ export const startAuthorHost = async ({
   service: AuthorService | Pick<AuthorService, "project">;
   changes: ProjectChanges;
   previews: LocalPreviewService;
-  assets: ReadonlyMap<string, Asset>;
+  assets: ReadonlyMap<string, StaticAsset>;
   auth?: PublicationAuth;
   publication?: LocalPublicationService;
   development?: boolean;
@@ -76,6 +77,7 @@ export const startAuthorHost = async ({
       );
     return service;
   };
+  const staticAssets = createStaticAssetStore();
   const token = randomBytes(32).toString("hex");
   let origin = "";
   let authority = "";
@@ -99,13 +101,35 @@ export const startAuthorHost = async ({
       const path = url.pathname;
       if (url.search && path !== "/api/project/changes") throw invalid();
       if (!path.startsWith("/api/")) {
-        const asset = request.method === "GET" ? assets.get(path) : undefined;
+        const asset =
+          request.method === "GET" || request.method === "HEAD" ? assets.get(path) : undefined;
         if (!asset) throw new AuthorError(404, "author-not-found", "Resource was not found.");
-        response.writeHead(200, {
-          "content-type": asset.mediaType,
-          "content-length": asset.bytes.byteLength,
-        });
-        response.end(asset.bytes);
+        const controller = new AbortController();
+        const disconnected = () => controller.abort();
+        response.once("close", disconnected);
+        if (response.destroyed) disconnected();
+        try {
+          const snapshot = await staticAssets.get(asset, controller.signal);
+          await using handle = snapshot.handle;
+          if (response.destroyed) return;
+          response.setHeader("cache-control", "private, no-cache");
+          response.setHeader("etag", snapshot.etag);
+          response.setHeader("content-type", asset.mediaType);
+          const matches = request.headers["if-none-match"]?.split(",").some((value) => {
+            const tag = value.trim().replace(/^W\//, "");
+            return tag === "*" || tag === snapshot.etag;
+          });
+          if (matches) {
+            response.writeHead(304);
+            response.end();
+            return;
+          }
+          response.writeHead(200, { "content-length": String(snapshot.size) });
+          if (request.method === "HEAD") response.end();
+          else await pipeline(handle.createReadStream({ autoClose: false }), response);
+        } finally {
+          response.removeListener("close", disconnected);
+        }
         return;
       }
       if (path === "/api/editor-session") {
@@ -408,6 +432,7 @@ export const startAuthorHost = async ({
         server.close((error) => (error ? reject(error) : resolve()));
         server.closeAllConnections();
       });
+      await staticAssets.close();
     },
   };
 };
