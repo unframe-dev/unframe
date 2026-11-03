@@ -1,5 +1,97 @@
-import { expect, it } from "vite-plus/test";
+import { assert, expect, it } from "vite-plus/test";
 import { createAuthorPatch, inspectAuthorSource } from "../src/index.js";
+
+const inspectScene = (scene: string, declarations = "") => {
+  const sourceText = `
+import { definePresentation } from "@unframe/authoring";
+${declarations}
+export default definePresentation({
+  id: "presentation",
+  metadata: { title: "Presentation" },
+  stage: { coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" }, size: [1, 1, 1] },
+  scene: ${scene},
+  assets: [],
+  flow: { initialGroupId: "main", groups: { main: { id: "main", initialStepId: "start", steps: { start: { id: "start", cues: [] } } } }, variables: {} },
+  operations: [],
+});`;
+  return inspectAuthorSource({
+    source: {
+      projectRoot: "/virtual",
+      entryFile: "presentation.tsx",
+      files: [{ fileName: "presentation.tsx", sourceText }],
+      rootDependencies: [
+        {
+          specifier: "@unframe/authoring",
+          usage: "runtime",
+          packageKey: `sha256:${"a".repeat(64)}`,
+        },
+      ],
+      packages: [
+        {
+          key: `sha256:${"a".repeat(64)}`,
+          locator: "@unframe/authoring@1",
+          name: "@unframe/authoring",
+          version: "1",
+          contentIntegrity: `sha256:${"b".repeat(64)}`,
+          files: [
+            {
+              path: "index.ts",
+              mediaType: "text/typescript",
+              hash: `sha256:${"c".repeat(64)}`,
+              encoding: "utf8",
+              data: "export const definePresentation = <T>(value: T): T => value;",
+            },
+          ],
+          exports: [
+            { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+          ],
+          dependencies: [],
+        },
+      ],
+    },
+    sourceText,
+    semanticValid: true,
+  });
+};
+
+it("leaves a valid structured scene available without Inspector editing diagnostics", () => {
+  const result = inspectScene("{ spatial: [], components: [] }");
+  assert(result.catalog.valid, JSON.stringify(result.catalog.diagnostics));
+  expect(result.instances).toEqual([]);
+  expect(result.diagnostics).toEqual([]);
+});
+
+it("inspects a directly declared React scene", () => {
+  const result = inspectScene("[]");
+  assert(result.catalog.valid, JSON.stringify(result.catalog.diagnostics));
+  expect(result.instances).toEqual([]);
+  expect(result.diagnostics).toEqual([]);
+});
+
+it("leaves a valid mixed scene without direct React Inspector editing diagnostics", () => {
+  const result = inspectScene(`{ spatial: [], components: [{
+    id: "hero", component: { id: "hero", version: 1 }, props: {},
+    owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" },
+    physicalSizeMeters: [1, 1], fit: "contain",
+    transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+  }] }`);
+  assert(result.catalog.valid, JSON.stringify(result.catalog.diagnostics));
+  expect(result.instances).toEqual([]);
+  expect(result.diagnostics).toEqual([]);
+});
+
+it("preserves Inspector diagnostics for React scenes that cannot be patched directly", () => {
+  const result = inspectScene("sharedScene", "const sharedScene: [] = [];");
+  assert(result.catalog.valid, JSON.stringify(result.catalog.diagnostics));
+  expect(result.instances).toEqual([]);
+  expect(result.diagnostics).toEqual([
+    {
+      code: "compiler-edit-scene-unsupported",
+      message: "Scene items must be direct object literals in the current source.",
+      path: [],
+    },
+  ]);
+});
 
 it("rejects a stale editing revision before parsing or patching its source", () => {
   expect(() =>

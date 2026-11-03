@@ -1,12 +1,65 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, it } from "vite-plus/test";
+import { assert, expect, it, vi } from "vite-plus/test";
 import {
   acquireSourceLock,
+  discoverPresentationProjectFiles,
+  NativeFilesystem,
   publishProjectBuild,
   readExpectedBuildGeneration,
 } from "../src/index.js";
+
+it("keeps artifact staging outside the Source lease and project input snapshot", async () => {
+  const project = await mkdtemp(join(tmpdir(), "unframe-output-staging-"));
+  const write = NativeFilesystem.prototype.write;
+  const leaseAvailability: boolean[] = [];
+  const revisions: (string | undefined)[] = [];
+  try {
+    await writeFile(
+      join(project, "unframe.config.ts"),
+      'export default {entryFile:"presentation.ts"};',
+    );
+    await writeFile(join(project, "unframe.lock"), "{}");
+    await writeFile(join(project, "presentation.ts"), "export default {};");
+    const captured = await discoverPresentationProjectFiles(project);
+    assert(captured.ok);
+    vi.spyOn(NativeFilesystem.prototype, "write").mockImplementation(async function (
+      this: NativeFilesystem,
+      path,
+      bytes,
+    ) {
+      const lease = await acquireSourceLock(project);
+      leaseAvailability.push(lease.ok);
+      if (lease.ok) await lease.value.release();
+      await write.call(this, path, bytes);
+      const current = await discoverPresentationProjectFiles(project, { sourceLeaseHeld: true });
+      revisions.push(current.ok ? current.revision : undefined);
+    });
+    const result = await publishProjectBuild({
+      projectDirectory: project,
+      revision: captured.revision,
+      expectedGeneration: null,
+      artifacts: {
+        definition: new Uint8Array(),
+        renderBundle: new Uint8Array(),
+        assetSet: new Uint8Array(),
+        buildManifest: new Uint8Array(),
+        assets: [],
+      },
+    });
+    expect(result, JSON.stringify(result)).toMatchObject({
+      kind: "publication",
+      result: { ok: true },
+    });
+    expect(leaseAvailability.length).toBeGreaterThan(0);
+    expect(leaseAvailability.every(Boolean)).toBe(true);
+    expect(revisions.every((revision) => revision === captured.revision)).toBe(true);
+  } finally {
+    vi.restoreAllMocks();
+    await rm(project, { recursive: true, force: true });
+  }
+});
 
 it("distinguishes a missing output from an unmanaged one", async () => {
   const project = await mkdtemp(join(tmpdir(), "unframe-output-inspect-"));

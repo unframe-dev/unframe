@@ -1,11 +1,10 @@
-import { prepareOpaquePrograms, type CompilerSourceAssetBytes } from "@unframe/build";
+import { type CompilerSourceAssetBytes } from "@unframe/build";
 import {
-  bundleOpaqueRenderer,
   createOpaqueBakedWebRenderer,
   openOpaqueCaptureRuntime,
   type WebRendererConfig,
 } from "@unframe/render-browser";
-import { mediaTypeFor } from "@unframe/workspace";
+import { runAnalysisOperation } from "../author/analysis-client.js";
 
 export const prepareOpaqueRenderer = async (
   source: unknown,
@@ -14,10 +13,11 @@ export const prepareOpaqueRenderer = async (
   config: WebRendererConfig,
   sourceAssetBytes: CompilerSourceAssetBytes = {},
 ) => {
-  const programs = await prepareOpaquePrograms(source, carrier, sourceAssetBytes, {
-    bundle: bundleOpaqueRenderer,
-    mediaTypeFor,
-  });
+  const programs = await runAnalysisOperation(
+    "opaque",
+    { source, carrier, sourceAssetBytes },
+    signal,
+  );
   const runtime = await openOpaqueCaptureRuntime(signal ? { signal } : {});
   try {
     return {

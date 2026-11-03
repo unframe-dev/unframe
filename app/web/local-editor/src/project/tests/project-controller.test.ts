@@ -35,6 +35,30 @@ function setup() {
   };
 }
 describe("project controller", () => {
+  it("clears a transient project read error after a successful refresh", async () => {
+    const { controller, api } = setup();
+    api.project.mockRejectedValueOnce(new Error("Project source is busy"));
+    await controller.refresh();
+    expect(controller.store.getState().error).toContain("Project source is busy");
+    await controller.refresh();
+    expect(controller.store.getState().error).toBeNull();
+    expect(controller.store.getState().project?.revision).toBe("r1");
+    controller.dispose();
+  });
+
+  it("preserves an uncertain save error when a project refresh succeeds", async () => {
+    const { controller, api } = setup();
+    await controller.refresh();
+    controller.selectInstance("card");
+    controller.editProp("title", "after");
+    api.patch.mockRejectedValueOnce(new Error("Save response lost"));
+    await controller.saveProp("title");
+    await controller.refresh();
+    expect(controller.store.getState().error).toContain("Save response lost");
+    expect(controller.store.getState().pending).not.toBeNull();
+    controller.dispose();
+  });
+
   it("protects dirty props when Source changes externally", async () => {
     const { controller, update } = setup();
     await controller.refresh();

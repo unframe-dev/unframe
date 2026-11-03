@@ -1,4 +1,4 @@
-import type { PreviewPlaybackResponse } from "@unframe/contracts/author-http";
+import type { BuildJob, PreviewPlaybackResponse } from "@unframe/contracts/author-http";
 import type { HostApi } from "../infra/host-api";
 import type { PreviewDriver } from "./preview-driver";
 import { createPreviewStore, type PreviewStore } from "./preview-store";
@@ -35,7 +35,44 @@ export function createPreviewController(input: {
     closed = false,
     abort = new AbortController();
   let loadQueue = Promise.resolve();
-  let activeBuild: string | undefined;
+  type Build = {
+    key: string;
+    accepted: Promise<BuildJob>;
+    cancellation?: Promise<void>;
+  };
+  const builds = new Set<Build>();
+  const cleanup = new AbortController();
+  let scheduled: ReturnType<typeof setTimeout> | undefined;
+  let desiredKey: string | undefined;
+  const running = (job: BuildJob) => job.status === "queued" || job.status === "running";
+  const enqueue = (action: () => Promise<void>) => {
+    loadQueue = loadQueue.catch(() => undefined).then(action);
+    return loadQueue;
+  };
+  const cancelBuild = (build: Build): Promise<void> => {
+    if (build.cancellation) return build.cancellation;
+    const cancellation = (async () => {
+      let job: BuildJob;
+      try {
+        job = await build.accepted;
+      } catch {
+        return;
+      }
+      job = await input.api.cancel(job.buildId);
+      while (running(job)) {
+        await wait(input.pollMilliseconds ?? 250, cleanup.signal);
+        job = await input.api.job(job.buildId, cleanup.signal);
+      }
+    })();
+    build.cancellation = cancellation;
+    void cancellation.then(
+      () => builds.delete(build),
+      () => {
+        delete build.cancellation;
+      },
+    );
+    return cancellation;
+  };
   const current = (serial: number) => !closed && epoch === serial;
   const playback = createPlaybackController({
     api: input.api,
@@ -130,9 +167,18 @@ export function createPreviewController(input: {
       );
     else store.setState({ error: notification.message ?? "Unity Preview input was rejected." });
   });
-  function request(channel: "dev" | "dist", revision: string) {
+  function request(
+    channel: "dev" | "dist",
+    revision: string,
+    options: { debounce?: boolean } = {},
+  ) {
     if (closed) return;
+    const key = `${channel}\0${revision}`;
+    if (options.debounce && desiredKey === key) return;
     const serial = ++epoch;
+    desiredKey = key;
+    clearTimeout(scheduled);
+    scheduled = undefined;
     abort.abort();
     abort = new AbortController();
     const signal = abort.signal;
@@ -147,106 +193,135 @@ export function createPreviewController(input: {
       error: null,
       job: null,
     });
-    if (activeBuild) void input.api.cancel(activeBuild).catch(() => undefined);
+    for (const build of builds)
+      if (build.key !== key) void cancelBuild(build).catch(() => undefined);
     // Invalidate waiters immediately so an obsolete Unity exchange cannot hold the next load.
     const invalidation = input.driver.invalidate();
     void invalidation.catch(() => undefined);
-    loadQueue = loadQueue
-      .catch(() => undefined)
-      .then(async () => {
-        let candidate: string | undefined;
-        try {
-          await invalidation;
-          if (!current(serial)) return;
-          await input.api.invalidateDisplay(signal);
-          if (!current(serial)) return;
-          let buildId: string | undefined;
-          if (channel === "dev") {
-            let job = await input.api.build(revision, id(), signal);
-            activeBuild = job.buildId;
-            if (!current(serial)) {
-              await input.api.cancel(job.buildId);
-              return;
-            }
-            input.onRevision?.(job.revision);
-            store.setState({ job });
-            while (["queued", "running"].includes(job.status)) {
-              await wait(input.pollMilliseconds ?? 250, signal);
-              job = await input.api.job(job.buildId, signal);
-              if (!current(serial)) return;
-              store.setState({ job });
-            }
-            activeBuild = undefined;
-            if (job.status !== "succeeded" || !job.generationId)
-              throw new Error(
-                `build ${job.status}: ${job.diagnostics.map((item) => item.message).join("; ")}`,
-              );
-            buildId = job.buildId;
+    const invalidated = enqueue(async () => {
+      await invalidation;
+      if (current(serial)) await input.api.invalidateDisplay(signal);
+    });
+    const start = () => {
+      scheduled = undefined;
+      let build: Build | undefined;
+      const pending = (async () => {
+        await Promise.resolve();
+        if (!current(serial)) return;
+        let buildId: string | undefined;
+        if (channel === "dev") {
+          build = [...builds].find((item) => item.key === key && !item.cancellation);
+          if (!build) {
+            // Keep the receipt reachable after a newer request invalidates this load.
+            build = { key, accepted: input.api.build(revision, id()) };
+            builds.add(build);
           }
-          store.setState({ phase: "preparing" });
-          const requestId = id();
-          const envelope = await input.api.preview(
-            buildId ? { requestId, channel: "dev", buildId } : { requestId, channel: "dist" },
-            signal,
-          );
-          candidate = envelope.requestId;
-          if (!candidate) throw new Error("Preview request ID is missing.");
+          let job: BuildJob;
+          try {
+            job = await build.accepted;
+          } catch (error) {
+            builds.delete(build);
+            throw error;
+          }
           if (!current(serial)) return;
-          if (candidate !== requestId) throw new Error("Preview response request does not match.");
-          const identity = await input.driver.prepare(envelope, signal);
-          const manifest: unknown = JSON.parse(envelope.buildManifest ?? "null");
-          if (
-            !manifest ||
-            typeof manifest !== "object" ||
-            !("buildId" in manifest) ||
-            manifest.buildId !== identity
-          )
-            throw new Error("Prepared Preview build identity does not match.");
-          if (!current(serial)) return;
-          store.setState({ phase: "committing" });
-          const committed = await input.driver.commit(candidate, signal);
-          if (!current(serial)) return;
-          if (committed !== identity)
-            throw new Error("Committed Preview build identity does not match.");
-          store.setState({ phase: "confirming" });
-          await input.api.confirmDisplay(candidate, identity, signal);
-          if (!current(serial)) return;
-          store.setState({
-            loaded: {
-              channel,
-              requestId: candidate,
-              buildIdentity: identity,
-              sourceRevision: envelope.sourceRevision ?? null,
-            },
-          });
-          playback.load(candidate);
-          candidate = undefined;
-        } catch (error) {
+          input.onRevision?.(job.revision);
+          store.setState({ job });
+          while (running(job)) {
+            await wait(input.pollMilliseconds ?? 250, signal);
+            job = await input.api.job(job.buildId, signal);
+            if (!current(serial)) return;
+            store.setState({ job });
+          }
+          builds.delete(build);
+          if (job.status !== "succeeded" || !job.generationId)
+            throw new Error(
+              `build ${job.status}: ${job.diagnostics.map((item) => item.message).join("; ")}`,
+            );
+          buildId = job.buildId;
+        }
+        await invalidated;
+        if (!current(serial)) return;
+        await enqueue(async () => {
+          let candidate: string | undefined;
+          try {
+            if (!current(serial)) return;
+            store.setState({ phase: "preparing" });
+            const requestId = id();
+            const envelope = await input.api.preview(
+              buildId ? { requestId, channel: "dev", buildId } : { requestId, channel: "dist" },
+              signal,
+            );
+            candidate = envelope.requestId;
+            if (!candidate) throw new Error("Preview request ID is missing.");
+            if (!current(serial)) return;
+            if (candidate !== requestId)
+              throw new Error("Preview response request does not match.");
+            const identity = await input.driver.prepare(envelope, signal);
+            const manifest: unknown = JSON.parse(envelope.buildManifest ?? "null");
+            if (
+              !manifest ||
+              typeof manifest !== "object" ||
+              !("buildId" in manifest) ||
+              manifest.buildId !== identity
+            )
+              throw new Error("Prepared Preview build identity does not match.");
+            if (!current(serial)) return;
+            store.setState({ phase: "committing" });
+            const committed = await input.driver.commit(candidate, signal);
+            if (!current(serial)) return;
+            if (committed !== identity)
+              throw new Error("Committed Preview build identity does not match.");
+            store.setState({ phase: "confirming" });
+            await input.api.confirmDisplay(candidate, identity, signal);
+            if (!current(serial)) return;
+            store.setState({
+              loaded: {
+                channel,
+                requestId: candidate,
+                buildIdentity: identity,
+                sourceRevision: envelope.sourceRevision ?? null,
+              },
+            });
+            playback.load(candidate);
+            candidate = undefined;
+          } finally {
+            if (candidate) await input.driver.discard(candidate).catch(() => undefined);
+          }
+        });
+      })()
+        .catch((error: unknown) => {
           if (current(serial))
             store.setState({ status: "error", phase: "failed", error: message(error) });
-        } finally {
-          if (candidate) await input.driver.discard(candidate).catch(() => undefined);
-        }
-      });
-    void loadQueue.catch(() => undefined);
+        })
+        .finally(async () => {
+          if (build && ((!current(serial) && desiredKey !== key) || closed))
+            await cancelBuild(build).catch(() => undefined);
+        });
+      void pending.catch(() => undefined);
+    };
+    if (channel === "dev" && options.debounce) scheduled = setTimeout(start, 200);
+    else start();
   }
   function cancel() {
     const serial = ++epoch;
+    desiredKey = undefined;
+    clearTimeout(scheduled);
+    scheduled = undefined;
     abort.abort();
     playback.invalidate();
-    if (activeBuild) void input.api.cancel(activeBuild).catch(() => undefined);
+    const stopped = Promise.all([...builds].map(cancelBuild));
     store.setState({ status: "idle", phase: "idle", loaded: null, playback: null });
     void input.driver.invalidate().catch(() => undefined);
-    loadQueue = loadQueue
-      .catch(() => undefined)
-      .then(() => input.api.invalidateDisplay())
+    const invalidated = enqueue(() => input.api.invalidateDisplay());
+    const cancelled = Promise.all([stopped, invalidated])
+      .then(() => undefined)
       .catch((error) => {
         if (current(serial))
           store.setState({ status: "error", phase: "failed", error: message(error) });
         throw error;
       });
-    void loadQueue.catch(() => undefined);
-    return loadQueue;
+    void cancelled.catch(() => undefined);
+    return cancelled;
   }
   return {
     store,
@@ -255,11 +330,17 @@ export function createPreviewController(input: {
     cancel,
     dispose: async () => {
       if (closed) return;
+      const stopped = Promise.all([...builds].map(cancelBuild));
       void cancel().catch(() => undefined);
       closed = true;
       unsubscribe();
       playback.dispose();
-      await input.driver.dispose();
+      try {
+        await input.driver.dispose();
+        await stopped;
+      } finally {
+        cleanup.abort();
+      }
     },
   };
 }

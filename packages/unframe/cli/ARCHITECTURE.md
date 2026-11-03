@@ -78,7 +78,9 @@ publish <absolute-project-directory> <presentation-id> <control-plane-origin>
 publication-status '<operation-json>' <control-plane-origin>
 ```
 
-`check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
+`check` は discovery、config、lock、Source frontend と assembly を検証し、Browser / Renderer を起動しない。
+
+Source の解析・検証は `analysis/worker.mjs` の CPU Worker へ取得済み入力を渡して実行する。スタイル・メディア変換と Opaque bundle の作成は Host への非同期要求とし、Host が子プロセスの取消と後始末を所有する。Worker の終了時は実行中の Host 側要求の後始末を待つ。`build:analysis` が同じ実行ファイルを dev／test 用に生成し、CLI の build／pack でも同梱する。
 `build` は Opaque Surface の locked renderer を閉じた bundle にして OS 別の native worker で capture する。Linux は namespace / cgroup、macOS arm64 は Seatbelt と process group の監視を使う。必要な隔離 capability が利用できなければ `opaque-isolation-unavailable` を返す。保証差と検証状態は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従い、成功後だけ既存の atomic publish へ進む。Structured Surface を含む build は同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
 project root の検証後、Browser を起動する前に `.unframe-build.lock` を `O_CREAT|O_EXCL|O_NOFOLLOW` で取得する。
 同一 project の concurrent build は I/O diagnostic で終了し、output を公開しない。lock は保持した inode が path 上で同一の

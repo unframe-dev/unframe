@@ -196,3 +196,33 @@ it("loads a copied Dist on startup without building or starting publication", as
     w.dispose();
   }
 });
+
+it("coalesces saved and externally observed revisions while initial load and reload are immediate", async () => {
+  vi.useFakeTimers();
+  const { workspace: w, api, builds } = fixture();
+  try {
+    await w.project.refresh();
+    w.connectViewport({} as HTMLCanvasElement);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(builds).toEqual(["r1"]);
+    w.project.selectInstance("i");
+    w.project.editProp("title", "after");
+    await w.commands.saveProps("title");
+    await vi.advanceTimersByTimeAsync(100);
+    await w.project.refresh();
+    const current = await api.project();
+    api.project = async () => ({ ...current, revision: "r3", sourceHash: "r3" });
+    await w.project.refresh();
+    await vi.advanceTimersByTimeAsync(199);
+    expect(builds).toEqual(["r1"]);
+    await w.project.refresh();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(builds).toEqual(["r1", "r3"]);
+    w.commands.reloadPreview();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(builds).toEqual(["r1", "r3", "r3"]);
+  } finally {
+    w.dispose();
+    vi.useRealTimers();
+  }
+});

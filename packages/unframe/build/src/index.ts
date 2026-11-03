@@ -59,6 +59,7 @@ export function createBuildJob<T>(
 export {
   createAuthorBuildService,
   type AuthorBuildPorts,
+  type AuthorBuildRequestOptions,
   type AuthorBuildExecutionResult,
   type AuthorBuildOptions,
 } from "./author-builds.js";

@@ -21,6 +21,7 @@ import {
   checkAuthoringProjectAssembly,
   createSourceAssetAssemblyCarrier,
   type AuthorBuildPorts,
+  type AuthorBuildRequestOptions,
 } from "@unframe/build";
 import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe/artifacts";
 import {
@@ -44,7 +45,12 @@ export class AuthorError extends Error {
 export type AuthorService = {
   project(): Promise<ProjectSnapshot>;
   patch(revision: string, request: PatchRequest): Promise<SavedCommand>;
-  build(revision: string, requestId: string, channel?: "dev" | "dist"): Promise<BuildJob>;
+  build(
+    revision: string,
+    requestId: string,
+    channel?: "dev" | "dist",
+    options?: AuthorBuildRequestOptions,
+  ): Promise<BuildJob>;
   job(id: string): Promise<BuildJob>;
   cancel(id: string): Promise<BuildJob>;
   artifact(id: string, assetId: string): Promise<{ bytes: Uint8Array; mediaType: string }>;
@@ -56,18 +62,15 @@ export type AuthorServiceOptions = {
 };
 export type AuthorServicePorts = {
   initialize(): Promise<void>;
-  withSource<T>(
-    callback: () => Promise<T>,
-    allowRecovery: boolean,
-    waitTimeoutMs: number,
-    signal?: AbortSignal,
-  ): Promise<T>;
-  project(): Promise<ProjectSnapshot>;
-  patch(revision: string, request: PatchRequest): Promise<SavedCommand>;
+  project(signal: AbortSignal): Promise<ProjectSnapshot>;
+  patch(revision: string, request: PatchRequest, signal: AbortSignal): Promise<SavedCommand>;
   prepareBuild(
     revision: string,
     channel: "dev" | "dist",
+    signal: AbortSignal,
   ): Promise<{ revision: string; snapshot: ProjectSnapshot }>;
+  validateRevision: AuthorBuildPorts["validateRevision"];
+  canReuseBuild: AuthorBuildPorts["canReuseBuild"];
   run: AuthorBuildPorts["run"];
   readPublishedArtifacts(
     generation: string,
@@ -75,6 +78,7 @@ export type AuthorServicePorts = {
     channel: "dev" | "dist",
     maxBytes?: number,
   ): Promise<{
+    identity: string;
     catalog: BuildJob["artifacts"];
     assets: Map<string, { bytes: Uint8Array; mediaType: string }>;
   }>;
@@ -189,6 +193,7 @@ export async function saveAuthorPatch<Current, Prepared>(
   revision: string,
   request: PatchRequest,
   ports: {
+    withCommit<T>(callback: () => Promise<T>): Promise<T>;
     readReceipt(id: string): Promise<{ requestHash: string; saved: SavedCommand } | undefined>;
     readCurrent(): Promise<Current & { snapshot: Pick<ProjectSnapshot, "revision"> }>;
     prepare(current: Current, revision: string, request: PatchRequest): Promise<Prepared>;
@@ -197,17 +202,34 @@ export async function saveAuthorPatch<Current, Prepared>(
   },
 ): Promise<SavedCommand> {
   const requestHash = digest(encoder.encode(JSON.stringify({ revision, request })));
-  const prior = await ports.readReceipt(request.commandId);
-  if (prior) {
+  const readPriorReceipt = async () => {
+    const prior = await ports.readReceipt(request.commandId);
+    if (!prior) return undefined;
     if (prior.requestHash !== requestHash)
       fail(409, "author-command-id-conflict", "Command ID was used for another request.");
     return prior.saved;
+  };
+  const prior = await readPriorReceipt();
+  if (prior) return prior;
+  let current: Current & { snapshot: Pick<ProjectSnapshot, "revision"> };
+  let prepared: Prepared;
+  try {
+    current = await ports.readCurrent();
+    prepared = await ports.prepare(current, revision, request);
+  } catch (error) {
+    return ports.withCommit(async () => {
+      const committed = await readPriorReceipt();
+      if (committed) return committed;
+      throw error;
+    });
   }
-  const current = await ports.readCurrent();
-  const prepared = await ports.prepare(current, revision, request);
-  if ((await ports.currentRevision()) !== current.snapshot.revision)
-    fail(412, "author-revision-mismatch", "Project inputs changed during save.");
-  return ports.commit(current, prepared, requestHash);
+  return ports.withCommit(async () => {
+    const committed = await readPriorReceipt();
+    if (committed) return committed;
+    if ((await ports.currentRevision()) !== current.snapshot.revision)
+      fail(412, "author-revision-mismatch", "Project inputs changed during save.");
+    return ports.commit(current, prepared, requestHash);
+  });
 }
 type AuthorStyleDiagnostic = {
   severity: "warning" | "error";
@@ -374,7 +396,15 @@ export async function readAuthorArtifacts(
   if (!/^[0-9a-f]{32}$/.test(generationId))
     fail(500, "author-output-unsafe", "Build output is not a managed generation.");
   const generation = await load();
-  return collectAuthorArtifacts(generation.artifacts, generation.readAsset, instanceIds, maxBytes);
+  return {
+    identity: hashCanonicalJsonPayload(generation.artifacts.buildManifest),
+    ...(await collectAuthorArtifacts(
+      generation.artifacts,
+      generation.readAsset,
+      instanceIds,
+      maxBytes,
+    )),
+  };
 }
 export async function collectAuthorArtifacts(
   artifacts: BuildArtifacts,
@@ -420,37 +450,37 @@ export const createAuthorService = async (
 ): Promise<AuthorService> => {
   await ports.initialize();
   let closed = false;
-  const withSource: AuthorServicePorts["withSource"] = (callback, recovery, timeout, signal) => {
+  const shutdown = new AbortController();
+  const builds = createAuthorBuildService({ ...ports, fail }, options);
+  const requireOpen = () => {
     if (closed) fail(409, "author-service-closed", "Author host is closed.");
-    return ports.withSource(
-      async () => {
-        if (closed) fail(409, "author-service-closed", "Author host is closed.");
-        return callback();
-      },
-      recovery,
-      timeout,
-      signal,
-    );
   };
-  const builds = createAuthorBuildService({ ...ports, withSource, fail }, options);
   return {
-    project: () => withSource(ports.project, false, 5000),
-    patch: (revision, request) =>
-      withSource(
-        async () => {
-          const saved = await ports.patch(revision, request);
-          builds.invalidate();
-          return saved;
-        },
-        true,
-        0,
-      ),
+    project: async () => {
+      requireOpen();
+      try {
+        const project = await ports.project(shutdown.signal);
+        requireOpen();
+        return structuredClone(project);
+      } catch (error) {
+        requireOpen();
+        throw error;
+      }
+    },
+    patch: async (revision, request) => {
+      requireOpen();
+      const saved = await ports.patch(revision, request, shutdown.signal);
+      requireOpen();
+      builds.invalidate();
+      return saved;
+    },
     build: builds.build,
     job: builds.job,
     cancel: builds.cancel,
     artifact: builds.artifact,
     close: async () => {
       closed = true;
+      shutdown.abort();
       await builds.close();
     },
   };
@@ -496,7 +526,7 @@ export function inspectAuthorSource(input: {
       }))
     : [];
   const editable =
-    catalog.valid && input.semanticValid
+    catalog.valid && input.semanticValid && Array.isArray(catalog.value.presentation.value.scene)
       ? readEditableReactScene(catalog.value, input.sourceText)
       : undefined;
   if (editable && !editable.ok)

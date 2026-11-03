@@ -10,6 +10,7 @@ it("loads TypeScript libraries and delegates Source preparation with the supplie
     assetSources: {},
     revision: "sha256:source",
     lockBytes: new Uint8Array(),
+    configBytes: new Uint8Array(),
     files: [{ fileName: "entry.tsx", sourceText: "export default {};" }],
     localFiles: [{ path: "entry.tsx", bytes: new TextEncoder().encode("export default {};") }],
   };
@@ -58,6 +59,7 @@ it("passes configured CSS inputs to the caller's style adapter", async () => {
     assetSources: {},
     revision: "sha256:source",
     lockBytes: new Uint8Array(),
+    configBytes: new Uint8Array(),
     files: [{ fileName: "entry.tsx", sourceText: "export default {};" }],
     localFiles: [
       { path: "entry.tsx", bytes: new TextEncoder().encode("export default {};") },

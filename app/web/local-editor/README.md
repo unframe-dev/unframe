@@ -31,13 +31,17 @@ CLI が認証付きの Editor URL をブラウザで開きます。UI は HMR �
 
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
+Host は Source・config・lock・アセット・スタイルを Source ロック内で取得し、解放後に取得済み入力から解析します。重い解析・検証は同梱の Worker で行い、スタイル・メディア変換やブラウザの子プロセスは Host が管理します。同じ revision の成功結果と進行中の解析を再利用し、後から取得した revision を古い解析の完了で上書きしません。ツールチェーンや Host の実装を変更した場合は Host を再起動してください。
+
 左の Group／Step／Cue 一覧から閲覧対象を選び、中央下部で時間軸・進行図・問題、右側で Cue／キーの詳細と公開 Props を確認します。選択だけでは Cue を実行しません。Cue 詳細はきっかけ・条件・アクション・遷移先をまとめ、優先度と候補順は「実行設定」を開いて確認します。時間軸はズーム・横スクロールに対応し、Timeline と Surface crossfade を表示します。テーマ、左右パネルの開閉、横・縦分割のサイズを調整できます。
 
 通常再生で実際に発火した Cue は、表示 build と Source revision が一致する場合に「この Cue を確認」で確認できます。発火直後を0msとして前後にシークし、確認範囲の終端で停止します。確認中だけキー選択もシークします。「通常再生に戻る」は入る前の位置へ一時停止で復帰します。後続 Cue／Step への進行と Source／Dist の書き換えは行いません。Dist は Source 一致を検証できないため、時間軸は閲覧専用です。詳細は [Cue 時間軸仕様](../../../docs/packages/LOCAL_EDITOR_TIMELINE_SPEC.md) を参照してください。
 
 未保存 Props は外部更新で破棄せず競合として保持します。Instance を切り替える場合は保存・破棄・取消を選べます。保存結果が不明な場合は同じ要求を再送し、競合の場合は自動上書きしません。Unity の部分適用・後続更新の故障中は再生・シーク・公開を止めます。正常 state の再適用に失敗した場合は「Preview を再読込」で新しい request を作成します。
 
-Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。
+Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。保存・外部変更による連続更新は200msでまとめ、初回表示と手動再読込は即時に要求します。Host は現在の Source revision を確認してから旧 Dev build を取り消し、後始末が終わってから最新の処理を開始します。受付待ちの旧要求も結果を回収して取り消し、遅延した結果を表示へ反映しません。同じ入力の成功済み generation は、現在の参照先と成果物・アセットの完全性を確認できる場合に再利用します。
+
+保存内容の検証、Dev lock の再計算、描画と成果物の一時書き込みは Source ロック外で進め、保存・lock 更新・成果物の確定時に再取得して revision を検証します。競合した結果は確定せず、保存要求の再送は同じ command ID の receipt と照合します。Host 終了時には待機を中断し、受付済み build は取消でも待機を中断できます。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。
 
 公開には `UNFRAME_CONTROL_PLANE_URL`、`UNFRAME_WEB_ORIGIN`、`UNFRAME_DEVICE_CLIENT_ID` を Host 起動時にすべて設定します。origin は HTTPS、または loopback HTTP を指定します。承認画面は設定済み Web origin の `/device` で開き、bearer と `device_code` は Host のメモリーだけに保持します。公開は Unity の commit と初期 playback 適用が確認された Dist と現在の `dist` が一致する場合だけ開始し、受付後は upload 元を固定します。
 

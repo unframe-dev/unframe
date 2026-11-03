@@ -7,7 +7,6 @@ import {
 } from "./atomic-output.js";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { readBuildGeneration } from "./read-build-generation.js";
-import { acquireSourceLock } from "./source-lock.js";
 
 export const readExpectedBuildGeneration = async (directory: string, channel: OutputChannel) => {
   const pointer = join(directory, channel === "dev" ? ".unframe/preview/current" : "dist");
@@ -29,29 +28,29 @@ export const publishProjectBuild = async (
     waitTimeoutMs?: number;
   },
 ) => {
-  const lease = await acquireSourceLock(input.projectDirectory, {
-    ...(input.waitTimeoutMs !== undefined ? { waitTimeoutMs: input.waitTimeoutMs } : {}),
+  const result = await publishAtomicArtifacts({
+    projectDirectory: input.projectDirectory,
+    artifacts: input.artifacts,
+    ...(input.channel ? { channel: input.channel } : {}),
+    ...(input.expectedGeneration !== undefined
+      ? { expectedGeneration: input.expectedGeneration }
+      : {}),
     ...(input.signal ? { signal: input.signal } : {}),
+    ...(input.waitTimeoutMs !== undefined ? { waitTimeoutMs: input.waitTimeoutMs } : {}),
+    isCurrentRevision: async () => {
+      const current = await discoverPresentationProjectFiles(input.projectDirectory, {
+        sourceLeaseHeld: true,
+      });
+      return current.ok && current.revision === input.revision;
+    },
   });
-  if (!lease.ok) return { kind: "lease-error" as const, code: lease.code };
-  try {
-    const result = await publishAtomicArtifacts({
-      projectDirectory: input.projectDirectory,
-      artifacts: input.artifacts,
-      ...(input.channel ? { channel: input.channel } : {}),
-      ...(input.expectedGeneration !== undefined
-        ? { expectedGeneration: input.expectedGeneration }
-        : {}),
-      ...(input.signal ? { signal: input.signal } : {}),
-      isCurrentRevision: async () => {
-        const current = await discoverPresentationProjectFiles(input.projectDirectory, {
-          sourceLeaseHeld: true,
-        });
-        return current.ok && current.revision === input.revision;
-      },
-    });
-    return { kind: "publication" as const, result };
-  } finally {
-    await lease.value.release();
-  }
+  if (
+    !result.ok &&
+    (result.code === "cli-source-lock-unavailable" ||
+      result.code === "cli-source-lock-io" ||
+      result.code === "cli-source-recovery-required" ||
+      result.code === "cli-cancelled")
+  )
+    return { kind: "lease-error" as const, code: result.code };
+  return { kind: "publication" as const, result };
 };

@@ -15,6 +15,7 @@ const request: PatchRequest = {
 it("returns an existing receipt without preparing or committing a patch", async () => {
   const saved = { revision: "r", sourceHash: "s", irHash: "i", commandId: "id" };
   const result = await saveAuthorPatch("r", request, {
+    withCommit: (callback) => callback(),
     readReceipt: async () => ({ requestHash: hashFor("r"), saved }),
     readCurrent: async () => {
       throw new Error("unexpected read");
@@ -36,6 +37,7 @@ it("rejects a changed source revision before committing the prepared patch", asy
   let committed = false;
   await expect(
     saveAuthorPatch("old", request, {
+      withCommit: (callback) => callback(),
       readReceipt: async () => undefined,
       readCurrent: async () => ({ snapshot: { revision: "old" } }),
       prepare: async () => "prepared",
@@ -72,6 +74,7 @@ it("prepares and commits one save only after verifying the original revision", a
   const events: string[] = [];
   const saved = { revision: "next", sourceHash: "s", irHash: "i", commandId: "id" };
   const result = await saveAuthorPatch("old", request, {
+    withCommit: (callback) => callback(),
     readReceipt: async () => {
       events.push("receipt");
       return undefined;
@@ -94,7 +97,14 @@ it("prepares and commits one save only after verifying the original revision", a
     },
   });
   expect(result).toEqual(saved);
-  expect(events).toEqual(["receipt", "read", "prepare", "verify", `prepared:${hashFor("old")}`]);
+  expect(events).toEqual([
+    "receipt",
+    "read",
+    "prepare",
+    "receipt",
+    "verify",
+    `prepared:${hashFor("old")}`,
+  ]);
 });
 
 it("rejects a stale request before preparing Source or changing its lock", async () => {
@@ -125,4 +135,27 @@ it("rejects a stale request before preparing Source or changing its lock", async
       },
     }),
   ).rejects.toMatchObject({ status: 412, code: "author-revision-mismatch" });
+});
+
+it("returns a matching concurrent receipt when replay preparation sees the committed revision", async () => {
+  const saved = { revision: "next", sourceHash: "s", irHash: "i", commandId: "id" };
+  let committed = false;
+  const result = await saveAuthorPatch("old", request, {
+    withCommit: (callback) => callback(),
+    readReceipt: async () => (committed ? { requestHash: hashFor("old"), saved } : undefined),
+    readCurrent: async () => {
+      committed = true;
+      return { snapshot: { revision: "next" } };
+    },
+    prepare: async () => {
+      throw Object.assign(new Error("Revision changed"), { code: "author-revision-mismatch" });
+    },
+    currentRevision: async () => {
+      throw new Error("Unexpected revision read");
+    },
+    commit: async () => {
+      throw new Error("Unexpected duplicate commit");
+    },
+  });
+  expect(result).toEqual(saved);
 });

@@ -1,27 +1,22 @@
+import { hashCanonicalJsonPayload } from "@unframe/artifacts";
+import type { AnalysisOperations } from "./analysis-protocol.js";
+import { runAnalysisOperation, prepareLockRefreshInWorker } from "./analysis-client.js";
 import { sourceAssetPorts } from "../application/media-ports.js";
 import { readBuildExecutionResult } from "./build-result.js";
-import { createProjectRevision } from "@unframe/workspace";
 import {
   createAuthorService as createService,
   saveAuthorPatch,
-  prepareAuthorSave,
   readAuthorArtifacts,
-  createAuthorProjectSnapshot,
   AuthorError,
   type AuthorService,
 } from "@unframe/author-service";
-import { join } from "node:path";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
 import type { RunPresentationCliInput } from "../application/types.js";
 import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
-import { loadUnframeLock } from "@unframe/workspace";
-import { prepareProjectSource } from "@unframe/workspace-node";
-import { StylePreparationError } from "@unframe/build";
-import { readRegularFile } from "@unframe/workspace-node";
+import { readTypeLibraries } from "@unframe/workspace-node";
 import { readBuildGeneration } from "@unframe/workspace-node";
 import { acquireSourceLock } from "@unframe/workspace-node";
 import { refreshLocalProjectLock } from "@unframe/workspace-node";
-import { resolveDevProjectSourceAssets } from "@unframe/workspace-node";
 import { type ProjectSnapshot } from "@unframe/contracts/author-http";
 import {
   AuthorTransactionConflict,
@@ -38,62 +33,10 @@ type Discovery = Extract<
   Awaited<ReturnType<typeof discoverPresentationProjectFiles>>,
   { ok: true }
 >;
-type Loaded = Extract<ReturnType<typeof loadUnframeLock>, { ok: true }>;
-const sourceInput = async (found: Discovery, loaded: Loaded, replacement?: string) =>
-  prepareProjectSource(sourceAssetPorts.styles, found, loaded.value.lock, {
-    refresh: true,
-    ...(replacement !== undefined ? { replacement } : {}),
-  });
-const sourceRevision = async (found: Discovery, entryBytes: Uint8Array, lockBytes: Uint8Array) => {
-  const config = await readRegularFile(join(found.projectDirectory, "unframe.config.ts"));
-  if (!config) fail(500, "author-source-io", "Project config could not be read.");
-  return createProjectRevision({
-    configBytes: config,
-    lockBytes,
-    localFiles: found.localFiles,
-    entryReplacement: { path: found.entryFile, bytes: entryBytes },
-  });
-};
 type ProjectState = {
   snapshot: ProjectSnapshot;
   found: Discovery;
-  loaded: Loaded;
-  sourceText: string;
-  source?: unknown;
-};
-const readState = async (directory: string, captured?: Discovery): Promise<ProjectState> => {
-  const found =
-    captured ?? (await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true }));
-  if (!found.ok) fail(500, found.code, found.message);
-  const loaded = loadUnframeLock(found.lockBytes);
-  if (!loaded.ok) fail(422, loaded.diagnostic.code, loaded.diagnostic.message);
-  const sourceText = found.files.find((file) => file.fileName === found.entryFile)?.sourceText;
-  if (sourceText === undefined)
-    fail(500, "author-source-missing", "Presentation source is missing.");
-  let prepared: Parameters<typeof createAuthorProjectSnapshot>[0]["prepared"];
-  try {
-    prepared = { ok: true, ...(await sourceInput(found, loaded)) };
-  } catch (error) {
-    if (!(error instanceof StylePreparationError)) throw error;
-    prepared = {
-      ok: false,
-      code: error.code,
-      message: error.message,
-      diagnostics: error.diagnostics,
-    };
-  }
-  const result = await createAuthorProjectSnapshot({
-    revision: found.revision,
-    sourceText,
-    files: found.files,
-    localFiles: found.localFiles,
-    componentLocks: loaded.value.assemblyCarrier.componentLocks,
-    carrier: loaded.value.assemblyCarrier,
-    prepared,
-    resolveAssets: () =>
-      resolveDevProjectSourceAssets(sourceAssetPorts, found.assetSources, found.localFiles),
-  });
-  return { found, loaded, sourceText, ...result };
+  typeLibraries: Awaited<ReturnType<typeof readTypeLibraries>>;
 };
 const readPublishedArtifacts = async (
   directory: string,
@@ -121,7 +64,107 @@ export const createAuthorService = async (
 ): Promise<AuthorService> => {
   const readPublished = options.readPublishedArtifacts ?? readPublishedArtifacts;
   const run = options.run ?? runPresentationCli;
-  return createService(
+  let closed = false;
+  const shutdown = new AbortController();
+  const workers = new Set<Promise<unknown>>();
+  const analyze = <K extends keyof AnalysisOperations>(
+    operation: K,
+    input: AnalysisOperations[K]["input"],
+    signal: AbortSignal,
+  ) => {
+    const result = runAnalysisOperation(operation, input, signal);
+    workers.add(result);
+    void result.then(
+      () => workers.delete(result),
+      () => workers.delete(result),
+    );
+    return result;
+  };
+  let cached: ProjectState | undefined;
+  let captureSequence = 0;
+  let latestCapture = 0;
+  let analyzing: { revision: string; sequence: number; promise: Promise<ProjectState> } | undefined;
+  const withSource = async <T>(
+    callback: () => Promise<T>,
+    allowRecovery = false,
+    waitTimeoutMs = 5000,
+    signal?: AbortSignal,
+  ): Promise<T> => {
+    const lease = await acquireSourceLock(directory, {
+      allowRecovery,
+      waitTimeoutMs,
+      ...(signal ? { signal } : {}),
+    });
+    if (!lease.ok) fail(409, lease.code, "Project source is busy or requires recovery.");
+    try {
+      return await lease.value.run(async () => {
+        if (allowRecovery) {
+          try {
+            await recoverAuthorTransactions(directory);
+          } catch {
+            fail(409, "author-recovery-required", "Source save recovery requires attention.");
+          }
+        }
+        return await callback();
+      });
+    } finally {
+      await lease.value.release();
+    }
+  };
+  const readState = async (signal?: AbortSignal, recovery = false): Promise<ProjectState> => {
+    const captured = await withSource(
+      async () => {
+        const found = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
+        if (!found.ok) {
+          latestCapture = ++captureSequence;
+          cached = undefined;
+          fail(500, found.code, found.message);
+        }
+        const sequence = ++captureSequence;
+        latestCapture = sequence;
+        if (cached?.snapshot.revision !== found.revision) cached = undefined;
+        return { found, sequence };
+      },
+      recovery,
+      Number.POSITIVE_INFINITY,
+      signal,
+    );
+    const { found, sequence } = captured;
+    if (cached?.snapshot.revision === found.revision) return cached;
+    if (analyzing?.revision === found.revision) {
+      analyzing.sequence = sequence;
+      return analyzing.promise;
+    }
+    const prepared = readTypeLibraries().then(async (typeLibraries) => ({
+      found,
+      typeLibraries,
+      snapshot: await analyze(
+        "project",
+        { found, typeLibraries, modelTransformIdentity: sourceAssetPorts.modelTransformIdentity },
+        shutdown.signal,
+      ),
+    }));
+    const analysis = { revision: found.revision, sequence, promise: prepared };
+    analysis.promise = prepared
+      .then((current) => {
+        if (signal?.aborted || shutdown.signal.aborted)
+          fail(409, "cli-cancelled", "Project analysis was cancelled.");
+        if (
+          !closed &&
+          analysis.sequence === latestCapture &&
+          current.snapshot.irHash !== null &&
+          current.snapshot.diagnostics.every((item) => item.severity === "warning")
+        )
+          cached = current;
+        return current;
+      })
+      .finally(() => {
+        if (analyzing === analysis) analyzing = undefined;
+      });
+    analyzing = analysis;
+    return analysis.promise;
+  };
+  const service = await createService(
     {
       initialize: async () => {
         await prepareAuthorStorage(directory);
@@ -137,66 +180,25 @@ export const createAuthorService = async (
           await lease.value.release();
         }
       },
-      withSource: async (callback, allowRecovery, waitTimeoutMs, signal) => {
-        const lease = await acquireSourceLock(directory, {
-          allowRecovery,
-          waitTimeoutMs,
-          ...(signal ? { signal } : {}),
-        });
-        if (!lease.ok) fail(409, lease.code, "Project source is busy or requires recovery.");
-        try {
-          return await lease.value.run(async () => {
-            if (allowRecovery) {
-              try {
-                await recoverAuthorTransactions(directory);
-              } catch {
-                fail(409, "author-recovery-required", "Source save recovery requires attention.");
-              }
-            }
-            return await callback();
-          });
-        } finally {
-          await lease.value.release();
-        }
-      },
-      project: async () => (await readState(directory)).snapshot,
-      patch: (revision, request) =>
+      project: async (signal) => (await readState(signal)).snapshot,
+      patch: (revision, request, signal) =>
         saveAuthorPatch(revision, request, {
+          withCommit: (callback) => withSource(callback, true, Number.POSITIVE_INFINITY, signal),
           readReceipt: (id) => readAuthorReceipt(directory, id),
-          readCurrent: () => readState(directory),
+          readCurrent: () => readState(signal, true),
           prepare: (current, revision, request) =>
-            prepareAuthorSave({
-              source: current.source,
-              sourceText: current.sourceText,
-              entryFile: current.found.entryFile,
-              snapshot: current.snapshot,
-              revision,
-              request,
-              lock: current.loaded.value.lock,
-              prepareSource: async (text) => {
-                const prepared = await sourceInput(current.found, current.loaded, text);
-                return {
-                  source: prepared.source,
-                  ...(prepared.styleTransform ? { styleTransform: prepared.styleTransform } : {}),
-                  ...(prepared.styleSourceIdentity
-                    ? { styleSourceIdentity: prepared.styleSourceIdentity }
-                    : {}),
-                };
+            analyze(
+              "save",
+              {
+                found: current.found,
+                typeLibraries: current.typeLibraries,
+                snapshot: current.snapshot,
+                modelTransformIdentity: sourceAssetPorts.modelTransformIdentity,
+                revision,
+                request,
               },
-              resolveAssets: async () => {
-                const assets = await resolveDevProjectSourceAssets(
-                  sourceAssetPorts,
-                  current.found.assetSources,
-                  current.found.localFiles,
-                );
-                if (!assets.ok) fail(422, assets.code, assets.message);
-                return {
-                  assets: assets.value.assets,
-                  bytes: assets.value.sourceAssetBytes,
-                };
-              },
-              revisionFor: (source, lock) => sourceRevision(current.found, source, lock),
-            }),
+              signal,
+            ),
           currentRevision: async () => {
             const latest = await discoverPresentationProjectFiles(directory, {
               sourceLeaseHeld: true,
@@ -228,11 +230,53 @@ export const createAuthorService = async (
             return saved;
           },
         }),
-      prepareBuild: async (revision, channel) => {
+      validateRevision: async (revision, signal) =>
+        withSource(
+          async () => {
+            const found = await discoverPresentationProjectFiles(directory, {
+              sourceLeaseHeld: true,
+            });
+            if (!found.ok) fail(500, found.code, found.message);
+            if (found.revision !== revision)
+              fail(412, "author-revision-mismatch", "Project revision changed.");
+          },
+          false,
+          Number.POSITIVE_INFINITY,
+          signal,
+        ),
+      canReuseBuild: async ({ revision, channel, generationId, identity }, signal) => {
+        const matches = async () => {
+          if (signal.aborted) return false;
+          const found = await discoverPresentationProjectFiles(directory, {
+            sourceLeaseHeld: true,
+          });
+          if (!found.ok || found.revision !== revision) return false;
+          const current = await readBuildGeneration(directory, { channel });
+          return (
+            current.generationId === generationId &&
+            hashCanonicalJsonPayload(current.artifacts.buildManifest) === identity
+          );
+        };
+        try {
+          if (!(await withSource(matches, false, Number.POSITIVE_INFINITY, signal))) return false;
+          const fixed = await readBuildGeneration(directory, { channel, generationId });
+          if (hashCanonicalJsonPayload(fixed.artifacts.buildManifest) !== identity) return false;
+          for (const id of Object.keys(fixed.artifacts.assetSet.assets)) {
+            if (signal.aborted) return false;
+            await fixed.readAsset(id);
+          }
+          return await withSource(matches, false, Number.POSITIVE_INFINITY, signal);
+        } catch {
+          return false;
+        }
+      },
+      prepareBuild: async (revision, channel, signal) => {
         const refreshed =
           channel === "dev"
             ? await refreshLocalProjectLock(sourceAssetPorts, directory, {
-                sourceLeaseHeld: true,
+                signal,
+                prepare: prepareLockRefreshInWorker,
+                waitTimeoutMs: Number.POSITIVE_INFINITY,
                 expectedRevision: revision,
               })
             : { ok: true as const, revision };
@@ -242,7 +286,7 @@ export const createAuthorService = async (
             refreshed.code,
             refreshed.message,
           );
-        const current = await readState(directory);
+        const current = await readState(signal);
         if (current.snapshot.revision !== refreshed.revision)
           fail(412, "author-revision-mismatch", "Project revision changed.");
         if (!current.snapshot.irHash)
@@ -262,4 +306,15 @@ export const createAuthorService = async (
     },
     options,
   );
+  return {
+    ...service,
+    close: async () => {
+      closed = true;
+      shutdown.abort();
+      cached = undefined;
+      analyzing = undefined;
+      await service.close();
+      await Promise.allSettled(workers);
+    },
+  };
 };

@@ -241,6 +241,122 @@ func TestExchangeKeepsPinnedParentAfterReplacement(t *testing.T) {
 	}
 }
 
+func TestAtomicRenameAcrossPinnedParentsKeepsBothParentsPinned(t *testing.T) {
+	for _, operation := range []string{"exchange", "renameNoReplace"} {
+		t.Run(operation, func(t *testing.T) {
+			root := t.TempDir()
+			parents := []string{filepath.Join(root, "source"), filepath.Join(root, "target")}
+			s := &server{handles: make(map[int]*directory)}
+			defer s.close()
+			for _, parent := range parents {
+				if err := os.Mkdir(parent, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := s.execute(request{Op: "openDirectory", Path: parent}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.Mkdir(filepath.Join(parents[0], "staging"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(parents[0], "staging", "content"), []byte("next"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if operation == "exchange" {
+				if err := os.Mkdir(filepath.Join(parents[1], "output"), 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(parents[1], "output", "content"), []byte("previous"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			outside := t.TempDir()
+			for _, parent := range parents {
+				if err := os.Rename(parent, parent+"-owned"); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, parent); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := s.execute(request{Op: operation, Path: "@fd:1/staging", Target: "@fd:2/output"}); err != nil {
+				t.Fatal(err)
+			}
+			bytes, err := os.ReadFile(filepath.Join(parents[1]+"-owned", "output", "content"))
+			if err != nil || string(bytes) != "next" {
+				t.Fatalf("got %q, %v", bytes, err)
+			}
+			if operation == "exchange" {
+				bytes, err = os.ReadFile(filepath.Join(parents[0]+"-owned", "staging", "content"))
+				if err != nil || string(bytes) != "previous" {
+					t.Fatalf("rollback directory: got %q, %v", bytes, err)
+				}
+			}
+			entries, err := os.ReadDir(outside)
+			if err != nil || len(entries) != 0 {
+				t.Fatal("atomic rename followed a replaced parent")
+			}
+		})
+	}
+}
+
+func TestAtomicRenameAcrossPinnedParentsRejectsUnsafeEntries(t *testing.T) {
+	for _, operation := range []string{"exchange", "renameNoReplace"} {
+		t.Run(operation, func(t *testing.T) {
+			parents := []string{t.TempDir(), t.TempDir()}
+			s := &server{handles: make(map[int]*directory)}
+			defer s.close()
+			for _, parent := range parents {
+				if _, err := s.execute(request{Op: "openDirectory", Path: parent}); err != nil {
+					t.Fatal(err)
+				}
+				for _, name := range []string{"staging", "output"} {
+					if err := os.Mkdir(filepath.Join(parent, name), 0700); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := os.Symlink("staging", filepath.Join(parent, "link")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cases := []struct {
+				path, target string
+				want         error
+			}{
+				{"@fd:1/link", "@fd:2/output", invalid},
+				{"@fd:1/staging/nested", "@fd:2/output", invalid},
+				{"@fd:1/staging", "@fd:2/link/nested", invalid},
+				{"@fd:1/staging", "@fd:2/../output", invalid},
+				{"@fd:1/staging", "@fd:99/output", syscall.EBADF},
+			}
+			if operation == "exchange" {
+				cases = append(cases, struct {
+					path, target string
+					want         error
+				}{"@fd:1/staging", "@fd:2/link", invalid})
+			} else {
+				cases = append(cases, struct {
+					path, target string
+					want         error
+				}{"@fd:1/staging", "@fd:2/output", syscall.EEXIST})
+			}
+			for _, tc := range cases {
+				if _, err := s.execute(request{Op: operation, Path: tc.path, Target: tc.target}); !errors.Is(err, tc.want) {
+					t.Fatalf("%s -> %s: got %v, want %v", tc.path, tc.target, err, tc.want)
+				}
+			}
+			for _, parent := range parents {
+				for _, name := range []string{"staging", "output"} {
+					stat, err := os.Lstat(filepath.Join(parent, name))
+					if err != nil || !stat.IsDir() {
+						t.Fatalf("rejected rename changed %s: %v", name, err)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestExchangeRejectsPathsOutsidePinnedSiblings(t *testing.T) {
 	s := &server{handles: make(map[int]*directory)}
 	defer s.close()
@@ -265,7 +381,6 @@ func TestExchangeRejectsPathsOutsidePinnedSiblings(t *testing.T) {
 		name, path, target string
 		want               error
 	}{
-		{"different root", "@fd:1/staging", "@fd:2/output", syscall.EXDEV},
 		{"absolute", filepath.Join(parents[0], "staging"), filepath.Join(parents[0], "output"), invalid},
 		{"mixed anchors", "@fd:1/staging", filepath.Join(parents[0], "output"), syscall.EXDEV},
 		{"parent traversal", "@fd:1/../staging", "@fd:1/output", invalid},
@@ -367,7 +482,6 @@ func TestRenameNoReplaceRejectsUnsafePaths(t *testing.T) {
 		name, path, target string
 		want               error
 	}{
-		{"cross root", "@fd:1/staging", "@fd:2/output", syscall.EXDEV},
 		{"source symlink", "@fd:1/link", "@fd:1/output", invalid},
 		{"target symlink", "@fd:1/staging", "@fd:1/link", syscall.EEXIST},
 		{"source traversal", "@fd:1/../staging", "@fd:1/output", invalid},

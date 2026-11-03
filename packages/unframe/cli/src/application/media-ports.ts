@@ -20,6 +20,6 @@ export const sourceAssetPorts = {
   modelTransformIdentity: hashCanonicalJsonPayload(
     createModelBuildIdentity(MODEL_TRANSFORM_IDENTITY),
   ) as `sha256:${string}`,
-  videoTransformIdentity: async () =>
-    hashCanonicalJsonPayload((await createVideoValidator()).identity) as `sha256:${string}`,
+  videoTransformIdentity: async (signal?: AbortSignal) =>
+    hashCanonicalJsonPayload((await createVideoValidator(signal)).identity) as `sha256:${string}`,
 };

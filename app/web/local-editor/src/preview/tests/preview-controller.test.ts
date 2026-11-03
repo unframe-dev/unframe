@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vite-plus/test";
 import type {
+  BuildJob,
   LocalPreviewEnvelopeWire,
   PreviewPlaybackCommand,
   PreviewPlaybackResponse,
@@ -46,6 +47,203 @@ function fixture() {
   };
   return { api, driver, commands };
 }
+it("debounces automatic Dev updates and builds only the latest revision", async () => {
+  vi.useFakeTimers();
+  const { api, driver } = fixture();
+  api.build = vi.fn(async (revision: string) => job(revision));
+  api.cancel = vi.fn(async (buildId: string) => job(buildId, "cancelled"));
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dev", "first", { debounce: true });
+    await vi.advanceTimersByTimeAsync(100);
+    controller.request("dev", "latest", { debounce: true });
+    await vi.advanceTimersByTimeAsync(199);
+    expect(api.build).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(api.build).toHaveBeenCalledOnce();
+    expect(api.build).toHaveBeenCalledWith("latest", expect.any(String));
+    expect(controller.store.getState().status).toBe("ready");
+  } finally {
+    await controller.dispose();
+    vi.useRealTimers();
+  }
+});
+
+const job = (revision: string, status: BuildJob["status"] = "succeeded"): BuildJob => ({
+  buildId: revision,
+  channel: "dev",
+  revision,
+  generationId: status === "succeeded" ? "f".repeat(32) : null,
+  status,
+  diagnostics: [],
+  artifacts: [],
+});
+it("retries a rejected build acceptance on manual reload of the same revision", async () => {
+  const { api, driver } = fixture();
+  api.build = vi
+    .fn<HostApi["build"]>()
+    .mockRejectedValueOnce(new Error("temporary acceptance failure"))
+    .mockResolvedValueOnce(job("same"));
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dev", "same");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("error"));
+    controller.request("dev", "same");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    expect(api.build).toHaveBeenCalledTimes(2);
+  } finally {
+    await controller.dispose();
+  }
+});
+it("starts the latest build before an obsolete acceptance or cancellation returns", async () => {
+  const { api, driver } = fixture();
+  let accept!: (value: BuildJob) => void;
+  let finishCancel!: (value: BuildJob) => void;
+  api.build = vi.fn(async (revision) =>
+    revision === "first"
+      ? new Promise<BuildJob>((resolve) => {
+          accept = resolve;
+        })
+      : job(revision),
+  );
+  api.cancel = vi.fn(
+    async () =>
+      new Promise<BuildJob>((resolve) => {
+        finishCancel = resolve;
+      }),
+  );
+  const onRevision = vi.fn();
+  const controller = createPreviewController({ api, driver, onRevision });
+  controller.request("dev", "first");
+  await vi.waitFor(() => expect(accept).toBeDefined());
+  controller.request("dev", "latest");
+  await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+  expect(api.build).toHaveBeenLastCalledWith("latest", expect.any(String));
+  expect(onRevision.mock.calls).toEqual([["latest"]]);
+  accept(job("first", "running"));
+  await vi.waitFor(() => expect(finishCancel).toBeDefined());
+  expect(controller.store.getState().job?.revision).toBe("latest");
+  finishCancel(job("first", "cancelled"));
+  await controller.dispose();
+  expect(api.cancel).toHaveBeenCalledOnce();
+});
+it("does not hold the latest build behind an obsolete cancellation RPC", async () => {
+  const { api, driver } = fixture();
+  let finishCancel!: (value: BuildJob) => void;
+  api.build = vi.fn(async (revision) =>
+    job(revision, revision === "first" ? "running" : "succeeded"),
+  );
+  api.cancel = vi.fn(
+    async () =>
+      new Promise<BuildJob>((resolve) => {
+        finishCancel = resolve;
+      }),
+  );
+  const controller = createPreviewController({ api, driver });
+  controller.request("dev", "first");
+  await vi.waitFor(() => expect(controller.store.getState().job?.status).toBe("running"));
+  controller.request("dev", "latest");
+  await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+  expect(finishCancel).toBeDefined();
+  expect(api.build).toHaveBeenLastCalledWith("latest", expect.any(String));
+  finishCancel(job("first", "cancelled"));
+  await controller.dispose();
+});
+it("disposes the driver immediately and reaps an acceptance that arrives after closing", async () => {
+  const { api, driver } = fixture();
+  let accept!: (value: BuildJob) => void;
+  api.build = vi.fn(
+    async () =>
+      new Promise<BuildJob>((resolve) => {
+        accept = resolve;
+      }),
+  );
+  api.cancel = vi.fn(async () => job("first", "cancelled"));
+  const dispose = vi.spyOn(driver, "dispose");
+  const prepare = vi.spyOn(driver, "prepare");
+  const controller = createPreviewController({ api, driver });
+  controller.request("dev", "first");
+  await vi.waitFor(() => expect(accept).toBeDefined());
+  const stopped = controller.dispose();
+  expect(dispose).toHaveBeenCalledOnce();
+  accept(job("first", "running"));
+  await stopped;
+  expect(api.cancel).toHaveBeenCalledWith("first");
+  expect(prepare).not.toHaveBeenCalled();
+});
+it("waits for a late accepted job to stop before explicit cancellation completes", async () => {
+  vi.useFakeTimers();
+  const { api, driver } = fixture();
+  let accept!: (value: BuildJob) => void;
+  api.build = vi.fn(
+    async () =>
+      new Promise<BuildJob>((resolve) => {
+        accept = resolve;
+      }),
+  );
+  api.cancel = vi.fn(async () => job("first", "running"));
+  api.job = vi.fn(async () => job("first", "cancelled"));
+  const controller = createPreviewController({ api, driver, pollMilliseconds: 50 });
+  try {
+    controller.request("dev", "first");
+    await vi.advanceTimersByTimeAsync(0);
+    let completed = false;
+    const cancelled = controller.cancel().then(() => {
+      completed = true;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(completed).toBe(false);
+    accept(job("first", "running"));
+    await vi.advanceTimersByTimeAsync(49);
+    expect(completed).toBe(false);
+    expect(api.cancel).toHaveBeenCalledWith("first");
+    await vi.advanceTimersByTimeAsync(1);
+    await cancelled;
+    expect(api.job).toHaveBeenCalledOnce();
+    expect(controller.store.getState().status).toBe("idle");
+  } finally {
+    await controller.dispose();
+    vi.useRealTimers();
+  }
+});
+it("flushes automatic updates on manual reload and never debounces Dist", async () => {
+  vi.useFakeTimers();
+  const { api, driver } = fixture();
+  api.build = vi.fn(async (revision) => job(revision));
+  const preview = vi.spyOn(api, "preview");
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dev", "latest", { debounce: true });
+    await vi.advanceTimersByTimeAsync(100);
+    controller.request("dev", "latest");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.build).toHaveBeenCalledOnce();
+    controller.request("dist", "latest", { debounce: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(controller.store.getState().loaded?.channel).toBe("dist");
+    expect(preview).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(api.build).toHaveBeenCalledOnce();
+  } finally {
+    await controller.dispose();
+    vi.useRealTimers();
+  }
+});
+it("removes a pending automatic update on disposal", async () => {
+  vi.useFakeTimers();
+  const { api, driver } = fixture();
+  api.build = vi.fn();
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dev", "latest", { debounce: true });
+    await controller.dispose();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(api.build).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("restores an acknowledged state after partial application failure and returns paused", async () => {
   const { api, driver, commands } = fixture();
   let failed = false;

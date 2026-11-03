@@ -14,7 +14,7 @@ import definitionFixture from "../../../contracts/presentation/fixtures/presenta
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import manifestFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { acquireSourceLock } from "@unframe/workspace-node";
+import { acquireSourceLock, publishAtomicArtifacts } from "@unframe/workspace-node";
 import { createAuthorService } from "../src/author/service.js";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "@unframe/workspace-node";
@@ -176,6 +176,7 @@ describe("author service with frozen React source", () => {
         generationId: (++builds).toString(16).padStart(32, "0"),
       }),
       readPublishedArtifacts: async () => ({
+        identity: "identity",
         catalog: [
           { assetId: "image", mediaType: "image/png", instanceId: "hero-one", stateId: "default" },
         ],
@@ -234,7 +235,11 @@ describe("author service with frozen React source", () => {
         builtChannel = host?.channel;
         return { exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) };
       },
-      readPublishedArtifacts: async () => ({ catalog: [], assets: new Map() }),
+      readPublishedArtifacts: async () => ({
+        identity: "identity",
+        catalog: [],
+        assets: new Map(),
+      }),
     });
     services.push(service);
     const beforeLock = await readFile(join(directory, "unframe.lock"));
@@ -251,7 +256,11 @@ describe("author service with frozen React source", () => {
     await copyProjectFixture(reference, directory);
     const service = await createAuthorService(directory, {
       run: async () => ({ exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) }),
-      readPublishedArtifacts: async () => ({ catalog: [], assets: new Map() }),
+      readPublishedArtifacts: async () => ({
+        identity: "identity",
+        catalog: [],
+        assets: new Map(),
+      }),
     });
     services.push(service);
     const snapshot = await service.project();
@@ -291,7 +300,11 @@ describe("author service with frozen React source", () => {
         builtChannel = (host as { channel?: string })?.channel;
         return { exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) };
       },
-      readPublishedArtifacts: async () => ({ catalog: [], assets: new Map() }),
+      readPublishedArtifacts: async () => ({
+        identity: "identity",
+        catalog: [],
+        assets: new Map(),
+      }),
     });
     services.push(service);
     const saved = await service.project();
@@ -704,6 +717,7 @@ describe("author service with frozen React source", () => {
         publicationStarted();
         await finish;
         return {
+          identity: "identity",
           catalog: [
             {
               assetId: "image",
@@ -741,7 +755,7 @@ describe("author service with frozen React source", () => {
         const path = join(directory, "Hero.component.tsx");
         await writeFile(path, component + "\n// newer external save\n");
         sourceChanged();
-        return { catalog: [], assets: new Map() };
+        return { identity: "identity", catalog: [], assets: new Map() };
       },
     });
     services.push(service);
@@ -794,3 +808,84 @@ it("does not register or start a build after closing while its source lease is p
   assert(next.ok);
   await next.value.release();
 }, 30_000);
+
+it.each(["valid", "deleted", "asset", "manifest", "pointer"])(
+  "checks the real managed generation before reusing a Dev success (%s)",
+  async (mutation) => {
+    const directory = await createProject();
+    let builds = 0;
+    let generationId = "";
+    const run = vi.fn(async () => {
+      generationId = (++builds).toString(16).padStart(32, "0");
+      const bundle = structuredClone(bundleFixture);
+      const assetSet = structuredClone(assetSetFixture);
+      const assets = Object.entries(assetSet.assets).map(([assetId, descriptor], index) => {
+        const bytes = new Uint8Array(64).fill(index + 1);
+        const checksum = "sha256:" + createHash("sha256").update(bytes).digest("hex");
+        const previous = descriptor.checksum;
+        descriptor.checksum = checksum;
+        const replace = (value: unknown): void => {
+          if (!value || typeof value !== "object") return;
+          for (const [key, child] of Object.entries(value)) {
+            if (key === "checksum" && child === previous) Object.assign(value, { [key]: checksum });
+            else replace(child);
+          }
+        };
+        replace(bundle);
+        return { assetId, bytes, mediaType: descriptor.mediaType };
+      });
+      const manifest = {
+        ...manifestFixture,
+        renderBundleHash: hashCanonicalJsonPayload(bundle),
+        assetSetHash: hashCanonicalJsonPayload(assetSet),
+      };
+      const encoder = new TextEncoder();
+      const published = await publishAtomicArtifacts({
+        projectDirectory: directory,
+        channel: "dev",
+        generationId: () => generationId,
+        artifacts: {
+          definition: encoder.encode(JSON.stringify(definitionFixture)),
+          renderBundle: encoder.encode(JSON.stringify(bundle)),
+          assetSet: encoder.encode(JSON.stringify(assetSet)),
+          buildManifest: encoder.encode(JSON.stringify(manifest)),
+          assets,
+        },
+      });
+      assert(published.ok, JSON.stringify(published));
+      return { exitCode: 0 as const, stdout: "", stderr: "", generationId };
+    });
+    const service = await createAuthorService(directory, { run });
+    services.push(service);
+    const initial = await service.project();
+    const first = await service.build(initial.revision, commandId("a"));
+    await expect.poll(async () => (await service.job(first.buildId)).status).toBe("succeeded");
+    const originalGeneration = generationId;
+    const generation = join(directory, ".unframe/preview/generations", generationId);
+    if (mutation === "deleted") await rm(generation, { recursive: true });
+    if (mutation === "asset")
+      await writeFile(join(generation, "assets/image.png"), new Uint8Array(64));
+    if (mutation === "manifest") {
+      const manifest = JSON.parse(await readFile(join(generation, "build-manifest.json"), "utf8"));
+      manifest.sourceDraftRevision++;
+      const integrity = verifyBuildIntegrity({
+        definition: JSON.parse(await readFile(join(generation, "definition.json"), "utf8")),
+        renderBundle: JSON.parse(await readFile(join(generation, "render-bundle.json"), "utf8")),
+        assetSet: JSON.parse(await readFile(join(generation, "asset-set.json"), "utf8")),
+        buildManifest: manifest,
+      });
+      assert(integrity.valid, JSON.stringify(integrity.diagnostics));
+      await writeFile(join(generation, "build-manifest.json"), JSON.stringify(manifest));
+    }
+    if (mutation === "pointer") await rm(join(directory, ".unframe/preview/current"));
+    const current = await service.project();
+    const second = await service.build(current.revision, commandId("b"));
+    await expect
+      .poll(async () => (await service.job(second.buildId)).status)
+      .toBe(mutation === "deleted" ? "failed" : "succeeded");
+    expect(run).toHaveBeenCalledTimes(mutation === "valid" ? 1 : 2);
+    expect(second.buildId).not.toBe(first.buildId);
+    if (mutation === "valid") expect(second.generationId).toBe(originalGeneration);
+  },
+  60_000,
+);

@@ -87,3 +87,5 @@ app/web/local-editor/player/
 packages/unframe/workspace-node/native-bin/
 
 .vitest/
+
+/packages/unframe/cli/analysis/

@@ -1,17 +1,23 @@
+import type { AnalysisOperations } from "../author/analysis-protocol.js";
+import { runAnalysisOperation, prepareLockRefreshInWorker } from "../author/analysis-client.js";
 import { createSourceAssetAssemblyCarrier } from "@unframe/build";
 import { buildMediaPorts, sourceAssetPorts } from "./media-ports.js";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readExpectedBuildGeneration, publishProjectBuild } from "@unframe/workspace-node";
 import { createBuildJob } from "@unframe/build";
-import { compileAuthoringProject } from "@unframe/build";
+import {
+  compileCheckedDeclarationProject,
+  checkDeclarationProject,
+  type CompilerDeclarationProject,
+} from "@unframe/build";
 import type { CompiledDeclarationProject } from "@unframe/build";
 import type { AuthoringProjectDiagnostic } from "@unframe/source";
 import { prepareProjectSource } from "@unframe/workspace-node";
 import { StylePreparationError } from "@unframe/build";
 import { styleDiagnostics } from "./style-diagnostics.js";
 import { type CompilerWarning } from "@unframe/compiler";
-import { checkAuthoringProjectAssembly, type AuthoringProjectPipelineResult } from "@unframe/build";
+import { type AuthoringProjectPipelineResult } from "@unframe/build";
 import { hashCanonicalJsonPayload } from "@unframe/artifacts";
 import { hashSourceTypeLibraries } from "@unframe/source";
 import {
@@ -415,13 +421,15 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         );
   }
   const sourceWait = {
-    waitTimeoutMs: host.channel ? 5000 : 0,
+    // Editor inspections can outlive a fixed lease timeout; the job signal owns cancellation.
+    waitTimeoutMs: host.channel ? (host.signal ? Number.POSITIVE_INFINITY : 5000) : 0,
     ...(host.signal ? { signal: host.signal } : {}),
   };
   let expectedRevision = host.expectedRevision;
   if (command !== "check" && host.channel === "dev") {
     const refreshed = await refreshLocalProjectLock(sourceAssetPorts, directory, {
       ...sourceWait,
+      prepare: prepareLockRefreshInWorker,
       ...(expectedRevision !== undefined ? { expectedRevision } : {}),
       ...(host.signal ? { signal: host.signal } : {}),
     });
@@ -554,12 +562,34 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     );
   }
   const source = prepared.source;
-  const checked = checkAuthoringProjectAssembly(
-    source,
-    assemblyCarrier,
+  let assembled: AnalysisOperations["assemble"]["output"];
+  try {
+    assembled = await runAnalysisOperation(
+      "assemble",
+      {
+        source,
+        carrier: assemblyCarrier,
+        sourceAssetBytes: sourceAssets.value.sourceAssetBytes,
+      },
+      host.signal,
+    );
+  } catch {
+    return output(host.signal?.aborted ? 130 : 3, command, format, [
+      diagnostic(
+        host.signal?.aborted ? "cancel" : "io",
+        host.signal?.aborted ? "cli-cancelled" : "cli-analysis-worker-failed",
+        host.signal?.aborted ? "Build was cancelled." : "Project analysis worker failed.",
+      ),
+    ]);
+  }
+  if (!assembled.valid) return output(1, command, format, compilerDiagnostics(assembled));
+  const checked = checkDeclarationProject(
+    assembled.value.project,
     sourceAssets.value.sourceAssetBytes,
   );
-  if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
+  if (!checked.valid)
+    return output(1, command, format, compilerDiagnostics({ ...checked, phase: "assembly" }));
+  const assembledProject = assembled.value.project as CompilerDeclarationProject;
   if (command === "check")
     return output(
       0,
@@ -717,9 +747,9 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         { revision: discovered.revision, expectedGeneration },
         {
           prepare: async () => {
-            const compiled = await compileAuthoringProject(
-              source,
-              assemblyCarrier,
+            const compiled = await compileCheckedDeclarationProject(
+              assembledProject,
+              checked.value,
               {
                 compiler: {
                   ...context.compiler,
@@ -755,7 +785,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
                   format,
                   host.signal?.aborted
                     ? [diagnostic("cancel", "cli-cancelled", "Build was cancelled.")]
-                    : compilerDiagnostics(compiled),
+                    : compilerDiagnostics({ ...compiled, phase: "compile" }),
                 ),
               );
             const closed = session;

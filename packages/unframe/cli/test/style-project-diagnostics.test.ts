@@ -100,7 +100,11 @@ describe("project style diagnostics", { timeout: 30_000 }, () => {
     const directory = await fixture();
     const service = await createAuthorService(directory, {
       run: async () => ({ exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) }),
-      readPublishedArtifacts: async () => ({ catalog: [], assets: new Map() }),
+      readPublishedArtifacts: async () => ({
+        identity: "identity",
+        catalog: [],
+        assets: new Map(),
+      }),
     });
     services.push(service);
     const before = await service.project();

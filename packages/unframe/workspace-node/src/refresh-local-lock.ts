@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { createProjectRevision } from "@unframe/workspace";
 import { digestBytes } from "./package-snapshot.js";
-import { projectDirectory, readDirectoryNames, readRegularFile } from "./path-policy.js";
+import { projectDirectory, readDirectoryNames } from "./path-policy.js";
 import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readTypeLibraries } from "./prepare-project.js";
@@ -32,7 +32,7 @@ const refreshLocalProjectLockWithinScope = async (
   requestedDirectory: string,
   options: {
     expectedRevision?: string;
-    sourceLeaseHeld?: boolean;
+    prepare?: typeof prepareLockRefresh;
     signal?: AbortSignal;
     waitTimeoutMs?: number;
   } = {},
@@ -44,37 +44,29 @@ const refreshLocalProjectLockWithinScope = async (
   const buildLease = await acquireBuildLock(directory);
   if (!buildLease.ok)
     return failure(buildLease.code, "Another build or lock update owns the project.");
-  const lease = options.sourceLeaseHeld
-    ? undefined
-    : await acquireSourceLock(directory, options).catch(async (error: unknown) => {
-        await buildLease.value.release();
-        throw error;
-      });
-  if (lease && !lease.ok) {
-    await buildLease.value.release();
-    return failure(lease.code, "Source is being saved or requires recovery.");
-  }
   let temporary: string | undefined;
+  let commitLease: Awaited<ReturnType<typeof acquireSourceLock>> | undefined;
   try {
     if (options.signal?.aborted) return failure("cli-cancelled", "Lock refresh was cancelled.");
-    const found = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
+    const captureLease = await acquireSourceLock(directory, options);
+    if (!captureLease.ok)
+      return failure(captureLease.code, "Source is being saved or requires recovery.");
+    const found = await (async () => {
+      try {
+        return await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
+      } finally {
+        await captureLease.value.release();
+      }
+    })();
     if (!found.ok) return found;
     if (options.expectedRevision !== undefined && options.expectedRevision !== found.revision)
       return failure("cli-output-stale", "Project inputs changed after the build was requested.");
-    const config = await readRegularFile(join(directory, "unframe.config.ts"));
-    if (!config) return failure("cli-lock-refresh-failed", "Project config could not be read.");
-    const prepared = await prepareLockRefresh(
+    const prepared = await (options.prepare ?? prepareLockRefresh)(
       { found, ...(options.signal ? { signal: options.signal } : {}) },
       { ...ports, readTypeLibraries },
     );
     if (!prepared.ok) return prepared;
     const { bytes } = prepared;
-    const latest = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
-    if (!latest.ok || latest.revision !== found.revision)
-      return failure("cli-output-stale", "Project inputs changed during lock refresh.");
-    if (options.signal?.aborted) return failure("cli-cancelled", "Lock refresh was cancelled.");
-    if (digestBytes(bytes) === digestBytes(found.lockBytes))
-      return { ok: true, revision: found.revision };
     const storage = join(directory, ".unframe");
     await mkdir(storage).catch((error: unknown) => {
       if (!error || typeof error !== "object" || !("code" in error) || error.code !== "EEXIST")
@@ -94,14 +86,19 @@ const refreshLocalProjectLockWithinScope = async (
     } finally {
       await output.close();
     }
+    commitLease = await acquireSourceLock(directory, options);
+    if (!commitLease.ok)
+      return failure(commitLease.code, "Source is being saved or requires recovery.");
     const beforeCommit = await discoverPresentationProjectFiles(directory, {
       sourceLeaseHeld: true,
     });
     if (!beforeCommit.ok || beforeCommit.revision !== found.revision)
       return failure("cli-output-stale", "Project inputs changed during lock refresh.");
     if (options.signal?.aborted) return failure("cli-cancelled", "Lock refresh was cancelled.");
+    if (digestBytes(bytes) === digestBytes(found.lockBytes))
+      return { ok: true, revision: found.revision };
     const expected = createProjectRevision({
-      configBytes: config,
+      configBytes: found.configBytes,
       lockBytes: bytes,
       localFiles: found.localFiles,
     });
@@ -122,11 +119,13 @@ const refreshLocalProjectLockWithinScope = async (
       return failure("cli-output-stale", "Project inputs changed after lock refresh.");
     return { ok: true, revision: refreshed.revision };
   } catch {
-    return failure("cli-lock-refresh-failed", "Local lock refresh could not be completed.");
+    return options.signal?.aborted
+      ? failure("cli-cancelled", "Lock refresh was cancelled.")
+      : failure("cli-lock-refresh-failed", "Local lock refresh could not be completed.");
   } finally {
     if (temporary) await unlink(temporary).catch(() => undefined);
     try {
-      if (lease?.ok) await lease.value.release();
+      if (commitLease?.ok) await commitLease.value.release();
     } finally {
       await buildLease.value.release();
     }

@@ -62,7 +62,10 @@ export function createProjectController({
       serial = ++readSerial;
     try {
       const next = await api.project(abort.signal);
-      if (version === epoch && serial === readSerial) accept(next);
+      if (version === epoch && serial === readSerial) {
+        accept(next);
+        if (state().status === "clean") store.setState({ error: null });
+      }
     } catch (error) {
       if (!disposed && version === epoch && serial === readSerial)
         store.setState({ error: String(error) });

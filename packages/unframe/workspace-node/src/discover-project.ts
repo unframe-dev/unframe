@@ -37,6 +37,7 @@ export type DiscoveredProjectFiles =
       readonly assetSources: ProjectConfig["assets"];
       readonly revision: string;
       readonly lockBytes: Uint8Array;
+      readonly configBytes: Uint8Array;
       readonly files: readonly ProjectSourceFile[];
       readonly localFiles: readonly LocalFileSnapshot[];
     }
@@ -195,6 +196,7 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
     assetSources,
     revision,
     lockBytes: lock.slice(),
+    configBytes: config.slice(),
     ...snapshot,
   };
 };

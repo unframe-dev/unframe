@@ -176,15 +176,30 @@ export const startAuthorHost = async ({
         const revision = expectedRevision(request);
         const parsed = buildRequestSchema.safeParse(await jsonBody(request));
         if (!parsed.success) throw invalid();
-        ++previewOperation;
-        previews.invalidate();
-        const job = await author.build(
-          revision,
-          parsed.data.requestId,
-          path === "/api/dist-builds" ? "dist" : "dev",
-        );
-        response.setHeader("location", `/api/builds/${job.buildId}`);
-        sendJson(response, 202, job);
+        const controller = new AbortController();
+        const disconnected = () => {
+          if (!response.writableEnded) controller.abort();
+        };
+        response.on("close", disconnected);
+        if (response.destroyed) disconnected();
+        try {
+          const job = await author.build(
+            revision,
+            parsed.data.requestId,
+            path === "/api/dist-builds" ? "dist" : "dev",
+            {
+              signal: controller.signal,
+              onAccepted: () => {
+                ++previewOperation;
+                previews.invalidate();
+              },
+            },
+          );
+          response.setHeader("location", `/api/builds/${job.buildId}`);
+          sendJson(response, 202, job);
+        } finally {
+          response.removeListener("close", disconnected);
+        }
         return;
       }
       if (path === "/api/previews" && request.method === "POST") {

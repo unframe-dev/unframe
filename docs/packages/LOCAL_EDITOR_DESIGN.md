@@ -138,15 +138,18 @@ Unity は decoded dimensions と texture metadata の一致も検証する。loc
 
 Dev は保存済み Source・ローカル素材の変更を検知し、対応する component／theme の file closure の hash を refresh してから build する。対象素材はその closure 内のローカルファイルとする。元の local path を持たない `lock.assets` の埋込 bytes は保持し、自動 refresh の対象にしない。既存 package の解決結果・version・snapshot は維持し、必要な local hash と整合性 hash のみ再計算する。package の追加・更新や lock の再作成は明示操作とし、自動 install／network 解決は行わない。通常の check／本番 build は Source／lock の frozen 入力を検証し、自動 refresh しない。publish は固定 Dist のみを検証する。
 
-Host は Source lease と既存 lock 規則を使い、refresh 対象の入力 snapshot を検証する。refresh の確定前と build の出力公開前に revision を再検査し、Source と lock が同じ入力 snapshot に対応する場合だけ generation を公開する。途中の外部保存で revision が変われば最新入力でやり直す。refresh 失敗時は既存 lock と正常表示を維持して診断を出し、Source は巻き戻さない。成功した refresh 自身の lock 更新を追跡し、watcher が無限に refresh／build を繰り返さない。
+Host は Source lease 内で config・lock・Source・アセット・スタイルの入力を取得し、解析・保存内容の検証・Dev lock の再計算・描画・成果物の一時書き込みは解放後に行う。保存、Dev lock 更新、成果物の確定時には lease を再取得し、全入力の revision を再検査する。保存要求の並行再送は確定済み receipt も再確認する。途中の外部保存で revision が変わった結果は stale として拒否し、古い結果で新しい入力を上書きしない。refresh 失敗時は既存 lock と正常表示を維持して診断を出し、Source は巻き戻さない。成功した refresh 自身の lock 更新を追跡し、watcher が無限に refresh／build を繰り返さない。
 
-revision は config・Source・lock の bytes を含む。refresh は開始時の revision を前提に確定し、確定後の revision を Dev build の入力として固定する。Host は確定後の snapshot を UI へ通知して `savedRevision` を更新し、同じ値を `buildingRevision` と envelope の `sourceRevision` に使う。refresh 自身の変更と外部保存を区別し、build 中にさらに入力が変わった場合はその結果を stale とする。
+CPU を使う解析・検証は取得済み入力を渡した Worker で行う。Worker が必要とするスタイル・メディア処理は Host への要求として実行し、Host が取消と子プロセスの後始末を所有する。
+
+revision は config・Source・lock・アセット・スタイルを含むローカル入力の bytes を含む。refresh は開始時の revision を前提に確定し、確定後の revision を Dev build の入力として固定する。Host は確定後の snapshot を UI へ通知して `savedRevision` を更新し、同じ値を `buildingRevision` と envelope の `sourceRevision` に使う。refresh 自身の変更と外部保存を区別し、build 中にさらに入力が変わった場合はその結果を stale とする。
 
 ### 表示の更新
 
 - UI は `savedRevision`、`buildingRevision`、`loadedBuildIdentity` を区別し、保存済み内容と現在の表示が異なるときに明示する。
-- 初回 Dev 選択と保存成功後に build を要求する。project 外部からの保存も入力 revision の変更として検知し、検証後に最新 revision を build する。未保存の editor buffer は入力にしない。
-- 更新要求は最新1件を保持する。旧要求の build／asset load／Unity load が完了しても、現在選択している mode と要求に一致しなければ表示へ反映しない。
+- 初回 Dev 選択と手動再読込は即時に build を要求する。保存成功・外部変更による自動更新は200msでまとめ、最新 revision を要求する。同じ revision の進行中要求は共有し、未保存の editor buffer は入力にしない。
+- Host は要求の Source revision を検証してから旧 Dev 処理を取り消し、その後始末を待って最新の準備・build を開始する。Dist build はこの自動置換の対象にしない。UI は受付待ちの旧要求も結果を回収して取り消す。旧要求の build／asset load／Unity load が完了しても、現在選択している mode と要求に一致しなければ表示へ反映しない。
+- 同じ入力で直近に成功した Dev generation が保持されている場合は、重い準備処理の前に再利用を判定する。全入力 revision、現在の generation、成功時の成果物 identity、全アセットの内容を照合し、前後の Source と参照先が変わっていない場合だけ再利用する。失敗・取消・削除・改変済みの成果物は再利用しない。
 - build 成功時に完成 Dev generation を公開する。Unity 表示の成功は別に管理する。候補 scene と素材を準備し、最新要求であることを確かめてから表示を交換する。
 - Bridge は `prepare(requestId)` の成功通知後に Web UI が mode／最新要求を照合し、`commit(requestId)` または `discard(requestId)` を送る。Unity は現在の要求に一致する候補だけを commit する。mode 切り替え時は要求を無効化し、古い load 成功だけで scene を交換しない。
 - Unity は scene の交換完了後に `committed(requestId, buildIdentity)` を返す。Web UI は現在の mode／要求と一致する通知だけで表示成功を確定し、認証済み Host API に報告する。Host は発行済み Preview 要求の固定 generation・artifact hashes と結び付けて表示済み記録を持つ。publish はその requestId を指定し、Host が現在の Dist 表示記録と照合する。これは協調する Editor の操作条件であり、CP の認可を代替しない。

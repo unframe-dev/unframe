@@ -15,7 +15,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { NativeFilesystem } from "@unframe/workspace-node";
+import { acquireSourceLock, NativeFilesystem } from "@unframe/workspace-node";
 import { publishAtomicArtifacts } from "@unframe/workspace-node";
 
 const directories: string[] = [];
@@ -46,6 +46,67 @@ afterEach(async () => {
 });
 
 describe("atomic artifact publication", () => {
+  it("keeps the Source lease through output validation and rollback", async () => {
+    const directory = await project();
+    expect(
+      await publishAtomicArtifacts({
+        projectDirectory: directory,
+        artifacts: artifacts("previous"),
+      }),
+    ).toMatchObject({ ok: true });
+    const exchange = NativeFilesystem.prototype.exchange;
+    const commitChecks: boolean[] = [];
+    vi.spyOn(NativeFilesystem.prototype, "exchange").mockImplementation(async function (
+      this: NativeFilesystem,
+      source,
+      target,
+    ) {
+      const lease = await acquireSourceLock(directory);
+      commitChecks.push(!lease.ok);
+      if (lease.ok) await lease.value.release();
+      await exchange.call(this, source, target);
+    });
+    let revisions = 0;
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("next"),
+      isCurrentRevision: async () => ++revisions === 1,
+    });
+    expect(result).toMatchObject({ ok: false, code: "cli-output-stale" });
+    expect(commitChecks).toEqual([true, true]);
+    expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe(
+      "definition-previous",
+    );
+    const released = await acquireSourceLock(directory);
+    expect(released.ok).toBe(true);
+    if (released.ok) await released.value.release();
+  });
+
+  it("rechecks the expected output generation after staging without replacing a newer output", async () => {
+    const directory = await project();
+    let competitor: Awaited<ReturnType<typeof publishAtomicArtifacts>> | undefined;
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("old"),
+      expectedGeneration: null,
+      testing: {
+        onPhase: async (phase) => {
+          if (phase === "before-dist-replace")
+            competitor = await publishAtomicArtifacts({
+              projectDirectory: directory,
+              artifacts: artifacts("newer"),
+              expectedGeneration: null,
+            });
+        },
+      },
+    });
+    expect(competitor).toMatchObject({ ok: true });
+    expect(result).toMatchObject({ ok: false, code: "cli-output-stale" });
+    expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe(
+      "definition-newer",
+    );
+  });
+
   it("publishes GLB bytes under an encoded logical Asset ID", async () => {
     const directory = await project();
     const bytes = Uint8Array.of(0x67, 0x6c, 0x54, 0x46);
@@ -799,18 +860,22 @@ describe("atomic artifact publication", () => {
       generationId: () => "3".repeat(32),
     });
     const id = "4".repeat(32);
+    let corrupted = false;
     const result = await publishAtomicArtifacts({
       projectDirectory: directory,
       artifacts: artifacts("next"),
       generationId: () => id,
       testing: {
         onPhase: async (phase) => {
-          if (phase === "before-dist-replace")
-            await writeFile(join(directory, `.dist-${id}/definition.json`), "corrupted");
+          if (phase === "before-dist-replace") {
+            await writeFile(join(directory, `.unframe/.dist-${id}/definition.json`), "corrupted");
+            corrupted = true;
+          }
         },
       },
     });
     expect(result).toMatchObject({ ok: false, code: "cli-output-io" });
+    expect(corrupted).toBe(true);
     expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe(
       "definition-previous",
     );

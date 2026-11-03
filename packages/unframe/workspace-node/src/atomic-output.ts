@@ -4,6 +4,12 @@ import { constants as osConstants } from "node:os";
 import { join } from "node:path";
 import { buildManifestBytesHash, parseBuildReceipt, encodeBuildReceipt } from "./build-receipt.js";
 import { NativeFilesystem, type NativeDirectory } from "./native-filesystem.js";
+import { acquireSourceLock, type SourceLease } from "./source-lock.js";
+
+type SourceLeaseFailureCode = Extract<
+  Awaited<ReturnType<typeof acquireSourceLock>>,
+  { ok: false }
+>["code"];
 
 const GENERATION_ID = /^[0-9a-f]{32}$/;
 const MANAGED_DEV_TARGET = /^generations\/([0-9a-f]{32})$/;
@@ -27,7 +33,11 @@ export type AtomicOutputResult =
   | {
       readonly ok: false;
       readonly family: "cancel" | "io";
-      readonly code: "cli-output-cancel" | "cli-output-io" | "cli-output-stale";
+      readonly code:
+        | "cli-output-cancel"
+        | "cli-output-io"
+        | "cli-output-stale"
+        | SourceLeaseFailureCode;
       readonly detail?: {
         readonly stage: PublicationStage;
         readonly code?: string;
@@ -42,6 +52,7 @@ export type PublishAtomicArtifactsInput = {
   readonly generationId?: () => string;
   readonly expectedGeneration?: string | null;
   readonly signal?: AbortSignal;
+  readonly waitTimeoutMs?: number;
   readonly isCurrentRevision?: () => Promise<boolean>;
   readonly testing?: {
     readonly onPhase?: (
@@ -105,6 +116,12 @@ class PublicationCancelled extends Error {
 }
 
 class PublicationStale extends Error {}
+
+class PublicationLeaseFailure extends Error {
+  constructor(readonly code: SourceLeaseFailureCode) {
+    super();
+  }
+}
 
 const errorCode = (error: unknown): string | undefined => {
   try {
@@ -353,6 +370,7 @@ export const publishAtomicArtifacts = async ({
   generationId = () => randomBytes(16).toString("hex"),
   expectedGeneration,
   signal,
+  waitTimeoutMs,
   isCurrentRevision,
   testing,
 }: PublishAtomicArtifactsInput): Promise<AtomicOutputResult> => {
@@ -385,6 +403,20 @@ export const publishAtomicArtifacts = async ({
   let preview: DirectoryIdentity | undefined;
   let generations: DirectoryIdentity | undefined;
   let assets: DirectoryIdentity | undefined;
+  let sourceLease: SourceLease | undefined;
+  const beginCommit = async () => {
+    const lease = await acquireSourceLock(projectDirectory, {
+      ...(waitTimeoutMs !== undefined ? { waitTimeoutMs } : {}),
+      ...(signal ? { signal } : {}),
+    });
+    if (!lease.ok) throw new PublicationLeaseFailure(lease.code);
+    sourceLease = lease.value;
+  };
+  const finishCommit = async () => {
+    if (!sourceLease) return;
+    await sourceLease.release();
+    sourceLease = undefined;
+  };
   try {
     if (channel !== "dev" && channel !== "dist") fail();
     if (cancelled(signal)) return { ok: false, family: "cancel", code: "cli-output-cancel" };
@@ -425,6 +457,11 @@ export const publishAtomicArtifacts = async ({
     if (expectedGeneration !== undefined && currentGeneration !== expectedGeneration)
       throw new PublicationStale();
     const previousDist = discoveredDist;
+    const requireUnchangedOutput = async () => {
+      if (await unchangedDist(previousDist, readLstat)) return;
+      if (expectedGeneration !== undefined) throw new PublicationStale();
+      fail();
+    };
     if (cancelled(signal)) cancel();
 
     stage = "create-staging";
@@ -459,15 +496,11 @@ export const publishAtomicArtifacts = async ({
     await rename(staging.entry, generationEntry).catch(fail);
     staging = { ...staging, path: generation, entry: generationEntry };
     stage = "verify-generation";
-    if (
-      !(await verifyDirectoryPath(generation)) ||
-      !(await sameDirectory(generations)) ||
-      !(await unchangedDist(previousDist, readLstat))
-    )
-      fail();
+    if (!(await verifyDirectoryPath(generation)) || !(await sameDirectory(generations))) fail();
+    await requireUnchangedOutput();
 
     if (channel === "dist") {
-      distStaging = await createExclusiveDirectory(project, `.dist-${id}`);
+      distStaging = await createExclusiveDirectory(unframe, `.dist-${id}`);
       const distAssets = await ensureDirectory(distStaging, "assets");
       for (const file of files) {
         if (cancelled(signal)) cancel();
@@ -487,7 +520,8 @@ export const publishAtomicArtifacts = async ({
       await requireSameDirectory(distStaging);
       await verifyFileArtifacts(staging, files);
       await verifyFileArtifacts(distStaging, files);
-      if (!(await unchangedDist(previousDist, readLstat))) fail();
+      await beginCommit();
+      await requireUnchangedOutput();
       if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
       if (cancelled(signal)) cancel();
       const next = distStaging;
@@ -523,6 +557,7 @@ export const publishAtomicArtifacts = async ({
       if (distStaging) await requireSameDirectory(distStaging);
       staging = undefined;
       replacement = undefined;
+      await finishCommit();
       await cleanupStaging(distStaging);
       distStaging = undefined;
       return { ok: true, generationId: id };
@@ -545,13 +580,14 @@ export const publishAtomicArtifacts = async ({
     if (cancelled(signal)) cancel();
     await testing?.onPhase?.("before-dist-replace");
     if (cancelled(signal)) cancel();
+    await beginCommit();
     if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
     stage = "replace-dist";
     await requireSameDirectory(project);
     await requireSameDirectory(unframe);
     await requireSameDirectory(outputParent);
     await requireSameDirectory(generations);
-    if (!(await unchangedDist(previousDist, readLstat))) fail();
+    await requireUnchangedOutput();
     const currentTemporary = await lstat(createdTemporaryLink.entry).catch(() => undefined);
     if (
       !currentTemporary?.isSymbolicLink() ||
@@ -595,6 +631,7 @@ export const publishAtomicArtifacts = async ({
         } else distStaging = undefined;
       } else distStaging = undefined;
     }
+    await finishCommit();
     await cleanupStaging(staging);
     await cleanupStaging(distStaging);
     await cleanupTemporaryLink(temporaryLink);
@@ -602,6 +639,12 @@ export const publishAtomicArtifacts = async ({
       return { ok: false, family: "cancel", code: "cli-output-cancel" };
     if (error instanceof PublicationStale)
       return { ok: false, family: "io", code: "cli-output-stale" };
+    if (error instanceof PublicationLeaseFailure)
+      return {
+        ok: false,
+        family: error.code === "cli-cancelled" ? "cancel" : "io",
+        code: error.code,
+      };
     const code = error instanceof PublicationFailure ? error.code : errorCode(error);
     const operation = error instanceof PublicationFailure ? error.operation : undefined;
     return {
@@ -610,5 +653,7 @@ export const publishAtomicArtifacts = async ({
       code: "cli-output-io",
       detail: { stage, ...(code ? { code } : {}), ...(operation ? { operation } : {}) },
     };
+  } finally {
+    await finishCommit();
   }
 };

@@ -48,16 +48,15 @@ export function createWorkspace({
       await current?.dispose();
     },
   };
-  function request() {
-    const revision = project.store.getState().project?.revision;
+  function request(revision = project.store.getState().project?.revision, debounce = false) {
     if (!closed && connected && revision) {
       requestedRevision = revision;
-      preview.request(channel, revision);
+      preview.request(channel, revision, { debounce });
     }
   }
   function update(revision: string) {
-    if (requestedRevision === null || (channel === "dev" && revision !== requestedRevision))
-      request();
+    if (requestedRevision === null) request(revision);
+    else if (channel === "dev" && revision !== requestedRevision) request(revision, true);
   }
   const project = createProjectController({
     api,

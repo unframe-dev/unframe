@@ -1,7 +1,7 @@
 import { request } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { startAuthorHost } from "../src/author/http.js";
-import type { AuthorService } from "@unframe/author-service";
+import { AuthorError, type AuthorService } from "@unframe/author-service";
 import type { LocalPublicationService } from "../src/author/publication.js";
 import type { BuildJob } from "@unframe/contracts/author-http";
 import { createLocalPreviewService } from "../src/author/local-preview.js";
@@ -387,4 +387,64 @@ it("keeps unknown publication operations available through receipt queries", asy
   expect(await confirmed.json()).toEqual({ ok: true, buildId: "fixed", publicationEpoch: 2 });
   expect(publish).toHaveBeenCalledTimes(1);
   expect(query).toHaveBeenCalledTimes(2);
+});
+
+it("invalidates Preview only when a build is accepted and forwards connection cancellation", async () => {
+  const { host, service, previews } = await setup();
+  const invalidate = vi.spyOn(previews, "invalidate");
+  const started = Promise.withResolvers<void>();
+  const disconnected = Promise.withResolvers<void>();
+  vi.mocked(service.build).mockImplementation(async (_revision, _requestId, _channel, options) => {
+    options?.onAccepted?.();
+    started.resolve();
+    await new Promise<void>((resolve) =>
+      options?.signal?.addEventListener(
+        "abort",
+        () => {
+          disconnected.resolve();
+          resolve();
+        },
+        { once: true },
+      ),
+    );
+    throw Object.assign(new Error("Disconnected"), { status: 409, code: "cli-cancelled" });
+  });
+  const controller = new AbortController();
+  const response = fetch(`${host.origin}/api/builds`, {
+    method: "POST",
+    signal: controller.signal,
+    headers: {
+      authorization: `Bearer ${host.token}`,
+      origin: host.origin,
+      "content-type": "application/json",
+      "if-match": '"rev"',
+    },
+    body: JSON.stringify({ requestId: "a".repeat(32) }),
+  });
+  const rejected = expect(response).rejects.toBeDefined();
+  await started.promise;
+  expect(invalidate).toHaveBeenCalledOnce();
+  controller.abort();
+  await disconnected.promise;
+  await rejected;
+});
+
+it("does not invalidate the current Preview when a stale build POST is rejected", async () => {
+  const { host, service, previews } = await setup();
+  const invalidate = vi.spyOn(previews, "invalidate");
+  vi.mocked(service.build).mockRejectedValue(
+    new AuthorError(412, "author-revision-mismatch", "Changed"),
+  );
+  const response = await fetch(`${host.origin}/api/builds`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${host.token}`,
+      origin: host.origin,
+      "content-type": "application/json",
+      "if-match": '"old"',
+    },
+    body: JSON.stringify({ requestId: "a".repeat(32) }),
+  });
+  expect(response.status).toBe(412);
+  expect(invalidate).not.toHaveBeenCalled();
 });

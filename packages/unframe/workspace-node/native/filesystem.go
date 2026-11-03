@@ -238,9 +238,9 @@ func openFile(root *os.Root, path string, flags int, mode fs.FileMode) (*os.File
 	return os.OpenFile(path, flags, mode)
 }
 
-func renameDirectories(d *directory, path, target string, exchange bool) error {
-	// Restrict the syscall to direct children of the pinned parent: no intermediate
-	// path component can redirect resolution through a symlink or outside the root.
+func renameDirectories(source, destination *directory, path, target string, exchange bool) error {
+	// Restrict each syscall operand to a direct child of its pinned parent: no
+	// intermediate component can redirect resolution through a symlink.
 	for i, name := range []string{path, target} {
 		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\x00") {
 			return invalid
@@ -248,7 +248,11 @@ func renameDirectories(d *directory, path, target string, exchange bool) error {
 		if i == 1 && !exchange {
 			continue
 		}
-		stat, err := d.root.Lstat(name)
+		parent := source
+		if i == 1 {
+			parent = destination
+		}
+		stat, err := parent.root.Lstat(name)
 		if err != nil {
 			return err
 		}
@@ -289,9 +293,9 @@ func renameDirectories(d *directory, path, target string, exchange bool) error {
 	if err != nil {
 		return err
 	}
-	fd := d.file.Fd()
-	_, _, errno := syscall.Syscall6(trap, fd, uintptr(unsafe.Pointer(from)), fd, uintptr(unsafe.Pointer(to)), flags, 0)
-	runtime.KeepAlive(d.file)
+	_, _, errno := syscall.Syscall6(trap, source.file.Fd(), uintptr(unsafe.Pointer(from)), destination.file.Fd(), uintptr(unsafe.Pointer(to)), flags, 0)
+	runtime.KeepAlive(source.file)
+	runtime.KeepAlive(destination.file)
 	if errno != 0 {
 		return errno
 	}
@@ -496,8 +500,29 @@ func (s *server) execute(r request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
+		if r.Op == "exchange" || r.Op == "renameNoReplace" {
+			if root == nil || targetRoot == nil {
+				if root != targetRoot {
+					return nil, syscall.EXDEV
+				}
+				return nil, invalid
+			}
+			var sourceDirectory, targetDirectory *directory
+			for _, candidate := range s.handles {
+				if candidate.root == root {
+					sourceDirectory = candidate
+				}
+				if candidate.root == targetRoot {
+					targetDirectory = candidate
+				}
+			}
+			if sourceDirectory == nil || targetDirectory == nil {
+				return nil, syscall.EBADF
+			}
+			return true, renameDirectories(sourceDirectory, targetDirectory, path, target, r.Op == "exchange")
+		}
 		if root != targetRoot {
-			if r.Op != "rename" || root == nil || targetRoot == nil {
+			if root == nil || targetRoot == nil {
 				return nil, syscall.EXDEV
 			}
 			if path == "." || path == ".." || target == "." || target == ".." || strings.Contains(path, "/") || strings.Contains(target, "/") {
@@ -516,17 +541,6 @@ func (s *server) execute(r request) (any, error) {
 				return nil, syscall.EBADF
 			}
 			return true, unix.Renameat(int(sourceDirectory.file.Fd()), path, int(targetDirectory.file.Fd()), target)
-		}
-		if r.Op == "exchange" || r.Op == "renameNoReplace" {
-			if root == nil {
-				return nil, invalid
-			}
-			for _, d := range s.handles {
-				if d.root == root {
-					return true, renameDirectories(d, path, target, r.Op == "exchange")
-				}
-			}
-			return nil, syscall.EBADF
 		}
 		if root != nil {
 			err = root.Rename(path, target)
