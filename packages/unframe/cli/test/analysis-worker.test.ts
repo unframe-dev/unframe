@@ -9,7 +9,7 @@ import {
 } from "@unframe-dev/workspace";
 import { discoverPresentationProjectFiles, readTypeLibraries } from "@unframe-dev/workspace-node";
 import { sourceAssetPorts } from "../src/application/media-ports.js";
-import { runAnalysisOperation } from "../src/author/analysis-client.js";
+import { prepareLockUpdateInWorker, runAnalysisOperation } from "../src/author/analysis-client.js";
 import type { AnalysisInputs } from "../src/author/analysis-protocol.js";
 import { prepareReactProjectFixture } from "./react-project-fixture.js";
 
@@ -180,3 +180,158 @@ it("waits for Host style cleanup before settling a cancelled analysis", async ()
     await Promise.allSettled([pending, cancellation]);
   }
 }, 30_000);
+
+it("stops dependency update before snapshots when frozen installation fails", async () => {
+  const events: string[] = [];
+  const result = await prepareLockUpdateInWorker(
+    { found: input.found, operation: "update" },
+    {
+      ...sourceAssetPorts,
+      readTypeLibraries: async () => input.typeLibraries,
+      install: async () => {
+        events.push("install");
+        return { ok: false, code: "cli-package-install-failed", message: "Frozen install failed." };
+      },
+      snapshotInstalledPackages: async () => {
+        throw new Error("Snapshot must not run after failed installation.");
+      },
+    },
+  );
+  expect(events).toEqual(["install"]);
+  expect(result).toEqual({
+    ok: false,
+    code: "cli-package-install-failed",
+    message: "Frozen install failed.",
+  });
+});
+
+it("captures update dependencies and styles on the Host in order", async () => {
+  const loaded = loadUnframeLock(input.found.lockBytes);
+  assert(loaded.ok);
+  const events: string[] = [];
+  const result = await prepareLockUpdateInWorker(
+    {
+      found: {
+        ...input.found,
+        localFiles: [
+          ...input.found.localFiles,
+          { path: "postcss.config.mjs", bytes: new TextEncoder().encode("export default {};") },
+        ],
+      },
+      operation: "update",
+    },
+    {
+      ...sourceAssetPorts,
+      readTypeLibraries: async () => input.typeLibraries,
+      install: async () => {
+        events.push("install");
+        return { ok: true };
+      },
+      snapshotInstalledPackages: async (roots) => {
+        events.push("packages");
+        expect(roots).toContain("@unframe-dev/authoring");
+        return loaded.value.lock;
+      },
+      styles: {
+        ...sourceAssetPorts.styles,
+        snapshot: async (root, files) => {
+          events.push("styles");
+          expect(root).toBe(directory);
+          expect(files.some((file) => file.path === "postcss.config.mjs")).toBe(true);
+          throw new Error("Style snapshot failed.");
+        },
+      },
+    },
+  );
+  expect(events).toEqual(["install", "packages", "styles"]);
+  expect(result).toMatchObject({ ok: false, message: "Style snapshot failed." });
+});
+
+it("waits for a cancelled Host installation to finish before closing its worker", async () => {
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const controller = new AbortController();
+  let settled = false;
+  let snapshotRequested = false;
+  const pending = prepareLockUpdateInWorker(
+    { found: input.found, operation: "update", signal: controller.signal },
+    {
+      ...sourceAssetPorts,
+      readTypeLibraries: async () => input.typeLibraries,
+      install: async () => {
+        entered.resolve();
+        await release.promise;
+        return { ok: true };
+      },
+      snapshotInstalledPackages: async () => {
+        snapshotRequested = true;
+        throw new Error("Unexpected snapshot.");
+      },
+    },
+  ).finally(() => {
+    settled = true;
+  });
+  const cancelled = expect(pending).rejects.toMatchObject({ code: "cli-cancelled" });
+  try {
+    await entered.promise;
+    controller.abort();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(settled).toBe(false);
+    release.resolve();
+    await cancelled;
+    expect(snapshotRequested).toBe(false);
+  } finally {
+    controller.abort();
+    release.resolve();
+    await Promise.allSettled([pending, cancelled]);
+  }
+});
+
+it.each([true, false])(
+  "returns a validated dependency update with preserveAssetPins=%s",
+  async (preserveAssetPins) => {
+    const loaded = loadUnframeLock(input.found.lockBytes);
+    assert(loaded.ok);
+    const previousAssets = [
+      {
+        id: "backdrop",
+        path: "backdrop.png",
+        mediaType: "image/png",
+        hash: `sha256:${"a".repeat(64)}`,
+        size: 3,
+      },
+    ];
+    const events: string[] = [];
+    const result = await prepareLockUpdateInWorker(
+      {
+        found: {
+          ...input.found,
+          lockBytes: new TextEncoder().encode(
+            canonicalizeJsonPayload({ ...loaded.value.lock, assets: previousAssets }) + "\n",
+          ),
+        },
+        operation: "update",
+        preserveAssetPins,
+      },
+      {
+        ...sourceAssetPorts,
+        readTypeLibraries: async () => input.typeLibraries,
+        install: async () => {
+          events.push("install");
+          return { ok: true };
+        },
+        snapshotInstalledPackages: async (roots) => {
+          events.push("packages");
+          expect(roots).toBeUndefined();
+          return loaded.value.lock;
+        },
+      },
+    );
+    expect(events).toEqual(["install", "packages"]);
+    assert(result.ok, JSON.stringify(result));
+    const updated = loadUnframeLock(result.bytes);
+    assert(updated.ok);
+    expect(updated.value.lock.assets).toEqual(preserveAssetPins ? previousAssets : []);
+  },
+  30_000,
+);

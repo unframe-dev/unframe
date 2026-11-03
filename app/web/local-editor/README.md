@@ -56,6 +56,8 @@ Preview は Viewer 向けに投影し、Presenter 専用コンテンツを表示
 
 未保存 Props は外部更新で破棄せず競合として保持します。Instance を切り替える場合は保存・破棄・取消を選べます。保存結果が不明な場合は同じ要求を再送し、競合の場合は自動上書きしません。Unity の部分適用・後続更新の故障中は再生・シーク・公開を止めます。正常 state の再適用に失敗した場合は「Preview を再読込」で新しい request を作成します。
 
+Dev Preview は build 前に依存設定と `pnpm-lock.yaml` を確認し、必要な場合だけ frozen install と `unframe.lock` の更新を行います。PostCSS 設定の追加も自動で反映します。pnpm workspace 内では、対象 importer を含む親の lock を使います。package script・pnpmfile は実行せず、依存 version の再解決や `pnpm-lock.yaml` の書き換えは行いません。manifest と pnpm lock が不一致の場合は、作者が `pnpm install` で解決を確定してから再試行してください。同期に失敗した場合は既存の `unframe.lock` と Preview を保持します。
+
 Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。保存・外部変更による連続更新は200msでまとめ、初回表示と手動再読込は即時に要求します。Host は現在の Source revision を確認してから旧 Dev build を取り消し、後始末が終わってから最新の処理を開始します。受付待ちの旧要求も結果を回収して取り消し、遅延した結果を表示へ反映しません。同じ入力の成功済み generation は、現在の参照先と成果物・アセットの完全性を確認できる場合に再利用します。
 
 保存内容の検証、Dev lock の再計算、描画と成果物の一時書き込みは Source ロック外で進め、保存・lock 更新・成果物の確定時に再取得して revision を検証します。競合した結果は確定せず、保存要求の再送は同じ command ID の receipt と照合します。Host 終了時には待機を中断し、受付済み build は取消でも待機を中断できます。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。

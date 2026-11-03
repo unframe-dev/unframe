@@ -3,6 +3,7 @@ import { lstat, readdir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { AuthorError } from "@unframe-dev/author-service";
+import { readPnpmProjectLock, PnpmProjectLockError } from "@unframe-dev/workspace-node";
 import type { ProjectChange } from "@unframe-dev/contracts/author-http";
 
 export type ProjectChanges = {
@@ -76,6 +77,8 @@ export const watchProjectChanges = async (
   const root = resolve(directory);
   const changes = createProjectChanges();
   const watchers = new Map<string, { watcher: FSWatcher; device: number; inode: number }>();
+  const dependencyWatchers = new Map<string, { watcher: FSWatcher; names: Set<string> }>();
+  let selectedLockDirectory: string | undefined;
   const excluded = new Set([".git", ".unframe", "dist", "node_modules"]);
   const ignored = (parent: string, name: string) =>
     mode === "source" &&
@@ -84,6 +87,47 @@ export const watchProjectChanges = async (
   let closed = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let scanning = Promise.resolve();
+  const reconcileDependencies = async () => {
+    if (mode !== "source") return;
+    try {
+      selectedLockDirectory = (await readPnpmProjectLock(root)).directory;
+    } catch (error) {
+      if (!(error instanceof PnpmProjectLockError)) throw error;
+      selectedLockDirectory = error.directory;
+    }
+    const wanted = new Map<string, Set<string>>();
+    const include = (directory: string, name: string) => {
+      const names = wanted.get(directory) ?? new Set<string>();
+      names.add(name);
+      wanted.set(directory, names);
+    };
+    for (let directory = dirname(root); ; directory = dirname(directory)) {
+      include(directory, "pnpm-workspace.yaml");
+      if (dirname(directory) === directory) break;
+    }
+    if (selectedLockDirectory && selectedLockDirectory !== root) {
+      include(selectedLockDirectory, "pnpm-lock.yaml");
+      include(selectedLockDirectory, "pnpm-workspace.yaml");
+    }
+    if (closed) return;
+    for (const [directory, existing] of dependencyWatchers) {
+      const names = wanted.get(directory);
+      if (names) existing.names = names;
+      else {
+        existing.watcher.close();
+        dependencyWatchers.delete(directory);
+      }
+    }
+    for (const [directory, names] of wanted) {
+      if (dependencyWatchers.has(directory)) continue;
+      const watcher = watch(directory, (_event, name) => {
+        if (name !== null && dependencyWatchers.get(directory)?.names.has(name.toString()))
+          schedule();
+      });
+      watcher.on("error", (error) => changes.fail(error));
+      dependencyWatchers.set(directory, { watcher, names });
+    }
+  };
   const reconcile = async () => {
     const seen = new Set<string>();
     const scan = async (path: string) => {
@@ -137,6 +181,7 @@ export const watchProjectChanges = async (
         if (entry.isDirectory() && !ignored(path, entry.name)) await scan(join(path, entry.name));
     };
     await scan(root);
+    await reconcileDependencies();
     if (closed) return;
     for (const [path, value] of watchers)
       if (!seen.has(path)) {
@@ -167,6 +212,8 @@ export const watchProjectChanges = async (
     parent.close();
     for (const value of watchers.values()) value.watcher.close();
     watchers.clear();
+    for (const value of dependencyWatchers.values()) value.watcher.close();
+    dependencyWatchers.clear();
     changes.close();
   };
   try {

@@ -1,5 +1,5 @@
 import { sourceAssetPorts } from "../src/application/media-ports.js";
-import { writeFile } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { checkAuthoringProject } from "@unframe-dev/source";
@@ -16,6 +16,9 @@ import { sdkFixtureSource } from "./authoring-sdk-fixture.js";
 
 export const prepareReactProjectFixture = async () => {
   const directory = await prepareProjectFixture();
+  await Promise.all(
+    ["package.json", "pnpm-workspace.yaml"].map((name) => rm(join(directory, name))),
+  );
   const found = await discoverPresentationProjectFiles(directory);
   if (!found.ok) throw new Error(found.code);
   const loaded = loadUnframeLock(found.lockBytes);

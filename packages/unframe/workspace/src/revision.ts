@@ -37,11 +37,37 @@ export const createProjectRevision = (input: {
   lockBytes: Uint8Array;
   localFiles: readonly LocalFileSnapshot[];
   entryReplacement?: LocalFileSnapshot;
-}): WorkspaceSnapshot["revision"] =>
-  createWorkspaceSnapshot([
+  packageManagerLockBytes?: Uint8Array;
+  packageManagerWorkspaceBytes?: Uint8Array;
+}): WorkspaceSnapshot["revision"] => {
+  const sourceRevision = createWorkspaceSnapshot([
     { path: "unframe.config.ts", bytes: input.configBytes },
     { path: "unframe.lock", bytes: input.lockBytes },
     ...input.localFiles.map((file) =>
       file.path === input.entryReplacement?.path ? input.entryReplacement : file,
     ),
   ]).revision;
+  const packageRevision: WorkspaceSnapshot["revision"] =
+    input.packageManagerLockBytes === undefined
+      ? sourceRevision
+      : `sha256:${digest(
+          new TextEncoder().encode(
+            JSON.stringify([
+              "unframe-project-with-package-lock-v1",
+              sourceRevision,
+              digest(input.packageManagerLockBytes),
+            ]),
+          ),
+        )}`;
+  return input.packageManagerWorkspaceBytes === undefined
+    ? packageRevision
+    : `sha256:${digest(
+        new TextEncoder().encode(
+          JSON.stringify([
+            "unframe-project-with-package-workspace-v1",
+            packageRevision,
+            digest(input.packageManagerWorkspaceBytes),
+          ]),
+        ),
+      )}`;
+};

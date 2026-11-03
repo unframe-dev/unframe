@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 const temporaryDirectory = () => realpathSync(tmpdir());
 import { join } from "node:path";
 import { afterEach, expect, it } from "vite-plus/test";
-import { resolvePackageExportTargets, snapshotInstalledPackages } from "../src/index.js";
+import {
+  readPnpmProjectLock,
+  resolvePackageExportTargets,
+  snapshotInstalledPackages,
+} from "../src/index.js";
 
 it("continues to a later types condition when an import has no matching declaration", () => {
   expect(
@@ -400,3 +404,144 @@ it.each(["./missing.js", "../outside.js"])(
     ).toThrow("Browser mapping source must name a locked package file.");
   },
 );
+
+it.each(["dependencies", "devDependencies"])(
+  "snapshots a workspace importer and its %s peer closure",
+  async (dependencyField) => {
+    const root = await mkdtemp(join(temporaryDirectory(), "unframe-workspace-snapshot-"));
+    directories.push(root);
+    const project = join(root, "example");
+    const linked = join(root, "packages/sdk");
+    const dependency = join(root, "node_modules/.pnpm/dependency@1.0.0/node_modules/dependency");
+    await mkdir(join(project, "node_modules"), { recursive: true });
+    await mkdir(join(linked, "node_modules"), { recursive: true });
+    await mkdir(dependency, { recursive: true });
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [example, 'packages/*']\n");
+    await writeFile(
+      join(root, "pnpm-lock.yaml"),
+      `---
+lockfileVersion: '9.0'
+importers: {'.': {packageManagerDependencies: {}}}
+---
+lockfileVersion: '9.0'
+importers:
+  example:
+    dependencies:
+      sdk: {specifier: 'workspace:*', version: 'link:../packages/sdk'}
+  packages/sdk:
+    ${dependencyField}:
+      dependency: {specifier: 1.0.0, version: 1.0.0}
+snapshots:
+  dependency@1.0.0: {}
+`,
+    );
+    await writeFile(
+      join(linked, "package.json"),
+      JSON.stringify({
+        name: "sdk",
+        version: "1.0.0",
+        main: "index.js",
+        peerDependencies: { dependency: "^1" },
+      }),
+    );
+    await writeFile(join(linked, "index.js"), "throw Error('never evaluate workspace packages');");
+    await writeFile(
+      join(dependency, "package.json"),
+      JSON.stringify({ name: "dependency", version: "1.0.0", main: "index.js" }),
+    );
+    await writeFile(join(dependency, "index.js"), "export const dependency = 1;");
+    await symlink(linked, join(project, "node_modules/sdk"));
+    await symlink(dependency, join(root, "node_modules/dependency"));
+    const graph = await snapshotInstalledPackages(project);
+    const sdk = graph.packages.find((pkg) => pkg.name === "sdk");
+    const dep = graph.packages.find((pkg) => pkg.name === "dependency");
+    expect(sdk?.locator).toBe("sdk@workspace:packages/sdk");
+    expect(sdk?.dependencies).toEqual([
+      { specifier: "dependency", usage: "runtime", packageKey: dep?.key },
+    ]);
+    expect(graph.rootDependencies).toEqual([
+      { specifier: "sdk", usage: "runtime", packageKey: sdk?.key },
+    ]);
+  },
+);
+
+it.each([undefined, "packages: ['other/*']\n"])(
+  "does not adopt an unrelated ancestor lock: %s",
+  async (workspace) => {
+    const root = await mkdtemp(join(temporaryDirectory(), "unframe-unrelated-lock-"));
+    directories.push(root);
+    const project = join(root, "project");
+    await mkdir(project);
+    await writeFile(
+      join(root, "pnpm-lock.yaml"),
+      "lockfileVersion: '9.0'\nimporters: {project: {}}\nsnapshots: {}\n",
+    );
+    if (workspace) await writeFile(join(root, "pnpm-workspace.yaml"), workspace);
+    await expect(readPnpmProjectLock(project)).rejects.toMatchObject({ code: "missing" });
+  },
+);
+
+it("distinguishes an invalid local lock from absent pnpm inputs", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-invalid-lock-"));
+  directories.push(root);
+  await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '8.0'\nimporters: {'.': {}}\n");
+  await expect(readPnpmProjectLock(root)).rejects.toMatchObject({
+    code: "invalid",
+    directory: root,
+  });
+});
+
+it("rejects a linked directory omitted from workspace declarations", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-undeclared-link-"));
+  directories.push(root);
+  const project = join(root, "project");
+  await mkdir(project);
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [project]\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  project:
+    dependencies:
+      sdk: {version: 'link:../undeclared'}
+  undeclared: {}
+snapshots: {}
+`,
+  );
+  await expect(snapshotInstalledPackages(project)).rejects.toThrow("declared workspace importer");
+});
+
+it("does not follow a pnpm lock symlink", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-symlink-lock-"));
+  directories.push(root);
+  await writeFile(join(root, "real-lock.yaml"), "lockfileVersion: '9.0'\nimporters: {'.': {}}\n");
+  await symlink(join(root, "real-lock.yaml"), join(root, "pnpm-lock.yaml"));
+  await expect(readPnpmProjectLock(root)).rejects.toMatchObject({
+    code: "invalid",
+    directory: root,
+  });
+});
+
+it("rejects a declared workspace package redirected through an external symlink", async () => {
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-external-link-"));
+  const outside = await mkdtemp(join(temporaryDirectory(), "unframe-outside-package-"));
+  directories.push(root, outside);
+  const project = join(root, "project");
+  await mkdir(join(project, "node_modules"), { recursive: true });
+  await mkdir(join(root, "packages"));
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [project, 'packages/*']\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'
+importers:
+  project:
+    dependencies:
+      sdk: {version: 'link:../packages/sdk'}
+  packages/sdk: {}
+snapshots: {}
+`,
+  );
+  await symlink(outside, join(root, "packages/sdk"));
+  await symlink(outside, join(project, "node_modules/sdk"));
+  await expect(snapshotInstalledPackages(project)).rejects.toThrow("declared workspace");
+});

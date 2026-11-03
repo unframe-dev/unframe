@@ -43,7 +43,11 @@ export type LockPreparationPorts = LockRefreshPorts & {
   snapshotInstalledPackages(rootSpecifiers?: string[]): Promise<Graph>;
 };
 type BaseInput = { found: Found; signal?: AbortSignal };
-type UpdateInput = BaseInput & { operation: "update" | "refresh"; recreate?: boolean };
+type UpdateInput = BaseInput & {
+  operation: "update" | "refresh";
+  recreate?: boolean;
+  preserveAssetPins?: boolean;
+};
 const failure = (code: string, message: string): Failure => ({ ok: false, code, message });
 const cancelled = (refresh: boolean) =>
   failure("cli-cancelled", `Lock ${refresh ? "refresh" : "update"} was cancelled.`);
@@ -121,12 +125,20 @@ async function prepare(
           }
         : {}),
     };
+    const preserveAssetPins = localRefresh || Boolean((input as UpdateInput).preserveAssetPins);
     const bytes = localRefresh
       ? refreshProjectLock(previous!, inputs)
-      : createProjectLock(graph, { ...inputs, assets: assets.value.assets }, previous);
+      : createProjectLock(
+          graph,
+          {
+            ...inputs,
+            assets: preserveAssetPins && previous ? previous.assets : assets.value.assets,
+          },
+          previous,
+        );
     const validated = loadUnframeLock(bytes);
     if (!validated.ok) return failure(validated.diagnostic.code, validated.diagnostic.message);
-    const carrier = localRefresh
+    const carrier = preserveAssetPins
       ? createSourceAssetAssemblyCarrier(validated.value.assemblyCarrier, assets.value.assets)
       : validated.value.assemblyCarrier;
     const checked = checkAuthoringProjectAssembly(source, carrier, assets.value.sourceAssetBytes);

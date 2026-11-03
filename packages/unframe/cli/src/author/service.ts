@@ -1,6 +1,10 @@
 import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import type { AnalysisOperations } from "./analysis-protocol.js";
-import { runAnalysisOperation, prepareLockRefreshInWorker } from "./analysis-client.js";
+import {
+  runAnalysisOperation,
+  prepareLockRefreshInWorker,
+  prepareLockUpdateInWorker,
+} from "./analysis-client.js";
 import { sourceAssetPorts } from "../application/media-ports.js";
 import { readBuildExecutionResult } from "./build-result.js";
 import {
@@ -16,7 +20,7 @@ import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 import { readTypeLibraries } from "@unframe-dev/workspace-node";
 import { readBuildGeneration } from "@unframe-dev/workspace-node";
 import { acquireSourceLock } from "@unframe-dev/workspace-node";
-import { refreshLocalProjectLock } from "@unframe-dev/workspace-node";
+import { createLocalProjectLockSynchronizer } from "@unframe-dev/workspace-node";
 import { type ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import {
   AuthorTransactionConflict,
@@ -62,6 +66,10 @@ export const createAuthorService = async (
     maxCompletedJobs?: number;
   } = {},
 ): Promise<AuthorService> => {
+  const synchronizeLocalLock = createLocalProjectLockSynchronizer(sourceAssetPorts, directory, {
+    prepareRefresh: prepareLockRefreshInWorker,
+    prepareUpdate: prepareLockUpdateInWorker,
+  });
   const readPublished = options.readPublishedArtifacts ?? readPublishedArtifacts;
   const run = options.run ?? runPresentationCli;
   let closed = false;
@@ -273,9 +281,8 @@ export const createAuthorService = async (
       prepareBuild: async (revision, channel, signal) => {
         const refreshed =
           channel === "dev"
-            ? await refreshLocalProjectLock(sourceAssetPorts, directory, {
+            ? await synchronizeLocalLock({
                 signal,
-                prepare: prepareLockRefreshInWorker,
                 waitTimeoutMs: Number.POSITIVE_INFINITY,
                 expectedRevision: revision,
               })

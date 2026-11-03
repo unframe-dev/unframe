@@ -429,3 +429,108 @@ it("uses the distributed adapter lock outside the repository", async () => {
     }),
   ).rejects.toThrow("integrity mismatch");
 });
+
+it.each(["dependencies", "devDependencies"])(
+  "freezes a workspace peer from %s for PostCSS",
+  async (dependencyField) => {
+    const root = await temporary();
+    const project = join(root, "example");
+    const sdk = join(root, "packages/sdk");
+    const plugin = join(root, "node_modules/plugin");
+    await mkdir(join(project, "node_modules"), { recursive: true });
+    await mkdir(sdk, { recursive: true });
+    await mkdir(plugin, { recursive: true });
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [example, 'packages/*']\n");
+    await writeFile(
+      join(root, "pnpm-lock.yaml"),
+      "---\nlockfileVersion: '9.0'\nimporters: {}\n---\n" +
+        stringify({
+          lockfileVersion: "9.0",
+          importers: {
+            example: { dependencies: { sdk: { version: "link:../packages/sdk" } } },
+            "packages/sdk": { [dependencyField]: { plugin: { version: "1.0.0" } } },
+          },
+          packages: { "plugin@1.0.0": { resolution: { integrity: "sha512-YWJj" } } },
+          snapshots: { "plugin@1.0.0": {} },
+        }),
+    );
+    await writeFile(
+      join(sdk, "package.json"),
+      JSON.stringify({
+        name: "sdk",
+        version: "1.0.0",
+        main: "index.cjs",
+        peerDependencies: { plugin: "^1" },
+      }),
+    );
+    await writeFile(join(sdk, "index.cjs"), "module.exports = require('plugin');");
+    await writeFile(
+      join(plugin, "package.json"),
+      JSON.stringify({ name: "plugin", version: "1.0.0", main: "index.cjs" }),
+    );
+    await writeFile(join(plugin, "index.cjs"), "module.exports = 'frozen workspace dependency';");
+    await symlink(sdk, join(project, "node_modules/sdk"));
+    const snapshot = await snapshotNodeTransformInputs(project);
+    expect(snapshot.packages.map((pkg) => pkg.locator)).toEqual([
+      "sdk@workspace:packages/sdk",
+      "plugin@1.0.0",
+    ]);
+    await writeFile(join(plugin, "index.cjs"), "module.exports = 'changed live package';");
+    const destination = await temporary();
+    const placed = await materializeNodeTransformSnapshot(snapshot, destination);
+    const require = createRequire(join(placed.projectRoot, "package.json"));
+    expect(require("sdk")).toBe("frozen workspace dependency");
+  },
+);
+
+it("does not use an undeclared parent workspace's lock for a style project", async () => {
+  const root = await temporary();
+  const project = join(root, "undeclared");
+  await mkdir(project);
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: ['packages/*']\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({ lockfileVersion: "9.0", importers: { undeclared: {} } }),
+  );
+  await expect(snapshotNodeTransformInputs(project)).rejects.toThrow("pnpm lock is missing");
+});
+
+it("rejects workspace links that are not declared importers for style snapshots", async () => {
+  const root = await temporary();
+  const project = join(root, "example");
+  await mkdir(project);
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [example]\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({
+      lockfileVersion: "9.0",
+      importers: {
+        example: { dependencies: { sdk: { version: "link:../undeclared" } } },
+        undeclared: {},
+      },
+    }),
+  );
+  await expect(snapshotNodeTransformInputs(project)).rejects.toThrow("declared workspace importer");
+});
+
+it("rejects declared style workspace packages redirected outside the workspace", async () => {
+  const root = await temporary();
+  const outside = await temporary();
+  const project = join(root, "example");
+  await mkdir(join(project, "node_modules"), { recursive: true });
+  await mkdir(join(root, "packages"));
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [example, 'packages/*']\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({
+      lockfileVersion: "9.0",
+      importers: {
+        example: { dependencies: { sdk: { version: "link:../packages/sdk" } } },
+        "packages/sdk": {},
+      },
+    }),
+  );
+  await symlink(outside, join(root, "packages/sdk"));
+  await symlink(outside, join(project, "node_modules/sdk"));
+  await expect(snapshotNodeTransformInputs(project)).rejects.toThrow("escapes installed graph");
+});

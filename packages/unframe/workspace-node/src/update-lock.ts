@@ -6,8 +6,6 @@ import {
 } from "@unframe-dev/build";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { readTypeLibraries } from "./prepare-project.js";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { open, rename, unlink } from "node:fs/promises";
@@ -17,8 +15,7 @@ import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readRegularFile, readBoundedRegularFile } from "./path-policy.js";
 import { digestBytes, snapshotInstalledPackages } from "./package-snapshot.js";
-
-const execute = promisify(execFile);
+import { installProjectDependencies } from "./install-project-dependencies.js";
 
 const updateProjectLockWithinScope = async (
   ports: SourceAssetPorts & { styles: StylePreparationPort },
@@ -55,29 +52,7 @@ const updateProjectLockWithinScope = async (
       {
         ...ports,
         readTypeLibraries,
-        install: async () => {
-          if (
-            !(await readRegularFile(join(directory, "package.json"))) ||
-            !(await readRegularFile(join(directory, "pnpm-lock.yaml")))
-          )
-            return failure(
-              "cli-lock-package-input-missing",
-              "Lock update requires regular package.json and pnpm-lock.yaml inputs.",
-            );
-          await execute(
-            "pnpm",
-            [
-              "install",
-              "--frozen-lockfile",
-              "--ignore-scripts",
-              "--ignore-pnpmfile",
-              "--force",
-              "--verify-store-integrity",
-            ],
-            { cwd: directory, signal, timeout: 120_000, maxBuffer: 1024 * 1024 },
-          );
-          return { ok: true as const };
-        },
+        install: () => installProjectDependencies(directory, signal),
         snapshotInstalledPackages: (rootSpecifiers) =>
           snapshotInstalledPackages(directory, rootSpecifiers ? { rootSpecifiers } : {}),
       },

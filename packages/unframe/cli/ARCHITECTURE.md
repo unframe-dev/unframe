@@ -49,7 +49,7 @@ root export は native module を import しない。OpenTUI の Zig core を必
 または `pnpm tui` を使う。これにより Node / Vitest 上の headless check と build は native TUI lifecycle から
 独立する。
 
-schema version 1 の lock は self-contained package bytes、local file hash、source Assetのpath/hash/sizeを検証する。`refresh` は固定依存 graph を保持し、`update` はスクリプト無効の frozen pnpm install 後に snapshot を取り直す。`--recreate` は旧schemaを読み替えずSourceから新規生成し、失敗時は旧 lock を保持する。workspace / link dependency は未対応で、root-relative tarball と registry locator を対象とする。
+schema version 1 の lock は self-contained package bytes、local file hash、source Assetのpath/hash/sizeを検証する。`refresh` は固定依存 graph を保持し、`update` はスクリプト無効の frozen pnpm install 後に snapshot を取り直す。`--recreate` は旧schemaを読み替えずSourceから新規生成し、失敗時は旧 lock を保持する。root-relative tarball、registry locator と宣言済み workspace importer の link に対応し、workspace 外への参照は拒否する。
 
 ## 2. Command contract
 

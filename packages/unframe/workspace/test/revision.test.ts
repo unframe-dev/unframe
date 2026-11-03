@@ -58,3 +58,42 @@ it("computes the next project revision from replaced Source and lock inputs", ()
     }),
   ).toBe(expected);
 });
+
+it("includes the captured package manager lock in the project revision without treating it as Source", () => {
+  const input = {
+    configBytes: bytes("config"),
+    lockBytes: bytes("lock"),
+    localFiles: [{ path: "entry.tsx", bytes: bytes("source") }],
+  };
+  const before = createProjectRevision({
+    ...input,
+    packageManagerLockBytes: bytes("dependencies-v1"),
+  });
+  expect(
+    createProjectRevision({ ...input, packageManagerLockBytes: bytes("dependencies-v2") }),
+  ).not.toBe(before);
+  expect(createProjectRevision(input)).not.toBe(before);
+  expect(
+    createProjectRevision({ ...input, packageManagerLockBytes: bytes("dependencies-v1") }),
+  ).toBe(before);
+});
+
+it("fences workspace dependency configuration separately from package lock bytes", () => {
+  const input = {
+    configBytes: bytes("config"),
+    lockBytes: bytes("lock"),
+    localFiles: [{ path: "entry.tsx", bytes: bytes("source") }],
+    packageManagerLockBytes: bytes("dependency-lock"),
+  };
+  const before = createProjectRevision({
+    ...input,
+    packageManagerWorkspaceBytes: bytes("catalog-v1"),
+  });
+  expect(
+    createProjectRevision({ ...input, packageManagerWorkspaceBytes: bytes("catalog-v2") }),
+  ).not.toBe(before);
+  expect(createProjectRevision(input)).not.toBe(before);
+  expect(
+    createProjectRevision({ ...input, packageManagerWorkspaceBytes: bytes("catalog-v1") }),
+  ).toBe(before);
+});

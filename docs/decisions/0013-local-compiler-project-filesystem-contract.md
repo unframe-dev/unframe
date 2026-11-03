@@ -31,6 +31,8 @@ export default { entryFile: "presentation.unframe.tsx" };
 
 ### `unframe.lock` v2
 
+この節の v1／v2 は旧形式の記録。現行 lock は schemaVersion 1 であり、[React Component 実行契約](../packages/REACT_COMPONENT_EXECUTION_CONTRACT.md) を正本とする。
+
 A1 の lock は self-contained な v2 JSON とする。正確な shape、順序、bytes / graph hash、local / package origin、Structured / Opaque mode は [React Component 実行契約0節](../packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v2-と生成-id) を正本とする。通常の check / build は local bytes と lock 内 package bytes だけを使い、node_modules や network に問い合わせない。旧 v1 は拒否する。
 
 `lock refresh` は現在の package graph を保持して local Component と Theme を再計算する。`lock update` は pnpm 9 形式の固定解決から package bytes を取得する明示操作であり、lifecycle script と pnpmfile を実行しない。v1 からは `lock update <project> --recreate` で新規生成し、旧 lock 内だけの資産は引き継がない。入力・検証の失敗時は旧 lock を保持する。

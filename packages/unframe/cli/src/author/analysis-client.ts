@@ -6,7 +6,11 @@ import { AuthorError } from "@unframe-dev/author-service";
 import { projectSnapshotSchema, savedCommandSchema } from "@unframe-dev/contracts/author-http";
 import { validateNodeTransformSnapshot } from "@unframe-dev/workspace";
 import { sourceAssetPorts } from "../application/media-ports.js";
-import type { prepareLockRefresh } from "@unframe-dev/build";
+import type {
+  prepareLockRefresh,
+  prepareLockUpdate,
+  LockPreparationPorts,
+} from "@unframe-dev/build";
 import type { AnalysisOperations } from "./analysis-protocol.js";
 
 const diagnostic = z.strictObject({
@@ -25,6 +29,27 @@ const sourceDiagnostic = z.strictObject({
   column: z.number().int(),
   typescriptCode: z.number().int().optional(),
 });
+const lockResult = z.discriminatedUnion("ok", [
+  z.strictObject({ ok: z.literal(true), bytes: z.instanceof(Uint8Array) }),
+  z.strictObject({
+    ok: z.literal(false),
+    code: z.string(),
+    message: z.string(),
+    diagnostics: z
+      .array(
+        z.object({
+          phase: z.enum(["config", "resolve", "transform"]),
+          severity: z.enum(["warning", "error"]),
+          message: z.string(),
+          file: z.string().optional(),
+          line: z.number().optional(),
+          column: z.number().optional(),
+          plugin: z.string().optional(),
+        }),
+      )
+      .optional(),
+  }),
+]);
 const results = {
   project: projectSnapshotSchema,
   save: z.strictObject({
@@ -32,27 +57,8 @@ const results = {
     lockBytes: z.instanceof(Uint8Array),
     saved: savedCommandSchema,
   }),
-  refresh: z.discriminatedUnion("ok", [
-    z.strictObject({ ok: z.literal(true), bytes: z.instanceof(Uint8Array) }),
-    z.strictObject({
-      ok: z.literal(false),
-      code: z.string(),
-      message: z.string(),
-      diagnostics: z
-        .array(
-          z.object({
-            phase: z.enum(["config", "resolve", "transform"]),
-            severity: z.enum(["warning", "error"]),
-            message: z.string(),
-            file: z.string().optional(),
-            line: z.number().optional(),
-            column: z.number().optional(),
-            plugin: z.string().optional(),
-          }),
-        )
-        .optional(),
-    }),
-  ]),
+  refresh: lockResult,
+  update: lockResult,
   opaque: z.array(
     z.strictObject({
       entryId: z.string(),
@@ -129,12 +135,16 @@ const messageSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("call"),
     id: z.number().int().positive(),
-    method: z.enum(["styles", "video", "bundle"]),
+    method: z.enum(["styles", "video", "bundle", "install", "packages", "styleSnapshot"]),
     args: z.array(z.unknown()),
   }),
 ]);
 
-type Ports = Pick<typeof sourceAssetPorts, "styles" | "videoTransformIdentity">;
+type Ports = Pick<typeof sourceAssetPorts, "styles" | "videoTransformIdentity"> & {
+  update?: Pick<LockPreparationPorts, "install" | "snapshotInstalledPackages"> & {
+    projectDirectory: string;
+  };
+};
 export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
   operation: K,
   input: AnalysisOperations[K]["input"],
@@ -192,6 +202,30 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
           );
         } else {
           const task = (async () => {
+            if (["install", "packages", "styleSnapshot"].includes(message.method)) {
+              if (operation !== "update" || !ports.update)
+                throw new Error("Dependency update callbacks require an update operation.");
+              if (message.method === "install") {
+                z.tuple([]).parse(message.args);
+                return ports.update.install();
+              }
+              if (message.method === "packages") {
+                const [roots] = z.tuple([z.array(z.string()).optional()]).parse(message.args);
+                return ports.update.snapshotInstalledPackages(roots);
+              }
+              const [files] = z
+                .tuple([
+                  z.array(
+                    z.strictObject({
+                      path: z.string(),
+                      bytes: z.string(),
+                      executable: z.boolean().optional(),
+                    }),
+                  ),
+                ])
+                .parse(message.args);
+              return ports.styles.snapshot(ports.update.projectDirectory, files);
+            }
             if (message.method === "video") {
               z.tuple([]).parse(message.args);
               return ports.videoTransformIdentity(controller.signal);
@@ -245,4 +279,29 @@ export const prepareLockRefreshInWorker: typeof prepareLockRefresh = async (inpu
     },
     input.signal,
     { styles: ports.styles, videoTransformIdentity: ports.videoTransformIdentity },
+  );
+
+export const prepareLockUpdateInWorker: typeof prepareLockUpdate = async (input, ports) =>
+  runAnalysisOperation(
+    "update",
+    {
+      found: input.found,
+      operation: input.operation,
+      ...(input.recreate !== undefined ? { recreate: input.recreate } : {}),
+      ...(input.preserveAssetPins !== undefined
+        ? { preserveAssetPins: input.preserveAssetPins }
+        : {}),
+      typeLibraries: [...(await ports.readTypeLibraries())],
+      modelTransformIdentity: ports.modelTransformIdentity,
+    },
+    input.signal,
+    {
+      styles: ports.styles,
+      videoTransformIdentity: ports.videoTransformIdentity,
+      update: {
+        projectDirectory: input.found.projectDirectory,
+        install: ports.install,
+        snapshotInstalledPackages: ports.snapshotInstalledPackages,
+      },
+    },
   );
