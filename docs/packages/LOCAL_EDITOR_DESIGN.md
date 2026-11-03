@@ -144,15 +144,15 @@ Unity は decoded dimensions と texture metadata の一致も検証する。loc
 
 ## 4. 更新と失敗時の挙動
 
-### Dev のローカル lock refresh
+### Dev の依存同期とローカル lock refresh
 
-Dev は保存済み Source・ローカル素材の変更を検知し、対応する component／theme の file closure の hash を refresh してから build する。対象素材はその closure 内のローカルファイルとする。元の local path を持たない `lock.assets` の埋込 bytes は保持し、自動 refresh の対象にしない。既存 package の解決結果・version・snapshot は維持し、必要な local hash と整合性 hash のみ再計算する。package の追加・更新や lock の再作成は明示操作とし、自動 install／network 解決は行わない。通常の check／本番 build は Source／lock の frozen 入力を検証し、自動 refresh しない。publish は固定 Dist のみを検証する。
+Dev は保存済み Source・ローカル素材の変更を検知し、対応する component／theme の file closure の hash を refresh してから build する。対象素材はその closure 内のローカルファイルとする。`lock.assets` の素材 pin（path／hash／size）は保持し、現在の素材 bytes は Dev build の入力として検証する。依存入力が固定 snapshot と一致する場合は package graph を維持し、local hash と整合性 hash のみ再計算する。依存設定・pnpm lock・PostCSS 設定・必要な runtime を確認し、同期が必要なら frozen install 後に package／style snapshot を更新する。同じ入力で同期済みなら install と再 snapshot を省略する。package script・pnpmfile は実行せず、pnpm lock の再解決・書き換えや非対応形式の `unframe.lock` の再作成は行わない。通常の check／本番 build は Source／lock の frozen 入力を検証し、自動 refresh しない。publish は固定 Dist のみを検証する。
 
 Host は Source lease 内で config・lock・Source・アセット・スタイルの入力を取得し、解析・保存内容の検証・Dev lock の再計算・描画・成果物の一時書き込みは解放後に行う。保存、Dev lock 更新、成果物の確定時には lease を再取得し、全入力の revision を再検査する。保存要求の並行再送は確定済み receipt も再確認する。途中の外部保存で revision が変わった結果は stale として拒否し、古い結果で新しい入力を上書きしない。refresh 失敗時は既存 lock と正常表示を維持して診断を出し、Source は巻き戻さない。成功した refresh 自身の lock 更新を追跡し、watcher が無限に refresh／build を繰り返さない。
 
 CPU を使う解析・検証は取得済み入力を渡した Worker で行う。Worker が必要とするスタイル・メディア処理は Host への要求として実行し、Host が取消と子プロセスの後始末を所有する。
 
-revision は config・Source・lock・アセット・スタイルを含むローカル入力の bytes を含む。refresh は開始時の revision を前提に確定し、確定後の revision を Dev build の入力として固定する。Host は確定後の snapshot を UI へ通知して `savedRevision` を更新し、同じ値を `buildingRevision` と envelope の `sourceRevision` に使う。refresh 自身の変更と外部保存を区別し、build 中にさらに入力が変わった場合はその結果を stale とする。
+revision は config・Source・lock・アセット・スタイルと、選択した `pnpm-lock.yaml` と workspace 設定の bytes を含む。pnpm workspace の親 lock も対象 importer と workspace 宣言を確認して選択し、その変更を監視する。refresh は開始時の revision を前提に確定し、確定後の revision を Dev build の入力として固定する。Host は確定後の snapshot を UI へ通知して `savedRevision` を更新し、同じ値を `buildingRevision` と envelope の `sourceRevision` に使う。refresh 自身の変更と外部保存を区別し、build 中にさらに入力が変わった場合はその結果を stale とする。
 
 ### 表示の更新
 

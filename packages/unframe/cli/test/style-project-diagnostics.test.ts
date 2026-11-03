@@ -1,9 +1,10 @@
 import { sourceAssetPorts } from "../src/application/media-ports.js";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { createAuthorService } from "../src/author/service.js";
@@ -56,10 +57,15 @@ const prepareFixture = async () => {
   expect(refreshed.exitCode, refreshed.stderr).toBe(0);
   const manifest = JSON.stringify({ name: "fixture-adapter", version: "1.0.0", main: "index.mjs" });
   const lock = "lockfileVersion: '9.0'\nimporters:\n  .: {}\npackages: {}\nsnapshots: {}\n";
-  for (const root of [directory, adapter]) {
-    await writeFile(join(root, "package.json"), manifest);
-    await writeFile(join(root, "pnpm-lock.yaml"), lock);
-  }
+  await writeFile(join(adapter, "package.json"), manifest);
+  await writeFile(join(adapter, "pnpm-lock.yaml"), lock);
+  await writeFile(
+    join(directory, "package.json"),
+    JSON.stringify({ name: "style-project", dependencies: { "@unframe-dev/authoring": "1.0.0" } }),
+  );
+  const projectLock =
+    "lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      '@unframe-dev/authoring':\n        specifier: 1.0.0\n        version: 1.0.0\npackages:\n  '@unframe-dev/authoring@1.0.0':\n    resolution: {integrity: sha512-Zml4dHVyZQ==}\nsnapshots:\n  '@unframe-dev/authoring@1.0.0': {}\n";
+  await writeFile(join(directory, "pnpm-lock.yaml"), projectLock);
   await writeFile(join(adapter, "index.mjs"), "export {}; ");
   await writeFile(join(directory, "postcss.config.mjs"), "export default {plugins:[]};");
   await writeFile(join(directory, "theme.CSS"), "@tailwind utilities;");
@@ -67,6 +73,19 @@ const prepareFixture = async () => {
   assert(found.ok, JSON.stringify(found));
   const loaded = loadUnframeLock(found.lockBytes);
   assert(loaded.ok);
+  const sdk = loaded.value.lock.packages.find((pkg) => pkg.name === "@unframe-dev/authoring");
+  assert(sdk);
+  const installed = join(directory, "node_modules/@unframe-dev/authoring");
+  await mkdir(installed, { recursive: true });
+  await writeFile(
+    join(installed, "package.json"),
+    JSON.stringify({ name: sdk.name, version: sdk.version, main: "index.ts", types: "index.ts" }),
+  );
+  for (const file of sdk.files)
+    await writeFile(
+      join(installed, file.path),
+      Buffer.from(file.data, file.encoding === "utf8" ? "utf8" : "base64"),
+    );
   const snapshot = await snapshotNodeTransformInputs(directory, {
     adapterRoot: adapter,
     adapterDependencies: [],
@@ -77,6 +96,7 @@ const prepareFixture = async () => {
   });
   const next = {
     ...loaded.value.lock,
+    packageManagerLockHash: `sha256:${createHash("sha256").update(projectLock).digest("hex")}`,
     styleTransform: withNodeTransformSources(snapshot, []),
     styleSourceIdentity: snapshot.sourceIdentity,
   };

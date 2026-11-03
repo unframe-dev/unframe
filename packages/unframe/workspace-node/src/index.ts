@@ -16,3 +16,4 @@ export * from "./source-assets.js";
 export * from "./refresh-local-lock.js";
 export * from "./update-lock.js";
 export * from "./build-publication.js";
+export * from "./sync-local-lock.js";

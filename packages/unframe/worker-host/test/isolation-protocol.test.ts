@@ -115,3 +115,36 @@ it.each([
     message: expect.stringContaining(diagnostic),
   });
 });
+
+it("preserves bounded startup stderr when the worker exits before ready", async () => {
+  const child = spawn(process.execPath, [
+    "-e",
+    "process.stderr.write('discard-me\\n' + 'x'.repeat(9000) + '\\nstartup-failed');process.exitCode=1",
+  ]);
+  const result = workerProtocol(child, () => {}, {});
+  await expect(result).rejects.toMatchObject({
+    code: "opaque-isolation-unavailable",
+    message: expect.stringContaining("startup-failed"),
+  });
+  await expect(result).rejects.not.toThrow("discard-me");
+  await expect(result).rejects.toMatchObject({ message: expect.stringMatching(/^.{0,8399}$/s) });
+});
+
+it("does not expose stderr after capture input has been released", async () => {
+  const child = spawn(process.execPath, [
+    "--input-type=module",
+    "-e",
+    `import {createInterface} from 'node:readline';
+     process.stderr.write('startup-detail');
+     console.log(JSON.stringify({type:'bootstrap'}));
+     for await (const line of createInterface({input:process.stdin})) {
+       const message=JSON.parse(line);
+       if(message.type==='launch') console.log(JSON.stringify({type:'ready'}));
+       if(message.type==='capture') {process.stderr.write(message.input.private); process.exit(1);}
+     }`,
+  ]);
+  const result = workerProtocol(child, () => {}, { private: "presentation-private-data" });
+  await expect(result).rejects.toMatchObject({ code: "opaque-capture-failed" });
+  await expect(result).rejects.not.toThrow("presentation-private-data");
+  await expect(result).rejects.not.toThrow("startup-detail");
+});

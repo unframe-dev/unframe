@@ -1,4 +1,4 @@
-import { createWorkspaceSnapshot } from "@unframe-dev/workspace";
+import { createProjectRevision } from "@unframe-dev/workspace";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { join, relative } from "node:path";
 import { lstat } from "node:fs/promises";
@@ -6,6 +6,11 @@ import { buildManifestBytesHash, buildReceiptSchema } from "./build-receipt.js";
 import { parseStrictJson } from "@unframe-dev/artifacts";
 import type { LocalFileSnapshot } from "@unframe-dev/workspace";
 import { acquireSourceLock } from "./source-lock.js";
+import {
+  readLinkedWorkspaceInputs,
+  readPnpmProjectLock,
+  PnpmProjectLockError,
+} from "./package-snapshot.js";
 import { loadProjectConfig, type ProjectConfig } from "@unframe-dev/workspace";
 import {
   projectDirectory,
@@ -24,6 +29,7 @@ type ProjectFailureCode =
   | "cli-project-discovery-missing-files"
   | "cli-config-invalid"
   | "cli-source-asset-missing"
+  | "cli-project-dependency-input-invalid"
   | "cli-project-discovery-invalid-entry-file"
   | "cli-project-discovery-source-scan-failed";
 
@@ -38,6 +44,12 @@ export type DiscoveredProjectFiles =
       readonly revision: string;
       readonly lockBytes: Uint8Array;
       readonly configBytes: Uint8Array;
+      readonly packageManagerLock?: {
+        path: string;
+        bytes: Uint8Array;
+        workspaceBytes?: Uint8Array;
+        linkedWorkspaceInputs?: Awaited<ReturnType<typeof readLinkedWorkspaceInputs>>;
+      };
       readonly files: readonly ProjectSourceFile[];
       readonly localFiles: readonly LocalFileSnapshot[];
     }
@@ -183,12 +195,42 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
       "cli-project-discovery-invalid-entry-file",
       "Project entryFile must name a regular non-symbolic-link file within the project root.",
     );
-  const inputs = [
-    { path: "unframe.config.ts", bytes: config },
-    { path: "unframe.lock", bytes: lock },
-    ...snapshot.localFiles,
-  ].sort((a, b) => compareCodeUnits(a.path, b.path));
-  const revision = createWorkspaceSnapshot(inputs).revision;
+  let packageManagerLock:
+    | {
+        path: string;
+        bytes: Uint8Array;
+        workspaceBytes?: Uint8Array;
+        linkedWorkspaceInputs?: Awaited<ReturnType<typeof readLinkedWorkspaceInputs>>;
+      }
+    | undefined;
+  try {
+    const dependency = await readPnpmProjectLock(root);
+    const linkedWorkspaceInputs = await readLinkedWorkspaceInputs(root);
+    packageManagerLock = {
+      path: join(dependency.directory, "pnpm-lock.yaml"),
+      ...(linkedWorkspaceInputs.length ? { linkedWorkspaceInputs } : {}),
+      bytes: dependency.bytes.slice(),
+      ...(dependency.workspaceBytes ? { workspaceBytes: dependency.workspaceBytes.slice() } : {}),
+    };
+  } catch (error) {
+    if (!(error instanceof PnpmProjectLockError) || error.code !== "missing")
+      return failure(
+        "cli-project-dependency-input-invalid",
+        error instanceof Error ? error.message : "Project dependency inputs are invalid.",
+      );
+  }
+  const revision = createProjectRevision({
+    configBytes: config,
+    lockBytes: lock,
+    localFiles: snapshot.localFiles,
+    ...(packageManagerLock ? { packageManagerLockBytes: packageManagerLock.bytes } : {}),
+    ...(packageManagerLock?.linkedWorkspaceInputs
+      ? { packageManagerLinkedInputs: packageManagerLock.linkedWorkspaceInputs }
+      : {}),
+    ...(packageManagerLock?.workspaceBytes
+      ? { packageManagerWorkspaceBytes: packageManagerLock.workspaceBytes }
+      : {}),
+  });
   return {
     ok: true,
     projectDirectory: root,
@@ -197,6 +239,7 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
     revision,
     lockBytes: lock.slice(),
     configBytes: config.slice(),
+    ...(packageManagerLock ? { packageManagerLock } : {}),
     ...snapshot,
   };
 };

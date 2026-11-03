@@ -15,7 +15,7 @@ Accepted — 設計上の決定。実装と受け入れ検証は未完了。
 - Editor は既存 Local Author Host と Web UI を使い、ローカルで完結する。編集の正本は Authoring Source・素材・config・lock。Definition や Unity の GameObject を保存元にしない。
 - Web の Author と既存 Editor の関連 UI を `features/editor/` の一つの編集経路へ統合する。Local Author API を保存境界とし、旧 PresentationDocument・ブラウザー内文書保存・React 側の3D描画は置き換える。ローカル編集・Preview に Control Plane login を要求せず、認証・device authorization・account settings は公開時の関心として分離する。認証画面は CP の信頼済み Web origin、公開 credential の取得・保持は device authorization を使う Local Host が所有する。
 - Dev Preview は保存済み入力から専用 channel に生成し、Dist Preview は既存 `dist` を読み取り専用で開く。同じ Compiler・成果物検証を使い、Dev は `dist` を更新しない。Control Plane への公開は、明示的に選んだ `dist` のみを対象とする。
-- Dev は保存時にローカル Source・その file closure 内の素材の lock hash を自動 refresh する。元ファイルとの対応を持たない埋込素材は保持する。依存 package の解決・version 更新は明示操作とし、通常の check／build は frozen のままにする。refresh 確定後の revision を build 入力と UI の保存済み revision に揃える。
+- Dev は保存時にローカル Source・その file closure 内の素材の lock hash を自動 refresh する。`lock.assets` の素材 pin は保持する。pnpm lock の依存解決・version 更新は作者が確定し、Dev はその固定結果から必要な package／style snapshot を自動同期する。通常の check／本番 build は frozen のままにする。refresh 確定後の revision を build 入力と UI の保存済み revision に揃える。
 - Core の描画選択・Runtime catalog 構築を publication に依存しない処理として共通化する。ローカル Preview と本番 Delivery は Adapter を分け、同じ Unity 読み込み・描画処理へ接続する。本番の公開・認可・fence 検証は維持し、ローカル用の架空 Publication／Session は生成しない。
 - WebGL Bridge・ローカル素材取得・プレビュー用カメラは Web Preview Adapter、XR 入力・anchor は Quest Adapter が所有する。renderer に transport を持ち込まない。
 - 保存、build 成功、Unity load 成功を区別する。失敗・取消・古い結果で最後の正常表示を失わない。

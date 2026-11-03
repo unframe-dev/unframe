@@ -889,3 +889,21 @@ it.each(["valid", "deleted", "asset", "manifest", "pointer"])(
   },
   60_000,
 );
+
+it("rejects a Dev build whose Source changed before dependency synchronization", async () => {
+  const directory = await createProject();
+  const run = vi.fn<typeof runPresentationCli>();
+  const service = await createAuthorService(directory, { run });
+  services.push(service);
+  const initial = await service.project();
+  const lock = await readFile(join(directory, "unframe.lock"));
+  await writeFile(
+    join(directory, "Hero.component.tsx"),
+    component + "\n// changed after capture\n",
+  );
+  await expect(service.build(initial.revision, commandId("c"))).rejects.toMatchObject({
+    status: 412,
+  });
+  expect(run).not.toHaveBeenCalled();
+  expect(await readFile(join(directory, "unframe.lock"))).toEqual(lock);
+}, 30_000);

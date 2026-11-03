@@ -101,6 +101,15 @@ const refreshLocalProjectLockWithinScope = async (
       configBytes: found.configBytes,
       lockBytes: bytes,
       localFiles: found.localFiles,
+      ...(found.packageManagerLock
+        ? { packageManagerLockBytes: found.packageManagerLock.bytes }
+        : {}),
+      ...(found.packageManagerLock?.linkedWorkspaceInputs
+        ? { packageManagerLinkedInputs: found.packageManagerLock.linkedWorkspaceInputs }
+        : {}),
+      ...(found.packageManagerLock?.workspaceBytes
+        ? { packageManagerWorkspaceBytes: found.packageManagerLock.workspaceBytes }
+        : {}),
     });
     await rename(temporary, join(directory, "unframe.lock"));
     temporary = undefined;

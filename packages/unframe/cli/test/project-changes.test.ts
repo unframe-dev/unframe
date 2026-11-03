@@ -123,3 +123,197 @@ it("answers an idle heartbeat with the same cursor without inventing a project c
     vi.useRealTimers();
   }
 });
+
+const workspaceProject = async () => {
+  const workspace = await mkdtemp(join(temporaryDirectory(), "unframe-dependency-watch-"));
+  cleanup.push(() => rm(workspace, { recursive: true, force: true }));
+  const root = join(workspace, "projects/slides");
+  await mkdir(root, { recursive: true });
+  await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages:\n  - projects/*\n");
+  const lock =
+    "lockfileVersion: '9.0'\nimporters:\n  projects/slides: {}\npackages: {}\nsnapshots: {}\n";
+  await writeFile(join(workspace, "pnpm-lock.yaml"), lock);
+  return { workspace, root, lock };
+};
+
+it("observes the selected workspace lock including atomic replacement and deletion", async () => {
+  const { workspace, root, lock } = await workspaceProject();
+  const changes = await watchProjectChanges(root);
+  cleanup.push(() => changes.close());
+  let cursor = (await changes.wait()).cursor;
+  await writeFile(join(workspace, "pnpm-lock.yaml"), lock + "# updated\n");
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(3000))).cursor;
+  const { rename, unlink } = await import("node:fs/promises");
+  await writeFile(join(workspace, "replacement.yaml"), lock);
+  await rename(join(workspace, "replacement.yaml"), join(workspace, "pnpm-lock.yaml"));
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(3000))).cursor;
+  await unlink(join(workspace, "pnpm-lock.yaml"));
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(3000))).cursor;
+  await writeFile(join(workspace, "pnpm-lock.yaml"), lock);
+  expect((await changes.wait(cursor, AbortSignal.timeout(3000))).changed).toBe(true);
+});
+
+it("does not report unrelated workspace sibling edits", async () => {
+  const { workspace, root } = await workspaceProject();
+  const changes = await watchProjectChanges(root);
+  cleanup.push(() => changes.close());
+  const initial = await changes.wait();
+  const abort = new AbortController();
+  const pending = changes.wait(initial.cursor, abort.signal);
+  const cancelled = expect(pending).rejects.toMatchObject({ code: "cli-cancelled" });
+  await writeFile(join(workspace, "unrelated.txt"), "sibling data");
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  abort.abort();
+  await cancelled;
+});
+
+it("reevaluates workspace membership when its package declaration changes", async () => {
+  const { workspace, root } = await workspaceProject();
+  await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages:\n  - other/*\n");
+  const changes = await watchProjectChanges(root);
+  cleanup.push(() => changes.close());
+  let cursor = (await changes.wait()).cursor;
+  await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages:\n  - projects/*\n");
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(3000))).cursor;
+  await writeFile(
+    join(workspace, "pnpm-lock.yaml"),
+    "lockfileVersion: '9.0'\nimporters:\n  projects/slides: {}\n# dependency changed\n",
+  );
+  expect((await changes.wait(cursor, AbortSignal.timeout(3000))).changed).toBe(true);
+});
+
+it("observes repairs to an initially invalid workspace lock", async () => {
+  const { workspace, root, lock } = await workspaceProject();
+  await writeFile(join(workspace, "pnpm-lock.yaml"), "invalid: lock\n");
+  const changes = await watchProjectChanges(root);
+  cleanup.push(() => changes.close());
+  const initial = await changes.wait();
+  await writeFile(join(workspace, "pnpm-lock.yaml"), lock);
+  expect((await changes.wait(initial.cursor, AbortSignal.timeout(3000))).changed).toBe(true);
+});
+
+it("stops observing a workspace lock after the project is excluded", async () => {
+  const { workspace, root, lock } = await workspaceProject();
+  const changes = await watchProjectChanges(root);
+  cleanup.push(() => changes.close());
+  const initial = await changes.wait();
+  await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages:\n  - other/*\n");
+  const next = await changes.wait(initial.cursor, AbortSignal.timeout(3000));
+  const abort = new AbortController();
+  const pending = changes.wait(next.cursor, abort.signal);
+  const cancelled = expect(pending).rejects.toMatchObject({ code: "cli-cancelled" });
+  await writeFile(join(workspace, "pnpm-lock.yaml"), lock + "# unrelated\n");
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  abort.abort();
+  await cancelled;
+});
+
+it("observes creation of an initially missing workspace lock", async () => {
+  const { workspace, root, lock } = await workspaceProject();
+  await rm(join(workspace, "pnpm-lock.yaml"));
+  const changes = await watchProjectChanges(root);
+  cleanup.push(() => changes.close());
+  const initial = await changes.wait();
+  await writeFile(join(workspace, "pnpm-lock.yaml"), lock);
+  expect((await changes.wait(initial.cursor, AbortSignal.timeout(3000))).changed).toBe(true);
+});
+
+it("observes linked workspace sources, nested directories and package recreation", async () => {
+  const { workspace, root } = await workspaceProject();
+  const sdk = join(workspace, "packages/sdk");
+  await mkdir(sdk, { recursive: true });
+  await writeFile(join(sdk, "package.json"), JSON.stringify({ name: "sdk", version: "1.0.0" }));
+  await writeFile(join(sdk, "index.js"), "export const value = 1;");
+  await writeFile(
+    join(workspace, "pnpm-workspace.yaml"),
+    "packages:\n  - projects/*\n  - packages/*\n",
+  );
+  await writeFile(
+    join(workspace, "pnpm-lock.yaml"),
+    "lockfileVersion: '9.0'\nimporters:\n  projects/slides:\n    dependencies:\n      sdk:\n        specifier: workspace:*\n        version: link:../../packages/sdk\n  packages/sdk: {}\npackages: {}\nsnapshots: {}\n",
+  );
+  const changes = await watchProjectChanges(root);
+  cleanup.push(() => changes.close());
+  let cursor = (await changes.wait()).cursor;
+  await writeFile(join(sdk, "index.js"), "export const value = 2;");
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await mkdir(join(sdk, "src"));
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await writeFile(join(sdk, "src/new.js"), "export const value = 3;");
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await mkdir(join(sdk, "dist"));
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await writeFile(join(sdk, "dist/index.js"), "export const value = 3;");
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await rm(sdk, { recursive: true });
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await mkdir(sdk);
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await writeFile(join(sdk, "index.js"), "export const value = 4;");
+  expect((await changes.wait(cursor, AbortSignal.timeout(1500))).changed).toBe(true);
+});
+
+it("recovers dependency watchers after a linked package ancestor is recreated", async () => {
+  const { workspace, root } = await workspaceProject();
+  const packages = join(workspace, "packages");
+  const sdk = join(packages, "sdk");
+  await mkdir(sdk, { recursive: true });
+  await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages: [projects/*, packages/*]\n");
+  await writeFile(
+    join(workspace, "pnpm-lock.yaml"),
+    "lockfileVersion: '9.0'\nimporters:\n  projects/slides:\n    dependencies:\n      sdk:\n        specifier: workspace:*\n        version: link:../../packages/sdk\n  packages/sdk: {}\npackages: {}\nsnapshots: {}\n",
+  );
+  const changes = await watchProjectChanges(root);
+  cleanup.push(() => changes.close());
+  let cursor = (await changes.wait()).cursor;
+  await rm(packages, { recursive: true });
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await mkdir(sdk, { recursive: true });
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await writeFile(join(sdk, "index.js"), "export const value = 1;");
+  expect((await changes.wait(cursor, AbortSignal.timeout(1500))).changed).toBe(true);
+});
+
+it("continues observing repairs after a lock temporarily contains an undeclared link", async () => {
+  const { workspace, root, lock } = await workspaceProject();
+  const changes = await watchProjectChanges(root);
+  cleanup.push(() => changes.close());
+  let cursor = (await changes.wait()).cursor;
+  await writeFile(
+    join(workspace, "pnpm-lock.yaml"),
+    lock.replace(
+      "projects/slides: {}",
+      "projects/slides:\n    dependencies:\n      sdk:\n        specifier: workspace:*\n        version: link:../../missing-sdk",
+    ),
+  );
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await writeFile(join(workspace, "pnpm-lock.yaml"), lock);
+  expect((await changes.wait(cursor, AbortSignal.timeout(1500))).changed).toBe(true);
+});
+
+it("updates existing directory watchers when a nested package becomes linked", async () => {
+  const { workspace } = await workspaceProject();
+  const sdk = join(workspace, "packages/sdk");
+  await mkdir(sdk, { recursive: true });
+  await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages: [packages/*]\n");
+  await writeFile(
+    join(workspace, "pnpm-lock.yaml"),
+    "lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      sdk:\n        specifier: workspace:*\n        version: link:packages/sdk\n  packages/sdk: {}\npackages: {}\nsnapshots: {}\n",
+  );
+  const lockPath = join(workspace, "pnpm-lock.yaml");
+  const { readFile } = await import("node:fs/promises");
+  const linkedLock = await readFile(lockPath);
+  await writeFile(
+    lockPath,
+    "lockfileVersion: '9.0'\nimporters:\n  .: {}\npackages: {}\nsnapshots: {}\n",
+  );
+  const changes = await watchProjectChanges(workspace);
+  cleanup.push(() => changes.close());
+  let cursor = (await changes.wait()).cursor;
+  await writeFile(lockPath, linkedLock);
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await mkdir(join(sdk, "dist"));
+  cursor = (await changes.wait(cursor, AbortSignal.timeout(1500))).cursor;
+  await writeFile(join(sdk, "dist/index.js"), "export const value = 1;");
+  expect((await changes.wait(cursor, AbortSignal.timeout(1500))).changed).toBe(true);
+});

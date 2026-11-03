@@ -9,7 +9,7 @@ import {
   workspaceSourcePackageSpecifiers,
 } from "@unframe-dev/workspace";
 import { lstat, mkdir, readdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, matchesGlob, posix, relative, resolve, sep } from "node:path";
 import { parseAllDocuments } from "yaml";
 
 import {
@@ -46,7 +46,7 @@ const collectFiles = async (root: string, workspace = false): Promise<NodeSnapsh
     for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) =>
       a.name.localeCompare(b.name, "en"),
     )) {
-      if (["node_modules", ".git", ".unframe"].includes(entry.name)) continue;
+      if (["node_modules", ".git", ".unframe", ".cache"].includes(entry.name)) continue;
       const path = join(directory, entry.name);
       const sourcePath = relative(root, path).split(sep).join("/");
       if (roots && !isWorkspacePackageSnapshotPath(sourcePath, roots)) continue;
@@ -120,32 +120,55 @@ const collectEntryFiles = async (root: string, entry: string): Promise<NodeSnaps
   }
   return [...files.values()].sort((a, b) => a.path.localeCompare(b.path, "en"));
 };
+const workspaceMember = (patterns: readonly string[], key: string) =>
+  key === "." ||
+  (patterns.some(
+    (pattern) => !pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern)),
+  ) &&
+    !patterns.some(
+      (pattern) => pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern.slice(1))),
+    ));
+const yamlFile = async (path: string, lockStream = false) => {
+  const stat = await lstat(path).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === "ENOENT") return undefined;
+    throw error;
+  });
+  if (!stat) return undefined;
+  if (!stat.isFile() || stat.isSymbolicLink())
+    throw new Error("Node pnpm inputs must be regular files");
+  const documents = parseAllDocuments(await readFile(path, "utf8"), { uniqueKeys: true });
+  if (
+    !documents.length ||
+    (!lockStream && documents.length !== 1) ||
+    documents.some((item) => item.errors.length)
+  )
+    throw new Error("Invalid pnpm YAML");
+  return documents.at(-1)!.toJS({ maxAliasCount: 100 }) as Record<string, unknown>;
+};
 const readLock = async (directory: string, workspace: boolean) => {
-  const projectRoot = await realpath(directory);
-  let root = projectRoot;
-  for (;;) {
-    try {
-      if (root !== projectRoot) {
-        const marker = await lstat(join(root, "pnpm-workspace.yaml"));
-        if (!marker.isFile())
-          throw new Error("Node project workspace marker must be a regular file");
-      }
-      const documents = parseAllDocuments(await readFile(join(root, "pnpm-lock.yaml"), "utf8"), {
-        uniqueKeys: true,
-      });
-      const document = documents.at(-1);
-      if (!document || documents.some((item) => item.errors.length))
-        throw new Error("Invalid pnpm lock YAML");
-      const lock = pnpmLockSchema.parse(document.toJS({ maxAliasCount: 100 }));
-      const importer = lock.importers[relative(root, projectRoot).split(sep).join("/") || "."];
+  const project = await realpath(directory);
+  for (let root = project; ; root = dirname(root)) {
+    const raw = await yamlFile(join(root, "pnpm-lock.yaml"), true);
+    const key = relative(root, project).split(sep).join("/") || ".";
+    const workspaceConfig = workspace
+      ? await yamlFile(join(root, "pnpm-workspace.yaml"))
+      : undefined;
+    const patterns = workspaceConfig?.packages;
+    if (
+      patterns !== undefined &&
+      (!Array.isArray(patterns) || !patterns.every((value) => typeof value === "string"))
+    )
+      throw new Error("Workspace packages must be an array of patterns");
+    if (
+      raw &&
+      (root === project || (workspaceConfig && workspaceMember((patterns as string[]) ?? [], key)))
+    ) {
+      const lock = pnpmLockSchema.parse(raw);
+      const importer = lock.importers[key];
       if (!importer) throw new Error("Node adapter pnpm importer is missing");
-      return { root, lock, importer };
-    } catch (error) {
-      if (!workspace || (error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      return { root, lock, importer, workspacePatterns: patterns as string[] | undefined };
     }
-    const parent = dirname(root);
-    if (parent === root) throw new Error("Node adapter pnpm lock is missing");
-    root = parent;
+    if (!workspace || dirname(root) === root) throw new Error("Node adapter pnpm lock is missing");
   }
 };
 const readAdapterLock = async (directory: string) => {
@@ -163,7 +186,32 @@ const readAdapterLock = async (directory: string) => {
     current = parent;
   }
   const root = installedRoot ?? (await readLock(directory, true)).root;
-  return { root, lock, importer };
+  return { root, lock, importer, workspacePatterns: undefined };
+};
+export const snapshotNodeRuntime = async (
+  requestedNodePath?: string,
+): Promise<NodeTransformSnapshot["runtime"]> => {
+  const nodePath = await realpath(
+    requestedNodePath ?? process.env.UNFRAME_STYLE_NODE ?? process.execPath,
+  );
+  const runtime = probeNodeRuntime(nodePath);
+  const closure = process.env.UNFRAME_STYLE_RUNTIME_CLOSURE
+    ? (await readFile(process.env.UNFRAME_STYLE_RUNTIME_CLOSURE, "utf8")).trim().split(/\s+/).sort()
+    : [];
+  return {
+    nodePath,
+    nodeHash: digest(await readFile(nodePath)),
+    ...runtime,
+    mode: "production",
+    closure,
+    environment:
+      runtime.platform === "linux"
+        ? {
+            ...(process.env.NIX_LD ? { NIX_LD: await realpath(process.env.NIX_LD) } : {}),
+            NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
+          }
+        : {},
+  };
 };
 export const snapshotNodeTransformInputs = async (
   projectRoot: string,
@@ -178,10 +226,7 @@ export const snapshotNodeTransformInputs = async (
   } = {},
 ): Promise<NodeTransformSnapshot> => {
   const root = await realpath(projectRoot);
-  const nodePath = await realpath(
-    options.nodePath ?? process.env.UNFRAME_STYLE_NODE ?? process.execPath,
-  );
-  const runtimeData = probeNodeRuntime(nodePath);
+  const runtime = await snapshotNodeRuntime(options.nodePath);
   const packages: {
     id: string;
     locator: string;
@@ -190,36 +235,57 @@ export const snapshotNodeTransformInputs = async (
     dependencies: Record<string, string>;
   }[] = [];
   const seen = new Map<string, string>();
+  type DependencyInput = { version: string; from: string; linkBase: string; optional: boolean };
+  const importerDependencies = (
+    importer: Awaited<ReturnType<typeof readLock>>["importer"],
+    directory: string,
+  ) =>
+    new Map(
+      Object.entries({
+        ...importer.dependencies,
+        ...importer.devDependencies,
+        ...importer.optionalDependencies,
+      }).map(([name, entry]) => [
+        name,
+        {
+          version: entry.version,
+          from: directory,
+          linkBase: directory,
+          optional: Object.hasOwn(importer.optionalDependencies, name),
+        },
+      ]),
+    );
   const visit = async (
     name: string,
     version: string,
     from: string,
     context: Awaited<ReturnType<typeof readLock>>,
     optional = false,
+    consumer: ReadonlyMap<string, DependencyInput> = importerDependencies(context.importer, from),
+    linkBase = from,
   ): Promise<string | undefined> => {
     const snapshots = context.lock.snapshots;
-    let workspaceDirectory: string | undefined;
-    let workspaceImporter: typeof context.importer | undefined;
-    if (version.startsWith("link:")) {
-      const target = version.slice(5);
-      const fromImporter =
-        context.lock.importers[relative(context.root, from).split(sep).join("/") || "."];
-      if (!fromImporter || !target || target.includes("\\") || isAbsolute(target))
-        throw new Error("Node workspace dependency must resolve from a locked importer");
-      workspaceDirectory = resolve(from, target);
-      if (workspaceDirectory === context.root || !contained(context.root, workspaceDirectory))
-        throw new Error("Node workspace dependency escapes workspace");
-      workspaceImporter =
-        context.lock.importers[relative(context.root, workspaceDirectory).split(sep).join("/")];
-      if (!workspaceImporter) throw new Error("Node workspace dependency importer is missing");
-    }
-    const locator = workspaceDirectory
-      ? `${name}@workspace:${relative(context.root, workspaceDirectory).split(sep).join("/")}`
+    const workspace = version.startsWith("link:");
+    const workspaceRoot = workspace ? resolve(linkBase, version.slice(5)) : undefined;
+    const workspaceKey = workspaceRoot
+      ? relative(context.root, workspaceRoot).split(sep).join("/") || "."
+      : undefined;
+    if (
+      workspace &&
+      (!workspaceRoot ||
+        !context.workspacePatterns ||
+        !contained(context.root, workspaceRoot) ||
+        !workspaceMember(context.workspacePatterns, workspaceKey!) ||
+        !context.lock.importers[workspaceKey!])
+    )
+      throw new Error("Node linked dependency must be a declared workspace importer");
+    let locator = workspace
+      ? `${name}@workspace:${workspaceKey}`
       : Object.hasOwn(snapshots, `${name}@${version}`)
         ? `${name}@${version}`
         : version;
     pnpmLocatorSchema.parse(locator);
-    if (!workspaceDirectory && !Object.hasOwn(snapshots, locator))
+    if (!workspace && !Object.hasOwn(snapshots, locator))
       throw new Error("Node dependency must have a fixed pnpm snapshot locator");
     let current = from;
     let packageRoot: string | undefined;
@@ -241,8 +307,8 @@ export const snapshotNodeTransformInputs = async (
       throw new Error(`Missing Node dependency: ${name}`);
     }
     if (
-      workspaceDirectory
-        ? packageRoot !== workspaceDirectory
+      workspace
+        ? packageRoot !== workspaceRoot || (await realpath(workspaceRoot!)) !== workspaceRoot
         : !contained(join(context.root, "node_modules"), packageRoot)
     )
       throw new Error("Node dependency escapes installed graph");
@@ -251,36 +317,91 @@ export const snapshotNodeTransformInputs = async (
     );
     const nameVersion = `${manifest.name}@${manifest.version}`;
     const baseLocator = locator.split("(")[0]!;
-    const packageRecord = workspaceDirectory
-      ? { resolution: { integrity: undefined }, version: manifest.version }
-      : context.lock.packages[baseLocator];
-    if (!packageRecord) throw new Error("Node package is missing from pnpm lock");
+    const packageRecord = context.lock.packages[baseLocator];
+    if (!workspace && !packageRecord) throw new Error("Node package is missing from pnpm lock");
     if (
-      workspaceDirectory
+      workspace
         ? manifest.name !== name
         : baseLocator !== nameVersion &&
           !(
             baseLocator.startsWith(`${manifest.name}@file:`) &&
-            packageRecord.version === manifest.version
+            packageRecord?.version === manifest.version
           )
     )
       throw new Error(`Installed package does not match pnpm locator: ${locator}`);
-    const compatible = [manifest, packageRecord].every(
+    const compatible = [manifest, ...(packageRecord ? [packageRecord] : [])].every(
       (metadata) =>
-        supportsPlatform(metadata.os, runtimeData.platform) &&
-        supportsPlatform(metadata.cpu, runtimeData.arch) &&
-        (runtimeData.platform !== "linux" ||
-          supportsPlatform(metadata.libc, runtimeData.libc === "non-glibc" ? "musl" : "glibc")),
+        supportsPlatform(metadata.os, runtime.platform) &&
+        supportsPlatform(metadata.cpu, runtime.arch) &&
+        (runtime.platform !== "linux" ||
+          supportsPlatform(metadata.libc, runtime.libc === "non-glibc" ? "musl" : "glibc")),
     );
     if (!compatible) {
       if (optional) return undefined;
       throw new Error(`Node dependency does not support the locked platform: ${locator}`);
     }
-    const files = await collectFiles(packageRoot, workspaceDirectory !== undefined);
-    const integrity = workspaceDirectory
+    const files = await collectFiles(packageRoot, workspace);
+    const integrity = workspace
       ? `workspace-content:${digest(JSON.stringify(files))}`
-      : packageRecord.resolution.integrity;
+      : packageRecord?.resolution.integrity;
     if (!integrity) throw new Error("Node package archive integrity is missing");
+    const linked = workspace ? context.lock.importers[workspaceKey!] : undefined;
+    const locked = snapshots[locator];
+    const own = workspace
+      ? importerDependencies(linked!, packageRoot)
+      : new Map<string, DependencyInput>();
+    const references = workspace
+      ? workspaceSourcePackageSpecifiers(
+          files.map((file) => ({
+            path: file.path,
+            source: Buffer.from(file.bytes, "base64").toString("utf8"),
+          })),
+        )
+      : [];
+    const edges = workspace
+      ? new Map(
+          [...own].filter(
+            ([dependency]) =>
+              Object.hasOwn(linked!.dependencies, dependency) ||
+              Object.hasOwn(linked!.optionalDependencies, dependency) ||
+              references.includes(dependency),
+          ),
+        )
+      : new Map(
+          Object.entries({ ...locked!.dependencies, ...locked!.optionalDependencies }).map(
+            ([dependency, version]) => [
+              dependency,
+              {
+                version,
+                from: packageRoot,
+                linkBase: context.root,
+                optional: Object.hasOwn(locked!.optionalDependencies, dependency),
+              },
+            ],
+          ),
+        );
+    if (workspace) {
+      const peers = Object.keys(manifest.peerDependencies ?? {}).sort();
+      for (const peer of peers) {
+        const input = consumer.get(peer) ?? own.get(peer);
+        if (input) edges.set(peer, input);
+      }
+      locator += peers
+        .filter((peer) => edges.has(peer))
+        .map((peer) => {
+          const input = edges.get(peer)!;
+          const identity = input.version.startsWith("link:")
+            ? `workspace:${
+                relative(context.root, resolve(input.linkBase, input.version.slice(5)))
+                  .split(sep)
+                  .join("/") || "."
+              }`
+            : input.version;
+          return `(${peer}@${identity})`;
+        })
+        .join("");
+      pnpmLocatorSchema.parse(locator);
+    }
     const key = `${context.root}\0${locator}\0${packageRoot}`;
     const previous = seen.get(key);
     if (previous) return previous;
@@ -294,34 +415,15 @@ export const snapshotNodeTransformInputs = async (
       dependencies: Object.create(null) as Record<string, string>,
     };
     packages.push(item);
-    const locked = workspaceImporter ?? snapshots[locator]!;
-    const references = workspaceImporter
-      ? workspaceSourcePackageSpecifiers(
-          files.map((file) => ({
-            path: file.path,
-            source: Buffer.from(file.bytes, "base64").toString("utf8"),
-          })),
-        )
-      : [];
-    const requiredDevelopment = Object.fromEntries(
-      Object.entries(workspaceImporter?.devDependencies ?? {}).filter(([name]) =>
-        references.includes(name),
-      ),
-    );
-    const edges = {
-      ...requiredDevelopment,
-      ...locked.dependencies,
-      ...locked.optionalDependencies,
-    };
-    for (const dependency of Object.keys(edges).sort()) {
+    for (const [dependency, input] of [...edges].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
       const child = await visit(
         dependency,
-        workspaceImporter
-          ? (edges[dependency] as (typeof context.importer.dependencies)[string]).version
-          : (edges[dependency] as string),
-        packageRoot,
+        input.version,
+        input.from,
         context,
-        Object.hasOwn(locked.optionalDependencies, dependency),
+        input.optional,
+        edges,
+        input.linkBase,
       );
       if (child) item.dependencies[dependency] = child;
     }
@@ -429,25 +531,9 @@ export const snapshotNodeTransformInputs = async (
     }
     adapter = { packageId, entry };
   }
-  const closure = process.env.UNFRAME_STYLE_RUNTIME_CLOSURE
-    ? (await readFile(process.env.UNFRAME_STYLE_RUNTIME_CLOSURE, "utf8")).trim().split(/\s+/).sort()
-    : [];
   return identify({
     version: 1,
-    runtime: {
-      nodePath,
-      nodeHash: digest(await readFile(nodePath)),
-      ...runtimeData,
-      mode: "production",
-      closure,
-      environment:
-        runtimeData.platform === "linux"
-          ? {
-              ...(process.env.NIX_LD ? { NIX_LD: await realpath(process.env.NIX_LD) } : {}),
-              NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
-            }
-          : {},
-    },
+    runtime,
     sourceFiles: [...(options.sourceFiles ?? (await collectFiles(root)))],
     rootDependencies,
     packages,

@@ -112,6 +112,7 @@ case "${mode}" in
     go -C "${REPO_ROOT}/packages/unframe/workspace-node/native" vet ./...
     ;;
   cli)
+    pnpm --config.verify-deps-before-run=false --dir "${REPO_ROOT}" --filter @unframe-dev/styles-node run build
     check_packages cli
     ;;
   acceptance)

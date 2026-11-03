@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import { stringify } from "yaml";
 import { afterEach, expect, it } from "vite-plus/test";
 import {
+  snapshotNodeRuntime,
   snapshotNodeTransformInputs,
   materializeNodeTransformSnapshot,
   withNodeTransformSources,
@@ -498,4 +499,216 @@ it("uses the distributed adapter lock outside the repository", async () => {
       adapterDependencySnapshot: "dist/adapter-dependencies.json.gz",
     }),
   ).rejects.toThrow("integrity mismatch");
+});
+
+it.each(["dependencies", "devDependencies", "consumer"])(
+  "freezes a workspace peer from %s for PostCSS",
+  async (dependencyField) => {
+    const root = await temporary();
+    const project = join(root, "example");
+    const sdk = join(root, "packages/sdk");
+    const plugin = join(root, "node_modules/plugin");
+    await mkdir(join(project, "node_modules"), { recursive: true });
+    await mkdir(sdk, { recursive: true });
+    await mkdir(plugin, { recursive: true });
+    await writeFile(
+      join(root, "pnpm-workspace.yaml"),
+      "packages: ['./example', './packages/*', '!./packages/excluded']\n",
+    );
+    await writeFile(
+      join(root, "pnpm-lock.yaml"),
+      "---\nlockfileVersion: '9.0'\nimporters: {}\n---\n" +
+        stringify({
+          lockfileVersion: "9.0",
+          importers: {
+            example: {
+              dependencies: {
+                sdk: { version: "link:../packages/sdk" },
+                ...(dependencyField === "consumer" ? { plugin: { version: "1.0.0" } } : {}),
+              },
+            },
+            "packages/sdk":
+              dependencyField === "consumer"
+                ? {}
+                : { [dependencyField]: { plugin: { version: "1.0.0" } } },
+          },
+          packages: { "plugin@1.0.0": { resolution: { integrity: "sha512-YWJj" } } },
+          snapshots: { "plugin@1.0.0": {} },
+        }),
+    );
+    await writeFile(
+      join(sdk, "package.json"),
+      JSON.stringify({
+        name: "sdk",
+        version: "1.0.0",
+        main: "index.cjs",
+        peerDependencies: { plugin: "^1" },
+      }),
+    );
+    await writeFile(join(sdk, "index.cjs"), "module.exports = require('plugin');");
+    await writeFile(
+      join(plugin, "package.json"),
+      JSON.stringify({ name: "plugin", version: "1.0.0", main: "index.cjs" }),
+    );
+    await writeFile(join(plugin, "index.cjs"), "module.exports = 'frozen workspace dependency';");
+    await symlink(sdk, join(project, "node_modules/sdk"));
+    const snapshot = await snapshotNodeTransformInputs(project);
+    expect(snapshot.packages.map((pkg) => pkg.locator)).toEqual(
+      expect.arrayContaining(["sdk@workspace:packages/sdk(plugin@1.0.0)", "plugin@1.0.0"]),
+    );
+    await writeFile(join(plugin, "index.cjs"), "module.exports = 'changed live package';");
+    const destination = await temporary();
+    const placed = await materializeNodeTransformSnapshot(snapshot, destination);
+    const require = createRequire(join(placed.projectRoot, "package.json"));
+    expect(require("sdk")).toBe("frozen workspace dependency");
+  },
+);
+
+it("does not use an undeclared parent workspace's lock for a style project", async () => {
+  const root = await temporary();
+  const project = join(root, "undeclared");
+  await mkdir(project);
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: ['packages/*']\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({ lockfileVersion: "9.0", importers: { undeclared: {} } }),
+  );
+  await expect(snapshotNodeTransformInputs(project)).rejects.toThrow("pnpm lock is missing");
+});
+
+it("rejects workspace links that are not declared importers for style snapshots", async () => {
+  const root = await temporary();
+  const project = join(root, "example");
+  await mkdir(project);
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [example]\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({
+      lockfileVersion: "9.0",
+      importers: {
+        example: { dependencies: { sdk: { version: "link:../undeclared" } } },
+        undeclared: {},
+      },
+    }),
+  );
+  await expect(snapshotNodeTransformInputs(project)).rejects.toThrow("declared workspace importer");
+});
+
+it("rejects declared style workspace packages redirected outside the workspace", async () => {
+  const root = await temporary();
+  const outside = await temporary();
+  const project = join(root, "example");
+  await mkdir(join(project, "node_modules"), { recursive: true });
+  await mkdir(join(root, "packages"));
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [example, 'packages/*']\n");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({
+      lockfileVersion: "9.0",
+      importers: {
+        example: { dependencies: { sdk: { version: "link:../packages/sdk" } } },
+        "packages/sdk": {},
+      },
+    }),
+  );
+  await symlink(outside, join(root, "packages/sdk"));
+  await symlink(outside, join(project, "node_modules/sdk"));
+  await expect(snapshotNodeTransformInputs(project)).rejects.toThrow("escapes installed graph");
+});
+
+it("reads full runtime metadata through an unchanged launcher", async () => {
+  const root = await temporary();
+  const metadata = join(root, "runtime.json");
+  const launcher = join(root, "node-launcher");
+  await writeFile(
+    launcher,
+    `#!/bin/sh
+IFS= read -r payload < '${metadata}'
+printf '%s' "$payload"
+`,
+    { mode: 0o755 },
+  );
+  await writeFile(
+    metadata,
+    JSON.stringify({
+      version: "v24.0.0",
+      platform: process.platform,
+      arch: process.arch,
+      libc: "libc-one",
+    }),
+  );
+  const before = await snapshotNodeRuntime(launcher);
+  await writeFile(
+    metadata,
+    JSON.stringify({
+      version: "v24.1.0",
+      platform: process.platform,
+      arch: process.arch,
+      libc: "libc-two",
+    }),
+  );
+  const after = await snapshotNodeRuntime(launcher);
+  expect(after.nodeHash).toBe(before.nodeHash);
+  expect(after).toMatchObject({ version: "v24.1.0", libc: "libc-two" });
+});
+
+it("keeps distinct linked peer contexts with identical relative link versions", async () => {
+  const root = await temporary();
+  const project = join(root, "example");
+  const sdk = join(root, "packages/sdk");
+  await mkdir(join(project, "node_modules"), { recursive: true });
+  await mkdir(sdk, { recursive: true });
+  await writeFile(
+    join(sdk, "package.json"),
+    JSON.stringify({
+      name: "sdk",
+      version: "1.0.0",
+      main: "index.cjs",
+      peerDependencies: { theme: "*" },
+    }),
+  );
+  await writeFile(join(sdk, "index.cjs"), "module.exports=require('theme');");
+  const importers: Record<string, unknown> = {
+    example: {
+      dependencies: {
+        a: { version: "link:../packages/a/client" },
+        b: { version: "link:../packages/b/client" },
+      },
+    },
+    "packages/sdk": {},
+  };
+  for (const name of ["a", "b"]) {
+    const client = join(root, `packages/${name}/client`);
+    const theme = join(root, `packages/${name}/theme`);
+    await mkdir(join(client, "node_modules"), { recursive: true });
+    await mkdir(theme, { recursive: true });
+    await writeFile(
+      join(client, "package.json"),
+      JSON.stringify({ name, version: "1.0.0", main: "index.cjs" }),
+    );
+    await writeFile(join(client, "index.cjs"), "module.exports=require('sdk');");
+    await writeFile(
+      join(theme, "package.json"),
+      JSON.stringify({ name: "theme", version: "1.0.0", main: "index.cjs" }),
+    );
+    await writeFile(join(theme, "index.cjs"), `module.exports='${name}';`);
+    await symlink(sdk, join(client, "node_modules/sdk"));
+    await symlink(theme, join(client, "node_modules/theme"));
+    await symlink(client, join(project, `node_modules/${name}`));
+    importers[`packages/${name}/client`] = {
+      dependencies: { sdk: { version: "link:../../sdk" }, theme: { version: "link:../theme" } },
+    };
+    importers[`packages/${name}/theme`] = {};
+  }
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: ['example','packages/**']");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({ lockfileVersion: "9.0", importers, packages: {}, snapshots: {} }),
+  );
+  const snapshot = await snapshotNodeTransformInputs(project);
+  const destination = await temporary();
+  const placed = await materializeNodeTransformSnapshot(snapshot, destination);
+  const require = createRequire(join(placed.projectRoot, "package.json"));
+  expect(require("a")).toBe("a");
+  expect(require("b")).toBe("b");
 });

@@ -6,8 +6,6 @@ import {
 } from "@unframe-dev/build";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { readTypeLibraries } from "./prepare-project.js";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { open, rename, unlink } from "node:fs/promises";
@@ -16,9 +14,8 @@ import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readRegularFile, readBoundedRegularFile } from "./path-policy.js";
-import { digestBytes, readPnpmProjectLock, snapshotInstalledPackages } from "./package-snapshot.js";
-
-const execute = promisify(execFile);
+import { digestBytes, snapshotInstalledPackages } from "./package-snapshot.js";
+import { installProjectDependencies } from "./install-project-dependencies.js";
 
 const updateProjectLockWithinScope = async (
   ports: SourceAssetPorts & { styles: StylePreparationPort },
@@ -55,35 +52,7 @@ const updateProjectLockWithinScope = async (
       {
         ...ports,
         readTypeLibraries,
-        install: async () => {
-          if (!(await readRegularFile(join(directory, "package.json"))))
-            return failure(
-              "cli-lock-package-input-missing",
-              "Lock update requires regular package.json and pnpm-lock.yaml inputs.",
-            );
-          let packageLock: Awaited<ReturnType<typeof readPnpmProjectLock>>;
-          try {
-            packageLock = await readPnpmProjectLock(directory);
-          } catch {
-            return failure(
-              "cli-lock-package-input-missing",
-              "Lock update requires a regular package.json and a pnpm lock importer.",
-            );
-          }
-          await execute(
-            "pnpm",
-            [
-              "install",
-              "--frozen-lockfile",
-              "--ignore-scripts",
-              "--ignore-pnpmfile",
-              ...(packageLock.workspace ? [] : ["--force"]),
-              "--verify-store-integrity",
-            ],
-            { cwd: packageLock.directory, signal, timeout: 120_000, maxBuffer: 1024 * 1024 },
-          );
-          return { ok: true as const };
-        },
+        install: () => installProjectDependencies(directory, signal),
         snapshotInstalledPackages: (rootSpecifiers) =>
           snapshotInstalledPackages(directory, rootSpecifiers ? { rootSpecifiers } : {}),
       },

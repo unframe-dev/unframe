@@ -17,9 +17,9 @@ export default { plugins: { "@tailwindcss/postcss": {} } };
 }
 ```
 
-React component から CSS を import し、依存追加後は `unframe-cli lock update <absolute-project-directory>`、ソースや設定変更後は `unframe-cli lock refresh <absolute-project-directory>` を実行する。`check` / `build` / Preview は固定した依存を使い、ホストの `node_modules` を再解決しない。
+React component から CSS を import し、依存追加後は `unframe-cli lock update <absolute-project-directory>`、ソースや設定変更後は `unframe-cli lock refresh <absolute-project-directory>` を実行する。通常の `check` / `build` は固定した依存を使い、ホストの `node_modules` を再解決しない。Local Editor の Dev Preview は必要な依存同期と lock 更新を自動で行う。
 
-style lock は Node executable、OS / CPU、native dependency と runtime closure も固定する。Linux / macOS を切り替えた場合は移行先で `lock update` が必要であり、`lock refresh` では runtime を切り替えない。通常の check / build は不一致を拒否し、暗黙更新しない。
+style lock は Node executable と version、OS / CPU / libc、native dependency と runtime closure も固定する。Linux / macOS を切り替えた場合は移行先で `lock update` が必要であり、`lock refresh` では runtime を切り替えない。通常の check / build は不一致を拒否し、暗黙更新しない。Local Editor の Dev Preview は移行先の runtime に必要な snapshot を自動更新する。
 
 CLI はビルドごとに新しい Node 24 worker を native isolation adapter で起動する。Linux は bubblewrap と委任済み cgroup v2、macOS arm64 は Seatbelt と process group 監視を使う。保証差と実機検証状態は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。リポジトリでは `nix develop` 内から `scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使用し、OS 別の起動経路を選択する。変換失敗時は既存 Dist を公開済みのまま維持する。
 

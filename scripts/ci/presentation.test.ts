@@ -136,3 +136,13 @@ test("acceptance stops when distribution preparation fails", () => {
   assert.equal(f.run("acceptance").status, 23);
   assert.doesNotMatch(readFileSync(f.log, "utf8"), /test:packed|presentation build/);
 });
+
+test("the CLI suite builds the style worker before checking CLI", () => {
+  const f = fixture();
+  const result = f.run("cli");
+  assert.equal(result.status, 0, result.stderr);
+  const commands = readFileSync(f.log, "utf8").trim().split("\n");
+  const styles = commands.findIndex((line) => line.includes("@unframe-dev/styles-node run build"));
+  const cli = commands.findIndex((line) => line.includes("@unframe-dev/cli run check"));
+  assert.ok(styles >= 0 && styles < cli);
+});

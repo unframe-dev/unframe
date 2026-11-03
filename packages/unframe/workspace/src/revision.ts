@@ -37,11 +37,52 @@ export const createProjectRevision = (input: {
   lockBytes: Uint8Array;
   localFiles: readonly LocalFileSnapshot[];
   entryReplacement?: LocalFileSnapshot;
-}): WorkspaceSnapshot["revision"] =>
-  createWorkspaceSnapshot([
+  packageManagerLockBytes?: Uint8Array;
+  packageManagerWorkspaceBytes?: Uint8Array;
+  packageManagerLinkedInputs?: readonly { directory: string; contentIntegrity: string }[];
+}): WorkspaceSnapshot["revision"] => {
+  const sourceRevision = createWorkspaceSnapshot([
     { path: "unframe.config.ts", bytes: input.configBytes },
     { path: "unframe.lock", bytes: input.lockBytes },
     ...input.localFiles.map((file) =>
       file.path === input.entryReplacement?.path ? input.entryReplacement : file,
     ),
   ]).revision;
+  const packageRevision: WorkspaceSnapshot["revision"] =
+    input.packageManagerLockBytes === undefined
+      ? sourceRevision
+      : `sha256:${digest(
+          new TextEncoder().encode(
+            JSON.stringify([
+              "unframe-project-with-package-lock-v1",
+              sourceRevision,
+              digest(input.packageManagerLockBytes),
+            ]),
+          ),
+        )}`;
+  const workspaceRevision: WorkspaceSnapshot["revision"] =
+    input.packageManagerWorkspaceBytes === undefined
+      ? packageRevision
+      : `sha256:${digest(
+          new TextEncoder().encode(
+            JSON.stringify([
+              "unframe-project-with-package-workspace-v1",
+              packageRevision,
+              digest(input.packageManagerWorkspaceBytes),
+            ]),
+          ),
+        )}`;
+  return !input.packageManagerLinkedInputs?.length
+    ? workspaceRevision
+    : `sha256:${digest(
+        new TextEncoder().encode(
+          JSON.stringify([
+            "unframe-project-with-linked-workspaces-v1",
+            workspaceRevision,
+            [...input.packageManagerLinkedInputs]
+              .sort((a, b) => (a.directory < b.directory ? -1 : a.directory > b.directory ? 1 : 0))
+              .map(({ directory, contentIntegrity }) => [directory, contentIntegrity]),
+          ]),
+        ),
+      )}`;
+};

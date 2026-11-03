@@ -1,8 +1,8 @@
 import { mediaTypeFor } from "@unframe-dev/workspace";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { createHash } from "node:crypto";
-import { realpath } from "node:fs/promises";
-import { dirname, isAbsolute, join, posix, relative, resolve } from "node:path";
+import { lstat, realpath } from "node:fs/promises";
+import { dirname, isAbsolute, join, matchesGlob, posix, relative, resolve, sep } from "node:path";
 import { parseAllDocuments } from "yaml";
 import { parseStrictJson } from "@unframe-dev/artifacts";
 import { readDirectoryNames, readRegularFile } from "./path-policy.js";
@@ -352,7 +352,7 @@ const packageFiles = async (root: string, workspace = false): Promise<LockedFile
     const names = await readDirectoryNames(path ? join(root, path) : root);
     if (!names) throw new Error("Package directory is unsafe.");
     for (const name of names) {
-      if (name === "node_modules" || name === ".git") continue;
+      if (["node_modules", ".git", ".unframe", ".cache"].includes(name)) continue;
       const relative = path ? `${path}/${name}` : name;
       if (roots && !isWorkspacePackageSnapshotPath(relative, roots)) continue;
       const full = join(root, relative);
@@ -368,52 +368,194 @@ const packageFiles = async (root: string, workspace = false): Promise<LockedFile
   return files.sort((a, b) => compare(a.path, b.path));
 };
 
-export const readPnpmProjectLock = async (root: string) => {
-  const projectRoot = await realpath(root);
-  let directory = projectRoot;
-  while (true) {
-    const bytes = await readRegularFile(join(directory, "pnpm-lock.yaml"));
-    if (
-      bytes &&
-      (directory === projectRoot || (await readRegularFile(join(directory, "pnpm-workspace.yaml"))))
-    ) {
-      const documents = parseAllDocuments(new TextDecoder("utf-8", { fatal: true }).decode(bytes), {
-        uniqueKeys: true,
-      });
-      if (documents.some((document) => document.errors.length))
-        throw new Error("Invalid pnpm lock YAML.");
-      const importerId = relative(directory, projectRoot).split("\\").join("/") || ".";
-      const matches = documents.flatMap((document) => {
-        const lock = record(document.toJS({ maxAliasCount: 100 }));
-        if (String(lock.lockfileVersion) !== "9.0")
-          throw new Error("Only pnpm lockfileVersion 9.0 is supported.");
-        const value = record(lock.importers)[importerId];
-        if (value === undefined) return [];
-        const importer = record(value);
-        return Object.hasOwn(importer, "packageManagerDependencies") ||
-          Object.hasOwn(importer, "configDependencies")
-          ? []
-          : [{ lock, importer }];
-      });
-      if (matches.length !== 1)
-        throw new Error("pnpm lock must contain one matching dependency importer.");
-      const { lock, importer } = matches[0]!;
-      return {
-        directory,
-        bytes,
-        lock,
-        importer,
-        workspace:
-          directory !== projectRoot ||
-          !!(await readRegularFile(join(directory, "pnpm-workspace.yaml"))),
-      };
+const contained = (root: string, path: string) => {
+  const value = relative(root, path);
+  return value !== ".." && !value.startsWith(`..${sep}`) && !isAbsolute(value);
+};
+const yamlRecords = (bytes: Uint8Array) => {
+  const documents = parseAllDocuments(new TextDecoder("utf-8", { fatal: true }).decode(bytes), {
+    uniqueKeys: true,
+  });
+  if (!documents.length || documents.some((document) => document.errors.length))
+    throw new Error("Invalid pnpm YAML.");
+  return documents.map((document) => record(document.toJS({ maxAliasCount: 100 })));
+};
+const yamlRecord = (bytes: Uint8Array) => {
+  const records = yamlRecords(bytes);
+  if (records.length !== 1) throw new Error("Invalid pnpm YAML.");
+  return records[0]!;
+};
+const workspaceMember = (patterns: readonly string[], key: string) =>
+  key === "." ||
+  (patterns.some(
+    (pattern) => !pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern)),
+  ) &&
+    !patterns.some(
+      (pattern) => pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern.slice(1))),
+    ));
+
+export class PnpmProjectLockError extends Error {
+  constructor(
+    readonly code: "missing" | "invalid",
+    message: string,
+    readonly directory?: string,
+  ) {
+    super(message);
+    this.name = "PnpmProjectLockError";
+  }
+}
+const pnpmInput = async (path: string) => {
+  const bytes = await readRegularFile(path);
+  if (bytes) return bytes;
+  const stat = await lstat(path).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
+    throw error;
+  });
+  if (stat) throw new Error("Project pnpm inputs must be regular files.");
+  return undefined;
+};
+const findPnpmProjectLock = async (directory: string) => {
+  const project = await realpath(directory);
+  for (let root = project; ; root = dirname(root)) {
+    try {
+      const bytes = await pnpmInput(join(root, "pnpm-lock.yaml"));
+      const workspaceBytes = await pnpmInput(join(root, "pnpm-workspace.yaml"));
+      const importerKey = relative(root, project).split(sep).join("/") || ".";
+      const patterns = workspaceBytes ? yamlRecord(workspaceBytes).packages : undefined;
+      if (
+        patterns !== undefined &&
+        (!Array.isArray(patterns) || !patterns.every((value) => typeof value === "string"))
+      )
+        throw new Error("Workspace packages must be an array of patterns.");
+      if (!bytes && workspaceBytes && workspaceMember((patterns as string[]) ?? [], importerKey))
+        throw new PnpmProjectLockError(
+          "missing",
+          "The project workspace pnpm-lock.yaml is missing.",
+          root,
+        );
+      if (
+        bytes &&
+        (root === project ||
+          (workspaceBytes && workspaceMember((patterns as string[]) ?? [], importerKey)))
+      ) {
+        const matches = yamlRecords(bytes).flatMap((lock) => {
+          if (String(lock.lockfileVersion) !== "9.0")
+            throw new Error("Only pnpm lockfileVersion 9.0 is supported.");
+          const value = record(lock.importers)[importerKey];
+          if (value === undefined) return [];
+          const importer = record(value);
+          return Object.hasOwn(importer, "packageManagerDependencies") ||
+            Object.hasOwn(importer, "configDependencies")
+            ? []
+            : [{ lock, importer }];
+        });
+        if (matches.length !== 1)
+          throw new Error("pnpm lock must contain one matching dependency importer.");
+        const { lock, importer } = matches[0]!;
+        return {
+          directory: root,
+          bytes,
+          importer,
+          importerKey,
+          lock,
+          workspacePatterns: patterns as string[] | undefined,
+          ...(workspaceBytes ? { workspaceBytes } : {}),
+        };
+      }
+      if (dirname(root) === root)
+        throw new PnpmProjectLockError(
+          "missing",
+          "A regular project pnpm-lock.yaml or matching workspace importer is required for lock update.",
+        );
+    } catch (error) {
+      if (error instanceof PnpmProjectLockError) throw error;
+      throw new PnpmProjectLockError(
+        "invalid",
+        error instanceof Error ? error.message : "Project pnpm lock is invalid.",
+        root,
+      );
     }
-    const parent = dirname(directory);
-    if (parent === directory)
-      throw new Error("A regular pnpm-lock.yaml is required for lock update.");
-    directory = parent;
   }
 };
+const readPnpmProjectLockWithinScope = async (directory: string) => {
+  try {
+    return await findPnpmProjectLock(directory);
+  } catch (error) {
+    if (error instanceof PnpmProjectLockError) throw error;
+    throw new PnpmProjectLockError(
+      "invalid",
+      error instanceof Error ? error.message : "Project pnpm lock is invalid.",
+    );
+  }
+};
+export const readPnpmProjectLock: typeof readPnpmProjectLockWithinScope = (...args) =>
+  withNativeFilesystem(() => readPnpmProjectLockWithinScope(...args));
+
+const readLinkedWorkspaceDirectoriesWithinScope = async (
+  directory: string,
+): Promise<{ directory: string; workspaceKey: string }[]> => {
+  const projectRoot = await realpath(directory);
+  const context = await readPnpmProjectLockWithinScope(projectRoot);
+  const importers = record(context.lock.importers);
+  const visited = new Set([context.importerKey]);
+  const inputs: { directory: string; workspaceKey: string }[] = [];
+  const visit = async (key: string): Promise<void> => {
+    const importer = record(importers[key]);
+    const from = resolve(context.directory, key);
+    const dependencies = {
+      ...record(importer.dependencies ?? {}),
+      ...record(importer.devDependencies ?? {}),
+      ...record(importer.optionalDependencies ?? {}),
+    };
+    for (const value of Object.values(dependencies)) {
+      const version = text(record(value).version);
+      if (!version.startsWith("link:")) continue;
+      const linked = resolve(from, version.slice(5));
+      const workspaceKey = relative(context.directory, linked).split(sep).join("/") || ".";
+      if (
+        !context.workspacePatterns ||
+        !contained(context.directory, linked) ||
+        !workspaceMember(context.workspacePatterns, workspaceKey) ||
+        !Object.hasOwn(importers, workspaceKey)
+      )
+        throw new Error("Linked package must be a declared workspace importer.");
+      const actual = await realpath(linked).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
+        throw error;
+      });
+      if (actual !== undefined && actual !== linked)
+        throw new Error("Linked workspace package must not redirect through a symlink.");
+      if (visited.has(workspaceKey)) continue;
+      visited.add(workspaceKey);
+      inputs.push({ directory: linked, workspaceKey });
+      await visit(workspaceKey);
+    }
+  };
+  await visit(context.importerKey);
+  return inputs.sort((a, b) => compare(a.workspaceKey, b.workspaceKey));
+};
+
+export const readLinkedWorkspaceDirectories: typeof readLinkedWorkspaceDirectoriesWithinScope = (
+  ...args
+) => withNativeFilesystem(() => readLinkedWorkspaceDirectoriesWithinScope(...args));
+
+const readLinkedWorkspaceInputsWithinScope = async (directory: string) => {
+  const directories = await readLinkedWorkspaceDirectoriesWithinScope(directory);
+  const inputs: { directory: string; workspaceKey: string; contentIntegrity: ContentHash }[] = [];
+  for (const input of directories) {
+    if ((await realpath(input.directory)) !== input.directory)
+      throw new Error("Linked workspace package must not redirect through a symlink.");
+    const files = await packageFiles(input.directory, true);
+    inputs.push({
+      ...input,
+      contentIntegrity: digestBytes(new TextEncoder().encode(JSON.stringify(files))),
+    });
+  }
+  return inputs;
+};
+
+export const readLinkedWorkspaceInputs: typeof readLinkedWorkspaceInputsWithinScope = (...args) =>
+  withNativeFilesystem(() => readLinkedWorkspaceInputsWithinScope(...args));
 
 /** Reads only an explicitly installed pnpm graph; never evaluates package or lifecycle code. */
 const snapshotInstalledPackagesWithinScope = async (
@@ -425,7 +567,8 @@ const snapshotInstalledPackagesWithinScope = async (
   packages: PackageSnapshot[];
 }> => {
   const projectRoot = await realpath(root);
-  const { directory: lockRoot, bytes, lock, importer } = await readPnpmProjectLock(projectRoot);
+  const context = await readPnpmProjectLockWithinScope(projectRoot);
+  const { bytes, lock, importer } = context;
   const snapshots = record(lock.snapshots ?? {});
   const packages = new Map<string, PackageSnapshot>();
   const dependencyEntries = (input: Record<string, unknown>) =>
@@ -433,51 +576,77 @@ const snapshotInstalledPackagesWithinScope = async (
       ...record(input.dependencies ?? {}),
       ...record(input.optionalDependencies ?? {}),
     });
+  type DependencyInput = { version: string; from: string; linkBase: string };
+  const importerDependencies = (input: Record<string, unknown>, directory: string) =>
+    new Map(
+      Object.entries({
+        ...record(input.dependencies ?? {}),
+        ...record(input.devDependencies ?? {}),
+        ...record(input.optionalDependencies ?? {}),
+      }).map(([name, value]) => [
+        name,
+        { version: text(record(value).version), from: directory, linkBase: directory },
+      ]),
+    );
+  const roots = importerDependencies(importer, projectRoot);
   const visit = async (
     specifier: string,
     version: string,
-    modulesDirectory: string,
-    importerDirectory?: string,
+    from: string,
+    linkBase = from,
+    consumer: ReadonlyMap<string, DependencyInput> = roots,
   ): Promise<ContentHash> => {
     if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(specifier))
       throw new Error("Invalid dependency specifier.");
-    let workspaceDirectory: string | undefined;
-    let workspaceImporter: Record<string, unknown> | undefined;
-    if (version.startsWith("link:")) {
-      const target = version.slice(5);
-      if (!importerDirectory || !target || target.includes("\\") || isAbsolute(target))
-        throw new Error("Workspace dependency must resolve to a locked importer.");
-      workspaceDirectory = resolve(importerDirectory, target);
-      if (!workspaceDirectory.startsWith(`${lockRoot}/`))
-        throw new Error("Workspace dependency must remain inside the workspace.");
-      const id = relative(lockRoot, workspaceDirectory).split("\\").join("/");
-      const importer = record(lock.importers)[id];
-      if (importer === undefined)
-        throw new Error(`Workspace dependency importer is missing from the pnpm lock: ${id}.`);
-      workspaceImporter = record(importer);
-    }
-    const locator = workspaceDirectory
-      ? `${specifier}@workspace:${relative(lockRoot, workspaceDirectory).split("\\").join("/")}`
+    const workspace = version.startsWith("link:");
+    const workspaceRoot = workspace ? resolve(linkBase, version.slice(5)) : undefined;
+    const workspaceKey = workspaceRoot
+      ? relative(context.directory, workspaceRoot).split(sep).join("/") || "."
+      : undefined;
+    if (
+      workspace &&
+      (!context.workspacePatterns ||
+        !workspaceRoot ||
+        !contained(context.directory, workspaceRoot) ||
+        !workspaceMember(context.workspacePatterns, workspaceKey!) ||
+        !Object.hasOwn(record(lock.importers), workspaceKey!))
+    )
+      throw new Error("Linked package must be a declared workspace importer.");
+    let locator = workspace
+      ? `${specifier}@workspace:${workspaceKey}`
       : Object.hasOwn(snapshots, `${specifier}@${version}`)
         ? `${specifier}@${version}`
         : version;
     if (
-      (!workspaceDirectory && !Object.hasOwn(snapshots, locator)) ||
-      /file:(?:\/|[A-Za-z]:|.*(?:^|\/)\.\.(?:\/|$))/.test(locator) ||
-      locator.includes("link:") ||
-      locator.startsWith("/")
+      !workspace &&
+      (!Object.hasOwn(snapshots, locator) ||
+        /file:(?:\/|[A-Za-z]:|.*(?:^|\/)\.\.(?:\/|$))/.test(locator) ||
+        locator.includes("link:") ||
+        locator.startsWith("/"))
     )
       throw new Error("Dependency must resolve to a fixed pnpm snapshot locator.");
-    const key = hashPackageLocator(locator);
-    if (packages.has(locator)) return key;
-    const packageRoot = await realpath(join(modulesDirectory, specifier));
+    if (!workspace && packages.has(locator)) return hashPackageLocator(locator);
+    let packageRoot: string | undefined;
+    for (let current = from; ; current = dirname(current)) {
+      try {
+        packageRoot = await realpath(join(current, "node_modules", specifier));
+        break;
+      } catch (error) {
+        if (!["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? ""))
+          throw error;
+      }
+      if (current === context.directory || !contained(context.directory, dirname(current))) break;
+    }
+    if (!packageRoot) throw new Error(`Missing installed package: ${specifier}`);
     if (
-      workspaceDirectory
-        ? packageRoot !== workspaceDirectory
-        : !packageRoot.startsWith(`${lockRoot}/node_modules/`)
+      workspace
+        ? packageRoot !== workspaceRoot || (await realpath(workspaceRoot!)) !== workspaceRoot
+        : !contained(join(context.directory, "node_modules"), packageRoot)
     )
-      throw new Error("Installed package must remain inside the project node_modules snapshot.");
-    const files = await packageFiles(packageRoot, workspaceDirectory !== undefined);
+      throw new Error(
+        "Installed package must remain inside its pnpm snapshot or declared workspace.",
+      );
+    const files = await packageFiles(packageRoot, workspace);
     const manifestFile = files.find((f) => f.path === "package.json");
     if (!manifestFile || manifestFile.encoding !== "utf8")
       throw new Error("Package manifest is missing.");
@@ -489,7 +658,7 @@ const snapshotInstalledPackagesWithinScope = async (
     const archive = locator.includes("@file:") && locator.endsWith(".tgz");
     const packageRecord = archive ? record(record(lock.packages)[locator]) : undefined;
     if (
-      workspaceDirectory
+      workspace
         ? name !== specifier
         : archive
           ? !locator.startsWith(`${name}@file:`) || packageRecord?.version !== actualVersion
@@ -499,6 +668,60 @@ const snapshotInstalledPackagesWithinScope = async (
       throw new Error(
         `Installed package ${name}@${actualVersion} does not match pnpm locator ${locator}.`,
       );
+    const snapshot = workspace
+      ? record(record(lock.importers)[workspaceKey!])
+      : record(snapshots[locator]);
+    const ownDependencies = workspace
+      ? importerDependencies(snapshot, packageRoot)
+      : new Map(
+          dependencyEntries(snapshot).map(([name, value]) => [
+            name,
+            {
+              version: text(value),
+              from: packageRoot,
+              linkBase: context.directory,
+            },
+          ]),
+        );
+    const references = workspace
+      ? workspaceSourcePackageSpecifiers(
+          files.flatMap((file) =>
+            file.encoding === "utf8" ? [{ path: file.path, source: file.data }] : [],
+          ),
+        )
+      : [];
+    const edges = new Map(
+      workspace
+        ? [...ownDependencies].filter(
+            ([name]) =>
+              dependencyEntries(snapshot).some(([dependency]) => dependency === name) ||
+              references.includes(typeSpecifier(name)),
+          )
+        : ownDependencies,
+    );
+    if (workspace) {
+      const peers = Object.keys(record(manifest.peerDependencies ?? {})).sort(compare);
+      for (const peer of peers) {
+        const input = consumer.get(peer) ?? ownDependencies.get(peer);
+        if (input) edges.set(peer, input);
+      }
+      locator += peers
+        .filter((peer) => edges.has(peer))
+        .map((peer) => {
+          const input = edges.get(peer)!;
+          const identity = input.version.startsWith("link:")
+            ? `workspace:${
+                relative(context.directory, resolve(input.linkBase, input.version.slice(5)))
+                  .split(sep)
+                  .join("/") || "."
+              }`
+            : input.version;
+          return `(${peer}@${identity})`;
+        })
+        .join("");
+    }
+    const key = hashPackageLocator(locator);
+    if (packages.has(locator)) return key;
     let exports: PackageSnapshot["exports"];
     try {
       const nestedManifests: Record<string, Record<string, unknown>> = {};
@@ -530,35 +753,17 @@ const snapshotInstalledPackagesWithinScope = async (
       contentIntegrity: "sha256:",
     };
     packages.set(locator, item);
-    const snapshot = workspaceImporter ?? record(snapshots[locator]);
-    const references = workspaceImporter
-      ? workspaceSourcePackageSpecifiers(
-          files.flatMap((file) =>
-            file.encoding === "utf8" ? [{ path: file.path, source: file.data }] : [],
-          ),
-        )
-      : [];
-    const requiredDevelopment = Object.fromEntries(
-      Object.entries(record(workspaceImporter?.devDependencies ?? {})).filter(([specifier]) =>
-        references.includes(typeSpecifier(specifier)),
-      ),
-    );
-    const dependencies = {
-      ...snapshot,
-      dependencies: { ...requiredDevelopment, ...record(snapshot.dependencies ?? {}) },
-    };
-    for (const [dependency, value] of dependencyEntries(dependencies)) {
+    for (const [dependency, value] of edges) {
       const usage = dependency.startsWith("@types/") ? "types" : "runtime";
       item.dependencies.push({
         specifier: typeSpecifier(dependency),
         usage,
         packageKey: await visit(
           dependency,
-          workspaceImporter ? text(record(value).version) : text(value),
-          workspaceDirectory
-            ? join(packageRoot, "node_modules")
-            : packageRoot.slice(0, -name.length - 1),
-          workspaceDirectory,
+          value.version,
+          value.from,
+          value.linkBase,
+          new Map([...ownDependencies, ...edges]),
         ),
       });
     }
@@ -569,22 +774,12 @@ const snapshotInstalledPackagesWithinScope = async (
     return key;
   };
   const rootDependencies: LockedDependency[] = [];
-  const roots = {
-    ...record(importer.dependencies ?? {}),
-    ...record(importer.devDependencies ?? {}),
-    ...record(importer.optionalDependencies ?? {}),
-  };
-  for (const [specifier, input] of Object.entries(roots)) {
+  for (const [specifier, input] of roots) {
     if (options.rootSpecifiers && !options.rootSpecifiers.includes(specifier)) continue;
     rootDependencies.push({
       specifier: typeSpecifier(specifier),
       usage: specifier.startsWith("@types/") ? "types" : "runtime",
-      packageKey: await visit(
-        specifier,
-        text(record(input).version),
-        join(projectRoot, "node_modules"),
-        projectRoot,
-      ),
+      packageKey: await visit(specifier, input.version, projectRoot, projectRoot),
     });
   }
   rootDependencies.sort((a, b) =>

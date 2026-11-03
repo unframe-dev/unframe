@@ -273,24 +273,25 @@ describe("local Preview Runtime Core playback", () => {
       now: () => now,
     });
     const started = playback({ requestId, command: "play" });
-    expect(started.inputs.map((input) => input.cueId)).toEqual(["higher", "repeat"]);
+    const events = [{ event: "repeat", actor: { kind: "presenter" } }];
+    expect(started.inputs.map((input) => input.cueId)).toEqual(["higher"]);
+    expect(started.simulation?.events).toEqual(events);
     expect(
       playback({ requestId, command: "input", cueId: "higher" }).inputs.map((input) => input.cueId),
-    ).toEqual(["lower", "repeat"]);
-    expect(
-      playback({ requestId, command: "input", cueId: "lower" }).inputs.map((input) => input.cueId),
-    ).toEqual(["repeat"]);
-    expect(
-      playback({ requestId, command: "input", cueId: "repeat" }).inputs.map((item) => item.cueId),
-    ).toEqual(["repeat"]);
+    ).toEqual(["lower"]);
+    expect(playback({ requestId, command: "input", cueId: "lower" }).inputs).toEqual([]);
+    const repeated = playback({
+      requestId,
+      command: "semanticEvent",
+      event: "repeat",
+      actor: { kind: "presenter" },
+    });
+    expect(repeated.occurrences.map((item) => item.cueId)).toEqual(["higher", "lower", "repeat"]);
+    expect(repeated.simulation?.events).toEqual(events);
     now = 99;
-    expect(playback({ requestId, command: "poll" }).inputs.map((item) => item.cueId)).toEqual([
-      "repeat",
-    ]);
+    expect(playback({ requestId, command: "poll" }).simulation?.events).toEqual(events);
     now = 100;
-    expect(playback({ requestId, command: "poll" }).inputs).toEqual([
-      { cueId: "repeat", label: "repeat" },
-    ]);
+    expect(playback({ requestId, command: "poll" }).simulation?.events).toEqual(events);
   });
 
   it("withholds input while a blocking run owns progression", async () => {
@@ -405,9 +406,13 @@ it("reapplies the last acknowledged checkpoint with a fresh sequence and rejects
   playback({ requestId, command: "applied", sequence: restored.state.sequence! });
   playback({ requestId, command: "reset" });
   const reset = playback({ requestId, command: "poll" });
-  expect(() =>
-    playback({ requestId, command: "recover", sequence: reset.state.sequence! }),
-  ).toThrow();
+  const recoveredReset = playback({
+    requestId,
+    command: "recover",
+    sequence: reset.state.sequence!,
+  });
+  expect(recoveredReset.state.activeRuns).toEqual(restored.state.activeRuns);
+  expect(recoveredReset.state.clock).toEqual(restored.state.clock);
 });
 
 it("retains only the latest repeatable occurrence and records due timers without recording input candidates", async () => {

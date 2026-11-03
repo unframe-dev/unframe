@@ -3,6 +3,8 @@ import { createAuthorProjectSnapshot, prepareAuthorSave } from "@unframe-dev/aut
 import {
   prepareProjectSource,
   prepareLockRefresh,
+  prepareLockUpdate,
+  type LockPreparationPorts,
   assembleAuthoringProject,
   prepareOpaquePrograms,
   StylePreparationError,
@@ -29,7 +31,10 @@ channel.on("message", (message: { kind: string; id: number; value?: unknown; err
   if (message.error) waiter.reject(new Error(message.error));
   else waiter.resolve(message.value);
 });
-const call = (method: "styles" | "video" | "bundle", args: unknown[]): Promise<unknown> => {
+const call = (
+  method: "styles" | "video" | "bundle" | "install" | "packages" | "styleSnapshot",
+  args: unknown[],
+): Promise<unknown> => {
   const id = ++nextId;
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
@@ -114,6 +119,25 @@ const execute = async (request: AnalysisRequest) => {
     if (!result.valid) return result;
     return { valid: true, value: { project: result.value.project }, diagnostics: [] };
   }
+  if (request.operation === "update")
+    return prepareLockUpdate(request.input, {
+      styles: {
+        ...styles,
+        snapshot: async (_directory, files) =>
+          (await call("styleSnapshot", [files])) as Awaited<
+            ReturnType<StylePreparationPort["snapshot"]>
+          >,
+      },
+      readTypeLibraries: async () => request.input.typeLibraries,
+      modelTransformIdentity: request.input.modelTransformIdentity,
+      videoTransformIdentity,
+      install: async () =>
+        (await call("install", [])) as Awaited<ReturnType<LockPreparationPorts["install"]>>,
+      snapshotInstalledPackages: async (roots) =>
+        (await call("packages", [roots])) as Awaited<
+          ReturnType<LockPreparationPorts["snapshotInstalledPackages"]>
+        >,
+    });
   if (request.operation === "refresh")
     return prepareLockRefresh(
       { found: request.input.found },
@@ -183,6 +207,15 @@ const execute = async (request: AnalysisRequest) => {
       createProjectRevision({
         configBytes: input.found.configBytes,
         lockBytes: lock,
+        ...(input.found.packageManagerLock
+          ? { packageManagerLockBytes: input.found.packageManagerLock.bytes }
+          : {}),
+        ...(input.found.packageManagerLock?.workspaceBytes
+          ? { packageManagerWorkspaceBytes: input.found.packageManagerLock.workspaceBytes }
+          : {}),
+        ...(input.found.packageManagerLock?.linkedWorkspaceInputs
+          ? { packageManagerLinkedInputs: input.found.packageManagerLock.linkedWorkspaceInputs }
+          : {}),
         localFiles: input.found.localFiles,
         entryReplacement: { path: input.found.entryFile, bytes: source },
       }),
