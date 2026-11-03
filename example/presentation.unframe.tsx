@@ -36,7 +36,7 @@ export default definePresentation({
       opacity: 0,
       transform: {
         position: [-0.644, 1.6, -2],
-        rotation: [0.7071067811865476, 0, 0, 0.7071067811865476],
+        rotation: [0, 0.7071067811865476, 0.7071067811865476, 0],
         scale: [0.4, 0.4, 0.4],
       },
     },

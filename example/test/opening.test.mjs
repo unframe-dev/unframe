@@ -57,6 +57,16 @@ test("ロゴは画像 Surface ではなく icon.glb の Model として配置す
   );
 });
 
+test("ロゴの上端を上向きにし、正面を観客へ向ける", () => {
+  const [x, y, z, w] = logo.transform.rotation;
+  const top = [2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)];
+  const front = [2 * (x * y - w * z), 1 - 2 * (x * x + z * z), 2 * (y * z + w * x)];
+  for (let axis = 0; axis < 3; axis++) {
+    assert.ok(Math.abs(top[axis] - [0, 1, 0][axis]) < 1e-12);
+    assert.ok(Math.abs(front[axis] - [0, 0, 1][axis]) < 1e-12);
+  }
+});
+
 test("開幕は自動で始まり、ロゴと Unframe が 0.9 秒かけて現れる", () => {
   const initial = initialState();
   assert.equal(initial.nodes[brandId].opacity, 0);
