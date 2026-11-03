@@ -6,7 +6,7 @@
     "strict": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "@unframe-dev/authoring",
+    "jsxImportSource": "react",
     "skipLibCheck": true
   },
   "include": ["*.ts", "*.tsx"]
