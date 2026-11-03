@@ -2,13 +2,15 @@ Shader "Unframe/PreviewSpatial"
 {
     Properties
     {
+        [HideInInspector] _ZWrite ("Depth write", Float) = 0
+        [HideInInspector] _ZTest ("Depth test", Float) = 8
         _MainTex ("Texture", 2D) = "white" {}
         _Color ("Color", Color) = (1,1,1,1)
     }
     SubShader
     {
         Tags { "Queue"="Overlay" "RenderType"="Transparent" "RenderPipeline"="UniversalPipeline" }
-        Cull Off ZWrite Off ZTest Always Blend SrcAlpha OneMinusSrcAlpha
+        Cull Off ZWrite [_ZWrite] ZTest [_ZTest] Blend SrcAlpha OneMinusSrcAlpha
         Pass
         {
             Tags { "LightMode"="SRPDefaultUnlit" }

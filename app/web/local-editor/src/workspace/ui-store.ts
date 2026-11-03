@@ -27,7 +27,7 @@ export const createUiStore = (theme: Theme) =>
     leftOpen: true,
     rightOpen: true,
     publicationOpen: false,
-    tab: "timeline",
+    tab: "flow",
     selection: { groupId: null, stepId: null, cueId: null },
     key: null,
     propInputs: {},

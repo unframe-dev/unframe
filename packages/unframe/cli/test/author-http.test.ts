@@ -6,13 +6,45 @@ import { AuthorError, type AuthorService } from "@unframe-dev/author-service";
 import type { LocalPublicationService } from "../src/author/publication.js";
 import type { BuildJob } from "@unframe-dev/contracts/author-http";
 import { createLocalPreviewService } from "../src/author/local-preview.js";
+import { hashCanonicalJsonPayload, type BuildArtifacts } from "@unframe-dev/artifacts";
+import {
+  presentationDefinitionSchema,
+  renderBundleSchema,
+  buildManifestSchema,
+} from "@unframe-dev/contracts/presentation";
+import definitionFixture from "../../../contracts/presentation/fixtures/presentation-definition.json";
+import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
+import buildFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
+
+const emptyPreviewArtifacts = (): BuildArtifacts => {
+  const definition = presentationDefinitionSchema.parse(definitionFixture);
+  definition.scene.nodes = {};
+  definition.scene.surfaces = {};
+  for (const group of Object.values(definition.flow.groups))
+    for (const step of Object.values(group.steps)) step.cues = [];
+  definition.flow.timelines = {};
+  const renderBundle = renderBundleSchema.parse(bundleFixture);
+  renderBundle.surfaces = {};
+  renderBundle.models = {};
+  renderBundle.definitionHash = hashCanonicalJsonPayload(definition);
+  const assetSet: BuildArtifacts["assetSet"] = { schemaVersion: 1, assets: {} };
+  const buildManifest = buildManifestSchema.parse(buildFixture);
+  buildManifest.definitionHash = renderBundle.definitionHash;
+  buildManifest.renderBundleHash = hashCanonicalJsonPayload(renderBundle);
+  buildManifest.assetSetHash = hashCanonicalJsonPayload(assetSet);
+  return { definition, renderBundle, assetSet, buildManifest };
+};
 
 const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];
 afterEach(async () => {
   await Promise.all(hosts.splice(0).map((host) => host.close()));
   vi.restoreAllMocks();
 });
-const setup = async (development = false, publication?: LocalPublicationService) => {
+const setup = async (
+  development = false,
+  publication?: LocalPublicationService,
+  previews = createLocalPreviewService("/missing"),
+) => {
   if (development) {
     const listen = Server.prototype.listen;
     // Keep development-origin checks independent of a running CLI on its fixed port.
@@ -40,7 +72,6 @@ const setup = async (development = false, publication?: LocalPublicationService)
     artifact: vi.fn(),
     close: vi.fn(async () => {}),
   };
-  const previews = createLocalPreviewService("/missing");
   const changes = createProjectChanges();
   const host = await startAuthorHost({
     changes,
@@ -497,44 +528,140 @@ it("keeps unknown publication operations available through receipt queries", asy
   expect(query).toHaveBeenCalledTimes(2);
 });
 
-it("invalidates Preview only when a build is accepted and forwards connection cancellation", async () => {
-  const { host, service, previews } = await setup();
-  const invalidate = vi.spyOn(previews, "invalidate");
+it.each(["dev", "dist"] as const)(
+  "preserves Preview during an accepted %s build only for Dev and forwards cancellation",
+  async (channel) => {
+    const { host, service, previews } = await setup();
+    const invalidate = vi.spyOn(previews, "invalidate");
+    const started = Promise.withResolvers<void>();
+    const disconnected = Promise.withResolvers<void>();
+    vi.mocked(service.build).mockImplementation(
+      async (_revision, _requestId, _channel, options) => {
+        options?.onAccepted?.();
+        started.resolve();
+        await new Promise<void>((resolve) =>
+          options?.signal?.addEventListener(
+            "abort",
+            () => {
+              disconnected.resolve();
+              resolve();
+            },
+            { once: true },
+          ),
+        );
+        throw Object.assign(new Error("Disconnected"), { status: 409, code: "cli-cancelled" });
+      },
+    );
+    const controller = new AbortController();
+    const response = fetch(`${host.origin}/api/${channel === "dev" ? "builds" : "dist-builds"}`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        authorization: `Bearer ${host.token}`,
+        origin: host.origin,
+        "content-type": "application/json",
+        "if-match": '"rev"',
+      },
+      body: JSON.stringify({ requestId: "a".repeat(32) }),
+    });
+    const rejected = expect(response).rejects.toBeDefined();
+    await started.promise;
+    try {
+      expect(invalidate).toHaveBeenCalledTimes(channel === "dev" ? 0 : 1);
+    } finally {
+      controller.abort();
+      await disconnected.promise;
+      await rejected;
+    }
+  },
+);
+
+it("keeps the displayed Preview through a waiting and failed Dev build until replacement", async () => {
+  const artifacts = emptyPreviewArtifacts();
+  const previews = createLocalPreviewService("/missing", {
+    readGeneration: async () => ({
+      generationId: "1".repeat(32),
+      artifacts,
+      readAsset: async () => {
+        throw new Error("Empty Preview has no assets");
+      },
+    }),
+  });
+  const { host, service } = await setup(false, undefined, previews);
+  const requestId = "a".repeat(32);
+  await previews.load({ channel: "dist", requestId });
+  previews.committed({ requestId, buildIdentity: artifacts.buildManifest.buildId });
   const started = Promise.withResolvers<void>();
-  const disconnected = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<BuildJob>();
   vi.mocked(service.build).mockImplementation(async (_revision, _requestId, _channel, options) => {
     options?.onAccepted?.();
     started.resolve();
-    await new Promise<void>((resolve) =>
-      options?.signal?.addEventListener(
-        "abort",
-        () => {
-          disconnected.resolve();
-          resolve();
-        },
-        { once: true },
-      ),
-    );
-    throw Object.assign(new Error("Disconnected"), { status: 409, code: "cli-cancelled" });
+    return finish.promise;
   });
-  const controller = new AbortController();
-  const response = fetch(`${host.origin}/api/builds`, {
+  const headers = {
+    authorization: `Bearer ${host.token}`,
+    origin: host.origin,
+    "content-type": "application/json",
+  };
+  const build = fetch(`${host.origin}/api/builds`, {
     method: "POST",
-    signal: controller.signal,
-    headers: {
-      authorization: `Bearer ${host.token}`,
-      origin: host.origin,
-      "content-type": "application/json",
-      "if-match": '"rev"',
-    },
-    body: JSON.stringify({ requestId: "a".repeat(32) }),
+    headers: { ...headers, "if-match": '"rev"' },
+    body: JSON.stringify({ requestId: "b".repeat(32) }),
   });
-  const rejected = expect(response).rejects.toBeDefined();
+  const play = () =>
+    fetch(`${host.origin}/api/preview-playback`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ requestId, command: "poll" }),
+    });
   await started.promise;
-  expect(invalidate).toHaveBeenCalledOnce();
-  controller.abort();
-  await disconnected.promise;
-  await rejected;
+  try {
+    expect((await play()).status).toBe(200);
+  } finally {
+    finish.resolve({
+      buildId: "b".repeat(32),
+      channel: "dev",
+      revision: "rev",
+      generationId: null,
+      status: "failed",
+      artifacts: [],
+      diagnostics: [{ code: "cli-source-lock-unavailable", message: "Source is busy" }],
+    });
+  }
+  expect((await build).status).toBe(202);
+  expect((await play()).status).toBe(200);
+  vi.mocked(service.job).mockResolvedValue({
+    buildId: "c".repeat(32),
+    channel: "dev",
+    revision: "rev",
+    generationId: "1".repeat(32),
+    status: "succeeded",
+    artifacts: [],
+    diagnostics: [],
+  });
+  const nextRequestId = "d".repeat(32);
+  const replacement = await fetch(`${host.origin}/api/previews`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ requestId: nextRequestId, channel: "dev", buildId: "c".repeat(32) }),
+  });
+  expect(replacement.status).toBe(200);
+  expect((await play()).status).toBe(409);
+  const confirmed = await fetch(`${host.origin}/api/preview-display`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      requestId: nextRequestId,
+      buildIdentity: artifacts.buildManifest.buildId,
+    }),
+  });
+  expect(confirmed.status).toBe(204);
+  const nextPlayback = await fetch(`${host.origin}/api/preview-playback`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ requestId: nextRequestId, command: "poll" }),
+  });
+  expect(nextPlayback.status).toBe(200);
 });
 
 it("does not invalidate the current Preview when a stale build POST is rejected", async () => {

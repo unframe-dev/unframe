@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
+import { createHash } from "node:crypto";
 
 import { collectAuthoringDeclarations } from "../src/project/collect-authoring-declarations.js";
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
@@ -17,11 +18,24 @@ const builders = [
 const analyze = (
   files: readonly { readonly fileName: string; readonly sourceText: string }[],
   entryFile = "entry.ts",
+  prepared = false,
 ) => {
   const parsed = parseAuthoringProject({
     projectRoot: "/virtual/presentation",
     entryFile,
     files,
+    ...(prepared
+      ? {
+          preparedStyles: {
+            identity: `sha256:${"a".repeat(64)}`,
+            inputs: files.map((file) => ({
+              path: file.fileName,
+              hash: `sha256:${createHash("sha256").update(file.sourceText).digest("hex")}`,
+            })),
+            stylesheets: [],
+          },
+        }
+      : {}),
     rootDependencies: [
       {
         specifier: "@unframe-dev/authoring",
@@ -127,58 +141,63 @@ describe("collectAuthoringDeclarations", () => {
     ]);
   });
 
-  it("collects all four roles deterministically without executing builders", () => {
-    const files = [
-      {
-        fileName: "entry.ts",
-        sourceText: source("definePresentation", '{ id: "presentation" }'),
-      },
-      {
-        fileName: "theme.unframe.ts",
-        sourceText: source("defineTheme", '{ id: "theme" }'),
-      },
-      {
-        fileName: "button.manifest.ts",
-        sourceText: source("defineComponentManifest", '{ id: "manifest" }'),
-      },
-      {
-        fileName: "button.structure.tsx",
-        sourceText: source("defineComponentStructure", '{ id: "structure" }'),
-      },
-    ];
-    const first = collectAuthoringDeclarations(analyze(files));
-    const second = collectAuthoringDeclarations(analyze([...files].reverse()));
-    expect(first).toEqual(second);
-    expect(first).toMatchObject({
-      ok: true,
-      declarations: [
+  it.each([false, true])(
+    "collects all four roles without imports or executing builders (prepared styles=%s)",
+    (prepared) => {
+      const files = [
         {
-          role: "component-manifest",
-          fileName: "button.manifest.ts",
-          rootBuilder: "defineComponentManifest",
-          value: { id: "manifest" },
-        },
-        {
-          role: "component-structure",
-          fileName: "button.structure.tsx",
-          rootBuilder: "defineComponentStructure",
-          value: { id: "structure" },
-        },
-        {
-          role: "presentation",
           fileName: "entry.ts",
-          rootBuilder: "definePresentation",
-          value: { id: "presentation" },
+          sourceText: source("definePresentation", '{ id: "presentation" }'),
         },
         {
-          role: "theme",
           fileName: "theme.unframe.ts",
-          rootBuilder: "defineTheme",
-          value: { id: "theme" },
+          sourceText: source("defineTheme", '{ id: "theme" }'),
         },
-      ],
-    });
-  });
+        {
+          fileName: "button.manifest.ts",
+          sourceText: source("defineComponentManifest", '{ id: "manifest" }'),
+        },
+        {
+          fileName: "button.structure.tsx",
+          sourceText: source("defineComponentStructure", '{ id: "structure" }'),
+        },
+      ];
+      const first = collectAuthoringDeclarations(analyze(files, "entry.ts", prepared));
+      const second = collectAuthoringDeclarations(
+        analyze([...files].reverse(), "entry.ts", prepared),
+      );
+      expect(first).toEqual(second);
+      expect(first).toMatchObject({
+        ok: true,
+        declarations: [
+          {
+            role: "component-manifest",
+            fileName: "button.manifest.ts",
+            rootBuilder: "defineComponentManifest",
+            value: { id: "manifest" },
+          },
+          {
+            role: "component-structure",
+            fileName: "button.structure.tsx",
+            rootBuilder: "defineComponentStructure",
+            value: { id: "structure" },
+          },
+          {
+            role: "presentation",
+            fileName: "entry.ts",
+            rootBuilder: "definePresentation",
+            value: { id: "presentation" },
+          },
+          {
+            role: "theme",
+            fileName: "theme.unframe.ts",
+            rootBuilder: "defineTheme",
+            value: { id: "theme" },
+          },
+        ],
+      });
+    },
+  );
 
   it("skips ambient and safe helper modules while collecting declaration suffixes only", () => {
     const result = collectAuthoringDeclarations(

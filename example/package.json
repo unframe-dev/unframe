@@ -1,9 +1,27 @@
 {
-  "name": "unframe-pack-test-project",
+  "name": "@unframe-dev/demo-presentation",
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "prepare:logo": "node scripts/prepare-logo.mjs",
+    "prepare:cube": "node scripts/prepare-cube.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test ./test/opening.test.mjs ./test/original.test.mjs"
+  },
   "dependencies": {
-    "@unframe-dev/authoring": "workspace:*"
+    "@unframe-dev/authoring": "workspace:*",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.2.3",
+    "@unframe-dev/compiler": "workspace:*",
+    "@unframe-dev/playback": "workspace:*",
+    "postcss": "8.5.32",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2"
   }
 }

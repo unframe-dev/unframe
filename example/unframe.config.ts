@@ -1,4 +1,7 @@
 export default {
   entryFile: "presentation.unframe.tsx",
-  assets: { white: { path: "assets/white.png", mediaType: "image/png" } },
+  assets: {
+    "logo-model": { path: "assets/icon.glb", mediaType: "model/gltf-binary" },
+    "demo-cube": { path: "assets/cube.glb", mediaType: "model/gltf-binary" },
+  },
 };

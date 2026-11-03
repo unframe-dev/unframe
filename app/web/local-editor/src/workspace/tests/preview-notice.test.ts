@@ -57,3 +57,18 @@ it("does not activate controls for a retained picture", () => {
 it("removes the indicator after the new picture is ready", () => {
   expect(render({ displayed, loaded: displayed, status: "ready", phase: "ready" })).toBe("");
 });
+
+it("shows build progress and update failures while the previous preview is still controllable", () => {
+  expect(render({ displayed, loaded: displayed, status: "ready", phase: "building" })).toContain(
+    "ビルド中",
+  );
+  const html = render({
+    displayed,
+    loaded: displayed,
+    status: "ready",
+    phase: "failed",
+    error: "Recovery required",
+  });
+  expect(html).toContain("更新失敗");
+  expect(html).toContain("再試行");
+});

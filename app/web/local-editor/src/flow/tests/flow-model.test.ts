@@ -1,7 +1,13 @@
 import { expect, it } from "vite-plus/test";
 import type { ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import fixture from "../../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
-import { createTimelineView, cueTimelines, triggerTiming, type FlowCue } from "../flow-model";
+import {
+  createTimelineView,
+  progressionSteps,
+  cueTimelines,
+  triggerTiming,
+  type FlowCue,
+} from "../flow-model";
 
 type Definition = NonNullable<ProjectSnapshot["definition"]>;
 it("orders candidate cues by priority, order, then ID without changing the definition", () => {
@@ -153,4 +159,41 @@ it.each<[FlowCue["trigger"], string]>([
   const cue = definition.flow.groups.intro!.steps.start!.cues[0]!;
   cue.trigger = trigger;
   expect(triggerTiming(cue)).toBe(expected);
+});
+
+it("lays out progression from the initial Step, retaining cycles, branches and disconnected Steps", () => {
+  const definition = structuredClone(fixture) as unknown as Definition;
+  const group = definition.flow.groups.intro!;
+  const cue = group.steps.start!.cues[0]!;
+  group.initialStepId = "z-opening";
+  group.steps = {
+    "a-detail": {
+      id: "a-detail",
+      cues: [{ ...cue, id: "back", next: { kind: "step", stepId: "z-opening" } }],
+    },
+    "z-opening": {
+      id: "z-opening",
+      cues: [
+        { ...cue, id: "stay", order: 0, next: { kind: "stay" } },
+        { ...cue, id: "enter", order: 1, next: { kind: "step", stepId: "m-enter" } },
+        { ...cue, id: "branch", order: 2, next: { kind: "step", stepId: "b-alternative" } },
+      ],
+    },
+    "m-enter": {
+      id: "m-enter",
+      cues: [{ ...cue, id: "detail", next: { kind: "step", stepId: "a-detail" } }],
+    },
+    "b-alternative": { id: "b-alternative", cues: [] },
+    isolated: { id: "isolated", cues: [] },
+  };
+  const view = createTimelineView(definition).groups.find((item) => item.id === group.id)!;
+  const before = structuredClone(view);
+  expect(progressionSteps(view).map((step) => step.id)).toEqual([
+    "z-opening",
+    "m-enter",
+    "a-detail",
+    "b-alternative",
+    "isolated",
+  ]);
+  expect(view).toEqual(before);
 });

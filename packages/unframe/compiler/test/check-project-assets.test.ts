@@ -12,6 +12,52 @@ const imageSurface = {
 } as unknown as PresentationDefinition["scene"]["surfaces"][string];
 
 describe("checkProjectAssetReferences", () => {
+  it("identifies an unused presentation asset and explains where to remove or use it", () => {
+    const result = checkProjectAssetReferences(
+      [{ kind: "asset-ref", assetId: "opening-logo" }],
+      {
+        "opening-logo": {
+          id: "opening-logo",
+          mediaType: "image/png",
+          checksum: checksumBytes(pngBytes),
+          encodedSizeBytes: pngBytes.length,
+        },
+      },
+      {},
+    );
+    expect(result.diagnostics).toEqual([
+      {
+        code: "compiler-asset-unreferenced",
+        path: ["presentation", "assets", "opening-logo"],
+        message:
+          "Asset 'opening-logo' is declared in presentation.assets but no resolved content uses it. Reference it from a Text, Image, Video or Model, or remove it from presentation.assets and the asset catalog.",
+      },
+    ]);
+  });
+
+  it("identifies a catalog asset missing from the presentation and gives both corrections", () => {
+    const result = checkProjectAssetReferences(
+      [],
+      {
+        "opening-logo": {
+          id: "opening-logo",
+          mediaType: "image/png",
+          checksum: checksumBytes(pngBytes),
+          encodedSizeBytes: pngBytes.length,
+        },
+      },
+      {},
+    );
+    expect(result.diagnostics).toEqual([
+      {
+        code: "compiler-asset-unreferenced",
+        path: ["assets", "opening-logo"],
+        message:
+          "Asset 'opening-logo' is in the asset catalog but is not declared in presentation.assets. Add its assetRef to presentation.assets and reference it from content, or remove it from the asset catalog.",
+      },
+    ]);
+  });
+
   it("accepts descriptor-only assets with independently supplied bytes", () => {
     const result = checkProjectAssetReferences(
       [{ kind: "asset-ref", assetId: "picture" }],

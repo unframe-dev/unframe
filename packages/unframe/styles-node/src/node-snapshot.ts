@@ -1,8 +1,12 @@
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
+import * as ts from "typescript";
 import {
   identifyNodeTransformSnapshot as identify,
   validateNodeTransformSnapshot,
+  workspacePackageFileRoots,
+  isWorkspacePackageSnapshotPath,
+  workspaceSourcePackageSpecifiers,
 } from "@unframe-dev/workspace";
 import { lstat, mkdir, readdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, matchesGlob, posix, relative, resolve, sep } from "node:path";
@@ -33,14 +37,19 @@ const contained = (root: string, path: string) => {
   const rel = relative(root, path);
   return rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 };
-const collectFiles = async (root: string): Promise<NodeSnapshotFile[]> => {
+const collectFiles = async (root: string, workspace = false): Promise<NodeSnapshotFile[]> => {
   const files: NodeSnapshotFile[] = [];
+  const roots = workspace
+    ? workspacePackageFileRoots(JSON.parse(await readFile(join(root, "package.json"), "utf8")))
+    : undefined;
   const walk = async (directory: string) => {
     for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) =>
       a.name.localeCompare(b.name, "en"),
     )) {
       if (["node_modules", ".git", ".unframe", ".cache"].includes(entry.name)) continue;
       const path = join(directory, entry.name);
+      const sourcePath = relative(root, path).split(sep).join("/");
+      if (roots && !isWorkspacePackageSnapshotPath(sourcePath, roots)) continue;
       const actual = await realpath(path);
       if (!contained(root, actual))
         throw new Error(`Snapshot symlink escapes root: ${relative(root, path)}`);
@@ -59,6 +68,57 @@ const collectFiles = async (root: string): Promise<NodeSnapshotFile[]> => {
   };
   await walk(root);
   return files;
+};
+const collectEntryFiles = async (root: string, entry: string): Promise<NodeSnapshotFile[]> => {
+  const files = new Map<string, NodeSnapshotFile>();
+  const pending = [entry];
+  while (pending.length) {
+    const path = pending.pop()!;
+    if (files.has(path)) continue;
+    const full = join(root, path);
+    const actual = await realpath(full);
+    const metadata = await lstat(full);
+    if (!contained(root, actual) || !metadata.isFile() || metadata.isSymbolicLink())
+      throw new Error("Node adapter entry closure contains an unsafe file");
+    const bytes = await readFile(full);
+    files.set(path, {
+      path,
+      bytes: bytes.toString("base64"),
+      ...((metadata.mode & 0o111) !== 0 ? { executable: true } : {}),
+    });
+    if (!/\.[cm]?[jt]sx?$/iu.test(path)) continue;
+    for (const reference of ts.preProcessFile(bytes.toString("utf8"), true, true).importedFiles) {
+      if (!reference.fileName.startsWith(".")) continue;
+      const target = resolve(dirname(full), reference.fileName);
+      if (!contained(root, target)) throw new Error("Node adapter import escapes package");
+      let found: string | undefined;
+      for (const candidate of [
+        target,
+        `${target}.js`,
+        `${target}.mjs`,
+        `${target}.cjs`,
+        `${target}.ts`,
+        `${target}.json`,
+        join(target, "index.js"),
+      ]) {
+        const metadata = await lstat(candidate).catch((error) => {
+          if (
+            (error as NodeJS.ErrnoException).code === "ENOENT" ||
+            (error as NodeJS.ErrnoException).code === "ENOTDIR"
+          )
+            return undefined;
+          throw error;
+        });
+        if (metadata?.isFile()) {
+          found = relative(root, candidate).split(sep).join("/");
+          break;
+        }
+      }
+      if (!found) throw new Error(`Node adapter relative import is missing: ${reference.fileName}`);
+      pending.push(found);
+    }
+  }
+  return [...files.values()].sort((a, b) => a.path.localeCompare(b.path, "en"));
 };
 const workspaceMember = (patterns: readonly string[], key: string) =>
   key === "." ||
@@ -162,6 +222,7 @@ export const snapshotNodeTransformInputs = async (
     readonly adapterDependencies?: readonly string[];
     readonly adapterDependencySnapshot?: string;
     readonly nodePath?: string;
+    readonly rootSpecifiers?: readonly string[];
   } = {},
 ): Promise<NodeTransformSnapshot> => {
   const root = await realpath(projectRoot);
@@ -279,9 +340,9 @@ export const snapshotNodeTransformInputs = async (
       if (optional) return undefined;
       throw new Error(`Node dependency does not support the locked platform: ${locator}`);
     }
-    const files = await collectFiles(packageRoot);
+    const files = await collectFiles(packageRoot, workspace);
     const integrity = workspace
-      ? `sha256-${createHash("sha256").update(JSON.stringify(files)).digest("base64")}`
+      ? `workspace-content:${digest(JSON.stringify(files))}`
       : packageRecord?.resolution.integrity;
     if (!integrity) throw new Error("Node package archive integrity is missing");
     const linked = workspace ? context.lock.importers[workspaceKey!] : undefined;
@@ -289,12 +350,21 @@ export const snapshotNodeTransformInputs = async (
     const own = workspace
       ? importerDependencies(linked!, packageRoot)
       : new Map<string, DependencyInput>();
+    const references = workspace
+      ? workspaceSourcePackageSpecifiers(
+          files.map((file) => ({
+            path: file.path,
+            source: Buffer.from(file.bytes, "base64").toString("utf8"),
+          })),
+        )
+      : [];
     const edges = workspace
       ? new Map(
           [...own].filter(
             ([dependency]) =>
               Object.hasOwn(linked!.dependencies, dependency) ||
-              Object.hasOwn(linked!.optionalDependencies, dependency),
+              Object.hasOwn(linked!.optionalDependencies, dependency) ||
+              references.includes(dependency),
           ),
         )
       : new Map(
@@ -367,6 +437,7 @@ export const snapshotNodeTransformInputs = async (
     ...context.importer.optionalDependencies,
   };
   for (const name of Object.keys(rootEdges).sort()) {
+    if (options.rootSpecifiers && !options.rootSpecifiers.includes(name)) continue;
     const id = await visit(
       name,
       rootEdges[name]!.version,
@@ -410,14 +481,7 @@ export const snapshotNodeTransformInputs = async (
               path: "package.json",
               bytes: (await readFile(join(adapterRoot, "package.json"))).toString("base64"),
             },
-            ...(await collectFiles(join(adapterRoot, dirname(entry))))
-              .filter(
-                (file) => `${dirname(entry)}/${file.path}` !== options.adapterDependencySnapshot,
-              )
-              .map((file) => ({
-                ...file,
-                path: `${dirname(entry)}/${file.path}`,
-              })),
+            ...(await collectEntryFiles(adapterRoot, entry)),
           ]
         : await collectFiles(adapterRoot),
       dependencies: Object.create(null) as Record<string, string>,

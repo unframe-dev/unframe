@@ -4,6 +4,7 @@ import type {
   ComponentStructure,
   StaticComponentMetadata,
   StaticReactSceneItem,
+  StaticSceneItem,
   PresentationDeclaration,
   ThemeDeclaration,
   SourceMetadata,
@@ -15,7 +16,7 @@ export type CompilerDeclarationProject = {
   presentation:
     | PresentationDeclaration
     | (Omit<PresentationDeclaration, "scene"> & {
-        scene: readonly StaticReactSceneItem[];
+        scene: readonly StaticSceneItem[];
       })
     | (Omit<PresentationDeclaration, "scene"> & {
         scene: Omit<PresentationDeclaration["scene"], "components"> & {

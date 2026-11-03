@@ -93,7 +93,7 @@ export const checkProjectAssetReferences = (
         diagnostic(
           "compiler-asset-unreferenced",
           ["presentation", "assets", assetId],
-          "Every declared source Asset must be referenced by resolved content.",
+          `Asset '${assetId}' is declared in presentation.assets but no resolved content uses it. Reference it from a Text, Image, Video or Model, or remove it from presentation.assets and the asset catalog.`,
         ),
       );
   const assetSetAssets: BuildArtifacts["assetSet"]["assets"] = {};
@@ -108,7 +108,7 @@ export const checkProjectAssetReferences = (
         diagnostic(
           "compiler-asset-unreferenced",
           ["assets", assetId],
-          "Asset carrier entries must be referenced by the presentation.",
+          `Asset '${assetId}' is in the asset catalog but is not declared in presentation.assets. Add its assetRef to presentation.assets and reference it from content, or remove it from the asset catalog.`,
         ),
       );
     if (

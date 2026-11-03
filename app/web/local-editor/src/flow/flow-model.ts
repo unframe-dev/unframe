@@ -139,3 +139,21 @@ export function triggerTiming(cue: FlowCue): string {
       return "手動入力・外部イベントの発火時刻は未確定";
   }
 }
+
+export function progressionSteps(group: TimelineGroupView) {
+  const steps = new Map(group.steps.map((step) => [step.id, step]));
+  const visited = new Set<string>();
+  const ordered: TimelineGroupView["steps"] = [];
+  const visit = (id: string) => {
+    const step = steps.get(id);
+    if (!step || visited.has(id)) return;
+    visited.add(id);
+    ordered.push(step);
+    for (const cue of step.cues) {
+      if (cue.next.kind === "step") visit(cue.next.stepId);
+    }
+  };
+  visit(group.initialStepId);
+  for (const step of group.steps) visit(step.id);
+  return ordered;
+}

@@ -3,6 +3,7 @@ import * as ts from "typescript";
 import type { ParsedAuthoringProjectValue } from "../project/parse-authoring-project.js";
 import type { ParsedLockedPackage } from "../project/parse-locked-packages.js";
 import type { RawProjectFile } from "../project/parse-authoring-project.js";
+import { declarationFileRole } from "../project/declaration-file-role.js";
 
 export type ModuleFailureCode =
   | "compiler-module-root-escape"
@@ -115,7 +116,7 @@ export class VirtualModuleContext {
     };
     for (const [fileName, sourceFile] of Object.entries(project.files)) {
       this.sourceFiles.set(sourceFile.fileName, sourceFile);
-      if (!project.preparedStyles || fileName === project.entryFile)
+      if (!project.preparedStyles || declarationFileRole(fileName, project.entryFile))
         this.projectRootFiles.push(sourceFile.fileName);
       this.#owners.set(sourceFile.fileName, projectOwner);
       this.#relativeNames.set(sourceFile.fileName, fileName);

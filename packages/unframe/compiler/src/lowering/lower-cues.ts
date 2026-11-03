@@ -3,6 +3,7 @@ import type { Diagnostic, PresentationDefinition } from "@unframe-dev/presentati
 import type { CompilerDeclarationProject } from "../api/types.js";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { resourceId } from "./support.js";
+import { sceneTimelineId } from "./lower-scene-timelines.js";
 
 type CanonicalCue =
   PresentationDefinition["flow"]["groups"][string]["steps"][string]["cues"][number];
@@ -98,7 +99,13 @@ export const lowerCues = (
         let trigger: CanonicalCue["trigger"];
         let fixedPayload: CanonicalCue["fixedPayload"];
         let outputInstance: Instance | undefined;
-        if (cue.trigger.kind === "logicalInput")
+        if (cue.trigger.kind === "timer") trigger = { ...cue.trigger };
+        else if (cue.trigger.kind === "timelineCompleted")
+          trigger = {
+            kind: "timelineCompleted",
+            timelineId: sceneTimelineId(presentation.id, cue.trigger.timelineId),
+          };
+        else if (cue.trigger.kind === "logicalInput")
           trigger = {
             kind: "logicalInput",
             action: cue.trigger.action,
@@ -186,6 +193,14 @@ export const lowerCues = (
         const guards: CanonicalGuard[] = cue.guard ? [lowerGuard(cue.guard, outputInstance)] : [];
         for (const [actionIndex, invocation] of cue.actions.entries()) {
           const actionPath = [...path, "actions", actionIndex];
+          if (invocation.kind === "timeline.play") {
+            actions.push({
+              ...invocation,
+              timelineId: sceneTimelineId(presentation.id, invocation.timelineId),
+              conflict: "reject",
+            });
+            continue;
+          }
           const target = resolve(invocation.componentInstanceId, actionPath);
           const declaration = target?.entry.manifest.actions[invocation.actionId];
           if (!declaration) {

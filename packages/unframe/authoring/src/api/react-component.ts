@@ -9,7 +9,10 @@ import type {
   ActionDeclaration,
   OutputDeclaration,
   SurfaceStateDeclaration,
+  ComponentTimelineDeclaration,
+  AssetReference,
 } from "../domain/declarations.js";
+import { componentTimelineSchema } from "../internal/component-timeline-schema.js";
 import { readOwnDataRecord, snapshotDeclaration } from "../internal/declaration-validation.js";
 import { defineComponentManifest, stringProp } from "./definitions.js";
 
@@ -106,10 +109,16 @@ type ActionInput<S extends string> = Omit<
   "kind" | "effects" | "preconditions"
 > & {
   readonly preconditions: readonly [];
-  readonly effects: readonly { kind: "setState"; stateId: S }[];
+  readonly effects: readonly (
+    | { kind: "setState"; stateId: S }
+    | Extract<ActionDeclaration["effects"][number], { kind: "playTimeline" }>
+  )[];
 };
 type OutputInput = Omit<OutputDeclaration, "kind" | "producer"> & {
-  readonly producer: Extract<OutputDeclaration["producer"], { kind: "surfaceInteraction" }>;
+  readonly producer: Extract<
+    OutputDeclaration["producer"],
+    { kind: "surfaceInteraction" | "timer" | "timelineCompleted" }
+  >;
 };
 export type ReactComponent<P, N, S extends string = "default"> = {
   readonly id: string;
@@ -122,6 +131,7 @@ export type ReactComponent<P, N, S extends string = "default"> = {
   readonly states?: Readonly<Record<S, StateInput>>;
   readonly actions?: Readonly<Record<string, ActionInput<S>>>;
   readonly outputs?: Readonly<Record<string, OutputInput>>;
+  readonly timelines?: readonly ComponentTimelineDeclaration[];
   readonly render: (input: RenderContext<P, N, S>) => SyncReactNode;
   readonly __props?: P;
 };
@@ -139,26 +149,38 @@ export type ReactSceneBase = {
   readonly parent: { readonly kind: "stage" };
   readonly physicalSizeMeters: readonly [number, number];
   readonly fit: "contain";
+  readonly opacity?: number;
   readonly transform: {
     readonly position: readonly [number, number, number];
     readonly rotation: readonly [number, number, number, number];
     readonly scale: readonly [number, number, number];
   };
 };
-type CheckSceneItem<I> = I extends {
-  component: { readonly __props?: infer P };
-  props: infer Actual;
-}
-  ? Exclude<keyof I, keyof ReactSceneBase> extends never
-    ? Actual extends ReactComponentInstanceProps<P>
-      ? Exclude<keyof Actual, keyof ReactComponentInstanceProps<P>> extends never
-        ? unknown
+export type ModelSceneBase = Omit<
+  ReactSceneBase,
+  "component" | "props" | "physicalSizeMeters" | "fit"
+> & {
+  readonly model: AssetReference;
+};
+export type SceneBase = ReactSceneBase | ModelSceneBase;
+type CheckSceneItem<I> = I extends ModelSceneBase
+  ? Exclude<keyof I, keyof ModelSceneBase> extends never
+    ? unknown
+    : never
+  : I extends {
+        component: { readonly __props?: infer P };
+        props: infer Actual;
+      }
+    ? Exclude<keyof I, keyof ReactSceneBase> extends never
+      ? Actual extends ReactComponentInstanceProps<P>
+        ? Exclude<keyof Actual, keyof ReactComponentInstanceProps<P>> extends never
+          ? unknown
+          : never
         : never
       : never
-    : never
-  : never;
+    : never;
 type CheckScene<S> = { readonly [K in keyof S]: S[K] & CheckSceneItem<S[K]> };
-export type ReactPresentationInput<S extends readonly ReactSceneBase[]> = Omit<
+export type ReactPresentationInput<S extends readonly SceneBase[]> = Omit<
   PresentationDeclaration,
   "scene"
 > & {
@@ -192,6 +214,7 @@ export const defineComponent = <
   readonly states?: S;
   readonly actions?: Readonly<Record<string, ActionInput<NoInfer<keyof S & string>>>>;
   readonly outputs?: Readonly<Record<string, OutputInput>>;
+  readonly timelines?: readonly ComponentTimelineDeclaration[];
   readonly render: (input: RenderContext<P, N, keyof S & string>) => SyncReactNode;
 }): ReactComponent<P, N, keyof S & string> => {
   validateRuntimeReactComponent(value);
@@ -263,7 +286,18 @@ const finiteStateSchema = z.strictObject({
 const actionInputSchema = z.strictObject({
   inputs: z.record(id, z.enum(["null", "boolean", "number", "string"])),
   preconditions: z.tuple([]),
-  effects: z.array(z.strictObject({ kind: z.literal("setState"), stateId: id })).min(1),
+  effects: z
+    .array(
+      z.discriminatedUnion("kind", [
+        z.strictObject({ kind: z.literal("setState"), stateId: id }),
+        z.strictObject({
+          kind: z.literal("playTimeline"),
+          timelineId: id,
+          completion: z.enum(["blocking", "nonBlocking"]),
+        }),
+      ]),
+    )
+    .min(1),
 });
 const outputPayloadFieldSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("null"), value: z.null() }),
@@ -295,10 +329,18 @@ const metadataSchema = z.strictObject({
       id,
       z.strictObject({
         payload: z.record(id, outputPayloadFieldSchema),
-        producer: z.strictObject({ kind: z.literal("surfaceInteraction"), interactionId: id }),
+        producer: z.discriminatedUnion("kind", [
+          z.strictObject({ kind: z.literal("surfaceInteraction"), interactionId: id }),
+          z.strictObject({
+            kind: z.literal("timer"),
+            afterMilliseconds: z.number().int().positive().safe(),
+          }),
+          z.strictObject({ kind: z.literal("timelineCompleted"), timelineId: id }),
+        ]),
       }),
     )
     .optional(),
+  timelines: z.array(componentTimelineSchema).optional(),
 });
 export type StaticComponentMetadata = z.infer<typeof metadataSchema>;
 
@@ -342,6 +384,7 @@ const sceneDataSchema = z.strictObject({
   parent: z.strictObject({ kind: z.literal("stage") }),
   physicalSizeMeters: z.tuple([positive, positive]),
   fit: z.literal("contain"),
+  opacity: z.number().finite().min(0).max(1).optional(),
   transform: z.strictObject({
     position: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
     rotation: z.tuple([
@@ -358,13 +401,24 @@ const sceneDataSchema = z.strictObject({
 const staticSceneItemSchema = sceneDataSchema.extend({
   component: z.strictObject({ id, version: z.number().int().safe().positive() }),
 });
+const staticModelSceneItemSchema = sceneDataSchema
+  .omit({ props: true, physicalSizeMeters: true, fit: true })
+  .extend({
+    model: z.strictObject({ kind: z.literal("asset-ref"), assetId: id }),
+  });
 export type StaticReactSceneItem = z.infer<typeof staticSceneItemSchema>;
+export type StaticModelSceneItem = z.infer<typeof staticModelSceneItemSchema>;
+export type StaticSceneItem = StaticReactSceneItem | StaticModelSceneItem;
+export const validateStaticSceneItem = (value: unknown): StaticSceneItem =>
+  z.union([staticSceneItemSchema, staticModelSceneItemSchema]).parse(snapshotDeclaration(value));
 
 export const validateStaticReactSceneItem = (value: unknown): StaticReactSceneItem =>
   staticSceneItemSchema.parse(snapshotDeclaration(value));
 
 export const validateReactSceneItem = (value: unknown): string => {
   const fields = readOwnDataRecord(value);
+  if (Object.hasOwn(fields, "model"))
+    return staticModelSceneItemSchema.parse(snapshotDeclaration(fields)).id;
   const component = fields.component;
   if (component === undefined) throw new TypeError("Scene item requires a component.");
   delete fields.component;
@@ -392,20 +446,12 @@ export const validateStaticComponentMetadata = (value: unknown): StaticComponent
     if (node.role === "button" && !metadata.interactions?.[node.interactionId])
       throw new TypeError("Button interaction must be declared.");
   }
-  const finiteFields = [
-    metadata.interactions,
-    metadata.initialState,
-    metadata.states,
-    metadata.actions,
-    metadata.outputs,
-  ];
+  const finiteFields = [metadata.interactions, metadata.initialState, metadata.states];
   if (
     finiteFields.some((field) => field !== undefined) &&
     finiteFields.some((field) => field === undefined)
   )
-    throw new TypeError(
-      "Finite-state Component requires interactions, initialState, states, actions and outputs.",
-    );
+    throw new TypeError("Finite-state Component requires interactions, initialState and states.");
   if (metadata.states) {
     if (!metadata.initialState || !metadata.states[metadata.initialState])
       throw new TypeError("Unknown initial State.");
@@ -431,12 +477,27 @@ export const validateStaticComponentMetadata = (value: unknown): StaticComponent
       )
         throw new TypeError("Invalid enabled Interaction.");
     }
-    for (const action of Object.values(metadata.actions ?? {}))
-      for (const effect of action.effects)
-        if (!metadata.states[effect.stateId]) throw new TypeError("Unknown Action target State.");
-    for (const output of Object.values(metadata.outputs ?? {}))
-      if (!metadata.interactions?.[output.producer.interactionId])
-        throw new TypeError("Unknown Output Interaction.");
+  }
+  const timelineIds = new Set((metadata.timelines ?? []).map((timeline) => timeline.id));
+  if (timelineIds.size !== (metadata.timelines?.length ?? 0))
+    throw new TypeError("Duplicate Timeline ID.");
+  for (const action of Object.values(metadata.actions ?? {}))
+    for (const effect of action.effects)
+      if (effect.kind === "setState") {
+        if (!metadata.states?.[effect.stateId]) throw new TypeError("Unknown Action target State.");
+      } else if (!timelineIds.has(effect.timelineId))
+        throw new TypeError("Unknown Action Timeline.");
+  for (const output of Object.values(metadata.outputs ?? {})) {
+    if (
+      output.producer.kind === "surfaceInteraction" &&
+      !metadata.interactions?.[output.producer.interactionId]
+    )
+      throw new TypeError("Unknown Output Interaction.");
+    if (
+      output.producer.kind === "timelineCompleted" &&
+      !timelineIds.has(output.producer.timelineId)
+    )
+      throw new TypeError("Unknown Output Timeline.");
   }
   for (const name of Object.keys(nodes)) {
     const visited = new Set<string>();
@@ -506,11 +567,15 @@ export const buildOpaqueComponentManifest = (
               kind: "action",
               inputs: action.inputs,
               preconditions: action.preconditions,
-              effects: action.effects.map((effect) => ({
-                kind: "setSurfaceState",
-                surfaceId: "surface",
-                stateId: effect.stateId,
-              })),
+              effects: action.effects.map((effect) =>
+                effect.kind === "setState"
+                  ? {
+                      kind: "setSurfaceState" as const,
+                      surfaceId: "surface",
+                      stateId: effect.stateId,
+                    }
+                  : effect,
+              ),
             },
           ]),
         )

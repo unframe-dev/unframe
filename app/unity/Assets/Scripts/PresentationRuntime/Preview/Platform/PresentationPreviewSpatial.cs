@@ -86,6 +86,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly Dictionary<string, Renderer> zoneRenderers = new Dictionary<string, Renderer>(StringComparer.Ordinal);
         private PresentationPreviewSpatialState state;
         private Transform presenter;
+        private GameObject floor;
         private bool visible;
         private bool dragging;
         private double nextMoveAt;
@@ -116,6 +117,13 @@ namespace Unframe.Unity.PresentationRuntime
         {
             state = null; presenter = null; dragging = false; lastMove = null;
             Root.SetActive(false);
+            if (floor != null)
+            {
+                floor.SetActive(false);
+                floor.transform.SetParent(null);
+                PresentationTextureResidency.Destroy(floor);
+                floor = null;
+            }
             foreach (UnityEngine.Object value in allocated) PresentationTextureResidency.Destroy(value);
             allocated.Clear();
             zoneRenderers.Clear();
@@ -173,6 +181,7 @@ namespace Unframe.Unity.PresentationRuntime
                 bounds.Encapsulate(new Bounds(zone.Center, Vector3.one * 2));
             }
             Bounds = bounds;
+            CreateFloor();
             TagTexture = CreateTag(); allocated.Add(TagTexture);
             GameObject tag = new GameObject("AprilTag origin"); tag.transform.SetParent(Root.transform, false);
             tag.transform.localPosition = Vector3.zero;
@@ -207,6 +216,30 @@ namespace Unframe.Unity.PresentationRuntime
             var direction = LineObject("Presenter direction", new[] { Vector3.zero, Vector3.back * 0.45f, Vector3.back * 0.45f, new Vector3(-0.08f, 0, -0.33f), Vector3.back * 0.45f, new Vector3(0.08f, 0, -0.33f) }, new Color(1, 0.65f, 0.18f));
             direction.transform.SetParent(presenter, false);
             Root.SetActive(visible);
+        }
+        private void CreateFloor()
+        {
+            floor = new GameObject("Preview floor");
+            floor.transform.SetParent(parent, false);
+            const float extent = 20;
+            var mesh = new Mesh { name = "Preview floor" };
+            mesh.vertices = new[] { new Vector3(-extent, 0, -extent), new Vector3(-extent, 0, extent), new Vector3(extent, 0, extent), new Vector3(extent, 0, -extent) };
+            mesh.uv = new[] { Vector2.zero, new Vector2(0, extent * 2), Vector2.one * extent * 2, new Vector2(extent * 2, 0) };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            mesh.RecalculateBounds(); allocated.Add(mesh);
+            floor.AddComponent<MeshFilter>().sharedMesh = mesh;
+            const int size = 64;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, true) { name = "Preview floor metre grid", wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Trilinear, anisoLevel = 8 };
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                    texture.SetPixel(x, y, x == 0 || y == 0 ? new Color(0.28f, 0.31f, 0.36f) : new Color(0.16f, 0.18f, 0.22f));
+            texture.Apply(); allocated.Add(texture);
+            Material material = Material(Color.white);
+            material.mainTexture = texture;
+            material.renderQueue = (int)RenderQueue.Geometry;
+            material.SetFloat("_ZWrite", 1);
+            material.SetFloat("_ZTest", (float)CompareFunction.LessEqual);
+            ConfigureRenderer(floor.AddComponent<MeshRenderer>(), material);
         }
         private static Color ZoneColor(PresentationPreviewSpatialZone zone)
         {

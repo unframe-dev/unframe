@@ -41,3 +41,7 @@ it("stops observing viewport changes after disconnect", () => {
   media.dispatchEvent(new Event("change"));
   expect(ui.getState()).toMatchObject({ compact: false, leftOpen: true, rightOpen: true });
 });
+
+it("opens the progression timeline on first load", () => {
+  expect(createUiStore("light").getState().tab).toBe("flow");
+});

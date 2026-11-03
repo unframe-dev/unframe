@@ -13,6 +13,9 @@ import {
   type LockedFile,
   type PackageSnapshot,
   type LockedDependency,
+  workspacePackageFileRoots,
+  isWorkspacePackageSnapshotPath,
+  workspaceSourcePackageSpecifiers,
 } from "@unframe-dev/workspace";
 
 const record = (value: unknown): Record<string, unknown> => {
@@ -336,14 +339,22 @@ export const lockedFile = (path: string, bytes: Uint8Array): LockedFile => {
   }
   return { path, mediaType, hash, encoding: "base64", data: Buffer.from(bytes).toString("base64") };
 };
-const packageFiles = async (root: string): Promise<LockedFile[]> => {
+const packageFiles = async (root: string, workspace = false): Promise<LockedFile[]> => {
   const files: LockedFile[] = [];
+  let roots: string[] | undefined;
+  if (workspace) {
+    const bytes = await readRegularFile(join(root, "package.json"));
+    const parsed = bytes && parseStrictJson(bytes);
+    if (!parsed || !parsed.ok) throw new Error("Workspace package manifest is missing or invalid.");
+    roots = workspacePackageFileRoots(record(parsed.value));
+  }
   const visit = async (path: string): Promise<void> => {
     const names = await readDirectoryNames(path ? join(root, path) : root);
     if (!names) throw new Error("Package directory is unsafe.");
     for (const name of names) {
       if (["node_modules", ".git", ".unframe", ".cache"].includes(name)) continue;
       const relative = path ? `${path}/${name}` : name;
+      if (roots && !isWorkspacePackageSnapshotPath(relative, roots)) continue;
       const full = join(root, relative);
       if (await readDirectoryNames(full)) await visit(relative);
       else {
@@ -361,17 +372,18 @@ const contained = (root: string, path: string) => {
   const value = relative(root, path);
   return value !== ".." && !value.startsWith(`..${sep}`) && !isAbsolute(value);
 };
-const yamlRecord = (bytes: Uint8Array, lockStream = false) => {
+const yamlRecords = (bytes: Uint8Array) => {
   const documents = parseAllDocuments(new TextDecoder("utf-8", { fatal: true }).decode(bytes), {
     uniqueKeys: true,
   });
-  if (
-    !documents.length ||
-    (!lockStream && documents.length !== 1) ||
-    documents.some((document) => document.errors.length)
-  )
+  if (!documents.length || documents.some((document) => document.errors.length))
     throw new Error("Invalid pnpm YAML.");
-  return record(documents.at(-1)!.toJS({ maxAliasCount: 100 }));
+  return documents.map((document) => record(document.toJS({ maxAliasCount: 100 })));
+};
+const yamlRecord = (bytes: Uint8Array) => {
+  const records = yamlRecords(bytes);
+  if (records.length !== 1) throw new Error("Invalid pnpm YAML.");
+  return records[0]!;
 };
 const workspaceMember = (patterns: readonly string[], key: string) =>
   key === "." ||
@@ -426,16 +438,24 @@ const findPnpmProjectLock = async (directory: string) => {
         (root === project ||
           (workspaceBytes && workspaceMember((patterns as string[]) ?? [], importerKey)))
       ) {
-        const lock = yamlRecord(bytes, true);
-        if (String(lock.lockfileVersion) !== "9.0")
-          throw new Error("Only pnpm lockfileVersion 9.0 is supported.");
-        const importers = record(lock.importers);
-        if (!Object.hasOwn(importers, importerKey))
-          throw new Error("Project pnpm importer is missing.");
+        const matches = yamlRecords(bytes).flatMap((lock) => {
+          if (String(lock.lockfileVersion) !== "9.0")
+            throw new Error("Only pnpm lockfileVersion 9.0 is supported.");
+          const value = record(lock.importers)[importerKey];
+          if (value === undefined) return [];
+          const importer = record(value);
+          return Object.hasOwn(importer, "packageManagerDependencies") ||
+            Object.hasOwn(importer, "configDependencies")
+            ? []
+            : [{ lock, importer }];
+        });
+        if (matches.length !== 1)
+          throw new Error("pnpm lock must contain one matching dependency importer.");
+        const { lock, importer } = matches[0]!;
         return {
           directory: root,
           bytes,
-          importer: record(importers[importerKey]),
+          importer,
           importerKey,
           lock,
           workspacePatterns: patterns as string[] | undefined,
@@ -525,7 +545,7 @@ const readLinkedWorkspaceInputsWithinScope = async (directory: string) => {
   for (const input of directories) {
     if ((await realpath(input.directory)) !== input.directory)
       throw new Error("Linked workspace package must not redirect through a symlink.");
-    const files = await packageFiles(input.directory);
+    const files = await packageFiles(input.directory, true);
     inputs.push({
       ...input,
       contentIntegrity: digestBytes(new TextEncoder().encode(JSON.stringify(files))),
@@ -626,7 +646,7 @@ const snapshotInstalledPackagesWithinScope = async (
       throw new Error(
         "Installed package must remain inside its pnpm snapshot or declared workspace.",
       );
-    const files = await packageFiles(packageRoot);
+    const files = await packageFiles(packageRoot, workspace);
     const manifestFile = files.find((f) => f.path === "package.json");
     if (!manifestFile || manifestFile.encoding !== "utf8")
       throw new Error("Package manifest is missing.");
@@ -663,10 +683,19 @@ const snapshotInstalledPackagesWithinScope = async (
             },
           ]),
         );
+    const references = workspace
+      ? workspaceSourcePackageSpecifiers(
+          files.flatMap((file) =>
+            file.encoding === "utf8" ? [{ path: file.path, source: file.data }] : [],
+          ),
+        )
+      : [];
     const edges = new Map(
       workspace
-        ? [...ownDependencies].filter(([name]) =>
-            dependencyEntries(snapshot).some(([dependency]) => dependency === name),
+        ? [...ownDependencies].filter(
+            ([name]) =>
+              dependencyEntries(snapshot).some(([dependency]) => dependency === name) ||
+              references.includes(typeSpecifier(name)),
           )
         : ownDependencies,
     );

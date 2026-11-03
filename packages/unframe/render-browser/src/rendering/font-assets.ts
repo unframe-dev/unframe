@@ -111,12 +111,6 @@ export const decodeFontAsset = (
 ):
   | { readonly family: string; readonly face: string; readonly supports: FontCoverage }
   | RendererBuildFailure => {
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(asset.dataBase64))
-    return failure("invalid-font-asset", "Font asset data must be canonical base64.", [
-      "fontAssets",
-      assetId,
-      "dataBase64",
-    ]);
   const bytes = Uint8Array.from(Buffer.from(asset.dataBase64, "base64"));
   if (bytes.length === 0 || Buffer.from(bytes).toString("base64") !== asset.dataBase64)
     return failure("invalid-font-asset", "Font asset data must be canonical base64.", [

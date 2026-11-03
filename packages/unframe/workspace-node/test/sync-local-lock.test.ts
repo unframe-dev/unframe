@@ -81,6 +81,7 @@ it("synchronizes frozen dependencies once and reuses them after ordinary Source 
     Buffer.from(lockBytes(lockText)),
   );
   expect(await readFile(f.log, "utf8")).toContain("--frozen-lockfile");
+  expect(await readFile(f.log, "utf8")).toContain("--force");
   await writeFile(join(f.directory, "presentation.ts"), "export default {changed:true};");
   expect(await sync()).toEqual(expect.objectContaining({ ok: true }));
   expect((await readFile(f.log, "utf8")).trim().split("\n")).toHaveLength(1);
@@ -254,6 +255,7 @@ it("accepts hoisted workspace dependencies and fences a parent lock edit", async
   const sync = createLocalProjectLockSynchronizer(f.ports, f.directory, { ...f, prepareUpdate });
   expect(await sync()).toEqual(expect.objectContaining({ ok: true }));
   expect(await readFile(f.log, "utf8")).toContain("--filter ./project...");
+  expect(await readFile(f.log, "utf8")).not.toContain("--force");
   await writeFile(join(f.directory, "presentation.ts"), "export default {changed:true};");
   expect(await sync()).toEqual(expect.objectContaining({ ok: true }));
   expect((await readFile(f.log, "utf8")).trim().split("\n")).toHaveLength(1);

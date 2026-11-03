@@ -19,9 +19,11 @@ React `.component.tsx` の Props・semantics・render 分離は [React Component
 
 ## Model roots and Video content
 
+React と Model の配置をまとめる場合は、[共通 scene API](./REACT_COMPONENT_AUTHORING.md#24-react-と-model-を一つの-timeline-で動かす) を使える。以下は Model を Structured Component として定義する場合の規則である。
+
 `model({ id, asset })` / JSX `Model` を Structured Component のrootに指定できる。`asset`は登録済みGLBへのconstant `AssetReference`とし、PresentationのAsset参照にも含める。ModelはFrameの子やSlot内には置かず、既存のSpatial hostとComponent Instanceでトップレベルへ配置する。配置・owner・audience・TRS・opacityはhostからModelNodeへ継承し、内部GLBの姿勢と配置を分離する。
 
-Model用Manifestのprops / slots / parts / variants / states、StructureのpartBindings / variantStyles / timelinesは空に限定する。actions / outputsにはモデル再生を宣言できる。`playModelClip`はnodeId、clipId、speed、loop、completion、transition、conflictを受け取り、`pauseModelClip` / `resumeModelClip` / `stopModelClip`はnodeIdを受け取る。`modelClipCompleted({ nodeId, clipId })`をOutput producerに使える。clip IDは変換後GLBの`clip-N`で、存在しない参照はbuild errorとなる。baked-web rendererの宣言とThemeは不要である。
+Model用Manifestのprops / slots / parts / variants / states、StructureのpartBindings / variantStylesは空に限定する。Structureの`timelines`にはhostのopacity / position / rotation / scaleを宣言でき、`playTimeline` Actionと`timer` / `timelineCompleted` Outputを使ってModel Node自体を動かせる。actions / outputsにはモデル再生も宣言できる。`playModelClip`はnodeId、clipId、speed、loop、completion、transition、conflictを受け取り、`pauseModelClip` / `resumeModelClip` / `stopModelClip`はnodeIdを受け取る。`modelClipCompleted({ nodeId, clipId })`をOutput producerに使える。clip IDは変換後GLBの`clip-N`で、存在しない参照はbuild errorとなる。baked-web rendererの宣言とThemeは不要である。
 
 `video` / JSX `Video`はFrame内の独立partitionとなり、登録済みMP4へのconstant Asset reference、loop、layout、style.fitを持つ。fitはcontain / cover / stretchを維持する。tintとborderは既定値に限定し、非対応の装飾・重なり・clipは診断する。Stateでloopやfitを変更できる。再生Actionは`playMedia({ surfaceId })` / `pauseMedia({ surfaceId })` / `seekMedia({ surfaceId, positionSeconds })`、完了Outputは`mediaCompleted(surfaceId)`を使う。media対象SurfaceはVideoをちょうど一つ持ち、全Stateでdurationが一致する。Videoを含むSurfaceのState切替はcutのみ対応し、crossfadeはCompilerが診断する。
 

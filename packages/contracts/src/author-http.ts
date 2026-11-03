@@ -331,6 +331,7 @@ export const previewPlaybackResponseSchema = z
     inputs: z.array(z.object({ cueId: text, label: z.string() })),
     simulation: z
       .object({
+        nextInput: z.object({ cueId: text }).nullable(),
         gestures: z.array(previewGestureSchema),
         events: z.array(z.object({ event: text, actor: previewEventActorSchema })),
         steps: z.array(z.object({ groupId: text, stepId: text })),

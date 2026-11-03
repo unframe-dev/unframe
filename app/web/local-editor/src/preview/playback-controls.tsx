@@ -1,5 +1,10 @@
 import { useStore } from "zustand";
-import { PlayIcon, PauseIcon, ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
+import {
+  PlayIcon,
+  PauseIcon,
+  ArrowCounterClockwiseIcon,
+  SkipForwardIcon,
+} from "@phosphor-icons/react";
 import { useWorkspace } from "../app/workspace-provider";
 import { SimulationControls } from "./simulation-controls";
 import { Button } from "../ui/button";
@@ -28,6 +33,23 @@ export function PlaybackControls() {
         >
           <PlayIcon weight="fill" />
         </Button>
+        {!inspection && (
+          <Button
+            aria-label="次のイベント"
+            title={
+              p?.simulation?.nextInput
+                ? `次のイベント: ${p.simulation.nextInput.cueId}`
+                : "次のイベント"
+            }
+            disabled={!ready || !p?.state.clock?.running || !p.simulation?.nextInput}
+            onClick={() => {
+              const nextInput = p?.simulation?.nextInput;
+              if (nextInput) w.commands.playback({ command: "input", cueId: nextInput.cueId });
+            }}
+          >
+            <SkipForwardIcon />
+          </Button>
+        )}
         <Button
           aria-label="一時停止"
           title="一時停止"

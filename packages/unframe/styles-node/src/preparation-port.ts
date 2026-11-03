@@ -8,6 +8,7 @@ import {
 } from "./node-snapshot.js";
 import { runStyleWorker } from "./run-style-worker.js";
 import { compileStylesResultSchema } from "./schemas.js";
+import { stylePackageRoots } from "./style-package-roots.js";
 
 export const createNodeStylePreparationPort = (): StylePreparationPort & {
   runtime: typeof snapshotNodeRuntime;
@@ -16,6 +17,7 @@ export const createNodeStylePreparationPort = (): StylePreparationPort & {
   snapshot: (projectRoot, sourceFiles) =>
     snapshotNodeTransformInputs(projectRoot, {
       sourceFiles,
+      rootSpecifiers: stylePackageRoots(sourceFiles),
       adapterRoot: dirname(
         dirname(fileURLToPath(import.meta.resolve("@unframe-dev/styles-node/compiler"))),
       ),

@@ -125,6 +125,88 @@ describe("resolveAuthoringStructurePath", () => {
 });
 
 describe("pairAuthoringDeclarations", () => {
+  it("accepts static scene models with scene timelines", () => {
+    const value = {
+      ...presentation(),
+      scene: [
+        {
+          id: "logo",
+          model: { kind: "asset-ref", assetId: "logo" },
+          owner: { kind: "presentation" },
+          audience: { kind: "all" },
+          parent: { kind: "stage" },
+          transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        },
+      ],
+      assets: [{ kind: "asset-ref", assetId: "logo" }],
+      flow: {
+        ...presentation().flow,
+        timelines: [
+          {
+            id: "fade",
+            durationMilliseconds: 100,
+            tracks: [
+              {
+                target: { kind: "instance", instanceId: "logo", property: "opacity" },
+                keyframes: [
+                  { timeMilliseconds: 0, value: 0 },
+                  { timeMilliseconds: 100, value: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+    expect(
+      pairAuthoringDeclarations(collected([entry("presentation", "entry.ts", value)])),
+    ).toMatchObject({ ok: true });
+  });
+
+  it("identifies the component and source file when its structure is missing", () => {
+    const fileName = "components/Logo.manifest.ts";
+    const result = pairAuthoringDeclarations(
+      collected([
+        entry("presentation", "entry.ts", presentation()),
+        entry("component-manifest", fileName, manifest("opening-logo", "./Logo.structure.tsx"), [
+          { path: ["authoring", "structure"], origin: origin(fileName, 42) },
+        ]),
+      ]),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      diagnostics: [
+        {
+          code: "compiler-component-structure-not-found",
+          fileName,
+          start: 42,
+          message:
+            "Component 'opening-logo' in 'components/Logo.manifest.ts' references missing structure 'components/Logo.structure.tsx'. Add a defineComponentStructure declaration there, or correct authoring.structure in the manifest.",
+        },
+      ],
+    });
+  });
+
+  it("explains how to connect an unreferenced component structure to its manifest", () => {
+    const result = pairAuthoringDeclarations(
+      collected([
+        entry("presentation", "entry.ts", presentation()),
+        entry("component-structure", "components/Logo.structure.tsx", structure("opening-logo")),
+      ]),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      diagnostics: [
+        {
+          code: "compiler-component-structure-unreferenced",
+          fileName: "components/Logo.structure.tsx",
+          message:
+            "Component 'opening-logo' structure 'components/Logo.structure.tsx' has no referring manifest. Add a defineComponentManifest declaration with componentId 'opening-logo' and authoring.structure pointing to this file, or remove the unused structure.",
+        },
+      ],
+    });
+  });
+
   it.each([null, 42])("rejects a mixed scene with malformed component item %s", (item) => {
     const base = presentation();
     const mixed = {

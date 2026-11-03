@@ -1,0 +1,20 @@
+@import "tailwindcss" source("./");
+
+@font-face {
+  font-family: "Unframe Brand";
+  src: url("./assets/brand.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@theme {
+  --font-brand: "Unframe Brand";
+  --font-panel: "Noto Sans CJK JP";
+}
+
+@font-face {
+  font-family: "Noto Sans CJK JP";
+  src: url("./assets/panel.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+}

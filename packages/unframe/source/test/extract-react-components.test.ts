@@ -173,6 +173,24 @@ const component = `
   });
 `;
 
+it("extracts host Timelines and timer Outputs without finite States", () => {
+  const opening = component.replace(
+    "    render: ",
+    `
+    timelines: [{ id: "opening", durationMilliseconds: 900, tracks: [{ target: {kind: "host", property: "opacity"}, keyframes: [{timeMilliseconds: 0, value: 0, easingToNext: "linear"}, {timeMilliseconds: 900, value: 1}] }] }],
+    actions: { play: {inputs: {}, preconditions: [], effects: [{kind: "playTimeline", timelineId: "opening", completion: "nonBlocking"}]} },
+    outputs: { started: {payload: {}, producer: {kind: "timer", afterMilliseconds: 1}} },
+    render: `,
+  );
+  const result = extractReactComponents(analyze(opening));
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(result.components[0]?.metadata.timelines?.[0]?.id).toBe("opening");
+  expect(result.components[0]?.manifest.actions.play?.effects).toEqual([
+    { kind: "playTimeline", timelineId: "opening", completion: "nonBlocking" },
+  ]);
+  expect(result.components[0]?.renderer.entrySource).not.toContain("durationMilliseconds");
+});
+
 it(
   "extracts finite State declarations without running their SDK builders",
   { timeout: 30_000 },

@@ -11,7 +11,7 @@ import { PlaybackControls } from "../preview/playback-controls";
 import { TimelinePanel } from "../timeline/timeline-panel";
 import { PublicationPanel } from "../publication/publication-panel";
 import { DiagnosticsPanel } from "../diagnostics/diagnostics-panel";
-import { StepTransitionGraph } from "../flow/step-transition-graph";
+import { ProgressionTimeline } from "../flow/progression-timeline";
 import { CueDetails } from "../flow/cue-details";
 import { createTimelineView, cueDestination } from "../flow/flow-model";
 import { Group, Panel, Separator, useDefaultLayout } from "../ui/resizable";
@@ -69,14 +69,20 @@ function FlowGraph() {
   const w = useWorkspace();
   const definition = useStore(w.project.store, (s) => s.project?.definition);
   const selection = useStore(w.ui, (s) => s.selection);
+  const playback = useStore(w.preview.store, (s) => s.playback);
   const group = definition
-    ? createTimelineView(definition).groups.find((g) => g.id === selection.groupId)
+    ? createTimelineView(definition).groups.find(
+        (g) => g.id === (selection.groupId ?? definition.flow.initialGroupId),
+      )
     : null;
   return group ? (
     <div className="flow-graph-panel">
-      <StepTransitionGraph
+      <ProgressionTimeline
         group={group}
         selectedStepId={selection.stepId}
+        selectedCueId={selection.cueId}
+        currentStepId={playback?.groupId === group.id ? playback.stepId : null}
+        onSelectCue={(stepId, cueId) => w.commands.selectFlow({ groupId: group.id, stepId, cueId })}
         onSelectStep={(stepId) => w.commands.selectFlow({ groupId: group.id, stepId, cueId: null })}
       />
     </div>
@@ -85,9 +91,10 @@ function FlowGraph() {
   );
 }
 export function PreviewNotice({ view, reload }: { view: PreviewSnapshot; reload(): void }) {
-  if (view.status === "ready") return null;
+  if (view.status === "ready" && view.phase === "ready") return null;
   const compact = view.displayed !== null;
-  const failed = view.status === "error" || view.status === "reload-required";
+  const failed =
+    view.phase === "failed" || view.status === "error" || view.status === "reload-required";
   return (
     <div
       className={`preview-notice${compact ? " preview-notice-compact" : ""}`}
@@ -165,8 +172,8 @@ export function WorkspaceShell() {
                 className="bottom-panel"
               >
                 <Tabs.List className="panel-tabs" aria-label="下部パネル">
+                  <Tabs.Tab value="flow">進行</Tabs.Tab>
                   <Tabs.Tab value="timeline">時間軸</Tabs.Tab>
-                  <Tabs.Tab value="flow">進行図</Tabs.Tab>
                   <Tabs.Tab value="diagnostics">問題</Tabs.Tab>
                 </Tabs.List>
                 <Tabs.Panel value="timeline">

@@ -109,5 +109,12 @@ export const authoringPackageRoots = (found: {
     }
   };
   visit(found.entryFile);
+  for (const file of found.files)
+    if (
+      [".manifest.ts", ".structure.tsx", ".unframe.ts"].some((suffix) =>
+        file.fileName.endsWith(suffix),
+      )
+    )
+      visit(file.fileName);
   return [...roots].sort();
 };

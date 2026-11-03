@@ -25,7 +25,7 @@ export async function installProjectDependencies(directory: string, signal?: Abo
         "--frozen-lockfile",
         "--ignore-scripts",
         "--ignore-pnpmfile",
-        "--force",
+        ...(context.workspaceBytes ? [] : ["--force"]),
         "--verify-store-integrity",
         ...(context.importerKey === "." ? [] : ["--filter", `./${context.importerKey}...`]),
       ],

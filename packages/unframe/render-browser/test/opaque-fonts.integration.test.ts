@@ -114,6 +114,59 @@ it("captures Japanese and Latin text with two locked fallback faces", async () =
   }
 }, 60_000);
 
+it.each([
+  ["line feed", "Hello\n日本語", "pre-line"],
+  ["tab", "Hello\t日本語", "normal"],
+  ["carriage return", "Hello\r日本語", "pre"],
+])(
+  "captures CSS %s without requiring a control glyph",
+  async (_name, text, whitespace) => {
+    const runtime = await openOpaqueCaptureRuntime();
+    try {
+      const result = await runtime.capture(
+        request(text, `${cjkFace} span{font-family:CJK;white-space:${whitespace}}`, [noto]),
+      );
+      assert.isTrue(result.ok, JSON.stringify(result));
+      expect(result.bindings[0]?.text).toBe(text);
+    } finally {
+      await runtime.close();
+    }
+  },
+  60_000,
+);
+
+it("rejects OS font fallback selected for a preserved tab", async () => {
+  const runtime = await openOpaqueCaptureRuntime();
+  try {
+    expect(
+      await runtime.capture(
+        request("Hello\t日本語", `${cjkFace} span{font-family:CJK;white-space:pre}`, [noto]),
+      ),
+    ).toMatchObject({ ok: false, code: "opaque-font-unlocked" });
+  } finally {
+    await runtime.close();
+  }
+}, 60_000);
+
+it.each([
+  ["no-break space", "Hello\u00a0日本語"],
+  ["ideographic space", "Hello\u3000日本語"],
+  ["form feed", "Hello\f日本語"],
+])(
+  "still rejects a missing %s glyph",
+  async (_name, text) => {
+    const runtime = await openOpaqueCaptureRuntime();
+    try {
+      expect(
+        await runtime.capture(request(text, `${cjkFace} span{font-family:CJK}`, [noto])),
+      ).toMatchObject({ ok: false, code: "opaque-font-glyph-missing" });
+    } finally {
+      await runtime.close();
+    }
+  },
+  60_000,
+);
+
 it("captures bold text with a locked variable-weight face", async () => {
   const runtime = await openOpaqueCaptureRuntime();
   try {

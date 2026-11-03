@@ -565,8 +565,7 @@ code {
   padding-left: 8px;
   border-left: 1px solid var(--border);
 }
-.diagnostics,
-.flow-graph-panel {
+.diagnostics {
   padding: 12px;
 }
 .diagnostics article {
@@ -577,34 +576,140 @@ code {
 .inspector [role="alert"] {
   color: var(--danger);
 }
-.editor-flow-graph {
-  overflow: auto;
-}
-.editor-flow-graph svg {
-  width: auto;
-  height: auto;
-  max-width: none;
-}
-.editor-flow-graph path {
-  stroke: var(--muted);
-}
-.editor-flow-node,
-.editor-flow-destination {
+.flow-graph-panel,
+.progression-timeline {
   height: 100%;
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 5px;
+  min-height: 0;
+}
+.progression-timeline {
+  display: flex;
+  flex-direction: column;
+}
+.progression-scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.progression-tracks {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+  background: var(--surface);
+}
+.progression-track-labels {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-rows: 30px 70px 1fr;
+  flex: 0 0 56px;
   background: var(--panel);
+  border-right: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+}
+.progression-track-labels > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.progression-column {
+  position: relative;
+  flex: 0 0 240px;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+}
+.progression-ruler {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  color: var(--muted);
+  font: 10px var(--font-mono);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.progression-column[data-current]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.progression-current {
+  color: var(--accent);
+}
+.progression-step-track {
+  height: 70px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.progression-step,
+.progression-cue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 4px;
   color: var(--text);
+  padding: 8px 10px;
+}
+.progression-step {
+  height: 100%;
+  justify-content: center;
+  gap: 2px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+}
+.progression-step small {
+  font-size: 9px;
+  color: var(--muted);
+}
+.progression-cue-track {
+  display: grid;
+  align-content: start;
+  gap: 6px;
   padding: 8px;
 }
-.editor-flow-node[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+.progression-cue {
+  gap: 4px;
+  background: var(--panel);
 }
-.editor-flow-edges {
+.progression-step strong,
+.progression-cue strong,
+.progression-cue-destination {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.progression-cue-trigger,
+.progression-cue-destination {
   color: var(--muted);
-  padding-left: 18px;
+  font-size: 9px;
+}
+.progression-step[aria-pressed="true"],
+.progression-cue[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.progression-step:hover,
+.progression-cue:hover {
+  border-color: var(--accent);
+}
+.progression-column[data-unreachable] .progression-step {
+  border-left-color: var(--muted);
+  background: var(--panel);
 }
 .workspace-status {
   height: 30px;

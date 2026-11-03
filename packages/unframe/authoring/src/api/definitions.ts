@@ -1,8 +1,10 @@
+import { componentTimelineSchema } from "../internal/component-timeline-schema.js";
 import type { JsxComponentStructureInput, JsxPresentationInput } from "../domain/jsx-input.js";
 import { validateReactSceneItem } from "./react-component.js";
 import type {
   ReactPresentationInput,
   ReactSceneBase,
+  SceneBase,
   MixedPresentationInput,
 } from "./react-component.js";
 import { z } from "zod";
@@ -817,45 +819,7 @@ const componentStructureShape = {
   componentId: idSchema,
   partBindings: z.record(idSchema, idSchema),
   variantStyles: z.record(idSchema, z.record(idSchema, z.array(variantStyleOverrideSchema))),
-  timelines: z.array(
-    z.strictObject({
-      ...stableShape,
-      durationMilliseconds: positiveSafeIntegerSchema,
-      tracks: z
-        .array(
-          z.strictObject({
-            target: z.strictObject({
-              kind: z.literal("host"),
-              property: z.enum([
-                "opacity",
-                "transform.position",
-                "transform.rotation",
-                "transform.scale",
-              ]),
-            }),
-            keyframes: z
-              .array(
-                z.strictObject({
-                  timeMilliseconds: nonNegativeIntegerSchema,
-                  value: z.union([
-                    finiteNumberSchema,
-                    z.tuple([finiteNumberSchema, finiteNumberSchema, finiteNumberSchema]),
-                    z.tuple([
-                      finiteNumberSchema,
-                      finiteNumberSchema,
-                      finiteNumberSchema,
-                      finiteNumberSchema,
-                    ]),
-                  ]),
-                  easingToNext: z.enum(["linear", "cubicIn", "cubicOut", "cubicInOut"]).optional(),
-                }),
-              )
-              .min(2),
-          }),
-        )
-        .min(1),
-    }),
-  ),
+  timelines: z.array(componentTimelineSchema),
 };
 const modelDeclarationSchema = z.strictObject({
   ...stableShape,
@@ -871,7 +835,27 @@ const componentStructureSchema = z.union([
     baseSemanticTree: baseSemanticTreeSchema,
   }),
 ]);
+const sceneTimelineSchema = componentTimelineSchema.extend({
+  tracks: z
+    .array(
+      componentTimelineSchema.shape.tracks.element.extend({
+        target: z.strictObject({
+          kind: z.literal("instance"),
+          instanceId: idSchema,
+          property: z.enum([
+            "opacity",
+            "transform.position",
+            "transform.rotation",
+            "transform.scale",
+          ]),
+        }),
+      }),
+    )
+    .min(1),
+});
 const cueTriggerSchema = z.union([
+  z.strictObject({ kind: z.literal("timer"), afterMilliseconds: positiveSafeIntegerSchema }),
+  z.strictObject({ kind: z.literal("timelineCompleted"), timelineId: idSchema }),
   z.strictObject({
     kind: z.literal("logicalInput"),
     action: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/),
@@ -938,7 +922,16 @@ const cueSchema = z
   .strictObject({
     ...stableShape,
     trigger: cueTriggerSchema,
-    actions: z.array(componentActionInvocationSchema),
+    actions: z.array(
+      z.union([
+        componentActionInvocationSchema,
+        z.strictObject({
+          kind: z.literal("timeline.play"),
+          timelineId: idSchema,
+          completion: z.enum(["blocking", "nonBlocking"]),
+        }),
+      ]),
+    ),
     priority: nonNegativeIntegerSchema.optional(),
     order: nonNegativeIntegerSchema.optional(),
     guard: cueGuardSchema.optional(),
@@ -1034,6 +1027,7 @@ const presentationSchema = z.strictObject({
     initialGroupId: idSchema,
     groups: z.record(idSchema, flowGroupSchema),
     variables: z.record(idSchema, variableSchema),
+    timelines: z.array(sceneTimelineSchema).optional(),
   }),
   operations: z.array(detachSchema),
 });
@@ -1433,20 +1427,20 @@ export function definePresentation<
     | ReactSceneBase
   )[],
 >(value: MixedPresentationInput<S>): MixedPresentationInput<S>;
-export function definePresentation<const S extends readonly ReactSceneBase[]>(
+export function definePresentation<const S extends readonly SceneBase[]>(
   value: ReactPresentationInput<S>,
 ): ReactPresentationInput<S>;
 export function definePresentation(
   value:
     | PresentationDeclaration
     | JsxPresentationInput
-    | ReactPresentationInput<readonly ReactSceneBase[]>
+    | ReactPresentationInput<readonly SceneBase[]>
     | MixedPresentationInput<
         readonly (PresentationDeclaration["scene"]["components"][number] | ReactSceneBase)[]
       >,
 ):
   | PresentationDeclaration
-  | ReactPresentationInput<readonly ReactSceneBase[]>
+  | ReactPresentationInput<readonly SceneBase[]>
   | MixedPresentationInput<
       readonly (PresentationDeclaration["scene"]["components"][number] | ReactSceneBase)[]
     > {
@@ -1467,7 +1461,7 @@ export function definePresentation(
       if (instanceIds.has(instanceId)) invalid("Duplicate React Component instance ID.");
       instanceIds.add(instanceId);
     }
-    return value as ReactPresentationInput<readonly ReactSceneBase[]>;
+    return value as ReactPresentationInput<readonly SceneBase[]>;
   }
   const sceneFields = readOwnDataRecord(fields.scene);
   const components = readOwnDataArray(sceneFields.components);
