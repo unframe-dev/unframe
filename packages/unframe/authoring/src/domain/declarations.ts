@@ -628,6 +628,7 @@ export type GestureTrigger = {
     | "closeHands";
 };
 export type CueTrigger =
+  | { kind: "logicalInput"; action: string }
   | { kind: "event"; event: string }
   | ComponentOutputReference
   | GestureTrigger

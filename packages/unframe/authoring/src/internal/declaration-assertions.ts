@@ -73,7 +73,9 @@ export const assertFlowIds = (flow: FlowDeclaration): void => {
       assertStableNested(step, "flow step id");
       for (const cueValue of step.cues) {
         assertStableNested(cueValue, "cue id");
-        if (cueValue.trigger.kind === "event") assertId(cueValue.trigger.event, "cue event");
+        if (cueValue.trigger.kind === "logicalInput")
+          assertId(cueValue.trigger.action, "cue logical input action");
+        else if (cueValue.trigger.kind === "event") assertId(cueValue.trigger.event, "cue event");
         else if (cueValue.trigger.kind === "component.output") {
           assertId(cueValue.trigger.componentInstanceId, "cue output componentInstanceId");
           assertId(cueValue.trigger.outputId, "cue outputId");

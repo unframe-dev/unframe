@@ -68,7 +68,8 @@ cli_project() {
 
 cli_author() {
   run_tests cli \
-    test/author-capture.integration.test.ts test/author-source-diagnostics.integration.test.ts
+    test/author-capture.integration.test.ts test/author-source-diagnostics.integration.test.ts \
+    test/logical-input-project.integration.test.ts
 }
 
 cli_styles() {

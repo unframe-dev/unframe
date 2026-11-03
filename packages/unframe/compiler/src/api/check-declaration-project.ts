@@ -180,7 +180,11 @@ const checkDeclarationProjectUnchecked = (
                     .map((cue, index) => ({ ...cue, order: cue.order ?? index }))
                     .filter((cue) => {
                       if (cue.trigger.kind === "event") return !react;
-                      if (cue.trigger.kind === "gesture" || cue.trigger.kind === "zoneEdge") {
+                      if (
+                        cue.trigger.kind === "logicalInput" ||
+                        cue.trigger.kind === "gesture" ||
+                        cue.trigger.kind === "zoneEdge"
+                      ) {
                         const belongsToReact = cue.actions.some((action) =>
                           reactIds.has(action.componentInstanceId),
                         );
@@ -214,7 +218,9 @@ const checkDeclarationProjectUnchecked = (
                   reactIds.has(action.componentInstanceId) !==
                   reactIds.has(trigger.componentInstanceId),
               )) ||
-            ((trigger.kind === "gesture" || trigger.kind === "zoneEdge") &&
+            ((trigger.kind === "logicalInput" ||
+              trigger.kind === "gesture" ||
+              trigger.kind === "zoneEdge") &&
               cue.actions.some((action) => reactIds.has(action.componentInstanceId)) &&
               cue.actions.some((action) => !reactIds.has(action.componentInstanceId)))
           )

@@ -98,7 +98,13 @@ export const lowerCues = (
         let trigger: CanonicalCue["trigger"];
         let fixedPayload: CanonicalCue["fixedPayload"];
         let outputInstance: Instance | undefined;
-        if (cue.trigger.kind === "event")
+        if (cue.trigger.kind === "logicalInput")
+          trigger = {
+            kind: "logicalInput",
+            action: cue.trigger.action,
+            actor: { kind: "presenter" },
+          };
+        else if (cue.trigger.kind === "event")
           trigger = {
             kind: "semanticEvent",
             event: cue.trigger.event,

@@ -393,6 +393,7 @@ export const resolveOpaqueProject = (
           index,
         ] as const;
         if (
+          cue.trigger.kind !== "logicalInput" &&
           cue.trigger.kind !== "component.output" &&
           cue.trigger.kind !== "gesture" &&
           cue.trigger.kind !== "zoneEdge"
@@ -401,7 +402,7 @@ export const resolveOpaqueProject = (
             diagnostic(
               "compiler-opaque-cue-trigger-invalid",
               path,
-              "React Cues require a declared Component Output, Gesture, or Zone edge.",
+              "React Cues require a named logical input, declared Component Output, Gesture, or Zone edge.",
             ),
           );
           continue;
@@ -498,26 +499,28 @@ export const resolveOpaqueProject = (
           priority: cue.priority ?? 0,
           order: cue.order ?? index,
           trigger:
-            outputTrigger.kind === "zoneEdge"
-              ? { ...outputTrigger, actor: { kind: "presenter" } }
-              : outputTrigger.kind === "gesture"
-                ? ({
-                    kind: "gesture",
-                    actor: { kind: "presenter" },
-                    gesture: outputTrigger.gesture,
-                  } as (typeof cues)[number]["trigger"])
-                : {
-                    kind: "surfaceInteraction",
-                    actor: { kind: "presenter" },
-                    surfaceId: reactResourceId("surface", triggerInstance!.id),
-                    interactionId: reactResourceId(
-                      "interaction",
-                      triggerInstance!.id,
-                      output!.producer.kind === "surfaceInteraction"
-                        ? output!.producer.interactionId
-                        : "",
-                    ),
-                  },
+            outputTrigger.kind === "logicalInput"
+              ? { kind: "logicalInput", action: outputTrigger.action, actor: { kind: "presenter" } }
+              : outputTrigger.kind === "zoneEdge"
+                ? { ...outputTrigger, actor: { kind: "presenter" } }
+                : outputTrigger.kind === "gesture"
+                  ? ({
+                      kind: "gesture",
+                      actor: { kind: "presenter" },
+                      gesture: outputTrigger.gesture,
+                    } as (typeof cues)[number]["trigger"])
+                  : {
+                      kind: "surfaceInteraction",
+                      actor: { kind: "presenter" },
+                      surfaceId: reactResourceId("surface", triggerInstance!.id),
+                      interactionId: reactResourceId(
+                        "interaction",
+                        triggerInstance!.id,
+                        output!.producer.kind === "surfaceInteraction"
+                          ? output!.producer.interactionId
+                          : "",
+                      ),
+                    },
           fixedPayload: Object.fromEntries(
             Object.entries(output?.payload ?? {}).map(([key, field]) => [key, field.value]),
           ),

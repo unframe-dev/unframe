@@ -1,0 +1,237 @@
+{
+  "flow": {
+    "groups": {
+      "main": {
+        "id": "main",
+        "initialStepId": "start",
+        "steps": {
+          "done": {
+            "cues": [],
+            "id": "done"
+          },
+          "start": {
+            "cues": [
+              {
+                "actions": [
+                  {
+                    "kind": "variable.set",
+                    "value": {
+                      "kind": "literal",
+                      "value": 2
+                    },
+                    "variableId": "count"
+                  }
+                ],
+                "firePolicy": {
+                  "kind": "oncePerStepEntry"
+                },
+                "id": "open",
+                "next": {
+                  "kind": "step",
+                  "stepId": "done"
+                },
+                "order": 0,
+                "priority": 0,
+                "trigger": {
+                  "action": "presenter.next",
+                  "actor": {
+                    "kind": "presenter"
+                  },
+                  "kind": "logicalInput"
+                }
+              }
+            ],
+            "id": "start"
+          }
+        }
+      }
+    },
+    "initialGroupId": "main",
+    "timelines": {},
+    "variables": {
+      "count": {
+        "id": "count",
+        "initialValue": 0,
+        "owner": {
+          "kind": "presentation"
+        },
+        "type": "number"
+      }
+    }
+  },
+  "metadata": {
+    "title": "Logical input"
+  },
+  "presentationId": "logical-input-fixture",
+  "scene": {
+    "nodes": {
+      "surface-instance:surface-host": {
+        "active": true,
+        "audience": {
+          "kind": "all"
+        },
+        "id": "surface-instance:surface-host",
+        "kind": "surface",
+        "name": "Surface",
+        "opacity": 1,
+        "order": 0,
+        "owner": {
+          "kind": "presentation"
+        },
+        "parent": {
+          "kind": "stage"
+        },
+        "surfaceId": "surface-instance:surface-root",
+        "transform": {
+          "position": [0, 1, -2],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        },
+        "visible": true
+      }
+    },
+    "surfaces": {
+      "surface-instance:surface-root": {
+        "baseSemanticTree": {
+          "nodes": {
+            "surface-instance:button": {
+              "id": "surface-instance:button",
+              "interactionId": "surface-instance:open",
+              "order": 0,
+              "parentId": null,
+              "role": "button",
+              "text": "Open"
+            }
+          },
+          "rootNodeIds": ["surface-instance:button"]
+        },
+        "content": {
+          "kind": "structured",
+          "nodes": {
+            "surface-instance:surface-frame": {
+              "backgroundColor": {
+                "alpha": 1,
+                "blue": 0,
+                "green": 0,
+                "red": 0
+              },
+              "border": {
+                "color": {
+                  "alpha": 0,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                },
+                "radius": 0,
+                "width": 0
+              },
+              "children": ["surface-instance:translucent-panel"],
+              "clip": false,
+              "id": "surface-instance:surface-frame",
+              "kind": "frame",
+              "layout": {
+                "kind": "absolute"
+              },
+              "opacity": 1,
+              "order": 0,
+              "parentId": null,
+              "placement": {
+                "height": 64,
+                "kind": "absolute",
+                "width": 64,
+                "x": 0,
+                "y": 0
+              },
+              "semanticNodeId": "surface-instance:button",
+              "visible": true
+            },
+            "surface-instance:translucent-panel": {
+              "backgroundColor": {
+                "alpha": 1,
+                "blue": 0,
+                "green": 0,
+                "red": 1
+              },
+              "border": {
+                "color": {
+                  "alpha": 0,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                },
+                "radius": 0,
+                "width": 0
+              },
+              "children": [],
+              "clip": false,
+              "id": "surface-instance:translucent-panel",
+              "kind": "frame",
+              "layout": {
+                "kind": "absolute"
+              },
+              "opacity": 0.5,
+              "order": 0,
+              "parentId": "surface-instance:surface-frame",
+              "placement": {
+                "height": 16,
+                "kind": "absolute",
+                "width": 32,
+                "x": 8,
+                "y": 8
+              },
+              "visible": true
+            }
+          },
+          "rootFrameId": "surface-instance:surface-frame"
+        },
+        "fit": "contain",
+        "hostNodeId": "surface-instance:surface-host",
+        "id": "surface-instance:surface-root",
+        "initialStateId": "surface-instance:default",
+        "interactions": {
+          "surface-instance:open": {
+            "event": "open",
+            "hitPriority": 1,
+            "id": "surface-instance:open",
+            "kind": "click"
+          }
+        },
+        "logicalSize": [64, 64],
+        "physicalSizeMeters": [1, 1],
+        "renderIntent": {
+          "fallbackPolicy": "reject",
+          "interaction": {
+            "events": ["open"],
+            "kind": "regions"
+          },
+          "internalAnimation": {
+            "kind": "none"
+          },
+          "rendererPreference": "baked-web",
+          "updateModel": {
+            "kind": "static"
+          }
+        },
+        "states": {
+          "surface-instance:default": {
+            "contentOverrides": {},
+            "enabledInteractionIds": ["surface-instance:open"],
+            "id": "surface-instance:default",
+            "semanticOverrides": []
+          }
+        }
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "stage": {
+    "coordinateSystem": {
+      "forwardAxis": "-Z",
+      "handedness": "right",
+      "unit": "meter",
+      "upAxis": "+Y"
+    },
+    "size": [4, 3, 4],
+    "zones": {}
+  }
+}

@@ -873,6 +873,10 @@ const componentStructureSchema = z.union([
 ]);
 const cueTriggerSchema = z.union([
   z.strictObject({
+    kind: z.literal("logicalInput"),
+    action: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/),
+  }),
+  z.strictObject({
     kind: z.literal("zoneEdge"),
     zoneId: idSchema,
     edge: z.enum(["enter", "exit"]),

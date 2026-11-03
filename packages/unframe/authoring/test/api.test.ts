@@ -338,6 +338,32 @@ describe("component contract", () => {
     expect(transition.actions[0]?.kind).toBe("component.action");
   });
 
+  it("accepts named Presenter logical input declarations", () => {
+    const value = cue({
+      id: "advance",
+      trigger: { kind: "logicalInput", action: "presenter.next" },
+      actions: [],
+      next: { kind: "step", stepId: "second" },
+    });
+    expect(value.trigger).toEqual({ kind: "logicalInput", action: "presenter.next" });
+  });
+
+  it.each([
+    { kind: "logicalInput" },
+    { kind: "logicalInput", action: "" },
+    { kind: "logicalInput", action: " " },
+    { kind: "logicalInput", action: "presenter next" },
+    { kind: "logicalInput", action: "next!" },
+    { kind: "logicalInput", action: "x".repeat(129) },
+    { kind: "logicalInput", action: 1 },
+    { kind: "logicalInput", action: "presenter.next", actor: { kind: "viewer" } },
+    { kind: "logicalInput", action: "presenter.next", actor: { kind: "presenter" } },
+  ])("rejects malformed logical input declarations: %j", (trigger) => {
+    expect(() => cue({ id: "advance", trigger, actions: [] } as never)).toThrow(
+      /Invalid cue declaration/,
+    );
+  });
+
   it("accepts Gesture and parameterless repeatable while rejecting legacy recognition settings", () => {
     const value = cue({
       id: "swipe",
