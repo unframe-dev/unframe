@@ -27,7 +27,7 @@
     "lint": "vp check src test vite.config.ts",
     "pretest": "bash ../../../scripts/build-cli-filesystem.sh",
     "test": "vp test run",
-    "build": "bash ../../../scripts/build-cli-filesystem.sh && vp pack",
+    "build": "bash ../../../scripts/build-cli-filesystem.sh && NODE_OPTIONS=--max-old-space-size=8192 vp pack",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
