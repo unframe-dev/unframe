@@ -87,6 +87,158 @@ const acknowledgePlayback = (
 };
 
 describe("fixed local Preview service", () => {
+  it("rereads evicted Preview bytes while reusing assets within the byte budget", async () => {
+    const source = generation();
+    let reads = 0;
+    const read = source.readAsset;
+    source.readAsset = async (id) => {
+      reads += 1;
+      return read(id);
+    };
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => source,
+      assetCacheBytes: 63,
+    });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    const reference = envelope.assets![0]!.reference!;
+    expect(reads).toBe(1);
+    expect(await service.asset(requestA, reference)).toEqual(sourceAssets.texture);
+    expect(reads).toBe(2);
+    source.readAsset = async () => ({ bytes: new Uint8Array(64), mediaType: "image/png" });
+    await expect(service.asset(requestA, reference)).rejects.toMatchObject({
+      code: "preview-asset-invalid",
+    });
+  });
+
+  it("reuses verified Preview bytes without another read and revalidates a new load", async () => {
+    const source = generation();
+    let reads = 0;
+    const read = source.readAsset;
+    source.readAsset = async (id) => {
+      reads += 1;
+      return read(id);
+    };
+    const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    const reference = envelope.assets![0]!.reference!;
+    await service.asset(requestA, reference);
+    await service.asset(requestA, reference);
+    expect(reads).toBe(1);
+    source.readAsset = async () => ({ bytes: new Uint8Array(64), mediaType: "image/png" });
+    await expect(service.load({ requestId: requestB, channel: "dist" })).rejects.toMatchObject({
+      code: "preview-asset-invalid",
+    });
+  });
+
+  it("prepares independent selected assets concurrently while preserving binding order", async () => {
+    const source = generation();
+    source.artifacts.definition.scene.nodes.model =
+      presentationDefinitionSchema.parse(definitionFixture).scene.nodes.model!;
+    source.artifacts.renderBundle.models = renderBundleSchema.parse(bundleFixture).models;
+    source.artifacts.assetSet.assets["model-asset"] =
+      assetSetManifestSchema.parse(assetSetFixture).assets["model-asset"]!;
+    const modelBytes = new Uint8Array(64).fill(45);
+    const modelHash = `sha256:${createHash("sha256").update(modelBytes).digest("hex")}`;
+    source.artifacts.assetSet.assets["model-asset"]!.checksum = modelHash;
+    source.artifacts.renderBundle.models["model-asset"]!.checksum = modelHash;
+    source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+      source.artifacts.definition,
+    );
+    source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+    source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+      source.artifacts.renderBundle,
+    );
+    source.artifacts.buildManifest.assetSetHash = hashCanonicalJsonPayload(
+      source.artifacts.assetSet,
+    );
+    const read = source.readAsset;
+    const started = deferred<void>();
+    const finish = deferred<void>();
+    const reads: string[] = [];
+    source.readAsset = async (id) => {
+      reads.push(id);
+      if (reads.length === 2) started.resolve();
+      await finish.promise;
+      return id === "model-asset"
+        ? { bytes: modelBytes, mediaType: "model/gltf-binary" }
+        : read(id);
+    };
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => source,
+      assetCacheBytes: 64,
+    });
+    const loading = service.load({ requestId: requestA, channel: "dist" });
+    await started.promise;
+    finish.resolve();
+    const envelope = await loading;
+    expect(envelope.assets?.map((asset) => asset.assetId)).toEqual(reads);
+    expect(reads).toHaveLength(2);
+    await Promise.all(envelope.assets!.map((asset) => service.asset(requestA, asset.reference!)));
+    expect(reads).toHaveLength(3);
+  });
+
+  it("limits concurrent publication reads and keeps the pinned bytes independent of cache eviction", async () => {
+    const source = generation();
+    const read = source.readAsset;
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => source,
+      assetConcurrency: 2,
+      assetCacheBytes: 64,
+    });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    service.committed({ requestId: requestA, buildIdentity: "build-a" });
+    acknowledgePlayback(service, requestA);
+    const started = deferred<void>();
+    const finish = deferred<void>();
+    let active = 0;
+    let maximum = 0;
+    const reads: string[] = [];
+    source.readAsset = async (id) => {
+      reads.push(id);
+      active += 1;
+      maximum = Math.max(maximum, active);
+      if (active === 2) started.resolve();
+      await finish.promise;
+      active -= 1;
+      return read(id);
+    };
+    const publishing = service.pinDisplayedDist(requestA);
+    await started.promise;
+    expect(reads).toHaveLength(2);
+    finish.resolve();
+    const pinned = await publishing;
+    expect(maximum).toBe(2);
+    expect(reads).toHaveLength(3);
+    await service.asset(requestA, envelope.assets![0]!.reference!);
+    source.readAsset = async () => {
+      throw new Error("source removed");
+    };
+    service.close();
+    expect(await pinned.readAsset("font")).toEqual(sourceAssets.font);
+    expect(await pinned.readAsset("image")).toEqual(sourceAssets.image);
+  });
+
+  it("rejects an evicted asset read that completes after invalidation", async () => {
+    const source = generation();
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => source,
+      assetCacheBytes: 0,
+    });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    const started = deferred<void>();
+    const finish = deferred<PreviewAsset>();
+    source.readAsset = async () => {
+      started.resolve();
+      return finish.promise;
+    };
+    const reading = service.asset(requestA, envelope.assets![0]!.reference!);
+    const rejected = expect(reading).rejects.toMatchObject({ code: "preview-stale" });
+    await started.promise;
+    service.close();
+    finish.resolve(sourceAssets.texture!);
+    await rejected;
+  });
+
   it("omits Presenter recognition and connection-only capabilities from the preview envelope", async () => {
     const service = createLocalPreviewService("/project", {
       readGeneration: async () => generation(),
