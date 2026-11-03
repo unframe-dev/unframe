@@ -181,7 +181,7 @@ error は `{code,message,details:[{path,reason}],retryable}`。400 は形の不�
 
 ## 3. Source 保存の transaction
 
-root の通常ファイルを正本として維持し、GUI 専用 override 文書は作らない。協調する check / build snapshot / lock 更新 / GUI 保存は `.unframe-source.lock` の exclusive lease を共有する。build は既存 build lease → source lease の順で取得し、snapshot 後に source lease だけ解放する。保存は source lease だけを取得し、release 後に build を要求する。公開直前の build は source lease を取り直して revision を検証する。
+root の通常ファイルを正本として維持し、GUI 専用 override 文書は作らない。協調する check / build snapshot / lock 更新 / GUI 保存は `.unframe-source.lock` の exclusive lease を共有する。通常 build は source lease 内で入力 snapshot を取得して解放した後、build lease を取得する。Dev の事前 lock refresh は build lease → source lease の順で取得し、snapshot 後に source lease を解放して解析し、更新時に取り直す。保存は source lease だけを取得し、release 後に build を要求する。公開直前の build は source lease を取り直して revision を検証する。
 
 GUI の一 command は一つの Presentation source と `unframe.lock` だけを変更する。新しい bytes をメモリ上で patch → static validation → local lock 更新し、既存ファイルを変更する前に検証する。共有 const は変更せず、Instance 内に literal / 末尾 override を追加する。根拠となる source location は再 parse した最新 snapshot から取り、古い offset を再利用しない。
 
