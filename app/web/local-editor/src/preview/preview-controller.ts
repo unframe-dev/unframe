@@ -247,6 +247,22 @@ export function createPreviewController(input: {
       return;
     applyView(view);
   }
+  function resetCamera() {
+    const snapshot = store.getState();
+    if (
+      closed ||
+      snapshot.status !== "ready" ||
+      snapshot.playback?.mode !== "normal" ||
+      !snapshot.playback.spatial
+    )
+      return;
+    const serial = epoch;
+    store.setState({ view: "perspective" });
+    void input.driver.resetCamera().catch((error: unknown) => {
+      if (current(serial) && store.getState().view === "perspective")
+        store.setState({ error: message(error) });
+    });
+  }
   function request(
     channel: "dev" | "dist",
     revision: string,
@@ -442,6 +458,7 @@ export function createPreviewController(input: {
     request,
     cancel,
     setView,
+    resetCamera,
     movePresenter,
     dispose: async () => {
       if (closed) return;

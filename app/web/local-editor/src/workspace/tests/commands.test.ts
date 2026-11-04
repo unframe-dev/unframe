@@ -82,6 +82,7 @@ function fixture(readOnly = false) {
     discard: async () => undefined,
     invalidate: async () => undefined,
     view: async () => undefined,
+    resetCamera: async () => undefined,
     subscribePresenter: () => () => undefined,
     subscribeInteraction: () => () => undefined,
     subscribeFailure: () => () => undefined,

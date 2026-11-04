@@ -152,6 +152,7 @@ export function createUnityPreviewDriver(canvas: HTMLCanvasElement, token: strin
       await applySpatial(state.requestId ?? "", state.sequence ?? "", spatial, signal);
     },
     view: (mode) => send("View", mode),
+    resetCamera: () => send("ResetCamera", ""),
     subscribeInteraction(listener) {
       interactionListeners.add(listener);
       return () => {

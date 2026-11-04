@@ -40,6 +40,7 @@ export function createWorkspace({
     playback: (...args) => withDriver().playback(...args),
     restore: (...args) => withDriver().restore(...args),
     view: (...args) => withDriver().view(...args),
+    resetCamera: () => withDriver().resetCamera(),
     subscribeInteraction(listener) {
       interactionListeners.add(listener);
       return () => {

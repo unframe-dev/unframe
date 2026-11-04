@@ -42,6 +42,7 @@ export function createCommands(input: {
     selectPreviewChannel: input.selectChannel,
     reloadPreview: input.reload,
     previewView: input.preview.setView,
+    resetPreviewCamera: input.preview.resetCamera,
     movePresenter: input.preview.movePresenter,
     buildDist: input.buildDist,
     selectFlow(selection: FlowSelection) {

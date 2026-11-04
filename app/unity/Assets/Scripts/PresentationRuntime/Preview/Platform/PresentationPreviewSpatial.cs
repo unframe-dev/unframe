@@ -240,6 +240,55 @@ namespace Unframe.Unity.PresentationRuntime
             material.SetFloat("_ZWrite", 1);
             material.SetFloat("_ZTest", (float)CompareFunction.LessEqual);
             ConfigureRenderer(floor.AddComponent<MeshRenderer>(), material);
+            CreateOriginMarker();
+        }
+        private void CreateOriginMarker()
+        {
+            var marker = new GameObject("Origin marker");
+            marker.transform.SetParent(floor.transform, false);
+            marker.transform.localPosition = Vector3.up * 0.01f;
+            var vertices = new List<Vector3>();
+            var ring = new List<int>();
+            var xAxis = new List<int>();
+            var zAxis = new List<int>();
+            void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, List<int> indices)
+            {
+                int start = vertices.Count;
+                vertices.AddRange(new[] { a, b, c, d });
+                indices.AddRange(new[] { start, start + 1, start + 2, start, start + 2, start + 3 });
+            }
+            const int segments = 64;
+            for (int i = 0; i < segments; i++)
+            {
+                float start = i * Mathf.PI * 2 / segments;
+                float end = (i + 1) * Mathf.PI * 2 / segments;
+                Vector3 first = new Vector3(Mathf.Cos(start), 0, Mathf.Sin(start));
+                Vector3 next = new Vector3(Mathf.Cos(end), 0, Mathf.Sin(end));
+                Quad(first * 0.28f, first * 0.32f, next * 0.32f, next * 0.28f, ring);
+            }
+            Quad(new Vector3(-0.7f, 0, -0.015f), new Vector3(0.7f, 0, -0.015f),
+                new Vector3(0.7f, 0, 0.015f), new Vector3(-0.7f, 0, 0.015f), xAxis);
+            Quad(new Vector3(-0.015f, 0, -0.7f), new Vector3(0.015f, 0, -0.7f),
+                new Vector3(0.015f, 0, 0.7f), new Vector3(-0.015f, 0, 0.7f), zAxis);
+            int arrow = vertices.Count;
+            vertices.AddRange(new[] { new Vector3(0.8f, 0, 0), new Vector3(0.65f, 0, -0.07f), new Vector3(0.65f, 0, 0.07f),
+                new Vector3(0, 0, -0.8f), new Vector3(-0.07f, 0, -0.65f), new Vector3(0.07f, 0, -0.65f) });
+            xAxis.AddRange(new[] { arrow, arrow + 1, arrow + 2 });
+            zAxis.AddRange(new[] { arrow + 3, arrow + 4, arrow + 5 });
+            var mesh = new Mesh { name = "Preview origin marker", subMeshCount = 3 };
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(ring, 0); mesh.SetTriangles(xAxis, 1); mesh.SetTriangles(zAxis, 2);
+            mesh.RecalculateBounds(); allocated.Add(mesh);
+            marker.AddComponent<MeshFilter>().sharedMesh = mesh;
+            Material[] materials = { Material(Color.white), Material(new Color(0.95f, 0.22f, 0.21f)), Material(new Color(0.2f, 0.55f, 1)) };
+            foreach (Material material in materials)
+            {
+                material.renderQueue = (int)RenderQueue.Geometry + 1;
+                material.SetFloat("_ZTest", (float)CompareFunction.LessEqual);
+            }
+            var renderer = marker.AddComponent<MeshRenderer>();
+            ConfigureRenderer(renderer, materials[0]);
+            renderer.sharedMaterials = materials;
         }
         private static Color ZoneColor(PresentationPreviewSpatialZone zone)
         {

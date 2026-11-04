@@ -191,6 +191,11 @@ namespace Unframe.Unity.PresentationRuntime
             Camera.main?.GetComponent<PresentationPreviewCamera>()?.SetView(value);
             spatial?.SetVisible(view == "overhead");
         }
+        public void ResetCamera(string unused)
+        {
+            View("perspective");
+            Camera.main?.GetComponent<PresentationPreviewCamera>()?.ResetToOrigin();
+        }
         private bool activationBlocked;
         private void Update()
         {

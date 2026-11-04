@@ -11,6 +11,64 @@ using UnityEngine.TestTools;
 public sealed class UnframePreviewBridgeEditModeTests
 {
     [UnityTest]
+    public IEnumerator CameraResetLeavesOverheadAndKeepsGuidesHiddenOnTheNextSpatialFrame()
+    {
+        var root = new GameObject("UnframePreview");
+        var cameraObject = new GameObject("Preview Camera");
+        var previousMainCameras = new List<Camera>();
+        foreach (Camera camera in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
+        {
+            if (!camera.CompareTag("MainCamera")) continue;
+            previousMainCameras.Add(camera);
+            camera.tag = "Untagged";
+        }
+        cameraObject.tag = "MainCamera";
+        try
+        {
+            var camera = cameraObject.AddComponent<Camera>();
+            var controls = cameraObject.AddComponent<PresentationPreviewCamera>();
+            var bridge = root.AddComponent<UnframePreview>();
+            var events = new List<PresentationPreviewEvent>();
+            bridge.Notification += events.Add;
+            bridge.Configure("{\"token\":\"preview-token\"}");
+            var input = PresentationPreviewTestFixture.Create();
+            bridge.Prepare(JsonFormatter.Default.Format(input));
+            while (events.Count == 0) yield return null;
+            bridge.Commit(input.RequestId);
+            bridge.Playback(JsonFormatter.Default.Format(new LocalPreviewPlaybackState
+            {
+                RequestId = input.RequestId,
+                Sequence = 1,
+                CurrentGroupId = "group:first",
+                NodeStates = { input.InitialState.NodeStates },
+                SurfaceStates = { input.InitialState.SurfaceStates },
+                Clock = new RuntimeClockSnapshot { Paused = new Paused() },
+            }));
+            string spatial = "{\"requestId\":\"" + input.RequestId + "\",\"sequence\":\"1\",\"presenterPosition\":[2,1,3],\"presenterRotation\":[0,0,0,1],\"zones\":[]}";
+            bridge.View("overhead");
+            bridge.Spatial(spatial);
+            Transform guides = root.transform.Find("Preview spatial guides");
+            Assert.That(guides.gameObject.activeSelf, Is.True);
+            Assert.That(camera.orthographic, Is.True);
+            bridge.ResetCamera("");
+            Assert.That(controls.IsOverhead, Is.False);
+            Assert.That(cameraObject.transform.position, Is.EqualTo(new Vector3(0, 1.6f, 0)));
+            Assert.That(Quaternion.Angle(cameraObject.transform.rotation, Quaternion.identity), Is.LessThan(0.001f));
+            Assert.That(guides.gameObject.activeSelf, Is.False);
+            bridge.Spatial(spatial);
+            Assert.That(events[4].kind, Is.EqualTo("spatial"));
+            Assert.That(guides.gameObject.activeSelf, Is.False);
+            Assert.That(root.transform.Find("Preview floor/Origin marker").gameObject.activeInHierarchy, Is.True);
+        }
+        finally
+        {
+            Object.DestroyImmediate(root); Object.DestroyImmediate(cameraObject);
+            foreach (Camera camera in previousMainCameras)
+                if (camera != null) camera.tag = "MainCamera";
+        }
+    }
+
+    [UnityTest]
     public IEnumerator PlaybackAcknowledgesTheExactSequenceAndRejectsUpdatesAfterInvalidation()
     {
         var root = new GameObject("UnframePreview");

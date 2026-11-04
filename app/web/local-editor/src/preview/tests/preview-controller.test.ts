@@ -44,6 +44,7 @@ function fixture() {
     discard: async () => undefined,
     invalidate: async () => undefined,
     view: async () => undefined,
+    resetCamera: async () => undefined,
     subscribePresenter: () => () => undefined,
     subscribeInteraction: () => () => undefined,
     subscribeFailure: () => () => undefined,
@@ -632,6 +633,75 @@ it("only accepts Presenter movement for the committed normal overhead view", asy
     await controller.dispose();
   }
   expect(stop).toHaveBeenCalledOnce();
+});
+
+it("resets an overhead camera to the origin without changing playback or Presenter state", async () => {
+  const { api, driver, commands } = fixture();
+  driver.resetCamera = vi.fn(async () => undefined);
+  const spatial = { presenterPosition: [3, 1, 2] as [number, number, number], zones: [] };
+  const original = api.playback;
+  api.playback = async (...args) => ({ ...(await original(...args)), spatial });
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    controller.setView("overhead");
+    const before = controller.store.getState().playback;
+    const commandCount = commands.length;
+    controller.resetCamera();
+    expect(driver.resetCamera).toHaveBeenCalledOnce();
+    expect(controller.store.getState().view).toBe("perspective");
+    expect(controller.store.getState().playback).toBe(before);
+    expect(commands).toHaveLength(commandCount);
+  } finally {
+    await controller.dispose();
+  }
+});
+
+it("only resets the camera for an available normal spatial preview", async () => {
+  const { api, driver } = fixture();
+  driver.resetCamera = vi.fn(async () => undefined);
+  const controller = createPreviewController({ api, driver });
+  controller.resetCamera();
+  controller.request("dist", "first");
+  await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+  controller.resetCamera();
+  const current = controller.store.getState().playback!;
+  controller.store.setState({
+    playback: {
+      ...current,
+      mode: "inspection",
+      spatial: { presenterPosition: [0, 0, 0], zones: [] },
+    },
+  });
+  controller.resetCamera();
+  await controller.dispose();
+  controller.resetCamera();
+  expect(driver.resetCamera).not.toHaveBeenCalled();
+});
+
+it("reports a camera reset failure while retaining the displayed playback", async () => {
+  const { api, driver } = fixture();
+  driver.resetCamera = vi.fn(async () => {
+    throw new Error("Camera reset failed.");
+  });
+  const original = api.playback;
+  api.playback = async (...args) => ({
+    ...(await original(...args)),
+    spatial: { presenterPosition: [1, 0, 0], zones: [] },
+  });
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "first");
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    const before = controller.store.getState().playback;
+    controller.resetCamera();
+    await vi.waitFor(() => expect(controller.store.getState().error).toBe("Camera reset failed."));
+    expect(controller.store.getState().status).toBe("ready");
+    expect(controller.store.getState().playback).toBe(before);
+  } finally {
+    await controller.dispose();
+  }
 });
 
 it("forwards spatial state while restoring a confirmed playback", async () => {

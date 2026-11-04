@@ -36,6 +36,14 @@ namespace Unframe.Unity.PresentationRuntime
             yaw = pitch = 0;
             Apply();
         }
+        public void ResetToOrigin()
+        {
+            overhead = false;
+            distance = 4;
+            yaw = pitch = 0;
+            focus = new Vector3(0, 1.6f, distance);
+            Apply();
+        }
         private void Update()
         {
             if (overhead) { Apply(); return; }

@@ -23,6 +23,7 @@ export type PreviewDriver = {
     spatial?: PreviewSpatialState,
   ): Promise<void>;
   view(mode: PreviewView): Promise<void>;
+  resetCamera(): Promise<void>;
   subscribeInteraction(listener: (interaction: SurfaceInteraction) => void): () => void;
   subscribePresenter(listener: (movement: PresenterMovement) => void): () => void;
   discard(requestId: string): Promise<void>;

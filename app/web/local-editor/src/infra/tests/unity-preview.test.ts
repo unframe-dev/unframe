@@ -95,3 +95,14 @@ it("validates Surface interaction notifications and unsubscribes when disposed",
   dispatch(interaction);
   expect(listener).not.toHaveBeenCalled();
 });
+
+it("sends a camera origin reset to Unity without a playback command", async () => {
+  const { driver, instance } = bridge();
+  await driver.resetCamera();
+  expect(instance.SendMessage).toHaveBeenCalledWith("UnframePreview", "ResetCamera", "");
+  expect(instance.SendMessage.mock.calls.map((call) => call[1])).toEqual([
+    "Configure",
+    "ResetCamera",
+  ]);
+  await driver.dispose();
+});

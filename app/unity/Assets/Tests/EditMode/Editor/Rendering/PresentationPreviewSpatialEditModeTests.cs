@@ -82,6 +82,61 @@ public sealed class PresentationPreviewSpatialEditModeTests
     }
 
     [Test]
+    public void FloorOriginMarkerStaysVisibleInBothViewsAndIsRemovedOnClear()
+    {
+        var root = new GameObject("spatial");
+        try
+        {
+            using var guides = new PresentationPreviewSpatial(root.transform);
+            PresentationPreviewSpatialState.TryParse(Valid, out var state);
+            guides.Apply(state);
+            Transform marker = root.transform.Find("Preview floor/Origin marker");
+            Assert.That(marker, Is.Not.Null);
+            Assert.That(marker.localPosition.x, Is.Zero);
+            Assert.That(marker.localPosition.z, Is.Zero);
+            Assert.That(marker.localPosition.y, Is.InRange(0.001f, 0.02f));
+            Assert.That(marker.GetComponent<Collider>(), Is.Null);
+            foreach (Renderer renderer in marker.GetComponentsInChildren<Renderer>())
+            {
+                Assert.That(renderer.enabled, Is.True);
+                Assert.That(renderer.sharedMaterial.GetFloat("_ZTest"), Is.EqualTo((float)UnityEngine.Rendering.CompareFunction.LessEqual));
+            }
+            Assert.That(marker.GetComponentsInChildren<Renderer>().Length, Is.GreaterThan(0));
+            guides.SetVisible(true);
+            Assert.That(marker.gameObject.activeInHierarchy, Is.True);
+            guides.SetVisible(false);
+            Assert.That(marker.gameObject.activeInHierarchy, Is.True);
+            guides.Clear();
+            Assert.That(root.transform.Find("Preview floor"), Is.Null);
+        }
+        finally { Object.DestroyImmediate(root); }
+    }
+
+    [TestCase("perspective")]
+    [TestCase("overhead")]
+    public void CameraResetReturnsToStandingEyeLevelAtTheOriginFacingForward(string view)
+    {
+        var root = new GameObject("camera");
+        try
+        {
+            var camera = root.AddComponent<Camera>();
+            var controls = root.AddComponent<PresentationPreviewCamera>();
+            controls.Frame(null);
+            controls.SetSpatialBounds(new Bounds(new Vector3(10, 4, -8), Vector3.one * 8));
+            controls.SetView(view);
+            controls.ResetToOrigin();
+            Assert.That(controls.IsOverhead, Is.False);
+            Assert.That(camera.orthographic, Is.False);
+            Assert.That(root.transform.position, Is.EqualTo(new Vector3(0, 1.6f, 0)));
+            Assert.That(Quaternion.Angle(root.transform.rotation, Quaternion.identity), Is.LessThan(0.001f));
+            controls.SetView("overhead");
+            controls.SetView("perspective");
+            Assert.That(root.transform.position, Is.EqualTo(new Vector3(0, 1.6f, 0)));
+        }
+        finally { Object.DestroyImmediate(root); }
+    }
+
+    [Test]
     public void OverheadViewRestoresThePreviousPerspectivePose()
     {
         var root = new GameObject("camera");
