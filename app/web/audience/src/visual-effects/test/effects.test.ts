@@ -8,6 +8,9 @@ import {
   LineBasicMaterial,
   Mesh,
   MeshStandardMaterial,
+  ShaderLib,
+  type WebGLRenderer,
+  MeshBasicMaterial,
   Vector3,
 } from "three";
 import { VisualEffects, type EffectOptions } from "../effects";
@@ -89,6 +92,23 @@ describe("standalone visual effects", () => {
     expect(mesh.visible).toBe(false);
     expect(done).toHaveBeenCalledTimes(1);
   });
+  it("supplies the Unity noise scale, seed range and edge alpha to the dissolve shader", () => {
+    const effects = new VisualEffects();
+    const mesh = new Mesh(new BoxGeometry(), new MeshStandardMaterial());
+    effects.play(
+      { ...options, effectId: "dissolve", seed: 10042, size: 2, color: [1, 1, 1, 0.25] },
+      mesh,
+    );
+    const shader = { ...ShaderLib.standard, uniforms: { ...ShaderLib.standard.uniforms } };
+    mesh.material.onBeforeCompile(
+      shader as Parameters<MeshStandardMaterial["onBeforeCompile"]>[0],
+      {} as WebGLRenderer,
+    );
+    expect(shader.uniforms.visualSeed!.value).toBe(42);
+    expect(shader.uniforms.visualNoiseScale!.value).toBe(6);
+    expect(shader.uniforms.visualColor!.value.w).toBe(0.25);
+    effects.dispose();
+  });
   it("owns a dissolve target exclusively and rejects transparent materials", () => {
     const effects = new VisualEffects();
     const mesh = new Mesh(new BoxGeometry(), new MeshStandardMaterial());
@@ -97,6 +117,28 @@ describe("standalone visual effects", () => {
     effects.dispose();
     mesh.material.transparent = true;
     expect(() => effects.play({ ...options, effectId: "dissolve" }, mesh)).toThrow();
+  });
+  it("retains dense hand trajectories and fades a ring with the trail", () => {
+    const effects = new VisualEffects();
+    const target = new Group();
+    const hand = effects.begin({ ...options, effectId: "handGlow", durationMs: 350 }, target);
+    for (let i = 0; i < 100; i++) hand.updatePose(new Vector3(i / 100, 0, 0), 100 + i);
+    effects.evaluate(199);
+    const [halo, trail] = target.children[0]!.children as Mesh<BufferGeometry, MeshBasicMaterial>[];
+    expect(trail!.geometry.drawRange.count).toBe(99 * 6);
+    const opacity = trail!.geometry.getAttribute("color");
+    expect(opacity.getW(0)).toBe(0);
+    expect(opacity.getW(198)).toBe(1);
+    const ring = halo!.geometry.getAttribute("position");
+    expect(ring.getX(0)).toBeCloseTo(0.99 + 0.035);
+    expect(ring.getY(12)).toBeCloseTo(0.035);
+    hand.end(199);
+    effects.evaluate(374);
+    expect(halo!.visible).toBe(true);
+    expect(halo!.material.opacity).toBeCloseTo(0.5);
+    expect(trail!.material.opacity).toBeCloseTo(0.5);
+    effects.evaluate(549);
+    expect(target.children).toHaveLength(0);
   });
   it("ends hand emission and drains its trail on external time", () => {
     const effects = new VisualEffects();

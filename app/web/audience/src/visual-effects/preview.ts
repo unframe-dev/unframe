@@ -79,7 +79,7 @@ function options(effectId: EffectOptions["effectId"]): EffectOptions {
     ],
     speed: Number(document.querySelector<HTMLInputElement>("#speed")!.value),
     waveCycles: Number(document.querySelector<HTMLInputElement>("#waveCycles")!.value),
-    durationMs: effectId === "wave" ? 4500 : 1400,
+    durationMs: effectId === "wave" ? 4500 : effectId === "handGlow" ? 350 : 1400,
     seed: 42,
     startedAtRuntimeMs: clock,
   };
@@ -141,7 +141,7 @@ renderer.setAnimationLoop(() => {
   if (!paused) clock += now - previous;
   previous = now;
   if (hand && !paused)
-    hand.updatePose(new Vector3(Math.cos(clock / 400), Math.sin(clock / 400) * 0.6, 0.5), clock);
+    hand.updatePose(new Vector3(Math.cos(clock / 500), Math.sin(clock / 500) * 0.5, 0.5), clock);
   effects.evaluate(clock);
   const width = innerWidth;
   const height = innerHeight;

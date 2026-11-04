@@ -23,8 +23,8 @@ handle.cancel();
 ```
 
 - `effectId`: `wave` / `dissolve`。`handGlow` は `begin(options, target, completed?)` で開始し、返る handle の `updatePose(position, runtimeMs)` と `end(runtimeMs)` を呼ぶ。
-- `size`: 正の寸法倍率。wave の全体サイズ、handGlow の発光球、dissolve のノイズ模様の寸法に適用。
-- `color`: sRGB の RGBA、各成分 0〜1。dissolve は RGB を消失境界に使用し、対象モデルの元の不透明度を保つ。
+- `size`: 正の寸法倍率。wave の全体サイズ、handGlow の輪と軌跡の幅、dissolve のノイズ模様の寸法に適用。
+- `color`: sRGB の RGBA、各成分 0〜1。dissolve は RGB × A を消失境界の照明後の色へ加算し、対象モデルの元の不透明度を保つ。
 - `speed`: 正の倍率。wave が伸び切るまでの時間、dissolve と手元残光の寿命は `durationMs / speed`。
 - `startedAtRuntimeMs`、`evaluate`、Pose の時刻: 同一の外部単調時計のミリ秒。停止時は時計を進めない。Pose の座標は target のローカル座標で渡す。
 - `seed`: 0〜4294967295 の整数。wave の位相と dissolve のノイズへ適用。handGlow は入力軌跡のみを使用。
@@ -33,9 +33,11 @@ handle.cancel();
 
 `dissolve` の対象は MeshStandardMaterial（MeshPhysicalMaterial を含む）の不透明な静的 Mesh。対象下の全 Mesh のマテリアルを複製し、終了またはキャンセルで元に戻す。SkinnedMesh、透明・alphaTest 素材は拒否する。共有素材を変更しない。初期版は影の切り抜きに対応しないため、再生中の対象の castShadow を無効化し、終了・キャンセル時に元へ戻す。既存の独自 onBeforeCompile シェーダー拡張との合成は対象外。対象の恒久的な非表示は呼び出し側の責任であり、消失を維持する場合は完了 callback で `target.visible = false` にする。元マテリアルの復元後に callback が呼ばれるので、その変更は保持される。開始前の時刻は元の表示を保つ。
 
-手元の光は `end` 後に新しい Pose を受け付けず、残光を減衰して終了する。追跡喪失時も呼び出し側で `end` を呼ぶ。古い軌跡の復元機能はなく、最大64サンプルを保持する。
+ディゾルブの模様は Unity と同じ格子間を滑らかに補間した3次元ノイズで、スケールは `12 / size`、境界幅は0.06。Web は元の PBR 照明を保ち、Unity は簡易拡散照明のため、照明結果やノイズの画素単位の一致は保証しない。
 
-開発サーバー起動後に `/visual-effects.html` を開くと、通信なしでサイズ・色・速度、単発起動、手元の光、一時停止、キャンセルを確認できる。モデルは仮の立方体で、手位置はデモ用の円軌道。製品の入力・通信へは接続しない。
+手元の光は `end` 後に新しい Pose を受け付けず、残光を減衰して終了する。追跡喪失時も呼び出し側で `end` を呼ぶ。古い軌跡の復元機能はなく、最大256サンプルを保持する。輪の半径は `0.035 × size`、幅は `0.012 × size`、軌跡の幅は `0.025 × size` メートル。軌跡は始点の透明から先端の指定色へ変化し、終了後は輪と軌跡を一緒に減衰する。
+
+開発サーバー起動後に `/visual-effects.html` を開くと、通信なしでサイズ・色・速度、単発起動、手元の光、一時停止、キャンセルを確認できる。モデルは仮の立方体で、手位置は Unity と同じ角速度・縦振幅のデモ軌道、残光寿命は350ms。製品の入力・通信へは接続しない。
 
 プレビューは水平な正面視点で、波の中心の2m下に床と1m間隔のグリッドを表示する。波 A／波 B は別の配置先へ個別に表示・消去できる。
 
