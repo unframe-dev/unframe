@@ -24,6 +24,14 @@ Unity / canonical間のZ反射は座標境界で行います。tracking-origin�
 
 `PresentationBakedRuntime` は独立した `Calibrated Presentation Space` を所有し、校正の逆変換をworld poseへ適用します。RuntimeのPresentationOriginは生成階層だけに一度適用します。Runtime component自体は非表示にせず、接続・素材ロード・Runtime状態の受信を継続できます。校正が無効、同期未完了、素材未residentの間は生成spaceを非表示にします。
 
+## Presenter の共有配置
+
+初回の配置では、マーカー確定時の HMD の高さから鉛直方向に 30cm 下へプレゼン原点を合わせます。マーカーの傾きにかかわらず、物理空間の X/Z・回転・スケールは維持します。物理マーカーの校正と共有 `PresentationOrigin` は分離し、補正した絶対 Pose を Presenter がサーバーへ送ります。サーバーで受理されるまで配置は未確定です。
+
+原点がすでに設定された Session への参加・再接続では既存の共有配置を使います。再計算は Presenter の明示的な「再配置」でマーカーを測定し直したときに行います。頭部移動、マーカーの一時的な消失、tracking 復旧に伴う端末の再校正では共有配置を変更しません。Viewer は自分の高さから補正を計算しません。
+
+更新には期待する原点 version と command ID を付けます。通信失敗時は同じ command を再送し、競合による拒否時は再配置します。共有原点は Reliable Event と Snapshot で配信され、途中参加・再接続でも復元します。原点更新後はローカル状態への反映と新しい cut の `StateReady` を経て同期し、Presenter の入力世代も更新します。Tracking は原点 version を付けて送り、サーバーが共有原点の逆変換で Stage 座標へ変換します。pause 中の凍結 Anchor も物理位置を維持する座標へ変換し直して配信します。
+
 ## 接続入口
 
 呼び出し元は認証・Session選択を担当し、次のように同じStateを渡します。
@@ -45,7 +53,7 @@ session.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogica
 - 確定後にマーカーが視野から外れても校正は保持します。tracking-originの座標frameが有効であることは引き続き必要です。
 - `StateReady`送信後も現行cut / originの有効keyframeを受信するまで入力・Trackingを許可しません。再同期中も同じ条件を要求します。
 
-`QuestPresentationEntry.Summary` は校正待ち、素材ロード、同期中、Readyのrole、停止状態を提供します。`QuestPresentationStatusView` は操作メニューに状態と再測定案内を表示し、B/Yの押下開始で共有校正を無効化します。UIはcredential、Session ID、endpoint、RPC詳細を表示しません。カメラpreviewは既存のA/X権限確認とB/Y再測定を提供します。
+`QuestPresentationEntry.Summary` は校正待ち、素材ロード、同期中、Readyのrole、停止状態を提供します。`QuestPresentationStatusView` は操作メニューに状態と再測定案内を表示し、B/Yの押下開始で端末の校正を無効化し、Presenter は共有配置の再測定も要求します。UIはcredential、Session ID、endpoint、RPC詳細を表示しません。カメラpreviewは既存のA/X権限確認とB/Y再測定を提供します。
 
 `Unframe/Presentation/Open Quest Presentation` は単一OVRCameraRig、PCA source、AprilTag校正、Session入口、状態UIを配線します。通信SceneにはXROrigin、TrackedPoseDriver、AR Sessionを重ねません。Meta SDKのPCA撮影姿勢とHead/Handのtracking座標を同じrigへ揃えます。使用中のMRUKはnativeのtracking-space getterへOVRCameraRigを登録します。`PassthroughCameraAccess.GetCameraPose()` は撮影時刻のworld Poseを返すため、取得後にtrackingSpaceの変換を重ねません。配線済みのSceneは再生成せず開き、編集内容を保持します。生成Sceneは既存の `QuestPresentationBuild.BuildAndroid` でビルドします。通信APKでもローカルMeta DevAgent設定を除外し、正常・失敗の両方でasset、meta、preloaded assetsを復元します。OpenCVサンプルがimport済みならビルドを拒否するため、既存の `Unframe/Tools/OpenCV/Prepare Fast Builds (Exclude OpenCV Samples)` で除外します。
 

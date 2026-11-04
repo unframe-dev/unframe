@@ -117,6 +117,22 @@ namespace Unframe.Unity.PresentationRuntime
             };
         }
 
+        public static ControlClientItem CreatePresentationOrigin(Pose pose, ulong version, ulong epoch)
+        {
+            if (!PresentationCalibrationState.IsCanonical(pose))
+                throw new ArgumentException("A canonical origin and current version are required.");
+            return new ControlClientItem
+            {
+                PresentationOrigin = new PresentationOriginCommand
+                {
+                    ClientEventId = EventId(epoch),
+                    CommandEpoch = epoch,
+                    ExpectedPresentationOriginVersion = version,
+                    Pose = pose.Clone()
+                }
+            };
+        }
+
         public static ControlClientItem CreateControl(RuntimeControlKind kind, ulong origin, ulong epoch, string groupId = null, string stepId = null)
         {
             if (kind < RuntimeControlKind.Pause || kind > RuntimeControlKind.Recalibrate

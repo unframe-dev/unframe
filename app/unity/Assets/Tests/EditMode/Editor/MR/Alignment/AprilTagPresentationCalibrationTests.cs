@@ -34,6 +34,39 @@ public sealed class AprilTagPresentationCalibrationTests
     }
 
     [Test]
+    public void HeightCaptureKeepsPhysicalMarkerCalibrationAndSessionSwitchRequiresNewConfirmation()
+    {
+        var head = new GameObject("HMD");
+        try
+        {
+            head.transform.position = new Vector3(2, 1.8f, 3);
+            bridge.ConfigureHead(head.transform);
+            var marker = new Pose(new Vector3(1, 0.6f, 3), Quaternion.Euler(20, 40, 10));
+            Confirm(marker);
+            bridge.Refresh();
+            Assert.That(PresentationCalibrationMath.TryWorldFromPresentation(bridge.Calibration.PresentationFromQuestLocal,
+                origin.transform, out Pose physicalMarker, out _), Is.True);
+            Assert.That(Vector3.Distance(physicalMarker.position, marker.position), Is.LessThan(0.00001f));
+            head.transform.position = Vector3.up * 2.4f;
+            bridge.BeginSession("first");
+            var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
+            var command = bridge.Placement.Prepare(initial, 3);
+            Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out Pose stage), Is.True);
+            Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(1.5f).Within(0.00001f));
+            bridge.BeginSession("second");
+            Assert.That(bridge.Calibration.IsValid, Is.False);
+            Assert.That(alignment.IsConfirmed, Is.False);
+            Assert.That(bridge.Placement.Prepare(initial, 3), Is.Null);
+            Confirm(marker);
+            bridge.Refresh();
+            command = bridge.Placement.Prepare(initial, 3);
+            Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out stage), Is.True);
+            Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(2.1f).Within(0.00001f));
+        }
+        finally { Object.DestroyImmediate(head); }
+    }
+
+    [Test]
     public void ConfirmationPublishesInverseComposedQuestCalibrationAndKeepsItWithoutNewMarkerFrames()
     {
         var marker = new Pose(new Vector3(1, 2, 3), Quaternion.Euler(0, 25, 0));

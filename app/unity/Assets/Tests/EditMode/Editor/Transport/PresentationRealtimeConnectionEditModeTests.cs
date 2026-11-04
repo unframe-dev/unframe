@@ -286,6 +286,55 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         return store;
     }
 
+    [Test]
+    public async Task OriginAppliedWhileInitialStateReadyIsWritingAcknowledgesTheNewOriginCut()
+    {
+        var store = CreateOwnedStore(true);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        using (var cancellation = new CancellationTokenSource())
+        {
+            LoadTrackingTextures(store, textures);
+            var commands = new ControlWriter { FirstWriteRelease = new TaskCompletionSource<bool>() };
+            var controlCall = new AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem>(commands, null, Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+            var stateCall = new AsyncDuplexStreamingCall<StateClientItem, StateServerItem>(new TrackingWriter(), new ConnectedStateReader(), Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(PresentationRealtimeConnection).GetField("control", flags).SetValue(connection, controlCall);
+            typeof(PresentationRealtimeConnection).GetField("state", flags).SetValue(connection, stateCall);
+            typeof(PresentationRealtimeConnection).GetField("connectionId", flags).SetValue(connection, "ready-test");
+            Task run = (Task)typeof(PresentationRealtimeConnection).GetMethod("RunStateAsync", flags).Invoke(connection, new object[] { cancellation.Token });
+            try
+            {
+                Assert.That(commands.Items.Count, Is.EqualTo(1));
+                Assert.That(store.TryGetLastConnectionSnapshot(out var snapshot), Is.True);
+                var updated = store.PresentationOrigin.Clone();
+                updated.Version++;
+                updated.Pose.Position.Y = 1.5;
+                ulong sequence = store.LastReliableSequence + 1;
+                Assert.That(store.TryReceiveControl(new ControlServerItem
+                {
+                    ReliableEvent = new ProjectedReliableEvent
+                    {
+                        Fence = snapshot.Fence.Clone(),
+                        Sequence = sequence,
+                        PresentationOriginChanged = new PresentationOriginChanged { Origin = updated }
+                    }
+                }, out string error), Is.True, error);
+                commands.FirstWriteRelease.SetResult(true);
+                for (int i = 0; i < 100 && commands.Items.Count < 2; i++) await Task.Yield();
+                Assert.That(commands.Items.Count, Is.EqualTo(2));
+                Assert.That(commands.Items[1].StateReady.PresentationOriginVersion, Is.EqualTo(updated.Version));
+                Assert.That(commands.Items[1].StateReady.AppliedReliableSequence, Is.EqualTo(sequence));
+            }
+            finally
+            {
+                cancellation.Cancel();
+                commands.FirstWriteRelease.TrySetResult(true);
+                try { await run; } catch (OperationCanceledException) { }
+            }
+        }
+    }
+
     [TestCase("cancel")]
     [TestCase("dispose")]
     [TestCase("replace")]
