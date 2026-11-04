@@ -2,10 +2,10 @@ import { nativeHost } from "../platform/host.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createInterface } from "node:readline";
-import { readdir } from "node:fs/promises";
+import { readdir, realpath } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { editorAssetsDirectory, unityPreviewDirectory } from "@unframe-dev/local-editor";
-import { readRegularFile } from "@unframe-dev/workspace-node";
+import type { StaticAsset } from "./static-assets.js";
 import { watchProjectChanges, type ProjectChanges } from "./project-changes.js";
 import { startAuthorHost } from "./http.js";
 import { createAuthorService } from "./service.js";
@@ -28,7 +28,8 @@ const mediaTypes: Record<string, string> = {
   ".data": "application/octet-stream",
 };
 export const loadAuthorAssets = async (directory: string) => {
-  const assets = new Map<string, { bytes: Uint8Array; mediaType: string }>();
+  directory = await realpath(directory);
+  const assets = new Map<string, StaticAsset>();
   const walk = async (relative: string) => {
     for (const entry of await readdir(join(directory, relative), { withFileTypes: true })) {
       const path = relative ? `${relative}/${entry.name}` : entry.name;
@@ -36,9 +37,11 @@ export const loadAuthorAssets = async (directory: string) => {
       else if (entry.isFile()) {
         const mediaType = mediaTypes[extname(path)];
         if (!mediaType) continue;
-        const bytes = await readRegularFile(join(directory, path));
-        if (!bytes) throw new Error("Author assets must be stable regular files.");
-        assets.set(path === "index.html" ? "/" : `/${path}`, { bytes, mediaType });
+        assets.set(path === "index.html" ? "/" : `/${path}`, {
+          root: directory,
+          relative: path,
+          mediaType,
+        });
       } else throw new Error("Author assets must not contain links.");
     }
   };
@@ -48,16 +51,16 @@ export const loadAuthorAssets = async (directory: string) => {
   return assets;
 };
 export const loadUnityPreviewAssets = async (directory: string) => {
-  const assets = new Map<string, { bytes: Uint8Array; mediaType: string }>();
+  directory = await realpath(directory);
+  const assets = new Map<string, StaticAsset>();
   const walk = async (relative: string) => {
     for (const entry of await readdir(join(directory, relative), { withFileTypes: true })) {
       const path = relative ? `${relative}/${entry.name}` : entry.name;
       if (entry.isDirectory()) await walk(path);
       else if (entry.isFile()) {
-        const bytes = await readRegularFile(join(directory, path));
-        if (!bytes) throw new Error("Unity Preview assets must be stable regular files.");
         assets.set(`/unity-preview/${path}`, {
-          bytes,
+          root: directory,
+          relative: path,
           mediaType: mediaTypes[extname(path)] ?? "application/octet-stream",
         });
       } else throw new Error("Unity Preview assets must not contain links.");
@@ -73,7 +76,7 @@ export const loadUnityPreviewAssets = async (directory: string) => {
 
 export const startDistPreviewHost = async (
   directory: string,
-  options: { assets?: ReadonlyMap<string, { bytes: Uint8Array; mediaType: string }> } = {},
+  options: { assets?: ReadonlyMap<string, StaticAsset> } = {},
 ) => {
   await readDistBuild(directory);
   const assets = options.assets ?? (await loadAuthorAssets(editorAssetsDirectory));
@@ -184,7 +187,7 @@ export const runAuthorProcess = async (
     }
   }
   const assets = development
-    ? new Map<string, { bytes: Uint8Array; mediaType: string }>()
+    ? new Map<string, StaticAsset>()
     : await loadAuthorAssets(editorAssetsDirectory);
   const unity = await loadUnityPreviewAssets(unityPreviewDirectory);
   for (const [path, asset] of unity) assets.set(path, asset);

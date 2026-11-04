@@ -1,5 +1,8 @@
 import { WebSocket } from "ws";
 import { createProjectChanges } from "../src/author/project-changes.js";
+import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { request, Server } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { startAuthorHost } from "../src/author/http.js";
@@ -82,9 +85,11 @@ async function previewSocketRequest(url: string, init: RequestInit) {
   });
 }
 
+const roots: string[] = [];
 const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];
 afterEach(async () => {
   await Promise.all(hosts.splice(0).map((host) => host.close()));
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
   vi.restoreAllMocks();
 });
 const setup = async (
@@ -119,6 +124,9 @@ const setup = async (
     artifact: vi.fn(),
     close: vi.fn(async () => {}),
   };
+  const root = await realpath(await mkdtemp(join(tmpdir(), "unframe-http-")));
+  roots.push(root);
+  await writeFile(join(root, "index.html"), "editor");
   const changes = createProjectChanges();
   const host = await startAuthorHost({
     changes,
@@ -126,12 +134,50 @@ const setup = async (
     previews,
     ...(publication ? { publication } : {}),
     ...(development ? { development: true } : {}),
-    assets: new Map([["/", { bytes: new TextEncoder().encode("editor"), mediaType: "text/html" }]]),
+    assets: new Map([["/", { root, relative: "index.html", mediaType: "text/html" }]]),
   });
   hosts.push(host);
-  return { host, service, previews, changes };
+  return { host, service, previews, changes, root };
 };
 describe("local author HTTP boundary", () => {
+  it("revalidates static HTML by content while API responses stay uncached", async () => {
+    const { host, root } = await setup();
+    const first = await fetch(host.origin);
+    const etag = first.headers.get("etag") ?? "";
+    expect(first.headers.get("cache-control")).toBe("private, no-cache");
+    expect(etag).toMatch(/^"[a-f0-9]{64}"$/);
+    expect(await first.text()).toBe("editor");
+    const cached = await fetch(host.origin, { headers: { "if-none-match": `W/${etag}` } });
+    expect(cached.status).toBe(304);
+    expect(await cached.text()).toBe("");
+    await writeFile(join(root, "index.html"), "change");
+    const changed = await fetch(host.origin, { headers: { "if-none-match": etag } });
+    expect(changed.status).toBe(200);
+    expect(changed.headers.get("etag")).not.toBe(etag);
+    expect(await changed.text()).toBe("change");
+    await writeFile(join(root, "index.html"), "editor");
+    const sameContent = await fetch(host.origin, { headers: { "if-none-match": etag } });
+    expect(sameContent.status).toBe(304);
+    const api = await fetch(`${host.origin}/api/project`, {
+      headers: { authorization: `Bearer ${host.token}` },
+    });
+    expect(api.headers.get("cache-control")).toBe("no-store");
+    await api.body?.cancel();
+  });
+  it("serves static HEAD without a body and recovers after a missing file", async () => {
+    const { host, root } = await setup();
+    const head = await fetch(host.origin, { method: "HEAD" });
+    expect(head.status).toBe(200);
+    expect(head.headers.get("content-length")).toBe("6");
+    expect(await head.text()).toBe("");
+    await rm(join(root, "index.html"));
+    const missing = await fetch(host.origin);
+    expect(missing.status).toBe(500);
+    await missing.body?.cancel();
+    await writeFile(join(root, "index.html"), "recovered");
+    const retried = await fetch(host.origin);
+    expect(await retried.text()).toBe("recovered");
+  });
   it("bootstraps an Editor session from its own origin without an existing credential", async () => {
     const { host } = await setup();
     const response = await fetch(`${host.origin}/api/editor-session`, {
