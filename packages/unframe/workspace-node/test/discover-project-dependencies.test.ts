@@ -30,6 +30,22 @@ it("discovers a project without a persistent Unframe lock or package manager loc
   expect(found.revision).toBe(createProjectRevision(found));
 });
 
+it("ignores obsolete Unframe locks in captured files and revisions", async () => {
+  const directory = await project();
+  const before = await discoverPresentationProjectFiles(directory);
+  assert(before.ok);
+  await writeFile(join(directory, "unframe.lock"), "obsolete dependency snapshot");
+  const after = await discoverPresentationProjectFiles(directory);
+  assert(after.ok);
+  expect(after.localFiles.map((file) => file.path)).not.toContain("unframe.lock");
+  expect(after.revision).toBe(before.revision);
+  await rm(join(directory, "unframe.lock"));
+  await symlink("missing-obsolete-lock", join(directory, "unframe.lock"));
+  const unreadable = await discoverPresentationProjectFiles(directory);
+  assert(unreadable.ok);
+  expect(unreadable.revision).toBe(before.revision);
+});
+
 it("fences installed dependency byte changes even when their version is unchanged", async () => {
   const directory = await project();
   const dependency = join(directory, "node_modules", "example");
@@ -50,6 +66,26 @@ it("fences installed dependency byte changes even when their version is unchange
   assert(after.ok);
   expect(after.revision).not.toBe(before.revision);
   expect(after.dependencyHash).not.toBe(before.dependencyHash);
+});
+
+it("discovers source independently of unused tool module contents", async () => {
+  const directory = await project();
+  const tool = join(directory, "node_modules/tool");
+  await mkdir(tool, { recursive: true });
+  await writeFile(
+    join(directory, "package.json"),
+    JSON.stringify({ devDependencies: { tool: "*" } }),
+  );
+  await writeFile(
+    join(tool, "package.json"),
+    JSON.stringify({ name: "tool", version: "1.0.0", main: "index.js" }),
+  );
+  await writeFile(join(tool, "index.js"), new Uint8Array([0xff]));
+  await symlink("index.js", join(tool, "alias.js"));
+  const found = await discoverPresentationProjectFiles(directory);
+  assert(found.ok);
+  expect(found.dependencyGraph.packages).toEqual([]);
+  expect(found.localFiles.map((file) => file.path)).toEqual(["package.json", "presentation.ts"]);
 });
 
 it("fences linked workspace content without consulting a package manager lock", async () => {

@@ -89,7 +89,8 @@ const scanAuthoringSources = async (
       if (!relativeName || relativeName.startsWith("../")) return false;
       if (
         ignoredDirectoryNames.has(name) ||
-        (directory === root && [".unframe-build.lock", ".unframe-source.lock"].includes(name))
+        (directory === root &&
+          ["unframe.lock", ".unframe-build.lock", ".unframe-source.lock"].includes(name))
       )
         continue;
       if (directory === root && /^\.dist-[0-9a-f]{32}$/.test(name)) {

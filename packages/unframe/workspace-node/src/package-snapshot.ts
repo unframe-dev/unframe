@@ -1,7 +1,7 @@
 import { mediaTypeFor } from "@unframe-dev/workspace";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { createHash } from "node:crypto";
-import { lstat, realpath } from "node:fs/promises";
+import { lstat, readlink, realpath } from "node:fs/promises";
 import { dirname, join, posix, relative, sep } from "node:path";
 import { parseStrictJson } from "@unframe-dev/artifacts";
 import { readDirectoryNames, readRegularFile } from "./path-policy.js";
@@ -625,6 +625,38 @@ const readLinkedWorkspaceInputsWithinScope = async (root: string) => {
 export const readLinkedWorkspaceInputs: typeof readLinkedWorkspaceInputsWithinScope = (...args) =>
   withNativeFilesystem(() => readLinkedWorkspaceInputsWithinScope(...args));
 
+const packageFileIdentities = async (root: string, workspace: boolean) => {
+  const files: (
+    | { path: string; hash: ContentHash; executable: boolean }
+    | { path: string; link: string }
+  )[] = [];
+  const roots = workspace ? workspacePackageFileRoots(await manifestAt(root)) : undefined;
+  const visit = async (path: string): Promise<void> => {
+    const names = await readDirectoryNames(path ? join(root, path) : root);
+    if (!names) throw new Error("Package directory is unsafe.");
+    for (const name of names) {
+      if (["node_modules", ".git", ".unframe", ".cache"].includes(name)) continue;
+      const relative = path ? `${path}/${name}` : name;
+      if (roots && !isWorkspacePackageSnapshotPath(relative, roots)) continue;
+      const full = join(root, relative);
+      const stat = await lstat(full);
+      if (stat.isSymbolicLink()) files.push({ path: relative, link: await readlink(full) });
+      else if (stat.isDirectory()) await visit(relative);
+      else {
+        const bytes = await readRegularFile(full);
+        if (!bytes) throw new Error("Package contains an unsafe file.");
+        files.push({
+          path: relative,
+          hash: digestBytes(bytes),
+          executable: (stat.mode & 0o111) !== 0,
+        });
+      }
+    }
+  };
+  await visit("");
+  return files.sort((a, b) => compare(a.path, b.path));
+};
+
 /** Tracks installed inputs independently of their browser or Node entry point semantics. */
 const readInstalledDependencyInputsWithinScope = async (root: string) => {
   const projectRoot = await realpath(root);
@@ -654,20 +686,14 @@ const readInstalledDependencyInputsWithinScope = async (root: string) => {
     const parsed = parseStrictJson(manifestBytes);
     if (!parsed.ok) throw new Error(`Invalid package manifest JSON: ${directory}`);
     const manifest = record(parsed.value);
-    const files = project ? undefined : await packageFiles(directory, linkedPackage(directory));
+    const files = project
+      ? undefined
+      : await packageFileIdentities(directory, linkedPackage(directory));
     inputs.push({
       directory: identity(directory),
       consumer: identity(consumer),
       manifest: digestBytes(manifestBytes),
       files,
-      executableFiles: files
-        ? await Promise.all(
-            files.map(async (file) => [
-              file.path,
-              ((await lstat(join(directory, file.path))).mode & 0o111) !== 0,
-            ]),
-          )
-        : undefined,
     });
     if (!project) directories.add(directory);
     for (const entry of dependencyEntries(manifest, project || linkedPackage(directory))) {

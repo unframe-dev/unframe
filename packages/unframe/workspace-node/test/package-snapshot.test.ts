@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 const temporaryDirectory = () => realpathSync(tmpdir());
@@ -488,6 +488,45 @@ it("hashes installed Node-only inputs without resolving browser exports and dete
   await writeFile(join(root, "node_modules/tool/index.js"), "export const edited = true;");
   expect((await readInstalledDependencyInputs(root)).dependencyHash).not.toBe(
     recovered.dependencyHash,
+  );
+});
+it("tracks unused tool symlinks without admitting them into an authoring snapshot", async () => {
+  const root = await project({ devDependencies: { tool: "*" } });
+  const tool = join(root, "node_modules/tool");
+  await install(tool, { name: "tool" });
+  await writeFile(join(tool, "other.js"), "export const other = true;");
+  const alias = join(tool, "alias.js");
+  await symlink("index.js", alias);
+  const before = await readInstalledDependencyInputs(root);
+  expect((await snapshotInstalledPackages(root, { rootSpecifiers: [] })).packages).toEqual([]);
+  await expect(snapshotInstalledPackages(root)).rejects.toThrow("Package contains an unsafe file");
+  await rm(alias);
+  await symlink("other.js", alias);
+  expect((await readInstalledDependencyInputs(root)).dependencyHash).not.toBe(
+    before.dependencyHash,
+  );
+});
+it("tracks unused tool bytes without interpreting JavaScript as UTF-8", async () => {
+  const root = await project({ devDependencies: { tool: "*" } });
+  const tool = join(root, "node_modules/tool");
+  await install(tool, { name: "tool" });
+  await writeFile(join(tool, "index.js"), new Uint8Array([0xff]));
+  const before = await readInstalledDependencyInputs(root);
+  await expect(snapshotInstalledPackages(root)).rejects.toThrow(TypeError);
+  await writeFile(join(tool, "index.js"), new Uint8Array([0xfe]));
+  expect((await readInstalledDependencyInputs(root)).dependencyHash).not.toBe(
+    before.dependencyHash,
+  );
+});
+it("invalidates installed input identities when an executable permission changes", async () => {
+  const root = await project({ devDependencies: { tool: "*" } });
+  const tool = join(root, "node_modules/tool");
+  await install(tool, { name: "tool" });
+  await chmod(join(tool, "index.js"), 0o644);
+  const before = await readInstalledDependencyInputs(root);
+  await chmod(join(tool, "index.js"), 0o755);
+  expect((await readInstalledDependencyInputs(root)).dependencyHash).not.toBe(
+    before.dependencyHash,
   );
 });
 it("sorts runtime and declaration roots after normalizing type specifiers", async () => {
