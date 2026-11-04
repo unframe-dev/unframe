@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="600" viewBox="0 0 1080 600" fill="none">
+      <g stroke="#7987fc" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M380 90 H290 M305 80 L290 90 L305 100" />
+        <path d="M540 140 V195 M530 180 L540 195 L550 180" />
+        <path d="M480 380 L260 445 M280 445 L260 445 L267 425" />
+        <path d="M600 380 L820 445 M800 445 L820 445 L813 425" />
+      </g>
+      <g fill="#db787b" font-family="sans-serif" font-size="30" text-anchor="middle">
+        <text x="340" y="390">
+          gRPC
+        </text>
+        <text x="760" y="390">
+          WebSocket
+        </text>
+      </g>
+    </svg>
