@@ -801,7 +801,7 @@ it("rejects out-of-range Presenter positions without poisoning a later valid mov
   }
 });
 
-it("routes Surface hits only for the displayed request during normal running playback", async () => {
+it("routes Surface hits only for the displayed request during normal paused playback", async () => {
   const { api, driver, commands } = fixture();
   let interact: Parameters<PreviewDriver["subscribeInteraction"]>[0] = () => undefined;
   const stop = vi.fn();
@@ -815,12 +815,10 @@ it("routes Surface hits only for the displayed request during normal running pla
     await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
     const requestId = controller.store.getState().loaded!.requestId;
     const hit = { requestId, surfaceId: "screen", interactionId: "next" };
-    interact(hit);
-    expect(commands.some((command) => command.command === "surfaceInteraction")).toBe(false);
     controller.store.setState({
       playback: {
         ...response(requestId, "1"),
-        state: { requestId, sequence: "1", clock: { runtimeTimeMs: "0", running: {} } },
+        state: { requestId, sequence: "1", clock: { runtimeTimeMs: "0", paused: {} } },
       },
     });
     interact({ ...hit, requestId: "old" });

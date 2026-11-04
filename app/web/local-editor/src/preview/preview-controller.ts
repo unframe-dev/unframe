@@ -219,8 +219,7 @@ export function createPreviewController(input: {
       closed ||
       snapshot.status !== "ready" ||
       snapshot.loaded?.requestId !== interaction.requestId ||
-      snapshot.playback?.mode !== "normal" ||
-      !snapshot.playback.state.clock?.running
+      snapshot.playback?.mode !== "normal"
     )
       return;
     playback.command({

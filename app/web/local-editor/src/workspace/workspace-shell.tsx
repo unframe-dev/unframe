@@ -69,9 +69,13 @@ function FlowGraph() {
   const w = useWorkspace();
   const definition = useStore(w.project.store, (s) => s.project?.definition);
   const selection = useStore(w.ui, (s) => s.selection);
+  const followingGroupId = useStore(w.preview.store, (s) =>
+    s.playback?.mode === "normal" && s.playback.state.clock?.running ? s.playback.groupId : null,
+  );
+  const followingPlayback = followingGroupId !== null;
   const group = definition
     ? createTimelineView(definition).groups.find(
-        (g) => g.id === (selection.groupId ?? definition.flow.initialGroupId),
+        (g) => g.id === (followingGroupId ?? selection.groupId ?? definition.flow.initialGroupId),
       )
     : null;
   const currentStepId = useStore(w.preview.store, (s) =>
@@ -94,8 +98,9 @@ function FlowGraph() {
     <div className="flow-graph-panel">
       <ProgressionTimeline
         group={group}
-        selectedStepId={selection.stepId}
-        selectedCueId={selection.cueId}
+        followingPlayback={followingPlayback}
+        selectedStepId={selection.groupId === group.id ? selection.stepId : null}
+        selectedCueId={selection.groupId === group.id ? selection.cueId : null}
         currentStepId={currentStepId}
         onSelectCue={onSelectCue}
         onSelectStep={onSelectStep}

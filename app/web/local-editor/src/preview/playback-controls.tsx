@@ -41,7 +41,7 @@ export function PlaybackControls() {
                 ? `次のイベント: ${p.simulation.nextInput.cueId}`
                 : "次のイベント"
             }
-            disabled={!ready || !p?.state.clock?.running || !p.simulation?.nextInput}
+            disabled={!ready || !p?.simulation?.nextInput}
             onClick={() => {
               const nextInput = p?.simulation?.nextInput;
               if (nextInput) w.commands.playback({ command: "input", cueId: nextInput.cueId });
@@ -94,7 +94,7 @@ export function PlaybackControls() {
           p?.inputs.map((input) => (
             <Button
               key={input.cueId}
-              disabled={!ready || !p.state.clock?.running}
+              disabled={!ready}
               onClick={() => w.commands.playback({ command: "input", cueId: input.cueId })}
             >
               {input.label}

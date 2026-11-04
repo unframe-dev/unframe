@@ -25,7 +25,6 @@ export function SimulationControls() {
   const simulation = playback?.simulation;
   if (!simulation || playback.mode !== "normal") return null;
   const ready = status === "ready";
-  const running = ready && !!playback.state.clock?.running;
   const selectedGesture =
     simulation.gestures.find((item) => item === gesture) ?? simulation.gestures[0];
   const selectedEvent =
@@ -64,7 +63,7 @@ export function SimulationControls() {
         <div className="simulation-input">
           <select
             aria-label="Gesture の種類"
-            disabled={!running}
+            disabled={!ready}
             value={selectedGesture}
             onChange={(event) => setGesture(event.target.value as Gesture)}
           >
@@ -75,7 +74,7 @@ export function SimulationControls() {
             ))}
           </select>
           <Button
-            disabled={!running}
+            disabled={!ready}
             onClick={() =>
               workspace.commands.playback({ command: "gesture", gesture: selectedGesture })
             }
@@ -88,7 +87,7 @@ export function SimulationControls() {
         <div className="simulation-input">
           <select
             aria-label="外部イベント"
-            disabled={!running}
+            disabled={!ready}
             value={JSON.stringify(selectedEvent)}
             onChange={(event) => setEventKey(event.target.value)}
           >
@@ -99,7 +98,7 @@ export function SimulationControls() {
             ))}
           </select>
           <Button
-            disabled={!running}
+            disabled={!ready}
             onClick={() =>
               workspace.commands.playback({ command: "semanticEvent", ...selectedEvent })
             }

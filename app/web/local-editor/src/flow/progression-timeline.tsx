@@ -1,9 +1,10 @@
-import { memo, useMemo } from "react";
+import { memo, useLayoutEffect, useMemo, useRef } from "react";
 import { progressionSteps, triggerTiming, type TimelineGroupView } from "./flow-model";
 import { triggerPresentation } from "./cue-presentation";
 
 export function ProgressionTimeline({
   group,
+  followingPlayback,
   selectedStepId,
   selectedCueId,
   currentStepId,
@@ -11,12 +12,30 @@ export function ProgressionTimeline({
   onSelectCue,
 }: {
   group: TimelineGroupView;
+  followingPlayback: boolean;
   selectedStepId: string | null;
   selectedCueId: string | null;
   currentStepId: string | null;
   onSelectStep: (id: string) => void;
   onSelectCue: (stepId: string, cueId: string) => void;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const labelsRef = useRef<HTMLDivElement>(null);
+  const currentStepRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const scroll = scrollRef.current;
+    const current = currentStepRef.current;
+    if (!followingPlayback || !scroll || !current) return;
+    const viewport = scroll.getBoundingClientRect();
+    const column = current.getBoundingClientRect();
+    const labelsWidth = labelsRef.current?.getBoundingClientRect().width ?? 0;
+    const left = viewport.left + scroll.clientLeft + labelsWidth;
+    if (column.left < left || column.right > viewport.left + scroll.clientWidth) {
+      scroll.scrollLeft +=
+        column.left - left - Math.max(0, (scroll.clientWidth - labelsWidth - column.width) / 2);
+    }
+    scroll.scrollTop = 0;
+  }, [group.id, currentStepId, followingPlayback]);
   const columns = useMemo(
     () =>
       progressionSteps(group).map((step) => ({
@@ -36,12 +55,13 @@ export function ProgressionTimeline({
       aria-description="左から右へ進行順に並びます。秒数の時間軸ではありません。"
     >
       <div
+        ref={scrollRef}
         className="progression-scroll"
         tabIndex={0}
         aria-label="進行タイムラインのスクロール領域"
       >
         <div className="progression-tracks">
-          <div className="progression-track-labels" aria-hidden="true">
+          <div ref={labelsRef} className="progression-track-labels" aria-hidden="true">
             <div title={group.id}>{group.id}</div>
             <span>Step</span>
             <span>Cue</span>
@@ -49,6 +69,7 @@ export function ProgressionTimeline({
           {columns.map(({ step, edges }, index) => (
             <section
               key={step.id}
+              ref={currentStepId === step.id ? currentStepRef : undefined}
               className="progression-column"
               aria-label={`Step ${step.id}`}
               data-current={currentStepId === step.id || undefined}
