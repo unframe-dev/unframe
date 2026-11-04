@@ -330,7 +330,7 @@ Session は `presentationId` を参照し、公開版を選択しない。Sessio
 
 `Waiting` は作成時に有限の `waitingExpiresAt` を持つ。Presentation owner または admin は、その Session の presenter でなくても `Waiting` Session を cancel して `Ended` にできる。publish の直列化処理は期限切れの `Waiting` Session を同じ永続化境界で `Ended / waitingExpired` にした後、残る active-use lock を判定する。通常の editor 操作、viewer join、接続切断だけで期限を延長せず、延長を許可する場合も認証済み presenter の明示操作と上限付き lease として定義する。`Presenting` は waiting lease では自動終了せず、通常の Session end または Runtime recovery timeout に従う。これにより editor が作成後に放置した Session が publish を無期限に妨げない。
 
-active-use lock 中もローカル編集と build は許可する。[ADR-0025](../decisions/0025-local-editor-unity-preview.md) の公開対象は Unity で表示確認した固定 Dist とする。Local Host は表示済み成果物と現在の `dist` を照合して generation を固定し、現在の Source／lock の更新を公開へ取り込まない。CP は `buildId`、artifact hash、Asset readiness、認可、active-use lock と、要求に固定した期待 PublicationFence（初回は未公開）を検証する。現在の公開状態と一致する場合だけ `publicationEpoch` を増やして PublishedPresentation を atomic に置換し、競合時は拒否する。CP の Draft revision とローカル Source revision の一致は公開条件にしない。
+active-use lock 中もローカル編集と build は許可する。[ADR-0025](../decisions/0025-local-editor-unity-preview.md) の公開対象は Unity で表示確認した固定 Dist とする。Local Host は表示済み成果物と現在の `dist` を照合して generation を固定し、現在の Source の更新を公開へ取り込まない。CP は `buildId`、artifact hash、Asset readiness、認可、active-use lock と、要求に固定した期待 PublicationFence（初回は未公開）を検証する。現在の公開状態と一致する場合だけ `publicationEpoch` を増やして PublishedPresentation を atomic に置換し、競合時は拒否する。CP の Draft revision とローカル Source revision の一致は公開条件にしない。
 
 Presentation ID はローカルで初回 build 前に生成・保存し、公開時の認証後に同じ ID を CP へ登録する。CP は ID の形式・一意性・所有権を検証する。ローカル ID と登録用 metadata を受ける登録契約、および上記の公開条件への移行は ADR-0025 の実装範囲であり、現行 API が対応済みであることを意味しない。
 
@@ -758,7 +758,7 @@ Source frontend は取得済み source と依存 snapshot を解決した後、L
 
 Normalization は少なくとも、stable ID の一意性、参照整合性、Component contract、source range との対応、context ごとの許可 node、静的 topology を検証する。unsupported syntax、未解決または許可されていない import / call、計算された ID、AST と Declaration Graph の対応欠落は build error とする。具体的な parser、TypeScript API、AST patch library は implementation design で選択できるが、この静的 lowering contract を変更してはならない。
 
-Opaque renderer はこの pipeline に入れず、通常の module bundling で renderer artifact を生成する。artifact を Layout / capture のために実行する場合は renderer 専用の隔離された Browser environment を使用する。Browser capability、固定 lock の module resolution、cache invalidation、Font / Locale は [Renderer Web Architecture](../../packages/unframe/renderer-web/ARCHITECTURE.md) と [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。platform ごとの再現性の追加検証は ADR-0026 に従う。
+Opaque renderer はこの pipeline に入れず、通常の module bundling で renderer artifact を生成する。artifact を Layout / capture のために実行する場合は renderer 専用の隔離された Browser environment を使用する。Browser capability、取得済み依存 graph の module resolution、cache invalidation、Font / Locale は [Renderer Web Architecture](../../packages/unframe/renderer-web/ARCHITECTURE.md) と [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。platform ごとの再現性の追加検証は ADR-0026 に従う。
 
 ### 6.4 GUI / Code round-trip
 

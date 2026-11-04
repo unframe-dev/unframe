@@ -51,14 +51,14 @@ root export は native module を import しない。OpenTUI の Zig core を必
 
 依存の導入・更新はプロジェクトが選ぶパッケージマネージャーが所有する。Unframe は install を実行せず、導入済み `node_modules` から package bytes・exports・依存 edge を取得する。workspace と symlink を実体へ解決し、peer dependency は利用元の解決 context を区別する。PnP は未対応である。
 
-一回の解析・build は取得済みの Source・依存 graph・素材を入力とし、Component・Theme・style の carrier を生成する。Compiler は package manager や永続 lock を参照しない。依存 files と graph、Source、設定から revision を算出し、公開直前に再取得した revision と照合する。別の環境・将来の再 build で完全に同じ Dist が得られることは要求しない。公開内容は生成済み Dist で保持する。
+一回の解析・build は取得済みの Source・依存 graph・素材を入力とし、Component・Theme・style の carrier を生成する。Compiler は package manager や永続 lock を参照しない。旧 `unframe.lock` は Source の取得対象から除外する。依存 files と graph、Source、設定から revision を算出し、公開直前に再取得した revision と照合する。スタイル依存の取得前後にも導入済み依存を照合し、取得済み revision と異なる場合は解析を拒否する。別の環境・将来の再 build で完全に同じ Dist が得られることは要求しない。公開内容は生成済み Dist で保持する。
 
 再利用する build 結果は `.unframe/cache/` に置く。キャッシュが無い・無効な場合は入力から再生成する。`.unframe/authoring/` の receipt / journal は保存・回復状態であり、削除可能なキャッシュには含めない。
 
 ## 2. Command contract
 
 現行 public API の `args` は descriptor-safe snapshot の後に検査する dense な string array である。M1
-process command は absolute project directory を受け、その realpath を root として同じ directory の `unframe.config.ts` と Source を読む。project root の上方探索は行わない。依存解決は利用元から祖先の `node_modules` を探索する。public input、command grammar、build context、host callback も descriptor-safe
+process command は相対または絶対 project directory を受け、その realpath を root として同じ directory の `unframe.config.ts` と Source を読む。project root の上方探索は行わない。依存解決は利用元から祖先の `node_modules` を探索する。public input、command grammar、build context、host callback も descriptor-safe
 snapshot と explicit validation で boundary validation する。host の callback
 invocation と Compiler / Renderer の cross-boundary semantic diagnostics は、この構造検査の後に扱う。
 

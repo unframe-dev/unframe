@@ -20,7 +20,7 @@ CLI command parsing、concrete renderer implementation、publish は所有しな
 ## 2. Pipeline
 
 ```text
-Authoring Source / lock / config
+Authoring Source / captured dependencies / config
         ↓ parse
 Lossless Syntax Tree + Source Map
         ↓ import / symbol resolution / typecheck
@@ -173,4 +173,4 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 ## 11. Direct source editing
 
 `readEditableReactScene` は検証済み catalog と最新 Source から公開 scalar Props と host Transform の編集可否を返す。
-`patchEditableReactScene` は直接 literal を置換し、共有値や spread に由来する field は対象 Instance の局所 override として保存する。継承へ戻す操作と式の復元を扱い、共有元・対象外 Source・コメントを保持する。保存前の再検証、lock 更新、filesystem transaction は CLI が所有する。
+`patchEditableReactScene` は直接 literal を置換し、共有値や spread に由来する field は対象 Instance の局所 override として保存する。継承へ戻す操作と式の復元を扱い、共有元・対象外 Source・コメントを保持する。保存前の再検証と filesystem transaction は CLI が所有する。
