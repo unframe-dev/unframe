@@ -13,6 +13,27 @@ function uint(value: string | undefined, zero = false): number {
     ? parsed
     : fail("invalid residency integer");
 }
+type PngTextureDescriptor = Omit<PngTextureAsset, "url" | "expiresAtUnixMs">;
+
+function withCurrentAccess(
+  delivery: DeliveryManifestWire,
+  asset: PngTextureDescriptor,
+): PngTextureAsset {
+  const access = delivery.assetAccess?.filter((entry) => entry.assetId === asset.assetId);
+  if (
+    access?.length !== 1 ||
+    access[0]!.checksum !== asset.checksum ||
+    access[0]!.encodedSizeBytes !== String(asset.encodedSizeBytes) ||
+    access[0]!.mediaType !== "image/png"
+  )
+    fail("selected texture descriptor mismatch");
+  return {
+    ...asset,
+    url: access[0]!.url ?? fail("missing asset URL"),
+    expiresAtUnixMs: uint(access[0]!.expiresAtUnixMs),
+  };
+}
+
 function identity(asset: PngTextureAsset) {
   return JSON.stringify([asset.checksum, asset.encodedSizeBytes, asset.pixelSize, asset.alphaMode]);
 }
@@ -35,24 +56,14 @@ function selectedTextures(delivery: DeliveryManifestWire): PngTextureAsset[] {
       const texture = artifact.states?.find((state) => state.stateId === binding.stateId)?.texture;
       if (!texture?.assetId || !texture.checksum || texture.mipCount !== 1)
         fail("invalid selected texture descriptor");
-      const access = delivery.assetAccess?.filter((entry) => entry.assetId === texture.assetId);
-      if (
-        access?.length !== 1 ||
-        access[0]!.checksum !== texture.checksum ||
-        access[0]!.encodedSizeBytes !== texture.encodedSizeBytes ||
-        access[0]!.mediaType !== "image/png"
-      )
-        fail("selected texture descriptor mismatch");
       if (texture.alphaMode !== 1 && texture.alphaMode !== 2) fail("invalid alpha mode");
-      const asset: PngTextureAsset = {
+      const asset = withCurrentAccess(delivery, {
         assetId: texture.assetId,
         checksum: texture.checksum,
         encodedSizeBytes: uint(texture.encodedSizeBytes),
         pixelSize: [uint(texture.pixelSize?.width), uint(texture.pixelSize?.height)],
         alphaMode: texture.alphaMode === 1 ? "opaque" : "straight",
-        url: access[0]!.url ?? fail("missing asset URL"),
-        expiresAtUnixMs: uint(access[0]!.expiresAtUnixMs),
-      };
+      });
       if (uint(texture.decodedGpuBytes) !== asset.pixelSize[0] * asset.pixelSize[1] * 4)
         fail("selected texture residency mismatch");
       const previous = assets.get(asset.assetId);
@@ -262,7 +273,8 @@ export async function createPngTexturePool(options: {
           admitPngMemory([asset], residentCpu + encodedBytes, uint(limits?.maxSerialLoadCpuBytes));
           let bytes = encoded.get(asset.checksum);
           if (bytes) cache(asset.checksum, bytes);
-          const item = await (options.loadTexture ?? loadPngTexture)(asset, {
+          const currentAsset = withCurrentAccess(options.delivery, asset);
+          const item = await (options.loadTexture ?? loadPngTexture)(currentAsset, {
             ...(request.signal ? { signal: request.signal } : {}),
             ...(options.fetcher ? { fetcher: options.fetcher } : {}),
             ...(bytes ? { encodedBytes: bytes } : {}),

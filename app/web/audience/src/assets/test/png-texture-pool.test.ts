@@ -2,7 +2,7 @@ import { expect, it, vi } from "vite-plus/test";
 import { Texture } from "three";
 import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
-import type { PngTextureAsset, loadPngTexture } from "../png-texture";
+import { loadPngTexture, type PngTextureAsset } from "../png-texture";
 import { createPngTexturePool as createPool } from "../png-texture-pool";
 
 async function createPngTexturePool(
@@ -348,3 +348,197 @@ it("shares a representative residency texture with render-state asset aliases", 
   expect(context.assets.every((asset) => asset.dispose.mock.calls.length === 1)).toBe(true);
   pool.dispose();
 });
+
+async function setupRefreshedAccess() {
+  const delivery = structuredClone(fixture.value) as DeliveryManifestWire;
+  const bytes = new Uint8Array(
+    Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aW3kAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  );
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  const checksum = `sha256:${Array.from(hash, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+  const texture = {
+    assetId: "image:one",
+    checksum,
+    encodedSizeBytes: String(bytes.length),
+    pixelSize: { width: "1", height: "1" },
+    alphaMode: 2,
+    mipCount: 1,
+    decodedGpuBytes: "4",
+  };
+  const render = delivery.projectionProfile!.renderSurfaces![0]!;
+  render.stateBindings = [{ stateId: "state:one", artifact: { artifactId: "artifact:one" } }];
+  render.artifacts = [
+    {
+      bakedWeb: {
+        artifactId: "artifact:one",
+        contractVersion: 1,
+        requiredFeatures: [1],
+        states: [{ stateId: "state:one", texture }],
+      },
+    },
+  ];
+  delivery.projectionProfile!.renderSurfaces = [render];
+  delivery.assetAccess = [
+    {
+      ...texture,
+      mediaType: "image/png",
+      url: "https://assets.test/initial.png",
+      expiresAtUnixMs: "2000",
+    },
+  ];
+  delivery.residency!.textures = {
+    initialGroupId: "first",
+    textures: [{ ...texture, peakLoadCpuBytes: String(bytes.length + 8) }],
+    groupWindows: [
+      { groupId: "first", assetIds: [] },
+      { groupId: "last", assetIds: [texture.assetId] },
+    ],
+    totalDecodedGpuBytes: "4",
+    maximumPeakLoadCpuBytes: String(bytes.length + 8),
+    maximumResidentGpuBytes: "4",
+    maximumResidentTextureBindings: "1",
+  };
+  const clock = { now: 1000 };
+  const fetcher = vi.fn<typeof fetch>(
+    async () => new Response(bytes, { headers: { "content-type": "image/png" } }),
+  );
+  const decode = vi.fn(
+    async () => ({ width: 1, height: 1, close: vi.fn() }) as unknown as ImageBitmap,
+  );
+  const pool = await createPool({
+    delivery,
+    fetcher,
+    loadTexture: (asset, options) =>
+      loadPngTexture(asset, { ...options, now: () => clock.now, decode }),
+    uploadTexture: (texture) => texture.onUpdate?.(texture),
+  });
+  function refreshAccess() {
+    clock.now = 3000;
+    delivery.assetAccess = delivery.assetAccess!.map((access) => ({
+      ...access,
+      url: "https://assets.test/refreshed.png",
+      expiresAtUnixMs: "4000",
+    }));
+  }
+  return { delivery, pool, fetcher, decode, refreshAccess };
+}
+
+it("uses refreshed access when a later group first needs a PNG after its original expiry", async () => {
+  const { pool, fetcher, decode, refreshAccess } = await setupRefreshedAccess();
+  try {
+    const first = await pool.acquire("first");
+    first.release();
+    refreshAccess();
+    const next = await pool.acquire("last");
+    expect(fetcher).toHaveBeenCalledWith("https://assets.test/refreshed.png", expect.any(Object));
+    expect(decode).toHaveBeenCalledOnce();
+    expect(pool.getTexture(next.assets[0]!).texture).toBeInstanceOf(Texture);
+    next.release();
+  } finally {
+    pool.dispose();
+  }
+});
+
+it("uses refreshed expiry to reload a released PNG from the encoded cache", async () => {
+  const { pool, fetcher, decode, refreshAccess } = await setupRefreshedAccess();
+  try {
+    const first = await pool.acquire("last");
+    const texture = pool.getTexture(first.assets[0]!).texture;
+    const dispose = vi.spyOn(texture, "dispose");
+    first.release();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(pool.gpuBytes).toBe(0);
+    expect(pool.retainedCpuBytes).toBeGreaterThan(0);
+    refreshAccess();
+    const next = await pool.acquire("last");
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(decode).toHaveBeenCalledTimes(2);
+    expect(pool.getTexture(next.assets[0]!).texture).not.toBe(texture);
+    next.release();
+  } finally {
+    pool.dispose();
+  }
+});
+
+it.each<{
+  name: string;
+  change(delivery: DeliveryManifestWire): void;
+  message: string;
+}>([
+  {
+    name: "missing binding",
+    change: (delivery) => {
+      delivery.assetAccess = [];
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "duplicate binding",
+    change: (delivery) => {
+      delivery.assetAccess!.push({ ...delivery.assetAccess![0]! });
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "checksum",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.checksum = `sha256:${"0".repeat(64)}`;
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "encoded size",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.encodedSizeBytes = "1000";
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "media type",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.mediaType = "video/mp4";
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "missing URL",
+    change: (delivery) => {
+      delete delivery.assetAccess![0]!.url;
+    },
+    message: "missing asset URL",
+  },
+  {
+    name: "malformed expiry",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.expiresAtUnixMs = "invalid";
+    },
+    message: "invalid residency integer",
+  },
+  {
+    name: "expired access",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.expiresAtUnixMs = "2500";
+    },
+    message: "expired",
+  },
+])(
+  "rejects refreshed access with $name even when verified encoded bytes are cached",
+  async ({ change, message }) => {
+    const { delivery, pool, fetcher, decode, refreshAccess } = await setupRefreshedAccess();
+    try {
+      const first = await pool.acquire("last");
+      first.release();
+      refreshAccess();
+      change(delivery);
+      await expect(pool.acquire("last")).rejects.toThrow(message);
+      expect(fetcher).toHaveBeenCalledOnce();
+      expect(decode).toHaveBeenCalledOnce();
+      expect(pool.gpuBytes).toBe(0);
+    } finally {
+      pool.dispose();
+    }
+  },
+);
