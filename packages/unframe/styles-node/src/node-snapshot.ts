@@ -264,6 +264,7 @@ export const snapshotNodeTransformInputs = async (
     dependencies: Record<string, string>;
   }[] = [];
   const seen = new Map<string, string>();
+  const capturedFiles = new Map<string, NodeSnapshotFile[]>();
   await checkPnp(root);
   const identity = async (directory: string) => {
     const manifest = await readManifest(directory);
@@ -281,7 +282,11 @@ export const snapshotNodeTransformInputs = async (
       throw new Error(`Missing Node dependency: ${name}`);
     }
     const workspace = isLinked(packageRoot);
-    const files = await collectFiles(packageRoot, workspace);
+    let files = capturedFiles.get(packageRoot);
+    if (!files) {
+      files = await collectFiles(packageRoot, workspace);
+      capturedFiles.set(packageRoot, files);
+    }
     const manifestFile = files.find((file) => file.path === "package.json");
     if (!manifestFile) throw new Error(`Node package manifest is missing: ${packageRoot}`);
     const manifest = parseManifest(

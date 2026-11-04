@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { lstat, readlink, realpath } from "node:fs/promises";
 import { dirname, join, posix, relative, sep } from "node:path";
 import { parseStrictJson } from "@unframe-dev/artifacts";
-import { readDirectoryNames, readRegularFile } from "./path-policy.js";
+import { hashRegularFile, readDirectoryNames, readRegularFile } from "./path-policy.js";
 import {
   hashPackageLocator,
   hashLockedPackageContent,
@@ -461,9 +461,14 @@ const snapshotInstalledPackagesWithinScope = async (
     },
   );
   const packages = new Map<string, PackageSnapshot>();
+  const capturedFiles = new Map<string, Awaited<ReturnType<typeof packageFiles>>>();
   const visit = async (directory: string, consumer: string): Promise<ContentHash> => {
     const workspace = linkedPackage(directory);
-    const files = await packageFiles(directory, workspace);
+    let files = capturedFiles.get(directory);
+    if (!files) {
+      files = await packageFiles(directory, workspace);
+      capturedFiles.set(directory, files);
+    }
     const manifestFile = files.find((file) => file.path === "package.json");
     const parsed =
       manifestFile?.encoding === "utf8" &&
@@ -643,11 +648,11 @@ const packageFileIdentities = async (root: string, workspace: boolean) => {
       if (stat.isSymbolicLink()) files.push({ path: relative, link: await readlink(full) });
       else if (stat.isDirectory()) await visit(relative);
       else {
-        const bytes = await readRegularFile(full);
-        if (!bytes) throw new Error("Package contains an unsafe file.");
+        const hash = await hashRegularFile(full);
+        if (!hash) throw new Error("Package contains an unsafe file.");
         files.push({
           path: relative,
-          hash: digestBytes(bytes),
+          hash,
           executable: (stat.mode & 0o111) !== 0,
         });
       }
@@ -664,6 +669,7 @@ const readInstalledDependencyInputsWithinScope = async (root: string) => {
   const visited = new Set<string>();
   const directories = new Set<string>();
   const inputs: unknown[] = [];
+  const capturedFiles = new Map<string, Awaited<ReturnType<typeof packageFileIdentities>>>();
   const identity = (directory: string) =>
     relative(projectRoot, directory).split(sep).join("/") || ".";
   const visit = async (directory: string, consumer: string, project = false): Promise<void> => {
@@ -686,9 +692,11 @@ const readInstalledDependencyInputsWithinScope = async (root: string) => {
     const parsed = parseStrictJson(manifestBytes);
     if (!parsed.ok) throw new Error(`Invalid package manifest JSON: ${directory}`);
     const manifest = record(parsed.value);
-    const files = project
-      ? undefined
-      : await packageFileIdentities(directory, linkedPackage(directory));
+    let files = capturedFiles.get(directory);
+    if (!project && !files) {
+      files = await packageFileIdentities(directory, linkedPackage(directory));
+      capturedFiles.set(directory, files);
+    }
     inputs.push({
       directory: identity(directory),
       consumer: identity(consumer),

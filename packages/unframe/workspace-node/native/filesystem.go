@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -149,7 +150,7 @@ func stablePath(path string, before fs.FileInfo, resolved string, directory bool
 	return err == nil && actual == resolved && same(before, after)
 }
 func checkedOperation(r request) (any, error) {
-	directory := r.Op != "readChecked"
+	directory := r.Op != "readChecked" && r.Op != "hashChecked"
 	before, resolved, err := checkedPath(r.Path, directory)
 	if err != nil {
 		return nil, err
@@ -171,8 +172,13 @@ func checkedOperation(r request) (any, error) {
 		return nil, invalid
 	}
 	var value any = resolved
-	if r.Op == "readChecked" {
-		value, err = readBounded(file, r.Limit, r.Expected, nil)
+	if r.Op == "readChecked" || r.Op == "hashChecked" {
+		var bytes []byte
+		bytes, err = readBounded(file, r.Limit, r.Expected, nil)
+		value = bytes
+		if err == nil && r.Op == "hashChecked" {
+			value = fmt.Sprintf("sha256:%x", sha256.Sum256(bytes))
+		}
 	} else if r.Op == "listChecked" {
 		var entries []fs.DirEntry
 		entries, err = file.ReadDir(-1)
@@ -313,7 +319,7 @@ func (s *server) execute(r request) (any, error) {
 		return nil, invalid
 	}
 
-	if r.Op == "readChecked" || r.Op == "directoryChecked" || r.Op == "listChecked" {
+	if r.Op == "readChecked" || r.Op == "hashChecked" || r.Op == "directoryChecked" || r.Op == "listChecked" {
 		return checkedOperation(r)
 	}
 	if r.Op == "closeAll" {

@@ -216,6 +216,19 @@ export class NativeFilesystem {
       }),
     );
   }
+  async checkedHash(path: string, limit: number, expected?: number) {
+    return z
+      .custom<`sha256:${string}`>(
+        (value) => typeof value === "string" && /^sha256:[a-f0-9]{64}$/u.test(value),
+      )
+      .parse(
+        await this.request("hashChecked", {
+          path,
+          limit,
+          ...(expected === undefined ? {} : { expected }),
+        }),
+      );
+  }
   private bytes(value: unknown) {
     return new Uint8Array(Buffer.from(z.string().parse(value), "base64"));
   }
