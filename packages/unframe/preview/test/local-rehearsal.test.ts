@@ -382,3 +382,124 @@ it("offers and executes inputs before play and while paused, but not during insp
   });
   expect(inspected.simulation?.nextInput).toBeNull();
 });
+
+it.each([
+  { mode: "before play", commands: [] },
+  { mode: "paused", commands: ["play", "pause"] },
+] as const)("keeps a new Step timer suspended after input $mode until Play", ({ commands }) => {
+  const playback = setup((definition) => {
+    definition.flow.groups.intro!.steps.start!.cues = [
+      {
+        id: "next",
+        order: 0,
+        priority: 0,
+        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
+        firePolicy: { kind: "oncePerStepEntry" },
+        actions: [],
+        next: { kind: "step", stepId: "after" },
+      },
+    ];
+    definition.flow.groups.intro!.steps.after = {
+      id: "after",
+      cues: [
+        {
+          id: "timer",
+          order: 0,
+          priority: 0,
+          trigger: { kind: "timer", afterMilliseconds: 0 },
+          firePolicy: { kind: "oncePerStepEntry" },
+          actions: [],
+          next: { kind: "end" },
+        },
+      ],
+    };
+  });
+  for (const command of commands) playback({ requestId, command });
+
+  const moved = playback({ requestId, command: "input", cueId: "next" });
+  expect(moved.stepId).toBe("after");
+  expect(moved.ended).toBe(false);
+  expect(moved.state.clock?.paused).toBeDefined();
+  expect(moved.state.clock?.runtimeTimeMs).toBe("0");
+  expect(moved.occurrences.map((occurrence) => occurrence.cueId)).toEqual(["next"]);
+  const polled = playback({ requestId, command: "poll" });
+  expect(polled.ended).toBe(false);
+  expect(polled.occurrences).toEqual(moved.occurrences);
+
+  const resumed = playback({ requestId, command: "play" });
+  expect(resumed.ended).toBe(true);
+  expect(resumed.occurrences.map((occurrence) => occurrence.cueId)).toEqual(["next", "timer"]);
+});
+
+it.each([
+  { mode: "before play", commands: [] },
+  { mode: "paused", commands: ["play", "pause"] },
+] as const)(
+  "keeps immediate media completion suspended after a Gesture $mode until Play",
+  ({ commands }) => {
+    const playback = setup((definition) => {
+      definition.flow.groups.intro!.steps.start!.cues = [
+        {
+          id: "seek-end",
+          order: 0,
+          priority: 0,
+          trigger: { kind: "logicalInput", action: "seek", actor: { kind: "presenter" } },
+          firePolicy: { kind: "oncePerStepEntry" },
+          actions: [
+            {
+              kind: "media.seek",
+              surfaceId: "video",
+              positionSeconds: { kind: "literal", value: 1 },
+            },
+          ],
+          next: { kind: "stay" },
+        },
+        {
+          id: "launch",
+          order: 1,
+          priority: 0,
+          trigger: { kind: "gesture", gesture: "swipeLeft", actor: { kind: "presenter" } },
+          firePolicy: { kind: "oncePerStepEntry" },
+          actions: [{ kind: "media.play", surfaceId: "video" }],
+          next: { kind: "step", stepId: "after" },
+        },
+      ];
+      definition.flow.groups.intro!.steps.after = {
+        id: "after",
+        cues: [
+          {
+            id: "completed",
+            order: 0,
+            priority: 0,
+            trigger: { kind: "mediaCompleted", surfaceId: "video" },
+            firePolicy: { kind: "oncePerStepEntry" },
+            actions: [],
+            next: { kind: "end" },
+          },
+        ],
+      };
+    });
+    playback({ requestId, command: "input", cueId: "seek-end" });
+    for (const command of commands) playback({ requestId, command });
+
+    const moved = playback({ requestId, command: "gesture", gesture: "swipeLeft" });
+    expect(moved.stepId).toBe("after");
+    expect(moved.ended).toBe(false);
+    expect(moved.state.clock?.paused).toBeDefined();
+    expect(moved.state.activeRuns).toHaveLength(1);
+    expect(moved.occurrences.map((occurrence) => occurrence.cueId)).toEqual(["seek-end", "launch"]);
+    const polled = playback({ requestId, command: "poll" });
+    expect(polled.ended).toBe(false);
+    expect(polled.state.activeRuns).toEqual(moved.state.activeRuns);
+    expect(polled.occurrences).toEqual(moved.occurrences);
+
+    const resumed = playback({ requestId, command: "play" });
+    expect(resumed.ended).toBe(true);
+    expect(resumed.state.activeRuns).toEqual([]);
+    expect(resumed.occurrences.map((occurrence) => occurrence.cueId)).toEqual([
+      "seek-end",
+      "launch",
+      "completed",
+    ]);
+  },
+);

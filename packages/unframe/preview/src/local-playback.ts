@@ -379,7 +379,7 @@ export const createLocalPlayback = ({
         const result = executeCueEvent(definition, state, event, { capture: true });
         if (result.capture) record(result.capture);
         state = result.state;
-        advanceNormal(state.runtimeTimeMilliseconds);
+        if (playing) advanceNormal(state.runtimeTimeMilliseconds);
         break;
       }
       case "inspectCue": {
