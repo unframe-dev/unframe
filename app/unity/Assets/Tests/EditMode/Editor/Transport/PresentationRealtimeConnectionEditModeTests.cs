@@ -286,6 +286,63 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         return store;
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task OriginChangeWaitsForCurrentRunningKeyframeButPreservesPausedDisplay(bool paused)
+    {
+        var store = CreateOwnedStore(paused);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        {
+            LoadTrackingTextures(store, textures);
+            var writer = new TrackingWriter();
+            PrepareTrackingState(connection, writer);
+            typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, true);
+            Assert.That(store.TryGetLastConnectionSnapshot(out var snapshot), Is.True);
+            var origin = store.PresentationOrigin.Clone();
+            origin.Version++;
+            var changed = new ControlServerItem
+            {
+                ReliableEvent = new ProjectedReliableEvent
+                {
+                    Sequence = store.LastReliableSequence + 1,
+                    Fence = snapshot.Fence.Clone(),
+                    PresentationOriginChanged = new PresentationOriginChanged { Origin = origin }
+                }
+            };
+            Assert.That(store.TryReceiveNetworkControl(changed, out string error), Is.True, error);
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(PresentationRealtimeConnection).GetMethod("ReliableDisplayChanged", flags).Invoke(connection, new object[] { changed });
+            Assert.That(connection.SessionReady, Is.EqualTo(paused));
+            if (paused) return;
+            Assert.Throws<InvalidOperationException>(() => SendTracking(connection, TrackingInput()));
+            var frame = new ElementStateFrame
+            {
+                Fence = snapshot.Fence.Clone(),
+                Kind = StateFrameKind.Keyframe,
+                FrameSequence = 1,
+                BaseReliableSequence = store.LastReliableSequence
+            };
+            frame.Fence.PresentationOriginVersion = origin.Version;
+            var nodes = new List<Unframe.Realtime.NodeRuntimeState>(snapshot.Snapshot.RuntimeView.NodeStates);
+            nodes.Sort((left, right) => StringComparer.Ordinal.Compare(left.NodeId, right.NodeId));
+            foreach (var node in nodes)
+                frame.Elements.Add(new ElementStatePatch
+                {
+                    ElementId = node.NodeId,
+                    Node = new NodeStatePatch { Active = node.Active, Visible = node.Visible, Opacity = node.Opacity, Transform = node.Transform.Clone() }
+                });
+            object[] receive = { new StateServerItem { StateFrame = frame }, false, null };
+            Assert.That((bool)typeof(PresentationRealtimeConnection).GetMethod("TryReceiveStateFrame", flags).Invoke(connection, receive), Is.True, receive[2] as string);
+            Assert.That(receive[1], Is.True);
+            Assert.That(connection.SessionReady, Is.True);
+            var tracking = TrackingInput();
+            tracking.PresentationOriginVersion = origin.Version;
+            await SendTracking(connection, tracking);
+            Assert.That(writer.Items.Count, Is.EqualTo(1));
+        }
+    }
+
     [Test]
     public async Task OriginAppliedWhileInitialStateReadyIsWritingAcknowledgesTheNewOriginCut()
     {
@@ -634,6 +691,30 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             RpcException exception = Assert.Throws<RpcException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand { ClientEventId = "event:input", LogicalEventName = "next" } }, CancellationToken.None));
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCode.FailedPrecondition));
             Assert.That(exception.Status.Detail, Is.EqualTo("asset_residency_lost"));
+        }
+    }
+
+    [Test]
+    public async Task OriginVersionConflictReopensWithAFreshSnapshotInsteadOfFailingTheSession()
+    {
+        var store = CreateOwnedStore(true);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        using (var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+        {
+            LoadTrackingTextures(store, textures);
+            int attempts = 0;
+            Task run = connection.RunAsync(new Uri("https://runtime.example.com/"), _ => Task.FromResult("credential"), cancellation.Token,
+                handlerFactory: () =>
+                {
+                    attempts++;
+                    if (attempts == 1) throw new RpcException(new Status(StatusCode.FailedPrecondition, "presentation_origin_mismatch"));
+                    throw new RpcException(new Status(StatusCode.InvalidArgument, "stop-after-retry"));
+                });
+            Assert.That(await Task.WhenAny(run, Task.Delay(5000)), Is.SameAs(run));
+            Assert.That(run.Exception?.GetBaseException(), Is.TypeOf<RpcException>());
+            Assert.That(((RpcException)run.Exception.GetBaseException()).StatusCode, Is.EqualTo(StatusCode.InvalidArgument));
+            Assert.That(attempts, Is.EqualTo(2));
         }
     }
 

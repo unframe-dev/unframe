@@ -273,6 +273,13 @@ namespace Unframe.Unity.PresentationRuntime
                                 if (stateLoop != null && stateLoop.IsCompleted) await stateLoop;
                             }
                         }
+                        catch (RpcException exception)
+                        {
+                            lock (pendingGate)
+                                foreach (var completion in pendingOutcomes.Values)
+                                    completion.TrySetException(exception);
+                            throw;
+                        }
                         finally
                         {
                             ControlReady = false;
@@ -333,6 +340,11 @@ namespace Unframe.Unity.PresentationRuntime
         private bool TryPrepareSnapshotRetry(RpcException exception)
         {
             if (exception.StatusCode != StatusCode.FailedPrecondition) return false;
+            if (exception.Status.Detail == "presentation_origin_mismatch")
+            {
+                ResetSnapshotBootstrap();
+                return true;
+            }
             string reason = null;
             int count = 0;
             foreach (Metadata.Entry entry in exception.Trailers)
@@ -462,7 +474,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void ReliableDisplayChanged(ControlServerItem item)
         {
-            SetWaitForKeyframe(true);
+            bool originChanged = item.ReliableEvent?.PayloadCase == ProjectedReliableEvent.PayloadOneofCase.PresentationOriginChanged;
+            if (originChanged) inputGeneration++;
+            SetWaitForKeyframe(!originChanged || store.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Paused);
             if (ControlReady && item.ReliableEvent?.PayloadCase == ProjectedReliableEvent.PayloadOneofCase.RuntimeViewReplaced
                 && store.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Paused)
                 SessionReady = true;

@@ -36,6 +36,13 @@ namespace Unframe.Unity.PresentationRuntime
             command = null;
         }
 
+        public void InvalidateCapture()
+        {
+            if (!completed && command != null) explicitPlacement = true;
+            captured = false;
+            command = null;
+        }
+
         public void Capture(Pose worldFromMarker, float headWorldHeight)
         {
             if (captured || completed) return;
@@ -65,7 +72,7 @@ namespace Unframe.Unity.PresentationRuntime
                 || outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted
                 || appliedSequence < outcome.Accepted.ReliableSequence
                 || originVersion <= command.PresentationOrigin.ExpectedPresentationOriginVersion
-                || commandEpoch <= command.PresentationOrigin.CommandEpoch || !synchronized) return false;
+                || commandEpoch < command.PresentationOrigin.CommandEpoch || !synchronized) return false;
             completed = true;
             command = null;
             explicitPlacement = false;
@@ -78,6 +85,7 @@ namespace Unframe.Unity.PresentationRuntime
             command = null;
             captured = false;
             completed = false;
+            explicitPlacement = true;
             return true;
         }
     }

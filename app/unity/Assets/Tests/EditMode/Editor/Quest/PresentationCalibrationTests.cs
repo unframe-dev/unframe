@@ -7,6 +7,7 @@ public sealed class PresentationCalibrationTests
 {
     [TestCase(0f)]
     [TestCase(1.4f)]
+    [TestCase(1.8f)]
     [TestCase(2.5f)]
     public void PresenterHeightUsesWorldVerticalAndPreservesHorizontalPositionAndRotation(float markerHeight)
     {
@@ -50,12 +51,28 @@ public sealed class PresentationCalibrationTests
         };
         Assert.That(state.Confirm(accepted, 7, 1, 5, true), Is.False);
         Assert.That(state.Confirm(accepted, 8, 0, 5, true), Is.False);
-        Assert.That(state.Confirm(accepted, 8, 1, 4, true), Is.False);
+        Assert.That(state.Confirm(accepted, 8, 1, 3, true), Is.False);
         Assert.That(state.Confirm(accepted, 8, 1, 5, false), Is.False);
         Assert.That(state.Confirm(accepted, 10, 3, 7, true), Is.True);
         state.Capture(Pose.identity, 2.5f);
         Assert.That(state.IsConfirmed, Is.True);
         Assert.That(state.Prepare(origin, 5), Is.Null);
+    }
+
+    [Test]
+    public void PlacementCompletesAfterOriginAndSynchronizationApplyWithoutRotatingCommandEpoch()
+    {
+        var state = new PresenterOriginPlacement();
+        state.Capture(Pose.identity, 1.8f);
+        var origin = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
+        var command = state.Prepare(origin, 4);
+        var outcome = new Unframe.Realtime.CommandOutcome
+        {
+            ClientEventId = command.PresentationOrigin.ClientEventId,
+            Accepted = new Unframe.Realtime.CommandAccepted { ReliableSequence = 8 }
+        };
+        Assert.That(state.Confirm(outcome, 8, 1, 4, true), Is.True);
+        Assert.That(state.IsConfirmed, Is.True);
     }
 
     [Test]
@@ -74,6 +91,26 @@ public sealed class PresentationCalibrationTests
         Assert.That(command.Pose.Position.X, Is.EqualTo(1));
         Assert.That(command.Pose.Position.Y, Is.EqualTo(1.8f).Within(0.00001f));
         Assert.That(command.Pose.Position.Z, Is.EqualTo(-3));
+        Assert.That(state.IsConfirmed, Is.False);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void RejectedOriginCommandRequiresFreshMeasurementBeforeUsingTheLatestVersion(bool explicitPlacement)
+    {
+        var state = new PresenterOriginPlacement();
+        if (explicitPlacement) state.RequestPlacement();
+        state.Capture(Pose.identity, 1.8f);
+        var origin = new Unframe.Realtime.PresentationOrigin { Version = explicitPlacement ? 2ul : 0ul, Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
+        var old = state.Prepare(origin, 4);
+        Assert.That(state.Reject(old.PresentationOrigin.ClientEventId), Is.True);
+        origin.Version = 3;
+        Assert.That(state.Prepare(origin, 4), Is.Null);
+        state.Capture(Pose.identity, 2.4f);
+        var retry = state.Prepare(origin, 4);
+        Assert.That(retry.PresentationOrigin.ExpectedPresentationOriginVersion, Is.EqualTo(3));
+        Assert.That(retry.PresentationOrigin.ClientEventId, Is.Not.EqualTo(old.PresentationOrigin.ClientEventId));
+        Assert.That(retry.PresentationOrigin.Pose.Position.Y, Is.EqualTo(2.1f).Within(0.00001f));
         Assert.That(state.IsConfirmed, Is.False);
     }
 

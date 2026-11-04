@@ -106,6 +106,7 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
 
     private void InvalidateCalibration(string reason)
     {
+        Placement.InvalidateCapture();
         bool previous = changingCalibration;
         changingCalibration = true;
         try { Calibration.Invalidate(reason); }
@@ -115,6 +116,7 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
     private void OnCalibrationChanged()
     {
         if (changingCalibration || Calibration.IsValid) return;
+        Placement.InvalidateCapture();
         hasCapturedFrame = false;
         if (alignment == null || !alignment.IsConfirmed) return;
         changingCalibration = true;

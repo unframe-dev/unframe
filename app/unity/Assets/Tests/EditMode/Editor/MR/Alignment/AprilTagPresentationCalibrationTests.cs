@@ -66,6 +66,41 @@ public sealed class AprilTagPresentationCalibrationTests
         finally { Object.DestroyImmediate(head); }
     }
 
+    [TestCase("tracking-frame")]
+    [TestCase("source-reset")]
+    [TestCase("disable")]
+    [TestCase("external-invalidation")]
+    public void RemeasurementBeforePlacementUsesTheNewMarkerAndHeadSample(string invalidation)
+    {
+        var head = new GameObject("HMD");
+        try
+        {
+            head.transform.position = Vector3.up * 1.8f;
+            bridge.ConfigureHead(head.transform);
+            bridge.BeginSession("session");
+            Confirm(Pose.identity);
+            bridge.Refresh();
+            var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
+            var old = bridge.Placement.Prepare(initial, 3);
+            Assert.That(old, Is.Not.Null);
+            if (invalidation == "tracking-frame") { origin.transform.position += Vector3.right; bridge.Refresh(); }
+            if (invalidation == "source-reset") alignment.ResetAlignment("reset");
+            if (invalidation == "disable") { bridge.enabled = false; Invoke(bridge, "OnDisable"); bridge.enabled = true; Invoke(bridge, "OnEnable"); }
+            if (invalidation == "external-invalidation") bridge.Calibration.Invalidate("recentered");
+            Assert.That(bridge.Placement.Prepare(initial, 3), Is.Null, "Invalidated coordinates cannot retain a pending placement command.");
+            initial.Version = 1;
+            head.transform.position = Vector3.up * 2.4f;
+            var marker = new Pose(new Vector3(2, 0.6f, -1), Quaternion.Euler(20, 40, 10));
+            Confirm(marker);
+            bridge.Refresh();
+            var command = bridge.Placement.Prepare(initial, 3);
+            Assert.That(command.PresentationOrigin.ClientEventId, Is.Not.EqualTo(old.PresentationOrigin.ClientEventId));
+            Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out Pose stage), Is.True);
+            Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(2.1f).Within(0.00001f));
+        }
+        finally { Object.DestroyImmediate(head); }
+    }
+
     [Test]
     public void ConfirmationPublishesInverseComposedQuestCalibrationAndKeepsItWithoutNewMarkerFrames()
     {

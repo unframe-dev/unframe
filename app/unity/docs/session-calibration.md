@@ -30,7 +30,7 @@ Unity / canonical間のZ反射は座標境界で行います。tracking-origin�
 
 原点がすでに設定された Session への参加・再接続では既存の共有配置を使います。再計算は Presenter の明示的な「再配置」でマーカーを測定し直したときに行います。頭部移動、マーカーの一時的な消失、tracking 復旧に伴う端末の再校正では共有配置を変更しません。Viewer は自分の高さから補正を計算しません。
 
-更新には期待する原点 version と command ID を付けます。通信失敗時は同じ command を再送し、競合による拒否時は再配置します。共有原点は Reliable Event と Snapshot で配信され、途中参加・再接続でも復元します。原点更新後はローカル状態への反映と新しい cut の `StateReady` を経て同期し、Presenter の入力世代も更新します。Tracking は原点 version を付けて送り、サーバーが共有原点の逆変換で Stage 座標へ変換します。pause 中の凍結 Anchor も物理位置を維持する座標へ変換し直して配信します。
+更新には期待する原点 version と command ID を付けます。通信失敗時は同じ command を再送し、原点 version の競合時は Snapshot を再取得してマーカーの再測定を要求します。校正が無効になった場合も未確定の計測値と command を破棄します。共有原点は Reliable Event と Snapshot で配信され、途中参加・再接続でも復元します。原点更新後はローカル状態への反映と新しい cut の `StateReady`、Presenter の入力同期の完了を待ちます。通常の原点更新では `CommandEpoch` は増えません。Tracking は原点 version を付けて送り、サーバーが共有原点の逆変換で Stage 座標へ変換します。pause 中の凍結 Anchor も物理位置を維持する座標へ変換し直して配信します。
 
 ## 接続入口
 
@@ -51,7 +51,7 @@ session.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogica
 - 無効化時は描画・入力・Trackingを止め、待機中の入力・Tracking送信をcancelします。すでに通信へ書き出したcommandを取り消す処理ではありません。
 - tracking復帰やapplication resumeだけでは旧校正を復活させません。共有Stateを外から無効化した場合もAprilTag sourceへ再測定を要求します。
 - 確定後にマーカーが視野から外れても校正は保持します。tracking-originの座標frameが有効であることは引き続き必要です。
-- `StateReady`送信後も現行cut / originの有効keyframeを受信するまで入力・Trackingを許可しません。再同期中も同じ条件を要求します。
+- 稼働中は `StateReady` 送信後も現行 cut / origin の有効 keyframe を受信するまで入力・Tracking を許可しません。pause 中は keyframe が配信されないため、確定した Reliable 状態で表示と Resume / End を許可します。
 
 `QuestPresentationEntry.Summary` は校正待ち、素材ロード、同期中、Readyのrole、停止状態を提供します。`QuestPresentationStatusView` は操作メニューに状態と再測定案内を表示し、B/Yの押下開始で端末の校正を無効化し、Presenter は共有配置の再測定も要求します。UIはcredential、Session ID、endpoint、RPC詳細を表示しません。カメラpreviewは既存のA/X権限確認とB/Y再測定を提供します。
 

@@ -440,11 +440,18 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     reflected.CancelAfter(TimeSpan.FromSeconds(10));
                     while (!placement.Confirm(outcome, runtime.DataStore.LastReliableSequence, runtime.PresentationOriginVersion,
-                        runtime.InputSynchronization.CommandEpoch, runtime.InputSynchronization.Ready && runtime.SessionReady))
+                        runtime.InputSynchronization.CommandEpoch, runtime.InputSynchronization.IsReadyAt(outcome.Accepted.ReliableSequence) && runtime.SessionReady))
                         await Task.Delay(16, reflected.Token);
                 }
                 recalibrationPending = false;
                 LastErrorCode = null;
+            }
+            catch (Grpc.Core.RpcException exception) when (exception.StatusCode == Grpc.Core.StatusCode.FailedPrecondition
+                && exception.Status.Detail == "presentation_origin_mismatch")
+            {
+                if (!placement.Reject(command.PresentationOrigin.ClientEventId)) return;
+                LastErrorCode = "presenter-placement-rejected";
+                calibration.Invalidate("placement-rejected-show-marker-again");
             }
             catch (OperationCanceledException) when (lifetime == null || lifetime.IsCancellationRequested) { }
             catch (Exception exception)
