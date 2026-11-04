@@ -14,21 +14,7 @@ public sealed class PresentationScenePlaybackEditModeTests
     [UnityTest]
     public IEnumerator ProductionScenePlaybackPausesAndRetainsTimelineTerminalPose()
     {
-        Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,
-            out DeliveryManifest manifest, out string error), Is.True, error);
-        Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(PresentationTestFixtures.Load("LocalSnapshot").text,
-            out ControlServerItem snapshot, out error), Is.True, error);
-        manifest.AssetAccess.Clear();
-        manifest.CapabilityProfile.Limits = new CapabilityLimits();
-        manifest.Residency.Models = new ModelResidencyPlan();
-        manifest.Residency.Textures = new TextureResidencyPlan { InitialGroupId = "group:local", GroupWindows = { new TextureResidencyWindow { GroupId = "group:local" } } };
-        manifest.ProjectionProfile.RenderSurfaces.Clear();
-        manifest.ProjectionProfile.SemanticSurfaces.Clear();
-        manifest.ProjectionProfile.RuntimeCatalog.Surfaces.Clear();
-        foreach (ProjectedNodeDefinition node in manifest.ProjectionProfile.RuntimeCatalog.Nodes)
-            if (node.Model != null || node.Surface != null) node.Container = new ContainerNode();
-        manifest.ProjectionProfile.RuntimeCatalog.ModelClips.Clear();
-        manifest.ProjectionProfile.RuntimeCatalog.Timelines.Clear();
+        CreateAssetFreeFixture(out DeliveryManifest manifest, out ControlServerItem snapshot);
         manifest.ProjectionProfile.RuntimeCatalog.Timelines.Add(new ProjectedTimelineDefinition
         {
             TimelineId = "timeline:production-move",
@@ -59,7 +45,7 @@ public sealed class PresentationScenePlaybackEditModeTests
             Timeline = new TimelineRunSnapshot { TimelineId = "timeline:production-move" },
         });
         var store = new PresentationRuntimeDataStore();
-        Assert.That(store.TryReceiveDelivery(manifest, out error), Is.True, error);
+        Assert.That(store.TryReceiveDelivery(manifest, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
         var root = new GameObject("production playback test");
         var hierarchy = new PresentationNodeHierarchy();
@@ -104,4 +90,88 @@ public sealed class PresentationScenePlaybackEditModeTests
             }
         }
     }
+    [UnityTest]
+    public IEnumerator GroupExitDefersRenderingUntilTheNextGroupEnters()
+    {
+        CreateAssetFreeFixture(out DeliveryManifest manifest, out ControlServerItem snapshot);
+        manifest.Residency.Textures.GroupWindows.Add(new TextureResidencyWindow { GroupId = "group:next" });
+        snapshot.ConnectionSnapshot.Snapshot.RuntimeView.SurfaceStates.Clear();
+        snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ActiveRuns.Clear();
+        var store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(manifest, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        var root = new GameObject("group transition playback test");
+        var hierarchy = new PresentationNodeHierarchy();
+        using (var renderer = new PresentationSceneRenderer())
+        {
+            try
+            {
+                Assert.That(hierarchy.TryReplace(store, root.transform, out error), Is.True, error);
+                Task load = renderer.LoadAsync(store, hierarchy,
+                    (_, __) => Task.FromException<byte[]>(new AssertionException("The playback fixture has no external assets.")), CancellationToken.None);
+                while (!load.IsCompleted) yield return null;
+                load.GetAwaiter().GetResult();
+                Assert.That(renderer.TryRefresh(store, 0, out error), Is.True, error);
+
+                Assert.That(store.TryReceiveControl(new ControlServerItem
+                {
+                    ReliableEvent = new ProjectedReliableEvent
+                    {
+                        Sequence = 1,
+                        Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                        GroupExited = new GroupExited { GroupId = "group:local", GroupEntryEpoch = 1 },
+                    },
+                }, out error), Is.True, error);
+                Assert.That(store.Progression.CurrentGroupId, Is.Empty);
+                Assert.That(renderer.TryRefresh(store, 0, out error), Is.True, error);
+                Assert.That(error, Is.Null);
+                Assert.That(renderer.HasResidentAssets(store), Is.True);
+                yield return null;
+                Assert.That(renderer.TryRefresh(store, 1, out error), Is.True, error);
+
+                Assert.That(store.TryReceiveControl(new ControlServerItem
+                {
+                    ReliableEvent = new ProjectedReliableEvent
+                    {
+                        Sequence = 2,
+                        Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                        GroupEntered = new GroupEntered
+                        {
+                            GroupId = "group:next",
+                            GroupEntryEpoch = 2,
+                            Initialization = new GroupRuntimeInitialization(),
+                        },
+                    },
+                }, out error), Is.True, error);
+                Assert.That(renderer.TryRefresh(store, 1, out error), Is.True, error);
+                Assert.That(error, Is.Null);
+                Assert.That(renderer.IsReady(store), Is.True);
+            }
+            finally
+            {
+                hierarchy.Clear();
+                Object.DestroyImmediate(root);
+            }
+        }
+    }
+
+    private static void CreateAssetFreeFixture(out DeliveryManifest manifest, out ControlServerItem snapshot)
+    {
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,
+            out manifest, out string error), Is.True, error);
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(PresentationTestFixtures.Load("LocalSnapshot").text,
+            out snapshot, out error), Is.True, error);
+        manifest.AssetAccess.Clear();
+        manifest.CapabilityProfile.Limits = new CapabilityLimits();
+        manifest.Residency.Models = new ModelResidencyPlan();
+        manifest.Residency.Textures = new TextureResidencyPlan { InitialGroupId = "group:local", GroupWindows = { new TextureResidencyWindow { GroupId = "group:local" } } };
+        manifest.ProjectionProfile.RenderSurfaces.Clear();
+        manifest.ProjectionProfile.SemanticSurfaces.Clear();
+        manifest.ProjectionProfile.RuntimeCatalog.Surfaces.Clear();
+        foreach (ProjectedNodeDefinition node in manifest.ProjectionProfile.RuntimeCatalog.Nodes)
+            if (node.Model != null || node.Surface != null) node.Container = new ContainerNode();
+        manifest.ProjectionProfile.RuntimeCatalog.ModelClips.Clear();
+        manifest.ProjectionProfile.RuntimeCatalog.Timelines.Clear();
+    }
+
 }

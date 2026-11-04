@@ -108,6 +108,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         private List<TextureResidencyBinding> PrepareTextures(PresentationRuntimeDataStore store)
         {
+            // GroupExited arrives before GroupEntered; retain the current window until initialization completes.
+            if (store.Progression?.CurrentGroupId == "") return null;
             var required = PresentationTextureWindow.Select(store.Delivery.Residency.Textures, store.Progression?.CurrentGroupId);
             bool ready = PresentationTextureWindow.Prepare(Textures, required, store.Delivery.CapabilityProfile.Limits.Texture,
                 modelGpuBytes, modelTextureBindings, () => baked.DetachTextures(), binding =>
