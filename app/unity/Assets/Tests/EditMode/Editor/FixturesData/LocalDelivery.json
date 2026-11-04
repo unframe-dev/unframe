@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "deliveryContractVersion": 3,
+  "deliveryContractVersion": 4,
   "sessionId": "session:local",
   "publication": {
     "presentationId": "presentation:local",
@@ -11,10 +11,10 @@
     "capabilityProfileId": "capability:local",
     "schemaVersion": 1,
     "contractVersions": {
-      "delivery": 3,
+      "delivery": 4,
       "runtime": 3,
       "progression": 2,
-      "projection": 2
+      "projection": 3
     },
     "renderers": {
       "nativeUi": {
@@ -32,7 +32,7 @@
         "publicationEpoch": "1",
         "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       },
-      "projectionContractVersion": 2,
+      "projectionContractVersion": 3,
       "role": "SESSION_ROLE_PRESENTER"
     },
     "requiredRuntimeCapabilities": ["RUNTIME_CAPABILITY_TIMELINE_RUN"],
@@ -4001,6 +4001,14 @@
     }
   ],
   "residency": {
+    "textures": {
+      "initialGroupId": "group:local",
+      "groupWindows": [
+        {
+          "groupId": "group:local"
+        }
+      ]
+    },
     "video": {},
     "models": {
       "models": [

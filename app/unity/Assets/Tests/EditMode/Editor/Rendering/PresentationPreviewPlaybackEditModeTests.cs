@@ -77,7 +77,8 @@ public sealed class PresentationPreviewPlaybackEditModeTests
         {
             try
             {
-                var load = transaction.PrepareAsync(envelope, (_, __, ___) => {
+                var load = transaction.PrepareAsync(envelope, (_, __, ___) =>
+                {
                     downloads++;
                     return Task.FromResult(new PresentationPreviewAssetData(PresentationPreviewTestFixture.Png, "image/png"));
                 }, CancellationToken.None);

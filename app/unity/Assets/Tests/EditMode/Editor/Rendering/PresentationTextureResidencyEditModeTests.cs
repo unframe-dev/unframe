@@ -124,10 +124,12 @@ public sealed class PresentationTextureResidencyEditModeTests
             var limits = new TextureLimits { MaxGpuBytes = 8, MaxTextureBindings = 2 };
             bool detached = false;
             Assert.Throws<InvalidOperationException>(() => PresentationTextureWindow.Prepare(textures,
-                new[] { second }, limits, 4, 1, () => {
+                new[] { second }, limits, 4, 1, () =>
+                {
                     Assert.That(textures.TryGet(first.Checksum, out _), Is.True);
                     detached = true;
-                }, binding => {
+                }, binding =>
+                {
                     Assert.That(detached, Is.True);
                     Assert.That(textures.ResidentGpuBytes, Is.Zero);
                     return false;
