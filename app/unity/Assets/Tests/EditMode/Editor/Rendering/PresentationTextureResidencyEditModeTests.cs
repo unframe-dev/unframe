@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using Google.Protobuf;
 using NUnit.Framework;
 using Unframe.Delivery;
+using Unframe.Presentation;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 
@@ -214,6 +215,9 @@ public sealed class PresentationTextureResidencyEditModeTests
     {
         DeliveryManifest manifest = JsonParser.Default.Parse<DeliveryManifest>(PresentationTestFixtures.Load("LocalDelivery").text);
         DeliveredRenderSurface surface = manifest.ProjectionProfile.RenderSurfaces[0];
+        foreach (var semantic in manifest.ProjectionProfile.RuntimeCatalog.Surfaces)
+            if (semantic.SurfaceId == surface.SemanticSurfaceId)
+                semantic.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
         surface.RendererKind = RendererKind.BakedWeb;
         surface.LogicalBounds = new LogicalBounds { Width = 1, Height = 1 };
         surface.ArtifactContractVersion = 1;

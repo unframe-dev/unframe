@@ -282,6 +282,7 @@ public sealed class PresentationPreviewPlaybackEditModeTests
                 var owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
                 envelope.Projection.RuntimeCatalog.Nodes[1].Owner = owner;
                 envelope.Projection.RuntimeCatalog.Surfaces[0].Owner = owner.Clone();
+                envelope.Projection.TextureResidency.GroupWindows[1].AssetIds.Add("asset:one");
                 AddTimeline(envelope);
                 envelope.Projection.RuntimeCatalog.Timelines[0].Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:first" } };
                 var task = transaction.PrepareAsync(envelope, (_, __, ___) => Task.FromResult(new PresentationPreviewAssetData(PresentationPreviewTestFixture.Png, "image/png")), CancellationToken.None);
