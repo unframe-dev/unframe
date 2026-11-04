@@ -140,6 +140,8 @@ Host のローカル HTTP API は CLI の Author contract が所有し、envelop
 
 素材取得は、認証済み Local Author API と WebGL Asset Adapter を介す。reference は固定 generation の検証済み catalog だけを指し、任意の filesystem path／外部 URL を受け付けない。Asset Adapter が bytes を共通 Unity renderer へ渡し、renderer は HTTP、Bearer token、Source を知らない。全 PNG を一つの Base64 JSON に載せる方式は採用しない。
 
+Host の Preview 素材は最大4件を並列取得・検証し、検証済み bytes を descriptor 単位の LRU に最大64 MiB保持する。上限を超える素材は保持せず、cache miss は固定 generation から再取得・検証する。load 開始時と公開受付時は cache による検証省略を行わない。公開用の固定 snapshot は全素材を再検証して別に保持し、合計 encoded bytes の256 MiB上限を適用する。
+
 Unity は decoded dimensions と texture metadata の一致も検証する。local TRS、physical size、fit、partition bounds、UV、alpha／sRGB は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) と [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) に従う。Preview 固有の座標変換・shader 意味論を設けない。
 
 ## 4. 更新と失敗時の挙動

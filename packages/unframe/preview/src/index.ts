@@ -73,7 +73,7 @@ type Candidate = {
   channel: PreviewLoadRequest["channel"];
   generationId: string;
   artifacts: BuildArtifacts;
-  assets: Map<string, PreviewAsset>;
+  fixed: PinnedPreviewDist;
   references: Map<string, string>;
   playback: ReturnType<typeof createLocalPlayback>;
   receiptHealthy: boolean;
@@ -102,9 +102,86 @@ export type LocalPreviewService = {
 
 export const createLocalPreviewService = (
   directory: string,
-  options: { readGeneration: PreviewGenerationReader; now?: () => number },
+  options: {
+    readGeneration: PreviewGenerationReader;
+    now?: () => number;
+    assetCacheBytes?: number;
+    assetConcurrency?: number;
+  },
 ): LocalPreviewService => {
   const readGeneration = options.readGeneration;
+  const cacheBudget = options.assetCacheBytes ?? 64 * 1024 * 1024;
+  const concurrency = options.assetConcurrency ?? 4;
+  if (
+    !Number.isSafeInteger(cacheBudget) ||
+    cacheBudget < 0 ||
+    !Number.isSafeInteger(concurrency) ||
+    concurrency < 1
+  )
+    throw new RangeError(
+      "Preview asset limits must be nonnegative bytes and positive concurrency.",
+    );
+  const assetCache = new Map<string, PreviewAsset>();
+  let cachedBytes = 0;
+  const cacheKey = (descriptor: BuildArtifacts["assetSet"]["assets"][string]) =>
+    canonicalizeJsonPayload(descriptor);
+  const remember = (key: string, asset: PreviewAsset) => {
+    const previous = assetCache.get(key);
+    if (previous) {
+      assetCache.delete(key);
+      assetCache.set(key, previous);
+      return previous;
+    }
+    if (asset.bytes.byteLength > cacheBudget) return asset;
+    while (cachedBytes + asset.bytes.byteLength > cacheBudget) {
+      const oldest = assetCache.entries().next().value!;
+      assetCache.delete(oldest[0]);
+      cachedBytes -= oldest[1].bytes.byteLength;
+    }
+    assetCache.set(key, asset);
+    cachedBytes += asset.bytes.byteLength;
+    return asset;
+  };
+  let activeReads = 0;
+  const waitingReads: (() => void)[] = [];
+  const readVerifiedAsset = async (
+    fixed: PinnedPreviewDist,
+    assetId: string,
+    descriptor: BuildArtifacts["assetSet"]["assets"][string],
+    check: () => void,
+  ) => {
+    while (activeReads >= concurrency) {
+      check();
+      await new Promise<void>((resolve) => waitingReads.push(resolve));
+    }
+    activeReads += 1;
+    try {
+      check();
+      const raw = await fixed.readAsset(assetId);
+      check();
+      return verifyAsset(raw, descriptor);
+    } finally {
+      activeReads -= 1;
+      waitingReads.shift()?.();
+    }
+  };
+  const parallel = async <T>(items: T[], task: (item: T) => Promise<void>) => {
+    let index = 0;
+    let failed = false;
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+        while (!failed && index < items.length) {
+          const item = items[index++]!;
+          try {
+            await task(item);
+          } catch (error) {
+            failed = true;
+            throw error;
+          }
+        }
+      }),
+    );
+  };
   let epoch = 0;
   let closed = false;
   let candidate: Candidate | undefined;
@@ -117,6 +194,7 @@ export const createLocalPreviewService = (
     epoch += 1;
     candidate = undefined;
     displayed = undefined;
+    for (const wake of waitingReads.splice(0)) wake();
   };
   const checkCurrent = (expectedEpoch: number, signal?: AbortSignal) => {
     if (closed || epoch !== expectedEpoch || signal?.aborted)
@@ -134,6 +212,8 @@ export const createLocalPreviewService = (
     close() {
       closed = true;
       invalidate();
+      assetCache.clear();
+      cachedBytes = 0;
     },
     async load(raw, signal) {
       invalidate();
@@ -169,18 +249,19 @@ export const createLocalPreviewService = (
           "Local Preview requires Zone centers representable as finite float32 coordinates.",
         );
       const { projection, selection, residency } = projectPreviewBuild(artifacts);
-      const assets = new Map<string, PreviewAsset>();
       const references = new Map<string, string>();
-      const assetBindings = [];
-      for (const { assetId, descriptor } of selection.assets) {
+      await parallel(selection.assets, async ({ assetId, descriptor }) => {
+        const asset = await readVerifiedAsset(fixed, assetId, descriptor, () =>
+          checkCurrent(expectedEpoch, signal),
+        );
         checkCurrent(expectedEpoch, signal);
-        const asset = await fixed.readAsset(assetId);
-        checkCurrent(expectedEpoch, signal);
-        assets.set(assetId, verifyAsset(asset, descriptor));
+        remember(cacheKey(descriptor), asset);
+      });
+      const assetBindings = selection.assets.map(({ assetId }) => {
         const reference = randomBytes(16).toString("hex");
         references.set(reference, assetId);
-        assetBindings.push({ assetId, reference });
-      }
+        return { assetId, reference };
+      });
       const { presenterRecognition: _recognition, ...previewRuntimeCatalog } =
         projection.runtimeCatalog!;
       const initial = createInitialRuntimeState(artifacts.definition);
@@ -224,7 +305,7 @@ export const createLocalPreviewService = (
         channel: input.channel,
         generationId: fixed.generationId,
         artifacts,
-        assets,
+        fixed,
         references,
         receiptHealthy: false,
         recovering: false,
@@ -287,9 +368,21 @@ export const createLocalPreviewService = (
       parseRequest(randomIdSchema.safeParse(reference));
       if (closed || candidate?.requestId !== requestId)
         fail(404, "preview-asset-not-found", "Preview asset request is no longer active.");
-      const assetId = candidate.references.get(reference);
-      const asset = assetId ? candidate.assets.get(assetId) : undefined;
-      if (!asset) fail(404, "preview-asset-not-found", "Preview asset reference is unknown.");
+      const receipt = candidate;
+      const expectedEpoch = epoch;
+      const assetId = receipt.references.get(reference);
+      const descriptor = assetId ? receipt.artifacts.assetSet.assets[assetId] : undefined;
+      if (!assetId || !descriptor)
+        fail(404, "preview-asset-not-found", "Preview asset reference is unknown.");
+      const key = cacheKey(descriptor);
+      let asset = assetCache.get(key);
+      if (!asset) {
+        asset = await readVerifiedAsset(receipt.fixed, assetId, descriptor, () =>
+          checkCurrent(expectedEpoch),
+        );
+      }
+      checkCurrent(expectedEpoch);
+      asset = remember(key, asset);
       return { bytes: asset.bytes.slice(), mediaType: asset.mediaType };
     },
     async pinDisplayedDist(requestId) {
@@ -329,24 +422,11 @@ export const createLocalPreviewService = (
           "Fixed publication assets exceed the encoded byte budget.",
         );
       const pinnedAssets = new Map<string, PreviewAsset>();
-      for (const [assetId, descriptor] of assetEntries) {
+      await parallel(assetEntries, async ([assetId, descriptor]) => {
+        const asset = await readVerifiedAsset(current, assetId, descriptor, checkReceipt);
         checkReceipt();
-        const rawAsset = await current.readAsset(assetId);
-        checkReceipt();
-        const asset = verifyAsset(rawAsset, descriptor);
-        const expected = receipt.assets.get(assetId);
-        if (
-          expected &&
-          (asset.mediaType !== expected.mediaType ||
-            !Buffer.from(asset.bytes).equals(Buffer.from(expected.bytes)))
-        )
-          fail(
-            409,
-            "preview-dist-changed",
-            "Current Dist asset differs from the committed Preview.",
-          );
-        pinnedAssets.set(assetId, expected ?? asset);
-      }
+        pinnedAssets.set(assetId, remember(cacheKey(descriptor), asset));
+      });
       checkReceipt();
       const pinned: PinnedPreviewDist = {
         generationId: current.generationId,
