@@ -148,12 +148,7 @@ export const createAuthorService = async (
       .then((current) => {
         if (signal?.aborted || shutdown.signal.aborted)
           fail(409, "cli-cancelled", "Project analysis was cancelled.");
-        if (
-          !closed &&
-          analysis.sequence === latestCapture &&
-          current.snapshot.irHash !== null &&
-          current.snapshot.diagnostics.every((item) => item.severity === "warning")
-        )
+        if (!closed && analysis.sequence === latestCapture && current.snapshot.irHash !== null)
           cached = current;
         return current;
       })

@@ -57,6 +57,41 @@ it("reuses the successful analysis for an unchanged project without reading comp
   expect(libraryReads()).toBe(initialReads);
 }, 30_000);
 
+it("reuses a valid analysis with Inspector limitations while preserving its diagnostics", async () => {
+  const { service, directory } = await project();
+  await writeFile(
+    join(directory, "presentation.unframe.tsx"),
+    `import { definePresentation } from "@unframe-dev/authoring";
+const sharedScene: [] = [];
+export default definePresentation({
+  id: "inspector-limited-project",
+  metadata: { title: "Inspector limited project" },
+  stage: {
+    coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
+    size: [4, 3, 4],
+  },
+  assets: [],
+  scene: sharedScene,
+  flow: {
+    initialGroupId: "main",
+    groups: { main: { id: "main", initialStepId: "start", steps: { start: { id: "start", cues: [] } } } },
+    variables: {},
+  },
+  operations: [],
+});
+`,
+  );
+  const libraryReads = observeTypeLibraryReads();
+  const first = await service.project();
+  expect(first.irHash, JSON.stringify(first.diagnostics)).not.toBeNull();
+  expect(first.diagnostics).toEqual([
+    expect.objectContaining({ code: "compiler-edit-scene-unsupported" }),
+  ]);
+  const initialReads = libraryReads();
+  expect(await service.project()).toEqual(first);
+  expect(libraryReads()).toBe(initialReads);
+}, 30_000);
+
 it("shares one successful analysis across simultaneous unchanged reads", async () => {
   const { service } = await project();
   const libraryReads = observeTypeLibraryReads();
