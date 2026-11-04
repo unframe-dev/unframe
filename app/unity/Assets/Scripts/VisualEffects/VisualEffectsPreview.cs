@@ -8,13 +8,18 @@ namespace Unframe.Unity.VisualEffects
     {
         [SerializeField, Range(0.25f, 2)] private float size = 1;
         [SerializeField, Range(0.25f, 3)] private float speed = 1;
-        [SerializeField, Range(0, 6)] private float waveCycles = 0.5f;
+        [SerializeField, Range(0, 6)] private float waveCycles = 1;
         [SerializeField] private Color color = Color.white;
         [SerializeField] private GestureRecognitionSettings recognition = new GestureRecognitionSettings();
         private VisualEffectPlayer player;
         private GameObject stage;
         private Material modelMaterial;
+        private Material floorMaterial;
+        private Texture2D floorTexture;
         private Transform waveAnchor;
+        private Transform secondWaveAnchor;
+        private EffectHandle wave;
+        private EffectHandle secondWave;
         private string handId;
         private int sequence;
         private string status = "Select an effect. Gesture buttons use synthetic samples, not device tracking.";
@@ -30,12 +35,17 @@ namespace Unframe.Unity.VisualEffects
             player = new VisualEffectPlayer();
             stage = new GameObject("Preview stage");
             stage.transform.SetParent(transform, false);
-            waveAnchor = new GameObject("Wave center").transform;
+            waveAnchor = new GameObject("Wave A center").transform;
             waveAnchor.SetParent(stage.transform, false);
-            waveAnchor.localPosition = Vector3.up;
+            waveAnchor.localPosition = new Vector3(-4.5f, 2, 0);
+            secondWaveAnchor = new GameObject("Wave B center").transform;
+            secondWaveAnchor.SetParent(stage.transform, false);
+            secondWaveAnchor.localPosition = new Vector3(4.5f, 2, 0);
+            secondWaveAnchor.localRotation = Quaternion.Euler(0, 180, 0);
             var camera = new GameObject("Preview camera").AddComponent<Camera>();
             camera.transform.SetParent(stage.transform, false);
-            camera.transform.localPosition = new Vector3(0, 1, -7);
+            camera.transform.localPosition = new Vector3(0, 1, -13);
+            camera.fieldOfView = 45;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.025f, 0.03f, 0.06f);
             var light = new GameObject("Preview light").AddComponent<Light>();
@@ -43,6 +53,24 @@ namespace Unframe.Unity.VisualEffects
             light.type = LightType.Directional;
             light.transform.localRotation = Quaternion.Euler(35, -30, 0);
             light.intensity = 1.5f;
+            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            floor.name = "Preview floor";
+            floor.transform.SetParent(stage.transform, false);
+            floor.transform.localScale = new Vector3(2, 1, 2);
+            floorTexture = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+            floorTexture.wrapMode = TextureWrapMode.Repeat;
+            floorTexture.filterMode = FilterMode.Point;
+            var pixels = new Color32[64 * 64];
+            for (var y = 0; y < 64; y++)
+                for (var x = 0; x < 64; x++)
+                    pixels[y * 64 + x] = x == 0 || y == 0
+                        ? new Color32(82, 91, 107, 255) : new Color32(30, 36, 48, 255);
+            floorTexture.SetPixels32(pixels);
+            floorTexture.Apply();
+            floorMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            floorMaterial.mainTexture = floorTexture;
+            floorMaterial.mainTextureScale = new Vector2(20, 20);
+            floor.GetComponent<MeshRenderer>().sharedMaterial = floorMaterial;
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             cube.name = "Dissolve target";
             cube.transform.SetParent(stage.transform, false);
@@ -59,8 +87,15 @@ namespace Unframe.Unity.VisualEffects
         public void PlayWave()
         {
             Initialize();
-            player.PlayWave(Options(NextId(), 4500), waveAnchor);
+            if (wave == null) wave = player.PlayWave(Options(NextId(), 4500), waveAnchor);
         }
+        public void PlaySecondWave()
+        {
+            Initialize();
+            if (secondWave == null) secondWave = player.PlayWave(Options(NextId(), 4500), secondWaveAnchor);
+        }
+        public void CancelWave() { wave?.Cancel(); wave = null; }
+        public void CancelSecondWave() { secondWave?.Cancel(); secondWave = null; }
         public void PlayDissolve()
         {
             ResetPreview();
@@ -85,6 +120,8 @@ namespace Unframe.Unity.VisualEffects
             Initialize();
             player.Dispose();
             player = new VisualEffectPlayer();
+            wave = null;
+            secondWave = null;
             handId = null;
             Model.enabled = true;
         }
@@ -115,11 +152,11 @@ namespace Unframe.Unity.VisualEffects
                 result = recognizer.Update(new GestureSample(0.2, new Vector3(0.25f, 0, 0.2f), Vector3.zero, Vector3.forward, true));
             }
             else for (var i = 1; i <= 48 && result == null; i++)
-            {
-                float angle = i * Mathf.PI * 2 / 48;
-                result = recognizer.Update(new GestureSample(i / 48.0,
-                    new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) * 0.2f, Vector3.zero, Vector3.forward, true));
-            }
+                {
+                    float angle = i * Mathf.PI * 2 / 48;
+                    result = recognizer.Update(new GestureSample(i / 48.0,
+                        new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) * 0.2f, Vector3.zero, Vector3.forward, true));
+                }
             status = result == null ? "Synthetic gesture rejected with current settings." : "Synthetic gesture recognized: " + result.Kind;
             if (result != null) PlayWave();
         }
@@ -135,7 +172,10 @@ namespace Unframe.Unity.VisualEffects
             color.r = GUILayout.HorizontalSlider(color.r, 0, 1);
             color.g = GUILayout.HorizontalSlider(color.g, 0, 1);
             color.b = GUILayout.HorizontalSlider(color.b, 0, 1);
-            if (GUILayout.Button("Wave")) PlayWave();
+            if (GUILayout.Button(wave == null ? "Start wave A" : "Stop wave A"))
+            { if (wave == null) PlayWave(); else CancelWave(); }
+            if (GUILayout.Button(secondWave == null ? "Start wave B" : "Stop wave B"))
+            { if (secondWave == null) PlaySecondWave(); else CancelSecondWave(); }
             if (GUILayout.Button("Dissolve model")) PlayDissolve();
             if (GUILayout.Button("Begin hand glow (demo orbit)")) BeginHand();
             if (GUILayout.Button("End hand glow")) EndHand();
@@ -151,11 +191,15 @@ namespace Unframe.Unity.VisualEffects
         {
             player?.Dispose();
             player = null;
+            wave = null;
+            secondWave = null;
             handId = null;
             if (stage) { if (Application.isPlaying) Destroy(stage); else DestroyImmediate(stage); }
             stage = null;
             Model = null;
             if (modelMaterial) { if (Application.isPlaying) Destroy(modelMaterial); else DestroyImmediate(modelMaterial); }
+            if (floorMaterial) { if (Application.isPlaying) Destroy(floorMaterial); else DestroyImmediate(floorMaterial); }
+            if (floorTexture) { if (Application.isPlaying) Destroy(floorTexture); else DestroyImmediate(floorTexture); }
         }
     }
 }

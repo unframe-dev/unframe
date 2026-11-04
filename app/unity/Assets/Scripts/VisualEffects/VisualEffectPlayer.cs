@@ -37,8 +37,13 @@ namespace Unframe.Unity.VisualEffects
             private readonly Material material;
             private readonly LineRenderer[] lines = new LineRenderer[12];
             private readonly Gradient gradient = new Gradient();
-            private readonly GradientColorKey[] colorKeys = new GradientColorKey[2];
-            private readonly GradientAlphaKey[] alphaKeys = new GradientAlphaKey[8];
+            private readonly GradientColorKey[] shortColors = new GradientColorKey[2];
+            private readonly GradientColorKey[] longColors = new GradientColorKey[3];
+            private readonly GradientAlphaKey[] alphas = new GradientAlphaKey[2];
+            private static readonly Color Blue = new Color(0x71 / 255f, 0x87 / 255f, 0xf5 / 255f);
+            private static readonly Color Purple = new Color(0x9a / 255f, 0x80 / 255f, 0xd0 / 255f);
+            private static readonly Color Coral = new Color(0xdf / 255f, 0x7b / 255f, 0x80 / 255f);
+
             internal WaveRun(EffectOptions options, Transform parent)
             {
                 Options = options;
@@ -56,67 +61,41 @@ namespace Unframe.Unity.VisualEffects
             {
                 var progress = Options.Sample(now);
                 Handle.Progress = progress;
-                root.SetActive(now >= Options.StartedAtRuntimeMs && progress < 1);
+                root.SetActive(now >= Options.StartedAtRuntimeMs);
+                var tip = progress <= 0.48f ? Color.Lerp(Blue, Purple, progress / 0.48f)
+                    : Color.Lerp(Purple, Coral, (progress - 0.48f) / 0.52f);
+                var tint = Options.Color;
+                var alpha = tint.a * Mathf.SmoothStep(0, 1, Mathf.Clamp01(progress / 0.22f));
+                alphas[0] = new GradientAlphaKey(alpha, 0);
+                alphas[1] = new GradientAlphaKey(alpha, 1);
+                if (progress <= 0.48f)
+                {
+                    shortColors[0] = new GradientColorKey(Blue * tint, 0);
+                    shortColors[1] = new GradientColorKey(tip * tint, 1);
+                    gradient.SetKeys(shortColors, alphas);
+                }
+                else
+                {
+                    longColors[0] = new GradientColorKey(Blue * tint, 0);
+                    longColors[1] = new GradientColorKey(Purple * tint, 0.48f / progress);
+                    longColors[2] = new GradientColorKey(tip * tint, 1);
+                    gradient.SetKeys(longColors, alphas);
+                }
+                var phase = -Mathf.PI * 0.2f + (Options.Seed % 1024) / 1023f * Mathf.PI * 0.1f;
+                var visiblePoints = Mathf.Clamp(Mathf.CeilToInt(progress * 95) + 1, 2, 96);
                 for (var i = 0; i < lines.Length; i++)
                 {
-                    var side = i < 6 ? -1 : 1;
-                    var lane = i % 6;
-                    var groupIndex = i / 6;
-                    var groupPhase = RandomValue(groupIndex, 3) * Mathf.PI * 2;
-                    var travel = Mathf.Max(0, (progress - groupIndex * 0.008f) / 0.96f);
-                    var startQ = RandomValue(i, 7) * 0.12f;
-                    var endQ = 1.8f + RandomValue(i, 8) * 0.12f;
-                    var head = startQ + travel * (endQ - startQ);
-                    var palettePosition = i / 11f;
-                    var blue = new Color(0x71 / 255f, 0x87 / 255f, 0xf5 / 255f);
-                    var purple = new Color(0x9a / 255f, 0x80 / 255f, 0xd0 / 255f);
-                    var coral = new Color(0xdf / 255f, 0x7b / 255f, 0x80 / 255f);
-                    var color = palettePosition <= 0.48f
-                        ? Color.Lerp(blue, purple, palettePosition / 0.48f)
-                        : Color.Lerp(purple, coral, (palettePosition - 0.48f) / 0.52f);
-                    color *= Options.Color;
-                    colorKeys[0] = new GradientColorKey(color, 0);
-                    colorKeys[1] = new GradientColorKey(color, 1);
-                    var fadeBoundary = Mathf.Lerp(1.15f, -0.15f, Mathf.InverseLerp(0.75f, 1, progress));
-                    for (var key = 0; key < alphaKeys.Length; key++)
-                    {
-                        var t = key / (float)(alphaKeys.Length - 1);
-                        var alpha = Options.Color.a * Mathf.SmoothStep(0, 1, Mathf.Clamp01(travel / 0.22f))
-                            * (1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(fadeBoundary - 0.1f, fadeBoundary + 0.1f, t)));
-                        alphaKeys[key] = new GradientAlphaKey(alpha, t);
-                    }
-                    gradient.SetKeys(colorKeys, alphaKeys);
                     lines[i].colorGradient = gradient;
-                    var frequency = Options.WaveCycles * Mathf.Lerp(0.7f, 1.3f, RandomValue(groupIndex, 2));
-                    var phase = groupPhase;
-                    var visiblePoints = Mathf.Clamp(Mathf.CeilToInt((head - startQ) / 1.9f * 95) + 1, 2, 96);
                     lines[i].positionCount = visiblePoints;
                     for (var j = 0; j < visiblePoints; j++)
                     {
-                        var t = j / 95f;
-                        // Fixed path samples retain their positions after the leading edge passes.
-                        var q = Mathf.Min(startQ + t * 1.9f, head);
-                        var startAngle = Mathf.Lerp(-0.18f, 0.06f, RandomValue(groupIndex, 4));
-                        var endAngle = Mathf.PI + Mathf.Lerp(0.19f, 0.43f, RandomValue(groupIndex, 5));
-                        var angle = Mathf.LerpUnclamped(startAngle, endAngle, q / 1.8f);
-                        var radius = 3.8f + RandomValue(groupIndex, 6) * 0.5f;
-                        var x = side * radius * Mathf.Cos(angle);
-                        var irregularPhase = q * frequency * Mathf.PI * 2
-                            + 0.12f * Mathf.Min(1, Options.WaveCycles * 2) * Mathf.Sin(q * 3 + phase);
-                        var wavePhase = irregularPhase + phase;
-                        var spacing = 0.035f + 0.215f * (0.5f + 0.5f * Mathf.Sin(wavePhase));
-                        var y = (lane - 2.5f) * spacing + Mathf.Sin(wavePhase) * 0.3f;
-                        var z = radius * Mathf.Sin(angle);
-                        lines[i].SetPosition(j, new Vector3(x, y, z) * Options.Size);
+                        var q = Mathf.Min(j / 95f, progress);
+                        var x = -4 + 8 * q;
+                        var y = 0.6f * Mathf.Cos(q * Options.WaveCycles * 2 * Mathf.PI + phase) + (5.5f - i) * 0.12f;
+                        lines[i].SetPosition(j, new Vector3(x, y, 0) * Options.Size);
                     }
                 }
-                return progress >= 1;
-            }
-            private float RandomValue(int line, uint channel)
-            {
-                uint value = Options.Seed ^ ((uint)(line + 1) * 747796405u) ^ (channel * 2891336453u);
-                value = (value ^ (value >> 16)) * 2246822519u;
-                return (value & 0x00ffffff) / 16777215f;
+                return false;
             }
             internal override void Release() { Destroy(root); Destroy(material); }
         }

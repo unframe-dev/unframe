@@ -6,30 +6,105 @@ using UnityEngine;
 public sealed class VisualEffectTests
 {
     [Test]
-    public void WavesRevealStationaryCircularPathsAndFadeFromTheirTips()
+    public void WaveHoldsItsFinalShapeUntilCancelled()
     {
         var stage = new GameObject("Wave stage");
         try
         {
             using var effects = new VisualEffectPlayer();
-            effects.PlayWave(new EffectOptions("wave", 1, Color.white, 1, 1000, 42, 0, 0.5f), stage.transform);
+            var options = new EffectOptions("wave", 1, Color.white, 1, 1000, 42, 0);
+            var handle = effects.PlayWave(options, stage.transform);
+            var completed = false;
+            handle.Completed += () => completed = true;
+            effects.Evaluate(1000);
+            var lines = stage.GetComponentsInChildren<LineRenderer>();
+            Assert.That(lines.Length, Is.EqualTo(12));
+            Assert.That(effects.ActiveCount, Is.EqualTo(1));
+            Assert.That(handle.Progress, Is.EqualTo(1));
+            var end = lines[0].GetPosition(lines[0].positionCount - 1);
+            var alpha = lines[0].endColor.a;
+            Assert.That(alpha, Is.GreaterThan(0));
+            var material = lines[0].sharedMaterial;
+            effects.Evaluate(5000);
+            Assert.That(lines[0].GetPosition(lines[0].positionCount - 1), Is.EqualTo(end));
+            Assert.That(lines[0].endColor.a, Is.EqualTo(alpha));
+            Assert.That(effects.PlayWave(options, stage.transform), Is.SameAs(handle));
+            Assert.That(completed, Is.False);
+            handle.Cancel();
+            Assert.That(effects.ActiveCount, Is.Zero);
+            Assert.That(stage.GetComponentsInChildren<LineRenderer>().Length, Is.Zero);
+            Assert.That(material == null, Is.True);
+            Assert.That(completed, Is.False);
+            Assert.DoesNotThrow(() => effects.PlayWave(options, stage.transform));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(stage); }
+    }
+
+    [Test]
+    public void WaveRevealsParallelLinesOnAPlaneFromLeftToRight()
+    {
+        var stage = new GameObject("Wave stage");
+        try
+        {
+            using var effects = new VisualEffectPlayer();
+            effects.PlayWave(new EffectOptions("wave", 1, Color.white, 1, 1000, 42, 0), stage.transform);
             effects.Evaluate(500);
             var lines = stage.GetComponentsInChildren<LineRenderer>();
             Assert.That(lines.Length, Is.EqualTo(12));
             var first = lines[0].GetPosition(0);
             var drawn = lines[0].GetPosition(10);
             var count = lines[0].positionCount;
-            Assert.That(first.x * first.x + first.z * first.z,
-                Is.EqualTo(drawn.x * drawn.x + drawn.z * drawn.z).Within(0.001f));
-            Assert.That(lines[1].GetPosition(0), Is.Not.EqualTo(first));
+            Assert.That(first.x, Is.EqualTo(-4).Within(0.001f));
+            Assert.That(drawn.x, Is.GreaterThan(first.x));
+            Assert.That(first.z, Is.Zero.Within(0.001f));
+            Assert.That(drawn.z, Is.Zero.Within(0.001f));
+            Assert.That(first.y - lines[1].GetPosition(0).y, Is.EqualTo(0.12f).Within(0.001f));
+            Assert.That(drawn.y - lines[1].GetPosition(10).y, Is.EqualTo(0.12f).Within(0.001f));
             effects.Evaluate(650);
             Assert.That(lines[0].GetPosition(0), Is.EqualTo(first));
             Assert.That(lines[0].GetPosition(10), Is.EqualTo(drawn));
             Assert.That(lines[0].positionCount, Is.GreaterThan(count));
             effects.Evaluate(900);
-            Assert.That(lines[0].endColor.a, Is.LessThan(lines[0].startColor.a));
+            Assert.That(lines[0].endColor.a, Is.EqualTo(lines[0].startColor.a).Within(0.001f));
+            effects.Evaluate(1000);
+            float minY = float.PositiveInfinity, maxY = float.NegativeInfinity;
+            for (int i = 0; i < lines[0].positionCount; i++)
+            {
+                float y = lines[0].GetPosition(i).y;
+                minY = Mathf.Min(minY, y);
+                maxY = Mathf.Max(maxY, y);
+            }
+            Assert.That(maxY - minY, Is.GreaterThan(1f).And.LessThanOrEqualTo(1.2f));
+            Assert.That(lines[0].startColor.b, Is.EqualTo(0xf5 / 255f).Within(0.01f));
+            Assert.That(lines[0].endColor.r, Is.EqualTo(0xdf / 255f).Within(0.01f));
         }
         finally { UnityEngine.Object.DestroyImmediate(stage); }
+    }
+
+    [Test]
+    public void WaveInstancesCanBePlacedAndCancelledIndependently()
+    {
+        var left = new GameObject("left");
+        var right = new GameObject("right");
+        right.transform.position = new Vector3(4, 2, 3);
+        right.transform.rotation = Quaternion.Euler(0, 180, 0);
+        try
+        {
+            using var effects = new VisualEffectPlayer();
+            var first = effects.PlayWave(new EffectOptions("a", 1, Color.white, 1, 1000, 42, 0), left.transform);
+            effects.PlayWave(new EffectOptions("b", 2, Color.white, 1, 1000, 42, 500), right.transform);
+            effects.Evaluate(750);
+            var a = left.GetComponentInChildren<LineRenderer>();
+            var b = right.GetComponentInChildren<LineRenderer>();
+            Assert.That(a.transform.parent.parent, Is.SameAs(left.transform));
+            Assert.That(b.transform.parent.parent, Is.SameAs(right.transform));
+            Assert.That(b.GetPosition(0).x, Is.EqualTo(-8).Within(0.001f));
+            Assert.That(b.GetPosition(b.positionCount - 1).x, Is.LessThan(a.GetPosition(a.positionCount - 1).x * 2));
+            first.Cancel();
+            Assert.That(effects.ActiveCount, Is.EqualTo(1));
+            Assert.That(right.GetComponentsInChildren<LineRenderer>().Length, Is.EqualTo(12));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(left); UnityEngine.Object.DestroyImmediate(right); }
     }
 
     [Test]
@@ -37,7 +112,8 @@ public sealed class VisualEffectTests
     {
         using var effects = new VisualEffectPlayer();
         var completed = 0;
-        var handle = effects.PlayWave(new EffectOptions("wave", 1, Color.cyan, 2, 1000, 42, 100), null);
+        var handle = effects.BeginHandGlow(new EffectOptions("hand", 1, Color.cyan, 2, 1000, 42, 100));
+        effects.EndHandGlow("hand", 100);
         handle.Completed += () => completed++;
         effects.Evaluate(350);
         Assert.That(handle.Progress, Is.EqualTo(0.5f));

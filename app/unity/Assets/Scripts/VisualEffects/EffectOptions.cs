@@ -14,7 +14,7 @@ namespace Unframe.Unity.VisualEffects
         public uint Seed { get; }
         public double StartedAtRuntimeMs { get; }
 
-        public EffectOptions(string runId, float size, Color color, float speed, double durationMs, uint seed, double startedAtRuntimeMs, float waveCycles = 0.5f)
+        public EffectOptions(string runId, float size, Color color, float speed, double durationMs, uint seed, double startedAtRuntimeMs, float waveCycles = 1)
         {
             if (string.IsNullOrWhiteSpace(runId)) throw new ArgumentException("A run ID is required.", nameof(runId));
             Positive(size, nameof(size));

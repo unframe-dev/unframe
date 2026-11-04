@@ -3,14 +3,22 @@ import {
   BoxGeometry,
   Color,
   DirectionalLight,
+  GridHelper,
+  Group,
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
+  PlaneGeometry,
   Scene,
   Vector3,
   WebGLRenderer,
 } from "three";
-import { VisualEffects, type EffectOptions, type HandGlowHandle } from "./effects";
+import {
+  VisualEffects,
+  type EffectHandle,
+  type EffectOptions,
+  type HandGlowHandle,
+} from "./effects";
 
 const style = document.createElement("style");
 style.textContent =
@@ -22,18 +30,35 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new Scene();
 scene.background = new Color("#111523");
 const camera = new PerspectiveCamera(45, 1, 0.01, 100);
-camera.position.set(0, 1, 6);
+camera.position.set(0, 0, 13);
 camera.lookAt(0, 0, 0);
 scene.add(new AmbientLight(0xffffff, 2));
 const light = new DirectionalLight(0xffffff, 3);
 light.position.set(2, 3, 4);
 scene.add(light);
+const floor = new Mesh(
+  new PlaneGeometry(20, 20),
+  new MeshStandardMaterial({ color: "#1c2433", roughness: 1 }),
+);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -1;
+scene.add(floor);
+const grid = new GridHelper(20, 20, "#617086", "#354358");
+grid.position.y = -0.995;
+scene.add(grid);
+const waveA = new Group();
+waveA.position.set(-4.5, 1, 0);
+const waveB = new Group();
+waveB.position.set(4.5, 1, 0);
+waveB.rotation.y = Math.PI;
+scene.add(waveA, waveB);
 const model = new Mesh(
   new BoxGeometry(0.8, 0.8, 0.8),
   new MeshStandardMaterial({ color: "#a9b7d8" }),
 );
 scene.add(model);
 const effects = new VisualEffects();
+const waves = new Map<string, EffectHandle>();
 let hand: HandGlowHandle | undefined;
 let clock = 0;
 let previous = performance.now();
@@ -68,12 +93,18 @@ function button(id: string, action: () => void) {
     }
   };
 }
-button("wave", () => {
-  effects.play(options("wave"), scene, () => {
-    status.textContent = "ウェーブ完了";
-  });
-  status.textContent = "ウェーブ再生中";
-});
+function toggleWave(id: string, target: Group, label: string) {
+  const active = waves.get(id);
+  if (active) {
+    active.cancel();
+    waves.delete(id);
+  } else waves.set(id, effects.play(options("wave"), target));
+  document.querySelector<HTMLButtonElement>(`#${id}`)!.textContent =
+    `${label}を${active ? "表示" : "消す"}`;
+  status.textContent = `${label}を${active ? "消しました" : "表示中"}`;
+}
+button("wave", () => toggleWave("wave", waveA, "波 A"));
+button("wave-b", () => toggleWave("wave-b", waveB, "波 B"));
 button("dissolve", () => {
   model.visible = true;
   effects.play(options("dissolve"), model, () => {
@@ -94,6 +125,9 @@ button("end", () => {
 });
 button("reset", () => {
   effects.dispose();
+  waves.clear();
+  document.querySelector<HTMLButtonElement>("#wave")!.textContent = "波 Aを表示";
+  document.querySelector<HTMLButtonElement>("#wave-b")!.textContent = "波 Bを表示";
   hand = undefined;
   model.visible = true;
   status.textContent = "リセットしました";
@@ -128,6 +162,11 @@ window.addEventListener(
     effects.dispose();
     model.geometry.dispose();
     model.material.dispose();
+    floor.geometry.dispose();
+    floor.material.dispose();
+    grid.geometry.dispose();
+    for (const material of Array.isArray(grid.material) ? grid.material : [grid.material])
+      material.dispose();
     renderer.dispose();
   },
   { once: true },

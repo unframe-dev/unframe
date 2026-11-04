@@ -56,7 +56,7 @@ function validate(options: EffectOptions): EffectOptions {
     throw new Error("Invalid effect color");
   if (!Number.isSafeInteger(options.seed) || options.seed < 0 || options.seed > 0xffffffff)
     throw new Error("Invalid effect seed");
-  const cycles = options.waveCycles ?? 0.5;
+  const cycles = options.waveCycles ?? 1;
   if (!Number.isFinite(cycles) || cycles < 0 || cycles > 6) throw new Error("Invalid wave cycles");
   time(options.startedAtRuntimeMs);
   return {
@@ -177,20 +177,15 @@ export class VisualEffects {
     group.visible = false;
     group.scale.setScalar(options.size);
     target.add(group);
-    const palette = ["#7187f5", "#9a80d0", "#df7b80"];
-    const lines = Array.from({ length: 12 }, (_, index) => {
+    const blue = new Color("#7187f5");
+    const purple = new Color("#9a80d0");
+    const coral = new Color("#df7b80");
+    const shade = new Color();
+    const phase = -Math.PI * 0.2 + ((options.seed % 1024) / 1023) * Math.PI * 0.1;
+    const lines = Array.from({ length: 12 }, () => {
       const item = line(options, 96);
-      item.geometry.setAttribute(
-        "color",
-        new Float32BufferAttribute(new Float32Array(96 * 4).fill(1), 4),
-      );
+      item.geometry.setAttribute("color", new Float32BufferAttribute(new Float32Array(96 * 3), 3));
       item.material.vertexColors = true;
-      const t = index / 11;
-      const shade =
-        t <= 0.48
-          ? new Color(palette[0]).lerp(new Color(palette[1]), t / 0.48)
-          : new Color(palette[1]).lerp(new Color(palette[2]), (t - 0.48) / 0.52);
-      item.material.color.copy(shade).multiply(color(options));
       group.add(item);
       return item;
     });
@@ -198,60 +193,31 @@ export class VisualEffects {
       sample(now: number) {
         const p = progress(options, now);
         group.visible = now >= options.startedAtRuntimeMs;
-        lines.forEach((item, index) => {
-          const lane = index % 6;
-          const groupIndex = Math.floor(index / 6);
-          const randomValue = (channel: number, key = groupIndex) => {
-            let hash =
-              options.seed ^ Math.imul(key + 1, 747796405) ^ Math.imul(channel, 2891336453);
-            hash = Math.imul(hash ^ (hash >>> 16), 2246822519);
-            return (hash & 0x00ffffff) / 16777215;
-          };
-          const groupPhase = randomValue(3) * Math.PI * 2;
-          const travel = Math.max(0, (p - groupIndex * 0.008) / 0.96);
-          const startQ = randomValue(7, index) * 0.12;
-          const endQ = 1.8 + randomValue(8, index) * 0.12;
-          const head = startQ + travel * (endQ - startQ);
-          const side = index < 6 ? -1 : 1;
+        lines.forEach((item, lane) => {
           const positions = item.geometry.getAttribute("position");
           const colors = item.geometry.getAttribute("color");
-          const fadeProgress = Math.max(0, Math.min(1, (p - 0.75) / 0.25));
-          const boundary = 1.15 - 1.3 * fadeProgress;
           for (let i = 0; i < positions.count; i++) {
-            const t = i / (positions.count - 1);
-            // Revealing a fixed path keeps already drawn sections stationary.
-            const q = Math.min(startQ + t * 1.9, head);
-            const phase =
-              q * Math.PI * 2 * ((options.waveCycles ?? 0.5) * (0.7 + randomValue(2) * 0.6)) +
-              Math.sin(q * 3 + groupPhase) * 0.12 * Math.min(1, (options.waveCycles ?? 0.5) * 2) +
-              groupPhase;
-            const visibleT = head > startQ ? (q - startQ) / (head - startQ) : 0;
-            const u = Math.max(0, Math.min(1, (visibleT - (boundary - 0.1)) / 0.2));
-            colors.setXYZW(i, 1, 1, 1, 1 - u * u * (3 - 2 * u));
-            const startAngle = -0.18 + randomValue(4) * 0.24;
-            const endAngle = Math.PI + 0.19 + randomValue(5) * 0.24;
-            const angle = startAngle + ((endAngle - startAngle) * q) / 1.8;
-            const radius = 3.8 + randomValue(6) * 0.5;
-            const spacing = 0.035 + 0.215 * (0.5 + 0.5 * Math.sin(phase));
+            // Fixed path samples retain their positions as the leading edge advances.
+            const q = Math.min(i / (positions.count - 1), p);
             positions.setXYZ(
               i,
-              side * radius * Math.cos(angle),
-              (lane - 2.5) * spacing + Math.sin(phase) * 0.3,
-              -radius * Math.sin(angle),
+              -4 + 8 * q,
+              0.6 * Math.cos(q * (options.waveCycles ?? 1) * Math.PI * 2 + phase) +
+                (5.5 - lane) * 0.12,
+              0,
             );
+            if (q <= 0.48) shade.copy(blue).lerp(purple, q / 0.48);
+            else shade.copy(purple).lerp(coral, (q - 0.48) / 0.52);
+            colors.setXYZ(i, shade.r, shade.g, shade.b);
           }
-          item.geometry.setDrawRange(
-            0,
-            Math.max(2, Math.min(96, Math.ceil(((head - startQ) / 1.9) * 95) + 1)),
-          );
+          item.geometry.setDrawRange(0, Math.max(2, Math.ceil(p * 95) + 1));
           positions.needsUpdate = true;
           colors.needsUpdate = true;
           item.geometry.computeBoundingSphere();
-          const appear = Math.max(0, Math.min(1, travel / 0.22));
-          const fade = appear * appear * (3 - 2 * appear);
-          item.material.opacity = options.color[3] * fade;
+          const appear = Math.max(0, Math.min(1, p / 0.22));
+          item.material.opacity = options.color[3] * appear * appear * (3 - 2 * appear);
         });
-        return p >= 1;
+        return false;
       },
       release: () => releaseGroup(group),
     };
