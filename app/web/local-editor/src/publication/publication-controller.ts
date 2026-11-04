@@ -5,33 +5,16 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 export function createPublicationController(input: {
   api: HostApi;
   onDistBuilt(job: BuildJob): void;
-  pollMilliseconds?: number;
 }) {
   const store = createPublicationStore();
   let closed = false,
     epoch = 0,
-    reading = false,
     started = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let unsubscribeAuth: (() => void) | undefined;
   let buildTimer: ReturnType<typeof setTimeout> | undefined;
-  const lifetime = new AbortController();
   let action = new AbortController();
   let buildAbort = new AbortController();
   let buildEpoch = 0;
-  async function readAuth() {
-    if (closed || reading) return;
-    reading = true;
-    const serial = epoch;
-    try {
-      const auth = await input.api.publicationAuth(lifetime.signal);
-      if (!closed && serial === epoch) store.setState({ auth });
-    } catch (error) {
-      if (!closed && serial === epoch) store.setState({ error: message(error) });
-    } finally {
-      reading = false;
-      if (!closed) timer = setTimeout(() => void readAuth(), input.pollMilliseconds ?? 1000);
-    }
-  }
   async function authAction(cancel: boolean) {
     if (closed || store.getState().pending) return;
     const serial = ++epoch;
@@ -39,11 +22,8 @@ export function createPublicationController(input: {
     action = new AbortController();
     store.setState({ pending: true, error: null });
     try {
-      const auth = cancel
-        ? (await input.api.cancelPublicationAuth(action.signal),
-          await input.api.publicationAuth(action.signal))
-        : await input.api.beginPublicationAuth(action.signal);
-      if (!closed && serial === epoch) store.setState({ auth });
+      if (cancel) await input.api.cancelPublicationAuth(action.signal);
+      else await input.api.beginPublicationAuth(action.signal);
     } catch (error) {
       if (!closed && serial === epoch) store.setState({ error: message(error) });
     } finally {
@@ -73,7 +53,10 @@ export function createPublicationController(input: {
     start() {
       if (started || closed) return Promise.resolve();
       started = true;
-      return readAuth();
+      unsubscribeAuth = input.api.subscribePublicationAuth((auth) => {
+        if (!closed) store.setState({ auth });
+      });
+      return Promise.resolve();
     },
     setReceipt(receipt: DisplayReceipt | null) {
       if (!closed) store.setState({ receipt });
@@ -174,10 +157,9 @@ export function createPublicationController(input: {
       closed = true;
       ++epoch;
       ++buildEpoch;
-      lifetime.abort();
+      unsubscribeAuth?.();
       action.abort();
       buildAbort.abort();
-      clearTimeout(timer);
       clearTimeout(buildTimer);
       const job = store.getState().job;
       if (job && ["queued", "running"].includes(job.status))

@@ -1,3 +1,4 @@
+import type { PublicationAuth } from "./publication-auth.js";
 import type { Server } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
@@ -15,6 +16,7 @@ export function startEditorSocket(input: {
   token: string;
   development: boolean;
   previews: LocalPreviewService;
+  auth: PublicationAuth;
   onInvalidateDisplay(): void;
 }) {
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
@@ -62,10 +64,12 @@ export function startEditorSocket(input: {
   });
   sockets.on("connection", (socket) => {
     let authenticated = false;
+    let unsubscribeAuth: (() => void) | undefined;
     const timeout = setTimeout(() => socket.close(1008, "Authentication required."), 5000);
     socket.on("error", () => socket.terminate());
     socket.on("close", () => {
       clearTimeout(timeout);
+      unsubscribeAuth?.();
       clearTimeout(timers.get(socket));
       timers.delete(socket);
       if (owner === socket) owner = undefined;
@@ -89,6 +93,15 @@ export function startEditorSocket(input: {
         authenticated = true;
         clearTimeout(timeout);
         send(socket, { type: "ready" });
+        let authVersion = 0;
+        unsubscribeAuth = input.auth.subscribe((value) => {
+          ++authVersion;
+          send(socket, { type: "publicationAuth", value });
+        });
+        const initialVersion = authVersion;
+        void input.auth.status().then((value) => {
+          if (authVersion === initialVersion) send(socket, { type: "publicationAuth", value });
+        });
         return;
       }
       const parsed = editorSocketRequestSchema.safeParse(value);

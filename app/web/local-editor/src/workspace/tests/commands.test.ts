@@ -72,6 +72,7 @@ function fixture(readOnly = false) {
       },
     }),
     publicationAuth: async () => ({ status: "signed-out" }),
+    subscribePublicationAuth: () => () => undefined,
   } as unknown as HostApi;
   const disposed = vi.fn(async () => undefined);
   const driver: PreviewDriver = {

@@ -5,7 +5,10 @@ import type { HostApi } from "../../infra/host-api";
 it("keeps publication pinned to the displayed Dist and rejects a mismatched result", async () => {
   const publish = vi.fn(async () => ({ ok: true as const, buildId: "other", publicationEpoch: 1 }));
   const api = {
-    publicationAuth: async () => ({ status: "authenticated" as const }),
+    subscribePublicationAuth: (listener: (state: { status: "authenticated" }) => void) => {
+      listener({ status: "authenticated" });
+      return () => undefined;
+    },
     publish,
   } as unknown as HostApi;
   const controller = createPublicationController({ api, onDistBuilt: () => undefined });
@@ -66,7 +69,10 @@ it("retains an unknown publication and confirms its receipt without publishing a
     .mockResolvedValueOnce(unknown)
     .mockResolvedValueOnce({ ok: true, buildId: "fixed", publicationEpoch: 2 });
   const api = {
-    publicationAuth: async () => ({ status: "authenticated" }),
+    subscribePublicationAuth: (listener: (state: { status: "authenticated" }) => void) => {
+      listener({ status: "authenticated" });
+      return () => undefined;
+    },
     publish,
     publicationStatus,
   } as unknown as HostApi;
@@ -108,7 +114,10 @@ it("keeps an unknown publication when a receipt belongs to another operation", a
     },
   };
   const api = {
-    publicationAuth: async () => ({ status: "authenticated" }),
+    subscribePublicationAuth: (listener: (state: { status: "authenticated" }) => void) => {
+      listener({ status: "authenticated" });
+      return () => undefined;
+    },
     publish: async () => unknown,
     publicationStatus: async () => ({ ok: true, buildId: "fixed", publicationEpoch: 3 }),
   } as unknown as HostApi;
@@ -120,5 +129,73 @@ it("keeps an unknown publication when a receipt belongs to another operation", a
   expect(controller.store.getState().unknown?.requestId).toBe("displayed");
   expect(controller.store.getState().result).toBeNull();
   expect(controller.store.getState().error).toContain("receipt");
+  controller.dispose();
+});
+
+it("uses only stream state despite late auth actions, supports repeated start and unsubscribes on dispose", async () => {
+  let notify!: (state: import("@unframe-dev/contracts/author-http").PublicationAuth) => void;
+  let finish!: (state: unknown) => void;
+  const unsubscribe = vi.fn();
+  const subscribePublicationAuth = vi.fn((listener) => {
+    notify = listener;
+    return unsubscribe;
+  });
+  const publicationAuth = vi.fn();
+  const api = {
+    subscribePublicationAuth,
+    publicationAuth,
+    beginPublicationAuth: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    cancelPublicationAuth: async () => {
+      notify({ status: "signed-out" });
+    },
+  } as unknown as HostApi;
+  const controller = createPublicationController({ api, onDistBuilt: () => undefined });
+  await controller.start();
+  await controller.start();
+  expect(subscribePublicationAuth).toHaveBeenCalledOnce();
+  notify({ status: "signed-out" });
+  const starting = controller.authenticate();
+  notify({ status: "authenticated", expiresAt: 10000 });
+  finish({ status: "pending", userCode: "old" });
+  await starting;
+  expect(controller.store.getState().auth).toEqual({ status: "authenticated", expiresAt: 10000 });
+  await controller.cancelAuth();
+  expect(controller.store.getState().auth).toEqual({ status: "signed-out" });
+  expect(publicationAuth).not.toHaveBeenCalled();
+  notify({ status: "expired" });
+  expect(controller.store.getState().auth).toEqual({ status: "expired" });
+  controller.dispose();
+  expect(unsubscribe).toHaveBeenCalledOnce();
+  notify({ status: "authenticated" });
+  expect(controller.store.getState().auth).toEqual({ status: "expired" });
+});
+
+it("keeps a reconnect snapshot when an older cancel response finishes later", async () => {
+  let notify!: (state: import("@unframe-dev/contracts/author-http").PublicationAuth) => void;
+  let finish!: () => void;
+  const api = {
+    subscribePublicationAuth: (listener: typeof notify) => {
+      notify = listener;
+      return () => undefined;
+    },
+    cancelPublicationAuth: () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    publicationAuth: vi.fn(),
+  } as unknown as HostApi;
+  const controller = createPublicationController({ api, onDistBuilt: () => undefined });
+  await controller.start();
+  notify({ status: "pending", userCode: "old" });
+  const cancelling = controller.cancelAuth();
+  notify({ status: "signed-out" });
+  notify({ status: "authenticated", expiresAt: 20000 });
+  finish();
+  await cancelling;
+  expect(controller.store.getState().auth).toEqual({ status: "authenticated", expiresAt: 20000 });
+  expect(api.publicationAuth).not.toHaveBeenCalled();
   controller.dispose();
 });

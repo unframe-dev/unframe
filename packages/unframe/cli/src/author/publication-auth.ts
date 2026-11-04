@@ -59,9 +59,16 @@ export function createPublicationAuth(target?: PublicationTarget) {
   let state: PublicationAuthStatus = { status: target ? "signed-out" : "unconfigured" };
   let deviceCode: string | undefined;
   let bearer: string | undefined;
-  let nextPoll = 0;
   let interval = 0;
-  let poll: Promise<PublicationAuthStatus> | undefined;
+  let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+  const listeners = new Set<(status: PublicationAuthStatus) => void>();
+  const view = () => ({ ...state });
+  const update = (next: PublicationAuthStatus) => {
+    if (JSON.stringify(state) === JSON.stringify(next)) return;
+    state = next;
+    for (const listener of listeners) listener(view());
+  };
   let controller = new AbortController();
   const clear = (status: PublicationAuthStatus["status"]) => {
     ++epoch;
@@ -69,12 +76,31 @@ export function createPublicationAuth(target?: PublicationTarget) {
     controller = new AbortController();
     deviceCode = undefined;
     bearer = undefined;
-    poll = undefined;
-    state = { status };
+    clearTimeout(pollTimer);
+    clearTimeout(expiryTimer);
+    pollTimer = undefined;
+    expiryTimer = undefined;
+    update({ status });
   };
-  const view = () => ({ ...state });
   const expire = () => {
     if (state.expiresAt !== undefined && state.expiresAt <= now()) clear("expired");
+  };
+  const scheduleExpiry = () => {
+    clearTimeout(expiryTimer);
+    if (state.expiresAt === undefined) return;
+    expiryTimer = setTimeout(
+      () => {
+        expire();
+        if (state.expiresAt !== undefined) scheduleExpiry();
+      },
+      Math.min(Math.max(0, state.expiresAt - now()), 2147483647),
+    );
+    expiryTimer.unref?.();
+  };
+  const schedulePoll = () => {
+    if (state.status !== "pending") return;
+    pollTimer = setTimeout(() => void checkAuthorization(), interval);
+    pollTimer.unref?.();
   };
   const send = (path: string, body: unknown) => {
     if (!target) throw unavailable();
@@ -88,6 +114,46 @@ export function createPublicationAuth(target?: PublicationTarget) {
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
       },
     );
+  };
+  const checkAuthorization = async () => {
+    expire();
+    if (!target || state.status !== "pending" || !deviceCode) return;
+    const expected = epoch;
+    try {
+      const response = await send("token", {
+        client_id: target.clientId,
+        device_code: deviceCode,
+        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+      });
+      const body: unknown = await response.json();
+      expire();
+      if (expected !== epoch) return;
+      if (response.status >= 500) return;
+      if (!response.ok) {
+        const error = z.object({ error: z.string() }).safeParse(body);
+        if (error.success && error.data.error === "slow_down") {
+          interval += 5000;
+        } else if (error.success && error.data.error === "authorization_pending") {
+          /* Poll at the server-provided interval. */
+        } else if (error.success && error.data.error === "expired_token") clear("expired");
+        else clear("denied");
+        return;
+      }
+      const parsed = tokenSchema.safeParse(body);
+      if (!parsed.success) {
+        clear("denied");
+        return;
+      }
+      bearer = parsed.data.access_token;
+      deviceCode = undefined;
+      update({ status: "authenticated", expiresAt: now() + parsed.data.expires_in * 1000 });
+      scheduleExpiry();
+      return;
+    } catch {
+      // Transient transport failures keep authorization pending until its deadline.
+    } finally {
+      if (epoch === expected) schedulePoll();
+    }
   };
   return {
     async start(): Promise<PublicationAuthStatus> {
@@ -127,64 +193,25 @@ export function createPublicationAuth(target?: PublicationTarget) {
       if (epoch !== expected) return view();
       deviceCode = code.device_code;
       interval = code.interval * 1000;
-      nextPoll = now() + interval;
-      state = {
+      update({
         status: "pending",
         userCode: code.user_code,
         verificationUrl: url.href,
         expiresAt: now() + code.expires_in * 1000,
-      };
+      });
+      scheduleExpiry();
+      schedulePoll();
       return view();
     },
     async status(): Promise<PublicationAuthStatus> {
       expire();
-      if (!target || state.status !== "pending" || !deviceCode || now() < nextPoll) return view();
-      if (poll) return poll;
-      const expected = epoch;
-      nextPoll = now() + interval;
-      const pending = (async () => {
-        try {
-          const response = await send("token", {
-            client_id: target.clientId,
-            device_code: deviceCode,
-            grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-          });
-          const body: unknown = await response.json();
-          expire();
-          if (expected !== epoch) return view();
-          if (!response.ok) {
-            const error = z.object({ error: z.string() }).safeParse(body);
-            if (error.success && error.data.error === "slow_down") {
-              interval += 5000;
-              nextPoll = now() + interval;
-            } else if (error.success && error.data.error === "authorization_pending") {
-              /* Poll at the server-provided interval. */
-            } else if (error.success && error.data.error === "expired_token") clear("expired");
-            else clear("denied");
-            return view();
-          }
-          const parsed = tokenSchema.safeParse(body);
-          if (!parsed.success) {
-            clear("denied");
-            return view();
-          }
-          bearer = parsed.data.access_token;
-          deviceCode = undefined;
-          state = { status: "authenticated", expiresAt: now() + parsed.data.expires_in * 1000 };
-          return view();
-        } catch {
-          if (epoch !== expected) return view();
-          throw new AuthorError(
-            502,
-            "publication-auth-poll-failed",
-            "Could not check device authorization.",
-          );
-        } finally {
-          if (epoch === expected) poll = undefined;
-        }
-      })();
-      poll = pending;
-      return pending;
+      return view();
+    },
+    subscribe(listener: (status: PublicationAuthStatus) => void): () => void {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
     credential(): string {
       expire();
@@ -196,6 +223,7 @@ export function createPublicationAuth(target?: PublicationTarget) {
     },
     close() {
       clear(target ? "signed-out" : "unconfigured");
+      listeners.clear();
     },
   };
 }
