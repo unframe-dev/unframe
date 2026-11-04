@@ -15,6 +15,7 @@ export type ProjectState = {
   project: ProjectSnapshot | null;
   selectedId: string | null;
   draft: AuthorInstance | null;
+  dirtyPropIds: ReadonlySet<string>;
   baseRevision: string | null;
   status: EditStatus;
   pending: PendingSave | null;
@@ -27,6 +28,7 @@ export const createProjectStore = () =>
     project: null,
     selectedId: null,
     draft: null,
+    dirtyPropIds: new Set(),
     baseRevision: null,
     status: "clean",
     pending: null,
