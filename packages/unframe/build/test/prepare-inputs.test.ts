@@ -1,6 +1,3 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import * as ts from "typescript";
 import { createHash } from "node:crypto";
 import {
   hashPackageLocator,
@@ -108,13 +105,9 @@ function presentationProject(title: string) {
     localFiles: [{ path: "presentation.ts", bytes: new TextEncoder().encode(text) }],
   };
 }
-const libDirectory = dirname(ts.getDefaultLibFilePath({}));
-const typeLibraries = readdirSync(libDirectory)
-  .filter((name) => /^lib(?:\.[a-z0-9.]+)?\.d\.ts$/u.test(name))
-  .map((fileName) => ({
-    fileName,
-    sourceText: readFileSync(join(libDirectory, fileName), "utf8"),
-  }));
+const typeLibraries = ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"].map(
+  (fileName) => ({ fileName, sourceText: "" }),
+);
 it("owns source bytes before asynchronous environment reads", async () => {
   const project = presentationProject("Captured");
   const result = await prepareProjectInputs(
