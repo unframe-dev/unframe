@@ -29,7 +29,8 @@ public sealed class VisualEffectTests
             effects.Evaluate(900);
             Assert.That(lines[0].GetPosition(0).x, Is.GreaterThan(beforeTail.x));
             Assert.That(lines[0].GetPosition(95).x, Is.GreaterThan(beforeHead.x));
-            Assert.That(lines[0].startColor.a, Is.LessThan(alpha));
+            Assert.That(lines[0].endColor.a, Is.LessThan(alpha));
+            Assert.That(lines[0].endColor.a, Is.LessThan(lines[0].startColor.a));
         }
         finally { UnityEngine.Object.DestroyImmediate(stage); }
     }

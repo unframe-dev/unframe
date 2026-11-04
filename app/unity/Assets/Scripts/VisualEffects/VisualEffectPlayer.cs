@@ -36,6 +36,9 @@ namespace Unframe.Unity.VisualEffects
             private readonly GameObject root;
             private readonly Material material;
             private readonly LineRenderer[] lines = new LineRenderer[12];
+            private readonly Gradient gradient = new Gradient();
+            private readonly GradientColorKey[] colorKeys = new GradientColorKey[2];
+            private readonly GradientAlphaKey[] alphaKeys = new GradientAlphaKey[8];
             internal WaveRun(EffectOptions options, Transform parent)
             {
                 Options = options;
@@ -69,10 +72,19 @@ namespace Unframe.Unity.VisualEffects
                         ? Color.Lerp(blue, purple, palettePosition / 0.48f)
                         : Color.Lerp(purple, coral, (palettePosition - 0.48f) / 0.52f);
                     color *= Options.Color;
-                    color.a = Options.Color.a * Mathf.Clamp01(progress / 0.12f)
-                        * (1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(0.8f, 1, progress)));
-                    lines[i].startColor = lines[i].endColor = color;
-                    var frequency = Mathf.Lerp(1.2f, 3.2f, RandomValue(i, 2));
+                    colorKeys[0] = new GradientColorKey(color, 0);
+                    colorKeys[1] = new GradientColorKey(color, 1);
+                    var fadeBoundary = Mathf.Lerp(1.15f, -0.15f, Mathf.InverseLerp(0.75f, 1, progress));
+                    for (var key = 0; key < alphaKeys.Length; key++)
+                    {
+                        var t = key / (float)(alphaKeys.Length - 1);
+                        var alpha = Options.Color.a * Mathf.Clamp01(progress / 0.12f)
+                            * (1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(fadeBoundary - 0.1f, fadeBoundary + 0.1f, t)));
+                        alphaKeys[key] = new GradientAlphaKey(alpha, t);
+                    }
+                    gradient.SetKeys(colorKeys, alphaKeys);
+                    lines[i].colorGradient = gradient;
+                    var frequency = Mathf.Lerp(0.35f, 0.65f, RandomValue(i, 2));
                     var phase = RandomValue(i, 3) * Mathf.PI * 2;
                     for (var j = 0; j < 96; j++)
                     {
@@ -80,7 +92,7 @@ namespace Unframe.Unity.VisualEffects
                         var q = Mathf.Lerp(tail, head, t);
                         var x = side * (4 - 6 * q);
                         var irregularPhase = q * frequency * Mathf.PI * 2
-                            + 0.8f * Mathf.Sin(q * 9 + phase);
+                            + 0.12f * Mathf.Sin(q * 3 + phase);
                         var y = (lane - 2.5f) * 0.11f + Mathf.Sin(irregularPhase + phase) * 0.16f;
                         var z = 1.8f * Mathf.Sin(Mathf.Min(q, 1) * Mathf.PI * 0.75f) + lane * 0.025f;
                         lines[i].SetPosition(j, new Vector3(x, y, z) * Options.Size);

@@ -176,6 +176,11 @@ export class VisualEffects {
     const palette = ["#7187f5", "#9a80d0", "#df7b80"];
     const lines = Array.from({ length: 12 }, (_, index) => {
       const item = line(options, 96);
+      item.geometry.setAttribute(
+        "color",
+        new Float32BufferAttribute(new Float32Array(96 * 4).fill(1), 4),
+      );
+      item.material.vertexColors = true;
       const t = index / 11;
       const shade =
         t <= 0.48
@@ -198,9 +203,16 @@ export class VisualEffects {
           const tail = Math.max(0, head - (0.72 + random * 0.2));
           const side = index < 6 ? -1 : 1;
           const positions = item.geometry.getAttribute("position");
+          const colors = item.geometry.getAttribute("color");
+          const fadeProgress = Math.max(0, Math.min(1, (p - 0.75) / 0.25));
+          const boundary = 1.15 - 1.3 * fadeProgress;
           for (let i = 0; i < positions.count; i++) {
-            const q = tail + ((head - tail) * i) / (positions.count - 1);
-            const phase = q * Math.PI * (5 + random * 6) + Math.sin(q * 8 + random * 10) * 1.3;
+            const t = i / (positions.count - 1);
+            const q = tail + (head - tail) * t;
+            const phase =
+              q * Math.PI * 2 * (0.35 + random * 0.3) + Math.sin(q * 3 + random * 10) * 0.12;
+            const u = Math.max(0, Math.min(1, (t - (boundary - 0.1)) / 0.2));
+            colors.setXYZW(i, 1, 1, 1, 1 - u * u * (3 - 2 * u));
             positions.setXYZ(
               i,
               side * (4 - 6 * q),
@@ -209,8 +221,9 @@ export class VisualEffects {
             );
           }
           positions.needsUpdate = true;
+          colors.needsUpdate = true;
           item.geometry.computeBoundingSphere();
-          const fade = Math.min(1, head * 8) * Math.max(0, Math.min(1, (1 - p) / 0.2));
+          const fade = Math.min(1, head * 8);
           item.material.opacity = options.color[3] * fade;
         });
         return p >= 1;

@@ -21,7 +21,7 @@ dissolve.Completed += () => targetMeshRenderer.enabled = false;
 player.Dispose();
 ```
 
-`size` は正の倍率、`color` は各成分 0〜1 の色、`speed` は正の時間倍率。`durationMs` と開始時刻はミリ秒。wave は対象中心のローカル座標へ描画する。左右 ±4m から出現し、+Z の背後へ回って反対側まで交差する。交差後も移動を続け、最後の20%で減衰する。消失中も両端は移動し続ける。線の長さと波長は seed で変化する。Hand の Pose は Unity world 座標。座標原点の変換はホストが行う。
+`size` は正の倍率、`color` は各成分 0〜1 の色、`speed` は正の時間倍率。`durationMs` と開始時刻はミリ秒。wave は対象中心のローカル座標へ描画する。左右 ±4m から出現し、+Z の背後へ回って反対側まで交差する。交差後も移動を続け、最後の25%で先端から減衰する。消失中も両端は移動し続ける。線の長さと波長は seed で変化する。Hand の Pose は Unity world 座標。座標原点の変換はホストが行う。
 
 `Evaluate` の時刻を固定すれば単発演出も停止する。開始前は wave／hand を非表示、dissolve は元マテリアルを保持する。単発演出は終端で資源を解放してから `Completed` を一度通知する。`Cancel` と `Dispose` は完了通知を出さない。同じ実行中 ID・同じ設定・同じ対象は同じ handle を返し、異なる内容を拒否する。、終了済み ID の履歴は保持しない。同時上限は32。同じ Renderer への重複 dissolve は拒否する。
 
@@ -38,3 +38,5 @@ Wave の線色は LP 指定の青紫 `#7187f5` → 紫 `#9a80d0` → コーラ�
 `Assets/Scenes/VisualEffectsPreview.unity` を開いて Play し、Game ビューのボタンを操作する。Wave、Dissolve、手元の光の開始／終了、Pause／Resume、Reset を試せる。サイズ・色・速度は画面またはルートの Inspector で変更でき、次に開始する演出へ適用する。Reset はすべてキャンセルしモデルを再表示する。
 
 カメラ・照明・対象モデルは Play 時に生成する。通信や Quest 認証は不要。Gesture の2つのボタンは固定の合成サンプルを認識器に渡す動作確認であり、実際の手・コントローラー入力ではない。認識設定は Inspector で調整できる。URP を使う Editor の Game ビュー向けで、XR 実機操作用の UI は含まない。
+
+ウェーブの波形は1本あたりおよそ半周期の大きなうねりに抑え、最後の25%で先端から末端へ透明化する。透明化中も両端の移動は続く。

@@ -127,7 +127,8 @@ describe("wave choreography", () => {
     effects.evaluate(1000);
     expect(left.getX(left.count - 1)).toBeGreaterThan(headX);
     expect(left.getX(0)).toBeGreaterThan(tailX);
-    expect(material.opacity).toBeLessThan(held);
+    const colors = lines[0]!.geometry.getAttribute("color");
+    expect(colors.getW(colors.count - 1)).toBeLessThan(colors.getW(0));
     effects.dispose();
   });
   it("uses the LP palette with tint and seeded strand variation", () => {
