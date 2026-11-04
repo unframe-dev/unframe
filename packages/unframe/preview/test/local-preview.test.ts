@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vite-plus/test";
+import { setImmediate } from "node:timers/promises";
+import { describe, expect, it, vi } from "vite-plus/test";
 import {
   presentationDefinitionSchema,
   renderBundleSchema,
@@ -237,6 +238,105 @@ describe("fixed local Preview service", () => {
     service.close();
     finish.resolve(sourceAssets.texture!);
     await rejected;
+  });
+
+  it.each(["invalidate", "close"] as const)(
+    "rejects all queued asset requests on %s without waiting for an active read",
+    async (operation) => {
+      const source = generation();
+      const service = createLocalPreviewService("/project", {
+        readGeneration: async () => source,
+        assetCacheBytes: 0,
+        assetConcurrency: 1,
+      });
+      const envelope = await service.load({ requestId: requestA, channel: "dist" });
+      const reference = envelope.assets![0]!.reference!;
+      const started = deferred<void>();
+      const finish = deferred<PreviewAsset>();
+      let reads = 0;
+      source.readAsset = async () => {
+        reads += 1;
+        started.resolve();
+        return finish.promise;
+      };
+      const reading = Promise.allSettled([service.asset(requestA, reference)]);
+      await started.promise;
+      let outcomes: PromiseSettledResult<PreviewAsset>[] = [];
+      const queued = Promise.allSettled([
+        service.asset(requestA, reference),
+        service.asset(requestA, reference),
+      ]).then((results) => {
+        outcomes = results;
+      });
+      try {
+        service[operation]();
+        await vi.waitFor(() =>
+          expect(outcomes).toEqual([
+            { status: "rejected", reason: expect.objectContaining({ code: "preview-stale" }) },
+            { status: "rejected", reason: expect.objectContaining({ code: "preview-stale" }) },
+          ]),
+        );
+        expect(reads).toBe(1);
+      } finally {
+        finish.resolve(sourceAssets.texture!);
+        await Promise.all([reading, queued]);
+        service.close();
+      }
+    },
+  );
+
+  it("cancels a queued load on abort and keeps a replacement load within the read limit", async () => {
+    const source = generation();
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => source,
+      assetCacheBytes: 0,
+      assetConcurrency: 1,
+    });
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    const started = deferred<void>();
+    const finish = deferred<PreviewAsset>();
+    let reads = 0;
+    let active = 0;
+    let maximum = 0;
+    source.readAsset = async () => {
+      reads += 1;
+      active += 1;
+      maximum = Math.max(maximum, active);
+      started.resolve();
+      try {
+        return await finish.promise;
+      } finally {
+        active -= 1;
+      }
+    };
+    const reading = Promise.allSettled([service.asset(requestA, envelope.assets![0]!.reference!)]);
+    await started.promise;
+    const controller = new AbortController();
+    let outcomes: PromiseSettledResult<unknown>[] = [];
+    const loading = Promise.allSettled([
+      service.load({ requestId: requestB, channel: "dist" }, controller.signal),
+    ]).then((results) => {
+      outcomes = results;
+    });
+    try {
+      await setImmediate();
+      controller.abort();
+      await vi.waitFor(() =>
+        expect(outcomes).toEqual([
+          { status: "rejected", reason: expect.objectContaining({ code: "preview-stale" }) },
+        ]),
+      );
+      const replacement = service.load({ requestId: "c".repeat(32), channel: "dist" });
+      await setImmediate();
+      finish.resolve(sourceAssets.texture!);
+      expect((await replacement).requestId).toBe("c".repeat(32));
+      expect(reads).toBe(2);
+      expect(maximum).toBe(1);
+    } finally {
+      finish.resolve(sourceAssets.texture!);
+      await Promise.all([reading, loading]);
+      service.close();
+    }
   });
 
   it("omits Presenter recognition and connection-only capabilities from the preview envelope", async () => {

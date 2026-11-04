@@ -151,8 +151,10 @@ export const createLocalPreviewService = (
     descriptor: BuildArtifacts["assetSet"]["assets"][string],
     check: () => void,
   ) => {
-    while (activeReads >= concurrency)
+    while (activeReads >= concurrency) {
+      check();
       await new Promise<void>((resolve) => waitingReads.push(resolve));
+    }
     activeReads += 1;
     try {
       check();
@@ -193,6 +195,7 @@ export const createLocalPreviewService = (
     epoch += 1;
     candidate = undefined;
     displayed = undefined;
+    for (const wake of waitingReads.splice(0)) wake();
   };
   const checkCurrent = (expectedEpoch: number, signal?: AbortSignal) => {
     if (closed || epoch !== expectedEpoch || signal?.aborted)
