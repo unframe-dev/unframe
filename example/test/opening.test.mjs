@@ -42,10 +42,24 @@ test("ロゴは画像 Surface ではなく icon.glb の Model として配置す
   const gltf = JSON.parse(bytes.subarray(20, 20 + jsonLength).toString("utf8"));
   assert.equal(gltf.animations?.length ?? 0, 0);
   const original = await readFile(new URL("../../assets/icon.glb", import.meta.url));
-  assert.deepEqual(
-    bytes.subarray(20 + jsonLength),
-    original.subarray(20 + original.readUInt32LE(12)),
-  );
+  const originalJsonLength = original.readUInt32LE(12);
+  const originalGltf = JSON.parse(original.subarray(20, 20 + originalJsonLength).toString("utf8"));
+  const imageViews = new Set(gltf.images.map((image) => image.bufferView));
+  for (const [index, view] of gltf.bufferViews.entries()) {
+    if (imageViews.has(index)) continue;
+    const originalView = originalGltf.bufferViews[index];
+    assert.deepEqual(
+      bytes.subarray(
+        28 + jsonLength + view.byteOffset,
+        28 + jsonLength + view.byteOffset + view.byteLength,
+      ),
+      original.subarray(
+        28 + originalJsonLength + originalView.byteOffset,
+        28 + originalJsonLength + originalView.byteOffset + originalView.byteLength,
+      ),
+      `geometry buffer view ${index}`,
+    );
+  }
   assert.equal(gltf.materials[0].pbrMetallicRoughness.baseColorTexture.texCoord, 0);
   assert.ok(
     gltf.meshes.every((mesh) =>
@@ -55,6 +69,22 @@ test("ロゴは画像 Surface ではなく icon.glb の Model として配置す
       ),
     ),
   );
+});
+
+test("ロゴの埋め込み画像は Preview の GPU 予算内に収まる 1024px に縮小する", async () => {
+  const bytes = await readFile(new URL("../assets/icon.glb", import.meta.url));
+  const jsonLength = bytes.readUInt32LE(12);
+  const gltf = JSON.parse(bytes.subarray(20, 20 + jsonLength).toString("utf8"));
+  assert.equal(gltf.images.length, 1);
+  const view = gltf.bufferViews[gltf.images[0].bufferView];
+  const png = bytes.subarray(
+    28 + jsonLength + view.byteOffset,
+    28 + jsonLength + view.byteOffset + view.byteLength,
+  );
+  assert.equal(gltf.images[0].mimeType, "image/png");
+  assert.equal(png.subarray(1, 4).toString("ascii"), "PNG");
+  assert.equal(png.readUInt32BE(16), 1024);
+  assert.equal(png.readUInt32BE(20), 1024);
 });
 
 test("ロゴの上端を上向きにし、正面を観客へ向ける", () => {
