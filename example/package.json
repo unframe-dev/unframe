@@ -7,7 +7,7 @@
     "prepare:logo": "node scripts/prepare-logo.mjs",
     "prepare:cube": "node scripts/prepare-cube.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "bun test ./test/opening.test.mjs ./test/original.test.mjs"
+    "test": "bun test ./test/opening.test.mjs ./test/original.test.mjs ./test/show.test.mjs"
   },
   "dependencies": {
     "@unframe-dev/authoring": "workspace:*",

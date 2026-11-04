@@ -3,6 +3,7 @@ import type { SceneTimelineDeclaration } from "@unframe-dev/authoring";
 export const originalTimelines = [
   {
     id: "original-enter",
+    owner: { kind: "group", groupId: "demo" },
     durationMilliseconds: 860,
     tracks: [
       {
@@ -41,6 +42,7 @@ export const originalTimelines = [
   },
   {
     id: "cube-turn",
+    owner: { kind: "presentation" },
     durationMilliseconds: 10000,
     tracks: [
       {

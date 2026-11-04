@@ -5,6 +5,10 @@ import { originalTimelines } from "./original.timelines";
 import { RejectionMark } from "./rejection.component";
 import { rejectionTimeline } from "./rejection.timeline";
 
+import { showScene } from "./show.scene";
+import { originalDismissed, showGroups } from "./show.flow";
+import { showTimelines } from "./show.timelines";
+
 export default definePresentation({
   id: "presentation-8928636a-3e4f-49ac-8d2a-c0bfa3be8219",
   metadata: { title: "Unframe — 成果発表会 MR デモ" },
@@ -21,7 +25,7 @@ export default definePresentation({
       id: "rejection-mark",
       component: RejectionMark,
       props: {},
-      owner: { kind: "presentation" },
+      owner: { kind: "group", groupId: "demo" },
       audience: { kind: "all" },
       parent: { kind: "stage" },
       physicalSizeMeters: [1.4, 1.4],
@@ -58,7 +62,7 @@ export default definePresentation({
       id: "original-panel",
       component: OriginalPanel,
       props: {},
-      owner: { kind: "presentation" },
+      owner: { kind: "group", groupId: "demo" },
       audience: { kind: "all" },
       parent: { kind: "stage" },
       physicalSizeMeters: [1.72, 1.1008],
@@ -81,6 +85,7 @@ export default definePresentation({
         scale: [0.7, 0.7, 0.7],
       },
     },
+    ...showScene,
   ],
   flow: {
     initialGroupId: "demo",
@@ -204,9 +209,10 @@ export default definePresentation({
               },
             ],
           },
-          "original-dismissed": { id: "original-dismissed", cues: [] },
+          "original-dismissed": originalDismissed,
         },
       },
+      ...showGroups,
     },
     timelines: [
       {
@@ -265,6 +271,7 @@ export default definePresentation({
       },
       ...originalTimelines,
       rejectionTimeline,
+      ...showTimelines,
     ],
     variables: {},
   },
