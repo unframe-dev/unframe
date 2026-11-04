@@ -1,4 +1,6 @@
 using NUnit.Framework;
+using Unframe.Delivery;
+using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -77,6 +79,116 @@ public sealed class PresentationMultiDeviceCalibrationTests
             Object.DestroyImmediate(firstHost);
             Object.DestroyImmediate(secondHost);
         }
+    }
+
+    [TestCase(0f)]
+    [TestCase(1.8f)]
+    [TestCase(2.5f)]
+    public void SharedPresenterOriginPlacesAllDevicesInTheSamePhysicalSpace(float markerHeight)
+    {
+        var physicalMarker = new Pose(new Vector3(1, markerHeight, 3), Quaternion.Euler(32, 47, 18));
+        var frames = new[]
+        {
+            Pose.identity,
+            new Pose(new Vector3(-3, .7f, 2), Quaternion.Euler(0, 75, 0)),
+            new Pose(new Vector3(4, -1.2f, -2), Quaternion.Euler(0, -110, 0)),
+        };
+        var hosts = new GameObject[frames.Length];
+        var trackings = new GameObject[frames.Length];
+        var runtimes = new PresentationBakedRuntime[frames.Length];
+        var hierarchies = new PresentationNodeHierarchy[frames.Length];
+        var stores = new PresentationRuntimeDataStore[frames.Length];
+        var markers = new Pose[frames.Length];
+        try
+        {
+            Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,
+                out DeliveryManifest delivery, out string error), Is.True, error);
+            Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(PresentationTestFixtures.Load("LocalSnapshot").text,
+                out ControlServerItem snapshot, out error), Is.True, error);
+            var initial = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
+            Assert.That(PresentationCalibrationMath.TryPresenterOrigin(physicalMarker, 1.8f, initial, out var origin), Is.True);
+            snapshot.ConnectionSnapshot.Fence.PresentationOriginVersion = 1;
+            snapshot.ConnectionSnapshot.Snapshot.RuntimeView.PresentationOrigin = new PresentationOrigin { Version = 1, Pose = origin.Clone() };
+            for (int index = 0; index < frames.Length; index++)
+            {
+                Pose frame = frames[index];
+                markers[index] = new Pose(frame.position + frame.rotation * physicalMarker.position, frame.rotation * physicalMarker.rotation);
+                hosts[index] = new GameObject("Device " + index);
+                trackings[index] = new GameObject("Tracking " + index);
+                trackings[index].transform.SetPositionAndRotation(new Vector3(index + 2, .5f - index, index - 3), Quaternion.Euler(0, 25 + 35 * index, 0));
+                var calibration = Calibrate(markers[index], trackings[index].transform);
+                runtimes[index] = hosts[index].AddComponent<PresentationBakedRuntime>();
+                runtimes[index].ConfigureCalibration(calibration, trackings[index].transform);
+                runtimes[index].RefreshCalibration();
+                stores[index] = runtimes[index].DataStore;
+                Assert.That(stores[index].TryReceiveDelivery(delivery.Clone(), out error), Is.True, error);
+                hierarchies[index] = new PresentationNodeHierarchy();
+                Assert.That(hierarchies[index].TryReplace(stores[index], runtimes[index].PresentationSpace, out error), Is.True, error);
+            }
+
+            var applier = new PresentationNodeStateApplier();
+            for (int index = 0; index < 2; index++)
+            {
+                Assert.That(stores[index].TryReceiveControl(snapshot.Clone(), out error), Is.True, error);
+                applier.Apply(stores[index], hierarchies[index]);
+            }
+            AssertPhysicalOrigin(runtimes[0], frames[0], new Vector3(1, 1.5f, 3), physicalMarker.rotation);
+            AssertPhysicalOrigin(runtimes[1], frames[1], new Vector3(1, 1.5f, 3), physicalMarker.rotation);
+
+            Assert.That(PresentationCalibrationMath.TryPresenterOrigin(markers[0], 2.3f, origin, out var replacement), Is.True);
+            var changed = new ControlServerItem
+            {
+                ReliableEvent = new ProjectedReliableEvent
+                {
+                    Sequence = 1,
+                    Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                    PresentationOriginChanged = new PresentationOriginChanged
+                    { Origin = new PresentationOrigin { Version = 2, Pose = replacement.Clone() } }
+                }
+            };
+            for (int index = 0; index < 2; index++)
+            {
+                Assert.That(stores[index].TryReceiveControl(changed.Clone(), out error), Is.True, error);
+                applier.Apply(stores[index], hierarchies[index]);
+            }
+            trackings[1].transform.SetPositionAndRotation(new Vector3(-6, 2, 4), Quaternion.Euler(0, -10, 0));
+            var recalibration = Calibrate(markers[1], trackings[1].transform);
+            runtimes[1].ConfigureCalibration(recalibration, trackings[1].transform);
+            runtimes[1].RefreshCalibration();
+            var lateSnapshot = snapshot.Clone();
+            lateSnapshot.ConnectionSnapshot.Fence.PresentationOriginVersion = 2;
+            lateSnapshot.ConnectionSnapshot.ReliableSequence = 1;
+            lateSnapshot.ConnectionSnapshot.Snapshot.ReliableSequence = 1;
+            lateSnapshot.ConnectionSnapshot.Snapshot.RuntimeView.BaseReliableSequence = 1;
+            lateSnapshot.ConnectionSnapshot.Snapshot.RuntimeView.PresentationOrigin = new PresentationOrigin { Version = 2, Pose = replacement.Clone() };
+            Assert.That(stores[2].TryReceiveControl(lateSnapshot, out error), Is.True, error);
+            applier.Apply(stores[2], hierarchies[2]);
+            for (int index = 0; index < frames.Length; index++)
+            {
+                Assert.That(stores[index].PresentationOrigin.Version, Is.EqualTo(2));
+                Assert.That(stores[index].PresentationOrigin.Pose, Is.EqualTo(replacement));
+                AssertPhysicalOrigin(runtimes[index], frames[index], new Vector3(1, 2f, 3), physicalMarker.rotation);
+            }
+        }
+        finally
+        {
+            foreach (var hierarchy in hierarchies) hierarchy?.Clear();
+            foreach (var host in hosts) if (host != null) Object.DestroyImmediate(host);
+            foreach (var tracking in trackings) if (tracking != null) Object.DestroyImmediate(tracking);
+        }
+    }
+
+    private static void AssertPhysicalOrigin(PresentationBakedRuntime runtime, Pose deviceFromPhysical, Vector3 expectedPosition, Quaternion expectedRotation)
+    {
+        Transform stage = runtime.PresentationSpace.GetChild(0);
+        Quaternion physicalFromDevice = Quaternion.Inverse(deviceFromPhysical.rotation);
+        Vector3 actualPosition = physicalFromDevice * (stage.position - deviceFromPhysical.position);
+        Quaternion actualRotation = physicalFromDevice * stage.rotation;
+        Assert.That(Vector3.Distance(actualPosition, expectedPosition), Is.LessThan(.00001f));
+        Assert.That(Quaternion.Angle(actualRotation, expectedRotation), Is.LessThan(.01f));
+        Vector3 localPoint = new Vector3(.25f, .4f, -.5f);
+        Vector3 actualPoint = physicalFromDevice * (stage.TransformPoint(localPoint) - deviceFromPhysical.position);
+        Assert.That(Vector3.Distance(actualPoint, expectedPosition + expectedRotation * localPoint), Is.LessThan(.00001f));
     }
 
     private static PresentationCalibrationState Calibrate(Pose marker, Transform tracking)

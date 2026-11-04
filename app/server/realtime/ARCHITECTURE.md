@@ -341,10 +341,10 @@ session 全体で共有する Presentation Origin と、各 Quest がローカ�
 
 ```text
 PresentationOrigin
-├─ presentationOriginVersion
-├─ markerId
-├─ position
-└─ rotation
+├─ version
+└─ pose
+   ├─ position
+   └─ rotation
 
 ParticipantCalibration
 ├─ calibrationRevision
@@ -353,13 +353,15 @@ ParticipantCalibration
 └─ calibrationQuality
 ```
 
-- `presentationOriginVersion` は session 全体で共有し、使用する marker や Presentation Space 自体を変更した場合だけ割り当て済み Runtime が増やす。
+- `presentationOriginVersion` は session 全体で共有し、共有 Origin の絶対 Pose 更新を受理した割り当て済み Runtime が増やす。
 - Presenter Tracking Frame、Reliable Event、Element State Frame、Snapshot は `presentationOriginVersion` を持つ。
 - Quest と Runtime は、現在の `presentationOriginVersion` と一致しない frame を適用しない。
-- session 共通の Origin 変更は Reliable Event として配信し、全 Quest の再 calibration と新しい Snapshot を要求する。
+- Presenter は `PresentationOriginCommand` で期待する原点 version と絶対 Pose を送信する。Runtime は認可・Pose・入力世代を検証し、原点 version を進めて canonical snapshot と Reliable Event に反映する。同一 command の再送は重複適用しない。
+- Origin 変更イベントは変更前の fence で配信し、適用後の Control / State は新しい原点 version を使う。各端末は変更をローカル状態に適用し、変更イベントの cut と version で `StateReady` を送り直す。旧 version の resume は最新 Snapshot へ再同期する。
+- 共有配置だけの変更では各 Quest のマーカー calibration を保持する。端末単独の tracking 復旧・再測定では共有 Origin を更新しない。
 - 採用設計では Presenter の再 calibration は server と入力世代を同期し、途中の認識を破棄してから再開する。
 - `calibrationRevision` と `presentationFromQuestLocal` は participant ごとのローカル状態とする。1台の Quest の再 calibration はその端末の `calibrationRevision` だけを増やし、session 共通の `presentationOriginVersion` や他 participant の状態を変更しない。
-- Presenter Quest は最新の `presentationFromQuestLocal` を使って Pose を Presentation Space へ変換してから送信する。Viewer Quest は同じ変換の逆変換を使って Element State を自端末の tracking space へ配置する。
+- Presenter Quest は Quest local Pose、マーカー基準の `presentationFromQuestLocal`、原点 version を Tracking Frame で送信する。Runtime は共有 Origin の逆変換を合成して Stage 座標へ変換し、古い原点 version の Tracking を破棄する。Viewer Quest はローカル calibration と共有 Origin を合成して描画する。pause 中の Frozen Anchor は Origin 更新時に座標を変換し直し、物理位置を維持した Runtime View を配信する。
 - participant 単独の再 calibration 後は、保持済みの canonical Element State を新しい変換で再描画するため、session 全体の Snapshot を再生成しない。
 
 Canonical Presentation Spaceのright-handed TRS、Unity handedness変換、Surface plane / ray inverse / Hit Region座標は [ADR-0010](../../../docs/decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。interaction hit-testはcurrent `presentationOriginVersion`、participant calibration、同じruntime cutのeffective Node TransformとAnchor sampleが揃う場合だけ行い、不一致またはunavailable / staleな入力をno-hitとして扱う。現行Realtime foundationはこのcoordinate-aware projectionをまだ配信していない。

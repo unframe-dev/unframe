@@ -206,6 +206,7 @@ func TestV2StateStopsAtLeaseDeadlineOrRevocation(t *testing.T) {
 					identity, _ := service.identities.Resolve(ctx)
 					control := &v2Control{identity: identity, profile: profile, fence: &presentationv2.RuntimeProjectionFence{}, ready: make(chan struct{}), done: make(chan struct{}), stateDetached: make(chan struct{}, 1), faultGeneration: service.runtime.FaultGeneration()}
 					if stage == "frame_send" {
+						control.stateReady = true
 						close(control.ready)
 					}
 					service.controls["connection-1"] = control

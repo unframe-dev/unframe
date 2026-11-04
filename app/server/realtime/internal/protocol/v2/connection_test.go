@@ -220,3 +220,32 @@ func TestRuntimeViewReplacementKeepsThePresentationOriginFence(t *testing.T) {
 		t.Fatal("invalid replacement advanced the cut")
 	}
 }
+
+func TestPresentationOriginTransitionsFenceAtReliableCut(t *testing.T) {
+	cursor := connectionFixture(t)
+	oldFence := cursor.Resume().Fence
+	changed := &realtimev2.ProjectedReliableEvent{Sequence: 4, EventId: "origin", Fence: oldFence, Payload: &realtimev2.ProjectedReliableEvent_PresentationOriginChanged{PresentationOriginChanged: &realtimev2.PresentationOriginChanged{Origin: &realtimev2.PresentationOrigin{Version: 1, Pose: &presentationv2.Pose{Position: &presentationv2.Vector3{Y: 0.7}, Rotation: &presentationv2.Quaternion{W: 1}}}}}}
+	if err := cursor.ApplyReliable(changed); err != nil {
+		t.Fatal(err)
+	}
+	if cursor.Resume().Fence.PresentationOriginVersion != 1 {
+		t.Fatal("origin fence did not advance")
+	}
+	frame := &realtimev2.ElementStateFrame{FrameSequence: 1, BaseReliableSequence: 4, Fence: oldFence, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME}
+	if err := cursor.AdmitState(frame); err == nil {
+		t.Fatal("old State admitted")
+	}
+	frame.Fence = cursor.Resume().Fence
+	if err := cursor.AdmitState(frame); err != nil {
+		t.Fatal(err)
+	}
+	changed.Sequence = 5
+	changed.EventId = "duplicate"
+	changed.Fence = cursor.Resume().Fence
+	if err := cursor.ApplyReliable(changed); err == nil {
+		t.Fatal("reused origin version admitted")
+	}
+	if cursor.Resume().AppliedReliableSequence != 4 {
+		t.Fatal("invalid origin advanced reliable cut")
+	}
+}

@@ -202,9 +202,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         public Task SendAsync(ControlClientItem command, CancellationToken token)
         {
-            if (command == null || !(command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl ? CanSendRuntimeControl : CanSendInput))
+            if (command == null || !((command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl || command.ItemCase == ControlClientItem.ItemOneofCase.PresentationOrigin) ? CanSendRuntimeControl : CanSendInput))
                 throw new InvalidOperationException("Runtime commands require a ready Presenter connection.");
-            string clientEventId = command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId;
+            string clientEventId = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId;
             store.TrackCommand(clientEventId);
             return SendTrackedCommandAsync(command, clientEventId, token);
         }
@@ -217,9 +217,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         public async Task<CommandOutcome> SendConfirmedAsync(ControlClientItem command, CancellationToken token)
         {
-            if (command == null || !(command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl ? CanSendRuntimeControl : CanSendInput))
+            if (command == null || !((command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl || command.ItemCase == ControlClientItem.ItemOneofCase.PresentationOrigin) ? CanSendRuntimeControl : CanSendInput))
                 throw new InvalidOperationException("Runtime commands require a ready Presenter connection.");
-            string id = command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId;
+            string id = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId;
             store.TrackCommand(id);
             try { return await connection.SendConfirmedAsync(command, TimeSpan.FromSeconds(10), token); }
             catch { store.ClearCommandOutcome(id); throw; }
@@ -230,6 +230,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (!CanSendTracking) throw new InvalidOperationException("Runtime tracking requires a calibrated ready Presenter.");
             if (frame == null || !calibration.PresentationFromQuestLocal.Equals(frame.PresentationFromQuestLocal))
                 throw new InvalidOperationException("Tracking calibration does not match the active local calibration.");
+            frame.PresentationOriginVersion = store.PresentationOrigin?.Version ?? 0;
             return connection.SendTrackingAsync(frame, token);
         }
 

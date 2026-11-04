@@ -15,6 +15,62 @@ public sealed class PresentationRuntimePauseEditModeTests
 {
 #if UNITY_EDITOR
     [Test]
+    public void OriginAndRebasedFrozenReplacementConvergeWithLateJoinSnapshot()
+    {
+        var delivery = JsonParser.Default.Parse<DeliveryManifest>(PresentationTestFixtures.Load("LocalDelivery").text);
+        var snapshot = JsonParser.Default.Parse<ControlServerItem>(PresentationTestFixtures.Load("LocalSnapshot").text);
+        foreach (var node in delivery.ProjectionProfile.RuntimeCatalog.Nodes)
+        {
+            node.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+            if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model)
+                snapshot.ConnectionSnapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState { ModelNodeId = node.NodeId, DefaultPose = new DefaultModelPose() });
+        }
+        foreach (var surface in delivery.ProjectionProfile.RuntimeCatalog.Surfaces) surface.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        string id = delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].NodeId;
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent { PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true } };
+        var view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
+        view.Clock.Paused = new Paused { Reason = PauseReason.ExplicitPause };
+        view.FrozenAnchors.Add(new FrozenAnchorDisplayState { NodeId = id, Position = new Vector3 { X = 7, Y = 2 } });
+        var live = new PresentationRuntimeDataStore();
+        Assert.That(live.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        Assert.That(live.TryReceiveControl(snapshot, out error), Is.True, error);
+        var origin = view.PresentationOrigin.Clone();
+        origin.Version++;
+        origin.Pose.Position.Y = 1.5;
+        Assert.That(live.TryReceiveNetworkControl(new ControlServerItem { ReliableEvent = new ProjectedReliableEvent
+        {
+            Sequence = 1, Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+            PresentationOriginChanged = new PresentationOriginChanged { Origin = origin }
+        } }, out error), Is.True, error);
+        var rebased = view.Clone();
+        rebased.BaseReliableSequence = 2;
+        rebased.PresentationOrigin = origin.Clone();
+        rebased.FrozenAnchors[0].Position.Y = 0.5;
+        var fence = snapshot.ConnectionSnapshot.Fence.Clone();
+        fence.PresentationOriginVersion = origin.Version;
+        Assert.That(live.TryReceiveNetworkControl(new ControlServerItem { ReliableEvent = new ProjectedReliableEvent
+        {
+            Sequence = 2, Fence = fence,
+            RuntimeViewReplaced = new RuntimeViewReplaced { RuntimeView = rebased }
+        } }, out error), Is.True, error);
+        var latest = snapshot.Clone();
+        latest.ConnectionSnapshot.ReliableSequence = 2;
+        latest.ConnectionSnapshot.Snapshot.ReliableSequence = 2;
+        latest.ConnectionSnapshot.Fence = fence;
+        latest.ConnectionSnapshot.Snapshot.RuntimeView = rebased;
+        var late = new PresentationRuntimeDataStore();
+        Assert.That(late.TryReceiveDelivery(delivery, out error), Is.True, error);
+        Assert.That(late.TryReceiveControl(latest, out error), Is.True, error);
+        Assert.That(live.TryGetAnchorSample(id, out var existingAnchor), Is.True);
+        Assert.That(late.TryGetAnchorSample(id, out var joiningAnchor), Is.True);
+        Assert.That(existingAnchor.Position, Is.EqualTo(joiningAnchor.Position));
+        Assert.That(existingAnchor.Position.X, Is.EqualTo(7));
+        Assert.That(existingAnchor.Position.Y + live.StageOrigin.Position.Y, Is.EqualTo(2));
+        Assert.That(live.PresentationOrigin, Is.EqualTo(late.PresentationOrigin));
+        Assert.That(live.LastReliableSequence, Is.EqualTo(late.LastReliableSequence));
+    }
+
+    [Test]
     public void FrozenViewSurvivesPauseResumeAndConvergesToFreshTracking() { Run(); }
 
     [Test]

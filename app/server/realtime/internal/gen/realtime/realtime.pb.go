@@ -878,6 +878,7 @@ type ControlClientItem struct {
 	//	*ControlClientItem_GestureInput
 	//	*ControlClientItem_ZoneInput
 	//	*ControlClientItem_InputSynchronizationAck
+	//	*ControlClientItem_PresentationOrigin
 	Item          isControlClientItem_Item `protobuf_oneof:"item"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1001,6 +1002,15 @@ func (x *ControlClientItem) GetInputSynchronizationAck() *InputSynchronizationAc
 	return nil
 }
 
+func (x *ControlClientItem) GetPresentationOrigin() *PresentationOriginCommand {
+	if x != nil {
+		if x, ok := x.Item.(*ControlClientItem_PresentationOrigin); ok {
+			return x.PresentationOrigin
+		}
+	}
+	return nil
+}
+
 type isControlClientItem_Item interface {
 	isControlClientItem_Item()
 }
@@ -1041,6 +1051,10 @@ type ControlClientItem_InputSynchronizationAck struct {
 	InputSynchronizationAck *InputSynchronizationAck `protobuf:"bytes,102,opt,name=input_synchronization_ack,json=inputSynchronizationAck,proto3,oneof"`
 }
 
+type ControlClientItem_PresentationOrigin struct {
+	PresentationOrigin *PresentationOriginCommand `protobuf:"bytes,103,opt,name=presentation_origin,json=presentationOrigin,proto3,oneof"`
+}
+
 func (*ControlClientItem_Handshake) isControlClientItem_Item() {}
 
 func (*ControlClientItem_ReplayRequest) isControlClientItem_Item() {}
@@ -1058,6 +1072,8 @@ func (*ControlClientItem_GestureInput) isControlClientItem_Item() {}
 func (*ControlClientItem_ZoneInput) isControlClientItem_Item() {}
 
 func (*ControlClientItem_InputSynchronizationAck) isControlClientItem_Item() {}
+
+func (*ControlClientItem_PresentationOrigin) isControlClientItem_Item() {}
 
 type ControlHandshake struct {
 	state                      protoimpl.MessageState           `protogen:"open.v1"`
@@ -1939,6 +1955,75 @@ func (x *RuntimeControlCommand) GetStepSelection() *StepSelection {
 	return nil
 }
 
+// Replaces the absolute presentationFromStage pose at an expected origin cut.
+type PresentationOriginCommand struct {
+	state                             protoimpl.MessageState `protogen:"open.v1"`
+	ClientEventId                     string                 `protobuf:"bytes,1,opt,name=client_event_id,json=clientEventId,proto3" json:"client_event_id,omitempty"`
+	ExpectedPresentationOriginVersion uint64                 `protobuf:"varint,2,opt,name=expected_presentation_origin_version,json=expectedPresentationOriginVersion,proto3" json:"expected_presentation_origin_version,omitempty"`
+	Pose                              *presentation.Pose     `protobuf:"bytes,3,opt,name=pose,proto3" json:"pose,omitempty"`
+	CommandEpoch                      uint64                 `protobuf:"varint,4,opt,name=command_epoch,json=commandEpoch,proto3" json:"command_epoch,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
+}
+
+func (x *PresentationOriginCommand) Reset() {
+	*x = PresentationOriginCommand{}
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PresentationOriginCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PresentationOriginCommand) ProtoMessage() {}
+
+func (x *PresentationOriginCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PresentationOriginCommand.ProtoReflect.Descriptor instead.
+func (*PresentationOriginCommand) Descriptor() ([]byte, []int) {
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *PresentationOriginCommand) GetClientEventId() string {
+	if x != nil {
+		return x.ClientEventId
+	}
+	return ""
+}
+
+func (x *PresentationOriginCommand) GetExpectedPresentationOriginVersion() uint64 {
+	if x != nil {
+		return x.ExpectedPresentationOriginVersion
+	}
+	return 0
+}
+
+func (x *PresentationOriginCommand) GetPose() *presentation.Pose {
+	if x != nil {
+		return x.Pose
+	}
+	return nil
+}
+
+func (x *PresentationOriginCommand) GetCommandEpoch() uint64 {
+	if x != nil {
+		return x.CommandEpoch
+	}
+	return 0
+}
+
 type InputContext struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	InputEpoch      uint64                 `protobuf:"varint,1,opt,name=input_epoch,json=inputEpoch,proto3" json:"input_epoch,omitempty"`
@@ -1952,7 +2037,7 @@ type InputContext struct {
 
 func (x *InputContext) Reset() {
 	*x = InputContext{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[11]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1964,7 +2049,7 @@ func (x *InputContext) String() string {
 func (*InputContext) ProtoMessage() {}
 
 func (x *InputContext) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[11]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1977,7 +2062,7 @@ func (x *InputContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InputContext.ProtoReflect.Descriptor instead.
 func (*InputContext) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{11}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *InputContext) GetInputEpoch() uint64 {
@@ -2029,7 +2114,7 @@ type GestureInputCommand struct {
 
 func (x *GestureInputCommand) Reset() {
 	*x = GestureInputCommand{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[12]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2041,7 +2126,7 @@ func (x *GestureInputCommand) String() string {
 func (*GestureInputCommand) ProtoMessage() {}
 
 func (x *GestureInputCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[12]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2054,7 +2139,7 @@ func (x *GestureInputCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GestureInputCommand.ProtoReflect.Descriptor instead.
 func (*GestureInputCommand) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{12}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GestureInputCommand) GetClientEventId() string {
@@ -2114,7 +2199,7 @@ type ZoneInputCommand struct {
 
 func (x *ZoneInputCommand) Reset() {
 	*x = ZoneInputCommand{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[13]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2126,7 +2211,7 @@ func (x *ZoneInputCommand) String() string {
 func (*ZoneInputCommand) ProtoMessage() {}
 
 func (x *ZoneInputCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[13]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2139,7 +2224,7 @@ func (x *ZoneInputCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZoneInputCommand.ProtoReflect.Descriptor instead.
 func (*ZoneInputCommand) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{13}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ZoneInputCommand) GetClientEventId() string {
@@ -2201,7 +2286,7 @@ type StepSelection struct {
 
 func (x *StepSelection) Reset() {
 	*x = StepSelection{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[14]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2213,7 +2298,7 @@ func (x *StepSelection) String() string {
 func (*StepSelection) ProtoMessage() {}
 
 func (x *StepSelection) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[14]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2226,7 +2311,7 @@ func (x *StepSelection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepSelection.ProtoReflect.Descriptor instead.
 func (*StepSelection) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{14}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StepSelection) GetGroupId() string {
@@ -2253,7 +2338,7 @@ type PresenterStepSelectionCatalog struct {
 
 func (x *PresenterStepSelectionCatalog) Reset() {
 	*x = PresenterStepSelectionCatalog{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[15]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2265,7 +2350,7 @@ func (x *PresenterStepSelectionCatalog) String() string {
 func (*PresenterStepSelectionCatalog) ProtoMessage() {}
 
 func (x *PresenterStepSelectionCatalog) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[15]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2278,7 +2363,7 @@ func (x *PresenterStepSelectionCatalog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresenterStepSelectionCatalog.ProtoReflect.Descriptor instead.
 func (*PresenterStepSelectionCatalog) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{15}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *PresenterStepSelectionCatalog) GetReachedSteps() []*StepSelection {
@@ -2311,7 +2396,7 @@ type PresenterInputSynchronization struct {
 
 func (x *PresenterInputSynchronization) Reset() {
 	*x = PresenterInputSynchronization{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[16]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2323,7 +2408,7 @@ func (x *PresenterInputSynchronization) String() string {
 func (*PresenterInputSynchronization) ProtoMessage() {}
 
 func (x *PresenterInputSynchronization) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[16]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2336,7 +2421,7 @@ func (x *PresenterInputSynchronization) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresenterInputSynchronization.ProtoReflect.Descriptor instead.
 func (*PresenterInputSynchronization) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{16}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PresenterInputSynchronization) GetPhase() InputSynchronizationPhase {
@@ -2408,7 +2493,7 @@ type InputSynchronizationAck struct {
 
 func (x *InputSynchronizationAck) Reset() {
 	*x = InputSynchronizationAck{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[17]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2420,7 +2505,7 @@ func (x *InputSynchronizationAck) String() string {
 func (*InputSynchronizationAck) ProtoMessage() {}
 
 func (x *InputSynchronizationAck) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[17]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2433,7 +2518,7 @@ func (x *InputSynchronizationAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InputSynchronizationAck.ProtoReflect.Descriptor instead.
 func (*InputSynchronizationAck) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{17}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *InputSynchronizationAck) GetSynchronizationRevision() uint64 {
@@ -2486,7 +2571,7 @@ type CommandOutcome struct {
 
 func (x *CommandOutcome) Reset() {
 	*x = CommandOutcome{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[18]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2498,7 +2583,7 @@ func (x *CommandOutcome) String() string {
 func (*CommandOutcome) ProtoMessage() {}
 
 func (x *CommandOutcome) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[18]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2511,7 +2596,7 @@ func (x *CommandOutcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandOutcome.ProtoReflect.Descriptor instead.
 func (*CommandOutcome) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{18}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CommandOutcome) GetClientEventId() string {
@@ -2593,7 +2678,7 @@ type CommandAccepted struct {
 
 func (x *CommandAccepted) Reset() {
 	*x = CommandAccepted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[19]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2605,7 +2690,7 @@ func (x *CommandAccepted) String() string {
 func (*CommandAccepted) ProtoMessage() {}
 
 func (x *CommandAccepted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[19]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2618,7 +2703,7 @@ func (x *CommandAccepted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandAccepted.ProtoReflect.Descriptor instead.
 func (*CommandAccepted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{19}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CommandAccepted) GetCanonicalEventId() string {
@@ -2699,7 +2784,7 @@ type CueNotSelected struct {
 
 func (x *CueNotSelected) Reset() {
 	*x = CueNotSelected{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[20]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2711,7 +2796,7 @@ func (x *CueNotSelected) String() string {
 func (*CueNotSelected) ProtoMessage() {}
 
 func (x *CueNotSelected) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[20]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2724,7 +2809,7 @@ func (x *CueNotSelected) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CueNotSelected.ProtoReflect.Descriptor instead.
 func (*CueNotSelected) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{20}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{21}
 }
 
 type CueCommitted struct {
@@ -2736,7 +2821,7 @@ type CueCommitted struct {
 
 func (x *CueCommitted) Reset() {
 	*x = CueCommitted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[21]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2748,7 +2833,7 @@ func (x *CueCommitted) String() string {
 func (*CueCommitted) ProtoMessage() {}
 
 func (x *CueCommitted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[21]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2761,7 +2846,7 @@ func (x *CueCommitted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CueCommitted.ProtoReflect.Descriptor instead.
 func (*CueCommitted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{21}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CueCommitted) GetCueId() string {
@@ -2780,7 +2865,7 @@ type CommandRejected struct {
 
 func (x *CommandRejected) Reset() {
 	*x = CommandRejected{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[22]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2792,7 +2877,7 @@ func (x *CommandRejected) String() string {
 func (*CommandRejected) ProtoMessage() {}
 
 func (x *CommandRejected) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[22]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2805,7 +2890,7 @@ func (x *CommandRejected) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandRejected.ProtoReflect.Descriptor instead.
 func (*CommandRejected) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{22}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CommandRejected) GetReason() CommandRejectionReason {
@@ -2825,7 +2910,7 @@ type CueBatchRejected struct {
 
 func (x *CueBatchRejected) Reset() {
 	*x = CueBatchRejected{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[23]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2837,7 +2922,7 @@ func (x *CueBatchRejected) String() string {
 func (*CueBatchRejected) ProtoMessage() {}
 
 func (x *CueBatchRejected) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[23]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2850,7 +2935,7 @@ func (x *CueBatchRejected) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CueBatchRejected.ProtoReflect.Descriptor instead.
 func (*CueBatchRejected) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{23}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CueBatchRejected) GetCueId() string {
@@ -2876,7 +2961,7 @@ type CommandNoOp struct {
 
 func (x *CommandNoOp) Reset() {
 	*x = CommandNoOp{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[24]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2888,7 +2973,7 @@ func (x *CommandNoOp) String() string {
 func (*CommandNoOp) ProtoMessage() {}
 
 func (x *CommandNoOp) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[24]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2901,7 +2986,7 @@ func (x *CommandNoOp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandNoOp.ProtoReflect.Descriptor instead.
 func (*CommandNoOp) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{24}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CommandNoOp) GetReason() CommandNoOpReason {
@@ -2931,7 +3016,7 @@ type ControlServerItem struct {
 
 func (x *ControlServerItem) Reset() {
 	*x = ControlServerItem{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[25]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2943,7 +3028,7 @@ func (x *ControlServerItem) String() string {
 func (*ControlServerItem) ProtoMessage() {}
 
 func (x *ControlServerItem) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[25]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2956,7 +3041,7 @@ func (x *ControlServerItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlServerItem.ProtoReflect.Descriptor instead.
 func (*ControlServerItem) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{25}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ControlServerItem) GetItem() isControlServerItem_Item {
@@ -3158,7 +3243,7 @@ type ProjectedReliableEvent struct {
 
 func (x *ProjectedReliableEvent) Reset() {
 	*x = ProjectedReliableEvent{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[26]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3170,7 +3255,7 @@ func (x *ProjectedReliableEvent) String() string {
 func (*ProjectedReliableEvent) ProtoMessage() {}
 
 func (x *ProjectedReliableEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[26]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3183,7 +3268,7 @@ func (x *ProjectedReliableEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectedReliableEvent.ProtoReflect.Descriptor instead.
 func (*ProjectedReliableEvent) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{26}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ProjectedReliableEvent) GetSequence() uint64 {
@@ -3798,7 +3883,7 @@ type ProjectionAdvance struct {
 
 func (x *ProjectionAdvance) Reset() {
 	*x = ProjectionAdvance{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[27]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3810,7 +3895,7 @@ func (x *ProjectionAdvance) String() string {
 func (*ProjectionAdvance) ProtoMessage() {}
 
 func (x *ProjectionAdvance) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[27]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3823,7 +3908,7 @@ func (x *ProjectionAdvance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectionAdvance.ProtoReflect.Descriptor instead.
 func (*ProjectionAdvance) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{27}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ProjectionAdvance) GetFence() *presentation.RuntimeProjectionFence {
@@ -3855,7 +3940,7 @@ type Running struct {
 
 func (x *Running) Reset() {
 	*x = Running{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[28]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3867,7 +3952,7 @@ func (x *Running) String() string {
 func (*Running) ProtoMessage() {}
 
 func (x *Running) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[28]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3880,7 +3965,7 @@ func (x *Running) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Running.ProtoReflect.Descriptor instead.
 func (*Running) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{28}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{29}
 }
 
 type Paused struct {
@@ -3892,7 +3977,7 @@ type Paused struct {
 
 func (x *Paused) Reset() {
 	*x = Paused{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[29]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3904,7 +3989,7 @@ func (x *Paused) String() string {
 func (*Paused) ProtoMessage() {}
 
 func (x *Paused) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[29]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3917,7 +4002,7 @@ func (x *Paused) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Paused.ProtoReflect.Descriptor instead.
 func (*Paused) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{29}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *Paused) GetReason() PauseReason {
@@ -3936,7 +4021,7 @@ type Terminating struct {
 
 func (x *Terminating) Reset() {
 	*x = Terminating{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[30]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3948,7 +4033,7 @@ func (x *Terminating) String() string {
 func (*Terminating) ProtoMessage() {}
 
 func (x *Terminating) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[30]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3961,7 +4046,7 @@ func (x *Terminating) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Terminating.ProtoReflect.Descriptor instead.
 func (*Terminating) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{30}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *Terminating) GetReason() TerminationReason {
@@ -3985,7 +4070,7 @@ type RuntimeStatusChanged struct {
 
 func (x *RuntimeStatusChanged) Reset() {
 	*x = RuntimeStatusChanged{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[31]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3997,7 +4082,7 @@ func (x *RuntimeStatusChanged) String() string {
 func (*RuntimeStatusChanged) ProtoMessage() {}
 
 func (x *RuntimeStatusChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[31]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4010,7 +4095,7 @@ func (x *RuntimeStatusChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeStatusChanged.ProtoReflect.Descriptor instead.
 func (*RuntimeStatusChanged) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{31}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *RuntimeStatusChanged) GetStatus() isRuntimeStatusChanged_Status {
@@ -4080,7 +4165,7 @@ type GroupEntered struct {
 
 func (x *GroupEntered) Reset() {
 	*x = GroupEntered{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[32]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4092,7 +4177,7 @@ func (x *GroupEntered) String() string {
 func (*GroupEntered) ProtoMessage() {}
 
 func (x *GroupEntered) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[32]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4105,7 +4190,7 @@ func (x *GroupEntered) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupEntered.ProtoReflect.Descriptor instead.
 func (*GroupEntered) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{32}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GroupEntered) GetGroupId() string {
@@ -4142,7 +4227,7 @@ type GroupRuntimeInitialization struct {
 
 func (x *GroupRuntimeInitialization) Reset() {
 	*x = GroupRuntimeInitialization{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[33]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4154,7 +4239,7 @@ func (x *GroupRuntimeInitialization) String() string {
 func (*GroupRuntimeInitialization) ProtoMessage() {}
 
 func (x *GroupRuntimeInitialization) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[33]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4167,7 +4252,7 @@ func (x *GroupRuntimeInitialization) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupRuntimeInitialization.ProtoReflect.Descriptor instead.
 func (*GroupRuntimeInitialization) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{33}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GroupRuntimeInitialization) GetNodeStates() []*NodeRuntimeState {
@@ -4215,7 +4300,7 @@ type GroupExited struct {
 
 func (x *GroupExited) Reset() {
 	*x = GroupExited{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[34]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4227,7 +4312,7 @@ func (x *GroupExited) String() string {
 func (*GroupExited) ProtoMessage() {}
 
 func (x *GroupExited) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[34]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4240,7 +4325,7 @@ func (x *GroupExited) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupExited.ProtoReflect.Descriptor instead.
 func (*GroupExited) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{34}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GroupExited) GetGroupId() string {
@@ -4270,7 +4355,7 @@ type StepEntered struct {
 
 func (x *StepEntered) Reset() {
 	*x = StepEntered{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[35]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4282,7 +4367,7 @@ func (x *StepEntered) String() string {
 func (*StepEntered) ProtoMessage() {}
 
 func (x *StepEntered) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[35]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4295,7 +4380,7 @@ func (x *StepEntered) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepEntered.ProtoReflect.Descriptor instead.
 func (*StepEntered) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{35}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *StepEntered) GetGroupId() string {
@@ -4344,7 +4429,7 @@ type CueAccepted struct {
 
 func (x *CueAccepted) Reset() {
 	*x = CueAccepted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[36]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4356,7 +4441,7 @@ func (x *CueAccepted) String() string {
 func (*CueAccepted) ProtoMessage() {}
 
 func (x *CueAccepted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[36]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4369,7 +4454,7 @@ func (x *CueAccepted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CueAccepted.ProtoReflect.Descriptor instead.
 func (*CueAccepted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{36}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *CueAccepted) GetGroupId() string {
@@ -4402,7 +4487,7 @@ type PresentationEnded struct {
 
 func (x *PresentationEnded) Reset() {
 	*x = PresentationEnded{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[37]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4414,7 +4499,7 @@ func (x *PresentationEnded) String() string {
 func (*PresentationEnded) ProtoMessage() {}
 
 func (x *PresentationEnded) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[37]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4427,7 +4512,7 @@ func (x *PresentationEnded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationEnded.ProtoReflect.Descriptor instead.
 func (*PresentationEnded) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{37}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *PresentationEnded) GetReason() TerminationReason {
@@ -4446,7 +4531,7 @@ type LogicalInputAccepted struct {
 
 func (x *LogicalInputAccepted) Reset() {
 	*x = LogicalInputAccepted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[38]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4458,7 +4543,7 @@ func (x *LogicalInputAccepted) String() string {
 func (*LogicalInputAccepted) ProtoMessage() {}
 
 func (x *LogicalInputAccepted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[38]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4471,7 +4556,7 @@ func (x *LogicalInputAccepted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogicalInputAccepted.ProtoReflect.Descriptor instead.
 func (*LogicalInputAccepted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{38}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *LogicalInputAccepted) GetLogicalEventName() string {
@@ -4490,7 +4575,7 @@ type GestureInputAccepted struct {
 
 func (x *GestureInputAccepted) Reset() {
 	*x = GestureInputAccepted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[39]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4502,7 +4587,7 @@ func (x *GestureInputAccepted) String() string {
 func (*GestureInputAccepted) ProtoMessage() {}
 
 func (x *GestureInputAccepted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[39]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4515,7 +4600,7 @@ func (x *GestureInputAccepted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GestureInputAccepted.ProtoReflect.Descriptor instead.
 func (*GestureInputAccepted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{39}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *GestureInputAccepted) GetGesture() presentation.GestureKind {
@@ -4535,7 +4620,7 @@ type ZoneInputAccepted struct {
 
 func (x *ZoneInputAccepted) Reset() {
 	*x = ZoneInputAccepted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[40]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4547,7 +4632,7 @@ func (x *ZoneInputAccepted) String() string {
 func (*ZoneInputAccepted) ProtoMessage() {}
 
 func (x *ZoneInputAccepted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[40]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4560,7 +4645,7 @@ func (x *ZoneInputAccepted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZoneInputAccepted.ProtoReflect.Descriptor instead.
 func (*ZoneInputAccepted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{40}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ZoneInputAccepted) GetZoneId() string {
@@ -4587,7 +4672,7 @@ type RuntimeViewReplaced struct {
 
 func (x *RuntimeViewReplaced) Reset() {
 	*x = RuntimeViewReplaced{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[41]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4599,7 +4684,7 @@ func (x *RuntimeViewReplaced) String() string {
 func (*RuntimeViewReplaced) ProtoMessage() {}
 
 func (x *RuntimeViewReplaced) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[41]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4612,7 +4697,7 @@ func (x *RuntimeViewReplaced) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeViewReplaced.ProtoReflect.Descriptor instead.
 func (*RuntimeViewReplaced) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{41}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *RuntimeViewReplaced) GetRuntimeView() *ParticipantRuntimeView {
@@ -4632,7 +4717,7 @@ type SurfaceInteractionAccepted struct {
 
 func (x *SurfaceInteractionAccepted) Reset() {
 	*x = SurfaceInteractionAccepted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[42]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4644,7 +4729,7 @@ func (x *SurfaceInteractionAccepted) String() string {
 func (*SurfaceInteractionAccepted) ProtoMessage() {}
 
 func (x *SurfaceInteractionAccepted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[42]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4657,7 +4742,7 @@ func (x *SurfaceInteractionAccepted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SurfaceInteractionAccepted.ProtoReflect.Descriptor instead.
 func (*SurfaceInteractionAccepted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{42}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *SurfaceInteractionAccepted) GetSurfaceId() string {
@@ -4685,7 +4770,7 @@ type SurfaceStateChanged struct {
 
 func (x *SurfaceStateChanged) Reset() {
 	*x = SurfaceStateChanged{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[43]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4697,7 +4782,7 @@ func (x *SurfaceStateChanged) String() string {
 func (*SurfaceStateChanged) ProtoMessage() {}
 
 func (x *SurfaceStateChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[43]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4710,7 +4795,7 @@ func (x *SurfaceStateChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SurfaceStateChanged.ProtoReflect.Descriptor instead.
 func (*SurfaceStateChanged) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{43}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *SurfaceStateChanged) GetSurfaceId() string {
@@ -4750,7 +4835,7 @@ type SurfaceTransitionStarted struct {
 
 func (x *SurfaceTransitionStarted) Reset() {
 	*x = SurfaceTransitionStarted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[44]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4762,7 +4847,7 @@ func (x *SurfaceTransitionStarted) String() string {
 func (*SurfaceTransitionStarted) ProtoMessage() {}
 
 func (x *SurfaceTransitionStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[44]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4775,7 +4860,7 @@ func (x *SurfaceTransitionStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SurfaceTransitionStarted.ProtoReflect.Descriptor instead.
 func (*SurfaceTransitionStarted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{44}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *SurfaceTransitionStarted) GetSurfaceId() string {
@@ -4845,7 +4930,7 @@ type SurfaceTransitionCompleted struct {
 
 func (x *SurfaceTransitionCompleted) Reset() {
 	*x = SurfaceTransitionCompleted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[45]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4857,7 +4942,7 @@ func (x *SurfaceTransitionCompleted) String() string {
 func (*SurfaceTransitionCompleted) ProtoMessage() {}
 
 func (x *SurfaceTransitionCompleted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[45]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4870,7 +4955,7 @@ func (x *SurfaceTransitionCompleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SurfaceTransitionCompleted.ProtoReflect.Descriptor instead.
 func (*SurfaceTransitionCompleted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{45}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *SurfaceTransitionCompleted) GetSurfaceId() string {
@@ -4907,7 +4992,7 @@ type NodeRuntimeState struct {
 
 func (x *NodeRuntimeState) Reset() {
 	*x = NodeRuntimeState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[46]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4919,7 +5004,7 @@ func (x *NodeRuntimeState) String() string {
 func (*NodeRuntimeState) ProtoMessage() {}
 
 func (x *NodeRuntimeState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[46]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4932,7 +5017,7 @@ func (x *NodeRuntimeState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeRuntimeState.ProtoReflect.Descriptor instead.
 func (*NodeRuntimeState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{46}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *NodeRuntimeState) GetNodeId() string {
@@ -4979,7 +5064,7 @@ type NodeStateCommitted struct {
 
 func (x *NodeStateCommitted) Reset() {
 	*x = NodeStateCommitted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[47]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4991,7 +5076,7 @@ func (x *NodeStateCommitted) String() string {
 func (*NodeStateCommitted) ProtoMessage() {}
 
 func (x *NodeStateCommitted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[47]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5004,7 +5089,7 @@ func (x *NodeStateCommitted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeStateCommitted.ProtoReflect.Descriptor instead.
 func (*NodeStateCommitted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{47}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *NodeStateCommitted) GetState() *NodeRuntimeState {
@@ -5024,7 +5109,7 @@ type VariableState struct {
 
 func (x *VariableState) Reset() {
 	*x = VariableState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[48]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5036,7 +5121,7 @@ func (x *VariableState) String() string {
 func (*VariableState) ProtoMessage() {}
 
 func (x *VariableState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[48]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5049,7 +5134,7 @@ func (x *VariableState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VariableState.ProtoReflect.Descriptor instead.
 func (*VariableState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{48}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *VariableState) GetVariableId() string {
@@ -5075,7 +5160,7 @@ type VariableChanged struct {
 
 func (x *VariableChanged) Reset() {
 	*x = VariableChanged{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[49]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5087,7 +5172,7 @@ func (x *VariableChanged) String() string {
 func (*VariableChanged) ProtoMessage() {}
 
 func (x *VariableChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[49]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5100,7 +5185,7 @@ func (x *VariableChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VariableChanged.ProtoReflect.Descriptor instead.
 func (*VariableChanged) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{49}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *VariableChanged) GetState() *VariableState {
@@ -5124,7 +5209,7 @@ type TimelineStarted struct {
 
 func (x *TimelineStarted) Reset() {
 	*x = TimelineStarted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[50]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5136,7 +5221,7 @@ func (x *TimelineStarted) String() string {
 func (*TimelineStarted) ProtoMessage() {}
 
 func (x *TimelineStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[50]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5149,7 +5234,7 @@ func (x *TimelineStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineStarted.ProtoReflect.Descriptor instead.
 func (*TimelineStarted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{50}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *TimelineStarted) GetRunId() *presentation.RuntimeRunId {
@@ -5204,7 +5289,7 @@ type TimelineCompleted struct {
 
 func (x *TimelineCompleted) Reset() {
 	*x = TimelineCompleted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[51]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5216,7 +5301,7 @@ func (x *TimelineCompleted) String() string {
 func (*TimelineCompleted) ProtoMessage() {}
 
 func (x *TimelineCompleted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[51]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5229,7 +5314,7 @@ func (x *TimelineCompleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineCompleted.ProtoReflect.Descriptor instead.
 func (*TimelineCompleted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{51}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *TimelineCompleted) GetRunId() *presentation.RuntimeRunId {
@@ -5257,7 +5342,7 @@ type TimelineCanceled struct {
 
 func (x *TimelineCanceled) Reset() {
 	*x = TimelineCanceled{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[52]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5269,7 +5354,7 @@ func (x *TimelineCanceled) String() string {
 func (*TimelineCanceled) ProtoMessage() {}
 
 func (x *TimelineCanceled) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[52]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5282,7 +5367,7 @@ func (x *TimelineCanceled) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineCanceled.ProtoReflect.Descriptor instead.
 func (*TimelineCanceled) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{52}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *TimelineCanceled) GetRunId() *presentation.RuntimeRunId {
@@ -5319,7 +5404,7 @@ type PlaybackClock struct {
 
 func (x *PlaybackClock) Reset() {
 	*x = PlaybackClock{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[53]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5331,7 +5416,7 @@ func (x *PlaybackClock) String() string {
 func (*PlaybackClock) ProtoMessage() {}
 
 func (x *PlaybackClock) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[53]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5344,7 +5429,7 @@ func (x *PlaybackClock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaybackClock.ProtoReflect.Descriptor instead.
 func (*PlaybackClock) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{53}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *PlaybackClock) GetClock() isPlaybackClock_Clock {
@@ -5398,7 +5483,7 @@ type PlayingClock struct {
 
 func (x *PlayingClock) Reset() {
 	*x = PlayingClock{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[54]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5410,7 +5495,7 @@ func (x *PlayingClock) String() string {
 func (*PlayingClock) ProtoMessage() {}
 
 func (x *PlayingClock) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[54]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5423,7 +5508,7 @@ func (x *PlayingClock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayingClock.ProtoReflect.Descriptor instead.
 func (*PlayingClock) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{54}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *PlayingClock) GetPositionAtReferenceMs() float64 {
@@ -5449,7 +5534,7 @@ type PausedClock struct {
 
 func (x *PausedClock) Reset() {
 	*x = PausedClock{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[55]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5461,7 +5546,7 @@ func (x *PausedClock) String() string {
 func (*PausedClock) ProtoMessage() {}
 
 func (x *PausedClock) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[55]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5474,7 +5559,7 @@ func (x *PausedClock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PausedClock.ProtoReflect.Descriptor instead.
 func (*PausedClock) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{55}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *PausedClock) GetPositionMs() float64 {
@@ -5496,7 +5581,7 @@ type MediaStarted struct {
 
 func (x *MediaStarted) Reset() {
 	*x = MediaStarted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[56]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5508,7 +5593,7 @@ func (x *MediaStarted) String() string {
 func (*MediaStarted) ProtoMessage() {}
 
 func (x *MediaStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[56]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5521,7 +5606,7 @@ func (x *MediaStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaStarted.ProtoReflect.Descriptor instead.
 func (*MediaStarted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{56}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *MediaStarted) GetRunId() *presentation.RuntimeRunId {
@@ -5564,7 +5649,7 @@ type MediaPaused struct {
 
 func (x *MediaPaused) Reset() {
 	*x = MediaPaused{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[57]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5576,7 +5661,7 @@ func (x *MediaPaused) String() string {
 func (*MediaPaused) ProtoMessage() {}
 
 func (x *MediaPaused) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[57]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5589,7 +5674,7 @@ func (x *MediaPaused) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaPaused.ProtoReflect.Descriptor instead.
 func (*MediaPaused) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{57}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *MediaPaused) GetRunId() *presentation.RuntimeRunId {
@@ -5632,7 +5717,7 @@ type MediaResumed struct {
 
 func (x *MediaResumed) Reset() {
 	*x = MediaResumed{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[58]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5644,7 +5729,7 @@ func (x *MediaResumed) String() string {
 func (*MediaResumed) ProtoMessage() {}
 
 func (x *MediaResumed) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[58]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5657,7 +5742,7 @@ func (x *MediaResumed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaResumed.ProtoReflect.Descriptor instead.
 func (*MediaResumed) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{58}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *MediaResumed) GetRunId() *presentation.RuntimeRunId {
@@ -5700,7 +5785,7 @@ type MediaSeeked struct {
 
 func (x *MediaSeeked) Reset() {
 	*x = MediaSeeked{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[59]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5712,7 +5797,7 @@ func (x *MediaSeeked) String() string {
 func (*MediaSeeked) ProtoMessage() {}
 
 func (x *MediaSeeked) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[59]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5725,7 +5810,7 @@ func (x *MediaSeeked) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaSeeked.ProtoReflect.Descriptor instead.
 func (*MediaSeeked) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{59}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *MediaSeeked) GetRunId() *presentation.RuntimeRunId {
@@ -5767,7 +5852,7 @@ type MediaCompleted struct {
 
 func (x *MediaCompleted) Reset() {
 	*x = MediaCompleted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[60]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5779,7 +5864,7 @@ func (x *MediaCompleted) String() string {
 func (*MediaCompleted) ProtoMessage() {}
 
 func (x *MediaCompleted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[60]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5792,7 +5877,7 @@ func (x *MediaCompleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaCompleted.ProtoReflect.Descriptor instead.
 func (*MediaCompleted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{60}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *MediaCompleted) GetRunId() *presentation.RuntimeRunId {
@@ -5826,7 +5911,7 @@ type MediaStoppedSeeked struct {
 
 func (x *MediaStoppedSeeked) Reset() {
 	*x = MediaStoppedSeeked{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[61]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5838,7 +5923,7 @@ func (x *MediaStoppedSeeked) String() string {
 func (*MediaStoppedSeeked) ProtoMessage() {}
 
 func (x *MediaStoppedSeeked) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[61]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5851,7 +5936,7 @@ func (x *MediaStoppedSeeked) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaStoppedSeeked.ProtoReflect.Descriptor instead.
 func (*MediaStoppedSeeked) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{61}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *MediaStoppedSeeked) GetSurfaceId() string {
@@ -5879,7 +5964,7 @@ type MediaStopped struct {
 
 func (x *MediaStopped) Reset() {
 	*x = MediaStopped{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[62]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5891,7 +5976,7 @@ func (x *MediaStopped) String() string {
 func (*MediaStopped) ProtoMessage() {}
 
 func (x *MediaStopped) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[62]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5904,7 +5989,7 @@ func (x *MediaStopped) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaStopped.ProtoReflect.Descriptor instead.
 func (*MediaStopped) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{62}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *MediaStopped) GetRunId() *presentation.RuntimeRunId {
@@ -5939,7 +6024,7 @@ type MediaCanceled struct {
 
 func (x *MediaCanceled) Reset() {
 	*x = MediaCanceled{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[63]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5951,7 +6036,7 @@ func (x *MediaCanceled) String() string {
 func (*MediaCanceled) ProtoMessage() {}
 
 func (x *MediaCanceled) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[63]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5964,7 +6049,7 @@ func (x *MediaCanceled) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaCanceled.ProtoReflect.Descriptor instead.
 func (*MediaCanceled) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{63}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *MediaCanceled) GetRunId() *presentation.RuntimeRunId {
@@ -6000,7 +6085,7 @@ type ClipPlayback struct {
 
 func (x *ClipPlayback) Reset() {
 	*x = ClipPlayback{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[64]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6012,7 +6097,7 @@ func (x *ClipPlayback) String() string {
 func (*ClipPlayback) ProtoMessage() {}
 
 func (x *ClipPlayback) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[64]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6025,7 +6110,7 @@ func (x *ClipPlayback) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClipPlayback.ProtoReflect.Descriptor instead.
 func (*ClipPlayback) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{64}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *ClipPlayback) GetClipId() string {
@@ -6066,7 +6151,7 @@ type ClipHeldPose struct {
 
 func (x *ClipHeldPose) Reset() {
 	*x = ClipHeldPose{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[65]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6078,7 +6163,7 @@ func (x *ClipHeldPose) String() string {
 func (*ClipHeldPose) ProtoMessage() {}
 
 func (x *ClipHeldPose) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[65]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6091,7 +6176,7 @@ func (x *ClipHeldPose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClipHeldPose.ProtoReflect.Descriptor instead.
 func (*ClipHeldPose) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{65}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *ClipHeldPose) GetClipId() string {
@@ -6119,7 +6204,7 @@ type BlendHeldPose struct {
 
 func (x *BlendHeldPose) Reset() {
 	*x = BlendHeldPose{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[66]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6131,7 +6216,7 @@ func (x *BlendHeldPose) String() string {
 func (*BlendHeldPose) ProtoMessage() {}
 
 func (x *BlendHeldPose) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[66]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6144,7 +6229,7 @@ func (x *BlendHeldPose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlendHeldPose.ProtoReflect.Descriptor instead.
 func (*BlendHeldPose) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{66}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *BlendHeldPose) GetFrom() *ClipHeldPose {
@@ -6180,7 +6265,7 @@ type ModelClipStarted struct {
 
 func (x *ModelClipStarted) Reset() {
 	*x = ModelClipStarted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[67]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6192,7 +6277,7 @@ func (x *ModelClipStarted) String() string {
 func (*ModelClipStarted) ProtoMessage() {}
 
 func (x *ModelClipStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[67]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6205,7 +6290,7 @@ func (x *ModelClipStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipStarted.ProtoReflect.Descriptor instead.
 func (*ModelClipStarted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{67}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *ModelClipStarted) GetRunId() *presentation.RuntimeRunId {
@@ -6247,7 +6332,7 @@ type ModelClipPaused struct {
 
 func (x *ModelClipPaused) Reset() {
 	*x = ModelClipPaused{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[68]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6259,7 +6344,7 @@ func (x *ModelClipPaused) String() string {
 func (*ModelClipPaused) ProtoMessage() {}
 
 func (x *ModelClipPaused) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[68]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6272,7 +6357,7 @@ func (x *ModelClipPaused) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipPaused.ProtoReflect.Descriptor instead.
 func (*ModelClipPaused) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{68}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *ModelClipPaused) GetRunId() *presentation.RuntimeRunId {
@@ -6307,7 +6392,7 @@ type ModelClipResumed struct {
 
 func (x *ModelClipResumed) Reset() {
 	*x = ModelClipResumed{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[69]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6319,7 +6404,7 @@ func (x *ModelClipResumed) String() string {
 func (*ModelClipResumed) ProtoMessage() {}
 
 func (x *ModelClipResumed) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[69]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6332,7 +6417,7 @@ func (x *ModelClipResumed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipResumed.ProtoReflect.Descriptor instead.
 func (*ModelClipResumed) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{69}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *ModelClipResumed) GetRunId() *presentation.RuntimeRunId {
@@ -6371,7 +6456,7 @@ type ModelClipStopped struct {
 
 func (x *ModelClipStopped) Reset() {
 	*x = ModelClipStopped{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[70]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6383,7 +6468,7 @@ func (x *ModelClipStopped) String() string {
 func (*ModelClipStopped) ProtoMessage() {}
 
 func (x *ModelClipStopped) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[70]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6396,7 +6481,7 @@ func (x *ModelClipStopped) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipStopped.ProtoReflect.Descriptor instead.
 func (*ModelClipStopped) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{70}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *ModelClipStopped) GetRunId() *presentation.RuntimeRunId {
@@ -6465,7 +6550,7 @@ type ModelClipCompleted struct {
 
 func (x *ModelClipCompleted) Reset() {
 	*x = ModelClipCompleted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[71]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6477,7 +6562,7 @@ func (x *ModelClipCompleted) String() string {
 func (*ModelClipCompleted) ProtoMessage() {}
 
 func (x *ModelClipCompleted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[71]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6490,7 +6575,7 @@ func (x *ModelClipCompleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipCompleted.ProtoReflect.Descriptor instead.
 func (*ModelClipCompleted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{71}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *ModelClipCompleted) GetRunId() *presentation.RuntimeRunId {
@@ -6526,7 +6611,7 @@ type ModelClipCrossfadeStarted struct {
 
 func (x *ModelClipCrossfadeStarted) Reset() {
 	*x = ModelClipCrossfadeStarted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[72]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6538,7 +6623,7 @@ func (x *ModelClipCrossfadeStarted) String() string {
 func (*ModelClipCrossfadeStarted) ProtoMessage() {}
 
 func (x *ModelClipCrossfadeStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[72]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6551,7 +6636,7 @@ func (x *ModelClipCrossfadeStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipCrossfadeStarted.ProtoReflect.Descriptor instead.
 func (*ModelClipCrossfadeStarted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{72}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ModelClipCrossfadeStarted) GetRunId() *presentation.RuntimeRunId {
@@ -6594,7 +6679,7 @@ type ModelClipCrossfadeCompleted struct {
 
 func (x *ModelClipCrossfadeCompleted) Reset() {
 	*x = ModelClipCrossfadeCompleted{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[73]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6606,7 +6691,7 @@ func (x *ModelClipCrossfadeCompleted) String() string {
 func (*ModelClipCrossfadeCompleted) ProtoMessage() {}
 
 func (x *ModelClipCrossfadeCompleted) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[73]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6619,7 +6704,7 @@ func (x *ModelClipCrossfadeCompleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipCrossfadeCompleted.ProtoReflect.Descriptor instead.
 func (*ModelClipCrossfadeCompleted) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{73}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *ModelClipCrossfadeCompleted) GetRunId() *presentation.RuntimeRunId {
@@ -6661,7 +6746,7 @@ type ModelClipCanceled struct {
 
 func (x *ModelClipCanceled) Reset() {
 	*x = ModelClipCanceled{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[74]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6673,7 +6758,7 @@ func (x *ModelClipCanceled) String() string {
 func (*ModelClipCanceled) ProtoMessage() {}
 
 func (x *ModelClipCanceled) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[74]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6686,7 +6771,7 @@ func (x *ModelClipCanceled) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipCanceled.ProtoReflect.Descriptor instead.
 func (*ModelClipCanceled) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{74}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *ModelClipCanceled) GetRunId() *presentation.RuntimeRunId {
@@ -6721,7 +6806,7 @@ type ParticipantPresenceChanged struct {
 
 func (x *ParticipantPresenceChanged) Reset() {
 	*x = ParticipantPresenceChanged{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[75]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6733,7 +6818,7 @@ func (x *ParticipantPresenceChanged) String() string {
 func (*ParticipantPresenceChanged) ProtoMessage() {}
 
 func (x *ParticipantPresenceChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[75]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6746,7 +6831,7 @@ func (x *ParticipantPresenceChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ParticipantPresenceChanged.ProtoReflect.Descriptor instead.
 func (*ParticipantPresenceChanged) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{75}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *ParticipantPresenceChanged) GetParticipantId() string {
@@ -6780,7 +6865,7 @@ type PresentationOrigin struct {
 
 func (x *PresentationOrigin) Reset() {
 	*x = PresentationOrigin{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[76]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6792,7 +6877,7 @@ func (x *PresentationOrigin) String() string {
 func (*PresentationOrigin) ProtoMessage() {}
 
 func (x *PresentationOrigin) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[76]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6805,7 +6890,7 @@ func (x *PresentationOrigin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationOrigin.ProtoReflect.Descriptor instead.
 func (*PresentationOrigin) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{76}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *PresentationOrigin) GetVersion() uint64 {
@@ -6831,7 +6916,7 @@ type PresentationOriginChanged struct {
 
 func (x *PresentationOriginChanged) Reset() {
 	*x = PresentationOriginChanged{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[77]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6843,7 +6928,7 @@ func (x *PresentationOriginChanged) String() string {
 func (*PresentationOriginChanged) ProtoMessage() {}
 
 func (x *PresentationOriginChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[77]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6856,7 +6941,7 @@ func (x *PresentationOriginChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationOriginChanged.ProtoReflect.Descriptor instead.
 func (*PresentationOriginChanged) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{77}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *PresentationOriginChanged) GetOrigin() *PresentationOrigin {
@@ -6881,7 +6966,7 @@ type RuntimeClockSnapshot struct {
 
 func (x *RuntimeClockSnapshot) Reset() {
 	*x = RuntimeClockSnapshot{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[78]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6893,7 +6978,7 @@ func (x *RuntimeClockSnapshot) String() string {
 func (*RuntimeClockSnapshot) ProtoMessage() {}
 
 func (x *RuntimeClockSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[78]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6906,7 +6991,7 @@ func (x *RuntimeClockSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeClockSnapshot.ProtoReflect.Descriptor instead.
 func (*RuntimeClockSnapshot) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{78}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *RuntimeClockSnapshot) GetRuntimeTimeMs() uint64 {
@@ -6980,7 +7065,7 @@ type StableProgression struct {
 
 func (x *StableProgression) Reset() {
 	*x = StableProgression{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[79]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6992,7 +7077,7 @@ func (x *StableProgression) String() string {
 func (*StableProgression) ProtoMessage() {}
 
 func (x *StableProgression) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[79]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7005,7 +7090,7 @@ func (x *StableProgression) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StableProgression.ProtoReflect.Descriptor instead.
 func (*StableProgression) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{79}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{80}
 }
 
 type TransitioningProgression struct {
@@ -7018,7 +7103,7 @@ type TransitioningProgression struct {
 
 func (x *TransitioningProgression) Reset() {
 	*x = TransitioningProgression{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[80]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7030,7 +7115,7 @@ func (x *TransitioningProgression) String() string {
 func (*TransitioningProgression) ProtoMessage() {}
 
 func (x *TransitioningProgression) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[80]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7043,7 +7128,7 @@ func (x *TransitioningProgression) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransitioningProgression.ProtoReflect.Descriptor instead.
 func (*TransitioningProgression) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{80}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *TransitioningProgression) GetBlockingRunIds() []*presentation.RuntimeRunId {
@@ -7075,7 +7160,7 @@ type ProgressionNext struct {
 
 func (x *ProgressionNext) Reset() {
 	*x = ProgressionNext{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[81]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7087,7 +7172,7 @@ func (x *ProgressionNext) String() string {
 func (*ProgressionNext) ProtoMessage() {}
 
 func (x *ProgressionNext) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[81]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7100,7 +7185,7 @@ func (x *ProgressionNext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressionNext.ProtoReflect.Descriptor instead.
 func (*ProgressionNext) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{81}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *ProgressionNext) GetDestination() isProgressionNext_Destination {
@@ -7183,7 +7268,7 @@ type NextStep struct {
 
 func (x *NextStep) Reset() {
 	*x = NextStep{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[82]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7195,7 +7280,7 @@ func (x *NextStep) String() string {
 func (*NextStep) ProtoMessage() {}
 
 func (x *NextStep) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[82]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7208,7 +7293,7 @@ func (x *NextStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextStep.ProtoReflect.Descriptor instead.
 func (*NextStep) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{82}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *NextStep) GetStepId() string {
@@ -7227,7 +7312,7 @@ type NextGroup struct {
 
 func (x *NextGroup) Reset() {
 	*x = NextGroup{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[83]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7239,7 +7324,7 @@ func (x *NextGroup) String() string {
 func (*NextGroup) ProtoMessage() {}
 
 func (x *NextGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[83]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7252,7 +7337,7 @@ func (x *NextGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextGroup.ProtoReflect.Descriptor instead.
 func (*NextGroup) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{83}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *NextGroup) GetGroupId() string {
@@ -7270,7 +7355,7 @@ type EndPresentation struct {
 
 func (x *EndPresentation) Reset() {
 	*x = EndPresentation{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[84]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7282,7 +7367,7 @@ func (x *EndPresentation) String() string {
 func (*EndPresentation) ProtoMessage() {}
 
 func (x *EndPresentation) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[84]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7295,7 +7380,7 @@ func (x *EndPresentation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EndPresentation.ProtoReflect.Descriptor instead.
 func (*EndPresentation) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{84}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{85}
 }
 
 type StayOnStep struct {
@@ -7306,7 +7391,7 @@ type StayOnStep struct {
 
 func (x *StayOnStep) Reset() {
 	*x = StayOnStep{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[85]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7318,7 +7403,7 @@ func (x *StayOnStep) String() string {
 func (*StayOnStep) ProtoMessage() {}
 
 func (x *StayOnStep) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[85]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7331,7 +7416,7 @@ func (x *StayOnStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StayOnStep.ProtoReflect.Descriptor instead.
 func (*StayOnStep) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{85}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{86}
 }
 
 type ProgressionRuntimeState struct {
@@ -7352,7 +7437,7 @@ type ProgressionRuntimeState struct {
 
 func (x *ProgressionRuntimeState) Reset() {
 	*x = ProgressionRuntimeState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[86]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7364,7 +7449,7 @@ func (x *ProgressionRuntimeState) String() string {
 func (*ProgressionRuntimeState) ProtoMessage() {}
 
 func (x *ProgressionRuntimeState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[86]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7377,7 +7462,7 @@ func (x *ProgressionRuntimeState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressionRuntimeState.ProtoReflect.Descriptor instead.
 func (*ProgressionRuntimeState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{86}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *ProgressionRuntimeState) GetCurrentGroupId() string {
@@ -7467,7 +7552,7 @@ type ArmedTimer struct {
 
 func (x *ArmedTimer) Reset() {
 	*x = ArmedTimer{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[87]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7479,7 +7564,7 @@ func (x *ArmedTimer) String() string {
 func (*ArmedTimer) ProtoMessage() {}
 
 func (x *ArmedTimer) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[87]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7492,7 +7577,7 @@ func (x *ArmedTimer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArmedTimer.ProtoReflect.Descriptor instead.
 func (*ArmedTimer) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{87}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *ArmedTimer) GetCueId() string {
@@ -7527,7 +7612,7 @@ type StepExecutionSnapshot struct {
 
 func (x *StepExecutionSnapshot) Reset() {
 	*x = StepExecutionSnapshot{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[88]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7539,7 +7624,7 @@ func (x *StepExecutionSnapshot) String() string {
 func (*StepExecutionSnapshot) ProtoMessage() {}
 
 func (x *StepExecutionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[88]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7552,7 +7637,7 @@ func (x *StepExecutionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepExecutionSnapshot.ProtoReflect.Descriptor instead.
 func (*StepExecutionSnapshot) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{88}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *StepExecutionSnapshot) GetStepEntryEpoch() uint64 {
@@ -7587,7 +7672,7 @@ type SurfaceRuntimeState struct {
 
 func (x *SurfaceRuntimeState) Reset() {
 	*x = SurfaceRuntimeState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[89]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7599,7 +7684,7 @@ func (x *SurfaceRuntimeState) String() string {
 func (*SurfaceRuntimeState) ProtoMessage() {}
 
 func (x *SurfaceRuntimeState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[89]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7612,7 +7697,7 @@ func (x *SurfaceRuntimeState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SurfaceRuntimeState.ProtoReflect.Descriptor instead.
 func (*SurfaceRuntimeState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{89}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *SurfaceRuntimeState) GetSurfaceId() string {
@@ -7650,7 +7735,7 @@ type MediaRuntimeState struct {
 
 func (x *MediaRuntimeState) Reset() {
 	*x = MediaRuntimeState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[90]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7662,7 +7747,7 @@ func (x *MediaRuntimeState) String() string {
 func (*MediaRuntimeState) ProtoMessage() {}
 
 func (x *MediaRuntimeState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[90]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7675,7 +7760,7 @@ func (x *MediaRuntimeState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaRuntimeState.ProtoReflect.Descriptor instead.
 func (*MediaRuntimeState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{90}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *MediaRuntimeState) GetSurfaceId() string {
@@ -7735,7 +7820,7 @@ type MediaStoppedState struct {
 
 func (x *MediaStoppedState) Reset() {
 	*x = MediaStoppedState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[91]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7747,7 +7832,7 @@ func (x *MediaStoppedState) String() string {
 func (*MediaStoppedState) ProtoMessage() {}
 
 func (x *MediaStoppedState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[91]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7760,7 +7845,7 @@ func (x *MediaStoppedState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaStoppedState.ProtoReflect.Descriptor instead.
 func (*MediaStoppedState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{91}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *MediaStoppedState) GetHeldPositionMs() float64 {
@@ -7780,7 +7865,7 @@ type MediaActive struct {
 
 func (x *MediaActive) Reset() {
 	*x = MediaActive{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[92]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7792,7 +7877,7 @@ func (x *MediaActive) String() string {
 func (*MediaActive) ProtoMessage() {}
 
 func (x *MediaActive) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[92]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7805,7 +7890,7 @@ func (x *MediaActive) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaActive.ProtoReflect.Descriptor instead.
 func (*MediaActive) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{92}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *MediaActive) GetRunId() *presentation.RuntimeRunId {
@@ -7830,7 +7915,7 @@ type DefaultModelPose struct {
 
 func (x *DefaultModelPose) Reset() {
 	*x = DefaultModelPose{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[93]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7842,7 +7927,7 @@ func (x *DefaultModelPose) String() string {
 func (*DefaultModelPose) ProtoMessage() {}
 
 func (x *DefaultModelPose) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[93]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7855,7 +7940,7 @@ func (x *DefaultModelPose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefaultModelPose.ProtoReflect.Descriptor instead.
 func (*DefaultModelPose) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{93}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{94}
 }
 
 type ModelClipRuntimeState struct {
@@ -7874,7 +7959,7 @@ type ModelClipRuntimeState struct {
 
 func (x *ModelClipRuntimeState) Reset() {
 	*x = ModelClipRuntimeState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[94]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7886,7 +7971,7 @@ func (x *ModelClipRuntimeState) String() string {
 func (*ModelClipRuntimeState) ProtoMessage() {}
 
 func (x *ModelClipRuntimeState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[94]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7899,7 +7984,7 @@ func (x *ModelClipRuntimeState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipRuntimeState.ProtoReflect.Descriptor instead.
 func (*ModelClipRuntimeState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{94}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *ModelClipRuntimeState) GetModelNodeId() string {
@@ -7989,7 +8074,7 @@ type ModelClipActive struct {
 
 func (x *ModelClipActive) Reset() {
 	*x = ModelClipActive{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[95]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8001,7 +8086,7 @@ func (x *ModelClipActive) String() string {
 func (*ModelClipActive) ProtoMessage() {}
 
 func (x *ModelClipActive) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[95]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8014,7 +8099,7 @@ func (x *ModelClipActive) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipActive.ProtoReflect.Descriptor instead.
 func (*ModelClipActive) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{95}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *ModelClipActive) GetRunId() *presentation.RuntimeRunId {
@@ -8037,7 +8122,7 @@ type SurfaceTransitionRunSnapshot struct {
 
 func (x *SurfaceTransitionRunSnapshot) Reset() {
 	*x = SurfaceTransitionRunSnapshot{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[96]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8049,7 +8134,7 @@ func (x *SurfaceTransitionRunSnapshot) String() string {
 func (*SurfaceTransitionRunSnapshot) ProtoMessage() {}
 
 func (x *SurfaceTransitionRunSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[96]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8062,7 +8147,7 @@ func (x *SurfaceTransitionRunSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SurfaceTransitionRunSnapshot.ProtoReflect.Descriptor instead.
 func (*SurfaceTransitionRunSnapshot) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{96}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *SurfaceTransitionRunSnapshot) GetSurfaceId() string {
@@ -8109,7 +8194,7 @@ type TimelineRunSnapshot struct {
 
 func (x *TimelineRunSnapshot) Reset() {
 	*x = TimelineRunSnapshot{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[97]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8121,7 +8206,7 @@ func (x *TimelineRunSnapshot) String() string {
 func (*TimelineRunSnapshot) ProtoMessage() {}
 
 func (x *TimelineRunSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[97]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8134,7 +8219,7 @@ func (x *TimelineRunSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineRunSnapshot.ProtoReflect.Descriptor instead.
 func (*TimelineRunSnapshot) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{97}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *TimelineRunSnapshot) GetTimelineId() string {
@@ -8154,7 +8239,7 @@ type MediaRunSnapshot struct {
 
 func (x *MediaRunSnapshot) Reset() {
 	*x = MediaRunSnapshot{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[98]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8166,7 +8251,7 @@ func (x *MediaRunSnapshot) String() string {
 func (*MediaRunSnapshot) ProtoMessage() {}
 
 func (x *MediaRunSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[98]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8179,7 +8264,7 @@ func (x *MediaRunSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaRunSnapshot.ProtoReflect.Descriptor instead.
 func (*MediaRunSnapshot) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{98}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *MediaRunSnapshot) GetSurfaceId() string {
@@ -8210,7 +8295,7 @@ type ModelClipCrossfade struct {
 
 func (x *ModelClipCrossfade) Reset() {
 	*x = ModelClipCrossfade{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[99]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8222,7 +8307,7 @@ func (x *ModelClipCrossfade) String() string {
 func (*ModelClipCrossfade) ProtoMessage() {}
 
 func (x *ModelClipCrossfade) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[99]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8235,7 +8320,7 @@ func (x *ModelClipCrossfade) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipCrossfade.ProtoReflect.Descriptor instead.
 func (*ModelClipCrossfade) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{99}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *ModelClipCrossfade) GetFrom() *ClipPlayback {
@@ -8294,7 +8379,7 @@ type ModelClipRunSnapshot struct {
 
 func (x *ModelClipRunSnapshot) Reset() {
 	*x = ModelClipRunSnapshot{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[100]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8306,7 +8391,7 @@ func (x *ModelClipRunSnapshot) String() string {
 func (*ModelClipRunSnapshot) ProtoMessage() {}
 
 func (x *ModelClipRunSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[100]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8319,7 +8404,7 @@ func (x *ModelClipRunSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelClipRunSnapshot.ProtoReflect.Descriptor instead.
 func (*ModelClipRunSnapshot) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{100}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *ModelClipRunSnapshot) GetModelNodeId() string {
@@ -8390,7 +8475,7 @@ type RuntimeRunSnapshot struct {
 
 func (x *RuntimeRunSnapshot) Reset() {
 	*x = RuntimeRunSnapshot{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[101]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8402,7 +8487,7 @@ func (x *RuntimeRunSnapshot) String() string {
 func (*RuntimeRunSnapshot) ProtoMessage() {}
 
 func (x *RuntimeRunSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[101]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8415,7 +8500,7 @@ func (x *RuntimeRunSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeRunSnapshot.ProtoReflect.Descriptor instead.
 func (*RuntimeRunSnapshot) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{101}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *RuntimeRunSnapshot) GetRunId() *presentation.RuntimeRunId {
@@ -8549,7 +8634,7 @@ type CanonicalRuntimeSnapshot struct {
 
 func (x *CanonicalRuntimeSnapshot) Reset() {
 	*x = CanonicalRuntimeSnapshot{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[102]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8561,7 +8646,7 @@ func (x *CanonicalRuntimeSnapshot) String() string {
 func (*CanonicalRuntimeSnapshot) ProtoMessage() {}
 
 func (x *CanonicalRuntimeSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[102]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8574,7 +8659,7 @@ func (x *CanonicalRuntimeSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CanonicalRuntimeSnapshot.ProtoReflect.Descriptor instead.
 func (*CanonicalRuntimeSnapshot) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{102}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *CanonicalRuntimeSnapshot) GetSchemaVersion() uint32 {
@@ -8707,7 +8792,7 @@ type FrozenAnchorDisplayState struct {
 
 func (x *FrozenAnchorDisplayState) Reset() {
 	*x = FrozenAnchorDisplayState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[103]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8719,7 +8804,7 @@ func (x *FrozenAnchorDisplayState) String() string {
 func (*FrozenAnchorDisplayState) ProtoMessage() {}
 
 func (x *FrozenAnchorDisplayState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[103]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8732,7 +8817,7 @@ func (x *FrozenAnchorDisplayState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FrozenAnchorDisplayState.ProtoReflect.Descriptor instead.
 func (*FrozenAnchorDisplayState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{103}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *FrozenAnchorDisplayState) GetNodeId() string {
@@ -8775,7 +8860,7 @@ type StepStartState struct {
 
 func (x *StepStartState) Reset() {
 	*x = StepStartState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[104]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8787,7 +8872,7 @@ func (x *StepStartState) String() string {
 func (*StepStartState) ProtoMessage() {}
 
 func (x *StepStartState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[104]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8800,7 +8885,7 @@ func (x *StepStartState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepStartState.ProtoReflect.Descriptor instead.
 func (*StepStartState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{104}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *StepStartState) GetGroupId() string {
@@ -8896,7 +8981,7 @@ type RuntimeRecoveryMetadata struct {
 
 func (x *RuntimeRecoveryMetadata) Reset() {
 	*x = RuntimeRecoveryMetadata{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[105]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8908,7 +8993,7 @@ func (x *RuntimeRecoveryMetadata) String() string {
 func (*RuntimeRecoveryMetadata) ProtoMessage() {}
 
 func (x *RuntimeRecoveryMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[105]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8921,7 +9006,7 @@ func (x *RuntimeRecoveryMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeRecoveryMetadata.ProtoReflect.Descriptor instead.
 func (*RuntimeRecoveryMetadata) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{105}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *RuntimeRecoveryMetadata) GetStartedAt() string {
@@ -8984,7 +9069,7 @@ type RuntimeCapacityFault struct {
 
 func (x *RuntimeCapacityFault) Reset() {
 	*x = RuntimeCapacityFault{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[106]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8996,7 +9081,7 @@ func (x *RuntimeCapacityFault) String() string {
 func (*RuntimeCapacityFault) ProtoMessage() {}
 
 func (x *RuntimeCapacityFault) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[106]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9009,7 +9094,7 @@ func (x *RuntimeCapacityFault) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeCapacityFault.ProtoReflect.Descriptor instead.
 func (*RuntimeCapacityFault) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{106}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *RuntimeCapacityFault) GetStepStartStateBytes() uint64 {
@@ -9043,7 +9128,7 @@ type RuntimeParticipantHistory struct {
 
 func (x *RuntimeParticipantHistory) Reset() {
 	*x = RuntimeParticipantHistory{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[107]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9055,7 +9140,7 @@ func (x *RuntimeParticipantHistory) String() string {
 func (*RuntimeParticipantHistory) ProtoMessage() {}
 
 func (x *RuntimeParticipantHistory) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[107]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9068,7 +9153,7 @@ func (x *RuntimeParticipantHistory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeParticipantHistory.ProtoReflect.Descriptor instead.
 func (*RuntimeParticipantHistory) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{107}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *RuntimeParticipantHistory) GetParticipantId() string {
@@ -9098,7 +9183,7 @@ type RuntimeCommandHistory struct {
 
 func (x *RuntimeCommandHistory) Reset() {
 	*x = RuntimeCommandHistory{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[108]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9110,7 +9195,7 @@ func (x *RuntimeCommandHistory) String() string {
 func (*RuntimeCommandHistory) ProtoMessage() {}
 
 func (x *RuntimeCommandHistory) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[108]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9123,7 +9208,7 @@ func (x *RuntimeCommandHistory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeCommandHistory.ProtoReflect.Descriptor instead.
 func (*RuntimeCommandHistory) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{108}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *RuntimeCommandHistory) GetFingerprint() string {
@@ -9183,7 +9268,7 @@ type ParticipantRuntimeView struct {
 
 func (x *ParticipantRuntimeView) Reset() {
 	*x = ParticipantRuntimeView{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[109]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9195,7 +9280,7 @@ func (x *ParticipantRuntimeView) String() string {
 func (*ParticipantRuntimeView) ProtoMessage() {}
 
 func (x *ParticipantRuntimeView) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[109]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9208,7 +9293,7 @@ func (x *ParticipantRuntimeView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ParticipantRuntimeView.ProtoReflect.Descriptor instead.
 func (*ParticipantRuntimeView) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{109}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *ParticipantRuntimeView) GetProjectionProfileId() string {
@@ -9321,7 +9406,7 @@ type ProjectedRuntimeSnapshot struct {
 
 func (x *ProjectedRuntimeSnapshot) Reset() {
 	*x = ProjectedRuntimeSnapshot{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[110]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9333,7 +9418,7 @@ func (x *ProjectedRuntimeSnapshot) String() string {
 func (*ProjectedRuntimeSnapshot) ProtoMessage() {}
 
 func (x *ProjectedRuntimeSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[110]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9346,7 +9431,7 @@ func (x *ProjectedRuntimeSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectedRuntimeSnapshot.ProtoReflect.Descriptor instead.
 func (*ProjectedRuntimeSnapshot) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{110}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *ProjectedRuntimeSnapshot) GetProjectionProfileId() string {
@@ -9388,7 +9473,7 @@ type ProjectedParticipantPresence struct {
 
 func (x *ProjectedParticipantPresence) Reset() {
 	*x = ProjectedParticipantPresence{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[111]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9400,7 +9485,7 @@ func (x *ProjectedParticipantPresence) String() string {
 func (*ProjectedParticipantPresence) ProtoMessage() {}
 
 func (x *ProjectedParticipantPresence) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[111]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9413,7 +9498,7 @@ func (x *ProjectedParticipantPresence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectedParticipantPresence.ProtoReflect.Descriptor instead.
 func (*ProjectedParticipantPresence) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{111}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *ProjectedParticipantPresence) GetParticipantId() string {
@@ -9446,7 +9531,7 @@ type ProjectedPresenceState struct {
 
 func (x *ProjectedPresenceState) Reset() {
 	*x = ProjectedPresenceState{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[112]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9458,7 +9543,7 @@ func (x *ProjectedPresenceState) String() string {
 func (*ProjectedPresenceState) ProtoMessage() {}
 
 func (x *ProjectedPresenceState) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[112]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9471,7 +9556,7 @@ func (x *ProjectedPresenceState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectedPresenceState.ProtoReflect.Descriptor instead.
 func (*ProjectedPresenceState) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{112}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *ProjectedPresenceState) GetParticipants() []*ProjectedParticipantPresence {
@@ -9496,7 +9581,7 @@ type ConnectionSnapshotEnvelope struct {
 
 func (x *ConnectionSnapshotEnvelope) Reset() {
 	*x = ConnectionSnapshotEnvelope{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[113]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9508,7 +9593,7 @@ func (x *ConnectionSnapshotEnvelope) String() string {
 func (*ConnectionSnapshotEnvelope) ProtoMessage() {}
 
 func (x *ConnectionSnapshotEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[113]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9521,7 +9606,7 @@ func (x *ConnectionSnapshotEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionSnapshotEnvelope.ProtoReflect.Descriptor instead.
 func (*ConnectionSnapshotEnvelope) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{113}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *ConnectionSnapshotEnvelope) GetSchemaVersion() uint32 {
@@ -9595,7 +9680,7 @@ type DurableCheckpointEnvelope struct {
 
 func (x *DurableCheckpointEnvelope) Reset() {
 	*x = DurableCheckpointEnvelope{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[114]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9607,7 +9692,7 @@ func (x *DurableCheckpointEnvelope) String() string {
 func (*DurableCheckpointEnvelope) ProtoMessage() {}
 
 func (x *DurableCheckpointEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[114]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9620,7 +9705,7 @@ func (x *DurableCheckpointEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DurableCheckpointEnvelope.ProtoReflect.Descriptor instead.
 func (*DurableCheckpointEnvelope) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{114}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *DurableCheckpointEnvelope) GetSchemaVersion() uint32 {
@@ -9731,7 +9816,7 @@ type ResyncRequired struct {
 
 func (x *ResyncRequired) Reset() {
 	*x = ResyncRequired{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[115]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9743,7 +9828,7 @@ func (x *ResyncRequired) String() string {
 func (*ResyncRequired) ProtoMessage() {}
 
 func (x *ResyncRequired) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[115]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9756,7 +9841,7 @@ func (x *ResyncRequired) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResyncRequired.ProtoReflect.Descriptor instead.
 func (*ResyncRequired) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{115}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *ResyncRequired) GetReason() ResyncReason {
@@ -9786,7 +9871,7 @@ type StateClientItem struct {
 
 func (x *StateClientItem) Reset() {
 	*x = StateClientItem{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[116]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9798,7 +9883,7 @@ func (x *StateClientItem) String() string {
 func (*StateClientItem) ProtoMessage() {}
 
 func (x *StateClientItem) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[116]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9811,7 +9896,7 @@ func (x *StateClientItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StateClientItem.ProtoReflect.Descriptor instead.
 func (*StateClientItem) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{116}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *StateClientItem) GetItem() isStateClientItem_Item {
@@ -9868,7 +9953,7 @@ type StateHandshake struct {
 
 func (x *StateHandshake) Reset() {
 	*x = StateHandshake{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[117]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9880,7 +9965,7 @@ func (x *StateHandshake) String() string {
 func (*StateHandshake) ProtoMessage() {}
 
 func (x *StateHandshake) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[117]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9893,7 +9978,7 @@ func (x *StateHandshake) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StateHandshake.ProtoReflect.Descriptor instead.
 func (*StateHandshake) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{117}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *StateHandshake) GetProtocolVersion() string {
@@ -9941,7 +10026,7 @@ type StateConnected struct {
 
 func (x *StateConnected) Reset() {
 	*x = StateConnected{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[118]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9953,7 +10038,7 @@ func (x *StateConnected) String() string {
 func (*StateConnected) ProtoMessage() {}
 
 func (x *StateConnected) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[118]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9966,7 +10051,7 @@ func (x *StateConnected) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StateConnected.ProtoReflect.Descriptor instead.
 func (*StateConnected) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{118}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *StateConnected) GetConnectionId() string {
@@ -9995,7 +10080,7 @@ type TrackedPoseSample struct {
 
 func (x *TrackedPoseSample) Reset() {
 	*x = TrackedPoseSample{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[119]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10007,7 +10092,7 @@ func (x *TrackedPoseSample) String() string {
 func (*TrackedPoseSample) ProtoMessage() {}
 
 func (x *TrackedPoseSample) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[119]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10020,7 +10105,7 @@ func (x *TrackedPoseSample) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrackedPoseSample.ProtoReflect.Descriptor instead.
 func (*TrackedPoseSample) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{119}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *TrackedPoseSample) GetTarget() TrackedTarget {
@@ -10057,13 +10142,14 @@ type TrackingFrame struct {
 	CapturedAtClientMonotonicMs uint64                 `protobuf:"varint,2,opt,name=captured_at_client_monotonic_ms,json=capturedAtClientMonotonicMs,proto3" json:"captured_at_client_monotonic_ms,omitempty"`
 	Samples                     []*TrackedPoseSample   `protobuf:"bytes,3,rep,name=samples,proto3" json:"samples,omitempty"`
 	PresentationFromQuestLocal  *presentation.Pose     `protobuf:"bytes,4,opt,name=presentation_from_quest_local,json=presentationFromQuestLocal,proto3" json:"presentation_from_quest_local,omitempty"`
+	PresentationOriginVersion   uint64                 `protobuf:"varint,5,opt,name=presentation_origin_version,json=presentationOriginVersion,proto3" json:"presentation_origin_version,omitempty"`
 	unknownFields               protoimpl.UnknownFields
 	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *TrackingFrame) Reset() {
 	*x = TrackingFrame{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[120]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10075,7 +10161,7 @@ func (x *TrackingFrame) String() string {
 func (*TrackingFrame) ProtoMessage() {}
 
 func (x *TrackingFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[120]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10088,7 +10174,7 @@ func (x *TrackingFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrackingFrame.ProtoReflect.Descriptor instead.
 func (*TrackingFrame) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{120}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *TrackingFrame) GetFrameSequence() uint64 {
@@ -10119,6 +10205,13 @@ func (x *TrackingFrame) GetPresentationFromQuestLocal() *presentation.Pose {
 	return nil
 }
 
+func (x *TrackingFrame) GetPresentationOriginVersion() uint64 {
+	if x != nil {
+		return x.PresentationOriginVersion
+	}
+	return 0
+}
+
 type StateServerItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Item:
@@ -10132,7 +10225,7 @@ type StateServerItem struct {
 
 func (x *StateServerItem) Reset() {
 	*x = StateServerItem{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[121]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10144,7 +10237,7 @@ func (x *StateServerItem) String() string {
 func (*StateServerItem) ProtoMessage() {}
 
 func (x *StateServerItem) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[121]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10157,7 +10250,7 @@ func (x *StateServerItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StateServerItem.ProtoReflect.Descriptor instead.
 func (*StateServerItem) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{121}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *StateServerItem) GetItem() isStateServerItem_Item {
@@ -10213,7 +10306,7 @@ type NodeStatePatch struct {
 
 func (x *NodeStatePatch) Reset() {
 	*x = NodeStatePatch{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[122]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10225,7 +10318,7 @@ func (x *NodeStatePatch) String() string {
 func (*NodeStatePatch) ProtoMessage() {}
 
 func (x *NodeStatePatch) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[122]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10238,7 +10331,7 @@ func (x *NodeStatePatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeStatePatch.ProtoReflect.Descriptor instead.
 func (*NodeStatePatch) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{122}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *NodeStatePatch) GetActive() bool {
@@ -10279,7 +10372,7 @@ type ElementStatePatch struct {
 
 func (x *ElementStatePatch) Reset() {
 	*x = ElementStatePatch{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[123]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10291,7 +10384,7 @@ func (x *ElementStatePatch) String() string {
 func (*ElementStatePatch) ProtoMessage() {}
 
 func (x *ElementStatePatch) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[123]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10304,7 +10397,7 @@ func (x *ElementStatePatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ElementStatePatch.ProtoReflect.Descriptor instead.
 func (*ElementStatePatch) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{123}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *ElementStatePatch) GetElementId() string {
@@ -10329,7 +10422,7 @@ type AnchorBindingUnavailable struct {
 
 func (x *AnchorBindingUnavailable) Reset() {
 	*x = AnchorBindingUnavailable{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[124]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10341,7 +10434,7 @@ func (x *AnchorBindingUnavailable) String() string {
 func (*AnchorBindingUnavailable) ProtoMessage() {}
 
 func (x *AnchorBindingUnavailable) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[124]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10354,7 +10447,7 @@ func (x *AnchorBindingUnavailable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnchorBindingUnavailable.ProtoReflect.Descriptor instead.
 func (*AnchorBindingUnavailable) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{124}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{125}
 }
 
 type ProjectedAnchorBindingSample struct {
@@ -10369,7 +10462,7 @@ type ProjectedAnchorBindingSample struct {
 
 func (x *ProjectedAnchorBindingSample) Reset() {
 	*x = ProjectedAnchorBindingSample{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[125]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10381,7 +10474,7 @@ func (x *ProjectedAnchorBindingSample) String() string {
 func (*ProjectedAnchorBindingSample) ProtoMessage() {}
 
 func (x *ProjectedAnchorBindingSample) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[125]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10394,7 +10487,7 @@ func (x *ProjectedAnchorBindingSample) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectedAnchorBindingSample.ProtoReflect.Descriptor instead.
 func (*ProjectedAnchorBindingSample) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{125}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *ProjectedAnchorBindingSample) GetTrackingFrameSequence() uint64 {
@@ -10440,7 +10533,7 @@ type ProjectedAnchorBindingPatch struct {
 
 func (x *ProjectedAnchorBindingPatch) Reset() {
 	*x = ProjectedAnchorBindingPatch{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[126]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10452,7 +10545,7 @@ func (x *ProjectedAnchorBindingPatch) String() string {
 func (*ProjectedAnchorBindingPatch) ProtoMessage() {}
 
 func (x *ProjectedAnchorBindingPatch) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[126]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10465,7 +10558,7 @@ func (x *ProjectedAnchorBindingPatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectedAnchorBindingPatch.ProtoReflect.Descriptor instead.
 func (*ProjectedAnchorBindingPatch) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{126}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *ProjectedAnchorBindingPatch) GetNodeId() string {
@@ -10548,7 +10641,7 @@ type ElementStateFrame struct {
 
 func (x *ElementStateFrame) Reset() {
 	*x = ElementStateFrame{}
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[127]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10560,7 +10653,7 @@ func (x *ElementStateFrame) String() string {
 func (*ElementStateFrame) ProtoMessage() {}
 
 func (x *ElementStateFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_realtime_realtime_proto_msgTypes[127]
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10573,7 +10666,7 @@ func (x *ElementStateFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ElementStateFrame.ProtoReflect.Descriptor instead.
 func (*ElementStateFrame) Descriptor() ([]byte, []int) {
-	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{127}
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *ElementStateFrame) GetFence() *presentation.RuntimeProjectionFence {
@@ -10643,7 +10736,7 @@ var File_unframe_realtime_realtime_proto protoreflect.FileDescriptor
 
 const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\n" +
-	"\x1funframe/realtime/realtime.proto\x12\x10unframe.realtime\x1a\"unframe/presentation/runtime.proto\"\xf4\x05\n" +
+	"\x1funframe/realtime/realtime.proto\x12\x10unframe.realtime\x1a\"unframe/presentation/runtime.proto\"\xd4\x06\n" +
 	"\x11ControlClientItem\x12B\n" +
 	"\thandshake\x18\x01 \x01(\v2\".unframe.realtime.ControlHandshakeH\x00R\thandshake\x12H\n" +
 	"\x0ereplay_request\x18\x02 \x01(\v2\x1f.unframe.realtime.ReplayRequestH\x00R\rreplayRequest\x12?\n" +
@@ -10655,7 +10748,8 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\rgesture_input\x18d \x01(\v2%.unframe.realtime.GestureInputCommandH\x00R\fgestureInput\x12C\n" +
 	"\n" +
 	"zone_input\x18e \x01(\v2\".unframe.realtime.ZoneInputCommandH\x00R\tzoneInput\x12g\n" +
-	"\x19input_synchronization_ack\x18f \x01(\v2).unframe.realtime.InputSynchronizationAckH\x00R\x17inputSynchronizationAckB\x06\n" +
+	"\x19input_synchronization_ack\x18f \x01(\v2).unframe.realtime.InputSynchronizationAckH\x00R\x17inputSynchronizationAck\x12^\n" +
+	"\x13presentation_origin\x18g \x01(\v2+.unframe.realtime.PresentationOriginCommandH\x00R\x12presentationOriginB\x06\n" +
 	"\x04itemJ\x04\b\x04\x10\x14J\x04\b\x17\x10d\"\xa7\x02\n" +
 	"\x10ControlHandshake\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12@\n" +
@@ -10738,7 +10832,12 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x04kind\x18\x02 \x01(\x0e2$.unframe.realtime.RuntimeControlKindR\x04kind\x12>\n" +
 	"\x1bpresentation_origin_version\x18\x03 \x01(\x04R\x19presentationOriginVersion\x12#\n" +
 	"\rcommand_epoch\x18\x04 \x01(\x04R\fcommandEpoch\x12F\n" +
-	"\x0estep_selection\x18\x05 \x01(\v2\x1f.unframe.realtime.StepSelectionR\rstepSelection\"\xb9\x01\n" +
+	"\x0estep_selection\x18\x05 \x01(\v2\x1f.unframe.realtime.StepSelectionR\rstepSelection\"\xe9\x01\n" +
+	"\x19PresentationOriginCommand\x12&\n" +
+	"\x0fclient_event_id\x18\x01 \x01(\tR\rclientEventId\x12O\n" +
+	"$expected_presentation_origin_version\x18\x02 \x01(\x04R!expectedPresentationOriginVersion\x12.\n" +
+	"\x04pose\x18\x03 \x01(\v2\x1a.unframe.presentation.PoseR\x04pose\x12#\n" +
+	"\rcommand_epoch\x18\x04 \x01(\x04R\fcommandEpoch\"\xb9\x01\n" +
 	"\fInputContext\x12\x1f\n" +
 	"\vinput_epoch\x18\x01 \x01(\x04R\n" +
 	"inputEpoch\x12\x19\n" +
@@ -11340,12 +11439,13 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x06target\x18\x01 \x01(\x0e2\x1f.unframe.realtime.TrackedTargetR\x06target\x12D\n" +
 	"\x10quest_local_pose\x18\x02 \x01(\v2\x1a.unframe.presentation.PoseR\x0equestLocalPose\x12-\n" +
 	"\x12position_available\x18\x03 \x01(\bR\x11positionAvailable\x12-\n" +
-	"\x12rotation_available\x18\x04 \x01(\bR\x11rotationAvailable\"\x9a\x02\n" +
+	"\x12rotation_available\x18\x04 \x01(\bR\x11rotationAvailable\"\xda\x02\n" +
 	"\rTrackingFrame\x12%\n" +
 	"\x0eframe_sequence\x18\x01 \x01(\x04R\rframeSequence\x12D\n" +
 	"\x1fcaptured_at_client_monotonic_ms\x18\x02 \x01(\x04R\x1bcapturedAtClientMonotonicMs\x12=\n" +
 	"\asamples\x18\x03 \x03(\v2#.unframe.realtime.TrackedPoseSampleR\asamples\x12]\n" +
-	"\x1dpresentation_from_quest_local\x18\x04 \x01(\v2\x1a.unframe.presentation.PoseR\x1apresentationFromQuestLocal\"\xa3\x01\n" +
+	"\x1dpresentation_from_quest_local\x18\x04 \x01(\v2\x1a.unframe.presentation.PoseR\x1apresentationFromQuestLocal\x12>\n" +
+	"\x1bpresentation_origin_version\x18\x05 \x01(\x04R\x19presentationOriginVersion\"\xa3\x01\n" +
 	"\x0fStateServerItem\x12@\n" +
 	"\tconnected\x18\x01 \x01(\v2 .unframe.realtime.StateConnectedH\x00R\tconnected\x12F\n" +
 	"\vstate_frame\x18\x02 \x01(\v2#.unframe.realtime.ElementStateFrameH\x00R\n" +
@@ -11504,7 +11604,7 @@ func file_unframe_realtime_realtime_proto_rawDescGZIP() []byte {
 }
 
 var file_unframe_realtime_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 15)
-var file_unframe_realtime_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 128)
+var file_unframe_realtime_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 129)
 var file_unframe_realtime_realtime_proto_goTypes = []any{
 	(RuntimeControlKind)(0),                          // 0: unframe.realtime.RuntimeControlKind
 	(InputSynchronizationPhase)(0),                   // 1: unframe.realtime.InputSynchronizationPhase
@@ -11532,141 +11632,142 @@ var file_unframe_realtime_realtime_proto_goTypes = []any{
 	(*LogicalInputCommand)(nil),                      // 23: unframe.realtime.LogicalInputCommand
 	(*SurfaceInteractionCommand)(nil),                // 24: unframe.realtime.SurfaceInteractionCommand
 	(*RuntimeControlCommand)(nil),                    // 25: unframe.realtime.RuntimeControlCommand
-	(*InputContext)(nil),                             // 26: unframe.realtime.InputContext
-	(*GestureInputCommand)(nil),                      // 27: unframe.realtime.GestureInputCommand
-	(*ZoneInputCommand)(nil),                         // 28: unframe.realtime.ZoneInputCommand
-	(*StepSelection)(nil),                            // 29: unframe.realtime.StepSelection
-	(*PresenterStepSelectionCatalog)(nil),            // 30: unframe.realtime.PresenterStepSelectionCatalog
-	(*PresenterInputSynchronization)(nil),            // 31: unframe.realtime.PresenterInputSynchronization
-	(*InputSynchronizationAck)(nil),                  // 32: unframe.realtime.InputSynchronizationAck
-	(*CommandOutcome)(nil),                           // 33: unframe.realtime.CommandOutcome
-	(*CommandAccepted)(nil),                          // 34: unframe.realtime.CommandAccepted
-	(*CueNotSelected)(nil),                           // 35: unframe.realtime.CueNotSelected
-	(*CueCommitted)(nil),                             // 36: unframe.realtime.CueCommitted
-	(*CommandRejected)(nil),                          // 37: unframe.realtime.CommandRejected
-	(*CueBatchRejected)(nil),                         // 38: unframe.realtime.CueBatchRejected
-	(*CommandNoOp)(nil),                              // 39: unframe.realtime.CommandNoOp
-	(*ControlServerItem)(nil),                        // 40: unframe.realtime.ControlServerItem
-	(*ProjectedReliableEvent)(nil),                   // 41: unframe.realtime.ProjectedReliableEvent
-	(*ProjectionAdvance)(nil),                        // 42: unframe.realtime.ProjectionAdvance
-	(*Running)(nil),                                  // 43: unframe.realtime.Running
-	(*Paused)(nil),                                   // 44: unframe.realtime.Paused
-	(*Terminating)(nil),                              // 45: unframe.realtime.Terminating
-	(*RuntimeStatusChanged)(nil),                     // 46: unframe.realtime.RuntimeStatusChanged
-	(*GroupEntered)(nil),                             // 47: unframe.realtime.GroupEntered
-	(*GroupRuntimeInitialization)(nil),               // 48: unframe.realtime.GroupRuntimeInitialization
-	(*GroupExited)(nil),                              // 49: unframe.realtime.GroupExited
-	(*StepEntered)(nil),                              // 50: unframe.realtime.StepEntered
-	(*CueAccepted)(nil),                              // 51: unframe.realtime.CueAccepted
-	(*PresentationEnded)(nil),                        // 52: unframe.realtime.PresentationEnded
-	(*LogicalInputAccepted)(nil),                     // 53: unframe.realtime.LogicalInputAccepted
-	(*GestureInputAccepted)(nil),                     // 54: unframe.realtime.GestureInputAccepted
-	(*ZoneInputAccepted)(nil),                        // 55: unframe.realtime.ZoneInputAccepted
-	(*RuntimeViewReplaced)(nil),                      // 56: unframe.realtime.RuntimeViewReplaced
-	(*SurfaceInteractionAccepted)(nil),               // 57: unframe.realtime.SurfaceInteractionAccepted
-	(*SurfaceStateChanged)(nil),                      // 58: unframe.realtime.SurfaceStateChanged
-	(*SurfaceTransitionStarted)(nil),                 // 59: unframe.realtime.SurfaceTransitionStarted
-	(*SurfaceTransitionCompleted)(nil),               // 60: unframe.realtime.SurfaceTransitionCompleted
-	(*NodeRuntimeState)(nil),                         // 61: unframe.realtime.NodeRuntimeState
-	(*NodeStateCommitted)(nil),                       // 62: unframe.realtime.NodeStateCommitted
-	(*VariableState)(nil),                            // 63: unframe.realtime.VariableState
-	(*VariableChanged)(nil),                          // 64: unframe.realtime.VariableChanged
-	(*TimelineStarted)(nil),                          // 65: unframe.realtime.TimelineStarted
-	(*TimelineCompleted)(nil),                        // 66: unframe.realtime.TimelineCompleted
-	(*TimelineCanceled)(nil),                         // 67: unframe.realtime.TimelineCanceled
-	(*PlaybackClock)(nil),                            // 68: unframe.realtime.PlaybackClock
-	(*PlayingClock)(nil),                             // 69: unframe.realtime.PlayingClock
-	(*PausedClock)(nil),                              // 70: unframe.realtime.PausedClock
-	(*MediaStarted)(nil),                             // 71: unframe.realtime.MediaStarted
-	(*MediaPaused)(nil),                              // 72: unframe.realtime.MediaPaused
-	(*MediaResumed)(nil),                             // 73: unframe.realtime.MediaResumed
-	(*MediaSeeked)(nil),                              // 74: unframe.realtime.MediaSeeked
-	(*MediaCompleted)(nil),                           // 75: unframe.realtime.MediaCompleted
-	(*MediaStoppedSeeked)(nil),                       // 76: unframe.realtime.MediaStoppedSeeked
-	(*MediaStopped)(nil),                             // 77: unframe.realtime.MediaStopped
-	(*MediaCanceled)(nil),                            // 78: unframe.realtime.MediaCanceled
-	(*ClipPlayback)(nil),                             // 79: unframe.realtime.ClipPlayback
-	(*ClipHeldPose)(nil),                             // 80: unframe.realtime.ClipHeldPose
-	(*BlendHeldPose)(nil),                            // 81: unframe.realtime.BlendHeldPose
-	(*ModelClipStarted)(nil),                         // 82: unframe.realtime.ModelClipStarted
-	(*ModelClipPaused)(nil),                          // 83: unframe.realtime.ModelClipPaused
-	(*ModelClipResumed)(nil),                         // 84: unframe.realtime.ModelClipResumed
-	(*ModelClipStopped)(nil),                         // 85: unframe.realtime.ModelClipStopped
-	(*ModelClipCompleted)(nil),                       // 86: unframe.realtime.ModelClipCompleted
-	(*ModelClipCrossfadeStarted)(nil),                // 87: unframe.realtime.ModelClipCrossfadeStarted
-	(*ModelClipCrossfadeCompleted)(nil),              // 88: unframe.realtime.ModelClipCrossfadeCompleted
-	(*ModelClipCanceled)(nil),                        // 89: unframe.realtime.ModelClipCanceled
-	(*ParticipantPresenceChanged)(nil),               // 90: unframe.realtime.ParticipantPresenceChanged
-	(*PresentationOrigin)(nil),                       // 91: unframe.realtime.PresentationOrigin
-	(*PresentationOriginChanged)(nil),                // 92: unframe.realtime.PresentationOriginChanged
-	(*RuntimeClockSnapshot)(nil),                     // 93: unframe.realtime.RuntimeClockSnapshot
-	(*StableProgression)(nil),                        // 94: unframe.realtime.StableProgression
-	(*TransitioningProgression)(nil),                 // 95: unframe.realtime.TransitioningProgression
-	(*ProgressionNext)(nil),                          // 96: unframe.realtime.ProgressionNext
-	(*NextStep)(nil),                                 // 97: unframe.realtime.NextStep
-	(*NextGroup)(nil),                                // 98: unframe.realtime.NextGroup
-	(*EndPresentation)(nil),                          // 99: unframe.realtime.EndPresentation
-	(*StayOnStep)(nil),                               // 100: unframe.realtime.StayOnStep
-	(*ProgressionRuntimeState)(nil),                  // 101: unframe.realtime.ProgressionRuntimeState
-	(*ArmedTimer)(nil),                               // 102: unframe.realtime.ArmedTimer
-	(*StepExecutionSnapshot)(nil),                    // 103: unframe.realtime.StepExecutionSnapshot
-	(*SurfaceRuntimeState)(nil),                      // 104: unframe.realtime.SurfaceRuntimeState
-	(*MediaRuntimeState)(nil),                        // 105: unframe.realtime.MediaRuntimeState
-	(*MediaStoppedState)(nil),                        // 106: unframe.realtime.MediaStoppedState
-	(*MediaActive)(nil),                              // 107: unframe.realtime.MediaActive
-	(*DefaultModelPose)(nil),                         // 108: unframe.realtime.DefaultModelPose
-	(*ModelClipRuntimeState)(nil),                    // 109: unframe.realtime.ModelClipRuntimeState
-	(*ModelClipActive)(nil),                          // 110: unframe.realtime.ModelClipActive
-	(*SurfaceTransitionRunSnapshot)(nil),             // 111: unframe.realtime.SurfaceTransitionRunSnapshot
-	(*TimelineRunSnapshot)(nil),                      // 112: unframe.realtime.TimelineRunSnapshot
-	(*MediaRunSnapshot)(nil),                         // 113: unframe.realtime.MediaRunSnapshot
-	(*ModelClipCrossfade)(nil),                       // 114: unframe.realtime.ModelClipCrossfade
-	(*ModelClipRunSnapshot)(nil),                     // 115: unframe.realtime.ModelClipRunSnapshot
-	(*RuntimeRunSnapshot)(nil),                       // 116: unframe.realtime.RuntimeRunSnapshot
-	(*CanonicalRuntimeSnapshot)(nil),                 // 117: unframe.realtime.CanonicalRuntimeSnapshot
-	(*FrozenAnchorDisplayState)(nil),                 // 118: unframe.realtime.FrozenAnchorDisplayState
-	(*StepStartState)(nil),                           // 119: unframe.realtime.StepStartState
-	(*RuntimeRecoveryMetadata)(nil),                  // 120: unframe.realtime.RuntimeRecoveryMetadata
-	(*RuntimeCapacityFault)(nil),                     // 121: unframe.realtime.RuntimeCapacityFault
-	(*RuntimeParticipantHistory)(nil),                // 122: unframe.realtime.RuntimeParticipantHistory
-	(*RuntimeCommandHistory)(nil),                    // 123: unframe.realtime.RuntimeCommandHistory
-	(*ParticipantRuntimeView)(nil),                   // 124: unframe.realtime.ParticipantRuntimeView
-	(*ProjectedRuntimeSnapshot)(nil),                 // 125: unframe.realtime.ProjectedRuntimeSnapshot
-	(*ProjectedParticipantPresence)(nil),             // 126: unframe.realtime.ProjectedParticipantPresence
-	(*ProjectedPresenceState)(nil),                   // 127: unframe.realtime.ProjectedPresenceState
-	(*ConnectionSnapshotEnvelope)(nil),               // 128: unframe.realtime.ConnectionSnapshotEnvelope
-	(*DurableCheckpointEnvelope)(nil),                // 129: unframe.realtime.DurableCheckpointEnvelope
-	(*ResyncRequired)(nil),                           // 130: unframe.realtime.ResyncRequired
-	(*StateClientItem)(nil),                          // 131: unframe.realtime.StateClientItem
-	(*StateHandshake)(nil),                           // 132: unframe.realtime.StateHandshake
-	(*StateConnected)(nil),                           // 133: unframe.realtime.StateConnected
-	(*TrackedPoseSample)(nil),                        // 134: unframe.realtime.TrackedPoseSample
-	(*TrackingFrame)(nil),                            // 135: unframe.realtime.TrackingFrame
-	(*StateServerItem)(nil),                          // 136: unframe.realtime.StateServerItem
-	(*NodeStatePatch)(nil),                           // 137: unframe.realtime.NodeStatePatch
-	(*ElementStatePatch)(nil),                        // 138: unframe.realtime.ElementStatePatch
-	(*AnchorBindingUnavailable)(nil),                 // 139: unframe.realtime.AnchorBindingUnavailable
-	(*ProjectedAnchorBindingSample)(nil),             // 140: unframe.realtime.ProjectedAnchorBindingSample
-	(*ProjectedAnchorBindingPatch)(nil),              // 141: unframe.realtime.ProjectedAnchorBindingPatch
-	(*ElementStateFrame)(nil),                        // 142: unframe.realtime.ElementStateFrame
-	(presentation.RuntimeCapability)(0),              // 143: unframe.presentation.RuntimeCapability
-	(*presentation.RuntimeProjectionFence)(nil),      // 144: unframe.presentation.RuntimeProjectionFence
-	(*presentation.ProjectionInstance)(nil),          // 145: unframe.presentation.ProjectionInstance
-	(presentation.GestureKind)(0),                    // 146: unframe.presentation.GestureKind
-	(presentation.ZoneEdge)(0),                       // 147: unframe.presentation.ZoneEdge
-	(*presentation.PresenterRecognitionCatalog)(nil), // 148: unframe.presentation.PresenterRecognitionCatalog
-	(*presentation.RuntimeRunId)(nil),                // 149: unframe.presentation.RuntimeRunId
-	(presentation.Easing)(0),                         // 150: unframe.presentation.Easing
-	(*presentation.Transform)(nil),                   // 151: unframe.presentation.Transform
-	(*presentation.ScalarValue)(nil),                 // 152: unframe.presentation.ScalarValue
-	(*presentation.RuntimeRunOwner)(nil),             // 153: unframe.presentation.RuntimeRunOwner
-	(*presentation.RuntimeRunCause)(nil),             // 154: unframe.presentation.RuntimeRunCause
-	(presentation.RunCompletion)(0),                  // 155: unframe.presentation.RunCompletion
-	(presentation.SessionRole)(0),                    // 156: unframe.presentation.SessionRole
-	(*presentation.Pose)(nil),                        // 157: unframe.presentation.Pose
-	(*presentation.Vector3)(nil),                     // 158: unframe.presentation.Vector3
-	(*presentation.Quaternion)(nil),                  // 159: unframe.presentation.Quaternion
-	(*presentation.PublicationFence)(nil),            // 160: unframe.presentation.PublicationFence
+	(*PresentationOriginCommand)(nil),                // 26: unframe.realtime.PresentationOriginCommand
+	(*InputContext)(nil),                             // 27: unframe.realtime.InputContext
+	(*GestureInputCommand)(nil),                      // 28: unframe.realtime.GestureInputCommand
+	(*ZoneInputCommand)(nil),                         // 29: unframe.realtime.ZoneInputCommand
+	(*StepSelection)(nil),                            // 30: unframe.realtime.StepSelection
+	(*PresenterStepSelectionCatalog)(nil),            // 31: unframe.realtime.PresenterStepSelectionCatalog
+	(*PresenterInputSynchronization)(nil),            // 32: unframe.realtime.PresenterInputSynchronization
+	(*InputSynchronizationAck)(nil),                  // 33: unframe.realtime.InputSynchronizationAck
+	(*CommandOutcome)(nil),                           // 34: unframe.realtime.CommandOutcome
+	(*CommandAccepted)(nil),                          // 35: unframe.realtime.CommandAccepted
+	(*CueNotSelected)(nil),                           // 36: unframe.realtime.CueNotSelected
+	(*CueCommitted)(nil),                             // 37: unframe.realtime.CueCommitted
+	(*CommandRejected)(nil),                          // 38: unframe.realtime.CommandRejected
+	(*CueBatchRejected)(nil),                         // 39: unframe.realtime.CueBatchRejected
+	(*CommandNoOp)(nil),                              // 40: unframe.realtime.CommandNoOp
+	(*ControlServerItem)(nil),                        // 41: unframe.realtime.ControlServerItem
+	(*ProjectedReliableEvent)(nil),                   // 42: unframe.realtime.ProjectedReliableEvent
+	(*ProjectionAdvance)(nil),                        // 43: unframe.realtime.ProjectionAdvance
+	(*Running)(nil),                                  // 44: unframe.realtime.Running
+	(*Paused)(nil),                                   // 45: unframe.realtime.Paused
+	(*Terminating)(nil),                              // 46: unframe.realtime.Terminating
+	(*RuntimeStatusChanged)(nil),                     // 47: unframe.realtime.RuntimeStatusChanged
+	(*GroupEntered)(nil),                             // 48: unframe.realtime.GroupEntered
+	(*GroupRuntimeInitialization)(nil),               // 49: unframe.realtime.GroupRuntimeInitialization
+	(*GroupExited)(nil),                              // 50: unframe.realtime.GroupExited
+	(*StepEntered)(nil),                              // 51: unframe.realtime.StepEntered
+	(*CueAccepted)(nil),                              // 52: unframe.realtime.CueAccepted
+	(*PresentationEnded)(nil),                        // 53: unframe.realtime.PresentationEnded
+	(*LogicalInputAccepted)(nil),                     // 54: unframe.realtime.LogicalInputAccepted
+	(*GestureInputAccepted)(nil),                     // 55: unframe.realtime.GestureInputAccepted
+	(*ZoneInputAccepted)(nil),                        // 56: unframe.realtime.ZoneInputAccepted
+	(*RuntimeViewReplaced)(nil),                      // 57: unframe.realtime.RuntimeViewReplaced
+	(*SurfaceInteractionAccepted)(nil),               // 58: unframe.realtime.SurfaceInteractionAccepted
+	(*SurfaceStateChanged)(nil),                      // 59: unframe.realtime.SurfaceStateChanged
+	(*SurfaceTransitionStarted)(nil),                 // 60: unframe.realtime.SurfaceTransitionStarted
+	(*SurfaceTransitionCompleted)(nil),               // 61: unframe.realtime.SurfaceTransitionCompleted
+	(*NodeRuntimeState)(nil),                         // 62: unframe.realtime.NodeRuntimeState
+	(*NodeStateCommitted)(nil),                       // 63: unframe.realtime.NodeStateCommitted
+	(*VariableState)(nil),                            // 64: unframe.realtime.VariableState
+	(*VariableChanged)(nil),                          // 65: unframe.realtime.VariableChanged
+	(*TimelineStarted)(nil),                          // 66: unframe.realtime.TimelineStarted
+	(*TimelineCompleted)(nil),                        // 67: unframe.realtime.TimelineCompleted
+	(*TimelineCanceled)(nil),                         // 68: unframe.realtime.TimelineCanceled
+	(*PlaybackClock)(nil),                            // 69: unframe.realtime.PlaybackClock
+	(*PlayingClock)(nil),                             // 70: unframe.realtime.PlayingClock
+	(*PausedClock)(nil),                              // 71: unframe.realtime.PausedClock
+	(*MediaStarted)(nil),                             // 72: unframe.realtime.MediaStarted
+	(*MediaPaused)(nil),                              // 73: unframe.realtime.MediaPaused
+	(*MediaResumed)(nil),                             // 74: unframe.realtime.MediaResumed
+	(*MediaSeeked)(nil),                              // 75: unframe.realtime.MediaSeeked
+	(*MediaCompleted)(nil),                           // 76: unframe.realtime.MediaCompleted
+	(*MediaStoppedSeeked)(nil),                       // 77: unframe.realtime.MediaStoppedSeeked
+	(*MediaStopped)(nil),                             // 78: unframe.realtime.MediaStopped
+	(*MediaCanceled)(nil),                            // 79: unframe.realtime.MediaCanceled
+	(*ClipPlayback)(nil),                             // 80: unframe.realtime.ClipPlayback
+	(*ClipHeldPose)(nil),                             // 81: unframe.realtime.ClipHeldPose
+	(*BlendHeldPose)(nil),                            // 82: unframe.realtime.BlendHeldPose
+	(*ModelClipStarted)(nil),                         // 83: unframe.realtime.ModelClipStarted
+	(*ModelClipPaused)(nil),                          // 84: unframe.realtime.ModelClipPaused
+	(*ModelClipResumed)(nil),                         // 85: unframe.realtime.ModelClipResumed
+	(*ModelClipStopped)(nil),                         // 86: unframe.realtime.ModelClipStopped
+	(*ModelClipCompleted)(nil),                       // 87: unframe.realtime.ModelClipCompleted
+	(*ModelClipCrossfadeStarted)(nil),                // 88: unframe.realtime.ModelClipCrossfadeStarted
+	(*ModelClipCrossfadeCompleted)(nil),              // 89: unframe.realtime.ModelClipCrossfadeCompleted
+	(*ModelClipCanceled)(nil),                        // 90: unframe.realtime.ModelClipCanceled
+	(*ParticipantPresenceChanged)(nil),               // 91: unframe.realtime.ParticipantPresenceChanged
+	(*PresentationOrigin)(nil),                       // 92: unframe.realtime.PresentationOrigin
+	(*PresentationOriginChanged)(nil),                // 93: unframe.realtime.PresentationOriginChanged
+	(*RuntimeClockSnapshot)(nil),                     // 94: unframe.realtime.RuntimeClockSnapshot
+	(*StableProgression)(nil),                        // 95: unframe.realtime.StableProgression
+	(*TransitioningProgression)(nil),                 // 96: unframe.realtime.TransitioningProgression
+	(*ProgressionNext)(nil),                          // 97: unframe.realtime.ProgressionNext
+	(*NextStep)(nil),                                 // 98: unframe.realtime.NextStep
+	(*NextGroup)(nil),                                // 99: unframe.realtime.NextGroup
+	(*EndPresentation)(nil),                          // 100: unframe.realtime.EndPresentation
+	(*StayOnStep)(nil),                               // 101: unframe.realtime.StayOnStep
+	(*ProgressionRuntimeState)(nil),                  // 102: unframe.realtime.ProgressionRuntimeState
+	(*ArmedTimer)(nil),                               // 103: unframe.realtime.ArmedTimer
+	(*StepExecutionSnapshot)(nil),                    // 104: unframe.realtime.StepExecutionSnapshot
+	(*SurfaceRuntimeState)(nil),                      // 105: unframe.realtime.SurfaceRuntimeState
+	(*MediaRuntimeState)(nil),                        // 106: unframe.realtime.MediaRuntimeState
+	(*MediaStoppedState)(nil),                        // 107: unframe.realtime.MediaStoppedState
+	(*MediaActive)(nil),                              // 108: unframe.realtime.MediaActive
+	(*DefaultModelPose)(nil),                         // 109: unframe.realtime.DefaultModelPose
+	(*ModelClipRuntimeState)(nil),                    // 110: unframe.realtime.ModelClipRuntimeState
+	(*ModelClipActive)(nil),                          // 111: unframe.realtime.ModelClipActive
+	(*SurfaceTransitionRunSnapshot)(nil),             // 112: unframe.realtime.SurfaceTransitionRunSnapshot
+	(*TimelineRunSnapshot)(nil),                      // 113: unframe.realtime.TimelineRunSnapshot
+	(*MediaRunSnapshot)(nil),                         // 114: unframe.realtime.MediaRunSnapshot
+	(*ModelClipCrossfade)(nil),                       // 115: unframe.realtime.ModelClipCrossfade
+	(*ModelClipRunSnapshot)(nil),                     // 116: unframe.realtime.ModelClipRunSnapshot
+	(*RuntimeRunSnapshot)(nil),                       // 117: unframe.realtime.RuntimeRunSnapshot
+	(*CanonicalRuntimeSnapshot)(nil),                 // 118: unframe.realtime.CanonicalRuntimeSnapshot
+	(*FrozenAnchorDisplayState)(nil),                 // 119: unframe.realtime.FrozenAnchorDisplayState
+	(*StepStartState)(nil),                           // 120: unframe.realtime.StepStartState
+	(*RuntimeRecoveryMetadata)(nil),                  // 121: unframe.realtime.RuntimeRecoveryMetadata
+	(*RuntimeCapacityFault)(nil),                     // 122: unframe.realtime.RuntimeCapacityFault
+	(*RuntimeParticipantHistory)(nil),                // 123: unframe.realtime.RuntimeParticipantHistory
+	(*RuntimeCommandHistory)(nil),                    // 124: unframe.realtime.RuntimeCommandHistory
+	(*ParticipantRuntimeView)(nil),                   // 125: unframe.realtime.ParticipantRuntimeView
+	(*ProjectedRuntimeSnapshot)(nil),                 // 126: unframe.realtime.ProjectedRuntimeSnapshot
+	(*ProjectedParticipantPresence)(nil),             // 127: unframe.realtime.ProjectedParticipantPresence
+	(*ProjectedPresenceState)(nil),                   // 128: unframe.realtime.ProjectedPresenceState
+	(*ConnectionSnapshotEnvelope)(nil),               // 129: unframe.realtime.ConnectionSnapshotEnvelope
+	(*DurableCheckpointEnvelope)(nil),                // 130: unframe.realtime.DurableCheckpointEnvelope
+	(*ResyncRequired)(nil),                           // 131: unframe.realtime.ResyncRequired
+	(*StateClientItem)(nil),                          // 132: unframe.realtime.StateClientItem
+	(*StateHandshake)(nil),                           // 133: unframe.realtime.StateHandshake
+	(*StateConnected)(nil),                           // 134: unframe.realtime.StateConnected
+	(*TrackedPoseSample)(nil),                        // 135: unframe.realtime.TrackedPoseSample
+	(*TrackingFrame)(nil),                            // 136: unframe.realtime.TrackingFrame
+	(*StateServerItem)(nil),                          // 137: unframe.realtime.StateServerItem
+	(*NodeStatePatch)(nil),                           // 138: unframe.realtime.NodeStatePatch
+	(*ElementStatePatch)(nil),                        // 139: unframe.realtime.ElementStatePatch
+	(*AnchorBindingUnavailable)(nil),                 // 140: unframe.realtime.AnchorBindingUnavailable
+	(*ProjectedAnchorBindingSample)(nil),             // 141: unframe.realtime.ProjectedAnchorBindingSample
+	(*ProjectedAnchorBindingPatch)(nil),              // 142: unframe.realtime.ProjectedAnchorBindingPatch
+	(*ElementStateFrame)(nil),                        // 143: unframe.realtime.ElementStateFrame
+	(presentation.RuntimeCapability)(0),              // 144: unframe.presentation.RuntimeCapability
+	(*presentation.RuntimeProjectionFence)(nil),      // 145: unframe.presentation.RuntimeProjectionFence
+	(*presentation.ProjectionInstance)(nil),          // 146: unframe.presentation.ProjectionInstance
+	(*presentation.Pose)(nil),                        // 147: unframe.presentation.Pose
+	(presentation.GestureKind)(0),                    // 148: unframe.presentation.GestureKind
+	(presentation.ZoneEdge)(0),                       // 149: unframe.presentation.ZoneEdge
+	(*presentation.PresenterRecognitionCatalog)(nil), // 150: unframe.presentation.PresenterRecognitionCatalog
+	(*presentation.RuntimeRunId)(nil),                // 151: unframe.presentation.RuntimeRunId
+	(presentation.Easing)(0),                         // 152: unframe.presentation.Easing
+	(*presentation.Transform)(nil),                   // 153: unframe.presentation.Transform
+	(*presentation.ScalarValue)(nil),                 // 154: unframe.presentation.ScalarValue
+	(*presentation.RuntimeRunOwner)(nil),             // 155: unframe.presentation.RuntimeRunOwner
+	(*presentation.RuntimeRunCause)(nil),             // 156: unframe.presentation.RuntimeRunCause
+	(presentation.RunCompletion)(0),                  // 157: unframe.presentation.RunCompletion
+	(presentation.SessionRole)(0),                    // 158: unframe.presentation.SessionRole
+	(*presentation.Vector3)(nil),                     // 159: unframe.presentation.Vector3
+	(*presentation.Quaternion)(nil),                  // 160: unframe.presentation.Quaternion
+	(*presentation.PublicationFence)(nil),            // 161: unframe.presentation.PublicationFence
 }
 var file_unframe_realtime_realtime_proto_depIdxs = []int32{
 	16,  // 0: unframe.realtime.ControlClientItem.handshake:type_name -> unframe.realtime.ControlHandshake
@@ -11675,272 +11776,274 @@ var file_unframe_realtime_realtime_proto_depIdxs = []int32{
 	23,  // 3: unframe.realtime.ControlClientItem.logical_input:type_name -> unframe.realtime.LogicalInputCommand
 	24,  // 4: unframe.realtime.ControlClientItem.surface_interaction:type_name -> unframe.realtime.SurfaceInteractionCommand
 	25,  // 5: unframe.realtime.ControlClientItem.runtime_control:type_name -> unframe.realtime.RuntimeControlCommand
-	27,  // 6: unframe.realtime.ControlClientItem.gesture_input:type_name -> unframe.realtime.GestureInputCommand
-	28,  // 7: unframe.realtime.ControlClientItem.zone_input:type_name -> unframe.realtime.ZoneInputCommand
-	32,  // 8: unframe.realtime.ControlClientItem.input_synchronization_ack:type_name -> unframe.realtime.InputSynchronizationAck
-	143, // 9: unframe.realtime.ControlHandshake.supported_capabilities:type_name -> unframe.presentation.RuntimeCapability
-	17,  // 10: unframe.realtime.ControlHandshake.resume:type_name -> unframe.realtime.ResumeCursor
-	144, // 11: unframe.realtime.ResumeCursor.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	143, // 12: unframe.realtime.ControlConnected.required_capabilities:type_name -> unframe.presentation.RuntimeCapability
-	145, // 13: unframe.realtime.ControlConnected.projection_instance:type_name -> unframe.presentation.ProjectionInstance
-	18,  // 14: unframe.realtime.ControlConnected.limits:type_name -> unframe.realtime.RuntimeProtocolLimits
-	26,  // 15: unframe.realtime.LogicalInputCommand.input_context:type_name -> unframe.realtime.InputContext
-	26,  // 16: unframe.realtime.SurfaceInteractionCommand.input_context:type_name -> unframe.realtime.InputContext
-	0,   // 17: unframe.realtime.RuntimeControlCommand.kind:type_name -> unframe.realtime.RuntimeControlKind
-	29,  // 18: unframe.realtime.RuntimeControlCommand.step_selection:type_name -> unframe.realtime.StepSelection
-	26,  // 19: unframe.realtime.GestureInputCommand.input_context:type_name -> unframe.realtime.InputContext
-	146, // 20: unframe.realtime.GestureInputCommand.gesture:type_name -> unframe.presentation.GestureKind
-	26,  // 21: unframe.realtime.ZoneInputCommand.input_context:type_name -> unframe.realtime.InputContext
-	147, // 22: unframe.realtime.ZoneInputCommand.edge:type_name -> unframe.presentation.ZoneEdge
-	29,  // 23: unframe.realtime.PresenterStepSelectionCatalog.reached_steps:type_name -> unframe.realtime.StepSelection
-	1,   // 24: unframe.realtime.PresenterInputSynchronization.phase:type_name -> unframe.realtime.InputSynchronizationPhase
-	2,   // 25: unframe.realtime.PresenterInputSynchronization.reason:type_name -> unframe.realtime.InputSynchronizationReason
-	26,  // 26: unframe.realtime.PresenterInputSynchronization.input_context:type_name -> unframe.realtime.InputContext
-	148, // 27: unframe.realtime.PresenterInputSynchronization.recognition_catalog:type_name -> unframe.presentation.PresenterRecognitionCatalog
-	26,  // 28: unframe.realtime.InputSynchronizationAck.input_context:type_name -> unframe.realtime.InputContext
-	34,  // 29: unframe.realtime.CommandOutcome.accepted:type_name -> unframe.realtime.CommandAccepted
-	37,  // 30: unframe.realtime.CommandOutcome.rejected:type_name -> unframe.realtime.CommandRejected
-	39,  // 31: unframe.realtime.CommandOutcome.no_op:type_name -> unframe.realtime.CommandNoOp
-	35,  // 32: unframe.realtime.CommandAccepted.cue_not_selected:type_name -> unframe.realtime.CueNotSelected
-	36,  // 33: unframe.realtime.CommandAccepted.cue_committed:type_name -> unframe.realtime.CueCommitted
-	38,  // 34: unframe.realtime.CommandAccepted.cue_batch_rejected:type_name -> unframe.realtime.CueBatchRejected
-	3,   // 35: unframe.realtime.CommandRejected.reason:type_name -> unframe.realtime.CommandRejectionReason
-	4,   // 36: unframe.realtime.CueBatchRejected.reason:type_name -> unframe.realtime.CueRejectionReason
-	5,   // 37: unframe.realtime.CommandNoOp.reason:type_name -> unframe.realtime.CommandNoOpReason
-	19,  // 38: unframe.realtime.ControlServerItem.connected:type_name -> unframe.realtime.ControlConnected
-	128, // 39: unframe.realtime.ControlServerItem.connection_snapshot:type_name -> unframe.realtime.ConnectionSnapshotEnvelope
-	41,  // 40: unframe.realtime.ControlServerItem.reliable_event:type_name -> unframe.realtime.ProjectedReliableEvent
-	42,  // 41: unframe.realtime.ControlServerItem.projection_advance:type_name -> unframe.realtime.ProjectionAdvance
-	33,  // 42: unframe.realtime.ControlServerItem.command_outcome:type_name -> unframe.realtime.CommandOutcome
-	21,  // 43: unframe.realtime.ControlServerItem.state_connection_nonce:type_name -> unframe.realtime.StateConnectionNonce
-	130, // 44: unframe.realtime.ControlServerItem.resync_required:type_name -> unframe.realtime.ResyncRequired
-	31,  // 45: unframe.realtime.ControlServerItem.presenter_input_synchronization:type_name -> unframe.realtime.PresenterInputSynchronization
-	30,  // 46: unframe.realtime.ControlServerItem.presenter_step_selection_catalog:type_name -> unframe.realtime.PresenterStepSelectionCatalog
-	144, // 47: unframe.realtime.ProjectedReliableEvent.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	46,  // 48: unframe.realtime.ProjectedReliableEvent.runtime_status_changed:type_name -> unframe.realtime.RuntimeStatusChanged
-	92,  // 49: unframe.realtime.ProjectedReliableEvent.presentation_origin_changed:type_name -> unframe.realtime.PresentationOriginChanged
-	47,  // 50: unframe.realtime.ProjectedReliableEvent.group_entered:type_name -> unframe.realtime.GroupEntered
-	49,  // 51: unframe.realtime.ProjectedReliableEvent.group_exited:type_name -> unframe.realtime.GroupExited
-	50,  // 52: unframe.realtime.ProjectedReliableEvent.step_entered:type_name -> unframe.realtime.StepEntered
-	51,  // 53: unframe.realtime.ProjectedReliableEvent.cue_accepted:type_name -> unframe.realtime.CueAccepted
-	52,  // 54: unframe.realtime.ProjectedReliableEvent.presentation_ended:type_name -> unframe.realtime.PresentationEnded
-	53,  // 55: unframe.realtime.ProjectedReliableEvent.logical_input_accepted:type_name -> unframe.realtime.LogicalInputAccepted
-	57,  // 56: unframe.realtime.ProjectedReliableEvent.surface_interaction_accepted:type_name -> unframe.realtime.SurfaceInteractionAccepted
-	58,  // 57: unframe.realtime.ProjectedReliableEvent.surface_state_changed:type_name -> unframe.realtime.SurfaceStateChanged
-	59,  // 58: unframe.realtime.ProjectedReliableEvent.surface_transition_started:type_name -> unframe.realtime.SurfaceTransitionStarted
-	60,  // 59: unframe.realtime.ProjectedReliableEvent.surface_transition_completed:type_name -> unframe.realtime.SurfaceTransitionCompleted
-	62,  // 60: unframe.realtime.ProjectedReliableEvent.node_state_committed:type_name -> unframe.realtime.NodeStateCommitted
-	64,  // 61: unframe.realtime.ProjectedReliableEvent.variable_changed:type_name -> unframe.realtime.VariableChanged
-	65,  // 62: unframe.realtime.ProjectedReliableEvent.timeline_started:type_name -> unframe.realtime.TimelineStarted
-	66,  // 63: unframe.realtime.ProjectedReliableEvent.timeline_completed:type_name -> unframe.realtime.TimelineCompleted
-	67,  // 64: unframe.realtime.ProjectedReliableEvent.timeline_canceled:type_name -> unframe.realtime.TimelineCanceled
-	71,  // 65: unframe.realtime.ProjectedReliableEvent.media_started:type_name -> unframe.realtime.MediaStarted
-	72,  // 66: unframe.realtime.ProjectedReliableEvent.media_paused:type_name -> unframe.realtime.MediaPaused
-	73,  // 67: unframe.realtime.ProjectedReliableEvent.media_resumed:type_name -> unframe.realtime.MediaResumed
-	74,  // 68: unframe.realtime.ProjectedReliableEvent.media_seeked:type_name -> unframe.realtime.MediaSeeked
-	75,  // 69: unframe.realtime.ProjectedReliableEvent.media_completed:type_name -> unframe.realtime.MediaCompleted
-	78,  // 70: unframe.realtime.ProjectedReliableEvent.media_canceled:type_name -> unframe.realtime.MediaCanceled
-	77,  // 71: unframe.realtime.ProjectedReliableEvent.media_stopped:type_name -> unframe.realtime.MediaStopped
-	82,  // 72: unframe.realtime.ProjectedReliableEvent.model_clip_started:type_name -> unframe.realtime.ModelClipStarted
-	83,  // 73: unframe.realtime.ProjectedReliableEvent.model_clip_paused:type_name -> unframe.realtime.ModelClipPaused
-	84,  // 74: unframe.realtime.ProjectedReliableEvent.model_clip_resumed:type_name -> unframe.realtime.ModelClipResumed
-	85,  // 75: unframe.realtime.ProjectedReliableEvent.model_clip_stopped:type_name -> unframe.realtime.ModelClipStopped
-	86,  // 76: unframe.realtime.ProjectedReliableEvent.model_clip_completed:type_name -> unframe.realtime.ModelClipCompleted
-	87,  // 77: unframe.realtime.ProjectedReliableEvent.model_clip_crossfade_started:type_name -> unframe.realtime.ModelClipCrossfadeStarted
-	88,  // 78: unframe.realtime.ProjectedReliableEvent.model_clip_crossfade_completed:type_name -> unframe.realtime.ModelClipCrossfadeCompleted
-	89,  // 79: unframe.realtime.ProjectedReliableEvent.model_clip_canceled:type_name -> unframe.realtime.ModelClipCanceled
-	90,  // 80: unframe.realtime.ProjectedReliableEvent.participant_presence_changed:type_name -> unframe.realtime.ParticipantPresenceChanged
-	76,  // 81: unframe.realtime.ProjectedReliableEvent.media_stopped_seeked:type_name -> unframe.realtime.MediaStoppedSeeked
-	54,  // 82: unframe.realtime.ProjectedReliableEvent.gesture_input_accepted:type_name -> unframe.realtime.GestureInputAccepted
-	55,  // 83: unframe.realtime.ProjectedReliableEvent.zone_input_accepted:type_name -> unframe.realtime.ZoneInputAccepted
-	56,  // 84: unframe.realtime.ProjectedReliableEvent.runtime_view_replaced:type_name -> unframe.realtime.RuntimeViewReplaced
-	144, // 85: unframe.realtime.ProjectionAdvance.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	6,   // 86: unframe.realtime.Paused.reason:type_name -> unframe.realtime.PauseReason
-	7,   // 87: unframe.realtime.Terminating.reason:type_name -> unframe.realtime.TerminationReason
-	43,  // 88: unframe.realtime.RuntimeStatusChanged.running:type_name -> unframe.realtime.Running
-	44,  // 89: unframe.realtime.RuntimeStatusChanged.paused:type_name -> unframe.realtime.Paused
-	45,  // 90: unframe.realtime.RuntimeStatusChanged.terminating:type_name -> unframe.realtime.Terminating
-	48,  // 91: unframe.realtime.GroupEntered.initialization:type_name -> unframe.realtime.GroupRuntimeInitialization
-	61,  // 92: unframe.realtime.GroupRuntimeInitialization.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	104, // 93: unframe.realtime.GroupRuntimeInitialization.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	105, // 94: unframe.realtime.GroupRuntimeInitialization.media_states:type_name -> unframe.realtime.MediaRuntimeState
-	63,  // 95: unframe.realtime.GroupRuntimeInitialization.variables:type_name -> unframe.realtime.VariableState
-	109, // 96: unframe.realtime.GroupRuntimeInitialization.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
-	7,   // 97: unframe.realtime.PresentationEnded.reason:type_name -> unframe.realtime.TerminationReason
-	146, // 98: unframe.realtime.GestureInputAccepted.gesture:type_name -> unframe.presentation.GestureKind
-	147, // 99: unframe.realtime.ZoneInputAccepted.edge:type_name -> unframe.presentation.ZoneEdge
-	124, // 100: unframe.realtime.RuntimeViewReplaced.runtime_view:type_name -> unframe.realtime.ParticipantRuntimeView
-	149, // 101: unframe.realtime.SurfaceTransitionStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	150, // 102: unframe.realtime.SurfaceTransitionStarted.easing:type_name -> unframe.presentation.Easing
-	116, // 103: unframe.realtime.SurfaceTransitionStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 104: unframe.realtime.SurfaceTransitionCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	151, // 105: unframe.realtime.NodeRuntimeState.transform:type_name -> unframe.presentation.Transform
-	61,  // 106: unframe.realtime.NodeStateCommitted.state:type_name -> unframe.realtime.NodeRuntimeState
-	152, // 107: unframe.realtime.VariableState.value:type_name -> unframe.presentation.ScalarValue
-	63,  // 108: unframe.realtime.VariableChanged.state:type_name -> unframe.realtime.VariableState
-	149, // 109: unframe.realtime.TimelineStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	153, // 110: unframe.realtime.TimelineStarted.owner:type_name -> unframe.presentation.RuntimeRunOwner
-	154, // 111: unframe.realtime.TimelineStarted.cause:type_name -> unframe.presentation.RuntimeRunCause
-	155, // 112: unframe.realtime.TimelineStarted.completion:type_name -> unframe.presentation.RunCompletion
-	149, // 113: unframe.realtime.TimelineCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	149, // 114: unframe.realtime.TimelineCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
-	8,   // 115: unframe.realtime.TimelineCanceled.reason:type_name -> unframe.realtime.TimelineCancelReason
-	69,  // 116: unframe.realtime.PlaybackClock.playing:type_name -> unframe.realtime.PlayingClock
-	70,  // 117: unframe.realtime.PlaybackClock.paused:type_name -> unframe.realtime.PausedClock
-	149, // 118: unframe.realtime.MediaStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	68,  // 119: unframe.realtime.MediaStarted.playback:type_name -> unframe.realtime.PlaybackClock
-	116, // 120: unframe.realtime.MediaStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 121: unframe.realtime.MediaPaused.run_id:type_name -> unframe.presentation.RuntimeRunId
-	116, // 122: unframe.realtime.MediaPaused.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 123: unframe.realtime.MediaResumed.run_id:type_name -> unframe.presentation.RuntimeRunId
-	69,  // 124: unframe.realtime.MediaResumed.playback:type_name -> unframe.realtime.PlayingClock
-	116, // 125: unframe.realtime.MediaResumed.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 126: unframe.realtime.MediaSeeked.run_id:type_name -> unframe.presentation.RuntimeRunId
-	68,  // 127: unframe.realtime.MediaSeeked.playback:type_name -> unframe.realtime.PlaybackClock
-	116, // 128: unframe.realtime.MediaSeeked.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 129: unframe.realtime.MediaCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	149, // 130: unframe.realtime.MediaStopped.run_id:type_name -> unframe.presentation.RuntimeRunId
-	149, // 131: unframe.realtime.MediaCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
-	9,   // 132: unframe.realtime.MediaCanceled.reason:type_name -> unframe.realtime.MediaCancelReason
-	68,  // 133: unframe.realtime.ClipPlayback.playback:type_name -> unframe.realtime.PlaybackClock
-	80,  // 134: unframe.realtime.BlendHeldPose.from:type_name -> unframe.realtime.ClipHeldPose
-	80,  // 135: unframe.realtime.BlendHeldPose.to:type_name -> unframe.realtime.ClipHeldPose
-	149, // 136: unframe.realtime.ModelClipStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	79,  // 137: unframe.realtime.ModelClipStarted.playback:type_name -> unframe.realtime.ClipPlayback
-	116, // 138: unframe.realtime.ModelClipStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 139: unframe.realtime.ModelClipPaused.run_id:type_name -> unframe.presentation.RuntimeRunId
-	116, // 140: unframe.realtime.ModelClipPaused.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 141: unframe.realtime.ModelClipResumed.run_id:type_name -> unframe.presentation.RuntimeRunId
-	116, // 142: unframe.realtime.ModelClipResumed.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 143: unframe.realtime.ModelClipStopped.run_id:type_name -> unframe.presentation.RuntimeRunId
-	80,  // 144: unframe.realtime.ModelClipStopped.clip:type_name -> unframe.realtime.ClipHeldPose
-	81,  // 145: unframe.realtime.ModelClipStopped.blend:type_name -> unframe.realtime.BlendHeldPose
-	149, // 146: unframe.realtime.ModelClipCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	80,  // 147: unframe.realtime.ModelClipCompleted.held_pose:type_name -> unframe.realtime.ClipHeldPose
-	149, // 148: unframe.realtime.ModelClipCrossfadeStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	114, // 149: unframe.realtime.ModelClipCrossfadeStarted.crossfade:type_name -> unframe.realtime.ModelClipCrossfade
-	116, // 150: unframe.realtime.ModelClipCrossfadeStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 151: unframe.realtime.ModelClipCrossfadeCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	79,  // 152: unframe.realtime.ModelClipCrossfadeCompleted.playback:type_name -> unframe.realtime.ClipPlayback
-	116, // 153: unframe.realtime.ModelClipCrossfadeCompleted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 154: unframe.realtime.ModelClipCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
-	10,  // 155: unframe.realtime.ModelClipCanceled.reason:type_name -> unframe.realtime.ModelClipCancelReason
-	156, // 156: unframe.realtime.ParticipantPresenceChanged.role:type_name -> unframe.presentation.SessionRole
-	157, // 157: unframe.realtime.PresentationOrigin.pose:type_name -> unframe.presentation.Pose
-	91,  // 158: unframe.realtime.PresentationOriginChanged.origin:type_name -> unframe.realtime.PresentationOrigin
-	43,  // 159: unframe.realtime.RuntimeClockSnapshot.running:type_name -> unframe.realtime.Running
-	44,  // 160: unframe.realtime.RuntimeClockSnapshot.paused:type_name -> unframe.realtime.Paused
-	45,  // 161: unframe.realtime.RuntimeClockSnapshot.terminating:type_name -> unframe.realtime.Terminating
-	149, // 162: unframe.realtime.TransitioningProgression.blocking_run_ids:type_name -> unframe.presentation.RuntimeRunId
-	96,  // 163: unframe.realtime.TransitioningProgression.pending_next:type_name -> unframe.realtime.ProgressionNext
-	97,  // 164: unframe.realtime.ProgressionNext.step:type_name -> unframe.realtime.NextStep
-	98,  // 165: unframe.realtime.ProgressionNext.group:type_name -> unframe.realtime.NextGroup
-	99,  // 166: unframe.realtime.ProgressionNext.end:type_name -> unframe.realtime.EndPresentation
-	100, // 167: unframe.realtime.ProgressionNext.stay:type_name -> unframe.realtime.StayOnStep
-	94,  // 168: unframe.realtime.ProgressionRuntimeState.stable:type_name -> unframe.realtime.StableProgression
-	95,  // 169: unframe.realtime.ProgressionRuntimeState.transitioning:type_name -> unframe.realtime.TransitioningProgression
-	102, // 170: unframe.realtime.StepExecutionSnapshot.timers:type_name -> unframe.realtime.ArmedTimer
-	149, // 171: unframe.realtime.SurfaceRuntimeState.transition_run_id:type_name -> unframe.presentation.RuntimeRunId
-	106, // 172: unframe.realtime.MediaRuntimeState.stopped:type_name -> unframe.realtime.MediaStoppedState
-	107, // 173: unframe.realtime.MediaRuntimeState.active:type_name -> unframe.realtime.MediaActive
-	149, // 174: unframe.realtime.MediaActive.run_id:type_name -> unframe.presentation.RuntimeRunId
-	68,  // 175: unframe.realtime.MediaActive.playback:type_name -> unframe.realtime.PlaybackClock
-	108, // 176: unframe.realtime.ModelClipRuntimeState.default_pose:type_name -> unframe.realtime.DefaultModelPose
-	80,  // 177: unframe.realtime.ModelClipRuntimeState.held_clip:type_name -> unframe.realtime.ClipHeldPose
-	81,  // 178: unframe.realtime.ModelClipRuntimeState.held_blend:type_name -> unframe.realtime.BlendHeldPose
-	110, // 179: unframe.realtime.ModelClipRuntimeState.active:type_name -> unframe.realtime.ModelClipActive
-	149, // 180: unframe.realtime.ModelClipActive.run_id:type_name -> unframe.presentation.RuntimeRunId
-	150, // 181: unframe.realtime.SurfaceTransitionRunSnapshot.easing:type_name -> unframe.presentation.Easing
-	68,  // 182: unframe.realtime.MediaRunSnapshot.playback:type_name -> unframe.realtime.PlaybackClock
-	79,  // 183: unframe.realtime.ModelClipCrossfade.from:type_name -> unframe.realtime.ClipPlayback
-	79,  // 184: unframe.realtime.ModelClipCrossfade.to:type_name -> unframe.realtime.ClipPlayback
-	68,  // 185: unframe.realtime.ModelClipCrossfade.transition_clock:type_name -> unframe.realtime.PlaybackClock
-	150, // 186: unframe.realtime.ModelClipCrossfade.easing:type_name -> unframe.presentation.Easing
-	79,  // 187: unframe.realtime.ModelClipRunSnapshot.single:type_name -> unframe.realtime.ClipPlayback
-	114, // 188: unframe.realtime.ModelClipRunSnapshot.crossfade:type_name -> unframe.realtime.ModelClipCrossfade
-	149, // 189: unframe.realtime.RuntimeRunSnapshot.run_id:type_name -> unframe.presentation.RuntimeRunId
-	153, // 190: unframe.realtime.RuntimeRunSnapshot.owner:type_name -> unframe.presentation.RuntimeRunOwner
-	154, // 191: unframe.realtime.RuntimeRunSnapshot.cause:type_name -> unframe.presentation.RuntimeRunCause
-	155, // 192: unframe.realtime.RuntimeRunSnapshot.completion:type_name -> unframe.presentation.RunCompletion
-	111, // 193: unframe.realtime.RuntimeRunSnapshot.surface_transition:type_name -> unframe.realtime.SurfaceTransitionRunSnapshot
-	112, // 194: unframe.realtime.RuntimeRunSnapshot.timeline:type_name -> unframe.realtime.TimelineRunSnapshot
-	113, // 195: unframe.realtime.RuntimeRunSnapshot.media:type_name -> unframe.realtime.MediaRunSnapshot
-	115, // 196: unframe.realtime.RuntimeRunSnapshot.model_clip:type_name -> unframe.realtime.ModelClipRunSnapshot
-	93,  // 197: unframe.realtime.CanonicalRuntimeSnapshot.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
-	101, // 198: unframe.realtime.CanonicalRuntimeSnapshot.progression:type_name -> unframe.realtime.ProgressionRuntimeState
-	103, // 199: unframe.realtime.CanonicalRuntimeSnapshot.step_execution:type_name -> unframe.realtime.StepExecutionSnapshot
-	104, // 200: unframe.realtime.CanonicalRuntimeSnapshot.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	61,  // 201: unframe.realtime.CanonicalRuntimeSnapshot.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	105, // 202: unframe.realtime.CanonicalRuntimeSnapshot.media_states:type_name -> unframe.realtime.MediaRuntimeState
-	63,  // 203: unframe.realtime.CanonicalRuntimeSnapshot.variables:type_name -> unframe.realtime.VariableState
-	116, // 204: unframe.realtime.CanonicalRuntimeSnapshot.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
-	91,  // 205: unframe.realtime.CanonicalRuntimeSnapshot.presentation_origin:type_name -> unframe.realtime.PresentationOrigin
-	109, // 206: unframe.realtime.CanonicalRuntimeSnapshot.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
-	118, // 207: unframe.realtime.CanonicalRuntimeSnapshot.frozen_anchors:type_name -> unframe.realtime.FrozenAnchorDisplayState
-	119, // 208: unframe.realtime.CanonicalRuntimeSnapshot.step_start_history:type_name -> unframe.realtime.StepStartState
-	158, // 209: unframe.realtime.FrozenAnchorDisplayState.position:type_name -> unframe.presentation.Vector3
-	159, // 210: unframe.realtime.FrozenAnchorDisplayState.rotation:type_name -> unframe.presentation.Quaternion
-	61,  // 211: unframe.realtime.StepStartState.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	104, // 212: unframe.realtime.StepStartState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	105, // 213: unframe.realtime.StepStartState.media_states:type_name -> unframe.realtime.MediaRuntimeState
-	63,  // 214: unframe.realtime.StepStartState.variables:type_name -> unframe.realtime.VariableState
-	116, // 215: unframe.realtime.StepStartState.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
-	109, // 216: unframe.realtime.StepStartState.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
-	122, // 217: unframe.realtime.RuntimeRecoveryMetadata.participants:type_name -> unframe.realtime.RuntimeParticipantHistory
-	123, // 218: unframe.realtime.RuntimeRecoveryMetadata.commands:type_name -> unframe.realtime.RuntimeCommandHistory
-	31,  // 219: unframe.realtime.RuntimeRecoveryMetadata.input_synchronization:type_name -> unframe.realtime.PresenterInputSynchronization
-	121, // 220: unframe.realtime.RuntimeRecoveryMetadata.capacity_fault:type_name -> unframe.realtime.RuntimeCapacityFault
-	156, // 221: unframe.realtime.RuntimeParticipantHistory.role:type_name -> unframe.presentation.SessionRole
-	33,  // 222: unframe.realtime.RuntimeCommandHistory.outcome:type_name -> unframe.realtime.CommandOutcome
-	101, // 223: unframe.realtime.ParticipantRuntimeView.progression:type_name -> unframe.realtime.ProgressionRuntimeState
-	61,  // 224: unframe.realtime.ParticipantRuntimeView.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	104, // 225: unframe.realtime.ParticipantRuntimeView.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	105, // 226: unframe.realtime.ParticipantRuntimeView.media_states:type_name -> unframe.realtime.MediaRuntimeState
-	63,  // 227: unframe.realtime.ParticipantRuntimeView.variables:type_name -> unframe.realtime.VariableState
-	116, // 228: unframe.realtime.ParticipantRuntimeView.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
-	93,  // 229: unframe.realtime.ParticipantRuntimeView.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
-	91,  // 230: unframe.realtime.ParticipantRuntimeView.presentation_origin:type_name -> unframe.realtime.PresentationOrigin
-	109, // 231: unframe.realtime.ParticipantRuntimeView.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
-	118, // 232: unframe.realtime.ParticipantRuntimeView.frozen_anchors:type_name -> unframe.realtime.FrozenAnchorDisplayState
-	124, // 233: unframe.realtime.ProjectedRuntimeSnapshot.runtime_view:type_name -> unframe.realtime.ParticipantRuntimeView
-	156, // 234: unframe.realtime.ProjectedParticipantPresence.role:type_name -> unframe.presentation.SessionRole
-	126, // 235: unframe.realtime.ProjectedPresenceState.participants:type_name -> unframe.realtime.ProjectedParticipantPresence
-	144, // 236: unframe.realtime.ConnectionSnapshotEnvelope.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	145, // 237: unframe.realtime.ConnectionSnapshotEnvelope.projection_instance:type_name -> unframe.presentation.ProjectionInstance
-	127, // 238: unframe.realtime.ConnectionSnapshotEnvelope.presence_at_cut:type_name -> unframe.realtime.ProjectedPresenceState
-	125, // 239: unframe.realtime.ConnectionSnapshotEnvelope.snapshot:type_name -> unframe.realtime.ProjectedRuntimeSnapshot
-	11,  // 240: unframe.realtime.DurableCheckpointEnvelope.runtime_kind:type_name -> unframe.realtime.RuntimeKind
-	160, // 241: unframe.realtime.DurableCheckpointEnvelope.publication:type_name -> unframe.presentation.PublicationFence
-	12,  // 242: unframe.realtime.ResyncRequired.reason:type_name -> unframe.realtime.ResyncReason
-	132, // 243: unframe.realtime.StateClientItem.handshake:type_name -> unframe.realtime.StateHandshake
-	135, // 244: unframe.realtime.StateClientItem.tracking_frame:type_name -> unframe.realtime.TrackingFrame
-	143, // 245: unframe.realtime.StateHandshake.supported_capabilities:type_name -> unframe.presentation.RuntimeCapability
-	13,  // 246: unframe.realtime.TrackedPoseSample.target:type_name -> unframe.realtime.TrackedTarget
-	157, // 247: unframe.realtime.TrackedPoseSample.quest_local_pose:type_name -> unframe.presentation.Pose
-	134, // 248: unframe.realtime.TrackingFrame.samples:type_name -> unframe.realtime.TrackedPoseSample
-	157, // 249: unframe.realtime.TrackingFrame.presentation_from_quest_local:type_name -> unframe.presentation.Pose
-	133, // 250: unframe.realtime.StateServerItem.connected:type_name -> unframe.realtime.StateConnected
-	142, // 251: unframe.realtime.StateServerItem.state_frame:type_name -> unframe.realtime.ElementStateFrame
-	151, // 252: unframe.realtime.NodeStatePatch.transform:type_name -> unframe.presentation.Transform
-	137, // 253: unframe.realtime.ElementStatePatch.node:type_name -> unframe.realtime.NodeStatePatch
-	158, // 254: unframe.realtime.ProjectedAnchorBindingSample.position:type_name -> unframe.presentation.Vector3
-	159, // 255: unframe.realtime.ProjectedAnchorBindingSample.rotation:type_name -> unframe.presentation.Quaternion
-	139, // 256: unframe.realtime.ProjectedAnchorBindingPatch.unavailable:type_name -> unframe.realtime.AnchorBindingUnavailable
-	140, // 257: unframe.realtime.ProjectedAnchorBindingPatch.sample:type_name -> unframe.realtime.ProjectedAnchorBindingSample
-	118, // 258: unframe.realtime.ProjectedAnchorBindingPatch.frozen:type_name -> unframe.realtime.FrozenAnchorDisplayState
-	144, // 259: unframe.realtime.ElementStateFrame.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	14,  // 260: unframe.realtime.ElementStateFrame.kind:type_name -> unframe.realtime.StateFrameKind
-	138, // 261: unframe.realtime.ElementStateFrame.elements:type_name -> unframe.realtime.ElementStatePatch
-	141, // 262: unframe.realtime.ElementStateFrame.anchor_bindings:type_name -> unframe.realtime.ProjectedAnchorBindingPatch
-	15,  // 263: unframe.realtime.RealtimeService.ConnectControl:input_type -> unframe.realtime.ControlClientItem
-	131, // 264: unframe.realtime.RealtimeService.ConnectState:input_type -> unframe.realtime.StateClientItem
-	40,  // 265: unframe.realtime.RealtimeService.ConnectControl:output_type -> unframe.realtime.ControlServerItem
-	136, // 266: unframe.realtime.RealtimeService.ConnectState:output_type -> unframe.realtime.StateServerItem
-	265, // [265:267] is the sub-list for method output_type
-	263, // [263:265] is the sub-list for method input_type
-	263, // [263:263] is the sub-list for extension type_name
-	263, // [263:263] is the sub-list for extension extendee
-	0,   // [0:263] is the sub-list for field type_name
+	28,  // 6: unframe.realtime.ControlClientItem.gesture_input:type_name -> unframe.realtime.GestureInputCommand
+	29,  // 7: unframe.realtime.ControlClientItem.zone_input:type_name -> unframe.realtime.ZoneInputCommand
+	33,  // 8: unframe.realtime.ControlClientItem.input_synchronization_ack:type_name -> unframe.realtime.InputSynchronizationAck
+	26,  // 9: unframe.realtime.ControlClientItem.presentation_origin:type_name -> unframe.realtime.PresentationOriginCommand
+	144, // 10: unframe.realtime.ControlHandshake.supported_capabilities:type_name -> unframe.presentation.RuntimeCapability
+	17,  // 11: unframe.realtime.ControlHandshake.resume:type_name -> unframe.realtime.ResumeCursor
+	145, // 12: unframe.realtime.ResumeCursor.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	144, // 13: unframe.realtime.ControlConnected.required_capabilities:type_name -> unframe.presentation.RuntimeCapability
+	146, // 14: unframe.realtime.ControlConnected.projection_instance:type_name -> unframe.presentation.ProjectionInstance
+	18,  // 15: unframe.realtime.ControlConnected.limits:type_name -> unframe.realtime.RuntimeProtocolLimits
+	27,  // 16: unframe.realtime.LogicalInputCommand.input_context:type_name -> unframe.realtime.InputContext
+	27,  // 17: unframe.realtime.SurfaceInteractionCommand.input_context:type_name -> unframe.realtime.InputContext
+	0,   // 18: unframe.realtime.RuntimeControlCommand.kind:type_name -> unframe.realtime.RuntimeControlKind
+	30,  // 19: unframe.realtime.RuntimeControlCommand.step_selection:type_name -> unframe.realtime.StepSelection
+	147, // 20: unframe.realtime.PresentationOriginCommand.pose:type_name -> unframe.presentation.Pose
+	27,  // 21: unframe.realtime.GestureInputCommand.input_context:type_name -> unframe.realtime.InputContext
+	148, // 22: unframe.realtime.GestureInputCommand.gesture:type_name -> unframe.presentation.GestureKind
+	27,  // 23: unframe.realtime.ZoneInputCommand.input_context:type_name -> unframe.realtime.InputContext
+	149, // 24: unframe.realtime.ZoneInputCommand.edge:type_name -> unframe.presentation.ZoneEdge
+	30,  // 25: unframe.realtime.PresenterStepSelectionCatalog.reached_steps:type_name -> unframe.realtime.StepSelection
+	1,   // 26: unframe.realtime.PresenterInputSynchronization.phase:type_name -> unframe.realtime.InputSynchronizationPhase
+	2,   // 27: unframe.realtime.PresenterInputSynchronization.reason:type_name -> unframe.realtime.InputSynchronizationReason
+	27,  // 28: unframe.realtime.PresenterInputSynchronization.input_context:type_name -> unframe.realtime.InputContext
+	150, // 29: unframe.realtime.PresenterInputSynchronization.recognition_catalog:type_name -> unframe.presentation.PresenterRecognitionCatalog
+	27,  // 30: unframe.realtime.InputSynchronizationAck.input_context:type_name -> unframe.realtime.InputContext
+	35,  // 31: unframe.realtime.CommandOutcome.accepted:type_name -> unframe.realtime.CommandAccepted
+	38,  // 32: unframe.realtime.CommandOutcome.rejected:type_name -> unframe.realtime.CommandRejected
+	40,  // 33: unframe.realtime.CommandOutcome.no_op:type_name -> unframe.realtime.CommandNoOp
+	36,  // 34: unframe.realtime.CommandAccepted.cue_not_selected:type_name -> unframe.realtime.CueNotSelected
+	37,  // 35: unframe.realtime.CommandAccepted.cue_committed:type_name -> unframe.realtime.CueCommitted
+	39,  // 36: unframe.realtime.CommandAccepted.cue_batch_rejected:type_name -> unframe.realtime.CueBatchRejected
+	3,   // 37: unframe.realtime.CommandRejected.reason:type_name -> unframe.realtime.CommandRejectionReason
+	4,   // 38: unframe.realtime.CueBatchRejected.reason:type_name -> unframe.realtime.CueRejectionReason
+	5,   // 39: unframe.realtime.CommandNoOp.reason:type_name -> unframe.realtime.CommandNoOpReason
+	19,  // 40: unframe.realtime.ControlServerItem.connected:type_name -> unframe.realtime.ControlConnected
+	129, // 41: unframe.realtime.ControlServerItem.connection_snapshot:type_name -> unframe.realtime.ConnectionSnapshotEnvelope
+	42,  // 42: unframe.realtime.ControlServerItem.reliable_event:type_name -> unframe.realtime.ProjectedReliableEvent
+	43,  // 43: unframe.realtime.ControlServerItem.projection_advance:type_name -> unframe.realtime.ProjectionAdvance
+	34,  // 44: unframe.realtime.ControlServerItem.command_outcome:type_name -> unframe.realtime.CommandOutcome
+	21,  // 45: unframe.realtime.ControlServerItem.state_connection_nonce:type_name -> unframe.realtime.StateConnectionNonce
+	131, // 46: unframe.realtime.ControlServerItem.resync_required:type_name -> unframe.realtime.ResyncRequired
+	32,  // 47: unframe.realtime.ControlServerItem.presenter_input_synchronization:type_name -> unframe.realtime.PresenterInputSynchronization
+	31,  // 48: unframe.realtime.ControlServerItem.presenter_step_selection_catalog:type_name -> unframe.realtime.PresenterStepSelectionCatalog
+	145, // 49: unframe.realtime.ProjectedReliableEvent.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	47,  // 50: unframe.realtime.ProjectedReliableEvent.runtime_status_changed:type_name -> unframe.realtime.RuntimeStatusChanged
+	93,  // 51: unframe.realtime.ProjectedReliableEvent.presentation_origin_changed:type_name -> unframe.realtime.PresentationOriginChanged
+	48,  // 52: unframe.realtime.ProjectedReliableEvent.group_entered:type_name -> unframe.realtime.GroupEntered
+	50,  // 53: unframe.realtime.ProjectedReliableEvent.group_exited:type_name -> unframe.realtime.GroupExited
+	51,  // 54: unframe.realtime.ProjectedReliableEvent.step_entered:type_name -> unframe.realtime.StepEntered
+	52,  // 55: unframe.realtime.ProjectedReliableEvent.cue_accepted:type_name -> unframe.realtime.CueAccepted
+	53,  // 56: unframe.realtime.ProjectedReliableEvent.presentation_ended:type_name -> unframe.realtime.PresentationEnded
+	54,  // 57: unframe.realtime.ProjectedReliableEvent.logical_input_accepted:type_name -> unframe.realtime.LogicalInputAccepted
+	58,  // 58: unframe.realtime.ProjectedReliableEvent.surface_interaction_accepted:type_name -> unframe.realtime.SurfaceInteractionAccepted
+	59,  // 59: unframe.realtime.ProjectedReliableEvent.surface_state_changed:type_name -> unframe.realtime.SurfaceStateChanged
+	60,  // 60: unframe.realtime.ProjectedReliableEvent.surface_transition_started:type_name -> unframe.realtime.SurfaceTransitionStarted
+	61,  // 61: unframe.realtime.ProjectedReliableEvent.surface_transition_completed:type_name -> unframe.realtime.SurfaceTransitionCompleted
+	63,  // 62: unframe.realtime.ProjectedReliableEvent.node_state_committed:type_name -> unframe.realtime.NodeStateCommitted
+	65,  // 63: unframe.realtime.ProjectedReliableEvent.variable_changed:type_name -> unframe.realtime.VariableChanged
+	66,  // 64: unframe.realtime.ProjectedReliableEvent.timeline_started:type_name -> unframe.realtime.TimelineStarted
+	67,  // 65: unframe.realtime.ProjectedReliableEvent.timeline_completed:type_name -> unframe.realtime.TimelineCompleted
+	68,  // 66: unframe.realtime.ProjectedReliableEvent.timeline_canceled:type_name -> unframe.realtime.TimelineCanceled
+	72,  // 67: unframe.realtime.ProjectedReliableEvent.media_started:type_name -> unframe.realtime.MediaStarted
+	73,  // 68: unframe.realtime.ProjectedReliableEvent.media_paused:type_name -> unframe.realtime.MediaPaused
+	74,  // 69: unframe.realtime.ProjectedReliableEvent.media_resumed:type_name -> unframe.realtime.MediaResumed
+	75,  // 70: unframe.realtime.ProjectedReliableEvent.media_seeked:type_name -> unframe.realtime.MediaSeeked
+	76,  // 71: unframe.realtime.ProjectedReliableEvent.media_completed:type_name -> unframe.realtime.MediaCompleted
+	79,  // 72: unframe.realtime.ProjectedReliableEvent.media_canceled:type_name -> unframe.realtime.MediaCanceled
+	78,  // 73: unframe.realtime.ProjectedReliableEvent.media_stopped:type_name -> unframe.realtime.MediaStopped
+	83,  // 74: unframe.realtime.ProjectedReliableEvent.model_clip_started:type_name -> unframe.realtime.ModelClipStarted
+	84,  // 75: unframe.realtime.ProjectedReliableEvent.model_clip_paused:type_name -> unframe.realtime.ModelClipPaused
+	85,  // 76: unframe.realtime.ProjectedReliableEvent.model_clip_resumed:type_name -> unframe.realtime.ModelClipResumed
+	86,  // 77: unframe.realtime.ProjectedReliableEvent.model_clip_stopped:type_name -> unframe.realtime.ModelClipStopped
+	87,  // 78: unframe.realtime.ProjectedReliableEvent.model_clip_completed:type_name -> unframe.realtime.ModelClipCompleted
+	88,  // 79: unframe.realtime.ProjectedReliableEvent.model_clip_crossfade_started:type_name -> unframe.realtime.ModelClipCrossfadeStarted
+	89,  // 80: unframe.realtime.ProjectedReliableEvent.model_clip_crossfade_completed:type_name -> unframe.realtime.ModelClipCrossfadeCompleted
+	90,  // 81: unframe.realtime.ProjectedReliableEvent.model_clip_canceled:type_name -> unframe.realtime.ModelClipCanceled
+	91,  // 82: unframe.realtime.ProjectedReliableEvent.participant_presence_changed:type_name -> unframe.realtime.ParticipantPresenceChanged
+	77,  // 83: unframe.realtime.ProjectedReliableEvent.media_stopped_seeked:type_name -> unframe.realtime.MediaStoppedSeeked
+	55,  // 84: unframe.realtime.ProjectedReliableEvent.gesture_input_accepted:type_name -> unframe.realtime.GestureInputAccepted
+	56,  // 85: unframe.realtime.ProjectedReliableEvent.zone_input_accepted:type_name -> unframe.realtime.ZoneInputAccepted
+	57,  // 86: unframe.realtime.ProjectedReliableEvent.runtime_view_replaced:type_name -> unframe.realtime.RuntimeViewReplaced
+	145, // 87: unframe.realtime.ProjectionAdvance.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	6,   // 88: unframe.realtime.Paused.reason:type_name -> unframe.realtime.PauseReason
+	7,   // 89: unframe.realtime.Terminating.reason:type_name -> unframe.realtime.TerminationReason
+	44,  // 90: unframe.realtime.RuntimeStatusChanged.running:type_name -> unframe.realtime.Running
+	45,  // 91: unframe.realtime.RuntimeStatusChanged.paused:type_name -> unframe.realtime.Paused
+	46,  // 92: unframe.realtime.RuntimeStatusChanged.terminating:type_name -> unframe.realtime.Terminating
+	49,  // 93: unframe.realtime.GroupEntered.initialization:type_name -> unframe.realtime.GroupRuntimeInitialization
+	62,  // 94: unframe.realtime.GroupRuntimeInitialization.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	105, // 95: unframe.realtime.GroupRuntimeInitialization.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	106, // 96: unframe.realtime.GroupRuntimeInitialization.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	64,  // 97: unframe.realtime.GroupRuntimeInitialization.variables:type_name -> unframe.realtime.VariableState
+	110, // 98: unframe.realtime.GroupRuntimeInitialization.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	7,   // 99: unframe.realtime.PresentationEnded.reason:type_name -> unframe.realtime.TerminationReason
+	148, // 100: unframe.realtime.GestureInputAccepted.gesture:type_name -> unframe.presentation.GestureKind
+	149, // 101: unframe.realtime.ZoneInputAccepted.edge:type_name -> unframe.presentation.ZoneEdge
+	125, // 102: unframe.realtime.RuntimeViewReplaced.runtime_view:type_name -> unframe.realtime.ParticipantRuntimeView
+	151, // 103: unframe.realtime.SurfaceTransitionStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	152, // 104: unframe.realtime.SurfaceTransitionStarted.easing:type_name -> unframe.presentation.Easing
+	117, // 105: unframe.realtime.SurfaceTransitionStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 106: unframe.realtime.SurfaceTransitionCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	153, // 107: unframe.realtime.NodeRuntimeState.transform:type_name -> unframe.presentation.Transform
+	62,  // 108: unframe.realtime.NodeStateCommitted.state:type_name -> unframe.realtime.NodeRuntimeState
+	154, // 109: unframe.realtime.VariableState.value:type_name -> unframe.presentation.ScalarValue
+	64,  // 110: unframe.realtime.VariableChanged.state:type_name -> unframe.realtime.VariableState
+	151, // 111: unframe.realtime.TimelineStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	155, // 112: unframe.realtime.TimelineStarted.owner:type_name -> unframe.presentation.RuntimeRunOwner
+	156, // 113: unframe.realtime.TimelineStarted.cause:type_name -> unframe.presentation.RuntimeRunCause
+	157, // 114: unframe.realtime.TimelineStarted.completion:type_name -> unframe.presentation.RunCompletion
+	151, // 115: unframe.realtime.TimelineCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	151, // 116: unframe.realtime.TimelineCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
+	8,   // 117: unframe.realtime.TimelineCanceled.reason:type_name -> unframe.realtime.TimelineCancelReason
+	70,  // 118: unframe.realtime.PlaybackClock.playing:type_name -> unframe.realtime.PlayingClock
+	71,  // 119: unframe.realtime.PlaybackClock.paused:type_name -> unframe.realtime.PausedClock
+	151, // 120: unframe.realtime.MediaStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	69,  // 121: unframe.realtime.MediaStarted.playback:type_name -> unframe.realtime.PlaybackClock
+	117, // 122: unframe.realtime.MediaStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 123: unframe.realtime.MediaPaused.run_id:type_name -> unframe.presentation.RuntimeRunId
+	117, // 124: unframe.realtime.MediaPaused.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 125: unframe.realtime.MediaResumed.run_id:type_name -> unframe.presentation.RuntimeRunId
+	70,  // 126: unframe.realtime.MediaResumed.playback:type_name -> unframe.realtime.PlayingClock
+	117, // 127: unframe.realtime.MediaResumed.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 128: unframe.realtime.MediaSeeked.run_id:type_name -> unframe.presentation.RuntimeRunId
+	69,  // 129: unframe.realtime.MediaSeeked.playback:type_name -> unframe.realtime.PlaybackClock
+	117, // 130: unframe.realtime.MediaSeeked.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 131: unframe.realtime.MediaCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	151, // 132: unframe.realtime.MediaStopped.run_id:type_name -> unframe.presentation.RuntimeRunId
+	151, // 133: unframe.realtime.MediaCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
+	9,   // 134: unframe.realtime.MediaCanceled.reason:type_name -> unframe.realtime.MediaCancelReason
+	69,  // 135: unframe.realtime.ClipPlayback.playback:type_name -> unframe.realtime.PlaybackClock
+	81,  // 136: unframe.realtime.BlendHeldPose.from:type_name -> unframe.realtime.ClipHeldPose
+	81,  // 137: unframe.realtime.BlendHeldPose.to:type_name -> unframe.realtime.ClipHeldPose
+	151, // 138: unframe.realtime.ModelClipStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	80,  // 139: unframe.realtime.ModelClipStarted.playback:type_name -> unframe.realtime.ClipPlayback
+	117, // 140: unframe.realtime.ModelClipStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 141: unframe.realtime.ModelClipPaused.run_id:type_name -> unframe.presentation.RuntimeRunId
+	117, // 142: unframe.realtime.ModelClipPaused.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 143: unframe.realtime.ModelClipResumed.run_id:type_name -> unframe.presentation.RuntimeRunId
+	117, // 144: unframe.realtime.ModelClipResumed.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 145: unframe.realtime.ModelClipStopped.run_id:type_name -> unframe.presentation.RuntimeRunId
+	81,  // 146: unframe.realtime.ModelClipStopped.clip:type_name -> unframe.realtime.ClipHeldPose
+	82,  // 147: unframe.realtime.ModelClipStopped.blend:type_name -> unframe.realtime.BlendHeldPose
+	151, // 148: unframe.realtime.ModelClipCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	81,  // 149: unframe.realtime.ModelClipCompleted.held_pose:type_name -> unframe.realtime.ClipHeldPose
+	151, // 150: unframe.realtime.ModelClipCrossfadeStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	115, // 151: unframe.realtime.ModelClipCrossfadeStarted.crossfade:type_name -> unframe.realtime.ModelClipCrossfade
+	117, // 152: unframe.realtime.ModelClipCrossfadeStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 153: unframe.realtime.ModelClipCrossfadeCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	80,  // 154: unframe.realtime.ModelClipCrossfadeCompleted.playback:type_name -> unframe.realtime.ClipPlayback
+	117, // 155: unframe.realtime.ModelClipCrossfadeCompleted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	151, // 156: unframe.realtime.ModelClipCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
+	10,  // 157: unframe.realtime.ModelClipCanceled.reason:type_name -> unframe.realtime.ModelClipCancelReason
+	158, // 158: unframe.realtime.ParticipantPresenceChanged.role:type_name -> unframe.presentation.SessionRole
+	147, // 159: unframe.realtime.PresentationOrigin.pose:type_name -> unframe.presentation.Pose
+	92,  // 160: unframe.realtime.PresentationOriginChanged.origin:type_name -> unframe.realtime.PresentationOrigin
+	44,  // 161: unframe.realtime.RuntimeClockSnapshot.running:type_name -> unframe.realtime.Running
+	45,  // 162: unframe.realtime.RuntimeClockSnapshot.paused:type_name -> unframe.realtime.Paused
+	46,  // 163: unframe.realtime.RuntimeClockSnapshot.terminating:type_name -> unframe.realtime.Terminating
+	151, // 164: unframe.realtime.TransitioningProgression.blocking_run_ids:type_name -> unframe.presentation.RuntimeRunId
+	97,  // 165: unframe.realtime.TransitioningProgression.pending_next:type_name -> unframe.realtime.ProgressionNext
+	98,  // 166: unframe.realtime.ProgressionNext.step:type_name -> unframe.realtime.NextStep
+	99,  // 167: unframe.realtime.ProgressionNext.group:type_name -> unframe.realtime.NextGroup
+	100, // 168: unframe.realtime.ProgressionNext.end:type_name -> unframe.realtime.EndPresentation
+	101, // 169: unframe.realtime.ProgressionNext.stay:type_name -> unframe.realtime.StayOnStep
+	95,  // 170: unframe.realtime.ProgressionRuntimeState.stable:type_name -> unframe.realtime.StableProgression
+	96,  // 171: unframe.realtime.ProgressionRuntimeState.transitioning:type_name -> unframe.realtime.TransitioningProgression
+	103, // 172: unframe.realtime.StepExecutionSnapshot.timers:type_name -> unframe.realtime.ArmedTimer
+	151, // 173: unframe.realtime.SurfaceRuntimeState.transition_run_id:type_name -> unframe.presentation.RuntimeRunId
+	107, // 174: unframe.realtime.MediaRuntimeState.stopped:type_name -> unframe.realtime.MediaStoppedState
+	108, // 175: unframe.realtime.MediaRuntimeState.active:type_name -> unframe.realtime.MediaActive
+	151, // 176: unframe.realtime.MediaActive.run_id:type_name -> unframe.presentation.RuntimeRunId
+	69,  // 177: unframe.realtime.MediaActive.playback:type_name -> unframe.realtime.PlaybackClock
+	109, // 178: unframe.realtime.ModelClipRuntimeState.default_pose:type_name -> unframe.realtime.DefaultModelPose
+	81,  // 179: unframe.realtime.ModelClipRuntimeState.held_clip:type_name -> unframe.realtime.ClipHeldPose
+	82,  // 180: unframe.realtime.ModelClipRuntimeState.held_blend:type_name -> unframe.realtime.BlendHeldPose
+	111, // 181: unframe.realtime.ModelClipRuntimeState.active:type_name -> unframe.realtime.ModelClipActive
+	151, // 182: unframe.realtime.ModelClipActive.run_id:type_name -> unframe.presentation.RuntimeRunId
+	152, // 183: unframe.realtime.SurfaceTransitionRunSnapshot.easing:type_name -> unframe.presentation.Easing
+	69,  // 184: unframe.realtime.MediaRunSnapshot.playback:type_name -> unframe.realtime.PlaybackClock
+	80,  // 185: unframe.realtime.ModelClipCrossfade.from:type_name -> unframe.realtime.ClipPlayback
+	80,  // 186: unframe.realtime.ModelClipCrossfade.to:type_name -> unframe.realtime.ClipPlayback
+	69,  // 187: unframe.realtime.ModelClipCrossfade.transition_clock:type_name -> unframe.realtime.PlaybackClock
+	152, // 188: unframe.realtime.ModelClipCrossfade.easing:type_name -> unframe.presentation.Easing
+	80,  // 189: unframe.realtime.ModelClipRunSnapshot.single:type_name -> unframe.realtime.ClipPlayback
+	115, // 190: unframe.realtime.ModelClipRunSnapshot.crossfade:type_name -> unframe.realtime.ModelClipCrossfade
+	151, // 191: unframe.realtime.RuntimeRunSnapshot.run_id:type_name -> unframe.presentation.RuntimeRunId
+	155, // 192: unframe.realtime.RuntimeRunSnapshot.owner:type_name -> unframe.presentation.RuntimeRunOwner
+	156, // 193: unframe.realtime.RuntimeRunSnapshot.cause:type_name -> unframe.presentation.RuntimeRunCause
+	157, // 194: unframe.realtime.RuntimeRunSnapshot.completion:type_name -> unframe.presentation.RunCompletion
+	112, // 195: unframe.realtime.RuntimeRunSnapshot.surface_transition:type_name -> unframe.realtime.SurfaceTransitionRunSnapshot
+	113, // 196: unframe.realtime.RuntimeRunSnapshot.timeline:type_name -> unframe.realtime.TimelineRunSnapshot
+	114, // 197: unframe.realtime.RuntimeRunSnapshot.media:type_name -> unframe.realtime.MediaRunSnapshot
+	116, // 198: unframe.realtime.RuntimeRunSnapshot.model_clip:type_name -> unframe.realtime.ModelClipRunSnapshot
+	94,  // 199: unframe.realtime.CanonicalRuntimeSnapshot.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
+	102, // 200: unframe.realtime.CanonicalRuntimeSnapshot.progression:type_name -> unframe.realtime.ProgressionRuntimeState
+	104, // 201: unframe.realtime.CanonicalRuntimeSnapshot.step_execution:type_name -> unframe.realtime.StepExecutionSnapshot
+	105, // 202: unframe.realtime.CanonicalRuntimeSnapshot.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	62,  // 203: unframe.realtime.CanonicalRuntimeSnapshot.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	106, // 204: unframe.realtime.CanonicalRuntimeSnapshot.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	64,  // 205: unframe.realtime.CanonicalRuntimeSnapshot.variables:type_name -> unframe.realtime.VariableState
+	117, // 206: unframe.realtime.CanonicalRuntimeSnapshot.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
+	92,  // 207: unframe.realtime.CanonicalRuntimeSnapshot.presentation_origin:type_name -> unframe.realtime.PresentationOrigin
+	110, // 208: unframe.realtime.CanonicalRuntimeSnapshot.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	119, // 209: unframe.realtime.CanonicalRuntimeSnapshot.frozen_anchors:type_name -> unframe.realtime.FrozenAnchorDisplayState
+	120, // 210: unframe.realtime.CanonicalRuntimeSnapshot.step_start_history:type_name -> unframe.realtime.StepStartState
+	159, // 211: unframe.realtime.FrozenAnchorDisplayState.position:type_name -> unframe.presentation.Vector3
+	160, // 212: unframe.realtime.FrozenAnchorDisplayState.rotation:type_name -> unframe.presentation.Quaternion
+	62,  // 213: unframe.realtime.StepStartState.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	105, // 214: unframe.realtime.StepStartState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	106, // 215: unframe.realtime.StepStartState.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	64,  // 216: unframe.realtime.StepStartState.variables:type_name -> unframe.realtime.VariableState
+	117, // 217: unframe.realtime.StepStartState.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
+	110, // 218: unframe.realtime.StepStartState.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	123, // 219: unframe.realtime.RuntimeRecoveryMetadata.participants:type_name -> unframe.realtime.RuntimeParticipantHistory
+	124, // 220: unframe.realtime.RuntimeRecoveryMetadata.commands:type_name -> unframe.realtime.RuntimeCommandHistory
+	32,  // 221: unframe.realtime.RuntimeRecoveryMetadata.input_synchronization:type_name -> unframe.realtime.PresenterInputSynchronization
+	122, // 222: unframe.realtime.RuntimeRecoveryMetadata.capacity_fault:type_name -> unframe.realtime.RuntimeCapacityFault
+	158, // 223: unframe.realtime.RuntimeParticipantHistory.role:type_name -> unframe.presentation.SessionRole
+	34,  // 224: unframe.realtime.RuntimeCommandHistory.outcome:type_name -> unframe.realtime.CommandOutcome
+	102, // 225: unframe.realtime.ParticipantRuntimeView.progression:type_name -> unframe.realtime.ProgressionRuntimeState
+	62,  // 226: unframe.realtime.ParticipantRuntimeView.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	105, // 227: unframe.realtime.ParticipantRuntimeView.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	106, // 228: unframe.realtime.ParticipantRuntimeView.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	64,  // 229: unframe.realtime.ParticipantRuntimeView.variables:type_name -> unframe.realtime.VariableState
+	117, // 230: unframe.realtime.ParticipantRuntimeView.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
+	94,  // 231: unframe.realtime.ParticipantRuntimeView.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
+	92,  // 232: unframe.realtime.ParticipantRuntimeView.presentation_origin:type_name -> unframe.realtime.PresentationOrigin
+	110, // 233: unframe.realtime.ParticipantRuntimeView.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	119, // 234: unframe.realtime.ParticipantRuntimeView.frozen_anchors:type_name -> unframe.realtime.FrozenAnchorDisplayState
+	125, // 235: unframe.realtime.ProjectedRuntimeSnapshot.runtime_view:type_name -> unframe.realtime.ParticipantRuntimeView
+	158, // 236: unframe.realtime.ProjectedParticipantPresence.role:type_name -> unframe.presentation.SessionRole
+	127, // 237: unframe.realtime.ProjectedPresenceState.participants:type_name -> unframe.realtime.ProjectedParticipantPresence
+	145, // 238: unframe.realtime.ConnectionSnapshotEnvelope.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	146, // 239: unframe.realtime.ConnectionSnapshotEnvelope.projection_instance:type_name -> unframe.presentation.ProjectionInstance
+	128, // 240: unframe.realtime.ConnectionSnapshotEnvelope.presence_at_cut:type_name -> unframe.realtime.ProjectedPresenceState
+	126, // 241: unframe.realtime.ConnectionSnapshotEnvelope.snapshot:type_name -> unframe.realtime.ProjectedRuntimeSnapshot
+	11,  // 242: unframe.realtime.DurableCheckpointEnvelope.runtime_kind:type_name -> unframe.realtime.RuntimeKind
+	161, // 243: unframe.realtime.DurableCheckpointEnvelope.publication:type_name -> unframe.presentation.PublicationFence
+	12,  // 244: unframe.realtime.ResyncRequired.reason:type_name -> unframe.realtime.ResyncReason
+	133, // 245: unframe.realtime.StateClientItem.handshake:type_name -> unframe.realtime.StateHandshake
+	136, // 246: unframe.realtime.StateClientItem.tracking_frame:type_name -> unframe.realtime.TrackingFrame
+	144, // 247: unframe.realtime.StateHandshake.supported_capabilities:type_name -> unframe.presentation.RuntimeCapability
+	13,  // 248: unframe.realtime.TrackedPoseSample.target:type_name -> unframe.realtime.TrackedTarget
+	147, // 249: unframe.realtime.TrackedPoseSample.quest_local_pose:type_name -> unframe.presentation.Pose
+	135, // 250: unframe.realtime.TrackingFrame.samples:type_name -> unframe.realtime.TrackedPoseSample
+	147, // 251: unframe.realtime.TrackingFrame.presentation_from_quest_local:type_name -> unframe.presentation.Pose
+	134, // 252: unframe.realtime.StateServerItem.connected:type_name -> unframe.realtime.StateConnected
+	143, // 253: unframe.realtime.StateServerItem.state_frame:type_name -> unframe.realtime.ElementStateFrame
+	153, // 254: unframe.realtime.NodeStatePatch.transform:type_name -> unframe.presentation.Transform
+	138, // 255: unframe.realtime.ElementStatePatch.node:type_name -> unframe.realtime.NodeStatePatch
+	159, // 256: unframe.realtime.ProjectedAnchorBindingSample.position:type_name -> unframe.presentation.Vector3
+	160, // 257: unframe.realtime.ProjectedAnchorBindingSample.rotation:type_name -> unframe.presentation.Quaternion
+	140, // 258: unframe.realtime.ProjectedAnchorBindingPatch.unavailable:type_name -> unframe.realtime.AnchorBindingUnavailable
+	141, // 259: unframe.realtime.ProjectedAnchorBindingPatch.sample:type_name -> unframe.realtime.ProjectedAnchorBindingSample
+	119, // 260: unframe.realtime.ProjectedAnchorBindingPatch.frozen:type_name -> unframe.realtime.FrozenAnchorDisplayState
+	145, // 261: unframe.realtime.ElementStateFrame.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	14,  // 262: unframe.realtime.ElementStateFrame.kind:type_name -> unframe.realtime.StateFrameKind
+	139, // 263: unframe.realtime.ElementStateFrame.elements:type_name -> unframe.realtime.ElementStatePatch
+	142, // 264: unframe.realtime.ElementStateFrame.anchor_bindings:type_name -> unframe.realtime.ProjectedAnchorBindingPatch
+	15,  // 265: unframe.realtime.RealtimeService.ConnectControl:input_type -> unframe.realtime.ControlClientItem
+	132, // 266: unframe.realtime.RealtimeService.ConnectState:input_type -> unframe.realtime.StateClientItem
+	41,  // 267: unframe.realtime.RealtimeService.ConnectControl:output_type -> unframe.realtime.ControlServerItem
+	137, // 268: unframe.realtime.RealtimeService.ConnectState:output_type -> unframe.realtime.StateServerItem
+	267, // [267:269] is the sub-list for method output_type
+	265, // [265:267] is the sub-list for method input_type
+	265, // [265:265] is the sub-list for extension type_name
+	265, // [265:265] is the sub-list for extension extendee
+	0,   // [0:265] is the sub-list for field type_name
 }
 
 func init() { file_unframe_realtime_realtime_proto_init() }
@@ -11958,24 +12061,25 @@ func file_unframe_realtime_realtime_proto_init() {
 		(*ControlClientItem_GestureInput)(nil),
 		(*ControlClientItem_ZoneInput)(nil),
 		(*ControlClientItem_InputSynchronizationAck)(nil),
+		(*ControlClientItem_PresentationOrigin)(nil),
 	}
 	file_unframe_realtime_realtime_proto_msgTypes[1].OneofWrappers = []any{}
 	file_unframe_realtime_realtime_proto_msgTypes[8].OneofWrappers = []any{}
 	file_unframe_realtime_realtime_proto_msgTypes[9].OneofWrappers = []any{}
-	file_unframe_realtime_realtime_proto_msgTypes[12].OneofWrappers = []any{}
 	file_unframe_realtime_realtime_proto_msgTypes[13].OneofWrappers = []any{}
-	file_unframe_realtime_realtime_proto_msgTypes[16].OneofWrappers = []any{}
-	file_unframe_realtime_realtime_proto_msgTypes[18].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[14].OneofWrappers = []any{}
+	file_unframe_realtime_realtime_proto_msgTypes[17].OneofWrappers = []any{}
+	file_unframe_realtime_realtime_proto_msgTypes[19].OneofWrappers = []any{
 		(*CommandOutcome_Accepted)(nil),
 		(*CommandOutcome_Rejected)(nil),
 		(*CommandOutcome_NoOp)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[19].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[20].OneofWrappers = []any{
 		(*CommandAccepted_CueNotSelected)(nil),
 		(*CommandAccepted_CueCommitted)(nil),
 		(*CommandAccepted_CueBatchRejected)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[25].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[26].OneofWrappers = []any{
 		(*ControlServerItem_Connected)(nil),
 		(*ControlServerItem_ConnectionSnapshot)(nil),
 		(*ControlServerItem_ReliableEvent)(nil),
@@ -11986,7 +12090,7 @@ func file_unframe_realtime_realtime_proto_init() {
 		(*ControlServerItem_PresenterInputSynchronization)(nil),
 		(*ControlServerItem_PresenterStepSelectionCatalog)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[26].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[27].OneofWrappers = []any{
 		(*ProjectedReliableEvent_RuntimeStatusChanged)(nil),
 		(*ProjectedReliableEvent_PresentationOriginChanged)(nil),
 		(*ProjectedReliableEvent_GroupEntered)(nil),
@@ -12025,69 +12129,69 @@ func file_unframe_realtime_realtime_proto_init() {
 		(*ProjectedReliableEvent_ZoneInputAccepted)(nil),
 		(*ProjectedReliableEvent_RuntimeViewReplaced)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[31].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[32].OneofWrappers = []any{
 		(*RuntimeStatusChanged_Running)(nil),
 		(*RuntimeStatusChanged_Paused)(nil),
 		(*RuntimeStatusChanged_Terminating)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[53].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[54].OneofWrappers = []any{
 		(*PlaybackClock_Playing)(nil),
 		(*PlaybackClock_Paused)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[70].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[71].OneofWrappers = []any{
 		(*ModelClipStopped_Clip)(nil),
 		(*ModelClipStopped_Blend)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[78].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[79].OneofWrappers = []any{
 		(*RuntimeClockSnapshot_Running)(nil),
 		(*RuntimeClockSnapshot_Paused)(nil),
 		(*RuntimeClockSnapshot_Terminating)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[81].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[82].OneofWrappers = []any{
 		(*ProgressionNext_Step)(nil),
 		(*ProgressionNext_Group)(nil),
 		(*ProgressionNext_End)(nil),
 		(*ProgressionNext_Stay)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[86].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[87].OneofWrappers = []any{
 		(*ProgressionRuntimeState_Stable)(nil),
 		(*ProgressionRuntimeState_Transitioning)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[89].OneofWrappers = []any{}
-	file_unframe_realtime_realtime_proto_msgTypes[90].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[90].OneofWrappers = []any{}
+	file_unframe_realtime_realtime_proto_msgTypes[91].OneofWrappers = []any{
 		(*MediaRuntimeState_Stopped)(nil),
 		(*MediaRuntimeState_Active)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[94].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[95].OneofWrappers = []any{
 		(*ModelClipRuntimeState_DefaultPose)(nil),
 		(*ModelClipRuntimeState_HeldClip)(nil),
 		(*ModelClipRuntimeState_HeldBlend)(nil),
 		(*ModelClipRuntimeState_Active)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[100].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[101].OneofWrappers = []any{
 		(*ModelClipRunSnapshot_Single)(nil),
 		(*ModelClipRunSnapshot_Crossfade)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[101].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[102].OneofWrappers = []any{
 		(*RuntimeRunSnapshot_SurfaceTransition)(nil),
 		(*RuntimeRunSnapshot_Timeline)(nil),
 		(*RuntimeRunSnapshot_Media)(nil),
 		(*RuntimeRunSnapshot_ModelClip)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[103].OneofWrappers = []any{}
-	file_unframe_realtime_realtime_proto_msgTypes[105].OneofWrappers = []any{}
-	file_unframe_realtime_realtime_proto_msgTypes[114].OneofWrappers = []any{}
-	file_unframe_realtime_realtime_proto_msgTypes[116].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[104].OneofWrappers = []any{}
+	file_unframe_realtime_realtime_proto_msgTypes[106].OneofWrappers = []any{}
+	file_unframe_realtime_realtime_proto_msgTypes[115].OneofWrappers = []any{}
+	file_unframe_realtime_realtime_proto_msgTypes[117].OneofWrappers = []any{
 		(*StateClientItem_Handshake)(nil),
 		(*StateClientItem_TrackingFrame)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[121].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[122].OneofWrappers = []any{
 		(*StateServerItem_Connected)(nil),
 		(*StateServerItem_StateFrame)(nil),
 	}
-	file_unframe_realtime_realtime_proto_msgTypes[122].OneofWrappers = []any{}
-	file_unframe_realtime_realtime_proto_msgTypes[125].OneofWrappers = []any{}
-	file_unframe_realtime_realtime_proto_msgTypes[126].OneofWrappers = []any{
+	file_unframe_realtime_realtime_proto_msgTypes[123].OneofWrappers = []any{}
+	file_unframe_realtime_realtime_proto_msgTypes[126].OneofWrappers = []any{}
+	file_unframe_realtime_realtime_proto_msgTypes[127].OneofWrappers = []any{
 		(*ProjectedAnchorBindingPatch_Unavailable)(nil),
 		(*ProjectedAnchorBindingPatch_Sample)(nil),
 		(*ProjectedAnchorBindingPatch_Frozen)(nil),
@@ -12098,7 +12202,7 @@ func file_unframe_realtime_realtime_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_unframe_realtime_realtime_proto_rawDesc), len(file_unframe_realtime_realtime_proto_rawDesc)),
 			NumEnums:      15,
-			NumMessages:   128,
+			NumMessages:   129,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

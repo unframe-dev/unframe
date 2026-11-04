@@ -42,6 +42,7 @@ type v2Control struct {
 	snapshotCut       uint64
 	originCut         uint64
 	stateConnected    bool
+	stateReady        bool
 	stateDetached     chan struct{}
 	faultGeneration   uint64
 	observedSequence  atomic.Uint64
@@ -301,6 +302,14 @@ func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		if protocolv2.KnownSize(item) > 1<<20 {
 			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 		}
+		if changed := event.GetPresentationOriginChanged(); changed != nil {
+			s.mu.Lock()
+			fence.PresentationOriginVersion = changed.Origin.Version
+			control.snapshotCut = event.Sequence
+			control.originCut = changed.Origin.Version
+			control.stateReady = false
+			s.mu.Unlock()
+		}
 		if err := sendRaw(item); err != nil {
 			return err
 		}
@@ -488,10 +497,15 @@ func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 				s.mu.Unlock()
 				return status.Error(codes.InvalidArgument, "handshake_order_invalid")
 			}
+			if value.StateReady.PresentationOriginVersion < control.originCut && value.StateReady.AppliedReliableSequence <= control.snapshotCut {
+				s.mu.Unlock()
+				continue
+			}
 			if value.StateReady.AppliedReliableSequence != control.snapshotCut || value.StateReady.PresentationOriginVersion != control.originCut {
 				s.mu.Unlock()
 				return status.Error(codes.FailedPrecondition, "state_ready_fence_mismatch")
 			}
+			control.stateReady = true
 			control.readyOnce.Do(func() { close(control.ready) })
 			stateReadySeen = true
 			s.mu.Unlock()
@@ -505,6 +519,14 @@ func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			}
 		case *realtimev2.ControlClientItem_SurfaceInteraction:
 			outcome, _, err := s.runtime.SurfaceInteractionContext(stream.Context(), identity, value.SurfaceInteraction)
+			if err != nil {
+				return v2CommandError(err)
+			}
+			if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_CommandOutcome{CommandOutcome: outcome}}); err != nil {
+				return err
+			}
+		case *realtimev2.ControlClientItem_PresentationOrigin:
+			outcome, _, err := s.runtime.PresentationOrigin(stream.Context(), identity, value.PresentationOrigin)
 			if err != nil {
 				return v2CommandError(err)
 			}
@@ -539,6 +561,11 @@ func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			replay, err := s.runtime.Replay(value.ReplayRequest.AfterSequence)
 			if err != nil {
 				return s.resync(send, s.runtime.Snapshot().ReliableSequence, realtimev2.ResyncReason_RESYNC_REASON_REPLAY_RANGE_UNAVAILABLE)
+			}
+			for _, event := range replay {
+				if event.GetPresentationOriginChanged() != nil {
+					return s.resync(send, s.runtime.Snapshot().ReliableSequence, realtimev2.ResyncReason_RESYNC_REASON_REPLAY_RANGE_UNAVAILABLE)
+				}
 			}
 			sendMu.Lock()
 			replayLast := value.ReplayRequest.AfterSequence
@@ -619,6 +646,7 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 	defer func() {
 		s.mu.Lock()
 		control.stateConnected = false
+		control.stateReady = false
 		control.ready = make(chan struct{})
 		control.readyOnce = sync.Once{}
 		if s.controls[handshake.ConnectionId] == control {
@@ -688,6 +716,12 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 				return
 			}
 			if !admitted {
+				continue
+			}
+			s.mu.Lock()
+			stateReady := control.stateReady
+			s.mu.Unlock()
+			if !stateReady {
 				continue
 			}
 			observedAtMs := uint64(time.Since(s.trackingStarted)/time.Millisecond) + 1
@@ -769,6 +803,13 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 
 func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.ElementStateFrame, error) {
 	snapshot := s.runtime.Snapshot()
+	s.mu.Lock()
+	fence := proto.Clone(control.fence).(*presentationv2.RuntimeProjectionFence)
+	stateReady := control.stateReady
+	s.mu.Unlock()
+	if !stateReady || fence.PresentationOriginVersion != snapshot.PresentationOrigin.Version {
+		return nil, errV2StatePending
+	}
 	if snapshot.Clock.GetRunning() == nil {
 		return nil, errV2StatePending
 	}
@@ -786,7 +827,7 @@ func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.E
 		return nil, status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 	}
 	nowMs := uint64(time.Since(s.trackingStarted)/time.Millisecond) + 1
-	frame := &realtimev2.ElementStateFrame{Fence: proto.Clone(control.fence).(*presentationv2.RuntimeProjectionFence), FrameSequence: sequence, BaseReliableSequence: delivered, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeTimeMs: snapshot.Clock.RuntimeTimeMs, ProducedAtRuntimeMonotonicMs: nowMs}
+	frame := &realtimev2.ElementStateFrame{Fence: fence, FrameSequence: sequence, BaseReliableSequence: delivered, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeTimeMs: snapshot.Clock.RuntimeTimeMs, ProducedAtRuntimeMonotonicMs: nowMs}
 	for _, node := range view.NodeStates {
 		frame.Elements = append(frame.Elements, &realtimev2.ElementStatePatch{ElementId: node.NodeId, Node: v2KeyframeNodePatch(node, owned[node.NodeId])})
 	}

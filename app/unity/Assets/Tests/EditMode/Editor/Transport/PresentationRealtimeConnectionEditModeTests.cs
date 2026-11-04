@@ -286,6 +286,112 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         return store;
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task OriginChangeWaitsForCurrentRunningKeyframeButPreservesPausedDisplay(bool paused)
+    {
+        var store = CreateOwnedStore(paused);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        {
+            LoadTrackingTextures(store, textures);
+            var writer = new TrackingWriter();
+            PrepareTrackingState(connection, writer);
+            typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, true);
+            Assert.That(store.TryGetLastConnectionSnapshot(out var snapshot), Is.True);
+            var origin = store.PresentationOrigin.Clone();
+            origin.Version++;
+            var changed = new ControlServerItem
+            {
+                ReliableEvent = new ProjectedReliableEvent
+                {
+                    Sequence = store.LastReliableSequence + 1,
+                    Fence = snapshot.Fence.Clone(),
+                    PresentationOriginChanged = new PresentationOriginChanged { Origin = origin }
+                }
+            };
+            Assert.That(store.TryReceiveNetworkControl(changed, out string error), Is.True, error);
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(PresentationRealtimeConnection).GetMethod("ReliableDisplayChanged", flags).Invoke(connection, new object[] { changed });
+            Assert.That(connection.SessionReady, Is.EqualTo(paused));
+            if (paused) return;
+            Assert.Throws<InvalidOperationException>(() => SendTracking(connection, TrackingInput()));
+            var frame = new ElementStateFrame
+            {
+                Fence = snapshot.Fence.Clone(),
+                Kind = StateFrameKind.Keyframe,
+                FrameSequence = 1,
+                BaseReliableSequence = store.LastReliableSequence
+            };
+            frame.Fence.PresentationOriginVersion = origin.Version;
+            var nodes = new List<Unframe.Realtime.NodeRuntimeState>(snapshot.Snapshot.RuntimeView.NodeStates);
+            nodes.Sort((left, right) => StringComparer.Ordinal.Compare(left.NodeId, right.NodeId));
+            foreach (var node in nodes)
+                frame.Elements.Add(new ElementStatePatch
+                {
+                    ElementId = node.NodeId,
+                    Node = new NodeStatePatch { Active = node.Active, Visible = node.Visible, Opacity = node.Opacity, Transform = node.Transform.Clone() }
+                });
+            object[] receive = { new StateServerItem { StateFrame = frame }, false, null };
+            Assert.That((bool)typeof(PresentationRealtimeConnection).GetMethod("TryReceiveStateFrame", flags).Invoke(connection, receive), Is.True, receive[2] as string);
+            Assert.That(receive[1], Is.True);
+            Assert.That(connection.SessionReady, Is.True);
+            var tracking = TrackingInput();
+            tracking.PresentationOriginVersion = origin.Version;
+            await SendTracking(connection, tracking);
+            Assert.That(writer.Items.Count, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task OriginAppliedWhileInitialStateReadyIsWritingAcknowledgesTheNewOriginCut()
+    {
+        var store = CreateOwnedStore(true);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        using (var cancellation = new CancellationTokenSource())
+        {
+            LoadTrackingTextures(store, textures);
+            var commands = new ControlWriter { FirstWriteRelease = new TaskCompletionSource<bool>() };
+            var controlCall = new AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem>(commands, null, Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+            var stateCall = new AsyncDuplexStreamingCall<StateClientItem, StateServerItem>(new TrackingWriter(), new ConnectedStateReader(), Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(PresentationRealtimeConnection).GetField("control", flags).SetValue(connection, controlCall);
+            typeof(PresentationRealtimeConnection).GetField("state", flags).SetValue(connection, stateCall);
+            typeof(PresentationRealtimeConnection).GetField("connectionId", flags).SetValue(connection, "ready-test");
+            Task run = (Task)typeof(PresentationRealtimeConnection).GetMethod("RunStateAsync", flags).Invoke(connection, new object[] { cancellation.Token });
+            try
+            {
+                Assert.That(commands.Items.Count, Is.EqualTo(1));
+                Assert.That(store.TryGetLastConnectionSnapshot(out var snapshot), Is.True);
+                var updated = store.PresentationOrigin.Clone();
+                updated.Version++;
+                updated.Pose.Position.Y = 1.5;
+                ulong sequence = store.LastReliableSequence + 1;
+                Assert.That(store.TryReceiveControl(new ControlServerItem
+                {
+                    ReliableEvent = new ProjectedReliableEvent
+                    {
+                        Fence = snapshot.Fence.Clone(),
+                        Sequence = sequence,
+                        PresentationOriginChanged = new PresentationOriginChanged { Origin = updated }
+                    }
+                }, out string error), Is.True, error);
+                commands.FirstWriteRelease.SetResult(true);
+                for (int i = 0; i < 100 && commands.Items.Count < 2; i++) await Task.Yield();
+                Assert.That(commands.Items.Count, Is.EqualTo(2));
+                Assert.That(commands.Items[1].StateReady.PresentationOriginVersion, Is.EqualTo(updated.Version));
+                Assert.That(commands.Items[1].StateReady.AppliedReliableSequence, Is.EqualTo(sequence));
+            }
+            finally
+            {
+                cancellation.Cancel();
+                commands.FirstWriteRelease.TrySetResult(true);
+                try { await run; } catch (OperationCanceledException) { }
+            }
+        }
+    }
+
     [TestCase("cancel")]
     [TestCase("dispose")]
     [TestCase("replace")]
@@ -574,7 +680,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
     }
 
     [Test]
-    public void InputRequiresResidentAssetsAndBothRealtimeConnections()
+    public void InputRequiresBothRealtimeConnections()
     {
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(PresentationTextureResidencyEditModeTests.BakedDelivery(), out string error), Is.True, error);
@@ -582,9 +688,50 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         using (PresentationRealtimeConnection connection = new PresentationRealtimeConnection(store, textures))
         {
             Assert.That(connection.SessionReady, Is.False);
+            Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand { ClientEventId = "event:input", LogicalEventName = "next" } }, CancellationToken.None));
+        }
+    }
+
+    [Test]
+    public void InputRejectsLostResidentTextures()
+    {
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(PresentationTextureResidencyEditModeTests.BakedDelivery(), out string error), Is.True, error);
+        using (PresentationTextureResidency textures = new PresentationTextureResidency())
+        using (PresentationRealtimeConnection connection = new PresentationRealtimeConnection(store, textures))
+        {
+            var binding = store.Delivery.Residency.Textures.Textures[0];
+            Assert.That(store.TryGetAsset(binding.AssetId, out var access), Is.True);
+            Assert.That(textures.TryLoad(binding, access, PresentationPreviewTestFixture.Png, out error), Is.True, error);
+            Assert.That(textures.TryGet(binding.Checksum, out Texture2D texture), Is.True);
+            UnityEngine.Object.DestroyImmediate(texture);
             RpcException exception = Assert.Throws<RpcException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand { ClientEventId = "event:input", LogicalEventName = "next" } }, CancellationToken.None));
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCode.FailedPrecondition));
             Assert.That(exception.Status.Detail, Is.EqualTo("asset_residency_lost"));
+        }
+    }
+
+    [Test]
+    public async Task OriginVersionConflictReopensWithAFreshSnapshotInsteadOfFailingTheSession()
+    {
+        var store = CreateOwnedStore(true);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        using (var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+        {
+            LoadTrackingTextures(store, textures);
+            int attempts = 0;
+            Task run = connection.RunAsync(new Uri("https://runtime.example.com/"), _ => Task.FromResult("credential"), cancellation.Token,
+                handlerFactory: () =>
+                {
+                    attempts++;
+                    if (attempts == 1) throw new RpcException(new Status(StatusCode.FailedPrecondition, "presentation_origin_mismatch"));
+                    throw new RpcException(new Status(StatusCode.InvalidArgument, "stop-after-retry"));
+                });
+            Assert.That(await Task.WhenAny(run, Task.Delay(5000)), Is.SameAs(run));
+            Assert.That(run.Exception?.GetBaseException(), Is.TypeOf<RpcException>());
+            Assert.That(((RpcException)run.Exception.GetBaseException()).StatusCode, Is.EqualTo(StatusCode.InvalidArgument));
+            Assert.That(attempts, Is.EqualTo(2));
         }
     }
 

@@ -81,11 +81,11 @@ namespace Unframe.Unity.PresentationRuntime
             liveDisplayState.AssetsReady = entry?.AssetsReady == true;
             liveDisplayState.ControlReady = entry?.ControlReady == true;
             liveDisplayState.SessionReady = entry?.SessionReady == true;
-            liveDisplayState.Calibrated = calibration?.IsValid == true;
+            liveDisplayState.Calibrated = calibration?.IsValid == true && (entry?.PlacementReady ?? true);
             liveDisplayState.NeedsCameraPermission = cameraPreview != null && cameraPreview.NeedsCameraPermission;
             liveDisplayState.Busy = (operation != null && !operation.IsCompleted) || (session != null && session.IsBusy);
             liveDisplayState.CanControlPresentation = entry?.CanControlPresentation == true;
-            liveDisplayState.CanControl = entry?.CanControl == true;
+            liveDisplayState.CanControl = entry?.CanControl == true && entry.PlacementReady;
             liveDisplayState.CanAdvance = entry?.CanAdvance == true;
             liveDisplayState.HasConnectionSettings = session != null && session.HasConnectionSettings;
             liveDisplayState.Error = error;
@@ -177,6 +177,7 @@ namespace Unframe.Unity.PresentationRuntime
             SetVisible("ConfirmEnd", confirmEnd && !audience);
             SetEnabled("ConfirmEnd", state.CanEnd);
             SetVisible("CancelEnd", confirmEnd);
+            if (FindButton("Align") != null) FindButton("Align").GetComponentInChildren<Text>().text = entry != null && entry.IsPresenter ? "再配置" : "位置合わせ";
             SetVisible("Align", !confirmEnd && (audience || detailsOpen));
             SetEnabled("Align", !busy);
             SetVisible("Close", !confirmEnd);
@@ -251,7 +252,8 @@ namespace Unframe.Unity.PresentationRuntime
         public void ResetCalibration()
         {
             PresentationCalibrationState sourceState = calibrationSource != null ? calibrationSource.Calibration : null;
-            sourceState?.Invalidate("user-requested-remeasurement");
+            if (entry != null && entry.IsPresenter) calibrationSource?.RequestPlacement();
+            else sourceState?.Invalidate("user-requested-remeasurement");
             if (entry != null && !ReferenceEquals(entry.Calibration, sourceState))
                 entry.InvalidateCalibration("user-requested-remeasurement");
             Refresh();
