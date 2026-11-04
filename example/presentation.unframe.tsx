@@ -165,7 +165,7 @@ export default definePresentation({
                 id: "rotate-cube",
                 trigger: { kind: "logicalInput", action: "presenter.rotate" },
                 actions: [
-                  { kind: "timeline.play", timelineId: "cube-turn", completion: "blocking" },
+                  { kind: "timeline.play", timelineId: "cube-turn", completion: "nonBlocking" },
                 ],
                 next: { kind: "step", stepId: "original-shown" },
               },

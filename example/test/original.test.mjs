@@ -72,7 +72,7 @@ test("回転操作で立方体が10秒かけて一周し、パネルとロゴを
   const detail = input(showOriginal(), "presenter.next").state;
   const turning = input(detail, "presenter.rotate");
   assert.equal(turning.outcome.kind, "accepted");
-  assert.equal(turning.state.phase.kind, "transitioning");
+  assert.equal(turning.state.currentStepId, "original-shown");
   assert.equal(input(turning.state, "presenter.rotate").outcome.kind, "none");
   const timeline = Object.values(definition.flow.timelines).find((t) =>
     t.tracks.some(
@@ -100,7 +100,6 @@ test("回転操作で立方体が10秒かけて一周し、パネルとロゴを
 test("回転後の次へで一拍置いて×を出し、当初案だけをまとめて退場させる", () => {
   const detail = input(showOriginal(), "presenter.next").state;
   const turning = input(detail, "presenter.rotate").state;
-  assert.equal(input(turning, "presenter.next").outcome.kind, "none");
   const stopped = advanceCueClock(definition, turning, 13862).state;
   const rejected = input(stopped, "presenter.next");
   assert.equal(rejected.outcome.kind, "accepted");
@@ -137,4 +136,28 @@ test("回転後の次へで一拍置いて×を出し、当初案だけをまと
     assert.deepEqual(state.nodes[brandId], stopped.nodes[brandId]);
     assert.deepEqual(state.nodes[logoId], stopped.nodes[logoId]);
   }
+});
+
+test("回転開始直後も回転途中も、完了を待たず次へ進んで退場できる", () => {
+  const detail = input(showOriginal(), "presenter.next").state;
+  const turning = input(detail, "presenter.rotate").state;
+  assert.equal(input(turning, "presenter.next").outcome.kind, "accepted");
+  const halfway = advanceCueClock(definition, turning, 8862).state;
+  assert.equal(halfway.activeRuns.length, 1);
+  const rejected = input(halfway, "presenter.next");
+  assert.equal(rejected.outcome.kind, "accepted");
+  assert.equal(rejected.state.currentStepId, "original-reject");
+  assert.equal(rejected.state.activeRuns.length, 1);
+  const dismissing = advanceCueClock(definition, rejected.state, 9683).state;
+  assert.equal(dismissing.activeRuns.length, 2);
+  const dismissed = advanceCueClock(definition, dismissing, 10983).state;
+  assert.equal(dismissed.currentStepId, "original-dismissed");
+  for (const id of [reactResourceId("host", "rejection-mark"), panelId, cubeId])
+    assert.equal(dismissed.nodes[id].opacity, 0);
+  assert.deepEqual(dismissed.nodes[brandId], detail.nodes[brandId]);
+  assert.deepEqual(dismissed.nodes[logoId], detail.nodes[logoId]);
+  const complete = advanceCueClock(definition, dismissed, 13862).state;
+  assert.equal(complete.currentStepId, "original-dismissed");
+  assert.equal(complete.activeRuns.length, 0);
+  assert.equal(complete.nodes[cubeId].opacity, 0);
 });
