@@ -2,7 +2,7 @@
 
 @font-face {
   font-family: "Unframe Brand";
-  src: url("./assets/brand.ttf") format("truetype");
+  src: url("../assets/brand.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
 }
@@ -14,7 +14,7 @@
 
 @font-face {
   font-family: "Noto Sans CJK JP";
-  src: url("./assets/panel.otf") format("opentype");
+  src: url("../assets/panel.otf") format("opentype");
   font-weight: 400;
   font-style: normal;
 }

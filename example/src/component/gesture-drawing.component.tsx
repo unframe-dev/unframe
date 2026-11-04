@@ -1,6 +1,6 @@
 import { defineComponent } from "@unframe-dev/authoring";
-import drawingUrl from "./assets/gesture-drawing.png";
-import "./style.css";
+import drawingUrl from "../../assets/gesture-drawing.png";
+import "../style.css";
 
 export const GestureDrawing = defineComponent({
   id: "gesture-drawing",

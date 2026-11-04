@@ -1,6 +1,6 @@
 import { defineComponent } from "@unframe-dev/authoring";
-import drawingUrl from "./assets/technology-links.png";
-import "./style.css";
+import drawingUrl from "../../assets/technology-links.png";
+import "../style.css";
 
 export const TechnologyLinks = defineComponent({
   id: "technology-links",

@@ -1,5 +1,5 @@
 import { defineComponent } from "@unframe-dev/authoring";
-import "./style.css";
+import "../style.css";
 
 export const RejectionMark = defineComponent({
   id: "rejection-mark",

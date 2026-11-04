@@ -1,6 +1,6 @@
-import { TechnologyLinks } from "./technology-links.component";
-import { SpatialWord } from "./spatial-word.component";
-import { GestureDrawing } from "./gesture-drawing.component";
+import { TechnologyLinks } from "./component/technology-links.component";
+import { SpatialWord } from "./component/spatial-word.component";
+import { GestureDrawing } from "./component/gesture-drawing.component";
 
 export const showScene = [
   {

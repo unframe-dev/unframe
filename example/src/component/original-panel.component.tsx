@@ -1,5 +1,5 @@
 import { defineComponent, editableText, prop, setState } from "@unframe-dev/authoring";
-import "./style.css";
+import "../style.css";
 
 export const OriginalPanel = defineComponent({
   id: "original-panel",

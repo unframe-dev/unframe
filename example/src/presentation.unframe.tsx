@@ -1,8 +1,8 @@
 import { definePresentation } from "@unframe-dev/authoring";
-import { OpeningBrand } from "./opening.component";
-import { OriginalPanel } from "./original-panel.component";
+import { OpeningBrand } from "./component/opening.component";
+import { OriginalPanel } from "./component/original-panel.component";
 import { originalTimelines } from "./original.timelines";
-import { RejectionMark } from "./rejection.component";
+import { RejectionMark } from "./component/rejection.component";
 import { rejectionTimeline } from "./rejection.timeline";
 
 import { showScene } from "./show.scene";
