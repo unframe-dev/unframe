@@ -152,4 +152,4 @@ trigger: {
 }
 ```
 
-Gesture は8種類から選び、Structured / React の両方で Presenter actor の canonical Gesture Trigger に変換する。`zoneEdge` は Zone ID と enter / exit を指定し、Stage の Zone 宣言には中心位置だけを持たせる。Presenter Delivery の recognition catalog は種類と Zone ID / 中心だけを含み、Guard / Cue の成立は Runtime が確定する。Local Preview は Gesture / Zone と Presenter Anchor を拒否する。
+Gesture は8種類から選び、Structured / React の両方で Presenter actor の canonical Gesture Trigger に変換する。`zoneEdge` は Zone ID と enter / exit を指定し、Stage の Zone 宣言には中心位置だけを持たせる。Presenter Delivery の recognition catalog は種類と Zone ID / 中心だけを含み、Guard / Cue の成立は Runtime が確定する。Local Preview では仮想操作による Gesture / Zone 入力と仮想 Presenter に追従する Anchor を確認でき、実機での認識は行わない。

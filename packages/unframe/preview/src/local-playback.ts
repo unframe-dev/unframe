@@ -9,7 +9,11 @@ import {
   type CueState,
 } from "@unframe-dev/playback";
 import { PreviewError } from "./error.js";
-import { previewPositionSchema, previewRotationSchema } from "@unframe-dev/contracts/author-http";
+import {
+  previewPositionSchema,
+  previewRotationSchema,
+  previewPresenterPathSchema,
+} from "@unframe-dev/contracts/author-http";
 import type {
   CueOccurrence,
   PreviewPlaybackCommand,
@@ -197,6 +201,15 @@ export const createLocalPlayback = ({
         "Presenter rotation must be a unit quaternion.",
       );
     if (
+      command.command === "movePresenterPath" &&
+      !previewPresenterPathSchema.safeParse(command.samples).success
+    )
+      throw new PreviewError(
+        400,
+        "preview-position-invalid",
+        "Presenter path must contain valid poses.",
+      );
+    if (
       command.command === "selectStep" &&
       !definition.flow.groups[command.groupId]?.steps[command.stepId]
     )
@@ -320,30 +333,37 @@ export const createLocalPlayback = ({
         referenceRuntimeTime = 0;
         spatial = sampleSpatial(definition, state, context(), [0, 0, 0]).snapshot;
         break;
-      case "movePresenter": {
-        const sampled = sampleSpatial(definition, state, context(), command.position, spatial);
-        spatial = sampled.snapshot;
-        if (command.rotation) spatial.presenterRotation = [...command.rotation];
-        if (playing && !inspection) {
-          const inputContext = context();
-          for (const edge of sampled.edges) {
-            const result = executeCueEvent(
-              definition,
-              state,
-              {
-                kind: "zoneEdge",
-                ...edge,
-                actor: { kind: "participant", role: "presenter" },
-                payload: {},
-                causeEventId: `preview:${requestId}:${sequence + 1n}:${edge.zoneId}:${edge.edge}`,
-              },
-              { capture: true },
-            );
-            if (result.capture) record(result.capture);
-            state = result.state;
-            advanceNormal(state.runtimeTimeMilliseconds);
-            if (context() !== inputContext) break;
+      case "movePresenter":
+      case "movePresenterPath": {
+        const samples = command.command === "movePresenter" ? [command] : command.samples;
+        for (const [index, sample] of samples.entries()) {
+          syncSpatial();
+          const sampled = sampleSpatial(definition, state, context(), sample.position, spatial);
+          spatial = sampled.snapshot;
+          if (sample.rotation) spatial.presenterRotation = [...sample.rotation];
+          if (playing && !inspection) {
+            const inputContext = context();
+            for (const edge of sampled.edges) {
+              const result = executeCueEvent(
+                definition,
+                state,
+                {
+                  kind: "zoneEdge",
+                  ...edge,
+                  actor: { kind: "participant", role: "presenter" },
+                  payload: {},
+                  causeEventId: `preview:${requestId}:${sequence + 1n}:${index}:${edge.zoneId}:${edge.edge}`,
+                },
+                { capture: true },
+              );
+              if (result.capture) record(result.capture);
+              state = result.state;
+              advanceNormal(state.runtimeTimeMilliseconds);
+              if (context() !== inputContext) break;
+            }
           }
+          if (state.ended) playing = false;
+          syncSpatial();
         }
         break;
       }

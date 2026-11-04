@@ -1,3 +1,4 @@
+import { previewPresenterPathLimit } from "@unframe-dev/contracts/author-http";
 import type {
   PreviewPlaybackCommand,
   PreviewPlaybackResponse,
@@ -110,7 +111,25 @@ export function createPlaybackController(input: {
     if (closed || !requestId) return;
     if (intent.command === "seekCue")
       pending = pending.filter((item) => item.command !== "seekCue");
-    pending.push(intent);
+    const tail = pending.at(-1);
+    if (intent.command === "movePresenter" && tail?.command === "movePresenter") {
+      pending[pending.length - 1] = {
+        command: "movePresenterPath",
+        samples: [
+          { position: tail.position, ...(tail.rotation ? { rotation: tail.rotation } : {}) },
+          { position: intent.position, ...(intent.rotation ? { rotation: intent.rotation } : {}) },
+        ],
+      };
+    } else if (
+      intent.command === "movePresenter" &&
+      tail?.command === "movePresenterPath" &&
+      tail.samples.length < previewPresenterPathLimit
+    ) {
+      tail.samples.push({
+        position: intent.position,
+        ...(intent.rotation ? { rotation: intent.rotation } : {}),
+      });
+    } else pending.push(intent);
     void drain();
   }
   const unsubscribe = input.api.subscribePlayback(

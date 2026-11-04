@@ -22,7 +22,7 @@
 | Renderer / Model contract                    | 1      | 1      |
 | Local Preview envelope schema                | 1      | 1      |
 
-Definition の入力語彙、Delivery の Presenter 認識 catalog、進行・投影・保存状態を変更するため該当 major を更新する。Build / Publication / Capability も旧 version 組合せを受理しない schema に更新する。描画・素材形式と Local Preview envelope の構造は変えない。Local Preview は引き続き Gesture / Zone と Presenter Anchor を拒否する。変更しない envelope でも内包契約は上表と照合する。
+Definition の入力語彙、Delivery の Presenter 認識 catalog、進行・投影・保存状態を変更するため該当 major を更新する。Build / Publication / Capability も旧 version 組合せを受理しない schema に更新する。描画・素材形式と Local Preview envelope の構造は変えない。Local Preview では仮想操作による Gesture / Zone 入力と仮想 Presenter に追従する Anchor を確認でき、実機での認識は行わない。変更しない envelope でも内包契約は上表と照合する。
 
 公開 import、Protobuf package / service / namespace は [ADR-0024](../decisions/0024-canonical-presentation-contract-names.md) の正式名を維持する。旧 major、未知 enum / required capability、必須 oneof の未知 variant、上表にない組合せは補完せず拒否する。旧公開物・checkpoint の adapter / 自動移行・protocol downgrade は設けない。breaking baseline は旧 baseline との検出結果を確認して新 descriptor へ更新し、破壊的変更検査の負例を維持する。
 

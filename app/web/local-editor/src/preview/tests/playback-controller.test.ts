@@ -309,3 +309,107 @@ it("discards a pushed tick overtaken by an in-flight operation response", async 
     controller.dispose();
   }
 });
+
+it("coalesces queued movement poses without crossing other playback operations", async () => {
+  const commands: PreviewPlaybackCommand[] = [];
+  const delivered: string[] = [];
+  let finish!: (response: PreviewPlaybackResponse) => void;
+  let sequence = 1;
+  const controller = createPlaybackController({
+    api: {
+      subscribePlayback: () => () => undefined,
+      playback: async (command) => {
+        commands.push(command);
+        if (commands.length === 1)
+          return new Promise((resolve) => {
+            finish = resolve;
+          });
+        return state("r", command.command === "applied" ? command.sequence : String(++sequence));
+      },
+    },
+    driver: {
+      playback: async (value) => {
+        delivered.push(value.sequence!);
+      },
+    },
+    onState: () => undefined,
+    onFault: () => undefined,
+    onDiagnostic: () => undefined,
+  });
+  try {
+    controller.load("r");
+    controller.command({ command: "movePresenter", position: [1, 0, 0], rotation: [0, 1, 0, 0] });
+    controller.command({ command: "movePresenter", position: [2, 0, 0] });
+    controller.command({ command: "pause" });
+    controller.command({ command: "movePresenter", position: [3, 0, 0] });
+    controller.command({ command: "movePresenter", position: [4, 0, 0] });
+    controller.command({ command: "gesture", gesture: "pushForward" });
+    controller.command({ command: "movePresenter", position: [5, 0, 0] });
+    finish(state("r"));
+    await vi.waitFor(() => expect(commands.filter((c) => c.command === "applied")).toHaveLength(6));
+    expect(commands.filter((c) => c.command !== "applied")).toEqual([
+      { requestId: "r", command: "poll" },
+      {
+        requestId: "r",
+        command: "movePresenterPath",
+        samples: [{ position: [1, 0, 0], rotation: [0, 1, 0, 0] }, { position: [2, 0, 0] }],
+      },
+      { requestId: "r", command: "pause" },
+      {
+        requestId: "r",
+        command: "movePresenterPath",
+        samples: [{ position: [3, 0, 0] }, { position: [4, 0, 0] }],
+      },
+      { requestId: "r", command: "gesture", gesture: "pushForward" },
+      { requestId: "r", command: "movePresenter", position: [5, 0, 0] },
+    ]);
+    expect(delivered).toEqual(["1", "2", "3", "4", "5", "6"]);
+  } finally {
+    controller.dispose();
+  }
+});
+
+it("bounds movement batches and delivers newly queued poses after an outstanding Unity acknowledgement", async () => {
+  const commands: PreviewPlaybackCommand[] = [];
+  let finish!: () => void;
+  let sequence = 0;
+  const delivered: string[] = [];
+  const controller = createPlaybackController({
+    api: {
+      subscribePlayback: () => () => undefined,
+      playback: async (command) => {
+        commands.push(command);
+        return state("r", command.command === "applied" ? command.sequence : String(++sequence));
+      },
+    },
+    driver: {
+      playback: async (value) => {
+        delivered.push(value.sequence!);
+        if (delivered.length === 1)
+          await new Promise<void>((resolve) => {
+            finish = resolve;
+          });
+      },
+    },
+    onState: () => undefined,
+    onFault: () => undefined,
+    onDiagnostic: () => undefined,
+  });
+  try {
+    controller.load("r");
+    await vi.waitFor(() => expect(delivered).toEqual(["1"]));
+    for (let x = 0; x < 258; x++)
+      controller.command({ command: "movePresenter", position: [x, 0, 0] });
+    expect(commands).toHaveLength(1);
+    finish();
+    await vi.waitFor(() => expect(commands.filter((c) => c.command === "applied")).toHaveLength(3));
+    const paths = commands.filter((c) => c.command === "movePresenterPath");
+    expect(paths.map((path) => path.samples.length)).toEqual([256, 2]);
+    expect(paths.flatMap((path) => path.samples.map((sample) => sample.position[0]))).toEqual(
+      Array.from({ length: 258 }, (_, x) => x),
+    );
+    expect(delivered).toEqual(["1", "2", "3"]);
+  } finally {
+    controller.dispose();
+  }
+});
