@@ -851,7 +851,7 @@ export interface ConnectionSnapshotEnvelopeWire {
 
 export interface ControlClientItemWireFields {
 }
-export type ControlClientItemWire_item = { handshake: ControlHandshakeWire; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { replayRequest: ReplayRequestWire; handshake?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { stateReady: StateReadyWire; handshake?: never; replayRequest?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { logicalInput: LogicalInputCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { surfaceInteraction: SurfaceInteractionCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { runtimeControl: RuntimeControlCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never } | { gestureInput: GestureInputCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; zoneInput?: never; inputSynchronizationAck?: never } | { zoneInput: ZoneInputCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; inputSynchronizationAck?: never } | { inputSynchronizationAck: InputSynchronizationAckWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never };
+export type ControlClientItemWire_item = { handshake: ControlHandshakeWire; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never; presentationOrigin?: never } | { replayRequest: ReplayRequestWire; handshake?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never; presentationOrigin?: never } | { stateReady: StateReadyWire; handshake?: never; replayRequest?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never; presentationOrigin?: never } | { logicalInput: LogicalInputCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never; presentationOrigin?: never } | { surfaceInteraction: SurfaceInteractionCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never; presentationOrigin?: never } | { runtimeControl: RuntimeControlCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never; presentationOrigin?: never } | { gestureInput: GestureInputCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; zoneInput?: never; inputSynchronizationAck?: never; presentationOrigin?: never } | { zoneInput: ZoneInputCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; inputSynchronizationAck?: never; presentationOrigin?: never } | { inputSynchronizationAck: InputSynchronizationAckWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; presentationOrigin?: never } | { presentationOrigin: PresentationOriginCommandWire; handshake?: never; replayRequest?: never; stateReady?: never; logicalInput?: never; surfaceInteraction?: never; runtimeControl?: never; gestureInput?: never; zoneInput?: never; inputSynchronizationAck?: never };
 export type ControlClientItemWire = ControlClientItemWireFields & ControlClientItemWire_item;
 
 export interface ControlConnectedWire {
@@ -1235,6 +1235,13 @@ export interface PresentationOriginChangedWire {
   origin?: PresentationOriginWire;
 }
 
+export interface PresentationOriginCommandWire {
+  clientEventId?: string;
+  expectedPresentationOriginVersion?: string;
+  pose?: PoseWire;
+  commandEpoch?: string;
+}
+
 export interface PresenterInputSynchronizationWireFields {
   phase?: number;
   reason?: number;
@@ -1593,6 +1600,7 @@ export interface TrackingFrameWire {
   capturedAtClientMonotonicMs?: string;
   samples?: TrackedPoseSampleWire[];
   presentationFromQuestLocal?: PoseWire;
+  presentationOriginVersion?: string;
 }
 
 export interface TransitioningProgressionWire {

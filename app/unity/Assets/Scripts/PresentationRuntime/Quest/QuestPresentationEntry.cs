@@ -51,9 +51,9 @@ namespace Unframe.Unity.PresentationRuntime
         public bool SessionReady => IsRunning && runtime != null && runtime.SessionReady;
         public bool CalibrationReady => runtime != null && runtime.CalibrationReady;
         public bool IsPresenter => IsRunning && runtime != null && runtime.IsPresenter;
-        public bool CanControlPresentation => IsRunning && !commandPending && runtime != null && CanControl;
+        public bool CanControlPresentation => IsRunning && !commandPending && PlacementReady && runtime != null && CanControl;
         private string AdvanceLogicalEventName => String.IsNullOrWhiteSpace(logicalEventName) ? "presenter.next" : logicalEventName;
-        public bool CanAdvance => IsRunning && !commandPending && runtime != null && runtime.CanSendInput
+        public bool CanAdvance => PlacementReady && IsRunning && !commandPending && runtime != null && runtime.CanSendInput
             && (input == null || input.IsCompleted);
         public string LastErrorCode { get; private set; }
         public string LastCommandOutcomeCode => ControlReady ? runtime.LastCommandOutcomeCode : null;
@@ -74,6 +74,7 @@ namespace Unframe.Unity.PresentationRuntime
             : !IsRunning ? "Session stopped"
             : ConnectionStage == PresentationConnectionStage.Connecting ? "Connecting to session"
             : !AssetsReady ? "Loading presentation assets"
+            : !PlacementReady ? "Confirming presentation placement"
             : !SessionReady ? "Synchronizing session"
             : IsPresenter ? "Ready: Presenter" : "Ready: Viewer";
         private string logicalEventName;
@@ -90,20 +91,24 @@ namespace Unframe.Unity.PresentationRuntime
         private bool recalibrationPending;
         private ulong calibrationRevision;
         private Task recalibration;
+        private PresenterOriginPlacement placement;
+        private Task placementUpdate;
+        private double nextPlacementAttemptAt;
+        public bool PlacementReady => !IsPresenter || placement == null || placement.IsConfirmed;
         public Func<Ray, bool> ControlRayHandler { get; set; }
         public IReadOnlyList<StepSelection> ReachedSteps => runtime != null ? runtime.ReachedSteps : Array.Empty<StepSelection>();
         public bool CanControl => runtime != null && runtime.CanSendRuntimeControl && runtime.InputSynchronization?.CommandEpoch > 0;
 
         public Task ControlAsync(RuntimeControlKind kind, string groupId = null, string stepId = null)
         {
-            if (!CanControl || lifetime == null) throw new InvalidOperationException("Presenter control is unavailable.");
+            if (!CanControl || !PlacementReady || lifetime == null) throw new InvalidOperationException("Presenter control is unavailable.");
             return runtime.SendAsync(QuestPresentationInput.CreateControl(kind, runtime.PresentationOriginVersion,
                 runtime.InputSynchronization.CommandEpoch, groupId, stepId), lifetime.Token);
         }
 
         public async Task ControlConfirmedAsync(RuntimeControlKind kind, CancellationToken token)
         {
-            if (!CanControl || lifetime == null) throw new InvalidOperationException("Presenter control is unavailable.");
+            if (!CanControl || !PlacementReady || lifetime == null) throw new InvalidOperationException("Presenter control is unavailable.");
             using (var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token))
             {
                 CommandOutcome outcome = await runtime.SendConfirmedAsync(QuestPresentationInput.CreateControl(kind,
@@ -133,7 +138,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public void Configure(Uri controlPlaneOrigin, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
             PresentationCalibrationState calibrationState, string advanceLogicalEventName, PresentationSessionDiagnostics diagnosticLog = null,
-            Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider = null)
+            Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider = null, PresenterOriginPlacement presenterPlacement = null)
         {
             if (!isActiveAndEnabled) throw new InvalidOperationException("The Quest presentation entry must be active.");
             if (lifetime != null) throw new InvalidOperationException("A Quest presentation is already configured.");
@@ -156,6 +161,9 @@ namespace Unframe.Unity.PresentationRuntime
             calibrationRevision = 0;
             recalibrationPending = false;
             recalibration = null;
+            placement = presenterPlacement;
+            placementUpdate = null;
+            nextPlacementAttemptAt = 0;
             runtime.InputInvalidated += ResetRecognition;
             calibration.Changed += OnCalibrationChanged;
             OnCalibrationChanged();
@@ -179,6 +187,7 @@ namespace Unframe.Unity.PresentationRuntime
                 await ObserveInteractionAsync(input);
                 await ObserveInteractionAsync(tracking);
                 await ObserveInteractionAsync(controlCommand);
+                await ObserveInteractionAsync(placementUpdate);
                 await ObserveInteractionAsync(recalibration);
                 if (ReferenceEquals(lifetime, runLifetime))
                 {
@@ -272,8 +281,9 @@ namespace Unframe.Unity.PresentationRuntime
             if (!runtime.CanSendInput || !PresentationInputEnabled)
                 recognition.SampleHands(Time.realtimeSinceStartupAsDouble, null, null, null, leftGestureHeld, rightGestureHeld);
             if (lifetime == null || lifetime.IsCancellationRequested) return;
+            TrySendPlacement();
             TrySendRecalibration();
-            if (!runtime.SessionReady || !runtime.CalibrationReady || interactionLifetime == null || interactionLifetime.IsCancellationRequested) return;
+            if (!PlacementReady || !runtime.SessionReady || !runtime.CalibrationReady || interactionLifetime == null || interactionLifetime.IsCancellationRequested) return;
 
             if (logicalPressed && CanAdvance)
                 _ = AdvanceAsync();
@@ -396,14 +406,64 @@ namespace Unframe.Unity.PresentationRuntime
             runtime.DiscardPendingInputs();
             if (!calibration.IsValid || calibrationRevision != 0) recalibrationPending = true;
             calibrationRevision = calibration.Revision;
+            TrySendPlacement();
             TrySendRecalibration();
             if (lifetime != null && !lifetime.IsCancellationRequested && calibration.IsValid)
                 interactionLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         }
 
+        private void TrySendPlacement()
+        {
+            if (placement?.IsPending == true && calibration?.IsValid == true && CanControl
+                && lifetime != null && !lifetime.IsCancellationRequested && Time.realtimeSinceStartupAsDouble >= nextPlacementAttemptAt
+                && (placementUpdate == null || placementUpdate.IsCompleted))
+                placementUpdate = SendPlacementAsync();
+        }
+
+        private async Task SendPlacementAsync()
+        {
+            ControlClientItem command;
+            try { command = placement.Prepare(runtime.DataStore.PresentationOrigin, runtime.InputSynchronization.CommandEpoch); }
+            catch (Exception) { LastErrorCode = "presenter-placement-invalid"; return; }
+            if (command == null) return;
+            try
+            {
+                CommandOutcome outcome = await runtime.SendConfirmedAsync(command, lifetime.Token);
+                if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted)
+                {
+                    if (!placement.Reject(command.PresentationOrigin.ClientEventId)) return;
+                    LastErrorCode = "presenter-placement-rejected";
+                    calibration.Invalidate("placement-rejected-show-marker-again");
+                    return;
+                }
+                using (var reflected = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token))
+                {
+                    reflected.CancelAfter(TimeSpan.FromSeconds(10));
+                    while (!placement.Confirm(outcome, runtime.DataStore.LastReliableSequence, runtime.PresentationOriginVersion,
+                        runtime.InputSynchronization.CommandEpoch, runtime.InputSynchronization.IsReadyAt(outcome.Accepted.ReliableSequence) && runtime.SessionReady))
+                        await Task.Delay(16, reflected.Token);
+                }
+                recalibrationPending = false;
+                LastErrorCode = null;
+            }
+            catch (Grpc.Core.RpcException exception) when (exception.StatusCode == Grpc.Core.StatusCode.FailedPrecondition
+                && exception.Status.Detail == "presentation_origin_mismatch")
+            {
+                if (!placement.Reject(command.PresentationOrigin.ClientEventId)) return;
+                LastErrorCode = "presenter-placement-rejected";
+                calibration.Invalidate("placement-rejected-show-marker-again");
+            }
+            catch (OperationCanceledException) when (lifetime == null || lifetime.IsCancellationRequested) { }
+            catch (Exception exception)
+            {
+                LastErrorCode = PresentationConnectionErrors.FromException(exception);
+                nextPlacementAttemptAt = Time.realtimeSinceStartupAsDouble + 2;
+            }
+        }
+
         private void TrySendRecalibration()
         {
-            if (recalibrationPending && calibration?.IsValid == true && CanControl
+            if (recalibrationPending && placement?.IsPending != true && calibration?.IsValid == true && CanControl
                 && lifetime != null && !lifetime.IsCancellationRequested && (recalibration == null || recalibration.IsCompleted))
                 recalibration = SendRecalibrationAsync();
         }

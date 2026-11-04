@@ -6,6 +6,21 @@ namespace Unframe.Unity.PresentationRuntime
 {
     public static class PresentationCalibrationMath
     {
+        public static bool TryPresenterOrigin(Pose worldFromMarker, float headWorldHeight, ProtoPose current,
+            out ProtoPose corrected)
+        {
+            corrected = null;
+            if (!ValidPose(worldFromMarker) || !Finite(headWorldHeight)
+                || !PresentationCalibrationState.IsCanonical(current)
+                || !PresentationCoordinateAdapter.TryToUnityPose(current, out Pose markerFromStage)) return false;
+            Vector3 world = worldFromMarker.position + worldFromMarker.rotation * markerFromStage.position;
+            world.y = headWorldHeight - 0.30f;
+            Vector3 position = Quaternion.Inverse(worldFromMarker.rotation) * (world - worldFromMarker.position);
+            corrected = QuestPresentationTracking.ToCanonicalPose(position, markerFromStage.rotation);
+            corrected.Rotation = current.Rotation.Clone();
+            return true;
+        }
+
         public static bool TryFromWorldOrigin(Pose worldFromPresentation, Transform questTrackingOrigin,
             out ProtoPose presentationFromQuestLocal, out string error)
         {

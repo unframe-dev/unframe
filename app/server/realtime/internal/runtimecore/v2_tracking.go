@@ -163,3 +163,9 @@ func v2TrackingRotate(q *presentationv2.Quaternion, v *presentationv2.Vector3) *
 		Z: v.Z + q.W*tZ + uX*tY - uY*tX,
 	}
 }
+
+func v2TrackingInversePose(pose *presentationv2.Pose) *presentationv2.Pose {
+	rotation := &presentationv2.Quaternion{X: -pose.Rotation.X, Y: -pose.Rotation.Y, Z: -pose.Rotation.Z, W: pose.Rotation.W}
+	position := v2TrackingRotate(rotation, &presentationv2.Vector3{X: -pose.Position.X, Y: -pose.Position.Y, Z: -pose.Position.Z})
+	return &presentationv2.Pose{Position: position, Rotation: rotation}
+}

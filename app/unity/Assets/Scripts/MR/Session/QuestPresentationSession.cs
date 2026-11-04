@@ -54,7 +54,8 @@ public sealed class QuestPresentationSession : MonoBehaviour
         EnsureTrackingOrigin();
         if (IsBusy || entry.IsRunning) throw new InvalidOperationException("Stop the active session before connecting again.");
         ConfigureConnection(controlPlaneOrigin, targetSessionId, provider, advanceLogicalEventName);
-        entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics, credentialLeaseProvider);
+        calibrationSource.BeginSession(sessionId);
+        entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics, credentialLeaseProvider, calibrationSource.Placement);
         CompleteExternalConnection();
     }
 
@@ -74,7 +75,8 @@ public sealed class QuestPresentationSession : MonoBehaviour
                 if (!HasConnectionSettings) { LastErrorCode = "connection-settings-required"; return; }
                 await entry.StopAsync();
                 if (requestedGeneration != generation || !isActiveAndEnabled) return;
-                entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics, credentialLeaseProvider);
+                calibrationSource.BeginSession(sessionId);
+                entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics, credentialLeaseProvider, calibrationSource.Placement);
                 CompleteExternalConnection();
                 LastErrorCode = String.Empty;
             }
@@ -103,6 +105,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
 
     private void EnsureTrackingOrigin()
     {
+        calibrationSource?.ConfigureHead(GetComponent<QuestPresentationStatusView>()?.Head);
         if (!isActiveAndEnabled || entry == null || calibrationSource == null
             || !calibrationSource.isActiveAndEnabled || calibrationSource.QuestTrackingOrigin == null
             || entry.QuestTrackingOrigin != calibrationSource.QuestTrackingOrigin)
@@ -136,6 +139,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
     {
         var view = GetComponent<QuestPresentationStatusView>();
         var runtime = GetComponent<PresentationBakedRuntime>();
+        calibrationSource?.ConfigureHead(view?.Head);
         if (view != null && view.Head != null)
         {
             QuestOnboardingApi api = null;

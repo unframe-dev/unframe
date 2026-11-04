@@ -11,6 +11,18 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
     private Pose capturedTrackingFrame;
     private bool hasCapturedFrame;
     private bool changingCalibration;
+    private Transform head;
+    public PresenterOriginPlacement Placement { get; } = new PresenterOriginPlacement();
+    public void ConfigureHead(Transform source) { head = source; Refresh(); }
+    public void BeginSession(string id)
+    {
+        if (Placement.BeginSession(id)) ResetSource("session-changed-show-marker-again");
+    }
+    public void RequestPlacement()
+    {
+        Placement.RequestPlacement();
+        ResetSource("user-requested-remeasurement");
+    }
 
     public PresentationCalibrationState Calibration { get; } = new PresentationCalibrationState();
     public Transform QuestTrackingOrigin => questTrackingOrigin;
@@ -73,6 +85,8 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
             ResetSource(error);
             return;
         }
+        if (head != null && head.gameObject.activeInHierarchy)
+            Placement.Capture(alignment.OriginPose, head.position.y);
         capturedTrackingFrame = trackingFrame;
         hasCapturedFrame = true;
     }
@@ -92,6 +106,7 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
 
     private void InvalidateCalibration(string reason)
     {
+        Placement.InvalidateCapture();
         bool previous = changingCalibration;
         changingCalibration = true;
         try { Calibration.Invalidate(reason); }
@@ -101,6 +116,7 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
     private void OnCalibrationChanged()
     {
         if (changingCalibration || Calibration.IsValid) return;
+        Placement.InvalidateCapture();
         hasCapturedFrame = false;
         if (alignment == null || !alignment.IsConfirmed) return;
         changingCalibration = true;

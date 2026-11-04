@@ -39316,7 +39316,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {unframe.realtime.GestureInputCommand.$Properties|null} [gestureInput] ControlClientItem gestureInput
        * @property {unframe.realtime.ZoneInputCommand.$Properties|null} [zoneInput] ControlClientItem zoneInput
        * @property {unframe.realtime.InputSynchronizationAck.$Properties|null} [inputSynchronizationAck] ControlClientItem inputSynchronizationAck
-       * @property {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"} [item] ControlClientItem item
+       * @property {unframe.realtime.PresentationOriginCommand.$Properties|null} [presentationOrigin] ControlClientItem presentationOrigin
+       * @property {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"|"presentationOrigin"} [item] ControlClientItem item
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -39340,9 +39341,10 @@ export const unframe = ($root.unframe = (() => {
        *   gestureInput?: unframe.realtime.GestureInputCommand.$Shape|null;
        *   zoneInput?: unframe.realtime.ZoneInputCommand.$Shape|null;
        *   inputSynchronizationAck?: unframe.realtime.InputSynchronizationAck.$Shape|null;
+       *   presentationOrigin?: unframe.realtime.PresentationOriginCommand.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * } & (
-       *   ({ item?: undefined; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "handshake"; handshake: unframe.realtime.ControlHandshake.$Shape; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "replayRequest"; handshake?: null; replayRequest: unframe.realtime.ReplayRequest.$Shape; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "stateReady"; handshake?: null; replayRequest?: null; stateReady: unframe.realtime.StateReady.$Shape; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "logicalInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput: unframe.realtime.LogicalInputCommand.$Shape; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "surfaceInteraction"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction: unframe.realtime.SurfaceInteractionCommand.$Shape; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "runtimeControl"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl: unframe.realtime.RuntimeControlCommand.$Shape; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "gestureInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput: unframe.realtime.GestureInputCommand.$Shape; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "zoneInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput: unframe.realtime.ZoneInputCommand.$Shape; inputSynchronizationAck?: null }|{ item?: "inputSynchronizationAck"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck: unframe.realtime.InputSynchronizationAck.$Shape })
+       *   ({ item?: undefined; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "handshake"; handshake: unframe.realtime.ControlHandshake.$Shape; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "replayRequest"; handshake?: null; replayRequest: unframe.realtime.ReplayRequest.$Shape; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "stateReady"; handshake?: null; replayRequest?: null; stateReady: unframe.realtime.StateReady.$Shape; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "logicalInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput: unframe.realtime.LogicalInputCommand.$Shape; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "surfaceInteraction"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction: unframe.realtime.SurfaceInteractionCommand.$Shape; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "runtimeControl"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl: unframe.realtime.RuntimeControlCommand.$Shape; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "gestureInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput: unframe.realtime.GestureInputCommand.$Shape; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "zoneInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput: unframe.realtime.ZoneInputCommand.$Shape; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "inputSynchronizationAck"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck: unframe.realtime.InputSynchronizationAck.$Shape; presentationOrigin?: null }|{ item?: "presentationOrigin"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin: unframe.realtime.PresentationOriginCommand.$Shape })
        * )} unframe.realtime.ControlClientItem.$Shape
        */
 
@@ -39433,12 +39435,20 @@ export const unframe = ($root.unframe = (() => {
        */
       ControlClientItem.prototype.inputSynchronizationAck = null;
 
+      /**
+       * ControlClientItem presentationOrigin.
+       * @member {unframe.realtime.PresentationOriginCommand.$Properties|null|undefined} presentationOrigin
+       * @memberof unframe.realtime.ControlClientItem
+       * @instance
+       */
+      ControlClientItem.prototype.presentationOrigin = null;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
       /**
        * ControlClientItem item.
-       * @member {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"|undefined} item
+       * @member {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"|"presentationOrigin"|undefined} item
        * @memberof unframe.realtime.ControlClientItem
        * @instance
        */
@@ -39454,6 +39464,7 @@ export const unframe = ($root.unframe = (() => {
             "gestureInput",
             "zoneInput",
             "inputSynchronizationAck",
+            "presentationOrigin",
           ]),
         ),
         set: $util.oneOfSetter($oneOfFields),
@@ -39539,6 +39550,14 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.realtime.InputSynchronizationAck.encode(
             message.inputSynchronizationAck,
             writer.uint32(/* id 102, wireType 2 =*/ 818).fork(),
+          ).ldelim();
+        if (
+          message.presentationOrigin != null &&
+          $Object.hasOwnProperty.call(message, "presentationOrigin")
+        )
+          $root.unframe.realtime.PresentationOriginCommand.encode(
+            message.presentationOrigin,
+            writer.uint32(/* id 103, wireType 2 =*/ 826).fork(),
           ).ldelim();
         return writer;
       };
@@ -39657,6 +39676,15 @@ export const unframe = ($root.unframe = (() => {
                   $undefined,
                   long + 1,
                 );
+              break;
+            }
+            case 103: {
+              message.presentationOrigin = $root.unframe.realtime.PresentationOriginCommand.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
               break;
             }
             default:
@@ -39787,6 +39815,17 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "inputSynchronizationAck." + error;
           }
         }
+        if (message.presentationOrigin != null && message.hasOwnProperty("presentationOrigin")) {
+          if (properties.item === 1) return "item: multiple values";
+          properties.item = 1;
+          {
+            let error = $root.unframe.realtime.PresentationOriginCommand.verify(
+              message.presentationOrigin,
+              long + 1,
+            );
+            if (error) return "presentationOrigin." + error;
+          }
+        }
         return null;
       };
 
@@ -39880,6 +39919,16 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
         }
+        if (object.presentationOrigin != null) {
+          if (typeof object.presentationOrigin !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ControlClientItem.presentationOrigin: object expected",
+            );
+          message.presentationOrigin = $root.unframe.realtime.PresentationOriginCommand.fromObject(
+            object.presentationOrigin,
+            long + 1,
+          );
+        }
         return message;
       };
 
@@ -39960,6 +40009,13 @@ export const unframe = ($root.unframe = (() => {
             options,
           );
           if (options.oneofs) object.item = "inputSynchronizationAck";
+        }
+        if (message.presentationOrigin != null && message.hasOwnProperty("presentationOrigin")) {
+          object.presentationOrigin = $root.unframe.realtime.PresentationOriginCommand.toObject(
+            message.presentationOrigin,
+            options,
+          );
+          if (options.oneofs) object.item = "presentationOrigin";
         }
         return object;
       };
@@ -45369,6 +45425,415 @@ export const unframe = ($root.unframe = (() => {
       };
 
       return RuntimeControlCommand;
+    })();
+
+    realtime.PresentationOriginCommand = (function () {
+      /**
+       * Properties of a PresentationOriginCommand.
+       * @typedef {Object} unframe.realtime.PresentationOriginCommand.$Properties
+       * @property {string|null} [clientEventId] PresentationOriginCommand clientEventId
+       * @property {number|Long|null} [expectedPresentationOriginVersion] PresentationOriginCommand expectedPresentationOriginVersion
+       * @property {unframe.presentation.Pose.$Properties|null} [pose] PresentationOriginCommand pose
+       * @property {number|Long|null} [commandEpoch] PresentationOriginCommand commandEpoch
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a PresentationOriginCommand.
+       * @memberof unframe.realtime
+       * @interface IPresentationOriginCommand
+       * @augments unframe.realtime.PresentationOriginCommand.$Properties
+       * @deprecated Use unframe.realtime.PresentationOriginCommand.$Properties instead.
+       */
+
+      /**
+       * Shape of a PresentationOriginCommand.
+       * @typedef {unframe.realtime.PresentationOriginCommand.$Properties} unframe.realtime.PresentationOriginCommand.$Shape
+       */
+
+      /**
+       * Constructs a new PresentationOriginCommand.
+       * @memberof unframe.realtime
+       * @classdesc Represents a PresentationOriginCommand.
+       * @constructor
+       * @param {unframe.realtime.PresentationOriginCommand.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const PresentationOriginCommand = function PresentationOriginCommand(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * PresentationOriginCommand clientEventId.
+       * @member {string} clientEventId
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       */
+      PresentationOriginCommand.prototype.clientEventId = "";
+
+      /**
+       * PresentationOriginCommand expectedPresentationOriginVersion.
+       * @member {number|Long} expectedPresentationOriginVersion
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       */
+      PresentationOriginCommand.prototype.expectedPresentationOriginVersion = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * PresentationOriginCommand pose.
+       * @member {unframe.presentation.Pose.$Properties|null|undefined} pose
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       */
+      PresentationOriginCommand.prototype.pose = null;
+
+      /**
+       * PresentationOriginCommand commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       */
+      PresentationOriginCommand.prototype.commandEpoch = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * Creates a new PresentationOriginCommand instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {unframe.realtime.PresentationOriginCommand.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.PresentationOriginCommand} PresentationOriginCommand instance
+       * @type {{
+       *   (properties: unframe.realtime.PresentationOriginCommand.$Shape): unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape;
+       *   (properties?: unframe.realtime.PresentationOriginCommand.$Properties): unframe.realtime.PresentationOriginCommand;
+       * }}
+       */
+      PresentationOriginCommand.create = function (properties) {
+        return new PresentationOriginCommand(properties);
+      };
+
+      /**
+       * Encodes the specified PresentationOriginCommand message. Does not implicitly {@link unframe.realtime.PresentationOriginCommand.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {unframe.realtime.PresentationOriginCommand.$Properties} message PresentationOriginCommand message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresentationOriginCommand.encode = function PresentationOriginCommand$encode(
+        message,
+        writer,
+      ) {
+        if (!writer) writer = $Writer.create();
+        if (message.clientEventId != null && $Object.hasOwnProperty.call(message, "clientEventId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.clientEventId);
+        if (
+          message.expectedPresentationOriginVersion != null &&
+          $Object.hasOwnProperty.call(message, "expectedPresentationOriginVersion")
+        )
+          writer
+            .uint32(/* id 2, wireType 0 =*/ 16)
+            .uint64(message.expectedPresentationOriginVersion);
+        if (message.pose != null && $Object.hasOwnProperty.call(message, "pose"))
+          $root.unframe.presentation.Pose.encode(
+            message.pose,
+            writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+          ).ldelim();
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.commandEpoch);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified PresentationOriginCommand message, length delimited. Does not implicitly {@link unframe.realtime.PresentationOriginCommand.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {unframe.realtime.PresentationOriginCommand.$Properties} message PresentationOriginCommand message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresentationOriginCommand.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a PresentationOriginCommand message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape} PresentationOriginCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresentationOriginCommand.decode = function PresentationOriginCommand$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.clientEventId = reader.string();
+              break;
+            }
+            case 2: {
+              message.expectedPresentationOriginVersion = reader.uint64();
+              break;
+            }
+            case 3: {
+              message.pose = $root.unframe.presentation.Pose.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 4: {
+              message.commandEpoch = reader.uint64();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a PresentationOriginCommand message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape} PresentationOriginCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresentationOriginCommand.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a PresentationOriginCommand message.
+       * @function verify
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      PresentationOriginCommand.verify = function PresentationOriginCommand$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          if (!$util.isString(message.clientEventId)) return "clientEventId: string expected";
+        if (
+          message.expectedPresentationOriginVersion != null &&
+          message.hasOwnProperty("expectedPresentationOriginVersion")
+        )
+          if (
+            !$util.isInteger(message.expectedPresentationOriginVersion) &&
+            !(
+              message.expectedPresentationOriginVersion &&
+              $util.isInteger(message.expectedPresentationOriginVersion.low) &&
+              $util.isInteger(message.expectedPresentationOriginVersion.high)
+            )
+          )
+            return "expectedPresentationOriginVersion: integer|Long expected";
+        if (message.pose != null && message.hasOwnProperty("pose")) {
+          let error = $root.unframe.presentation.Pose.verify(message.pose, long + 1);
+          if (error) return "pose." + error;
+        }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
+        return null;
+      };
+
+      /**
+       * Creates a PresentationOriginCommand message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.PresentationOriginCommand} PresentationOriginCommand
+       */
+      PresentationOriginCommand.fromObject = function PresentationOriginCommand$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.clientEventId != null) message.clientEventId = $String(object.clientEventId);
+        if (object.expectedPresentationOriginVersion != null)
+          if ($util.Long)
+            (message.expectedPresentationOriginVersion = $util.Long.fromValue(
+              object.expectedPresentationOriginVersion,
+            )).unsigned = true;
+          else if (typeof object.expectedPresentationOriginVersion === "string")
+            message.expectedPresentationOriginVersion = $parseInt(
+              object.expectedPresentationOriginVersion,
+              10,
+            );
+          else if (typeof object.expectedPresentationOriginVersion === "number")
+            message.expectedPresentationOriginVersion = object.expectedPresentationOriginVersion;
+          else if (typeof object.expectedPresentationOriginVersion === "object")
+            message.expectedPresentationOriginVersion = new $util.LongBits(
+              object.expectedPresentationOriginVersion.low >>> 0,
+              object.expectedPresentationOriginVersion.high >>> 0,
+            ).toNumber(true);
+        if (object.pose != null) {
+          if (typeof object.pose !== "object")
+            throw $TypeError(".unframe.realtime.PresentationOriginCommand.pose: object expected");
+          message.pose = $root.unframe.presentation.Pose.fromObject(object.pose, long + 1);
+        }
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a PresentationOriginCommand message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {unframe.realtime.PresentationOriginCommand} message PresentationOriginCommand
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      PresentationOriginCommand.toObject = function PresentationOriginCommand$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.clientEventId = "";
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.expectedPresentationOriginVersion =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.expectedPresentationOriginVersion = options.longs === $String ? "0" : 0;
+          object.pose = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
+        }
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          object.clientEventId = message.clientEventId;
+        if (
+          message.expectedPresentationOriginVersion != null &&
+          message.hasOwnProperty("expectedPresentationOriginVersion")
+        )
+          if (typeof message.expectedPresentationOriginVersion === "number")
+            object.expectedPresentationOriginVersion =
+              options.longs === $String
+                ? $String(message.expectedPresentationOriginVersion)
+                : message.expectedPresentationOriginVersion;
+          else
+            object.expectedPresentationOriginVersion =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.expectedPresentationOriginVersion)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.expectedPresentationOriginVersion.low >>> 0,
+                      message.expectedPresentationOriginVersion.high >>> 0,
+                    ).toNumber(true)
+                  : message.expectedPresentationOriginVersion;
+        if (message.pose != null && message.hasOwnProperty("pose"))
+          object.pose = $root.unframe.presentation.Pose.toObject(message.pose, options);
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
+        return object;
+      };
+
+      /**
+       * Converts this PresentationOriginCommand to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      PresentationOriginCommand.prototype.toJSON = function () {
+        return PresentationOriginCommand.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for PresentationOriginCommand
+       * @function getTypeUrl
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      PresentationOriginCommand.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.PresentationOriginCommand";
+      };
+
+      return PresentationOriginCommand;
     })();
 
     realtime.InputContext = (function () {
@@ -86754,6 +87219,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {number|Long|null} [capturedAtClientMonotonicMs] TrackingFrame capturedAtClientMonotonicMs
        * @property {Array.<unframe.realtime.TrackedPoseSample.$Properties>|null} [samples] TrackingFrame samples
        * @property {unframe.presentation.Pose.$Properties|null} [presentationFromQuestLocal] TrackingFrame presentationFromQuestLocal
+       * @property {number|Long|null} [presentationOriginVersion] TrackingFrame presentationOriginVersion
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -86821,6 +87287,16 @@ export const unframe = ($root.unframe = (() => {
       TrackingFrame.prototype.presentationFromQuestLocal = null;
 
       /**
+       * TrackingFrame presentationOriginVersion.
+       * @member {number|Long} presentationOriginVersion
+       * @memberof unframe.realtime.TrackingFrame
+       * @instance
+       */
+      TrackingFrame.prototype.presentationOriginVersion = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
        * Creates a new TrackingFrame instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.TrackingFrame
@@ -86868,6 +87344,11 @@ export const unframe = ($root.unframe = (() => {
             message.presentationFromQuestLocal,
             writer.uint32(/* id 4, wireType 2 =*/ 34).fork(),
           ).ldelim();
+        if (
+          message.presentationOriginVersion != null &&
+          $Object.hasOwnProperty.call(message, "presentationOriginVersion")
+        )
+          writer.uint32(/* id 5, wireType 0 =*/ 40).uint64(message.presentationOriginVersion);
         return writer;
       };
 
@@ -86932,6 +87413,10 @@ export const unframe = ($root.unframe = (() => {
                 $undefined,
                 long + 1,
               );
+              break;
+            }
+            case 5: {
+              message.presentationOriginVersion = reader.uint64();
               break;
             }
             default:
@@ -87012,6 +87497,19 @@ export const unframe = ($root.unframe = (() => {
           );
           if (error) return "presentationFromQuestLocal." + error;
         }
+        if (
+          message.presentationOriginVersion != null &&
+          message.hasOwnProperty("presentationOriginVersion")
+        )
+          if (
+            !$util.isInteger(message.presentationOriginVersion) &&
+            !(
+              message.presentationOriginVersion &&
+              $util.isInteger(message.presentationOriginVersion.low) &&
+              $util.isInteger(message.presentationOriginVersion.high)
+            )
+          )
+            return "presentationOriginVersion: integer|Long expected";
         return null;
       };
 
@@ -87077,6 +87575,20 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
+        if (object.presentationOriginVersion != null)
+          if ($util.Long)
+            (message.presentationOriginVersion = $util.Long.fromValue(
+              object.presentationOriginVersion,
+            )).unsigned = true;
+          else if (typeof object.presentationOriginVersion === "string")
+            message.presentationOriginVersion = $parseInt(object.presentationOriginVersion, 10);
+          else if (typeof object.presentationOriginVersion === "number")
+            message.presentationOriginVersion = object.presentationOriginVersion;
+          else if (typeof object.presentationOriginVersion === "object")
+            message.presentationOriginVersion = new $util.LongBits(
+              object.presentationOriginVersion.low >>> 0,
+              object.presentationOriginVersion.high >>> 0,
+            ).toNumber(true);
         return message;
       };
 
@@ -87113,6 +87625,15 @@ export const unframe = ($root.unframe = (() => {
                   : long;
           } else object.capturedAtClientMonotonicMs = options.longs === $String ? "0" : 0;
           object.presentationFromQuestLocal = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.presentationOriginVersion = options.longs === $String ? "0" : 0;
         }
         if (message.frameSequence != null && message.hasOwnProperty("frameSequence"))
           if (typeof message.frameSequence === "number")
@@ -87163,6 +87684,25 @@ export const unframe = ($root.unframe = (() => {
             message.presentationFromQuestLocal,
             options,
           );
+        if (
+          message.presentationOriginVersion != null &&
+          message.hasOwnProperty("presentationOriginVersion")
+        )
+          if (typeof message.presentationOriginVersion === "number")
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? $String(message.presentationOriginVersion)
+                : message.presentationOriginVersion;
+          else
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.presentationOriginVersion)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.presentationOriginVersion.low >>> 0,
+                      message.presentationOriginVersion.high >>> 0,
+                    ).toNumber(true)
+                  : message.presentationOriginVersion;
         return object;
       };
 
