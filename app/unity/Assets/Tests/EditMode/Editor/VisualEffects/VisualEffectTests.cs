@@ -6,6 +6,35 @@ using UnityEngine;
 public sealed class VisualEffectTests
 {
     [Test]
+    public void WavesCrossBehindAndKeepBothEndsMovingWhileFading()
+    {
+        var stage = new GameObject("Wave stage");
+        try
+        {
+            using var effects = new VisualEffectPlayer();
+            effects.PlayWave(new EffectOptions("wave", 1, Color.white, 1, 1000, 42, 0), stage.transform);
+            effects.Evaluate(650);
+            var lines = stage.GetComponentsInChildren<LineRenderer>();
+            Assert.That(lines.Length, Is.EqualTo(12));
+            Assert.That(lines[0].positionCount, Is.GreaterThanOrEqualTo(96));
+            Assert.That(lines[0].GetPosition(lines[0].positionCount - 1).x, Is.GreaterThan(0));
+            Assert.That(lines[6].GetPosition(lines[6].positionCount - 1).x, Is.LessThan(0));
+            Assert.That(lines[0].GetPosition(40).z, Is.GreaterThan(0.5f));
+            Assert.That(lines[0].startColor, Is.Not.EqualTo(lines[5].startColor));
+            var beforeHead = lines[0].GetPosition(95);
+            var beforeTail = lines[0].GetPosition(0);
+            var alpha = lines[0].startColor.a;
+            effects.Evaluate(750);
+            Assert.That(lines[0].GetPosition(95).x, Is.GreaterThan(beforeHead.x));
+            effects.Evaluate(900);
+            Assert.That(lines[0].GetPosition(0).x, Is.GreaterThan(beforeTail.x));
+            Assert.That(lines[0].GetPosition(95).x, Is.GreaterThan(beforeHead.x));
+            Assert.That(lines[0].startColor.a, Is.LessThan(alpha));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(stage); }
+    }
+
+    [Test]
     public void ExternalClockAndSpeedDetermineCompletionOnce()
     {
         using var effects = new VisualEffectPlayer();

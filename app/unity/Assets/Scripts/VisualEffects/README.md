@@ -21,7 +21,7 @@ dissolve.Completed += () => targetMeshRenderer.enabled = false;
 player.Dispose();
 ```
 
-`size` は正の倍率、`color` は各成分 0〜1 の色、`speed` は正の時間倍率。`durationMs` と開始時刻はミリ秒。wave は単位サイズで左右 ±3.5m から ±0.65m まで流れる。Stage のローカル座標に描画し、中央を空ける。Hand の Pose は Unity world 座標。座標原点の変換はホストが行う。
+`size` は正の倍率、`color` は各成分 0〜1 の色、`speed` は正の時間倍率。`durationMs` と開始時刻はミリ秒。wave は対象中心のローカル座標へ描画する。左右 ±4m から出現し、+Z の背後へ回って反対側まで交差する。交差後も移動を続け、最後の20%で減衰する。消失中も両端は移動し続ける。線の長さと波長は seed で変化する。Hand の Pose は Unity world 座標。座標原点の変換はホストが行う。
 
 `Evaluate` の時刻を固定すれば単発演出も停止する。開始前は wave／hand を非表示、dissolve は元マテリアルを保持する。単発演出は終端で資源を解放してから `Completed` を一度通知する。`Cancel` と `Dispose` は完了通知を出さない。同じ実行中 ID・同じ設定・同じ対象は同じ handle を返し、異なる内容を拒否する。、終了済み ID の履歴は保持しない。同時上限は32。同じ Renderer への重複 dissolve は拒否する。
 
@@ -30,6 +30,8 @@ Hand は最大256点を保持し、外部時刻から `durationMs / speed` よ�
 Dissolve の初期対象は不透明な静的 MeshRenderer。元の base texture／UV transform／base color を引き継ぎ、独自の簡易拡散シェーダーで描く。PBR 全属性、法線マップ、透明素材、SkinnedMesh、shadow/depth 専用 pass の対応は含まない。対応範囲外の見た目の一致を保証しない。共有元マテリアルは変更せず、キャンセル・完了・Dispose で元配列へ戻す。対象の恒久非表示・再表示は呼び出し側が設定する。独自 shader は Resources 配下にあり、ビルド時の shader stripping を避ける。
 
 描画所有中はホストが同じ Renderer の材料を差し替えないこと。Player の更新・破棄は Unity メインスレッドで行うこと。色空間と実機性能は対象ビルドで確認する。
+
+Wave の線色は LP 指定の青紫 `#7187f5` → 紫 `#9a80d0` → コーラル `#df7b80` を各線へ割り当てる。`color` はこのパレットへの乗算色として使い、白で指定グラデーションを表示する。
 
 ## 確認用シーン
 

@@ -45,7 +45,7 @@ namespace Unframe.Unity.VisualEffects
                 root.SetActive(false);
                 for (var i = 0; i < lines.Length; i++)
                 {
-                    lines[i] = CreateLine(root.transform, material, 36, options.Size * 0.012f);
+                    lines[i] = CreateLine(root.transform, material, 96, options.Size * 0.012f);
                     lines[i].useWorldSpace = false;
                 }
             }
@@ -58,19 +58,41 @@ namespace Unframe.Unity.VisualEffects
                 {
                     var side = i < 6 ? -1 : 1;
                     var lane = i % 6;
-                    var u = Mathf.Clamp01((progress - lane * 0.035f) / 0.825f);
-                    var color = Options.Color;
-                    color.a *= Mathf.Sin(u * Mathf.PI);
+                    var head = Mathf.Max(0, (progress - lane * 0.008f) / 0.55f);
+                    var length = Mathf.Lerp(0.72f, 0.92f, RandomValue(i, 1));
+                    var tail = Mathf.Max(0, head - length);
+                    var palettePosition = i / 11f;
+                    var blue = new Color(0x71 / 255f, 0x87 / 255f, 0xf5 / 255f);
+                    var purple = new Color(0x9a / 255f, 0x80 / 255f, 0xd0 / 255f);
+                    var coral = new Color(0xdf / 255f, 0x7b / 255f, 0x80 / 255f);
+                    var color = palettePosition <= 0.48f
+                        ? Color.Lerp(blue, purple, palettePosition / 0.48f)
+                        : Color.Lerp(purple, coral, (palettePosition - 0.48f) / 0.52f);
+                    color *= Options.Color;
+                    color.a = Options.Color.a * Mathf.Clamp01(progress / 0.12f)
+                        * (1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(0.8f, 1, progress)));
                     lines[i].startColor = lines[i].endColor = color;
-                    for (var j = 0; j < 36; j++)
+                    var frequency = Mathf.Lerp(1.2f, 3.2f, RandomValue(i, 2));
+                    var phase = RandomValue(i, 3) * Mathf.PI * 2;
+                    for (var j = 0; j < 96; j++)
                     {
-                        var t = j / 35f;
-                        var x = side * Mathf.Lerp(3.5f, 0.65f, Mathf.Clamp01(u * 1.5f - (1 - t) * 0.5f));
-                        var y = (lane - 2.5f) * 0.11f + Mathf.Sin(t * 8 + u * 5 + (Options.Seed % 1000) * 0.01f) * 0.15f;
-                        lines[i].SetPosition(j, new Vector3(x, y, 0.5f) * Options.Size);
+                        var t = j / 95f;
+                        var q = Mathf.Lerp(tail, head, t);
+                        var x = side * (4 - 6 * q);
+                        var irregularPhase = q * frequency * Mathf.PI * 2
+                            + 0.8f * Mathf.Sin(q * 9 + phase);
+                        var y = (lane - 2.5f) * 0.11f + Mathf.Sin(irregularPhase + phase) * 0.16f;
+                        var z = 1.8f * Mathf.Sin(Mathf.Min(q, 1) * Mathf.PI * 0.75f) + lane * 0.025f;
+                        lines[i].SetPosition(j, new Vector3(x, y, z) * Options.Size);
                     }
                 }
                 return progress >= 1;
+            }
+            private float RandomValue(int line, uint channel)
+            {
+                uint value = Options.Seed ^ ((uint)(line + 1) * 747796405u) ^ (channel * 2891336453u);
+                value = (value ^ (value >> 16)) * 2246822519u;
+                return (value & 0x00ffffff) / 16777215f;
             }
             internal override void Release() { Destroy(root); Destroy(material); }
         }

@@ -35,7 +35,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   size: 1
   speed: 1
-  color: {r: 0.3, g: 0.8, b: 1, a: 1}
+  color: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

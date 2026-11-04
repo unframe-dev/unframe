@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from "vite-plus/test";
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Vector3 } from "three";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Line,
+  LineBasicMaterial,
+  Mesh,
+  MeshStandardMaterial,
+  Vector3,
+} from "three";
 import { VisualEffects, type EffectOptions } from "../effects";
 
 const options: EffectOptions = {
@@ -96,5 +105,50 @@ describe("standalone visual effects", () => {
     effects.evaluate(1200);
     expect(done).toHaveBeenCalledTimes(1);
     expect(target.children).toHaveLength(0);
+  });
+});
+
+describe("wave choreography", () => {
+  it("crosses behind the target and moves both ends while fading", () => {
+    const effects = new VisualEffects();
+    const target = new Group();
+    effects.play({ ...options, color: [1, 1, 1, 1] }, target);
+    effects.evaluate(850);
+    const lines = target.children[0]!.children as Line[];
+    const left = lines[0]!.geometry.getAttribute("position");
+    expect(left.getX(left.count - 1)).toBeGreaterThan(1);
+    expect(left.getX(0)).toBeLessThan(0);
+    for (let i = 0; i < left.count; i++) expect(left.getZ(i)).toBeLessThan(0);
+    const material = lines[0]!.material as LineBasicMaterial;
+    const held = material.opacity;
+    expect(held).toBeGreaterThan(0.9);
+    const headX = left.getX(left.count - 1);
+    const tailX = left.getX(0);
+    effects.evaluate(1000);
+    expect(left.getX(left.count - 1)).toBeGreaterThan(headX);
+    expect(left.getX(0)).toBeGreaterThan(tailX);
+    expect(material.opacity).toBeLessThan(held);
+    effects.dispose();
+  });
+  it("uses the LP palette with tint and seeded strand variation", () => {
+    const effects = new VisualEffects();
+    const target = new Group();
+    effects.play({ ...options, color: [1, 1, 1, 1] }, target);
+    effects.evaluate(850);
+    const lines = target.children[0]!.children as Line[];
+    expect((lines[0]!.material as LineBasicMaterial).color.equals(new Color("#7187f5"))).toBe(true);
+    const expected = new Color("#7187f5").lerp(new Color("#9a80d0"), 1 / 11 / 0.48);
+    expect((lines[1]!.material as LineBasicMaterial).color.equals(expected)).toBe(true);
+    expect((lines[1]!.material as LineBasicMaterial).opacity).toBeCloseTo(1);
+    expect((lines[11]!.material as LineBasicMaterial).color.equals(new Color("#df7b80"))).toBe(
+      true,
+    );
+    const first = Array.from(lines[0]!.geometry.getAttribute("position").array);
+    effects.dispose();
+    effects.play({ ...options, seed: 3 }, target);
+    effects.evaluate(850);
+    const second = (target.children[0]!.children[0] as Line).geometry.getAttribute("position");
+    expect(Array.from(second.array)).not.toEqual(first);
+    effects.dispose();
   });
 });

@@ -173,29 +173,45 @@ export class VisualEffects {
     group.visible = false;
     group.scale.setScalar(options.size);
     target.add(group);
-    const lines = Array.from({ length: 12 }, () => line(options, 48));
-    for (const item of lines) group.add(item);
+    const palette = ["#7187f5", "#9a80d0", "#df7b80"];
+    const lines = Array.from({ length: 12 }, (_, index) => {
+      const item = line(options, 96);
+      const t = index / 11;
+      const shade =
+        t <= 0.48
+          ? new Color(palette[0]).lerp(new Color(palette[1]), t / 0.48)
+          : new Color(palette[1]).lerp(new Color(palette[2]), (t - 0.48) / 0.52);
+      item.material.color.copy(shade).multiply(color(options));
+      group.add(item);
+      return item;
+    });
     return {
       sample(now: number) {
         const p = progress(options, now);
         group.visible = now >= options.startedAtRuntimeMs;
         lines.forEach((item, index) => {
-          const phase = Math.max(0, Math.min(1, (p - (index % 6) * 0.025) / 0.8));
+          const lane = index % 6;
+          let hash = options.seed ^ Math.imul(index + 1, 747796405) ^ 2891336453;
+          hash = Math.imul(hash ^ (hash >>> 16), 2246822519);
+          const random = (hash & 0x00ffffff) / 16777215;
+          const head = Math.max(0, (p - lane * 0.01) / 0.6);
+          const tail = Math.max(0, head - (0.72 + random * 0.2));
           const side = index < 6 ? -1 : 1;
           const positions = item.geometry.getAttribute("position");
           for (let i = 0; i < positions.count; i++) {
-            const u = i / (positions.count - 1);
+            const q = tail + ((head - tail) * i) / (positions.count - 1);
+            const phase = q * Math.PI * (5 + random * 6) + Math.sin(q * 8 + random * 10) * 1.3;
             positions.setXYZ(
               i,
-              side * (0.6 + 3 * (1 - phase) + u * 1.2),
-              ((index % 6) - 2.5) * 0.12 +
-                Math.sin(u * Math.PI * 4 + phase * 6 + (options.seed % 97)) * 0.12,
-              -0.4 - Math.sin(u * Math.PI) * 0.3,
+              side * (4 - 6 * q),
+              (lane - 2.5) * 0.12 + Math.sin(phase) * 0.15,
+              -1.8 * Math.sin(Math.PI * Math.min(q, 1) * 0.75),
             );
           }
           positions.needsUpdate = true;
           item.geometry.computeBoundingSphere();
-          item.material.opacity = options.color[3] * Math.sin(Math.PI * phase);
+          const fade = Math.min(1, head * 8) * Math.max(0, Math.min(1, (1 - p) / 0.2));
+          item.material.opacity = options.color[3] * fade;
         });
         return p >= 1;
       },

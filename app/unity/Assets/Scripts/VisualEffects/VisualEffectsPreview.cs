@@ -8,11 +8,12 @@ namespace Unframe.Unity.VisualEffects
     {
         [SerializeField, Range(0.25f, 2)] private float size = 1;
         [SerializeField, Range(0.25f, 3)] private float speed = 1;
-        [SerializeField] private Color color = Color.cyan;
+        [SerializeField] private Color color = Color.white;
         [SerializeField] private GestureRecognitionSettings recognition = new GestureRecognitionSettings();
         private VisualEffectPlayer player;
         private GameObject stage;
         private Material modelMaterial;
+        private Transform waveAnchor;
         private string handId;
         private int sequence;
         private string status = "Select an effect. Gesture buttons use synthetic samples, not device tracking.";
@@ -28,6 +29,9 @@ namespace Unframe.Unity.VisualEffects
             player = new VisualEffectPlayer();
             stage = new GameObject("Preview stage");
             stage.transform.SetParent(transform, false);
+            waveAnchor = new GameObject("Wave center").transform;
+            waveAnchor.SetParent(stage.transform, false);
+            waveAnchor.localPosition = Vector3.up;
             var camera = new GameObject("Preview camera").AddComponent<Camera>();
             camera.transform.SetParent(stage.transform, false);
             camera.transform.localPosition = new Vector3(0, 1, -7);
@@ -54,7 +58,7 @@ namespace Unframe.Unity.VisualEffects
         public void PlayWave()
         {
             Initialize();
-            player.PlayWave(Options(NextId(), 1600), stage.transform);
+            player.PlayWave(Options(NextId(), 3600), waveAnchor);
         }
         public void PlayDissolve()
         {
