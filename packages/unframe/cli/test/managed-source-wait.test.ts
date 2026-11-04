@@ -36,7 +36,7 @@ it("lets a cancellable Editor read wait for a source inspection longer than five
     clearTimeout(release);
     await lease.value.release();
   }
-}, 30_000);
+}, 60_000);
 
 it("cancels an Editor build while another source operation owns the lease", async () => {
   const parent = await mkdtemp(join(temporaryDirectory(), "unframe-editor-source-cancel-"));

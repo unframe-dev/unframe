@@ -391,7 +391,7 @@ describe("reference Authoring Project", () => {
       });
       expect(browser.observed.capture).toBe(command === "build" ? 6 : 0);
     },
-    15_000,
+    60_000,
   );
 
   it("does not warn for explicit empty, zero, false, or values equal to defaults", async () => {

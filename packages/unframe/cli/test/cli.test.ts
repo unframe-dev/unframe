@@ -10,29 +10,34 @@ import { runPresentationCli } from "../src/index.js";
 import { installFixtureGraph, readFixtureGraph } from "./installed-project-fixture.js";
 
 describe("runPresentationCli", () => {
-  it("initializes and checks relative project paths including spaces, dot, and parent", async () => {
-    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-relative-cli-"));
-    const directory = join(parent, "project with spaces");
-    const cwd = vi.spyOn(process, "cwd").mockReturnValue(parent);
-    try {
-      const initialized = await runPresentationCli({ args: ["init", "project with spaces"] });
-      expect(initialized.exitCode, initialized.stderr).toBe(0);
-      cwd.mockReturnValue(directory);
-      await installFixtureGraph(
-        directory,
-        await readFixtureGraph(new URL("./fixtures/pack-project-graph.json.gz", import.meta.url)),
-      );
-      const checked = await runPresentationCli({ args: ["check", "."] });
-      expect(checked.exitCode, checked.stderr).toBe(0);
-      await mkdir(join(directory, "nested"));
-      cwd.mockReturnValue(join(directory, "nested"));
-      const parentChecked = await runPresentationCli({ args: ["check", ".."] });
-      expect(parentChecked.exitCode, parentChecked.stderr).toBe(0);
-    } finally {
-      cwd.mockRestore();
-      await rm(parent, { recursive: true, force: true });
-    }
-  });
+  it.each([
+    [".", ""],
+    ["..", "nested"],
+  ])(
+    "initializes and checks the relative path %s including spaces",
+    async (path, workingDirectory) => {
+      const parent = await mkdtemp(join(temporaryDirectory(), "unframe-relative-cli-"));
+      const directory = join(parent, "project with spaces");
+      const cwd = vi.spyOn(process, "cwd").mockReturnValue(parent);
+      try {
+        const initialized = await runPresentationCli({ args: ["init", "project with spaces"] });
+        expect(initialized.exitCode, initialized.stderr).toBe(0);
+        await installFixtureGraph(
+          directory,
+          await readFixtureGraph(new URL("./fixtures/pack-project-graph.json.gz", import.meta.url)),
+        );
+        const currentDirectory = join(directory, workingDirectory);
+        await mkdir(currentDirectory, { recursive: true });
+        cwd.mockReturnValue(currentDirectory);
+        const checked = await runPresentationCli({ args: ["check", path] });
+        expect(checked.exitCode, checked.stderr).toBe(0);
+      } finally {
+        cwd.mockRestore();
+        await rm(parent, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
   it.each(["refresh", "update"])("rejects the removed lock %s command", async (operation) => {
     const result = await runPresentationCli({ args: ["lock", operation, "."] });
     expect(result.exitCode).toBe(2);

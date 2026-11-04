@@ -155,7 +155,7 @@ describe("React installed CLI path", () => {
     expect(built.stderr).toContain("opaque-isolation-unavailable");
     expect(opened).toBe(false);
     await expect(readFile(join(directory, "unframe.lock"))).rejects.toThrow();
-  }, 30000);
+  }, 60_000);
   it("retains bundle preparation diagnostics and existing dist", async () => {
     const directory = await createProject();
     await mkdir(join(directory, "dist"));

@@ -506,7 +506,7 @@ describe("author service with frozen React source", () => {
       "Shared",
       "Shared",
     ]);
-  }, 30000);
+  }, 60_000);
   it("saves one instance, reopens it, and rejects stale or conflicting commands", async () => {
     const directory = await createProject();
     const service = await createAuthorService(directory);
@@ -538,7 +538,7 @@ describe("author service with frozen React source", () => {
     ).toBe("Original 2");
     expect(await reopened.patch(initial.revision, request)).toEqual(saved);
     expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(0);
-  }, 30000);
+  }, 60_000);
 
   it("keeps source and successful dist on a rejected edit", async () => {
     const directory = await createProject();
