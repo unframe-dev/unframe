@@ -41,6 +41,92 @@ function setup() {
   };
 }
 describe("project controller", () => {
+  it("replaces only the edited prop and preserves previous snapshots", async () => {
+    const { controller, update } = setup();
+    const initial = snapshot();
+    initial.instances[0]!.props.other = { type: "string", value: "other", editable: true };
+    update(initial);
+    await controller.refresh();
+    controller.selectInstance("card");
+    const before = controller.store.getState().draft!;
+    controller.editProp("title", "typed");
+    const after = controller.store.getState().draft!;
+    expect(after.props.title?.value).toBe("typed");
+    expect(before.props.title?.value).toBe("before");
+    expect(initial.instances[0]!.props.title?.value).toBe("before");
+    expect(after.props.other).toBe(before.props.other);
+    expect(after.transform).toBe(before.transform);
+    controller.dispose();
+  });
+
+  it("tracks individual changed props and becomes clean only after every value is restored", async () => {
+    const { controller, update } = setup();
+    const initial = snapshot();
+    initial.instances[0]!.props.other = { type: "string", value: "other", editable: true };
+    update(initial);
+    await controller.refresh();
+    controller.selectInstance("card");
+    controller.editProp("title", "typed");
+    controller.editProp("other", "changed");
+    expect(controller.store.getState().dirtyPropIds).toEqual(new Set(["title", "other"]));
+    controller.editProp("title", "before");
+    expect(controller.store.getState().dirtyPropIds).toEqual(new Set(["other"]));
+    expect(controller.store.getState().status).toBe("dirty");
+    controller.editProp("other", "other");
+    expect(controller.store.getState().dirtyPropIds.size).toBe(0);
+    expect(controller.store.getState().status).toBe("clean");
+    controller.dispose();
+  });
+
+  it("reuses the dirty selection while typing and ignores unchanged values", async () => {
+    const { controller } = setup();
+    await controller.refresh();
+    controller.selectInstance("card");
+    controller.editProp("title", "t");
+    const changed = controller.store.getState().dirtyPropIds;
+    controller.editProp("title", "typed");
+    expect(controller.store.getState().dirtyPropIds).toBe(changed);
+    const current = controller.store.getState();
+    controller.editProp("title", "typed");
+    expect(controller.store.getState()).toBe(current);
+    controller.discard();
+    expect(controller.store.getState().dirtyPropIds.size).toBe(0);
+    expect(changed).toEqual(new Set(["title"]));
+    controller.dispose();
+  });
+
+  it("keeps changes clean across save, Undo and Redo", async () => {
+    const { controller, api, update } = setup();
+    let revision = 1;
+    api.patch.mockImplementation(async (_base, request) => {
+      const next = snapshot(
+        `r${++revision}`,
+        String(request.command.kind === "setProp" ? request.command.value : "before"),
+      );
+      update(next);
+      return {
+        revision: next.revision,
+        sourceHash: next.sourceHash,
+        irHash: "ir",
+        commandId: request.commandId,
+      };
+    });
+    await controller.refresh();
+    controller.selectInstance("card");
+    controller.editProp("title", "after");
+    await controller.saveProp("title");
+    expect(controller.store.getState().dirtyPropIds.size).toBe(0);
+    await controller.undo();
+    expect(controller.store.getState().draft?.props.title?.value).toBe("before");
+    expect(controller.store.getState().dirtyPropIds.size).toBe(0);
+    expect(controller.store.getState().status).toBe("clean");
+    await controller.redo();
+    expect(controller.store.getState().draft?.props.title?.value).toBe("after");
+    expect(controller.store.getState().dirtyPropIds.size).toBe(0);
+    expect(controller.store.getState().status).toBe("clean");
+    controller.dispose();
+  });
+
   it("clears a transient project read error after a successful refresh", async () => {
     const { controller, api } = setup();
     api.project.mockRejectedValueOnce(new Error("Project source is busy"));
@@ -77,6 +163,10 @@ describe("project controller", () => {
       draft: { props: { title: { value: "draft" } } },
       project: { revision: "external" },
     });
+    expect(controller.store.getState().dirtyPropIds).toEqual(new Set(["title"]));
+    controller.discard();
+    expect(controller.store.getState().dirtyPropIds.size).toBe(0);
+    expect(controller.store.getState().draft?.props.title?.value).toBe("external");
     controller.dispose();
   });
   it("retries an uncertain save using the same command and base revision", async () => {
@@ -156,6 +246,7 @@ describe("project controller", () => {
       status: "dirty",
       draft: { props: { other: { value: "unsaved" } } },
     });
+    expect(controller.store.getState().dirtyPropIds).toEqual(new Set(["other"]));
     controller.dispose();
   });
   it("keeps input entered while a saved snapshot is being reloaded", async () => {
@@ -180,6 +271,7 @@ describe("project controller", () => {
       draft: { props: { title: { value: "next input" } } },
       project: { instances: [{ props: { title: { value: "after" } } }] },
     });
+    expect(controller.store.getState().dirtyPropIds).toEqual(new Set(["title"]));
     controller.dispose();
   });
   it("ignores an older read that completes after a newer read", async () => {

@@ -17,6 +17,7 @@ namespace Unframe.Unity.PresentationRuntime
         private PresentationBakedRuntime runtime;
         private Transform trackingOrigin;
         private Transform head;
+        private Camera headCamera;
         private QuestPresentationStatusView ui;
         private GameObject visuals;
         private readonly QuestMotionArmRig[] arms = new QuestMotionArmRig[2];
@@ -41,6 +42,7 @@ namespace Unframe.Unity.PresentationRuntime
             runtime = source;
             trackingOrigin = origin;
             head = headTransform;
+            headCamera = head != null ? head.GetComponent<Camera>() : null;
             ui = statusView;
         }
 
@@ -53,7 +55,7 @@ namespace Unframe.Unity.PresentationRuntime
             state.Refresh(runtime?.InputSynchronization?.Catalog, progression,
                 runtime != null && runtime.IsPresenter && runtime.CanSendInput,
                 runtime != null && runtime.CalibrationReady, runtime?.DataStore.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running,
-                headTracked && head != null && trackingOrigin != null, leftTracked, rightTracked, ui == null || ui.MenuOpen);
+                headTracked && head != null && headCamera != null && trackingOrigin != null, leftTracked, rightTracked, ui == null || ui.MenuOpen);
             if (state.Candidates.Count == 0) { Hide(); return; }
             int signature = 17;
             for (int candidate = 0; candidate < state.Candidates.Count; candidate++)
@@ -69,8 +71,9 @@ namespace Unframe.Unity.PresentationRuntime
             int index = (int)((Time.realtimeSinceStartupAsDouble - candidateStartedAt) / 6) % state.Candidates.Count;
             GestureKind selected = state.Candidates[index];
             bool candidateChanged = framedCue != selected.ToString();
-            Quaternion targetRotation = head.rotation;
-            Vector3 targetAnchor = head.position + targetRotation * new Vector3(0, -.3f, 1.05f);
+            Quaternion targetRotation = QuestMotionGuideGeometry.GetYawRotation(head.rotation);
+            Vector3 targetAnchor = QuestMotionGuideGeometry.GetAnchorPosition(head.position, targetRotation,
+                headCamera.fieldOfView, headCamera.aspect);
             if (!hasGuideFrame)
             {
                 anchor = targetAnchor;
@@ -83,7 +86,6 @@ namespace Unframe.Unity.PresentationRuntime
                 anchor = Vector3.Lerp(anchor, targetAnchor, follow);
                 guideRotation = Quaternion.Slerp(guideRotation, targetRotation, follow);
             }
-            // Keep gesture directions in the recognizer's horizontal frame while the panel follows the head.
             QuestMotionGuideGeometry.GetFrame(guideRotation, out forward, out right);
             bool both = (int)selected >= 7;
             bool firstLeft = leftTracked;
@@ -91,7 +93,11 @@ namespace Unframe.Unity.PresentationRuntime
             EnsureVisuals();
             if (visuals == null) return;
             visuals.SetActive(true);
-            instructionPanel.SetPositionAndRotation(anchor + guideRotation * Vector3.up * .3f, guideRotation);
+            Vector3 instructionPosition = QuestMotionGuideGeometry.GetInstructionPosition(anchor, guideRotation);
+            instructionPanel.SetPositionAndRotation(instructionPosition,
+                QuestMotionGuideGeometry.GetFacingRotation(instructionPosition, head.position, head.rotation));
+            float viewportScale = QuestMotionGuideGeometry.GetViewportScale(headCamera.fieldOfView, headCamera.aspect);
+            instructionPanel.localScale = Vector3.one * (.00022f * viewportScale);
             if (candidateChanged) label.text = Description((int)selected);
             Quaternion motionFrame = Quaternion.LookRotation(forward, Vector3.up);
             Vector3 diagramOrigin = anchor;
@@ -101,7 +107,7 @@ namespace Unframe.Unity.PresentationRuntime
                 bool shown = both || left == firstLeft;
                 arms[i].SetVisible(shown);
                 if (!shown) continue;
-                arms[i].Play(diagramOrigin, motionFrame, selected);
+                arms[i].Play(diagramOrigin, motionFrame, selected, viewportScale);
             }
         }
 
@@ -126,24 +132,20 @@ namespace Unframe.Unity.PresentationRuntime
                 canvasHost.GetComponent<Canvas>().sortingOrder = 10;
                 QuestPresentationUiFont.ConfigureCanvas(canvasHost.GetComponent<Canvas>());
                 instructionPanel = canvasHost.GetComponent<RectTransform>();
-                instructionPanel.sizeDelta = new Vector2(600, 100);
-                instructionPanel.localScale = Vector3.one * .0008f;
+                instructionPanel.sizeDelta = new Vector2(640, 140);
+                instructionPanel.localScale = Vector3.one * .00022f;
                 var backplate = canvasHost.AddComponent<Image>();
-                backplate.color = new Color(.025f, .045f, .075f, .94f);
-                backplate.raycastTarget = false;
+                QuestPresenterUiStyle.ApplySurface(backplate);
                 var textHost = new GameObject("Instruction text", typeof(RectTransform));
                 textHost.transform.SetParent(canvasHost.transform, false);
                 var textRect = textHost.GetComponent<RectTransform>();
                 textRect.anchorMin = Vector2.zero;
                 textRect.anchorMax = Vector2.one;
-                textRect.offsetMin = new Vector2(20, 10);
-                textRect.offsetMax = new Vector2(-20, -10);
+                textRect.offsetMin = new Vector2(28, 18);
+                textRect.offsetMax = new Vector2(-28, -18);
                 label = textHost.AddComponent<Text>();
-                label.font = QuestPresentationUiFont.Load();
-                label.fontSize = 36;
+                QuestPresenterUiStyle.ConfigureText(label, 34);
                 label.alignment = TextAnchor.MiddleCenter;
-                label.color = Color.white;
-                label.raycastTarget = false;
                 label.horizontalOverflow = HorizontalWrapMode.Wrap;
             }
             catch (Exception)
@@ -156,18 +158,20 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static string Description(int preset)
         {
+            string action;
             switch (preset)
             {
-                case 1: return "左へ薙ぎ払う";
-                case 2: return "右へ薙ぎ払う";
-                case 3: return "振り下ろす";
-                case 4: return "振りかぶる";
-                case 5: return "押し出す";
-                case 6: return "手前へ引く";
-                case 7: return "両手を広げる";
-                case 8: return "両手を寄せる";
+                case 1: action = "左へ薙ぎ払う"; break;
+                case 2: action = "右へ薙ぎ払う"; break;
+                case 3: action = "振り下ろす"; break;
+                case 4: action = "振りかぶる"; break;
+                case 5: action = "押し出す"; break;
+                case 6: action = "手前へ引く"; break;
+                case 7: action = "両手を広げる"; break;
+                case 8: action = "両手を寄せる"; break;
                 default: return String.Empty;
             }
+            return (preset >= 7 ? "両トリガーを押したまま\n" : "トリガーを押したまま\n") + action;
         }
 
         private void Hide()

@@ -1,4 +1,11 @@
 import type { AuthorInstance, EditCommand } from "@unframe-dev/contracts/author-http";
+export function changedPropIds(draft: AuthorInstance | null, original: AuthorInstance | undefined) {
+  return new Set(
+    Object.entries(draft?.props ?? {})
+      .filter(([id, prop]) => !Object.is(prop.value, original?.props[id]?.value))
+      .map(([id]) => id),
+  );
+}
 export function inverseProp(instance: AuthorInstance, propId: string): EditCommand | null {
   const prop = instance.props[propId];
   if (!prop?.editable) return null;

@@ -217,7 +217,11 @@ export const createLocalPlayback = ({
       return copy(lastResponse!);
     }
     if (command.command === "recover") {
-      if (!lastGood || command.sequence !== lastResponse?.state.sequence)
+      if (
+        !lastGood ||
+        (command.sequence !== lastResponse?.state.sequence &&
+          command.sequence !== acknowledgedSequence)
+      )
         reject("No confirmed playback state is available for recovery.");
       const restored = lastGood ?? reject("No confirmed playback state is available for recovery.");
       state = copy(restored.state);

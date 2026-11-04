@@ -23,6 +23,7 @@ function fixture() {
   let sequence = 0;
   const commands: PreviewPlaybackCommand[] = [];
   const api = {
+    subscribePlayback: () => () => undefined,
     invalidateDisplay: async () => undefined,
     preview: async (body: { requestId: string }) => ({
       requestId: body.requestId,
@@ -1065,3 +1066,33 @@ it.each(["resolve", "reject"])(
     }
   },
 );
+
+it("restores and pauses after Unity rejects an ordinary playback update", async () => {
+  const { api, driver, commands } = fixture();
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dist", "r");
+    await vi.waitFor(() => expect(controller.store.getState().playback).not.toBeNull());
+    driver.restore = vi.fn(async () => undefined);
+    driver.playback = vi
+      .fn(async () => undefined)
+      .mockRejectedValueOnce(
+        new UnityExchangeError("preview.input-invalid", {
+          kind: "failed",
+          requestId: controller.store.getState().loaded!.requestId,
+          sequence: "2",
+          outcome: "rejected",
+          phase: "apply",
+        }),
+      );
+    controller.playback.command({ command: "play" });
+    await vi.waitFor(() => expect(driver.restore).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(controller.store.getState().status).toBe("ready"));
+    expect(commands).not.toContainEqual(
+      expect.objectContaining({ command: "applied", sequence: "2" }),
+    );
+    expect(controller.store.getState().playback?.state.clock).toHaveProperty("paused");
+  } finally {
+    await controller.dispose();
+  }
+});

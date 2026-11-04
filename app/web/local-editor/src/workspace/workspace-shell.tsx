@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { Modal } from "../ui/dialog";
 import { useStore } from "zustand";
 import { useWorkspace } from "../app/workspace-provider";
@@ -69,17 +69,31 @@ function FlowGraph() {
   const w = useWorkspace();
   const definition = useStore(w.project.store, (s) => s.project?.definition);
   const selection = useStore(w.ui, (s) => s.selection);
-  const playback = useStore(w.preview.store, (s) => s.playback);
-  const followingPlayback = playback?.mode === "normal" && !!playback.state.clock?.running;
+  const followingGroupId = useStore(w.preview.store, (s) =>
+    s.playback?.mode === "normal" && s.playback.state.clock?.running ? s.playback.groupId : null,
+  );
+  const followingPlayback = followingGroupId !== null;
   const group = definition
     ? createTimelineView(definition).groups.find(
-        (g) =>
-          g.id ===
-          (followingPlayback
-            ? playback.groupId
-            : (selection.groupId ?? definition.flow.initialGroupId)),
+        (g) => g.id === (followingGroupId ?? selection.groupId ?? definition.flow.initialGroupId),
       )
     : null;
+  const currentStepId = useStore(w.preview.store, (s) =>
+    s.playback?.groupId === group?.id ? (s.playback?.stepId ?? null) : null,
+  );
+  const groupId = group?.id;
+  const onSelectCue = useCallback(
+    (stepId: string, cueId: string) => {
+      if (groupId) w.commands.selectFlow({ groupId, stepId, cueId });
+    },
+    [w, groupId],
+  );
+  const onSelectStep = useCallback(
+    (stepId: string) => {
+      if (groupId) w.commands.selectFlow({ groupId, stepId, cueId: null });
+    },
+    [w, groupId],
+  );
   return group ? (
     <div className="flow-graph-panel">
       <ProgressionTimeline
@@ -87,9 +101,9 @@ function FlowGraph() {
         followingPlayback={followingPlayback}
         selectedStepId={selection.groupId === group.id ? selection.stepId : null}
         selectedCueId={selection.groupId === group.id ? selection.cueId : null}
-        currentStepId={playback?.groupId === group.id ? playback.stepId : null}
-        onSelectCue={(stepId, cueId) => w.commands.selectFlow({ groupId: group.id, stepId, cueId })}
-        onSelectStep={(stepId) => w.commands.selectFlow({ groupId: group.id, stepId, cueId: null })}
+        currentStepId={currentStepId}
+        onSelectCue={onSelectCue}
+        onSelectStep={onSelectStep}
       />
     </div>
   ) : (

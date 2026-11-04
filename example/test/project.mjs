@@ -10,6 +10,7 @@ import { createCueState } from "@unframe-dev/playback";
 import presentation from "../presentation.unframe.tsx";
 import { OpeningBrand } from "../opening.component.tsx";
 import { OriginalPanel } from "../original-panel.component.tsx";
+import { RejectionMark } from "../rejection.component.tsx";
 import config from "../unframe.config.ts";
 
 const assets = Object.fromEntries(
@@ -32,6 +33,7 @@ const components = await Promise.all(
   [
     ["opening.component.tsx", OpeningBrand],
     ["original-panel.component.tsx", OriginalPanel],
+    ["rejection.component.tsx", RejectionMark],
   ].map(async ([file, component]) => {
     const metadata = validateRuntimeReactComponent(component);
     const manifest = buildOpaqueComponentManifest(metadata, `${file}#render`);

@@ -1,6 +1,6 @@
 # 成果発表会 MR デモプレゼンの演出構成
 
-ステータス: 制作中（2026-11-04）。`example/` に開幕と当初のプレゼンを実装。場面3以降は構成案であり、実装済み機能や動作を保証する仕様ではない。
+ステータス: 制作中（2026-11-04）。`example/` に開幕、当初のプレゼン、×による転換を実装。場面4以降は構成案であり、実装済み機能や動作を保証する仕様ではない。
 
 ## 目的と前提
 
@@ -46,7 +46,14 @@
 - 仮の題材は立方体。中央左のダークパネルに2枚の説明を用意し、右にコーラルから青紫の立方体を置く。
 - 通常再生中、開幕完了後に `next-scene` で登場、`next-panel` で2枚目へ進み、`rotate-cube` で10秒かけて一回転する。回転後は停止し、パネルと左上のロゴを維持する。
 - パネルは `original-panel.component.tsx`、登場と回転は `original.timelines.ts` で定義する。日本語は同梱の Noto Sans CJK JP Regular を使用する。
-- `example/assets/cube.glb` は `pnpm --filter @unframe-dev/demo-presentation prepare:cube` で再生成する。×による退場は未実装。
+- `example/assets/cube.glb` は `pnpm --filter @unframe-dev/demo-presentation prepare:cube` で再生成する。
+
+## 違和感と転換
+
+- 立方体の回転完了後、`reject-original`（`presenter.next`）で開始する。回転中と転換中の追加入力は受け付けない。
+- 0.6秒静止した後、中央手前の赤い×を0.22秒で拡大しながら表示する。0.6秒見せてから、×・パネル・立方体を0.7秒かけて下へフェード退場させる。
+- 左上のロゴと `Unframe` は維持し、次の場面を接続するまで待機する。
+- ×は `rejection.component.tsx`、演出は `rejection.timeline.ts` で定義する。HMD・スマートフォン・ミラーリングでの見え方は未確認。
 
 ## 次に決めること
 

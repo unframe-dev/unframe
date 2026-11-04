@@ -102,7 +102,6 @@ test("3 秒で移動を終え、Unframe を左上で維持する", () => {
   const later = advanceCueClock(definition, completed, 10001).state;
   assert.deepEqual(later.nodes[brandId], completed.nodes[brandId]);
   assert.equal(later.activeRuns.length, 0);
-  assert.equal(Object.keys(definition.scene.surfaces).length, 2);
   const surface = definition.scene.surfaces[reactResourceId("surface", "brand")];
   assert.equal(Object.values(surface.baseSemanticTree.nodes)[0].text, "Unframe");
 });

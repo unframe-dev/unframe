@@ -6,7 +6,7 @@ import type {
   ProjectChange,
 } from "@unframe-dev/contracts/author-http";
 import { createProjectStore, type SaveAction, type PendingSave } from "./project-store";
-import { inverseProp, validProp } from "./edit-state";
+import { changedPropIds, inverseProp, validProp } from "./edit-state";
 type ProjectPort = {
   projectChanges(cursor?: string, signal?: AbortSignal): Promise<ProjectChange>;
   project(signal?: AbortSignal): Promise<ProjectSnapshot>;
@@ -38,6 +38,7 @@ export function createProjectController({
       const instance = next.instances.find((i) => i.instanceId === old.selectedId);
       store.setState({
         project: next,
+        dirtyPropIds: old.status === "clean" ? new Set() : changedPropIds(old.draft, instance),
         ...(old.status === "clean" ? { draft: instance ? structuredClone(instance) : null } : {}),
       });
       onProject(next);
@@ -47,6 +48,7 @@ export function createProjectController({
     const selected = next.instances.find((i) => i.instanceId === old.selectedId);
     store.setState({
       project: next,
+      dirtyPropIds: protect ? changedPropIds(old.draft, selected) : new Set(),
       ...(!own ? { undo: [], redo: [] } : {}),
       ...(protect
         ? { status: old.status === "saving" ? "saving" : "conflict" }
@@ -119,6 +121,7 @@ export function createProjectController({
     store.setState({
       selectedId: instance?.instanceId ?? null,
       draft: instance ? structuredClone(instance) : null,
+      dirtyPropIds: new Set(),
       baseRevision: s.project?.revision ?? null,
       error: null,
     });
@@ -134,12 +137,27 @@ export function createProjectController({
       !validProp(s.draft, propId, value)
     )
       return;
-    const draft = structuredClone(s.draft);
-    draft.props[propId]!.value = value;
+    if (Object.is(s.draft.props[propId]!.value, value)) {
+      if (s.error !== null) store.setState({ error: null });
+      return;
+    }
+    const draft = {
+      ...s.draft,
+      props: { ...s.draft.props, [propId]: { ...s.draft.props[propId]!, value } },
+    };
     const original = s.project?.instances.find((i) => i.instanceId === s.selectedId);
+    let dirtyPropIds = s.dirtyPropIds;
+    const changed = !Object.is(value, original?.props[propId]?.value);
+    if (changed !== dirtyPropIds.has(propId)) {
+      const updated = new Set(dirtyPropIds);
+      if (changed) updated.add(propId);
+      else updated.delete(propId);
+      dirtyPropIds = updated;
+    }
     store.setState({
       draft,
-      status: JSON.stringify(draft.props) === JSON.stringify(original?.props) ? "clean" : "dirty",
+      dirtyPropIds,
+      status: dirtyPropIds.size ? "dirty" : "clean",
       error: null,
     });
   }
@@ -149,6 +167,7 @@ export function createProjectController({
     const instance = s.project?.instances.find((i) => i.instanceId === s.selectedId);
     store.setState({
       draft: instance ? structuredClone(instance) : null,
+      dirtyPropIds: new Set(),
       baseRevision: s.project?.revision ?? null,
       status: "clean",
       error: null,
@@ -182,11 +201,8 @@ export function createProjectController({
       }
       const draft = s.draft ? structuredClone(s.draft) : null;
       const command = pending.request.command;
-      const original = s.project?.instances.find((i) => i.instanceId === s.selectedId);
-      const remaining = Object.entries(draft?.props ?? {}).filter(
-        ([id, prop]) =>
-          !(command.kind === "setProp" && command.propId === id) &&
-          !Object.is(prop.value, original?.props[id]?.value),
+      const remaining = new Set(
+        [...s.dirtyPropIds].filter((id) => !(command.kind === "setProp" && command.propId === id)),
       );
       if (
         draft &&
@@ -215,7 +231,8 @@ export function createProjectController({
         project,
         draft,
         baseRevision: saved.revision,
-        status: remaining.length ? "dirty" : "clean",
+        dirtyPropIds: remaining,
+        status: remaining.size ? "dirty" : "clean",
         pending: null,
         undo,
         redo,
@@ -229,20 +246,19 @@ export function createProjectController({
         if (!disposed && version === epoch && serial === readSerial) {
           if (latest.revision === saved.revision) {
             const current = state();
-            const base = current.project?.instances.find(
-              (i) => i.instanceId === current.selectedId,
-            );
-            const dirty = Object.entries(current.draft?.props ?? {}).filter(
-              ([id, prop]) => !Object.is(prop.value, base?.props[id]?.value),
-            );
             const instance = latest.instances.find((i) => i.instanceId === current.selectedId);
             const refreshed = instance ? structuredClone(instance) : null;
             if (refreshed)
-              for (const [id, prop] of dirty) refreshed.props[id] = structuredClone(prop);
+              for (const id of current.dirtyPropIds) {
+                const prop = current.draft?.props[id];
+                if (prop) refreshed.props[id] = structuredClone(prop);
+              }
+            const dirtyPropIds = changedPropIds(refreshed, instance);
             store.setState({
               project: latest,
               draft: refreshed,
-              status: dirty.length ? "dirty" : "clean",
+              dirtyPropIds,
+              status: dirtyPropIds.size ? "dirty" : "clean",
             });
             onProject(latest);
           } else accept(latest);

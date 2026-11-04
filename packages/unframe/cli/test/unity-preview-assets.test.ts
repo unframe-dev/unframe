@@ -13,9 +13,11 @@ it("配布 Player の追加アセットも読み込む", async () => {
       await writeFile(join(root, "Build", `UnframePreview.${suffix}`), suffix);
     await writeFile(join(root, "StreamingAssets", "extra.bin"), "extra");
     const assets = await loadUnityPreviewAssets(root);
-    expect(
-      new TextDecoder().decode(assets.get("/unity-preview/StreamingAssets/extra.bin")?.bytes),
-    ).toBe("extra");
+    expect(assets.get("/unity-preview/StreamingAssets/extra.bin")).toEqual({
+      root: expect.any(String),
+      relative: "StreamingAssets/extra.bin",
+      mediaType: "application/octet-stream",
+    });
   } finally {
     await rm(root, { recursive: true, force: true });
   }

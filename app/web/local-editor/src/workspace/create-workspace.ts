@@ -204,7 +204,10 @@ export function createWorkspace({
       unsubscribe();
       project.dispose();
       publication.dispose();
-      void preview.dispose().catch(() => undefined);
+      void preview
+        .dispose()
+        .catch(() => undefined)
+        .finally(() => api.dispose?.());
       failureListeners.clear();
       presenterListeners.clear();
       interactionListeners.clear();

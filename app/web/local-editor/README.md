@@ -36,6 +36,8 @@ nix run .#local-editor -- dev ./example
 
 UI の準備ができると CLI が Editor をブラウザで開きます。`Ctrl+C` で両方を終了します。port 5174 が使用中の場合は、既存のサーバーを終了してから起動してください。CLI 起動後は表示された Editor URL を直接開いても接続でき、再読み込みや別タブでも認証操作は不要です。接続用 token は起動時に Host から取得し、メモリーだけに保持します。UI は HMR で変更を反映し、API と Player の要求を CLI に proxy します。同じ Host の UI HMR では認証済み Workspace、選択、パネル配置、未保存入力と Unity canvas を保持します。ページ全体の再読み込みでは未保存入力を保持しません。controller や Host の処理を変更した場合は再起動してください。
 
+CLI Host は UI／Player のファイル内容を起動時には読み込みません。要求時に内容を検証して一時ディスクへコピーし、以後は元ファイルの変更を確認して再利用します。静的ファイルは内容の SHA-256 を ETag として再検証し、API と接続 token は `no-store` で返します。一時コピーには少なくとも要求済みファイルと同量の空き容量が必要で、Host 終了時に削除します。
+
 配布物は `pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor exec pnpm pack` で生成します。pack は現在の Unity Player と UI をビルドし、両方を同梱します。
 
 `unframe preview <dist-directory>` が開く `/dist-preview` は、固定 Dist の閲覧専用です。Dist が symlink の場合は `realpath` で解決したディレクトリを渡してください。Source 編集・Dev build・公開操作を表示せず、通常再生を利用できます。ブラウザが動画の自動再生を拒否した場合は一時停止し、「再生」の操作で再開します。
