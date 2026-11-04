@@ -18,7 +18,7 @@ CLI のディレクトリ引数は、実行時の作業ディレクトリを基�
 
 ### リポジトリでの開発
 
-対象 host は Linux x86_64 と macOS arm64、配布 CLI の実行には Node.js 24 以降が必要です。native 隔離の保証差と実機検証結果は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。利用者は配布された UI と Unity Preview Player を使用できます。配布物を作る場合は Unity Editor 6000.3.22f1 の WebGL module と license が必要です。
+対象 host は Linux x86_64 と macOS arm64、配布 CLI の実行には Node.js 24 以降が必要です。native 隔離の保証差と実機検証結果は [ADR-0026](../../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。利用者は配布された UI と Unity Preview Player を使用できます。配布物を作る場合は [ProjectVersion.txt](../../unity/ProjectSettings/ProjectVersion.txt) と一致する Unity Editor、WebGL module と license が必要です。標準の Unity Hub 配置以外にインストールした場合は、`UNITY_EDITOR` に実行ファイルのパスを設定してください。
 
 リポジトリで開発する場合は、依存関係と固定 Browser を準備し、配布用 UI と Player をビルドします。
 
@@ -28,7 +28,7 @@ nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor run build:distribution
 ```
 
-開発時は次の1コマンドで UI 開発サーバーと CLI を起動します。 API と Player のリクエストは CLI の準備完了まで最大20秒待機し、準備できない場合は503で終了します。
+開発時は次の1コマンドで native filesystem helper、解析 Worker、スタイル処理用 compiler と依存スナップショットをビルドしてから、UI 開発サーバーと CLI を起動します。準備に失敗した場合は起動しません。UI と Unity Preview Player は上記の初回ビルドが必要です。API と Player のリクエストは CLI の準備完了まで最大20秒待機し、準備できない場合は503で終了します。
 
 ```bash
 nix run .#local-editor -- dev ./example

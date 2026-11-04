@@ -16,7 +16,7 @@ app/
 │   ├── audience/     React / 8th Wall / Three.js audience viewer
 │   └── lp/           SvelteKit landing page and documentation site (WIP)
 ├── server/    Control Plane and Realtime Backend (WIP)
-└── unity/     Unity 6000.3.22f1 MR application (WIP)
+└── unity/     Unity 6000.3.27f2 MR application (WIP)
 
 docs/          Architecture, API, ADR, and plan documentation
 packages/

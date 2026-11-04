@@ -35,7 +35,7 @@
     "build": "NODE_OPTIONS=--max-old-space-size=8192 vp pack",
     "check": "pnpm --config.verify-deps-before-run=false typecheck && pnpm --config.verify-deps-before-run=false lint && pnpm --config.verify-deps-before-run=false test && pnpm --config.verify-deps-before-run=false test:tui && pnpm --config.verify-deps-before-run=false build",
     "pretest": "bash ../../../scripts/build-cli-filesystem.sh && pnpm --config.verify-deps-before-run=false run build:analysis",
-    "predev": "bash ../../../scripts/build-cli-filesystem.sh && pnpm --config.verify-deps-before-run=false run build:analysis",
+    "predev": "bash ../../../scripts/build-cli-filesystem.sh && pnpm --config.verify-deps-before-run=false --filter @unframe-dev/styles-node run build && pnpm --config.verify-deps-before-run=false run build:analysis",
     "prepresentation": "bash ../../../scripts/build-cli-filesystem.sh && pnpm --config.verify-deps-before-run=false run build:analysis",
     "pretui": "bash ../../../scripts/build-cli-filesystem.sh && pnpm --config.verify-deps-before-run=false run build:analysis",
     "pretest:tui": "bash ../../../scripts/build-cli-filesystem.sh && pnpm --config.verify-deps-before-run=false run build:analysis",
