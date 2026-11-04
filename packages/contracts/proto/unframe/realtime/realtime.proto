@@ -22,6 +22,7 @@ message ControlClientItem {
     GestureInputCommand gesture_input = 100;
     ZoneInputCommand zone_input = 101;
     InputSynchronizationAck input_synchronization_ack = 102;
+    PresentationOriginCommand presentation_origin = 103;
   }
   reserved 4 to 19;
   reserved 23 to 99;
@@ -129,6 +130,14 @@ message RuntimeControlCommand {
   uint64 presentation_origin_version = 3;
   uint64 command_epoch = 4;
   StepSelection step_selection = 5;
+}
+
+// Replaces the absolute presentationFromStage pose at an expected origin cut.
+message PresentationOriginCommand {
+  string client_event_id = 1;
+  uint64 expected_presentation_origin_version = 2;
+  unframe.presentation.Pose pose = 3;
+  uint64 command_epoch = 4;
 }
 
 message InputContext {
@@ -981,6 +990,7 @@ message TrackingFrame {
   uint64 captured_at_client_monotonic_ms = 2;
   repeated TrackedPoseSample samples = 3;
   unframe.presentation.Pose presentation_from_quest_local = 4;
+  uint64 presentation_origin_version = 5;
 }
 
 message StateServerItem {
