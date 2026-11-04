@@ -8,6 +8,7 @@ import { afterEach, test } from "node:test";
 
 const scope = fileURLToPath(new URL("./opaque-capture-scope.sh", import.meta.url));
 const environment = fileURLToPath(new URL("./native-env.sh", import.meta.url));
+const unityEditor = fileURLToPath(new URL("../unity/editor.sh", import.meta.url));
 const directories: string[] = [];
 afterEach(() => {
   for (const directory of directories.splice(0))
@@ -90,4 +91,66 @@ test("the Nix command wrapper rejects an unsupported host before executing it", 
       }),
     /Supported hosts/,
   );
+});
+
+test("Linux Unity can write temporary files when the outer Nix directory is unavailable", () => {
+  const directory = mkdtempSync(join(tmpdir(), "unframe-unity-temp-"));
+  directories.push(directory);
+  const unavailable = join(directory, "nix-shell.missing");
+  const result = execFileSync(
+    "bash",
+    [
+      unityEditor,
+      "-e",
+      `const fs = require("node:fs");
+      const path = require("node:path");
+      const values = ["TMPDIR", "TMP", "TEMP"].map((name) => {
+        const directory = fs.mkdtempSync(path.join(process.env[name], "unframe-unity-"));
+        fs.rmdirSync(directory);
+        return process.env[name];
+      });
+      process.stdout.write(JSON.stringify(values));`,
+    ],
+    {
+      env: {
+        ...host("Linux", "x86_64"),
+        UNITY_EDITOR: process.execPath,
+        TMPDIR: unavailable,
+        TMP: unavailable,
+        TEMP: unavailable,
+      },
+      encoding: "utf8",
+      stdio: "pipe",
+    },
+  );
+  assert.deepEqual(JSON.parse(result), ["/tmp", "/tmp", "/tmp"]);
+});
+
+test("macOS Unity preserves the host temporary directories and command arguments", () => {
+  const directory = mkdtempSync(join(tmpdir(), "unframe-unity-temp-"));
+  directories.push(directory);
+  const temporary = {
+    TMPDIR: directory,
+    TMP: join(directory, "tmp"),
+    TEMP: join(directory, "temp"),
+  };
+  const result = execFileSync(
+    "bash",
+    [
+      unityEditor,
+      "-e",
+      `process.stdout.write(JSON.stringify({
+        TMPDIR: process.env.TMPDIR, TMP: process.env.TMP, TEMP: process.env.TEMP,
+        args: process.argv.slice(1),
+      }));`,
+      "--",
+      "two words",
+      "final",
+    ],
+    {
+      env: { ...host("Darwin", "arm64"), UNITY_EDITOR: process.execPath, ...temporary },
+      encoding: "utf8",
+    },
+  );
+  assert.deepEqual(JSON.parse(result), { ...temporary, args: ["two words", "final"] });
 });

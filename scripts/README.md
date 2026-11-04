@@ -128,6 +128,8 @@ nix run .#presentation-sample
 
 `unity-editor` は Linux で `steam-run` を介し、macOS では native Editor を直接起動します。`UNITY_EDITOR` で実行ファイルを指定でき、未指定時は `app/unity/ProjectSettings/ProjectVersion.txt` の OS 別 Unity Hub 配置を使います。対応する Unity version のインストール、license と WebGL module は利用者が用意します。
 
+Linux では `steam-run` 内の `/tmp` に合わせて `TMPDIR`・`TMP`・`TEMP` を `/tmp` に設定します。
+
 `unity-preview` は共有 Runtime の描画・Preview 部分から `.unframe/unity-preview/project` を生成し、WebGL player を `.unframe/unity-preview/UnframePreview` に出力します。生成 Assets は再構成し、Library／build cache は再利用します。build log は `.unframe/unity-preview/logs/build.log` です。
 
 共通再生処理と Preview の EditMode テストは `nix develop --command bash scripts/unity/test-native-editor.sh playback` で実行します。結果は `.unframe/local-editor-e2e/logs/playback.xml`、ログは同 directory の `playback.log` に出力します。 本番の共通再生・配信受信・Native UI・モデルの回帰は `nix develop --command bash scripts/unity/test-native-editor.sh rendering` を使用し、同じdirectoryの `rendering.xml` と `rendering.log` を確認します。WebGL Preview は Baked／Native UI の共通描画・再生・検証を取り込み、動画には Preview 用のブラウザー連携を使います。

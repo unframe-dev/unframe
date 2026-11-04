@@ -8,6 +8,8 @@ version="$(sed -n 's/^m_EditorVersion: //p' "$root/app/unity/ProjectSettings/Pro
 if [ "$host" = darwin ]; then
   editor="${UNITY_EDITOR:-/Applications/Unity/Hub/Editor/$version/Unity.app/Contents/MacOS/Unity}"
 else
+  # steam-run mounts a private /tmp that does not contain Nix's shell directory.
+  export TMPDIR=/tmp TMP=/tmp TEMP=/tmp
   editor="${UNITY_EDITOR:-$HOME/Unity/Hub/Editor/$version/Editor/Unity}"
 fi
 if [[ ! -x "$editor" ]]; then
