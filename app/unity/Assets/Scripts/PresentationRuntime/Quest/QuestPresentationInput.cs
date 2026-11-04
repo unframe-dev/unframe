@@ -23,6 +23,22 @@ namespace Unframe.Unity.PresentationRuntime
         }
     }
 
+    public sealed class QuestPresentationGestureTriggers
+    {
+        private bool previousLeft, previousRight, activeLeft, activeRight;
+
+        public void Sample(bool leftPressed, bool rightPressed, bool enabled, bool leftConsumed, bool rightConsumed,
+            out bool leftHeld, out bool rightHeld)
+        {
+            activeLeft = enabled && !leftConsumed && leftPressed && (activeLeft || !previousLeft);
+            activeRight = enabled && !rightConsumed && rightPressed && (activeRight || !previousRight);
+            previousLeft = leftPressed;
+            previousRight = rightPressed;
+            leftHeld = activeLeft;
+            rightHeld = activeRight;
+        }
+    }
+
     public static class QuestPresentationInput
     {
         private static ulong CapturedAtMs() { return (ulong)(Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency * 1000); }

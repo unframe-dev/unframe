@@ -18,49 +18,64 @@ namespace Unframe.Unity.PresentationRuntime
         private InputContext context;
         private PresenterRecognitionCatalog catalog;
         private readonly Dictionary<string, bool> zones = new Dictionary<string, bool>();
-        private Vector3 previousLeft, previousRight, startLeft, startRight, forward;
-        private double previousTime, stationarySince, startedAt;
-        private bool seeded, armed, moving, emitted;
+        private enum HandCapture { None, Left, Right, Both }
+        private Vector3 startLeft, startRight, forward;
+        private double startedAt, previousTime = Double.NaN;
+        private bool previousLeftTrigger, previousRightTrigger;
+        private HandCapture capture;
 
         public void Reset(InputContext nextContext, PresenterRecognitionCatalog nextCatalog)
         {
             context = nextContext?.Clone(); catalog = nextCatalog?.Clone();
-            zones.Clear(); seeded = armed = moving = emitted = false;
-            previousLeft = previousRight = null;
+            zones.Clear();
+            CancelCapture();
+            previousTime = Double.NaN;
         }
 
-        public PresenterRecognitionResult SampleHands(double time, Vector3 left, Vector3 right, Vector3 headForward)
+        public PresenterRecognitionResult SampleHands(double time, Vector3 left, Vector3 right, Vector3 headForward,
+            bool leftTrigger, bool rightTrigger)
         {
-            if (context == null || catalog == null || !Valid(headForward) || !Valid(left) && !Valid(right))
-            { seeded = armed = moving = false; return null; }
-            left = Valid(left) ? left : null; right = Valid(right) ? right : null;
-            if (!seeded || time <= previousTime || (left == null) != (previousLeft == null) || (right == null) != (previousRight == null))
+            bool leftPressed = leftTrigger && !previousLeftTrigger;
+            bool rightPressed = rightTrigger && !previousRightTrigger;
+            previousLeftTrigger = leftTrigger;
+            previousRightTrigger = rightTrigger;
+            bool validTime = Finite(time) && (Double.IsNaN(previousTime) || time > previousTime);
+            previousTime = time;
+            if (context == null || catalog == null || !validTime || !Valid(headForward))
             {
-                seeded = true; armed = moving = false; stationarySince = time;
-                Save(time, left, right); return null;
+                CancelCapture();
+                return null;
             }
-            double dt = time - previousTime;
-            bool stationary = Distance(left, previousLeft) / dt < 0.12 && Distance(right, previousRight) / dt < 0.12;
-            if (stationary)
+            if (leftPressed || rightPressed)
             {
-                if (time - stationarySince >= 0.15) { armed = true; moving = emitted = false; }
-                Save(time, left, right); return null;
-            }
-            stationarySince = time;
-            if (!moving && armed)
-            {
+                CancelCapture();
+                HandCapture requested = leftTrigger && rightTrigger ? HandCapture.Both
+                    : leftPressed ? HandCapture.Left : HandCapture.Right;
+                bool leftRequired = requested == HandCapture.Left || requested == HandCapture.Both;
+                bool rightRequired = requested == HandCapture.Right || requested == HandCapture.Both;
                 double horizontal = Math.Sqrt(headForward.X * headForward.X + headForward.Z * headForward.Z);
-                if (horizontal < 0.01) { Save(time, left, right); return null; }
+                if ((leftRequired && !Valid(left)) || (rightRequired && !Valid(right)) || horizontal < 0.01) return null;
+                capture = requested;
+                startLeft = leftRequired ? left.Clone() : null;
+                startRight = rightRequired ? right.Clone() : null;
                 forward = new Vector3 { X = (float)(headForward.X / horizontal), Z = (float)(headForward.Z / horizontal) };
-                startLeft = previousLeft?.Clone(); startRight = previousRight?.Clone();
-                startedAt = previousTime; moving = true; emitted = false; armed = false;
+                startedAt = time;
+                return null;
             }
-            Save(time, left, right);
-            if (!moving || emitted || time - startedAt > 0.8) return null;
-            var dl = Delta(left, startLeft); var dr = Delta(right, startRight);
-            GestureKind kind = GestureKind.Unspecified;
-            double separation = Distance(left, right) - Distance(startLeft, startRight);
-            if (left != null && right != null && Dot(dl, dr) < 0 && Math.Abs(separation) >= 0.25)
+            if (capture == HandCapture.None) return null;
+            bool useLeft = capture == HandCapture.Left || capture == HandCapture.Both;
+            bool useRight = capture == HandCapture.Right || capture == HandCapture.Both;
+            if ((useLeft && (!leftTrigger || !Valid(left))) || (useRight && (!rightTrigger || !Valid(right)))
+                || time - startedAt > 0.8)
+            {
+                CancelCapture();
+                return null;
+            }
+            var dl = useLeft ? Delta(left, startLeft) : new Vector3();
+            var dr = useRight ? Delta(right, startRight) : new Vector3();
+            GestureKind kind;
+            double separation = capture == HandCapture.Both ? Distance(left, right) - Distance(startLeft, startRight) : 0;
+            if (capture == HandCapture.Both && Dot(dl, dr) < 0 && Math.Abs(separation) >= 0.25)
                 kind = separation > 0 ? GestureKind.SpreadHands : GestureKind.CloseHands;
             else
             {
@@ -72,8 +87,15 @@ namespace Unframe.Unity.PresentationRuntime
                 else if (Math.Abs(x) >= Math.Abs(z)) kind = x > 0 ? GestureKind.SwipeRight : GestureKind.SwipeLeft;
                 else kind = z > 0 ? GestureKind.PushForward : GestureKind.PullBackward;
             }
-            emitted = true;
-            return catalog.Gestures.Contains(kind) ? new PresenterRecognitionResult { Context = context.Clone(), Gesture = kind } : null;
+            if (!catalog.Gestures.Contains(kind)) return null;
+            CancelCapture();
+            return new PresenterRecognitionResult { Context = context.Clone(), Gesture = kind };
+        }
+
+        private void CancelCapture()
+        {
+            capture = HandCapture.None;
+            startLeft = startRight = forward = null;
         }
 
         public List<PresenterRecognitionResult> SampleWaist(Vector3 waist)
@@ -92,7 +114,6 @@ namespace Unframe.Unity.PresentationRuntime
             return results;
         }
 
-        private void Save(double time, Vector3 left, Vector3 right) { previousTime = time; previousLeft = left?.Clone(); previousRight = right?.Clone(); }
         private static bool Valid(Vector3 v) => v != null && Finite(v.X) && Finite(v.Y) && Finite(v.Z);
         private static bool Finite(double v) => !Double.IsNaN(v) && !Double.IsInfinity(v);
         private static Vector3 Delta(Vector3 a, Vector3 b) => a == null || b == null ? new Vector3() : new Vector3 { X = a.X - b.X, Y = a.Y - b.Y, Z = a.Z - b.Z };
