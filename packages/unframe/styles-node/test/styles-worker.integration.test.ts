@@ -170,14 +170,14 @@ it("terminates project config on cancellation", async () => {
     ),
   ).toEqual(before);
 }, 60_000);
-it("rejects a changed locked runtime before loading project config", async () => {
+it("rejects a runtime changed after input capture before loading project config", async () => {
   const snapshot = await fixture("export default {plugins:[]};");
   const changed = withNodeTransformSources(
     { ...snapshot, runtime: { ...snapshot.runtime, nodeHash: "0".repeat(64) } },
     snapshot.sourceFiles,
   );
   await expect(runStyleWorker(changed, { entries: ["input.css"] })).rejects.toThrow(
-    "runtime differs",
+    "runtime changed after input capture",
   );
 }, 60_000);
 it("reports abnormal config process termination", async () => {
