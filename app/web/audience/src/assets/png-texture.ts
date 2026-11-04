@@ -28,6 +28,8 @@ interface PngTextureOptions {
   fetcher?: typeof fetch;
   decode?: (blob: Blob) => Promise<ImageBitmap>;
   now?: () => number;
+  encodedBytes?: Uint8Array<ArrayBuffer>;
+  onEncodedBytes?(bytes: Uint8Array<ArrayBuffer>): void;
 }
 
 const pixelSizeSchema = z.tuple([safeUIntSchema.positive(), safeUIntSchema.positive()]);
@@ -50,16 +52,21 @@ export async function loadPngTexture(
     if (!pixelSizeSchema.safeParse(asset.pixelSize).success)
       fail("invalid metadata", { stage: "validation", code: "invalid-metadata" });
     stage = "request";
-    const bytes = await requestAssetBytes(asset, options, {
-      mimeType: "image/png",
-      minBytes: 8,
-      fail,
-    });
+    const bytes =
+      options.encodedBytes ??
+      (await requestAssetBytes(asset, options, {
+        mimeType: "image/png",
+        minBytes: 8,
+        fail,
+      }));
+    if (bytes.byteLength !== asset.encodedSizeBytes)
+      fail("encoded size mismatch", { stage: "validation", code: "size-mismatch" });
     const signature = [137, 80, 78, 71, 13, 10, 26, 10];
     if (!signature.every((byte, index) => bytes[index] === byte))
       fail("signature mismatch", { stage: "validation", code: "invalid-format" });
     stage = "checksum";
     await verifyAssetChecksum(bytes, asset.checksum, fail);
+    options.onEncodedBytes?.(bytes);
     stage = "validation";
     if (
       bytes.length < 33 ||

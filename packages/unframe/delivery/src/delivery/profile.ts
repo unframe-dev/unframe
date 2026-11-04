@@ -567,7 +567,7 @@ export const buildProjectionProfile = (
         publicationEpoch: toUInt64(publication.publicationEpoch),
         publicationManifestHash: publication.publicationManifestHash,
       },
-      projectionContractVersion: 2,
+      projectionContractVersion: 3,
       role: roleNumber[role],
       capabilityProfileId: parsed.capability.capabilityProfileId,
     },

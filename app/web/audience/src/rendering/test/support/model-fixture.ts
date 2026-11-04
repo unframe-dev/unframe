@@ -1,5 +1,6 @@
 import {
   participantRuntimeViewSchema,
+  runtimeAuthorityVersions,
   type DeliveryManifestWire,
 } from "@unframe-dev/contracts/presentation";
 import runtime from "../../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
@@ -13,7 +14,7 @@ export function modelFixture() {
   } as typeof view.nodeStates;
   const delivery = {
     schemaVersion: 1,
-    deliveryContractVersion: 3,
+    deliveryContractVersion: runtimeAuthorityVersions.delivery,
     projectionInstance: { projectionProfileId: "p", assignmentEpoch: String(view.assignmentEpoch) },
     projectionProfile: {
       projectionProfileId: "p",

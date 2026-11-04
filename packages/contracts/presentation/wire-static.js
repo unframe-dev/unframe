@@ -34252,6 +34252,263 @@ export const unframe = ($root.unframe = (() => {
       return TextureResidencyBinding;
     })();
 
+    delivery.TextureResidencyWindow = (function () {
+      /**
+       * Properties of a TextureResidencyWindow.
+       * @typedef {Object} unframe.delivery.TextureResidencyWindow.$Properties
+       * @property {string|null} [groupId] TextureResidencyWindow groupId
+       * @property {Array.<string>|null} [assetIds] TextureResidencyWindow assetIds
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a TextureResidencyWindow.
+       * @memberof unframe.delivery
+       * @interface ITextureResidencyWindow
+       * @augments unframe.delivery.TextureResidencyWindow.$Properties
+       * @deprecated Use unframe.delivery.TextureResidencyWindow.$Properties instead.
+       */
+
+      /**
+       * Shape of a TextureResidencyWindow.
+       * @typedef {unframe.delivery.TextureResidencyWindow.$Properties} unframe.delivery.TextureResidencyWindow.$Shape
+       */
+
+      /**
+       * Constructs a new TextureResidencyWindow.
+       * @memberof unframe.delivery
+       * @classdesc Represents a TextureResidencyWindow.
+       * @constructor
+       * @param {unframe.delivery.TextureResidencyWindow.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const TextureResidencyWindow = function TextureResidencyWindow(properties) {
+        this.assetIds = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * TextureResidencyWindow groupId.
+       * @member {string} groupId
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @instance
+       */
+      TextureResidencyWindow.prototype.groupId = "";
+
+      /**
+       * TextureResidencyWindow assetIds.
+       * @member {Array.<string>} assetIds
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @instance
+       */
+      TextureResidencyWindow.prototype.assetIds = $util.emptyArray;
+
+      /**
+       * Creates a new TextureResidencyWindow instance using the specified properties.
+       * @function create
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {unframe.delivery.TextureResidencyWindow.$Properties=} [properties] Properties to set
+       * @returns {unframe.delivery.TextureResidencyWindow} TextureResidencyWindow instance
+       * @type {{
+       *   (properties: unframe.delivery.TextureResidencyWindow.$Shape): unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape;
+       *   (properties?: unframe.delivery.TextureResidencyWindow.$Properties): unframe.delivery.TextureResidencyWindow;
+       * }}
+       */
+      TextureResidencyWindow.create = function (properties) {
+        return new TextureResidencyWindow(properties);
+      };
+
+      /**
+       * Encodes the specified TextureResidencyWindow message. Does not implicitly {@link unframe.delivery.TextureResidencyWindow.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {unframe.delivery.TextureResidencyWindow.$Properties} message TextureResidencyWindow message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      TextureResidencyWindow.encode = function TextureResidencyWindow$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.groupId != null && $Object.hasOwnProperty.call(message, "groupId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.groupId);
+        if (message.assetIds != null && message.assetIds.length)
+          for (let i = 0; i < message.assetIds.length; ++i)
+            writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.assetIds[i]);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified TextureResidencyWindow message, length delimited. Does not implicitly {@link unframe.delivery.TextureResidencyWindow.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {unframe.delivery.TextureResidencyWindow.$Properties} message TextureResidencyWindow message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      TextureResidencyWindow.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a TextureResidencyWindow message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape} TextureResidencyWindow
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      TextureResidencyWindow.decode = function TextureResidencyWindow$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.groupId = reader.string();
+              break;
+            }
+            case 2: {
+              if (!(message.assetIds && message.assetIds.length)) message.assetIds = [];
+              message.assetIds.push(reader.string());
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a TextureResidencyWindow message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape} TextureResidencyWindow
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      TextureResidencyWindow.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a TextureResidencyWindow message.
+       * @function verify
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      TextureResidencyWindow.verify = function TextureResidencyWindow$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          if (!$util.isString(message.groupId)) return "groupId: string expected";
+        if (message.assetIds != null && message.hasOwnProperty("assetIds")) {
+          if (!$Array.isArray(message.assetIds)) return "assetIds: array expected";
+          for (let i = 0; i < message.assetIds.length; ++i)
+            if (!$util.isString(message.assetIds[i])) return "assetIds: string[] expected";
+        }
+        return null;
+      };
+
+      /**
+       * Creates a TextureResidencyWindow message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.delivery.TextureResidencyWindow} TextureResidencyWindow
+       */
+      TextureResidencyWindow.fromObject = function TextureResidencyWindow$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.groupId != null) message.groupId = $String(object.groupId);
+        if (object.assetIds) {
+          if (!$Array.isArray(object.assetIds))
+            throw $TypeError(".unframe.delivery.TextureResidencyWindow.assetIds: array expected");
+          message.assetIds = [];
+          for (let i = 0; i < object.assetIds.length; ++i)
+            message.assetIds[i] = $String(object.assetIds[i]);
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a TextureResidencyWindow message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {unframe.delivery.TextureResidencyWindow} message TextureResidencyWindow
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      TextureResidencyWindow.toObject = function TextureResidencyWindow$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) object.assetIds = [];
+        if (options.defaults) object.groupId = "";
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          object.groupId = message.groupId;
+        if (message.assetIds && message.assetIds.length) {
+          object.assetIds = [];
+          for (let j = 0; j < message.assetIds.length; ++j)
+            object.assetIds[j] = message.assetIds[j];
+        }
+        return object;
+      };
+
+      /**
+       * Converts this TextureResidencyWindow to JSON.
+       * @function toJSON
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      TextureResidencyWindow.prototype.toJSON = function () {
+        return TextureResidencyWindow.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for TextureResidencyWindow
+       * @function getTypeUrl
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      TextureResidencyWindow.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.delivery.TextureResidencyWindow";
+      };
+
+      return TextureResidencyWindow;
+    })();
+
     delivery.TextureResidencyPlan = (function () {
       /**
        * Properties of a TextureResidencyPlan.
@@ -34260,6 +34517,10 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.delivery.TextureResidencyBinding.$Properties>|null} [textures] TextureResidencyPlan textures
        * @property {number|Long|null} [totalDecodedGpuBytes] TextureResidencyPlan totalDecodedGpuBytes
        * @property {number|Long|null} [maximumPeakLoadCpuBytes] TextureResidencyPlan maximumPeakLoadCpuBytes
+       * @property {string|null} [initialGroupId] TextureResidencyPlan initialGroupId
+       * @property {Array.<unframe.delivery.TextureResidencyWindow.$Properties>|null} [groupWindows] TextureResidencyPlan groupWindows
+       * @property {number|Long|null} [maximumResidentGpuBytes] TextureResidencyPlan maximumResidentGpuBytes
+       * @property {number|Long|null} [maximumResidentTextureBindings] TextureResidencyPlan maximumResidentTextureBindings
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -34286,6 +34547,7 @@ export const unframe = ($root.unframe = (() => {
        */
       const TextureResidencyPlan = function TextureResidencyPlan(properties) {
         this.textures = [];
+        this.groupWindows = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -34325,6 +34587,42 @@ export const unframe = ($root.unframe = (() => {
        * @instance
        */
       TextureResidencyPlan.prototype.maximumPeakLoadCpuBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * TextureResidencyPlan initialGroupId.
+       * @member {string} initialGroupId
+       * @memberof unframe.delivery.TextureResidencyPlan
+       * @instance
+       */
+      TextureResidencyPlan.prototype.initialGroupId = "";
+
+      /**
+       * TextureResidencyPlan groupWindows.
+       * @member {Array.<unframe.delivery.TextureResidencyWindow.$Properties>} groupWindows
+       * @memberof unframe.delivery.TextureResidencyPlan
+       * @instance
+       */
+      TextureResidencyPlan.prototype.groupWindows = $util.emptyArray;
+
+      /**
+       * TextureResidencyPlan maximumResidentGpuBytes.
+       * @member {number|Long} maximumResidentGpuBytes
+       * @memberof unframe.delivery.TextureResidencyPlan
+       * @instance
+       */
+      TextureResidencyPlan.prototype.maximumResidentGpuBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * TextureResidencyPlan maximumResidentTextureBindings.
+       * @member {number|Long} maximumResidentTextureBindings
+       * @memberof unframe.delivery.TextureResidencyPlan
+       * @instance
+       */
+      TextureResidencyPlan.prototype.maximumResidentTextureBindings = $util.Long
         ? $util.Long.fromBits(0, 0, true)
         : 0;
 
@@ -34373,6 +34671,27 @@ export const unframe = ($root.unframe = (() => {
           $Object.hasOwnProperty.call(message, "maximumPeakLoadCpuBytes")
         )
           writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.maximumPeakLoadCpuBytes);
+        if (
+          message.initialGroupId != null &&
+          $Object.hasOwnProperty.call(message, "initialGroupId")
+        )
+          writer.uint32(/* id 5, wireType 2 =*/ 42).string(message.initialGroupId);
+        if (message.groupWindows != null && message.groupWindows.length)
+          for (let i = 0; i < message.groupWindows.length; ++i)
+            $root.unframe.delivery.TextureResidencyWindow.encode(
+              message.groupWindows[i],
+              writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
+            ).ldelim();
+        if (
+          message.maximumResidentGpuBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumResidentGpuBytes")
+        )
+          writer.uint32(/* id 7, wireType 0 =*/ 56).uint64(message.maximumResidentGpuBytes);
+        if (
+          message.maximumResidentTextureBindings != null &&
+          $Object.hasOwnProperty.call(message, "maximumResidentTextureBindings")
+        )
+          writer.uint32(/* id 8, wireType 0 =*/ 64).uint64(message.maximumResidentTextureBindings);
         return writer;
       };
 
@@ -34437,6 +34756,30 @@ export const unframe = ($root.unframe = (() => {
             }
             case 4: {
               message.maximumPeakLoadCpuBytes = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.initialGroupId = reader.string();
+              break;
+            }
+            case 6: {
+              if (!(message.groupWindows && message.groupWindows.length)) message.groupWindows = [];
+              message.groupWindows.push(
+                $root.unframe.delivery.TextureResidencyWindow.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 7: {
+              message.maximumResidentGpuBytes = reader.uint64();
+              break;
+            }
+            case 8: {
+              message.maximumResidentTextureBindings = reader.uint64();
               break;
             }
             default:
@@ -34509,6 +34852,44 @@ export const unframe = ($root.unframe = (() => {
             )
           )
             return "maximumPeakLoadCpuBytes: integer|Long expected";
+        if (message.initialGroupId != null && message.hasOwnProperty("initialGroupId"))
+          if (!$util.isString(message.initialGroupId)) return "initialGroupId: string expected";
+        if (message.groupWindows != null && message.hasOwnProperty("groupWindows")) {
+          if (!$Array.isArray(message.groupWindows)) return "groupWindows: array expected";
+          for (let i = 0; i < message.groupWindows.length; ++i) {
+            let error = $root.unframe.delivery.TextureResidencyWindow.verify(
+              message.groupWindows[i],
+              long + 1,
+            );
+            if (error) return "groupWindows." + error;
+          }
+        }
+        if (
+          message.maximumResidentGpuBytes != null &&
+          message.hasOwnProperty("maximumResidentGpuBytes")
+        )
+          if (
+            !$util.isInteger(message.maximumResidentGpuBytes) &&
+            !(
+              message.maximumResidentGpuBytes &&
+              $util.isInteger(message.maximumResidentGpuBytes.low) &&
+              $util.isInteger(message.maximumResidentGpuBytes.high)
+            )
+          )
+            return "maximumResidentGpuBytes: integer|Long expected";
+        if (
+          message.maximumResidentTextureBindings != null &&
+          message.hasOwnProperty("maximumResidentTextureBindings")
+        )
+          if (
+            !$util.isInteger(message.maximumResidentTextureBindings) &&
+            !(
+              message.maximumResidentTextureBindings &&
+              $util.isInteger(message.maximumResidentTextureBindings.low) &&
+              $util.isInteger(message.maximumResidentTextureBindings.high)
+            )
+          )
+            return "maximumResidentTextureBindings: integer|Long expected";
         return null;
       };
 
@@ -34567,6 +34948,53 @@ export const unframe = ($root.unframe = (() => {
               object.maximumPeakLoadCpuBytes.low >>> 0,
               object.maximumPeakLoadCpuBytes.high >>> 0,
             ).toNumber(true);
+        if (object.initialGroupId != null) message.initialGroupId = $String(object.initialGroupId);
+        if (object.groupWindows) {
+          if (!$Array.isArray(object.groupWindows))
+            throw $TypeError(".unframe.delivery.TextureResidencyPlan.groupWindows: array expected");
+          message.groupWindows = [];
+          for (let i = 0; i < object.groupWindows.length; ++i) {
+            if (typeof object.groupWindows[i] !== "object")
+              throw $TypeError(
+                ".unframe.delivery.TextureResidencyPlan.groupWindows: object expected",
+              );
+            message.groupWindows[i] = $root.unframe.delivery.TextureResidencyWindow.fromObject(
+              object.groupWindows[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.maximumResidentGpuBytes != null)
+          if ($util.Long)
+            (message.maximumResidentGpuBytes = $util.Long.fromValue(
+              object.maximumResidentGpuBytes,
+            )).unsigned = true;
+          else if (typeof object.maximumResidentGpuBytes === "string")
+            message.maximumResidentGpuBytes = $parseInt(object.maximumResidentGpuBytes, 10);
+          else if (typeof object.maximumResidentGpuBytes === "number")
+            message.maximumResidentGpuBytes = object.maximumResidentGpuBytes;
+          else if (typeof object.maximumResidentGpuBytes === "object")
+            message.maximumResidentGpuBytes = new $util.LongBits(
+              object.maximumResidentGpuBytes.low >>> 0,
+              object.maximumResidentGpuBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.maximumResidentTextureBindings != null)
+          if ($util.Long)
+            (message.maximumResidentTextureBindings = $util.Long.fromValue(
+              object.maximumResidentTextureBindings,
+            )).unsigned = true;
+          else if (typeof object.maximumResidentTextureBindings === "string")
+            message.maximumResidentTextureBindings = $parseInt(
+              object.maximumResidentTextureBindings,
+              10,
+            );
+          else if (typeof object.maximumResidentTextureBindings === "number")
+            message.maximumResidentTextureBindings = object.maximumResidentTextureBindings;
+          else if (typeof object.maximumResidentTextureBindings === "object")
+            message.maximumResidentTextureBindings = new $util.LongBits(
+              object.maximumResidentTextureBindings.low >>> 0,
+              object.maximumResidentTextureBindings.high >>> 0,
+            ).toNumber(true);
         return message;
       };
 
@@ -34582,7 +35010,10 @@ export const unframe = ($root.unframe = (() => {
       TextureResidencyPlan.toObject = function TextureResidencyPlan$toObject(message, options) {
         if (!options) options = {};
         let object = {};
-        if (options.arrays || options.defaults) object.textures = [];
+        if (options.arrays || options.defaults) {
+          object.textures = [];
+          object.groupWindows = [];
+        }
         if (options.defaults) {
           object.budgetTierId = "";
           if ($util.Long) {
@@ -34603,6 +35034,25 @@ export const unframe = ($root.unframe = (() => {
                   ? long.toNumber()
                   : long;
           } else object.maximumPeakLoadCpuBytes = options.longs === $String ? "0" : 0;
+          object.initialGroupId = "";
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumResidentGpuBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumResidentGpuBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumResidentTextureBindings =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumResidentTextureBindings = options.longs === $String ? "0" : 0;
         }
         if (message.budgetTierId != null && message.hasOwnProperty("budgetTierId"))
           object.budgetTierId = message.budgetTierId;
@@ -34649,6 +35099,54 @@ export const unframe = ($root.unframe = (() => {
                       message.maximumPeakLoadCpuBytes.high >>> 0,
                     ).toNumber(true)
                   : message.maximumPeakLoadCpuBytes;
+        if (message.initialGroupId != null && message.hasOwnProperty("initialGroupId"))
+          object.initialGroupId = message.initialGroupId;
+        if (message.groupWindows && message.groupWindows.length) {
+          object.groupWindows = [];
+          for (let j = 0; j < message.groupWindows.length; ++j)
+            object.groupWindows[j] = $root.unframe.delivery.TextureResidencyWindow.toObject(
+              message.groupWindows[j],
+              options,
+            );
+        }
+        if (
+          message.maximumResidentGpuBytes != null &&
+          message.hasOwnProperty("maximumResidentGpuBytes")
+        )
+          if (typeof message.maximumResidentGpuBytes === "number")
+            object.maximumResidentGpuBytes =
+              options.longs === $String
+                ? $String(message.maximumResidentGpuBytes)
+                : message.maximumResidentGpuBytes;
+          else
+            object.maximumResidentGpuBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumResidentGpuBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumResidentGpuBytes.low >>> 0,
+                      message.maximumResidentGpuBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumResidentGpuBytes;
+        if (
+          message.maximumResidentTextureBindings != null &&
+          message.hasOwnProperty("maximumResidentTextureBindings")
+        )
+          if (typeof message.maximumResidentTextureBindings === "number")
+            object.maximumResidentTextureBindings =
+              options.longs === $String
+                ? $String(message.maximumResidentTextureBindings)
+                : message.maximumResidentTextureBindings;
+          else
+            object.maximumResidentTextureBindings =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumResidentTextureBindings)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumResidentTextureBindings.low >>> 0,
+                      message.maximumResidentTextureBindings.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumResidentTextureBindings;
         return object;
       };
 

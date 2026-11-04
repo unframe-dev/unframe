@@ -13,10 +13,10 @@ export const audienceWebResourcePolicy: CapabilityProfile["limits"] = {
     maxTextureWidth: textureDimension,
     maxTextureHeight: textureDimension,
     maxTexturePixels: textureDimension * textureDimension,
-    maxTextureBindings: 8,
-    maxGpuBytes: memoryCapacityBytes,
+    maxTextureBindings: 32,
+    maxGpuBytes: 3 * memoryCapacityBytes,
     maxSerialLoadCpuBytes: memoryCapacityBytes,
-    maxEncodedCacheBytes: memoryCapacityBytes,
+    maxEncodedCacheBytes: 3 * memoryCapacityBytes,
     encodedCacheReserveBytes: 1024,
   },
   // The wire contract requires positive limits even for unsupported renderers.

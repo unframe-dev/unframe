@@ -5241,13 +5241,13 @@ export interface paths {
                                 /** @enum {number} */
                                 assetSet: 1;
                                 /** @enum {number} */
-                                delivery: 3;
+                                delivery: 4;
                                 /** @enum {number} */
                                 runtime: 3;
                                 /** @enum {number} */
                                 progression: 2;
                                 /** @enum {number} */
-                                projection: 2;
+                                projection: 3;
                             };
                         };
                     };
@@ -5510,13 +5510,13 @@ export interface paths {
                                 /** @enum {number} */
                                 assetSet: 1;
                                 /** @enum {number} */
-                                delivery: 3;
+                                delivery: 4;
                                 /** @enum {number} */
                                 runtime: 3;
                                 /** @enum {number} */
                                 progression: 2;
                                 /** @enum {number} */
-                                projection: 2;
+                                projection: 3;
                             };
                         };
                     };

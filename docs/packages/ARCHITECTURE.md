@@ -2308,7 +2308,7 @@ Video Artifact は Asset ID、checksum、duration、loop、fit、alpha、audio�
 
 Baked Web v1は各non-empty Render Surface Stateにexactly one 2K-long-edge PNG / RGBA32 textureを持ち、`mipCount = 1`、runtime compressionなしとする。State / partition / binding count、pixel、capture、output、Compiler accounted peak、Delivery GPU / load CPUは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) のchecked byte式とbaseline tierを正本とする。現行PNG encoderの4K / 64 MiB hard capは単一allocationのtrust-boundaryであり、このPresentation budgetを代替しない。
 
-Deliveryはvisibleな全reachable Stateのselected textureをGPU 256 MiB、serial load CPU 256 MiB以内で固定し、Unityはsession開始前にdownload / checksum / decode / uploadを完了してCPU readback copyを破棄する。`downloadReady`、`residentReady`、`sessionReady`を分け、active Session中は全selected hashをpinする。crossfadeのold / newはpreloaded集合内にあり、transition開始時に追加download / allocationしない。encoded cacheはGPU residencyと分離し、baseline 4 GiB hard limit / 512 MiB reserve、active pin、unpinned deterministic LRUを使う。
+Delivery は全画像カタログと、presentation 共通・現在 Group・直接の次候補 Group を含む PNG 常駐窓を渡す。Unity Media / Audience Web の GPU と encoded cache の予算は192 MiB、serial load CPU は64 MiB。窓の最大値に全常駐モデルの Texture を加算して検査し、描画参照のない窓外画像を GPU から解放する。GPU 常駐と encoded cache は分離する。読み込みが間に合わない移動では準備後に最新状態へ描画を合わせ、canonical clock は変えない。[ADR-0030](../decisions/0030-group-texture-residency.md) を正本とする。
 
 この描画方針の採用は、すべての方式が v1 Delivery で利用可能であることを意味しない。ADR-0012 の baseline tier は `baked-web` Texture だけを対象とする。Native UI は固有の resource budget tier と consumer 実装が受理されるまで、Video は decoder budget tier と consumer 実装が受理されるまで v1 Delivery で拒否する。budget超過時に暗黙downscale、mipmap削除、renderer変更、crossfadeからcutへの変更を行わず、Bundle / Manifest / readinessのatomic unitをfail closedにする。
 

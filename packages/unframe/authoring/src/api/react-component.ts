@@ -11,6 +11,7 @@ import type {
   SurfaceStateDeclaration,
   ComponentTimelineDeclaration,
   AssetReference,
+  ResourceOwner,
 } from "../domain/declarations.js";
 import { componentTimelineSchema } from "../internal/component-timeline-schema.js";
 import { readOwnDataRecord, snapshotDeclaration } from "../internal/declaration-validation.js";
@@ -144,7 +145,7 @@ export type ReactSceneBase = {
     readonly __props?: Record<string, AnyProp>;
   };
   readonly props: object;
-  readonly owner: { readonly kind: "presentation" };
+  readonly owner: ResourceOwner;
   readonly audience: { readonly kind: "all" };
   readonly parent: { readonly kind: "stage" };
   readonly physicalSizeMeters: readonly [number, number];
@@ -379,7 +380,10 @@ export const resolveReactComponentProps = (
 
 const sceneDataSchema = z.strictObject({
   id,
-  owner: z.strictObject({ kind: z.literal("presentation") }),
+  owner: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("presentation") }),
+    z.strictObject({ kind: z.literal("group"), groupId: id }),
+  ]),
   audience: z.strictObject({ kind: z.literal("all") }),
   parent: z.strictObject({ kind: z.literal("stage") }),
   physicalSizeMeters: z.tuple([positive, positive]),

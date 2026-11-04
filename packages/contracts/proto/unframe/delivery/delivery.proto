@@ -469,11 +469,20 @@ message TextureResidencyBinding {
   uint64 peak_load_cpu_bytes = 5;
 }
 
+message TextureResidencyWindow {
+  string group_id = 1;
+  repeated string asset_ids = 2;
+}
+
 message TextureResidencyPlan {
   string budget_tier_id = 1;
   repeated TextureResidencyBinding textures = 2;
   uint64 total_decoded_gpu_bytes = 3;
   uint64 maximum_peak_load_cpu_bytes = 4;
+  string initial_group_id = 5;
+  repeated TextureResidencyWindow group_windows = 6;
+  uint64 maximum_resident_gpu_bytes = 7;
+  uint64 maximum_resident_texture_bindings = 8;
 }
 
 message ModelResidencyBinding {

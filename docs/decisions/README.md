@@ -18,3 +18,5 @@
 ADR-0009〜0011 は、ADR-0021 による Hit Region 境界の更新を本文へ反映済みのため保持する。Semantic Tree、座標、partition の残る規則は引き続き有効である。ADR-0017 の M3A 範囲も履歴上のスライス範囲として保持し、現行 Structured graph の拡張は ADR-0022 と Authoring Contract に従う。
 
 同じ番号を持っていた二つの ADR-0024 は、契約命名を ADR-0024、Publication HTTP / Unity transport を ADR-0025 として区別する。
+
+- Group ごとの Texture 常駐と先読み: [ADR-0030](./0030-group-texture-residency.md)

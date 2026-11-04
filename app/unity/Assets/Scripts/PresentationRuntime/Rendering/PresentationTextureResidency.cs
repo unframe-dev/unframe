@@ -15,10 +15,12 @@ namespace Unframe.Unity.PresentationRuntime
             internal int Owners;
         }
         private static readonly Dictionary<string, SharedTexture> SharedTextures = new Dictionary<string, SharedTexture>();
+        internal static int GpuReleaseFrame { get; private set; } = -1;
         private static readonly uint[] CrcTable = CreateCrcTable();
         private readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
         private readonly Dictionary<string, TextureResidencyBinding> descriptors = new Dictionary<string, TextureResidencyBinding>();
         public ulong ResidentGpuBytes { get; private set; }
+        public IEnumerable<TextureResidencyBinding> Bindings => descriptors.Values;
 
         public bool TryGet(string checksum, out Texture2D texture)
         {
@@ -215,21 +217,26 @@ namespace Unframe.Unity.PresentationRuntime
             return (uint)bytes[offset] << 24 | (uint)bytes[offset + 1] << 16 | (uint)bytes[offset + 2] << 8 | bytes[offset + 3];
         }
 
-        public void Dispose()
+        public void RetainOnly(IEnumerable<string> requiredChecksums)
         {
-            List<string> checksums = new List<string>(textures.Keys);
+            var required = new HashSet<string>(requiredChecksums, StringComparer.Ordinal);
+            var checksums = new List<string>(textures.Keys);
             checksums.Sort(StringComparer.Ordinal);
             foreach (string checksum in checksums)
             {
+                if (required.Contains(checksum)) continue;
+                ResidentGpuBytes -= descriptors[checksum].DecodedGpuBytes;
+                textures.Remove(checksum);
+                descriptors.Remove(checksum);
                 SharedTexture shared = SharedTextures[checksum];
                 if (--shared.Owners != 0) continue;
                 SharedTextures.Remove(checksum);
+                if (Application.isPlaying) GpuReleaseFrame = Time.frameCount;
                 Destroy(shared.Texture);
             }
-            textures.Clear();
-            descriptors.Clear();
-            ResidentGpuBytes = 0;
         }
+
+        public void Dispose() => RetainOnly(Array.Empty<string>());
 
         internal static void Destroy(UnityEngine.Object value)
         {

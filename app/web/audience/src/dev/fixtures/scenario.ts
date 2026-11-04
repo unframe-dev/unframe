@@ -138,6 +138,14 @@ export async function createFixtureScenario(baseUrl: string): Promise<FixtureSce
   }));
   delivery.residency!.textures!.totalDecodedGpuBytes = String(512 * 288 * 4 * images.length);
   delivery.residency!.textures!.maximumPeakLoadCpuBytes = String(Math.max(...images.map(peak)));
+  delivery.residency!.textures!.initialGroupId = "intro";
+  delivery.residency!.textures!.groupWindows = ["intro", "next"].map((groupId) => ({
+    groupId,
+    assetIds: images.map((image) => image.assetId),
+  }));
+  delivery.residency!.textures!.maximumResidentGpuBytes =
+    delivery.residency!.textures!.totalDecodedGpuBytes;
+  delivery.residency!.textures!.maximumResidentTextureBindings = String(images.length);
   delivery.residency!.totalSelectedEncodedBytes = String(
     images.reduce((sum, image) => sum + Number(image.encodedSizeBytes), 0),
   );
