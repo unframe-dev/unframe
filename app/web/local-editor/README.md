@@ -2,6 +2,8 @@
 
 `app/web/local-editor` / `@unframe-dev/local-editor` はローカル専用の Source Inspector、保存・履歴、Dev／Dist build、Unity Preview、Cue 時間軸の閲覧・確認と CLI を通す公開 UI です。`index.html` を `dist/` に build し、CLI Host が静的 UI と Unity player、token 認証付き HTTP API を配信します。ローカル HTTP 契約は contracts、filesystem は CLI の Adapter が所有します。認証・Dist の持ち込み公開・公開済みプレゼンテーションの確認・ルーム作成は [Console](../console/README.md) が担当します。
 
+ブランド名は同梱の Poppins Light（300）、字間 `0.098em`（Canva の文字間隔 98）、文字色 `#2A2A2A`（暗い背景では `#FFFFFF`）で表示します。アイコンは文字サイズの `0.78em`、文字との間隔は `0.17em` に揃えます。フォントは [SIL Open Font License](public/fonts/poppins/OFL.txt) に基づいて利用・再配布します。
+
 UI フォントは [LINE Seed JP](https://seed.line.me/index_jp.html) の Regular / Bold を同梱しています。[SIL Open Font License](public/fonts/line-seed-jp/OFL.txt) に基づいて利用・再配布します。
 
 ## Local Editor の起動

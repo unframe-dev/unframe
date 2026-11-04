@@ -1,5 +1,7 @@
 # Audience Web XR
 
+ブランド名は同梱の Poppins Light（300）、字間 `0.098em`（Canva の文字間隔 98）、文字色 `#2A2A2A`で表示します。アイコンは文字サイズの `0.78em`、文字との間隔は `0.17em` に揃えます。フォントは [SIL Open Font License](public/fonts/poppins/OFL.txt) に基づいて利用・再配布します。
+
 他担当への実装・提供依頼、接続順、受入条件は[引き継ぎ報告書](docs/handoff-report.md)を参照。
 
 会場の観客向けWeb XRクライアント。2026-10-22に位置保持PoCを完了し、採用済みの追跡構成でWebアプリを開発している。現在はAprilTag `tag36h11`の単一ID 0と8th Wall SDK／SLAMを使う位置保持に加え、契約データによるPNG・H.264動画・GLB描画と進行状態適用をアプリ内部で実装している。既存HTTPのjoin → Delivery → bootstrapクライアントと参加画面を実装済み。匿名 Viewer 資格・Audience profile・ブラウザ Realtime adapter を実装済み。公開環境とスマートフォンでの総合受入は未実施。

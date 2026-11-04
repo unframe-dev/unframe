@@ -12,7 +12,7 @@ export function BrandLink({
 }) {
   const content = (
     <>
-      <BrandMark size={34} />
+      <BrandMark />
       <span>Unframe</span>
     </>
   );

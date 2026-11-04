@@ -197,6 +197,12 @@ Hero は `clamp(4.1rem, 10.8vw, 10.5rem)`、通常セクションはおおむね
 
 Header は動きを持つ SVG アイコン、Footer は静的なロゴを使います。アニメーションは初回のブランド提示に限定し、装飾の場合はアクセシビリティツリーから除外します。
 
+Header と Footer のブランド名は `Wordmark.svelte` を使います。同梱した Poppins Light（weight `300`）、字間 `0.098em`（Canva の文字間隔 `98`）、文字色 `#2A2A2A` を共通とし、本文や Display Heading のフォントとは分けて扱います。
+
+アイコンと文字を並べる場合は、文字サイズに対してアイコンを `0.78em`、間隔を `0.17em` とします。
+
+Header と Footer のブランド名は `2.25rem` で表示します。
+
 ロゴアセットは `assets/` と `app/web/lp/static/brand/` に分散しているため、追加や更新時は両方の利用箇所を確認します。OGP 画像と画面上のブランド表現も一致させます。
 
 ### Icon
