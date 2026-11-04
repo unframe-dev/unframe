@@ -118,17 +118,20 @@ describe("wave choreography", () => {
     const left = lines[0]!.geometry.getAttribute("position");
     expect(left.getX(left.count - 1)).toBeGreaterThan(1);
     expect(left.getX(0)).toBeLessThan(0);
-    for (let i = 0; i < left.count; i++) expect(left.getZ(i)).toBeLessThan(0);
+    const drawn = [left.getX(10), left.getY(10), left.getZ(10)];
+    const radiusSquared = left.getX(0) ** 2 + left.getZ(0) ** 2;
+    expect(left.getX(10) ** 2 + left.getZ(10) ** 2).toBeCloseTo(radiusSquared);
     const material = lines[0]!.material as LineBasicMaterial;
     const held = material.opacity;
     expect(held).toBeGreaterThan(0.9);
-    const headX = left.getX(left.count - 1);
+    const headX = left.getX(lines[0]!.geometry.drawRange.count - 1);
     const tailX = left.getX(0);
     effects.evaluate(1000);
-    expect(left.getX(left.count - 1)).toBeGreaterThan(headX);
-    expect(left.getX(0)).toBeGreaterThan(tailX);
+    expect(left.getX(lines[0]!.geometry.drawRange.count - 1)).not.toBe(headX);
+    expect(left.getX(0)).toBe(tailX);
+    expect([left.getX(10), left.getY(10), left.getZ(10)]).toEqual(drawn);
     const colors = lines[0]!.geometry.getAttribute("color");
-    expect(colors.getW(colors.count - 1)).toBeLessThan(colors.getW(0));
+    expect(colors.getW(lines[0]!.geometry.drawRange.count - 1)).toBeLessThan(colors.getW(0));
     effects.dispose();
   });
   it("uses the LP palette with tint and seeded strand variation", () => {

@@ -8,6 +8,7 @@ namespace Unframe.Unity.VisualEffects
     {
         [SerializeField, Range(0.25f, 2)] private float size = 1;
         [SerializeField, Range(0.25f, 3)] private float speed = 1;
+        [SerializeField, Range(0, 6)] private float waveCycles = 0.5f;
         [SerializeField] private Color color = Color.white;
         [SerializeField] private GestureRecognitionSettings recognition = new GestureRecognitionSettings();
         private VisualEffectPlayer player;
@@ -53,12 +54,12 @@ namespace Unframe.Unity.VisualEffects
             Model.sharedMaterial = modelMaterial;
         }
         private EffectOptions Options(string id, double duration) =>
-            new EffectOptions(id, size, color, speed, duration, 42, RuntimeMs);
+            new EffectOptions(id, size, color, speed, duration, 42, RuntimeMs, waveCycles);
         private string NextId() => "preview-" + ++sequence;
         public void PlayWave()
         {
             Initialize();
-            player.PlayWave(Options(NextId(), 3600), waveAnchor);
+            player.PlayWave(Options(NextId(), 4500), waveAnchor);
         }
         public void PlayDissolve()
         {
@@ -124,10 +125,12 @@ namespace Unframe.Unity.VisualEffects
         }
         private void OnGUI()
         {
-            GUILayout.BeginArea(new Rect(16, 16, 360, 450), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(16, 16, 360, 500), GUI.skin.box);
             GUILayout.Label("Visual Effects Preview (offline)");
             GUILayout.Label("Size: " + size.ToString("F2")); size = GUILayout.HorizontalSlider(size, 0.25f, 2);
             GUILayout.Label("Speed: " + speed.ToString("F2")); speed = GUILayout.HorizontalSlider(speed, 0.25f, 3);
+            GUILayout.Label("Wave cycles: " + waveCycles.ToString("F2"));
+            waveCycles = GUILayout.HorizontalSlider(waveCycles, 0, 6);
             GUILayout.Label("Color (RGB)");
             color.r = GUILayout.HorizontalSlider(color.r, 0, 1);
             color.g = GUILayout.HorizontalSlider(color.g, 0, 1);

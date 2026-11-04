@@ -20,6 +20,7 @@ export interface EffectOptions {
   size: number;
   color: readonly [number, number, number, number];
   speed: number;
+  waveCycles?: number;
   durationMs: number;
   seed: number;
   startedAtRuntimeMs: number;
@@ -55,6 +56,8 @@ function validate(options: EffectOptions): EffectOptions {
     throw new Error("Invalid effect color");
   if (!Number.isSafeInteger(options.seed) || options.seed < 0 || options.seed > 0xffffffff)
     throw new Error("Invalid effect seed");
+  const cycles = options.waveCycles ?? 0.5;
+  if (!Number.isFinite(cycles) || cycles < 0 || cycles > 6) throw new Error("Invalid wave cycles");
   time(options.startedAtRuntimeMs);
   return {
     runId: options.runId,
@@ -62,6 +65,7 @@ function validate(options: EffectOptions): EffectOptions {
     size: options.size,
     color: [...options.color],
     speed: options.speed,
+    waveCycles: cycles,
     durationMs: options.durationMs,
     seed: options.seed,
     startedAtRuntimeMs: options.startedAtRuntimeMs,
@@ -196,11 +200,18 @@ export class VisualEffects {
         group.visible = now >= options.startedAtRuntimeMs;
         lines.forEach((item, index) => {
           const lane = index % 6;
-          let hash = options.seed ^ Math.imul(index + 1, 747796405) ^ 2891336453;
-          hash = Math.imul(hash ^ (hash >>> 16), 2246822519);
-          const random = (hash & 0x00ffffff) / 16777215;
-          const head = Math.max(0, (p - lane * 0.01) / 0.6);
-          const tail = Math.max(0, head - (0.72 + random * 0.2));
+          const groupIndex = Math.floor(index / 6);
+          const randomValue = (channel: number, key = groupIndex) => {
+            let hash =
+              options.seed ^ Math.imul(key + 1, 747796405) ^ Math.imul(channel, 2891336453);
+            hash = Math.imul(hash ^ (hash >>> 16), 2246822519);
+            return (hash & 0x00ffffff) / 16777215;
+          };
+          const groupPhase = randomValue(3) * Math.PI * 2;
+          const travel = Math.max(0, (p - groupIndex * 0.008) / 0.96);
+          const startQ = randomValue(7, index) * 0.12;
+          const endQ = 1.8 + randomValue(8, index) * 0.12;
+          const head = startQ + travel * (endQ - startQ);
           const side = index < 6 ? -1 : 1;
           const positions = item.geometry.getAttribute("position");
           const colors = item.geometry.getAttribute("color");
@@ -208,22 +219,36 @@ export class VisualEffects {
           const boundary = 1.15 - 1.3 * fadeProgress;
           for (let i = 0; i < positions.count; i++) {
             const t = i / (positions.count - 1);
-            const q = tail + (head - tail) * t;
+            // Revealing a fixed path keeps already drawn sections stationary.
+            const q = Math.min(startQ + t * 1.9, head);
             const phase =
-              q * Math.PI * 2 * (0.35 + random * 0.3) + Math.sin(q * 3 + random * 10) * 0.12;
-            const u = Math.max(0, Math.min(1, (t - (boundary - 0.1)) / 0.2));
+              q * Math.PI * 2 * ((options.waveCycles ?? 0.5) * (0.7 + randomValue(2) * 0.6)) +
+              Math.sin(q * 3 + groupPhase) * 0.12 * Math.min(1, (options.waveCycles ?? 0.5) * 2) +
+              groupPhase;
+            const visibleT = head > startQ ? (q - startQ) / (head - startQ) : 0;
+            const u = Math.max(0, Math.min(1, (visibleT - (boundary - 0.1)) / 0.2));
             colors.setXYZW(i, 1, 1, 1, 1 - u * u * (3 - 2 * u));
+            const startAngle = -0.18 + randomValue(4) * 0.24;
+            const endAngle = Math.PI + 0.19 + randomValue(5) * 0.24;
+            const angle = startAngle + ((endAngle - startAngle) * q) / 1.8;
+            const radius = 3.8 + randomValue(6) * 0.5;
+            const spacing = 0.035 + 0.215 * (0.5 + 0.5 * Math.sin(phase));
             positions.setXYZ(
               i,
-              side * (4 - 6 * q),
-              (lane - 2.5) * 0.12 + Math.sin(phase) * 0.15,
-              -1.8 * Math.sin(Math.PI * Math.min(q, 1) * 0.75),
+              side * radius * Math.cos(angle),
+              (lane - 2.5) * spacing + Math.sin(phase) * 0.3,
+              -radius * Math.sin(angle),
             );
           }
+          item.geometry.setDrawRange(
+            0,
+            Math.max(2, Math.min(96, Math.ceil(((head - startQ) / 1.9) * 95) + 1)),
+          );
           positions.needsUpdate = true;
           colors.needsUpdate = true;
           item.geometry.computeBoundingSphere();
-          const fade = Math.min(1, head * 8);
+          const appear = Math.max(0, Math.min(1, travel / 0.22));
+          const fade = appear * appear * (3 - 2 * appear);
           item.material.opacity = options.color[3] * fade;
         });
         return p >= 1;

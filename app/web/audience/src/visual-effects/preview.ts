@@ -53,7 +53,8 @@ function options(effectId: EffectOptions["effectId"]): EffectOptions {
       1,
     ],
     speed: Number(document.querySelector<HTMLInputElement>("#speed")!.value),
-    durationMs: effectId === "wave" ? 3600 : 1400,
+    waveCycles: Number(document.querySelector<HTMLInputElement>("#waveCycles")!.value),
+    durationMs: effectId === "wave" ? 4500 : 1400,
     seed: 42,
     startedAtRuntimeMs: clock,
   };

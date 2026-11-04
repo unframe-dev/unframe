@@ -61,9 +61,12 @@ namespace Unframe.Unity.VisualEffects
                 {
                     var side = i < 6 ? -1 : 1;
                     var lane = i % 6;
-                    var head = Mathf.Max(0, (progress - lane * 0.008f) / 0.55f);
-                    var length = Mathf.Lerp(0.72f, 0.92f, RandomValue(i, 1));
-                    var tail = Mathf.Max(0, head - length);
+                    var groupIndex = i / 6;
+                    var groupPhase = RandomValue(groupIndex, 3) * Mathf.PI * 2;
+                    var travel = Mathf.Max(0, (progress - groupIndex * 0.008f) / 0.96f);
+                    var startQ = RandomValue(i, 7) * 0.12f;
+                    var endQ = 1.8f + RandomValue(i, 8) * 0.12f;
+                    var head = startQ + travel * (endQ - startQ);
                     var palettePosition = i / 11f;
                     var blue = new Color(0x71 / 255f, 0x87 / 255f, 0xf5 / 255f);
                     var purple = new Color(0x9a / 255f, 0x80 / 255f, 0xd0 / 255f);
@@ -78,23 +81,32 @@ namespace Unframe.Unity.VisualEffects
                     for (var key = 0; key < alphaKeys.Length; key++)
                     {
                         var t = key / (float)(alphaKeys.Length - 1);
-                        var alpha = Options.Color.a * Mathf.Clamp01(progress / 0.12f)
+                        var alpha = Options.Color.a * Mathf.SmoothStep(0, 1, Mathf.Clamp01(travel / 0.22f))
                             * (1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(fadeBoundary - 0.1f, fadeBoundary + 0.1f, t)));
                         alphaKeys[key] = new GradientAlphaKey(alpha, t);
                     }
                     gradient.SetKeys(colorKeys, alphaKeys);
                     lines[i].colorGradient = gradient;
-                    var frequency = Mathf.Lerp(0.35f, 0.65f, RandomValue(i, 2));
-                    var phase = RandomValue(i, 3) * Mathf.PI * 2;
-                    for (var j = 0; j < 96; j++)
+                    var frequency = Options.WaveCycles * Mathf.Lerp(0.7f, 1.3f, RandomValue(groupIndex, 2));
+                    var phase = groupPhase;
+                    var visiblePoints = Mathf.Clamp(Mathf.CeilToInt((head - startQ) / 1.9f * 95) + 1, 2, 96);
+                    lines[i].positionCount = visiblePoints;
+                    for (var j = 0; j < visiblePoints; j++)
                     {
                         var t = j / 95f;
-                        var q = Mathf.Lerp(tail, head, t);
-                        var x = side * (4 - 6 * q);
+                        // Fixed path samples retain their positions after the leading edge passes.
+                        var q = Mathf.Min(startQ + t * 1.9f, head);
+                        var startAngle = Mathf.Lerp(-0.18f, 0.06f, RandomValue(groupIndex, 4));
+                        var endAngle = Mathf.PI + Mathf.Lerp(0.19f, 0.43f, RandomValue(groupIndex, 5));
+                        var angle = Mathf.LerpUnclamped(startAngle, endAngle, q / 1.8f);
+                        var radius = 3.8f + RandomValue(groupIndex, 6) * 0.5f;
+                        var x = side * radius * Mathf.Cos(angle);
                         var irregularPhase = q * frequency * Mathf.PI * 2
-                            + 0.12f * Mathf.Sin(q * 3 + phase);
-                        var y = (lane - 2.5f) * 0.11f + Mathf.Sin(irregularPhase + phase) * 0.16f;
-                        var z = 1.8f * Mathf.Sin(Mathf.Min(q, 1) * Mathf.PI * 0.75f) + lane * 0.025f;
+                            + 0.12f * Mathf.Min(1, Options.WaveCycles * 2) * Mathf.Sin(q * 3 + phase);
+                        var wavePhase = irregularPhase + phase;
+                        var spacing = 0.035f + 0.215f * (0.5f + 0.5f * Mathf.Sin(wavePhase));
+                        var y = (lane - 2.5f) * spacing + Mathf.Sin(wavePhase) * 0.3f;
+                        var z = radius * Mathf.Sin(angle);
                         lines[i].SetPosition(j, new Vector3(x, y, z) * Options.Size);
                     }
                 }
@@ -253,7 +265,7 @@ namespace Unframe.Unity.VisualEffects
             {
                 var old = existing.Options;
                 if (existing.GetType() != kind || !ReferenceEquals(existing.TargetKey, target) || existing.ShaderKey != shader
-                    || old.Size != options.Size || old.Color != options.Color || old.Speed != options.Speed
+                    || old.WaveCycles != options.WaveCycles || old.Size != options.Size || old.Color != options.Color || old.Speed != options.Speed
                     || old.DurationMs != options.DurationMs || old.Seed != options.Seed || old.StartedAtRuntimeMs != options.StartedAtRuntimeMs)
                     throw new InvalidOperationException("The run ID has different parameters.");
                 return existing.Handle;
