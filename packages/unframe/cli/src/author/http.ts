@@ -1,3 +1,4 @@
+import { startEditorSocket } from "./editor-socket.js";
 import type { ProjectChanges } from "./project-changes.js";
 import { AuthorError, type AuthorService } from "@unframe-dev/author-service";
 import { PreviewError, type LocalPreviewService } from "@unframe-dev/preview";
@@ -13,10 +14,6 @@ import {
   randomIdSchema,
   patchRequestSchema,
   previewRequestSchema,
-} from "@unframe-dev/contracts/author-http";
-import {
-  previewCommittedRequestSchema,
-  previewPlaybackCommandSchema,
 } from "@unframe-dev/contracts/author-http";
 import { createPublicationAuth, type PublicationAuth } from "./publication-auth.js";
 import type { LocalPublicationService } from "./publication.js";
@@ -235,6 +232,7 @@ export const startAuthorHost = async ({
               signal: controller.signal,
               onAccepted: () => {
                 ++previewOperation;
+                events.suspendPlayback();
                 if (path === "/api/dist-builds") previews.invalidate();
               },
             },
@@ -247,6 +245,7 @@ export const startAuthorHost = async ({
         return;
       }
       if (path === "/api/previews" && request.method === "POST") {
+        events.suspendPlayback();
         const operation = ++previewOperation;
         previews.invalidate();
         const parsed = previewRequestSchema.safeParse(await jsonBody(request));
@@ -292,30 +291,6 @@ export const startAuthorHost = async ({
         } finally {
           response.off("close", aborted);
         }
-        return;
-      }
-      if (path === "/api/preview-playback" && request.method === "POST") {
-        const parsed = previewPlaybackCommandSchema.safeParse(await jsonBody(request));
-        if (!parsed.success) throw invalid();
-        sendJson(response, 200, previews.playback(parsed.data));
-        return;
-      }
-      if (path === "/api/preview-display" && request.method === "POST") {
-        const parsed = previewCommittedRequestSchema.safeParse(await jsonBody(request));
-        if (!parsed.success) throw invalid();
-        previews.committed(parsed.data);
-        response.writeHead(204);
-        response.end();
-        return;
-      }
-      if (path === "/api/preview-display" && request.method === "DELETE") {
-        ++previewOperation;
-        previews.invalidate();
-        const body = await jsonBody(request);
-        if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length)
-          throw invalid();
-        response.writeHead(204);
-        response.end();
         return;
       }
       const previewAsset = /^\/api\/previews\/([0-9a-f]{32})\/assets\/([0-9a-f]{32})$/.exec(path);
@@ -380,6 +355,18 @@ export const startAuthorHost = async ({
       else response.destroy();
     });
   });
+  const events = startEditorSocket({
+    server,
+    authority: () => authority,
+    origin: () => origin,
+    token,
+    development,
+    previews,
+    onInvalidateDisplay: () => {
+      ++previewOperation;
+      previews.invalidate();
+    },
+  });
   server.requestTimeout = 30_000;
   server.headersTimeout = 10_000;
   await new Promise<void>((resolve, reject) => {
@@ -399,6 +386,7 @@ export const startAuthorHost = async ({
     token,
     async close() {
       ++previewOperation;
+      events.close();
       changes.close();
       auth.close();
       publication?.close();

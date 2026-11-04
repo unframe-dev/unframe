@@ -1,8 +1,7 @@
+import { createEditorSocket } from "./editor-socket";
 import {
   type BuildJob,
   type PreviewRequest,
-  type PreviewPlaybackCommand,
-  type PreviewPlaybackResponse,
   type PatchRequest,
   type ProjectSnapshot,
   type SavedCommand,
@@ -14,7 +13,6 @@ import {
   buildJobSchema,
   savedCommandSchema,
   publicationAuthSchema,
-  previewPlaybackResponseSchema,
 } from "@unframe-dev/contracts/author-http";
 import { encodeWireMessage } from "@unframe-dev/contracts/presentation";
 import { z } from "zod";
@@ -140,21 +138,7 @@ export function createHostApi(
         signal,
         write("POST", body),
       ),
-    playback: (body: PreviewPlaybackCommand, signal?: AbortSignal) =>
-      request(
-        "/api/preview-playback",
-        (value) => {
-          const result = previewPlaybackResponseSchema.parse(value);
-          encodeWireMessage("unframe.preview.LocalPreviewPlaybackState", result.state);
-          return result as PreviewPlaybackResponse;
-        },
-        signal,
-        write("POST", body),
-      ),
-    confirmDisplay: (requestId: string, buildIdentity: string, signal?: AbortSignal) =>
-      request("/api/preview-display", empty, signal, write("POST", { requestId, buildIdentity })),
-    invalidateDisplay: (signal?: AbortSignal) =>
-      request("/api/preview-display", empty, signal, write("DELETE")),
+    ...createEditorSocket(token, options.baseUrl),
     publicationAuth: (signal?: AbortSignal) =>
       request("/api/publication-auth", (value) => publicationAuthSchema.parse(value), signal),
     beginPublicationAuth: (signal?: AbortSignal) =>

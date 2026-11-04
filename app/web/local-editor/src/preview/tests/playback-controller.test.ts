@@ -20,6 +20,7 @@ it("never publishes a cancelled request's delayed result", async () => {
   const onState = vi.fn();
   const controller = createPlaybackController({
     api: {
+      subscribePlayback: () => () => undefined,
       playback: async () =>
         new Promise((resolve) => {
           finish = resolve;
@@ -43,6 +44,7 @@ it("only sends the newest queued seek after an in-flight delivery", async () => 
   let finish!: (response: PreviewPlaybackResponse) => void;
   const controller = createPlaybackController({
     api: {
+      subscribePlayback: () => () => undefined,
       playback: async (command) => {
         commands.push(command);
         if (commands.length === 1)
@@ -81,6 +83,7 @@ it("pauses after browser activation refusal and accepts a later play", async () 
   const diagnostic = vi.fn();
   const controller = createPlaybackController({
     api: {
+      subscribePlayback: () => () => undefined,
       playback: async (command) => {
         commands.push(command.command);
         return state("r", String(command.command === "applied" ? sequence : ++sequence));
@@ -103,7 +106,6 @@ it("pauses after browser activation refusal and accepts a later play", async () 
     onState: () => undefined,
     onFault: fault,
     onDiagnostic: diagnostic,
-    pollMilliseconds: 10000,
   });
   try {
     controller.load("r");
@@ -139,6 +141,7 @@ it("delivers spatial state before acknowledging the Host playback", async () => 
   const delivered: unknown[] = [];
   const controller = createPlaybackController({
     api: {
+      subscribePlayback: () => () => undefined,
       playback: async (command) => {
         if (command.command === "applied") expect(delivered).toEqual([spatial]);
         return { ...state("r"), spatial };
@@ -172,6 +175,7 @@ it("recovers a rejected spatial update because ordinary playback was already app
   const diagnostic = vi.fn();
   const controller = createPlaybackController({
     api: {
+      subscribePlayback: () => () => undefined,
       playback: async (command) => {
         commands.push(command);
         return response;
@@ -198,7 +202,7 @@ it("recovers a rejected spatial update because ordinary playback was already app
   }
 });
 
-it("keeps an ordinary rejected playback input as a diagnostic", async () => {
+it("recovers an ordinary rejected playback without acknowledging the unapplied state", async () => {
   const failure = new UnityExchangeError("preview.input-invalid", {
     kind: "failed",
     requestId: "r",
@@ -209,7 +213,7 @@ it("keeps an ordinary rejected playback input as a diagnostic", async () => {
   const fault = vi.fn();
   const diagnostic = vi.fn();
   const controller = createPlaybackController({
-    api: { playback: async () => state("r") },
+    api: { subscribePlayback: () => () => undefined, playback: async () => state("r") },
     driver: {
       playback: async () => {
         throw failure;
@@ -221,8 +225,86 @@ it("keeps an ordinary rejected playback input as a diagnostic", async () => {
   });
   try {
     controller.load("r");
-    await vi.waitFor(() => expect(diagnostic).toHaveBeenCalledWith(failure));
-    expect(fault).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(fault).toHaveBeenCalledWith(failure, state("r")));
+    expect(diagnostic).not.toHaveBeenCalled();
+  } finally {
+    controller.dispose();
+  }
+});
+
+it("stays idle after acknowledgement and applies pushed state without polling", async () => {
+  vi.useFakeTimers();
+  let push!: (response: PreviewPlaybackResponse) => void;
+  const commands: string[] = [];
+  const delivered: string[] = [];
+  const controller = createPlaybackController({
+    api: {
+      playback: async (command) => {
+        commands.push(command.command);
+        return state("r", command.command === "applied" ? command.sequence : "1");
+      },
+      subscribePlayback: (listener) => {
+        push = listener;
+        return () => undefined;
+      },
+    },
+    driver: {
+      playback: async (value) => {
+        delivered.push(value.sequence!);
+      },
+    },
+    onState: () => undefined,
+    onFault: () => undefined,
+    onDiagnostic: () => undefined,
+  });
+  try {
+    controller.load("r");
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(commands).toEqual(["poll", "applied"]);
+    push(state("r", "2"));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(commands).toEqual(["poll", "applied", "applied"]);
+    expect(delivered).toEqual(["1", "2"]);
+  } finally {
+    controller.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it("discards a pushed tick overtaken by an in-flight operation response", async () => {
+  let push!: (response: PreviewPlaybackResponse) => void;
+  let finish!: (response: PreviewPlaybackResponse) => void;
+  const delivered: string[] = [];
+  const controller = createPlaybackController({
+    api: {
+      playback: async (command) =>
+        command.command === "play"
+          ? new Promise((resolve) => {
+              finish = resolve;
+            })
+          : state("r", command.command === "applied" ? command.sequence : "1"),
+      subscribePlayback: (listener) => {
+        push = listener;
+        return () => undefined;
+      },
+    },
+    driver: {
+      playback: async (value) => {
+        delivered.push(value.sequence!);
+      },
+    },
+    onState: () => undefined,
+    onFault: () => undefined,
+    onDiagnostic: () => undefined,
+  });
+  try {
+    controller.load("r");
+    await vi.waitFor(() => expect(delivered).toEqual(["1"]));
+    controller.command({ command: "play" });
+    push(state("r", "2"));
+    finish(state("r", "3"));
+    await vi.waitFor(() => expect(delivered).toContain("3"));
+    expect(delivered).toEqual(["1", "3"]);
   } finally {
     controller.dispose();
   }

@@ -435,3 +435,33 @@ export const authorPublicationResultSchema = z.discriminatedUnion("ok", [
   }),
 ]);
 export type AuthorPublicationResult = z.infer<typeof authorPublicationResultSchema>;
+
+export const editorSocketRequestSchema = z
+  .object({
+    id: z.number().int().positive().safe(),
+    operation: z.discriminatedUnion("method", [
+      z.object({ method: z.literal("playback"), body: previewPlaybackCommandSchema }).strict(),
+      z
+        .object({ method: z.literal("confirmDisplay"), body: previewCommittedRequestSchema })
+        .strict(),
+      z.object({ method: z.literal("invalidateDisplay") }).strict(),
+    ]),
+  })
+  .strict();
+export const editorSocketMessageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("ready") }).strict(),
+  z
+    .object({ type: z.literal("result"), id: z.number().int().positive(), value: z.unknown() })
+    .strict(),
+  z
+    .object({
+      type: z.literal("error"),
+      id: z.number().int().positive(),
+      status: z.number().int(),
+      code: text,
+      message: text,
+    })
+    .strict(),
+  z.object({ type: z.literal("playback"), value: previewPlaybackResponseSchema }).strict(),
+]);
+export type EditorSocketOperation = z.infer<typeof editorSocketRequestSchema>["operation"];

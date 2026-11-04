@@ -884,6 +884,9 @@ importers:
       typescript:
         specifier: 6.0.3
         version: 6.0.3
+      ws:
+        specifier: ^8.22.1
+        version: 8.22.1
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -915,6 +918,9 @@ importers:
       '@types/validate-npm-package-name':
         specifier: 4.0.2
         version: 4.0.2
+      '@types/ws':
+        specifier: ^8.18.2
+        version: 8.18.2
       '@unframe-dev/api-client-typescript':
         specifier: workspace:*
         version: link:../../api-client-typescript

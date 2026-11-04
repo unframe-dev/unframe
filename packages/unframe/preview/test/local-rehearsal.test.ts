@@ -366,3 +366,15 @@ it("does not offer the next event while paused or inspecting a Cue", () => {
   });
   expect(inspected.simulation?.nextInput).toBeNull();
 });
+
+it("resynchronizes from the last acknowledged sequence after an unreceived socket update", () => {
+  const playback = setup((definition) => {
+    definition.flow.groups.intro!.steps.other = { id: "other", cues: [] };
+  });
+  const before = playback({ requestId, command: "poll" });
+  playback({ requestId, command: "applied", sequence: before.state.sequence! });
+  playback({ requestId, command: "selectStep", groupId: "intro", stepId: "other" });
+  const recovered = playback({ requestId, command: "recover", sequence: before.state.sequence! });
+  expect(recovered.stepId).toBe("start");
+  expect(recovered.state.clock).toHaveProperty("paused");
+});

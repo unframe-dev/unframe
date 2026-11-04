@@ -6,17 +6,15 @@ import type { HostApi } from "../infra/host-api";
 import { HostApiError } from "../infra/host-api";
 import type { PreviewDriver } from "./preview-driver";
 import { UnityExchangeError } from "../infra/unity-exchange";
-import { requiresRecovery } from "./preview-state";
 
 type WithoutRequest<T> = T extends unknown ? Omit<T, "requestId"> : never;
 export type PlaybackIntent = WithoutRequest<PreviewPlaybackCommand>;
 export function createPlaybackController(input: {
-  api: Pick<HostApi, "playback">;
+  api: Pick<HostApi, "playback" | "subscribePlayback">;
   driver: Pick<PreviewDriver, "playback">;
   onState(state: PreviewPlaybackResponse): void;
   onFault(error: unknown, response: PreviewPlaybackResponse | null): void;
   onDiagnostic(error: unknown, unavailable?: boolean): void;
-  pollMilliseconds?: number;
 }) {
   let closed = false,
     running = false,
@@ -24,8 +22,12 @@ export function createPlaybackController(input: {
   let requestId: string | undefined;
   let abort = new AbortController();
   let pending: PlaybackIntent[] = [];
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let pushed: PreviewPlaybackResponse | undefined;
   let latest: PreviewPlaybackResponse | null = null;
+  let delivering: PreviewPlaybackResponse | null = null;
+  function discardPushedThrough(sequence: string) {
+    if (pushed && BigInt(pushed.state.sequence!) <= BigInt(sequence)) pushed = undefined;
+  }
   const current = (serial: number) => !closed && epoch === serial && !!requestId;
   async function drain() {
     if (running || closed || !requestId) return;
@@ -33,16 +35,21 @@ export function createPlaybackController(input: {
     const serial = epoch,
       id = requestId,
       signal = abort.signal;
-    const intent = pending.shift() ?? { command: "poll" as const };
+    const update = pushed;
+    pushed = undefined;
+    const intent = update
+      ? { command: "poll" as const }
+      : (pending.shift() ?? { command: "poll" as const });
     let response: PreviewPlaybackResponse | null = null;
     try {
-      response = await input.api.playback(
-        { ...intent, requestId: id } as PreviewPlaybackCommand,
-        signal,
-      );
+      response =
+        update ??
+        (await input.api.playback({ ...intent, requestId: id } as PreviewPlaybackCommand, signal));
       if (!current(serial)) return;
       if (response.state.requestId !== id)
         throw new HostApiError(409, "stale-response", "Playback response request does not match.");
+      discardPushedThrough(response.state.sequence!);
+      delivering = response;
       await input.driver.playback(response.state, signal, response.spatial);
       if (!current(serial)) return;
       // Host records only a state that Unity has acknowledged successfully.
@@ -77,22 +84,16 @@ export function createPlaybackController(input: {
       ) {
         pending = [{ command: "pause" }];
         input.onDiagnostic(error);
-      } else if (
-        error instanceof UnityExchangeError &&
-        error.notification &&
-        !requiresRecovery(error.notification)
-      )
-        input.onDiagnostic(error);
-      else {
+      } else {
         requestId = undefined;
         pending = [];
         input.onFault(error, response ?? latest);
       }
     } finally {
+      delivering = null;
       running = false;
       if (!closed && requestId) {
-        if (serial !== epoch || pending.length) void drain();
-        else timer = setTimeout(() => void drain(), input.pollMilliseconds ?? 100);
+        if (serial !== epoch || pending.length || pushed) void drain();
       }
     }
   }
@@ -101,7 +102,7 @@ export function createPlaybackController(input: {
     requestId = undefined;
     pending = [];
     latest = null;
-    clearTimeout(timer);
+    pushed = undefined;
     abort.abort();
     abort = new AbortController();
   }
@@ -110,9 +111,23 @@ export function createPlaybackController(input: {
     if (intent.command === "seekCue")
       pending = pending.filter((item) => item.command !== "seekCue");
     pending.push(intent);
-    clearTimeout(timer);
     void drain();
   }
+  const unsubscribe = input.api.subscribePlayback(
+    (response) => {
+      if (response.state.requestId !== requestId || closed) return;
+      const applied = delivering ?? latest;
+      if (applied && BigInt(response.state.sequence!) <= BigInt(applied.state.sequence!)) return;
+      pushed = response;
+      void drain();
+    },
+    (error) => {
+      if (!requestId || closed) return;
+      const response = delivering ?? latest;
+      invalidate();
+      input.onFault(error, response);
+    },
+  );
   return {
     load(id: string) {
       invalidate();
@@ -149,6 +164,7 @@ export function createPlaybackController(input: {
     dispose() {
       invalidate();
       closed = true;
+      unsubscribe();
     },
   };
 }
