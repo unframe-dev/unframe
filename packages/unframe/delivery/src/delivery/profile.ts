@@ -375,6 +375,8 @@ const runtimeCatalog = (
     pullBackward: 6,
     spreadHands: 7,
     closeHands: 8,
+    throw: 9,
+    circle: 10,
   };
   const triggers = Object.values(definition.flow.groups).flatMap((group) =>
     Object.values(group.steps).flatMap((step) => step.cues.map((cue) => cue.trigger)),

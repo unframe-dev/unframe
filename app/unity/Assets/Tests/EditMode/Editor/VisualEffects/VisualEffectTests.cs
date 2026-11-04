@@ -229,4 +229,26 @@ public sealed class VisualEffectTests
         }
         finally { UnityEngine.Object.DestroyImmediate(target); }
     }
+    [Test]
+    public void RuntimeDissolveKeepsTerminalMaterialUntilCanonicalStop()
+    {
+        var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        var renderer = target.GetComponent<MeshRenderer>();
+        var original = renderer.sharedMaterial;
+        try
+        {
+            using var effects = new VisualEffectPlayer();
+            var handle = effects.PlayDissolve(new EffectOptions("exit", 1, Color.white, 1, 100, 0, 0),
+                renderer, Resources.Load<Shader>("VisualEffects/VisualDissolve"), true);
+            effects.Evaluate(150);
+            Assert.AreEqual(1, effects.ActiveCount);
+            Assert.AreEqual(1, handle.Progress);
+            Assert.AreNotSame(original, renderer.sharedMaterial);
+            handle.Cancel();
+            Assert.AreSame(original, renderer.sharedMaterial);
+            Assert.AreEqual(0, effects.ActiveCount);
+        }
+        finally { UnityEngine.Object.DestroyImmediate(target); }
+    }
+
 }

@@ -21,6 +21,11 @@ func ValidateSnapshot(snapshot *realtimev2.CanonicalRuntimeSnapshot, catalog *pr
 	if snapshot.StepExecution.StepEntryEpoch != snapshot.Progression.StepEntryEpoch {
 		return fmt.Errorf("message_invalid: step execution epoch")
 	}
+	for _, run := range snapshot.EffectRuns {
+		if run.RunId.RunSequence > snapshot.LastAllocatedRunSequence {
+			return fmt.Errorf("message_invalid: effect allocator")
+		}
+	}
 	for _, run := range snapshot.ActiveRuns {
 		if run.RunId.RunSequence > snapshot.LastAllocatedRunSequence {
 			return fmt.Errorf("message_invalid: run allocator")
@@ -35,6 +40,11 @@ func ValidateSnapshot(snapshot *realtimev2.CanonicalRuntimeSnapshot, catalog *pr
 		}
 		progression := &realtimev2.ProgressionRuntimeState{CurrentGroupId: entry.GroupId, CurrentStepId: entry.StepId, GroupEntryEpoch: entry.GroupEntryEpoch, StepEntryEpoch: entry.StepEntryEpoch, Phase: &realtimev2.ProgressionRuntimeState_Stable{Stable: &realtimev2.StableProgression{}}}
 		var blocking []*presentationv2.RuntimeRunId
+		for _, run := range entry.EffectRuns {
+			if run.RunId.RunSequence > snapshot.LastAllocatedRunSequence {
+				return fmt.Errorf("message_invalid: historical effect allocator")
+			}
+		}
 		for _, run := range entry.ActiveRuns {
 			if run.RunId.RunSequence > snapshot.LastAllocatedRunSequence {
 				return fmt.Errorf("message_invalid: historical run allocator")
@@ -46,7 +56,7 @@ func ValidateSnapshot(snapshot *realtimev2.CanonicalRuntimeSnapshot, catalog *pr
 		if len(blocking) > 0 {
 			progression.Phase = &realtimev2.ProgressionRuntimeState_Transitioning{Transitioning: &realtimev2.TransitioningProgression{BlockingRunIds: blocking}}
 		}
-		historical := &realtimev2.CanonicalRuntimeSnapshot{Progression: progression, Clock: &realtimev2.RuntimeClockSnapshot{RuntimeTimeMs: entry.CapturedAtRuntimeTimeMs}, NodeStates: entry.NodeStates, SurfaceStates: entry.SurfaceStates, Variables: entry.Variables, MediaStates: entry.MediaStates, ModelClipStates: entry.ModelClipStates, ActiveRuns: entry.ActiveRuns}
+		historical := &realtimev2.CanonicalRuntimeSnapshot{Progression: progression, Clock: &realtimev2.RuntimeClockSnapshot{RuntimeTimeMs: entry.CapturedAtRuntimeTimeMs}, NodeStates: entry.NodeStates, SurfaceStates: entry.SurfaceStates, Variables: entry.Variables, MediaStates: entry.MediaStates, ModelClipStates: entry.ModelClipStates, ActiveRuns: entry.ActiveRuns, EffectRuns: entry.EffectRuns}
 		if err := validateRuntimeState(historical, catalog, assignmentEpoch); err != nil {
 			return fmt.Errorf("message_invalid: Step history: %w", err)
 		}
@@ -63,6 +73,7 @@ type runtimeStateCut interface {
 	GetMediaStates() []*realtimev2.MediaRuntimeState
 	GetModelClipStates() []*realtimev2.ModelClipRuntimeState
 	GetActiveRuns() []*realtimev2.RuntimeRunSnapshot
+	GetEffectRuns() []*realtimev2.EffectRunSnapshot
 	GetFrozenAnchors() []*realtimev2.FrozenAnchorDisplayState
 }
 
@@ -170,6 +181,24 @@ func validateRuntimeState(snapshot runtimeStateCut, catalog *presentationv2.Proj
 
 	runs := make(map[uint64]*realtimev2.RuntimeRunSnapshot)
 	blocking := make(map[uint64]bool)
+	for _, run := range snapshot.GetEffectRuns() {
+		if nodes[run.NodeId] == nil || run.RunId.AssignmentEpoch != assignmentEpoch || runs[run.RunId.RunSequence] != nil || run.StartedAtRuntimeTimeMs > snapshot.GetClock().RuntimeTimeMs {
+			return fmt.Errorf("message_invalid: effect target, allocator, assignment or clock")
+		}
+		if owner := run.Owner.GetGroup(); owner != nil && (owner.GroupId != group || owner.GroupEntryEpoch != snapshot.GetProgression().GroupEntryEpoch) {
+			return fmt.Errorf("message_invalid: effect owner")
+		}
+		if nodes[run.NodeId].Owner.GetGroup() != nil && run.Owner.GetPresentation() != nil {
+			return fmt.Errorf("message_invalid: effect target owner")
+		}
+		duration := math.Ceil(float64(run.Configuration.DurationMs) / run.Configuration.Speed)
+		elapsed := snapshot.GetClock().RuntimeTimeMs - run.StartedAtRuntimeTimeMs
+		if duration < 1 || duration >= float64(^uint64(0)) || run.Status == 1 && float64(elapsed) >= duration || run.Status == 2 && float64(elapsed) < duration {
+			return fmt.Errorf("message_invalid: effect deadline")
+		}
+		runs[run.RunId.RunSequence] = &realtimev2.RuntimeRunSnapshot{RunId: run.RunId}
+	}
+
 	for _, run := range snapshot.GetActiveRuns() {
 		if run.RunId.AssignmentEpoch != assignmentEpoch || runs[run.RunId.RunSequence] != nil || run.StartedAtRuntimeTimeMs > snapshot.GetClock().RuntimeTimeMs {
 			return fmt.Errorf("message_invalid: run allocator, assignment or clock")

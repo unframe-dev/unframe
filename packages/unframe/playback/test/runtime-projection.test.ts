@@ -24,6 +24,57 @@ const definition = structuredClone(definitionFixture) as unknown as Presentation
 const snapshot = m3dCueRuntimeSnapshotSchema.parse(snapshotFixture);
 
 describe("M3D Runtime projection and canonical snapshot", () => {
+  it.each([0.5, 2])("validates speed-adjusted Effect deadlines (%s)", (speed) => {
+    const current = structuredClone(snapshot);
+    const duration = Math.ceil(100 / speed);
+    current.lastAllocatedRunSequence = 1;
+    current.clock.runtimeTimeMilliseconds = duration - 1;
+    current.effectRuns = [
+      {
+        runId: { assignmentEpoch: 1, runSequence: 1 },
+        owner: { kind: "presentation" },
+        cause: {
+          cueId: "effect",
+          causeEventId: "input",
+          groupId: current.progression.currentGroupId,
+          groupEntryEpoch: 1,
+          stepId: current.progression.currentStepId,
+          stepEntryEpoch: 1,
+        },
+        startedAtRuntimeTimeMilliseconds: 0,
+        effectId: "wave",
+        nodeId: "node-baked",
+        seed: 0,
+        status: "active",
+        effect: {
+          kind: "wave",
+          speed,
+          size: 1,
+          waveCycles: 1,
+          durationMilliseconds: 100,
+          color: { red: 1, green: 1, blue: 1, alpha: 1 },
+        },
+      },
+    ];
+    expect(validateM3dCueRuntimeSnapshot(definition, current, 1)).toEqual([]);
+    current.clock.runtimeTimeMilliseconds = duration;
+    expect(validateM3dCueRuntimeSnapshot(definition, current, 1)).toContain(
+      "Effect Run deadline has passed.",
+    );
+    current.effectRuns[0]!.status = "retained";
+    expect(validateM3dCueRuntimeSnapshot(definition, current, 1)).toEqual([]);
+    current.effectRuns[0]!.effect.speed = Number.MIN_VALUE;
+    expect(validateM3dCueRuntimeSnapshot(definition, current, 1)).toContain(
+      "Effect Run deadline exceeds the safe integer range.",
+    );
+    current.effectRuns[0]!.effect.speed = speed;
+    current.clock.runtimeTimeMilliseconds = Number.MAX_SAFE_INTEGER;
+    current.effectRuns[0]!.startedAtRuntimeTimeMilliseconds = Number.MAX_SAFE_INTEGER - 1;
+    expect(validateM3dCueRuntimeSnapshot(definition, current, 1)).toContain(
+      "Effect Run deadline exceeds the safe integer range.",
+    );
+  });
+
   it.each([
     ["snapshot", "definition"],
     ["snapshot", "input"],

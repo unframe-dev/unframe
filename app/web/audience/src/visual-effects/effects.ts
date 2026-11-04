@@ -181,6 +181,7 @@ function releaseGroup(group: Group): void {
 export class VisualEffects {
   private readonly runs = new Map<string, Run>();
   private readonly dissolveOwners = new Set<Mesh>();
+  private readonly generatedMeshes = new WeakSet<Mesh>();
 
   play(input: EffectOptions, target: Object3D, completed?: () => void): EffectHandle {
     if (input.effectId === "handGlow") throw new Error("Use begin for handGlow");
@@ -302,6 +303,8 @@ export class VisualEffects {
     const halo = ribbon(options, 25, 0.012 * options.size);
     const trail = ribbon(options, 256, 0.025 * options.size);
     group.add(halo.mesh, trail.mesh);
+    this.generatedMeshes.add(halo.mesh);
+    this.generatedMeshes.add(trail.mesh);
     const samples: { position: Vector3; at: number }[] = [];
     let ended: number | undefined;
     let released = false;
@@ -369,7 +372,7 @@ export class VisualEffects {
   private dissolve(options: EffectOptions, target: Object3D) {
     const meshes: Mesh<BufferGeometry, MeshStandardMaterial | MeshStandardMaterial[]>[] = [];
     target.traverse((object) => {
-      if (!(object instanceof Mesh)) return;
+      if (!(object instanceof Mesh) || this.generatedMeshes.has(object)) return;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       if (
         "isSkinnedMesh" in object ||

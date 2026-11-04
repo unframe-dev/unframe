@@ -1,3 +1,4 @@
+import { effectStartActionSchema, effectStopActionSchema } from "@unframe-dev/presentation";
 import { componentTimelineSchema } from "../internal/component-timeline-schema.js";
 import type { JsxComponentStructureInput, JsxPresentationInput } from "../domain/jsx-input.js";
 import { validateReactSceneItem } from "./react-component.js";
@@ -876,6 +877,8 @@ const cueTriggerSchema = z.union([
       "pullBackward",
       "spreadHands",
       "closeHands",
+      "throw",
+      "circle",
     ]),
   }),
   z.strictObject({ kind: z.literal("event"), event: idSchema }),
@@ -925,6 +928,8 @@ const cueSchema = z
     actions: z.array(
       z.union([
         componentActionInvocationSchema,
+        effectStartActionSchema,
+        effectStopActionSchema,
         z.strictObject({
           kind: z.literal("timeline.play"),
           timelineId: idSchema,

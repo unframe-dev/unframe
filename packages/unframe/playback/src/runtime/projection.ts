@@ -1,3 +1,4 @@
+import { effectRuntimeDuration } from "./effects.js";
 import {
   m3dCueRuntimeSnapshotSchema,
   canonicalRuntimeSnapshotSchema,
@@ -131,6 +132,7 @@ const snapshotAtStepStart = (
   modelClipStates: entry.modelClipStates,
   variables: entry.variables,
   activeRuns: entry.activeRuns,
+  effectRuns: entry.effectRuns,
   clock: { ...snapshot.clock, runtimeTimeMilliseconds: entry.capturedAtRuntimeTimeMilliseconds },
   progression: {
     currentGroupId: entry.groupId,
@@ -273,6 +275,41 @@ export const validateM3dCueRuntimeSnapshot = (
     } else if (runs.length) issues.push(`modelClipStates.${id} has an active Run while held.`);
   }
   const runIds = new Set<string>();
+  const effectIds = new Set<string>();
+  for (const run of snapshot.effectRuns) {
+    const key = `${run.runId.assignmentEpoch}:${run.runId.runSequence}`;
+    if (runIds.has(key)) issues.push("Duplicate Runtime Run ID.");
+    runIds.add(key);
+    if (effectIds.has(run.effectId)) issues.push("Duplicate Effect ID.");
+    effectIds.add(run.effectId);
+    if (
+      run.runId.assignmentEpoch !== assignmentEpoch ||
+      run.runId.runSequence > snapshot.lastAllocatedRunSequence
+    )
+      issues.push("Effect Run allocator identity differs.");
+    if (!expectedNodes.includes(run.nodeId)) issues.push("Effect Run targets an inactive Node.");
+    if (run.startedAtRuntimeTimeMilliseconds > snapshot.clock.runtimeTimeMilliseconds)
+      issues.push("Effect Run starts after snapshot clock.");
+    if (
+      run.owner.kind === "group" &&
+      (run.owner.groupId !== currentGroupId || run.owner.groupEntryEpoch !== groupEntryEpoch)
+    )
+      issues.push("Effect Run owner epoch differs from progression.");
+    let duration: number;
+    try {
+      duration = effectRuntimeDuration(run.effect);
+      if (duration > Number.MAX_SAFE_INTEGER - run.startedAtRuntimeTimeMilliseconds)
+        throw new RangeError("Effect deadline exceeds the safe integer range.");
+    } catch {
+      issues.push("Effect Run deadline exceeds the safe integer range.");
+      continue;
+    }
+    const elapsed = snapshot.clock.runtimeTimeMilliseconds - run.startedAtRuntimeTimeMilliseconds;
+    if (run.status === "retained" && (run.effect.kind !== "wave" || elapsed < duration))
+      issues.push("Only a completed Wave may be retained.");
+    if (run.status === "active" && elapsed >= duration)
+      issues.push("Effect Run deadline has passed.");
+  }
   for (const run of snapshot.activeRuns) {
     const key = `${run.runId.assignmentEpoch}:${run.runId.runSequence}`;
     if (runIds.has(key)) issues.push("Duplicate Runtime Run ID.");
@@ -697,6 +734,7 @@ export const createM3dCueRuntimeSnapshot = (
     modelClipStates: state.modelClipStates,
     variables: state.variables,
     activeRuns: state.activeRuns,
+    effectRuns: state.effectRuns,
     presentationOrigin: metadata.presentationOrigin,
   });
   const issues = validateM3dCueRuntimeSnapshot(definition, snapshot, state.assignmentEpoch);
@@ -785,6 +823,9 @@ export const projectM3dCueParticipantRuntimeView = (
     modelClipStates: select(snapshot.modelClipStates, profile.visibleNodeIds),
     variables: select(snapshot.variables, profile.visibleVariableIds),
     activeRuns: cloneJson(visibleRuns),
+    effectRuns: cloneJson(
+      snapshot.effectRuns.filter((run) => profile.visibleNodeIds.includes(run.nodeId)),
+    ),
     clock: cloneJson(snapshot.clock),
     presentationOrigin: cloneJson(snapshot.presentationOrigin),
     enabledLogicalInputs,

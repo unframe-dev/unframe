@@ -216,7 +216,6 @@ function progressionPhase(value: NonNullable<ParticipantRuntimeViewWire["progres
 }
 
 export function toParticipantView(value: ParticipantRuntimeViewWire): ParticipantRuntimeView {
-  if (value.frozenAnchors?.length) fail("unsupported frozen anchor display state");
   const progression = required(value.progression, "progression");
   const clock = required(value.clock, "clock");
   const status = oneOf(clock, ["running", "paused", "terminating"]);
@@ -276,6 +275,53 @@ export function toParticipantView(value: ParticipantRuntimeViewWire): Participan
       (variable) => scalar(variable.value),
     ),
     activeRuns: (value.activeRuns ?? []).map(runtimeRun),
+    effectRuns: (value.effectRuns ?? []).map((run) => {
+      const owner = required(run.owner, "effect owner");
+      const cause = required(run.cause, "effect cause");
+      const effect = required(run.configuration, "effect configuration");
+      const kind = reason(effect.kind, ["wave", "handGlow", "dissolve"]);
+      return {
+        runId: runId(run.runId),
+        owner:
+          oneOf(owner, ["presentation", "group"]) === "presentation"
+            ? { kind: "presentation" }
+            : {
+                kind: "group",
+                groupId: owner.group!.groupId,
+                groupEntryEpoch: uint(owner.group!.groupEntryEpoch),
+              },
+        cause: {
+          cueId: cause.cueId,
+          causeEventId: cause.causeEventId,
+          groupId: cause.groupId,
+          groupEntryEpoch: uint(cause.groupEntryEpoch),
+          stepId: cause.stepId,
+          stepEntryEpoch: uint(cause.stepEntryEpoch),
+        },
+        effectId: run.effectId,
+        nodeId: run.nodeId,
+        seed: run.seed ?? 0,
+        startedAtRuntimeTimeMilliseconds: uint(run.startedAtRuntimeTimeMs),
+        status: reason(run.status, ["active", "retained"]),
+        effect: {
+          kind,
+          size: effect.size ?? 0,
+          color: {
+            red: effect.color?.red ?? 0,
+            green: effect.color?.green ?? 0,
+            blue: effect.color?.blue ?? 0,
+            alpha: effect.color?.alpha ?? 0,
+          },
+          speed: effect.speed ?? 0,
+          durationMilliseconds: uint(effect.durationMs),
+          ...(kind === "wave"
+            ? { waveCycles: effect.waveCycles ?? 0 }
+            : kind === "handGlow"
+              ? { hand: reason(effect.hand, ["left", "right"]) }
+              : {}),
+        },
+      };
+    }),
     mediaStates: record(
       value.mediaStates,
       (entry) => required(entry.surfaceId, "media surface"),
@@ -305,6 +351,10 @@ export function toParticipantView(value: ParticipantRuntimeViewWire): Participan
       pose: { position: vector(originPose.position), rotation: rotation(originPose.rotation) },
     },
     enabledLogicalInputs: value.enabledLogicalInputs ?? [],
-    frozenAnchors: [],
+    frozenAnchors: (value.frozenAnchors ?? []).map((anchor) => ({
+      nodeId: anchor.nodeId,
+      ...(anchor.position ? { position: vector(anchor.position) } : {}),
+      ...(anchor.rotation ? { rotation: rotation(anchor.rotation) } : {}),
+    })),
   });
 }

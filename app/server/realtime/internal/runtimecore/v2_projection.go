@@ -70,6 +70,11 @@ func ProjectV2Snapshot(snapshot *realtimev2.CanonicalRuntimeSnapshot, profile *d
 			view.ModelClipStates = append(view.ModelClipStates, proto.Clone(model).(*realtimev2.ModelClipRuntimeState))
 		}
 	}
+	for _, run := range snapshot.EffectRuns {
+		if nodes[run.NodeId] {
+			view.EffectRuns = append(view.EffectRuns, proto.Clone(run).(*realtimev2.EffectRunSnapshot))
+		}
+	}
 	timelines := make(map[string]bool)
 	for _, timeline := range profile.RuntimeCatalog.Timelines {
 		timelines[timeline.TimelineId] = true

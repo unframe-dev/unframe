@@ -58,6 +58,7 @@ message LocalPreviewPlaybackState {
   repeated unframe.realtime.MediaRuntimeState media_states = 8;
   repeated unframe.realtime.ModelClipRuntimeState model_clip_states = 9;
   repeated unframe.realtime.VariableState variable_states = 10;
+  repeated unframe.realtime.EffectRunSnapshot effect_runs = 11;
 }
 
 message LocalPreviewAsset {

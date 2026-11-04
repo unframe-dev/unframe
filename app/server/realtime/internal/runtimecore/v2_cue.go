@@ -27,6 +27,9 @@ func (s *V2Session) applySelectedV2Cue(cue v2Cue, causeEventID string) ([]*realt
 		if action.Kind == "timeline.play" || action.Kind == "timeline.stop" || action.Kind == "surface.setState" && v2TransitionKind(action.Transition) == "crossfade" {
 			continue
 		}
+		if action.Kind == "effect.start" || action.Kind == "effect.stop" {
+			continue
+		}
 		if isV2MediaAction(action.Kind) {
 			continue
 		}
@@ -54,6 +57,10 @@ func (s *V2Session) applySelectedV2Cue(cue v2Cue, causeEventID string) ([]*realt
 	if err != nil || rejection != nil {
 		return nil, rejection, err
 	}
+	effectEvents, rejection, err := s.evaluateV3EffectActions(next, cue, causeEventID)
+	if err != nil || rejection != nil {
+		return nil, rejection, err
+	}
 	blocking = append(blocking, modelBlocking...)
 	if !withinV3SnapshotCapacity(next) {
 		return nil, nil, ErrV3RuntimeCapacity
@@ -71,6 +78,9 @@ func (s *V2Session) applySelectedV2Cue(cue v2Cue, causeEventID string) ([]*realt
 		events = append(events, s.nextEvent(event))
 	}
 	for _, event := range modelEvents {
+		events = append(events, s.nextEvent(event))
+	}
+	for _, event := range effectEvents {
 		events = append(events, s.nextEvent(event))
 	}
 	for _, event := range actionEvents {

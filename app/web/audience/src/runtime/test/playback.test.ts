@@ -28,6 +28,7 @@ beforeEach(() => {
     applyState: vi.fn(),
     restartState: vi.fn(),
     reset: vi.fn(),
+    getAnchorBindings: () => ({}),
     getSnapshot: () => structuredClone(snapshot),
   });
 });
@@ -165,6 +166,7 @@ it("samples only a prepared view and fails closed on a frame renderer error", as
   expect(frame).toHaveBeenCalledWith(
     snapshot.view,
     snapshot.view!.clock.runtimeTimeMilliseconds + 50,
+    {},
   );
   frame.mockImplementation(() => {
     throw new Error("sensitive render detail");

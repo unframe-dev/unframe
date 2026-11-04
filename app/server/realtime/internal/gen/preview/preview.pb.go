@@ -349,6 +349,7 @@ type LocalPreviewPlaybackState struct {
 	MediaStates     []*realtime.MediaRuntimeState     `protobuf:"bytes,8,rep,name=media_states,json=mediaStates,proto3" json:"media_states,omitempty"`
 	ModelClipStates []*realtime.ModelClipRuntimeState `protobuf:"bytes,9,rep,name=model_clip_states,json=modelClipStates,proto3" json:"model_clip_states,omitempty"`
 	VariableStates  []*realtime.VariableState         `protobuf:"bytes,10,rep,name=variable_states,json=variableStates,proto3" json:"variable_states,omitempty"`
+	EffectRuns      []*realtime.EffectRunSnapshot     `protobuf:"bytes,11,rep,name=effect_runs,json=effectRuns,proto3" json:"effect_runs,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -453,6 +454,13 @@ func (x *LocalPreviewPlaybackState) GetVariableStates() []*realtime.VariableStat
 	return nil
 }
 
+func (x *LocalPreviewPlaybackState) GetEffectRuns() []*realtime.EffectRunSnapshot {
+	if x != nil {
+		return x.EffectRuns
+	}
+	return nil
+}
+
 type LocalPreviewAsset struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
@@ -543,7 +551,7 @@ const file_unframe_preview_preview_proto_rawDesc = "" +
 	"\x0esurface_states\x18\x02 \x03(\v2%.unframe.realtime.SurfaceRuntimeStateR\rsurfaceStates\x12F\n" +
 	"\fmedia_states\x18\x03 \x03(\v2#.unframe.realtime.MediaRuntimeStateR\vmediaStates\x12S\n" +
 	"\x11model_clip_states\x18\x04 \x03(\v2'.unframe.realtime.ModelClipRuntimeStateR\x0fmodelClipStates\x12H\n" +
-	"\x0fvariable_states\x18\x05 \x03(\v2\x1f.unframe.realtime.VariableStateR\x0evariableStates\"\xff\x04\n" +
+	"\x0fvariable_states\x18\x05 \x03(\v2\x1f.unframe.realtime.VariableStateR\x0evariableStates\"\xc5\x05\n" +
 	"\x19LocalPreviewPlaybackState\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1a\n" +
@@ -558,7 +566,9 @@ const file_unframe_preview_preview_proto_rawDesc = "" +
 	"\fmedia_states\x18\b \x03(\v2#.unframe.realtime.MediaRuntimeStateR\vmediaStates\x12S\n" +
 	"\x11model_clip_states\x18\t \x03(\v2'.unframe.realtime.ModelClipRuntimeStateR\x0fmodelClipStates\x12H\n" +
 	"\x0fvariable_states\x18\n" +
-	" \x03(\v2\x1f.unframe.realtime.VariableStateR\x0evariableStates\"L\n" +
+	" \x03(\v2\x1f.unframe.realtime.VariableStateR\x0evariableStates\x12D\n" +
+	"\veffect_runs\x18\v \x03(\v2#.unframe.realtime.EffectRunSnapshotR\n" +
+	"effectRuns\"L\n" +
 	"\x11LocalPreviewAsset\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1c\n" +
 	"\treference\x18\x02 \x01(\tR\treferenceBQZOgithub.com/unframe-dev/unframe/app/server/realtime/internal/gen/preview;previewb\x06proto3"
@@ -598,6 +608,7 @@ var file_unframe_preview_preview_proto_goTypes = []any{
 	(*realtime.VariableState)(nil),               // 18: unframe.realtime.VariableState
 	(*realtime.RuntimeRunSnapshot)(nil),          // 19: unframe.realtime.RuntimeRunSnapshot
 	(*realtime.RuntimeClockSnapshot)(nil),        // 20: unframe.realtime.RuntimeClockSnapshot
+	(*realtime.EffectRunSnapshot)(nil),           // 21: unframe.realtime.EffectRunSnapshot
 }
 var file_unframe_preview_preview_proto_depIdxs = []int32{
 	1,  // 0: unframe.preview.LocalPreviewEnvelope.projection:type_name -> unframe.preview.LocalPreviewProjection
@@ -624,11 +635,12 @@ var file_unframe_preview_preview_proto_depIdxs = []int32{
 	16, // 21: unframe.preview.LocalPreviewPlaybackState.media_states:type_name -> unframe.realtime.MediaRuntimeState
 	17, // 22: unframe.preview.LocalPreviewPlaybackState.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
 	18, // 23: unframe.preview.LocalPreviewPlaybackState.variable_states:type_name -> unframe.realtime.VariableState
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	21, // 24: unframe.preview.LocalPreviewPlaybackState.effect_runs:type_name -> unframe.realtime.EffectRunSnapshot
+	25, // [25:25] is the sub-list for method output_type
+	25, // [25:25] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_unframe_preview_preview_proto_init() }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { advanceCueClock, createCueState, executeCueEvent } from "@unframe-dev/playback";
+import {
+  advanceCueClock,
+  createCueState,
+  executeCueEvent,
+  effectRuntimeDuration,
+} from "@unframe-dev/playback";
 import { makeM3AArtifacts } from "./fixtures.js";
 
 const setup = () => {
@@ -29,6 +34,119 @@ const input = {
 };
 
 describe("pure Cue executor", () => {
+  it("rejects unrepresentable effective durations and rounds deadlines up", () => {
+    expect(effectRuntimeDuration({ durationMilliseconds: 101, speed: 2 })).toBe(51);
+    expect(() =>
+      effectRuntimeDuration({ durationMilliseconds: 100, speed: Number.MIN_VALUE }),
+    ).toThrow(RangeError);
+    expect(() =>
+      effectRuntimeDuration({ durationMilliseconds: Number.MAX_SAFE_INTEGER, speed: 0.5 }),
+    ).toThrow(RangeError);
+  });
+
+  it.each([0.5, 1, 2])(
+    "settles Wave and Dissolve at their speed-adjusted deadline (%s)",
+    (speed) => {
+      const duration = Math.ceil(100 / speed);
+      const definition = setup();
+      const nodeId = Object.keys(definition.scene.nodes)[0]!;
+      const effect = {
+        kind: "wave" as const,
+        size: 1,
+        speed,
+        waveCycles: 2,
+        color: { red: 1, green: 1, blue: 1, alpha: 1 },
+        durationMilliseconds: 100,
+      };
+      const cue = {
+        id: "effect",
+        priority: 0,
+        order: 0,
+        trigger: {
+          kind: "logicalInput" as const,
+          action: "next",
+          actor: { kind: "presenter" as const },
+        },
+        firePolicy: { kind: "repeatable" as const },
+        next: { kind: "stay" as const },
+        actions: [
+          {
+            kind: "effect.start" as const,
+            effectId: "wave",
+            nodeId,
+            owner: { kind: "presentation" as const },
+            effect,
+            seed: 9,
+          },
+        ],
+      };
+      const startAction = cue.actions[0]!;
+      definition.flow.groups.intro!.steps.start!.cues = [cue];
+      const first = executeCueEvent(definition, createCueState(definition, 1), input);
+      expect(first.outcome.kind).toBe("accepted");
+      expect(first.state.effectRuns[0]).toMatchObject({
+        effectId: "wave",
+        seed: 9,
+        status: "active",
+      });
+      expect(
+        advanceCueClock(definition, first.state, duration - 1).state.effectRuns[0]!.status,
+      ).toBe("active");
+      const full = structuredClone(first.state);
+      full.effectRuns = Array.from({ length: 32 }, (_, index) => ({
+        ...structuredClone(first.state.effectRuns[0]!),
+        effectId: `effect-${index}`,
+      }));
+      expect(
+        executeCueEvent(definition, full, { ...input, causeEventId: "capacity" }).outcome,
+      ).toMatchObject({ kind: "rejected", reason: "conflict" });
+      const elapsed = advanceCueClock(definition, first.state, duration).state;
+      expect(elapsed.effectRuns[0]!.status).toBe("retained");
+      definition.flow.groups.intro!.steps.start!.cues[0]!.actions = [
+        { kind: "effect.stop", effectId: "wave" },
+      ];
+      const stopped = executeCueEvent(definition, elapsed, {
+        ...input,
+        causeEventId: "stop",
+      }).state;
+      expect(stopped.effectRuns).toEqual([]);
+      definition.flow.groups.intro!.steps.start!.cues[0]!.actions = [
+        {
+          ...startAction,
+          effectId: "dissolve",
+          effect: {
+            kind: "dissolve",
+            size: 1,
+            speed,
+            color: effect.color,
+            durationMilliseconds: 100,
+          },
+        },
+      ];
+      const dissolving = executeCueEvent(definition, stopped, {
+        ...input,
+        causeEventId: "dissolve",
+      }).state;
+      expect(
+        advanceCueClock(definition, dissolving, 2 * duration - 1).state.nodes[nodeId]!.visible,
+      ).toBe(true);
+      definition.flow.groups.intro!.steps.start!.cues[0]!.actions = [
+        {
+          ...startAction,
+          effect: dissolving.effectRuns[0]!.effect,
+          effectId: "second-dissolve",
+        },
+      ];
+      expect(
+        executeCueEvent(definition, dissolving, { ...input, causeEventId: "duplicate-dissolve" })
+          .outcome,
+      ).toMatchObject({ kind: "rejected", reason: "conflict" });
+      const done = advanceCueClock(definition, dissolving, 2 * duration).state;
+      expect(done.nodes[nodeId]!.visible).toBe(false);
+      expect(done.effectRuns).toEqual([]);
+    },
+  );
+
   it("uses priority order, applies one atomic batch, and consumes a Cue", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues = [

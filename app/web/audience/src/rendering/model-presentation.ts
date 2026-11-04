@@ -113,6 +113,7 @@ export async function createModelPresentation(options: {
         group.name = `model-node:${node.id}`;
         groups.set(node.id, group);
       }
+      group.visible = !!view.nodeStates[node.id]?.active && !!view.nodeStates[node.id]?.visible;
       group.position.fromArray(node.transform.position);
       group.quaternion.fromArray(node.transform.rotation);
       group.scale.fromArray(node.transform.scale);

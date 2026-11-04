@@ -102,5 +102,6 @@
   "modelClipStates": {},
   "inputEpoch": 1,
   "stepStartHistory": [],
-  "frozenAnchors": []
+  "frozenAnchors": [],
+  "effectRuns": []
 }

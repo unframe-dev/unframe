@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,8 +14,18 @@ import (
 )
 
 func TestV3ControlSynchronizesPresenterAndDispatchesRecognizedInputs(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		kind presentationv2.GestureKind
+	}{{"swipeLeft", presentationv2.GestureKind_GESTURE_KIND_SWIPE_LEFT}, {"throw", presentationv2.GestureKind_GESTURE_KIND_THROW}, {"circle", presentationv2.GestureKind_GESTURE_KIND_CIRCLE}} {
+		t.Run(test.name, func(t *testing.T) { testV3ControlRecognizedInput(t, test.name, test.kind) })
+	}
+}
+func testV3ControlRecognizedInput(t *testing.T, gestureName string, gestureKind presentationv2.GestureKind) {
+	t.Helper()
 	service, profile := newV2LeaseTestService(t, allowAllAssignment{})
 	definition := json.RawMessage(`{"schemaVersion":1,"presentationId":"presentation-1","stage":{"zones":{"here":{"id":"here","owner":{"kind":"presentation"},"center":[0,0,0]}}},"scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"swipe","priority":1,"order":0,"trigger":{"kind":"gesture","actor":{"kind":"presenter"},"gesture":"swipeLeft"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}},{"id":"enter","priority":1,"order":1,"trigger":{"kind":"zoneEdge","actor":{"kind":"presenter"},"zoneId":"here","edge":"enter"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
+	definition = json.RawMessage(strings.ReplaceAll(string(definition), "swipeLeft", gestureName))
 	core, err := runtimecore.NewV2Session(definition)
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +87,7 @@ func TestV3ControlSynchronizesPresenterAndDispatchesRecognizedInputs(t *testing.
 	if catalog.ReliableSequence > snapshot.ReliableSequence || len(catalog.ReachedSteps) != 1 || catalog.ReachedSteps[0].GroupId != "intro" || catalog.ReachedSteps[0].StepId != "start" {
 		t.Fatalf("initial reached Step catalog: %v", catalog)
 	}
-	command := &realtimev2.GestureInputCommand{ClientEventId: v3TestEventID(required.CommandEpoch, "gesture"), CommandEpoch: required.CommandEpoch, InputContext: required.InputContext, PresentationOriginVersion: snapshot.Fence.PresentationOriginVersion, Gesture: presentationv2.GestureKind_GESTURE_KIND_SWIPE_LEFT}
+	command := &realtimev2.GestureInputCommand{ClientEventId: v3TestEventID(required.CommandEpoch, "gesture"), CommandEpoch: required.CommandEpoch, InputContext: required.InputContext, PresentationOriginVersion: snapshot.Fence.PresentationOriginVersion, Gesture: gestureKind}
 	input <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_GestureInput{GestureInput: command}}
 	outcome := next(func(i *realtimev2.ControlServerItem) bool { return i.GetCommandOutcome() != nil }).GetCommandOutcome()
 	if outcome.GetRejected().GetReason() != realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_INPUT_SYNCHRONIZATION_REQUIRED {

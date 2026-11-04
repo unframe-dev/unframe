@@ -865,6 +865,55 @@ func (StateFrameKind) EnumDescriptor() ([]byte, []int) {
 	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{14}
 }
 
+type EffectRunStatus int32
+
+const (
+	EffectRunStatus_EFFECT_RUN_STATUS_UNSPECIFIED EffectRunStatus = 0
+	EffectRunStatus_EFFECT_RUN_STATUS_ACTIVE      EffectRunStatus = 1
+	EffectRunStatus_EFFECT_RUN_STATUS_RETAINED    EffectRunStatus = 2
+)
+
+// Enum value maps for EffectRunStatus.
+var (
+	EffectRunStatus_name = map[int32]string{
+		0: "EFFECT_RUN_STATUS_UNSPECIFIED",
+		1: "EFFECT_RUN_STATUS_ACTIVE",
+		2: "EFFECT_RUN_STATUS_RETAINED",
+	}
+	EffectRunStatus_value = map[string]int32{
+		"EFFECT_RUN_STATUS_UNSPECIFIED": 0,
+		"EFFECT_RUN_STATUS_ACTIVE":      1,
+		"EFFECT_RUN_STATUS_RETAINED":    2,
+	}
+)
+
+func (x EffectRunStatus) Enum() *EffectRunStatus {
+	p := new(EffectRunStatus)
+	*p = x
+	return p
+}
+
+func (x EffectRunStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EffectRunStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_unframe_realtime_realtime_proto_enumTypes[15].Descriptor()
+}
+
+func (EffectRunStatus) Type() protoreflect.EnumType {
+	return &file_unframe_realtime_realtime_proto_enumTypes[15]
+}
+
+func (x EffectRunStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EffectRunStatus.Descriptor instead.
+func (EffectRunStatus) EnumDescriptor() ([]byte, []int) {
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{15}
+}
+
 type ControlClientItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Item:
@@ -3151,6 +3200,7 @@ type ProjectedReliableEvent struct {
 	//	*ProjectedReliableEvent_GestureInputAccepted
 	//	*ProjectedReliableEvent_ZoneInputAccepted
 	//	*ProjectedReliableEvent_RuntimeViewReplaced
+	//	*ProjectedReliableEvent_EffectRunsChanged
 	Payload       isProjectedReliableEvent_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3561,6 +3611,15 @@ func (x *ProjectedReliableEvent) GetRuntimeViewReplaced() *RuntimeViewReplaced {
 	return nil
 }
 
+func (x *ProjectedReliableEvent) GetEffectRunsChanged() *EffectRunsChanged {
+	if x != nil {
+		if x, ok := x.Payload.(*ProjectedReliableEvent_EffectRunsChanged); ok {
+			return x.EffectRunsChanged
+		}
+	}
+	return nil
+}
+
 type isProjectedReliableEvent_Payload interface {
 	isProjectedReliableEvent_Payload()
 }
@@ -3713,6 +3772,10 @@ type ProjectedReliableEvent_RuntimeViewReplaced struct {
 	RuntimeViewReplaced *RuntimeViewReplaced `protobuf:"bytes,1003,opt,name=runtime_view_replaced,json=runtimeViewReplaced,proto3,oneof"`
 }
 
+type ProjectedReliableEvent_EffectRunsChanged struct {
+	EffectRunsChanged *EffectRunsChanged `protobuf:"bytes,1004,opt,name=effect_runs_changed,json=effectRunsChanged,proto3,oneof"`
+}
+
 func (*ProjectedReliableEvent_RuntimeStatusChanged) isProjectedReliableEvent_Payload() {}
 
 func (*ProjectedReliableEvent_PresentationOriginChanged) isProjectedReliableEvent_Payload() {}
@@ -3786,6 +3849,8 @@ func (*ProjectedReliableEvent_GestureInputAccepted) isProjectedReliableEvent_Pay
 func (*ProjectedReliableEvent_ZoneInputAccepted) isProjectedReliableEvent_Payload() {}
 
 func (*ProjectedReliableEvent_RuntimeViewReplaced) isProjectedReliableEvent_Payload() {}
+
+func (*ProjectedReliableEvent_EffectRunsChanged) isProjectedReliableEvent_Payload() {}
 
 type ProjectionAdvance struct {
 	state           protoimpl.MessageState               `protogen:"open.v1"`
@@ -8543,6 +8608,7 @@ type CanonicalRuntimeSnapshot struct {
 	InputEpoch               uint64                      `protobuf:"varint,16,opt,name=input_epoch,json=inputEpoch,proto3" json:"input_epoch,omitempty"`
 	FrozenAnchors            []*FrozenAnchorDisplayState `protobuf:"bytes,17,rep,name=frozen_anchors,json=frozenAnchors,proto3" json:"frozen_anchors,omitempty"`
 	StepStartHistory         []*StepStartState           `protobuf:"bytes,18,rep,name=step_start_history,json=stepStartHistory,proto3" json:"step_start_history,omitempty"`
+	EffectRuns               []*EffectRunSnapshot        `protobuf:"bytes,19,rep,name=effect_runs,json=effectRuns,proto3" json:"effect_runs,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -8696,6 +8762,13 @@ func (x *CanonicalRuntimeSnapshot) GetStepStartHistory() []*StepStartState {
 	return nil
 }
 
+func (x *CanonicalRuntimeSnapshot) GetEffectRuns() []*EffectRunSnapshot {
+	if x != nil {
+		return x.EffectRuns
+	}
+	return nil
+}
+
 type FrozenAnchorDisplayState struct {
 	state         protoimpl.MessageState   `protogen:"open.v1"`
 	NodeId        string                   `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -8769,6 +8842,7 @@ type StepStartState struct {
 	Variables               []*VariableState         `protobuf:"bytes,9,rep,name=variables,proto3" json:"variables,omitempty"`
 	ActiveRuns              []*RuntimeRunSnapshot    `protobuf:"bytes,10,rep,name=active_runs,json=activeRuns,proto3" json:"active_runs,omitempty"`
 	ModelClipStates         []*ModelClipRuntimeState `protobuf:"bytes,11,rep,name=model_clip_states,json=modelClipStates,proto3" json:"model_clip_states,omitempty"`
+	EffectRuns              []*EffectRunSnapshot     `protobuf:"bytes,12,rep,name=effect_runs,json=effectRuns,proto3" json:"effect_runs,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -8876,6 +8950,13 @@ func (x *StepStartState) GetActiveRuns() []*RuntimeRunSnapshot {
 func (x *StepStartState) GetModelClipStates() []*ModelClipRuntimeState {
 	if x != nil {
 		return x.ModelClipStates
+	}
+	return nil
+}
+
+func (x *StepStartState) GetEffectRuns() []*EffectRunSnapshot {
+	if x != nil {
+		return x.EffectRuns
 	}
 	return nil
 }
@@ -9177,6 +9258,7 @@ type ParticipantRuntimeView struct {
 	EnabledLogicalInputs []string                    `protobuf:"bytes,12,rep,name=enabled_logical_inputs,json=enabledLogicalInputs,proto3" json:"enabled_logical_inputs,omitempty"`
 	ModelClipStates      []*ModelClipRuntimeState    `protobuf:"bytes,13,rep,name=model_clip_states,json=modelClipStates,proto3" json:"model_clip_states,omitempty"`
 	FrozenAnchors        []*FrozenAnchorDisplayState `protobuf:"bytes,14,rep,name=frozen_anchors,json=frozenAnchors,proto3" json:"frozen_anchors,omitempty"`
+	EffectRuns           []*EffectRunSnapshot        `protobuf:"bytes,15,rep,name=effect_runs,json=effectRuns,proto3" json:"effect_runs,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -9305,6 +9387,13 @@ func (x *ParticipantRuntimeView) GetModelClipStates() []*ModelClipRuntimeState {
 func (x *ParticipantRuntimeView) GetFrozenAnchors() []*FrozenAnchorDisplayState {
 	if x != nil {
 		return x.FrozenAnchors
+	}
+	return nil
+}
+
+func (x *ParticipantRuntimeView) GetEffectRuns() []*EffectRunSnapshot {
+	if x != nil {
+		return x.EffectRuns
 	}
 	return nil
 }
@@ -10639,6 +10728,158 @@ func (x *ElementStateFrame) GetProducedAtRuntimeMonotonicMs() uint64 {
 	return 0
 }
 
+type EffectRunSnapshot struct {
+	state                  protoimpl.MessageState            `protogen:"open.v1"`
+	RunId                  *presentation.RuntimeRunId        `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Owner                  *presentation.RuntimeRunOwner     `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
+	Cause                  *presentation.RuntimeRunCause     `protobuf:"bytes,3,opt,name=cause,proto3" json:"cause,omitempty"`
+	StartedAtRuntimeTimeMs uint64                            `protobuf:"varint,4,opt,name=started_at_runtime_time_ms,json=startedAtRuntimeTimeMs,proto3" json:"started_at_runtime_time_ms,omitempty"`
+	EffectId               string                            `protobuf:"bytes,5,opt,name=effect_id,json=effectId,proto3" json:"effect_id,omitempty"`
+	NodeId                 string                            `protobuf:"bytes,6,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Configuration          *presentation.EffectConfiguration `protobuf:"bytes,7,opt,name=configuration,proto3" json:"configuration,omitempty"`
+	Seed                   uint32                            `protobuf:"varint,8,opt,name=seed,proto3" json:"seed,omitempty"`
+	Status                 EffectRunStatus                   `protobuf:"varint,9,opt,name=status,proto3,enum=unframe.realtime.EffectRunStatus" json:"status,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *EffectRunSnapshot) Reset() {
+	*x = EffectRunSnapshot{}
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[128]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffectRunSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffectRunSnapshot) ProtoMessage() {}
+
+func (x *EffectRunSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[128]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffectRunSnapshot.ProtoReflect.Descriptor instead.
+func (*EffectRunSnapshot) Descriptor() ([]byte, []int) {
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{128}
+}
+
+func (x *EffectRunSnapshot) GetRunId() *presentation.RuntimeRunId {
+	if x != nil {
+		return x.RunId
+	}
+	return nil
+}
+
+func (x *EffectRunSnapshot) GetOwner() *presentation.RuntimeRunOwner {
+	if x != nil {
+		return x.Owner
+	}
+	return nil
+}
+
+func (x *EffectRunSnapshot) GetCause() *presentation.RuntimeRunCause {
+	if x != nil {
+		return x.Cause
+	}
+	return nil
+}
+
+func (x *EffectRunSnapshot) GetStartedAtRuntimeTimeMs() uint64 {
+	if x != nil {
+		return x.StartedAtRuntimeTimeMs
+	}
+	return 0
+}
+
+func (x *EffectRunSnapshot) GetEffectId() string {
+	if x != nil {
+		return x.EffectId
+	}
+	return ""
+}
+
+func (x *EffectRunSnapshot) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *EffectRunSnapshot) GetConfiguration() *presentation.EffectConfiguration {
+	if x != nil {
+		return x.Configuration
+	}
+	return nil
+}
+
+func (x *EffectRunSnapshot) GetSeed() uint32 {
+	if x != nil {
+		return x.Seed
+	}
+	return 0
+}
+
+func (x *EffectRunSnapshot) GetStatus() EffectRunStatus {
+	if x != nil {
+		return x.Status
+	}
+	return EffectRunStatus_EFFECT_RUN_STATUS_UNSPECIFIED
+}
+
+type EffectRunsChanged struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EffectRuns    []*EffectRunSnapshot   `protobuf:"bytes,1,rep,name=effect_runs,json=effectRuns,proto3" json:"effect_runs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffectRunsChanged) Reset() {
+	*x = EffectRunsChanged{}
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[129]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffectRunsChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffectRunsChanged) ProtoMessage() {}
+
+func (x *EffectRunsChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_unframe_realtime_realtime_proto_msgTypes[129]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffectRunsChanged.ProtoReflect.Descriptor instead.
+func (*EffectRunsChanged) Descriptor() ([]byte, []int) {
+	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{129}
+}
+
+func (x *EffectRunsChanged) GetEffectRuns() []*EffectRunSnapshot {
+	if x != nil {
+		return x.EffectRuns
+	}
+	return nil
+}
+
 var File_unframe_realtime_realtime_proto protoreflect.FileDescriptor
 
 const file_unframe_realtime_realtime_proto_rawDesc = "" +
@@ -10818,7 +11059,7 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x0fresync_required\x18\a \x01(\v2 .unframe.realtime.ResyncRequiredH\x00R\x0eresyncRequired\x12y\n" +
 	"\x1fpresenter_input_synchronization\x18\b \x01(\v2/.unframe.realtime.PresenterInputSynchronizationH\x00R\x1dpresenterInputSynchronization\x12z\n" +
 	" presenter_step_selection_catalog\x18\t \x01(\v2/.unframe.realtime.PresenterStepSelectionCatalogH\x00R\x1dpresenterStepSelectionCatalogB\x06\n" +
-	"\x04item\"\x8a\x1c\n" +
+	"\x04item\"\xe2\x1c\n" +
 	"\x16ProjectedReliableEvent\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\x04R\bsequence\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12)\n" +
@@ -10861,7 +11102,8 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x14media_stopped_seeked\x18\xe8\a \x01(\v2$.unframe.realtime.MediaStoppedSeekedH\x00R\x12mediaStoppedSeeked\x12_\n" +
 	"\x16gesture_input_accepted\x18\xe9\a \x01(\v2&.unframe.realtime.GestureInputAcceptedH\x00R\x14gestureInputAccepted\x12V\n" +
 	"\x13zone_input_accepted\x18\xea\a \x01(\v2#.unframe.realtime.ZoneInputAcceptedH\x00R\x11zoneInputAccepted\x12\\\n" +
-	"\x15runtime_view_replaced\x18\xeb\a \x01(\v2%.unframe.realtime.RuntimeViewReplacedH\x00R\x13runtimeViewReplacedB\t\n" +
+	"\x15runtime_view_replaced\x18\xeb\a \x01(\v2%.unframe.realtime.RuntimeViewReplacedH\x00R\x13runtimeViewReplaced\x12V\n" +
+	"\x13effect_runs_changed\x18\xec\a \x01(\v2#.unframe.realtime.EffectRunsChangedH\x00R\x11effectRunsChangedB\t\n" +
 	"\apayloadB\x11\n" +
 	"\x0f_cause_event_idJ\x04\b\x06\x10\x14J\x04\b\x16\x10dJ\x05\bj\x10\xc8\x01J\x06\b\xce\x01\x10\xac\x02J\x06\b\xb6\x02\x10\xc0\x02J\x06\b\xc8\x02\x10\x90\x03J\x06\b\x91\x03\x10\xe8\a\"\xa9\x01\n" +
 	"\x11ProjectionAdvance\x12B\n" +
@@ -11195,7 +11437,7 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x05media\x18\x16 \x01(\v2\".unframe.realtime.MediaRunSnapshotH\x00R\x05media\x12G\n" +
 	"\n" +
 	"model_clip\x18\x17 \x01(\v2&.unframe.realtime.ModelClipRunSnapshotH\x00R\tmodelClipB\x05\n" +
-	"\x03run\"\xa5\t\n" +
+	"\x03run\"\xeb\t\n" +
 	"\x18CanonicalRuntimeSnapshot\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12+\n" +
 	"\x11reliable_sequence\x18\x02 \x01(\x04R\x10reliableSequence\x122\n" +
@@ -11217,13 +11459,15 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\vinput_epoch\x18\x10 \x01(\x04R\n" +
 	"inputEpoch\x12Q\n" +
 	"\x0efrozen_anchors\x18\x11 \x03(\v2*.unframe.realtime.FrozenAnchorDisplayStateR\rfrozenAnchors\x12N\n" +
-	"\x12step_start_history\x18\x12 \x03(\v2 .unframe.realtime.StepStartStateR\x10stepStartHistoryJ\x04\b\x0e\x10\x0fR\x10recent_event_ids\"\xd0\x01\n" +
+	"\x12step_start_history\x18\x12 \x03(\v2 .unframe.realtime.StepStartStateR\x10stepStartHistory\x12D\n" +
+	"\veffect_runs\x18\x13 \x03(\v2#.unframe.realtime.EffectRunSnapshotR\n" +
+	"effectRunsJ\x04\b\x0e\x10\x0fR\x10recent_event_ids\"\xd0\x01\n" +
 	"\x18FrozenAnchorDisplayState\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12>\n" +
 	"\bposition\x18\x02 \x01(\v2\x1d.unframe.presentation.Vector3H\x00R\bposition\x88\x01\x01\x12A\n" +
 	"\brotation\x18\x03 \x01(\v2 .unframe.presentation.QuaternionH\x01R\brotation\x88\x01\x01B\v\n" +
 	"\t_positionB\v\n" +
-	"\t_rotation\"\x8e\x05\n" +
+	"\t_rotation\"\xd4\x05\n" +
 	"\x0eStepStartState\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
 	"\astep_id\x18\x02 \x01(\tR\x06stepId\x12*\n" +
@@ -11238,7 +11482,9 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\vactive_runs\x18\n" +
 	" \x03(\v2$.unframe.realtime.RuntimeRunSnapshotR\n" +
 	"activeRuns\x12S\n" +
-	"\x11model_clip_states\x18\v \x03(\v2'.unframe.realtime.ModelClipRuntimeStateR\x0fmodelClipStates\"\xde\x03\n" +
+	"\x11model_clip_states\x18\v \x03(\v2'.unframe.realtime.ModelClipRuntimeStateR\x0fmodelClipStates\x12D\n" +
+	"\veffect_runs\x18\f \x03(\v2#.unframe.realtime.EffectRunSnapshotR\n" +
+	"effectRuns\"\xde\x03\n" +
 	"\x17RuntimeRecoveryMetadata\x12\x1d\n" +
 	"\n" +
 	"started_at\x18\x01 \x01(\tR\tstartedAt\x12O\n" +
@@ -11262,7 +11508,7 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\aoutcome\x18\x03 \x01(\v2 .unframe.realtime.CommandOutcomeR\aoutcome\x12%\n" +
 	"\x0eparticipant_id\x18\x05 \x01(\tR\rparticipantId\x12&\n" +
 	"\x0fclient_event_id\x18\x06 \x01(\tR\rclientEventId\x12#\n" +
-	"\rcommand_epoch\x18\a \x01(\x04R\fcommandEpochJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05R\x03keyR\x15remembered_at_unix_ms\"\xce\a\n" +
+	"\rcommand_epoch\x18\a \x01(\x04R\fcommandEpochJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05R\x03keyR\x15remembered_at_unix_ms\"\x94\b\n" +
 	"\x16ParticipantRuntimeView\x122\n" +
 	"\x15projection_profile_id\x18\x01 \x01(\tR\x13projectionProfileId\x12)\n" +
 	"\x10assignment_epoch\x18\x02 \x01(\x04R\x0fassignmentEpoch\x124\n" +
@@ -11280,7 +11526,9 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x13presentation_origin\x18\v \x01(\v2$.unframe.realtime.PresentationOriginR\x12presentationOrigin\x124\n" +
 	"\x16enabled_logical_inputs\x18\f \x03(\tR\x14enabledLogicalInputs\x12S\n" +
 	"\x11model_clip_states\x18\r \x03(\v2'.unframe.realtime.ModelClipRuntimeStateR\x0fmodelClipStates\x12Q\n" +
-	"\x0efrozen_anchors\x18\x0e \x03(\v2*.unframe.realtime.FrozenAnchorDisplayStateR\rfrozenAnchors\"\xf3\x01\n" +
+	"\x0efrozen_anchors\x18\x0e \x03(\v2*.unframe.realtime.FrozenAnchorDisplayStateR\rfrozenAnchors\x12D\n" +
+	"\veffect_runs\x18\x0f \x03(\v2#.unframe.realtime.EffectRunSnapshotR\n" +
+	"effectRuns\"\xf3\x01\n" +
 	"\x18ProjectedRuntimeSnapshot\x122\n" +
 	"\x15projection_profile_id\x18\x01 \x01(\tR\x13projectionProfileId\x12)\n" +
 	"\x10assignment_epoch\x18\x02 \x01(\x04R\x0fassignmentEpoch\x12+\n" +
@@ -11390,7 +11638,20 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x04kind\x18\x06 \x01(\x0e2 .unframe.realtime.StateFrameKindR\x04kind\x12?\n" +
 	"\belements\x18\a \x03(\v2#.unframe.realtime.ElementStatePatchR\belements\x12V\n" +
 	"\x0fanchor_bindings\x18\b \x03(\v2-.unframe.realtime.ProjectedAnchorBindingPatchR\x0eanchorBindings\x12F\n" +
-	" produced_at_runtime_monotonic_ms\x18\t \x01(\x04R\x1cproducedAtRuntimeMonotonicMs*\xe5\x01\n" +
+	" produced_at_runtime_monotonic_ms\x18\t \x01(\x04R\x1cproducedAtRuntimeMonotonicMs\"\xda\x03\n" +
+	"\x11EffectRunSnapshot\x129\n" +
+	"\x06run_id\x18\x01 \x01(\v2\".unframe.presentation.RuntimeRunIdR\x05runId\x12;\n" +
+	"\x05owner\x18\x02 \x01(\v2%.unframe.presentation.RuntimeRunOwnerR\x05owner\x12;\n" +
+	"\x05cause\x18\x03 \x01(\v2%.unframe.presentation.RuntimeRunCauseR\x05cause\x12:\n" +
+	"\x1astarted_at_runtime_time_ms\x18\x04 \x01(\x04R\x16startedAtRuntimeTimeMs\x12\x1b\n" +
+	"\teffect_id\x18\x05 \x01(\tR\beffectId\x12\x17\n" +
+	"\anode_id\x18\x06 \x01(\tR\x06nodeId\x12O\n" +
+	"\rconfiguration\x18\a \x01(\v2).unframe.presentation.EffectConfigurationR\rconfiguration\x12\x12\n" +
+	"\x04seed\x18\b \x01(\rR\x04seed\x129\n" +
+	"\x06status\x18\t \x01(\x0e2!.unframe.realtime.EffectRunStatusR\x06status\"Y\n" +
+	"\x11EffectRunsChanged\x12D\n" +
+	"\veffect_runs\x18\x01 \x03(\v2#.unframe.realtime.EffectRunSnapshotR\n" +
+	"effectRuns*\xe5\x01\n" +
 	"\x12RuntimeControlKind\x12$\n" +
 	" RUNTIME_CONTROL_KIND_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aRUNTIME_CONTROL_KIND_PAUSE\x10\x01\x12\x1f\n" +
@@ -11486,7 +11747,11 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x0eStateFrameKind\x12 \n" +
 	"\x1cSTATE_FRAME_KIND_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19STATE_FRAME_KIND_KEYFRAME\x10\x01\x12\x1a\n" +
-	"\x16STATE_FRAME_KIND_DELTA\x10\x022\xcb\x01\n" +
+	"\x16STATE_FRAME_KIND_DELTA\x10\x02*r\n" +
+	"\x0fEffectRunStatus\x12!\n" +
+	"\x1dEFFECT_RUN_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18EFFECT_RUN_STATUS_ACTIVE\x10\x01\x12\x1e\n" +
+	"\x1aEFFECT_RUN_STATUS_RETAINED\x10\x022\xcb\x01\n" +
 	"\x0fRealtimeService\x12^\n" +
 	"\x0eConnectControl\x12#.unframe.realtime.ControlClientItem\x1a#.unframe.realtime.ControlServerItem(\x010\x01\x12X\n" +
 	"\fConnectState\x12!.unframe.realtime.StateClientItem\x1a!.unframe.realtime.StateServerItem(\x010\x01BSZQgithub.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime;realtimeb\x06proto3"
@@ -11503,8 +11768,8 @@ func file_unframe_realtime_realtime_proto_rawDescGZIP() []byte {
 	return file_unframe_realtime_realtime_proto_rawDescData
 }
 
-var file_unframe_realtime_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 15)
-var file_unframe_realtime_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 128)
+var file_unframe_realtime_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 16)
+var file_unframe_realtime_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 130)
 var file_unframe_realtime_realtime_proto_goTypes = []any{
 	(RuntimeControlKind)(0),                          // 0: unframe.realtime.RuntimeControlKind
 	(InputSynchronizationPhase)(0),                   // 1: unframe.realtime.InputSynchronizationPhase
@@ -11521,426 +11786,440 @@ var file_unframe_realtime_realtime_proto_goTypes = []any{
 	(ResyncReason)(0),                                // 12: unframe.realtime.ResyncReason
 	(TrackedTarget)(0),                               // 13: unframe.realtime.TrackedTarget
 	(StateFrameKind)(0),                              // 14: unframe.realtime.StateFrameKind
-	(*ControlClientItem)(nil),                        // 15: unframe.realtime.ControlClientItem
-	(*ControlHandshake)(nil),                         // 16: unframe.realtime.ControlHandshake
-	(*ResumeCursor)(nil),                             // 17: unframe.realtime.ResumeCursor
-	(*RuntimeProtocolLimits)(nil),                    // 18: unframe.realtime.RuntimeProtocolLimits
-	(*ControlConnected)(nil),                         // 19: unframe.realtime.ControlConnected
-	(*StateReady)(nil),                               // 20: unframe.realtime.StateReady
-	(*StateConnectionNonce)(nil),                     // 21: unframe.realtime.StateConnectionNonce
-	(*ReplayRequest)(nil),                            // 22: unframe.realtime.ReplayRequest
-	(*LogicalInputCommand)(nil),                      // 23: unframe.realtime.LogicalInputCommand
-	(*SurfaceInteractionCommand)(nil),                // 24: unframe.realtime.SurfaceInteractionCommand
-	(*RuntimeControlCommand)(nil),                    // 25: unframe.realtime.RuntimeControlCommand
-	(*InputContext)(nil),                             // 26: unframe.realtime.InputContext
-	(*GestureInputCommand)(nil),                      // 27: unframe.realtime.GestureInputCommand
-	(*ZoneInputCommand)(nil),                         // 28: unframe.realtime.ZoneInputCommand
-	(*StepSelection)(nil),                            // 29: unframe.realtime.StepSelection
-	(*PresenterStepSelectionCatalog)(nil),            // 30: unframe.realtime.PresenterStepSelectionCatalog
-	(*PresenterInputSynchronization)(nil),            // 31: unframe.realtime.PresenterInputSynchronization
-	(*InputSynchronizationAck)(nil),                  // 32: unframe.realtime.InputSynchronizationAck
-	(*CommandOutcome)(nil),                           // 33: unframe.realtime.CommandOutcome
-	(*CommandAccepted)(nil),                          // 34: unframe.realtime.CommandAccepted
-	(*CueNotSelected)(nil),                           // 35: unframe.realtime.CueNotSelected
-	(*CueCommitted)(nil),                             // 36: unframe.realtime.CueCommitted
-	(*CommandRejected)(nil),                          // 37: unframe.realtime.CommandRejected
-	(*CueBatchRejected)(nil),                         // 38: unframe.realtime.CueBatchRejected
-	(*CommandNoOp)(nil),                              // 39: unframe.realtime.CommandNoOp
-	(*ControlServerItem)(nil),                        // 40: unframe.realtime.ControlServerItem
-	(*ProjectedReliableEvent)(nil),                   // 41: unframe.realtime.ProjectedReliableEvent
-	(*ProjectionAdvance)(nil),                        // 42: unframe.realtime.ProjectionAdvance
-	(*Running)(nil),                                  // 43: unframe.realtime.Running
-	(*Paused)(nil),                                   // 44: unframe.realtime.Paused
-	(*Terminating)(nil),                              // 45: unframe.realtime.Terminating
-	(*RuntimeStatusChanged)(nil),                     // 46: unframe.realtime.RuntimeStatusChanged
-	(*GroupEntered)(nil),                             // 47: unframe.realtime.GroupEntered
-	(*GroupRuntimeInitialization)(nil),               // 48: unframe.realtime.GroupRuntimeInitialization
-	(*GroupExited)(nil),                              // 49: unframe.realtime.GroupExited
-	(*StepEntered)(nil),                              // 50: unframe.realtime.StepEntered
-	(*CueAccepted)(nil),                              // 51: unframe.realtime.CueAccepted
-	(*PresentationEnded)(nil),                        // 52: unframe.realtime.PresentationEnded
-	(*LogicalInputAccepted)(nil),                     // 53: unframe.realtime.LogicalInputAccepted
-	(*GestureInputAccepted)(nil),                     // 54: unframe.realtime.GestureInputAccepted
-	(*ZoneInputAccepted)(nil),                        // 55: unframe.realtime.ZoneInputAccepted
-	(*RuntimeViewReplaced)(nil),                      // 56: unframe.realtime.RuntimeViewReplaced
-	(*SurfaceInteractionAccepted)(nil),               // 57: unframe.realtime.SurfaceInteractionAccepted
-	(*SurfaceStateChanged)(nil),                      // 58: unframe.realtime.SurfaceStateChanged
-	(*SurfaceTransitionStarted)(nil),                 // 59: unframe.realtime.SurfaceTransitionStarted
-	(*SurfaceTransitionCompleted)(nil),               // 60: unframe.realtime.SurfaceTransitionCompleted
-	(*NodeRuntimeState)(nil),                         // 61: unframe.realtime.NodeRuntimeState
-	(*NodeStateCommitted)(nil),                       // 62: unframe.realtime.NodeStateCommitted
-	(*VariableState)(nil),                            // 63: unframe.realtime.VariableState
-	(*VariableChanged)(nil),                          // 64: unframe.realtime.VariableChanged
-	(*TimelineStarted)(nil),                          // 65: unframe.realtime.TimelineStarted
-	(*TimelineCompleted)(nil),                        // 66: unframe.realtime.TimelineCompleted
-	(*TimelineCanceled)(nil),                         // 67: unframe.realtime.TimelineCanceled
-	(*PlaybackClock)(nil),                            // 68: unframe.realtime.PlaybackClock
-	(*PlayingClock)(nil),                             // 69: unframe.realtime.PlayingClock
-	(*PausedClock)(nil),                              // 70: unframe.realtime.PausedClock
-	(*MediaStarted)(nil),                             // 71: unframe.realtime.MediaStarted
-	(*MediaPaused)(nil),                              // 72: unframe.realtime.MediaPaused
-	(*MediaResumed)(nil),                             // 73: unframe.realtime.MediaResumed
-	(*MediaSeeked)(nil),                              // 74: unframe.realtime.MediaSeeked
-	(*MediaCompleted)(nil),                           // 75: unframe.realtime.MediaCompleted
-	(*MediaStoppedSeeked)(nil),                       // 76: unframe.realtime.MediaStoppedSeeked
-	(*MediaStopped)(nil),                             // 77: unframe.realtime.MediaStopped
-	(*MediaCanceled)(nil),                            // 78: unframe.realtime.MediaCanceled
-	(*ClipPlayback)(nil),                             // 79: unframe.realtime.ClipPlayback
-	(*ClipHeldPose)(nil),                             // 80: unframe.realtime.ClipHeldPose
-	(*BlendHeldPose)(nil),                            // 81: unframe.realtime.BlendHeldPose
-	(*ModelClipStarted)(nil),                         // 82: unframe.realtime.ModelClipStarted
-	(*ModelClipPaused)(nil),                          // 83: unframe.realtime.ModelClipPaused
-	(*ModelClipResumed)(nil),                         // 84: unframe.realtime.ModelClipResumed
-	(*ModelClipStopped)(nil),                         // 85: unframe.realtime.ModelClipStopped
-	(*ModelClipCompleted)(nil),                       // 86: unframe.realtime.ModelClipCompleted
-	(*ModelClipCrossfadeStarted)(nil),                // 87: unframe.realtime.ModelClipCrossfadeStarted
-	(*ModelClipCrossfadeCompleted)(nil),              // 88: unframe.realtime.ModelClipCrossfadeCompleted
-	(*ModelClipCanceled)(nil),                        // 89: unframe.realtime.ModelClipCanceled
-	(*ParticipantPresenceChanged)(nil),               // 90: unframe.realtime.ParticipantPresenceChanged
-	(*PresentationOrigin)(nil),                       // 91: unframe.realtime.PresentationOrigin
-	(*PresentationOriginChanged)(nil),                // 92: unframe.realtime.PresentationOriginChanged
-	(*RuntimeClockSnapshot)(nil),                     // 93: unframe.realtime.RuntimeClockSnapshot
-	(*StableProgression)(nil),                        // 94: unframe.realtime.StableProgression
-	(*TransitioningProgression)(nil),                 // 95: unframe.realtime.TransitioningProgression
-	(*ProgressionNext)(nil),                          // 96: unframe.realtime.ProgressionNext
-	(*NextStep)(nil),                                 // 97: unframe.realtime.NextStep
-	(*NextGroup)(nil),                                // 98: unframe.realtime.NextGroup
-	(*EndPresentation)(nil),                          // 99: unframe.realtime.EndPresentation
-	(*StayOnStep)(nil),                               // 100: unframe.realtime.StayOnStep
-	(*ProgressionRuntimeState)(nil),                  // 101: unframe.realtime.ProgressionRuntimeState
-	(*ArmedTimer)(nil),                               // 102: unframe.realtime.ArmedTimer
-	(*StepExecutionSnapshot)(nil),                    // 103: unframe.realtime.StepExecutionSnapshot
-	(*SurfaceRuntimeState)(nil),                      // 104: unframe.realtime.SurfaceRuntimeState
-	(*MediaRuntimeState)(nil),                        // 105: unframe.realtime.MediaRuntimeState
-	(*MediaStoppedState)(nil),                        // 106: unframe.realtime.MediaStoppedState
-	(*MediaActive)(nil),                              // 107: unframe.realtime.MediaActive
-	(*DefaultModelPose)(nil),                         // 108: unframe.realtime.DefaultModelPose
-	(*ModelClipRuntimeState)(nil),                    // 109: unframe.realtime.ModelClipRuntimeState
-	(*ModelClipActive)(nil),                          // 110: unframe.realtime.ModelClipActive
-	(*SurfaceTransitionRunSnapshot)(nil),             // 111: unframe.realtime.SurfaceTransitionRunSnapshot
-	(*TimelineRunSnapshot)(nil),                      // 112: unframe.realtime.TimelineRunSnapshot
-	(*MediaRunSnapshot)(nil),                         // 113: unframe.realtime.MediaRunSnapshot
-	(*ModelClipCrossfade)(nil),                       // 114: unframe.realtime.ModelClipCrossfade
-	(*ModelClipRunSnapshot)(nil),                     // 115: unframe.realtime.ModelClipRunSnapshot
-	(*RuntimeRunSnapshot)(nil),                       // 116: unframe.realtime.RuntimeRunSnapshot
-	(*CanonicalRuntimeSnapshot)(nil),                 // 117: unframe.realtime.CanonicalRuntimeSnapshot
-	(*FrozenAnchorDisplayState)(nil),                 // 118: unframe.realtime.FrozenAnchorDisplayState
-	(*StepStartState)(nil),                           // 119: unframe.realtime.StepStartState
-	(*RuntimeRecoveryMetadata)(nil),                  // 120: unframe.realtime.RuntimeRecoveryMetadata
-	(*RuntimeCapacityFault)(nil),                     // 121: unframe.realtime.RuntimeCapacityFault
-	(*RuntimeParticipantHistory)(nil),                // 122: unframe.realtime.RuntimeParticipantHistory
-	(*RuntimeCommandHistory)(nil),                    // 123: unframe.realtime.RuntimeCommandHistory
-	(*ParticipantRuntimeView)(nil),                   // 124: unframe.realtime.ParticipantRuntimeView
-	(*ProjectedRuntimeSnapshot)(nil),                 // 125: unframe.realtime.ProjectedRuntimeSnapshot
-	(*ProjectedParticipantPresence)(nil),             // 126: unframe.realtime.ProjectedParticipantPresence
-	(*ProjectedPresenceState)(nil),                   // 127: unframe.realtime.ProjectedPresenceState
-	(*ConnectionSnapshotEnvelope)(nil),               // 128: unframe.realtime.ConnectionSnapshotEnvelope
-	(*DurableCheckpointEnvelope)(nil),                // 129: unframe.realtime.DurableCheckpointEnvelope
-	(*ResyncRequired)(nil),                           // 130: unframe.realtime.ResyncRequired
-	(*StateClientItem)(nil),                          // 131: unframe.realtime.StateClientItem
-	(*StateHandshake)(nil),                           // 132: unframe.realtime.StateHandshake
-	(*StateConnected)(nil),                           // 133: unframe.realtime.StateConnected
-	(*TrackedPoseSample)(nil),                        // 134: unframe.realtime.TrackedPoseSample
-	(*TrackingFrame)(nil),                            // 135: unframe.realtime.TrackingFrame
-	(*StateServerItem)(nil),                          // 136: unframe.realtime.StateServerItem
-	(*NodeStatePatch)(nil),                           // 137: unframe.realtime.NodeStatePatch
-	(*ElementStatePatch)(nil),                        // 138: unframe.realtime.ElementStatePatch
-	(*AnchorBindingUnavailable)(nil),                 // 139: unframe.realtime.AnchorBindingUnavailable
-	(*ProjectedAnchorBindingSample)(nil),             // 140: unframe.realtime.ProjectedAnchorBindingSample
-	(*ProjectedAnchorBindingPatch)(nil),              // 141: unframe.realtime.ProjectedAnchorBindingPatch
-	(*ElementStateFrame)(nil),                        // 142: unframe.realtime.ElementStateFrame
-	(presentation.RuntimeCapability)(0),              // 143: unframe.presentation.RuntimeCapability
-	(*presentation.RuntimeProjectionFence)(nil),      // 144: unframe.presentation.RuntimeProjectionFence
-	(*presentation.ProjectionInstance)(nil),          // 145: unframe.presentation.ProjectionInstance
-	(presentation.GestureKind)(0),                    // 146: unframe.presentation.GestureKind
-	(presentation.ZoneEdge)(0),                       // 147: unframe.presentation.ZoneEdge
-	(*presentation.PresenterRecognitionCatalog)(nil), // 148: unframe.presentation.PresenterRecognitionCatalog
-	(*presentation.RuntimeRunId)(nil),                // 149: unframe.presentation.RuntimeRunId
-	(presentation.Easing)(0),                         // 150: unframe.presentation.Easing
-	(*presentation.Transform)(nil),                   // 151: unframe.presentation.Transform
-	(*presentation.ScalarValue)(nil),                 // 152: unframe.presentation.ScalarValue
-	(*presentation.RuntimeRunOwner)(nil),             // 153: unframe.presentation.RuntimeRunOwner
-	(*presentation.RuntimeRunCause)(nil),             // 154: unframe.presentation.RuntimeRunCause
-	(presentation.RunCompletion)(0),                  // 155: unframe.presentation.RunCompletion
-	(presentation.SessionRole)(0),                    // 156: unframe.presentation.SessionRole
-	(*presentation.Pose)(nil),                        // 157: unframe.presentation.Pose
-	(*presentation.Vector3)(nil),                     // 158: unframe.presentation.Vector3
-	(*presentation.Quaternion)(nil),                  // 159: unframe.presentation.Quaternion
-	(*presentation.PublicationFence)(nil),            // 160: unframe.presentation.PublicationFence
+	(EffectRunStatus)(0),                             // 15: unframe.realtime.EffectRunStatus
+	(*ControlClientItem)(nil),                        // 16: unframe.realtime.ControlClientItem
+	(*ControlHandshake)(nil),                         // 17: unframe.realtime.ControlHandshake
+	(*ResumeCursor)(nil),                             // 18: unframe.realtime.ResumeCursor
+	(*RuntimeProtocolLimits)(nil),                    // 19: unframe.realtime.RuntimeProtocolLimits
+	(*ControlConnected)(nil),                         // 20: unframe.realtime.ControlConnected
+	(*StateReady)(nil),                               // 21: unframe.realtime.StateReady
+	(*StateConnectionNonce)(nil),                     // 22: unframe.realtime.StateConnectionNonce
+	(*ReplayRequest)(nil),                            // 23: unframe.realtime.ReplayRequest
+	(*LogicalInputCommand)(nil),                      // 24: unframe.realtime.LogicalInputCommand
+	(*SurfaceInteractionCommand)(nil),                // 25: unframe.realtime.SurfaceInteractionCommand
+	(*RuntimeControlCommand)(nil),                    // 26: unframe.realtime.RuntimeControlCommand
+	(*InputContext)(nil),                             // 27: unframe.realtime.InputContext
+	(*GestureInputCommand)(nil),                      // 28: unframe.realtime.GestureInputCommand
+	(*ZoneInputCommand)(nil),                         // 29: unframe.realtime.ZoneInputCommand
+	(*StepSelection)(nil),                            // 30: unframe.realtime.StepSelection
+	(*PresenterStepSelectionCatalog)(nil),            // 31: unframe.realtime.PresenterStepSelectionCatalog
+	(*PresenterInputSynchronization)(nil),            // 32: unframe.realtime.PresenterInputSynchronization
+	(*InputSynchronizationAck)(nil),                  // 33: unframe.realtime.InputSynchronizationAck
+	(*CommandOutcome)(nil),                           // 34: unframe.realtime.CommandOutcome
+	(*CommandAccepted)(nil),                          // 35: unframe.realtime.CommandAccepted
+	(*CueNotSelected)(nil),                           // 36: unframe.realtime.CueNotSelected
+	(*CueCommitted)(nil),                             // 37: unframe.realtime.CueCommitted
+	(*CommandRejected)(nil),                          // 38: unframe.realtime.CommandRejected
+	(*CueBatchRejected)(nil),                         // 39: unframe.realtime.CueBatchRejected
+	(*CommandNoOp)(nil),                              // 40: unframe.realtime.CommandNoOp
+	(*ControlServerItem)(nil),                        // 41: unframe.realtime.ControlServerItem
+	(*ProjectedReliableEvent)(nil),                   // 42: unframe.realtime.ProjectedReliableEvent
+	(*ProjectionAdvance)(nil),                        // 43: unframe.realtime.ProjectionAdvance
+	(*Running)(nil),                                  // 44: unframe.realtime.Running
+	(*Paused)(nil),                                   // 45: unframe.realtime.Paused
+	(*Terminating)(nil),                              // 46: unframe.realtime.Terminating
+	(*RuntimeStatusChanged)(nil),                     // 47: unframe.realtime.RuntimeStatusChanged
+	(*GroupEntered)(nil),                             // 48: unframe.realtime.GroupEntered
+	(*GroupRuntimeInitialization)(nil),               // 49: unframe.realtime.GroupRuntimeInitialization
+	(*GroupExited)(nil),                              // 50: unframe.realtime.GroupExited
+	(*StepEntered)(nil),                              // 51: unframe.realtime.StepEntered
+	(*CueAccepted)(nil),                              // 52: unframe.realtime.CueAccepted
+	(*PresentationEnded)(nil),                        // 53: unframe.realtime.PresentationEnded
+	(*LogicalInputAccepted)(nil),                     // 54: unframe.realtime.LogicalInputAccepted
+	(*GestureInputAccepted)(nil),                     // 55: unframe.realtime.GestureInputAccepted
+	(*ZoneInputAccepted)(nil),                        // 56: unframe.realtime.ZoneInputAccepted
+	(*RuntimeViewReplaced)(nil),                      // 57: unframe.realtime.RuntimeViewReplaced
+	(*SurfaceInteractionAccepted)(nil),               // 58: unframe.realtime.SurfaceInteractionAccepted
+	(*SurfaceStateChanged)(nil),                      // 59: unframe.realtime.SurfaceStateChanged
+	(*SurfaceTransitionStarted)(nil),                 // 60: unframe.realtime.SurfaceTransitionStarted
+	(*SurfaceTransitionCompleted)(nil),               // 61: unframe.realtime.SurfaceTransitionCompleted
+	(*NodeRuntimeState)(nil),                         // 62: unframe.realtime.NodeRuntimeState
+	(*NodeStateCommitted)(nil),                       // 63: unframe.realtime.NodeStateCommitted
+	(*VariableState)(nil),                            // 64: unframe.realtime.VariableState
+	(*VariableChanged)(nil),                          // 65: unframe.realtime.VariableChanged
+	(*TimelineStarted)(nil),                          // 66: unframe.realtime.TimelineStarted
+	(*TimelineCompleted)(nil),                        // 67: unframe.realtime.TimelineCompleted
+	(*TimelineCanceled)(nil),                         // 68: unframe.realtime.TimelineCanceled
+	(*PlaybackClock)(nil),                            // 69: unframe.realtime.PlaybackClock
+	(*PlayingClock)(nil),                             // 70: unframe.realtime.PlayingClock
+	(*PausedClock)(nil),                              // 71: unframe.realtime.PausedClock
+	(*MediaStarted)(nil),                             // 72: unframe.realtime.MediaStarted
+	(*MediaPaused)(nil),                              // 73: unframe.realtime.MediaPaused
+	(*MediaResumed)(nil),                             // 74: unframe.realtime.MediaResumed
+	(*MediaSeeked)(nil),                              // 75: unframe.realtime.MediaSeeked
+	(*MediaCompleted)(nil),                           // 76: unframe.realtime.MediaCompleted
+	(*MediaStoppedSeeked)(nil),                       // 77: unframe.realtime.MediaStoppedSeeked
+	(*MediaStopped)(nil),                             // 78: unframe.realtime.MediaStopped
+	(*MediaCanceled)(nil),                            // 79: unframe.realtime.MediaCanceled
+	(*ClipPlayback)(nil),                             // 80: unframe.realtime.ClipPlayback
+	(*ClipHeldPose)(nil),                             // 81: unframe.realtime.ClipHeldPose
+	(*BlendHeldPose)(nil),                            // 82: unframe.realtime.BlendHeldPose
+	(*ModelClipStarted)(nil),                         // 83: unframe.realtime.ModelClipStarted
+	(*ModelClipPaused)(nil),                          // 84: unframe.realtime.ModelClipPaused
+	(*ModelClipResumed)(nil),                         // 85: unframe.realtime.ModelClipResumed
+	(*ModelClipStopped)(nil),                         // 86: unframe.realtime.ModelClipStopped
+	(*ModelClipCompleted)(nil),                       // 87: unframe.realtime.ModelClipCompleted
+	(*ModelClipCrossfadeStarted)(nil),                // 88: unframe.realtime.ModelClipCrossfadeStarted
+	(*ModelClipCrossfadeCompleted)(nil),              // 89: unframe.realtime.ModelClipCrossfadeCompleted
+	(*ModelClipCanceled)(nil),                        // 90: unframe.realtime.ModelClipCanceled
+	(*ParticipantPresenceChanged)(nil),               // 91: unframe.realtime.ParticipantPresenceChanged
+	(*PresentationOrigin)(nil),                       // 92: unframe.realtime.PresentationOrigin
+	(*PresentationOriginChanged)(nil),                // 93: unframe.realtime.PresentationOriginChanged
+	(*RuntimeClockSnapshot)(nil),                     // 94: unframe.realtime.RuntimeClockSnapshot
+	(*StableProgression)(nil),                        // 95: unframe.realtime.StableProgression
+	(*TransitioningProgression)(nil),                 // 96: unframe.realtime.TransitioningProgression
+	(*ProgressionNext)(nil),                          // 97: unframe.realtime.ProgressionNext
+	(*NextStep)(nil),                                 // 98: unframe.realtime.NextStep
+	(*NextGroup)(nil),                                // 99: unframe.realtime.NextGroup
+	(*EndPresentation)(nil),                          // 100: unframe.realtime.EndPresentation
+	(*StayOnStep)(nil),                               // 101: unframe.realtime.StayOnStep
+	(*ProgressionRuntimeState)(nil),                  // 102: unframe.realtime.ProgressionRuntimeState
+	(*ArmedTimer)(nil),                               // 103: unframe.realtime.ArmedTimer
+	(*StepExecutionSnapshot)(nil),                    // 104: unframe.realtime.StepExecutionSnapshot
+	(*SurfaceRuntimeState)(nil),                      // 105: unframe.realtime.SurfaceRuntimeState
+	(*MediaRuntimeState)(nil),                        // 106: unframe.realtime.MediaRuntimeState
+	(*MediaStoppedState)(nil),                        // 107: unframe.realtime.MediaStoppedState
+	(*MediaActive)(nil),                              // 108: unframe.realtime.MediaActive
+	(*DefaultModelPose)(nil),                         // 109: unframe.realtime.DefaultModelPose
+	(*ModelClipRuntimeState)(nil),                    // 110: unframe.realtime.ModelClipRuntimeState
+	(*ModelClipActive)(nil),                          // 111: unframe.realtime.ModelClipActive
+	(*SurfaceTransitionRunSnapshot)(nil),             // 112: unframe.realtime.SurfaceTransitionRunSnapshot
+	(*TimelineRunSnapshot)(nil),                      // 113: unframe.realtime.TimelineRunSnapshot
+	(*MediaRunSnapshot)(nil),                         // 114: unframe.realtime.MediaRunSnapshot
+	(*ModelClipCrossfade)(nil),                       // 115: unframe.realtime.ModelClipCrossfade
+	(*ModelClipRunSnapshot)(nil),                     // 116: unframe.realtime.ModelClipRunSnapshot
+	(*RuntimeRunSnapshot)(nil),                       // 117: unframe.realtime.RuntimeRunSnapshot
+	(*CanonicalRuntimeSnapshot)(nil),                 // 118: unframe.realtime.CanonicalRuntimeSnapshot
+	(*FrozenAnchorDisplayState)(nil),                 // 119: unframe.realtime.FrozenAnchorDisplayState
+	(*StepStartState)(nil),                           // 120: unframe.realtime.StepStartState
+	(*RuntimeRecoveryMetadata)(nil),                  // 121: unframe.realtime.RuntimeRecoveryMetadata
+	(*RuntimeCapacityFault)(nil),                     // 122: unframe.realtime.RuntimeCapacityFault
+	(*RuntimeParticipantHistory)(nil),                // 123: unframe.realtime.RuntimeParticipantHistory
+	(*RuntimeCommandHistory)(nil),                    // 124: unframe.realtime.RuntimeCommandHistory
+	(*ParticipantRuntimeView)(nil),                   // 125: unframe.realtime.ParticipantRuntimeView
+	(*ProjectedRuntimeSnapshot)(nil),                 // 126: unframe.realtime.ProjectedRuntimeSnapshot
+	(*ProjectedParticipantPresence)(nil),             // 127: unframe.realtime.ProjectedParticipantPresence
+	(*ProjectedPresenceState)(nil),                   // 128: unframe.realtime.ProjectedPresenceState
+	(*ConnectionSnapshotEnvelope)(nil),               // 129: unframe.realtime.ConnectionSnapshotEnvelope
+	(*DurableCheckpointEnvelope)(nil),                // 130: unframe.realtime.DurableCheckpointEnvelope
+	(*ResyncRequired)(nil),                           // 131: unframe.realtime.ResyncRequired
+	(*StateClientItem)(nil),                          // 132: unframe.realtime.StateClientItem
+	(*StateHandshake)(nil),                           // 133: unframe.realtime.StateHandshake
+	(*StateConnected)(nil),                           // 134: unframe.realtime.StateConnected
+	(*TrackedPoseSample)(nil),                        // 135: unframe.realtime.TrackedPoseSample
+	(*TrackingFrame)(nil),                            // 136: unframe.realtime.TrackingFrame
+	(*StateServerItem)(nil),                          // 137: unframe.realtime.StateServerItem
+	(*NodeStatePatch)(nil),                           // 138: unframe.realtime.NodeStatePatch
+	(*ElementStatePatch)(nil),                        // 139: unframe.realtime.ElementStatePatch
+	(*AnchorBindingUnavailable)(nil),                 // 140: unframe.realtime.AnchorBindingUnavailable
+	(*ProjectedAnchorBindingSample)(nil),             // 141: unframe.realtime.ProjectedAnchorBindingSample
+	(*ProjectedAnchorBindingPatch)(nil),              // 142: unframe.realtime.ProjectedAnchorBindingPatch
+	(*ElementStateFrame)(nil),                        // 143: unframe.realtime.ElementStateFrame
+	(*EffectRunSnapshot)(nil),                        // 144: unframe.realtime.EffectRunSnapshot
+	(*EffectRunsChanged)(nil),                        // 145: unframe.realtime.EffectRunsChanged
+	(presentation.RuntimeCapability)(0),              // 146: unframe.presentation.RuntimeCapability
+	(*presentation.RuntimeProjectionFence)(nil),      // 147: unframe.presentation.RuntimeProjectionFence
+	(*presentation.ProjectionInstance)(nil),          // 148: unframe.presentation.ProjectionInstance
+	(presentation.GestureKind)(0),                    // 149: unframe.presentation.GestureKind
+	(presentation.ZoneEdge)(0),                       // 150: unframe.presentation.ZoneEdge
+	(*presentation.PresenterRecognitionCatalog)(nil), // 151: unframe.presentation.PresenterRecognitionCatalog
+	(*presentation.RuntimeRunId)(nil),                // 152: unframe.presentation.RuntimeRunId
+	(presentation.Easing)(0),                         // 153: unframe.presentation.Easing
+	(*presentation.Transform)(nil),                   // 154: unframe.presentation.Transform
+	(*presentation.ScalarValue)(nil),                 // 155: unframe.presentation.ScalarValue
+	(*presentation.RuntimeRunOwner)(nil),             // 156: unframe.presentation.RuntimeRunOwner
+	(*presentation.RuntimeRunCause)(nil),             // 157: unframe.presentation.RuntimeRunCause
+	(presentation.RunCompletion)(0),                  // 158: unframe.presentation.RunCompletion
+	(presentation.SessionRole)(0),                    // 159: unframe.presentation.SessionRole
+	(*presentation.Pose)(nil),                        // 160: unframe.presentation.Pose
+	(*presentation.Vector3)(nil),                     // 161: unframe.presentation.Vector3
+	(*presentation.Quaternion)(nil),                  // 162: unframe.presentation.Quaternion
+	(*presentation.PublicationFence)(nil),            // 163: unframe.presentation.PublicationFence
+	(*presentation.EffectConfiguration)(nil),         // 164: unframe.presentation.EffectConfiguration
 }
 var file_unframe_realtime_realtime_proto_depIdxs = []int32{
-	16,  // 0: unframe.realtime.ControlClientItem.handshake:type_name -> unframe.realtime.ControlHandshake
-	22,  // 1: unframe.realtime.ControlClientItem.replay_request:type_name -> unframe.realtime.ReplayRequest
-	20,  // 2: unframe.realtime.ControlClientItem.state_ready:type_name -> unframe.realtime.StateReady
-	23,  // 3: unframe.realtime.ControlClientItem.logical_input:type_name -> unframe.realtime.LogicalInputCommand
-	24,  // 4: unframe.realtime.ControlClientItem.surface_interaction:type_name -> unframe.realtime.SurfaceInteractionCommand
-	25,  // 5: unframe.realtime.ControlClientItem.runtime_control:type_name -> unframe.realtime.RuntimeControlCommand
-	27,  // 6: unframe.realtime.ControlClientItem.gesture_input:type_name -> unframe.realtime.GestureInputCommand
-	28,  // 7: unframe.realtime.ControlClientItem.zone_input:type_name -> unframe.realtime.ZoneInputCommand
-	32,  // 8: unframe.realtime.ControlClientItem.input_synchronization_ack:type_name -> unframe.realtime.InputSynchronizationAck
-	143, // 9: unframe.realtime.ControlHandshake.supported_capabilities:type_name -> unframe.presentation.RuntimeCapability
-	17,  // 10: unframe.realtime.ControlHandshake.resume:type_name -> unframe.realtime.ResumeCursor
-	144, // 11: unframe.realtime.ResumeCursor.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	143, // 12: unframe.realtime.ControlConnected.required_capabilities:type_name -> unframe.presentation.RuntimeCapability
-	145, // 13: unframe.realtime.ControlConnected.projection_instance:type_name -> unframe.presentation.ProjectionInstance
-	18,  // 14: unframe.realtime.ControlConnected.limits:type_name -> unframe.realtime.RuntimeProtocolLimits
-	26,  // 15: unframe.realtime.LogicalInputCommand.input_context:type_name -> unframe.realtime.InputContext
-	26,  // 16: unframe.realtime.SurfaceInteractionCommand.input_context:type_name -> unframe.realtime.InputContext
+	17,  // 0: unframe.realtime.ControlClientItem.handshake:type_name -> unframe.realtime.ControlHandshake
+	23,  // 1: unframe.realtime.ControlClientItem.replay_request:type_name -> unframe.realtime.ReplayRequest
+	21,  // 2: unframe.realtime.ControlClientItem.state_ready:type_name -> unframe.realtime.StateReady
+	24,  // 3: unframe.realtime.ControlClientItem.logical_input:type_name -> unframe.realtime.LogicalInputCommand
+	25,  // 4: unframe.realtime.ControlClientItem.surface_interaction:type_name -> unframe.realtime.SurfaceInteractionCommand
+	26,  // 5: unframe.realtime.ControlClientItem.runtime_control:type_name -> unframe.realtime.RuntimeControlCommand
+	28,  // 6: unframe.realtime.ControlClientItem.gesture_input:type_name -> unframe.realtime.GestureInputCommand
+	29,  // 7: unframe.realtime.ControlClientItem.zone_input:type_name -> unframe.realtime.ZoneInputCommand
+	33,  // 8: unframe.realtime.ControlClientItem.input_synchronization_ack:type_name -> unframe.realtime.InputSynchronizationAck
+	146, // 9: unframe.realtime.ControlHandshake.supported_capabilities:type_name -> unframe.presentation.RuntimeCapability
+	18,  // 10: unframe.realtime.ControlHandshake.resume:type_name -> unframe.realtime.ResumeCursor
+	147, // 11: unframe.realtime.ResumeCursor.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	146, // 12: unframe.realtime.ControlConnected.required_capabilities:type_name -> unframe.presentation.RuntimeCapability
+	148, // 13: unframe.realtime.ControlConnected.projection_instance:type_name -> unframe.presentation.ProjectionInstance
+	19,  // 14: unframe.realtime.ControlConnected.limits:type_name -> unframe.realtime.RuntimeProtocolLimits
+	27,  // 15: unframe.realtime.LogicalInputCommand.input_context:type_name -> unframe.realtime.InputContext
+	27,  // 16: unframe.realtime.SurfaceInteractionCommand.input_context:type_name -> unframe.realtime.InputContext
 	0,   // 17: unframe.realtime.RuntimeControlCommand.kind:type_name -> unframe.realtime.RuntimeControlKind
-	29,  // 18: unframe.realtime.RuntimeControlCommand.step_selection:type_name -> unframe.realtime.StepSelection
-	26,  // 19: unframe.realtime.GestureInputCommand.input_context:type_name -> unframe.realtime.InputContext
-	146, // 20: unframe.realtime.GestureInputCommand.gesture:type_name -> unframe.presentation.GestureKind
-	26,  // 21: unframe.realtime.ZoneInputCommand.input_context:type_name -> unframe.realtime.InputContext
-	147, // 22: unframe.realtime.ZoneInputCommand.edge:type_name -> unframe.presentation.ZoneEdge
-	29,  // 23: unframe.realtime.PresenterStepSelectionCatalog.reached_steps:type_name -> unframe.realtime.StepSelection
+	30,  // 18: unframe.realtime.RuntimeControlCommand.step_selection:type_name -> unframe.realtime.StepSelection
+	27,  // 19: unframe.realtime.GestureInputCommand.input_context:type_name -> unframe.realtime.InputContext
+	149, // 20: unframe.realtime.GestureInputCommand.gesture:type_name -> unframe.presentation.GestureKind
+	27,  // 21: unframe.realtime.ZoneInputCommand.input_context:type_name -> unframe.realtime.InputContext
+	150, // 22: unframe.realtime.ZoneInputCommand.edge:type_name -> unframe.presentation.ZoneEdge
+	30,  // 23: unframe.realtime.PresenterStepSelectionCatalog.reached_steps:type_name -> unframe.realtime.StepSelection
 	1,   // 24: unframe.realtime.PresenterInputSynchronization.phase:type_name -> unframe.realtime.InputSynchronizationPhase
 	2,   // 25: unframe.realtime.PresenterInputSynchronization.reason:type_name -> unframe.realtime.InputSynchronizationReason
-	26,  // 26: unframe.realtime.PresenterInputSynchronization.input_context:type_name -> unframe.realtime.InputContext
-	148, // 27: unframe.realtime.PresenterInputSynchronization.recognition_catalog:type_name -> unframe.presentation.PresenterRecognitionCatalog
-	26,  // 28: unframe.realtime.InputSynchronizationAck.input_context:type_name -> unframe.realtime.InputContext
-	34,  // 29: unframe.realtime.CommandOutcome.accepted:type_name -> unframe.realtime.CommandAccepted
-	37,  // 30: unframe.realtime.CommandOutcome.rejected:type_name -> unframe.realtime.CommandRejected
-	39,  // 31: unframe.realtime.CommandOutcome.no_op:type_name -> unframe.realtime.CommandNoOp
-	35,  // 32: unframe.realtime.CommandAccepted.cue_not_selected:type_name -> unframe.realtime.CueNotSelected
-	36,  // 33: unframe.realtime.CommandAccepted.cue_committed:type_name -> unframe.realtime.CueCommitted
-	38,  // 34: unframe.realtime.CommandAccepted.cue_batch_rejected:type_name -> unframe.realtime.CueBatchRejected
+	27,  // 26: unframe.realtime.PresenterInputSynchronization.input_context:type_name -> unframe.realtime.InputContext
+	151, // 27: unframe.realtime.PresenterInputSynchronization.recognition_catalog:type_name -> unframe.presentation.PresenterRecognitionCatalog
+	27,  // 28: unframe.realtime.InputSynchronizationAck.input_context:type_name -> unframe.realtime.InputContext
+	35,  // 29: unframe.realtime.CommandOutcome.accepted:type_name -> unframe.realtime.CommandAccepted
+	38,  // 30: unframe.realtime.CommandOutcome.rejected:type_name -> unframe.realtime.CommandRejected
+	40,  // 31: unframe.realtime.CommandOutcome.no_op:type_name -> unframe.realtime.CommandNoOp
+	36,  // 32: unframe.realtime.CommandAccepted.cue_not_selected:type_name -> unframe.realtime.CueNotSelected
+	37,  // 33: unframe.realtime.CommandAccepted.cue_committed:type_name -> unframe.realtime.CueCommitted
+	39,  // 34: unframe.realtime.CommandAccepted.cue_batch_rejected:type_name -> unframe.realtime.CueBatchRejected
 	3,   // 35: unframe.realtime.CommandRejected.reason:type_name -> unframe.realtime.CommandRejectionReason
 	4,   // 36: unframe.realtime.CueBatchRejected.reason:type_name -> unframe.realtime.CueRejectionReason
 	5,   // 37: unframe.realtime.CommandNoOp.reason:type_name -> unframe.realtime.CommandNoOpReason
-	19,  // 38: unframe.realtime.ControlServerItem.connected:type_name -> unframe.realtime.ControlConnected
-	128, // 39: unframe.realtime.ControlServerItem.connection_snapshot:type_name -> unframe.realtime.ConnectionSnapshotEnvelope
-	41,  // 40: unframe.realtime.ControlServerItem.reliable_event:type_name -> unframe.realtime.ProjectedReliableEvent
-	42,  // 41: unframe.realtime.ControlServerItem.projection_advance:type_name -> unframe.realtime.ProjectionAdvance
-	33,  // 42: unframe.realtime.ControlServerItem.command_outcome:type_name -> unframe.realtime.CommandOutcome
-	21,  // 43: unframe.realtime.ControlServerItem.state_connection_nonce:type_name -> unframe.realtime.StateConnectionNonce
-	130, // 44: unframe.realtime.ControlServerItem.resync_required:type_name -> unframe.realtime.ResyncRequired
-	31,  // 45: unframe.realtime.ControlServerItem.presenter_input_synchronization:type_name -> unframe.realtime.PresenterInputSynchronization
-	30,  // 46: unframe.realtime.ControlServerItem.presenter_step_selection_catalog:type_name -> unframe.realtime.PresenterStepSelectionCatalog
-	144, // 47: unframe.realtime.ProjectedReliableEvent.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	46,  // 48: unframe.realtime.ProjectedReliableEvent.runtime_status_changed:type_name -> unframe.realtime.RuntimeStatusChanged
-	92,  // 49: unframe.realtime.ProjectedReliableEvent.presentation_origin_changed:type_name -> unframe.realtime.PresentationOriginChanged
-	47,  // 50: unframe.realtime.ProjectedReliableEvent.group_entered:type_name -> unframe.realtime.GroupEntered
-	49,  // 51: unframe.realtime.ProjectedReliableEvent.group_exited:type_name -> unframe.realtime.GroupExited
-	50,  // 52: unframe.realtime.ProjectedReliableEvent.step_entered:type_name -> unframe.realtime.StepEntered
-	51,  // 53: unframe.realtime.ProjectedReliableEvent.cue_accepted:type_name -> unframe.realtime.CueAccepted
-	52,  // 54: unframe.realtime.ProjectedReliableEvent.presentation_ended:type_name -> unframe.realtime.PresentationEnded
-	53,  // 55: unframe.realtime.ProjectedReliableEvent.logical_input_accepted:type_name -> unframe.realtime.LogicalInputAccepted
-	57,  // 56: unframe.realtime.ProjectedReliableEvent.surface_interaction_accepted:type_name -> unframe.realtime.SurfaceInteractionAccepted
-	58,  // 57: unframe.realtime.ProjectedReliableEvent.surface_state_changed:type_name -> unframe.realtime.SurfaceStateChanged
-	59,  // 58: unframe.realtime.ProjectedReliableEvent.surface_transition_started:type_name -> unframe.realtime.SurfaceTransitionStarted
-	60,  // 59: unframe.realtime.ProjectedReliableEvent.surface_transition_completed:type_name -> unframe.realtime.SurfaceTransitionCompleted
-	62,  // 60: unframe.realtime.ProjectedReliableEvent.node_state_committed:type_name -> unframe.realtime.NodeStateCommitted
-	64,  // 61: unframe.realtime.ProjectedReliableEvent.variable_changed:type_name -> unframe.realtime.VariableChanged
-	65,  // 62: unframe.realtime.ProjectedReliableEvent.timeline_started:type_name -> unframe.realtime.TimelineStarted
-	66,  // 63: unframe.realtime.ProjectedReliableEvent.timeline_completed:type_name -> unframe.realtime.TimelineCompleted
-	67,  // 64: unframe.realtime.ProjectedReliableEvent.timeline_canceled:type_name -> unframe.realtime.TimelineCanceled
-	71,  // 65: unframe.realtime.ProjectedReliableEvent.media_started:type_name -> unframe.realtime.MediaStarted
-	72,  // 66: unframe.realtime.ProjectedReliableEvent.media_paused:type_name -> unframe.realtime.MediaPaused
-	73,  // 67: unframe.realtime.ProjectedReliableEvent.media_resumed:type_name -> unframe.realtime.MediaResumed
-	74,  // 68: unframe.realtime.ProjectedReliableEvent.media_seeked:type_name -> unframe.realtime.MediaSeeked
-	75,  // 69: unframe.realtime.ProjectedReliableEvent.media_completed:type_name -> unframe.realtime.MediaCompleted
-	78,  // 70: unframe.realtime.ProjectedReliableEvent.media_canceled:type_name -> unframe.realtime.MediaCanceled
-	77,  // 71: unframe.realtime.ProjectedReliableEvent.media_stopped:type_name -> unframe.realtime.MediaStopped
-	82,  // 72: unframe.realtime.ProjectedReliableEvent.model_clip_started:type_name -> unframe.realtime.ModelClipStarted
-	83,  // 73: unframe.realtime.ProjectedReliableEvent.model_clip_paused:type_name -> unframe.realtime.ModelClipPaused
-	84,  // 74: unframe.realtime.ProjectedReliableEvent.model_clip_resumed:type_name -> unframe.realtime.ModelClipResumed
-	85,  // 75: unframe.realtime.ProjectedReliableEvent.model_clip_stopped:type_name -> unframe.realtime.ModelClipStopped
-	86,  // 76: unframe.realtime.ProjectedReliableEvent.model_clip_completed:type_name -> unframe.realtime.ModelClipCompleted
-	87,  // 77: unframe.realtime.ProjectedReliableEvent.model_clip_crossfade_started:type_name -> unframe.realtime.ModelClipCrossfadeStarted
-	88,  // 78: unframe.realtime.ProjectedReliableEvent.model_clip_crossfade_completed:type_name -> unframe.realtime.ModelClipCrossfadeCompleted
-	89,  // 79: unframe.realtime.ProjectedReliableEvent.model_clip_canceled:type_name -> unframe.realtime.ModelClipCanceled
-	90,  // 80: unframe.realtime.ProjectedReliableEvent.participant_presence_changed:type_name -> unframe.realtime.ParticipantPresenceChanged
-	76,  // 81: unframe.realtime.ProjectedReliableEvent.media_stopped_seeked:type_name -> unframe.realtime.MediaStoppedSeeked
-	54,  // 82: unframe.realtime.ProjectedReliableEvent.gesture_input_accepted:type_name -> unframe.realtime.GestureInputAccepted
-	55,  // 83: unframe.realtime.ProjectedReliableEvent.zone_input_accepted:type_name -> unframe.realtime.ZoneInputAccepted
-	56,  // 84: unframe.realtime.ProjectedReliableEvent.runtime_view_replaced:type_name -> unframe.realtime.RuntimeViewReplaced
-	144, // 85: unframe.realtime.ProjectionAdvance.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	6,   // 86: unframe.realtime.Paused.reason:type_name -> unframe.realtime.PauseReason
-	7,   // 87: unframe.realtime.Terminating.reason:type_name -> unframe.realtime.TerminationReason
-	43,  // 88: unframe.realtime.RuntimeStatusChanged.running:type_name -> unframe.realtime.Running
-	44,  // 89: unframe.realtime.RuntimeStatusChanged.paused:type_name -> unframe.realtime.Paused
-	45,  // 90: unframe.realtime.RuntimeStatusChanged.terminating:type_name -> unframe.realtime.Terminating
-	48,  // 91: unframe.realtime.GroupEntered.initialization:type_name -> unframe.realtime.GroupRuntimeInitialization
-	61,  // 92: unframe.realtime.GroupRuntimeInitialization.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	104, // 93: unframe.realtime.GroupRuntimeInitialization.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	105, // 94: unframe.realtime.GroupRuntimeInitialization.media_states:type_name -> unframe.realtime.MediaRuntimeState
-	63,  // 95: unframe.realtime.GroupRuntimeInitialization.variables:type_name -> unframe.realtime.VariableState
-	109, // 96: unframe.realtime.GroupRuntimeInitialization.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
-	7,   // 97: unframe.realtime.PresentationEnded.reason:type_name -> unframe.realtime.TerminationReason
-	146, // 98: unframe.realtime.GestureInputAccepted.gesture:type_name -> unframe.presentation.GestureKind
-	147, // 99: unframe.realtime.ZoneInputAccepted.edge:type_name -> unframe.presentation.ZoneEdge
-	124, // 100: unframe.realtime.RuntimeViewReplaced.runtime_view:type_name -> unframe.realtime.ParticipantRuntimeView
-	149, // 101: unframe.realtime.SurfaceTransitionStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	150, // 102: unframe.realtime.SurfaceTransitionStarted.easing:type_name -> unframe.presentation.Easing
-	116, // 103: unframe.realtime.SurfaceTransitionStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 104: unframe.realtime.SurfaceTransitionCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	151, // 105: unframe.realtime.NodeRuntimeState.transform:type_name -> unframe.presentation.Transform
-	61,  // 106: unframe.realtime.NodeStateCommitted.state:type_name -> unframe.realtime.NodeRuntimeState
-	152, // 107: unframe.realtime.VariableState.value:type_name -> unframe.presentation.ScalarValue
-	63,  // 108: unframe.realtime.VariableChanged.state:type_name -> unframe.realtime.VariableState
-	149, // 109: unframe.realtime.TimelineStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	153, // 110: unframe.realtime.TimelineStarted.owner:type_name -> unframe.presentation.RuntimeRunOwner
-	154, // 111: unframe.realtime.TimelineStarted.cause:type_name -> unframe.presentation.RuntimeRunCause
-	155, // 112: unframe.realtime.TimelineStarted.completion:type_name -> unframe.presentation.RunCompletion
-	149, // 113: unframe.realtime.TimelineCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	149, // 114: unframe.realtime.TimelineCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
-	8,   // 115: unframe.realtime.TimelineCanceled.reason:type_name -> unframe.realtime.TimelineCancelReason
-	69,  // 116: unframe.realtime.PlaybackClock.playing:type_name -> unframe.realtime.PlayingClock
-	70,  // 117: unframe.realtime.PlaybackClock.paused:type_name -> unframe.realtime.PausedClock
-	149, // 118: unframe.realtime.MediaStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	68,  // 119: unframe.realtime.MediaStarted.playback:type_name -> unframe.realtime.PlaybackClock
-	116, // 120: unframe.realtime.MediaStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 121: unframe.realtime.MediaPaused.run_id:type_name -> unframe.presentation.RuntimeRunId
-	116, // 122: unframe.realtime.MediaPaused.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 123: unframe.realtime.MediaResumed.run_id:type_name -> unframe.presentation.RuntimeRunId
-	69,  // 124: unframe.realtime.MediaResumed.playback:type_name -> unframe.realtime.PlayingClock
-	116, // 125: unframe.realtime.MediaResumed.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 126: unframe.realtime.MediaSeeked.run_id:type_name -> unframe.presentation.RuntimeRunId
-	68,  // 127: unframe.realtime.MediaSeeked.playback:type_name -> unframe.realtime.PlaybackClock
-	116, // 128: unframe.realtime.MediaSeeked.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 129: unframe.realtime.MediaCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	149, // 130: unframe.realtime.MediaStopped.run_id:type_name -> unframe.presentation.RuntimeRunId
-	149, // 131: unframe.realtime.MediaCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
-	9,   // 132: unframe.realtime.MediaCanceled.reason:type_name -> unframe.realtime.MediaCancelReason
-	68,  // 133: unframe.realtime.ClipPlayback.playback:type_name -> unframe.realtime.PlaybackClock
-	80,  // 134: unframe.realtime.BlendHeldPose.from:type_name -> unframe.realtime.ClipHeldPose
-	80,  // 135: unframe.realtime.BlendHeldPose.to:type_name -> unframe.realtime.ClipHeldPose
-	149, // 136: unframe.realtime.ModelClipStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	79,  // 137: unframe.realtime.ModelClipStarted.playback:type_name -> unframe.realtime.ClipPlayback
-	116, // 138: unframe.realtime.ModelClipStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 139: unframe.realtime.ModelClipPaused.run_id:type_name -> unframe.presentation.RuntimeRunId
-	116, // 140: unframe.realtime.ModelClipPaused.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 141: unframe.realtime.ModelClipResumed.run_id:type_name -> unframe.presentation.RuntimeRunId
-	116, // 142: unframe.realtime.ModelClipResumed.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 143: unframe.realtime.ModelClipStopped.run_id:type_name -> unframe.presentation.RuntimeRunId
-	80,  // 144: unframe.realtime.ModelClipStopped.clip:type_name -> unframe.realtime.ClipHeldPose
-	81,  // 145: unframe.realtime.ModelClipStopped.blend:type_name -> unframe.realtime.BlendHeldPose
-	149, // 146: unframe.realtime.ModelClipCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	80,  // 147: unframe.realtime.ModelClipCompleted.held_pose:type_name -> unframe.realtime.ClipHeldPose
-	149, // 148: unframe.realtime.ModelClipCrossfadeStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	114, // 149: unframe.realtime.ModelClipCrossfadeStarted.crossfade:type_name -> unframe.realtime.ModelClipCrossfade
-	116, // 150: unframe.realtime.ModelClipCrossfadeStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 151: unframe.realtime.ModelClipCrossfadeCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
-	79,  // 152: unframe.realtime.ModelClipCrossfadeCompleted.playback:type_name -> unframe.realtime.ClipPlayback
-	116, // 153: unframe.realtime.ModelClipCrossfadeCompleted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
-	149, // 154: unframe.realtime.ModelClipCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
-	10,  // 155: unframe.realtime.ModelClipCanceled.reason:type_name -> unframe.realtime.ModelClipCancelReason
-	156, // 156: unframe.realtime.ParticipantPresenceChanged.role:type_name -> unframe.presentation.SessionRole
-	157, // 157: unframe.realtime.PresentationOrigin.pose:type_name -> unframe.presentation.Pose
-	91,  // 158: unframe.realtime.PresentationOriginChanged.origin:type_name -> unframe.realtime.PresentationOrigin
-	43,  // 159: unframe.realtime.RuntimeClockSnapshot.running:type_name -> unframe.realtime.Running
-	44,  // 160: unframe.realtime.RuntimeClockSnapshot.paused:type_name -> unframe.realtime.Paused
-	45,  // 161: unframe.realtime.RuntimeClockSnapshot.terminating:type_name -> unframe.realtime.Terminating
-	149, // 162: unframe.realtime.TransitioningProgression.blocking_run_ids:type_name -> unframe.presentation.RuntimeRunId
-	96,  // 163: unframe.realtime.TransitioningProgression.pending_next:type_name -> unframe.realtime.ProgressionNext
-	97,  // 164: unframe.realtime.ProgressionNext.step:type_name -> unframe.realtime.NextStep
-	98,  // 165: unframe.realtime.ProgressionNext.group:type_name -> unframe.realtime.NextGroup
-	99,  // 166: unframe.realtime.ProgressionNext.end:type_name -> unframe.realtime.EndPresentation
-	100, // 167: unframe.realtime.ProgressionNext.stay:type_name -> unframe.realtime.StayOnStep
-	94,  // 168: unframe.realtime.ProgressionRuntimeState.stable:type_name -> unframe.realtime.StableProgression
-	95,  // 169: unframe.realtime.ProgressionRuntimeState.transitioning:type_name -> unframe.realtime.TransitioningProgression
-	102, // 170: unframe.realtime.StepExecutionSnapshot.timers:type_name -> unframe.realtime.ArmedTimer
-	149, // 171: unframe.realtime.SurfaceRuntimeState.transition_run_id:type_name -> unframe.presentation.RuntimeRunId
-	106, // 172: unframe.realtime.MediaRuntimeState.stopped:type_name -> unframe.realtime.MediaStoppedState
-	107, // 173: unframe.realtime.MediaRuntimeState.active:type_name -> unframe.realtime.MediaActive
-	149, // 174: unframe.realtime.MediaActive.run_id:type_name -> unframe.presentation.RuntimeRunId
-	68,  // 175: unframe.realtime.MediaActive.playback:type_name -> unframe.realtime.PlaybackClock
-	108, // 176: unframe.realtime.ModelClipRuntimeState.default_pose:type_name -> unframe.realtime.DefaultModelPose
-	80,  // 177: unframe.realtime.ModelClipRuntimeState.held_clip:type_name -> unframe.realtime.ClipHeldPose
-	81,  // 178: unframe.realtime.ModelClipRuntimeState.held_blend:type_name -> unframe.realtime.BlendHeldPose
-	110, // 179: unframe.realtime.ModelClipRuntimeState.active:type_name -> unframe.realtime.ModelClipActive
-	149, // 180: unframe.realtime.ModelClipActive.run_id:type_name -> unframe.presentation.RuntimeRunId
-	150, // 181: unframe.realtime.SurfaceTransitionRunSnapshot.easing:type_name -> unframe.presentation.Easing
-	68,  // 182: unframe.realtime.MediaRunSnapshot.playback:type_name -> unframe.realtime.PlaybackClock
-	79,  // 183: unframe.realtime.ModelClipCrossfade.from:type_name -> unframe.realtime.ClipPlayback
-	79,  // 184: unframe.realtime.ModelClipCrossfade.to:type_name -> unframe.realtime.ClipPlayback
-	68,  // 185: unframe.realtime.ModelClipCrossfade.transition_clock:type_name -> unframe.realtime.PlaybackClock
-	150, // 186: unframe.realtime.ModelClipCrossfade.easing:type_name -> unframe.presentation.Easing
-	79,  // 187: unframe.realtime.ModelClipRunSnapshot.single:type_name -> unframe.realtime.ClipPlayback
-	114, // 188: unframe.realtime.ModelClipRunSnapshot.crossfade:type_name -> unframe.realtime.ModelClipCrossfade
-	149, // 189: unframe.realtime.RuntimeRunSnapshot.run_id:type_name -> unframe.presentation.RuntimeRunId
-	153, // 190: unframe.realtime.RuntimeRunSnapshot.owner:type_name -> unframe.presentation.RuntimeRunOwner
-	154, // 191: unframe.realtime.RuntimeRunSnapshot.cause:type_name -> unframe.presentation.RuntimeRunCause
-	155, // 192: unframe.realtime.RuntimeRunSnapshot.completion:type_name -> unframe.presentation.RunCompletion
-	111, // 193: unframe.realtime.RuntimeRunSnapshot.surface_transition:type_name -> unframe.realtime.SurfaceTransitionRunSnapshot
-	112, // 194: unframe.realtime.RuntimeRunSnapshot.timeline:type_name -> unframe.realtime.TimelineRunSnapshot
-	113, // 195: unframe.realtime.RuntimeRunSnapshot.media:type_name -> unframe.realtime.MediaRunSnapshot
-	115, // 196: unframe.realtime.RuntimeRunSnapshot.model_clip:type_name -> unframe.realtime.ModelClipRunSnapshot
-	93,  // 197: unframe.realtime.CanonicalRuntimeSnapshot.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
-	101, // 198: unframe.realtime.CanonicalRuntimeSnapshot.progression:type_name -> unframe.realtime.ProgressionRuntimeState
-	103, // 199: unframe.realtime.CanonicalRuntimeSnapshot.step_execution:type_name -> unframe.realtime.StepExecutionSnapshot
-	104, // 200: unframe.realtime.CanonicalRuntimeSnapshot.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	61,  // 201: unframe.realtime.CanonicalRuntimeSnapshot.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	105, // 202: unframe.realtime.CanonicalRuntimeSnapshot.media_states:type_name -> unframe.realtime.MediaRuntimeState
-	63,  // 203: unframe.realtime.CanonicalRuntimeSnapshot.variables:type_name -> unframe.realtime.VariableState
-	116, // 204: unframe.realtime.CanonicalRuntimeSnapshot.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
-	91,  // 205: unframe.realtime.CanonicalRuntimeSnapshot.presentation_origin:type_name -> unframe.realtime.PresentationOrigin
-	109, // 206: unframe.realtime.CanonicalRuntimeSnapshot.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
-	118, // 207: unframe.realtime.CanonicalRuntimeSnapshot.frozen_anchors:type_name -> unframe.realtime.FrozenAnchorDisplayState
-	119, // 208: unframe.realtime.CanonicalRuntimeSnapshot.step_start_history:type_name -> unframe.realtime.StepStartState
-	158, // 209: unframe.realtime.FrozenAnchorDisplayState.position:type_name -> unframe.presentation.Vector3
-	159, // 210: unframe.realtime.FrozenAnchorDisplayState.rotation:type_name -> unframe.presentation.Quaternion
-	61,  // 211: unframe.realtime.StepStartState.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	104, // 212: unframe.realtime.StepStartState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	105, // 213: unframe.realtime.StepStartState.media_states:type_name -> unframe.realtime.MediaRuntimeState
-	63,  // 214: unframe.realtime.StepStartState.variables:type_name -> unframe.realtime.VariableState
-	116, // 215: unframe.realtime.StepStartState.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
-	109, // 216: unframe.realtime.StepStartState.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
-	122, // 217: unframe.realtime.RuntimeRecoveryMetadata.participants:type_name -> unframe.realtime.RuntimeParticipantHistory
-	123, // 218: unframe.realtime.RuntimeRecoveryMetadata.commands:type_name -> unframe.realtime.RuntimeCommandHistory
-	31,  // 219: unframe.realtime.RuntimeRecoveryMetadata.input_synchronization:type_name -> unframe.realtime.PresenterInputSynchronization
-	121, // 220: unframe.realtime.RuntimeRecoveryMetadata.capacity_fault:type_name -> unframe.realtime.RuntimeCapacityFault
-	156, // 221: unframe.realtime.RuntimeParticipantHistory.role:type_name -> unframe.presentation.SessionRole
-	33,  // 222: unframe.realtime.RuntimeCommandHistory.outcome:type_name -> unframe.realtime.CommandOutcome
-	101, // 223: unframe.realtime.ParticipantRuntimeView.progression:type_name -> unframe.realtime.ProgressionRuntimeState
-	61,  // 224: unframe.realtime.ParticipantRuntimeView.node_states:type_name -> unframe.realtime.NodeRuntimeState
-	104, // 225: unframe.realtime.ParticipantRuntimeView.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
-	105, // 226: unframe.realtime.ParticipantRuntimeView.media_states:type_name -> unframe.realtime.MediaRuntimeState
-	63,  // 227: unframe.realtime.ParticipantRuntimeView.variables:type_name -> unframe.realtime.VariableState
-	116, // 228: unframe.realtime.ParticipantRuntimeView.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
-	93,  // 229: unframe.realtime.ParticipantRuntimeView.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
-	91,  // 230: unframe.realtime.ParticipantRuntimeView.presentation_origin:type_name -> unframe.realtime.PresentationOrigin
-	109, // 231: unframe.realtime.ParticipantRuntimeView.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
-	118, // 232: unframe.realtime.ParticipantRuntimeView.frozen_anchors:type_name -> unframe.realtime.FrozenAnchorDisplayState
-	124, // 233: unframe.realtime.ProjectedRuntimeSnapshot.runtime_view:type_name -> unframe.realtime.ParticipantRuntimeView
-	156, // 234: unframe.realtime.ProjectedParticipantPresence.role:type_name -> unframe.presentation.SessionRole
-	126, // 235: unframe.realtime.ProjectedPresenceState.participants:type_name -> unframe.realtime.ProjectedParticipantPresence
-	144, // 236: unframe.realtime.ConnectionSnapshotEnvelope.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	145, // 237: unframe.realtime.ConnectionSnapshotEnvelope.projection_instance:type_name -> unframe.presentation.ProjectionInstance
-	127, // 238: unframe.realtime.ConnectionSnapshotEnvelope.presence_at_cut:type_name -> unframe.realtime.ProjectedPresenceState
-	125, // 239: unframe.realtime.ConnectionSnapshotEnvelope.snapshot:type_name -> unframe.realtime.ProjectedRuntimeSnapshot
-	11,  // 240: unframe.realtime.DurableCheckpointEnvelope.runtime_kind:type_name -> unframe.realtime.RuntimeKind
-	160, // 241: unframe.realtime.DurableCheckpointEnvelope.publication:type_name -> unframe.presentation.PublicationFence
-	12,  // 242: unframe.realtime.ResyncRequired.reason:type_name -> unframe.realtime.ResyncReason
-	132, // 243: unframe.realtime.StateClientItem.handshake:type_name -> unframe.realtime.StateHandshake
-	135, // 244: unframe.realtime.StateClientItem.tracking_frame:type_name -> unframe.realtime.TrackingFrame
-	143, // 245: unframe.realtime.StateHandshake.supported_capabilities:type_name -> unframe.presentation.RuntimeCapability
-	13,  // 246: unframe.realtime.TrackedPoseSample.target:type_name -> unframe.realtime.TrackedTarget
-	157, // 247: unframe.realtime.TrackedPoseSample.quest_local_pose:type_name -> unframe.presentation.Pose
-	134, // 248: unframe.realtime.TrackingFrame.samples:type_name -> unframe.realtime.TrackedPoseSample
-	157, // 249: unframe.realtime.TrackingFrame.presentation_from_quest_local:type_name -> unframe.presentation.Pose
-	133, // 250: unframe.realtime.StateServerItem.connected:type_name -> unframe.realtime.StateConnected
-	142, // 251: unframe.realtime.StateServerItem.state_frame:type_name -> unframe.realtime.ElementStateFrame
-	151, // 252: unframe.realtime.NodeStatePatch.transform:type_name -> unframe.presentation.Transform
-	137, // 253: unframe.realtime.ElementStatePatch.node:type_name -> unframe.realtime.NodeStatePatch
-	158, // 254: unframe.realtime.ProjectedAnchorBindingSample.position:type_name -> unframe.presentation.Vector3
-	159, // 255: unframe.realtime.ProjectedAnchorBindingSample.rotation:type_name -> unframe.presentation.Quaternion
-	139, // 256: unframe.realtime.ProjectedAnchorBindingPatch.unavailable:type_name -> unframe.realtime.AnchorBindingUnavailable
-	140, // 257: unframe.realtime.ProjectedAnchorBindingPatch.sample:type_name -> unframe.realtime.ProjectedAnchorBindingSample
-	118, // 258: unframe.realtime.ProjectedAnchorBindingPatch.frozen:type_name -> unframe.realtime.FrozenAnchorDisplayState
-	144, // 259: unframe.realtime.ElementStateFrame.fence:type_name -> unframe.presentation.RuntimeProjectionFence
-	14,  // 260: unframe.realtime.ElementStateFrame.kind:type_name -> unframe.realtime.StateFrameKind
-	138, // 261: unframe.realtime.ElementStateFrame.elements:type_name -> unframe.realtime.ElementStatePatch
-	141, // 262: unframe.realtime.ElementStateFrame.anchor_bindings:type_name -> unframe.realtime.ProjectedAnchorBindingPatch
-	15,  // 263: unframe.realtime.RealtimeService.ConnectControl:input_type -> unframe.realtime.ControlClientItem
-	131, // 264: unframe.realtime.RealtimeService.ConnectState:input_type -> unframe.realtime.StateClientItem
-	40,  // 265: unframe.realtime.RealtimeService.ConnectControl:output_type -> unframe.realtime.ControlServerItem
-	136, // 266: unframe.realtime.RealtimeService.ConnectState:output_type -> unframe.realtime.StateServerItem
-	265, // [265:267] is the sub-list for method output_type
-	263, // [263:265] is the sub-list for method input_type
-	263, // [263:263] is the sub-list for extension type_name
-	263, // [263:263] is the sub-list for extension extendee
-	0,   // [0:263] is the sub-list for field type_name
+	20,  // 38: unframe.realtime.ControlServerItem.connected:type_name -> unframe.realtime.ControlConnected
+	129, // 39: unframe.realtime.ControlServerItem.connection_snapshot:type_name -> unframe.realtime.ConnectionSnapshotEnvelope
+	42,  // 40: unframe.realtime.ControlServerItem.reliable_event:type_name -> unframe.realtime.ProjectedReliableEvent
+	43,  // 41: unframe.realtime.ControlServerItem.projection_advance:type_name -> unframe.realtime.ProjectionAdvance
+	34,  // 42: unframe.realtime.ControlServerItem.command_outcome:type_name -> unframe.realtime.CommandOutcome
+	22,  // 43: unframe.realtime.ControlServerItem.state_connection_nonce:type_name -> unframe.realtime.StateConnectionNonce
+	131, // 44: unframe.realtime.ControlServerItem.resync_required:type_name -> unframe.realtime.ResyncRequired
+	32,  // 45: unframe.realtime.ControlServerItem.presenter_input_synchronization:type_name -> unframe.realtime.PresenterInputSynchronization
+	31,  // 46: unframe.realtime.ControlServerItem.presenter_step_selection_catalog:type_name -> unframe.realtime.PresenterStepSelectionCatalog
+	147, // 47: unframe.realtime.ProjectedReliableEvent.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	47,  // 48: unframe.realtime.ProjectedReliableEvent.runtime_status_changed:type_name -> unframe.realtime.RuntimeStatusChanged
+	93,  // 49: unframe.realtime.ProjectedReliableEvent.presentation_origin_changed:type_name -> unframe.realtime.PresentationOriginChanged
+	48,  // 50: unframe.realtime.ProjectedReliableEvent.group_entered:type_name -> unframe.realtime.GroupEntered
+	50,  // 51: unframe.realtime.ProjectedReliableEvent.group_exited:type_name -> unframe.realtime.GroupExited
+	51,  // 52: unframe.realtime.ProjectedReliableEvent.step_entered:type_name -> unframe.realtime.StepEntered
+	52,  // 53: unframe.realtime.ProjectedReliableEvent.cue_accepted:type_name -> unframe.realtime.CueAccepted
+	53,  // 54: unframe.realtime.ProjectedReliableEvent.presentation_ended:type_name -> unframe.realtime.PresentationEnded
+	54,  // 55: unframe.realtime.ProjectedReliableEvent.logical_input_accepted:type_name -> unframe.realtime.LogicalInputAccepted
+	58,  // 56: unframe.realtime.ProjectedReliableEvent.surface_interaction_accepted:type_name -> unframe.realtime.SurfaceInteractionAccepted
+	59,  // 57: unframe.realtime.ProjectedReliableEvent.surface_state_changed:type_name -> unframe.realtime.SurfaceStateChanged
+	60,  // 58: unframe.realtime.ProjectedReliableEvent.surface_transition_started:type_name -> unframe.realtime.SurfaceTransitionStarted
+	61,  // 59: unframe.realtime.ProjectedReliableEvent.surface_transition_completed:type_name -> unframe.realtime.SurfaceTransitionCompleted
+	63,  // 60: unframe.realtime.ProjectedReliableEvent.node_state_committed:type_name -> unframe.realtime.NodeStateCommitted
+	65,  // 61: unframe.realtime.ProjectedReliableEvent.variable_changed:type_name -> unframe.realtime.VariableChanged
+	66,  // 62: unframe.realtime.ProjectedReliableEvent.timeline_started:type_name -> unframe.realtime.TimelineStarted
+	67,  // 63: unframe.realtime.ProjectedReliableEvent.timeline_completed:type_name -> unframe.realtime.TimelineCompleted
+	68,  // 64: unframe.realtime.ProjectedReliableEvent.timeline_canceled:type_name -> unframe.realtime.TimelineCanceled
+	72,  // 65: unframe.realtime.ProjectedReliableEvent.media_started:type_name -> unframe.realtime.MediaStarted
+	73,  // 66: unframe.realtime.ProjectedReliableEvent.media_paused:type_name -> unframe.realtime.MediaPaused
+	74,  // 67: unframe.realtime.ProjectedReliableEvent.media_resumed:type_name -> unframe.realtime.MediaResumed
+	75,  // 68: unframe.realtime.ProjectedReliableEvent.media_seeked:type_name -> unframe.realtime.MediaSeeked
+	76,  // 69: unframe.realtime.ProjectedReliableEvent.media_completed:type_name -> unframe.realtime.MediaCompleted
+	79,  // 70: unframe.realtime.ProjectedReliableEvent.media_canceled:type_name -> unframe.realtime.MediaCanceled
+	78,  // 71: unframe.realtime.ProjectedReliableEvent.media_stopped:type_name -> unframe.realtime.MediaStopped
+	83,  // 72: unframe.realtime.ProjectedReliableEvent.model_clip_started:type_name -> unframe.realtime.ModelClipStarted
+	84,  // 73: unframe.realtime.ProjectedReliableEvent.model_clip_paused:type_name -> unframe.realtime.ModelClipPaused
+	85,  // 74: unframe.realtime.ProjectedReliableEvent.model_clip_resumed:type_name -> unframe.realtime.ModelClipResumed
+	86,  // 75: unframe.realtime.ProjectedReliableEvent.model_clip_stopped:type_name -> unframe.realtime.ModelClipStopped
+	87,  // 76: unframe.realtime.ProjectedReliableEvent.model_clip_completed:type_name -> unframe.realtime.ModelClipCompleted
+	88,  // 77: unframe.realtime.ProjectedReliableEvent.model_clip_crossfade_started:type_name -> unframe.realtime.ModelClipCrossfadeStarted
+	89,  // 78: unframe.realtime.ProjectedReliableEvent.model_clip_crossfade_completed:type_name -> unframe.realtime.ModelClipCrossfadeCompleted
+	90,  // 79: unframe.realtime.ProjectedReliableEvent.model_clip_canceled:type_name -> unframe.realtime.ModelClipCanceled
+	91,  // 80: unframe.realtime.ProjectedReliableEvent.participant_presence_changed:type_name -> unframe.realtime.ParticipantPresenceChanged
+	77,  // 81: unframe.realtime.ProjectedReliableEvent.media_stopped_seeked:type_name -> unframe.realtime.MediaStoppedSeeked
+	55,  // 82: unframe.realtime.ProjectedReliableEvent.gesture_input_accepted:type_name -> unframe.realtime.GestureInputAccepted
+	56,  // 83: unframe.realtime.ProjectedReliableEvent.zone_input_accepted:type_name -> unframe.realtime.ZoneInputAccepted
+	57,  // 84: unframe.realtime.ProjectedReliableEvent.runtime_view_replaced:type_name -> unframe.realtime.RuntimeViewReplaced
+	145, // 85: unframe.realtime.ProjectedReliableEvent.effect_runs_changed:type_name -> unframe.realtime.EffectRunsChanged
+	147, // 86: unframe.realtime.ProjectionAdvance.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	6,   // 87: unframe.realtime.Paused.reason:type_name -> unframe.realtime.PauseReason
+	7,   // 88: unframe.realtime.Terminating.reason:type_name -> unframe.realtime.TerminationReason
+	44,  // 89: unframe.realtime.RuntimeStatusChanged.running:type_name -> unframe.realtime.Running
+	45,  // 90: unframe.realtime.RuntimeStatusChanged.paused:type_name -> unframe.realtime.Paused
+	46,  // 91: unframe.realtime.RuntimeStatusChanged.terminating:type_name -> unframe.realtime.Terminating
+	49,  // 92: unframe.realtime.GroupEntered.initialization:type_name -> unframe.realtime.GroupRuntimeInitialization
+	62,  // 93: unframe.realtime.GroupRuntimeInitialization.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	105, // 94: unframe.realtime.GroupRuntimeInitialization.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	106, // 95: unframe.realtime.GroupRuntimeInitialization.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	64,  // 96: unframe.realtime.GroupRuntimeInitialization.variables:type_name -> unframe.realtime.VariableState
+	110, // 97: unframe.realtime.GroupRuntimeInitialization.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	7,   // 98: unframe.realtime.PresentationEnded.reason:type_name -> unframe.realtime.TerminationReason
+	149, // 99: unframe.realtime.GestureInputAccepted.gesture:type_name -> unframe.presentation.GestureKind
+	150, // 100: unframe.realtime.ZoneInputAccepted.edge:type_name -> unframe.presentation.ZoneEdge
+	125, // 101: unframe.realtime.RuntimeViewReplaced.runtime_view:type_name -> unframe.realtime.ParticipantRuntimeView
+	152, // 102: unframe.realtime.SurfaceTransitionStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	153, // 103: unframe.realtime.SurfaceTransitionStarted.easing:type_name -> unframe.presentation.Easing
+	117, // 104: unframe.realtime.SurfaceTransitionStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 105: unframe.realtime.SurfaceTransitionCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	154, // 106: unframe.realtime.NodeRuntimeState.transform:type_name -> unframe.presentation.Transform
+	62,  // 107: unframe.realtime.NodeStateCommitted.state:type_name -> unframe.realtime.NodeRuntimeState
+	155, // 108: unframe.realtime.VariableState.value:type_name -> unframe.presentation.ScalarValue
+	64,  // 109: unframe.realtime.VariableChanged.state:type_name -> unframe.realtime.VariableState
+	152, // 110: unframe.realtime.TimelineStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	156, // 111: unframe.realtime.TimelineStarted.owner:type_name -> unframe.presentation.RuntimeRunOwner
+	157, // 112: unframe.realtime.TimelineStarted.cause:type_name -> unframe.presentation.RuntimeRunCause
+	158, // 113: unframe.realtime.TimelineStarted.completion:type_name -> unframe.presentation.RunCompletion
+	152, // 114: unframe.realtime.TimelineCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	152, // 115: unframe.realtime.TimelineCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
+	8,   // 116: unframe.realtime.TimelineCanceled.reason:type_name -> unframe.realtime.TimelineCancelReason
+	70,  // 117: unframe.realtime.PlaybackClock.playing:type_name -> unframe.realtime.PlayingClock
+	71,  // 118: unframe.realtime.PlaybackClock.paused:type_name -> unframe.realtime.PausedClock
+	152, // 119: unframe.realtime.MediaStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	69,  // 120: unframe.realtime.MediaStarted.playback:type_name -> unframe.realtime.PlaybackClock
+	117, // 121: unframe.realtime.MediaStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 122: unframe.realtime.MediaPaused.run_id:type_name -> unframe.presentation.RuntimeRunId
+	117, // 123: unframe.realtime.MediaPaused.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 124: unframe.realtime.MediaResumed.run_id:type_name -> unframe.presentation.RuntimeRunId
+	70,  // 125: unframe.realtime.MediaResumed.playback:type_name -> unframe.realtime.PlayingClock
+	117, // 126: unframe.realtime.MediaResumed.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 127: unframe.realtime.MediaSeeked.run_id:type_name -> unframe.presentation.RuntimeRunId
+	69,  // 128: unframe.realtime.MediaSeeked.playback:type_name -> unframe.realtime.PlaybackClock
+	117, // 129: unframe.realtime.MediaSeeked.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 130: unframe.realtime.MediaCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	152, // 131: unframe.realtime.MediaStopped.run_id:type_name -> unframe.presentation.RuntimeRunId
+	152, // 132: unframe.realtime.MediaCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
+	9,   // 133: unframe.realtime.MediaCanceled.reason:type_name -> unframe.realtime.MediaCancelReason
+	69,  // 134: unframe.realtime.ClipPlayback.playback:type_name -> unframe.realtime.PlaybackClock
+	81,  // 135: unframe.realtime.BlendHeldPose.from:type_name -> unframe.realtime.ClipHeldPose
+	81,  // 136: unframe.realtime.BlendHeldPose.to:type_name -> unframe.realtime.ClipHeldPose
+	152, // 137: unframe.realtime.ModelClipStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	80,  // 138: unframe.realtime.ModelClipStarted.playback:type_name -> unframe.realtime.ClipPlayback
+	117, // 139: unframe.realtime.ModelClipStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 140: unframe.realtime.ModelClipPaused.run_id:type_name -> unframe.presentation.RuntimeRunId
+	117, // 141: unframe.realtime.ModelClipPaused.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 142: unframe.realtime.ModelClipResumed.run_id:type_name -> unframe.presentation.RuntimeRunId
+	117, // 143: unframe.realtime.ModelClipResumed.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 144: unframe.realtime.ModelClipStopped.run_id:type_name -> unframe.presentation.RuntimeRunId
+	81,  // 145: unframe.realtime.ModelClipStopped.clip:type_name -> unframe.realtime.ClipHeldPose
+	82,  // 146: unframe.realtime.ModelClipStopped.blend:type_name -> unframe.realtime.BlendHeldPose
+	152, // 147: unframe.realtime.ModelClipCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	81,  // 148: unframe.realtime.ModelClipCompleted.held_pose:type_name -> unframe.realtime.ClipHeldPose
+	152, // 149: unframe.realtime.ModelClipCrossfadeStarted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	115, // 150: unframe.realtime.ModelClipCrossfadeStarted.crossfade:type_name -> unframe.realtime.ModelClipCrossfade
+	117, // 151: unframe.realtime.ModelClipCrossfadeStarted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 152: unframe.realtime.ModelClipCrossfadeCompleted.run_id:type_name -> unframe.presentation.RuntimeRunId
+	80,  // 153: unframe.realtime.ModelClipCrossfadeCompleted.playback:type_name -> unframe.realtime.ClipPlayback
+	117, // 154: unframe.realtime.ModelClipCrossfadeCompleted.run:type_name -> unframe.realtime.RuntimeRunSnapshot
+	152, // 155: unframe.realtime.ModelClipCanceled.run_id:type_name -> unframe.presentation.RuntimeRunId
+	10,  // 156: unframe.realtime.ModelClipCanceled.reason:type_name -> unframe.realtime.ModelClipCancelReason
+	159, // 157: unframe.realtime.ParticipantPresenceChanged.role:type_name -> unframe.presentation.SessionRole
+	160, // 158: unframe.realtime.PresentationOrigin.pose:type_name -> unframe.presentation.Pose
+	92,  // 159: unframe.realtime.PresentationOriginChanged.origin:type_name -> unframe.realtime.PresentationOrigin
+	44,  // 160: unframe.realtime.RuntimeClockSnapshot.running:type_name -> unframe.realtime.Running
+	45,  // 161: unframe.realtime.RuntimeClockSnapshot.paused:type_name -> unframe.realtime.Paused
+	46,  // 162: unframe.realtime.RuntimeClockSnapshot.terminating:type_name -> unframe.realtime.Terminating
+	152, // 163: unframe.realtime.TransitioningProgression.blocking_run_ids:type_name -> unframe.presentation.RuntimeRunId
+	97,  // 164: unframe.realtime.TransitioningProgression.pending_next:type_name -> unframe.realtime.ProgressionNext
+	98,  // 165: unframe.realtime.ProgressionNext.step:type_name -> unframe.realtime.NextStep
+	99,  // 166: unframe.realtime.ProgressionNext.group:type_name -> unframe.realtime.NextGroup
+	100, // 167: unframe.realtime.ProgressionNext.end:type_name -> unframe.realtime.EndPresentation
+	101, // 168: unframe.realtime.ProgressionNext.stay:type_name -> unframe.realtime.StayOnStep
+	95,  // 169: unframe.realtime.ProgressionRuntimeState.stable:type_name -> unframe.realtime.StableProgression
+	96,  // 170: unframe.realtime.ProgressionRuntimeState.transitioning:type_name -> unframe.realtime.TransitioningProgression
+	103, // 171: unframe.realtime.StepExecutionSnapshot.timers:type_name -> unframe.realtime.ArmedTimer
+	152, // 172: unframe.realtime.SurfaceRuntimeState.transition_run_id:type_name -> unframe.presentation.RuntimeRunId
+	107, // 173: unframe.realtime.MediaRuntimeState.stopped:type_name -> unframe.realtime.MediaStoppedState
+	108, // 174: unframe.realtime.MediaRuntimeState.active:type_name -> unframe.realtime.MediaActive
+	152, // 175: unframe.realtime.MediaActive.run_id:type_name -> unframe.presentation.RuntimeRunId
+	69,  // 176: unframe.realtime.MediaActive.playback:type_name -> unframe.realtime.PlaybackClock
+	109, // 177: unframe.realtime.ModelClipRuntimeState.default_pose:type_name -> unframe.realtime.DefaultModelPose
+	81,  // 178: unframe.realtime.ModelClipRuntimeState.held_clip:type_name -> unframe.realtime.ClipHeldPose
+	82,  // 179: unframe.realtime.ModelClipRuntimeState.held_blend:type_name -> unframe.realtime.BlendHeldPose
+	111, // 180: unframe.realtime.ModelClipRuntimeState.active:type_name -> unframe.realtime.ModelClipActive
+	152, // 181: unframe.realtime.ModelClipActive.run_id:type_name -> unframe.presentation.RuntimeRunId
+	153, // 182: unframe.realtime.SurfaceTransitionRunSnapshot.easing:type_name -> unframe.presentation.Easing
+	69,  // 183: unframe.realtime.MediaRunSnapshot.playback:type_name -> unframe.realtime.PlaybackClock
+	80,  // 184: unframe.realtime.ModelClipCrossfade.from:type_name -> unframe.realtime.ClipPlayback
+	80,  // 185: unframe.realtime.ModelClipCrossfade.to:type_name -> unframe.realtime.ClipPlayback
+	69,  // 186: unframe.realtime.ModelClipCrossfade.transition_clock:type_name -> unframe.realtime.PlaybackClock
+	153, // 187: unframe.realtime.ModelClipCrossfade.easing:type_name -> unframe.presentation.Easing
+	80,  // 188: unframe.realtime.ModelClipRunSnapshot.single:type_name -> unframe.realtime.ClipPlayback
+	115, // 189: unframe.realtime.ModelClipRunSnapshot.crossfade:type_name -> unframe.realtime.ModelClipCrossfade
+	152, // 190: unframe.realtime.RuntimeRunSnapshot.run_id:type_name -> unframe.presentation.RuntimeRunId
+	156, // 191: unframe.realtime.RuntimeRunSnapshot.owner:type_name -> unframe.presentation.RuntimeRunOwner
+	157, // 192: unframe.realtime.RuntimeRunSnapshot.cause:type_name -> unframe.presentation.RuntimeRunCause
+	158, // 193: unframe.realtime.RuntimeRunSnapshot.completion:type_name -> unframe.presentation.RunCompletion
+	112, // 194: unframe.realtime.RuntimeRunSnapshot.surface_transition:type_name -> unframe.realtime.SurfaceTransitionRunSnapshot
+	113, // 195: unframe.realtime.RuntimeRunSnapshot.timeline:type_name -> unframe.realtime.TimelineRunSnapshot
+	114, // 196: unframe.realtime.RuntimeRunSnapshot.media:type_name -> unframe.realtime.MediaRunSnapshot
+	116, // 197: unframe.realtime.RuntimeRunSnapshot.model_clip:type_name -> unframe.realtime.ModelClipRunSnapshot
+	94,  // 198: unframe.realtime.CanonicalRuntimeSnapshot.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
+	102, // 199: unframe.realtime.CanonicalRuntimeSnapshot.progression:type_name -> unframe.realtime.ProgressionRuntimeState
+	104, // 200: unframe.realtime.CanonicalRuntimeSnapshot.step_execution:type_name -> unframe.realtime.StepExecutionSnapshot
+	105, // 201: unframe.realtime.CanonicalRuntimeSnapshot.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	62,  // 202: unframe.realtime.CanonicalRuntimeSnapshot.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	106, // 203: unframe.realtime.CanonicalRuntimeSnapshot.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	64,  // 204: unframe.realtime.CanonicalRuntimeSnapshot.variables:type_name -> unframe.realtime.VariableState
+	117, // 205: unframe.realtime.CanonicalRuntimeSnapshot.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
+	92,  // 206: unframe.realtime.CanonicalRuntimeSnapshot.presentation_origin:type_name -> unframe.realtime.PresentationOrigin
+	110, // 207: unframe.realtime.CanonicalRuntimeSnapshot.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	119, // 208: unframe.realtime.CanonicalRuntimeSnapshot.frozen_anchors:type_name -> unframe.realtime.FrozenAnchorDisplayState
+	120, // 209: unframe.realtime.CanonicalRuntimeSnapshot.step_start_history:type_name -> unframe.realtime.StepStartState
+	144, // 210: unframe.realtime.CanonicalRuntimeSnapshot.effect_runs:type_name -> unframe.realtime.EffectRunSnapshot
+	161, // 211: unframe.realtime.FrozenAnchorDisplayState.position:type_name -> unframe.presentation.Vector3
+	162, // 212: unframe.realtime.FrozenAnchorDisplayState.rotation:type_name -> unframe.presentation.Quaternion
+	62,  // 213: unframe.realtime.StepStartState.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	105, // 214: unframe.realtime.StepStartState.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	106, // 215: unframe.realtime.StepStartState.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	64,  // 216: unframe.realtime.StepStartState.variables:type_name -> unframe.realtime.VariableState
+	117, // 217: unframe.realtime.StepStartState.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
+	110, // 218: unframe.realtime.StepStartState.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	144, // 219: unframe.realtime.StepStartState.effect_runs:type_name -> unframe.realtime.EffectRunSnapshot
+	123, // 220: unframe.realtime.RuntimeRecoveryMetadata.participants:type_name -> unframe.realtime.RuntimeParticipantHistory
+	124, // 221: unframe.realtime.RuntimeRecoveryMetadata.commands:type_name -> unframe.realtime.RuntimeCommandHistory
+	32,  // 222: unframe.realtime.RuntimeRecoveryMetadata.input_synchronization:type_name -> unframe.realtime.PresenterInputSynchronization
+	122, // 223: unframe.realtime.RuntimeRecoveryMetadata.capacity_fault:type_name -> unframe.realtime.RuntimeCapacityFault
+	159, // 224: unframe.realtime.RuntimeParticipantHistory.role:type_name -> unframe.presentation.SessionRole
+	34,  // 225: unframe.realtime.RuntimeCommandHistory.outcome:type_name -> unframe.realtime.CommandOutcome
+	102, // 226: unframe.realtime.ParticipantRuntimeView.progression:type_name -> unframe.realtime.ProgressionRuntimeState
+	62,  // 227: unframe.realtime.ParticipantRuntimeView.node_states:type_name -> unframe.realtime.NodeRuntimeState
+	105, // 228: unframe.realtime.ParticipantRuntimeView.surface_states:type_name -> unframe.realtime.SurfaceRuntimeState
+	106, // 229: unframe.realtime.ParticipantRuntimeView.media_states:type_name -> unframe.realtime.MediaRuntimeState
+	64,  // 230: unframe.realtime.ParticipantRuntimeView.variables:type_name -> unframe.realtime.VariableState
+	117, // 231: unframe.realtime.ParticipantRuntimeView.active_runs:type_name -> unframe.realtime.RuntimeRunSnapshot
+	94,  // 232: unframe.realtime.ParticipantRuntimeView.clock:type_name -> unframe.realtime.RuntimeClockSnapshot
+	92,  // 233: unframe.realtime.ParticipantRuntimeView.presentation_origin:type_name -> unframe.realtime.PresentationOrigin
+	110, // 234: unframe.realtime.ParticipantRuntimeView.model_clip_states:type_name -> unframe.realtime.ModelClipRuntimeState
+	119, // 235: unframe.realtime.ParticipantRuntimeView.frozen_anchors:type_name -> unframe.realtime.FrozenAnchorDisplayState
+	144, // 236: unframe.realtime.ParticipantRuntimeView.effect_runs:type_name -> unframe.realtime.EffectRunSnapshot
+	125, // 237: unframe.realtime.ProjectedRuntimeSnapshot.runtime_view:type_name -> unframe.realtime.ParticipantRuntimeView
+	159, // 238: unframe.realtime.ProjectedParticipantPresence.role:type_name -> unframe.presentation.SessionRole
+	127, // 239: unframe.realtime.ProjectedPresenceState.participants:type_name -> unframe.realtime.ProjectedParticipantPresence
+	147, // 240: unframe.realtime.ConnectionSnapshotEnvelope.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	148, // 241: unframe.realtime.ConnectionSnapshotEnvelope.projection_instance:type_name -> unframe.presentation.ProjectionInstance
+	128, // 242: unframe.realtime.ConnectionSnapshotEnvelope.presence_at_cut:type_name -> unframe.realtime.ProjectedPresenceState
+	126, // 243: unframe.realtime.ConnectionSnapshotEnvelope.snapshot:type_name -> unframe.realtime.ProjectedRuntimeSnapshot
+	11,  // 244: unframe.realtime.DurableCheckpointEnvelope.runtime_kind:type_name -> unframe.realtime.RuntimeKind
+	163, // 245: unframe.realtime.DurableCheckpointEnvelope.publication:type_name -> unframe.presentation.PublicationFence
+	12,  // 246: unframe.realtime.ResyncRequired.reason:type_name -> unframe.realtime.ResyncReason
+	133, // 247: unframe.realtime.StateClientItem.handshake:type_name -> unframe.realtime.StateHandshake
+	136, // 248: unframe.realtime.StateClientItem.tracking_frame:type_name -> unframe.realtime.TrackingFrame
+	146, // 249: unframe.realtime.StateHandshake.supported_capabilities:type_name -> unframe.presentation.RuntimeCapability
+	13,  // 250: unframe.realtime.TrackedPoseSample.target:type_name -> unframe.realtime.TrackedTarget
+	160, // 251: unframe.realtime.TrackedPoseSample.quest_local_pose:type_name -> unframe.presentation.Pose
+	135, // 252: unframe.realtime.TrackingFrame.samples:type_name -> unframe.realtime.TrackedPoseSample
+	160, // 253: unframe.realtime.TrackingFrame.presentation_from_quest_local:type_name -> unframe.presentation.Pose
+	134, // 254: unframe.realtime.StateServerItem.connected:type_name -> unframe.realtime.StateConnected
+	143, // 255: unframe.realtime.StateServerItem.state_frame:type_name -> unframe.realtime.ElementStateFrame
+	154, // 256: unframe.realtime.NodeStatePatch.transform:type_name -> unframe.presentation.Transform
+	138, // 257: unframe.realtime.ElementStatePatch.node:type_name -> unframe.realtime.NodeStatePatch
+	161, // 258: unframe.realtime.ProjectedAnchorBindingSample.position:type_name -> unframe.presentation.Vector3
+	162, // 259: unframe.realtime.ProjectedAnchorBindingSample.rotation:type_name -> unframe.presentation.Quaternion
+	140, // 260: unframe.realtime.ProjectedAnchorBindingPatch.unavailable:type_name -> unframe.realtime.AnchorBindingUnavailable
+	141, // 261: unframe.realtime.ProjectedAnchorBindingPatch.sample:type_name -> unframe.realtime.ProjectedAnchorBindingSample
+	119, // 262: unframe.realtime.ProjectedAnchorBindingPatch.frozen:type_name -> unframe.realtime.FrozenAnchorDisplayState
+	147, // 263: unframe.realtime.ElementStateFrame.fence:type_name -> unframe.presentation.RuntimeProjectionFence
+	14,  // 264: unframe.realtime.ElementStateFrame.kind:type_name -> unframe.realtime.StateFrameKind
+	139, // 265: unframe.realtime.ElementStateFrame.elements:type_name -> unframe.realtime.ElementStatePatch
+	142, // 266: unframe.realtime.ElementStateFrame.anchor_bindings:type_name -> unframe.realtime.ProjectedAnchorBindingPatch
+	152, // 267: unframe.realtime.EffectRunSnapshot.run_id:type_name -> unframe.presentation.RuntimeRunId
+	156, // 268: unframe.realtime.EffectRunSnapshot.owner:type_name -> unframe.presentation.RuntimeRunOwner
+	157, // 269: unframe.realtime.EffectRunSnapshot.cause:type_name -> unframe.presentation.RuntimeRunCause
+	164, // 270: unframe.realtime.EffectRunSnapshot.configuration:type_name -> unframe.presentation.EffectConfiguration
+	15,  // 271: unframe.realtime.EffectRunSnapshot.status:type_name -> unframe.realtime.EffectRunStatus
+	144, // 272: unframe.realtime.EffectRunsChanged.effect_runs:type_name -> unframe.realtime.EffectRunSnapshot
+	16,  // 273: unframe.realtime.RealtimeService.ConnectControl:input_type -> unframe.realtime.ControlClientItem
+	132, // 274: unframe.realtime.RealtimeService.ConnectState:input_type -> unframe.realtime.StateClientItem
+	41,  // 275: unframe.realtime.RealtimeService.ConnectControl:output_type -> unframe.realtime.ControlServerItem
+	137, // 276: unframe.realtime.RealtimeService.ConnectState:output_type -> unframe.realtime.StateServerItem
+	275, // [275:277] is the sub-list for method output_type
+	273, // [273:275] is the sub-list for method input_type
+	273, // [273:273] is the sub-list for extension type_name
+	273, // [273:273] is the sub-list for extension extendee
+	0,   // [0:273] is the sub-list for field type_name
 }
 
 func init() { file_unframe_realtime_realtime_proto_init() }
@@ -12024,6 +12303,7 @@ func file_unframe_realtime_realtime_proto_init() {
 		(*ProjectedReliableEvent_GestureInputAccepted)(nil),
 		(*ProjectedReliableEvent_ZoneInputAccepted)(nil),
 		(*ProjectedReliableEvent_RuntimeViewReplaced)(nil),
+		(*ProjectedReliableEvent_EffectRunsChanged)(nil),
 	}
 	file_unframe_realtime_realtime_proto_msgTypes[31].OneofWrappers = []any{
 		(*RuntimeStatusChanged_Running)(nil),
@@ -12097,8 +12377,8 @@ func file_unframe_realtime_realtime_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_unframe_realtime_realtime_proto_rawDesc), len(file_unframe_realtime_realtime_proto_rawDesc)),
-			NumEnums:      15,
-			NumMessages:   128,
+			NumEnums:      16,
+			NumMessages:   130,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

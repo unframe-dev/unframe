@@ -6444,7 +6444,9 @@
                                       "pushForward",
                                       "pullBackward",
                                       "spreadHands",
-                                      "closeHands"
+                                      "closeHands",
+                                      "throw",
+                                      "circle"
                                     ]
                                   }
                                 },
@@ -6574,6 +6576,274 @@
                             "type": "array",
                             "items": {
                               "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "effect.start"
+                                    },
+                                    "effectId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                                    },
+                                    "nodeId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                                    },
+                                    "effect": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "size": {
+                                              "type": "number",
+                                              "minimum": 1.401298464324817e-45,
+                                              "maximum": 3.4028234663852886e38
+                                            },
+                                            "color": {
+                                              "type": "object",
+                                              "properties": {
+                                                "red": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                },
+                                                "green": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                },
+                                                "blue": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                },
+                                                "alpha": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                }
+                                              },
+                                              "required": ["red", "green", "blue", "alpha"],
+                                              "additionalProperties": false
+                                            },
+                                            "speed": {
+                                              "type": "number",
+                                              "minimum": 1.401298464324817e-45,
+                                              "maximum": 3.4028234663852886e38
+                                            },
+                                            "durationMilliseconds": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "wave"
+                                            },
+                                            "waveCycles": {
+                                              "type": "number",
+                                              "minimum": 0,
+                                              "maximum": 6
+                                            }
+                                          },
+                                          "required": [
+                                            "size",
+                                            "color",
+                                            "speed",
+                                            "durationMilliseconds",
+                                            "kind",
+                                            "waveCycles"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "size": {
+                                              "type": "number",
+                                              "minimum": 1.401298464324817e-45,
+                                              "maximum": 3.4028234663852886e38
+                                            },
+                                            "color": {
+                                              "type": "object",
+                                              "properties": {
+                                                "red": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                },
+                                                "green": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                },
+                                                "blue": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                },
+                                                "alpha": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                }
+                                              },
+                                              "required": ["red", "green", "blue", "alpha"],
+                                              "additionalProperties": false
+                                            },
+                                            "speed": {
+                                              "type": "number",
+                                              "minimum": 1.401298464324817e-45,
+                                              "maximum": 3.4028234663852886e38
+                                            },
+                                            "durationMilliseconds": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "handGlow"
+                                            },
+                                            "hand": {
+                                              "type": "string",
+                                              "enum": ["left", "right"]
+                                            }
+                                          },
+                                          "required": [
+                                            "size",
+                                            "color",
+                                            "speed",
+                                            "durationMilliseconds",
+                                            "kind",
+                                            "hand"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "size": {
+                                              "type": "number",
+                                              "minimum": 1.401298464324817e-45,
+                                              "maximum": 3.4028234663852886e38
+                                            },
+                                            "color": {
+                                              "type": "object",
+                                              "properties": {
+                                                "red": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                },
+                                                "green": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                },
+                                                "blue": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                },
+                                                "alpha": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 1
+                                                }
+                                              },
+                                              "required": ["red", "green", "blue", "alpha"],
+                                              "additionalProperties": false
+                                            },
+                                            "speed": {
+                                              "type": "number",
+                                              "minimum": 1.401298464324817e-45,
+                                              "maximum": 3.4028234663852886e38
+                                            },
+                                            "durationMilliseconds": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "dissolve"
+                                            }
+                                          },
+                                          "required": [
+                                            "size",
+                                            "color",
+                                            "speed",
+                                            "durationMilliseconds",
+                                            "kind"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "owner": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "presentation"
+                                            }
+                                          },
+                                          "required": ["kind"],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "group"
+                                            },
+                                            "groupId": {
+                                              "type": "string",
+                                              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                                            }
+                                          },
+                                          "required": ["kind", "groupId"],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "seed": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 4294967295
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "effectId",
+                                    "nodeId",
+                                    "effect",
+                                    "owner",
+                                    "seed"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "effect.stop"
+                                    },
+                                    "effectId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                                    }
+                                  },
+                                  "required": ["kind", "effectId"],
+                                  "additionalProperties": false
+                                },
                                 {
                                   "type": "object",
                                   "properties": {

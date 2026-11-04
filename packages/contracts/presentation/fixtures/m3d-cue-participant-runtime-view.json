@@ -85,5 +85,6 @@
     }
   },
   "enabledLogicalInputs": ["next"],
-  "frozenAnchors": []
+  "frozenAnchors": [],
+  "effectRuns": []
 }

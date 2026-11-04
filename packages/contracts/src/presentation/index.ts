@@ -14,3 +14,5 @@ export {
   audienceWebCapabilityProfileId,
   createAudienceWebCapabilityProfile,
 } from "./audience-capability";
+
+export * from "./effects";

@@ -31,6 +31,13 @@ public static class PresenterAuthorityTests
         var ready = required.Clone(); ready.Phase = InputSynchronizationPhase.Ready; ready.CommandEpoch = 4; ready.ClearNextCommandEpoch();
         Require(sync.Receive(ready) && sync.Ready && sync.CommandEpoch == 4, "READY did not activate new epoch");
         Require(!sync.Receive(required), "old REQUIRED replaced READY");
+        var extended = required.Clone();
+        extended.SynchronizationRevision++;
+        extended.CommandEpoch = 4;
+        extended.NextCommandEpoch = 5;
+        extended.RecognitionCatalog.Gestures.Add(GestureKind.Throw);
+        extended.RecognitionCatalog.Gestures.Add(GestureKind.Circle);
+        Require(sync.Receive(extended), "Throw/Circle catalog rejected");
         CheckCapturedContext();
         CheckGestures();
         CheckTriggerCapture();

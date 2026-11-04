@@ -96,6 +96,9 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (var clip in state.ModelClipStates) if (!nodes.ContainsKey(clip.ModelNodeId)) return false;
             if (!PresentationMediaPlaybackValidation.TryValidate(input.Catalog, state.MediaStates, state.ModelClipStates, state.ActiveRuns, state.Clock.RuntimeTimeMs, out error)) return false;
             if (!PresentationLocalPreviewAdapter.ValidVariables(input.Catalog, state.VariableStates, group)) return false;
+            if (!PresentationEffectValidation.Validate(state.EffectRuns, input.Catalog, state.Clock.RuntimeTimeMs,
+                state.CurrentGroupId, 0, 0)) return false;
+            input.ReplaceEffects(state.EffectRuns);
             input.ReplaceVariables(state.VariableStates);
             input.ReplaceMediaPlayback(state.MediaStates, state.ModelClipStates);
             input.ReplacePlayback(nodes, surfaces, new List<RuntimeRunSnapshot>(state.ActiveRuns));

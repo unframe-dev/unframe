@@ -83,7 +83,7 @@ func (s *V2Session) canonicalV3RuntimeView() *realtimev2.ParticipantRuntimeView 
 	if s.checkpointMetadata != nil {
 		epoch = s.checkpointMetadata.AssignmentEpoch
 	}
-	return proto.Clone(&realtimev2.ParticipantRuntimeView{ProjectionProfileId: "canonical", AssignmentEpoch: epoch, BaseReliableSequence: snapshot.ReliableSequence, Progression: snapshot.Progression, Clock: snapshot.Clock, PresentationOrigin: snapshot.PresentationOrigin, NodeStates: snapshot.NodeStates, SurfaceStates: snapshot.SurfaceStates, MediaStates: snapshot.MediaStates, ModelClipStates: snapshot.ModelClipStates, Variables: snapshot.Variables, ActiveRuns: snapshot.ActiveRuns, FrozenAnchors: snapshot.FrozenAnchors, EnabledLogicalInputs: s.EnabledLogicalInputs(snapshot)}).(*realtimev2.ParticipantRuntimeView)
+	return proto.Clone(&realtimev2.ParticipantRuntimeView{ProjectionProfileId: "canonical", AssignmentEpoch: epoch, BaseReliableSequence: snapshot.ReliableSequence, Progression: snapshot.Progression, Clock: snapshot.Clock, PresentationOrigin: snapshot.PresentationOrigin, NodeStates: snapshot.NodeStates, SurfaceStates: snapshot.SurfaceStates, MediaStates: snapshot.MediaStates, ModelClipStates: snapshot.ModelClipStates, Variables: snapshot.Variables, ActiveRuns: snapshot.ActiveRuns, EffectRuns: snapshot.EffectRuns, FrozenAnchors: snapshot.FrozenAnchors, EnabledLogicalInputs: s.EnabledLogicalInputs(snapshot)}).(*realtimev2.ParticipantRuntimeView)
 }
 
 func (s *V2Session) prepareV3Pause(previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent) ([]*realtimev2.ProjectedReliableEvent, error) {

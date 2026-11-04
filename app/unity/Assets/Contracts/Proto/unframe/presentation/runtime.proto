@@ -334,6 +334,8 @@ enum GestureKind {
   GESTURE_KIND_PULL_BACKWARD = 6;
   GESTURE_KIND_SPREAD_HANDS = 7;
   GESTURE_KIND_CLOSE_HANDS = 8;
+  GESTURE_KIND_THROW = 9;
+  GESTURE_KIND_CIRCLE = 10;
 }
 
 enum ZoneEdge {
@@ -363,4 +365,25 @@ message ProjectedRuntimeCatalog {
   reserved 7;
   reserved "motion_guides";
   PresenterRecognitionCatalog presenter_recognition = 8;
+}
+
+enum EffectKind {
+  EFFECT_KIND_UNSPECIFIED = 0;
+  EFFECT_KIND_WAVE = 1;
+  EFFECT_KIND_HAND_GLOW = 2;
+  EFFECT_KIND_DISSOLVE = 3;
+}
+enum EffectHand {
+  EFFECT_HAND_UNSPECIFIED = 0;
+  EFFECT_HAND_LEFT = 1;
+  EFFECT_HAND_RIGHT = 2;
+}
+message EffectConfiguration {
+  EffectKind kind = 1;
+  double size = 2;
+  SrgbaColor color = 3;
+  double speed = 4;
+  uint64 duration_ms = 5;
+  double wave_cycles = 6;
+  EffectHand hand = 7;
 }

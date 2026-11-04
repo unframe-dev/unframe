@@ -7,6 +7,7 @@ import type {
   RuntimeProjectionFenceWire,
 } from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
+import { createRuntimeEffects } from "../../rendering/runtime-effects";
 import { createRuntimePlayback } from "../playback";
 import { createPngPresentation } from "../../rendering/png-presentation";
 import { evaluateAnimationView } from "../animation-view";
@@ -558,4 +559,193 @@ it("keeps Viewer inputs disabled and applies variables without fetching PNG text
   expect(host.contentRoot.children.length).toBeGreaterThan(0);
   expect(loadTexture).toHaveBeenCalledTimes(loads);
   playback.dispose();
+});
+
+it("renders a Snapshot effect using the Runtime clock and releases it on disconnect", async () => {
+  const { delivery, snapshot, nodeId } = setup();
+  snapshot.snapshot!.runtimeView!.effectRuns = [
+    {
+      runId: { assignmentEpoch: "1", runSequence: "1" },
+      owner: { presentation: {} },
+      cause: {
+        cueId: "wave",
+        causeEventId: "event",
+        groupId: "intro",
+        groupEntryEpoch: "1",
+        stepId: "start",
+        stepEntryEpoch: "1",
+      },
+      startedAtRuntimeTimeMs: "0",
+      effectId: "wave",
+      nodeId,
+      seed: 1,
+      status: 1,
+      configuration: {
+        kind: 1,
+        size: 1,
+        color: { red: 1, green: 1, blue: 1, alpha: 1 },
+        speed: 1,
+        durationMs: "1000",
+        waveCycles: 1,
+      },
+    },
+  ];
+  const contentRoot = new Group();
+  const target = new Group();
+  target.name = nodeId;
+  contentRoot.add(target);
+  const effects = createRuntimeEffects((id) => contentRoot.getObjectByName(id));
+  let now = 0;
+  const playback = createRuntimePlayback({
+    delivery,
+    now: () => now,
+    present: async () => {},
+    clear: () => effects.dispose(),
+    frame: (view, time) => effects.frame(view.effectRuns, time),
+  });
+  playback.applyControl({ connectionSnapshot: snapshot });
+  await playback.waitForIdle();
+  expect(playback.getSnapshot().phase).toBe("ready");
+  now = 500;
+  playback.prepareFrame();
+  expect(target.children).toHaveLength(1);
+  const line = target.children[0]!.children[0] as import("three").Line;
+  expect(line.geometry.drawRange.count).toBe(49);
+  playback.reset();
+  expect(target.children).toHaveLength(0);
+});
+
+it("applies reliable effect starts and stops without recreating a repeated retained wave", async () => {
+  const { delivery, snapshot, nodeId, fence } = setup();
+  const target = new Group();
+  const effects = createRuntimeEffects(() => target);
+  const playback = createRuntimePlayback({
+    delivery,
+    now: () => 0,
+    present: async () => {},
+    clear: () => effects.dispose(),
+    frame: (view, time) => effects.frame(view.effectRuns, time),
+  });
+  playback.applyControl({ connectionSnapshot: snapshot });
+  await playback.waitForIdle();
+  const run = {
+    runId: { assignmentEpoch: "1", runSequence: "1" },
+    owner: { presentation: {} },
+    cause: {
+      cueId: "wave",
+      causeEventId: "event",
+      groupId: "intro",
+      groupEntryEpoch: "1",
+      stepId: "start",
+      stepEntryEpoch: "1",
+    },
+    startedAtRuntimeTimeMs: "0",
+    effectId: "wave",
+    nodeId,
+    seed: 1,
+    status: 1,
+    configuration: {
+      kind: 1,
+      size: 1,
+      color: { red: 1, green: 1, blue: 1, alpha: 1 },
+      speed: 1,
+      durationMs: "1000",
+      waveCycles: 1,
+    },
+  };
+  playback.applyControl({
+    reliableEvent: {
+      fence,
+      sequence: "1",
+      eventId: "start",
+      occurredAtRuntimeTimeMs: "0",
+      effectRunsChanged: { effectRuns: [run] },
+    },
+  });
+  await playback.waitForIdle();
+  playback.prepareFrame();
+  expect(target.children).toHaveLength(1);
+  const wave = target.children[0];
+  playback.applyControl({
+    reliableEvent: {
+      fence,
+      sequence: "2",
+      eventId: "retain",
+      occurredAtRuntimeTimeMs: "1000",
+      effectRunsChanged: { effectRuns: [{ ...run, status: 2 }] },
+    },
+  });
+  await playback.waitForIdle();
+  playback.prepareFrame();
+  expect(target.children).toEqual([wave]);
+  playback.applyControl({
+    reliableEvent: {
+      fence,
+      sequence: "3",
+      eventId: "stop",
+      occurredAtRuntimeTimeMs: "1100",
+      effectRunsChanged: {},
+    },
+  });
+  await playback.waitForIdle();
+  playback.prepareFrame();
+  expect(playback.getSnapshot().phase).toBe("ready");
+  expect(target.children).toHaveLength(0);
+});
+
+it("accepts multiple effects ordered by author ID when allocation order differs", async () => {
+  const { delivery, snapshot, nodeId, fence } = setup();
+  const target = new Group();
+  const effects = createRuntimeEffects(() => target);
+  const playback = createRuntimePlayback({
+    delivery,
+    now: () => 0,
+    present: async () => {},
+    clear: () => effects.dispose(),
+    frame: (view, time) => effects.frame(view.effectRuns, time),
+  });
+  playback.applyControl({ connectionSnapshot: snapshot });
+  await playback.waitForIdle();
+  const run = {
+    runId: { assignmentEpoch: "1", runSequence: "1" },
+    owner: { presentation: {} },
+    cause: {
+      cueId: "wave",
+      causeEventId: "event",
+      groupId: "intro",
+      groupEntryEpoch: "1",
+      stepId: "start",
+      stepEntryEpoch: "1",
+    },
+    startedAtRuntimeTimeMs: "0",
+    effectId: "wave",
+    nodeId,
+    seed: 1,
+    status: 1,
+    configuration: {
+      kind: 1,
+      size: 1,
+      color: { red: 1, green: 1, blue: 1, alpha: 1 },
+      speed: 1,
+      durationMs: "1000",
+      waveCycles: 1,
+    },
+  };
+  playback.applyControl({
+    reliableEvent: {
+      fence,
+      sequence: "1",
+      eventId: "start-two",
+      occurredAtRuntimeTimeMs: "0",
+      effectRunsChanged: {
+        effectRuns: [
+          { ...run, effectId: "a", runId: { assignmentEpoch: "1", runSequence: "2" } },
+          { ...run, effectId: "z", runId: { assignmentEpoch: "1", runSequence: "1" } },
+        ],
+      },
+    },
+  });
+  await playback.waitForIdle();
+  expect(playback.getSnapshot().phase).toBe("ready");
+  expect(playback.getSnapshot().view?.effectRuns).toHaveLength(2);
 });

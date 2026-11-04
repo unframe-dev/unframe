@@ -4,6 +4,7 @@ import type {
   ParticipantRuntimeView,
   StateServerItemWire,
 } from "@unframe-dev/contracts/presentation";
+import type { AnchorBindings } from "./anchor-bindings";
 import { createRuntimeStore } from "./runtime-store";
 import { createRuntimeClock } from "./runtime-clock";
 import { getAssetFailure, type AssetFailureDetails } from "../diagnostics/asset-failure";
@@ -13,9 +14,13 @@ export function createRuntimePlayback(options: {
   present(view: ParticipantRuntimeView): Promise<void>;
   clear(): void;
   now?: () => number;
-  frame?(view: ParticipantRuntimeView, runtimeTimeMilliseconds: number): void;
+  frame?(
+    view: ParticipantRuntimeView,
+    runtimeTimeMilliseconds: number,
+    bindings: AnchorBindings,
+  ): void;
 }) {
-  const store = createRuntimeStore(options.delivery);
+  const store = createRuntimeStore(options.delivery, options.now);
   let disposed = false;
   let generation = 0;
   let version = 0;
@@ -80,7 +85,7 @@ export function createRuntimePlayback(options: {
       const time = clock.read();
       if (time === null) return;
       try {
-        options.frame(appliedView, time);
+        options.frame(appliedView, time, store.getAnchorBindings());
       } catch (cause) {
         failRendering(cause, "frame");
       }

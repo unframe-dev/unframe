@@ -1,7 +1,9 @@
 import * as z from "zod";
+import { effectConfigurationSchema } from "./effects";
 
 import {
   idSchema,
+  uint32Schema,
   positiveSafeUIntSchema,
   safeUIntSchema,
   scalarSchema,
@@ -35,6 +37,15 @@ const runBase = {
   cause: causeSchema,
   startedAtRuntimeTimeMilliseconds: safeUIntSchema,
 };
+export const effectRunSnapshotSchema = z.strictObject({
+  ...runBase,
+  effectId: idSchema,
+  nodeId: idSchema,
+  effect: effectConfigurationSchema,
+  seed: uint32Schema,
+  status: z.enum(["active", "retained"]),
+});
+export type EffectRunSnapshot = z.infer<typeof effectRunSnapshotSchema>;
 const playbackClockSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("playing"),
@@ -185,6 +196,7 @@ const stepExecutionSchema = z.strictObject({
   ),
 });
 const runtimeResources = {
+  effectRuns: z.array(effectRunSnapshotSchema).max(32),
   surfaceStates: z.record(
     idSchema,
     z.strictObject({

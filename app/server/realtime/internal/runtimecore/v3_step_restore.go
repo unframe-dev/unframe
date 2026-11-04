@@ -36,7 +36,7 @@ func v3UTF16Less(a, b string) bool {
 
 func captureV3StepStart(snapshot *realtimev2.CanonicalRuntimeSnapshot) error {
 	p := snapshot.Progression
-	entry := proto.Clone(&realtimev2.StepStartState{GroupId: p.CurrentGroupId, StepId: p.CurrentStepId, GroupEntryEpoch: p.GroupEntryEpoch, StepEntryEpoch: p.StepEntryEpoch, CapturedAtRuntimeTimeMs: snapshot.Clock.RuntimeTimeMs, NodeStates: snapshot.NodeStates, SurfaceStates: snapshot.SurfaceStates, MediaStates: snapshot.MediaStates, ModelClipStates: snapshot.ModelClipStates, Variables: snapshot.Variables, ActiveRuns: snapshot.ActiveRuns}).(*realtimev2.StepStartState)
+	entry := proto.Clone(&realtimev2.StepStartState{GroupId: p.CurrentGroupId, StepId: p.CurrentStepId, GroupEntryEpoch: p.GroupEntryEpoch, StepEntryEpoch: p.StepEntryEpoch, CapturedAtRuntimeTimeMs: snapshot.Clock.RuntimeTimeMs, NodeStates: snapshot.NodeStates, SurfaceStates: snapshot.SurfaceStates, MediaStates: snapshot.MediaStates, ModelClipStates: snapshot.ModelClipStates, Variables: snapshot.Variables, ActiveRuns: snapshot.ActiveRuns, EffectRuns: snapshot.EffectRuns}).(*realtimev2.StepStartState)
 	history := append([]*realtimev2.StepStartState(nil), snapshot.StepStartHistory...)
 	replaced := false
 	for i, old := range history {
@@ -114,6 +114,28 @@ func (s *V2Session) restoreV3Step(entry *realtimev2.StepStartState) error {
 	s.snapshot.ModelClipStates = next.ModelClipStates
 	s.snapshot.Variables = next.Variables
 	s.snapshot.ActiveRuns = next.ActiveRuns
+	s.snapshot.EffectRuns = next.EffectRuns
+	for _, run := range s.snapshot.EffectRuns {
+		if s.snapshot.LastAllocatedRunSequence == math.MaxUint64 || run.StartedAtRuntimeTimeMs > math.MaxUint64-delta {
+			return ErrV2RuntimeDefinition
+		}
+		s.snapshot.LastAllocatedRunSequence++
+		epoch := run.RunId.AssignmentEpoch
+		if s.checkpointMetadata != nil {
+			epoch = s.checkpointMetadata.AssignmentEpoch
+		}
+		run.RunId = &presentationv2.RuntimeRunId{AssignmentEpoch: epoch, RunSequence: s.snapshot.LastAllocatedRunSequence}
+		run.StartedAtRuntimeTimeMs += delta
+		if owner := run.Owner.GetGroup(); owner != nil {
+			owner.GroupEntryEpoch = p.GroupEntryEpoch
+		}
+		if run.Cause.GroupId == p.CurrentGroupId {
+			run.Cause.GroupEntryEpoch = p.GroupEntryEpoch
+		}
+		if run.Cause.GroupId == p.CurrentGroupId && run.Cause.StepId == p.CurrentStepId {
+			run.Cause.StepEntryEpoch = p.StepEntryEpoch
+		}
+	}
 	ids := map[uint64]*presentationv2.RuntimeRunId{}
 	var blocking []*presentationv2.RuntimeRunId
 	for _, run := range s.snapshot.ActiveRuns {
