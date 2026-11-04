@@ -3,7 +3,11 @@ import type {
   discoverPresentationProjectFiles,
   readTypeLibraries,
 } from "@unframe-dev/workspace-node";
-import type { assembleAuthoringProject, OpaqueRenderProgram } from "@unframe-dev/build";
+import type {
+  assembleAuthoringProject,
+  prepareProjectInputs,
+  OpaqueRenderProgram,
+} from "@unframe-dev/build";
 import type { prepareAuthorSave } from "@unframe-dev/author-service";
 
 export type CapturedProject = Extract<
@@ -17,6 +21,7 @@ export type AnalysisInputs = {
   modelTransformIdentity: `sha256:${string}`;
 };
 export type AnalysisOperations = {
+  prepare: { input: AnalysisInputs; output: Awaited<ReturnType<typeof prepareProjectInputs>> };
   project: { input: AnalysisInputs; output: ProjectSnapshot };
   save: {
     input: AnalysisInputs & { snapshot: ProjectSnapshot; revision: string; request: PatchRequest };

@@ -1,6 +1,6 @@
 import type { AnalysisOperations } from "../author/analysis-protocol.js";
 import { runAnalysisOperation } from "../author/analysis-client.js";
-import { prepareProjectInputs } from "@unframe-dev/build";
+import { AuthorError } from "@unframe-dev/author-service";
 import { buildMediaPorts, sourceAssetPorts } from "./media-ports.js";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -386,14 +386,35 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     return output(3, command, format, [
       diagnostic("io", "cli-output-stale", "Project inputs changed after the build was requested."),
     ]);
-  const preparedInputs = await prepareProjectInputs(
-    {
-      found: discovered,
-      graph: discovered.dependencyGraph,
-      ...(host.signal ? { signal: host.signal } : {}),
-    },
-    { ...sourceAssetPorts, readTypeLibraries },
-  );
+  let preparedInputs: AnalysisOperations["prepare"]["output"];
+  try {
+    preparedInputs = await runAnalysisOperation(
+      "prepare",
+      {
+        found: discovered,
+        typeLibraries: await readTypeLibraries(),
+        modelTransformIdentity: sourceAssetPorts.modelTransformIdentity,
+      },
+      host.signal,
+    );
+  } catch (error) {
+    const stale = error instanceof AuthorError && error.code === "cli-output-stale";
+    return output(host.signal?.aborted ? 130 : 3, command, format, [
+      diagnostic(
+        host.signal?.aborted ? "cancel" : "io",
+        host.signal?.aborted
+          ? "cli-cancelled"
+          : stale
+            ? "cli-output-stale"
+            : "cli-analysis-worker-failed",
+        host.signal?.aborted
+          ? "Build was cancelled."
+          : stale
+            ? error.message
+            : "Project analysis worker failed.",
+      ),
+    ]);
+  }
   if (!preparedInputs.ok)
     return output(
       preparedInputs.code === "cli-cancelled" ? 130 : 1,

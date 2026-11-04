@@ -81,6 +81,7 @@ const requirePrepared = async (input: AnalysisInputs, replacement?: string) => {
 };
 
 const execute = async (request: AnalysisRequest) => {
+  if (request.operation === "prepare") return prepare(request.input);
   if (request.operation === "opaque") {
     return prepareOpaquePrograms(
       request.input.source,

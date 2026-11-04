@@ -5,9 +5,10 @@ import { z } from "zod";
 import { AuthorError } from "@unframe-dev/author-service";
 import { projectSnapshotSchema, savedCommandSchema } from "@unframe-dev/contracts/author-http";
 import { validateNodeTransformSnapshot } from "@unframe-dev/workspace";
+import { readInstalledDependencyInputs } from "@unframe-dev/workspace-node";
 import { sourceAssetPorts } from "../application/media-ports.js";
 import type { StylePreparationPort } from "@unframe-dev/build";
-import type { AnalysisOperations } from "./analysis-protocol.js";
+import type { AnalysisOperations, CapturedProject } from "./analysis-protocol.js";
 
 const diagnostic = z.strictObject({
   code: z.string(),
@@ -26,6 +27,10 @@ const sourceDiagnostic = z.strictObject({
   typescriptCode: z.number().int().optional(),
 });
 const results = {
+  prepare: z.union([
+    z.strictObject({ ok: z.literal(true), value: z.unknown() }),
+    z.object({ ok: z.literal(false), code: z.string(), message: z.string() }).passthrough(),
+  ]),
   project: projectSnapshotSchema,
   save: z.strictObject({
     afterSource: z.instanceof(Uint8Array),
@@ -115,6 +120,19 @@ const messageSchema = z.discriminatedUnion("kind", [
 type Ports = Pick<typeof sourceAssetPorts, "videoTransformIdentity"> & {
   styles: StylePreparationPort;
 };
+const requireCapturedDependencies = async (found: CapturedProject) => {
+  try {
+    const current = await readInstalledDependencyInputs(found.projectDirectory);
+    if (current.dependencyHash === found.dependencyHash) return;
+  } catch {
+    // A partial installation cannot be combined with the previously captured graph.
+  }
+  throw new AuthorError(
+    409,
+    "cli-output-stale",
+    "Installed dependencies changed while capturing style inputs. Retry the operation.",
+  );
+};
 export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
   operation: K,
   input: AnalysisOperations[K]["input"],
@@ -173,7 +191,7 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
         } else {
           const task = (async () => {
             if (message.method === "styleSnapshot") {
-              if (operation !== "project" && operation !== "save")
+              if (operation !== "prepare" && operation !== "project" && operation !== "save")
                 throw new Error("Style snapshots require a project analysis operation.");
               const [files] = z
                 .tuple([
@@ -186,10 +204,11 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
                   ),
                 ])
                 .parse(message.args);
-              return ports.styles.snapshot(
-                (input as AnalysisOperations["project"]["input"]).found.projectDirectory,
-                files,
-              );
+              const { found } = input as AnalysisOperations["project"]["input"];
+              await requireCapturedDependencies(found);
+              const snapshot = await ports.styles.snapshot(found.projectDirectory, files);
+              await requireCapturedDependencies(found);
+              return snapshot;
             }
             if (message.method === "video") {
               z.tuple([]).parse(message.args);
@@ -215,6 +234,10 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
                 if (!settled) worker.postMessage({ kind: "reply", id: message.id, value });
               },
               (error: unknown) => {
+                if (error instanceof AuthorError && error.code === "cli-output-stale") {
+                  finish(error);
+                  return;
+                }
                 if (!settled)
                   worker.postMessage({
                     kind: "reply",
