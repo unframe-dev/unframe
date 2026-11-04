@@ -124,7 +124,7 @@ it("requires Model asset references to be declared and resolved", () => {
   );
 });
 
-it("does not silently discard unsupported Model Timelines", () => {
+it("preserves Model host Timelines independently for each instance", () => {
   const bytes = modelGlb();
   const project = modelProject(bytes);
   const entry = project.components[0];
@@ -145,9 +145,38 @@ it("does not silently discard unsupported Model Timelines", () => {
     },
   ];
   const result = checkDeclarationProject(project, { "model-source": bytes });
-  expect(result.valid ? [] : result.diagnostics.map((item) => item.code)).toContain(
-    "compiler-model-feature-unsupported",
-  );
+  expect(result.valid ? [] : result.diagnostics).toEqual([]);
+  if (!result.valid) throw new Error("Expected Model host Timelines");
+  expect(result.value.definition.flow.timelines).toEqual({
+    "instance-0:move": {
+      id: "instance-0:move",
+      owner: { kind: "presentation" },
+      durationMilliseconds: 1000,
+      tracks: [
+        {
+          target: { nodeId: "instance-0:host-0", property: "opacity" },
+          keyframes: [
+            { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+            { timeMilliseconds: 1000, value: 1 },
+          ],
+        },
+      ],
+    },
+    "instance-1:move": {
+      id: "instance-1:move",
+      owner: { kind: "presentation" },
+      durationMilliseconds: 1000,
+      tracks: [
+        {
+          target: { nodeId: "instance-1:host-1", property: "opacity" },
+          keyframes: [
+            { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+            { timeMilliseconds: 1000, value: 1 },
+          ],
+        },
+      ],
+    },
+  });
 });
 
 it("reuses transformed cache entries but changes keys when raw source changes", async () => {
