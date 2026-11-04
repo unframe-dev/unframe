@@ -30,3 +30,9 @@ Hand は最大256点を保持し、外部時刻から `durationMs / speed` よ�
 Dissolve の初期対象は不透明な静的 MeshRenderer。元の base texture／UV transform／base color を引き継ぎ、独自の簡易拡散シェーダーで描く。PBR 全属性、法線マップ、透明素材、SkinnedMesh、shadow/depth 専用 pass の対応は含まない。対応範囲外の見た目の一致を保証しない。共有元マテリアルは変更せず、キャンセル・完了・Dispose で元配列へ戻す。対象の恒久非表示・再表示は呼び出し側が設定する。独自 shader は Resources 配下にあり、ビルド時の shader stripping を避ける。
 
 描画所有中はホストが同じ Renderer の材料を差し替えないこと。Player の更新・破棄は Unity メインスレッドで行うこと。色空間と実機性能は対象ビルドで確認する。
+
+## 確認用シーン
+
+`Assets/Scenes/VisualEffectsPreview.unity` を開いて Play し、Game ビューのボタンを操作する。Wave、Dissolve、手元の光の開始／終了、Pause／Resume、Reset を試せる。サイズ・色・速度は画面またはルートの Inspector で変更でき、次に開始する演出へ適用する。Reset はすべてキャンセルしモデルを再表示する。
+
+カメラ・照明・対象モデルは Play 時に生成する。通信や Quest 認証は不要。Gesture の2つのボタンは固定の合成サンプルを認識器に渡す動作確認であり、実際の手・コントローラー入力ではない。認識設定は Inspector で調整できる。URP を使う Editor の Game ビュー向けで、XR 実機操作用の UI は含まない。
