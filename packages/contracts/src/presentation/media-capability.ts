@@ -44,9 +44,9 @@ export const createUnityMediaCapabilityProfile = (): CapabilityProfile =>
         maxTextureHeight: 2048,
         maxTexturePixels: 2048 * 2048,
         maxTextureBindings: 1024,
-        maxGpuBytes: capacity,
+        maxGpuBytes: 3 * capacity,
         maxSerialLoadCpuBytes: capacity,
-        maxEncodedCacheBytes: capacity,
+        maxEncodedCacheBytes: 3 * capacity,
         encodedCacheReserveBytes: 1024,
       },
       nativeUi: {

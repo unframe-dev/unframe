@@ -13474,6 +13474,129 @@ export namespace unframe {
         }
 
         /**
+         * Properties of a TextureResidencyWindow.
+         * @deprecated Use unframe.delivery.TextureResidencyWindow.$Properties instead.
+         */
+        interface ITextureResidencyWindow extends unframe.delivery.TextureResidencyWindow.$Properties {
+        }
+
+        /** Represents a TextureResidencyWindow. */
+        class TextureResidencyWindow {
+
+            /**
+             * Constructs a new TextureResidencyWindow.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: unframe.delivery.TextureResidencyWindow.$Properties);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+
+            /** TextureResidencyWindow groupId. */
+            groupId: string;
+
+            /** TextureResidencyWindow assetIds. */
+            assetIds: string[];
+
+            /**
+             * Creates a new TextureResidencyWindow instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns TextureResidencyWindow instance
+             */
+            static create(properties: unframe.delivery.TextureResidencyWindow.$Shape): unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape;
+            static create(properties?: unframe.delivery.TextureResidencyWindow.$Properties): unframe.delivery.TextureResidencyWindow;
+
+            /**
+             * Encodes the specified TextureResidencyWindow message. Does not implicitly {@link unframe.delivery.TextureResidencyWindow.verify|verify} messages.
+             * @param message TextureResidencyWindow message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            static encode(message: unframe.delivery.TextureResidencyWindow.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified TextureResidencyWindow message, length delimited. Does not implicitly {@link unframe.delivery.TextureResidencyWindow.verify|verify} messages.
+             * @param message TextureResidencyWindow message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            static encodeDelimited(message: unframe.delivery.TextureResidencyWindow.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a TextureResidencyWindow message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns {unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape} TextureResidencyWindow
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape;
+
+            /**
+             * Decodes a TextureResidencyWindow message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns {unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape} TextureResidencyWindow
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape;
+
+            /**
+             * Verifies a TextureResidencyWindow message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a TextureResidencyWindow message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns TextureResidencyWindow
+             */
+            static fromObject(object: { [k: string]: any }): unframe.delivery.TextureResidencyWindow;
+
+            /**
+             * Creates a plain object from a TextureResidencyWindow message. Also converts values to other types if specified.
+             * @param message TextureResidencyWindow
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            static toObject(message: unframe.delivery.TextureResidencyWindow, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this TextureResidencyWindow to JSON.
+             * @returns JSON object
+             */
+            toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the type url for TextureResidencyWindow
+             * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns The type url
+             */
+            static getTypeUrl(prefix?: string): string;
+        }
+
+        namespace TextureResidencyWindow {
+
+            /** Properties of a TextureResidencyWindow. */
+            interface $Properties {
+
+                /** TextureResidencyWindow groupId */
+                groupId?: (string|null);
+
+                /** TextureResidencyWindow assetIds */
+                assetIds?: (string[]|null);
+
+                /** Unknown fields preserved while decoding when enabled */
+                $unknowns?: Uint8Array[];
+            }
+
+            /** Shape of a TextureResidencyWindow. */
+            type $Shape = unframe.delivery.TextureResidencyWindow.$Properties;
+        }
+
+        /**
          * Properties of a TextureResidencyPlan.
          * @deprecated Use unframe.delivery.TextureResidencyPlan.$Properties instead.
          */
@@ -13503,6 +13626,18 @@ export namespace unframe {
 
             /** TextureResidencyPlan maximumPeakLoadCpuBytes. */
             maximumPeakLoadCpuBytes: (number|Long);
+
+            /** TextureResidencyPlan initialGroupId. */
+            initialGroupId: string;
+
+            /** TextureResidencyPlan groupWindows. */
+            groupWindows: unframe.delivery.TextureResidencyWindow.$Properties[];
+
+            /** TextureResidencyPlan maximumResidentGpuBytes. */
+            maximumResidentGpuBytes: (number|Long);
+
+            /** TextureResidencyPlan maximumResidentTextureBindings. */
+            maximumResidentTextureBindings: (number|Long);
 
             /**
              * Creates a new TextureResidencyPlan instance using the specified properties.
@@ -13599,6 +13734,18 @@ export namespace unframe {
 
                 /** TextureResidencyPlan maximumPeakLoadCpuBytes */
                 maximumPeakLoadCpuBytes?: (number|Long|null);
+
+                /** TextureResidencyPlan initialGroupId */
+                initialGroupId?: (string|null);
+
+                /** TextureResidencyPlan groupWindows */
+                groupWindows?: (unframe.delivery.TextureResidencyWindow.$Properties[]|null);
+
+                /** TextureResidencyPlan maximumResidentGpuBytes */
+                maximumResidentGpuBytes?: (number|Long|null);
+
+                /** TextureResidencyPlan maximumResidentTextureBindings */
+                maximumResidentTextureBindings?: (number|Long|null);
 
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];

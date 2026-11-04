@@ -680,7 +680,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
     }
 
     [Test]
-    public void InputRequiresResidentAssetsAndBothRealtimeConnections()
+    public void InputRequiresBothRealtimeConnections()
     {
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(PresentationTextureResidencyEditModeTests.BakedDelivery(), out string error), Is.True, error);
@@ -688,6 +688,23 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         using (PresentationRealtimeConnection connection = new PresentationRealtimeConnection(store, textures))
         {
             Assert.That(connection.SessionReady, Is.False);
+            Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand { ClientEventId = "event:input", LogicalEventName = "next" } }, CancellationToken.None));
+        }
+    }
+
+    [Test]
+    public void InputRejectsLostResidentTextures()
+    {
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(PresentationTextureResidencyEditModeTests.BakedDelivery(), out string error), Is.True, error);
+        using (PresentationTextureResidency textures = new PresentationTextureResidency())
+        using (PresentationRealtimeConnection connection = new PresentationRealtimeConnection(store, textures))
+        {
+            var binding = store.Delivery.Residency.Textures.Textures[0];
+            Assert.That(store.TryGetAsset(binding.AssetId, out var access), Is.True);
+            Assert.That(textures.TryLoad(binding, access, PresentationPreviewTestFixture.Png, out error), Is.True, error);
+            Assert.That(textures.TryGet(binding.Checksum, out Texture2D texture), Is.True);
+            UnityEngine.Object.DestroyImmediate(texture);
             RpcException exception = Assert.Throws<RpcException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand { ClientEventId = "event:input", LogicalEventName = "next" } }, CancellationToken.None));
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCode.FailedPrecondition));
             Assert.That(exception.Status.Detail, Is.EqualTo("asset_residency_lost"));

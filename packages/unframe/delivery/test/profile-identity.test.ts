@@ -9,7 +9,7 @@ const descriptor = {
       publicationEpoch: "2",
       publicationManifestHash: `sha256:${"a".repeat(64)}`,
     },
-    projectionContractVersion: 2,
+    projectionContractVersion: 3,
     role: 1,
     capabilityProfileId: "quest",
   },

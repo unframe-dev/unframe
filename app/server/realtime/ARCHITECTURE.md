@@ -36,7 +36,7 @@ Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent
 | Unity Control / State gRPC                   | 実装済み | 生成 v3 client、HTTP/2 transport、nonce・reconnect・Snapshot / State・入力同期・一括置換を対象テストで検証。Quest 実機通信は未検証                                                                     |
 | Presenter Tracking / Input と evaluator      | 実装済み | Quest の Pose は追従用に送り、Gesture / Zone は端末で認識する。v3 admission と Cue / Action / Surface / Timeline / Media evaluator を接続。実機品質は未検証                                            |
 | Snapshot / Replay / Connection Resume        | 実装済み | v3 Control の atomic cut、fenced replay / resync、StateReady、durable checkpoint 復元を接続。Cloud 再配置をまたぐ recovery は未検証                                                                    |
-| Cloud Delivery と Quest encoded Asset cache  | 実装済み | Control Plane は認証済み participant の v3 Delivery と期限付き HTTPS Asset URL を返す。Unity は検証・pin・residency を Editor で確認。Android APK は生成済み、実機 download は未検証                   |
+| Cloud Delivery と Quest encoded Asset cache  | 実装済み | Control Plane は認証済み participant の v4 Delivery と期限付き HTTPS Asset URL を返す。Unity は検証・pin・residency を Editor で確認。Android APK は生成済み、実機 download は未検証                   |
 | ADR-0027 採用仕様                            | 実装済み | Presenter の Gesture / Zone 入力、入力同期、凍結 Anchor、Step 開始履歴と一括復元を接続。対象検証と実機未検証の範囲は移行計画を参照                                                                     |
 | 1 / 10 / 25 / 50 Quest 実機計測              | 未実装   | latency、jitter、fan-out、Asset ready、GPU / CPU peak は未計測                                                                                                                                         |
 
@@ -769,7 +769,7 @@ ViewerReadiness
 
 - Quest cache に存在する hash は再取得しない。
 - 大容量 Asset は session 開始より前に preload する。
-- `downloadReady`はselected Assetのsize / MIME / checksum検証、`residentReady`はADR-0012の全selected texture uploadとCPU readback解放を表す。両方とconnection / fence条件を満たすparticipantだけを`sessionReady`として開始policyのready集合へ数える。
+- `downloadReady`はselected Assetのsize / MIME / checksum検証、`residentReady`はADR-0030の現在 Group の常駐窓の upload とCPU readback解放を表す。両方とconnection / fence条件を満たすparticipantだけを`sessionReady`として開始policyのready集合へ数える。
 - Cloud 配置では CDN、Venue Edge 配置では Asset Gateway が 50 台の同時 burst と download concurrency を制御する。
 - session 開始条件を「全 participant ready」または明示した policy として定義する。
 

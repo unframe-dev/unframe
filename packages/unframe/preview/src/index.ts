@@ -1,6 +1,7 @@
 import { PreviewError } from "./error.js";
 import { createHash, randomBytes } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { runtimeAuthorityVersions } from "@unframe-dev/contracts/presentation";
 import type { LocalPreviewEnvelopeWire } from "@unframe-dev/contracts/presentation";
 import { buildRuntimeProjection } from "@unframe-dev/delivery";
 import {
@@ -269,7 +270,7 @@ export const createLocalPreviewService = (
       const visibleSurfaces = new Set(selection.visibleSurfaceIds);
       const visibleVariables = new Set(selection.visibleVariableIds);
       const envelope: LocalPreviewEnvelopeWire = {
-        schemaVersion: 1,
+        schemaVersion: runtimeAuthorityVersions.localPreview,
         requestId: input.requestId,
         ...(input.channel === "dev" ? { sourceRevision: input.sourceRevision } : {}),
         buildManifest: canonicalizeJsonPayload(artifacts.buildManifest),

@@ -14793,7 +14793,7 @@
                         "delivery": {
                           "type": "number",
                           "enum": [
-                            3
+                            4
                           ]
                         },
                         "runtime": {
@@ -14811,7 +14811,7 @@
                         "projection": {
                           "type": "number",
                           "enum": [
-                            2
+                            3
                           ]
                         }
                       },
@@ -15373,7 +15373,7 @@
                         "delivery": {
                           "type": "number",
                           "enum": [
-                            3
+                            4
                           ]
                         },
                         "runtime": {
@@ -15391,7 +15391,7 @@
                         "projection": {
                           "type": "number",
                           "enum": [
-                            2
+                            3
                           ]
                         }
                       },

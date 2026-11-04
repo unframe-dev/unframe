@@ -472,10 +472,10 @@ test("Recognition publication requires the current schema and contract versions"
     valid.schemaVersion = 1;
     if (valid.contractVersions) {
       Object.assign(valid.contractVersions, {
-        delivery: 3,
+        delivery: 4,
         runtime: 3,
         progression: 2,
-        projection: 2,
+        projection: 3,
       });
       if (name !== "capability-profile") valid.contractVersions.definition = 1;
     }

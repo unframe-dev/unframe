@@ -47,7 +47,7 @@ for (const name of [
   "DeliveryManifest",
 ]) {
   test(`${name} wire admission requires schema version 1`, () => {
-    const value = { schemaVersion: 1, inputEpoch: "1", deliveryContractVersion: 3 };
+    const value = { schemaVersion: 1, inputEpoch: "1", deliveryContractVersion: 4 };
     assert.doesNotThrow(() => validateAuthorityWireValue(name, value));
     for (const schemaVersion of [0, 2, 3]) {
       assert.throws(() => validateAuthorityWireValue(name, { ...value, schemaVersion }));

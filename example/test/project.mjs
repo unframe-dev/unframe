@@ -11,6 +11,9 @@ import presentation from "../presentation.unframe.tsx";
 import { OpeningBrand } from "../opening.component.tsx";
 import { OriginalPanel } from "../original-panel.component.tsx";
 import { RejectionMark } from "../rejection.component.tsx";
+import { SpatialWord } from "../spatial-word.component.tsx";
+import { GestureDrawing } from "../gesture-drawing.component.tsx";
+import { TechnologyLinks } from "../technology-links.component.tsx";
 import config from "../unframe.config.ts";
 
 const assets = Object.fromEntries(
@@ -32,6 +35,9 @@ const assets = Object.fromEntries(
 const components = await Promise.all(
   [
     ["opening.component.tsx", OpeningBrand],
+    ["spatial-word.component.tsx", SpatialWord],
+    ["technology-links.component.tsx", TechnologyLinks],
+    ["gesture-drawing.component.tsx", GestureDrawing],
     ["original-panel.component.tsx", OriginalPanel],
     ["rejection.component.tsx", RejectionMark],
   ].map(async ([file, component]) => {

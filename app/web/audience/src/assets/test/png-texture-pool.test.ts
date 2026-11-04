@@ -2,8 +2,24 @@ import { expect, it, vi } from "vite-plus/test";
 import { Texture } from "three";
 import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
-import type { PngTextureAsset } from "../png-texture";
-import { createPngTexturePool } from "../png-texture-pool";
+import { loadPngTexture, type PngTextureAsset } from "../png-texture";
+import { createPngTexturePool as createPool } from "../png-texture-pool";
+
+async function createPngTexturePool(
+  options: Parameters<typeof createPool>[0] & { signal?: AbortSignal },
+) {
+  const pool = await createPool(options);
+  try {
+    await pool.acquire(
+      options.delivery.residency!.textures!.initialGroupId!,
+      options.signal ? { signal: options.signal } : {},
+    );
+    return pool;
+  } catch (error) {
+    pool.dispose();
+    throw error;
+  }
+}
 
 function setup() {
   const delivery = structuredClone(fixture.value) as DeliveryManifestWire;
@@ -12,7 +28,7 @@ function setup() {
     releaseCpuCopy: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
   }[] = [];
-  const loadTexture = vi.fn(async (_asset: PngTextureAsset) => {
+  const loadTexture = vi.fn<typeof loadPngTexture>(async (_asset: PngTextureAsset) => {
     const asset = { texture: new Texture(), releaseCpuCopy: vi.fn(), dispose: vi.fn() };
     assets.push(asset);
     return asset;
@@ -162,6 +178,10 @@ it("uploads and releases each decoded image before loading the next within the s
       decodedGpuBytes: String(decoded),
       peakLoadCpuBytes: String(decoded * 2 + encoded),
     })),
+    initialGroupId: "intro",
+    groupWindows: [{ groupId: "intro", assetIds: selected.map((asset) => asset.assetId) }],
+    maximumResidentGpuBytes: String(decoded * 6),
+    maximumResidentTextureBindings: "6",
     totalDecodedGpuBytes: String(decoded * 6),
     maximumPeakLoadCpuBytes: String(decoded * 2 + encoded),
   };
@@ -191,3 +211,334 @@ it("rejects incomplete GPU upload and releases its decoded image", async () => {
   );
   expect(assets[0]!.dispose).toHaveBeenCalledOnce();
 });
+
+it("loads only the requested group window and releases textures after the last lease", async () => {
+  const { delivery, assets, loadTexture, uploadTexture } = setup();
+  Object.assign(delivery.residency!.textures!, {
+    initialGroupId: "first",
+    groupWindows: [
+      { groupId: "first", assetIds: ["png:texture-0", "png:texture-1"] },
+      { groupId: "last", assetIds: ["png:texture-1", "png:texture-2"] },
+    ],
+    maximumResidentGpuBytes: "13107200",
+    maximumResidentTextureBindings: "2",
+  });
+  const pool = await createPool({ delivery, loadTexture, uploadTexture });
+  expect(loadTexture).not.toHaveBeenCalled();
+  const first = await pool.acquire("first");
+  expect(loadTexture).toHaveBeenCalledTimes(2);
+  const second = await pool.acquire("last");
+  expect(loadTexture).toHaveBeenCalledTimes(3);
+  first.release();
+  expect(assets[0]!.dispose).toHaveBeenCalledOnce();
+  expect(assets[1]!.dispose).not.toHaveBeenCalled();
+  second.release();
+  expect(assets.every((asset) => asset.dispose.mock.calls.length === 1)).toBe(true);
+  expect(pool.gpuBytes).toBe(0);
+  pool.dispose();
+});
+
+it("keeps the previous lease pinned when acquiring another window fails", async () => {
+  const context = setup();
+  Object.assign(context.delivery.residency!.textures!, {
+    initialGroupId: "first",
+    groupWindows: [
+      { groupId: "first", assetIds: ["png:texture-0"] },
+      { groupId: "last", assetIds: ["png:texture-1", "png:texture-2"] },
+    ],
+    maximumResidentGpuBytes: "9437184",
+    maximumResidentTextureBindings: "2",
+  });
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  context.loadTexture.mockRejectedValueOnce(new Error("decode failed"));
+  await expect(pool.acquire("last")).rejects.toThrow("decode failed");
+  expect(context.assets[0]!.dispose).not.toHaveBeenCalled();
+  expect(pool.getTexture(first.assets[0]!).texture).toBe(context.assets[0]!.texture);
+  const retry = await pool.acquire("last");
+  first.release();
+  expect(context.assets[0]!.dispose).toHaveBeenCalledOnce();
+  retry.release();
+  pool.dispose();
+});
+
+it("does not resurrect textures after disposing a pool during loading", async () => {
+  const context = setup();
+  const pool = await createPool(context);
+  let finish!: (value: { texture: Texture; dispose(): void; releaseCpuCopy(): void }) => void;
+  const texture = { texture: new Texture(), dispose: vi.fn(), releaseCpuCopy: vi.fn() };
+  context.loadTexture.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const pending = pool.acquire("intro");
+  await vi.waitFor(() => expect(context.loadTexture).toHaveBeenCalledOnce());
+  pool.dispose();
+  finish(texture);
+  await expect(pending).rejects.toThrow("disposed");
+  expect(texture.dispose).toHaveBeenCalledOnce();
+  expect(pool.gpuBytes).toBe(0);
+});
+
+it("reuses verified encoded bytes after GPU release without retaining decoded images", async () => {
+  const context = setup();
+  const bytes = new Uint8Array([1, 2, 3]);
+  const decoded = { texture: new Texture(), dispose: vi.fn(), releaseCpuCopy: vi.fn() };
+  context.loadTexture.mockImplementation(async (_asset, options) => {
+    options?.onEncodedBytes?.(bytes);
+    return decoded;
+  });
+  const pool = await createPool(context);
+  const first = await pool.acquire("intro");
+  first.release();
+  expect(pool.gpuBytes).toBe(0);
+  const second = await pool.acquire("intro");
+  expect(context.loadTexture.mock.calls[4]![1]?.encodedBytes).toBe(bytes);
+  expect(decoded.releaseCpuCopy).toHaveBeenCalledTimes(8);
+  second.release();
+  pool.dispose();
+});
+
+it("admits a catalog larger than GPU memory while enforcing each resident window and temporary union", async () => {
+  const context = setup();
+  Object.assign(context.delivery.residency!.textures!, {
+    initialGroupId: "first",
+    groupWindows: [
+      { groupId: "first", assetIds: ["png:texture-0"] },
+      { groupId: "last", assetIds: ["png:texture-1", "png:texture-2", "png:texture-3"] },
+    ],
+    maximumResidentGpuBytes: "10125312",
+    maximumResidentTextureBindings: "3",
+  });
+  context.delivery.capabilityProfile!.limits!.texture!.maxGpuBytes = "11000000";
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  expect(pool.canAcquire("last")).toBe(false);
+  await expect(pool.acquire("last")).rejects.toThrow("budget");
+  expect(context.assets[0]!.dispose).not.toHaveBeenCalled();
+  first.release();
+  const next = await pool.acquire("last");
+  expect(pool.gpuBytes).toBe(10125312);
+  next.release();
+  pool.dispose();
+});
+
+it("shares a representative residency texture with render-state asset aliases", async () => {
+  const context = setup();
+  const render = context.delivery.projectionProfile!.renderSurfaces![2]!;
+  const states = render.artifacts![0]!.bakedWeb!.states!;
+  states[1]!.texture!.checksum = states[0]!.texture!.checksum!;
+  context.delivery.assetAccess![3]!.checksum = states[0]!.texture!.checksum!;
+  const residency = context.delivery.residency!.textures!;
+  residency.textures!.pop();
+  residency.totalDecodedGpuBytes = "16334848";
+  residency.maximumResidentGpuBytes = "16334848";
+  residency.maximumResidentTextureBindings = "3";
+  residency.groupWindows![0]!.assetIds!.pop();
+  const pool = await createPool(context);
+  const lease = await pool.acquire("intro");
+  expect(context.assets).toHaveLength(3);
+  const representative = pool.assets.find((asset) => asset.assetId === "png:texture-2")!;
+  const alias = pool.assets.find((asset) => asset.assetId === "png:texture-3")!;
+  expect(pool.getTexture(alias).texture).toBe(pool.getTexture(representative).texture);
+  expect(pool.gpuBytes).toBe(16334848);
+  lease.release();
+  expect(context.assets.every((asset) => asset.dispose.mock.calls.length === 1)).toBe(true);
+  pool.dispose();
+});
+
+async function setupRefreshedAccess() {
+  const delivery = structuredClone(fixture.value) as DeliveryManifestWire;
+  const bytes = new Uint8Array(
+    Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aW3kAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  );
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  const checksum = `sha256:${Array.from(hash, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+  const texture = {
+    assetId: "image:one",
+    checksum,
+    encodedSizeBytes: String(bytes.length),
+    pixelSize: { width: "1", height: "1" },
+    alphaMode: 2,
+    mipCount: 1,
+    decodedGpuBytes: "4",
+  };
+  const render = delivery.projectionProfile!.renderSurfaces![0]!;
+  render.stateBindings = [{ stateId: "state:one", artifact: { artifactId: "artifact:one" } }];
+  render.artifacts = [
+    {
+      bakedWeb: {
+        artifactId: "artifact:one",
+        contractVersion: 1,
+        requiredFeatures: [1],
+        states: [{ stateId: "state:one", texture }],
+      },
+    },
+  ];
+  delivery.projectionProfile!.renderSurfaces = [render];
+  delivery.assetAccess = [
+    {
+      ...texture,
+      mediaType: "image/png",
+      url: "https://assets.test/initial.png",
+      expiresAtUnixMs: "2000",
+    },
+  ];
+  delivery.residency!.textures = {
+    initialGroupId: "first",
+    textures: [{ ...texture, peakLoadCpuBytes: String(bytes.length + 8) }],
+    groupWindows: [
+      { groupId: "first", assetIds: [] },
+      { groupId: "last", assetIds: [texture.assetId] },
+    ],
+    totalDecodedGpuBytes: "4",
+    maximumPeakLoadCpuBytes: String(bytes.length + 8),
+    maximumResidentGpuBytes: "4",
+    maximumResidentTextureBindings: "1",
+  };
+  const clock = { now: 1000 };
+  const fetcher = vi.fn<typeof fetch>(
+    async () => new Response(bytes, { headers: { "content-type": "image/png" } }),
+  );
+  const decode = vi.fn(
+    async () => ({ width: 1, height: 1, close: vi.fn() }) as unknown as ImageBitmap,
+  );
+  const pool = await createPool({
+    delivery,
+    fetcher,
+    loadTexture: (asset, options) =>
+      loadPngTexture(asset, { ...options, now: () => clock.now, decode }),
+    uploadTexture: (texture) => texture.onUpdate?.(texture),
+  });
+  function refreshAccess() {
+    clock.now = 3000;
+    delivery.assetAccess = delivery.assetAccess!.map((access) => ({
+      ...access,
+      url: "https://assets.test/refreshed.png",
+      expiresAtUnixMs: "4000",
+    }));
+  }
+  return { delivery, pool, fetcher, decode, refreshAccess };
+}
+
+it("uses refreshed access when a later group first needs a PNG after its original expiry", async () => {
+  const { pool, fetcher, decode, refreshAccess } = await setupRefreshedAccess();
+  try {
+    const first = await pool.acquire("first");
+    first.release();
+    refreshAccess();
+    const next = await pool.acquire("last");
+    expect(fetcher).toHaveBeenCalledWith("https://assets.test/refreshed.png", expect.any(Object));
+    expect(decode).toHaveBeenCalledOnce();
+    expect(pool.getTexture(next.assets[0]!).texture).toBeInstanceOf(Texture);
+    next.release();
+  } finally {
+    pool.dispose();
+  }
+});
+
+it("uses refreshed expiry to reload a released PNG from the encoded cache", async () => {
+  const { pool, fetcher, decode, refreshAccess } = await setupRefreshedAccess();
+  try {
+    const first = await pool.acquire("last");
+    const texture = pool.getTexture(first.assets[0]!).texture;
+    const dispose = vi.spyOn(texture, "dispose");
+    first.release();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(pool.gpuBytes).toBe(0);
+    expect(pool.retainedCpuBytes).toBeGreaterThan(0);
+    refreshAccess();
+    const next = await pool.acquire("last");
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(decode).toHaveBeenCalledTimes(2);
+    expect(pool.getTexture(next.assets[0]!).texture).not.toBe(texture);
+    next.release();
+  } finally {
+    pool.dispose();
+  }
+});
+
+it.each<{
+  name: string;
+  change(delivery: DeliveryManifestWire): void;
+  message: string;
+}>([
+  {
+    name: "missing binding",
+    change: (delivery) => {
+      delivery.assetAccess = [];
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "duplicate binding",
+    change: (delivery) => {
+      delivery.assetAccess!.push({ ...delivery.assetAccess![0]! });
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "checksum",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.checksum = `sha256:${"0".repeat(64)}`;
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "encoded size",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.encodedSizeBytes = "1000";
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "media type",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.mediaType = "video/mp4";
+    },
+    message: "descriptor mismatch",
+  },
+  {
+    name: "missing URL",
+    change: (delivery) => {
+      delete delivery.assetAccess![0]!.url;
+    },
+    message: "missing asset URL",
+  },
+  {
+    name: "malformed expiry",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.expiresAtUnixMs = "invalid";
+    },
+    message: "invalid residency integer",
+  },
+  {
+    name: "expired access",
+    change: (delivery) => {
+      delivery.assetAccess![0]!.expiresAtUnixMs = "2500";
+    },
+    message: "expired",
+  },
+])(
+  "rejects refreshed access with $name even when verified encoded bytes are cached",
+  async ({ change, message }) => {
+    const { delivery, pool, fetcher, decode, refreshAccess } = await setupRefreshedAccess();
+    try {
+      const first = await pool.acquire("last");
+      first.release();
+      refreshAccess();
+      change(delivery);
+      await expect(pool.acquire("last")).rejects.toThrow(message);
+      expect(fetcher).toHaveBeenCalledOnce();
+      expect(decode).toHaveBeenCalledOnce();
+      expect(pool.gpuBytes).toBe(0);
+    } finally {
+      pool.dispose();
+    }
+  },
+);

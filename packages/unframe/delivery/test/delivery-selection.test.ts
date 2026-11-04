@@ -58,7 +58,127 @@ const baselineSource = (change?: (current: typeof source) => void) => {
   return current;
 };
 
+const groupedSource = (change?: (current: typeof source) => void) =>
+  baselineSource((current) => {
+    const original = current.definition.scene.nodes["node-baked"]!;
+    assert(original.kind === "surface");
+    original.owner = { kind: "group", groupId: "intro" };
+    for (const [index, groupId] of ["middle", "outro"].entries()) {
+      current.definition.flow.groups[groupId] = {
+        id: groupId,
+        initialStepId: "start",
+        steps: { start: { id: "start", cues: [] } },
+      };
+      const id = `baked-${groupId}`;
+      const nodeId = `node-${id}`;
+      const surface = structuredClone(current.definition.scene.surfaces.baked!);
+      surface.id = id;
+      surface.hostNodeId = nodeId;
+      current.definition.scene.surfaces[id] = surface;
+      current.definition.scene.nodes[nodeId] = {
+        ...structuredClone(original),
+        id: nodeId,
+        surfaceId: id,
+        order: index + 10,
+        owner: { kind: "group", groupId },
+      };
+      const compiled = structuredClone(current.renderBundle.surfaces.baked!);
+      compiled.semanticSurfaceId = id;
+      const render = compiled.renderSurfaces["render-baked"]!;
+      const renderId = `render-${id}`;
+      const artifact = render.artifacts["artifact-baked"]!;
+      assert(artifact.kind === "baked-web");
+      artifact.id = `artifact-${id}`;
+      const texture = artifact.states.default!.texture;
+      texture.assetId = `texture-${groupId}`;
+      texture.checksum = `sha256:${String(index + 1).repeat(64)}`;
+      current.assetSet.assets[texture.assetId] = {
+        ...current.assetSet.assets.texture!,
+        checksum: texture.checksum,
+      };
+      render.id = renderId;
+      render.semanticSurfaceId = id;
+      render.artifacts = { [artifact.id]: artifact };
+      render.stateBindings.default = { kind: "artifacts", artifactIds: [artifact.id] };
+      compiled.renderSurfaceIds = [renderId];
+      compiled.renderSurfaces = { [renderId]: render };
+      current.renderBundle.surfaces[id] = compiled;
+    }
+    const cue = current.definition.flow.groups.intro!.steps.start!.cues[0]!;
+    cue.next = { kind: "group", groupId: "middle" };
+    current.definition.flow.groups.middle!.steps.start!.cues = [
+      {
+        ...structuredClone(cue),
+        id: "finish-middle",
+        actions: [],
+        next: { kind: "group", groupId: "outro" },
+      },
+    ];
+    current.capability.limits.texture.maxGpuBytes = 33_554_432;
+    current.capability.limits.texture.maxTextureBindings = 2;
+
+    change?.(current);
+  });
+
 describe("Delivery artifact selection and admission", () => {
+  it("plans a residency window for every group and identifies the initial group", () => {
+    const input = baselineSource();
+    const selected = selectDeliveryArtifacts(input, "presenter");
+    expect(selected.residency.initialGroupId).toBe("intro");
+    expect(selected.residency.groupWindows).toEqual([
+      { groupId: "intro", assetIds: [selected.residency.textures[0]!.assetId] },
+    ]);
+    expect(selected.residency.maximumResidentGpuBytes).toBe(16_777_216);
+    expect(selected.residency.maximumResidentTextureBindings).toBe(1);
+  });
+
+  it("admits a long presentation by its current and next group peak rather than catalog sum", () => {
+    const input = groupedSource();
+    const result = selectDeliveryArtifacts(input, "presenter");
+    expect(result.residency.totalTextureGpuBytes).toBe(50_331_648);
+    expect(result.residency.maximumResidentGpuBytes).toBe(33_554_432);
+    expect(result.residency.maximumResidentTextureBindings).toBe(2);
+    expect(result.residency.groupWindows).toEqual([
+      { groupId: "intro", assetIds: ["texture", "texture-middle"] },
+      { groupId: "middle", assetIds: ["texture-middle", "texture-outro"] },
+      { groupId: "outro", assetIds: ["texture-outro"] },
+    ]);
+  });
+
+  it("includes every branch candidate even when the resulting preload window exceeds the budget", () => {
+    const input = groupedSource((current) => {
+      const step = current.definition.flow.groups.intro!.steps.start!;
+      step.cues.push({
+        ...structuredClone(step.cues[0]!),
+        id: "other-branch",
+        order: 1,
+        next: { kind: "group", groupId: "outro" },
+      });
+    });
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(
+      /Texture (GPU bytes|bindings)/,
+    );
+  });
+
+  it("plans one hop around cycles without accumulating all reachable groups", () => {
+    const input = groupedSource((current) => {
+      current.definition.flow.groups.outro!.steps.start!.cues = [
+        {
+          ...structuredClone(current.definition.flow.groups.intro!.steps.start!.cues[0]!),
+          id: "return",
+          actions: [],
+          next: { kind: "group", groupId: "intro" },
+        },
+      ];
+    });
+    const result = selectDeliveryArtifacts(input, "presenter");
+    expect(result.residency.groupWindows[2]).toEqual({
+      groupId: "outro",
+      assetIds: ["texture", "texture-outro"],
+    });
+    expect(result.residency.maximumResidentGpuBytes).toBe(33_554_432);
+  });
+
   it("delivers only sorted recognition kinds and referenced center-only Zones to the Presenter", () => {
     const input = baselineSource((current) => {
       current.definition.stage.zones = {

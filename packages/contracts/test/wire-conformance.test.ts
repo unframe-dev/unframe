@@ -79,7 +79,7 @@ test("encodes long UTF-8 strings without relying on Node-only Buffer UTF-8 write
   };
   try {
     const value = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       requestId: "a".repeat(32),
       buildManifest: "日本語の契約".repeat(100),
       assetSet: "{}",

@@ -9,10 +9,10 @@ test("the Unity media profile admits bounded GLB and H264/audio without mutable 
   assert.equal(profile.capabilityProfileId, "unity-media-v1");
   assert.equal(profile.schemaVersion, 1);
   assert.deepEqual(profile.contractVersions, {
-    delivery: 3,
+    delivery: 4,
     runtime: 3,
     progression: 2,
-    projection: 2,
+    projection: 3,
   });
   assert.deepEqual(profile.renderers.video.features, ["h264", "audio"]);
   assert.deepEqual(profile.model.formats, ["model/gltf-binary"]);

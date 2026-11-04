@@ -2,7 +2,8 @@ import type { Camera, WebGLRenderer, Texture } from "three";
 import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import type { createLiveTagAnchor } from "../rendering/live-tag-anchor";
 import { createPresentation } from "../rendering/presentation";
-import { createPngTexturePool } from "../assets/png-texture-pool";
+import { participantRuntimeViewSchema } from "@unframe-dev/contracts/presentation";
+import { createPngTexturePool, type PngTextureLease } from "../assets/png-texture-pool";
 import { createRuntimePlayback } from "../runtime/playback";
 
 type PresentationHost = ReturnType<typeof createLiveTagAnchor>;
@@ -19,6 +20,7 @@ export function createPresentationSession(options: {
   let presentation: Awaited<ReturnType<typeof createPresentation>> | null = null;
   let presentationDelivery: DeliveryManifestWire | null = null;
   let texturePool: Awaited<ReturnType<typeof createPngTexturePool>> | null = null;
+  let textureLease: PngTextureLease | null = null;
   let runtime: ReturnType<typeof createRuntimePlayback> | null = null;
   let request: AbortController | null = null;
   let work: Promise<void> = Promise.resolve();
@@ -30,6 +32,8 @@ export function createPresentationSession(options: {
     presentation?.dispose();
     presentation = null;
     presentationDelivery = null;
+    textureLease?.release();
+    textureLease = null;
     texturePool?.dispose();
     texturePool = null;
   }
@@ -57,53 +61,69 @@ export function createPresentationSession(options: {
     work = (async () => {
       await previousWork.catch(() => undefined);
       if (!active || pending.signal.aborted || host !== currentHost) return;
+      const groupId = participantRuntimeViewSchema.parse(view).progression.currentGroupId;
       // The SDK preserves the current GL program; release it before disposal can delete that program.
       if (presentation) renderer?.resetState();
-      if (presentationDelivery === delivery && presentation?.applyView(view)) return;
-      if (presentation && presentation.resourceUsage.videoDecoders > 0)
-        presentation.releaseVideoDecoders(uploadTexture);
       const previousPool = texturePool;
-      const previousResources = presentation?.resourceUsage ?? {
+      let previousResources = presentation?.resourceUsage ?? {
         gpuBytes: 0,
         bindings: 0,
         videoDecoders: 0,
       };
-      const previousPoolResources = {
-        gpuBytes: previousPool?.gpuBytes ?? 0,
-        bindings: new Set(previousPool?.assets.map((asset) => asset.checksum) ?? []).size,
-      };
-      if (presentationDelivery !== delivery) {
-        const selected = new Map(
-          (delivery.residency?.textures?.textures ?? []).map((asset) => [asset.checksum, asset]),
-        );
-        const gpuBytes = [...selected.values()].reduce(
-          (sum, asset) => sum + Number(asset.decodedGpuBytes),
-          0,
-        );
-        const limits = delivery.capabilityProfile?.limits?.texture;
-        if (
-          selected.size > 0 &&
-          (previousResources.gpuBytes + previousPoolResources.gpuBytes + gpuBytes >
-            Number(limits?.maxGpuBytes ?? 0) ||
-            previousResources.bindings + previousPoolResources.bindings + selected.size >
-              Number(limits?.maxTextureBindings ?? 0))
-        )
-          throw new Error("PNG replacement resource budget exceeded");
-      }
       const pool =
         presentationDelivery === delivery && previousPool
           ? previousPool
           : await createPngTexturePool({
               delivery,
               uploadTexture,
-              signal: pending.signal,
               fetcher: options.fetcher ?? globalThis.fetch,
-              residentCpuBytes:
-                (presentation?.retainedCpuBytes ?? 0) + (previousPool?.retainedCpuBytes ?? 0),
             });
+      if (!active || pending.signal.aborted || host !== currentHost) {
+        if (pool !== texturePool) pool.dispose();
+        return;
+      }
+      const externalResources = () => ({
+        gpuBytes:
+          previousResources.gpuBytes + (pool === previousPool ? 0 : (previousPool?.gpuBytes ?? 0)),
+        bindings:
+          previousResources.bindings +
+          (pool === previousPool ? 0 : (previousPool?.residentAssets.length ?? 0)),
+      });
+      if (!pool.canAcquire(groupId, externalResources())) {
+        presentation?.dispose();
+        presentation = null;
+        textureLease?.release();
+        textureLease = null;
+        if (previousPool !== pool) {
+          previousPool?.dispose();
+          texturePool = null;
+          presentationDelivery = null;
+        }
+        previousResources = { gpuBytes: 0, bindings: 0, videoDecoders: 0 };
+      }
+      let lease: PngTextureLease | null = null;
       let next: Awaited<ReturnType<typeof createPresentation>> | null = null;
       try {
         if (!active || pending.signal.aborted || host !== currentHost) return;
+        lease = await pool.acquire(groupId, {
+          signal: pending.signal,
+          residentCpuBytes:
+            (presentation?.retainedCpuBytes ?? 0) +
+            (pool === previousPool ? 0 : (previousPool?.retainedCpuBytes ?? 0)),
+          residentResources: externalResources(),
+        });
+        if (!active || pending.signal.aborted || host !== currentHost) return;
+        if (presentationDelivery === delivery) presentation?.updatePngTextures(lease.assets);
+        if (presentationDelivery === delivery && presentation?.applyView(view)) {
+          textureLease?.release();
+          textureLease = lease;
+          lease = null;
+          return;
+        }
+        if (presentation && presentation.resourceUsage.videoDecoders > 0) {
+          presentation.releaseVideoDecoders(uploadTexture);
+          previousResources = presentation.resourceUsage;
+        }
         next = await createPresentation({
           host: currentHost,
           delivery,
@@ -115,13 +135,14 @@ export function createPresentationSession(options: {
           residentResources: {
             gpuBytes:
               previousResources.gpuBytes +
-              (pool === previousPool ? 0 : previousPoolResources.gpuBytes),
+              (pool === previousPool ? 0 : (previousPool?.gpuBytes ?? 0)),
             bindings:
               previousResources.bindings +
-              (pool === previousPool ? 0 : previousPoolResources.bindings),
+              (pool === previousPool ? 0 : (previousPool?.residentAssets.length ?? 0)),
             videoDecoders: previousResources.videoDecoders,
           },
           pngTexturePool: pool,
+          pngTextureAssets: lease.assets,
           fetcher: options.fetcher ?? globalThis.fetch,
         });
         if (!active || pending.signal.aborted || host !== currentHost) return;
@@ -130,10 +151,14 @@ export function createPresentationSession(options: {
         presentation = next;
         next = null;
         if (previousPool !== pool) previousPool?.dispose();
+        textureLease?.release();
+        textureLease = lease;
+        lease = null;
         texturePool = pool;
         presentationDelivery = delivery;
       } finally {
         next?.dispose();
+        lease?.release();
         if (texturePool !== pool) pool.dispose();
       }
     })();

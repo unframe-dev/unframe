@@ -90,6 +90,9 @@ func validate(message protoreflect.Message, path string, partialTransform bool) 
 
 func collectionKey(field protoreflect.FieldDescriptor, value protoreflect.Value) string {
 	if field.Kind() == protoreflect.StringKind {
+		if field.ContainingMessage().Name() == "TextureResidencyWindow" && field.Name() == "asset_ids" {
+			return value.String()
+		}
 		switch field.Name() {
 		case "visible_node_ids", "visible_surface_ids", "visible_variable_ids", "reachable_state_ids", "font_asset_ids", "consumed_cue_ids":
 			return value.String()
@@ -106,7 +109,7 @@ func collectionKey(field protoreflect.FieldDescriptor, value protoreflect.Value)
 		"ProjectedSurfaceDefinition": {"surface_id"}, "ProjectedVariableDefinition": {"variable_id"},
 		"ProjectedTimelineDefinition": {"timeline_id"}, "ProjectedModelClipDefinition": {"model_node_id", "clip_id"},
 		"PresenterRecognitionZone": {"zone_id"}, "FrozenAnchorDisplayState": {"node_id"}, "StepStartState": {"group_id", "step_id"},
-		"AssetAccessBinding": {"asset_id"}, "TextureResidencyBinding": {"asset_id"},
+		"AssetAccessBinding": {"asset_id"}, "TextureResidencyBinding": {"asset_id"}, "TextureResidencyWindow": {"group_id"},
 		"ModelResidencyBinding": {"asset_id"}, "VideoResidencyBinding": {"asset_id"},
 		"RuntimeParticipantHistory": {"participant_id"}, "ProjectedParticipantPresence": {"participant_id"}, "ArmedTimer": {"cue_id"},
 	}
@@ -206,13 +209,13 @@ func validateKnownMessage(message protoreflect.Message, path string, partialTran
 		for _, version := range []struct {
 			name     string
 			expected uint64
-		}{{"delivery", 3}, {"runtime", 3}, {"progression", 2}, {"projection", 2}} {
+		}{{"delivery", 4}, {"runtime", 3}, {"progression", 2}, {"projection", 3}} {
 			if get(version.name).Uint() != version.expected {
 				return fmt.Errorf("protocol_incompatible: %s.%s", path, version.name)
 			}
 		}
 	case "DeliveryManifest":
-		if get("schema_version").Uint() != 1 || get("delivery_contract_version").Uint() != 3 {
+		if get("schema_version").Uint() != 1 || get("delivery_contract_version").Uint() != 4 {
 			return invalid()
 		}
 	case "CanonicalRuntimeSnapshot", "ConnectionSnapshotEnvelope", "DurableCheckpointEnvelope", "CapabilityProfile":
@@ -224,7 +227,7 @@ func validateKnownMessage(message protoreflect.Message, path string, partialTran
 			return invalid()
 		}
 	case "ProjectionProfileKey":
-		if get("projection_contract_version").Uint() != 2 {
+		if get("projection_contract_version").Uint() != 3 {
 			return invalid()
 		}
 	case "TextureCapability", "NativeUiCapability", "VideoCapability", "ModelCapability":
@@ -234,6 +237,8 @@ func validateKnownMessage(message protoreflect.Message, path string, partialTran
 		if !get("supported").Bool() && get("features").List().Len() != 0 {
 			return invalid()
 		}
+	case "TextureResidencyPlan":
+		return validateTextureResidency(message, path)
 	case "TextureLimits":
 		if get("encoded_cache_reserve_bytes").Uint() >= get("max_encoded_cache_bytes").Uint() {
 			return invalid()

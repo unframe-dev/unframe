@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
 	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"google.golang.org/protobuf/proto"
@@ -130,5 +131,30 @@ func TestNilMarkerDoesNotSupplyRequiredOneof(t *testing.T) {
 		if err := ValidateMessage(message); err == nil {
 			t.Fatalf("nil selected message admitted: %T", message)
 		}
+	}
+}
+
+func TestDeliveryWindowContractVersionsFailClosed(t *testing.T) {
+	versions := &deliveryv2.ContractVersions{Delivery: 4, Runtime: 3, Progression: 2, Projection: 3}
+	if err := ValidateMessage(versions); err != nil {
+		t.Fatalf("current contract rejected: %v", err)
+	}
+	for _, mutate := range []func(*deliveryv2.ContractVersions){
+		func(v *deliveryv2.ContractVersions) { v.Delivery = 3 },
+		func(v *deliveryv2.ContractVersions) { v.Projection = 2 },
+	} {
+		invalid := proto.Clone(versions).(*deliveryv2.ContractVersions)
+		mutate(invalid)
+		if ValidateMessage(invalid) == nil {
+			t.Fatal("legacy residency contract admitted")
+		}
+	}
+	key := &deliveryv2.ProjectionProfileKey{Publication: publication(), ProjectionContractVersion: 3, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability"}
+	if err := ValidateMessage(key); err != nil {
+		t.Fatalf("current projection rejected: %v", err)
+	}
+	key.ProjectionContractVersion = 2
+	if ValidateMessage(key) == nil {
+		t.Fatal("legacy projection admitted")
 	}
 }

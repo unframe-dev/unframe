@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Unframe.Delivery;
+using Unframe.Presentation;
 
 namespace Unframe.Unity.PresentationRuntime
 {
@@ -10,7 +11,8 @@ namespace Unframe.Unity.PresentationRuntime
         {
             return TryValidate(manifest.ProjectionProfile.RenderSurfaces, manifest.Residency.Textures,
                 manifest.CapabilityProfile.Renderers?.BakedWeb, manifest.CapabilityProfile.Limits?.Texture,
-                manifest.AssetAccess, out error);
+                manifest.AssetAccess, out error) && TryValidateOwnership(manifest.ProjectionProfile.RuntimeCatalog,
+                    manifest.ProjectionProfile.RenderSurfaces, manifest.Residency.Textures, out error);
         }
 
         public static bool TryValidate(IEnumerable<DeliveredRenderSurface> renderSurfaces, TextureResidencyPlan plan,
@@ -22,7 +24,7 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (AssetAccessBinding asset in assetAccess)
                 if (asset == null || assets.ContainsKey(asset.AssetId)) return false;
                 else assets.Add(asset.AssetId, asset);
-            ulong bindingCount = 0;
+
             foreach (DeliveredRenderSurface surface in renderSurfaces)
             {
                 if (surface.RendererKind != RendererKind.BakedWeb) continue;
@@ -60,7 +62,6 @@ namespace Unframe.Unity.PresentationRuntime
                                 || previous.DecodedGpuBytes != texture.DecodedGpuBytes || previous.AlphaMode != texture.AlphaMode) return false;
                         }
                         else selected.Add(texture.Checksum, texture);
-                        bindingCount++;
                     }
                 }
                 foreach (DeliveredStateBinding binding in surface.StateBindings)
@@ -72,14 +73,9 @@ namespace Unframe.Unity.PresentationRuntime
                     if (!present) return false;
                 }
             }
-            if (selected.Count == 0)
-            {
-                if (plan != null && (plan.Textures.Count != 0 || plan.TotalDecodedGpuBytes != 0 || plan.MaximumPeakLoadCpuBytes != 0)) return false;
-                error = null;
-                return true;
-            }
-            if (plan == null || plan.BudgetTierId != profileLimits.TierId || bindingCount > profileLimits.MaxTextureBindings
+            if (plan == null || !PresentationDeliveryCatalog.IsId(plan.InitialGroupId) || plan.GroupWindows.Count == 0
                 || plan.Textures.Count != selected.Count) return false;
+            if (selected.Count != 0 && (profileLimits == null || plan.BudgetTierId != profileLimits.TierId)) return false;
             HashSet<string> seen = new HashSet<string>();
             ulong gpu = 0, peak = 0;
             foreach (TextureResidencyBinding binding in plan.Textures)
@@ -93,7 +89,57 @@ namespace Unframe.Unity.PresentationRuntime
                 peak = Math.Max(peak, binding.PeakLoadCpuBytes);
             }
             if (gpu != plan.TotalDecodedGpuBytes || peak != plan.MaximumPeakLoadCpuBytes
-                || gpu > profileLimits.MaxGpuBytes || peak > profileLimits.MaxSerialLoadCpuBytes) return false;
+                || profileLimits != null && peak > profileLimits.MaxSerialLoadCpuBytes) return false;
+            ulong maximumGpu = 0, maximumBindings = 0;
+            var groups = new HashSet<string>(StringComparer.Ordinal);
+            var descriptors = new Dictionary<string, TextureResidencyBinding>(StringComparer.Ordinal);
+            foreach (var binding in plan.Textures) if (!descriptors.TryAdd(binding.AssetId, binding)) return false;
+            foreach (var window in plan.GroupWindows)
+            {
+                if (!PresentationDeliveryCatalog.IsId(window.GroupId) || !groups.Add(window.GroupId)) return false;
+                var windowIds = new HashSet<string>(StringComparer.Ordinal);
+                ulong windowGpu = 0;
+                foreach (string id in window.AssetIds)
+                {
+                    if (!windowIds.Add(id) || !descriptors.TryGetValue(id, out var binding)) return false;
+                    windowGpu = checked(windowGpu + binding.DecodedGpuBytes);
+                }
+                maximumGpu = Math.Max(maximumGpu, windowGpu);
+                maximumBindings = Math.Max(maximumBindings, (ulong)windowIds.Count);
+            }
+            if (!groups.Contains(plan.InitialGroupId) || maximumGpu != plan.MaximumResidentGpuBytes
+                || maximumBindings != plan.MaximumResidentTextureBindings
+                || profileLimits != null && (maximumGpu > profileLimits.MaxGpuBytes || maximumBindings > profileLimits.MaxTextureBindings)) return false;
+            error = null;
+            return true;
+        }
+
+        public static bool TryValidateOwnership(ProjectedRuntimeCatalog catalog,
+            IEnumerable<DeliveredRenderSurface> surfaces, TextureResidencyPlan plan, out string error)
+        {
+            error = "texture-window-owner-assets-absent";
+            var groups = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            foreach (var window in plan.GroupWindows) groups.Add(window.GroupId, new HashSet<string>(window.AssetIds, StringComparer.Ordinal));
+            var ids = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var binding in plan.Textures) ids.Add(binding.Checksum, binding.AssetId);
+            foreach (var surface in surfaces)
+            {
+                if (surface.RendererKind != RendererKind.BakedWeb) continue;
+                ProjectedSurfaceDefinition semantic = null;
+                foreach (var candidate in catalog.Surfaces)
+                    if (candidate.SurfaceId == surface.SemanticSurfaceId) { semantic = candidate; break; }
+                if (semantic?.Owner == null) return false;
+                foreach (var artifact in surface.Artifacts)
+                    foreach (var state in artifact.BakedWeb.States)
+                    {
+                        if (!ids.TryGetValue(state.Texture.Checksum, out string id)) return false;
+                        if (semantic.Owner.ScopeCase == ResourceOwner.ScopeOneofCase.Presentation)
+                        {
+                            foreach (var assets in groups.Values) if (!assets.Contains(id)) return false;
+                        }
+                        else if (!groups.TryGetValue(semantic.Owner.Group.GroupId, out var assets) || !assets.Contains(id)) return false;
+                    }
+            }
             error = null;
             return true;
         }

@@ -301,3 +301,32 @@ it("rejects a zero quaternion at its shared Timeline rotation track", () => {
     }),
   );
 });
+
+it("keeps a group-owned scene Timeline with its group-owned React and Model nodes", () => {
+  const input = project();
+  const grouped = {
+    ...input,
+    presentation: {
+      ...input.presentation,
+      scene: input.presentation.scene.map((item) => ({
+        ...item,
+        owner: { kind: "group", groupId: "main" },
+      })),
+      flow: {
+        ...input.presentation.flow,
+        timelines: input.presentation.flow.timelines.map((timeline) => ({
+          ...timeline,
+          owner: { kind: "group", groupId: "main" },
+        })),
+      },
+    },
+  };
+  const result = resolvePresentation(grouped);
+  assert(result.valid, JSON.stringify(result.diagnostics));
+  expect(Object.values(result.value.flow.timelines)[0]?.owner).toEqual({
+    kind: "group",
+    groupId: "main",
+  });
+  for (const node of Object.values(result.value.scene.nodes))
+    expect(node.owner).toEqual({ kind: "group", groupId: "main" });
+});

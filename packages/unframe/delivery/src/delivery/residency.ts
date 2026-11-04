@@ -67,6 +67,10 @@ export const buildResidencyPlan = (
   return {
     textures: {
       budgetTierId: input.capability.limits.texture.tierId,
+      initialGroupId: residency.initialGroupId,
+      groupWindows: residency.groupWindows,
+      maximumResidentGpuBytes: asUint64(residency.maximumResidentGpuBytes),
+      maximumResidentTextureBindings: asUint64(residency.maximumResidentTextureBindings),
       textures: residency.textures.map((texture) => ({
         assetId: texture.assetId,
         checksum: texture.checksum,

@@ -2181,6 +2181,19 @@
                 }
               }
             },
+            "TextureResidencyWindow": {
+              "fields": {
+                "groupId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "assetIds": {
+                  "rule": "repeated",
+                  "type": "string",
+                  "id": 2
+                }
+              }
+            },
             "TextureResidencyPlan": {
               "fields": {
                 "budgetTierId": {
@@ -2199,6 +2212,23 @@
                 "maximumPeakLoadCpuBytes": {
                   "type": "uint64",
                   "id": 4
+                },
+                "initialGroupId": {
+                  "type": "string",
+                  "id": 5
+                },
+                "groupWindows": {
+                  "rule": "repeated",
+                  "type": "TextureResidencyWindow",
+                  "id": 6
+                },
+                "maximumResidentGpuBytes": {
+                  "type": "uint64",
+                  "id": 7
+                },
+                "maximumResidentTextureBindings": {
+                  "type": "uint64",
+                  "id": 8
                 }
               }
             },

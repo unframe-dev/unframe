@@ -120,6 +120,12 @@ function createPngDelivery(): DeliveryManifestWire {
       ),
     ),
   };
+  Object.assign(delivery.residency!.textures!, {
+    initialGroupId: "intro",
+    groupWindows: [{ groupId: "intro", assetIds: textures.map((texture) => texture.assetId) }],
+    maximumResidentGpuBytes: delivery.residency!.textures!.totalDecodedGpuBytes,
+    maximumResidentTextureBindings: String(textures.length),
+  });
   delivery.residency!.totalSelectedEncodedBytes = String(
     textures.reduce((total, texture) => total + Number(texture.encodedSizeBytes), 0),
   );

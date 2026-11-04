@@ -16,10 +16,10 @@ export const capabilityProfileSchema = z
     schemaVersion: z.literal(1),
     capabilityProfileId: idSchema,
     contractVersions: z.strictObject({
-      delivery: z.literal(3),
+      delivery: z.literal(4),
       runtime: z.literal(3),
       progression: z.literal(2),
-      projection: z.literal(2),
+      projection: z.literal(3),
     }),
     renderers: z.strictObject({
       bakedWeb: rendererCapability(z.enum(["alpha-opaque", "alpha-straight", "png", "srgb"])),

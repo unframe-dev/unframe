@@ -27,10 +27,10 @@ const publication = (
       definition: 1 as const,
       renderBundle: 1 as const,
       assetSet: 1 as const,
-      delivery: 3 as const,
+      delivery: 4 as const,
       runtime: 3 as const,
       progression: 2 as const,
-      projection: 2 as const,
+      projection: 3 as const,
     },
   };
   return { ...payload, publicationManifestHash: hashCanonicalJsonPayload(payload) };
